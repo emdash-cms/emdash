@@ -288,7 +288,12 @@ export interface SeedBylineCredit {
  * Options for applying a seed
  */
 export interface SeedApplyOptions {
-	/** Include sample content (default: false) */
+	/**
+	 * Include sample data: content entries, bylines, and taxonomy terms
+	 * (default: false). Schema and structure (collections, fields, taxonomy
+	 * definitions, menus, settings, redirects, widget areas, sections) are
+	 * always applied.
+	 */
 	includeContent?: boolean;
 
 	/** How to handle conflicts (default: "skip") */

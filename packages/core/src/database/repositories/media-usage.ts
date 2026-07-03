@@ -252,7 +252,6 @@ export class MediaUsageRepository {
 		}
 		return replaced;
 	}
-
 	async replaceSourceIfCurrent(
 		source: MediaUsageSourceInput,
 		occurrences: readonly MediaUsageOccurrenceInput[],

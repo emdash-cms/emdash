@@ -15,6 +15,10 @@ export default defineConfig({
 		"src/sandbox/index.ts",
 		"src/worker.ts",
 		"src/plugins/index.ts",
+		// Standalone entry: cloudflareEmail() descriptors reference this module
+		// as their `entrypoint`, so the astro integration can statically import
+		// `createPlugin` from it (#1721).
+		"src/plugins/cloudflare-email.ts",
 		// Media provider runtimes
 		"src/media/images-runtime.ts",
 		"src/media/stream-runtime.ts",

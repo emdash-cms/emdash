@@ -1,0 +1,125 @@
+---
+title: Evolving a Deployed Site
+description: Change the schema and content model of a live EmDash site, and keep your seed file in sync.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+EmDash stores collections, fields, and taxonomies in the database, next to the content itself. Deploying new code does not change them: a deploy replaces the Worker (or server) code, while the schema and content in the database stay as they are. This page explains how to change the content model of a site that is already deployed, using Cloudflare D1 as the running example. The same workflows apply to the other [database options](/deployment/database/).
+
+## What changes what
+
+A site goes through four distinct workflows. Each one touches a different layer:
+
+| Workflow                       | What changes                       | How                                                                    |
+| ------------------------------ | ---------------------------------- | ---------------------------------------------------------------------- |
+| Content editing                | Entries, media, settings           | Admin panel or [content API](/reference/api/)                          |
+| Code deploy                    | Templates, config, EmDash version  | `wrangler deploy` — leaves schema and content untouched                |
+| First-time bootstrap           | Everything, from empty             | Migrations + seed file + setup wizard, automatic on first boot         |
+| Schema evolution               | Collections, fields, taxonomies    | Admin panel or `emdash schema` against the live site (this page)       |
+
+The seed file only participates in the third row. It is applied once, when the database is empty and the setup wizard has not been completed. Deploying a changed seed file against an existing database does nothing — evolving a live site's schema always happens through the admin panel or the API.
+
+<Aside type="note">
+	EmDash's internal tables (users, revisions, redirects, options) are migrated automatically: pending
+	migrations run on the first request after a deploy. Your content model is never changed by a
+	migration — it belongs to you.
+</Aside>
+
+## Change the schema in the admin panel
+
+The admin panel is the primary way to evolve a deployed site. Open **Content Types** in the admin and add, edit, or remove collections and fields. Changes take effect immediately — the content API, the loader, and the editing UI all read the schema from the database at runtime.
+
+See [Collections & Fields](/concepts/collections/) for the available field types, validation rules, and widget options.
+
+After changing the schema, regenerate the TypeScript types your templates use. The `emdash types` command reads the schema from a running instance, so it can point at the deployed site directly:
+
+```bash
+npx emdash types --url https://example.com
+```
+
+## Change the schema from the CLI
+
+The `emdash schema` commands talk to a running instance over its REST API, so they work against a deployed site the same way they work against local dev. Authenticate once with the device flow:
+
+```bash
+npx emdash login --url https://example.com
+```
+
+Alternatively, create an API token in the admin under **Settings → API Tokens** and pass it with `--token` or the `EMDASH_TOKEN` environment variable — useful for CI.
+
+Then evolve the schema with the same commands you would use locally:
+
+```bash
+npx emdash schema add-field posts subtitle --type string --label "Subtitle" --url https://example.com
+npx emdash schema remove-field posts legacy_field --url https://example.com
+npx emdash schema create projects --label Projects --url https://example.com
+```
+
+Because these commands are plain CLI calls, they can be scripted: a repeatable "migration" for your content model is a shell script of `emdash schema` calls, checked into your repository and run against each environment in turn.
+
+See the [CLI reference](/reference/cli/#emdash-schema) for the full command list.
+
+<Aside type="caution">
+	Removing a field deletes its column and data. Test schema changes against a preview environment
+	before running them against production — see [Rehearse changes on a preview
+	environment](#rehearse-changes-on-a-preview-environment).
+</Aside>
+
+## Keep the seed file in sync
+
+The seed file embedded in your build determines what a **fresh** database initializes to: a new preview environment, a disaster-recovery rebuild, or a second deployment of the same site. If the seed still describes the starter blog while production has evolved into something else, every fresh environment bootstraps with the wrong model.
+
+The build embeds the first seed file found at `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json`. If none is present, a built-in default seed (the starter blog model) is embedded, and `astro dev` logs a warning.
+
+After evolving a deployed site's schema, export the live model back into your repository. `emdash export-seed` reads a local SQLite file, and `wrangler d1 export` produces one from the deployed D1 database:
+
+```bash
+npx wrangler d1 export emdash-db --remote --output=./prod.sql
+sqlite3 prod.db < prod.sql
+npx emdash export-seed --database prod.db > .emdash/seed.json
+```
+
+The exported seed contains the settings, collections, taxonomies, menus, and widget areas of the live site. Add `--with-content` to include entries. Commit the updated `.emdash/seed.json` together with the code that depends on the new schema, so a fresh environment always bootstraps to a model the code understands.
+
+## Rehearse changes on a preview environment
+
+A destructive schema change (removing a field, restructuring a collection) is safest rehearsed against a disposable copy of production.
+
+<Steps>
+
+1. Add a preview environment with its own D1 database to `wrangler.jsonc`:
+
+   ```jsonc
+   {
+     "env": {
+       "preview": {
+         "d1_databases": [{ "binding": "DB", "database_name": "emdash-db-preview" }],
+       },
+     },
+   }
+   ```
+
+2. Copy production into it:
+
+   ```bash
+   npx wrangler d1 export emdash-db --remote --output=./prod.sql
+   npx wrangler d1 execute emdash-db-preview --remote --file=./prod.sql
+   ```
+
+3. Deploy and run the schema change against the preview URL:
+
+   ```bash
+   npx wrangler deploy --env preview
+   npx emdash schema remove-field posts legacy_field --url https://preview.example.com
+   ```
+
+4. Verify the site renders and the admin behaves as expected, then run the same commands against production.
+
+</Steps>
+
+## Recover from a wrong turn
+
+- **A field was removed by mistake.** The column and its data are gone from the live database. Restore from a D1 [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/) point-in-time backup, or re-add the field and restore its values from an earlier `wrangler d1 export`.
+- **A fresh environment bootstrapped with the wrong model.** The embedded seed was stale or missing. Update `.emdash/seed.json` (see [Keep the seed file in sync](#keep-the-seed-file-in-sync)), rebuild, and point the deploy at an empty database to bootstrap again.
+- **The schema and the templates disagree.** Deploys and schema changes are independent, so order them deliberately: additive schema changes (new collection, new optional field) go first, then the code that uses them. For removals, deploy the code that stops using the field first, then remove the field.

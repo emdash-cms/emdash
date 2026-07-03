@@ -242,6 +242,21 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 	let needsAdapter = false;
 
 	descriptors.forEach((descriptor, index) => {
+		// Every `plugins: []` entry must resolve to a file/package entrypoint that
+		// can be statically imported and bundled at build time. An in-process
+		// `definePlugin({...})` result passed directly has no entrypoint; without
+		// this guard the generator emitted `import pluginDefN from "undefined";`,
+		// which failed deep in Rollup with `failed to resolve import "undefined"`
+		// (#1416). Fail fast with an actionable message instead.
+		if (!descriptor.entrypoint) {
+			throw new Error(
+				`[emdash] Plugin "${descriptor.id}" has no \`entrypoint\`. The astro integration's ` +
+					`\`plugins: []\` requires plugins that resolve to a file/package entrypoint so they can be ` +
+					`bundled at build time; an in-process \`definePlugin({...})\` result passed directly is not ` +
+					`supported. Move the plugin into its own module and reference it via a factory that returns ` +
+					`a descriptor with an \`entrypoint\` (e.g. \`plugins: [myPlugin()]\`).`,
+			);
+		}
 		if (descriptor.format === "standard") {
 			// Standard format: import default export, wrap with adaptSandboxEntry
 			needsAdapter = true;

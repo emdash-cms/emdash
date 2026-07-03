@@ -479,7 +479,6 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(await repo.findCurrentUsageByMediaId("media-other")).toHaveLength(1);
 		expect(await repo.findCurrentUsageByMediaId("media-page")).toHaveLength(1);
 	});
-
 	it("deletes content sources by collection", async () => {
 		await repo.replaceSource(contentSource("entry1", "columns"), [
 			occurrence("hero", "media-live"),
@@ -593,7 +592,6 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 			},
 		]);
 	});
-
 	it("keeps columns and draft overlay source keys separate for the same content", async () => {
 		await repo.replaceSource(contentSource("entry1", "columns"), [
 			occurrence("hero", "media-shared"),
@@ -727,7 +725,6 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 				fieldPath: `gallery[${index}].image`,
 			}),
 		);
-
 		const source = await repo.replaceSource(contentSource("entry1", "draft_overlay"), occurrences);
 		const rows = await ctx.db
 			.selectFrom("_emdash_media_usage")

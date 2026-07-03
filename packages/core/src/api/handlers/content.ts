@@ -327,6 +327,36 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 	return columns;
 }
 
+/**
+ * Create a 301 auto-redirect from an entry's old URL to its new one after a
+ * slug change, using the collection's URL pattern. Shared by
+ * handleContentUpdate (direct slug edits) and handleContentPublish (slug edits
+ * staged as `_slug` in a draft revision, which only land on publish).
+ */
+async function createSlugChangeRedirect(
+	db: Kysely<Database>,
+	collection: string,
+	oldSlug: string,
+	newSlug: string,
+	contentId: string,
+): Promise<void> {
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("url_pattern")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+
+	const redirectRepo = new RedirectRepository(db);
+	await redirectRepo.createAutoRedirect(
+		collection,
+		oldSlug,
+		newSlug,
+		contentId,
+		collectionRow?.url_pattern ?? null,
+	);
+	invalidateRedirectCache();
+}
+
 /** Matches a date-only `YYYY-MM-DD` bound (no time component). */
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -865,21 +895,7 @@ export async function handleContentUpdate(
 
 			// Create auto-redirect when slug changes
 			if (oldSlug && body.slug) {
-				const collectionRow = await trx
-					.selectFrom("_emdash_collections")
-					.select("url_pattern")
-					.where("slug", "=", collection)
-					.executeTakeFirst();
-
-				const redirectRepo = new RedirectRepository(trx);
-				await redirectRepo.createAutoRedirect(
-					collection,
-					oldSlug,
-					body.slug,
-					resolvedId,
-					collectionRow?.url_pattern ?? null,
-				);
-				invalidateRedirectCache();
+				await createSlugChangeRedirect(trx, collection, oldSlug, body.slug, resolvedId);
 			}
 
 			// Sync non-translatable fields to sibling locales in the same
@@ -1365,7 +1381,34 @@ export async function handleContentPublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId, options.publishedAt, options.requireScheduledDue);
+
+			// Capture the pre-publish state. For revision-supporting collections a
+			// slug edit is staged as `_slug` in the draft revision and only lands
+			// on the live `slug` column here, inside `repo.publish()` — it never
+			// passes through handleContentUpdate, where slug-change auto-redirects
+			// are normally created.
+			const existing = await repo.findById(collection, resolvedId);
+
+			const published = await repo.publish(
+				collection,
+				resolvedId,
+				options.publishedAt,
+				options.requireScheduledDue,
+			);
+
+			// Leave a 301 behind when publishing changed the slug of an entry that
+			// was already published — its old URL was live and may be indexed or
+			// linked. A first publish is excluded: a draft's URL was never public.
+			if (
+				existing?.status === "published" &&
+				existing.slug &&
+				published.slug &&
+				existing.slug !== published.slug
+			) {
+				await createSlugChangeRedirect(trx, collection, existing.slug, published.slug, resolvedId);
+			}
+
+			return published;
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);

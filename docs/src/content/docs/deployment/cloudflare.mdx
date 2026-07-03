@@ -68,6 +68,8 @@ Database migrations run automatically on the first request after deployment, and
 
 If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
+To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
+
 ## Deploy
 
 Deploy to Cloudflare Workers:
@@ -93,6 +95,17 @@ emdash({
 ```
 
 You also need to enable read replication on the D1 database itself in the Cloudflare dashboard or via the REST API.
+
+<Aside type="caution">
+	Read replica sessions are incompatible with the
+	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
+	compatibility flag. With that flag in your `wrangler.jsonc`, the internal request the D1 Sessions
+	API makes to route queries to replicas is silently blocked, and every SSR request hangs until the
+	Worker is killed — with nothing in the logs (`outcome: "canceled"`, no exceptions). The hang may
+	only begin once replicas finish provisioning, so it can pass an initial post-deploy check and
+	surface hours later. If your Worker needs that flag (for example, to fetch its own origin), keep
+	`session` disabled. See [#1273](https://github.com/emdash-cms/emdash/issues/1273).
+</Aside>
 
 See [Database Options — Read Replicas](/deployment/database/#read-replicas) for session modes and how bookmark-based consistency works.
 
@@ -160,6 +173,70 @@ emdash({
 ```
 
 See the [Authentication guide](/guides/authentication#cloudflare-access) for full configuration options.
+
+## Email
+
+On Workers, the only built-in `email:deliver` handler is a dev console stub, so
+email-dependent flows — magic-link login, team invites, and comment
+notifications — fail with **"Email is not configured"** in production. The
+`cloudflareEmail()` plugin delivers real email through
+[Cloudflare Email Sending](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/)
+using a native `send_email` Worker binding, with no external API keys.
+
+### 1. Onboard a sender domain
+
+In the Cloudflare dashboard, go to **Email** and verify the domain (or address)
+you send from. Email Sending rejects messages from unverified senders.
+
+### 2. Add the binding
+
+Declare a `send_email` binding in `wrangler.jsonc`:
+
+```jsonc title="wrangler.jsonc"
+{
+	"send_email": [{ "name": "EMAIL" }],
+}
+```
+
+### 3. Register the provider
+
+Add the plugin to your `emdash()` integration:
+
+```js title="astro.config.mjs"
+import { d1, r2 } from "@emdash-cms/cloudflare";
+import { cloudflareEmail } from "@emdash-cms/cloudflare/plugins";
+
+emdash({
+	database: d1({ binding: "DB" }),
+	storage: r2({ binding: "MEDIA" }),
+	plugins: [
+		cloudflareEmail({
+			from: { email: "cms@mails.example.com", name: "My Site CMS" },
+			replyTo: "hello@example.com", // optional
+			binding: "EMAIL", // optional, defaults to "EMAIL"
+		}),
+	],
+}),
+```
+
+### 4. Activate and select it
+
+Deploy, then activate the plugin under **Admin → Extensions** and choose it as
+the provider under **Settings → Email**.
+
+#### Options
+
+| Option    | Type                         | Default      | Description                                                            |
+| --------- | ---------------------------- | ------------ | --------------------------------------------------------------------- |
+| `from`    | `string \| { email, name? }` | — (required) | Sender address on a domain onboarded for Email Sending.               |
+| `replyTo` | `string`                     | —            | Optional Reply-To, useful when `from` is a no-reply subdomain address. |
+| `binding` | `string`                     | `"EMAIL"`    | Name of the `send_email` binding in `wrangler.jsonc`.                 |
+
+<Aside type="note">
+	BCC and attachments are out of scope (not modeled in EmDash's `EmailMessage`),
+	and the provider is never auto-selected — you must choose it under Settings →
+	Email.
+</Aside>
 
 ## Environment Variables
 

@@ -52,7 +52,7 @@ describeEachDialect("media usage index status migration", (dialect) => {
 
 	it("is registered and creates metadata columns plus status table", async () => {
 		const migrations = await ctx.db.selectFrom("_emdash_migrations").select("name").execute();
-		expect(migrations.map((row) => row.name)).toContain("047_media_usage_index_status");
+		expect(migrations.map((row) => row.name)).toContain("050_media_usage_index_status");
 
 		const sourceColumns = await listColumnNames(ctx, "_emdash_media_usage_sources");
 		for (const columnName of EXPECTED_SOURCE_COLUMNS) {
@@ -173,7 +173,7 @@ describeEachDialect("media usage index status migration", (dialect) => {
 
 	it("adds source completeness default for existing PR 1 source rows", async () => {
 		const migration =
-			await import("../../../src/database/migrations/047_media_usage_index_status.js");
+			await import("../../../src/database/migrations/050_media_usage_index_status.js");
 		const sourceKey = "content:posts:pre047:columns";
 
 		await migration.down(ctx.db);
@@ -233,7 +233,7 @@ describeEachDialect("media usage index status migration", (dialect) => {
 
 	it("up() can run again after registered migrations complete", async () => {
 		const migration =
-			await import("../../../src/database/migrations/047_media_usage_index_status.js");
+			await import("../../../src/database/migrations/050_media_usage_index_status.js");
 		const sourceKey = "content:posts:entry-preserve:columns";
 		const sourceMetadata = {
 			source_completeness: "complete",
@@ -328,7 +328,7 @@ describeEachDialect("media usage index status migration", (dialect) => {
 
 	it("down() drops metadata and up() recreates it", async () => {
 		const migration =
-			await import("../../../src/database/migrations/047_media_usage_index_status.js");
+			await import("../../../src/database/migrations/050_media_usage_index_status.js");
 
 		await migration.down(ctx.db);
 

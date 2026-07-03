@@ -138,11 +138,12 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 				lines.push("    </image:image>");
 			}
 
-			if (useXhtml && siblings && siblings.length > 1) {
+			const alternateEntries = siblings ?? (useXhtml ? [entry] : null);
+			if (useXhtml && alternateEntries) {
 				// Emit one xhtml:link per sibling (including self -- Google
 				// recommends including the page's own hreflang annotation).
 				// Siblings with unroutable locales are skipped here too.
-				for (const sib of siblings) {
+				for (const sib of alternateEntries) {
 					const sibLoc = await resolveEntryUrl(sib);
 					if (sibLoc === null) continue;
 					lines.push(
@@ -154,13 +155,13 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 				// the first sibling with a routable URL. Stable order:
 				// rows arrive sorted by updated_at DESC from the handler.
 				const defaultSibling =
-					i18nConfig && siblings.find((s) => s.locale === i18nConfig.defaultLocale);
+					i18nConfig && alternateEntries.find((s) => s.locale === i18nConfig.defaultLocale);
 				let xDefaultLoc: string | null = null;
 				if (defaultSibling) {
 					xDefaultLoc = await resolveEntryUrl(defaultSibling);
 				}
 				if (xDefaultLoc === null) {
-					for (const sib of siblings) {
+					for (const sib of alternateEntries) {
 						const sibLoc = await resolveEntryUrl(sib);
 						if (sibLoc !== null) {
 							xDefaultLoc = sibLoc;
