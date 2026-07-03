@@ -1544,5 +1544,54 @@ describe("applySeed", () => {
 				applySeed(db, seed, { includeContent: true, onConflict: "error" }),
 			).rejects.toThrow(/already exists/);
 		});
+
+		it("does not resolve references through a skipped trashed entry", async () => {
+			// A skipped trashed collision must not become a resolution target:
+			// translationOf resolves through the live-only findById, so mapping
+			// the seed id to the trashed row's id would crash the whole apply
+			// with "Translation source content not found" — the same class of
+			// failure this fix exists to prevent. The sibling instead behaves
+			// like any unresolved seed reference: created, minus the link.
+			await setupTrashedEntry();
+
+			const seedWithTranslation: SeedFile = {
+				version: "1",
+				content: {
+					posts: [
+						{ id: "post-1", slug: "hello", data: { title: "Hello again" } },
+						{
+							id: "post-2",
+							slug: "hola",
+							locale: "es",
+							translationOf: "post-1",
+							data: { title: "Hola" },
+						},
+					],
+				},
+			};
+
+			const result = await applySeed(db, seedWithTranslation, {
+				includeContent: true,
+				onConflict: "skip",
+			});
+
+			expect(result.content.skipped).toBe(1);
+			expect(result.content.created).toBe(1);
+
+			// The sibling exists but is not linked to the trashed row's
+			// translation group.
+			const contentRepo = new ContentRepository(db);
+			const sibling = await contentRepo.findBySlug("posts", "hola", "es");
+			expect(sibling).not.toBeNull();
+
+			const trashedRows = await db
+				.selectFrom("ec_posts" as never)
+				.select(["slug", "translation_group"] as never)
+				.execute();
+			const trashed = (trashedRows as { slug: string; translation_group: string }[]).find(
+				(r) => r.slug === "hello",
+			);
+			expect(sibling!.translationGroup).not.toBe(trashed?.translation_group);
+		});
 	});
 });

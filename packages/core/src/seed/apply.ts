@@ -460,7 +460,12 @@ export async function applySeed(
 							`content.${collectionSlug}: "${entry.slug}" (${entryLocale}) exists in the trash — skipping`,
 						);
 						result.content.skipped++;
-						seedIdMap.set(entry.id, trashed.id);
+						// Deliberately NOT recorded in seedIdMap: translationOf
+						// resolves through the live-only findById (and $ref/menu
+						// refs would point at deleted content), so a trashed id
+						// as a resolution target crashes or corrupts the rest of
+						// the apply. Downstream references to this entry behave
+						// like any other unresolved seed reference instead.
 						continue;
 					}
 				}
