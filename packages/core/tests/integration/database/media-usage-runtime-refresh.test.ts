@@ -169,6 +169,49 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		]);
 	});
 
+	it("marks coverage stale when a failed draft update has already advanced stored draft data", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "failed-metadata-draft-post",
+			data: {
+				title: "Failed Metadata Draft Post",
+				hero: mediaRef("media-live"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		const contentId = created.data.item.id;
+		await usageRepo.upsertIndexStatus({
+			adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+			scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+			scopeKey: "posts",
+			status: "complete",
+			lastErrorCode: null,
+		});
+
+		const updated = await runtime.handleContentUpdate("posts", contentId, {
+			data: { hero: mediaRef("media-unrefreshed-draft") },
+			bylines: [{ bylineId: "missing-byline" }],
+		});
+
+		expect(updated.success).toBe(false);
+		expect((await revisionRepo.findByEntry("posts", contentId, { limit: 1 }))[0]?.data).toEqual(
+			expect.objectContaining({ hero: mediaRef("media-unrefreshed-draft") }),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-unrefreshed-draft")).toEqual([]);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				lastErrorCode: "CONTENT_USAGE_STALE",
+			}),
+		);
+	});
+
 	it("keeps runtime updates successful when draft overlay usage refresh fails", async () => {
 		const created = await runtime.handleContentCreate("posts", {
 			slug: "failed-refresh-post",

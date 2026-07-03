@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { sql } from "kysely";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
 	MediaUsageRepository,
@@ -510,6 +511,25 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(await repo.findCurrentUsageByMediaId("media-other")).toHaveLength(1);
 		expect(await repo.findCurrentUsageByMediaId("media-page")).toHaveLength(1);
 	});
+
+	it("keeps current usage intact when source deletion fails without transactions", async () => {
+		await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-live"),
+		]);
+		await installSourceDeleteFailureTrigger(ctx);
+		vi.resetModules();
+		const { MediaUsageRepository: D1LikeMediaUsageRepository } =
+			await import("../../../src/database/repositories/media-usage.js");
+		const d1LikeRepo = new D1LikeMediaUsageRepository(withoutTransactions(ctx.db));
+
+		await expect(d1LikeRepo.deleteContentSources("posts", "entry1")).rejects.toThrow(
+			"source delete failed",
+		);
+
+		expect(await repo.findSource("content:posts:entry1:columns")).not.toBeNull();
+		expect(await repo.findCurrentUsageByMediaId("media-live")).toHaveLength(1);
+	});
+
 	it("deletes content sources by collection", async () => {
 		await repo.replaceSource(contentSource("entry1", "columns"), [
 			occurrence("hero", "media-live"),
@@ -814,4 +834,51 @@ function occurrence(
 		mimeType: null,
 		...overrides,
 	};
+}
+
+function withoutTransactions(db: DialectTestContext["db"]): DialectTestContext["db"] {
+	return new Proxy(db, {
+		get(target, property, receiver) {
+			if (property === "transaction") {
+				return () => ({
+					execute: async () => {
+						throw new Error("transactions are not supported");
+					},
+				});
+			}
+
+			const value = Reflect.get(target, property, receiver);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	}) as DialectTestContext["db"];
+}
+
+async function installSourceDeleteFailureTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_source_delete_failure()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				RAISE EXCEPTION 'source delete failed';
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_source_delete_failure
+			BEFORE DELETE ON _emdash_media_usage_sources
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_source_delete_failure()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_source_delete_failure
+		BEFORE DELETE ON _emdash_media_usage_sources
+		BEGIN
+			SELECT RAISE(ABORT, 'source delete failed');
+		END
+	`.execute(ctx.db);
 }

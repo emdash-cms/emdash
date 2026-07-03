@@ -2673,6 +2673,7 @@ export class EmDashRuntime {
 		// Content table columns = published data (never written by saves).
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
+		let draftStorageChanged = false;
 		if (processedData) {
 			try {
 				const collectionInfo = await this.schemaRegistry.getCollectionWithFields(collection);
@@ -2702,6 +2703,7 @@ export class EmDashRuntime {
 						if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
 							// Autosave: update existing draft revision in place
 							await revisionRepo.updateData(existing.draftRevisionId, mergedData);
+							draftStorageChanged = true;
 						} else {
 							// Create new draft revision
 							const revision = await revisionRepo.create({
@@ -2720,6 +2722,7 @@ export class EmDashRuntime {
 									updated_at = ${new Date().toISOString()}
 								WHERE id = ${resolvedId}
 							`.execute(this.db);
+							draftStorageChanged = true;
 
 							// Fire-and-forget: prune old revisions to prevent unbounded growth
 							void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
@@ -2777,6 +2780,12 @@ export class EmDashRuntime {
 				}
 			}
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, contentIdsToRefresh);
+		} else if (draftStorageChanged) {
+			try {
+				await markContentMediaUsageCollectionStale(this.db, collection, "CONTENT_USAGE_STALE");
+			} catch (error) {
+				console.error(`[media-usage] Failed to mark ${collection} stale:`, error);
+			}
 		}
 
 		// Run afterSave hooks (fire-and-forget)

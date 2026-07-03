@@ -444,7 +444,7 @@ export class MediaUsageRepository {
 	}
 
 	async deleteSources(sourceKeys: readonly string[]): Promise<number> {
-		return this.deleteSourceKeys(sourceKeys, "source-first");
+		return this.deleteSourceKeys(sourceKeys);
 	}
 
 	async deleteContentSources(collectionSlug: string, contentId: string): Promise<number> {
@@ -456,7 +456,7 @@ export class MediaUsageRepository {
 			.where("content_id", "=", contentId)
 			.execute();
 		const sourceKeys = sourceRows.map((row) => row.source_key);
-		return this.deleteSourceKeys(sourceKeys, "usage-first");
+		return this.deleteSourceKeys(sourceKeys);
 	}
 
 	async deleteCollectionSources(collectionSlug: string): Promise<number> {
@@ -472,10 +472,7 @@ export class MediaUsageRepository {
 				.execute();
 			if (sourceRows.length === 0) break;
 
-			deleted += await this.deleteSourceKeys(
-				sourceRows.map((row) => row.source_key),
-				"usage-first",
-			);
+			deleted += await this.deleteSourceKeys(sourceRows.map((row) => row.source_key));
 		}
 		return deleted;
 	}
@@ -708,35 +705,23 @@ export class MediaUsageRepository {
 			.select(currentUsageSelect);
 	}
 
-	private async deleteSourceKeys(
-		sourceKeys: readonly string[],
-		order: "source-first" | "usage-first",
-	): Promise<number> {
+	private async deleteSourceKeys(sourceKeys: readonly string[]): Promise<number> {
 		const uniqueSourceKeys = [...new Set(sourceKeys)];
 		if (uniqueSourceKeys.length === 0) return 0;
 
 		return withTransaction(this.db, async (trx) => {
 			let deleted = 0;
 			for (const sourceKeyBatch of chunks(uniqueSourceKeys, SQL_BATCH_SIZE)) {
-				if (order === "usage-first") {
-					await trx
-						.deleteFrom("_emdash_media_usage")
-						.where("source_key", "in", sourceKeyBatch)
-						.execute();
-				}
-
 				const result = await trx
 					.deleteFrom("_emdash_media_usage_sources")
 					.where("source_key", "in", sourceKeyBatch)
 					.executeTakeFirst();
 				deleted += Number(result.numDeletedRows ?? 0);
 
-				if (order === "source-first") {
-					await trx
-						.deleteFrom("_emdash_media_usage")
-						.where("source_key", "in", sourceKeyBatch)
-						.execute();
-				}
+				await trx
+					.deleteFrom("_emdash_media_usage")
+					.where("source_key", "in", sourceKeyBatch)
+					.execute();
 			}
 			return deleted;
 		});
