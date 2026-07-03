@@ -25,8 +25,8 @@ export function getConfiguredStorageEndpoint(
 	storage: StorageDescriptor | undefined,
 ): string | undefined {
 	const config = storage?.config;
-	if (typeof config !== "object" || config === null) return undefined;
-	const endpoint = (config as Record<string, unknown>).endpoint;
+	if (typeof config !== "object" || config === null || !("endpoint" in config)) return undefined;
+	const endpoint = config.endpoint;
 	return typeof endpoint === "string" ? endpoint : undefined;
 }
 
