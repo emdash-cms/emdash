@@ -18,6 +18,7 @@ export const CONTENT_MEDIA_USAGE_ADAPTER_ID = "content-media";
 export const CONTENT_MEDIA_USAGE_COLLECTION_SCOPE = "collection";
 
 const CONTENT_USAGE_LOCKS_KEY = Symbol.for("emdash.mediaUsage.contentLocks");
+const CONTENT_USAGE_COLLECTION_LOCKS_KEY = Symbol.for("emdash.mediaUsage.collectionLocks");
 
 export type ContentMediaUsageRefreshErrorCode =
 	| "CONTENT_NOT_FOUND"
@@ -49,8 +50,10 @@ export async function refreshContentMediaUsage(
 	contentId: string,
 ): Promise<ContentMediaUsageRefreshResult> {
 	validateIdentifier(collectionSlug, "collection slug");
-	return withContentUsageLock(collectionSlug, contentId, () =>
-		refreshContentMediaUsageUnlocked(db, collectionSlug, contentId),
+	return withContentUsageCollectionLock(collectionSlug, () =>
+		withContentUsageLock(collectionSlug, contentId, () =>
+			refreshContentMediaUsageUnlocked(db, collectionSlug, contentId),
+		),
 	);
 }
 
@@ -66,8 +69,17 @@ async function refreshContentMediaUsageUnlocked(
 		}
 
 		const repo = new MediaUsageRepository(db);
+		if (!(await contentCollectionExists(db, collectionSlug))) {
+			const deletedSourceCount = await repo.deleteContentSources(collectionSlug, contentId);
+			return { ...ZERO_RESULT, deletedSourceCount };
+		}
+
 		for (const snapshot of snapshotsResult.snapshots) {
 			await repo.replaceSource(snapshot.source, snapshot.occurrences);
+		}
+		if (!(await contentCollectionExists(db, collectionSlug))) {
+			const deletedSourceCount = await repo.deleteContentSources(collectionSlug, contentId);
+			return { ...ZERO_RESULT, deletedSourceCount };
 		}
 
 		const expectedSourceKeys = new Set(
@@ -99,6 +111,18 @@ async function refreshContentMediaUsageUnlocked(
 			errorCode: "CONTENT_USAGE_REFRESH_ERROR",
 		};
 	}
+}
+
+async function contentCollectionExists(
+	db: Kysely<Database>,
+	collectionSlug: string,
+): Promise<boolean> {
+	const row = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collectionSlug)
+		.executeTakeFirst();
+	return row !== undefined;
 }
 
 export async function deleteContentMediaUsage(
@@ -133,6 +157,53 @@ async function deleteContentMediaUsageUnlocked(
 			collectionSlug,
 			"CONTENT_USAGE_DELETE_ERROR",
 		);
+		return {
+			success: false,
+			refreshedSourceCount: 0,
+			deletedSourceCount: 0,
+			failedSourceCount: 0,
+			errorCode: "CONTENT_USAGE_DELETE_ERROR",
+		};
+	}
+}
+
+export async function deleteContentMediaUsageCollection(
+	db: Kysely<Database>,
+	collectionSlug: string,
+): Promise<ContentMediaUsageRefreshResult> {
+	validateIdentifier(collectionSlug, "collection slug");
+	return withContentUsageCollectionLock(collectionSlug, () =>
+		deleteContentMediaUsageCollectionUnlocked(db, collectionSlug),
+	);
+}
+
+async function deleteContentMediaUsageCollectionUnlocked(
+	db: Kysely<Database>,
+	collectionSlug: string,
+): Promise<ContentMediaUsageRefreshResult> {
+	try {
+		const repo = new MediaUsageRepository(db);
+		const deletedSourceCount = await repo.deleteCollectionSources(collectionSlug);
+		await repo.deleteIndexStatus({
+			adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+			scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+			scopeKey: collectionSlug,
+		});
+		return { ...ZERO_RESULT, deletedSourceCount };
+	} catch (error) {
+		console.error(`[media-usage] Failed to delete usage for collection ${collectionSlug}:`, error);
+		try {
+			await new MediaUsageRepository(db).deleteIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: collectionSlug,
+			});
+		} catch (statusError) {
+			console.error(
+				`[media-usage] Failed to clear usage status for deleted collection ${collectionSlug}:`,
+				statusError,
+			);
+		}
 		return {
 			success: false,
 			refreshedSourceCount: 0,
@@ -253,15 +324,17 @@ async function markSnapshotFailure(
 	};
 }
 
-async function markContentMediaUsageCollectionStaleSafely(
+export async function markContentMediaUsageCollectionStaleSafely(
 	db: Kysely<Database>,
 	collectionSlug: string,
 	lastErrorCode: ContentMediaUsageRefreshErrorCode,
-): Promise<void> {
+): Promise<boolean> {
 	try {
 		await markContentMediaUsageCollectionStale(db, collectionSlug, lastErrorCode);
+		return true;
 	} catch (error) {
 		console.error(`[media-usage] Failed to mark ${collectionSlug} stale:`, error);
+		return false;
 	}
 }
 
@@ -289,11 +362,43 @@ async function withContentUsageLock<T>(
 	}
 }
 
+async function withContentUsageCollectionLock<T>(
+	collectionSlug: string,
+	fn: () => Promise<T>,
+): Promise<T> {
+	// Coarse by design: row refreshes and collection source deletes must not interleave.
+	const locks = getContentUsageCollectionLocks();
+	const previous = locks.get(collectionSlug) ?? Promise.resolve();
+	let releaseCurrent!: () => void;
+	const current = new Promise<void>((resolve) => {
+		releaseCurrent = resolve;
+	});
+	const next = previous.catch(() => {}).then(() => current);
+	locks.set(collectionSlug, next);
+
+	try {
+		await previous.catch(() => {});
+		return await fn();
+	} finally {
+		releaseCurrent();
+		if (locks.get(collectionSlug) === next) locks.delete(collectionSlug);
+	}
+}
+
 function getContentUsageLocks(): Map<string, Promise<void>> {
 	const global = globalThis as typeof globalThis & Record<symbol, unknown>;
 	const existing = global[CONTENT_USAGE_LOCKS_KEY];
 	if (existing instanceof Map) return existing as Map<string, Promise<void>>;
 	const locks = new Map<string, Promise<void>>();
 	global[CONTENT_USAGE_LOCKS_KEY] = locks;
+	return locks;
+}
+
+function getContentUsageCollectionLocks(): Map<string, Promise<void>> {
+	const global = globalThis as typeof globalThis & Record<symbol, unknown>;
+	const existing = global[CONTENT_USAGE_COLLECTION_LOCKS_KEY];
+	if (existing instanceof Map) return existing as Map<string, Promise<void>>;
+	const locks = new Map<string, Promise<void>>();
+	global[CONTENT_USAGE_COLLECTION_LOCKS_KEY] = locks;
 	return locks;
 }

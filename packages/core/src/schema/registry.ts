@@ -7,6 +7,10 @@ import { currentTimestamp, listTablesLike, tableExists } from "../database/diale
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import {
+	deleteContentMediaUsageCollection,
+	markContentMediaUsageCollectionStaleSafely,
+} from "../media/usage/content-refresh.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import {
@@ -365,18 +369,28 @@ export class SchemaRegistry {
 			}
 		}
 
-		await withTransaction(this.db, async (trx) => {
-			// Drop FTS table and triggers before dropping the content table
-			const ftsManager = new FTSManager(trx);
-			await ftsManager.dropFtsTable(slug);
+		let contentTableDropped = false;
+		try {
+			await withTransaction(this.db, async (trx) => {
+				// Drop FTS table and triggers before dropping the content table
+				const ftsManager = new FTSManager(trx);
+				await ftsManager.dropFtsTable(slug);
 
-			// Drop the content table
-			const tableName = this.getTableName(slug);
-			await sql`DROP TABLE IF EXISTS ${sql.ref(tableName)}`.execute(trx);
+				// Drop the content table
+				const tableName = this.getTableName(slug);
+				await sql`DROP TABLE IF EXISTS ${sql.ref(tableName)}`.execute(trx);
+				contentTableDropped = true;
 
-			// Delete the collection record (fields will cascade)
-			await trx.deleteFrom("_emdash_collections").where("id", "=", existing.id).execute();
-		});
+				// Delete the collection record (fields will cascade)
+				await trx.deleteFrom("_emdash_collections").where("id", "=", existing.id).execute();
+			});
+			await deleteContentMediaUsageCollection(this.db, slug);
+		} catch (error) {
+			if (contentTableDropped && !(await tableExists(this.db, this.getTableName(slug)))) {
+				await deleteContentMediaUsageCollection(this.db, slug);
+			}
+			throw error;
+		}
 	}
 
 	// ============================================
@@ -451,63 +465,82 @@ export class SchemaRegistry {
 
 		const sortOrder = input.sortOrder ?? (maxSort?.max ?? -1) + 1;
 
-		return withTransaction(this.db, async (trx) => {
-			// Insert field record
-			await trx
-				.insertInto("_emdash_fields")
-				.values({
-					id,
-					collection_id: collection.id,
-					slug: input.slug,
-					label: input.label,
-					type: input.type,
-					column_type: columnType,
-					required: input.required ? 1 : 0,
-					unique: input.unique ? 1 : 0,
-					default_value:
-						input.defaultValue !== undefined ? JSON.stringify(input.defaultValue) : null,
-					validation: input.validation ? JSON.stringify(input.validation) : null,
-					widget: input.widget ?? null,
-					options: input.options ? JSON.stringify(input.options) : null,
-					sort_order: sortOrder,
-					searchable: input.searchable ? 1 : 0,
-					translatable: input.translatable === false ? 0 : 1,
-				})
-				.execute();
+		let schemaMutated = false;
+		try {
+			const created = await withTransaction(this.db, async (trx) => {
+				// Insert field record
+				await trx
+					.insertInto("_emdash_fields")
+					.values({
+						id,
+						collection_id: collection.id,
+						slug: input.slug,
+						label: input.label,
+						type: input.type,
+						column_type: columnType,
+						required: input.required ? 1 : 0,
+						unique: input.unique ? 1 : 0,
+						default_value:
+							input.defaultValue !== undefined ? JSON.stringify(input.defaultValue) : null,
+						validation: input.validation ? JSON.stringify(input.validation) : null,
+						widget: input.widget ?? null,
+						options: input.options ? JSON.stringify(input.options) : null,
+						sort_order: sortOrder,
+						searchable: input.searchable ? 1 : 0,
+						translatable: input.translatable === false ? 0 : 1,
+					})
+					.execute();
+				schemaMutated = true;
 
-			// Add column to content table — pass trx to stay on the same connection
-			await this.addColumn(
+				// Add column to content table — pass trx to stay on the same connection
+				await this.addColumn(
+					collectionSlug,
+					input.slug,
+					input.type,
+					{
+						required: input.required,
+						defaultValue: input.defaultValue,
+					},
+					trx,
+				);
+
+				// Read the created field via trx (not this.db) to avoid connection mutex deadlock
+				const fieldRow = await trx
+					.selectFrom("_emdash_fields")
+					.where("collection_id", "=", collection.id)
+					.where("slug", "=", input.slug)
+					.selectAll()
+					.executeTakeFirst();
+
+				if (!fieldRow) {
+					throw new SchemaError("Failed to create field", "CREATE_FAILED");
+				}
+
+				const field = this.mapFieldRow(fieldRow);
+
+				// Sync search state if this field is searchable; support checks are handled by syncSearchState()
+				if (input.searchable) {
+					await this.syncSearchState(collectionSlug, trx);
+				}
+
+				return field;
+			});
+			await markContentMediaUsageCollectionStaleSafely(
+				this.db,
 				collectionSlug,
-				input.slug,
-				input.type,
-				{
-					required: input.required,
-					defaultValue: input.defaultValue,
-				},
-				trx,
+				"CONTENT_USAGE_STALE",
 			);
-
-			// Read the created field via trx (not this.db) to avoid connection mutex deadlock
-			const fieldRow = await trx
-				.selectFrom("_emdash_fields")
-				.where("collection_id", "=", collection.id)
-				.where("slug", "=", input.slug)
-				.selectAll()
-				.executeTakeFirst();
-
-			if (!fieldRow) {
-				throw new SchemaError("Failed to create field", "CREATE_FAILED");
+			return created;
+		} catch (error) {
+			if (schemaMutated) {
+				await markContentMediaUsageCollectionStaleSafely(
+					this.db,
+					collectionSlug,
+					"CONTENT_USAGE_STALE",
+				);
 			}
-
-			const field = this.mapFieldRow(fieldRow);
-
-			// Sync search state if this field is searchable; support checks are handled by syncSearchState()
-			if (input.searchable) {
-				await this.syncSearchState(collectionSlug, trx);
-			}
-
-			return field;
-		});
+			throw error;
+		}
 	}
 
 	/**
@@ -553,67 +586,92 @@ export class SchemaRegistry {
 			nextColumnType = newColumnType;
 		}
 
-		return withTransaction(this.db, async (trx) => {
-			await trx
-				.updateTable("_emdash_fields")
-				.set({
-					type: nextType,
-					column_type: nextColumnType,
-					label: input.label ?? field.label,
-					required:
-						input.required !== undefined ? (input.required ? 1 : 0) : field.required ? 1 : 0,
-					unique: input.unique !== undefined ? (input.unique ? 1 : 0) : field.unique ? 1 : 0,
-					searchable:
-						input.searchable !== undefined ? (input.searchable ? 1 : 0) : field.searchable ? 1 : 0,
-					translatable:
-						input.translatable !== undefined
-							? input.translatable
-								? 1
-								: 0
-							: field.translatable
-								? 1
-								: 0,
-					default_value:
-						input.defaultValue !== undefined
-							? JSON.stringify(input.defaultValue)
-							: field.defaultValue !== undefined
-								? JSON.stringify(field.defaultValue)
+		let schemaMutated = false;
+		try {
+			const updatedField = await withTransaction(this.db, async (trx) => {
+				await trx
+					.updateTable("_emdash_fields")
+					.set({
+						type: nextType,
+						column_type: nextColumnType,
+						label: input.label ?? field.label,
+						required:
+							input.required !== undefined ? (input.required ? 1 : 0) : field.required ? 1 : 0,
+						unique: input.unique !== undefined ? (input.unique ? 1 : 0) : field.unique ? 1 : 0,
+						searchable:
+							input.searchable !== undefined
+								? input.searchable
+									? 1
+									: 0
+								: field.searchable
+									? 1
+									: 0,
+						translatable:
+							input.translatable !== undefined
+								? input.translatable
+									? 1
+									: 0
+								: field.translatable
+									? 1
+									: 0,
+						default_value:
+							input.defaultValue !== undefined
+								? JSON.stringify(input.defaultValue)
+								: field.defaultValue !== undefined
+									? JSON.stringify(field.defaultValue)
+									: null,
+						validation: nextValidation ? JSON.stringify(nextValidation) : null,
+						widget: input.widget ?? field.widget ?? null,
+						options: input.options
+							? JSON.stringify(input.options)
+							: field.options
+								? JSON.stringify(field.options)
 								: null,
-					validation: nextValidation ? JSON.stringify(nextValidation) : null,
-					widget: input.widget ?? field.widget ?? null,
-					options: input.options
-						? JSON.stringify(input.options)
-						: field.options
-							? JSON.stringify(field.options)
-							: null,
-					sort_order: input.sortOrder ?? field.sortOrder,
-				})
-				.where("id", "=", field.id)
-				.execute();
+						sort_order: input.sortOrder ?? field.sortOrder,
+					})
+					.where("id", "=", field.id)
+					.execute();
+				schemaMutated = true;
 
-			// Read the updated field via trx (not this.db) to avoid connection mutex deadlock
-			const updatedRow = await trx
-				.selectFrom("_emdash_fields")
-				.where("collection_id", "=", field.collectionId)
-				.where("slug", "=", fieldSlug)
-				.selectAll()
-				.executeTakeFirst();
+				// Read the updated field via trx (not this.db) to avoid connection mutex deadlock
+				const updatedRow = await trx
+					.selectFrom("_emdash_fields")
+					.where("collection_id", "=", field.collectionId)
+					.where("slug", "=", fieldSlug)
+					.selectAll()
+					.executeTakeFirst();
 
-			if (!updatedRow) {
-				throw new SchemaError("Failed to update field", "UPDATE_FAILED");
+				if (!updatedRow) {
+					throw new SchemaError("Failed to update field", "UPDATE_FAILED");
+				}
+
+				const updated = this.mapFieldRow(updatedRow);
+
+				// If searchable changed, sync FTS state for this collection
+				const searchableChanged =
+					input.searchable !== undefined && input.searchable !== field.searchable;
+				if (searchableChanged) {
+					await this.syncSearchState(collectionSlug, trx);
+				}
+
+				return updated;
+			});
+			await markContentMediaUsageCollectionStaleSafely(
+				this.db,
+				collectionSlug,
+				"CONTENT_USAGE_STALE",
+			);
+			return updatedField;
+		} catch (error) {
+			if (schemaMutated) {
+				await markContentMediaUsageCollectionStaleSafely(
+					this.db,
+					collectionSlug,
+					"CONTENT_USAGE_STALE",
+				);
 			}
-
-			const updated = this.mapFieldRow(updatedRow);
-
-			// If searchable changed, sync FTS state for this collection
-			const searchableChanged =
-				input.searchable !== undefined && input.searchable !== field.searchable;
-			if (searchableChanged) {
-				await this.syncSearchState(collectionSlug, trx);
-			}
-
-			return updated;
-		});
+			throw error;
+		}
 	}
 
 	/**
@@ -666,22 +724,40 @@ export class SchemaRegistry {
 			);
 		}
 
-		await withTransaction(this.db, async (trx) => {
-			// Delete the field record first so syncSearchState sees the updated field list.
-			// This ordering matters for searchable fields: SQLite prevents dropping a column
-			// that is still referenced by a trigger. syncSearchState drops and recreates the
-			// FTS triggers based on the remaining searchable fields, clearing the dependency
-			// before we attempt the ALTER TABLE DROP COLUMN below.
-			await trx.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
+		let schemaMutated = false;
+		try {
+			await withTransaction(this.db, async (trx) => {
+				// Delete the field record first so syncSearchState sees the updated field list.
+				// This ordering matters for searchable fields: SQLite prevents dropping a column
+				// that is still referenced by a trigger. syncSearchState drops and recreates the
+				// FTS triggers based on the remaining searchable fields, clearing the dependency
+				// before we attempt the ALTER TABLE DROP COLUMN below.
+				await trx.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
+				schemaMutated = true;
 
-			// If the deleted field was searchable, sync FTS state (removes old triggers)
-			if (field.searchable) {
-				await this.syncSearchState(collectionSlug, trx);
+				// If the deleted field was searchable, sync FTS state (removes old triggers)
+				if (field.searchable) {
+					await this.syncSearchState(collectionSlug, trx);
+				}
+
+				// Drop column from content table — safe now because FTS triggers are gone
+				await this.dropColumn(collectionSlug, fieldSlug, trx);
+			});
+			await markContentMediaUsageCollectionStaleSafely(
+				this.db,
+				collectionSlug,
+				"CONTENT_USAGE_STALE",
+			);
+		} catch (error) {
+			if (schemaMutated) {
+				await markContentMediaUsageCollectionStaleSafely(
+					this.db,
+					collectionSlug,
+					"CONTENT_USAGE_STALE",
+				);
 			}
-
-			// Drop column from content table — safe now because FTS triggers are gone
-			await this.dropColumn(collectionSlug, fieldSlug, trx);
-		});
+			throw error;
+		}
 	}
 
 	/**
@@ -1142,28 +1218,38 @@ export class SchemaRegistry {
 		const id = ulid();
 		const label = options?.label || this.slugToLabel(slug);
 
-		await this.db
-			.insertInto("_emdash_collections")
-			.values({
-				id,
-				slug,
-				label,
-				label_singular: options?.labelSingular ?? null,
-				description: options?.description ?? null,
-				icon: null,
-				supports: JSON.stringify([]),
-				source: "discovered",
-				has_seo: 0,
-				url_pattern: null,
-			})
-			.execute();
+		let collectionRegistered = false;
+		try {
+			await this.db
+				.insertInto("_emdash_collections")
+				.values({
+					id,
+					slug,
+					label,
+					label_singular: options?.labelSingular ?? null,
+					description: options?.description ?? null,
+					icon: null,
+					supports: JSON.stringify([]),
+					source: "discovered",
+					has_seo: 0,
+					url_pattern: null,
+				})
+				.execute();
+			collectionRegistered = true;
 
-		const collection = await this.getCollection(slug);
-		if (!collection) {
-			throw new SchemaError("Failed to register orphaned table", "REGISTER_FAILED");
+			const collection = await this.getCollection(slug);
+			if (!collection) {
+				throw new SchemaError("Failed to register orphaned table", "REGISTER_FAILED");
+			}
+			await markContentMediaUsageCollectionStaleSafely(this.db, slug, "CONTENT_USAGE_STALE");
+
+			return collection;
+		} catch (error) {
+			if (collectionRegistered) {
+				await markContentMediaUsageCollectionStaleSafely(this.db, slug, "CONTENT_USAGE_STALE");
+			}
+			throw error;
 		}
-
-		return collection;
 	}
 
 	/**

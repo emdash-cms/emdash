@@ -20,6 +20,7 @@ import { wpRewriteUrlsBody } from "#api/schemas.js";
 import { validateIdentifier } from "#db/validate.js";
 import { normalizeMediaValue } from "#media/normalize.js";
 import type { MediaProvider } from "#media/types.js";
+import { markContentMediaUsageCollectionStaleSafely } from "#media/usage/content-refresh.js";
 import type { EmDashHandlers } from "#types";
 
 import {
@@ -77,11 +78,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 };
 
-async function rewriteUrls(
+export async function rewriteUrls(
 	db: NonNullable<EmDashHandlers["db"]>,
 	urlMap: Record<string, string>,
 	getProvider: (id: string) => MediaProvider | undefined,
 	collections?: string[],
+	markUsageCollectionStale: typeof markContentMediaUsageCollectionStaleSafely = markContentMediaUsageCollectionStaleSafely,
 ): Promise<RewriteUrlsResult> {
 	const { SchemaRegistry } = await import("#schema/registry.js");
 	const registry = new SchemaRegistry(db);
@@ -91,6 +93,18 @@ async function rewriteUrls(
 		byCollection: {},
 		urlsRewritten: 0,
 		errors: [],
+	};
+	const staleMarkedCollections = new Set<string>();
+	const staleMarkFailedCollections = new Set<string>();
+	const markCollectionStale = async (collectionSlug: string): Promise<void> => {
+		if (staleMarkedCollections.has(collectionSlug)) return;
+		const marked = await markUsageCollectionStale(db, collectionSlug, "CONTENT_USAGE_STALE");
+		if (marked) {
+			staleMarkedCollections.add(collectionSlug);
+			staleMarkFailedCollections.delete(collectionSlug);
+		} else {
+			staleMarkFailedCollections.add(collectionSlug);
+		}
 	};
 
 	// Build base URL map for flexible matching
@@ -102,52 +116,67 @@ async function rewriteUrls(
 		? allCollections.filter((c) => collections.includes(c.slug))
 		: allCollections;
 
-	for (const collection of targetCollections) {
-		// Get fields that might contain URLs
-		const fields = await registry.listFields(collection.id);
-		const portableTextFields = fields.filter((f) => f.type === "portableText");
-		const stringFields = fields.filter((f) => ["text", "string"].includes(f.type));
-		// Image and file fields store URLs directly as TEXT
-		const mediaFields = fields.filter((f) => ["image", "file"].includes(f.type));
+	try {
+		for (const collection of targetCollections) {
+			// Get fields that might contain URLs
+			const fields = await registry.listFields(collection.id);
+			const portableTextFields = fields.filter((f) => f.type === "portableText");
+			const stringFields = fields.filter((f) => ["text", "string"].includes(f.type));
+			// Image and file fields store URLs directly as TEXT
+			const mediaFields = fields.filter((f) => ["image", "file"].includes(f.type));
 
-		if (portableTextFields.length === 0 && stringFields.length === 0 && mediaFields.length === 0)
-			continue;
+			if (portableTextFields.length === 0 && stringFields.length === 0 && mediaFields.length === 0)
+				continue;
 
-		// Get table name
-		validateIdentifier(collection.slug, "collection slug");
-		const tableName = `ec_${collection.slug}`;
+			// Get table name
+			validateIdentifier(collection.slug, "collection slug");
+			const tableName = `ec_${collection.slug}`;
 
-		try {
-			// Query all rows
-			const rows = await sql<{ id: string; [key: string]: unknown }>`
+			try {
+				// Query all rows
+				const rows = await sql<{ id: string; [key: string]: unknown }>`
 				SELECT * FROM ${sql.ref(tableName)}
 				WHERE deleted_at IS NULL
 			`.execute(db);
 
-			for (const row of rows.rows) {
-				let rowUpdated = false;
-				const updates: Record<string, unknown> = {};
-				let rowUrlsRewritten = 0;
+				for (const row of rows.rows) {
+					let rowUpdated = false;
+					const updates: Record<string, unknown> = {};
+					let rowUrlsRewritten = 0;
 
-				// Handle Portable Text fields - parse JSON and rewrite URLs in blocks
-				for (const field of portableTextFields) {
-					const value = row[field.slug];
-					if (!value || typeof value !== "string") continue;
+					// Handle Portable Text fields - parse JSON and rewrite URLs in blocks
+					for (const field of portableTextFields) {
+						const value = row[field.slug];
+						if (!value || typeof value !== "string") continue;
 
-					try {
-						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns unknown; validated by Array.isArray below
-						const blocks = JSON.parse(value) as PortableTextBlock[];
-						if (!Array.isArray(blocks)) continue;
+						try {
+							// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns unknown; validated by Array.isArray below
+							const blocks = JSON.parse(value) as PortableTextBlock[];
+							if (!Array.isArray(blocks)) continue;
 
-						const rewriteResult = rewritePortableTextUrls(blocks, urlMap, baseMap);
+							const rewriteResult = rewritePortableTextUrls(blocks, urlMap, baseMap);
 
-						if (rewriteResult.changed) {
-							updates[field.slug] = JSON.stringify(blocks);
-							rowUpdated = true;
-							rowUrlsRewritten += rewriteResult.urlsRewritten;
+							if (rewriteResult.changed) {
+								updates[field.slug] = JSON.stringify(blocks);
+								rowUpdated = true;
+								rowUrlsRewritten += rewriteResult.urlsRewritten;
+							}
+						} catch {
+							// Not valid JSON, try string replacement as fallback
+							const stringResult = rewriteStringUrls(value, urlMap, baseMap);
+							if (stringResult.changed) {
+								updates[field.slug] = stringResult.newValue;
+								rowUpdated = true;
+								rowUrlsRewritten += stringResult.urlsRewritten;
+							}
 						}
-					} catch {
-						// Not valid JSON, try string replacement as fallback
+					}
+
+					// Handle string/text fields - simple string replacement
+					for (const field of stringFields) {
+						const value = row[field.slug];
+						if (!value || typeof value !== "string") continue;
+
 						const stringResult = rewriteStringUrls(value, urlMap, baseMap);
 						if (stringResult.changed) {
 							updates[field.slug] = stringResult.newValue;
@@ -155,74 +184,69 @@ async function rewriteUrls(
 							rowUrlsRewritten += stringResult.urlsRewritten;
 						}
 					}
-				}
 
-				// Handle string/text fields - simple string replacement
-				for (const field of stringFields) {
-					const value = row[field.slug];
-					if (!value || typeof value !== "string") continue;
+					// Handle image/file fields - normalize to MediaValue objects
+					for (const field of mediaFields) {
+						const value = row[field.slug];
+						if (!value || typeof value !== "string") continue;
 
-					const stringResult = rewriteStringUrls(value, urlMap, baseMap);
-					if (stringResult.changed) {
-						updates[field.slug] = stringResult.newValue;
-						rowUpdated = true;
-						rowUrlsRewritten += stringResult.urlsRewritten;
+						// Values are stored as JSON MediaValue objects (e.g. featured_image from
+						// import normalizes to {"provider":"external","src":"<wp url>"}). Match on the
+						// inner `src`, falling back to the raw value for legacy bare-URL rows.
+						const newUrl = findMatchingUrl(extractMediaUrl(value), urlMap, baseMap);
+						if (newUrl) {
+							// Normalize into a proper MediaValue instead of storing a bare URL
+							try {
+								const normalized = await normalizeMediaValue(newUrl, getProvider);
+								updates[field.slug] = normalized ? JSON.stringify(normalized) : newUrl;
+							} catch {
+								updates[field.slug] = newUrl;
+							}
+							rowUpdated = true;
+							rowUrlsRewritten++;
+						}
 					}
-				}
 
-				// Handle image/file fields - normalize to MediaValue objects
-				for (const field of mediaFields) {
-					const value = row[field.slug];
-					if (!value || typeof value !== "string") continue;
-
-					// Values are stored as JSON MediaValue objects (e.g. featured_image from
-					// import normalizes to {"provider":"external","src":"<wp url>"}). Match on the
-					// inner `src`, falling back to the raw value for legacy bare-URL rows.
-					const newUrl = findMatchingUrl(extractMediaUrl(value), urlMap, baseMap);
-					if (newUrl) {
-						// Normalize into a proper MediaValue instead of storing a bare URL
+					if (rowUpdated) {
 						try {
-							const normalized = await normalizeMediaValue(newUrl, getProvider);
-							updates[field.slug] = normalized ? JSON.stringify(normalized) : newUrl;
-						} catch {
-							updates[field.slug] = newUrl;
+							// Build update query dynamically
+							// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely dynamic table requires type assertion
+							let query = db.updateTable(tableName as any).where("id", "=", row.id);
+
+							for (const [key, value] of Object.entries(updates)) {
+								// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely dynamic column update requires type assertion
+								query = query.set({ [key]: value } as any);
+							}
+
+							await query.execute();
+
+							result.updated++;
+							result.urlsRewritten += rowUrlsRewritten;
+							result.byCollection[collection.slug] =
+								(result.byCollection[collection.slug] || 0) + 1;
+							await markCollectionStale(collection.slug);
+						} catch (updateError) {
+							result.errors.push({
+								collection: collection.slug,
+								id: row.id,
+								error: updateError instanceof Error ? updateError.message : "Update failed",
+							});
 						}
-						rowUpdated = true;
-						rowUrlsRewritten++;
 					}
 				}
-
-				if (rowUpdated) {
-					try {
-						// Build update query dynamically
-						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely dynamic table requires type assertion
-						let query = db.updateTable(tableName as any).where("id", "=", row.id);
-
-						for (const [key, value] of Object.entries(updates)) {
-							// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely dynamic column update requires type assertion
-							query = query.set({ [key]: value } as any);
-						}
-
-						await query.execute();
-
-						result.updated++;
-						result.urlsRewritten += rowUrlsRewritten;
-						result.byCollection[collection.slug] = (result.byCollection[collection.slug] || 0) + 1;
-					} catch (updateError) {
-						result.errors.push({
-							collection: collection.slug,
-							id: row.id,
-							error: updateError instanceof Error ? updateError.message : "Update failed",
-						});
-					}
-				}
+			} catch (queryError) {
+				result.errors.push({
+					collection: collection.slug,
+					id: "*",
+					error: queryError instanceof Error ? queryError.message : "Query failed for collection",
+				});
 			}
-		} catch (queryError) {
-			result.errors.push({
-				collection: collection.slug,
-				id: "*",
-				error: queryError instanceof Error ? queryError.message : "Query failed for collection",
-			});
+		}
+	} finally {
+		for (const collectionSlug of staleMarkFailedCollections) {
+			if (staleMarkedCollections.has(collectionSlug)) continue;
+			const marked = await markUsageCollectionStale(db, collectionSlug, "CONTENT_USAGE_STALE");
+			if (marked) staleMarkedCollections.add(collectionSlug);
 		}
 	}
 

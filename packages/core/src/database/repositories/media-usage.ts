@@ -602,6 +602,16 @@ export class MediaUsageRepository {
 		return row ? rowToIndexStatus(row) : null;
 	}
 
+	async deleteIndexStatus(identity: MediaUsageIndexStatusIdentity): Promise<number> {
+		const result = await this.db
+			.deleteFrom("_emdash_media_usage_index_status")
+			.where("adapter_id", "=", identity.adapterId)
+			.where("scope_type", "=", identity.scopeType)
+			.where("scope_key", "=", identity.scopeKey)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
+	}
+
 	private async findCurrentUsagePage(
 		applyFilter: (
 			query: ReturnType<MediaUsageRepository["currentUsageBaseQuery"]>,

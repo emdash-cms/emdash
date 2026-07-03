@@ -81,7 +81,12 @@ describeEachDialect("content media usage refresh", (dialect) => {
 				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 				scopeKey: "posts",
 			}),
-		).toBeNull();
+		).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				lastErrorCode: "CONTENT_USAGE_STALE",
+			}),
+		);
 
 		await updatePostHero(ctx, item.id, {
 			id: "media-new",
