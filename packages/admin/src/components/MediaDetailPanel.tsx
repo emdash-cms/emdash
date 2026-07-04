@@ -1,11 +1,11 @@
 /**
- * Media Detail Panel
+ * Media Detail Dialog
  *
- * A slide-out panel for viewing and editing media item metadata.
+ * A centered dialog for viewing and editing media item metadata.
  * Opens when clicking an item in the MediaLibrary.
  */
 
-import { Button, ClipboardText, Input, InputArea } from "@cloudflare/kumo";
+import { Button, ClipboardText, Dialog, Input, InputArea } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { X, Trash, Calendar, HardDrive, LinkSimple, Ruler } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,249 +14,375 @@ import * as React from "react";
 import { updateMedia, deleteMedia, type MediaItem } from "../lib/api";
 import { useStableCallback } from "../lib/hooks";
 import { getFileIcon, formatFileSize } from "../lib/media-utils";
-import { cn } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DialogError, getMutationError } from "./DialogError.js";
+
+const CLOSE_FALLBACK_MS = 500;
 
 export interface MediaDetailPanelProps {
-	item: MediaItem | null;
+	open: boolean;
+	item: MediaItem;
+	providerName?: string;
+	restoreFocusTargetRef?: React.RefObject<HTMLElement | null>;
 	onClose: () => void;
+	onClosed?: () => void;
+	onUpdated?: () => void;
 	onDeleted?: () => void;
 }
 
 /**
- * Slide-out panel for viewing and editing media metadata
+ * Centered dialog for viewing and editing media metadata.
  */
-export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelProps) {
+export function MediaDetailPanel({
+	open,
+	item,
+	providerName,
+	restoreFocusTargetRef,
+	onClose,
+	onClosed,
+	onUpdated,
+	onDeleted,
+}: MediaDetailPanelProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const restoreFocusAfterDeleteRef = React.useRef(false);
+	const closeFallbackTimerRef = React.useRef<number | null>(null);
+	const closeFinishedRef = React.useRef(false);
 
-	// Form state - controlled inputs
-	const [filename, setFilename] = React.useState(item?.filename ?? "");
-	const [alt, setAlt] = React.useState(item?.alt ?? "");
-	const [caption, setCaption] = React.useState(item?.caption ?? "");
+	const isProviderAsset = Boolean(item.provider);
+	const isImage = item.mimeType.startsWith("image/");
+	const isVideo = item.mimeType.startsWith("video/");
+	const isAudio = item.mimeType.startsWith("audio/");
+	const canEditMetadata = !isProviderAsset && isImage;
+	const canDelete = !isProviderAsset;
 
-	// Reset form when item changes
+	const [filename, setFilename] = React.useState(item.filename);
+	const [alt, setAlt] = React.useState(item.alt ?? "");
+	const [caption, setCaption] = React.useState(item.caption ?? "");
+	const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+	const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
+
 	React.useEffect(() => {
-		if (item) {
-			setFilename(item.filename);
-			setAlt(item.alt ?? "");
-			setCaption(item.caption ?? "");
+		if (!open) return;
+		closeFinishedRef.current = false;
+		restoreFocusAfterDeleteRef.current = false;
+		setFilename(item.filename);
+		setAlt(item.alt ?? "");
+		setCaption(item.caption ?? "");
+		setShowDeleteConfirm(false);
+		setShowDiscardConfirm(false);
+	}, [item.id, open]);
+
+	React.useEffect(() => {
+		return () => {
+			if (closeFallbackTimerRef.current !== null) {
+				window.clearTimeout(closeFallbackTimerRef.current);
+			}
+		};
+	}, []);
+
+	const finishClose = React.useCallback(() => {
+		if (closeFinishedRef.current) return;
+		closeFinishedRef.current = true;
+		if (closeFallbackTimerRef.current !== null) {
+			window.clearTimeout(closeFallbackTimerRef.current);
+			closeFallbackTimerRef.current = null;
 		}
-	}, [item]);
+		const shouldRestoreFocus = restoreFocusAfterDeleteRef.current;
+		restoreFocusAfterDeleteRef.current = false;
+		onClosed?.();
+		if (shouldRestoreFocus) {
+			window.setTimeout(() => {
+				restoreFocusTargetRef?.current?.focus();
+			}, 0);
+		}
+	}, [onClosed, restoreFocusTargetRef]);
 
-	// Public file URL — absolute so it can be pasted anywhere (relative API
-	// paths from local storage are resolved against the current origin).
-	const fileUrl = item ? new URL(item.url, window.location.origin).href : "";
+	const closeDialog = React.useCallback(() => {
+		onClose();
+		if (closeFallbackTimerRef.current !== null) {
+			window.clearTimeout(closeFallbackTimerRef.current);
+		}
+		closeFallbackTimerRef.current = window.setTimeout(finishClose, CLOSE_FALLBACK_MS);
+	}, [finishClose, onClose]);
 
-	// Track if form has unsaved changes
-	const hasChanges = React.useMemo(() => {
-		if (!item) return false;
-		return (
-			filename !== item.filename || alt !== (item.alt ?? "") || caption !== (item.caption ?? "")
-		);
-	}, [item, filename, alt, caption]);
+	const hasChanges =
+		canEditMetadata && (alt !== (item.alt ?? "") || caption !== (item.caption ?? ""));
+	const isConfirmOpen = showDeleteConfirm || showDiscardConfirm;
+	const publicFileUrl =
+		!isProviderAsset && item.url ? new URL(item.url, window.location.origin).href : "";
 
-	// Update mutation
 	const updateMutation = useMutation({
-		mutationFn: (data: { alt?: string; caption?: string }) => {
-			if (!item) throw new Error("No item selected");
-			return updateMedia(item.id, data);
-		},
+		mutationFn: (data: { alt?: string; caption?: string }) => updateMedia(item.id, data),
 		onSuccess: () => {
-			// Invalidate to refresh the list
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
+			onUpdated?.();
+			closeDialog();
 		},
 	});
 
-	// Delete mutation
 	const deleteMutation = useMutation({
-		mutationFn: () => {
-			if (!item) throw new Error("No item selected");
-			return deleteMedia(item.id);
-		},
+		mutationFn: () => deleteMedia(item.id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
+			restoreFocusAfterDeleteRef.current = true;
+			setShowDeleteConfirm(false);
 			onDeleted?.();
-			onClose();
+			closeDialog();
 		},
 	});
+	const isSaving = updateMutation.isPending;
+	const isDeleting = deleteMutation.isPending;
+	const isBusy = isSaving || isDeleting;
+
+	const requestClose = React.useCallback(() => {
+		if (isBusy) return;
+		if (isConfirmOpen) return;
+		if (hasChanges) {
+			setShowDiscardConfirm(true);
+			return;
+		}
+		closeDialog();
+	}, [closeDialog, hasChanges, isBusy, isConfirmOpen]);
 
 	const handleSave = () => {
-		if (!item || !hasChanges) return;
+		if (!canEditMetadata || !hasChanges || isSaving) return;
 		updateMutation.mutate({
-			alt: alt || undefined,
-			caption: caption || undefined,
+			alt,
+			caption,
 		});
 	};
 
-	const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-
 	const handleDelete = () => {
-		if (!item) return;
+		if (!canDelete || isBusy) return;
 		setShowDeleteConfirm(true);
 	};
 
-	const stableOnClose = useStableCallback(onClose);
-	const stableHandleSave = useStableCallback(handleSave);
+	const handleDiscardConfirm = () => {
+		setShowDiscardConfirm(false);
+		closeDialog();
+	};
 
-	// Handle keyboard shortcuts
+	const stableHandleSave = useStableCallback(handleSave);
 	React.useEffect(() => {
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				stableOnClose();
-			}
-			if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-				e.preventDefault();
+		if (!open) return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (isConfirmOpen) return;
+			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+				if (!canEditMetadata || !hasChanges || isSaving) return;
+				event.preventDefault();
 				stableHandleSave();
 			}
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [stableOnClose, stableHandleSave]);
-
-	if (!item) return null;
-
-	const isImage = item.mimeType.startsWith("image/");
-	const isVideo = item.mimeType.startsWith("video/");
-	const isAudio = item.mimeType.startsWith("audio/");
+	}, [canEditMetadata, hasChanges, isConfirmOpen, isSaving, open, stableHandleSave]);
 
 	return (
 		<>
-			<div
-				className={cn(
-					"fixed inset-y-0 end-0 w-96 bg-kumo-base border-s shadow-xl z-50",
-					"flex flex-col",
-				)}
+			<Dialog.Root
+				open={open}
+				onOpenChange={(nextOpen) => {
+					if (!nextOpen && !isConfirmOpen) requestClose();
+				}}
+				onOpenChangeComplete={(nextOpen) => {
+					if (nextOpen) return;
+					finishClose();
+				}}
 			>
-				{/* Header */}
-				<div className="flex items-center justify-between p-4 border-b">
-					<h2 className="font-semibold truncate pe-2">{t`Media Details`}</h2>
-					<Button variant="ghost" shape="square" aria-label={t`Close`} onClick={onClose}>
-						<X className="h-4 w-4" />
-						<span className="sr-only">{t`Close`}</span>
-					</Button>
-				</div>
+				<Dialog
+					size="xl"
+					className="flex flex-col overflow-hidden p-0"
+					style={{ width: "min(94vw, 72rem)", height: "min(88dvh, 48rem)" }}
+				>
+					<div
+						className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line"
+						style={{ padding: "1.25rem 2rem" }}
+						data-testid="media-detail-dialog-header"
+					>
+						<div className="min-w-0 flex-1">
+							<Dialog.Title className="truncate text-lg font-semibold leading-none tracking-tight">
+								{t`Media Details`}
+							</Dialog.Title>
+							<p className="mt-1 truncate text-sm text-kumo-subtle">{item.filename}</p>
+						</div>
+						<Button
+							variant="ghost"
+							shape="square"
+							aria-label={t`Close`}
+							onClick={requestClose}
+							disabled={isBusy}
+						>
+							<X className="h-4 w-4" aria-hidden="true" />
+						</Button>
+					</div>
 
-				{/* Content */}
-				<div className="flex-1 overflow-y-auto">
-					{/* Preview */}
-					<div className="p-4 border-b">
-						<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center">
-							{isImage ? (
-								<img
-									src={item.url}
-									alt={item.alt || item.filename}
-									className="max-h-full max-w-full object-contain"
-								/>
-							) : isVideo ? (
-								<video
-									src={item.url}
-									controls
-									preload="metadata"
-									className="max-h-full max-w-full"
-								/>
-							) : isAudio ? (
-								<audio src={item.url} controls preload="metadata" className="w-full" />
-							) : (
-								<div className="text-center p-4">
-									<span className="text-4xl">{getFileIcon(item.mimeType)}</span>
-									<p className="mt-2 text-sm text-kumo-subtle">{item.mimeType}</p>
+					<div
+						className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-2 md:overflow-hidden"
+						data-testid="media-detail-dialog-body"
+					>
+						<div
+							className="min-h-0 space-y-5 border-b border-kumo-line p-6 md:overflow-y-auto md:border-e md:border-b-0 md:p-8"
+							data-testid="media-detail-dialog-preview-column"
+						>
+							<div className="flex h-64 items-center justify-center overflow-hidden rounded-xl border border-kumo-line bg-kumo-tint md:h-80">
+								{isImage ? (
+									<img
+										src={item.url}
+										alt={item.alt || item.filename}
+										className="max-h-full max-w-full object-contain"
+									/>
+								) : isVideo ? (
+									<video
+										src={item.url}
+										controls
+										preload="metadata"
+										className="max-h-full max-w-full"
+									/>
+								) : isAudio ? (
+									<audio src={item.url} controls preload="metadata" className="w-full" />
+								) : (
+									<div className="p-4 text-center">
+										<span className="text-5xl" aria-hidden="true">
+											{getFileIcon(item.mimeType)}
+										</span>
+										<p className="mt-3 text-sm text-kumo-subtle">{item.mimeType}</p>
+									</div>
+								)}
+							</div>
+
+							<div className="space-y-3" data-testid="media-detail-dialog-file-facts">
+								<div className="flex items-center gap-2 text-sm">
+									<HardDrive className="h-4 w-4 shrink-0 text-kumo-subtle" aria-hidden="true" />
+									<span className="text-kumo-subtle">{t`Size:`}</span>
+									<span>{formatFileSize(item.size)}</span>
 								</div>
+								{item.width && item.height && (
+									<div className="flex items-center gap-2 text-sm">
+										<Ruler className="h-4 w-4 shrink-0 text-kumo-subtle" aria-hidden="true" />
+										<span className="text-kumo-subtle">{t`Dimensions:`}</span>
+										<span>
+											{item.width} × {item.height}
+										</span>
+									</div>
+								)}
+								{!isProviderAsset && (
+									<div className="flex items-center gap-2 text-sm">
+										<Calendar className="h-4 w-4 shrink-0 text-kumo-subtle" aria-hidden="true" />
+										<span className="text-kumo-subtle">{t`Uploaded:`}</span>
+										<span>{formatDate(item.createdAt)}</span>
+									</div>
+								)}
+								<div className="flex items-center gap-2 text-sm">
+									<LinkSimple className="h-4 w-4 shrink-0 text-kumo-subtle" aria-hidden="true" />
+									<span className="shrink-0 text-kumo-subtle">{t`URL:`}</span>
+									{publicFileUrl ? (
+										<ClipboardText
+											text={publicFileUrl}
+											size="sm"
+											className="min-w-0 flex-1"
+											labels={{ copyAction: t`Copy URL` }}
+										/>
+									) : (
+										<span className="min-w-0 text-kumo-subtle">{t`No public URL available`}</span>
+									)}
+								</div>
+							</div>
+						</div>
+
+						<div
+							className="min-h-0 space-y-5 p-6 md:overflow-y-auto md:p-8"
+							data-testid="media-detail-dialog-details-column"
+						>
+							{isProviderAsset && (
+								<p className="rounded-lg bg-kumo-tint p-3 text-sm text-kumo-subtle">
+									{providerName
+										? t`Managed by ${providerName}`
+										: t`Managed by an external media provider`}
+								</p>
+							)}
+
+							<div className="space-y-4">
+								<Input
+									label={t`Filename`}
+									value={filename}
+									onChange={(event) => setFilename(event.target.value)}
+									disabled
+									description={t`Filename cannot be changed after upload`}
+								/>
+
+								{canEditMetadata && (
+									<>
+										<Input
+											label={t`Alt Text`}
+											value={alt}
+											onChange={(event) => setAlt(event.target.value)}
+											placeholder={t`Describe this image for accessibility`}
+											description={t`Used by screen readers and when image fails to load`}
+											disabled={isSaving}
+										/>
+
+										<InputArea
+											label={t`Caption`}
+											value={caption}
+											onChange={(event) => setCaption(event.target.value)}
+											placeholder={t`Optional caption for display`}
+											rows={2}
+											disabled={isSaving}
+										/>
+									</>
+								)}
+							</div>
+
+							<DialogError message={getMutationError(updateMutation.error)} />
+						</div>
+					</div>
+
+					<div
+						className="flex shrink-0 items-center justify-between gap-3 border-t border-kumo-line"
+						style={{ padding: "1.25rem 2rem" }}
+						data-testid="media-detail-dialog-footer"
+					>
+						<div>
+							{canDelete && (
+								<Button
+									variant="destructive"
+									size="sm"
+									icon={<Trash />}
+									onClick={handleDelete}
+									disabled={isBusy}
+								>
+									{isDeleting ? t`Deleting...` : t`Delete`}
+								</Button>
+							)}
+						</div>
+						<div className="flex gap-2">
+							<Button variant="outline" size="sm" onClick={requestClose} disabled={isBusy}>
+								{canEditMetadata ? t`Cancel` : t`Close`}
+							</Button>
+							{canEditMetadata && (
+								<Button size="sm" onClick={handleSave} disabled={!hasChanges || isBusy}>
+									{isSaving ? t`Saving...` : t`Save`}
+								</Button>
 							)}
 						</div>
 					</div>
+				</Dialog>
+			</Dialog.Root>
 
-					{/* File Info */}
-					<div className="p-4 border-b space-y-3">
-						<div className="flex items-center gap-2 text-sm">
-							<HardDrive className="h-4 w-4 text-kumo-subtle" />
-							<span className="text-kumo-subtle">{t`Size:`}</span>
-							<span>{formatFileSize(item.size)}</span>
-						</div>
-						{item.width && item.height && (
-							<div className="flex items-center gap-2 text-sm">
-								<Ruler className="h-4 w-4 text-kumo-subtle" />
-								<span className="text-kumo-subtle">{t`Dimensions:`}</span>
-								<span>
-									{item.width} × {item.height}
-								</span>
-							</div>
-						)}
-						<div className="flex items-center gap-2 text-sm">
-							<Calendar className="h-4 w-4 text-kumo-subtle" />
-							<span className="text-kumo-subtle">{t`Uploaded:`}</span>
-							<span>{formatDate(item.createdAt)}</span>
-						</div>
-						<div className="flex items-center gap-2 text-sm">
-							<LinkSimple className="h-4 w-4 text-kumo-subtle shrink-0" />
-							<span className="text-kumo-subtle shrink-0">{t`URL:`}</span>
-							<ClipboardText
-								text={fileUrl}
-								size="sm"
-								className="min-w-0 flex-1"
-								labels={{ copyAction: t`Copy URL` }}
-							/>
-						</div>
-					</div>
-
-					{/* Editable Fields */}
-					<div className="p-4 space-y-4">
-						<Input
-							label={t`Filename`}
-							value={filename}
-							onChange={(e) => setFilename(e.target.value)}
-							disabled // Filename editing needs backend support
-							description={t`Filename cannot be changed after upload`}
-						/>
-
-						{isImage && (
-							<>
-								<Input
-									label={t`Alt Text`}
-									value={alt}
-									onChange={(e) => setAlt(e.target.value)}
-									placeholder={t`Describe this image for accessibility`}
-									description={t`Used by screen readers and when image fails to load`}
-								/>
-
-								<InputArea
-									label={t`Caption`}
-									value={caption}
-									onChange={(e) => setCaption(e.target.value)}
-									placeholder={t`Optional caption for display`}
-									rows={2}
-								/>
-							</>
-						)}
-					</div>
-				</div>
-
-				{/* Footer */}
-				<div className="p-4 border-t flex items-center justify-between gap-2">
-					<Button
-						variant="destructive"
-						size="sm"
-						icon={<Trash />}
-						onClick={handleDelete}
-						disabled={deleteMutation.isPending}
-					>
-						{deleteMutation.isPending ? t`Deleting...` : t`Delete`}
-					</Button>
-					<div className="flex gap-2">
-						<Button variant="outline" size="sm" onClick={onClose}>
-							{t`Cancel`}
-						</Button>
-						<Button
-							size="sm"
-							onClick={handleSave}
-							disabled={!hasChanges || updateMutation.isPending}
-						>
-							{updateMutation.isPending ? t`Saving...` : t`Save`}
-						</Button>
-					</div>
-				</div>
-			</div>
+			<ConfirmDialog
+				open={showDiscardConfirm}
+				onClose={() => setShowDiscardConfirm(false)}
+				title={t`Discard changes?`}
+				description={t`Your unsaved media changes will be lost.`}
+				confirmLabel={t`Discard`}
+				pendingLabel={t`Discarding...`}
+				isPending={false}
+				error={null}
+				onConfirm={handleDiscardConfirm}
+			/>
 
 			<ConfirmDialog
 				open={showDeleteConfirm}

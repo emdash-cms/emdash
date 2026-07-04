@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MediaLibrary } from "../../src/components/MediaLibrary";
 import type { MediaItem } from "../../src/lib/api";
+import { deleteMedia } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
@@ -39,7 +40,6 @@ function renderLibrary(props: Partial<React.ComponentProps<typeof MediaLibrary>>
 		isLoading: false,
 		onUpload: vi.fn(),
 		onSelect: vi.fn(),
-		onDelete: vi.fn(),
 		onItemUpdated: vi.fn(),
 		...props,
 	};
@@ -124,7 +124,7 @@ describe("MediaLibrary", () => {
 	});
 
 	describe("item selection", () => {
-		it("clicking an item opens detail panel", async () => {
+		it("clicking an item opens detail dialog", async () => {
 			const items = [makeMediaItem({ id: "1", filename: "photo.jpg", alt: "A photo" })];
 			const screen = await renderLibrary({ items });
 
@@ -133,6 +133,66 @@ describe("MediaLibrary", () => {
 
 			// MediaDetailPanel should open showing the item details
 			await expect.element(screen.getByText("Media Details")).toBeInTheDocument();
+		});
+
+		it("preserves unsaved alt text when the media list refetches the same item", async () => {
+			const item = makeMediaItem({ id: "1", filename: "photo.jpg", alt: "Server alt" });
+			const screen = await renderLibrary({ items: [item] });
+
+			await screen.getByRole("button", { name: "photo.jpg" }).click();
+			await screen.getByLabelText("Alt Text").fill("Unsaved alt");
+
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaLibrary
+						items={[makeMediaItem({ id: "1", filename: "photo.jpg", alt: "Refetched alt" })]}
+						isLoading={false}
+					/>
+				</QueryWrapper>,
+			);
+
+			await expect.element(screen.getByLabelText("Alt Text")).toHaveValue("Unsaved alt");
+		});
+
+		it("deletes from the detail dialog with one local delete call", async () => {
+			const onItemUpdated = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "photo.jpg" })];
+			const screen = await renderLibrary({ items, onItemUpdated });
+
+			await screen.getByRole("button", { name: "photo.jpg" }).click();
+			screen.getByRole("button", { name: "Delete" }).element().click();
+			await expect.element(screen.getByText("Delete Media?")).toBeInTheDocument();
+			screen.getByRole("button", { name: "Delete" }).all().at(-1)!.element().click();
+
+			await vi.waitFor(() => {
+				expect(deleteMedia).toHaveBeenCalledTimes(1);
+				expect(deleteMedia).toHaveBeenCalledWith("1");
+				expect(onItemUpdated).toHaveBeenCalledTimes(1);
+			});
+		});
+
+		it("focuses the persistent heading after deleting the last asset", async () => {
+			function Harness() {
+				const [items, setItems] = React.useState([
+					makeMediaItem({ id: "1", filename: "photo.jpg" }),
+				]);
+				return <MediaLibrary items={items} isLoading={false} onItemUpdated={() => setItems([])} />;
+			}
+
+			const screen = await render(
+				<QueryWrapper>
+					<Harness />
+				</QueryWrapper>,
+			);
+
+			await screen.getByRole("button", { name: "photo.jpg" }).click();
+			screen.getByRole("button", { name: "Delete" }).element().click();
+			await expect.element(screen.getByText("Delete Media?")).toBeInTheDocument();
+			screen.getByRole("button", { name: "Delete" }).all().at(-1)!.element().click();
+
+			await vi.waitFor(() => {
+				expect(document.activeElement).toBe(screen.getByText("Media Library").element());
+			});
 		});
 	});
 

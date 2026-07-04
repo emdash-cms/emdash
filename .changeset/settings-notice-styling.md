@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Updates admin settings success and error feedback to use Kumo toasts across settings pages.
+Updates admin settings feedback to use toast notifications and media asset details to open in a centered dialog that guards unsaved edits.

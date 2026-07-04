@@ -77,7 +77,6 @@ import {
 	fetchTranslations,
 	fetchMediaList,
 	uploadMedia,
-	deleteMedia,
 	fetchCollections,
 	fetchCollection,
 	createCollection,
@@ -1131,13 +1130,6 @@ function MediaPage() {
 		},
 	});
 
-	const deleteMutation = useMutation({
-		mutationFn: (id: string) => deleteMedia(id),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["media"] });
-		},
-	});
-
 	const items = React.useMemo(() => {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
@@ -1153,7 +1145,6 @@ function MediaPage() {
 			hasMore={!!hasNextPage}
 			onLoadMore={() => void fetchNextPage()}
 			onUpload={(file) => uploadMutation.mutate(file)}
-			onDelete={(id) => deleteMutation.mutate(id)}
 			onLocalSearchChange={setSearch}
 			onLocalMimeFilterChange={setMimeFilter}
 		/>

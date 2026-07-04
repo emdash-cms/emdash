@@ -47,7 +47,6 @@ export interface MediaLibraryProps {
 	isLoading?: boolean;
 	onUpload?: (file: File) => Promise<void> | void;
 	onSelect?: (item: MediaItem) => void;
-	onDelete?: (id: string) => void;
 	onItemUpdated?: () => void;
 	/** True when more local-library items can be fetched via cursor pagination */
 	hasMore?: boolean;
@@ -66,7 +65,6 @@ export function MediaLibrary({
 	items = [],
 	isLoading,
 	onUpload,
-	onDelete,
 	onItemUpdated,
 	hasMore,
 	onLoadMore,
@@ -75,10 +73,12 @@ export function MediaLibrary({
 }: MediaLibraryProps) {
 	const { t } = useLingui();
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
-	const [selectedItem, setSelectedItem] = React.useState<MediaItem | null>(null);
+	const [detailItem, setDetailItem] = React.useState<MediaItem | null>(null);
+	const [isDetailOpen, setIsDetailOpen] = React.useState(false);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [localTypeFilter, setLocalTypeFilter] = React.useState("all");
+	const mediaHeadingRef = React.useRef<HTMLHeadingElement>(null);
 	// Debounced filename search reported up for the local library's server query.
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 	React.useEffect(() => {
@@ -131,18 +131,18 @@ export function MediaLibrary({
 		return providers?.find((p) => p.id === activeProvider);
 	}, [activeProvider, providers, t]);
 
-	// Update selected item when items change (e.g., after metadata update)
-	React.useEffect(() => {
-		if (selectedItem && activeProvider === "local") {
-			const updated = items.find((i) => i.id === selectedItem.id);
-			if (updated) {
-				setSelectedItem(updated);
-			} else {
-				// Item was deleted
-				setSelectedItem(null);
-			}
-		}
-	}, [items, selectedItem?.id, activeProvider]);
+	const openDetail = React.useCallback((item: MediaItem) => {
+		setDetailItem(item);
+		setIsDetailOpen(true);
+	}, []);
+
+	const closeDetail = React.useCallback(() => {
+		setIsDetailOpen(false);
+	}, []);
+
+	const handleDetailClosed = React.useCallback(() => {
+		setDetailItem(null);
+	}, []);
 
 	// Clear success/error message after a delay
 	React.useEffect(() => {
@@ -268,7 +268,9 @@ export function MediaLibrary({
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-bold">{t`Media Library`}</h1>
+				<h1 ref={mediaHeadingRef} tabIndex={-1} className="text-2xl font-bold">
+					{t`Media Library`}
+				</h1>
 				<div className="flex rounded-md border" role="group" aria-label={t`View mode`}>
 					<Button
 						variant={viewMode === "grid" ? "secondary" : "ghost"}
@@ -301,7 +303,8 @@ export function MediaLibrary({
 								type="button"
 								onClick={() => {
 									setActiveProvider(tab.id);
-									setSelectedItem(null);
+									setIsDetailOpen(false);
+									setDetailItem(null);
 									setSearchQuery("");
 								}}
 								className={cn(
@@ -450,16 +453,15 @@ export function MediaLibrary({
 								<MediaGridItem
 									key={item.id}
 									item={item}
-									selected={selectedItem?.id === item.id}
-									onClick={() => setSelectedItem(item)}
-									onDelete={() => onDelete?.(item.id)}
+									selected={detailItem?.id === item.id}
+									onClick={() => openDetail(item)}
 								/>
 							))
 						: currentProviderItems.map((item) => (
 								<ProviderGridItem
 									key={item.id}
 									item={item}
-									selected={selectedItem?.id === item.id}
+									selected={detailItem?.id === item.id}
 									onClick={() => {
 										// Merge loaded dimensions if provider didn't return them
 										const dims = loadedDimensions[item.id];
@@ -470,7 +472,7 @@ export function MediaLibrary({
 													height: item.height ?? dims.height,
 												}
 											: item;
-										setSelectedItem(providerItemToMediaItem(activeProvider, itemWithDims));
+										openDetail(providerItemToMediaItem(activeProvider, itemWithDims));
 									}}
 									onDimensionsLoaded={(width, height) => {
 										setLoadedDimensions((prev) => ({
@@ -499,16 +501,15 @@ export function MediaLibrary({
 										<MediaListItem
 											key={item.id}
 											item={item}
-											selected={selectedItem?.id === item.id}
-											onClick={() => setSelectedItem(item)}
-											onDelete={() => onDelete?.(item.id)}
+											selected={detailItem?.id === item.id}
+											onClick={() => openDetail(item)}
 										/>
 									))
 								: currentProviderItems.map((item) => (
 										<ProviderListItem
 											key={item.id}
 											item={item}
-											selected={selectedItem?.id === item.id}
+											selected={detailItem?.id === item.id}
 											onClick={() => {
 												const dims = loadedDimensions[item.id];
 												const itemWithDims = dims
@@ -518,7 +519,7 @@ export function MediaLibrary({
 															height: item.height ?? dims.height,
 														}
 													: item;
-												setSelectedItem(providerItemToMediaItem(activeProvider, itemWithDims));
+												openDetail(providerItemToMediaItem(activeProvider, itemWithDims));
 											}}
 											onDimensionsLoaded={(width, height) => {
 												setLoadedDimensions((prev) => ({
@@ -542,19 +543,17 @@ export function MediaLibrary({
 				</div>
 			)}
 
-			{/* Detail Panel */}
-			{selectedItem && (
+			{/* Detail Dialog */}
+			{detailItem && (
 				<MediaDetailPanel
-					item={selectedItem}
-					onClose={() => setSelectedItem(null)}
-					onDeleted={() => {
-						if (activeProvider === "local") {
-							onDelete?.(selectedItem.id);
-							onItemUpdated?.();
-						} else {
-							void refetchProviderMedia();
-						}
-					}}
+					open={isDetailOpen}
+					item={detailItem}
+					providerName={detailItem.provider ? activeProviderInfo?.name : undefined}
+					restoreFocusTargetRef={mediaHeadingRef}
+					onClose={closeDetail}
+					onClosed={handleDetailClosed}
+					onUpdated={onItemUpdated}
+					onDeleted={onItemUpdated}
 				/>
 			)}
 		</div>
@@ -565,7 +564,6 @@ interface MediaGridItemProps {
 	item: MediaItem;
 	selected?: boolean;
 	onClick?: () => void;
-	onDelete: () => void;
 }
 
 function MediaGridItem({ item, selected, onClick }: MediaGridItemProps) {
@@ -658,7 +656,6 @@ interface MediaListItemProps {
 	item: MediaItem;
 	selected?: boolean;
 	onClick?: () => void;
-	onDelete: () => void;
 }
 
 function MediaListItem({ item, selected, onClick }: MediaListItemProps) {

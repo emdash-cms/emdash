@@ -25,20 +25,6 @@ function QueryWrapper({ children }: { children: React.ReactNode }) {
 	return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
-function renderPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel>> = {}) {
-	const defaultProps = {
-		item: null as MediaItem | null,
-		onClose: vi.fn(),
-		onDeleted: vi.fn(),
-		...props,
-	};
-	return render(
-		<QueryWrapper>
-			<MediaDetailPanel {...defaultProps} />
-		</QueryWrapper>,
-	);
-}
-
 function makeImageItem(overrides: Partial<MediaItem> = {}): MediaItem {
 	return {
 		id: "media-1",
@@ -67,14 +53,28 @@ function makePdfItem(overrides: Partial<MediaItem> = {}): MediaItem {
 	};
 }
 
+function renderPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel>> = {}) {
+	const defaultProps: React.ComponentProps<typeof MediaDetailPanel> = {
+		open: true,
+		item: makeImageItem(),
+		onClose: vi.fn(),
+		onDeleted: vi.fn(),
+		...props,
+	};
+	return render(
+		<QueryWrapper>
+			<MediaDetailPanel {...defaultProps} />
+		</QueryWrapper>,
+	);
+}
+
 describe("MediaDetailPanel", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
 
-	it("renders nothing when item is null", async () => {
-		const screen = await renderPanel({ item: null });
-		// The component returns null, so "Media Details" heading shouldn't exist
+	it("does not render dialog contents when closed", async () => {
+		const screen = await renderPanel({ open: false });
 		await expect
 			.element(screen.getByText("Media Details"), { timeout: 100 })
 			.not.toBeInTheDocument();
@@ -94,6 +94,28 @@ describe("MediaDetailPanel", () => {
 		const item = makeImageItem({ width: 1920, height: 1080 });
 		const screen = await renderPanel({ item });
 		await expect.element(screen.getByText("1920 × 1080")).toBeInTheDocument();
+	});
+
+	it("renders the responsive two-column viewport-bounded dialog layout", async () => {
+		const screen = await renderPanel();
+		const dialog = screen.getByRole("dialog", { name: "Media Details" }).element();
+		const header = screen.getByTestId("media-detail-dialog-header").element();
+		const body = screen.getByTestId("media-detail-dialog-body").element();
+		const previewColumn = screen.getByTestId("media-detail-dialog-preview-column").element();
+		const detailsColumn = screen.getByTestId("media-detail-dialog-details-column").element();
+		const fileFacts = screen.getByTestId("media-detail-dialog-file-facts").element();
+		const footer = screen.getByTestId("media-detail-dialog-footer").element();
+
+		expect(body.className).toContain("grid-cols-1");
+		expect(body.className).toContain("md:grid-cols-2");
+		expect(dialog.style.height).toBe("min(88dvh, 48rem)");
+		expect(header.style.padding).toBe("1.25rem 2rem");
+		expect(previewColumn.contains(fileFacts)).toBe(true);
+		expect(detailsColumn.contains(fileFacts)).toBe(false);
+		expect(previewColumn.className).toContain("md:p-8");
+		expect(detailsColumn.className).toContain("md:p-8");
+		expect(fileFacts.className).toContain("space-y-3");
+		expect(footer.style.padding).toBe("1.25rem 2rem");
 	});
 
 	it("shows image preview for image mimeTypes", async () => {
@@ -164,19 +186,97 @@ describe("MediaDetailPanel", () => {
 	});
 
 	it("save calls updateMedia with correct payload", async () => {
+		const onClose = vi.fn();
 		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
-		const screen = await renderPanel({ item });
+		const screen = await renderPanel({ item, onClose });
 
 		const altInput = screen.getByLabelText("Alt Text");
 		await altInput.fill("New alt");
 
 		const saveBtn = screen.getByRole("button", { name: "Save" });
-		await saveBtn.click();
+		await expect.element(saveBtn).toBeEnabled();
+		saveBtn.element().click();
 
-		expect(updateMedia).toHaveBeenCalledWith("media-1", {
-			alt: "New alt",
-			caption: "Old caption",
+		await vi.waitFor(() => {
+			expect(updateMedia).toHaveBeenCalledWith("media-1", {
+				alt: "New alt",
+				caption: "Old caption",
+			});
+			expect(onClose).toHaveBeenCalled();
 		});
+	});
+
+	it("saves empty strings when clearing alt text and caption", async () => {
+		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
+		const screen = await renderPanel({ item });
+
+		await screen.getByLabelText("Alt Text").fill("");
+		await screen.getByLabelText("Caption").fill("");
+		screen.getByRole("button", { name: "Save" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(updateMedia).toHaveBeenCalledWith("media-1", {
+				alt: "",
+				caption: "",
+			});
+		});
+	});
+
+	it("disables editing and closing while a save is pending", async () => {
+		let resolveUpdate!: (item: MediaItem) => void;
+		vi.mocked(updateMedia).mockImplementationOnce(
+			() => new Promise<MediaItem>((resolve) => (resolveUpdate = resolve)),
+		);
+		const onClose = vi.fn();
+		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
+		const screen = await renderPanel({ item, onClose });
+
+		const altInput = screen.getByLabelText("Alt Text");
+		await altInput.fill("New alt");
+		screen.getByRole("button", { name: "Save" }).element().click();
+
+		await expect.element(altInput).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Close" })).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+
+		screen.getByRole("button", { name: "Close" }).element().click();
+		expect(onClose).not.toHaveBeenCalled();
+
+		resolveUpdate({ ...item, alt: "New alt" });
+		await vi.waitFor(() => {
+			expect(onClose).toHaveBeenCalled();
+		});
+	});
+
+	it("saves dirty metadata with the keyboard shortcut", async () => {
+		const onClose = vi.fn();
+		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
+		const screen = await renderPanel({ item, onClose });
+
+		await screen.getByLabelText("Alt Text").fill("Shortcut alt");
+		window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true }));
+
+		await vi.waitFor(() => {
+			expect(updateMedia).toHaveBeenCalledWith("media-1", {
+				alt: "Shortcut alt",
+				caption: "Old caption",
+			});
+			expect(onClose).toHaveBeenCalled();
+		});
+	});
+
+	it("does not consume the keyboard save shortcut when nothing can be saved", async () => {
+		await renderPanel({
+			item: makeImageItem({ provider: "cloudflare-images" }),
+			providerName: "Cloudflare Images",
+		});
+
+		const event = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, cancelable: true });
+		window.dispatchEvent(event);
+
+		expect(event.defaultPrevented).toBe(false);
+		expect(updateMedia).not.toHaveBeenCalled();
 	});
 
 	it("delete with confirm calls deleteMedia and onClose + onDeleted", async () => {
@@ -186,7 +286,7 @@ describe("MediaDetailPanel", () => {
 
 		const screen = await renderPanel({ item, onClose, onDeleted });
 		const deleteBtn = screen.getByRole("button", { name: "Delete" });
-		await deleteBtn.click();
+		deleteBtn.element().click();
 
 		// ConfirmDialog should appear
 		await expect.element(screen.getByText("Delete Media?")).toBeInTheDocument();
@@ -208,27 +308,39 @@ describe("MediaDetailPanel", () => {
 
 		const screen = await renderPanel({ item });
 		const deleteBtn = screen.getByRole("button", { name: "Delete" });
-		await deleteBtn.click();
+		deleteBtn.element().click();
 
 		// ConfirmDialog should appear
 		await expect.element(screen.getByText("Delete Media?")).toBeInTheDocument();
 
 		// Direct DOM click to bypass Base UI inert overlay
-		screen.getByRole("button", { name: "Cancel" }).element().click();
+		screen.getByRole("button", { name: "Cancel" }).all().at(-1)!.element().click();
 
 		expect(deleteMedia).not.toHaveBeenCalled();
 	});
 
-	it("escape key calls onClose", async () => {
+	it("close button calls onClose when clean", async () => {
 		const onClose = vi.fn();
 		const item = makeImageItem();
-		await renderPanel({ item, onClose });
+		const screen = await renderPanel({ item, onClose });
 
-		await new Promise<void>((resolve) => {
-			window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-			resolve();
-		});
+		screen.getByRole("button", { name: "Close" }).element().click();
 
+		expect(onClose).toHaveBeenCalled();
+	});
+
+	it("close button opens discard confirmation when dirty", async () => {
+		const onClose = vi.fn();
+		const item = makeImageItem({ alt: "Original" });
+		const screen = await renderPanel({ item, onClose });
+
+		await screen.getByLabelText("Alt Text").fill("Changed alt");
+		screen.getByRole("button", { name: "Close" }).element().click();
+
+		await expect.element(screen.getByText("Discard changes?")).toBeInTheDocument();
+		expect(onClose).not.toHaveBeenCalled();
+
+		screen.getByRole("button", { name: "Discard" }).element().click();
 		expect(onClose).toHaveBeenCalled();
 	});
 
@@ -245,7 +357,7 @@ describe("MediaDetailPanel", () => {
 		// Rerender with item2
 		await screen.rerender(
 			<QueryWrapper>
-				<MediaDetailPanel item={item2} onClose={vi.fn()} onDeleted={vi.fn()} />
+				<MediaDetailPanel open item={item2} onClose={vi.fn()} onDeleted={vi.fn()} />
 			</QueryWrapper>,
 		);
 
@@ -266,5 +378,36 @@ describe("MediaDetailPanel file URL", () => {
 		const absolute = new URL("/_emdash/api/media/file/01ABC.jpg", window.location.origin).href;
 		await expect.element(screen.getByText(absolute)).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: /Copy URL/ })).toBeVisible();
+	});
+
+	it("does not expose provider preview URLs as public URLs", async () => {
+		const screen = await renderPanel({
+			item: makeImageItem({ provider: "cloudflare-images", url: "https://preview.example/image" }),
+			providerName: "Cloudflare Images",
+		});
+
+		await expect.element(screen.getByText("Managed by Cloudflare Images")).toBeVisible();
+		await expect.element(screen.getByText("No public URL available")).toBeVisible();
+		await expect
+			.element(screen.getByRole("button", { name: /Copy URL/ }), { timeout: 100 })
+			.not.toBeInTheDocument();
+	});
+
+	it("renders provider assets read-only", async () => {
+		const screen = await renderPanel({
+			item: makeImageItem({ provider: "cloudflare-images" }),
+			providerName: "Cloudflare Images",
+		});
+
+		await expect
+			.element(screen.getByRole("button", { name: "Delete" }), { timeout: 100 })
+			.not.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Save" }), { timeout: 100 })
+			.not.toBeInTheDocument();
+		await expect
+			.element(screen.getByLabelText("Alt Text"), { timeout: 100 })
+			.not.toBeInTheDocument();
+		await expect.element(screen.getByText("Uploaded:"), { timeout: 100 }).not.toBeInTheDocument();
 	});
 });
