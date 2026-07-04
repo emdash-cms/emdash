@@ -374,8 +374,11 @@ async function searchSingleCollection(
 		AND c.status = ${status}
 		AND c.deleted_at IS NULL
 		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}`;
+	// A negative column index makes FTS5 take the snippet from whichever
+	// indexed column has the most matching tokens, instead of always the
+	// first searchable field (the title).
 	const displayFields = sql`c.id, c.slug, c.locale, ${titleExpr} AS title,
-		snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) AS snippet`;
+		snippet("${sql.raw(ftsTable)}", -1, '<mark>', '</mark>', '...', 32) AS snippet`;
 	let results;
 	try {
 		// D1 coalesces only statements beginning with SELECT; keep the CTEs
