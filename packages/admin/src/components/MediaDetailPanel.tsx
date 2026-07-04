@@ -11,7 +11,7 @@ import { X, Trash, Calendar, HardDrive, LinkSimple, Ruler, Info } from "@phospho
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { updateMedia, deleteMedia, type MediaItem } from "../lib/api";
+import { updateMedia, deleteMedia, deleteFromProvider, type MediaItem } from "../lib/api";
 import { useStableCallback } from "../lib/hooks";
 import { getFileIcon, formatFileSize } from "../lib/media-utils";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -23,6 +23,7 @@ export interface MediaDetailPanelProps {
 	open: boolean;
 	item: MediaItem;
 	providerName?: string;
+	canDelete?: boolean;
 	restoreFocusTargetRef?: React.RefObject<HTMLElement | null>;
 	onClose: () => void;
 	onClosed?: () => void;
@@ -37,6 +38,7 @@ export function MediaDetailPanel({
 	open,
 	item,
 	providerName,
+	canDelete: canDeleteProp,
 	restoreFocusTargetRef,
 	onClose,
 	onClosed,
@@ -54,7 +56,7 @@ export function MediaDetailPanel({
 	const isVideo = item.mimeType.startsWith("video/");
 	const isAudio = item.mimeType.startsWith("audio/");
 	const canEditMetadata = !isProviderAsset && isImage;
-	const canDelete = !isProviderAsset;
+	const canDelete = !isProviderAsset || Boolean(canDeleteProp);
 
 	const [filename, setFilename] = React.useState(item.filename);
 	const [alt, setAlt] = React.useState(item.alt ?? "");
@@ -126,9 +128,13 @@ export function MediaDetailPanel({
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: () => deleteMedia(item.id),
+		mutationFn: () =>
+			item.provider ? deleteFromProvider(item.provider, item.id) : deleteMedia(item.id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
+			if (item.provider) {
+				void queryClient.invalidateQueries({ queryKey: ["provider-media", item.provider] });
+			}
 			restoreFocusAfterDeleteRef.current = true;
 			setShowDeleteConfirm(false);
 			onDeleted?.();

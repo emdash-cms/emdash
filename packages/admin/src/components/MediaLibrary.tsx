@@ -292,11 +292,25 @@ export function MediaLibrary({
 	const canSearch = activeProviderInfo?.capabilities.search ?? false;
 	const resultCount =
 		activeProvider === "local" ? currentItems.length : currentProviderItems.length;
+	const hasMoreCurrentItems =
+		activeProvider === "local" ? Boolean(hasMore) : Boolean(providerData?.nextCursor);
+	const resultCountText =
+		resultCount > 0 && !hasMoreCurrentItems
+			? plural(resultCount, { one: "# item", other: "# items" })
+			: "";
 	const hasActiveQuery = searchQuery.trim() !== "" || localTypeFilter !== "all";
 	const clearLocalQuery = () => {
 		setSearchQuery("");
+		onLocalSearchChange?.("");
 		setLocalTypeFilter("all");
 		onLocalMimeFilterChange?.(mimeForTypeFilter("all"));
+	};
+	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const next = e.target.value;
+		setSearchQuery(next);
+		if (activeProvider === "local" && next.trim() === "") {
+			onLocalSearchChange?.("");
+		}
 	};
 	const showToolbar = resultCount > 0 || hasActiveQuery;
 
@@ -398,7 +412,7 @@ export function MediaLibrary({
 									placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
 									aria-label={t`Search media`}
 									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
+									onChange={handleSearchChange}
 									maxLength={MEDIA_SEARCH_MAX_LENGTH}
 									className="w-full ps-9"
 								/>
@@ -424,38 +438,38 @@ export function MediaLibrary({
 						)}
 					</div>
 					<div className="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
-						{resultCount > 0 && (
-							<span className="text-sm text-kumo-subtle" aria-live="polite">
-								{plural(resultCount, { one: "# item", other: "# items" })}
-							</span>
-						)}
-						<Tabs
-							variant="segmented"
-							value={viewMode}
-							onValueChange={(v) => {
-								if (v === "grid" || v === "list") setViewMode(v);
-							}}
-							tabs={[
-								{
-									value: "grid",
-									label: (
-										<>
-											<SquaresFour className="h-4 w-4" aria-hidden="true" />
-											<span className="sr-only">{t`Grid view`}</span>
-										</>
-									),
-								},
-								{
-									value: "list",
-									label: (
-										<>
-											<List className="h-4 w-4" aria-hidden="true" />
-											<span className="sr-only">{t`List view`}</span>
-										</>
-									),
-								},
-							]}
-						/>
+						<span className="text-sm text-kumo-subtle" aria-live="polite">
+							{resultCountText}
+						</span>
+						<div role="group" aria-label={t`View mode`}>
+							<Tabs
+								variant="segmented"
+								value={viewMode}
+								onValueChange={(v) => {
+									if (v === "grid" || v === "list") setViewMode(v);
+								}}
+								tabs={[
+									{
+										value: "grid",
+										label: (
+											<>
+												<SquaresFour className="h-4 w-4" aria-hidden="true" />
+												<span className="sr-only">{t`Grid view`}</span>
+											</>
+										),
+									},
+									{
+										value: "list",
+										label: (
+											<>
+												<List className="h-4 w-4" aria-hidden="true" />
+												<span className="sr-only">{t`List view`}</span>
+											</>
+										),
+									},
+								]}
+							/>
+						</div>
 					</div>
 				</div>
 			)}
@@ -466,7 +480,7 @@ export function MediaLibrary({
 					<Loader />
 				</div>
 			) : activeProvider === "local" && currentItems.length === 0 ? (
-					hasActiveQuery ? (
+				hasActiveQuery ? (
 					<MediaEmptyState
 						hero={MagnifyingGlass}
 						title={t`No matching media`}
@@ -626,6 +640,7 @@ export function MediaLibrary({
 					open={isDetailOpen}
 					item={detailItem}
 					providerName={detailItem.provider ? activeProviderInfo?.name : undefined}
+					canDelete={detailItem.provider ? activeProviderInfo?.capabilities.delete : undefined}
 					restoreFocusTargetRef={mediaHeadingRef}
 					onClose={closeDetail}
 					onClosed={handleDetailClosed}

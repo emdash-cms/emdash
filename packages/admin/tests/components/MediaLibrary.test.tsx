@@ -223,7 +223,9 @@ describe("MediaLibrary", () => {
 			screen.getByRole("button", { name: "Delete" }).all().at(-1)!.element().click();
 
 			await vi.waitFor(() => {
-				expect(document.activeElement).toBe(screen.getByText("Media Library").element());
+				expect(document.activeElement).toBe(
+					screen.getByRole("heading", { name: "Media Library", exact: true }).element(),
+				);
 			});
 		});
 	});
@@ -271,7 +273,9 @@ describe("MediaLibrary", () => {
 	describe("header", () => {
 		it("shows Media Library heading", async () => {
 			const screen = await renderLibrary();
-			await expect.element(screen.getByText("Media Library")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("heading", { name: "Media Library", exact: true }))
+				.toBeInTheDocument();
 		});
 	});
 
@@ -280,6 +284,7 @@ describe("MediaLibrary", () => {
 			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
 			const screen = await renderLibrary({ items, hasMore: true, onLoadMore: vi.fn() });
 			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
+			expect(screen.getByText("1 item").query()).toBeNull();
 		});
 
 		it("does not render Load More button when hasMore is false", async () => {
@@ -335,6 +340,29 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("option", { name: "Images" }).click();
 
 			expect(onLocalMimeFilterChange).toHaveBeenCalledWith("image/");
+		});
+
+		it("does not flash the empty-library state while clearing a zero-result search", async () => {
+			function Harness() {
+				const [search, setSearch] = React.useState("");
+				const items = search ? [] : [makeMediaItem({ id: "1", filename: "restored.jpg" })];
+
+				return <MediaLibrary items={items} onLocalSearchChange={setSearch} isLoading={false} />;
+			}
+
+			const screen = await render(
+				<QueryWrapper>
+					<Harness />
+				</QueryWrapper>,
+			);
+
+			await screen.getByRole("searchbox", { name: "Search media" }).fill("missing");
+			await expect.element(screen.getByText("No matching media")).toBeInTheDocument();
+
+			await screen.getByRole("searchbox", { name: "Search media" }).fill("");
+
+			expect(screen.getByText("Your media library is empty").query()).toBeNull();
+			await expect.element(screen.getByAltText("restored.jpg")).toBeInTheDocument();
 		});
 	});
 });

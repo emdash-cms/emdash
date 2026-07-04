@@ -12,11 +12,12 @@ vi.mock("../../src/lib/api", async () => {
 		...actual,
 		updateMedia: vi.fn().mockResolvedValue({}),
 		deleteMedia: vi.fn().mockResolvedValue({}),
+		deleteFromProvider: vi.fn().mockResolvedValue({}),
 	};
 });
 
 // Import the mocked functions for assertions
-import { updateMedia, deleteMedia } from "../../src/lib/api";
+import { updateMedia, deleteMedia, deleteFromProvider } from "../../src/lib/api";
 
 function QueryWrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
@@ -323,6 +324,26 @@ describe("MediaDetailPanel", () => {
 			expect(deleteMedia).toHaveBeenCalledWith("media-1");
 			expect(onClose).toHaveBeenCalled();
 			expect(onDeleted).toHaveBeenCalled();
+		});
+	});
+
+	it("deletes provider assets through the provider API when deletion is supported", async () => {
+		const onDeleted = vi.fn();
+		const screen = await renderPanel({
+			item: makeImageItem({ id: "provider-1", provider: "cloudflare-images" }),
+			providerName: "Cloudflare Images",
+			canDelete: true,
+			onDeleted,
+		});
+
+		screen.getByRole("button", { name: "Delete" }).element().click();
+		await expect.element(screen.getByText("Delete Media?")).toBeInTheDocument();
+		screen.getByRole("button", { name: "Delete" }).all().at(-1)!.element().click();
+
+		await vi.waitFor(() => {
+			expect(deleteFromProvider).toHaveBeenCalledWith("cloudflare-images", "provider-1");
+			expect(deleteMedia).not.toHaveBeenCalled();
+			expect(onDeleted).toHaveBeenCalledTimes(1);
 		});
 	});
 
