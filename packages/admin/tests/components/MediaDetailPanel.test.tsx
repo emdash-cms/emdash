@@ -388,6 +388,49 @@ describe("MediaDetailPanel", () => {
 		expect(onClose).toHaveBeenCalled();
 	});
 
+	it("cancels the close fallback when reopened before the fallback timer fires", async () => {
+		vi.useFakeTimers();
+		try {
+			const onClose = vi.fn();
+			const onClosed = vi.fn();
+			const firstItem = makeImageItem({ id: "media-1", filename: "first.jpg" });
+			const secondItem = makeImageItem({ id: "media-2", filename: "second.jpg" });
+
+			const screen = await render(
+				<QueryWrapper>
+					<MediaDetailPanel
+						open
+						item={firstItem}
+						onClose={onClose}
+						onClosed={onClosed}
+						onDeleted={vi.fn()}
+					/>
+				</QueryWrapper>,
+			);
+
+			screen.getByRole("button", { name: "Close" }).element().click();
+			expect(onClose).toHaveBeenCalled();
+
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaDetailPanel
+						open
+						item={secondItem}
+						onClose={onClose}
+						onClosed={onClosed}
+						onDeleted={vi.fn()}
+					/>
+				</QueryWrapper>,
+			);
+			await vi.advanceTimersByTimeAsync(500);
+
+			expect(onClosed).not.toHaveBeenCalled();
+			await expect.element(screen.getByLabelText("Filename")).toHaveValue("second.jpg");
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("form fields reset when item prop changes", async () => {
 		const item1 = makeImageItem({ id: "m1", alt: "Alt one", caption: "Cap one" });
 		const item2 = makeImageItem({ id: "m2", alt: "Alt two", caption: "Cap two" });

@@ -66,6 +66,10 @@ export function MediaDetailPanel({
 
 	React.useEffect(() => {
 		if (!open) return;
+		if (closeFallbackTimerRef.current !== null) {
+			window.clearTimeout(closeFallbackTimerRef.current);
+			closeFallbackTimerRef.current = null;
+		}
 		closeFinishedRef.current = false;
 		restoreFocusAfterDeleteRef.current = false;
 		setFilename(item.filename);
