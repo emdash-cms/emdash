@@ -5,9 +5,9 @@
  * is configured, this page shows an informational message instead.
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Button, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Shield, Plus, CheckCircle, WarningCircle, Info } from "@phosphor-icons/react";
+import { Shield, Plus, Info } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -19,11 +19,8 @@ import { PasskeyList } from "./PasskeyList";
 export function SecuritySettings() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
 	const [isAdding, setIsAdding] = React.useState(false);
-	const [saveStatus, setSaveStatus] = React.useState<{
-		type: "success" | "error";
-		message: string;
-	} | null>(null);
 
 	// Fetch manifest for auth mode
 	const { data: manifest, isLoading: manifestLoading } = useQuery({
@@ -44,26 +41,18 @@ export function SecuritySettings() {
 		enabled: !isExternalAuth && !manifestLoading,
 	});
 
-	// Clear status message after 3 seconds
-	React.useEffect(() => {
-		if (saveStatus) {
-			const timer = setTimeout(setSaveStatus, 3000, null);
-			return () => clearTimeout(timer);
-		}
-	}, [saveStatus]);
-
 	// Rename mutation
 	const renameMutation = useMutation({
 		mutationFn: ({ id, name }: { id: string; name: string }) => renamePasskey(id, name),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["passkeys"] });
-			setSaveStatus({ type: "success", message: t`Passkey renamed` });
+			toastManager.add({ title: t`Passkey renamed`, variant: "success", timeout: 3000 });
 		},
 		onError: (mutationError) => {
-			setSaveStatus({
-				type: "error",
-				message:
-					mutationError instanceof Error ? mutationError.message : t`Failed to rename passkey`,
+			toastManager.add({
+				title: mutationError instanceof Error ? mutationError.message : t`Failed to rename passkey`,
+				variant: "error",
+				timeout: 3000,
 			});
 		},
 	});
@@ -73,13 +62,13 @@ export function SecuritySettings() {
 		mutationFn: (id: string) => deletePasskey(id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["passkeys"] });
-			setSaveStatus({ type: "success", message: t`Passkey removed` });
+			toastManager.add({ title: t`Passkey removed`, variant: "success", timeout: 3000 });
 		},
 		onError: (mutationError) => {
-			setSaveStatus({
-				type: "error",
-				message:
-					mutationError instanceof Error ? mutationError.message : t`Failed to remove passkey`,
+			toastManager.add({
+				title: mutationError instanceof Error ? mutationError.message : t`Failed to remove passkey`,
+				variant: "error",
+				timeout: 3000,
 			});
 		},
 	});
@@ -95,7 +84,7 @@ export function SecuritySettings() {
 	const handleAddSuccess = () => {
 		void queryClient.invalidateQueries({ queryKey: ["passkeys"] });
 		setIsAdding(false);
-		setSaveStatus({ type: "success", message: t`Passkey added successfully` });
+		toastManager.add({ title: t`Passkey added successfully`, variant: "success", timeout: 3000 });
 	};
 
 	const settingsHeader = (
@@ -152,24 +141,6 @@ export function SecuritySettings() {
 		<div className="space-y-6">
 			{settingsHeader}
 
-			{/* Status message */}
-			{saveStatus && (
-				<div
-					className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${
-						saveStatus.type === "success"
-							? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-200"
-							: "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-					}`}
-				>
-					{saveStatus.type === "success" ? (
-						<CheckCircle className="h-4 w-4 flex-shrink-0" />
-					) : (
-						<WarningCircle className="h-4 w-4 flex-shrink-0" />
-					)}
-					{saveStatus.message}
-				</div>
-			)}
-
 			{/* Passkeys Section */}
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-center gap-2 mb-4">
@@ -211,9 +182,10 @@ export function SecuritySettings() {
 								verifyEndpoint="/_emdash/api/auth/passkey/register/verify"
 								onSuccess={handleAddSuccess}
 								onError={(registrationError) =>
-									setSaveStatus({
-										type: "error",
-										message: registrationError.message,
+									toastManager.add({
+										title: registrationError.message,
+										variant: "error",
+										timeout: 3000,
 									})
 								}
 								showNameInput

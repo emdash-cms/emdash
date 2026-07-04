@@ -5,9 +5,9 @@
  * (posts per page, date format, timezone).
  */
 
-import { Button, Input, Label } from "@cloudflare/kumo";
+import { Button, Input, Label, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { FloppyDisk, CheckCircle, WarningCircle, Upload, X } from "@phosphor-icons/react";
+import { FloppyDisk, WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -19,6 +19,7 @@ import { BackToSettingsLink } from "./BackToSettingsLink.js";
 export function GeneralSettings() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
 
 	const { data: settings, isLoading } = useQuery({
 		queryKey: ["settings"],
@@ -27,11 +28,6 @@ export function GeneralSettings() {
 	});
 
 	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
-	const [saveStatus, setSaveStatus] = React.useState<{
-		type: "success" | "error";
-		message: string;
-	} | null>(null);
-
 	const [logoPickerOpen, setLogoPickerOpen] = React.useState(false);
 	const [faviconPickerOpen, setFaviconPickerOpen] = React.useState(false);
 
@@ -39,23 +35,21 @@ export function GeneralSettings() {
 		if (settings) setFormData(settings);
 	}, [settings]);
 
-	React.useEffect(() => {
-		if (saveStatus) {
-			const timer = setTimeout(setSaveStatus, 3000, null);
-			return () => clearTimeout(timer);
-		}
-	}, [saveStatus]);
-
 	const saveMutation = useMutation({
 		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
-			setSaveStatus({ type: "success", message: t`Settings saved successfully` });
+			toastManager.add({
+				title: t`Settings saved successfully`,
+				variant: "success",
+				timeout: 3000,
+			});
 		},
 		onError: (error) => {
-			setSaveStatus({
-				type: "error",
-				message: error instanceof Error ? error.message : t`Failed to save settings`,
+			toastManager.add({
+				title: error instanceof Error ? error.message : t`Failed to save settings`,
+				variant: "error",
+				timeout: 3000,
 			});
 		},
 	});
@@ -128,24 +122,6 @@ export function GeneralSettings() {
 			>
 				<h1 className="text-2xl font-bold truncate">{t`General Settings`}</h1>
 			</EditorHeader>
-
-			{/* Status banner */}
-			{saveStatus && (
-				<div
-					className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${
-						saveStatus.type === "success"
-							? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-200"
-							: "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-					}`}
-				>
-					{saveStatus.type === "success" ? (
-						<CheckCircle className="h-4 w-4 flex-shrink-0" />
-					) : (
-						<WarningCircle className="h-4 w-4 flex-shrink-0" />
-					)}
-					{saveStatus.message}
-				</div>
-			)}
 
 			<form id="general-settings-form" onSubmit={handleSubmit} className="space-y-6">
 				{/* Site Identity */}

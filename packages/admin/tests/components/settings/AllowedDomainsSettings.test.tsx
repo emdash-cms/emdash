@@ -1,3 +1,4 @@
+import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
@@ -42,7 +43,11 @@ function QueryWrapper({ children }: { children: React.ReactNode }) {
 			mutations: { retry: false },
 		},
 	});
-	return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+	return (
+		<Toasty>
+			<QueryClientProvider client={qc}>{children}</QueryClientProvider>
+		</Toasty>
+	);
 }
 
 beforeEach(() => {
@@ -138,10 +143,31 @@ describe("AllowedDomainsSettings", () => {
 		await vi.waitFor(() => {
 			expect(mockCreateAllowedDomain).toHaveBeenCalled();
 		});
+		await expect.element(screen.getByText("Domain added successfully")).toBeInTheDocument();
 		expect(mockCreateAllowedDomain.mock.calls[0]![0]).toEqual({
 			domain: "example.com",
 			defaultRole: 30,
 		});
+	});
+
+	it("add domain: failed submit shows an error toast", async () => {
+		mockCreateAllowedDomain.mockRejectedValue(new Error("Domain is already allowed"));
+		const screen = await render(
+			<QueryWrapper>
+				<AllowedDomainsSettings />
+			</QueryWrapper>,
+		);
+
+		await expect.element(screen.getByText("Add Domain")).toBeInTheDocument();
+		const addButton = screen.getByText("Add Domain").element().closest("button")!;
+		await userEvent.click(addButton);
+
+		const domainInput = screen.getByLabelText("Domain");
+		await userEvent.type(domainInput, "example.com");
+		const submitButton = screen.getByText("Add Domain").element().closest("button")!;
+		await userEvent.click(submitButton);
+
+		await expect.element(screen.getByText("Domain is already allowed")).toBeInTheDocument();
 	});
 
 	it("delete domain: confirmation dialog, confirm calls deleteAllowedDomain", async () => {
