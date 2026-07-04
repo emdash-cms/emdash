@@ -39,7 +39,8 @@ export function SocialSettings() {
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: error instanceof Error ? error.message : t`Failed to save settings`,
+				title: t`Failed to save settings`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
 			});

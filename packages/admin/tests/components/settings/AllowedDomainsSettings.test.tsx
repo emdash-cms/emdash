@@ -167,6 +167,7 @@ describe("AllowedDomainsSettings", () => {
 		const submitButton = screen.getByText("Add Domain").element().closest("button")!;
 		await userEvent.click(submitButton);
 
+		await expect.element(screen.getByText("Failed to add domain")).toBeInTheDocument();
 		await expect.element(screen.getByText("Domain is already allowed")).toBeInTheDocument();
 	});
 

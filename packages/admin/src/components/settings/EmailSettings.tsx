@@ -47,7 +47,8 @@ export function EmailSettings() {
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: getMutationError(error) || t`Failed to send test email`,
+				title: t`Failed to send test email`,
+				description: getMutationError(error) || t`An error occurred`,
 				variant: "error",
 				timeout: 5000,
 			});

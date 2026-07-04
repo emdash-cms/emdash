@@ -67,7 +67,8 @@ export function AllowedDomainsSettings() {
 		},
 		onError: (mutationError) => {
 			toastManager.add({
-				title: mutationError instanceof Error ? mutationError.message : t`Failed to add domain`,
+				title: t`Failed to add domain`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
 			});
@@ -90,7 +91,8 @@ export function AllowedDomainsSettings() {
 		},
 		onError: (mutationError) => {
 			toastManager.add({
-				title: mutationError instanceof Error ? mutationError.message : t`Failed to update domain`,
+				title: t`Failed to update domain`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
 			});
@@ -107,7 +109,8 @@ export function AllowedDomainsSettings() {
 		},
 		onError: (mutationError) => {
 			toastManager.add({
-				title: mutationError instanceof Error ? mutationError.message : t`Failed to remove domain`,
+				title: t`Failed to remove domain`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
 			});

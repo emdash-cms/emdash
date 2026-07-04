@@ -50,7 +50,8 @@ export function SecuritySettings() {
 		},
 		onError: (mutationError) => {
 			toastManager.add({
-				title: mutationError instanceof Error ? mutationError.message : t`Failed to rename passkey`,
+				title: t`Failed to rename passkey`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
 			});
@@ -66,7 +67,8 @@ export function SecuritySettings() {
 		},
 		onError: (mutationError) => {
 			toastManager.add({
-				title: mutationError instanceof Error ? mutationError.message : t`Failed to remove passkey`,
+				title: t`Failed to remove passkey`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
 			});
@@ -183,7 +185,8 @@ export function SecuritySettings() {
 								onSuccess={handleAddSuccess}
 								onError={(registrationError) =>
 									toastManager.add({
-										title: registrationError.message,
+										title: t`Failed to add passkey`,
+										description: registrationError.message,
 										variant: "error",
 										timeout: 3000,
 									})
