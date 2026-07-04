@@ -135,9 +135,10 @@ export function MediaDetailPanel({
 		mutationFn: () =>
 			item.provider ? deleteFromProvider(item.provider, item.id) : deleteMedia(item.id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["media"] });
 			if (item.provider) {
 				void queryClient.invalidateQueries({ queryKey: ["provider-media", item.provider] });
+			} else {
+				void queryClient.invalidateQueries({ queryKey: ["media"] });
 			}
 			restoreFocusAfterDeleteRef.current = true;
 			setShowDeleteConfirm(false);

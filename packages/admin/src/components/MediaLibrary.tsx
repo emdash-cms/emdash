@@ -407,7 +407,10 @@ export function MediaLibrary({
 					<div className="flex min-w-0 items-center gap-3">
 						{(canSearch || activeProvider === "local") && (
 							<div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
-								<MagnifyingGlass className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
+								<MagnifyingGlass
+									className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle"
+									aria-hidden="true"
+								/>
 								<Input
 									type="search"
 									placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
@@ -646,7 +649,7 @@ export function MediaLibrary({
 					onClose={closeDetail}
 					onClosed={handleDetailClosed}
 					onUpdated={onItemUpdated}
-					onDeleted={onItemUpdated}
+					onDeleted={detailItem.provider ? undefined : onItemUpdated}
 				/>
 			)}
 		</div>
