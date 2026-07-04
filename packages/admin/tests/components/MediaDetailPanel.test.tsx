@@ -118,6 +118,16 @@ describe("MediaDetailPanel", () => {
 		expect(detailsColumn.contains(fileFacts)).toBe(false);
 		expect(previewColumn.className).toContain("md:p-8");
 		expect(detailsColumn.className).toContain("md:p-8");
+		// Columns only constrain/scroll at md+; on mobile the body scrolls as one
+		// column so collapsed columns can't compress and overlap their content.
+		expect(body.className).toContain("overflow-y-auto");
+		expect(body.className).toContain("md:overflow-hidden");
+		expect(previewColumn.className).toContain("md:min-h-0");
+		expect(previewColumn.className).toContain("md:overflow-y-auto");
+		expect(previewColumn.className).not.toContain(" min-h-0");
+		expect(detailsColumn.className).toContain("md:min-h-0");
+		expect(detailsColumn.className).toContain("md:overflow-y-auto");
+		expect(detailsColumn.className).not.toContain(" min-h-0");
 		expect(fileFacts.className).toContain("space-y-3");
 		expect(footer.style.padding).toBe("1.25rem 2rem");
 	});

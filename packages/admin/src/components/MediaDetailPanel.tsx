@@ -228,7 +228,7 @@ export function MediaDetailPanel({
 						data-testid="media-detail-dialog-body"
 					>
 						<div
-							className="min-h-0 space-y-5 border-b border-kumo-line p-6 md:overflow-y-auto md:border-e md:border-b-0 md:p-8"
+							className="space-y-5 border-b border-kumo-line p-6 md:min-h-0 md:overflow-y-auto md:border-e md:border-b-0 md:p-8"
 							data-testid="media-detail-dialog-preview-column"
 						>
 							<div className="flex h-64 items-center justify-center overflow-hidden rounded-xl border border-kumo-line bg-kumo-tint md:h-80">
@@ -297,7 +297,7 @@ export function MediaDetailPanel({
 						</div>
 
 						<div
-							className="min-h-0 space-y-5 p-6 md:overflow-y-auto md:p-8"
+							className="space-y-5 p-6 md:min-h-0 md:overflow-y-auto md:p-8"
 							data-testid="media-detail-dialog-details-column"
 						>
 							{isProviderAsset && (
