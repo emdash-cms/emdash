@@ -298,7 +298,8 @@ export function MediaLibrary({
 		resultCount > 0 && !hasMoreCurrentItems
 			? plural(resultCount, { one: "# item", other: "# items" })
 			: "";
-	const hasActiveQuery = searchQuery.trim() !== "" || localTypeFilter !== "all";
+	const hasActiveQuery =
+		searchQuery.trim() !== "" || (activeProvider === "local" && localTypeFilter !== "all");
 	const clearLocalQuery = () => {
 		setSearchQuery("");
 		onLocalSearchChange?.("");

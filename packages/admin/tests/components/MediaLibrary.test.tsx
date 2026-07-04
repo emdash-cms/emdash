@@ -364,5 +364,28 @@ describe("MediaLibrary", () => {
 			expect(screen.getByText("Your media library is empty").query()).toBeNull();
 			await expect.element(screen.getByAltText("restored.jpg")).toBeInTheDocument();
 		});
+
+		it("does not keep the local filter toolbar visible on empty provider tabs", async () => {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaProviders as any).mockResolvedValueOnce([
+				{
+					id: "cloudflare-images",
+					name: "Cloudflare Images",
+					capabilities: { browse: true, search: false, upload: false, delete: false },
+				},
+			]);
+
+			const screen = await renderLibrary({
+				items: [makeMediaItem({ id: "1", filename: "a.jpg" })],
+			});
+
+			await screen.getByRole("combobox", { name: "Filter by type" }).click();
+			await screen.getByRole("option", { name: "Images" }).click();
+			await screen.getByRole("tab", { name: "Cloudflare Images" }).click();
+
+			await expect.element(screen.getByText("No media found")).toBeInTheDocument();
+			expect(screen.getByRole("tab", { name: "Grid view" }).query()).toBeNull();
+			expect(screen.getByRole("tab", { name: "List view" }).query()).toBeNull();
+		});
 	});
 });
