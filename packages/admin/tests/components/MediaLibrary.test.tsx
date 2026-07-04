@@ -77,7 +77,7 @@ describe("MediaLibrary", () => {
 			];
 			const screen = await renderLibrary({ items });
 			// Grid view is default — items render as buttons with alt text
-			await expect.element(screen.getByRole("button", { name: "Grid view" })).toBeInTheDocument();
+			await expect.element(screen.getByRole("tab", { name: "Grid view" })).toBeInTheDocument();
 			// Images should be present via their img alt attributes
 			await expect.element(screen.getByAltText("image1.jpg")).toBeInTheDocument();
 			await expect.element(screen.getByAltText("image2.jpg")).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe("MediaLibrary", () => {
 			const screen = await renderLibrary({ items });
 
 			// Default is grid
-			const listBtn = screen.getByRole("button", { name: "List view" });
+			const listBtn = screen.getByRole("tab", { name: "List view" });
 			await listBtn.click();
 
 			// In list view, filename appears in table cell
@@ -260,7 +260,7 @@ describe("MediaLibrary", () => {
 			const screen = await renderLibrary({ items });
 
 			// Switch to list view
-			await screen.getByRole("button", { name: "List view" }).click();
+			await screen.getByRole("tab", { name: "List view" }).click();
 
 			await expect.element(screen.getByText("document.pdf")).toBeInTheDocument();
 			await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();

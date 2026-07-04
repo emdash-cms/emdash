@@ -1,4 +1,4 @@
-import { Button, Input, Loader, Select } from "@cloudflare/kumo";
+import { Button, Input, Loader, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Upload, Image, SquaresFour, List, MagnifyingGlass, Check, X } from "@phosphor-icons/react";
@@ -281,72 +281,19 @@ export function MediaLibrary({
 
 	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
 	const canSearch = activeProviderInfo?.capabilities.search ?? false;
+	const resultCount =
+		activeProvider === "local" ? currentItems.length : currentProviderItems.length;
+	const hasActiveQuery = searchQuery.trim() !== "" || localTypeFilter !== "all";
+	const showToolbar = resultCount > 0 || hasActiveQuery;
 
 	return (
-		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
+		<div className="space-y-4">
+			{/* Header: page title (start) + primary upload action (end) */}
+			<div className="flex flex-wrap items-center justify-between gap-4">
 				<h1 ref={mediaHeadingRef} tabIndex={-1} className="text-2xl font-bold">
 					{t`Media Library`}
 				</h1>
-				<div className="flex rounded-md border" role="group" aria-label={t`View mode`}>
-					<Button
-						variant={viewMode === "grid" ? "secondary" : "ghost"}
-						shape="square"
-						onClick={() => setViewMode("grid")}
-						aria-label={t`Grid view`}
-						aria-pressed={viewMode === "grid"}
-					>
-						<SquaresFour className="h-4 w-4" aria-hidden="true" />
-					</Button>
-					<Button
-						variant={viewMode === "list" ? "secondary" : "ghost"}
-						shape="square"
-						onClick={() => setViewMode("list")}
-						aria-label={t`List view`}
-						aria-pressed={viewMode === "list"}
-					>
-						<List className="h-4 w-4" aria-hidden="true" />
-					</Button>
-				</div>
-			</div>
-
-			{/* Provider Tabs + Upload */}
-			<div className="flex items-center justify-between gap-4 border-b pb-3">
-				{providerTabs.length > 1 && (
-					<div className="flex gap-2 overflow-x-auto">
-						{providerTabs.map((tab) => (
-							<button
-								key={tab.id}
-								type="button"
-								onClick={() => {
-									cancelPendingDetailOpen();
-									setActiveProvider(tab.id);
-									setIsDetailOpen(false);
-									setDetailItem(null);
-									setSearchQuery("");
-								}}
-								className={cn(
-									"flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
-									activeProvider === tab.id
-										? "bg-kumo-brand text-white"
-										: "bg-kumo-tint hover:bg-kumo-tint/80 text-kumo-subtle",
-								)}
-							>
-								{tab.icon &&
-									(tab.icon.startsWith("data:") ? (
-										<img src={tab.icon} alt="" className="h-4 w-4" aria-hidden="true" />
-									) : (
-										<span aria-hidden="true">{tab.icon}</span>
-									))}
-								{tab.name}
-							</button>
-						))}
-					</div>
-				)}
-
-				{/* Upload button + status */}
-				<div className="flex items-center gap-3 flex-shrink-0">
+				<div className="flex items-center gap-3">
 					{/* Upload status feedback */}
 					{uploadState.status === "uploading" && (
 						<div className="flex items-center gap-2 text-sm text-kumo-subtle">
@@ -359,14 +306,14 @@ export function MediaLibrary({
 						</div>
 					)}
 					{uploadState.status === "success" && (
-						<div className="flex items-center gap-2 text-sm text-green-600">
-							<Check className="h-4 w-4" />
+						<div className="flex items-center gap-2 text-sm text-kumo-success">
+							<Check className="h-4 w-4" aria-hidden="true" />
 							<span>{uploadState.message}</span>
 						</div>
 					)}
 					{uploadState.status === "error" && (
 						<div className="flex items-center gap-2 text-sm text-kumo-danger">
-							<X className="h-4 w-4" />
+							<X className="h-4 w-4" aria-hidden="true" />
 							<span>{uploadState.message}</span>
 						</div>
 					)}
@@ -394,50 +341,112 @@ export function MediaLibrary({
 				</div>
 			</div>
 
-			{/* Search — providers that support it, plus the local library
-			    (filename/extension search + type filter, handled server-side). */}
-			{(canSearch || activeProvider === "local") && (
-				<div className="flex flex-wrap items-center gap-3">
-					<div className="relative max-w-sm flex-1">
-						<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-						<Input
-							type="search"
-							placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
-							aria-label={t`Search media`}
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							maxLength={MEDIA_SEARCH_MAX_LENGTH}
-							className="ps-9"
+			{/* Provider tabs (only when an external provider is configured) */}
+			{providerTabs.length > 1 && (
+				<Tabs
+					variant="underline"
+					value={activeProvider}
+					onValueChange={(v) => {
+						if (!v) return;
+						cancelPendingDetailOpen();
+						setActiveProvider(v);
+						setIsDetailOpen(false);
+						setDetailItem(null);
+						setSearchQuery("");
+					}}
+					tabs={providerTabs.map((tab) => ({
+						value: tab.id,
+						label: (
+							<span className="flex items-center gap-2">
+								{tab.icon &&
+									(tab.icon.startsWith("data:") ? (
+										<img src={tab.icon} alt="" className="h-4 w-4" aria-hidden="true" />
+									) : (
+										<span aria-hidden="true">{tab.icon}</span>
+									))}
+								{tab.name}
+							</span>
+						),
+					}))}
+				/>
+			)}
+
+			{/* Toolbar: search + type filter (start) · result count + view toggle (end).
+			    Local library search/filter is handled server-side. */}
+			{showToolbar && (
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+						{(canSearch || activeProvider === "local") && (
+							<div className="relative w-full max-w-xs">
+								<MagnifyingGlass className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
+								<Input
+									type="search"
+									placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
+									aria-label={t`Search media`}
+									value={searchQuery}
+									onChange={(e) => setSearchQuery(e.target.value)}
+									maxLength={MEDIA_SEARCH_MAX_LENGTH}
+									className="w-full ps-9"
+								/>
+							</div>
+						)}
+						{activeProvider === "local" && (
+							<Select
+								value={localTypeFilter}
+								onValueChange={(v) => {
+									const next = v ?? "all";
+									setLocalTypeFilter(next);
+									onLocalMimeFilterChange?.(mimeForTypeFilter(next));
+								}}
+								items={{
+									all: t`All types`,
+									image: t`Images`,
+									video: t`Video`,
+									audio: t`Audio`,
+									document: t`Documents`,
+								}}
+								aria-label={t`Filter by type`}
+							/>
+						)}
+					</div>
+					<div className="flex flex-shrink-0 items-center gap-3">
+						{resultCount > 0 && (
+							<span className="text-sm text-kumo-subtle" aria-live="polite">
+								{plural(resultCount, { one: "# item", other: "# items" })}
+							</span>
+						)}
+						<Tabs
+							variant="segmented"
+							value={viewMode}
+							onValueChange={(v) => {
+								if (v === "grid" || v === "list") setViewMode(v);
+							}}
+							tabs={[
+								{
+									value: "grid",
+									label: (
+										<>
+											<SquaresFour className="h-4 w-4" aria-hidden="true" />
+											<span className="sr-only">{t`Grid view`}</span>
+										</>
+									),
+								},
+								{
+									value: "list",
+									label: (
+										<>
+											<List className="h-4 w-4" aria-hidden="true" />
+											<span className="sr-only">{t`List view`}</span>
+										</>
+									),
+								},
+							]}
 						/>
 					</div>
-					{activeProvider === "local" && (
-						<Select
-							value={localTypeFilter}
-							onValueChange={(v) => {
-								const next = v ?? "all";
-								setLocalTypeFilter(next);
-								onLocalMimeFilterChange?.(mimeForTypeFilter(next));
-							}}
-							items={{
-								all: t`All types`,
-								image: t`Images`,
-								video: t`Video`,
-								audio: t`Audio`,
-								document: t`Documents`,
-							}}
-							aria-label={t`Filter by type`}
-						/>
-					)}
 				</div>
 			)}
 
 			{/* Content */}
-			{/*
-			 * Gate the full-area loader on items being empty so that "Load More"
-			 * (which sets isLoading=true while fetching the next page) does not
-			 * blank out the already-rendered grid. Mirrors the ContentList
-			 * pattern from #135.
-			 */}
 			{currentLoading && currentItems.length === 0 && currentProviderItems.length === 0 ? (
 				<div className="flex items-center justify-center py-12">
 					<Loader />
@@ -511,7 +520,7 @@ export function MediaLibrary({
 								<th className="px-4 py-3 text-start text-sm font-medium">{t`Filename`}</th>
 								<th className="px-4 py-3 text-start text-sm font-medium">{t`Type`}</th>
 								<th className="px-4 py-3 text-start text-sm font-medium">{t`Size`}</th>
-								<th className="px-4 py-3 text-end text-sm font-medium">{t`Actions`}</th>
+								<th className="px-4 py-3 text-end text-sm font-medium">{t`Alt text`}</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-kumo-line">
