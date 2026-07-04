@@ -11,7 +11,14 @@ import { FloppyDisk, CheckCircle, WarningCircle, Upload, X } from "@phosphor-ico
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
+import {
+	fetchSettings,
+	fetchSiteUrl,
+	updateSettings,
+	updateSiteUrl,
+	type SiteSettings,
+	type MediaItem,
+} from "../../lib/api";
 import { EditorHeader } from "../EditorHeader";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { BackToSettingsLink } from "./BackToSettingsLink.js";
@@ -26,7 +33,21 @@ export function GeneralSettings() {
 		staleTime: Infinity,
 	});
 
+	// `emdash:site_url` lives outside the `site:*` settings namespace and is
+	// served by a dedicated endpoint -- keep it on a separate query so the
+	// main settings cache doesn't have to know about a sibling concept.
+	const { data: siteUrlSetting } = useQuery({
+		queryKey: ["settings", "site-url"],
+		queryFn: fetchSiteUrl,
+		staleTime: Infinity,
+	});
+
 	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
+	const [siteUrlInput, setSiteUrlInput] = React.useState("");
+	const [siteUrlStatus, setSiteUrlStatus] = React.useState<{
+		type: "success" | "error";
+		message: string;
+	} | null>(null);
 	const [saveStatus, setSaveStatus] = React.useState<{
 		type: "success" | "error";
 		message: string;
@@ -40,11 +61,22 @@ export function GeneralSettings() {
 	}, [settings]);
 
 	React.useEffect(() => {
+		if (siteUrlSetting) setSiteUrlInput(siteUrlSetting.siteUrl ?? "");
+	}, [siteUrlSetting]);
+
+	React.useEffect(() => {
 		if (saveStatus) {
 			const timer = setTimeout(setSaveStatus, 3000, null);
 			return () => clearTimeout(timer);
 		}
 	}, [saveStatus]);
+
+	React.useEffect(() => {
+		if (siteUrlStatus) {
+			const timer = setTimeout(setSiteUrlStatus, 3000, null);
+			return () => clearTimeout(timer);
+		}
+	}, [siteUrlStatus]);
 
 	const saveMutation = useMutation({
 		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
@@ -56,6 +88,21 @@ export function GeneralSettings() {
 			setSaveStatus({
 				type: "error",
 				message: error instanceof Error ? error.message : t`Failed to save settings`,
+			});
+		},
+	});
+
+	const siteUrlMutation = useMutation({
+		mutationFn: (value: string) => updateSiteUrl(value),
+		onSuccess: (data) => {
+			void queryClient.invalidateQueries({ queryKey: ["settings", "site-url"] });
+			if (data.siteUrl) setSiteUrlInput(data.siteUrl);
+			setSiteUrlStatus({ type: "success", message: t`Site URL saved` });
+		},
+		onError: (error) => {
+			setSiteUrlStatus({
+				type: "error",
+				message: error instanceof Error ? error.message : t`Failed to save site URL`,
 			});
 		},
 	});
@@ -283,6 +330,57 @@ export function GeneralSettings() {
 									{t`Select Favicon`}
 								</Button>
 							)}
+						</div>
+					</div>
+				</div>
+
+				{/* Email Site URL --
+				    A separate form section because `emdash:site_url` is updated via
+				    its own endpoint (`/_emdash/api/settings/site-url`) and lives
+				    outside the `site:*` settings namespace edited by the form above.
+				    See packages/core/src/api/site-url.ts and upstream issue #989. */}
+				<div className="rounded-lg border bg-kumo-base p-6">
+					<h2 className="mb-4 text-lg font-semibold">{t`Email Site URL`}</h2>
+					<p className="mb-4 text-sm text-kumo-subtle">
+						{t`Sets the base URL used for magic-link, invitation, and password-reset emails. Changes do not affect URLs in emails that have already been sent.`}
+					</p>
+					{siteUrlStatus && (
+						<div
+							className={`mb-4 flex items-center gap-2 rounded-lg border p-3 text-sm ${
+								siteUrlStatus.type === "success"
+									? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-200"
+									: "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+							}`}
+						>
+							{siteUrlStatus.type === "success" ? (
+								<CheckCircle className="h-4 w-4 flex-shrink-0" />
+							) : (
+								<WarningCircle className="h-4 w-4 flex-shrink-0" />
+							)}
+							{siteUrlStatus.message}
+						</div>
+					)}
+					<div className="space-y-4">
+						<Input
+							label={t`Site URL (transactional emails)`}
+							type="url"
+							value={siteUrlInput}
+							onChange={(e) => setSiteUrlInput(e.target.value)}
+							description={t`Must be an absolute http or https origin, e.g. https://example.com. Set during initial setup; edit here to update.`}
+							placeholder="https://example.com"
+						/>
+						<div className="flex justify-end">
+							<Button
+								type="button"
+								disabled={
+									siteUrlMutation.isPending ||
+									siteUrlInput.trim() === (siteUrlSetting?.siteUrl ?? "")
+								}
+								icon={<FloppyDisk />}
+								onClick={() => siteUrlMutation.mutate(siteUrlInput.trim())}
+							>
+								{siteUrlMutation.isPending ? t`Saving...` : t`Save Site URL`}
+							</Button>
 						</div>
 					</div>
 				</div>

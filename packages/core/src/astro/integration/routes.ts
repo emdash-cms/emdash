@@ -341,6 +341,13 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/settings/email.ts"),
 	});
 
+	// Site URL settings route -- governs `emdash:site_url`, the origin used
+	// to build links in magic-link / invitation / password-reset emails.
+	injectRoute({
+		pattern: "/_emdash/api/settings/site-url",
+		entrypoint: resolveRoute("api/settings/site-url.ts"),
+	});
+
 	// Snapshot route (for DO preview database population)
 	injectRoute({
 		pattern: "/_emdash/api/snapshot",
