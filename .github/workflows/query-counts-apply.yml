@@ -154,6 +154,12 @@ jobs:
           repository: ${{ steps.pr.outputs.full_name }}
           ref: ${{ steps.pr.outputs.sha }}
           persist-credentials: false
+          # Safe here: this job never executes the fork's code, it only
+          # checks out the tree to apply the inert JSON snapshot artifact
+          # and push it back (see "Apply snapshots" / "Commit and push
+          # (fork)" below). actions/checkout added this opt-in requirement
+          # for workflow_run checkouts of fork PRs; see gh.io/securely-using-pull_request_target.
+          allow-unsafe-pr-checkout: true
 
       - name: Apply snapshots
         if: steps.download.outputs.found == 'true'
