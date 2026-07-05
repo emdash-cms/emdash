@@ -8,7 +8,12 @@ import type { Database } from "../../database/types.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { Field, FieldType } from "../../schema/types.js";
 import { hashString } from "../../utils/hash.js";
-import type { ManifestResponse, FieldDescriptor } from "../types.js";
+import type {
+	FieldDescriptor,
+	ManifestCollectionMap,
+	ManifestFieldDescriptor,
+	ManifestResponse,
+} from "../types.js";
 
 /** Pattern to add spaces before capital letters */
 const CAMEL_CASE_PATTERN = /([A-Z])/g;
@@ -53,23 +58,6 @@ type CollectionMap = Record<string, CollectionDefinition>;
 interface GenerateManifestOptions {
 	db?: Kysely<Database> | null;
 }
-
-export interface ManifestFieldDescriptor extends FieldDescriptor {
-	widget?: string;
-	id?: string;
-	validation?: Record<string, unknown>;
-}
-
-export interface ManifestCollectionDescriptor {
-	label: string;
-	labelSingular: string;
-	supports: string[];
-	hasSeo: boolean;
-	urlPattern?: string;
-	fields: Record<string, ManifestFieldDescriptor>;
-}
-
-export type ManifestCollectionMap = Record<string, ManifestCollectionDescriptor>;
 
 /**
  * Generate admin manifest from collections
