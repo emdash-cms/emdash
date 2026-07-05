@@ -157,6 +157,12 @@ export interface ImportResult {
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
+	/** Number of taxonomy term assignments written (plugin import) */
+	taxonomyAssignments?: number;
+	/** Source taxonomies skipped because no matching EmDash taxonomy def exists */
+	missingTaxonomies?: string[];
+	/** Navigation menu import summary (plugin import) */
+	menus?: { created: number; items: number };
 }
 
 /**
