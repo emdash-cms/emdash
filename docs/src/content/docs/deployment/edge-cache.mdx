@@ -3,29 +3,9 @@ title: Edge Caching
 description: Cache rendered HTML in the Cloudflare Workers Cache and purge it by tag when content changes.
 ---
 
-import { Aside } from "@astrojs/starlight/components";
-
-The [object cache](/deployment/object-cache/) stores query results, but every request still renders HTML inside the Worker. Edge caching stores the rendered HTML response itself in the [Cloudflare Workers Cache](https://developers.cloudflare.com/workers/configuration/workers-cache/), so a cache hit is served at the edge and never invokes the Worker. Combined with cache tags and a purge hook, pages stay cached for days while a publish becomes visible within seconds.
+The [object cache](/deployment/object-cache/) stores query results, but every request still renders HTML inside the Worker. Edge caching stores the rendered HTML response itself in the [Cloudflare Workers Cache](https://developers.cloudflare.com/workers/configuration/workers-cache/), so a cache hit is served at the edge and never invokes the Worker. Combined with cache tags and EmDash's built-in purging, pages stay cached for days while a publish becomes visible within seconds.
 
 This guide uses [Astro's route caching](https://docs.astro.build/en/guides/caching/) with the Cloudflare cache provider, and applies to Cloudflare deployments only. The two caches are complementary: the edge cache serves repeat requests, the object cache makes the remaining renders cheap.
-
-<Aside type="caution">
-	The Workers Cache and its tag-based purge API (`cache.purge` from
-	`cloudflare:workers`) are in beta and not available on every account. Check
-	whether the **Cache** toggle appears on your Worker in the Cloudflare
-	dashboard. Without purge access, keep `maxAge` short and rely on
-	`swr` instead of purging.
-</Aside>
-
-## Enable the Workers Cache
-
-Enable the cache for your Worker in the Wrangler configuration:
-
-```jsonc title="wrangler.jsonc"
-{
-	"cache": { "enabled": true },
-}
-```
 
 ## Configure route caching
 
@@ -45,10 +25,10 @@ export default defineConfig({
 		provider: cacheCloudflare(),
 	},
 	routeRules: {
-		"/": { maxAge: 86_400, swr: 604_800, tags: ["pages", "posts"] },
-		"/blog": { maxAge: 86_400, swr: 604_800, tags: ["pages", "posts"] },
-		"/blog/[slug]": { maxAge: 86_400, swr: 604_800, tags: ["pages", "posts"] },
-		"/sitemap.xml": { maxAge: 86_400, swr: 604_800, tags: ["pages", "posts"] },
+		"/": { maxAge: 86_400, swr: 604_800, tags: ["posts", "pages"] },
+		"/blog": { maxAge: 86_400, swr: 604_800, tags: ["posts"] },
+		"/blog/[slug]": { maxAge: 86_400, swr: 604_800, tags: ["posts"] },
+		"/sitemap.xml": { maxAge: 86_400, swr: 604_800, tags: ["posts", "pages"] },
 	},
 	integrations: [
 		emdash({
@@ -59,51 +39,23 @@ export default defineConfig({
 });
 ```
 
-- `maxAge` is how long the edge serves the entry without contacting the Worker. It can be generous when a purge hook (below) removes stale entries on publish.
+- `maxAge` is how long the edge serves the entry without contacting the Worker. It can be generous because EmDash purges stale entries on publish (below).
 - `swr` lets the edge keep serving a stale entry while it revalidates in the background, so visitors never wait on a cold render.
-- `tags` name the entry for purging. A useful convention is one broad tag on every cached route (`pages`, the emergency switch that clears everything) plus one tag per collection the page renders.
+- `tags` name the entry for purging. Tag each route with the collections it renders, using the collection names — EmDash's built-in invalidation purges by collection name, so matching tags are purged automatically. A broad extra tag on every cached route (here `pages`) works as an emergency switch that clears everything at once.
 
 The provider turns these rules into `Cloudflare-CDN-Cache-Control` and `Cache-Tag` response headers. The edge consumes both; clients never see them, and any `Cache-Control` header your pages set for browsers is unaffected.
 
 Routes without a matching rule are stamped `Cloudflare-CDN-Cache-Control: no-store`, so the admin panel, authenticated routes, and mutating API endpoints stay uncached without extra configuration. Only list routes that are safe to serve identically to every visitor.
 
-## Purge on publish
+When a cache provider is configured, the `@astrojs/cloudflare` adapter enables the Workers Cache automatically: the build writes `"cache": { "enabled": true }` into the generated Wrangler configuration that `wrangler deploy` picks up. No manual Wrangler changes are needed.
 
-Content lifecycle hooks can purge the affected tags whenever an entry is saved or deleted, so a publish reaches visitors in seconds even with a long `maxAge`. The following native plugin purges the tags for the saved entry's collection (see [Hook Reference](/reference/hooks/) for the hook surface):
+EmDash's own `cloudflareCache()` provider from `@emdash-cms/cloudflare` predates Astro's route caching and is deprecated in favor of the setup shown here.
 
-```ts title="src/plugins/edge-cache-purge.ts"
-import { definePlugin } from "emdash";
+## Purge on publish is built-in
 
-const TAGS: Record<string, string[]> = {
-	posts: ["posts"],
-	pages: ["pages"],
-};
+No plugin or hook is required. EmDash's content API routes invalidate the route cache whenever an entry changes: saving, publishing, unpublishing, deleting, restoring, or duplicating an entry purges the tags `[collection, id]`, and scheduled publishing purges the same tags from the cron sweep. Any route rule tagged with the collection name (as above) is therefore refreshed within seconds of a publish, even with a long `maxAge`.
 
-async function purgeEdgeCache(collection: string, ctx) {
-	const tags = TAGS[collection] ?? ["pages"];
-	try {
-		// `cloudflare:workers` exists only at Worker runtime; a top-level
-		// import would break `astro dev` and the build.
-		const { cache } = await import("cloudflare:workers");
-		if (!cache?.purge) return;
-		await cache.purge({ tags });
-		ctx.log.info("edge cache purged", { collection, tags });
-	} catch (error) {
-		ctx.log.warn("edge cache purge failed", { collection, error: String(error) });
-	}
-}
-
-export default definePlugin({
-	id: "edge-cache-purge",
-	version: "1.0.0",
-	hooks: {
-		"content:afterSave": (event, ctx) => purgeEdgeCache(event.collection, ctx),
-		"content:afterDelete": (event, ctx) => purgeEdgeCache(event.collection, ctx),
-	},
-});
-```
-
-Purging on every save — including drafts — is a reasonable default: an unnecessary purge costs one cold render, while a missed purge serves stale content for up to `maxAge`. Keep the handler best-effort so a purge failure never blocks a save.
+This is also why the tag convention matters: EmDash purges the *collection name* as a tag. If your route rules use other tag names, the built-in purge will not match them and stale entries survive until `maxAge` expires.
 
 ## Keep responses out of the cache
 
@@ -111,7 +63,7 @@ Route rules match the request path, so they also apply to responses you do not w
 
 ### Preview links
 
-Preview URLs carry a signed token as a query parameter, and each query variant is cached separately — a preview response would otherwise sit in the edge cache under its token URL after the token expires. Disable caching when draft content is served:
+Preview URLs carry a signed token as a query parameter (`?_preview=…`), and each query variant is cached separately. EmDash marks preview responses `Cache-Control: private, no-store`, but that header governs browsers and downstream CDNs — it does not opt a response out of the Workers Cache, which follows the route rule. Without an opt-out, the preview variant is stored at the edge under its token URL; once cached, it is served without invoking the Worker, so no token verification runs and the draft content remains reachable after the token expires. Disable caching when draft content is served:
 
 ```astro title="src/pages/blog/[slug].astro"
 ---
@@ -131,7 +83,7 @@ if (!entry) {
 }
 ```
 
-The tags matter here: if the slug is published within those 60 seconds, the purge hook also removes the cached 404.
+The tags matter here: if the slug is published within those 60 seconds, the built-in purge also removes the cached 404.
 
 ### Redirects in middleware
 
