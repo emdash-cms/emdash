@@ -2714,7 +2714,6 @@ export class EmDashRuntime {
 							SET draft_revision_id = ${revision.id},
 								updated_at = ${new Date().toISOString()}
 							WHERE id = ${resolvedId}
-							AND draft_revision_id IS NULL
 						`.execute(this.db);
 
 						// Fire-and-forget: prune old revisions to prevent unbounded growth
