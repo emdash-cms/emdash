@@ -90,6 +90,14 @@ describe("MediaLibrary", () => {
 			await expect.element(img).toBeInTheDocument();
 			await expect.element(img).toHaveAttribute("src", "https://example.com/photo.jpg");
 		});
+
+		it("grid thumbnails are natively lazy-loaded", async () => {
+			// A library page can hold up to 100 items; without `loading="lazy"` the
+			// browser fetches every thumbnail on mount instead of only the visible ones.
+			const items = [makeMediaItem({ id: "1", filename: "pic.jpg", mimeType: "image/jpeg" })];
+			const screen = await renderLibrary({ items });
+			await expect.element(screen.getByAltText("pic.jpg")).toHaveAttribute("loading", "lazy");
+		});
 	});
 
 	describe("view mode toggle", () => {
@@ -267,6 +275,13 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("document.pdf")).toBeInTheDocument();
 			await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();
 			await expect.element(screen.getByText("1 MB")).toBeInTheDocument();
+		});
+
+		it("list view thumbnails are natively lazy-loaded", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "pic.jpg", mimeType: "image/jpeg" })];
+			const screen = await renderLibrary({ items });
+			await screen.getByRole("button", { name: "List view" }).click();
+			await expect.element(screen.getByAltText("pic.jpg")).toHaveAttribute("loading", "lazy");
 		});
 	});
 

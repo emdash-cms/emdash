@@ -722,6 +722,7 @@ function MediaGridItem({ item, selected, onClick }: MediaGridItemProps) {
 					<img
 						src={getMediaThumbnailUrl(item.url, item.mimeType, MEDIA_THUMBNAIL_WIDTH)}
 						alt={item.alt || item.filename}
+						loading="lazy"
 						className="h-full w-full object-cover"
 						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 					/>
@@ -773,6 +774,7 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 					<img
 						src={item.previewUrl}
 						alt={item.alt || item.filename}
+						loading="lazy"
 						className="h-full w-full object-cover"
 						onLoad={handleImageLoad}
 					/>
@@ -815,6 +817,7 @@ function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
 						<img
 							src={getMediaThumbnailUrl(item.url, item.mimeType, 80)}
 							alt={item.alt || item.filename}
+							loading="lazy"
 							className="h-full w-full object-cover"
 							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 						/>
@@ -870,6 +873,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 						<img
 							src={item.previewUrl}
 							alt={item.alt || item.filename}
+							loading="lazy"
 							className="h-full w-full object-cover"
 							onLoad={handleImageLoad}
 						/>

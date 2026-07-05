@@ -1312,7 +1312,7 @@ function MediaPage() {
 			queryFn: ({ pageParam }) =>
 				fetchMediaList({
 					cursor: pageParam,
-					limit: 100,
+					limit: 40,
 					search: search || undefined,
 					mimeType: mimeFilter,
 				}),
