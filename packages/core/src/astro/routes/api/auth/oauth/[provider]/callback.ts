@@ -121,7 +121,8 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 		let env: Record<string, unknown> = import.meta.env as Record<string, unknown>;
 		try {
 			const cf = await import("cloudflare:workers");
-			env = cf.env as Record<string, unknown>;
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- cloudflare:workers env bindings are untyped at the import level
+			env = cf.env as unknown as Record<string, unknown>;
 		} catch {
 			try {
 				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- locals.runtime is injected by the Cloudflare adapter at runtime
