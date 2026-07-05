@@ -2690,51 +2690,54 @@ export class EmDashRuntime {
 							mergedData._slug = bodyWithoutRev.slug;
 						}
 
-					if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
-						// Autosave: update existing draft revision in place (only if content changed)
-						const existingDraftId = existing.draftRevisionId;
-						const currentDraft = await revisionRepo.findById(existingDraftId);
-						if (JSON.stringify(currentDraft?.data?.content ?? null) !== JSON.stringify(mergedData.content ?? null)) {
-							await revisionRepo.updateData(existingDraftId, mergedData);
-						}
-					} else {
-						// Create new draft revision
-						const revision = await revisionRepo.create({
-							collection,
-							entryId: resolvedId,
-							data: mergedData,
-							authorId: bodyWithoutRev.authorId ?? undefined,
-						});
+						if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
+							// Autosave: update existing draft revision in place (only if content changed)
+							const existingDraftId = existing.draftRevisionId;
+							const currentDraft = await revisionRepo.findById(existingDraftId);
+							if (
+								JSON.stringify(currentDraft?.data?.content ?? null) !==
+								JSON.stringify(mergedData.content ?? null)
+							) {
+								await revisionRepo.updateData(existingDraftId, mergedData);
+							}
+						} else {
+							// Create new draft revision
+							const revision = await revisionRepo.create({
+								collection,
+								entryId: resolvedId,
+								data: mergedData,
+								authorId: bodyWithoutRev.authorId ?? undefined,
+							});
 
-						// Update entry to point to new draft (metadata only, not data columns)
-						validateIdentifier(collection, "collection");
-						const tableName = `ec_${collection}`;
-						await sql`
+							// Update entry to point to new draft (metadata only, not data columns)
+							validateIdentifier(collection, "collection");
+							const tableName = `ec_${collection}`;
+							await sql`
 							UPDATE ${sql.ref(tableName)}
 							SET draft_revision_id = ${revision.id},
 								updated_at = ${new Date().toISOString()}
 							WHERE id = ${resolvedId}
 						`.execute(this.db);
 
-						// Fire-and-forget: prune old revisions to prevent unbounded growth
-						void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
-					}
+							// Fire-and-forget: prune old revisions to prevent unbounded growth
+							void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
+						}
 
-					// Also update ec_pages.content column so autosave data persists
-					// even if hydrateDraftData merge fails downstream
-					const currentState = await repo.findById(collection, resolvedId);
-					if (currentState?.draftRevisionId) {
-						const currentDraft = await revisionRepo.findById(currentState.draftRevisionId);
-						if (currentDraft?.data?.content !== undefined) {
-							validateIdentifier(collection, "collection");
-							const tableName2 = `ec_${collection}`;
-							await sql`
+						// Also update ec_pages.content column so autosave data persists
+						// even if hydrateDraftData merge fails downstream
+						const currentState = await repo.findById(collection, resolvedId);
+						if (currentState?.draftRevisionId) {
+							const currentDraft = await revisionRepo.findById(currentState.draftRevisionId);
+							if (currentDraft?.data?.content !== undefined) {
+								validateIdentifier(collection, "collection");
+								const tableName2 = `ec_${collection}`;
+								await sql`
 								UPDATE ${sql.ref(tableName2)}
 								SET content = ${JSON.stringify(currentDraft.data.content)}
 								WHERE id = ${resolvedId}
 							`.execute(this.db);
+							}
 						}
-					}
 					}
 				}
 			} catch {
