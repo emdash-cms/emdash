@@ -28,6 +28,10 @@ beforeEach(() => {
 	mockFetch.mockReset();
 });
 
+function toUrlString(input: RequestInfo | URL): string {
+	return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+}
+
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
 function makePost(overrides: Record<string, unknown> = {}) {
@@ -124,9 +128,50 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 		expect(items[0]!.customTaxonomies).toEqual({ genre: ["sci-fi", "fantasy"] });
 	});
 
+	it("surfaces custom fields (ACF/meta) as suggested fields with sanitized slugs", async () => {
+		const analyzeResponse = {
+			...makeAnalyzeResponse(0),
+			post_types: [
+				{
+					name: "event",
+					label: "Events",
+					label_singular: "Event",
+					total: 3,
+					by_status: { publish: 3 },
+					supports: {},
+					taxonomies: [],
+					custom_fields: [
+						{ key: "event-start_date", count: 3, inferred_type: "datetime", sample: "2026-01-01" },
+						{ key: "Ticket Price", count: 3, inferred_type: "number", sample: "25.50" },
+						{ key: "venue", count: 2, inferred_type: "weird_type", sample: "Hall A" },
+						// Collides with a base field -- must not be duplicated
+						{ key: "title", count: 3, inferred_type: "string", sample: "x" },
+					],
+					hierarchical: false,
+					has_archive: true,
+				},
+			],
+		};
+		mockFetch.mockResolvedValueOnce(new Response(JSON.stringify(analyzeResponse), { status: 200 }));
+
+		const analysis = await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+
+		const fields = analysis.postTypes[0]!.requiredFields;
+		const bySlug = new Map(fields.map((f) => [f.slug, f]));
+		expect(bySlug.get("event_start_date")).toMatchObject({ type: "datetime", required: false });
+		expect(bySlug.get("ticket_price")).toMatchObject({ type: "number", label: "Ticket Price" });
+		// Unknown inferred types fall back to string
+		expect(bySlug.get("venue")).toMatchObject({ type: "string" });
+		// Base fields are not duplicated
+		expect(fields.filter((f) => f.slug === "title")).toHaveLength(1);
+	});
+
 	it("fetches every media page during analyze, not just the first", async () => {
 		mockFetch.mockImplementation((input: RequestInfo | URL) => {
-			const url = String(input);
+			const url = toUrlString(input);
 			if (url.includes("/analyze")) {
 				return Promise.resolve(
 					new Response(JSON.stringify(makeAnalyzeResponse(3)), { status: 200 }),
@@ -148,7 +193,7 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 
 	it("falls back to ?rest_route= when the pretty route 404s (plain permalinks)", async () => {
 		mockFetch.mockImplementation((input: RequestInfo | URL) => {
-			const url = String(input);
+			const url = toUrlString(input);
 			if (url.includes("/wp-json/")) {
 				return Promise.resolve(new Response("Not Found", { status: 404 }));
 			}

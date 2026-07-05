@@ -8,6 +8,7 @@
 import { gutenbergToPortableText } from "@emdash-cms/gutenberg-to-portable-text";
 
 import { encodeBase64 } from "../../utils/base64.js";
+import type { PluginComment } from "../comments.js";
 import type { PluginMenu } from "../menus.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../ssrf.js";
 import type {
@@ -29,6 +30,7 @@ import {
 	mapWpStatus,
 	normalizeUrl,
 	checkSchemaCompatibility,
+	sanitizeFieldSlug,
 } from "../utils.js";
 
 // =============================================================================
@@ -390,6 +392,22 @@ export const wordpressPluginSource: ImportSource = {
 					? [...BASE_REQUIRED_FIELDS, FEATURED_IMAGE_FIELD]
 					: [...BASE_REQUIRED_FIELDS];
 
+				// Surface the post type's custom fields (ACF and plain meta) so
+				// the prepare step creates them — without this, execute() has no
+				// matching schema fields and silently drops the values.
+				const knownSlugs = new Set(requiredFields.map((f) => f.slug));
+				for (const customField of pt.custom_fields ?? []) {
+					const slug = sanitizeFieldSlug(customField.key);
+					if (knownSlugs.has(slug)) continue;
+					knownSlugs.add(slug);
+					requiredFields.push({
+						slug,
+						label: fieldLabelFromKey(customField.key),
+						type: mapInferredFieldType(customField.inferred_type),
+						required: false,
+					});
+				}
+
 				return {
 					name: pt.name,
 					count: pt.total,
@@ -520,6 +538,37 @@ export const wordpressPluginSource: ImportSource = {
 // =============================================================================
 // Helper Functions
 // =============================================================================
+
+/** Plugin `inferred_type` values that are valid EmDash field types as-is */
+const VALID_INFERRED_TYPES = new Set([
+	"string",
+	"text",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"json",
+	"reference",
+]);
+
+/**
+ * Map the plugin's inferred custom-field type to an EmDash field type.
+ * Unknown values fall back to string (always safe for TEXT storage).
+ */
+function mapInferredFieldType(inferredType: string): string {
+	return VALID_INFERRED_TYPES.has(inferredType) ? inferredType : "string";
+}
+
+const FIELD_KEY_SEPARATORS = /[_-]+/;
+
+/** Derive a human label from a meta key: "event_start-date" -> "Event Start Date" */
+function fieldLabelFromKey(key: string): string {
+	return key
+		.split(FIELD_KEY_SEPARATORS)
+		.filter(Boolean)
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join(" ");
+}
 
 /**
  * Convert plugin i18n info to the shared I18nDetection type.
@@ -747,4 +796,83 @@ export async function fetchPluginMenus(siteUrl: string, authToken: string): Prom
 	}
 
 	return response.json();
+}
+
+/**
+ * Fetch site options from plugin API (title, tagline, logo, favicon, ...)
+ */
+export async function fetchPluginOptions(
+	siteUrl: string,
+	authToken: string,
+): Promise<Record<string, unknown>> {
+	const normalizedSiteUrl = normalizeUrl(siteUrl);
+
+	// SSRF protection: validate URL before any outbound requests
+	validateExternalUrl(normalizedSiteUrl);
+
+	const response = await fetchPluginApi(
+		normalizedSiteUrl,
+		"options",
+		{},
+		{ Accept: "application/json", Authorization: `Basic ${authToken}` },
+		30000,
+	);
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch options: ${response.statusText}`);
+	}
+
+	return response.json();
+}
+
+/** Comments response from /emdash/v1/comments */
+interface PluginCommentsResponse {
+	items: PluginComment[];
+	total: number;
+	pages: number;
+	page: number;
+	per_page: number;
+}
+
+/**
+ * Fetch all comments from plugin API (added in emdash-exporter 1.2.0),
+ * paginating through every page. Returns an empty array when the endpoint
+ * doesn't exist (older plugin).
+ */
+export async function fetchPluginComments(
+	siteUrl: string,
+	authToken: string,
+): Promise<PluginComment[]> {
+	const normalizedSiteUrl = normalizeUrl(siteUrl);
+
+	// SSRF protection: validate URL before any outbound requests
+	validateExternalUrl(normalizedSiteUrl);
+
+	const comments: PluginComment[] = [];
+	let page = 1;
+	let totalPages = 1;
+
+	while (page <= totalPages) {
+		const response = await fetchPluginApi(
+			normalizedSiteUrl,
+			"comments",
+			{ per_page: "500", page: String(page) },
+			{ Accept: "application/json", Authorization: `Basic ${authToken}` },
+			30000,
+		);
+
+		if (response.status === 404) {
+			return [];
+		}
+		if (!response.ok) {
+			throw new Error(`Failed to fetch comments: ${response.statusText}`);
+		}
+
+		const data: PluginCommentsResponse = await response.json();
+		totalPages = data.pages;
+		comments.push(...data.items);
+		page++;
+	}
+
+	return comments;
 }

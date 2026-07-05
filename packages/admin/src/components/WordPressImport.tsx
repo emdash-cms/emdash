@@ -2199,6 +2199,17 @@ function CompleteStep({
 				}),
 			);
 		}
+		if (result.comments && result.comments.imported > 0) {
+			parts.push(
+				plural(result.comments.imported, {
+					one: "# comment imported",
+					other: "# comments imported",
+				}),
+			);
+		}
+		if (result.siteSettings && result.siteSettings.length > 0) {
+			parts.push(t`site identity applied (title, tagline, logo)`);
+		}
 		if (hasContentErrors) {
 			parts.push(
 				plural(result.errors.length, { one: "# content error", other: "# content errors" }),

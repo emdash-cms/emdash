@@ -6,6 +6,7 @@
 
 import mime from "mime/lite";
 
+import { RESERVED_FIELD_SLUGS } from "../schema/types.js";
 import type { ImportFieldDef, CollectionSchemaStatus } from "./types.js";
 
 // =============================================================================
@@ -181,6 +182,33 @@ export function inferMetaType(
 	if (["0", "1", "true", "false"].includes(value)) return "boolean";
 
 	return "string";
+}
+
+// =============================================================================
+// Field Slug Sanitization
+// =============================================================================
+
+const INVALID_FIELD_SLUG_CHARS = /[^a-z0-9_]+/g;
+const LEADING_NON_ALPHA_CHARS = /^[^a-z]+/;
+
+/**
+ * Sanitize a WordPress meta/ACF key into a valid EmDash field slug
+ * (`/^[a-z][a-z0-9_]*$/`, max 63 chars, not reserved).
+ *
+ * Must be applied consistently on both sides of an import: once when
+ * creating fields from the analysis, and again when matching incoming
+ * meta keys onto schema fields — otherwise keys like `my-field` create
+ * `my_field` but never receive values.
+ */
+export function sanitizeFieldSlug(key: string): string {
+	const sanitized = key
+		.toLowerCase()
+		.replace(INVALID_FIELD_SLUG_CHARS, "_")
+		.replace(LEADING_NON_ALPHA_CHARS, "")
+		.slice(0, 63);
+	if (!sanitized) return "field";
+	if (RESERVED_FIELD_SLUGS.includes(sanitized)) return `wp_${sanitized}`;
+	return sanitized;
 }
 
 // =============================================================================

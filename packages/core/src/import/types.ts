@@ -359,6 +359,10 @@ export interface ImportResult {
 	missingTaxonomies?: string[];
 	/** Navigation menu import summary (plugin import) */
 	menus?: { created: number; items: number };
+	/** Comment import summary (plugin import) */
+	comments?: { imported: number; skipped: number };
+	/** Site settings applied from the source (plugin import) */
+	siteSettings?: string[];
 }
 
 // =============================================================================
