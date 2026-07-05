@@ -18,6 +18,7 @@ import {
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { handleTaxonomyCreate } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { wpPluginExecuteBody } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
@@ -104,11 +105,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		console.log("[WP Plugin Import] Starting import for:", body.url);
 		console.log("[WP Plugin Import] Post types:", postTypes);
 
-		// Pre-create taxonomy terms so per-post assignments can attach.
+		// Pre-create taxonomy defs (for custom CPT taxonomies) and terms so
+		// per-post assignments can attach.
 		// Non-fatal: a site whose /taxonomies call fails still gets content.
 		let taxonomyPlan: TaxonomyImportPlan | undefined;
+		let taxonomyDefsCreated: string[] = [];
 		try {
-			taxonomyPlan = await buildTaxonomyPlan(emdash, body.url, body.token);
+			const built = await buildTaxonomyPlan(emdash, body.url, body.token, config);
+			taxonomyPlan = built.plan;
+			taxonomyDefsCreated = built.defsCreated;
 		} catch (e) {
 			console.warn("[WP Plugin Import] Taxonomy pre-import failed:", e);
 		}
@@ -180,6 +185,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			console.warn("[WP Plugin Import] Site settings import failed:", e);
 		}
 
+		if (taxonomyDefsCreated.length > 0) {
+			result.taxonomiesCreated = taxonomyDefsCreated;
+		}
+
 		console.log("[WP Plugin Import] Import result:", JSON.stringify(result, null, 2));
 
 		return apiSuccess({
@@ -237,6 +246,53 @@ const IMPORT_FIELDS: Array<{
 ];
 
 /**
+ * Coerce a WordPress meta value to an EmDash field type. WP postmeta is
+ * stringly typed and inconsistent across posts (the same key can hold
+ * "5", 5, "", or false). Returns `undefined` when the value can't
+ * reasonably represent the target type — the caller drops it.
+ */
+export function coerceToFieldType(value: unknown, fieldType: string): unknown {
+	switch (fieldType) {
+		case "integer": {
+			const n = typeof value === "number" ? value : Number(value);
+			return Number.isInteger(n) ? n : undefined;
+		}
+		case "number": {
+			const n = typeof value === "number" ? value : Number(value);
+			return Number.isFinite(n) ? n : undefined;
+		}
+		case "boolean": {
+			if (typeof value === "boolean") return value;
+			if (value === 1 || value === "1" || value === "true" || value === "yes") return true;
+			if (value === 0 || value === "0" || value === "false" || value === "no") return false;
+			return undefined;
+		}
+		case "datetime": {
+			if (typeof value !== "string" && typeof value !== "number") return undefined;
+			const d = new Date(value);
+			return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+		}
+		case "json":
+			// Anything serializes; objects/arrays pass through as-is
+			return value;
+		case "string":
+		case "text":
+		case "url":
+		case "select":
+		case "slug":
+		case "reference":
+			if (typeof value === "string") return value;
+			if (typeof value === "number") return String(value);
+			return undefined;
+		default:
+			// Complex types (image, portableText, repeater, multiSelect, file):
+			// raw meta can't be coerced reliably -- pass through only if it
+			// already has a non-primitive shape.
+			return typeof value === "object" ? value : undefined;
+	}
+}
+
+/**
  * Pull the per-post SEO title/description out of the Yoast / Rank Math
  * blobs the plugin source stashes in `item.meta`. Empty strings mean "not
  * overridden for this post" (the plugin exports the raw meta values) and
@@ -263,12 +319,76 @@ function extractSeo(item: NormalizedItem): { title?: string; description?: strin
  * reusing the WXR taxonomy machinery (same def-lookup, idempotency, and
  * collection-filter semantics).
  */
+/** WP built-in taxonomies that either map to seeded defs or are not content taxonomies. */
+const BUILTIN_TAXONOMIES = new Set(["category", "post_tag", "nav_menu", "post_format"]);
+
+/** Mirrors NAME_PATTERN in the taxonomy handler -- names that fail stay in missingTaxonomies. */
+const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * Create EmDash taxonomy defs for custom WP taxonomies (e.g. CPT taxonomies
+ * like `company` or `plattform`) that don't exist yet, scoped to the
+ * collections the enabled post-type mappings target. Returns the names of
+ * the defs created. Runs before term pre-import so the terms and per-post
+ * assignments flow through the existing machinery instead of being dropped
+ * as `missingTaxonomies`.
+ */
+export async function ensureCustomTaxonomyDefs(
+	db: EmDashHandlers["db"],
+	taxonomies: Awaited<ReturnType<typeof fetchPluginTaxonomies>>,
+	config: WpPluginImportConfig,
+): Promise<string[]> {
+	const created: string[] = [];
+	for (const taxonomy of taxonomies) {
+		if (BUILTIN_TAXONOMIES.has(taxonomy.name)) continue;
+		if (taxonomy.terms.length === 0) continue;
+		if (!TAXONOMY_NAME_PATTERN.test(taxonomy.name)) continue;
+
+		// handleTaxonomyCreate's duplicate guard is locale-scoped; check
+		// name-wide existence ourselves to stay idempotent on re-runs.
+		const existing = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select("id")
+			.where("name", "=", taxonomy.name)
+			.executeTakeFirst();
+		if (existing) continue;
+
+		// Scope the def to the collections the WP post types map onto.
+		// Older plugin versions don't send post_types -> empty list = no
+		// collection filter, which the term machinery treats as "any".
+		const collections = (taxonomy.post_types ?? [])
+			.map((postType) => config.postTypeMappings[postType])
+			.filter((mapping) => mapping?.enabled)
+			.map((mapping) => mapping.collection);
+
+		const result = await handleTaxonomyCreate(db, {
+			name: taxonomy.name,
+			label: taxonomy.label,
+			labelSingular: taxonomy.label_singular,
+			hierarchical: taxonomy.hierarchical,
+			collections: [...new Set(collections)],
+		});
+		if (result.success) {
+			created.push(taxonomy.name);
+		} else {
+			console.warn(
+				`[WP Plugin Import] Could not create taxonomy '${taxonomy.name}':`,
+				result.error.message,
+			);
+		}
+	}
+	return created;
+}
+
 async function buildTaxonomyPlan(
 	emdash: EmDashHandlers,
 	url: string,
 	token: string,
-): Promise<TaxonomyImportPlan> {
+	config: WpPluginImportConfig,
+): Promise<{ plan: TaxonomyImportPlan; defsCreated: string[] }> {
 	const taxonomies = await fetchPluginTaxonomies(url, token);
+
+	const defsCreated = await ensureCustomTaxonomyDefs(emdash.db, taxonomies, config);
 
 	const categories: WxrCategory[] = [];
 	const tags: WxrTag[] = [];
@@ -292,7 +412,8 @@ async function buildTaxonomyPlan(
 		}
 	}
 
-	return preImportWxrTaxonomies(emdash.db, [], categories, tags, terms, undefined);
+	const plan = await preImportWxrTaxonomies(emdash.db, [], categories, tags, terms, undefined);
+	return { plan, defsCreated };
 }
 
 /**
@@ -398,8 +519,9 @@ export async function importContent(
 	// needed by the 30th item, and gating on the first item would skip it.
 	const ensuredFields = new Set<string>();
 
-	// Field slugs per collection, for mapping custom meta/ACF onto real fields
-	const fieldSlugsByCollection = new Map<string, Set<string>>();
+	// Field slug -> type per collection, for mapping custom meta/ACF onto
+	// real fields (and coercing values to the field's type)
+	const fieldTypesByCollection = new Map<string, Map<string, string>>();
 
 	// Track source translationGroup -> EmDash item ID for translation linking.
 	// Maps source-side translation group ID to the EmDash ID of the first item
@@ -458,7 +580,7 @@ export async function importContent(
 							type: field.type,
 							required: false,
 						});
-						fieldSlugsByCollection.get(collection)?.add(field.slug);
+						fieldTypesByCollection.get(collection)?.set(field.slug, field.type);
 					} catch (e) {
 						// Field might already exist from concurrent creation
 						console.log(
@@ -469,19 +591,19 @@ export async function importContent(
 				}
 			}
 
-			// Load the collection's field slugs once, so custom meta / ACF
+			// Load the collection's field types once, so custom meta / ACF
 			// values can land in matching schema fields (created by the
 			// prepare step or already present).
-			let fieldSlugs = fieldSlugsByCollection.get(collection);
-			if (!fieldSlugs) {
-				fieldSlugs = new Set<string>();
+			let fieldTypes = fieldTypesByCollection.get(collection);
+			if (!fieldTypes) {
+				fieldTypes = new Map<string, string>();
 				const collectionDef = await schemaRegistry.getCollection(collection);
 				if (collectionDef) {
 					for (const field of await schemaRegistry.listFields(collectionDef.id)) {
-						fieldSlugs.add(field.slug);
+						fieldTypes.set(field.slug, field.type);
 					}
 				}
-				fieldSlugsByCollection.set(collection, fieldSlugs);
+				fieldTypesByCollection.set(collection, fieldTypes);
 			}
 
 			// Generate slug from item slug or title
@@ -538,12 +660,18 @@ export async function importContent(
 			// when suggesting the fields, so keys like `event-date` land in
 			// the `event_date` field the prepare step created. Values without
 			// a matching field are dropped -- the user controls the schema,
-			// we don't invent fields per meta key.
+			// we don't invent fields per meta key. Values are coerced to the
+			// field's type (the analysis inferred it from ONE sample; real
+			// values vary) and dropped when incoercible, so one odd meta
+			// value can't fail the whole item.
 			const assignMetaValue = (key: string, value: unknown) => {
 				if (value === null || value === "") return;
 				const fieldSlug = sanitizeFieldSlug(key);
-				if (!(fieldSlug in data) && fieldSlugs.has(fieldSlug)) {
-					data[fieldSlug] = value;
+				const fieldType = fieldTypes.get(fieldSlug);
+				if (!fieldType || fieldSlug in data) return;
+				const coerced = coerceToFieldType(value, fieldType);
+				if (coerced !== undefined) {
+					data[fieldSlug] = coerced;
 				}
 			};
 			const acf = item.meta?._acf;
@@ -612,9 +740,9 @@ export async function importContent(
 				result.imported++;
 				result.byCollection[collection] = (result.byCollection[collection] || 0) + 1;
 
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler success data includes id
-				const createdData = createResult.data as { id?: string } | undefined;
-				const createdId = createdData?.id;
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- create handler returns { item, _rev }
+				const createdData = createResult.data as { item?: { id?: string } } | undefined;
+				const createdId = createdData?.item?.id;
 
 				if (createdId) {
 					const wpId = Number(item.sourceId);

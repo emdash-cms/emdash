@@ -30,6 +30,8 @@ import {
 	mapWpStatus,
 	normalizeUrl,
 	checkSchemaCompatibility,
+	isPluginBookkeepingMeta,
+	relativizeContentLinks,
 	sanitizeFieldSlug,
 } from "../utils.js";
 
@@ -397,6 +399,7 @@ export const wordpressPluginSource: ImportSource = {
 				// matching schema fields and silently drops the values.
 				const knownSlugs = new Set(requiredFields.map((f) => f.slug));
 				for (const customField of pt.custom_fields ?? []) {
+					if (isPluginBookkeepingMeta(customField.key)) continue;
 					const slug = sanitizeFieldSlug(customField.key);
 					if (knownSlugs.has(slug)) continue;
 					knownSlugs.add(slug);
@@ -509,7 +512,7 @@ export const wordpressPluginSource: ImportSource = {
 				totalPages = data.pages;
 
 				for (const post of data.items) {
-					yield pluginPostToNormalizedItem(post);
+					yield pluginPostToNormalizedItem(post, siteUrl);
 					yielded++;
 
 					if (options.limit && yielded >= options.limit) {
@@ -628,8 +631,9 @@ function getRequestConfig(input: SourceInput): {
 /**
  * Convert plugin post to normalized item
  */
-function pluginPostToNormalizedItem(post: PluginPost): NormalizedItem {
+function pluginPostToNormalizedItem(post: PluginPost, siteUrl: string): NormalizedItem {
 	const content = post.content ? gutenbergToPortableText(post.content) : [];
+	relativizeContentLinks(content, siteUrl);
 
 	// Extract categories and tags from taxonomies
 	const categories =
@@ -739,7 +743,11 @@ export async function fetchPluginTaxonomies(
 	Array<{
 		name: string;
 		label: string;
+		/** Singular label (added in emdash-exporter 1.2.0) */
+		label_singular?: string;
 		hierarchical: boolean;
+		/** WP post types this taxonomy is registered for (added in emdash-exporter 1.2.0) */
+		post_types?: string[];
 		terms: Array<{
 			id: number;
 			name: string;

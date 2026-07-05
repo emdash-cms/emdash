@@ -146,6 +146,12 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 						{ key: "venue", count: 2, inferred_type: "weird_type", sample: "Hall A" },
 						// Collides with a base field -- must not be duplicated
 						{ key: "title", count: 3, inferred_type: "string", sample: "x" },
+						// Plugin bookkeeping -- must not be suggested as content fields
+						{ key: "wpil_sync_report3", count: 3, inferred_type: "integer", sample: "1" },
+						{ key: "rank_math_seo_score", count: 3, inferred_type: "integer", sample: "80" },
+						{ key: "entity_same_as", count: 2, inferred_type: "string", sample: "https://x" },
+						// Hyphenated variant must be caught too
+						{ key: "ampforwp-amp-on-off", count: 3, inferred_type: "string", sample: "default" },
 					],
 					hierarchical: false,
 					has_archive: true,
@@ -167,6 +173,11 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 		expect(bySlug.get("venue")).toMatchObject({ type: "string" });
 		// Base fields are not duplicated
 		expect(fields.filter((f) => f.slug === "title")).toHaveLength(1);
+		// Plugin bookkeeping meta is filtered out
+		expect(bySlug.has("wpil_sync_report3")).toBe(false);
+		expect(bySlug.has("rank_math_seo_score")).toBe(false);
+		expect(bySlug.has("entity_same_as")).toBe(false);
+		expect(bySlug.has("ampforwp_amp_on_off")).toBe(false);
 	});
 
 	it("fetches every media page during analyze, not just the first", async () => {

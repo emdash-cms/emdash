@@ -2183,6 +2183,14 @@ function CompleteStep({
 				}),
 			);
 		}
+		if (result.taxonomiesCreated && result.taxonomiesCreated.length > 0) {
+			parts.push(
+				plural(result.taxonomiesCreated.length, {
+					one: "# taxonomy created",
+					other: "# taxonomies created",
+				}),
+			);
+		}
 		if (result.taxonomyAssignments && result.taxonomyAssignments > 0) {
 			parts.push(
 				plural(result.taxonomyAssignments, {

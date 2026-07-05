@@ -357,6 +357,8 @@ export interface ImportResult {
 	taxonomyAssignments?: number;
 	/** Source taxonomies skipped because no matching EmDash taxonomy def exists */
 	missingTaxonomies?: string[];
+	/** Custom taxonomy defs auto-created during the import (plugin import) */
+	taxonomiesCreated?: string[];
 	/** Navigation menu import summary (plugin import) */
 	menus?: { created: number; items: number };
 	/** Comment import summary (plugin import) */

@@ -11,6 +11,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate } from "../../../src/api/handlers/content.js";
 import {
+	coerceToFieldType,
+	ensureCustomTaxonomyDefs,
 	importContent,
 	type WpPluginImportConfig,
 } from "../../../src/astro/routes/api/import/wordpress-plugin/execute.js";
@@ -70,10 +72,27 @@ describe("WordPress plugin import — field auto-creation", () => {
 			}),
 		];
 
-		const { result } = await importContent(generate(items), config, emdash, manifest, undefined);
+		const { result, contentIdMap, collectionByWpId } = await importContent(
+			generate(items),
+			config,
+			emdash,
+			manifest,
+			undefined,
+		);
 
 		expect(result.errors).toEqual([]);
 		expect(result.imported).toBe(2);
+
+		// The WP-ID maps must be populated for created items -- menus,
+		// comments, and taxonomy attachment all resolve through them.
+		// Regression: the route read `data.id` but the create handler
+		// returns `{ item, _rev }`, so the maps stayed empty (309 comments
+		// skipped on a live migration).
+		expect([...contentIdMap.keys()]).toEqual([1, 2]);
+		expect(collectionByWpId.get(1)).toBe("post");
+		for (const id of contentIdMap.values()) {
+			expect(id).toMatch(/^[0-9A-Z]{26}$/); // ULID
+		}
 
 		const row = await db
 			// eslint-disable-next-line typescript/no-explicit-any -- dynamic ec_ table not in the static schema
@@ -85,5 +104,98 @@ describe("WordPress plugin import — field auto-creation", () => {
 			seo_title: "Custom SEO Title",
 			seo_description: "Custom description",
 		});
+	});
+});
+
+describe("WordPress plugin import — custom taxonomy def auto-creation", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	const term = { id: 1, name: "Term", slug: "term", description: "", parent: null, count: 1 };
+	const config: WpPluginImportConfig = {
+		postTypeMappings: {
+			post: { collection: "post", enabled: true },
+			company: { collection: "post", enabled: true },
+			skipped_cpt: { collection: "old", enabled: false },
+		},
+		skipExisting: false,
+	};
+
+	it("creates defs for custom CPT taxonomies, scoped to mapped collections", async () => {
+		const created = await ensureCustomTaxonomyDefs(
+			db,
+			[
+				{
+					name: "company",
+					label: "Companies",
+					label_singular: "Company",
+					hierarchical: true,
+					post_types: ["company", "skipped_cpt"],
+					terms: [term],
+				},
+				// builtins and empty taxonomies must be skipped
+				{ name: "category", label: "Categories", hierarchical: true, terms: [term] },
+				{ name: "post_format", label: "Formats", hierarchical: false, terms: [term] },
+				{ name: "empty_tax", label: "Empty", hierarchical: false, terms: [] },
+				// names outside /^[a-z][a-z0-9_]*$/ stay in missingTaxonomies
+				{ name: "bad-name", label: "Bad", hierarchical: false, terms: [term] },
+			],
+			config,
+		);
+
+		expect(created).toEqual(["company"]);
+
+		const row = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("name", "=", "company")
+			.executeTakeFirstOrThrow();
+		expect(row.label).toBe("Companies");
+		expect(row.label_singular).toBe("Company");
+		expect(row.hierarchical).toBe(1);
+		// disabled mapping (skipped_cpt -> old) must not leak into collections
+		expect(JSON.parse(row.collections ?? "[]")).toEqual(["post"]);
+	});
+
+	it("is idempotent and tolerates old plugins without post_types", async () => {
+		const taxonomies = [
+			{ name: "plattform", label: "Plattformen", hierarchical: false, terms: [term] },
+		];
+		expect(await ensureCustomTaxonomyDefs(db, taxonomies, config)).toEqual(["plattform"]);
+		expect(await ensureCustomTaxonomyDefs(db, taxonomies, config)).toEqual([]);
+
+		const row = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("name", "=", "plattform")
+			.executeTakeFirstOrThrow();
+		// no post_types -> no collection filter ("any collection")
+		expect(JSON.parse(row.collections ?? "[]")).toEqual([]);
+	});
+});
+
+describe("coerceToFieldType", () => {
+	it("coerces stringly-typed WP meta to the field type, drops incoercible values", () => {
+		// Real-world failures from a live migration: a field inferred as
+		// integer from one sample, but other posts hold strings/booleans.
+		expect(coerceToFieldType("5", "integer")).toBe(5);
+		expect(coerceToFieldType("abc", "integer")).toBeUndefined();
+		expect(coerceToFieldType(false, "string")).toBeUndefined();
+		expect(coerceToFieldType(42, "string")).toBe("42");
+		expect(coerceToFieldType("2.5", "number")).toBe(2.5);
+		expect(coerceToFieldType("yes", "boolean")).toBe(true);
+		expect(coerceToFieldType("0", "boolean")).toBe(false);
+		expect(coerceToFieldType("maybe", "boolean")).toBeUndefined();
+		expect(coerceToFieldType("2026-01-02", "datetime")).toBe("2026-01-02T00:00:00.000Z");
+		expect(coerceToFieldType("not a date", "datetime")).toBeUndefined();
+		expect(coerceToFieldType({ a: 1 }, "json")).toEqual({ a: 1 });
+		expect(coerceToFieldType("123", "image")).toBeUndefined();
 	});
 });
