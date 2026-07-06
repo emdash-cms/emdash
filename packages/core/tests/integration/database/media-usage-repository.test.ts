@@ -346,6 +346,36 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(await repo.findCurrentUsageByMediaId("media-preserved-delete")).toHaveLength(1);
 	});
 
+	it("does not delete content-absent sources when source metadata changed", async () => {
+		await sql`CREATE TABLE ${sql.ref("ec_posts")} (id text primary key)`.execute(ctx.db);
+		const observed = await repo.replaceSource(
+			contentSource("orphan-entry", "columns", { sourceFingerprint: "fingerprint-observed" }),
+			[occurrence("hero", "media-orphan-observed")],
+		);
+		const concurrent = await repo.replaceSource(
+			contentSource("orphan-entry", "columns", { sourceFingerprint: "fingerprint-concurrent" }),
+			[occurrence("hero", "media-orphan-concurrent")],
+		);
+
+		const stale = await repo.deleteSourceIfMatchingContentAbsent(
+			observed.sourceKey,
+			observed,
+			"posts",
+			"orphan-entry",
+		);
+
+		expect(stale.deleted).toBe(false);
+		expect(stale.contentPresent).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({
+				currentGeneration: concurrent.currentGeneration,
+				sourceFingerprint: "fingerprint-concurrent",
+			}),
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-orphan-observed")).toEqual([]);
+		expect(await repo.findCurrentUsageByMediaId("media-orphan-concurrent")).toHaveLength(1);
+	});
+
 	it("writes ISO occurrence timestamps for safe cleanup cutoffs", async () => {
 		await repo.replaceSource(contentSource("entry1", "columns"), [
 			occurrence("hero", "media-live"),

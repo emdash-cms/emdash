@@ -175,6 +175,66 @@ describeEachDialect("content media usage repair", (dialect) => {
 		);
 	});
 
+	it("keeps per-source failures without trusted progress failed", async () => {
+		const item = await insertPost(ctx, {
+			id: "post_failed_source",
+			slug: "failed-source-post",
+			status: "published",
+			data: {
+				title: "Failed Source Post",
+				hero: { id: "media-unindexed", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await ctx.db
+			.insertInto("revisions")
+			.values({
+				id: "mismatched_revision",
+				collection: "pages",
+				entry_id: item.id,
+				data: JSON.stringify({ hero: { id: "media-draft", provider: "local" } }),
+			})
+			.execute();
+		await sql`
+			UPDATE ${sql.ref("ec_posts")}
+			SET draft_revision_id = ${"mismatched_revision"}
+			WHERE id = ${item.id}
+		`.execute(ctx.db);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "failed",
+				indexedSourceCount: 0,
+				failedSourceCount: 1,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+				lastErrorCode: "DRAFT_REVISION_MISMATCH",
+			}),
+		);
+		expect(await usageRepo.findSource(sourceKey(item.id, "columns"))).toBeNull();
+		expect(await usageRepo.findSource(sourceKey(item.id, "draft_overlay"))).toEqual(
+			expect.objectContaining({
+				sourceCompleteness: "failed",
+				lastErrorCode: "DRAFT_REVISION_MISMATCH",
+			}),
+		);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(
+			expect.objectContaining({
+				status: "failed",
+				indexedSourceCount: 0,
+				failedSourceCount: 1,
+				lastErrorCode: "DRAFT_REVISION_MISMATCH",
+			}),
+		);
+	});
+
 	it("scans deleted content rows during repair", async () => {
 		const deletedAt = "2026-01-01T00:00:00.000Z";
 		const item = await insertPost(ctx, {
@@ -283,7 +343,7 @@ describeEachDialect("content media usage repair", (dialect) => {
 		);
 	});
 
-	it("does not delete draft sources that become fresher during absent-source cleanup", async () => {
+	it("does not delete stale observed draft sources that become fresher during repair", async () => {
 		const item = await insertPost(ctx, {
 			id: "post_draft_conflict",
 			slug: "draft-conflict-post",
