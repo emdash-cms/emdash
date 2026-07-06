@@ -51,12 +51,17 @@ export interface CommentsImportResult {
  * @param db - Database connection
  * @param contentIdMap - WP post ID -> EmDash content ID
  * @param collectionMap - WP post ID -> EmDash collection slug
+ * @param rootIds - Optional pre-seeded WP-comment-ID -> EmDash-root-ID map.
+ *   The chunked import passes the map accumulated from earlier pages so a
+ *   reply in page N can thread onto a parent imported in page N-1; the
+ *   function adds this page's entries to it.
  */
 export async function importCommentsFromPlugin(
 	comments: PluginComment[],
 	db: Kysely<Database>,
 	contentIdMap: Map<number, string>,
 	collectionMap: Map<number, string>,
+	rootIds?: Map<number, string>,
 ): Promise<CommentsImportResult> {
 	const result: CommentsImportResult = {
 		imported: 0,
@@ -70,7 +75,7 @@ export async function importCommentsFromPlugin(
 	// WP comment ID -> EmDash ID of its top-level ancestor. EmDash threads
 	// are one level deep (assembleThreads nests replies under roots only),
 	// so deeper WP threads are flattened onto their root comment.
-	const rootIdMap = new Map<number, string>();
+	const rootIdMap = rootIds ?? new Map<number, string>();
 
 	// Parents must exist before children reference them; WP comment IDs
 	// are chronological, so ID order guarantees parents come first.

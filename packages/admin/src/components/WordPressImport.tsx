@@ -36,7 +36,7 @@ import {
 	analyzeWxr,
 	prepareWxrImport,
 	executeWxrImport,
-	importWxrMedia,
+	importWxrMediaBatched,
 	rewriteContentUrls,
 	probeImportUrl,
 	analyzeWpPluginSite,
@@ -50,6 +50,7 @@ import {
 	type PrepareResult,
 	type MediaImportResult,
 	type MediaImportProgress,
+	type WpImportProgress,
 	type RewriteUrlsResult,
 	type AttachmentInfo,
 	type ProbeResult,
@@ -154,6 +155,7 @@ export function WordPressImport() {
 	const [mediaError, setMediaError] = React.useState<string | null>(null);
 	const [skipMedia, setSkipMedia] = React.useState(false);
 	const [mediaProgress, setMediaProgress] = React.useState<MediaImportProgress | null>(null);
+	const [wpImportProgress, setWpImportProgress] = React.useState<WpImportProgress | null>(null);
 
 	// New state for import options
 	const [importMenus, setImportMenus] = React.useState(true);
@@ -164,6 +166,15 @@ export function WordPressImport() {
 	// Author mapping state
 	const [authorMappings, setAuthorMappings] = React.useState<AuthorMapping[]>([]);
 	const [emdashUsers, setEmDashUsers] = React.useState<UserListItem[]>([]);
+
+	// Total posts across enabled post types, for the chunked-import progress bar
+	const totalSelectedPosts = React.useMemo(() => {
+		if (!analysis) return 0;
+		return analysis.postTypes.reduce(
+			(sum, pt) => (selections[pt.name]?.enabled ? sum + pt.count : sum),
+			0,
+		);
+	}, [analysis, selections]);
 
 	// Initialize author mappings from analysis, auto-matching by email
 	const initializeAuthorMappings = React.useCallback(
@@ -331,10 +342,11 @@ export function WordPressImport() {
 		},
 	});
 
-	// Media import mutation
+	// Media import mutation. Batched: each request handles a bounded slice
+	// of the library, so large media sets don't exceed Worker limits.
 	const mediaMutation = useMutation({
 		mutationFn: (attachments: AttachmentInfo[]) =>
-			importWxrMedia(attachments, (progress) => {
+			importWxrMediaBatched(attachments, (progress) => {
 				setMediaProgress(progress);
 			}),
 		onSuccess: (data) => {
@@ -403,12 +415,15 @@ export function WordPressImport() {
 		},
 	});
 
-	// WordPress Plugin import mutation
+	// WordPress Plugin import mutation. Chunked: the client drives the
+	// import as a loop of bounded requests (issue #475), so progress here
+	// is real, not an indefinite spinner.
 	const wpPluginImportMutation = useMutation({
 		mutationFn: ({ url, token, config }: { url: string; token: string; config: ImportConfig }) =>
-			executeWpPluginImport(url, token, config),
+			executeWpPluginImport(url, token, config, setWpImportProgress),
 		onSuccess: (data) => {
 			setImportError(null);
+			setWpImportProgress(null);
 			setResult(data);
 			if (analysis && analysis.attachments.count > 0) {
 				setStep("media");
@@ -417,6 +432,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
+			setWpImportProgress(null);
 			setImportError(error instanceof Error ? error.message : t`Failed to import from WordPress`);
 			setStep("review");
 		},
@@ -872,8 +888,35 @@ export function WordPressImport() {
 			{step === "importing" && (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">{t`Importing content...`}</p>
-					<p className="text-sm text-kumo-subtle">{t`This may take a while for large exports.`}</p>
+					{wpImportProgress ? (
+						<>
+							<p className="mt-4 text-kumo-subtle">
+								{wpImportProgress.phase === "content" &&
+									(totalSelectedPosts > 0
+										? t`Importing content... ${wpImportProgress.processed} of ${totalSelectedPosts}`
+										: t`Importing content... ${wpImportProgress.processed}`)}
+								{wpImportProgress.phase === "comments" &&
+									t`Importing comments... ${wpImportProgress.comments}`}
+								{wpImportProgress.phase === "finalize" && t`Importing menus and site settings...`}
+							</p>
+							{totalSelectedPosts > 0 && wpImportProgress.phase === "content" && (
+								<div className="mx-auto mt-4 h-2 w-64 overflow-hidden rounded-full bg-kumo-fill">
+									<div
+										className="h-full rounded-full bg-kumo-brand transition-all"
+										style={{
+											width: `${Math.min(100, Math.round((wpImportProgress.processed / totalSelectedPosts) * 100))}%`,
+										}}
+									/>
+								</div>
+							)}
+							<p className="mt-2 text-sm text-kumo-subtle">{t`Keep this tab open. The import runs in small steps and can be safely re-run if interrupted.`}</p>
+						</>
+					) : (
+						<>
+							<p className="mt-4 text-kumo-subtle">{t`Importing content...`}</p>
+							<p className="text-sm text-kumo-subtle">{t`This may take a while for large exports.`}</p>
+						</>
+					)}
 				</div>
 			)}
 

@@ -538,6 +538,50 @@ export const wordpressPluginSource: ImportSource = {
 	},
 };
 
+/**
+ * Fetch a single page of content for one post type. This is the unit of
+ * work for the chunked import: one Worker invocation imports one page,
+ * keeping each request far below Cloudflare's CPU and subrequest limits
+ * (see issue #475).
+ */
+export async function fetchPluginContentPage(options: {
+	siteUrl: string;
+	token: string;
+	postType: string;
+	page: number;
+	perPage: number;
+	includeDrafts: boolean;
+}): Promise<{ items: NormalizedItem[]; totalPages: number }> {
+	const { siteUrl, headers } = getRequestConfig({
+		type: "url",
+		url: options.siteUrl,
+		token: options.token,
+	});
+
+	const response = await fetchPluginApi(
+		siteUrl,
+		"content",
+		{
+			post_type: options.postType,
+			status: options.includeDrafts ? "any" : "publish",
+			per_page: String(options.perPage),
+			page: String(options.page),
+		},
+		headers,
+		60000,
+	);
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch ${options.postType}: ${response.statusText}`);
+	}
+
+	const data: PluginContentResponse = await response.json();
+	return {
+		items: data.items.map((post) => pluginPostToNormalizedItem(post, siteUrl)),
+		totalPages: data.pages,
+	};
+}
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
@@ -843,42 +887,56 @@ interface PluginCommentsResponse {
 }
 
 /**
- * Fetch all comments from plugin API (added in emdash-exporter 1.2.0),
- * paginating through every page. Returns an empty array when the endpoint
- * doesn't exist (older plugin).
+ * Fetch a single page of comments from the plugin API (added in
+ * emdash-exporter 1.2.0). The exporter orders by comment ID ascending, so
+ * parents always appear before their children across pages. Returns
+ * `totalPages: 0` when the endpoint doesn't exist (older plugin).
  */
-export async function fetchPluginComments(
+export async function fetchPluginCommentsPage(
 	siteUrl: string,
 	authToken: string,
-): Promise<PluginComment[]> {
+	page: number,
+): Promise<{ items: PluginComment[]; totalPages: number }> {
 	const normalizedSiteUrl = normalizeUrl(siteUrl);
 
 	// SSRF protection: validate URL before any outbound requests
 	validateExternalUrl(normalizedSiteUrl);
 
+	const response = await fetchPluginApi(
+		normalizedSiteUrl,
+		"comments",
+		{ per_page: "500", page: String(page) },
+		{ Accept: "application/json", Authorization: `Basic ${authToken}` },
+		30000,
+	);
+
+	if (response.status === 404) {
+		return { items: [], totalPages: 0 };
+	}
+	if (!response.ok) {
+		throw new Error(`Failed to fetch comments: ${response.statusText}`);
+	}
+
+	const data: PluginCommentsResponse = await response.json();
+	return { items: data.items, totalPages: data.pages };
+}
+
+/**
+ * Fetch all comments from plugin API, paginating through every page.
+ * Returns an empty array when the endpoint doesn't exist (older plugin).
+ */
+export async function fetchPluginComments(
+	siteUrl: string,
+	authToken: string,
+): Promise<PluginComment[]> {
 	const comments: PluginComment[] = [];
 	let page = 1;
 	let totalPages = 1;
 
 	while (page <= totalPages) {
-		const response = await fetchPluginApi(
-			normalizedSiteUrl,
-			"comments",
-			{ per_page: "500", page: String(page) },
-			{ Accept: "application/json", Authorization: `Basic ${authToken}` },
-			30000,
-		);
-
-		if (response.status === 404) {
-			return [];
-		}
-		if (!response.ok) {
-			throw new Error(`Failed to fetch comments: ${response.statusText}`);
-		}
-
-		const data: PluginCommentsResponse = await response.json();
-		totalPages = data.pages;
-		comments.push(...data.items);
+		const result = await fetchPluginCommentsPage(siteUrl, authToken, page);
+		totalPages = result.totalPages;
+		comments.push(...result.items);
 		page++;
 	}
 
