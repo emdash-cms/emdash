@@ -20,6 +20,7 @@ import {
 } from "./content-refresh.js";
 import {
 	CONTENT_SOURCE_SCHEMA_VERSION,
+	type ContentMediaUsageSnapshot,
 	loadContentMediaUsageSnapshots,
 } from "./content-snapshots.js";
 import {
@@ -147,6 +148,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 					skippedSourceCount: 0,
 					deletedSourceCount: 0,
 					lastErrorCode: CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND,
+					missingContentIds: new Set(),
 				},
 				status: "failed",
 				startedAt,
@@ -158,7 +160,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 		if (!finalScan) {
 			counts.failedSourceCount++;
 			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND;
-		} else if (!sameContentIds(scan.contentIds, finalScan.contentIds)) {
+		} else if (!sameContentIds(repairedContentIds(scan.contentIds, counts), finalScan.contentIds)) {
 			counts.skippedSourceCount++;
 			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
 		}
@@ -190,6 +192,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 				skippedSourceCount: 0,
 				deletedSourceCount: 0,
 				lastErrorCode,
+				missingContentIds: new Set(),
 			},
 			status: "failed",
 			startedAt,
@@ -204,6 +207,7 @@ interface RepairCounts {
 	skippedSourceCount: number;
 	deletedSourceCount: number;
 	lastErrorCode: ContentMediaUsageRepairErrorCode | null;
+	missingContentIds: Set<string>;
 }
 
 async function repairScannedContentSources(
@@ -217,6 +221,7 @@ async function repairScannedContentSources(
 		skippedSourceCount: 0,
 		deletedSourceCount: 0,
 		lastErrorCode: null,
+		missingContentIds: new Set(),
 	};
 
 	const fieldDiscovery = await loadContentMediaUsageFields(db, scan.collectionSlug);
@@ -256,6 +261,15 @@ async function repairContentSource(
 	);
 	if (!snapshotsResult.success) {
 		counts.lastErrorCode = snapshotsResult.error;
+		if (snapshotsResult.error === CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_NOT_FOUND) {
+			counts.skippedSourceCount++;
+			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
+			counts.missingContentIds.add(contentId);
+			return;
+		}
+		if (snapshotsResult.snapshots) {
+			await repairSnapshotSources(repo, snapshotsResult.snapshots, observedSources, counts);
+		}
 		if (snapshotsResult.source) {
 			const result = await repo.markSourceAttemptedIfMatching(
 				{
@@ -278,8 +292,29 @@ async function repairContentSource(
 		return;
 	}
 
+	const expectedSourceKeys = await repairSnapshotSources(
+		repo,
+		snapshotsResult.snapshots,
+		observedSources,
+		counts,
+	);
+
+	for (const sourceKey of sourceKeys) {
+		if (expectedSourceKeys.has(sourceKey)) continue;
+		const observedSource = observedSources.get(sourceKey);
+		if (!observedSource) continue;
+		await deleteObservedSource(repo, sourceKey, observedSource, counts);
+	}
+}
+
+async function repairSnapshotSources(
+	repo: MediaUsageRepository,
+	snapshots: readonly ContentMediaUsageSnapshot[],
+	observedSources: Map<string, MediaUsageSource>,
+	counts: RepairCounts,
+): Promise<Set<string>> {
 	const expectedSourceKeys = new Set<string>();
-	for (const snapshot of snapshotsResult.snapshots) {
+	for (const snapshot of snapshots) {
 		expectedSourceKeys.add(snapshot.source.sourceKey);
 		const result = await repo.replaceSourceIfMatching(
 			snapshot.source,
@@ -293,13 +328,7 @@ async function repairContentSource(
 			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
 		}
 	}
-
-	for (const sourceKey of sourceKeys) {
-		if (expectedSourceKeys.has(sourceKey)) continue;
-		const observedSource = observedSources.get(sourceKey);
-		if (!observedSource) continue;
-		await deleteObservedSource(repo, sourceKey, observedSource, counts);
-	}
+	return expectedSourceKeys;
 }
 
 async function reconcileOrphanedContentSources(
@@ -475,6 +504,14 @@ function sameContentIds(left: readonly string[], right: readonly string[]): bool
 	if (left.length !== right.length) return false;
 	const rightIds = new Set(right);
 	return left.every((id) => rightIds.has(id));
+}
+
+function repairedContentIds(
+	contentIds: readonly string[],
+	counts: Pick<RepairCounts, "missingContentIds">,
+): string[] {
+	if (counts.missingContentIds.size === 0) return [...contentIds];
+	return contentIds.filter((contentId) => !counts.missingContentIds.has(contentId));
 }
 
 function contentMediaUsageCollectionScope(collectionSlug: string): ContentMediaUsageRepairScope {

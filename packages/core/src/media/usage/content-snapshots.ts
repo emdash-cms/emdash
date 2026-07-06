@@ -46,6 +46,7 @@ export type LoadContentMediaUsageSnapshotsResult =
 				| "DRAFT_REVISION_MISMATCH"
 				| "DRAFT_REVISION_INVALID";
 			source?: MediaUsageSourceInput;
+			snapshots?: ContentMediaUsageSnapshot[];
 	  };
 
 export interface ContentMediaUsageSnapshot {
@@ -116,6 +117,7 @@ export async function loadContentMediaUsageSnapshots(
 				success: false,
 				error: "DRAFT_REVISION_NOT_FOUND",
 				source: attemptedDraftSource,
+				snapshots,
 			};
 		}
 		if (!revisionResult.success) {
@@ -123,6 +125,7 @@ export async function loadContentMediaUsageSnapshots(
 				success: false,
 				error: "DRAFT_REVISION_INVALID",
 				source: attemptedDraftSource,
+				snapshots,
 			};
 		}
 		const revision = revisionResult.revision;
@@ -131,6 +134,7 @@ export async function loadContentMediaUsageSnapshots(
 				success: false,
 				error: "DRAFT_REVISION_MISMATCH",
 				source: attemptedDraftSource,
+				snapshots,
 			};
 		}
 
