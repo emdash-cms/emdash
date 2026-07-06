@@ -323,6 +323,29 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(await repo.findCurrentUsageByMediaId("media-delete")).toEqual([]);
 	});
 
+	it("deletes only the matched generation when guarded source delete wins", async () => {
+		const observed = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-delete-generation"),
+		]);
+		await insertOccurrenceGeneration(
+			ctx,
+			observed.sourceKey,
+			"preserved_generation_delete",
+			"media-preserved-generation-delete",
+		);
+
+		const deleted = await repo.deleteSourceIfMatching(observed.sourceKey, observed);
+
+		expect(deleted.deleted).toBe(true);
+		expect(deleted.source).toBeNull();
+		expect(await mediaUsageRows(ctx, observed.sourceKey)).toEqual([
+			expect.objectContaining({
+				generation: "preserved_generation_delete",
+				media_id: "media-preserved-generation-delete",
+			}),
+		]);
+	});
+
 	it("does not delete a source when source metadata changed despite the same generation", async () => {
 		const observed = await repo.replaceSource(contentSource("entry1", "columns"), [
 			occurrence("hero", "media-preserved-delete"),
@@ -374,6 +397,36 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		);
 		expect(await repo.findCurrentUsageByMediaId("media-orphan-observed")).toEqual([]);
 		expect(await repo.findCurrentUsageByMediaId("media-orphan-concurrent")).toHaveLength(1);
+	});
+
+	it("deletes only the matched generation when content-absent guarded delete wins", async () => {
+		await sql`CREATE TABLE ${sql.ref("ec_posts")} (id text primary key)`.execute(ctx.db);
+		const observed = await repo.replaceSource(contentSource("orphan-entry", "columns"), [
+			occurrence("hero", "media-delete-orphan-generation"),
+		]);
+		await insertOccurrenceGeneration(
+			ctx,
+			observed.sourceKey,
+			"preserved_generation_orphan",
+			"media-preserved-generation-orphan",
+		);
+
+		const deleted = await repo.deleteSourceIfMatchingContentAbsent(
+			observed.sourceKey,
+			observed,
+			"posts",
+			"orphan-entry",
+		);
+
+		expect(deleted.deleted).toBe(true);
+		expect(deleted.contentPresent).toBe(false);
+		expect(deleted.source).toBeNull();
+		expect(await mediaUsageRows(ctx, observed.sourceKey)).toEqual([
+			expect.objectContaining({
+				generation: "preserved_generation_orphan",
+				media_id: "media-preserved-generation-orphan",
+			}),
+		]);
 	});
 
 	it("writes ISO occurrence timestamps for safe cleanup cutoffs", async () => {
@@ -1293,6 +1346,40 @@ function occurrence(
 		mimeType: null,
 		...overrides,
 	};
+}
+
+async function insertOccurrenceGeneration(
+	ctx: DialectTestContext,
+	sourceKey: string,
+	generation: string,
+	mediaId: string,
+): Promise<void> {
+	await ctx.db
+		.insertInto("_emdash_media_usage")
+		.values({
+			id: `${generation}-usage`,
+			source_key: sourceKey,
+			generation,
+			field_slug: "hero",
+			field_path: `hero-${generation}`,
+			occurrence_index: 0,
+			reference_type: "image_field",
+			media_id: mediaId,
+			provider: "local",
+			provider_asset_id: mediaId,
+			media_kind: "image",
+			mime_type: null,
+		})
+		.execute();
+}
+
+async function mediaUsageRows(ctx: DialectTestContext, sourceKey: string) {
+	return ctx.db
+		.selectFrom("_emdash_media_usage")
+		.select(["generation", "media_id"])
+		.where("source_key", "=", sourceKey)
+		.orderBy("generation", "asc")
+		.execute();
 }
 
 function withoutTransactions(db: DialectTestContext["db"]): DialectTestContext["db"] {
