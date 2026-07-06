@@ -137,6 +137,7 @@ describe("Database Migrations (Integration)", () => {
 			"048_restore_content_taxonomies_term_index",
 			"049_taxonomies_name_locale_index",
 			"050_media_usage_index_status",
+			"051_content_taxonomies_term_lookup",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
@@ -359,7 +360,7 @@ describe("Database Migrations (Integration)", () => {
 		expect(names).toContain("idx_taxonomies_parent");
 	});
 
-	it("should keep idx_content_taxonomies_term after the full migration chain (regression for #1701)", async () => {
+	it("supersedes idx_content_taxonomies_term with composite idx_content_taxonomies_term_lookup (#1701, #1834)", async () => {
 		await runMigrations(db);
 
 		const indexes = await sql<{ name: string }>`
@@ -367,7 +368,12 @@ describe("Database Migrations (Integration)", () => {
 		`.execute(db);
 		const names = new Set(indexes.rows.map((r) => r.name));
 
-		expect(names).toContain("idx_content_taxonomies_term");
+		// The composite (taxonomy_id, collection, entry_id) index is added...
+		expect(names).toContain("idx_content_taxonomies_term_lookup");
+		// ...and its leftmost prefix (taxonomy_id) serves every reverse "entries
+		// with a term" lookup the single-column index did (the #1701 capability),
+		// so the redundant one is dropped.
+		expect(names).not.toContain("idx_content_taxonomies_term");
 	});
 
 	it("should replace idx_taxonomies_name with composite idx_taxonomies_name_locale (#1723)", async () => {

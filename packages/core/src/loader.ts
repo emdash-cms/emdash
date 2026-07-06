@@ -731,6 +731,26 @@ export interface CollectionFilterBase {
 	 * When set, only returns content in this locale.
 	 */
 	locale?: string;
+	/**
+	 * Plan hint for taxonomy-filtered listings on SQLite/D1 (#1834). Only
+	 * consulted when `where` includes a taxonomy filter; ignored otherwise and
+	 * on Postgres (which has statistics and plans this well on its own).
+	 *
+	 * - `"scan"` (default): the collection table drives the scan and each row is
+	 *   probed with a correlated `EXISTS`. The `LIMIT` fills quickly when the
+	 *   term matches *most* of the collection (a popular "news" category), so
+	 *   this is best for non-selective terms.
+	 * - `"seek"`: drive from `content_taxonomies`, seeking the term by
+	 *   `taxonomy_id` and joining the collection by primary key. Best for
+	 *   *selective* terms (a fine-grained tag matching few entries), where
+	 *   `"scan"` would walk the whole collection in `ORDER BY` order — tens of
+	 *   thousands of D1 rows read for a page returning a handful.
+	 *
+	 * Selectivity is a property of the *term*, which the framework can't know
+	 * without a query, so pass `"seek"` on routes that filter by a selective
+	 * term (category/tag archive pages) and leave the default elsewhere.
+	 */
+	taxonomyStrategy?: "scan" | "seek";
 }
 
 /** Keyset-paginated collection filter. Cannot also carry an `offset`. */
@@ -868,6 +888,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const cursor = filter?.cursor;
 				const where = filter?.where;
 				const orderBy = filter?.orderBy;
+				const taxonomyStrategy = filter?.taxonomyStrategy ?? "scan";
 				const locale = filter?.locale;
 
 				// Cursor pagination: over-fetch by 1 to detect next page
@@ -888,7 +909,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const cursorCondition = cursor ? buildCursorCondition(cursor, orderBy) : null;
 
 				// Separate taxonomy / byline filters from field filters
-				let result: { rows: Record<string, unknown>[] };
+				let result: { rows: Record<string, unknown>[] } | undefined;
 				// Taxonomy filters AND together: each entry constrains the base
 				// row to match at least one of its slugs *within that taxonomy*.
 				// Term slugs are unique only within a taxonomy, so every filter
@@ -1015,18 +1036,69 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							? sql`OFFSET ${offset}`
 							: sql`LIMIT -1 OFFSET ${offset}`;
 					}
-					result = await sql<Record<string, unknown>>`
-						SELECT *, ${termsSelect}, ${bylinesSelect} FROM ${sql.ref(tableName)}
-						WHERE deleted_at IS NULL
-						AND ${statusCondition}
-						${localeFilter}
-						${cursorCond}
-						${taxonomyCond}
-						${bylineCond}
-						${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
-						${orderByClause}
-						${limitOffsetClause}
-					`.execute(db);
+					// SQLite driven-filter rewrite, opt-in via `taxonomyStrategy:
+					// "seek"` (#1834). The default `EXISTS` query below lets a
+					// stats-blind D1 planner drive the scan from the collection's
+					// `published_at` index and probe the taxonomy per row — which is
+					// cheap for a non-selective term (the `LIMIT` fills fast) but a
+					// full table scan for a *selective* one (tens of thousands of D1
+					// rows read for a page returning a handful). For selective terms
+					// the caller passes `"seek"`: we drive from `content_taxonomies`,
+					// seeking the term by `taxonomy_id` (materialized once) and
+					// joining the collection by primary key, then sort the small
+					// candidate set. `CROSS JOIN` pins that join order; the unary
+					// `+ct.collection` disqualifies the pivot PK's `(collection, …)`
+					// autoindex so the planner picks the composite
+					// `idx_content_taxonomies_term_lookup`. Postgres has statistics
+					// and plans this well on its own, so the hint is SQLite-only.
+					if (taxonomyStrategy === "seek" && !isPostgres(db) && taxonomyFilters.length > 0) {
+						// Each filter's matched entry ids; INTERSECT enforces the
+						// "tagged in every taxonomy" AND semantics, and its set
+						// output dedupes an entry tagged by multiple matching slugs
+						// (a plain join would fan those into duplicate rows).
+						const matchedSelect = sql.join(
+							taxonomyFilters.map(
+								(f) => sql`SELECT ct.entry_id AS _matched_id
+							FROM taxonomies t
+							INNER JOIN content_taxonomies ct ON ct.taxonomy_id = t.translation_group
+							WHERE +ct.collection = ${type}
+								AND t.name = ${f.name}
+								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
+								${locale ? sql`AND t.locale = ${locale}` : sql``}`,
+							),
+							sql` INTERSECT `,
+						);
+
+						result = await sql<Record<string, unknown>>`
+							WITH _matched AS MATERIALIZED (${matchedSelect})
+							SELECT ${sql.ref(tableName)}.*, ${termsSelect}, ${bylinesSelect}
+							FROM _matched
+							CROSS JOIN ${sql.ref(tableName)} ON ${sql.ref(tableName)}.id = _matched._matched_id
+							WHERE deleted_at IS NULL
+							AND ${statusCondition}
+							${localeFilter}
+							${cursorCond}
+							${bylineCond}
+							${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
+							${orderByClause}
+							${limitOffsetClause}
+						`.execute(db);
+					}
+
+					if (!result) {
+						result = await sql<Record<string, unknown>>`
+							SELECT *, ${termsSelect}, ${bylinesSelect} FROM ${sql.ref(tableName)}
+							WHERE deleted_at IS NULL
+							AND ${statusCondition}
+							${localeFilter}
+							${cursorCond}
+							${taxonomyCond}
+							${bylineCond}
+							${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
+							${orderByClause}
+							${limitOffsetClause}
+						`.execute(db);
+					}
 				}
 
 				// Detect whether there are more results (over-fetched by 1)

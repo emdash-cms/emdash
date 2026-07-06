@@ -140,6 +140,34 @@ export interface CollectionFilterBase {
 	 * @example "fr" — French entries only
 	 */
 	locale?: string;
+	/**
+	 * Plan hint for taxonomy-filtered listings on SQLite/D1. Only consulted when
+	 * `where` includes a taxonomy filter; ignored otherwise and on Postgres.
+	 *
+	 * Pass `"seek"` on archive routes that filter by a **selective** term — a
+	 * fine-grained tag or category matching few entries. Without it, D1 walks the
+	 * whole collection in `orderBy` order applying the taxonomy filter per row,
+	 * reading tens of thousands of rows for a page returning a handful. `"seek"`
+	 * instead drives from the term, reading only the matching entries.
+	 *
+	 * Leave unset (default `"scan"`) for **non-selective** terms — a broad
+	 * category holding most of the collection — where walking in order fills the
+	 * page quickly and is cheaper. Selectivity is a per-term property, so choose
+	 * per route rather than globally.
+	 *
+	 * @default "scan"
+	 * @example
+	 * ```ts
+	 * // /tag/[slug] — a specific tag matches few posts
+	 * await getEmDashCollection("posts", {
+	 *   where: { tag: Astro.params.slug },
+	 *   orderBy: { published_at: "desc" },
+	 *   limit: 20,
+	 *   taxonomyStrategy: "seek",
+	 * });
+	 * ```
+	 */
+	taxonomyStrategy?: "scan" | "seek";
 }
 
 /** Keyset-paginated query filter. Cannot also carry an `offset`. */
@@ -708,6 +736,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		where: filter?.where,
 		orderBy: filter?.orderBy,
 		locale: resolvedLocale,
+		taxonomyStrategy: filter?.taxonomyStrategy,
 	});
 
 	const { entries, error, cacheHint } = result;
