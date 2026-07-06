@@ -155,7 +155,6 @@ async function repairContentMediaUsageCollectionUnlocked(
 		}
 		const counts = await repairScannedContentSources(db, repo, scan);
 		const finalScan = await scanContentMediaUsageCollection(db, collectionSlug);
-		const scannedContentCount = finalScan?.contentIds.length ?? scan.contentIds.length;
 		if (!finalScan) {
 			counts.failedSourceCount++;
 			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND;
@@ -164,7 +163,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
 		}
 		const completedAt = new Date().toISOString();
-		const status = determineRepairStatus(counts, scannedContentCount);
+		const status = determineRepairStatus(counts);
 		return await finalizeRepairStatus(repo, {
 			...scope,
 			runToken,
@@ -439,11 +438,12 @@ async function finalizeRepairStatus(
 
 function determineRepairStatus(
 	counts: RepairCounts,
-	scannedContentCount: number,
 ): Exclude<ContentMediaUsageRepairStatus, "stale"> {
 	if (counts.failedSourceCount === 0 && counts.skippedSourceCount === 0) return "complete";
 	const trustedProgress = counts.indexedSourceCount + counts.deletedSourceCount;
-	if (trustedProgress === 0 && scannedContentCount > 0) return "failed";
+	if (counts.failedSourceCount > 0 && trustedProgress === 0) {
+		return "failed";
+	}
 	return "partial";
 }
 
