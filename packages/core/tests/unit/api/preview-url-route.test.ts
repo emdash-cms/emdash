@@ -1,10 +1,12 @@
 import { Role } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { handleContentCreate, handleContentGet } from "../../../src/api/index.js";
 import { POST as previewUrl } from "../../../src/astro/routes/api/content/[collection]/[id]/preview-url.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
+import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -47,6 +49,9 @@ describe("preview-url route — respects collection url_pattern", () => {
 	});
 
 	afterEach(async () => {
+		vi.unstubAllEnvs();
+		setI18nConfig(null);
+		_resetAstroI18nCacheForTests();
 		await teardownTestDatabase(db);
 	});
 
@@ -91,5 +96,38 @@ describe("preview-url route — respects collection url_pattern", () => {
 		const { url } = (await response.json()).data as { url: string };
 
 		expect(url.startsWith(`/custom/${id}?_preview=`)).toBe(true);
+	});
+
+	it("lets the EMDASH_PREVIEW_PATH_PATTERN env override win over the url_pattern", async () => {
+		vi.stubEnv("EMDASH_PREVIEW_PATH_PATTERN", "/env/{id}");
+		await new SchemaRegistry(db).updateCollection("post", { urlPattern: "/blog/{slug}" });
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Env Wins" },
+		});
+		const id = created.data!.item.id;
+
+		const response = await call("post", id);
+		expect(response.status).toBe(200);
+		const { url } = (await response.json()).data as { url: string };
+
+		expect(url.startsWith(`/env/${id}?_preview=`)).toBe(true);
+		expect(url.startsWith("/blog/")).toBe(false);
+	});
+
+	it("prefixes the locale segment for a non-default-locale entry", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "de"], prefixDefaultLocale: false });
+		_resetAstroI18nCacheForTests();
+		await new SchemaRegistry(db).updateCollection("post", { urlPattern: "/blog/{slug}" });
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Hallo Welt" },
+			locale: "de",
+		});
+		const id = created.data!.item.id;
+
+		const response = await call("post", id);
+		expect(response.status).toBe(200);
+		const { url } = (await response.json()).data as { url: string };
+
+		expect(url.startsWith("/de/blog/hallo-welt?_preview=")).toBe(true);
 	});
 });

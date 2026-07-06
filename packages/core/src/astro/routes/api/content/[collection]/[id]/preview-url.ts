@@ -99,9 +99,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	try {
 		// No explicit override: reuse the collection's `url_pattern` so the
 		// preview link points at the same route the sitemap and "View
-		// published" links already use (custom permalinks like `/blog/{slug}`,
-		// date tokens, etc.). Without this the generic `/{collection}/{id}`
-		// fallback 404s on any site whose content isn't served at that path.
+		// published" links already use (custom permalinks like `/blog/{slug}`).
+		// Without this the generic `/{collection}/{id}` fallback 404s on any
+		// site whose content isn't served at that path.
 		if (!explicitPattern) {
 			const collectionInfo = await getCollectionInfoWithDb(emdash.db, collection);
 			if (collectionInfo?.urlPattern) {
