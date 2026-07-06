@@ -26,6 +26,8 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Read PR metadata and submit the approving review. Nothing else.
+          permission-pull-requests: write
 
       - name: Fetch Dependabot metadata
         id: metadata
@@ -36,6 +38,9 @@ jobs:
       - name: Auto-approve patch and minor updates
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        env:
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          DEPENDENCY_NAMES: ${{ steps.metadata.outputs.dependency-names }}
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
@@ -44,5 +49,5 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.payload.pull_request.number,
               event: 'APPROVE',
-              body: 'Auto-approved: ${{ steps.metadata.outputs.update-type }} update for ${{ steps.metadata.outputs.dependency-names }}.',
+              body: `Auto-approved: ${process.env.UPDATE_TYPE} update for ${process.env.DEPENDENCY_NAMES}.`,
             });

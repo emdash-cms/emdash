@@ -71,6 +71,11 @@ describe("getEmDashCollection limit bucketing", () => {
 			fetchFilter: { limit: 4, cursor: "abc" },
 			requestedLimit: undefined,
 		});
+		// offset-paginated calls bypass bucketing for the same reason
+		expect(bucketFilter({ limit: 4, offset: 8 })).toEqual({
+			fetchFilter: { limit: 4, offset: 8 },
+			requestedLimit: undefined,
+		});
 	});
 
 	it("paginating from a slice-produced cursor returns the correct next page", async () => {

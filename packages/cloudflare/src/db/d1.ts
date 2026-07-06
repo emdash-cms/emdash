@@ -87,6 +87,22 @@ export function createDialect(config: D1Config): Dialect {
 	return new EmDashD1Dialect({ database: db });
 }
 
+/**
+ * Coalescing D1 dialect for the runtime's cold-start read phase, where the
+ * core runtime batches its init reads into one `batch()` round trip. Carries
+ * no Sessions-API bookmark — cold-start reads need no read-your-writes
+ * guarantee — so plain coalescing over the raw binding suffices. Each call
+ * returns a fresh dialect; this must never back the long-lived singleton,
+ * whose coalescing buffer would be shared across requests.
+ */
+export function createCoalescingDialect(config: D1Config): Dialect {
+	const db = getBinding(config);
+	if (!db) {
+		throw new Error(`D1 binding "${config.binding}" not found in environment.`);
+	}
+	return new CoalescingD1Dialect({ database: db });
+}
+
 // =========================================================================
 // D1 Read Replica Session Support
 //

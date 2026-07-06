@@ -40,6 +40,8 @@ The `options` parameter accepts the following filter:
 interface CollectionFilter {
 	status?: "draft" | "published" | "archived";
 	limit?: number;
+	cursor?: string; // Keyset pagination — pass a previous `nextCursor`
+	offset?: number; // Offset pagination — skip N entries (use with `limit`)
 	where?: Record<string, string | string[]>; // Filter by field or taxonomy
 }
 ```
@@ -52,6 +54,8 @@ The function resolves to a `CollectionResult`:
 interface CollectionResult<T> {
 	entries: ContentEntry<T>[]; // Empty array if error or none found
 	error?: Error; // Set if query failed
+	nextCursor?: string; // Cursor for the next keyset page, if any
+	hasMore?: boolean; // Whether more entries exist beyond this page (when `limit` is set)
 }
 ```
 
@@ -75,6 +79,16 @@ const { entries: latest } = await getEmDashCollection("posts", {
 const { entries: newsPosts } = await getEmDashCollection("posts", {
 	status: "published",
 	where: { category: "news" },
+});
+
+// Numbered archive page (e.g. /page/3) with offset pagination
+const perPage = 20;
+const page = Number(Astro.params.page ?? 1);
+const { entries: pagePosts, hasMore } = await getEmDashCollection("posts", {
+	status: "published",
+	limit: perPage,
+	offset: (page - 1) * perPage,
+	orderBy: { published_at: "desc" },
 });
 
 // Handle errors

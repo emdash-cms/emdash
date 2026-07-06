@@ -16,10 +16,12 @@ rules:
       # CLA assistant must comment on PRs from forks; runs a pinned third-party
       # action and does not execute any code from the PR.
       - cla.yml
-      # Auto-format runs against trusted same-repo branches only (gated by
-      # `github.event.pull_request.head.repo.full_name == github.repository`
-      # downstream). Fork PRs are routed through format-command instead.
-      - auto-format.yml
+      # auto-format-apply uses workflow_run to commit the formatted patch
+      # computed by the untrusted `auto-format` workflow. The trusted job only
+      # consumes the inert patch artifact, verifies the PR head SHA matches the
+      # workflow_run head SHA, applies the diff, and pushes back via an app
+      # token. It never checks out or executes PR-controlled code.
+      - auto-format-apply.yml
       # Lunaria only reads localized content and posts a status comment; does
       # not execute PR-controlled code.
       - lunaria.yml
@@ -45,5 +47,29 @@ rules:
   # so workflow-level vs job-level scoping makes no real difference. A future
   # PR may split the `label` job to a separate file with narrower permissions.
   excessive-permissions:
+    ignore:
+      - cla.yml
+
+  # pkg.pr.new is a preview-release service, not npm registry publishing. It
+  # authenticates via its own GitHub OIDC flow (no long-lived token), so npm
+  # trusted publishing does not apply. The real npm publish (release.yml) uses
+  # OIDC provenance via the job's id-token: write.
+  use-trusted-publishing:
+    ignore:
+      - preview-releases.yml
+
+  # investigate.yml is the bot's reproduction runner. It installs the
+  # maintainer-owned bgproc / agent-browser CLIs globally at runtime so the
+  # agent doesn't self-install them mid-run. This is not a production build,
+  # and pinning these dev tools by version would add churn without a real
+  # supply-chain gain here.
+  adhoc-packages:
+    ignore:
+      - investigate.yml
+
+  # contributor-assistant/github-action is archived upstream but pinned by
+  # SHA, and has no maintained drop-in replacement. The CLA flow is critical;
+  # replacing the action is a separate, deliberate migration.
+  archived-uses:
     ignore:
       - cla.yml

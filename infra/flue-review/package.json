@@ -16,7 +16,8 @@
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
-		"@cloudflare/sandbox": "^0.12.1",
+		"@cloudflare/codemode": "^0.4.1",
+		"@cloudflare/shell": "^0.4.0",
 		"@flue/runtime": "1.0.0-beta.1",
 		"agents": "^0.14.5",
 		"hono": "^4.12.23",

@@ -35,6 +35,10 @@ declare module "virtual:emdash/dialect" {
 	export const createDialect: ((config: unknown) => Dialect) | undefined;
 	export const dialectType: DatabaseDialectType | undefined;
 
+	// Optional coalescing dialect for the runtime's cold-start read batch.
+	// Only batching backends (D1, DO) export it; undefined otherwise.
+	export const createCoalescingDialect: ((config: unknown) => Dialect | null) | undefined;
+
 	/**
 	 * Adapter-owned per-request scoping. Returns null when the configured
 	 * adapter has no per-request semantics (non-D1, or D1 with sessions
@@ -54,6 +58,15 @@ declare module "virtual:emdash/dialect" {
 	export interface RequestScopedDb {
 		db: Kysely<unknown>;
 		commit: () => void;
+		/**
+		 * Optional teardown, invoked once the response body has fully streamed
+		 * (or immediately for bodyless responses). Adapters that hold a real
+		 * connection for the request (e.g. a Postgres pool over Hyperdrive) close
+		 * it here — closing in `commit()` would cut the connection mid-render,
+		 * because Astro streams the HTML body and components issue queries while
+		 * it streams. Stateless adapters (D1) omit it.
+		 */
+		close?: () => void;
 	}
 	export const createRequestScopedDb: (opts: RequestScopedDbOpts) => RequestScopedDb | null;
 }
@@ -63,6 +76,17 @@ declare module "virtual:emdash/storage" {
 
 	// Can be undefined if no storage configured, or the actual function
 	export const createStorage: ((config: Record<string, unknown>) => Storage) | undefined;
+}
+
+declare module "virtual:emdash/object-cache" {
+	import type {
+		CreateObjectCacheBackendFn,
+		ObjectCacheRuntimeConfig,
+	} from "./object-cache/types.js";
+
+	// Can be undefined if no object cache is configured.
+	export const createObjectCache: CreateObjectCacheBackendFn | undefined;
+	export const objectCacheConfig: ObjectCacheRuntimeConfig | undefined;
 }
 
 declare module "virtual:emdash/auth" {

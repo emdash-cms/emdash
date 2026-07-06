@@ -81,19 +81,17 @@ export default defineConfig({
 			marketplace: "https://marketplace.emdashcms.com",
 		}),
 	],
-	experimental: {
-		cache: {
-			provider: cloudflareCache(),
+	cache: {
+		provider: cloudflareCache(),
+	},
+	routeRules: {
+		"/": {
+			maxAge: 3_600,
+			swr: 864_000,
 		},
-		routeRules: {
-			"/": {
-				maxAge: 3_600,
-				swr: 864_000,
-			},
-			"/[...slug]": {
-				maxAge: 3_600,
-				swr: 864_000,
-			},
+		"/[...slug]": {
+			maxAge: 3_600,
+			swr: 864_000,
 		},
 	},
 	fonts: [

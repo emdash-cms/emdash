@@ -15,6 +15,7 @@ import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
+import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 import { requestCached } from "../request-cache.js";
 import { sanitizeHref } from "../utils/url.js";
 import type { Menu, MenuItem, MenuItemRow } from "./types.js";
@@ -36,10 +37,16 @@ export interface MenuQueryOptions {
  */
 export function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`menu:${name}:${locale ?? "*"}`, async () => {
-		const db = await getDb();
-		return getMenuWithDb(name, db, { locale });
-	});
+	return requestCached(`menu:${name}:${locale ?? "*"}`, () =>
+		cachedQuery({
+			namespace: CacheNamespace.MENUS,
+			key: `${name}:${locale ?? "*"}`,
+			load: async () => {
+				const db = await getDb();
+				return getMenuWithDb(name, db, { locale });
+			},
+		}),
+	);
 }
 
 /**

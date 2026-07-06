@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
@@ -37,17 +37,25 @@ jobs:
         id: drift
         run: |
           mkdir -p query-counts-out
-          if git diff --quiet scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json; then
+          # Track both the count snapshots and the query-text snapshots. The
+          # query-text files (.queries.*.json) record the actual SQL per route;
+          # without them here a change that alters a query's text but not the
+          # count (e.g. adding a column to a folded subquery) would never be
+          # committed back, leaving the D1 text snapshot silently stale.
+          counts="scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json"
+          queries="scripts/query-counts.queries.sqlite.json scripts/query-counts.queries.d1.json"
+          if git diff --quiet $counts $queries; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No drift — snapshots match the committed baseline."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            cp scripts/query-counts.snapshot.sqlite.json query-counts-out/
-            cp scripts/query-counts.snapshot.d1.json query-counts-out/
-            git diff scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json > query-counts-out/snapshots.diff
+            cp $counts $queries query-counts-out/
+            git diff $counts $queries > query-counts-out/snapshots.diff
             echo "${{ github.event.pull_request.number }}" > query-counts-out/pr-number
             echo "Drift detected — uploading artifact for the Apply workflow."
-            cat query-counts-out/snapshots.diff
+            # Log only the count diff; the query-text diffs can be large and
+            # are carried in the artifact for the Apply workflow to commit.
+            git diff $counts
           fi
 
       - name: Upload snapshot artifact

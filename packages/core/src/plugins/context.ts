@@ -21,6 +21,7 @@ import {
 	SsrfError,
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
+import { enrichImageMetadata } from "../media/enrich.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
@@ -432,23 +433,55 @@ export function createMediaAccess(db: Kysely<Database>): MediaAccess {
 
 /**
  * Create full media access with write operations.
- * If storage is not provided, upload() will throw at call time.
+ *
+ * `getUploadUrlFn` is optional: when omitted, `getUploadUrl()` is derived from
+ * `storage` (create a pending record + a signed PUT URL), mirroring the REST
+ * `/_emdash/api/media/upload-url` endpoint. `upload()` only needs `storage`.
+ * If storage is not provided, both throw at call time.
  */
 export function createMediaAccessWithWrite(
 	db: Kysely<Database>,
-	getUploadUrlFn: (
-		filename: string,
-		contentType: string,
-	) => Promise<{ uploadUrl: string; mediaId: string }>,
+	getUploadUrlFn:
+		| ((filename: string, contentType: string) => Promise<{ uploadUrl: string; mediaId: string }>)
+		| undefined,
 	storage?: Storage,
 ): MediaAccessWithWrite {
 	const mediaRepo = new MediaRepository(db);
 	const readAccess = createMediaAccess(db);
 
+	const getUploadUrl =
+		getUploadUrlFn ??
+		(async (filename: string, contentType: string) => {
+			if (!storage) {
+				throw new Error(
+					"Media getUploadUrl() requires a storage backend. Configure storage in PluginContextFactoryOptions.",
+				);
+			}
+
+			const basename = filename.split("/").pop() ?? filename;
+			const dotIdx = basename.lastIndexOf(".");
+			const ext = dotIdx > 0 ? basename.slice(dotIdx).toLowerCase() : "";
+			const storageKey = `${ulid()}${ext}`;
+
+			const media = await mediaRepo.createPending({
+				filename: basename,
+				mimeType: contentType,
+				storageKey,
+			});
+
+			const signed = await storage.getSignedUploadUrl({
+				key: storageKey,
+				contentType,
+				expiresIn: 3600,
+			});
+
+			return { uploadUrl: signed.url, mediaId: media.id };
+		});
+
 	return {
 		...readAccess,
 
-		getUploadUrl: getUploadUrlFn,
+		getUploadUrl,
 
 		async upload(
 			filename: string,
@@ -476,6 +509,9 @@ export function createMediaAccessWithWrite(
 				contentType,
 			});
 
+			// Derive dimensions + LQIP placeholders (no-op for non-images).
+			const enriched = await enrichImageMetadata(new Uint8Array(bytes), contentType);
+
 			// Create DB record — clean up storage on failure
 			let media;
 			try {
@@ -485,6 +521,10 @@ export function createMediaAccessWithWrite(
 					size: bytes.byteLength,
 					storageKey,
 					status: "ready",
+					width: enriched.width,
+					height: enriched.height,
+					blurhash: enriched.blurhash,
+					dominantColor: enriched.dominantColor,
 				});
 			} catch (error) {
 				try {
@@ -837,13 +877,25 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
 	/**
+	 * Resolver for the database connection, preferred over `db` when present.
+	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
+	 * over Hyperdrive) get the current request/event-scoped connection from ALS
+	 * rather than a snapshot of the per-isolate singleton — reusing the
+	 * singleton's socket from a later event trips workerd's cross-request I/O
+	 * guard. When omitted, `db` is used directly (correct for stateless
+	 * adapters like D1 and Node SQLite). `db` remains required as the fallback.
+	 */
+	getDb?: () => Kysely<Database>;
+	/**
 	 * Storage backend for direct media uploads.
 	 * If not provided, upload() will throw.
 	 */
 	storage?: Storage;
 	/**
-	 * Function to generate upload URLs for media.
-	 * If not provided, media write operations will throw.
+	 * Explicit provider for `ctx.media.getUploadUrl()`. Optional: when omitted
+	 * but `storage` is configured, the factory derives a working `getUploadUrl()`
+	 * (and `upload()`) from storage. Only when neither `getUploadUrl` nor
+	 * `storage` is present do media write operations become unavailable.
 	 */
 	getUploadUrl?: (
 		filename: string,
@@ -877,8 +929,7 @@ export interface PluginContextFactoryOptions {
  * Factory for creating plugin contexts
  */
 export class PluginContextFactory {
-	private optionsRepo: OptionsRepository;
-	private db: Kysely<Database>;
+	private resolveDb: () => Kysely<Database>;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -888,10 +939,16 @@ export class PluginContextFactory {
 	private urlHelper: (path: string) => string;
 	private cronReschedule?: () => void;
 	private emailPipeline?: EmailPipeline;
+	/**
+	 * Plugin IDs already warned about a missing media-write backend, so the
+	 * warning fires once per factory instead of on every hook/route context
+	 * creation (which would spam logs for hook-participating plugins).
+	 */
+	private warnedMissingMediaBackend = new Set<string>();
 
 	constructor(options: PluginContextFactoryOptions) {
-		this.db = options.db;
-		this.optionsRepo = new OptionsRepository(options.db);
+		const fixedDb = options.db;
+		this.resolveDb = options.getDb ?? (() => fixedDb);
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -906,10 +963,17 @@ export class PluginContextFactory {
 	createContext(plugin: ResolvedPlugin): PluginContext {
 		const capabilities = new Set(plugin.capabilities);
 
+		// Resolve the connection once per context. For stateless adapters this
+		// is the singleton; for connection-backed adapters it's the current
+		// request/event-scoped connection from ALS. All repos below are built
+		// from this local `db` so a hook never queries a stale singleton socket.
+		const db = this.resolveDb();
+		const optionsRepo = new OptionsRepository(db);
+
 		// Always available
-		const kv = createKVAccess(this.optionsRepo, plugin.id);
+		const kv = createKVAccess(optionsRepo, plugin.id);
 		const log = createLogAccess(plugin.id);
-		const storage = createStorageAccess(this.db, plugin.id, plugin.storage);
+		const storage = createStorageAccess(db, plugin.id, plugin.storage);
 
 		// Capability-gated: content
 		// Note: capabilities reach this point already normalized to the
@@ -917,17 +981,33 @@ export class PluginContextFactory {
 		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
-			content = createContentAccessWithWrite(this.db);
+			content = createContentAccessWithWrite(db);
 		} else if (capabilities.has("content:read")) {
-			content = createContentAccess(this.db);
+			content = createContentAccess(db);
 		}
 
 		// Capability-gated: media
+		// `upload()` only needs `storage`; `getUploadUrl()` is derived from
+		// storage when no explicit provider is wired. Granting write access on
+		// either avoids silently degrading media:write to read-only — the bug
+		// where the runtime threads `storage` but not `getUploadUrl`.
 		let media: MediaAccess | MediaAccessWithWrite | undefined;
-		if (capabilities.has("media:write") && this.getUploadUrl) {
-			media = createMediaAccessWithWrite(this.db, this.getUploadUrl, this.storage);
+		if (capabilities.has("media:write")) {
+			if (this.getUploadUrl || this.storage) {
+				media = createMediaAccessWithWrite(db, this.getUploadUrl, this.storage);
+			} else {
+				if (!this.warnedMissingMediaBackend.has(plugin.id)) {
+					this.warnedMissingMediaBackend.add(plugin.id);
+					log.warn(
+						"declares the media:write capability but no storage backend is configured; upload() is unavailable.",
+					);
+				}
+				if (capabilities.has("media:read")) {
+					media = createMediaAccess(db);
+				}
+			}
 		} else if (capabilities.has("media:read")) {
-			media = createMediaAccess(this.db);
+			media = createMediaAccess(db);
 		}
 
 		// Capability-gated: http
@@ -941,14 +1021,14 @@ export class PluginContextFactory {
 		// Capability-gated: users
 		let users: UserAccess | undefined;
 		if (capabilities.has("users:read")) {
-			users = createUserAccess(this.db);
+			users = createUserAccess(db);
 		}
 
-		// Cron access ��� always available (scoped to plugin), but only if
+		// Cron access — always available (scoped to plugin), but only if
 		// the runtime provided a reschedule callback (i.e. cron is wired up).
 		let cron: CronAccess | undefined;
 		if (this.cronReschedule) {
-			cron = new CronAccessImpl(this.db, plugin.id, this.cronReschedule);
+			cron = new CronAccessImpl(db, plugin.id, this.cronReschedule);
 		}
 
 		// Email access — requires email:send capability AND a configured provider

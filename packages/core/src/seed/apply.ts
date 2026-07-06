@@ -159,6 +159,7 @@ export async function applySeed(
 						if (existingField) {
 							await registry.updateField(collection.slug, field.slug, {
 								label: field.label,
+								type: field.type,
 								required: field.required || false,
 								unique: field.unique || false,
 								searchable: field.searchable || false,
@@ -295,7 +296,7 @@ export async function applySeed(
 				defSeedIdMap.set(taxonomy.id, { id: defId, translationGroup: defTranslationGroup });
 
 			// Create terms (if provided)
-			if (taxonomy.terms && taxonomy.terms.length > 0) {
+			if (includeContent && taxonomy.terms && taxonomy.terms.length > 0) {
 				const termRepo = new TaxonomyRepository(db);
 
 				if (taxonomy.hierarchical) {
@@ -345,10 +346,16 @@ export async function applySeed(
 				}
 			}
 		}
+
+		// Seeded/updated defs change which taxonomies exist — clear the
+		// isolate-wide defs + names caches so later reads in this isolate
+		// (e.g. an auto-seed triggered mid-request) reflect them immediately.
+		const { invalidateTaxonomyDefsCache } = await import("../taxonomies/index.js");
+		invalidateTaxonomyDefsCache();
 	}
 
 	// 6. Bylines
-	if (seed.bylines) {
+	if (includeContent && seed.bylines) {
 		const bylineRepo = new BylineRepository(db);
 		for (const byline of seed.bylines) {
 			const existing = await bylineRepo.findBySlug(byline.slug);

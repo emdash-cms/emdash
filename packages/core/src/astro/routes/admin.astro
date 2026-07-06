@@ -5,7 +5,10 @@
  * This page serves the EmDash admin React SPA.
  * AdminWrapper imports plugin admin modules and passes them to AdminApp.
  */
-import "@emdash-cms/admin/styles.css";
+// `?url` keeps the admin stylesheet out of the page's CSS module graph so
+// Astro's dev SSR doesn't inject it into every public route's <head>. We emit
+// it as a route-scoped <link> below instead. See #1281.
+import adminStylesUrl from "@emdash-cms/admin/styles.css?url";
 // Use package-qualified import so Astro generates a proper module URL
 // (relative imports resolve to absolute paths which break client hydration)
 import AdminWrapper from "emdash/routes/PluginRegistry";
@@ -28,6 +31,7 @@ const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmD
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href={adminStylesUrl} />
 		<Font cssVariable="--font-emdash" />
 		{adminConfig?.favicon ? (
 			<link rel="icon" href={adminConfig.favicon} />

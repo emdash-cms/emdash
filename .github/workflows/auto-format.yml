@@ -1,7 +1,12 @@
 name: Auto Format
 
+# Stage 1 of 2 (producer). Runs with the default read-only token and never
+# pushes or comments, so it is safe to format PR-authored code — including
+# from forks. The companion "Auto Format — Apply" workflow (triggered by
+# workflow_run) commits the result back with elevated permissions, isolated
+# from PR-authored code.
 on:
-  pull_request_target:
+  pull_request:
     branches: [main]
     types: [opened, synchronize]
 
@@ -11,115 +16,43 @@ permissions:
 jobs:
   format:
     name: Format
-    # Skip bot-authored commits to avoid infinite loops
+    # Skip the bot's own format commits to avoid a re-format loop.
     if: github.actor != 'emdashbot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Generate token
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - name: Get PR details
-        id: pr
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const pr = context.payload.pull_request;
-            const isFork = pr.head.repo.fork || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
-            core.setOutput('ref', pr.head.ref);
-            core.setOutput('sha', pr.head.sha);
-            core.setOutput('number', pr.number.toString());
-            core.setOutput('is_fork', isFork.toString());
-            core.setOutput('full_name', pr.head.repo.full_name);
-
-      # --- Same-repo PRs: checkout and push directly ---
-
-      - name: Checkout (same-repo)
-        if: steps.pr.outputs.is_fork == 'false'
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          ref: ${{ steps.pr.outputs.ref }}
-          token: ${{ steps.app-token.outputs.token }}
-          # Intentional: the same-repo push step below pushes the
-          # formatted changes back to the PR branch using this credential.
-          persist-credentials: true
-
-      # --- Fork PRs: checkout the fork at the pinned SHA ---
-
-      - name: Checkout (fork)
-        if: steps.pr.outputs.is_fork == 'true'
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          repository: ${{ steps.pr.outputs.full_name }}
-          ref: ${{ steps.pr.outputs.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
-      - name: Setup Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
 
       - name: Run formatter
         run: npx oxfmt --ignore-path .gitignore
 
-      - name: Check for changes
-        id: diff
+      - name: Compute patch
+        id: patch
         run: |
           git add -A
           if git diff --staged --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already formatted — nothing to apply."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
+            mkdir -p auto-format-out
+            git diff --staged --binary > auto-format-out/format.patch
+            echo "${{ github.event.pull_request.number }}" > auto-format-out/pr-number
+            echo "Formatting changes detected — uploading patch for the Apply workflow."
           fi
 
-      # --- Same-repo: push directly ---
-
-      - name: Commit and push (same-repo)
-        if: steps.pr.outputs.is_fork == 'false' && steps.diff.outputs.changed == 'true'
-        run: |
-          git config user.name "emdashbot[bot]"
-          git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "style: format"
-          git push
-
-      # --- Fork: push via git with GIT_ASKPASS ---
-
-      - name: Commit and push (fork)
-        if: steps.pr.outputs.is_fork == 'true' && steps.diff.outputs.changed == 'true'
-        id: push-fork
-        run: |
-          git config user.name "emdashbot[bot]"
-          git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "style: format"
-          # Push to the fork using the app token via GIT_ASKPASS to avoid
-          # leaking the token in process args or git config
-          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
-          printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
-          chmod +x "$GIT_ASKPASS"
-          git remote add fork "https://x-access-token@github.com/${{ steps.pr.outputs.full_name }}.git"
-          if git push fork "HEAD:${{ steps.pr.outputs.ref }}"; then
-            echo "push_failed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "push_failed=true" >> "$GITHUB_OUTPUT"
-          fi
-          rm -f "$GIT_ASKPASS"
-        env:
-          APP_TOKEN: ${{ steps.app-token.outputs.token }}
-
-      - name: Comment on push failure
-        if: steps.push-fork.outputs.push_failed == 'true'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      - name: Upload patch artifact
+        if: steps.patch.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: ${{ steps.pr.outputs.number }},
-              body: `Could not push formatting changes to this fork. The contributor may have "Allow edits by maintainers" disabled.\n\nPlease run the formatter locally:\n\n\`\`\`\npnpm format\n\`\`\``,
-            });
+          name: auto-format-patch
+          path: auto-format-out/
+          retention-days: 7
+          if-no-files-found: error

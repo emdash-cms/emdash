@@ -10,10 +10,8 @@ import emdash from "emdash/astro";
 export default defineConfig({
 	output: "server",
 	adapter: cloudflare(),
-	experimental: {
-		cache: {
-			provider: cacheCloudflare(),
-		},
+	cache: {
+		provider: cacheCloudflare(),
 	},
 	image: {
 		layout: "constrained",

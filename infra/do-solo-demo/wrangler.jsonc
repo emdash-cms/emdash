@@ -9,6 +9,9 @@
 	// so the perf dashboard can attribute any do-demo vs do-solo-demo delta to
 	// replicas specifically. "experimental" is kept for parity with do-demo.
 	"compatibility_flags": ["nodejs_compat", "experimental"],
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+	},
 	"routes": [
 		{
 			"pattern": "do-solo-demo.emdashcms.com",

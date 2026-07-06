@@ -11,6 +11,9 @@
 	// site locally, temporarily drop "replica_routing" from this list; the DO
 	// driver works without it (single primary, no replicas).
 	"compatibility_flags": ["nodejs_compat", "experimental", "replica_routing"],
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+	},
 	// No smart placement: we want the Worker at the edge near the reader so it
 	// hits the nearest read replica. Writes/auth proxy to the primary internally.
 	"routes": [

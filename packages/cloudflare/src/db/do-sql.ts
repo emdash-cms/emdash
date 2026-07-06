@@ -62,6 +62,47 @@ function bindingError(binding: string): Error {
 }
 
 /**
+ * Bookmark sinks for the non-request-scoped dialects, keyed by DO identity.
+ *
+ * Read-after-write on the DO backend rides a bookmark: a write records the
+ * current bookmark; a later read passes it so a replica blocks until it has
+ * caught up. The singleton (migrations, scheduled tasks) and the cold-start
+ * read connection both need to see each other's writes — a migration runs on
+ * the singleton, then the runtime's cold-start reads must observe it — so they
+ * share one sink per DO. Bookmarks are global to the database, so the sink is
+ * valid across the fresh-per-query stubs each dialect resolves.
+ *
+ * Best-effort under concurrency: bookmarks are opaque, so out-of-order writes
+ * can leave the sink pointing at an older bookmark and a later read served
+ * slightly stale. It never loses or corrupts a write. Request traffic is
+ * unaffected — it uses isolated per-request sinks in `createRequestScopedDb`.
+ */
+// Stored on globalThis behind a Symbol key so Vite SSR chunk duplication can't
+// produce two maps — the singleton dialect and the cold-start coalescing dialect
+// must resolve the *same* BookmarkSink object to share read-your-writes state
+// (same pattern as core's request-cache.ts / settings/index.ts).
+const SINGLETON_BOOKMARK_SINKS_KEY = Symbol.for("emdash:do-singleton-bookmark-sinks");
+const g = globalThis as Record<symbol, unknown>;
+const singletonBookmarkSinks: Map<string, BookmarkSink> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see core request-cache.ts)
+	(g[SINGLETON_BOOKMARK_SINKS_KEY] as Map<string, BookmarkSink> | undefined) ??
+	(() => {
+		const m = new Map<string, BookmarkSink>();
+		g[SINGLETON_BOOKMARK_SINKS_KEY] = m;
+		return m;
+	})();
+
+function getSingletonBookmarkSink(config: DurableObjectsConfig): BookmarkSink {
+	const key = `${config.binding}:${config.name ?? DEFAULT_NAME}`;
+	let sink = singletonBookmarkSinks.get(key);
+	if (!sink) {
+		sink = {};
+		singletonBookmarkSinks.set(key, sink);
+	}
+	return sink;
+}
+
+/**
  * Create a DO SQL dialect from config. Used for the singleton Kysely instance
  * (runtime-init migrations, scheduled tasks, and any query outside a request
  * scope).
@@ -70,32 +111,36 @@ function bindingError(binding: string): Error {
  * stub: a DO stub is a per-request I/O object. We resolve a fresh stub on every
  * query instead. The hot read/write path uses `createRequestScopedDb`, which
  * reuses one stub for the whole request.
- *
- * The singleton gets its own bookmark sink so read-after-write on these paths
- * stays consistent even when replicas exist. Migrations probe schema right
- * after altering it (`hasColumn` after `ALTER TABLE`), and scheduled publishing
- * reads due rows then writes status. With a sink, each write records its
- * bookmark and the following read waits for it -- correct regardless of which
- * (fresh-per-query) stub instance serves the read, because bookmarks are global.
  */
 export function createDialect(config: DurableObjectsConfig): Dialect {
 	const ns = getNamespace(config);
 	if (!ns) throw bindingError(config.binding);
 	const id = ns.idFromName(config.name ?? DEFAULT_NAME);
-	// Best-effort under concurrency: this sink is shared across all concurrent
-	// callers of the singleton (cron, after()-deferred maintenance). Bookmarks
-	// are opaque so we can't enforce monotonic advance; if two concurrent writes
-	// return out of order, a later read on the singleton may wait for the older
-	// bookmark and serve a slightly stale read. It never loses or corrupts a
-	// write, and never affects request traffic (which uses isolated per-request
-	// sinks). The consumers that need read-after-write here (migrations under the
-	// init lock, the sequential publishDueContent loop) are strictly awaited, so
-	// the sink stays monotonic for them.
-	const bookmarkSink: BookmarkSink = {};
 	return new DOSqlDialect({
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown row types
 		resolveStub: () => ns.get(id) as unknown as EmDashDBStub,
-		bookmarkSink,
+		bookmarkSink: getSingletonBookmarkSink(config),
+		onRpc: recordRpc,
+	});
+}
+
+/**
+ * Coalescing DO SQL dialect for the runtime's cold-start read phase, where the
+ * core runtime batches its init reads into one `batchQuery` RPC. Shares the
+ * singleton's bookmark sink so reads issued right after a migration (run on the
+ * singleton) wait for the replica to catch up — read-your-writes across the two
+ * connections. Resolves a fresh stub per query like {@link createDialect}. Each
+ * call returns a fresh dialect; this must never back the long-lived singleton,
+ * whose coalescing buffer would be shared across requests.
+ */
+export function createCoalescingDialect(config: DurableObjectsConfig): Dialect {
+	const ns = getNamespace(config);
+	if (!ns) throw bindingError(config.binding);
+	const id = ns.idFromName(config.name ?? DEFAULT_NAME);
+	return new CoalescingDOSqlDialect({
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown row types
+		resolveStub: () => ns.get(id) as unknown as EmDashDBStub,
+		bookmarkSink: getSingletonBookmarkSink(config),
 		onRpc: recordRpc,
 	});
 }

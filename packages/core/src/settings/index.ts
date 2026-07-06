@@ -12,7 +12,11 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
+
+/** Object-cache namespace for site settings. */
+const SETTINGS_CACHE_NAMESPACE = "settings";
 import type { Storage } from "../storage/types.js";
 import {
 	createSingleFlightCache,
@@ -61,6 +65,8 @@ const settingsCache: SingleFlightCache<Partial<SiteSettings>> =
  */
 export function invalidateSiteSettingsCache(): void {
 	invalidateSingleFlightCache(settingsCache);
+	// Cross-isolate invalidation for the optional distributed object cache.
+	invalidateObjectCache(SETTINGS_CACHE_NAMESPACE);
 }
 
 /**
@@ -210,14 +216,21 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
 export function getSiteSettings(): Promise<Partial<SiteSettings>> {
 	// requestCached dedupes within a single request; singleFlightCached
 	// coalesces across requests and caches the resolved value for the
-	// global scope's lifetime without ever sharing an awaitable promise.
+	// global scope's lifetime without ever sharing an awaitable promise. The
+	// distributed object cache (cachedQuery) sits beneath both, backing cold
+	// isolates without a database round-trip.
 	return requestCached("siteSettings", () =>
 		singleFlightCached(
 			settingsCache,
-			async () => {
-				const db = await getDb();
-				return getSiteSettingsWithDb(db);
-			},
+			() =>
+				cachedQuery({
+					namespace: SETTINGS_CACHE_NAMESPACE,
+					key: "all",
+					load: async () => {
+						const db = await getDb();
+						return getSiteSettingsWithDb(db);
+					},
+				}),
 			{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
 		),
 	);

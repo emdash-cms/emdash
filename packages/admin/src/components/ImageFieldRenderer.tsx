@@ -14,6 +14,7 @@ import { Image as ImageIcon, ImageBroken, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
+import { metaString } from "../lib/media-utils";
 import { MediaPickerModal } from "./MediaPickerModal";
 
 /**
@@ -30,6 +31,10 @@ export interface ImageFieldValue {
 	alt?: string;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 	/** Provider-specific metadata */
 	meta?: Record<string, unknown>;
 }
@@ -85,6 +90,10 @@ export function ImageFieldRenderer({
 			alt: item.alt || "",
 			width: item.width,
 			height: item.height,
+			// Cache LQIP alongside dimensions so embeds render a placeholder without a
+			// runtime lookup. Fall back to `meta` for providers that stash it there.
+			blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
+			dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 			meta: isLocalProvider ? { ...item.meta, storageKey: item.storageKey } : item.meta,
 		});
 	};

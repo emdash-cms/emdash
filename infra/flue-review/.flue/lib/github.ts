@@ -99,6 +99,31 @@ export async function mintInstallationToken(creds: GitHubAppCreds): Promise<stri
 }
 
 /**
+ * Fetch the PR's unified diff (the canonical base...head diff, 3-dot). Used to
+ * stage the exact changed lines into the agent's workspace, since the cf-shell
+ * sandbox has no `git` CLI. `token` is optional (public repos work anonymously,
+ * but a token avoids low rate limits). Returns the raw diff text.
+ */
+export async function fetchUnifiedDiff(
+	owner: string,
+	repo: string,
+	prNumber: number,
+	token?: string,
+): Promise<string> {
+	const headers: Record<string, string> = {
+		accept: "application/vnd.github.v3.diff",
+		"user-agent": USER_AGENT,
+		"x-github-api-version": "2022-11-28",
+	};
+	if (token) headers.authorization = `Bearer ${token}`;
+	const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`, { headers });
+	if (!res.ok) {
+		throw new Error(`unified diff fetch failed: ${res.status} ${await res.text()}`);
+	}
+	return res.text();
+}
+
+/**
  * Fetch the most recent emdashbot[bot] review body for a re-review, so the
  * agent can avoid re-flagging already-addressed findings. Returns undefined on
  * a first review or any failure (non-fatal: we just review fresh).

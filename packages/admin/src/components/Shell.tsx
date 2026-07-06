@@ -1,6 +1,8 @@
 import * as React from "react";
 
 import { useCurrentUser } from "../lib/api/current-user";
+import { getLocaleDir } from "../locales/config.js";
+import { useLocale } from "../locales/useLocale.js";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { Header } from "./Header";
 import { Sidebar, SidebarNav } from "./Sidebar";
@@ -35,6 +37,8 @@ export function Shell({ children, manifest }: ShellProps) {
 	const [welcomeModalOpen, setWelcomeModalOpen] = React.useState(false);
 
 	const { data: user } = useCurrentUser();
+	const { locale } = useLocale();
+	const sidebarSide = getLocaleDir(locale) === "rtl" ? "right" : "left";
 
 	// Show welcome modal on first login
 	React.useEffect(() => {
@@ -46,12 +50,13 @@ export function Shell({ children, manifest }: ShellProps) {
 	return (
 		<Sidebar.Provider
 			defaultOpen
+			side={sidebarSide}
 			style={
 				{
+					"--sidebar-bg": "var(--color-kumo-elevated)",
 					height: "100svh",
 					minHeight: "0",
 					overflow: "hidden",
-					"--sidebar-width-icon": "53px",
 				} as React.CSSProperties
 			}
 		>

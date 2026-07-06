@@ -34,8 +34,13 @@ declare module "@tiptap/react" {
 				provider?: string;
 				width?: number;
 				height?: number;
+				/** LQIP blurhash placeholder */
+				blurhash?: string;
+				/** LQIP dominant-color placeholder */
+				dominantColor?: string;
 				displayWidth?: number;
 				displayHeight?: number;
+				alignment?: "left" | "center" | "right" | "wide" | "full";
 			}) => ReturnType;
 		};
 	}
@@ -78,8 +83,11 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		mediaId: node.attrs.mediaId,
 		width: node.attrs.width,
 		height: node.attrs.height,
+		blurhash: node.attrs.blurhash,
+		dominantColor: node.attrs.dominantColor,
 		displayWidth: node.attrs.displayWidth,
 		displayHeight: node.attrs.displayHeight,
+		alignment: node.attrs.alignment,
 	});
 
 	const openSidebar = () => {
@@ -134,8 +142,29 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		}
 	}, [selected]);
 
+	const alignment = node.attrs.alignment as
+		| "left"
+		| "center"
+		| "right"
+		| "wide"
+		| "full"
+		| undefined;
+	// Mirror the published <Image> layout so the editor is WYSIWYG: left/right
+	// float (text wraps), center/wide/full size the block.
+	const alignmentStyle: React.CSSProperties =
+		alignment === "left"
+			? { float: "left", width: "fit-content", maxWidth: "50%", marginInlineEnd: "1.5rem" }
+			: alignment === "right"
+				? { float: "right", width: "fit-content", maxWidth: "50%", marginInlineStart: "1.5rem" }
+				: alignment === "center"
+					? { width: "fit-content", marginInline: "auto" }
+					: alignment === "wide" || alignment === "full"
+						? { width: "100%" }
+						: {};
+
 	return (
 		<NodeViewWrapper
+			style={alignmentStyle}
 			className={cn(
 				"relative my-4 group",
 				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
@@ -319,10 +348,19 @@ export const ImageExtension = Node.create({
 			height: {
 				default: null,
 			},
+			blurhash: {
+				default: null,
+			},
+			dominantColor: {
+				default: null,
+			},
 			displayWidth: {
 				default: null,
 			},
 			displayHeight: {
+				default: null,
+			},
+			alignment: {
 				default: null,
 			},
 		};
@@ -356,8 +394,11 @@ export const ImageExtension = Node.create({
 					provider?: string;
 					width?: number;
 					height?: number;
+					blurhash?: string;
+					dominantColor?: string;
 					displayWidth?: number;
 					displayHeight?: number;
+					alignment?: "left" | "center" | "right" | "wide" | "full";
 				}) =>
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				({ commands }: any) => {

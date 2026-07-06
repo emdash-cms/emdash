@@ -13,6 +13,42 @@ import { extractRequestMeta } from "./request-meta.js";
 import type { ResolvedPlugin, RouteContext, PluginRoute } from "./types.js";
 
 /**
+ * Body-reading methods on `Request`. EmDash parses the request body once before
+ * the handler runs and exposes the result as `ctx.input`, leaving the underlying
+ * stream consumed. Calling any of these on `ctx.request` would re-read a spent
+ * stream and throw an opaque platform error ("Body is unusable: Body has already
+ * been read") with no hint about `ctx.input` — so the guard replaces them with an
+ * actionable message instead (#1293).
+ */
+const CONSUMED_BODY_METHODS = new Set(["json", "text", "arrayBuffer", "blob", "formData", "bytes"]);
+
+/**
+ * Wrap the request handed to a plugin route handler so an accidental
+ * `ctx.request.json()` (or `.text()`, `.formData()`, …) fails with a message
+ * pointing at `ctx.input` rather than the runtime's cryptic "body already read"
+ * error. Every non-body member passes through unchanged; function members are
+ * bound to the underlying request so methods like `clone()` don't throw an
+ * "Illegal invocation" when called on the proxy.
+ */
+function guardConsumedRequestBody(request: Request): Request {
+	return new Proxy(request, {
+		get(target, prop) {
+			if (typeof prop === "string" && CONSUMED_BODY_METHODS.has(prop)) {
+				return () => {
+					throw new Error(
+						`[emdash] ctx.request.${prop}() is not available inside a plugin route handler: ` +
+							`EmDash has already parsed the request body and exposes it as ctx.input. ` +
+							`Read ctx.input instead of ctx.request.${prop}().`,
+					);
+				};
+			}
+			const value = Reflect.get(target, prop, target);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+}
+
+/**
  * Route metadata (public flag) without the handler.
  * Used by the catch-all route to decide auth before dispatch.
  */
@@ -100,7 +136,10 @@ export class PluginRouteHandler {
 		const routeContext: RouteContext = {
 			...baseContext,
 			input: validatedInput,
-			request: options.request,
+			// The body is already parsed into `input`; guard `ctx.request`'s
+			// body-reading methods so a re-read fails with an actionable message
+			// (#1293). Metadata extraction uses the original request (headers only).
+			request: guardConsumedRequestBody(options.request),
 			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
 		};
 

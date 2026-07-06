@@ -15,6 +15,7 @@ import {
 	renderPageMetadata,
 	safeJsonLdSerialize,
 	escapeHtmlAttr,
+	createSha256CspHash,
 } from "../../../src/page/metadata.js";
 import type { PageMetadataContribution } from "../../../src/plugins/types.js";
 
@@ -247,6 +248,21 @@ describe("renderPageMetadata", () => {
 
 		expect(html).toBe(`<script type="application/ld+json">${json}</script>`);
 	});
+
+	it("can omit JSON-LD script tags for component rendering", () => {
+		const json = JSON.stringify({ "@type": "Article" });
+		const html = renderPageMetadata(
+			{
+				meta: [{ name: "description", content: "Article page" }],
+				properties: [],
+				links: [],
+				jsonld: [{ id: "article", json }],
+			},
+			{ includeJsonLd: false },
+		);
+
+		expect(html).toBe('<meta name="description" content="Article page">');
+	});
 });
 
 describe("safeJsonLdSerialize", () => {
@@ -288,6 +304,16 @@ describe("safeJsonLdSerialize", () => {
 		expect(result).toContain('"@type"');
 		expect(result).toContain('"Hello World"');
 		expect(result).toContain("42");
+	});
+});
+
+describe("createSha256CspHash", () => {
+	it("hashes the exact JSON-LD script body", async () => {
+		const json = JSON.stringify({ "@type": "Article" });
+
+		await expect(createSha256CspHash(json)).resolves.toBe(
+			"sha256-jYad5jvuDVG3xtskggDVT0+GiHcapqamItZJ8eGfvCQ=",
+		);
 	});
 });
 
