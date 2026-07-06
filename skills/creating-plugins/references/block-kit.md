@@ -16,16 +16,16 @@ Block Kit elements are also used for [Portable Text block editing fields](./port
 6. Plugin returns new blocks
 
 ```typescript
+import type { BlockInteraction } from "@emdash-cms/blocks";
+
 routes: {
 	admin: {
 		handler: async (ctx) => {
 			// EmDash parses the request body once and exposes it as ctx.input;
 			// read it directly rather than ctx.request.json() (the body is consumed).
-			const interaction = ctx.input as {
-				type: string;
-				action_id?: string;
-				values?: Record<string, unknown>;
-			};
+			// BlockInteraction is the discriminated union of page_load,
+			// block_action, and form_submit payloads.
+			const interaction = ctx.input as BlockInteraction;
 
 			if (interaction.type === "page_load") {
 				return {

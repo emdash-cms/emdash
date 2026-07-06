@@ -24,18 +24,18 @@ import Base from "../layouts/Base.astro";
 
 	.not-found-code {
 		display: block;
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: 8rem;
-		font-weight: 500;
+		font-weight: var(--font-weight-display);
 		line-height: 1;
 		color: var(--color-border);
 		margin-bottom: var(--spacing-lg);
 	}
 
 	.not-found h1 {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-2xl);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 		margin-bottom: var(--spacing-sm);
 	}
 
@@ -63,8 +63,8 @@ import Base from "../layouts/Base.astro";
 	}
 
 	.link-primary:hover {
-		background: var(--color-accent);
-		color: white;
+		background: var(--color-brand);
+		color: var(--color-on-brand);
 		transform: translateY(-1px);
 	}
 

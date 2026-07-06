@@ -1,5 +1,32 @@
 # emdash
 
+## 0.27.0
+
+### Minor Changes
+
+- [#1707](https://github.com/emdash-cms/emdash/pull/1707) [`e4eab4f`](https://github.com/emdash-cms/emdash/commit/e4eab4fba69f1cf249db192938d397aa1b116015) Thanks [@swissky](https://github.com/swissky)! - Brands the admin with the site's own title when no build-time `admin.siteName` is configured. The admin sidebar previously always showed "EmDash", so operators running several EmDash backends couldn't tell them apart at a glance. The manifest now falls back to the Site Title (Settings → General, then the title captured during setup), WordPress-style. An explicit `admin.siteName` still wins, and sites with neither keep the "EmDash" default.
+
+- [#1711](https://github.com/emdash-cms/emdash/pull/1711) [`386faf5`](https://github.com/emdash-cms/emdash/commit/386faf5bd724ce0b47240e9176c92f554fd66c00) Thanks [@ascorbic](https://github.com/ascorbic)! - Excluding sample content when seeding (`emdash seed --no-content`, or unchecking "Include sample content" in the setup wizard) now also skips the seed's sample bylines and taxonomy terms, so a schema-only setup starts with no sample data at all. Taxonomy definitions, collections, menus, and other structure are still applied. The dev-only setup bypass endpoint accepts `?content=0` to do the same.
+
+### Patch Changes
+
+- [#1284](https://github.com/emdash-cms/emdash/pull/1284) [`7422460`](https://github.com/emdash-cms/emdash/commit/7422460adf85863abfc27e8f83ba0cb40a3e942a) Thanks [@eyupcanakman](https://github.com/eyupcanakman)! - Fixes statically-sandboxed plugins (registered via `sandboxed: []` in `astro.config.mjs`) being absent from the admin Plugins screen. They are now listed alongside trusted and marketplace plugins, and can be fetched, enabled, and disabled through the same plugin management API.
+
+- [#1387](https://github.com/emdash-cms/emdash/pull/1387) [`46ef945`](https://github.com/emdash-cms/emdash/commit/46ef945d5fcffeef4ac9aecd2fb63fcb49c24b65) Thanks [@auggernaut](https://github.com/auggernaut)! - Adds LiveSearch route templates and search page navigation options.
+
+- [#1388](https://github.com/emdash-cms/emdash/pull/1388) [`cff8498`](https://github.com/emdash-cms/emdash/commit/cff84987c679faa61bf491c630b3f77d0083ca21) Thanks [@auggernaut](https://github.com/auggernaut)! - Fixes public LiveSearch autocomplete requests being blocked by auth middleware.
+
+- [#1708](https://github.com/emdash-cms/emdash/pull/1708) [`dea8210`](https://github.com/emdash-cms/emdash/commit/dea82106602bb6dde0edd8c007a5acfa5fd7600d) Thanks [@swissky](https://github.com/swissky)! - Fixes slug-change 301 auto-redirects not being created for published entries in revision-supporting collections. Editing a published entry's slug in the admin stages the change as `_slug` inside a draft revision; on "Publish", `ContentRepository.publish()` synced the new slug straight into the content table — bypassing `handleContentUpdate`, the only place auto-redirects were created. Since collections support drafts + revisions by default, the advertised "Auto: slug change" redirect effectively never fired for the standard editing flow, silently breaking old URLs. Publishing now leaves a 301 from the old URL behind whenever an already-published entry's slug changes. First publishes are excluded (a draft's URL was never public), and direct API slug updates behave as before.
+
+- [#1702](https://github.com/emdash-cms/emdash/pull/1702) [`90ffe40`](https://github.com/emdash-cms/emdash/commit/90ffe40a1a31193b2f29ef92202e4f339a2487fa) Thanks [@MA2153](https://github.com/MA2153)! - Restores the `idx_content_taxonomies_term` index on SQLite/D1 installs that lost it when migration 036 was retried after a partial apply, so taxonomy reverse-lookups are indexed again. The index is now recreated unconditionally during 036 to prevent the same loss on any future partial apply.
+
+- [#1710](https://github.com/emdash-cms/emdash/pull/1710) [`2a7063a`](https://github.com/emdash-cms/emdash/commit/2a7063a4e44a7ebb770f1cb28acb5bffac15fca2) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes MCP tools and content writes failing in Cloudflare dev servers with `The file does not exist at ".../deps_ssr/..."` after Vite re-optimizes dependencies, which previously required a dev server restart. Also pre-bundles the migration runner, image transform endpoint, and `astro/zod` so the first setup, image, or content request no longer triggers a mid-session re-optimization and worker reload.
+
+- Updated dependencies [[`8a93e1d`](https://github.com/emdash-cms/emdash/commit/8a93e1dbcafca93f0faebb7360792d62699c04cb)]:
+  - @emdash-cms/admin@0.27.0
+  - @emdash-cms/auth@0.27.0
+  - @emdash-cms/gutenberg-to-portable-text@0.27.0
+
 ## 0.26.0
 
 ### Minor Changes

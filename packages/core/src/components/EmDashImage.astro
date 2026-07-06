@@ -18,7 +18,7 @@
  */
 import type { MediaValue } from "../fields/types.js";
 import type { HTMLAttributes } from "astro/types";
-import { getImage } from "astro:assets";
+import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
@@ -43,9 +43,20 @@ interface Props extends Omit<
 	height?: number;
 	/** Priority loading (disables lazy loading) */
 	priority?: boolean;
+	/** Render the LQIP placeholder as an inline background. Disable for strict CSP. */
+	placeholder?: boolean;
 }
 
-const { image, alt, width, height, priority, ...attrs } = Astro.props;
+const {
+	image,
+	alt,
+	width,
+	height,
+	priority,
+	placeholder = true,
+	class: className,
+	...attrs
+} = Astro.props;
 
 // Normalize string URLs to object form
 function normalizeImage(
@@ -98,25 +109,28 @@ const aspectRatio =
 let src = "";
 let srcset: string | undefined;
 let sizes: string | undefined;
+let astroImageSrc = "";
 
 if (img) {
 	const providerId = img.provider ?? "local";
 
 	if (providerId === "local" || img.src) {
-		// Local provider or direct src URL. Route through Astro's image service
-		// (`astro:assets`) to generate a responsive srcset; on Cloudflare this is
-		// the Images binding, on Node it is sharp. Falls back to a plain <img>
-		// when the service is unavailable or the source can't be optimized.
 		src = img.src || buildLocalImageUrl(img);
-		const optimized = await buildResponsiveImage(getImage, {
-			src: toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config)),
-			width: finalWidth,
-			height: finalHeight,
-		});
-		if (optimized) {
-			src = optimized.src;
-			srcset = optimized.srcset;
-			sizes = optimized.sizes;
+		const publicOrigin = getPublicOrigin(Astro.url, Astro.locals.emdash?.config);
+		const absoluteSrc = toAbsoluteMediaUrl(src, publicOrigin);
+		if (finalWidth && finalHeight && absoluteSrc.startsWith(`${publicOrigin}/`)) {
+			astroImageSrc = absoluteSrc;
+		} else {
+			const optimized = await buildResponsiveImage(getImage, {
+				src: absoluteSrc,
+				width: finalWidth,
+				height: finalHeight,
+			});
+			if (optimized) {
+				src = optimized.src;
+				srcset = optimized.srcset;
+				sizes = optimized.sizes;
+			}
 		}
 	} else {
 		// External provider
@@ -166,16 +180,12 @@ const dominantColor =
 	img?.dominantColor ?? (img?.meta?.dominantColor as string | undefined);
 
 let placeholderStyle = "";
-if (blurhash) {
+if (placeholder && blurhash) {
 	const { blurhashToImageCssString } = await import("@unpic/placeholder");
 	placeholderStyle = blurhashToImageCssString(blurhash);
-} else if (dominantColor) {
+} else if (placeholder && dominantColor) {
 	placeholderStyle = `background-color: ${dominantColor};`;
 }
-
-const baseStyle = aspectRatio
-	? `aspect-ratio: ${aspectRatio}; max-width: 100%; height: auto;`
-	: "max-width: 100%; height: auto;";
 
 const imgProps: Record<string, unknown> = {
 	src,
@@ -187,9 +197,35 @@ const imgProps: Record<string, unknown> = {
 	loading: priority ? "eager" : "lazy",
 	fetchpriority: priority ? "high" : undefined,
 	decoding: "async",
-	style: placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseStyle,
+	style: placeholderStyle || undefined,
+	class: ["emdash-image-media", className].filter(Boolean).join(" "),
 	...attrs,
 };
 ---
 
-{img && src ? <img {...imgProps} /> : null}
+{
+	img && astroImageSrc ? (
+		<AstroImage
+			src={astroImageSrc}
+			alt={finalAlt}
+			width={finalWidth}
+			height={finalHeight}
+			priority={priority}
+			layout="constrained"
+			loading={priority ? "eager" : "lazy"}
+			decoding="async"
+			class={className}
+			style={placeholderStyle || undefined}
+			{...attrs}
+		/>
+	) : img && src ? (
+		<img {...imgProps} />
+	) : null
+}
+
+<style>
+	.emdash-image-media {
+		max-width: 100%;
+		height: auto;
+	}
+</style>

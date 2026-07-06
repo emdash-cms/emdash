@@ -444,7 +444,18 @@ export function createViteConfig(
 						// during pre-bundling and can't resolve them. Vite's exclude
 						// uses prefix matching (id.startsWith(m + "/")), so
 						// "virtual:emdash" matches all "virtual:emdash/*" imports.
-						exclude: ["virtual:emdash"],
+						//
+						// First-party packages must also stay excluded. In a
+						// real install (unlike the workspace symlink, which Vite never
+						// optimizes), the optimizer bundles their dist and code-splits
+						// lazily-executed dynamic imports (MCP tools, content
+						// validation) into hashed chunks. A mid-session re-optimization
+						// deletes those chunks while loaded modules still reference
+						// them, so every content write fails with "The file does not
+						// exist at .../deps_ssr/..." until the dev server restarts.
+						// Their CJS deps are still pre-bundled via the "parent > dep"
+						// include entries below, which resolve through excluded parents.
+						exclude: ["virtual:emdash", "emdash", "@emdash-cms/admin", "@emdash-cms/cloudflare"],
 						include: [
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
@@ -455,6 +466,9 @@ export function createViteConfig(
 							"emdash > jose",
 							"emdash > jpeg-js",
 							"emdash > kysely",
+							// Only imported by the migration runner, so the first
+							// dev-bypass/setup request would otherwise discover it.
+							"emdash > kysely/migration",
 							"emdash > mime/lite",
 							"emdash > modern-tar",
 							"emdash > sanitize-html",
@@ -496,6 +510,7 @@ export function createViteConfig(
 							// Top-level deps (use astro > path for pnpm compat)
 							"astro > zod/v4",
 							"astro > zod/v4/core",
+							"astro/zod",
 							// zod-generator imports the bare `zod` entry, not `zod/v4`
 							"emdash > zod",
 							"@emdash-cms/cloudflare > kysely-d1",
@@ -507,6 +522,9 @@ export function createViteConfig(
 							"astro/assets/fonts/runtime.js",
 							"astro/assets/services/noop",
 							"@astrojs/cloudflare/image-service",
+							// Only imported by the /_image route, so the first image
+							// request would otherwise discover it.
+							"@astrojs/cloudflare/image-transform-endpoint",
 						],
 					},
 				}

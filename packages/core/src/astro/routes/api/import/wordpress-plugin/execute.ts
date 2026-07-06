@@ -7,20 +7,44 @@
  */
 
 import type { APIRoute } from "astro";
-import { ContentRepository, SchemaRegistry } from "emdash";
+import {
+	ContentRepository,
+	SchemaRegistry,
+	type WxrCategory,
+	type WxrPost,
+	type WxrTag,
+	type WxrTerm,
+} from "emdash";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { handleTaxonomyCreate } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { wpPluginExecuteBody } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
+import { importCommentsFromPlugin } from "#import/comments.js";
 import { getSource } from "#import/index.js";
+import { importMenusFromPlugin } from "#import/menus.js";
+import { importSiteSettings, parseSiteSettingsFromPlugin } from "#import/settings.js";
+import {
+	fetchPluginComments,
+	fetchPluginMenus,
+	fetchPluginOptions,
+	fetchPluginTaxonomies,
+} from "#import/sources/wordpress-plugin.js";
 import { resolveAndValidateExternalUrl, SsrfError } from "#import/ssrf.js";
 import type { ImportConfig, ImportResult, NormalizedItem } from "#import/types.js";
-import { resolveImportByline } from "#import/utils.js";
+import { resolveImportByline, sanitizeFieldSlug } from "#import/utils.js";
+import {
+	attachPostTaxonomies,
+	preImportWxrTaxonomies,
+	type TaxonomyImportPlan,
+} from "#import/wxr-taxonomies.js";
 import type { FieldType } from "#schema/types.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
+
+import { importMediaWithProgress } from "../wordpress/media.js";
 
 export const prerender = false;
 
@@ -81,8 +105,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		console.log("[WP Plugin Import] Starting import for:", body.url);
 		console.log("[WP Plugin Import] Post types:", postTypes);
 
+		// Pre-create taxonomy defs (for custom CPT taxonomies) and terms so
+		// per-post assignments can attach.
+		// Non-fatal: a site whose /taxonomies call fails still gets content.
+		let taxonomyPlan: TaxonomyImportPlan | undefined;
+		let taxonomyDefsCreated: string[] = [];
+		try {
+			const built = await buildTaxonomyPlan(emdash, body.url, body.token, config);
+			taxonomyPlan = built.plan;
+			taxonomyDefsCreated = built.defsCreated;
+		} catch (e) {
+			console.warn("[WP Plugin Import] Taxonomy pre-import failed:", e);
+		}
+
 		// Import content (including drafts since we have auth)
-		const result = await importContent(
+		const { result, contentIdMap, collectionByWpId } = await importContent(
 			source.fetchContent(
 				{ type: "url", url: body.url, token: body.token },
 				{ postTypes, includeDrafts: true },
@@ -90,7 +127,67 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			config,
 			emdash,
 			emdashManifest,
+			taxonomyPlan,
 		);
+
+		// Import navigation menus, resolving item references through the
+		// WP-post-ID -> EmDash-ID map collected during the content pass.
+		// Non-fatal: older plugin versions have no /menus endpoint.
+		try {
+			const menus = await fetchPluginMenus(body.url, body.token);
+			if (menus.length > 0) {
+				const menuResult = await importMenusFromPlugin(menus, emdash.db, contentIdMap);
+				result.menus = {
+					created: menuResult.menusCreated,
+					items: menuResult.itemsCreated,
+				};
+				for (const menuError of menuResult.errors) {
+					result.errors.push({ title: `Menu: ${menuError.menu}`, error: menuError.error });
+				}
+			}
+		} catch (e) {
+			console.warn("[WP Plugin Import] Menu import failed:", e);
+		}
+
+		// Import comments into EmDash's native comments table, preserving
+		// authors, dates, threading, and approval status.
+		// Non-fatal: older plugin versions have no /comments endpoint.
+		try {
+			const comments = await fetchPluginComments(body.url, body.token);
+			if (comments.length > 0) {
+				const commentsResult = await importCommentsFromPlugin(
+					comments,
+					emdash.db,
+					contentIdMap,
+					collectionByWpId,
+				);
+				result.comments = {
+					imported: commentsResult.imported,
+					skipped: commentsResult.skipped,
+				};
+				for (const commentError of commentsResult.errors) {
+					result.errors.push({
+						title: `Comment: ${commentError.comment}`,
+						error: commentError.error,
+					});
+				}
+			}
+		} catch (e) {
+			console.warn("[WP Plugin Import] Comment import failed:", e);
+		}
+
+		// Apply site identity (title, tagline, logo, favicon) from the source
+		// site's options, replacing the starter template's seed placeholders.
+		// Non-fatal: content is already imported at this point.
+		try {
+			result.siteSettings = await applySiteSettings(emdash, body.url, body.token);
+		} catch (e) {
+			console.warn("[WP Plugin Import] Site settings import failed:", e);
+		}
+
+		if (taxonomyDefsCreated.length > 0) {
+			result.taxonomiesCreated = taxonomyDefsCreated;
+		}
 
 		console.log("[WP Plugin Import] Import result:", JSON.stringify(result, null, 2));
 
@@ -134,14 +231,269 @@ const IMPORT_FIELDS: Array<{
 		type: "image",
 		check: (item) => !!item.featuredImage,
 	},
+	{
+		slug: "seo_title",
+		label: "SEO Title",
+		type: "string",
+		check: (item) => !!extractSeo(item).title,
+	},
+	{
+		slug: "seo_description",
+		label: "SEO Description",
+		type: "text",
+		check: (item) => !!extractSeo(item).description,
+	},
 ];
 
-async function importContent(
+/**
+ * Coerce a WordPress meta value to an EmDash field type. WP postmeta is
+ * stringly typed and inconsistent across posts (the same key can hold
+ * "5", 5, "", or false). Returns `undefined` when the value can't
+ * reasonably represent the target type — the caller drops it.
+ */
+export function coerceToFieldType(value: unknown, fieldType: string): unknown {
+	switch (fieldType) {
+		case "integer": {
+			const n = typeof value === "number" ? value : Number(value);
+			return Number.isInteger(n) ? n : undefined;
+		}
+		case "number": {
+			const n = typeof value === "number" ? value : Number(value);
+			return Number.isFinite(n) ? n : undefined;
+		}
+		case "boolean": {
+			if (typeof value === "boolean") return value;
+			if (value === 1 || value === "1" || value === "true" || value === "yes") return true;
+			if (value === 0 || value === "0" || value === "false" || value === "no") return false;
+			return undefined;
+		}
+		case "datetime": {
+			if (typeof value !== "string" && typeof value !== "number") return undefined;
+			const d = new Date(value);
+			return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+		}
+		case "json":
+			// Anything serializes; objects/arrays pass through as-is
+			return value;
+		case "string":
+		case "text":
+		case "url":
+		case "select":
+		case "slug":
+		case "reference":
+			if (typeof value === "string") return value;
+			if (typeof value === "number") return String(value);
+			return undefined;
+		default:
+			// Complex types (image, portableText, repeater, multiSelect, file):
+			// raw meta can't be coerced reliably -- pass through only if it
+			// already has a non-primitive shape.
+			return typeof value === "object" ? value : undefined;
+	}
+}
+
+/**
+ * Pull the per-post SEO title/description out of the Yoast / Rank Math
+ * blobs the plugin source stashes in `item.meta`. Empty strings mean "not
+ * overridden for this post" (the plugin exports the raw meta values) and
+ * are treated as absent.
+ */
+function pickSeoValue(blob: unknown, key: string): string | undefined {
+	if (typeof blob !== "object" || blob === null) return undefined;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to non-null object above
+	const value = (blob as Record<string, unknown>)[key];
+	return typeof value === "string" && value.trim() !== "" ? value : undefined;
+}
+
+function extractSeo(item: NormalizedItem): { title?: string; description?: string } {
+	const yoast = item.meta?._yoast;
+	const rankmath = item.meta?._rankmath;
+	return {
+		title: pickSeoValue(yoast, "title") ?? pickSeoValue(rankmath, "title"),
+		description: pickSeoValue(yoast, "description") ?? pickSeoValue(rankmath, "description"),
+	};
+}
+
+/**
+ * Fetch the site's taxonomies from the plugin API and pre-create all terms,
+ * reusing the WXR taxonomy machinery (same def-lookup, idempotency, and
+ * collection-filter semantics).
+ */
+/** WP built-in taxonomies that either map to seeded defs or are not content taxonomies. */
+const BUILTIN_TAXONOMIES = new Set(["category", "post_tag", "nav_menu", "post_format"]);
+
+/** Mirrors NAME_PATTERN in the taxonomy handler -- names that fail stay in missingTaxonomies. */
+const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * Create EmDash taxonomy defs for custom WP taxonomies (e.g. CPT taxonomies
+ * like `company` or `plattform`) that don't exist yet, scoped to the
+ * collections the enabled post-type mappings target. Returns the names of
+ * the defs created. Runs before term pre-import so the terms and per-post
+ * assignments flow through the existing machinery instead of being dropped
+ * as `missingTaxonomies`.
+ */
+export async function ensureCustomTaxonomyDefs(
+	db: EmDashHandlers["db"],
+	taxonomies: Awaited<ReturnType<typeof fetchPluginTaxonomies>>,
+	config: WpPluginImportConfig,
+): Promise<string[]> {
+	const created: string[] = [];
+	for (const taxonomy of taxonomies) {
+		if (BUILTIN_TAXONOMIES.has(taxonomy.name)) continue;
+		if (taxonomy.terms.length === 0) continue;
+		if (!TAXONOMY_NAME_PATTERN.test(taxonomy.name)) continue;
+
+		// handleTaxonomyCreate's duplicate guard is locale-scoped; check
+		// name-wide existence ourselves to stay idempotent on re-runs.
+		const existing = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select("id")
+			.where("name", "=", taxonomy.name)
+			.executeTakeFirst();
+		if (existing) continue;
+
+		// Scope the def to the collections the WP post types map onto.
+		// Older plugin versions don't send post_types -> empty list = no
+		// collection filter, which the term machinery treats as "any".
+		const collections = (taxonomy.post_types ?? [])
+			.map((postType) => config.postTypeMappings[postType])
+			.filter((mapping) => mapping?.enabled)
+			.map((mapping) => mapping.collection);
+
+		const result = await handleTaxonomyCreate(db, {
+			name: taxonomy.name,
+			label: taxonomy.label,
+			labelSingular: taxonomy.label_singular,
+			hierarchical: taxonomy.hierarchical,
+			collections: [...new Set(collections)],
+		});
+		if (result.success) {
+			created.push(taxonomy.name);
+		} else {
+			console.warn(
+				`[WP Plugin Import] Could not create taxonomy '${taxonomy.name}':`,
+				result.error.message,
+			);
+		}
+	}
+	return created;
+}
+
+async function buildTaxonomyPlan(
+	emdash: EmDashHandlers,
+	url: string,
+	token: string,
+	config: WpPluginImportConfig,
+): Promise<{ plan: TaxonomyImportPlan; defsCreated: string[] }> {
+	const taxonomies = await fetchPluginTaxonomies(url, token);
+
+	const defsCreated = await ensureCustomTaxonomyDefs(emdash.db, taxonomies, config);
+
+	const categories: WxrCategory[] = [];
+	const tags: WxrTag[] = [];
+	const terms: WxrTerm[] = [];
+
+	for (const taxonomy of taxonomies) {
+		for (const term of taxonomy.terms) {
+			if (taxonomy.name === "category") {
+				categories.push({ nicename: term.slug, name: term.name, description: term.description });
+			} else if (taxonomy.name === "post_tag") {
+				tags.push({ slug: term.slug, name: term.name, description: term.description });
+			} else if (taxonomy.name !== "nav_menu" && taxonomy.name !== "post_format") {
+				terms.push({
+					id: term.id,
+					taxonomy: taxonomy.name,
+					slug: term.slug,
+					name: term.name,
+					description: term.description,
+				});
+			}
+		}
+	}
+
+	const plan = await preImportWxrTaxonomies(emdash.db, [], categories, tags, terms, undefined);
+	return { plan, defsCreated };
+}
+
+/**
+ * Fetch the source site's options and apply its identity (title, tagline,
+ * logo, favicon) as EmDash site settings, overwriting seed placeholders.
+ * Logo/favicon files are side-loaded into media storage first; the later
+ * full media pass dedupes them by content hash.
+ *
+ * Returns the list of applied setting keys.
+ */
+async function applySiteSettings(
+	emdash: EmDashHandlers,
+	url: string,
+	token: string,
+): Promise<string[]> {
+	const options = await fetchPluginOptions(url, token);
+	const parsed = parseSiteSettingsFromPlugin(options);
+
+	const media: { logoMediaId?: string; faviconMediaId?: string } = {};
+	if (emdash.storage && (parsed.logo?.url || parsed.favicon?.url)) {
+		const attachments = [];
+		if (parsed.logo?.url) {
+			attachments.push({ id: parsed.logo.id, url: parsed.logo.url });
+		}
+		if (parsed.favicon?.url && parsed.favicon.url !== parsed.logo?.url) {
+			attachments.push({ id: parsed.favicon.id, url: parsed.favicon.url });
+		}
+		const mediaResult = await importMediaWithProgress(
+			attachments,
+			emdash.db,
+			emdash.storage,
+			() => {},
+		);
+		for (const item of mediaResult.imported) {
+			if (item.originalUrl === parsed.logo?.url) {
+				media.logoMediaId = item.mediaId;
+			}
+			if (item.originalUrl === parsed.favicon?.url) {
+				media.faviconMediaId = item.mediaId;
+			}
+		}
+	}
+
+	const settingsResult = await importSiteSettings(parsed, emdash.db, true, media);
+	for (const settingError of settingsResult.errors) {
+		console.warn(
+			`[WP Plugin Import] Site setting "${settingError.setting}" failed:`,
+			settingError.error,
+		);
+	}
+	return settingsResult.applied;
+}
+
+/**
+ * Adapt a NormalizedItem's taxonomy assignments to the WxrPost shape the
+ * shared attach helper consumes.
+ */
+function toWxrAssignments(item: NormalizedItem): WxrPost {
+	return {
+		categories: item.categories ?? [],
+		tags: item.tags ?? [],
+		customTaxonomies: item.customTaxonomies
+			? new Map(Object.entries(item.customTaxonomies))
+			: undefined,
+		meta: new Map(),
+	};
+}
+
+/** Exported for tests (field auto-creation regression coverage). */
+export async function importContent(
 	items: AsyncGenerator<NormalizedItem>,
 	config: WpPluginImportConfig,
 	emdash: EmDashHandlers,
 	manifest: EmDashManifest,
-): Promise<ImportResult> {
+	taxonomyPlan: TaxonomyImportPlan | undefined,
+): Promise<{
+	result: ImportResult;
+	contentIdMap: Map<number, string>;
+	collectionByWpId: Map<number, string>;
+}> {
 	const result: ImportResult = {
 		success: true,
 		imported: 0,
@@ -150,14 +502,26 @@ async function importContent(
 		byCollection: {},
 	};
 
+	// WP post ID -> EmDash content ID, used to resolve menu item references
+	const contentIdMap = new Map<number, string>();
+
+	// WP post ID -> EmDash collection slug, used by the comment import
+	const collectionByWpId = new Map<number, string>();
+
 	// Create content repository for checking existing items
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
 	const bylineCache = new Map<string, string>();
 	const schemaRegistry = new SchemaRegistry(emdash.db);
 
-	// Track which collections have had fields ensured
-	const ensuredCollections = new Set<string>();
+	// Track which (collection, field) pairs have been ensured. Keyed per
+	// field, not per collection: a field like seo_title may first be
+	// needed by the 30th item, and gating on the first item would skip it.
+	const ensuredFields = new Set<string>();
+
+	// Field slug -> type per collection, for mapping custom meta/ACF onto
+	// real fields (and coercing values to the field's type)
+	const fieldTypesByCollection = new Map<string, Map<string, string>>();
 
 	// Track source translationGroup -> EmDash item ID for translation linking.
 	// Maps source-side translation group ID to the EmDash ID of the first item
@@ -196,33 +560,50 @@ async function importContent(
 		}
 
 		try {
-			// Ensure required fields exist in the collection schema (once per collection)
-			if (!ensuredCollections.has(collection)) {
-				for (const field of IMPORT_FIELDS) {
-					if (field.check(item)) {
-						const existingField = await schemaRegistry.getField(collection, field.slug);
-						if (!existingField) {
-							console.log(
-								`[WP Plugin Import] Creating missing field "${field.slug}" in collection "${collection}"`,
-							);
-							try {
-								await schemaRegistry.createField(collection, {
-									slug: field.slug,
-									label: field.label,
-									type: field.type,
-									required: false,
-								});
-							} catch (e) {
-								// Field might already exist from concurrent creation
-								console.log(
-									`[WP Plugin Import] Field "${field.slug}" creation skipped:`,
-									e instanceof Error ? e.message : e,
-								);
-							}
-						}
+			// Ensure required fields exist in the collection schema. Checked
+			// per field and item (not once per collection): whether a field
+			// is needed depends on the item — the first post may have no SEO
+			// override while a later one does.
+			for (const field of IMPORT_FIELDS) {
+				const ensureKey = `${collection}:${field.slug}`;
+				if (ensuredFields.has(ensureKey) || !field.check(item)) continue;
+				ensuredFields.add(ensureKey);
+				const existingField = await schemaRegistry.getField(collection, field.slug);
+				if (!existingField) {
+					console.log(
+						`[WP Plugin Import] Creating missing field "${field.slug}" in collection "${collection}"`,
+					);
+					try {
+						await schemaRegistry.createField(collection, {
+							slug: field.slug,
+							label: field.label,
+							type: field.type,
+							required: false,
+						});
+						fieldTypesByCollection.get(collection)?.set(field.slug, field.type);
+					} catch (e) {
+						// Field might already exist from concurrent creation
+						console.log(
+							`[WP Plugin Import] Field "${field.slug}" creation skipped:`,
+							e instanceof Error ? e.message : e,
+						);
 					}
 				}
-				ensuredCollections.add(collection);
+			}
+
+			// Load the collection's field types once, so custom meta / ACF
+			// values can land in matching schema fields (created by the
+			// prepare step or already present).
+			let fieldTypes = fieldTypesByCollection.get(collection);
+			if (!fieldTypes) {
+				fieldTypes = new Map<string, string>();
+				const collectionDef = await schemaRegistry.getCollection(collection);
+				if (collectionDef) {
+					for (const field of await schemaRegistry.listFields(collectionDef.id)) {
+						fieldTypes.set(field.slug, field.type);
+					}
+				}
+				fieldTypesByCollection.set(collection, fieldTypes);
 			}
 
 			// Generate slug from item slug or title
@@ -235,6 +616,12 @@ async function importContent(
 					// Still track the translation group mapping for later items
 					if (item.translationGroup) {
 						translationGroupMap.set(item.translationGroup, existing.id);
+					}
+					// Menus and comments may reference this post even when we skip it
+					const wpId = Number(item.sourceId);
+					if (Number.isFinite(wpId)) {
+						contentIdMap.set(wpId, existing.id);
+						collectionByWpId.set(wpId, collection);
 					}
 					result.skipped++;
 					continue;
@@ -259,8 +646,47 @@ async function importContent(
 				console.log("[WP Plugin Import] Adding featured_image:", item.featuredImage);
 			}
 
-			// Note: ACF/Yoast/RankMath fields are not added automatically
-			// They would need matching fields in the EmDash schema
+			// Per-post SEO overrides from Yoast / Rank Math
+			const seo = extractSeo(item);
+			if (seo.title) {
+				data.seo_title = seo.title;
+			}
+			if (seo.description) {
+				data.seo_description = seo.description;
+			}
+
+			// Map ACF values and custom meta onto schema fields with the same
+			// (sanitized) slug — the same sanitization the analysis applied
+			// when suggesting the fields, so keys like `event-date` land in
+			// the `event_date` field the prepare step created. Values without
+			// a matching field are dropped -- the user controls the schema,
+			// we don't invent fields per meta key. Values are coerced to the
+			// field's type (the analysis inferred it from ONE sample; real
+			// values vary) and dropped when incoercible, so one odd meta
+			// value can't fail the whole item.
+			const assignMetaValue = (key: string, value: unknown) => {
+				if (value === null || value === "") return;
+				const fieldSlug = sanitizeFieldSlug(key);
+				const fieldType = fieldTypes.get(fieldSlug);
+				if (!fieldType || fieldSlug in data) return;
+				const coerced = coerceToFieldType(value, fieldType);
+				if (coerced !== undefined) {
+					data[fieldSlug] = coerced;
+				}
+			};
+			const acf = item.meta?._acf;
+			if (typeof acf === "object" && acf !== null) {
+				for (const [key, value] of Object.entries(acf)) {
+					assignMetaValue(key, value);
+				}
+			}
+			if (item.meta) {
+				for (const [key, value] of Object.entries(item.meta)) {
+					// Underscore keys are WP-internal or handled above (_acf/_yoast/_rankmath)
+					if (key.startsWith("_")) continue;
+					assignMetaValue(key, value);
+				}
+			}
 
 			// Resolve author ID from mappings
 			let authorId: string | undefined;
@@ -314,13 +740,39 @@ async function importContent(
 				result.imported++;
 				result.byCollection[collection] = (result.byCollection[collection] || 0) + 1;
 
-				// Track translation group: first item in a group establishes the mapping
-				if (item.translationGroup && !translationGroupMap.has(item.translationGroup)) {
-					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler success data includes id
-					const createdData = createResult.data as { id?: string } | undefined;
-					if (createdData?.id) {
-						translationGroupMap.set(item.translationGroup, createdData.id);
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- create handler returns { item, _rev }
+				const createdData = createResult.data as { item?: { id?: string } } | undefined;
+				const createdId = createdData?.item?.id;
+
+				if (createdId) {
+					const wpId = Number(item.sourceId);
+					if (Number.isFinite(wpId)) {
+						contentIdMap.set(wpId, createdId);
+						collectionByWpId.set(wpId, collection);
 					}
+
+					// Attach category/tag/custom-taxonomy assignments
+					if (taxonomyPlan) {
+						try {
+							const attached = await attachPostTaxonomies(
+								emdash.db,
+								collection,
+								createdId,
+								toWxrAssignments(item),
+								taxonomyPlan,
+							);
+							if (attached > 0) {
+								result.taxonomyAssignments = (result.taxonomyAssignments ?? 0) + attached;
+							}
+						} catch (e) {
+							console.warn(`[WP Plugin Import] Taxonomy attach failed for "${slug}":`, e);
+						}
+					}
+				}
+
+				// Track translation group: first item in a group establishes the mapping
+				if (item.translationGroup && !translationGroupMap.has(item.translationGroup) && createdId) {
+					translationGroupMap.set(item.translationGroup, createdId);
 				}
 			} else {
 				result.errors.push({
@@ -340,8 +792,12 @@ async function importContent(
 		}
 	}
 
+	if (taxonomyPlan && taxonomyPlan.missingTaxonomies.length > 0) {
+		result.missingTaxonomies = taxonomyPlan.missingTaxonomies;
+	}
+
 	result.success = result.errors.length === 0;
-	return result;
+	return { result, contentIdMap, collectionByWpId };
 }
 
 function mapStatus(wpStatus: string | undefined): string {

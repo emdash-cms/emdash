@@ -1,5 +1,14 @@
 # @emdash-cms/admin
 
+## 0.27.0
+
+### Patch Changes
+
+- [#1713](https://github.com/emdash-cms/emdash/pull/1713) [`8a93e1d`](https://github.com/emdash-cms/emdash/commit/8a93e1dbcafca93f0faebb7360792d62699c04cb) Thanks [@ahliweb](https://github.com/ahliweb)! - Updates Indonesian translations for the latest admin UI strings.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.27.0
+
 ## 0.26.0
 
 ### Patch Changes
