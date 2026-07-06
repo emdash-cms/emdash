@@ -7,6 +7,7 @@ import {
 } from "../../database/repositories/media-usage.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import {
 	loadContentMediaUsageFields,
 	MediaUsageFieldDiscoveryError,
@@ -220,9 +221,18 @@ async function repairScannedContentSources(
 	};
 
 	const fieldDiscovery = await loadContentMediaUsageFields(db, scan.collectionSlug);
+	const observedSources = await repo.findSources(buildContentSourceKeysForScan(scan));
 
 	for (const contentId of scan.contentIds) {
-		await repairContentSource(db, repo, scan.collectionSlug, contentId, fieldDiscovery, counts);
+		await repairContentSource(
+			db,
+			repo,
+			scan.collectionSlug,
+			contentId,
+			fieldDiscovery,
+			observedSources,
+			counts,
+		);
 	}
 
 	await reconcileOrphanedContentSources(db, repo, scan.collectionSlug, counts);
@@ -235,10 +245,10 @@ async function repairContentSource(
 	collectionSlug: string,
 	contentId: string,
 	fieldDiscovery: ContentMediaUsageFieldDiscovery,
+	observedSources: Map<string, MediaUsageSource>,
 	counts: RepairCounts,
 ): Promise<void> {
 	const sourceKeys = buildContentSourceKeys(collectionSlug, contentId);
-	const observedSources = await repo.findSources(sourceKeys);
 	const snapshotsResult = await loadContentMediaUsageSnapshots(
 		db,
 		collectionSlug,
@@ -300,13 +310,45 @@ async function reconcileOrphanedContentSources(
 	counts: RepairCounts,
 ): Promise<void> {
 	const sources = await repo.findCollectionContentSources(collectionSlug);
+	const existingContentIds = await findExistingContentIds(
+		db,
+		collectionSlug,
+		sources.flatMap((source) => (source.contentId ? [source.contentId] : [])),
+	);
+
 	for (const source of sources) {
 		if (!source.contentId) {
 			await deleteObservedSource(repo, source.sourceKey, source, counts);
 			continue;
 		}
+		if (existingContentIds.has(source.contentId)) continue;
 		await deleteObservedSourceIfContentAbsent(repo, collectionSlug, source, counts);
 	}
+}
+
+async function findExistingContentIds(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	contentIds: readonly string[],
+): Promise<Set<string>> {
+	validateIdentifier(collectionSlug, "collection slug");
+	const existingContentIds = new Set<string>();
+	const uniqueContentIds = [...new Set(contentIds)];
+	if (uniqueContentIds.length === 0) return existingContentIds;
+
+	const tableName = getContentTableName(collectionSlug);
+	for (const contentIdBatch of chunks(uniqueContentIds, SQL_BATCH_SIZE)) {
+		const result = await sql<{ id: string }>`
+			SELECT id
+			FROM ${sql.ref(tableName)}
+			WHERE id IN (${sql.join(contentIdBatch)})
+		`.execute(db);
+		for (const row of result.rows) {
+			existingContentIds.add(row.id);
+		}
+	}
+
+	return existingContentIds;
 }
 
 async function deleteObservedSourceIfContentAbsent(
@@ -405,6 +447,12 @@ function determineRepairStatus(
 function buildContentSourceKeys(collectionSlug: string, contentId: string): string[] {
 	return MEDIA_USAGE_CONTENT_SOURCE_VARIANTS.map((sourceVariant) =>
 		buildContentMediaUsageSourceKey({ collectionSlug, contentId, sourceVariant }),
+	);
+}
+
+function buildContentSourceKeysForScan(scan: ContentMediaUsageCollectionScan): string[] {
+	return scan.contentIds.flatMap((contentId) =>
+		buildContentSourceKeys(scan.collectionSlug, contentId),
 	);
 }
 
