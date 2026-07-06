@@ -179,6 +179,7 @@ export function createD1SessionGuard(timeoutMs: number = SESSION_HANG_TIMEOUT_MS
 			raw<T>(options?: { columnNames?: boolean }): Promise<T[]> {
 				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- mirrors the D1PreparedStatement.raw overloads, which the generic passthrough can't express
 				return guardedExec(meta, fallback, (statement) =>
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- same: `raw({ columnNames })`'s boolean option only exists via the overload pair
 					statement.raw(options as { columnNames: true }),
 				) as Promise<T[]>;
 			},
