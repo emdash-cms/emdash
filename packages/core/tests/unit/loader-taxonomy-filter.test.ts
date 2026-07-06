@@ -181,12 +181,12 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		await tag(newsOnly.id, news);
 
 		const seek = await loadSeek({ category: ["news", "sports"] });
-		const seekTitles = seek.entries.map((e) => e.data.title).sort();
+		const seekTitles = seek.entries.map((e) => e.data.title).toSorted();
 		expect(seekTitles).toEqual(["News + Sports", "News Only"]);
 
 		// Matches the default scan path exactly.
 		const scan = await load({ category: ["news", "sports"] });
-		expect(scan.entries.map((e) => e.data.title).sort()).toEqual(seekTitles);
+		expect(scan.entries.map((e) => e.data.title).toSorted()).toEqual(seekTitles);
 	});
 
 	it("seek strategy ORs slugs within a taxonomy while ANDing across taxonomies", async () => {
@@ -208,8 +208,39 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		await tag(c.id, news);
 
 		const result = await loadSeek({ category: ["news", "sports"], tag: ["featured"] });
-		const titles = result.entries.map((e) => e.data.title).sort();
+		const titles = result.entries.map((e) => e.data.title).toSorted();
 		expect(titles).toEqual(["News + Sports + Featured", "Sports + Featured"]);
+	});
+
+	it("seek strategy scopes to the queried collection when a term is shared across collections", async () => {
+		// A single global term tagged on entries in two different collections.
+		// The seek path's `_matched` CTE constrains `ct.collection` to the queried
+		// type ("post"), so the `page` entry's pivot row must not surface here.
+		// (The outer CROSS JOIN keys on globally-unique ids so it would also drop a
+		// stray page id — this asserts the observable result stays scoped, and the
+		// plan-level selectivity is covered by loader-taxonomy-filter-plan.)
+		const news = await term("category", "news");
+
+		const post = await createPost("Post in News");
+		await tag(post.id, news);
+
+		const pageResult = await handleContentCreate(db, "page", {
+			data: { title: "Page in News" },
+			status: "published",
+		});
+		if (!pageResult.success) throw new Error("Failed to create page");
+		const page = pageResult.data!.item;
+		await db
+			.insertInto("content_taxonomies" as never)
+			.values({ collection: "page", entry_id: page.id, taxonomy_id: news } as never)
+			.execute();
+
+		const seek = await loadSeek({ category: "news" });
+		expect(seek.entries.map((e) => e.data.title)).toEqual(["Post in News"]);
+
+		// Matches the default scan path exactly.
+		const scan = await load({ category: "news" });
+		expect(scan.entries.map((e) => e.data.title)).toEqual(["Post in News"]);
 	});
 
 	it("returns no entries when any one taxonomy filter is an empty array", async () => {
