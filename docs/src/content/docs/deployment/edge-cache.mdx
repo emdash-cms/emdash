@@ -3,7 +3,7 @@ title: Edge Caching
 description: Cache rendered HTML in the Cloudflare Workers Cache and purge it by tag when content changes.
 ---
 
-The [object cache](/deployment/object-cache/) stores query results, but every request still renders HTML inside the Worker. Edge caching stores the rendered HTML response itself in the [Cloudflare Workers Cache](https://developers.cloudflare.com/workers/configuration/workers-cache/), so a cache hit is served at the edge and never invokes the Worker. Combined with cache tags and EmDash's built-in purging, pages stay cached for days while a publish becomes visible within seconds.
+The [object cache](/deployment/object-cache/) stores query results, but every request still renders HTML inside the Worker. Edge caching stores the rendered HTML response itself in the [Cloudflare Workers Cache](https://developers.cloudflare.com/workers/cache/), so a cache hit is served at the edge and never invokes the Worker. Combined with cache tags and EmDash's built-in purging, pages stay cached for days while a publish becomes visible within seconds.
 
 This guide uses [Astro's route caching](https://docs.astro.build/en/guides/caching/) with the Cloudflare cache provider, and applies to Cloudflare deployments only. The two caches are complementary: the edge cache serves repeat requests, the object cache makes the remaining renders cheap.
 
