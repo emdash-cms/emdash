@@ -28,15 +28,19 @@ import {
 
 export type ContentMediaUsageRepairStatus = "complete" | "partial" | "failed" | "stale";
 
+export const CONTENT_MEDIA_USAGE_REPAIR_ERROR = {
+	COLLECTION_NOT_FOUND: "COLLECTION_NOT_FOUND",
+	CONTENT_NOT_FOUND: "CONTENT_NOT_FOUND",
+	DRAFT_REVISION_NOT_FOUND: "DRAFT_REVISION_NOT_FOUND",
+	DRAFT_REVISION_MISMATCH: "DRAFT_REVISION_MISMATCH",
+	DRAFT_REVISION_INVALID: "DRAFT_REVISION_INVALID",
+	CONTENT_USAGE_REPAIR_ERROR: "CONTENT_USAGE_REPAIR_ERROR",
+	CONTENT_USAGE_REPAIR_CONFLICT: "CONTENT_USAGE_REPAIR_CONFLICT",
+	INVALID_REPEATER_VALIDATION: "INVALID_REPEATER_VALIDATION",
+} as const;
+
 export type ContentMediaUsageRepairErrorCode =
-	| "COLLECTION_NOT_FOUND"
-	| "CONTENT_NOT_FOUND"
-	| "DRAFT_REVISION_NOT_FOUND"
-	| "DRAFT_REVISION_MISMATCH"
-	| "DRAFT_REVISION_INVALID"
-	| "CONTENT_USAGE_REPAIR_ERROR"
-	| "CONTENT_USAGE_REPAIR_CONFLICT"
-	| "INVALID_REPEATER_VALIDATION";
+	(typeof CONTENT_MEDIA_USAGE_REPAIR_ERROR)[keyof typeof CONTENT_MEDIA_USAGE_REPAIR_ERROR];
 
 export interface ContentMediaUsageRepairCollectionInput {
 	collectionSlug: string;
@@ -114,7 +118,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 			failedSourceCount: 0,
 			skippedSourceCount: 0,
 			deletedSourceCount: 0,
-			lastErrorCode: "COLLECTION_NOT_FOUND",
+			lastErrorCode: CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND,
 			startedAt,
 			completedAt: startedAt,
 		};
@@ -141,7 +145,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 					failedSourceCount: 0,
 					skippedSourceCount: 0,
 					deletedSourceCount: 0,
-					lastErrorCode: "COLLECTION_NOT_FOUND",
+					lastErrorCode: CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND,
 				},
 				status: "failed",
 				startedAt,
@@ -153,10 +157,10 @@ async function repairContentMediaUsageCollectionUnlocked(
 		const scannedContentCount = finalScan?.contentIds.length ?? scan.contentIds.length;
 		if (!finalScan) {
 			counts.failedSourceCount++;
-			counts.lastErrorCode = "COLLECTION_NOT_FOUND";
+			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND;
 		} else if (!sameContentIds(scan.contentIds, finalScan.contentIds)) {
 			counts.skippedSourceCount++;
-			counts.lastErrorCode = "CONTENT_USAGE_REPAIR_CONFLICT";
+			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
 		}
 		const completedAt = new Date().toISOString();
 		const status = determineRepairStatus(counts, scannedContentCount);
@@ -174,7 +178,9 @@ async function repairContentMediaUsageCollectionUnlocked(
 		}
 		const completedAt = new Date().toISOString();
 		const lastErrorCode =
-			error instanceof MediaUsageFieldDiscoveryError ? error.code : "CONTENT_USAGE_REPAIR_ERROR";
+			error instanceof MediaUsageFieldDiscoveryError
+				? error.code
+				: CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_ERROR;
 		return finalizeRepairStatus(repo, {
 			...scope,
 			runToken,
@@ -254,7 +260,7 @@ async function repairContentSource(
 				counts.failedSourceCount++;
 			} else {
 				counts.skippedSourceCount++;
-				counts.lastErrorCode = "CONTENT_USAGE_REPAIR_CONFLICT";
+				counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
 			}
 			return;
 		}
@@ -275,7 +281,7 @@ async function repairContentSource(
 			counts.indexedSourceCount++;
 		} else {
 			counts.skippedSourceCount++;
-			counts.lastErrorCode = "CONTENT_USAGE_REPAIR_CONFLICT";
+			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
 		}
 	}
 
@@ -323,7 +329,7 @@ async function deleteObservedSourceIfContentAbsent(
 	if (result.contentPresent) return;
 	if (result.source) {
 		counts.skippedSourceCount++;
-		counts.lastErrorCode = "CONTENT_USAGE_REPAIR_CONFLICT";
+		counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
 	}
 }
 
@@ -340,7 +346,7 @@ async function deleteObservedSource(
 	}
 	if (result.source) {
 		counts.skippedSourceCount++;
-		counts.lastErrorCode = "CONTENT_USAGE_REPAIR_CONFLICT";
+		counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
 	}
 }
 
