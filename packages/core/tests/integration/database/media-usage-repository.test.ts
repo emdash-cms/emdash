@@ -311,6 +311,41 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(await repo.findCurrentUsageByMediaId("media-concurrent-draft")).toHaveLength(1);
 	});
 
+	it("leaves unmatched generations for orphan cleanup when current-generation delete wins", async () => {
+		const observed = await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
+			occurrence("hero", "media-current-delete-generation"),
+		]);
+		await insertOccurrenceGeneration(
+			ctx,
+			observed.sourceKey,
+			"preserved_generation_current_delete",
+			"media-preserved-current-delete",
+		);
+		await ctx.db
+			.updateTable("_emdash_media_usage")
+			.set({ created_at: "2026-01-01T00:00:00.000Z" })
+			.where("source_key", "=", observed.sourceKey)
+			.execute();
+
+		const deleted = await repo.deleteSourceIfCurrent(
+			observed.sourceKey,
+			observed.currentGeneration,
+		);
+
+		expect(deleted.deleted).toBe(true);
+		expect(deleted.source).toBeNull();
+		expect(await mediaUsageRows(ctx, observed.sourceKey)).toEqual([
+			expect.objectContaining({
+				generation: "preserved_generation_current_delete",
+				media_id: "media-preserved-current-delete",
+			}),
+		]);
+		expect(await repo.findCurrentUsageByMediaId("media-preserved-current-delete")).toEqual([]);
+
+		expect(await repo.deleteOrphanOccurrencesOlderThan("2026-01-02T00:00:00.000Z", 10)).toBe(1);
+		expect(await mediaUsageRows(ctx, observed.sourceKey)).toEqual([]);
+	});
+
 	it("deletes a source only when nullable source metadata still matches", async () => {
 		const observed = await repo.replaceSource(contentSource("entry1", "columns"), [
 			occurrence("hero", "media-delete"),

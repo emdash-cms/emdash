@@ -317,6 +317,42 @@ describeEachDialect("content media usage repair", (dialect) => {
 		);
 	});
 
+	it("indexes valid columns when draft revision is missing", async () => {
+		const item = await insertPost(ctx, {
+			id: "post_missing_draft_revision",
+			slug: "missing-draft-revision-post",
+			status: "published",
+			data: {
+				title: "Missing Draft Revision Post",
+				hero: { id: "media-missing-draft", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await setMissingDraftRevision(ctx, item.id, "missing_revision");
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "partial",
+				indexedSourceCount: 1,
+				failedSourceCount: 1,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+				lastErrorCode: "DRAFT_REVISION_NOT_FOUND",
+			}),
+		);
+		expect(await usageRepo.findSource(sourceKey(item.id, "columns"))).toEqual(
+			expect.objectContaining({ sourceCompleteness: "complete" }),
+		);
+		expect(await usageRepo.findSource(sourceKey(item.id, "draft_overlay"))).toEqual(
+			expect.objectContaining({
+				sourceCompleteness: "failed",
+				lastErrorCode: "DRAFT_REVISION_NOT_FOUND",
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-missing-draft")).toHaveLength(1);
+	});
+
 	it("keeps draft failures without trusted source progress failed", async () => {
 		const item = await insertPost(ctx, {
 			id: "post_conflict",
@@ -725,6 +761,27 @@ function contentSource(
 		contentDeletedAt: null,
 		revisionId: null,
 	};
+}
+
+async function setMissingDraftRevision(
+	ctx: DialectTestContext,
+	contentId: string,
+	revisionId: string,
+): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			ALTER TABLE ${sql.ref("ec_posts")}
+			DROP CONSTRAINT IF EXISTS ec_posts_draft_revision_id_fkey
+		`.execute(ctx.db);
+	} else {
+		await sql`PRAGMA foreign_keys = OFF`.execute(ctx.db);
+	}
+
+	await sql`
+		UPDATE ${sql.ref("ec_posts")}
+		SET draft_revision_id = ${revisionId}
+		WHERE id = ${contentId}
+	`.execute(ctx.db);
 }
 
 function occurrence(
