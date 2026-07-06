@@ -1052,13 +1052,16 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					// `idx_content_taxonomies_term_lookup`. Postgres has statistics
 					// and plans this well on its own, so the hint is SQLite-only.
 					if (taxonomyStrategy === "seek" && !isPostgres(db) && taxonomyFilters.length > 0) {
-						// Each filter's matched entry ids; INTERSECT enforces the
-						// "tagged in every taxonomy" AND semantics, and its set
-						// output dedupes an entry tagged by multiple matching slugs
-						// (a plain join would fan those into duplicate rows).
+						// Each filter's matched entry ids. `DISTINCT` dedupes within a
+						// filter: an entry tagged by multiple matching slugs of the same
+						// taxonomy (OR-within, `{ category: ['news', 'sports'] }`) has one
+						// pivot row per slug, and without it the outer `CROSS JOIN` would
+						// fan those into duplicate content rows (the `EXISTS` scan path is
+						// a semi-join and never does). INTERSECT across filters then
+						// enforces the "tagged in every taxonomy" AND semantics.
 						const matchedSelect = sql.join(
 							taxonomyFilters.map(
-								(f) => sql`SELECT ct.entry_id AS _matched_id
+								(f) => sql`SELECT DISTINCT ct.entry_id AS _matched_id
 							FROM taxonomies t
 							INNER JOIN content_taxonomies ct ON ct.taxonomy_id = t.translation_group
 							WHERE +ct.collection = ${type}

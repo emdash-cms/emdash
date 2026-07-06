@@ -71,6 +71,25 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 	}
 
 	/**
+	 * Same as `load` but opts into the `"seek"` taxonomy strategy (the pivot-driven
+	 * rewrite). SQLite-only — on Postgres the loader ignores the hint and uses the
+	 * default `EXISTS` path — so results must match `load` on both dialects.
+	 */
+	function loadSeek(where: Record<string, unknown>, locale?: string) {
+		const loader = emdashLoader();
+		return runWithContext({ editMode: false, db }, () =>
+			loader.loadCollection!({
+				filter: {
+					type: "post",
+					where: where as never,
+					taxonomyStrategy: "seek",
+					...(locale ? { locale } : {}),
+				},
+			}),
+		);
+	}
+
+	/**
 	 * Insert a localized variant of an existing term: same `translation_group`
 	 * as the anchor (so the `content_taxonomies` pivot, which stores the
 	 * translation_group, resolves to it), but a different `locale` and `slug`.
@@ -145,6 +164,52 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		expect(titles).toHaveLength(2);
 		expect(titles).toContain("News + Featured");
 		expect(titles).toContain("Sports + Featured");
+	});
+
+	it("seek strategy does not duplicate an entry tagged with multiple OR-ed slugs of one taxonomy", async () => {
+		const news = await term("category", "news");
+		const sports = await term("category", "sports");
+
+		// Tagged with BOTH slugs of the single filtered taxonomy. The seek path
+		// materializes one pivot row per matching slug; without DISTINCT the
+		// CROSS JOIN emitted this entry twice (single filter → no INTERSECT to
+		// dedupe). The EXISTS path is a semi-join and never duplicated.
+		const both = await createPost("News + Sports");
+		const newsOnly = await createPost("News Only");
+		await tag(both.id, news);
+		await tag(both.id, sports);
+		await tag(newsOnly.id, news);
+
+		const seek = await loadSeek({ category: ["news", "sports"] });
+		const seekTitles = seek.entries.map((e) => e.data.title).sort();
+		expect(seekTitles).toEqual(["News + Sports", "News Only"]);
+
+		// Matches the default scan path exactly.
+		const scan = await load({ category: ["news", "sports"] });
+		expect(scan.entries.map((e) => e.data.title).sort()).toEqual(seekTitles);
+	});
+
+	it("seek strategy ORs slugs within a taxonomy while ANDing across taxonomies", async () => {
+		const news = await term("category", "news");
+		const sports = await term("category", "sports");
+		const featured = await term("tag", "featured");
+
+		// In (news OR sports) AND featured. `a` is tagged with both news AND
+		// sports, so the OR-within filter must still yield it exactly once.
+		const a = await createPost("News + Sports + Featured");
+		const b = await createPost("Sports + Featured");
+		const c = await createPost("News, not Featured");
+
+		await tag(a.id, news);
+		await tag(a.id, sports);
+		await tag(a.id, featured);
+		await tag(b.id, sports);
+		await tag(b.id, featured);
+		await tag(c.id, news);
+
+		const result = await loadSeek({ category: ["news", "sports"], tag: ["featured"] });
+		const titles = result.entries.map((e) => e.data.title).sort();
+		expect(titles).toEqual(["News + Sports + Featured", "Sports + Featured"]);
 	});
 
 	it("returns no entries when any one taxonomy filter is an empty array", async () => {
