@@ -234,6 +234,35 @@ describeEachDialect("content media usage repair", (dialect) => {
 		);
 	});
 
+	it("returns the winning stale error when final status CAS loses", async () => {
+		await insertPost(ctx, {
+			slug: "stale-status-post",
+			status: "published",
+			data: {
+				title: "Stale Status Post",
+				hero: { id: "media-stale-status", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await installStaleStatusTrigger(ctx);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				lastErrorCode: "CONTENT_USAGE_STALE",
+				completedAt: null,
+			}),
+		);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(expect.objectContaining({ status: "stale", lastErrorCode: "CONTENT_USAGE_STALE" }));
+	});
+
 	it("deletes observed draft and orphan sources that repair proves absent", async () => {
 		const item = await insertPost(ctx, {
 			slug: "columns-only-post",
@@ -461,6 +490,49 @@ async function installConcurrentPostInsertTrigger(ctx: DialectTestContext): Prom
 				'Concurrent Post',
 				'{"id":"media-concurrent","provider":"local","mimeType":"image/webp"}'
 			);
+		END
+	`.execute(ctx.db);
+}
+
+async function installStaleStatusTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_mark_status_stale()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				UPDATE _emdash_media_usage_index_status
+				SET status = 'stale',
+					last_error_code = 'CONTENT_USAGE_STALE',
+					updated_at = '2026-01-01T00:00:01.000Z'
+				WHERE adapter_id = 'content-media'
+				AND scope_type = 'collection'
+				AND scope_key = 'posts';
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_mark_status_stale
+			AFTER INSERT ON _emdash_media_usage
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_mark_status_stale()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_mark_status_stale
+		AFTER INSERT ON _emdash_media_usage
+		BEGIN
+			UPDATE _emdash_media_usage_index_status
+			SET status = 'stale',
+				last_error_code = 'CONTENT_USAGE_STALE',
+				updated_at = '2026-01-01T00:00:01.000Z'
+			WHERE adapter_id = 'content-media'
+			AND scope_type = 'collection'
+			AND scope_key = 'posts';
 		END
 	`.execute(ctx.db);
 }

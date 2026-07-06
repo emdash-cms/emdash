@@ -60,7 +60,7 @@ export interface ContentMediaUsageRepairCollectionResult {
 	failedSourceCount: number;
 	skippedSourceCount: number;
 	deletedSourceCount: number;
-	lastErrorCode: ContentMediaUsageRepairErrorCode | null;
+	lastErrorCode: string | null;
 	startedAt: string;
 	completedAt: string | null;
 }
@@ -428,7 +428,10 @@ async function finalizeRepairStatus(
 		failedSourceCount: input.counts.failedSourceCount,
 		skippedSourceCount: input.counts.skippedSourceCount,
 		deletedSourceCount: input.counts.deletedSourceCount,
-		lastErrorCode: input.counts.lastErrorCode,
+		lastErrorCode: result.finalized
+			? input.counts.lastErrorCode
+			: (result.status?.lastErrorCode ??
+				CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT),
 		startedAt: input.startedAt,
 		completedAt: result.finalized ? input.completedAt : null,
 	};
