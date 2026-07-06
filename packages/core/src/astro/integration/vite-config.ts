@@ -61,6 +61,7 @@ const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
 // Unused tiptap collaboration deps. Excluded from optimizeDeps so Vite's
 // esbuild scanner doesn't fail resolving them on fresh installs (#771).
 const UNUSED_TIPTAP_DEPS = ["@tiptap/extension-collaboration", "@tiptap/y-tiptap"];
+const COMMON_OPTIMIZE_DEPS_EXCLUDES = ["virtual:emdash", ...UNUSED_TIPTAP_DEPS];
 /**
  * Vite plugin that compiles Lingui macros in admin source files.
  * Only active in dev mode when the admin package is aliased to source for HMR.
@@ -374,7 +375,7 @@ export function createViteConfig(
 						// during pre-bundling and can't resolve them. Vite's exclude
 						// uses prefix matching (id.startsWith(m + "/")), so
 						// "virtual:emdash" matches all "virtual:emdash/*" imports.
-						exclude: ["virtual:emdash", ...UNUSED_TIPTAP_DEPS],
+						exclude: COMMON_OPTIMIZE_DEPS_EXCLUDES,
 						include: [
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
@@ -433,8 +434,8 @@ export function createViteConfig(
 				? ["@astrojs/react/client.js"]
 				: ["@emdash-cms/admin", "@astrojs/react/client.js"],
 			exclude: cloudflare
-				? ["virtual:emdash", ...UNUSED_TIPTAP_DEPS]
-				: [...NODE_NATIVE_EXTERNALS, "virtual:emdash", ...UNUSED_TIPTAP_DEPS],
+				? COMMON_OPTIMIZE_DEPS_EXCLUDES
+				: [...NODE_NATIVE_EXTERNALS, ...COMMON_OPTIMIZE_DEPS_EXCLUDES],
 		},
 	};
 }
