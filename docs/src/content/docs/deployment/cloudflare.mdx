@@ -72,7 +72,7 @@ To change the schema or content model of a site that is already deployed, see [E
 
 ## Scheduled Publishing
 
-On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from a Worker Cron Trigger. New Cloudflare templates include this setup automatically. If you are adding EmDash to an existing Worker project, export the EmDash Worker entry from `@emdash-cms/cloudflare/worker`:
+On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from a Worker Cron Trigger. New Cloudflare templates include this setup automatically. If you are adding updating an existing project, export the EmDash Worker entry from `@emdash-cms/cloudflare/worker`:
 
 ```ts title="src/worker.ts"
 export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
