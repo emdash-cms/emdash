@@ -131,9 +131,15 @@ it("with taxonomyStrategy 'seek', drives from content_taxonomies, not the collec
 	expect(result.entries[0]!.data.title).toBe("Post 2");
 
 	const plan = listQueryPlan();
-	// Good plan: seek the selective term via the composite pivot index.
-	expect(plan, "must seek content_taxonomies by taxonomy_id").toContain(
-		"idx_content_taxonomies_term_lookup",
+	// Good plan: seek the selective term via the composite pivot index, using
+	// BOTH leading columns. The two-column seek (`INDEXED BY` + plain
+	// `collection` equality) reads only this collection's slice of the term; a
+	// one-column `(taxonomy_id=?)` seek with a residual collection filter would
+	// read the term's rows in *every* collection (verified on D1: 704 vs 2 rows
+	// read for a term shared across collections). Asserting the second column
+	// guards against regressing to the residual-filter form.
+	expect(plan, "must seek content_taxonomies by taxonomy_id AND collection").toContain(
+		"idx_content_taxonomies_term_lookup (taxonomy_id=? AND collection=?)",
 	);
 	// Bad plan: drive the scan from the collection's published-order index.
 	expect(plan, "must not drive the scan from the collection's published index").not.toContain(

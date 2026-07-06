@@ -1046,11 +1046,17 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					// the caller passes `"seek"`: we drive from `content_taxonomies`,
 					// seeking the term by `taxonomy_id` (materialized once) and
 					// joining the collection by primary key, then sort the small
-					// candidate set. `CROSS JOIN` pins that join order; the unary
-					// `+ct.collection` disqualifies the pivot PK's `(collection, …)`
-					// autoindex so the planner picks the composite
-					// `idx_content_taxonomies_term_lookup`. Postgres has statistics
-					// and plans this well on its own, so the hint is SQLite-only.
+					// candidate set. `CROSS JOIN` pins that join order; the explicit
+					// `INDEXED BY idx_content_taxonomies_term_lookup` forces the
+					// composite `(taxonomy_id, collection, entry_id)` seek. Without
+					// the hint the stats-blind planner drives from the pivot PK's
+					// `(collection, …)` autoindex — a whole-collection scan of the
+					// join table (the #1834 failure). The hint also lets `collection`
+					// be a plain equality that the index seeks on its second column,
+					// so a term shared across collections reads only this
+					// collection's slice, not the term's rows in every collection.
+					// Postgres has statistics and plans this well on its own, so the
+					// hint is SQLite-only.
 					if (taxonomyStrategy === "seek" && !isPostgres(db) && taxonomyFilters.length > 0) {
 						// Each filter's matched entry ids. `DISTINCT` dedupes within a
 						// filter: an entry tagged by multiple matching slugs of the same
@@ -1063,8 +1069,9 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							taxonomyFilters.map(
 								(f) => sql`SELECT DISTINCT ct.entry_id AS _matched_id
 							FROM taxonomies t
-							INNER JOIN content_taxonomies ct ON ct.taxonomy_id = t.translation_group
-							WHERE +ct.collection = ${type}
+							INNER JOIN content_taxonomies ct INDEXED BY idx_content_taxonomies_term_lookup
+								ON ct.taxonomy_id = t.translation_group
+							WHERE ct.collection = ${type}
 								AND t.name = ${f.name}
 								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
 								${locale ? sql`AND t.locale = ${locale}` : sql``}`,
