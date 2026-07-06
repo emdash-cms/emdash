@@ -332,9 +332,12 @@ export function relativizeContentLinks(blocks: PortableTextBlock[], siteUrl: str
 	} catch {
 		return;
 	}
+	// Raw HTML in the wild uses double-quoted, single-quoted, and unquoted
+	// href values; the backreference \1 matches the closing quote (or
+	// nothing, for unquoted). Rewritten links are normalized to href="...".
 	const hrefPattern = new RegExp(
-		`href="https?://(?:www\\.)?${sourceHost.replace(REGEX_SPECIALS, "\\$&")}(/[^"]*)?"`,
-		"g",
+		`href=(["']?)https?://(?:www\\.)?${sourceHost.replace(REGEX_SPECIALS, "\\$&")}(/[^"'\\s>]*)?\\1`,
+		"gi",
 	);
 
 	for (const block of blocks) {
@@ -366,9 +369,12 @@ export function relativizeContentLinks(blocks: PortableTextBlock[], siteUrl: str
 				}
 				break;
 			case "htmlBlock":
-				block.html = block.html.replace(hrefPattern, (_m, path: string | undefined) => {
-					return `href="${path || "/"}"`;
-				});
+				block.html = block.html.replace(
+					hrefPattern,
+					(_m, _quote: string, path: string | undefined) => {
+						return `href="${path || "/"}"`;
+					},
+				);
 				break;
 			// URL-less or media-only blocks: media URLs are the media pass's job
 			case "code":

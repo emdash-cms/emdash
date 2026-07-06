@@ -77,7 +77,10 @@ const MIGRATION_KEY_PREFIX = "em1.";
 function decodeMigrationKey(key: string): { url: string; user: string; pass: string } | null {
 	if (!key.startsWith(MIGRATION_KEY_PREFIX)) return null;
 	try {
-		const base64 = key.slice(MIGRATION_KEY_PREFIX.length).replace(/-/g, "+").replace(/_/g, "/");
+		// atob's forgiving-base64 accepts unpadded input, but restore the
+		// padding anyway so strict polyfills don't reject valid keys.
+		const base64url = key.slice(MIGRATION_KEY_PREFIX.length).replace(/-/g, "+").replace(/_/g, "/");
+		const base64 = base64url.padEnd(base64url.length + ((4 - (base64url.length % 4)) % 4), "=");
 		const parsed: unknown = JSON.parse(atob(base64));
 		if (
 			typeof parsed === "object" &&

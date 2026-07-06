@@ -74,6 +74,22 @@ describe("relativizeContentLinks", () => {
 		});
 	});
 
+	it("handles single-quoted, unquoted, and uppercase hrefs in raw html", () => {
+		const blocks: PortableTextBlock[] = [
+			{
+				_type: "htmlBlock",
+				_key: "h1",
+				html: `<a href='${SITE}/single/'>s</a> <a href=${SITE}/bare/ class="x">b</a> <a HREF="${SITE}/upper/">u</a> <a href='https://example.com/keep'>ext</a>`,
+			},
+		];
+
+		relativizeContentLinks(blocks, SITE);
+
+		expect(blocks[0]).toMatchObject({
+			html: `<a href="/single/">s</a> <a href="/bare/" class="x">b</a> <a href="/upper/">u</a> <a href='https://example.com/keep'>ext</a>`,
+		});
+	});
+
 	it("recurses into columns and rewrites table cell links", () => {
 		const blocks: PortableTextBlock[] = [
 			{
