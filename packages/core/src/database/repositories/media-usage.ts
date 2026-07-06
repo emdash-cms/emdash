@@ -1,4 +1,12 @@
-import { sql, type Kysely, type Selectable, type Transaction, type Updateable } from "kysely";
+import {
+	sql,
+	type ExpressionBuilder,
+	type Insertable,
+	type Kysely,
+	type Selectable,
+	type Transaction,
+	type Updateable,
+} from "kysely";
 import { ulid } from "ulidx";
 
 import type { MediaUsageContentSourceVariant } from "../../media/usage/source-key.js";
@@ -14,6 +22,13 @@ import type {
 import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
 
 type DatabaseExecutor = Kysely<Database> | Transaction<Database>;
+type MediaUsageSourceNullableStringColumn =
+	| "source_fingerprint"
+	| "source_updated_at"
+	| "revision_id"
+	| "updated_at"
+	| "last_attempted_at"
+	| "last_error_code";
 
 const OCCURRENCE_BIND_COLUMNS = 13;
 const OCCURRENCE_INSERT_BATCH_SIZE = Math.max(
@@ -92,6 +107,35 @@ export interface MediaUsageGuardedReplaceResult {
 export interface MediaUsageGuardedDeleteResult {
 	deleted: boolean;
 	source: MediaUsageSource | null;
+}
+
+export interface MediaUsageGuardedAttemptResult {
+	attempted: boolean;
+	/** Populated only when a guarded attempted mark did not win the current source row. */
+	source: MediaUsageSource | null;
+}
+
+export interface MediaUsageIndexStatusRepairInput extends MediaUsageIndexStatusIdentity {
+	runToken: string;
+	schemaVersion?: number;
+	startedAt: string;
+	updatedAt?: string;
+}
+
+export interface MediaUsageIndexStatusFinalizeInput extends MediaUsageIndexStatusIdentity {
+	runToken: string;
+	status: Exclude<MediaUsageIndexStatusValue, "never" | "running" | "stale">;
+	schemaVersion?: number;
+	completedAt: string;
+	indexedSourceCount?: number;
+	failedSourceCount?: number;
+	lastErrorCode?: string | null;
+	updatedAt?: string;
+}
+
+export interface MediaUsageGuardedIndexStatusResult {
+	finalized: boolean;
+	status: MediaUsageIndexStatus | null;
 }
 
 export type MediaUsageSourceCompleteness =
@@ -288,62 +332,55 @@ export class MediaUsageRepository {
 		return row ? rowToSource(row) : null;
 	}
 
+	async findSources(sourceKeys: readonly string[]): Promise<Map<string, MediaUsageSource>> {
+		const uniqueSourceKeys = [...new Set(sourceKeys)];
+		const sources = new Map<string, MediaUsageSource>();
+		if (uniqueSourceKeys.length === 0) return sources;
+
+		for (const sourceKeyBatch of chunks(uniqueSourceKeys, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_emdash_media_usage_sources")
+				.selectAll()
+				.where("source_key", "in", sourceKeyBatch)
+				.execute();
+			for (const row of rows) {
+				const source = rowToSource(row);
+				sources.set(source.sourceKey, source);
+			}
+		}
+
+		return sources;
+	}
+
+	async replaceSourceIfMatching(
+		source: MediaUsageSourceInput,
+		occurrences: readonly MediaUsageOccurrenceInput[],
+		expectedSource: MediaUsageSource | null,
+	): Promise<MediaUsageGuardedReplaceResult> {
+		const generation = ulid();
+		const now = new Date().toISOString();
+		const row = this.buildSourceRow(source, generation, now);
+		let replaced = false;
+
+		await withTransaction(this.db, async (trx) => {
+			await this.insertOccurrences(trx, source.sourceKey, generation, occurrences, now);
+			if (expectedSource === null) {
+				replaced = await this.insertSourceIfAbsent(trx, row);
+				return;
+			}
+			replaced = await this.updateSourceIfMatching(trx, row, expectedSource);
+		});
+
+		return {
+			replaced,
+			source: replaced ? null : await this.findSource(source.sourceKey),
+		};
+	}
+
 	async markSourceAttempted(source: MediaUsageSourceInput): Promise<MediaUsageSource> {
 		const now = new Date().toISOString();
-		const attemptedAt = source.lastAttemptedAt ?? now;
-		const row = {
-			source_key: source.sourceKey,
-			source_type: source.sourceType,
-			collection_slug: source.collectionSlug ?? null,
-			content_id: source.contentId ?? null,
-			source_variant: source.sourceVariant,
-			locale: source.locale ?? null,
-			translation_group: source.translationGroup ?? null,
-			content_slug: source.contentSlug ?? null,
-			content_title: source.contentTitle ?? null,
-			content_status: source.contentStatus ?? null,
-			content_scheduled_at: source.contentScheduledAt ?? null,
-			content_deleted_at: source.contentDeletedAt ?? null,
-			revision_id: source.revisionId ?? null,
-			current_generation: ulid(),
-			schema_version: source.schemaVersion ?? 1,
-			source_updated_at: source.sourceUpdatedAt ?? null,
-			source_version: source.sourceVersion ?? null,
-			source_fingerprint: source.sourceFingerprint ?? null,
-			source_completeness:
-				source.sourceCompleteness ?? (source.lastErrorCode ? "failed" : "unknown"),
-			last_attempted_at: attemptedAt,
-			last_error_code: source.lastErrorCode ?? null,
-			indexed_at: now,
-			updated_at: now,
-		};
-		const updates: Updateable<MediaUsageSourceTable> = {
-			source_type: row.source_type,
-			source_variant: row.source_variant,
-			source_completeness: row.source_completeness,
-			last_attempted_at: row.last_attempted_at,
-			last_error_code: row.last_error_code,
-			updated_at: row.updated_at,
-		};
-
-		if (source.collectionSlug !== undefined) updates.collection_slug = row.collection_slug;
-		if (source.contentId !== undefined) updates.content_id = row.content_id;
-		if (source.locale !== undefined) updates.locale = row.locale;
-		if (source.translationGroup !== undefined) updates.translation_group = row.translation_group;
-		if (source.contentSlug !== undefined) updates.content_slug = row.content_slug;
-		if (source.contentTitle !== undefined) updates.content_title = row.content_title;
-		if (source.contentStatus !== undefined) updates.content_status = row.content_status;
-		if (source.contentScheduledAt !== undefined) {
-			updates.content_scheduled_at = row.content_scheduled_at;
-		}
-		if (source.contentDeletedAt !== undefined) updates.content_deleted_at = row.content_deleted_at;
-		if (source.revisionId !== undefined) updates.revision_id = row.revision_id;
-		if (source.schemaVersion !== undefined) updates.schema_version = row.schema_version;
-		if (source.sourceUpdatedAt !== undefined) updates.source_updated_at = row.source_updated_at;
-		if (source.sourceVersion !== undefined) updates.source_version = row.source_version;
-		if (source.sourceFingerprint !== undefined) {
-			updates.source_fingerprint = row.source_fingerprint;
-		}
+		const row = this.buildAttemptedSourceRow(source, now);
+		const updates = this.attemptedSourceUpdateSet(source, row);
 
 		await this.db
 			.insertInto("_emdash_media_usage_sources")
@@ -356,6 +393,26 @@ export class MediaUsageRepository {
 			throw new Error(`Media usage source ${source.sourceKey} was not persisted`);
 		}
 		return attempted;
+	}
+
+	async markSourceAttemptedIfMatching(
+		source: MediaUsageSourceInput,
+		expectedSource: MediaUsageSource | null,
+	): Promise<MediaUsageGuardedAttemptResult> {
+		const now = new Date().toISOString();
+		const row = this.buildAttemptedSourceRow(source, now);
+		let attempted = false;
+
+		if (expectedSource === null) {
+			attempted = await this.insertSourceIfAbsent(this.db, row);
+		} else {
+			attempted = await this.updateAttemptedSourceIfMatching(this.db, source, row, expectedSource);
+		}
+
+		return {
+			attempted,
+			source: attempted ? null : await this.findSource(source.sourceKey),
+		};
 	}
 
 	async findCurrentUsageByMediaId(mediaId: string): Promise<MediaUsageRecord[]> {
@@ -431,6 +488,28 @@ export class MediaUsageRepository {
 				.deleteFrom("_emdash_media_usage_sources")
 				.where("source_key", "=", sourceKey)
 				.where("current_generation", "=", expectedCurrentGeneration)
+				.executeTakeFirst();
+			deleted = Number(result.numDeletedRows ?? 0) > 0;
+			if (!deleted) return;
+			await trx.deleteFrom("_emdash_media_usage").where("source_key", "=", sourceKey).execute();
+		});
+
+		return {
+			deleted,
+			source: await this.findSource(sourceKey),
+		};
+	}
+
+	async deleteSourceIfMatching(
+		sourceKey: string,
+		expectedSource: MediaUsageSource,
+	): Promise<MediaUsageGuardedDeleteResult> {
+		let deleted = false;
+		await withTransaction(this.db, async (trx) => {
+			const result = await trx
+				.deleteFrom("_emdash_media_usage_sources")
+				.where("source_key", "=", sourceKey)
+				.where(this.sourceMatchExpression(expectedSource))
 				.executeTakeFirst();
 			deleted = Number(result.numDeletedRows ?? 0) > 0;
 			if (!deleted) return;
@@ -642,6 +721,56 @@ export class MediaUsageRepository {
 		return status;
 	}
 
+	async beginIndexStatusRepair(
+		input: MediaUsageIndexStatusRepairInput,
+	): Promise<MediaUsageIndexStatus> {
+		return this.upsertIndexStatus({
+			adapterId: input.adapterId,
+			scopeType: input.scopeType,
+			scopeKey: input.scopeKey,
+			status: "running",
+			schemaVersion: input.schemaVersion,
+			startedAt: input.startedAt,
+			completedAt: null,
+			cursor: input.runToken,
+			indexedSourceCount: 0,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+			updatedAt: input.updatedAt,
+		});
+	}
+
+	async finalizeIndexStatusRepairIfRunning(
+		input: MediaUsageIndexStatusFinalizeInput,
+	): Promise<MediaUsageGuardedIndexStatusResult> {
+		const updates: Updateable<MediaUsageIndexStatusTable> = {
+			status: input.status,
+			completed_at: input.completedAt,
+			cursor: null,
+			indexed_source_count: input.indexedSourceCount ?? 0,
+			failed_source_count: input.failedSourceCount ?? 0,
+			last_error_code: input.lastErrorCode ?? null,
+			updated_at: input.updatedAt ?? new Date().toISOString(),
+		};
+		if (input.schemaVersion !== undefined) updates.schema_version = input.schemaVersion;
+
+		const result = await this.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set(updates)
+			.where("adapter_id", "=", input.adapterId)
+			.where("scope_type", "=", input.scopeType)
+			.where("scope_key", "=", input.scopeKey)
+			.where("status", "=", "running")
+			.where("cursor", "=", input.runToken)
+			.executeTakeFirst();
+		const finalized = Number(result.numUpdatedRows ?? 0) > 0;
+
+		return {
+			finalized,
+			status: await this.findIndexStatus(input),
+		};
+	}
+
 	async findIndexStatus(
 		identity: MediaUsageIndexStatusIdentity,
 	): Promise<MediaUsageIndexStatus | null> {
@@ -774,7 +903,7 @@ export class MediaUsageRepository {
 
 	private async insertSourceIfAbsent(
 		db: DatabaseExecutor,
-		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
+		row: Insertable<MediaUsageSourceTable>,
 	): Promise<boolean> {
 		const result = await db
 			.insertInto("_emdash_media_usage_sources")
@@ -796,6 +925,66 @@ export class MediaUsageRepository {
 			.where("current_generation", "=", expectedCurrentGeneration)
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	private async updateSourceIfMatching(
+		db: DatabaseExecutor,
+		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
+		expectedSource: MediaUsageSource,
+	): Promise<boolean> {
+		const result = await db
+			.updateTable("_emdash_media_usage_sources")
+			.set(this.sourceUpdateSet(row))
+			.where("source_key", "=", row.source_key)
+			.where(this.sourceMatchExpression(expectedSource))
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	private async updateAttemptedSourceIfMatching(
+		db: DatabaseExecutor,
+		source: MediaUsageSourceInput,
+		row: ReturnType<MediaUsageRepository["buildAttemptedSourceRow"]>,
+		expectedSource: MediaUsageSource,
+	): Promise<boolean> {
+		const result = await db
+			.updateTable("_emdash_media_usage_sources")
+			.set(this.attemptedSourceUpdateSet(source, row))
+			.where("source_key", "=", row.source_key)
+			.where(this.sourceMatchExpression(expectedSource))
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	private sourceMatchExpression(expectedSource: MediaUsageSource) {
+		return (eb: ExpressionBuilder<Database, "_emdash_media_usage_sources">) =>
+			eb.and([
+				eb("current_generation", "=", expectedSource.currentGeneration),
+				eb("source_completeness", "=", expectedSource.sourceCompleteness),
+				this.nullableStringExpression(eb, "updated_at", expectedSource.updatedAt),
+				this.nullableStringExpression(eb, "source_fingerprint", expectedSource.sourceFingerprint),
+				this.nullableStringExpression(eb, "source_updated_at", expectedSource.sourceUpdatedAt),
+				this.nullableNumberExpression(eb, "source_version", expectedSource.sourceVersion),
+				this.nullableStringExpression(eb, "revision_id", expectedSource.revisionId),
+				this.nullableStringExpression(eb, "last_attempted_at", expectedSource.lastAttemptedAt),
+				this.nullableStringExpression(eb, "last_error_code", expectedSource.lastErrorCode),
+			]);
+	}
+
+	private nullableStringExpression(
+		eb: ExpressionBuilder<Database, "_emdash_media_usage_sources">,
+		column: MediaUsageSourceNullableStringColumn,
+		value: string | null,
+	) {
+		return value === null ? eb(column, "is", null) : eb(column, "=", value);
+	}
+
+	private nullableNumberExpression(
+		eb: ExpressionBuilder<Database, "_emdash_media_usage_sources">,
+		column: "source_version",
+		value: number | null,
+	) {
+		return value === null ? eb(column, "is", null) : eb(column, "=", value);
 	}
 
 	private buildSourceRow(source: MediaUsageSourceInput, generation: string, now: string) {
@@ -826,6 +1015,70 @@ export class MediaUsageRepository {
 			indexed_at: now,
 			updated_at: now,
 		};
+	}
+
+	private buildAttemptedSourceRow(source: MediaUsageSourceInput, now: string) {
+		return {
+			source_key: source.sourceKey,
+			source_type: source.sourceType,
+			collection_slug: source.collectionSlug ?? null,
+			content_id: source.contentId ?? null,
+			source_variant: source.sourceVariant,
+			locale: source.locale ?? null,
+			translation_group: source.translationGroup ?? null,
+			content_slug: source.contentSlug ?? null,
+			content_title: source.contentTitle ?? null,
+			content_status: source.contentStatus ?? null,
+			content_scheduled_at: source.contentScheduledAt ?? null,
+			content_deleted_at: source.contentDeletedAt ?? null,
+			revision_id: source.revisionId ?? null,
+			current_generation: ulid(),
+			schema_version: source.schemaVersion ?? 1,
+			source_updated_at: source.sourceUpdatedAt ?? null,
+			source_version: source.sourceVersion ?? null,
+			source_fingerprint: source.sourceFingerprint ?? null,
+			source_completeness:
+				source.sourceCompleteness ?? (source.lastErrorCode ? "failed" : "unknown"),
+			last_attempted_at: source.lastAttemptedAt ?? now,
+			last_error_code: source.lastErrorCode ?? null,
+			indexed_at: now,
+			updated_at: now,
+		};
+	}
+
+	private attemptedSourceUpdateSet(
+		source: MediaUsageSourceInput,
+		row: ReturnType<MediaUsageRepository["buildAttemptedSourceRow"]>,
+	): Updateable<MediaUsageSourceTable> {
+		const updates: Updateable<MediaUsageSourceTable> = {
+			source_type: row.source_type,
+			source_variant: row.source_variant,
+			source_completeness: row.source_completeness,
+			last_attempted_at: row.last_attempted_at,
+			last_error_code: row.last_error_code,
+			updated_at: row.updated_at,
+		};
+
+		if (source.collectionSlug !== undefined) updates.collection_slug = row.collection_slug;
+		if (source.contentId !== undefined) updates.content_id = row.content_id;
+		if (source.locale !== undefined) updates.locale = row.locale;
+		if (source.translationGroup !== undefined) updates.translation_group = row.translation_group;
+		if (source.contentSlug !== undefined) updates.content_slug = row.content_slug;
+		if (source.contentTitle !== undefined) updates.content_title = row.content_title;
+		if (source.contentStatus !== undefined) updates.content_status = row.content_status;
+		if (source.contentScheduledAt !== undefined) {
+			updates.content_scheduled_at = row.content_scheduled_at;
+		}
+		if (source.contentDeletedAt !== undefined) updates.content_deleted_at = row.content_deleted_at;
+		if (source.revisionId !== undefined) updates.revision_id = row.revision_id;
+		if (source.schemaVersion !== undefined) updates.schema_version = row.schema_version;
+		if (source.sourceUpdatedAt !== undefined) updates.source_updated_at = row.source_updated_at;
+		if (source.sourceVersion !== undefined) updates.source_version = row.source_version;
+		if (source.sourceFingerprint !== undefined) {
+			updates.source_fingerprint = row.source_fingerprint;
+		}
+
+		return updates;
 	}
 
 	private sourceUpdateSet(
