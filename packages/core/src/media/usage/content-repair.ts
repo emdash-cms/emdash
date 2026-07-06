@@ -161,8 +161,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 			counts.failedSourceCount++;
 			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND;
 		} else if (!sameContentIds(repairedContentIds(scan.contentIds, counts), finalScan.contentIds)) {
-			counts.skippedSourceCount++;
-			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
+			markRepairConflict(counts);
 		}
 		const completedAt = new Date().toISOString();
 		const status = determineRepairStatus(counts);
@@ -260,14 +259,14 @@ async function repairContentSource(
 		fieldDiscovery,
 	);
 	if (!snapshotsResult.success) {
-		counts.lastErrorCode = snapshotsResult.error;
 		if (snapshotsResult.error === CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_NOT_FOUND) {
-			counts.skippedSourceCount++;
-			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
+			markRepairConflict(counts);
 			counts.missingContentIds.add(contentId);
 			return;
 		}
+		counts.lastErrorCode = snapshotsResult.error;
 		if (snapshotsResult.snapshots) {
+			// Partial snapshot failures keep absent variants in place; the attempted source is marked below.
 			await repairSnapshotSources(repo, snapshotsResult.snapshots, observedSources, counts);
 		}
 		if (snapshotsResult.source) {
@@ -282,8 +281,7 @@ async function repairContentSource(
 			if (result.attempted) {
 				counts.failedSourceCount++;
 			} else {
-				counts.skippedSourceCount++;
-				counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
+				markRepairConflict(counts);
 			}
 			return;
 		}
@@ -324,11 +322,15 @@ async function repairSnapshotSources(
 		if (result.replaced) {
 			counts.indexedSourceCount++;
 		} else {
-			counts.skippedSourceCount++;
-			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
+			markRepairConflict(counts);
 		}
 	}
 	return expectedSourceKeys;
+}
+
+function markRepairConflict(counts: RepairCounts): void {
+	counts.skippedSourceCount++;
+	counts.lastErrorCode ??= CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
 }
 
 async function reconcileOrphanedContentSources(
@@ -398,8 +400,7 @@ async function deleteObservedSourceIfContentAbsent(
 	}
 	if (result.contentPresent) return;
 	if (result.source) {
-		counts.skippedSourceCount++;
-		counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
+		markRepairConflict(counts);
 	}
 }
 
@@ -415,8 +416,7 @@ async function deleteObservedSource(
 		return;
 	}
 	if (result.source) {
-		counts.skippedSourceCount++;
-		counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT;
+		markRepairConflict(counts);
 	}
 }
 
