@@ -330,6 +330,11 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 				success: false,
 				error: "DRAFT_REVISION_MISMATCH",
 				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
+				snapshots: [
+					expect.objectContaining({
+						source: expect.objectContaining({ sourceVariant: "columns" }),
+					}),
+				],
 			}),
 		);
 	});
@@ -354,6 +359,11 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 				success: false,
 				error: "DRAFT_REVISION_INVALID",
 				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
+				snapshots: [
+					expect.objectContaining({
+						source: expect.objectContaining({ sourceVariant: "columns" }),
+					}),
+				],
 			}),
 		);
 		expect(result.source).not.toHaveProperty("sourceFingerprint");
