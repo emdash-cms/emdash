@@ -22,6 +22,7 @@ import {
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
 import { enrichImageMetadata } from "../media/enrich.js";
+import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
@@ -294,90 +295,118 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 
 		async create(collection: string, data: ContentWriteInput): Promise<ContentItem> {
 			const { fields, seo } = splitSeoFromInput(data);
+			let contentMutated = false;
 
-			return withTransaction(db, async (trx) => {
-				const trxContentRepo = new ContentRepository(trx);
-				const trxSeoRepo = new SeoRepository(trx);
+			try {
+				const created = await withTransaction(db, async (trx) => {
+					const trxContentRepo = new ContentRepository(trx);
+					const trxSeoRepo = new SeoRepository(trx);
 
-				const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
+					const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
 
-				const item = await trxContentRepo.create({
-					type: collection,
-					data: fields,
+					const item = await trxContentRepo.create({
+						type: collection,
+						data: fields,
+					});
+					contentMutated = true;
+
+					const result: ContentItem = {
+						id: item.id,
+						type: item.type,
+						slug: item.slug,
+						status: item.status,
+						data: item.data,
+						createdAt: item.createdAt,
+						updatedAt: item.updatedAt,
+						locale: item.locale,
+						publishedAt: item.publishedAt,
+					};
+
+					if (hasSeo) {
+						result.seo =
+							seo !== undefined
+								? await trxSeoRepo.upsert(collection, item.id, seo)
+								: await trxSeoRepo.get(collection, item.id);
+					}
+
+					return result;
 				});
-
-				const result: ContentItem = {
-					id: item.id,
-					type: item.type,
-					slug: item.slug,
-					status: item.status,
-					data: item.data,
-					createdAt: item.createdAt,
-					updatedAt: item.updatedAt,
-					locale: item.locale,
-					publishedAt: item.publishedAt,
-				};
-
-				if (hasSeo) {
-					result.seo =
-						seo !== undefined
-							? await trxSeoRepo.upsert(collection, item.id, seo)
-							: await trxSeoRepo.get(collection, item.id);
+				await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+				return created;
+			} catch (error) {
+				if (contentMutated) {
+					await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
 				}
-
-				return result;
-			});
+				throw error;
+			}
 		},
 
 		async update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem> {
 			const { fields, seo } = splitSeoFromInput(data);
+			const hasFieldUpdates = Object.keys(fields).length > 0;
+			let contentMutated = false;
 
-			return withTransaction(db, async (trx) => {
-				const trxContentRepo = new ContentRepository(trx);
-				const trxSeoRepo = new SeoRepository(trx);
+			try {
+				const updated = await withTransaction(db, async (trx) => {
+					const trxContentRepo = new ContentRepository(trx);
+					const trxSeoRepo = new SeoRepository(trx);
 
-				const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
+					const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
 
-				// Pass the `data` payload to ContentRepository.update only when
-				// there are field updates — passing an empty object would still
-				// bump updated_at/version, but we want a seo-only call to touch
-				// only the SEO table. ContentRepository.update handles the no-op
-				// path by returning the current row.
-				const hasFieldUpdates = Object.keys(fields).length > 0;
-				const item = hasFieldUpdates
-					? await trxContentRepo.update(collection, id, { data: fields })
-					: await (async () => {
-							const existing = await trxContentRepo.findById(collection, id);
-							if (!existing) throw new Error("Content not found");
-							return existing;
-						})();
+					// Pass the `data` payload to ContentRepository.update only when
+					// there are field updates — passing an empty object would still
+					// bump updated_at/version, but we want a seo-only call to touch
+					// only the SEO table. ContentRepository.update handles the no-op
+					// path by returning the current row.
+					const item = hasFieldUpdates
+						? await trxContentRepo.update(collection, id, { data: fields })
+						: await (async () => {
+								const existing = await trxContentRepo.findById(collection, id);
+								if (!existing) throw new Error("Content not found");
+								return existing;
+							})();
+					if (hasFieldUpdates) contentMutated = true;
 
-				const result: ContentItem = {
-					id: item.id,
-					type: item.type,
-					slug: item.slug,
-					status: item.status,
-					data: item.data,
-					createdAt: item.createdAt,
-					updatedAt: item.updatedAt,
-					locale: item.locale,
-					publishedAt: item.publishedAt,
-				};
+					const result: ContentItem = {
+						id: item.id,
+						type: item.type,
+						slug: item.slug,
+						status: item.status,
+						data: item.data,
+						createdAt: item.createdAt,
+						updatedAt: item.updatedAt,
+						locale: item.locale,
+						publishedAt: item.publishedAt,
+					};
 
-				if (hasSeo) {
-					result.seo =
-						seo !== undefined
-							? await trxSeoRepo.upsert(collection, item.id, seo)
-							: await trxSeoRepo.get(collection, item.id);
+					if (hasSeo) {
+						result.seo =
+							seo !== undefined
+								? await trxSeoRepo.upsert(collection, item.id, seo)
+								: await trxSeoRepo.get(collection, item.id);
+					}
+
+					return result;
+				});
+				if (hasFieldUpdates) {
+					await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
 				}
-
-				return result;
-			});
+				return updated;
+			} catch (error) {
+				if (contentMutated) {
+					await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+				}
+				throw error;
+			}
 		},
 
 		async delete(collection: string, id: string): Promise<boolean> {
 			const contentRepo = new ContentRepository(db);
-			return contentRepo.delete(collection, id);
+			const deleted = await contentRepo.delete(collection, id);
+			if (deleted) {
+				await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+			}
+			return deleted;
 		},
 	};
 }

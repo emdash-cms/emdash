@@ -76,6 +76,12 @@ export interface MediaUsageSourceTable {
 	revision_id: string | null;
 	current_generation: string;
 	schema_version: Generated<number>;
+	source_updated_at: Generated<string | null>;
+	source_version: Generated<number | null>;
+	source_fingerprint: Generated<string | null>;
+	source_completeness: Generated<string>;
+	last_attempted_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
 	indexed_at: Generated<string>;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
@@ -95,6 +101,21 @@ export interface MediaUsageTable {
 	media_kind: string | null;
 	mime_type: string | null;
 	created_at: Generated<string>;
+}
+
+export interface MediaUsageIndexStatusTable {
+	adapter_id: string;
+	scope_type: string;
+	scope_key: string;
+	status: string;
+	schema_version: Generated<number>;
+	started_at: Generated<string | null>;
+	completed_at: Generated<string | null>;
+	cursor: Generated<string | null>;
+	indexed_source_count: Generated<number>;
+	failed_source_count: Generated<number>;
+	last_error_code: Generated<string | null>;
+	updated_at: Generated<string>;
 }
 
 export interface UserTable {
@@ -453,6 +474,7 @@ export interface Database {
 	media: MediaTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
+	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;
 	users: UserTable;
 	credentials: CredentialTable;
 	auth_tokens: AuthTokenTable;

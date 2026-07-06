@@ -31,6 +31,12 @@ import type {
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
+import {
+	deleteContentMediaUsage,
+	findNonTranslatableSiblingContentIds,
+	markContentMediaUsageCollectionStale,
+	refreshContentMediaUsageAfterWrite,
+} from "./media/usage/content-refresh.js";
 import type { SandboxedPluginInstance, SandboxRunner } from "./plugins/sandbox/types.js";
 import type {
 	ResolvedPlugin,
@@ -2570,6 +2576,9 @@ export class EmDashRuntime {
 			authorId: body.authorId,
 			bylines: body.bylines,
 		});
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterSave hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2664,6 +2673,7 @@ export class EmDashRuntime {
 		// Content table columns = published data (never written by saves).
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
+		let draftStorageChanged = false;
 		if (processedData) {
 			try {
 				const collectionInfo = await this.schemaRegistry.getCollectionWithFields(collection);
@@ -2693,6 +2703,7 @@ export class EmDashRuntime {
 						if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
 							// Autosave: update existing draft revision in place
 							await revisionRepo.updateData(existing.draftRevisionId, mergedData);
+							draftStorageChanged = true;
 						} else {
 							// Create new draft revision
 							const revision = await revisionRepo.create({
@@ -2711,6 +2722,7 @@ export class EmDashRuntime {
 									updated_at = ${new Date().toISOString()}
 								WHERE id = ${resolvedId}
 							`.execute(this.db);
+							draftStorageChanged = true;
 
 							// Fire-and-forget: prune old revisions to prevent unbounded growth
 							void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
@@ -2738,6 +2750,43 @@ export class EmDashRuntime {
 		// supporting collections, that's the just-saved draft, not the live
 		// columns.
 		const hydrated = await this.hydrateDraftData(result);
+		if (hydrated.success && hydrated.data) {
+			const contentIdsToRefresh = [resolvedId];
+			if (!usesDraftRevisions && processedData) {
+				try {
+					contentIdsToRefresh.push(
+						...(await findNonTranslatableSiblingContentIds(
+							this.db,
+							collection,
+							resolvedId,
+							hydrated.data.item.translationGroup,
+							processedData,
+						)),
+					);
+				} catch (error) {
+					console.error(
+						`[media-usage] Failed to discover synced i18n siblings for ${collection}/${resolvedId}:`,
+						error,
+					);
+					try {
+						await markContentMediaUsageCollectionStale(
+							this.db,
+							collection,
+							"CONTENT_USAGE_REFRESH_ERROR",
+						);
+					} catch (staleError) {
+						console.error(`[media-usage] Failed to mark ${collection} stale:`, staleError);
+					}
+				}
+			}
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, contentIdsToRefresh);
+		} else if (draftStorageChanged) {
+			try {
+				await markContentMediaUsageCollectionStale(this.db, collection, "CONTENT_USAGE_STALE");
+			} catch (error) {
+				console.error(`[media-usage] Failed to mark ${collection} stale:`, error);
+			}
+		}
 
 		// Run afterSave hooks (fire-and-forget)
 		if (hydrated.success && hydrated.data) {
@@ -2776,6 +2825,9 @@ export class EmDashRuntime {
 
 		// Delete the content
 		const result = await handleContentDelete(this.db, collection, id);
+		if (result.success) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.id]);
+		}
 
 		// Run afterDelete hooks (fire-and-forget)
 		if (result.success) {
@@ -2798,6 +2850,9 @@ export class EmDashRuntime {
 
 	async handleContentRestore(collection: string, id: string) {
 		const result = await handleContentRestore(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterRestore hooks (fire-and-forget)
 		if (result.success) {
@@ -2809,6 +2864,9 @@ export class EmDashRuntime {
 
 	async handleContentPermanentDelete(collection: string, id: string) {
 		const result = await handleContentPermanentDelete(this.db, collection, id);
+		if (result.success) {
+			await this.deleteContentUsageAfterSuccessfulPermanentDelete(collection, result.data.id);
+		}
 
 		// Run afterDelete hooks so plugins (e.g. AI Search) can clean up
 		if (result.success) {
@@ -2823,7 +2881,11 @@ export class EmDashRuntime {
 	}
 
 	async handleContentDuplicate(collection: string, id: string, authorId?: string) {
-		return handleContentDuplicate(this.db, collection, id, authorId);
+		const result = await handleContentDuplicate(this.db, collection, id, authorId);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+		return result;
 	}
 
 	// =========================================================================
@@ -2836,6 +2898,9 @@ export class EmDashRuntime {
 		options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterPublish hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2847,6 +2912,9 @@ export class EmDashRuntime {
 
 	async handleContentUnpublish(collection: string, id: string) {
 		const result = await handleContentUnpublish(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterUnpublish hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2858,6 +2926,9 @@ export class EmDashRuntime {
 
 	async handleContentSchedule(collection: string, id: string, scheduledAt: string) {
 		const result = await handleContentSchedule(this.db, collection, id, scheduledAt);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterSchedule hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2869,6 +2940,9 @@ export class EmDashRuntime {
 
 	async handleContentUnschedule(collection: string, id: string) {
 		const result = await handleContentUnschedule(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterUnschedule hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2883,7 +2957,11 @@ export class EmDashRuntime {
 	}
 
 	async handleContentDiscardDraft(collection: string, id: string) {
-		return handleContentDiscardDraft(this.db, collection, id);
+		const result = await handleContentDiscardDraft(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+		return result;
 	}
 
 	async handleContentCompare(collection: string, id: string) {
@@ -3025,6 +3103,9 @@ export class EmDashRuntime {
 		// behavior for collections that opt out of the draft model.
 		if (!usesDraftRevisions) {
 			const result = await handleRevisionRestore(this.db, revisionId, callerUserId);
+			if (result.success) {
+				await this.refreshContentUsageAfterSuccessfulWrite(revision.collection, [revision.entryId]);
+			}
 			return this.hydrateDraftData(result);
 		}
 
@@ -3060,7 +3141,11 @@ export class EmDashRuntime {
 			// columns and the next `content_get` would surface different
 			// values (the bug that motivated this rewrite).
 			const refetched = await handleContentGet(this.db, revision.collection, revision.entryId);
-			return this.hydrateDraftData(refetched);
+			const hydrated = await this.hydrateDraftData(refetched);
+			if (hydrated.success) {
+				await this.refreshContentUsageAfterSuccessfulWrite(revision.collection, [revision.entryId]);
+			}
+			return hydrated;
 		} catch (error) {
 			console.error("[emdash] revision restore failed:", error);
 			return {
@@ -3070,6 +3155,41 @@ export class EmDashRuntime {
 					message: "Failed to restore revision",
 				},
 			};
+		}
+	}
+
+	private async refreshContentUsageAfterSuccessfulWrite(
+		collection: string,
+		contentIds: readonly string[],
+	): Promise<void> {
+		for (const contentId of new Set(contentIds)) {
+			try {
+				await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
+			} catch (error) {
+				console.error(
+					`[media-usage] Failed after content write ${collection}/${contentId}:`,
+					error,
+				);
+			}
+		}
+	}
+
+	private async deleteContentUsageAfterSuccessfulPermanentDelete(
+		collection: string,
+		contentId: string,
+	): Promise<void> {
+		try {
+			const result = await deleteContentMediaUsage(this.db, collection, contentId);
+			if (!result.success) {
+				console.error(
+					`[media-usage] Usage delete for ${collection}/${contentId} finished with ${result.errorCode}`,
+				);
+			}
+		} catch (error) {
+			console.error(
+				`[media-usage] Failed after permanent content delete ${collection}/${contentId}:`,
+				error,
+			);
 		}
 	}
 
