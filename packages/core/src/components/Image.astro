@@ -175,6 +175,8 @@ if (placeholder && blurhash) {
 				width={renderWidth}
 				height={renderHeight}
 				layout="constrained"
+				loading="lazy"
+				decoding="async"
 				style={placeholderStyle || undefined}
 			/>
 		) : (

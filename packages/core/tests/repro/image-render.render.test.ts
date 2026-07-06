@@ -236,6 +236,26 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "alt")).toBe("CDN photo");
 		expect(attr(tag, "width")).toBe("640");
 		expect(attr(tag, "height")).toBe("360");
+		expect(attr(tag, "class")).toContain("emdash-image-media");
+	});
+
+	test("public EmDashImage uses Astro Image for same-origin local media", async () => {
+		const html = await renderEmDashImage({
+			image: {
+				id: "01CUSTOM",
+				src: "/media/custom.jpg",
+				alt: "Custom local media",
+				width: 640,
+				height: 360,
+			},
+		});
+		const tag = imgTag(html);
+
+		expect(attr(tag, "src")).toContain("/media/custom.jpg");
+		expect(attr(tag, "data-astro-image")).toBe("constrained");
+		expect(attr(tag, "srcset")).toBeTruthy();
+		expect(attr(tag, "loading")).toBe("lazy");
+		expect(attr(tag, "decoding")).toBe("async");
 	});
 
 	test("public EmDashImage preserves priority and passthrough attrs", async () => {

@@ -47,7 +47,16 @@ interface Props extends Omit<
 	placeholder?: boolean;
 }
 
-const { image, alt, width, height, priority, placeholder = true, ...attrs } = Astro.props;
+const {
+	image,
+	alt,
+	width,
+	height,
+	priority,
+	placeholder = true,
+	class: className,
+	...attrs
+} = Astro.props;
 
 // Normalize string URLs to object form
 function normalizeImage(
@@ -107,11 +116,13 @@ if (img) {
 
 	if (providerId === "local" || img.src) {
 		src = img.src || buildLocalImageUrl(img);
-		if (finalWidth && finalHeight && src.startsWith("/_emdash/api/media/file/")) {
-			astroImageSrc = toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config));
+		const publicOrigin = getPublicOrigin(Astro.url, Astro.locals.emdash?.config);
+		const absoluteSrc = toAbsoluteMediaUrl(src, publicOrigin);
+		if (finalWidth && finalHeight && absoluteSrc.startsWith(`${publicOrigin}/`)) {
+			astroImageSrc = absoluteSrc;
 		} else {
 			const optimized = await buildResponsiveImage(getImage, {
-				src: toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config)),
+				src: absoluteSrc,
 				width: finalWidth,
 				height: finalHeight,
 			});
@@ -187,6 +198,7 @@ const imgProps: Record<string, unknown> = {
 	fetchpriority: priority ? "high" : undefined,
 	decoding: "async",
 	style: placeholderStyle || undefined,
+	class: ["emdash-image-media", className].filter(Boolean).join(" "),
 	...attrs,
 };
 ---
@@ -200,6 +212,9 @@ const imgProps: Record<string, unknown> = {
 			height={finalHeight}
 			priority={priority}
 			layout="constrained"
+			loading={priority ? "eager" : "lazy"}
+			decoding="async"
+			class={className}
 			style={placeholderStyle || undefined}
 			{...attrs}
 		/>
@@ -207,3 +222,10 @@ const imgProps: Record<string, unknown> = {
 		<img {...imgProps} />
 	) : null
 }
+
+<style>
+	.emdash-image-media {
+		max-width: 100%;
+		height: auto;
+	}
+</style>
