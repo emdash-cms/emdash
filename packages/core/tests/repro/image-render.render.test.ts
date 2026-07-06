@@ -30,8 +30,9 @@ const testMediaProviders = [
 	},
 ];
 
-(globalThis as typeof globalThis & { __emdashTestMediaProviders?: typeof testMediaProviders }).__emdashTestMediaProviders =
-	testMediaProviders;
+(
+	globalThis as typeof globalThis & { __emdashTestMediaProviders?: typeof testMediaProviders }
+).__emdashTestMediaProviders = testMediaProviders;
 
 const node = {
 	_type: "image",
@@ -56,10 +57,14 @@ const attr = (tag: string, name: string) =>
 	tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1]?.replaceAll("&amp;", "&");
 const compact = (html: string) => html.replace(/\s+/g, " ").trim();
 
-async function renderImage(renderNode: Record<string, unknown>, renderLocals: typeof locals | undefined = locals) {
+async function renderImage(
+	renderNode: Record<string, unknown>,
+	renderLocals: typeof locals | undefined = locals,
+	placeholder = true,
+) {
 	const c = await AstroContainer.create();
 	return c.renderToString(Image, {
-		props: { node: renderNode },
+		props: { node: renderNode, placeholder },
 		...(renderLocals ? { locals: renderLocals } : {}),
 	});
 }
@@ -111,13 +116,15 @@ describe("faithful render of migrated image node", () => {
 		});
 		const tag = imgTag(html);
 
-		expect(compact(html)).toContain("<figure class=\"emdash-image emdash-image--align-center\"");
+		expect(compact(html)).toContain('<figure class="emdash-image emdash-image--align-center"');
 		expect(attr(tag, "src")).toContain("/_emdash/api/media/file/01KTRTJ55S65SADEH9P9TSY89H.png");
 		expect(attr(tag, "alt")).toBe("Migrated image");
 		expect(attr(tag, "width")).toBe("600");
 		expect(attr(tag, "height")).toBe("400");
 		expect(attr(tag, "loading")).toBe("lazy");
 		expect(attr(tag, "decoding")).toBe("async");
+		expect(attr(tag, "data-astro-image")).toBe("constrained");
+		expect(attr(tag, "srcset")).toBeTruthy();
 		expect(html).toContain("<figcaption");
 		expect(html).toContain("A caption");
 	});
@@ -132,7 +139,7 @@ describe("faithful render of migrated image node", () => {
 			displayHeight: undefined,
 		});
 
-		expect(attr(imgTag(html), "src")).toBe("/_emdash/api/media/file/01LOCALONLY");
+		expect(attr(imgTag(html), "src")).toContain("/_emdash/api/media/file/01LOCALONLY");
 	});
 
 	test("unknown dimensions still render without forcing Astro to infer remote size", async () => {
@@ -171,6 +178,19 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(imgTag(html), "style")).toContain("background-color: #102030");
 	});
 
+	test("LQIP inline background can be disabled for strict CSP", async () => {
+		const html = await renderImage(
+			{
+				...node,
+				dominantColor: "rgb(10, 20, 30)",
+			},
+			locals,
+			false,
+		);
+
+		expect(attr(imgTag(html), "style")).toBeUndefined();
+	});
+
 	test("external providers keep provider-generated responsive URLs", async () => {
 		const html = await renderImage({
 			...node,
@@ -200,7 +220,7 @@ describe("faithful render of migrated image node", () => {
 			},
 		});
 
-		expect(attr(imgTag(html), "src")).toBe("/_emdash/api/media/file/missing-provider-image");
+		expect(attr(imgTag(html), "src")).toContain("/_emdash/api/media/file/missing-provider-image");
 	});
 
 	test("public EmDashImage preserves string URL fallback", async () => {
@@ -233,7 +253,7 @@ describe("faithful render of migrated image node", () => {
 		});
 		const tag = imgTag(html);
 
-		expect(attr(tag, "src")).toBe("/_emdash/api/media/file/01MEDIA.jpg");
+		expect(attr(tag, "src")).toContain("/_emdash/api/media/file/01MEDIA.jpg");
 		expect(attr(tag, "loading")).toBe("eager");
 		expect(attr(tag, "fetchpriority")).toBe("high");
 		expect(attr(tag, "class")).toBe("hero-image");
