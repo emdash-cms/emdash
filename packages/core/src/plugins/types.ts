@@ -725,12 +725,28 @@ export interface ContentDeleteEvent {
 }
 
 /**
- * Content publish state change hook event (fired after publish or unpublish)
+ * Content state-change hook event (fired after publish, unpublish, restore,
+ * schedule, or unschedule).
  */
-export interface ContentPublishStateChangeEvent {
+export interface ContentStateChangeEvent {
 	content: Record<string, unknown>;
 	collection: string;
 }
+
+/**
+ * Content publish/unpublish hook event.
+ */
+export type ContentPublishStateChangeEvent = ContentStateChangeEvent;
+
+/**
+ * Content restore hook event.
+ */
+export type ContentRestoreStateChangeEvent = ContentStateChangeEvent;
+
+/**
+ * Content schedule/unschedule hook event.
+ */
+export type ContentScheduleStateChangeEvent = ContentStateChangeEvent;
 
 /**
  * Media hook event
@@ -792,7 +808,17 @@ export type ContentAfterUnpublishHandler = (
 ) => Promise<void>;
 
 export type ContentAfterRestoreHandler = (
-	event: ContentPublishStateChangeEvent,
+	event: ContentRestoreStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterScheduleHandler = (
+	event: ContentScheduleStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterUnscheduleHandler = (
+	event: ContentScheduleStateChangeEvent,
 	ctx: PluginContext,
 ) => Promise<void>;
 
@@ -982,6 +1008,10 @@ export interface PluginHooks {
 		| HookConfig<ContentAfterUnpublishHandler>
 		| ContentAfterUnpublishHandler;
 	"content:afterRestore"?: HookConfig<ContentAfterRestoreHandler> | ContentAfterRestoreHandler;
+	"content:afterSchedule"?: HookConfig<ContentAfterScheduleHandler> | ContentAfterScheduleHandler;
+	"content:afterUnschedule"?:
+		| HookConfig<ContentAfterUnscheduleHandler>
+		| ContentAfterUnscheduleHandler;
 
 	// Media hooks
 	"media:beforeUpload"?: HookConfig<MediaBeforeUploadHandler> | MediaBeforeUploadHandler;
@@ -1302,6 +1332,8 @@ export interface ResolvedPluginHooks {
 	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
 	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
 	"content:afterRestore"?: ResolvedHook<ContentAfterRestoreHandler>;
+	"content:afterSchedule"?: ResolvedHook<ContentAfterScheduleHandler>;
+	"content:afterUnschedule"?: ResolvedHook<ContentAfterUnscheduleHandler>;
 	"media:beforeUpload"?: ResolvedHook<MediaBeforeUploadHandler>;
 	"media:afterUpload"?: ResolvedHook<MediaAfterUploadHandler>;
 	cron?: ResolvedHook<CronHandler>;

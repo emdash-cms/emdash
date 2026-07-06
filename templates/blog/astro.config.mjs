@@ -29,7 +29,7 @@ export default defineConfig({
 		{
 			provider: fontProviders.google(),
 			name: "Inter",
-			cssVariable: "--font-sans",
+			cssVariable: "--font-body",
 			weights: [400, 500, 600, 700],
 			fallbacks: ["sans-serif"],
 		},

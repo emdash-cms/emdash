@@ -88,37 +88,43 @@ Constraints worth remembering:
 
 ## Visual character
 
-Typography is **Inter** on `--font-sans` with weights up to 800 for headline emphasis. There is no mono font, no serif. Headline tracking is tight.
+Typography is **Inter** on `--font-body` with weights up to 800 for headline emphasis (`--font-weight-display: 800` on hero and section headlines, `--font-weight-heading: 700` on other headings). There is no mono font, no serif. Headline tracking is tight (`--tracking-tight`).
 
 Colour is the loudest of any template here. The default palette is:
 
-- `--color-primary: #6366f1` (indigo) -- main brand colour, used in buttons and links
-- `--color-accent: #f472b6` (pink) -- paired with primary in gradients (CTA buttons, icon backgrounds)
-- `--color-success`, `--color-warning` -- semantic colours for inline icons (pricing checkmarks)
+- `--color-brand: #6366f1` (indigo) -- main brand colour, used in buttons and links, with `--color-brand-strong` / `--color-brand-soft` shades
+- `--color-accent: #f472b6` (pink) -- the gradient partner to brand
+- `--color-success`, `--color-warning`, `--color-danger` -- semantic colours (pricing checkmarks, form errors)
 
-Gradients are part of the look (`--color-primary` -> `--color-accent` on the "Get Started" button, on contact-method icons, on the "Most popular" pricing badge). Don't strip them entirely -- the template will look generic without them. Do swap them for a different pair if the brand calls for it.
+Gradients are part of the look and are tokens themselves: `--gradient-brand` (logo, icon tiles, pricing badge, CTA hover), `--gradient-brand-strong` (CTA resting state), `--gradient-brand-soft` (hero image glow), and `--gradient-headline` (hero headline text fill). They follow the brand/accent colours automatically, so a rebrand usually only needs new `--color-brand-*` / `--color-accent-*` values. Don't strip the gradients entirely -- the template will look generic without them -- but a flat brand can set the `--gradient-*` tokens to solid colours.
+
+Shared utility classes keep the blocks consistent: `.section-header` / `.section-headline` / `.section-subheadline` for centred block intros, and `.icon-tile` for the 48px gradient icon squares. Use them in new blocks rather than restyling per block.
 
 Roundness is generous: `--radius` is 10px, `--radius-lg` 16px, plus a `--radius-full` for pills. Shadows are layered (`--shadow-sm` through `--shadow-xl`).
 
 ## Customisation
 
-`src/styles/theme.css` is the only file to edit for visual changes. Every CSS variable from `Base.astro` is listed there as a commented default. The dark mode palette is defined inside `Base.astro`; light-mode overrides in `theme.css` won't affect dark mode. To customise dark mode, add `@media (prefers-color-scheme: dark)` and `:root.dark` rules in `theme.css`.
+Design tokens live in `src/styles/tokens.css` with their default values. To restyle the site, override tokens in `src/styles/theme.css` -- declarations there are unlayered, so they always beat the `@layer base` defaults. Don't edit `tokens.css` or `Base.astro` for visual changes.
 
-Fonts are configured in `astro.config.mjs` under `fonts:`. To swap the typeface, change the `name:` for the entry bound to `cssVariable: "--font-sans"`. Inter has 5 weights loaded (400-800) for hero impact -- if you swap, ensure the replacement has comparable weight range. Geist, Plus Jakarta Sans, Manrope, and DM Sans all work well as replacements.
+Colours are defined with `light-dark(<light>, <dark>)`, so each token carries both modes. Overriding with a plain colour changes light and dark at once; use `light-dark()` in the override to keep them distinct. There is no separate dark palette to maintain.
 
-CSS variables worth knowing:
+Webfonts are configured in `astro.config.mjs` under `fonts:`. To swap the typeface, change the `name:` for the entry bound to `cssVariable: "--font-body"`. Inter has 5 weights loaded (400-800) for hero impact -- if you swap, ensure the replacement has comparable weight range. Geist, Plus Jakarta Sans, Manrope, and DM Sans all work well as replacements. For a system font, or a separate heading face, override `--font-body` / `--font-heading` in `theme.css`. A softer voice (editorial, luxury) usually also wants `--font-weight-display: 700` or lower.
 
-- `--color-primary`, `--color-primary-dark`, `--color-primary-light`
-- `--color-accent`, `--color-accent-light`
+CSS variables worth knowing (see `tokens.css` for the full list):
+
+- `--color-brand`, `--color-brand-strong`, `--color-brand-soft`, `--color-on-brand`, `--color-brand-ring`
+- `--color-accent`, `--color-accent-soft`
+- `--gradient-brand`, `--gradient-brand-strong`, `--gradient-brand-soft`, `--gradient-headline`
 - `--color-bg`, `--color-surface`, `--color-text`, `--color-muted`, `--color-border`
-- `--font-sans`
+- `--color-success`, `--color-warning`, `--color-danger`
+- `--font-body`, `--font-heading`, `--font-weight-heading` (700), `--font-weight-display` (800)
 - `--font-size-{xs,sm,base,lg,xl,2xl,3xl,4xl,5xl,6xl}` -- type scale up to 4.5rem for the largest hero
 - `--radius-sm` (6px), `--radius` (10px), `--radius-lg` (16px), `--radius-full`
 - `--shadow-sm`, `--shadow`, `--shadow-lg`, `--shadow-xl`
 
 To re-brand, the highest-leverage moves are:
 
-1. Change `--color-primary` and `--color-accent` to the brand pair.
+1. Change `--color-brand` (and its `-strong` / `-soft` shades) and `--color-accent` to the brand pair -- the gradients follow.
 2. Update the site title (logo wordmark) and tagline.
 3. Replace the hero illustration URL.
 4. Edit hero `headline` and `subheadline` blocks to specific, concrete copy.

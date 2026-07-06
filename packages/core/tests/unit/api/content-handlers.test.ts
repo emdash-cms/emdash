@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import {
@@ -6,9 +6,11 @@ import {
 	handleContentDuplicate,
 	handleContentGet,
 	handleContentList,
+	handleContentPublish,
 	handleContentUpdate,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
@@ -688,5 +690,103 @@ describe("Content Handlers — list total", () => {
 		expect(result.success).toBe(true);
 		expect(result.data?.items).toHaveLength(2);
 		expect(result.data?.total).toBe(8);
+	});
+});
+
+describe("Content Handlers — slug-change auto-redirect on publish", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	/**
+	 * Stage a slug change the way the runtime does for revision-supporting
+	 * collections: write `_slug` into a draft revision and point the entry's
+	 * `draft_revision_id` at it, leaving the live `slug` column untouched.
+	 */
+	async function stageDraftSlugChange(
+		collection: string,
+		entryId: string,
+		data: Record<string, unknown>,
+		newSlug: string,
+	): Promise<void> {
+		const revisionRepo = new RevisionRepository(db);
+		const revision = await revisionRepo.create({
+			collection,
+			entryId,
+			data: { ...data, _slug: newSlug },
+		});
+		await sql`
+			UPDATE ${sql.ref(`ec_${collection}`)}
+			SET draft_revision_id = ${revision.id}
+			WHERE id = ${entryId}
+		`.execute(db);
+	}
+
+	it("creates a 301 from the old URL when publishing a staged slug change", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Hello" },
+			slug: "hello",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Hello" }, "hello-world");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBe("hello-world");
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(1);
+		expect(redirects[0]).toMatchObject({
+			source: "/post/hello",
+			destination: "/post/hello-world",
+			type: 301,
+			auto: 1,
+		});
+	});
+
+	it("does not create a redirect on first publish (draft URL was never live)", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Fresh" },
+			slug: "fresh-draft",
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Fresh" }, "fresh-final");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBe("fresh-final");
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(0);
+	});
+
+	it("does not create a redirect when republishing without a slug change", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Stable" },
+			slug: "stable",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Stable (edited)" }, "stable");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(true);
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(0);
 	});
 });

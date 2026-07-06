@@ -66,6 +66,15 @@ export interface D1Config {
 	 *
 	 * Read replication must also be enabled on the D1 database itself
 	 * (via dashboard or REST API).
+	 *
+	 * **Warning:** incompatible with the `global_fetch_strictly_public`
+	 * compatibility flag. With that flag set, the internal request the D1
+	 * Sessions API makes to route queries to replicas is silently blocked
+	 * and every SSR request hangs until the Worker is killed — with no
+	 * error logged (`outcome: "canceled"`, empty `exceptions`). The hang
+	 * may only start once replicas finish provisioning, so it can pass an
+	 * initial post-deploy check. Remove the flag or keep sessions
+	 * disabled. See https://github.com/emdash-cms/emdash/issues/1273.
 	 */
 	session?: "disabled" | "auto" | "primary-first";
 

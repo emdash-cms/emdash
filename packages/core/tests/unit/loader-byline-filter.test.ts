@@ -153,6 +153,9 @@ describeEachDialect("Loader byline credit filter", (dialectName: DialectName) =>
 				name: "category",
 				slug: "news",
 				label: "News",
+				// content_taxonomies.taxonomy_id stores the term's translation_group
+				// (migration 036); single-locale terms seed translation_group = id.
+				translation_group: "tax_cat_news",
 			} as never)
 			.execute();
 
@@ -199,7 +202,13 @@ describeEachDialect("Loader byline credit filter", (dialectName: DialectName) =>
 	it("returns no entries when a taxonomy filter is an empty array", async () => {
 		await db
 			.insertInto("taxonomies" as never)
-			.values({ id: "tax_cat_news", name: "category", slug: "news", label: "News" } as never)
+			.values({
+				id: "tax_cat_news",
+				name: "category",
+				slug: "news",
+				label: "News",
+				translation_group: "tax_cat_news",
+			} as never)
 			.execute();
 		const post = await createPost("Anything");
 		await db

@@ -1974,19 +1974,55 @@ export {
 // Editor Footer with Writing Metrics
 // =============================================================================
 
+// Reading speed used for the footer metrics. CJK characters get a separate,
+// higher rate because they are denser than space-delimited words. These mirror
+// the published reading-time util (templates/blog/src/utils/reading-time.ts,
+// covered by packages/core/tests/unit/templates/blog-reading-time.test.ts) so
+// the editor footer and the rendered site report the same numbers.
+const WORDS_PER_MINUTE = 200;
+const CJK_CHARACTERS_PER_MINUTE = 500;
+const WHITESPACE_REGEX = /\s+/;
+
+// CJK scripts do not separate words with spaces, so a split()-based count treats
+// a whole paragraph as a single word. Count those characters individually.
+const CJK_CHARACTER_REGEX =
+	/\p{Script=Han}|\p{Script=Hangul}|\p{Script=Hiragana}|\p{Script=Katakana}/gu;
+
+function countCjkCharacters(text: string): number {
+	return text.match(CJK_CHARACTER_REGEX)?.length ?? 0;
+}
+
+function countNonCjkWords(text: string): number {
+	return text.replace(CJK_CHARACTER_REGEX, " ").split(WHITESPACE_REGEX).filter(Boolean).length;
+}
+
 /**
- * Calculate reading time in minutes based on word count
- * Uses a standard reading speed of 200 words per minute
+ * Word count for the editor footer. CJK characters are counted individually
+ * because they are not delimited by spaces; other scripts are counted by word.
+ * Used as the `wordCounter` for the CharacterCount extension, whose default
+ * (`text.split(' ')`) reports a spaceless CJK paragraph as a single word.
  */
-export function calculateReadingTime(words: number): number {
-	return Math.ceil(words / 200);
+export function countWords(text: string): number {
+	return countNonCjkWords(text) + countCjkCharacters(text);
+}
+
+/**
+ * Calculate reading time in minutes for the given text. Word-based scripts are
+ * read at WORDS_PER_MINUTE and CJK characters at CJK_CHARACTERS_PER_MINUTE.
+ * Returns 0 for an empty document.
+ */
+export function calculateReadingTime(text: string): number {
+	return Math.ceil(
+		countNonCjkWords(text) / WORDS_PER_MINUTE +
+			countCjkCharacters(text) / CJK_CHARACTERS_PER_MINUTE,
+	);
 }
 
 /**
  * Editor footer showing writing metrics (word count, character count, reading time)
  */
 function EditorFooter({ editor }: { editor: Editor }) {
-	const { words, characters } = useEditorState({
+	const { words, characters, text } = useEditorState({
 		editor,
 		selector: (ctx) => {
 			const storage: { words: () => number; characters: () => number } =
@@ -1994,11 +2030,12 @@ function EditorFooter({ editor }: { editor: Editor }) {
 			return {
 				words: storage.words(),
 				characters: storage.characters(),
+				text: ctx.editor.getText(),
 			};
 		},
 	});
 
-	const readingTime = calculateReadingTime(words);
+	const readingTime = calculateReadingTime(text);
 
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
@@ -2283,7 +2320,7 @@ export function PortableTextEditor({
 				onStateChange: setSlashMenuState,
 				getState: () => slashMenuStateRef.current,
 			}),
-			CharacterCount,
+			CharacterCount.configure({ wordCounter: countWords }),
 			Focus.configure({
 				className: "has-focus",
 				mode: "all",
