@@ -7,7 +7,11 @@ import type {
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { hashString } from "../../utils/hash.js";
-import { loadContentMediaUsageFields, type ContentMediaUsageField } from "./content-fields.js";
+import {
+	loadContentMediaUsageFields,
+	type ContentMediaUsageField,
+	type ContentMediaUsageFieldDiscovery,
+} from "./content-fields.js";
 import { extractMediaUsageOccurrences } from "./extractor.js";
 import {
 	buildContentMediaUsageSourceKey,
@@ -54,9 +58,10 @@ export async function loadContentMediaUsageSnapshots(
 	db: Kysely<Database>,
 	collectionSlug: string,
 	contentId: string,
+	fieldDiscovery?: ContentMediaUsageFieldDiscovery,
 ): Promise<LoadContentMediaUsageSnapshotsResult> {
 	validateIdentifier(collectionSlug, "collection slug");
-	const discovery = await loadContentMediaUsageFields(db, collectionSlug);
+	const discovery = fieldDiscovery ?? (await loadContentMediaUsageFields(db, collectionSlug));
 	const row = await loadContentRow(db, collectionSlug, contentId, [
 		...discovery.extractionFields.map((field) => field.slug),
 		...discovery.displayFieldSlugs,

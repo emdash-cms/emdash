@@ -247,8 +247,10 @@ export async function deleteContentMediaUsage(
 	contentId: string,
 ): Promise<ContentMediaUsageRefreshResult> {
 	validateIdentifier(collectionSlug, "collection slug");
-	return withContentUsageLock(collectionSlug, contentId, () =>
-		deleteContentMediaUsageUnlocked(db, collectionSlug, contentId),
+	return withContentUsageCollectionLock(collectionSlug, () =>
+		withContentUsageLock(collectionSlug, contentId, () =>
+			deleteContentMediaUsageUnlocked(db, collectionSlug, contentId),
+		),
 	);
 }
 
@@ -478,7 +480,7 @@ async function withContentUsageLock<T>(
 	}
 }
 
-async function withContentUsageCollectionLock<T>(
+export async function withContentUsageCollectionLock<T>(
 	collectionSlug: string,
 	fn: () => Promise<T>,
 ): Promise<T> {
