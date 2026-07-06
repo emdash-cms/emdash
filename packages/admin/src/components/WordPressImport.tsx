@@ -8,7 +8,8 @@ import {
 	Switch,
 	buttonVariants,
 } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Upload,
@@ -135,6 +136,7 @@ interface PostTypeSelection {
 type ImportAnalysis = WxrAnalysis | WpPluginAnalysis;
 
 export function WordPressImport() {
+	const { t } = useLingui();
 	const [step, setStep] = React.useState<ImportStep>("choose");
 	const [urlInput, setUrlInput] = React.useState("");
 	const [probeResult, setProbeResult] = React.useState<ProbeResult | null>(null);
@@ -161,7 +163,7 @@ export function WordPressImport() {
 	const [importMenus, setImportMenus] = React.useState(true);
 	const [importSiteTitle, setImportSiteTitle] = React.useState(true);
 	const [importLogo, setImportLogo] = React.useState(true);
-	const [importSeo, setImportSeo] = React.useState(false);
+	const [importSeo, setImportSeo] = React.useState(true);
 
 	// Author mapping state
 	const [authorMappings, setAuthorMappings] = React.useState<AuthorMapping[]>([]);
@@ -205,7 +207,7 @@ export function WordPressImport() {
 		const error = params.get("error");
 
 		if (error === "auth_rejected") {
-			setImportError("WordPress authorization was rejected");
+			setImportError(t`WordPress authorization was rejected`);
 			setStep("probe-result");
 			// Clean up URL
 			window.history.replaceState({}, "", window.location.pathname);
@@ -252,8 +254,6 @@ export function WordPressImport() {
 			window.history.replaceState({}, "", window.location.pathname);
 		}
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-	const { t } = useLingui();
 
 	// Probe mutation
 	const probeMutation = useMutation({
@@ -491,7 +491,7 @@ export function WordPressImport() {
 
 		// Check if we're on localhost - OAuth won't work, fall back to manual
 		if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-			setImportError("OAuth authorization requires HTTPS. Please use manual credentials.");
+			setImportError(t`OAuth authorization requires HTTPS. Please use manual credentials.`);
 			setStep("plugin-auth");
 			return;
 		}
@@ -547,6 +547,10 @@ export function WordPressImport() {
 			postTypeMappings: selections,
 			skipExisting: true,
 			authorMappings: authorMappingsRecord,
+			importMenus,
+			importSiteTitle,
+			importLogo,
+			importSeo,
 		};
 
 		if (importSource.type === "wxr") {
@@ -1037,7 +1041,7 @@ function ChooseStep({
 						<form onSubmit={handleKeySubmit} className="mt-4 flex gap-2">
 							<Input
 								type="text"
-								placeholder="em1.…"
+								placeholder={t`em1.…`}
 								value={keyInput}
 								onChange={(e) => {
 									setKeyInput(e.target.value);
@@ -1071,8 +1075,8 @@ function ChooseStep({
 			{/* URL input - primary path */}
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
-					<div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
-						<Globe className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+					<div className="p-3 rounded-full bg-kumo-brand/10">
+						<Globe className="h-6 w-6 text-kumo-brand" />
 					</div>
 					<div className="flex-1">
 						<h3 className="text-lg font-medium">{t`Enter your WordPress site URL`}</h3>
@@ -1082,7 +1086,7 @@ function ChooseStep({
 						<form onSubmit={onProbeUrl} className="mt-4 flex gap-2">
 							<Input
 								type="text"
-								placeholder="https://yoursite.com"
+								placeholder={t`https://yoursite.com`}
 								value={urlInput}
 								onChange={(e) => onUrlChange(e.target.value)}
 								className="flex-1"
@@ -1129,37 +1133,37 @@ function ChooseStep({
 // =============================================================================
 
 interface FeatureComparisonItem {
-	feature: string;
+	feature: MessageDescriptor;
 	wxr: "full" | "partial" | "none";
-	wxrNote?: string;
+	wxrNote?: MessageDescriptor;
 	plugin: "full" | "partial" | "none";
-	pluginNote?: string;
+	pluginNote?: MessageDescriptor;
 }
 
 const FEATURE_COMPARISON: FeatureComparisonItem[] = [
-	{ feature: "Posts & Pages", wxr: "full", plugin: "full" },
-	{ feature: "Media", wxr: "full", plugin: "full" },
-	{ feature: "Categories & Tags", wxr: "full", plugin: "full" },
-	{ feature: "Custom Taxonomies", wxr: "full", plugin: "full" },
-	{ feature: "Featured Images", wxr: "full", plugin: "full" },
-	{ feature: "Menus", wxr: "full", plugin: "full" },
+	{ feature: msg`Posts & Pages`, wxr: "full", plugin: "full" },
+	{ feature: msg`Media`, wxr: "full", plugin: "full" },
+	{ feature: msg`Categories & Tags`, wxr: "full", plugin: "full" },
+	{ feature: msg`Custom Taxonomies`, wxr: "full", plugin: "full" },
+	{ feature: msg`Featured Images`, wxr: "full", plugin: "full" },
+	{ feature: msg`Menus`, wxr: "full", plugin: "full" },
 	{
-		feature: "Site Settings",
+		feature: msg`Site Settings`,
 		wxr: "partial",
-		wxrNote: "Partial",
+		wxrNote: msg`Partial`,
 		plugin: "full",
-		pluginNote: "Full",
+		pluginNote: msg`Full`,
 	},
-	{ feature: "Widgets", wxr: "none", plugin: "full" },
-	{ feature: "ACF Fields", wxr: "none", plugin: "full" },
+	{ feature: msg`Widgets`, wxr: "none", plugin: "full" },
+	{ feature: msg`ACF Fields`, wxr: "none", plugin: "full" },
 	{
-		feature: "Yoast/RankMath",
+		feature: msg`Yoast/RankMath`,
 		wxr: "partial",
-		wxrNote: "Raw meta",
+		wxrNote: msg`Raw meta`,
 		plugin: "full",
-		pluginNote: "Structured",
+		pluginNote: msg`Structured`,
 	},
-	{ feature: "Drafts & Private", wxr: "full", plugin: "full" },
+	{ feature: msg`Drafts & Private`, wxr: "full", plugin: "full" },
 ];
 
 function FeatureComparison() {
@@ -1180,23 +1184,26 @@ function FeatureComparison() {
 					</thead>
 					<tbody className="divide-y divide-kumo-line">
 						{FEATURE_COMPARISON.map((item) => (
-							<tr key={item.feature}>
-								<td className="p-3 text-kumo-subtle">{item.feature}</td>
+							<tr key={item.feature.id}>
+								<td className="p-3 text-kumo-subtle">{t(item.feature)}</td>
 								<td className="p-3 text-center">
-									<FeatureStatus status={item.wxr} note={item.wxrNote} />
+									<FeatureStatus status={item.wxr} note={item.wxrNote && t(item.wxrNote)} />
 								</td>
 								<td className="p-3 text-center">
-									<FeatureStatus status={item.plugin} note={item.pluginNote} />
+									<FeatureStatus
+										status={item.plugin}
+										note={item.pluginNote && t(item.pluginNote)}
+									/>
 								</td>
 							</tr>
 						))}
 					</tbody>
 				</table>
 			</div>
-			<div className="border-t p-3 bg-blue-50 dark:bg-blue-900/20">
+			<div className="border-t p-3 bg-kumo-info-tint">
 				<div className="flex items-start gap-2 text-sm">
-					<Sparkle className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-					<p className="text-blue-800 dark:text-blue-200">
+					<Sparkle className="h-4 w-4 text-kumo-brand flex-shrink-0 mt-0.5" />
+					<p className="text-kumo-default">
 						{t`For the best import experience, install the`}{" "}
 						<span className="font-medium">{t`EmDash Exporter`}</span>{" "}
 						{t`plugin on your WordPress site.`}
@@ -1210,14 +1217,14 @@ function FeatureComparison() {
 function FeatureStatus({ status, note }: { status: "full" | "partial" | "none"; note?: string }) {
 	if (status === "full") {
 		return (
-			<span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+			<span className="inline-flex items-center gap-1 text-kumo-success">
 				<Check className="h-4 w-4" />
 			</span>
 		);
 	}
 	if (status === "partial") {
 		return (
-			<span className="inline-flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+			<span className="inline-flex items-center gap-1 text-kumo-warning">
 				<Warning className="h-3.5 w-3.5" />
 				{note && <span className="text-xs">{note}</span>}
 			</span>
@@ -1288,9 +1295,9 @@ function ProbeResultStep({
 	return (
 		<div className="space-y-6">
 			{/* Detection success */}
-			<div className="rounded-lg border-s-4 border-s-green-500 border border-kumo-line bg-kumo-base p-6">
+			<div className="rounded-lg border-s-4 border-s-kumo-success border border-kumo-line bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
-					<Check className="h-6 w-6 text-green-500 flex-shrink-0" />
+					<Check className="h-6 w-6 text-kumo-success flex-shrink-0" />
 					<div>
 						<h3 className="font-medium">
 							{t`${bestMatch?.detected.siteTitle || "WordPress site"} detected`}
@@ -1336,12 +1343,12 @@ function ProbeResultStep({
 
 			{/* EmDash Exporter plugin detected - primary option */}
 			{hasPlugin && (
-				<div className="rounded-lg border-s-4 border-s-green-500 border border-kumo-line bg-kumo-base p-6">
+				<div className="rounded-lg border-s-4 border-s-kumo-success border border-kumo-line bg-kumo-base p-6">
 					<div className="flex items-start gap-4">
-						<div className="p-2 rounded-full bg-green-100 dark:bg-green-900/50">
+						<div className="p-2 rounded-full bg-kumo-success-tint">
 							<svg
 								viewBox="0 0 24 24"
-								className="h-5 w-5 text-green-600 dark:text-green-400"
+								className="h-5 w-5 text-kumo-success"
 								fill="none"
 								stroke="currentColor"
 								strokeWidth="2"
@@ -1432,10 +1439,10 @@ function PluginAuthStep({
 		<div className="space-y-6">
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
-					<div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
+					<div className="p-3 rounded-full bg-kumo-success-tint">
 						<svg
 							viewBox="0 0 24 24"
-							className="h-6 w-6 text-green-600 dark:text-green-400"
+							className="h-6 w-6 text-kumo-success"
 							fill="none"
 							stroke="currentColor"
 							strokeWidth="2"
@@ -1473,7 +1480,7 @@ function PluginAuthStep({
 							type="text"
 							value={username}
 							onChange={(e) => onUsernameChange(e.target.value)}
-							placeholder="admin"
+							placeholder={t`admin`}
 							autoComplete="username"
 						/>
 					</div>
@@ -1487,7 +1494,7 @@ function PluginAuthStep({
 							type="password"
 							value={password}
 							onChange={(e) => onPasswordChange(e.target.value)}
-							placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+							placeholder={t`xxxx xxxx xxxx xxxx xxxx xxxx`}
 							autoComplete="current-password"
 						/>
 						<p className="mt-1 text-xs text-kumo-subtle">
@@ -1506,9 +1513,9 @@ function PluginAuthStep({
 				</form>
 			</div>
 
-			<div className="rounded-lg border-s-4 border-s-blue-500 border border-kumo-line bg-kumo-base p-4">
+			<div className="rounded-lg border-s-4 border-s-kumo-brand border border-kumo-line bg-kumo-base p-4">
 				<div className="flex gap-3">
-					<ArrowSquareOut className="h-5 w-5 text-blue-500 flex-shrink-0" />
+					<ArrowSquareOut className="h-5 w-5 text-kumo-brand flex-shrink-0" />
 					<div className="text-sm">
 						<p className="font-medium">{t`How to create an Application Password`}</p>
 						<ol className="mt-2 space-y-1 text-kumo-subtle">
@@ -1746,24 +1753,27 @@ function ReviewStep({
 						<p className="text-sm text-kumo-subtle mt-1">{t`Additional data to import.`}</p>
 					</div>
 					<div className="divide-y">
-						{/* Menus */}
-						<div className="p-4">
-							<Switch
-								checked={importMenus}
-								onCheckedChange={(checked) => onImportMenusChange(checked)}
-								label={
-									<div className="flex items-center gap-2">
-										<List className="h-4 w-4 text-kumo-subtle" />
-										<div>
-											<p className="font-medium">{t`Menus (${navMenus.length})`}</p>
-											<p className="text-sm text-kumo-subtle">
-												{navMenus.map((m) => m.name).join(", ")}
-											</p>
+						{/* Menus — only the plugin import can import them; for WXR the
+						    entries are informational */}
+						{isPluginSource && (
+							<div className="p-4">
+								<Switch
+									checked={importMenus}
+									onCheckedChange={(checked) => onImportMenusChange(checked)}
+									label={
+										<div className="flex items-center gap-2">
+											<List className="h-4 w-4 text-kumo-subtle" />
+											<div>
+												<p className="font-medium">{t`Menus (${navMenus.length})`}</p>
+												<p className="text-sm text-kumo-subtle">
+													{navMenus.map((m) => m.name).join(", ")}
+												</p>
+											</div>
 										</div>
-									</div>
-								}
-							/>
-						</div>
+									}
+								/>
+							</div>
+						)}
 
 						{/* Categories count */}
 						{analysis.categories > 0 && (
@@ -1857,9 +1867,9 @@ function ReviewStep({
 			)}
 
 			{selectedCount > 0 && (
-				<div className="rounded-lg border-s-4 border-s-blue-500 border border-kumo-line bg-kumo-base p-4">
+				<div className="rounded-lg border-s-4 border-s-kumo-brand border border-kumo-line bg-kumo-base p-4">
 					<div className="flex gap-3">
-						<Database className="h-5 w-5 text-blue-500 flex-shrink-0" />
+						<Database className="h-5 w-5 text-kumo-brand flex-shrink-0" />
 						<div className="space-y-2">
 							<p className="font-medium">{t`What will happen when you import`}</p>
 							<ul className="text-sm text-kumo-subtle space-y-1">
@@ -1981,7 +1991,7 @@ function PostTypeRow({
 			{expanded && (
 				<div className="mt-4 ms-8 p-3 rounded-lg bg-kumo-tint/50 text-sm">
 					{!canImport && schemaStatus.reason && (
-						<div className="mb-3 p-2 rounded bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">
+						<div className="mb-3 p-2 rounded bg-kumo-danger-tint text-kumo-danger">
 							<WarningCircle className="inline h-4 w-4 me-1" />
 							{schemaStatus.reason}
 						</div>
@@ -1996,15 +2006,15 @@ function PostTypeRow({
 										{field.label} <span className="text-kumo-subtle">({field.type})</span>
 									</span>
 									{status?.status === "compatible" ? (
-										<span className="text-green-600 dark:text-green-400">
+										<span className="text-kumo-success">
 											<Check className="inline h-3 w-3" /> {t`Exists`}
 										</span>
 									) : status?.status === "missing" ? (
-										<span className="text-blue-600 dark:text-blue-400">
+										<span className="text-kumo-brand">
 											<Plus className="inline h-3 w-3" /> {t`Will create`}
 										</span>
 									) : status?.status === "type_mismatch" ? (
-										<span className="text-red-600 dark:text-red-400">
+										<span className="text-kumo-danger">
 											<X className="inline h-3 w-3" /> {t`Type mismatch (${status.existingType})`}
 										</span>
 									) : null}
@@ -2043,8 +2053,8 @@ function MediaStep({
 		<div className="space-y-6">
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
-					<div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
-						<Image className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+					<div className="p-3 rounded-full bg-kumo-brand/10">
+						<Image className="h-6 w-6 text-kumo-brand" />
 					</div>
 					<div className="flex-1">
 						<h3 className="text-lg font-medium">{t`Import Media Files`}</h3>
@@ -2074,9 +2084,9 @@ function MediaStep({
 					</div>
 				)}
 
-				<div className="mt-4 p-4 rounded-lg border-s-4 border-s-blue-500 border border-kumo-line bg-kumo-base">
+				<div className="mt-4 p-4 rounded-lg border-s-4 border-s-kumo-brand border border-kumo-line bg-kumo-base">
 					<div className="flex gap-3">
-						<DownloadSimple className="h-5 w-5 text-blue-500 flex-shrink-0" />
+						<DownloadSimple className="h-5 w-5 text-kumo-brand flex-shrink-0" />
 						<div className="text-sm">
 							<p className="font-medium">{t`What happens when you import:`}</p>
 							<ul className="mt-1 space-y-1 text-kumo-subtle">
@@ -2150,16 +2160,11 @@ function MediaProgressStep({
 							<span
 								className={cn(
 									"px-2 py-0.5 rounded text-xs",
-									progress.status === "downloading" &&
-										"bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-									progress.status === "uploading" &&
-										"bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-									progress.status === "done" &&
-										"bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-									progress.status === "skipped" &&
-										"bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-									progress.status === "failed" &&
-										"bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+									progress.status === "downloading" && "bg-kumo-info-tint text-kumo-default",
+									progress.status === "uploading" && "bg-kumo-info-tint text-kumo-default",
+									progress.status === "done" && "bg-kumo-success-tint text-kumo-success",
+									progress.status === "skipped" && "bg-kumo-warning-tint text-kumo-warning",
+									progress.status === "failed" && "bg-kumo-danger-tint text-kumo-danger",
 								)}
 							>
 								{statusLabels[progress.status]}
@@ -2283,14 +2288,14 @@ function CompleteStep({
 				className={cn(
 					"rounded-lg border p-6 text-center",
 					overallSuccess
-						? "border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-900/20"
-						: "border-yellow-200 bg-yellow-50 dark:border-yellow-900/50 dark:bg-yellow-900/20",
+						? "border-kumo-success/50 bg-kumo-success-tint"
+						: "border-kumo-warning/50 bg-kumo-warning-tint",
 				)}
 			>
 				{overallSuccess ? (
-					<Check className="mx-auto h-12 w-12 text-green-600 dark:text-green-400" />
+					<Check className="mx-auto h-12 w-12 text-kumo-success" />
 				) : (
-					<Warning className="mx-auto h-12 w-12 text-yellow-600 dark:text-yellow-400" />
+					<Warning className="mx-auto h-12 w-12 text-kumo-warning" />
 				)}
 				<h3 className="mt-4 text-lg font-medium">
 					{overallSuccess
@@ -2442,8 +2447,8 @@ function AuthorMappingStep({
 		<div className="space-y-6">
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
-					<div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
-						<User className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+					<div className="p-3 rounded-full bg-kumo-brand/10">
+						<User className="h-6 w-6 text-kumo-brand" />
 					</div>
 					<div>
 						<h3 className="text-lg font-medium">{t`Map Authors`}</h3>
@@ -2451,7 +2456,7 @@ function AuthorMappingStep({
 							{t`Assign WordPress authors to EmDash users. Posts will be attributed to the selected user.`}
 						</p>
 						{matchedCount > 0 && (
-							<p className="text-sm text-green-600 dark:text-green-400 mt-2">
+							<p className="text-sm text-kumo-success mt-2">
 								<Check className="inline h-4 w-4 me-1" />
 								{t`${matchedCount} of ${totalCount} authors matched by email`}
 							</p>
@@ -2504,9 +2509,9 @@ function AuthorMappingStep({
 			</div>
 
 			{emdashUsers.length === 0 && (
-				<div className="rounded-lg border-s-4 border-s-yellow-500 border border-kumo-line bg-kumo-base p-4">
+				<div className="rounded-lg border-s-4 border-s-kumo-warning border border-kumo-line bg-kumo-base p-4">
 					<div className="flex gap-3">
-						<Warning className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+						<Warning className="h-5 w-5 text-kumo-warning flex-shrink-0" />
 						<div>
 							<p className="font-medium">{t`No EmDash users found`}</p>
 							<p className="text-sm text-kumo-subtle mt-1">

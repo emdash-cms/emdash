@@ -105,6 +105,41 @@ describe("WordPress plugin import — field auto-creation", () => {
 			seo_description: "Custom description",
 		});
 	});
+
+	it("skips SEO fields entirely when the importSeo toggle is off", async () => {
+		const config: WpPluginImportConfig = {
+			postTypeMappings: { post: { collection: "post", enabled: true } },
+			skipExisting: false,
+			importSeo: false,
+		};
+		const emdash = {
+			db,
+			handleContentCreate: (collection: string, body: { data: Record<string, unknown> }) =>
+				handleContentCreate(db, collection, body),
+		} as unknown as EmDashHandlers;
+		const manifest = { collections: { post: {} } } as unknown as EmDashManifest;
+
+		const items = [
+			makeItem({
+				sourceId: 1,
+				slug: "with-seo",
+				title: "Post with SEO",
+				meta: { _yoast: { title: "Custom SEO Title", description: "Custom description" } },
+			}),
+		];
+
+		const { result } = await importContent(generate(items), config, emdash, manifest, undefined);
+		expect(result.errors).toEqual([]);
+		expect(result.imported).toBe(1);
+
+		// Neither the field nor the value may be created
+		const field = await db
+			.selectFrom("_emdash_fields")
+			.select("slug")
+			.where("slug", "=", "seo_title")
+			.executeTakeFirst();
+		expect(field).toBeUndefined();
+	});
 });
 
 describe("WordPress plugin import — custom taxonomy def auto-creation", () => {

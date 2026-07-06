@@ -55,6 +55,11 @@ export const prerender = false;
 export interface WpPluginImportConfig extends ImportConfig {
 	/** Author mappings (WP author login -> EmDash user ID) */
 	authorMappings?: Record<string, string | null>;
+	/** Wizard toggles. Absent means enabled (older admins don't send them). */
+	importMenus?: boolean;
+	importSiteTitle?: boolean;
+	importLogo?: boolean;
+	importSeo?: boolean;
 }
 
 export interface WpPluginImportResponse {
@@ -207,7 +212,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Import navigation menus, resolving item references through the
 		// WP-post-ID -> EmDash-ID map collected during the content pass.
-		await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+		if (config.importMenus !== false) {
+			await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+		}
 
 		// Import comments into EmDash's native comments table, preserving
 		// authors, dates, threading, and approval status.
@@ -240,7 +247,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// site's options, replacing the starter template's seed placeholders.
 		// Non-fatal: content is already imported at this point.
 		try {
-			result.siteSettings = await applySiteSettings(emdash, body.url, body.token);
+			result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
 		} catch (e) {
 			console.warn("[WP Plugin Import] Site settings import failed:", e);
 		}
@@ -305,7 +312,7 @@ async function runImportPhase(
 		case "comments":
 			return runCommentsChunk(emdash, body);
 		case "finalize":
-			return runFinalizePhase(emdash, body);
+			return runFinalizePhase(emdash, body, config);
 		case undefined:
 			throw new Error("runImportPhase called without a phase");
 		default:
@@ -445,14 +452,20 @@ async function runCommentsChunk(emdash: EmDashHandlers, body: ExecuteBody): Prom
 }
 
 /** Menus + site identity — small, runs as a single closing chunk. */
-async function runFinalizePhase(emdash: EmDashHandlers, body: ExecuteBody): Promise<ChunkResponse> {
+async function runFinalizePhase(
+	emdash: EmDashHandlers,
+	body: ExecuteBody,
+	config: WpPluginImportConfig,
+): Promise<ChunkResponse> {
 	const result = emptyImportResult();
 	const { contentIdMap } = parseIdMap(body.idMap);
 
-	await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+	if (config.importMenus !== false) {
+		await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+	}
 
 	try {
-		result.siteSettings = await applySiteSettings(emdash, body.url, body.token);
+		result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
 	} catch (e) {
 		console.warn("[WP Plugin Import] Site settings import failed:", e);
 	}
@@ -505,6 +518,8 @@ const IMPORT_FIELDS: Array<{
 		check: (item) => !!extractSeo(item).description,
 	},
 ];
+
+const SEO_FIELD_SLUGS = new Set(["seo_title", "seo_description"]);
 
 /**
  * Coerce a WordPress meta value to an EmDash field type. WP postmeta is
@@ -689,9 +704,22 @@ async function applySiteSettings(
 	emdash: EmDashHandlers,
 	url: string,
 	token: string,
+	config: WpPluginImportConfig,
 ): Promise<string[]> {
+	const wantTitle = config.importSiteTitle !== false;
+	const wantLogo = config.importLogo !== false;
+	if (!wantTitle && !wantLogo) return [];
+
 	const options = await fetchPluginOptions(url, token);
 	const parsed = parseSiteSettingsFromPlugin(options);
+	if (!wantTitle) {
+		delete parsed.title;
+		delete parsed.tagline;
+	}
+	if (!wantLogo) {
+		delete parsed.logo;
+		delete parsed.favicon;
+	}
 
 	const media: { logoMediaId?: string; faviconMediaId?: string } = {};
 	if (emdash.storage && (parsed.logo?.url || parsed.favicon?.url)) {
@@ -828,6 +856,7 @@ export async function importContent(
 			// is needed depends on the item — the first post may have no SEO
 			// override while a later one does.
 			for (const field of IMPORT_FIELDS) {
+				if (config.importSeo === false && SEO_FIELD_SLUGS.has(field.slug)) continue;
 				const ensureKey = `${collection}:${field.slug}`;
 				if (ensuredFields.has(ensureKey) || !field.check(item)) continue;
 				ensuredFields.add(ensureKey);
@@ -910,12 +939,14 @@ export async function importContent(
 			}
 
 			// Per-post SEO overrides from Yoast / Rank Math
-			const seo = extractSeo(item);
-			if (seo.title) {
-				data.seo_title = seo.title;
-			}
-			if (seo.description) {
-				data.seo_description = seo.description;
+			if (config.importSeo !== false) {
+				const seo = extractSeo(item);
+				if (seo.title) {
+					data.seo_title = seo.title;
+				}
+				if (seo.description) {
+					data.seo_description = seo.description;
+				}
 			}
 
 			// Map ACF values and custom meta onto schema fields with the same

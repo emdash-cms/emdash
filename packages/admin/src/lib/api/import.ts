@@ -149,6 +149,14 @@ export interface ImportConfig {
 	skipExisting: boolean;
 	/** Author mappings (WP author login -> EmDash user ID) */
 	authorMappings?: Record<string, string | null>;
+	/** Import navigation menus (plugin import; default true) */
+	importMenus?: boolean;
+	/** Take over site title & tagline (plugin import; default true) */
+	importSiteTitle?: boolean;
+	/** Take over logo & favicon (plugin import; default true) */
+	importLogo?: boolean;
+	/** Import per-post Yoast/Rank Math SEO fields (plugin import; default true) */
+	importSeo?: boolean;
 }
 
 export interface ImportResult {
