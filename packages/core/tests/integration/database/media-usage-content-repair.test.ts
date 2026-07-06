@@ -352,6 +352,7 @@ describeEachDialect("content media usage repair", (dialect) => {
 				failedSourceCount: 1,
 				skippedSourceCount: 1,
 				deletedSourceCount: 0,
+				lastErrorCode: "DRAFT_REVISION_MISMATCH",
 			}),
 		);
 		expect(await usageRepo.findSource(sourceKey(item.id, "columns"))).toEqual(
