@@ -84,7 +84,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# koleksiyon} other {# koleksiyon}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1277
+#: packages/admin/src/router.tsx:1268
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# yorum güncellendi} other {# yorum güncellendi}}"
 
@@ -328,6 +328,10 @@ msgstr "{pluginName} ek izinler istiyor:"
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} aşağıdaki izinleri gerektirir:"
 
+#: packages/admin/src/components/MediaLibrary.tsx:299
+msgid "{resultCount, plural, one {# item} other {# items}}"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:742
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# öğe} other {# öğe}}"
@@ -336,13 +340,13 @@ msgstr "{total, plural, one {# öğe} other {# öğe}}"
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {toplam #} other {toplam #}}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:185
-#: packages/admin/src/components/MediaLibrary.tsx:221
+#: packages/admin/src/components/MediaLibrary.tsx:212
+#: packages/admin/src/components/MediaLibrary.tsx:248
 msgid "{total, plural, one {File uploaded} other {# files uploaded}}"
 msgstr "{total, plural, one {Dosya yüklendi} other {# dosya yüklendi}}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:190
-#: packages/admin/src/components/MediaLibrary.tsx:226
+#: packages/admin/src/components/MediaLibrary.tsx:217
+#: packages/admin/src/components/MediaLibrary.tsx:253
 msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
 msgstr "{total, plural, one {Yükleme başarısız oldu} other {Tüm # yükleme başarısız oldu}}"
 
@@ -362,8 +366,8 @@ msgstr "{unchangedCount, plural, one {Değişmeyen # öğeyi gizle} other {Deği
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {Değişmeyen # öğeyi göster} other {Değişmeyen # öğeyi göster}}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:195
-#: packages/admin/src/components/MediaLibrary.tsx:231
+#: packages/admin/src/components/MediaLibrary.tsx:222
+#: packages/admin/src/components/MediaLibrary.tsx:258
 msgid "{uploaded} uploaded, {failed} failed"
 msgstr "{uploaded} yüklendi, {failed} başarısız oldu"
 
@@ -486,7 +490,7 @@ msgstr "Bu içerik türünün kısa bir açıklaması"
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr "Başlık, metin ve CTA düğmesi içeren tam genişlikli hero banner"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:165
+#: packages/admin/src/components/settings/GeneralSettings.tsx:142
 msgid "A short description of your site"
 msgstr "Sitenizin kısa bir açıklaması"
 
@@ -506,7 +510,7 @@ msgstr "Daveti Kabul Et"
 msgid "Access denied"
 msgstr "Erişim engellendi"
 
-#: packages/admin/src/router.tsx:1297
+#: packages/admin/src/router.tsx:1288
 msgid "Access Denied"
 msgstr "Erişim engellendi"
 
@@ -535,7 +539,6 @@ msgstr "Hesap Bilgileri"
 #: packages/admin/src/components/ContentList.tsx:345
 #: packages/admin/src/components/ContentList.tsx:463
 #: packages/admin/src/components/ContentTypeList.tsx:106
-#: packages/admin/src/components/MediaLibrary.tsx:493
 #: packages/admin/src/components/TaxonomyManager.tsx:823
 #: packages/admin/src/routes/byline-schema.tsx:249
 msgid "Actions"
@@ -565,11 +568,11 @@ msgstr "{0}'i ekleyin"
 msgid "Add {label}"
 msgstr "{label}'i ekleyin"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:204
+#: packages/admin/src/components/settings/SecuritySettings.tsx:177
 msgid "Add a new passkey"
 msgstr "Yeni bir geçiş anahtarı ekleyin"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:304
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:271
 msgid "Add an allowed domain"
 msgstr "İzin verilen bir alan adı ekleyin"
 
@@ -596,8 +599,8 @@ msgstr "İçerik Ekle"
 msgid "Add Custom Link"
 msgstr "Özel Bağlantı Ekle"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:349
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:316
 msgid "Add Domain"
 msgstr "Alan Adı Ekle"
 
@@ -660,7 +663,7 @@ msgstr "Yeni {0} ekle"
 msgid "Add noindex meta tag"
 msgstr "Noindex meta etiketi ekle"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:225
+#: packages/admin/src/components/settings/SecuritySettings.tsx:200
 msgid "Add Passkey"
 msgstr "Geçiş Anahtarı Ekle"
 
@@ -692,12 +695,12 @@ msgstr "Etiketler ekleyin..."
 msgid "Add Widget Area"
 msgstr "Widget Alanı Ekle"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:128
+#: packages/admin/src/components/settings/SocialSettings.tsx:102
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "Sosyal medya profillerinizi ekleyin. Bunlar sitenizin temasında mevcuttur ve üstbilgilerde, altbilgilerde veya yazar biyografilerinde görüntülenebilir."
 
 #: packages/admin/src/components/MenuEditor.tsx:362
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
 msgid "Adding..."
 msgstr "Ekleniyor..."
 
@@ -719,7 +722,7 @@ msgstr "Yönetici gezinmesi"
 msgid "Administrator"
 msgstr "Yönetici"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:224
+#: packages/admin/src/components/settings/EmailSettings.tsx:198
 msgid "After send:"
 msgstr "Gönderdikten sonra:"
 
@@ -787,7 +790,7 @@ msgstr "Tüm Kaynaklar"
 msgid "All statuses"
 msgstr "Tüm durumlar"
 
-#: packages/admin/src/components/MediaLibrary.tsx:400
+#: packages/admin/src/components/MediaLibrary.tsx:434
 #: packages/admin/src/components/Redirects.tsx:424
 msgid "All types"
 msgstr "Tüm türler"
@@ -800,7 +803,7 @@ msgstr "Belirli alan adlarındaki kullanıcıların kaydolmasına izin ver"
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr "Ziyaretçilerin bu koleksiyonun içeriği hakkında yorum bırakmasına izin ver"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:240
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
 msgid "Allowed Domains"
 msgstr "İzin Verilen Alanlar"
 
@@ -817,17 +820,19 @@ msgid "Also delete plugin storage data"
 msgstr "Ayrıca eklenti depolama verilerini de silin"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:231
+#: packages/admin/src/components/MediaLibrary.tsx:590
 msgid "Alt text"
 msgstr "Alternatif metin"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:344
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:533
-#: packages/admin/src/components/MediaDetailPanel.tsx:216
+#: packages/admin/src/components/MediaDetailPanel.tsx:354
+#: packages/admin/src/components/MediaDetailPanel.tsx:371
 msgid "Alt Text"
 msgstr "Alternatif Metin"
 
-#: packages/admin/src/components/MediaLibrary.tsx:697
-#: packages/admin/src/components/MediaLibrary.tsx:754
+#: packages/admin/src/components/MediaLibrary.tsx:834
+#: packages/admin/src/components/MediaLibrary.tsx:891
 msgid "Alt text set"
 msgstr "Alternatif metin seti"
 
@@ -839,25 +844,34 @@ msgstr "Alternatif olarak WordPress'ten (Araçlar → Dışa Aktar) dışa aktar
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
 #: packages/admin/src/components/PluginManager.tsx:98
 #: packages/admin/src/components/PluginManager.tsx:117
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:95
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
+#: packages/admin/src/components/settings/EmailSettings.tsx:51
+#: packages/admin/src/components/settings/GeneralSettings.tsx:51
+#: packages/admin/src/components/settings/SecuritySettings.tsx:54
+#: packages/admin/src/components/settings/SecuritySettings.tsx:71
+#: packages/admin/src/components/settings/SeoSettings.tsx:45
+#: packages/admin/src/components/settings/SocialSettings.tsx:43
 #: packages/admin/src/components/TaxonomySidebar.tsx:350
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:399
-#: packages/admin/src/router.tsx:414
-#: packages/admin/src/router.tsx:428
-#: packages/admin/src/router.tsx:442
-#: packages/admin/src/router.tsx:818
-#: packages/admin/src/router.tsx:856
-#: packages/admin/src/router.tsx:874
-#: packages/admin/src/router.tsx:892
-#: packages/admin/src/router.tsx:913
-#: packages/admin/src/router.tsx:934
-#: packages/admin/src/router.tsx:955
-#: packages/admin/src/router.tsx:986
-#: packages/admin/src/router.tsx:1006
-#: packages/admin/src/router.tsx:1242
-#: packages/admin/src/router.tsx:1258
-#: packages/admin/src/router.tsx:1283
-#: packages/admin/src/router.tsx:1765
+#: packages/admin/src/router.tsx:398
+#: packages/admin/src/router.tsx:413
+#: packages/admin/src/router.tsx:427
+#: packages/admin/src/router.tsx:441
+#: packages/admin/src/router.tsx:817
+#: packages/admin/src/router.tsx:855
+#: packages/admin/src/router.tsx:873
+#: packages/admin/src/router.tsx:891
+#: packages/admin/src/router.tsx:912
+#: packages/admin/src/router.tsx:933
+#: packages/admin/src/router.tsx:954
+#: packages/admin/src/router.tsx:985
+#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:1233
+#: packages/admin/src/router.tsx:1249
+#: packages/admin/src/router.tsx:1274
+#: packages/admin/src/router.tsx:1756
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -974,7 +988,7 @@ msgid "Astro"
 msgstr "Astro"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:403
+#: packages/admin/src/components/MediaLibrary.tsx:437
 msgid "Audio"
 msgstr "Ses"
 
@@ -993,7 +1007,7 @@ msgid "Authentication failed"
 msgstr "Kimlik doğrulama başarısız oldu"
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/SecuritySettings.tsx:129
+#: packages/admin/src/components/settings/SecuritySettings.tsx:120
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
 msgstr "Kimlik doğrulama, harici bir sağlayıcı ({0}) tarafından yönetilir. Harici kimlik doğrulama kullanılırken geçiş anahtarı ayarları kullanılamaz."
 
@@ -1052,7 +1066,7 @@ msgstr "Kimliği doğrulanmış kullanıcıları otomatik olarak onayla"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Addan otomatik olarak oluşturuldu (düzenleyebilirsiniz)"
 
-#: packages/admin/src/router.tsx:855
+#: packages/admin/src/router.tsx:854
 msgid "Autosave failed"
 msgstr "Otomatik kaydetme başarısız oldu"
 
@@ -1064,7 +1078,7 @@ msgstr "Otomatik kaydetme durumu"
 msgid "Available media"
 msgstr "Kullanılabilir medya"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:233
+#: packages/admin/src/components/settings/EmailSettings.tsx:207
 msgid "Available Providers"
 msgstr "Mevcut Sağlayıcılar"
 
@@ -1127,11 +1141,11 @@ msgstr "Temalara Geri Dön"
 msgid "Bash"
 msgstr "Bash"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:219
+#: packages/admin/src/components/settings/EmailSettings.tsx:193
 msgid "Before send:"
 msgstr "Göndermeden önce:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:233
+#: packages/admin/src/components/settings/SeoSettings.tsx:200
 msgid "Bing Verification"
 msgstr "Bing Doğrulaması"
 
@@ -1246,7 +1260,7 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/editor/ImageNode.tsx:253
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
 #: packages/admin/src/components/FieldEditor.tsx:649
-#: packages/admin/src/components/MediaDetailPanel.tsx:248
+#: packages/admin/src/components/MediaDetailPanel.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:744
 #: packages/admin/src/components/MenuEditor.tsx:359
 #: packages/admin/src/components/MenuEditor.tsx:530
@@ -1256,11 +1270,11 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/SectionPickerModal.tsx:130
 #: packages/admin/src/components/Sections.tsx:209
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:313
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:423
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:280
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:390
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:325
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
-#: packages/admin/src/components/settings/SecuritySettings.tsx:206
+#: packages/admin/src/components/settings/SecuritySettings.tsx:179
 #: packages/admin/src/components/TaxonomyManager.tsx:187
 #: packages/admin/src/components/TaxonomyManager.tsx:472
 #: packages/admin/src/components/TaxonomyManager.tsx:686
@@ -1300,7 +1314,7 @@ msgstr "Yetenek onayı"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:352
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:541
-#: packages/admin/src/components/MediaDetailPanel.tsx:224
+#: packages/admin/src/components/MediaDetailPanel.tsx:381
 msgid "Caption"
 msgstr "Altyazı"
 
@@ -1338,15 +1352,15 @@ msgstr "Değiştir"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "<0>{0}</0>'i <1>{1}</1>'ten <2>{2}</2>'e değiştirmek ister misiniz? Daha üst düzey özelliklere erişimlerini kaybedecekler."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:262
+#: packages/admin/src/components/settings/GeneralSettings.tsx:239
 msgid "Change Favicon"
 msgstr "Favicon'u Değiştir"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:200
+#: packages/admin/src/components/settings/SeoSettings.tsx:167
 msgid "Change Image"
 msgstr "Resmi Değiştir"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:208
+#: packages/admin/src/components/settings/GeneralSettings.tsx:185
 msgid "Change Logo"
 msgstr "Logoyu Değiştir"
 
@@ -1354,11 +1368,11 @@ msgstr "Logoyu Değiştir"
 msgid "Changelog"
 msgstr "Değişiklik günlüğü"
 
-#: packages/admin/src/router.tsx:906
+#: packages/admin/src/router.tsx:905
 msgid "Changes discarded"
 msgstr "Değişiklikler iptal edildi"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:162
+#: packages/admin/src/components/settings/SeoSettings.tsx:129
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Sayfa başlığı ile site adı arasındaki karakter (ör. \"Gönderim | Sitem\")"
 
@@ -1398,9 +1412,15 @@ msgid "Choose your preferred admin language"
 msgstr "Tercih ettiğiniz yönetici dilini seçin"
 
 #: packages/admin/src/components/ContentList.tsx:639
+#: packages/admin/src/components/MediaLibrary.tsx:498
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
 msgstr "Filtreleri temizle"
+
+#: packages/admin/src/components/MediaLibrary.tsx:498
+#: packages/admin/src/components/MediaLibrary.tsx:522
+msgid "Clear search"
+msgstr ""
 
 #: packages/admin/src/components/SignupPage.tsx:138
 msgid "Click the link in the email to continue setting up your account."
@@ -1425,8 +1445,8 @@ msgstr "Oturum açmak için e-postadaki bağlantıya tıklayın."
 #: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/FieldEditor.tsx:355
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:436
-#: packages/admin/src/components/MediaDetailPanel.tsx:135
-#: packages/admin/src/components/MediaDetailPanel.tsx:137
+#: packages/admin/src/components/MediaDetailPanel.tsx:229
+#: packages/admin/src/components/MediaDetailPanel.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:482
 #: packages/admin/src/components/MediaPickerModal.tsx:488
 #: packages/admin/src/components/MediaPickerModal.tsx:492
@@ -1450,9 +1470,9 @@ msgstr "Oturum açmak için e-postadaki bağlantıya tıklayın."
 #: packages/admin/src/components/Sections.tsx:153
 #: packages/admin/src/components/Sections.tsx:159
 #: packages/admin/src/components/Sections.tsx:163
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:371
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:377
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:338
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
 #: packages/admin/src/components/TaxonomyManager.tsx:164
 #: packages/admin/src/components/TaxonomyManager.tsx:371
 #: packages/admin/src/components/TaxonomyManager.tsx:377
@@ -1604,7 +1624,7 @@ msgstr "İçerik Hataları ({0})"
 msgid "Content found:"
 msgstr "Bulunan içerik:"
 
-#: packages/admin/src/router.tsx:928
+#: packages/admin/src/router.tsx:927
 msgid "Content has been scheduled for publishing"
 msgstr "İçeriğin yayınlanması planlandı"
 
@@ -1616,7 +1636,7 @@ msgstr "İçerik seçilen revizyona güncellendi."
 msgid "Content ID:"
 msgstr "İçerik Kimliği:"
 
-#: packages/admin/src/router.tsx:869
+#: packages/admin/src/router.tsx:868
 msgid "Content is now live"
 msgstr "İçerik artık yayında"
 
@@ -1628,11 +1648,11 @@ msgstr "içerik öğeleri"
 msgid "Content Read"
 msgstr "İçerik Okuma"
 
-#: packages/admin/src/router.tsx:887
+#: packages/admin/src/router.tsx:886
 msgid "Content removed from public view"
 msgstr "İçerik herkese açık görünümden kaldırıldı"
 
-#: packages/admin/src/router.tsx:949
+#: packages/admin/src/router.tsx:948
 msgid "Content reverted to draft"
 msgstr "İçerik taslağa geri döndürüldü"
 
@@ -1704,7 +1724,7 @@ msgstr "Belirteci kopyala"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:322
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:323
-#: packages/admin/src/components/MediaDetailPanel.tsx:198
+#: packages/admin/src/components/MediaDetailPanel.tsx:301
 msgid "Copy URL"
 msgstr "URL'yi kopyala"
 
@@ -1917,7 +1937,7 @@ msgid "Created {0}"
 msgstr "{0} oluşturuldu"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:980
+#: packages/admin/src/router.tsx:979
 msgid "Created {0} translation"
 msgstr "{0} çevirisi oluşturuldu"
 
@@ -1964,7 +1984,7 @@ msgstr "Özel"
 msgid "Custom Fields"
 msgstr "Özel Alanlar"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:243
+#: packages/admin/src/components/settings/SeoSettings.tsx:210
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "Özel robots.txt içeriği. Varsayılanı kullanmak için boş bırakın."
 
@@ -2006,7 +2026,7 @@ msgstr "Tarih ve saat seçici"
 msgid "Date field to filter on"
 msgstr "Filtrelenecek tarih alanı"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:304
+#: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "Date Format"
 msgstr "Tarih Formatı"
 
@@ -2018,20 +2038,20 @@ msgstr "Ondalık sayı"
 msgid "Declared permissions"
 msgstr "Bildirilen izinler"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:327
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:389
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:294
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:356
 msgid "Default Role"
 msgstr "Varsayılan Rol"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:266
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:233
 msgid "Default role:"
 msgstr "Varsayılan rol:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:180
+#: packages/admin/src/components/settings/SeoSettings.tsx:147
 msgid "Default social image"
 msgstr "Varsayılan sosyal resim"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:171
+#: packages/admin/src/components/settings/SeoSettings.tsx:138
 msgid "Default Social Image"
 msgstr "Varsayılan Sosyal İmaj"
 
@@ -2058,8 +2078,8 @@ msgstr "Kodda tanımlandı"
 #: packages/admin/src/components/editor/BlockMenu.tsx:301
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
-#: packages/admin/src/components/MediaDetailPanel.tsx:244
-#: packages/admin/src/components/MediaDetailPanel.tsx:269
+#: packages/admin/src/components/MediaDetailPanel.tsx:410
+#: packages/admin/src/components/MediaDetailPanel.tsx:453
 #: packages/admin/src/components/MenuEditor.tsx:463
 #: packages/admin/src/components/MenuList.tsx:255
 #: packages/admin/src/components/Redirects.tsx:582
@@ -2074,7 +2094,7 @@ msgid "Delete"
 msgstr "Sil"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:268
+#: packages/admin/src/components/MediaDetailPanel.tsx:452
 msgid "Delete \"{0}\"? This cannot be undone."
 msgstr "\"{0}\" silinsin mi? Bu geri alınamaz."
 
@@ -2083,7 +2103,7 @@ msgstr "\"{0}\" silinsin mi? Bu geri alınamaz."
 #. placeholder {0}: field.label
 #: packages/admin/src/components/ContentTypeList.tsx:229
 #: packages/admin/src/components/Sections.tsx:408
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:285
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:252
 #: packages/admin/src/components/TaxonomyManager.tsx:97
 #: packages/admin/src/components/Widgets.tsx:737
 #: packages/admin/src/routes/byline-schema.tsx:458
@@ -2147,7 +2167,7 @@ msgstr "HTML bloğunu sil"
 msgid "Delete image"
 msgstr "Resmi sil"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:267
+#: packages/admin/src/components/MediaDetailPanel.tsx:451
 msgid "Delete Media?"
 msgstr "Medya Silinsin mi?"
 
@@ -2210,8 +2230,8 @@ msgstr "\"{0}\" silindiğinde tüm yazar bilgilerinde {1, plural, one {# saklana
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:664
 #: packages/admin/src/components/ContentTypeList.tsx:149
-#: packages/admin/src/components/MediaDetailPanel.tsx:244
-#: packages/admin/src/components/MediaDetailPanel.tsx:270
+#: packages/admin/src/components/MediaDetailPanel.tsx:410
+#: packages/admin/src/components/MediaDetailPanel.tsx:454
 #: packages/admin/src/components/MenuList.tsx:256
 #: packages/admin/src/components/Redirects.tsx:583
 #: packages/admin/src/components/Sections.tsx:309
@@ -2252,7 +2272,7 @@ msgstr "Resmi açıklayın..."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:347
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:536
-#: packages/admin/src/components/MediaDetailPanel.tsx:219
+#: packages/admin/src/components/MediaDetailPanel.tsx:374
 msgid "Describe this image for accessibility"
 msgstr "Erişilebilirlik açısından bu resmi açıklayın"
 
@@ -2308,7 +2328,7 @@ msgstr "E-postayı almadınız mı?"
 msgid "Diff"
 msgstr "Fark"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:180
+#: packages/admin/src/components/MediaDetailPanel.tsx:280
 msgid "Dimensions:"
 msgstr "Boyutlar:"
 
@@ -2352,14 +2372,26 @@ msgstr "<0>{0}</0>'in devre dışı bırakılması, yeniden etkinleştirilene ka
 msgid "Disabling..."
 msgstr "Devre dışı bırakılıyor..."
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:438
+msgid "Discard"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:691
 #: packages/admin/src/components/ContentEditor.tsx:713
 msgid "Discard changes"
 msgstr "Değişiklikleri sil"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:436
+msgid "Discard changes?"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:697
 msgid "Discard draft changes?"
 msgstr "Taslak değişiklikler silinsin mi?"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:439
+msgid "Discarding..."
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:235
@@ -2403,23 +2435,23 @@ msgid "Dockerfile"
 msgstr "Docker dosyası"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:63
-#: packages/admin/src/components/MediaLibrary.tsx:404
+#: packages/admin/src/components/MediaLibrary.tsx:438
 msgid "Documents"
 msgstr "Belgeler"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:319
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:286
 msgid "Domain"
 msgstr "Alan adı"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:66
 msgid "Domain added successfully"
 msgstr "Alan adı başarıyla eklendi"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:124
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
 msgid "Domain removed"
 msgstr "Alan adı kaldırıldı"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:107
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:90
 msgid "Domain updated"
 msgstr "Alan adı güncellendi"
 
@@ -2541,7 +2573,7 @@ msgstr "Düzenle"
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:1438
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:276
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:243
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/byline-schema.tsx:449
@@ -2570,7 +2602,7 @@ msgstr "Yazar bilgisini düzenle"
 msgid "Edit byline field"
 msgstr "Yazar bilgisi alanını düzenle"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:364
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:331
 msgid "Edit Domain"
 msgstr "Alan Adını Düzenle"
 
@@ -2645,20 +2677,20 @@ msgstr "E-posta adresi"
 msgid "Email is required"
 msgstr "E-posta gerekli"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:215
+#: packages/admin/src/components/settings/EmailSettings.tsx:189
 msgid "Email Middleware"
 msgstr "E-posta Ara Yazılımı"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:125
+#: packages/admin/src/components/settings/EmailSettings.tsx:99
 msgid "Email Pipeline"
 msgstr "E-posta Ardışık Düzeni"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:199
+#: packages/admin/src/components/settings/EmailSettings.tsx:173
 msgid "Email provider active"
 msgstr "E-posta sağlayıcısı etkin"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:85
-#: packages/admin/src/components/settings/EmailSettings.tsx:100
+#: packages/admin/src/components/settings/EmailSettings.tsx:77
+#: packages/admin/src/components/settings/EmailSettings.tsx:92
 msgid "Email Settings"
 msgstr "E-posta Ayarları"
 
@@ -2776,7 +2808,7 @@ msgstr "WordPress site URL'nizi girin"
 #: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1947
+#: packages/admin/src/router.tsx:1938
 msgid "Error"
 msgstr "Hata"
 
@@ -2837,7 +2869,7 @@ msgstr "WordPress'ten manuel olarak dışa aktarın"
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Taslaklar dahil her şeyi içe aktarmak için içeriğinizi WordPress'ten dışa aktarın."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:144
+#: packages/admin/src/components/settings/SocialSettings.tsx:118
 msgid "Facebook"
 msgstr "Facebook"
 
@@ -2853,9 +2885,13 @@ msgstr "Başarısız"
 msgid "Failed security audit"
 msgstr "Başarısız güvenlik denetimi"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:90
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:70
 msgid "Failed to add domain"
 msgstr "Alan eklenemedi"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:188
+msgid "Failed to add passkey"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:367
 msgid "Failed to analyze WordPress site"
@@ -2897,13 +2933,13 @@ msgstr "Bazı koleksiyonlar oluşturulamadı"
 msgid "Failed to create term"
 msgstr "Terim oluşturulamadı"
 
-#: packages/admin/src/router.tsx:985
+#: packages/admin/src/router.tsx:984
 msgid "Failed to create translation"
 msgstr "Çeviri oluşturulamadı"
 
-#: packages/admin/src/router.tsx:398
-#: packages/admin/src/router.tsx:427
-#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:397
+#: packages/admin/src/router.tsx:426
+#: packages/admin/src/router.tsx:1004
 msgid "Failed to delete"
 msgstr "Silinemedi"
 
@@ -2924,7 +2960,7 @@ msgid "Failed to delete collection"
 msgstr "Koleksiyon silinemedi"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1257
+#: packages/admin/src/router.tsx:1248
 msgid "Failed to delete comment"
 msgstr "Yorum silinemedi"
 
@@ -2990,7 +3026,7 @@ msgstr "Arama devre dışı bırakılamadı"
 msgid "Failed to disable user"
 msgstr "Kullanıcı devre dışı bırakılamadı"
 
-#: packages/admin/src/router.tsx:912
+#: packages/admin/src/router.tsx:911
 msgid "Failed to discard changes"
 msgstr "Değişiklikler silinemedi"
 
@@ -2998,7 +3034,7 @@ msgstr "Değişiklikler silinemedi"
 msgid "Failed to dismiss welcome"
 msgstr "Hoş geldiniz reddedilemedi"
 
-#: packages/admin/src/router.tsx:441
+#: packages/admin/src/router.tsx:440
 msgid "Failed to duplicate"
 msgstr "Kopyalanamadı"
 
@@ -3097,8 +3133,8 @@ msgstr "Terimler getirilemedi"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:742
-#: packages/admin/src/router.tsx:1188
+#: packages/admin/src/router.tsx:741
+#: packages/admin/src/router.tsx:1179
 msgid "Failed to fetch user"
 msgstr "Kullanıcı getirilemedi"
 
@@ -3140,11 +3176,11 @@ msgstr "Eklenti yüklenemedi"
 msgid "Failed to list byline fields"
 msgstr "Yazar bilgisi alanları listelenemedi"
 
-#: packages/admin/src/router.tsx:258
+#: packages/admin/src/router.tsx:257
 msgid "Failed to load admin"
 msgstr "Yönetici yüklenemedi"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:192
 msgid "Failed to load allowed domains"
 msgstr "İzin verilen alanlar yüklenemedi"
 
@@ -3153,7 +3189,7 @@ msgstr "İzin verilen alanlar yüklenemedi"
 msgid "Failed to load bylines: {0}"
 msgstr "Yazar bilgileri yüklenemedi: {0}"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:89
+#: packages/admin/src/components/settings/EmailSettings.tsx:81
 msgid "Failed to load email settings"
 msgstr "E-posta ayarları yüklenemedi"
 
@@ -3161,7 +3197,7 @@ msgstr "E-posta ayarları yüklenemedi"
 msgid "Failed to load image"
 msgstr "Resim yüklenemedi"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:144
+#: packages/admin/src/components/settings/SecuritySettings.tsx:135
 msgid "Failed to load passkeys"
 msgstr "Geçiş anahtarları yüklenemedi"
 
@@ -3199,7 +3235,7 @@ msgstr "Kullanıcılar yüklenemedi: {0}"
 msgid "Failed to load widget"
 msgstr "Widget yüklenemedi"
 
-#: packages/admin/src/router.tsx:1282
+#: packages/admin/src/router.tsx:1273
 msgid "Failed to perform bulk action"
 msgstr "Toplu işlem gerçekleştirilemedi"
 
@@ -3211,7 +3247,7 @@ msgstr "İçerik kalıcı olarak silinemedi"
 msgid "Failed to prepare import"
 msgstr "İçe aktarma hazırlanamadı"
 
-#: packages/admin/src/router.tsx:873
+#: packages/admin/src/router.tsx:872
 msgid "Failed to publish"
 msgstr "Yayınlanamadı"
 
@@ -3219,16 +3255,16 @@ msgstr "Yayınlanamadı"
 msgid "Failed to read byline field usage"
 msgstr "Yazar bilgisi alanı kullanımı okunamadı"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:130
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:112
 msgid "Failed to remove domain"
 msgstr "Alan kaldırılamadı"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:99
-#: packages/admin/src/components/settings/SecuritySettings.tsx:82
+#: packages/admin/src/components/settings/SecuritySettings.tsx:70
 msgid "Failed to remove passkey"
 msgstr "Geçiş anahtarı kaldırılamadı"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:66
+#: packages/admin/src/components/settings/SecuritySettings.tsx:53
 msgid "Failed to rename passkey"
 msgstr "Geçiş anahtarı yeniden adlandırılamadı"
 
@@ -3245,7 +3281,7 @@ msgstr "Alanlar yeniden sıralanamadı"
 msgid "Failed to reorder widgets"
 msgstr "Widget'lar yeniden sıralanamadı"
 
-#: packages/admin/src/router.tsx:413
+#: packages/admin/src/router.tsx:412
 msgid "Failed to restore"
 msgstr "Geri yüklenemedi"
 
@@ -3266,8 +3302,8 @@ msgstr "API belirteci iptal edilemedi"
 msgid "Failed to rewrite URLs"
 msgstr "URL'ler yeniden yazılamadı"
 
-#: packages/admin/src/router.tsx:817
-#: packages/admin/src/router.tsx:1764
+#: packages/admin/src/router.tsx:816
+#: packages/admin/src/router.tsx:1755
 msgid "Failed to save"
 msgstr "Kaydedilemedi"
 
@@ -3275,13 +3311,13 @@ msgstr "Kaydedilemedi"
 msgid "Failed to save field"
 msgstr "Alan kaydedilemedi"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:58
-#: packages/admin/src/components/settings/SeoSettings.tsx:62
-#: packages/admin/src/components/settings/SocialSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:50
+#: packages/admin/src/components/settings/SeoSettings.tsx:44
+#: packages/admin/src/components/settings/SocialSettings.tsx:42
 msgid "Failed to save settings"
 msgstr "Ayarlar kaydedilemedi"
 
-#: packages/admin/src/router.tsx:933
+#: packages/admin/src/router.tsx:932
 msgid "Failed to schedule"
 msgstr "Planlama başarısız oldu"
 
@@ -3294,7 +3330,7 @@ msgstr "Sihirli bağlantı gönderilemedi"
 msgid "Failed to send recovery link"
 msgstr "Kurtarma bağlantısı gönderilemedi"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:61
+#: packages/admin/src/components/settings/EmailSettings.tsx:50
 #: packages/admin/src/lib/api/email-settings.ts:45
 msgid "Failed to send test email"
 msgstr "Test e-postası gönderilemedi"
@@ -3312,11 +3348,11 @@ msgstr "Kayıt terimleri ayarlanamadı"
 msgid "Failed to uninstall plugin"
 msgstr "Eklenti kaldırılamadı"
 
-#: packages/admin/src/router.tsx:891
+#: packages/admin/src/router.tsx:890
 msgid "Failed to unpublish"
 msgstr "Yayından kaldırılamadı"
 
-#: packages/admin/src/router.tsx:954
+#: packages/admin/src/router.tsx:953
 msgid "Failed to unschedule"
 msgstr "Planlama iptal edilemedi"
 
@@ -3333,7 +3369,7 @@ msgstr "Yazar bilgisi güncellenemedi"
 msgid "Failed to update byline field"
 msgstr "Yazar bilgisi alanı güncellenemedi"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:94
 msgid "Failed to update domain"
 msgstr "Alan adı güncellenemedi"
 
@@ -3354,7 +3390,7 @@ msgstr "Bölüm güncellenemedi"
 msgid "Failed to update settings"
 msgstr "Ayarlar güncellenemedi"
 
-#: packages/admin/src/router.tsx:1241
+#: packages/admin/src/router.tsx:1232
 msgid "Failed to update status"
 msgstr "Durum güncellenemedi"
 
@@ -3382,8 +3418,8 @@ msgstr "Kayıt doğrulanamadı"
 msgid "FAQ"
 msgstr "SSS"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:236
-#: packages/admin/src/components/settings/GeneralSettings.tsx:242
+#: packages/admin/src/components/settings/GeneralSettings.tsx:213
+#: packages/admin/src/components/settings/GeneralSettings.tsx:219
 msgid "Favicon"
 msgstr "Site simgesi"
 
@@ -3449,12 +3485,13 @@ msgstr "Dosya {0}"
 msgid "File from media library"
 msgstr "Medya kitaplığından dosya"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:206
-#: packages/admin/src/components/MediaLibrary.tsx:490
+#: packages/admin/src/components/MediaDetailPanel.tsx:325
+#: packages/admin/src/components/MediaDetailPanel.tsx:342
+#: packages/admin/src/components/MediaLibrary.tsx:587
 msgid "Filename"
 msgstr "Dosya adı"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:210
+#: packages/admin/src/components/MediaDetailPanel.tsx:120
 msgid "Filename cannot be changed after upload"
 msgstr "Dosya adı yüklemeden sonra değiştirilemez"
 
@@ -3487,7 +3524,7 @@ msgstr "Kaynağa göre filtrele"
 msgid "Filter by status"
 msgstr "Duruma göre filtrele"
 
-#: packages/admin/src/components/MediaLibrary.tsx:406
+#: packages/admin/src/components/MediaLibrary.tsx:440
 #: packages/admin/src/components/Redirects.tsx:425
 msgid "Filter by type"
 msgstr "Türe göre filtrele"
@@ -3532,8 +3569,8 @@ msgstr "Tam yönetici erişimi"
 msgid "General"
 msgstr "Genel"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:101
-#: packages/admin/src/components/settings/GeneralSettings.tsx:129
+#: packages/admin/src/components/settings/GeneralSettings.tsx:96
+#: packages/admin/src/components/settings/GeneralSettings.tsx:124
 msgid "General Settings"
 msgstr "Genel Ayarlar"
 
@@ -3545,7 +3582,7 @@ msgstr "Türler"
 msgid "Get Started"
 msgstr "Başlayın"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:138
+#: packages/admin/src/components/settings/SocialSettings.tsx:112
 msgid "GitHub"
 msgstr "GitHub"
 
@@ -3558,11 +3595,11 @@ msgid "Go"
 msgstr "Git"
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1967
+#: packages/admin/src/router.tsx:1958
 msgid "Go to Dashboard"
 msgstr "Kontrol Paneline Git"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:227
+#: packages/admin/src/components/settings/SeoSettings.tsx:194
 msgid "Google Verification"
 msgstr "Google Doğrulaması"
 
@@ -3570,7 +3607,7 @@ msgstr "Google Doğrulaması"
 msgid "GraphQL"
 msgstr "GrafikQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:277
+#: packages/admin/src/components/MediaLibrary.tsx:461
 msgid "Grid view"
 msgstr "Izgara görünümü"
 
@@ -3719,7 +3756,7 @@ msgid "image URLs updated in"
 msgstr "resim URL'leri şu tarihte güncellendi:"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:61
-#: packages/admin/src/components/MediaLibrary.tsx:401
+#: packages/admin/src/components/MediaLibrary.tsx:435
 msgid "Images"
 msgstr "Görseller"
 
@@ -3880,7 +3917,7 @@ msgstr "Bölüm Ekle"
 msgid "Insert Table"
 msgstr "Tablo Ekle"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:150
+#: packages/admin/src/components/settings/SocialSettings.tsx:124
 msgid "Instagram"
 msgstr "instagram"
 
@@ -3889,7 +3926,7 @@ msgstr "instagram"
 msgid "Install"
 msgstr "Yükle"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:181
+#: packages/admin/src/components/settings/EmailSettings.tsx:155
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "Davetiyeler, sihirli bağlantılar ve şifre kurtarma gibi e-posta özelliklerini etkinleştirmek için bir e-posta sağlayıcı eklentisi yükleyin ve etkinleştirin."
 
@@ -4100,9 +4137,9 @@ msgstr "Atanmamış olarak bırak"
 msgid "Left"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:127
-#: packages/admin/src/components/MediaLibrary.tsx:247
-#: packages/admin/src/components/MediaLibrary.tsx:359
+#: packages/admin/src/components/MediaLibrary.tsx:137
+#: packages/admin/src/components/MediaLibrary.tsx:274
+#: packages/admin/src/components/MediaLibrary.tsx:357
 #: packages/admin/src/components/MediaPickerModal.tsx:203
 #: packages/admin/src/components/MediaPickerModal.tsx:462
 msgid "Library"
@@ -4141,7 +4178,7 @@ msgstr "Yalnızca bağlantılı"
 msgid "Linked user"
 msgstr "Bağlantılı kullanıcı"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:156
+#: packages/admin/src/components/settings/SocialSettings.tsx:130
 msgid "LinkedIn"
 msgstr "LinkedIn"
 
@@ -4149,7 +4186,7 @@ msgstr "LinkedIn"
 msgid "Links"
 msgstr "Bağlantılar"
 
-#: packages/admin/src/components/MediaLibrary.tsx:286
+#: packages/admin/src/components/MediaLibrary.tsx:470
 msgid "List view"
 msgstr "Liste görünümü"
 
@@ -4167,7 +4204,7 @@ msgstr "Daha fazlasını yükle"
 
 #: packages/admin/src/components/ContentList.tsx:444
 #: packages/admin/src/components/ContentList.tsx:501
-#: packages/admin/src/components/MediaLibrary.tsx:540
+#: packages/admin/src/components/MediaLibrary.tsx:636
 #: packages/admin/src/components/MediaPickerModal.tsx:723
 #: packages/admin/src/components/users/UserList.tsx:169
 msgid "Load More"
@@ -4185,7 +4222,7 @@ msgstr "Koleksiyonlar yükleniyor..."
 msgid "Loading comments..."
 msgstr "Yorumlar yükleniyor..."
 
-#: packages/admin/src/router.tsx:1936
+#: packages/admin/src/router.tsx:1927
 msgid "Loading configuration..."
 msgstr "Yapılandırma yükleniyor..."
 
@@ -4218,9 +4255,9 @@ msgstr "Yönlendirmeler yükleniyor..."
 msgid "Loading sections..."
 msgstr "Bölümler yükleniyor..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:104
-#: packages/admin/src/components/settings/SeoSettings.tsx:108
-#: packages/admin/src/components/settings/SocialSettings.tsx:81
+#: packages/admin/src/components/settings/GeneralSettings.tsx:99
+#: packages/admin/src/components/settings/SeoSettings.tsx:93
+#: packages/admin/src/components/settings/SocialSettings.tsx:73
 msgid "Loading settings..."
 msgstr "Ayarlar yükleniyor..."
 
@@ -4242,12 +4279,12 @@ msgstr "Widget'lar yükleniyor..."
 #: packages/admin/src/components/ContentList.tsx:501
 #: packages/admin/src/components/ContentPickerModal.tsx:233
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
-#: packages/admin/src/components/MediaLibrary.tsx:540
+#: packages/admin/src/components/MediaLibrary.tsx:636
 #: packages/admin/src/components/MediaPickerModal.tsx:723
 #: packages/admin/src/components/PortableTextEditor.tsx:1946
 #: packages/admin/src/components/RegistryBrowse.tsx:143
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:176
-#: packages/admin/src/components/settings/SecuritySettings.tsx:113
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:161
+#: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/TaxonomyManager.tsx:779
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:252
@@ -4278,8 +4315,8 @@ msgstr "Bu alanda kayıtlı değerler olduğundan kilitlendi. Bunu değiştirmek
 msgid "Log out"
 msgstr "Oturumu kapat"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:182
-#: packages/admin/src/components/settings/GeneralSettings.tsx:188
+#: packages/admin/src/components/settings/GeneralSettings.tsx:159
+#: packages/admin/src/components/settings/GeneralSettings.tsx:165
 msgid "Logo"
 msgstr "Logo"
 
@@ -4352,6 +4389,14 @@ msgstr "URL yönlendirmelerini yönetin ve 404 hatalarını görüntüleyin."
 msgid "Manage your passkeys and authentication"
 msgstr "Geçiş anahtarlarınızı ve kimlik doğrulamanızı yönetin"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:317
+msgid "Managed by {providerName}"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:318
+msgid "Managed by an external media provider"
+msgstr ""
+
 #: packages/admin/src/components/Redirects.tsx:424
 msgid "Manual"
 msgstr "Manuel"
@@ -4416,7 +4461,7 @@ msgstr "MDX"
 msgid "Media"
 msgstr "Medya"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:134
+#: packages/admin/src/components/MediaDetailPanel.tsx:222
 msgid "Media Details"
 msgstr "Medya Ayrıntıları"
 
@@ -4438,7 +4483,7 @@ msgid "Media import was skipped"
 msgstr "Medya içe aktarma atlandı"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:154
-#: packages/admin/src/components/MediaLibrary.tsx:271
+#: packages/admin/src/components/MediaLibrary.tsx:323
 msgid "Media Library"
 msgstr "Medya Kitaplığı"
 
@@ -4517,11 +4562,11 @@ msgstr "Menüler Yönet"
 msgid "Meta Description"
 msgstr "Meta Açıklama"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:236
+#: packages/admin/src/components/settings/SeoSettings.tsx:203
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Bing Web Yöneticisi Araçları doğrulaması için meta etiket içeriği"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:230
+#: packages/admin/src/components/settings/SeoSettings.tsx:197
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Google Arama Konsolu doğrulaması için meta etiket içeriği"
 
@@ -4643,7 +4688,7 @@ msgstr "Gezinme"
 msgid "Never"
 msgstr "Asla"
 
-#: packages/admin/src/router.tsx:980
+#: packages/admin/src/router.tsx:979
 msgid "new"
 msgstr "yeni"
 
@@ -4759,8 +4804,8 @@ msgstr "Henüz {0} yok. Başlamak için bir tane oluşturun."
 msgid "No 404 errors recorded yet."
 msgstr "Henüz 404 hatası kaydedilmedi."
 
-#: packages/admin/src/components/MediaLibrary.tsx:697
-#: packages/admin/src/components/MediaLibrary.tsx:754
+#: packages/admin/src/components/MediaLibrary.tsx:834
+#: packages/admin/src/components/MediaLibrary.tsx:891
 msgid "No alt text"
 msgstr "Alternatif metin yok"
 
@@ -4824,11 +4869,11 @@ msgstr "Henüz özel alan yok"
 msgid "No detailed description available."
 msgstr "Detaylı açıklama mevcut değil."
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:295
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:262
 msgid "No domains configured. Users must be invited individually."
 msgstr "Hiçbir alan yapılandırılmadı. Kullanıcıların bireysel olarak davet edilmesi gerekir."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:178
+#: packages/admin/src/components/settings/EmailSettings.tsx:152
 msgid "No email provider configured"
 msgstr "Hiçbir e-posta sağlayıcı yapılandırılmadı"
 
@@ -4881,6 +4926,11 @@ msgstr "Eşleşme yok"
 msgid "No matching bylines."
 msgstr "Eşleşen yazar bilgisi yok."
 
+#: packages/admin/src/components/MediaLibrary.tsx:490
+#: packages/admin/src/components/MediaLibrary.tsx:518
+msgid "No matching media"
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:266
 msgid "No matching passkey found for this account."
 msgstr "Bu hesap için eşleşen geçiş anahtarı bulunamadı."
@@ -4890,19 +4940,18 @@ msgstr "Bu hesap için eşleşen geçiş anahtarı bulunamadı."
 msgid "No maximum"
 msgstr "Maksimum yok"
 
-#: packages/admin/src/components/MediaLibrary.tsx:443
 #: packages/admin/src/components/MediaPickerModal.tsx:646
 msgid "No media available from this provider"
 msgstr "Bu sağlayıcıda mevcut medya yok"
 
-#: packages/admin/src/components/MediaLibrary.tsx:437
+#: packages/admin/src/components/MediaLibrary.tsx:541
+msgid "No media available from this provider."
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:540
 #: packages/admin/src/components/MediaPickerModal.tsx:640
 msgid "No media found"
 msgstr "Medya bulunamadı"
-
-#: packages/admin/src/components/MediaLibrary.tsx:426
-msgid "No media yet"
-msgstr "Henüz medya yok"
 
 #: packages/admin/src/components/MenuEditor.tsx:406
 msgid "No menu items yet"
@@ -4925,7 +4974,7 @@ msgstr "Denetleme yok (tümünü otomatik onayla)"
 msgid "No passkeys registered"
 msgstr "Kayıtlı geçiş anahtarı yok"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:195
+#: packages/admin/src/components/settings/SecuritySettings.tsx:168
 msgid "No passkeys registered yet."
 msgstr "Henüz kayıtlı geçiş anahtarı yok."
 
@@ -4948,6 +4997,10 @@ msgstr "\"{debouncedQuery}\" ile eşleşen eklenti yok."
 #: packages/admin/src/components/Sections.tsx:343
 msgid "No preview"
 msgstr "Önizleme yok"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:304
+msgid "No public URL available"
+msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:236
 msgid "No recent activity"
@@ -5031,7 +5084,7 @@ msgstr "Bu ortamla uyumlu değil"
 msgid "Number"
 msgstr "Sayı"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Number of posts to show per page on list views"
 msgstr "Liste görünümlerinde sayfa başına gösterilecek gönderi sayısı"
 
@@ -5098,7 +5151,7 @@ msgstr ""
 msgid "Optional caption displayed below the image"
 msgstr "Resmin altında görüntülenen isteğe bağlı başlık"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:227
+#: packages/admin/src/components/MediaDetailPanel.tsx:384
 msgid "Optional caption for display"
 msgstr "Görüntüleme için isteğe bağlı başlık"
 
@@ -5162,7 +5215,7 @@ msgstr "Mülkiyet"
 msgid "Package"
 msgstr "Paket"
 
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1953
 msgid "Page Not Found"
 msgstr "Sayfa Bulunamadı"
 
@@ -5188,7 +5241,7 @@ msgstr "Yönlendirme döngüsünün parçası"
 msgid "Pass"
 msgstr "Geçti"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:98
+#: packages/admin/src/components/settings/SecuritySettings.tsx:89
 msgid "Passkey added successfully"
 msgstr "Geçiş anahtarı başarıyla eklendi"
 
@@ -5204,15 +5257,15 @@ msgstr "Geçiş Anahtarı Adı (isteğe bağlı)"
 msgid "Passkey registered successfully!"
 msgstr "Geçiş anahtarı başarıyla kaydedildi!"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:76
+#: packages/admin/src/components/settings/SecuritySettings.tsx:66
 msgid "Passkey removed"
 msgstr "Geçiş anahtarı kaldırıldı"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:60
+#: packages/admin/src/components/settings/SecuritySettings.tsx:49
 msgid "Passkey renamed"
 msgstr "Geçiş anahtarı yeniden adlandırıldı"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:177
+#: packages/admin/src/components/settings/SecuritySettings.tsx:150
 #: packages/admin/src/components/users/UserList.tsx:110
 msgid "Passkeys"
 msgstr "Geçiş anahtarları"
@@ -5222,7 +5275,7 @@ msgstr "Geçiş anahtarları"
 msgid "Passkeys ({0})"
 msgstr "Geçiş anahtarları ({0})"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:181
+#: packages/admin/src/components/settings/SecuritySettings.tsx:154
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Geçiş anahtarları, hesabınızda oturum açmanın güvenli ve parolasız bir yoludur. Farklı cihazlar için birden fazla geçiş anahtarı kaydedebilirsiniz."
 
@@ -5418,7 +5471,7 @@ msgstr "Gönderi"
 msgid "Posts"
 msgstr "Gönderiler"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:295
+#: packages/admin/src/components/settings/GeneralSettings.tsx:272
 msgid "Posts Per Page"
 msgstr "Sayfa Başına Gönderiler"
 
@@ -5441,7 +5494,7 @@ msgstr "Hazırlanıyor..."
 
 #: packages/admin/src/components/ContentEditor.tsx:680
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
-#: packages/admin/src/components/MediaLibrary.tsx:489
+#: packages/admin/src/components/MediaLibrary.tsx:586
 msgid "Preview"
 msgstr "Önizleme"
 
@@ -5470,7 +5523,7 @@ msgstr "Önceki ekran görüntüsü"
 msgid "Primary Navigation"
 msgstr "Birincil gezinme"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:202
+#: packages/admin/src/components/settings/EmailSettings.tsx:176
 msgid "Provider:"
 msgstr "Sağlayıcı:"
 
@@ -5492,7 +5545,7 @@ msgstr "yayınlandı"
 #: packages/admin/src/components/ContentList.tsx:552
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:869
+#: packages/admin/src/router.tsx:868
 msgid "Published"
 msgstr "Yayınlandı"
 
@@ -5554,7 +5607,7 @@ msgstr "Kullanıcı hesaplarını oku"
 msgid "Read your content"
 msgstr "İçeriğinizi okuyun"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:292
+#: packages/admin/src/components/settings/GeneralSettings.tsx:269
 msgid "Reading"
 msgstr "Okuma"
 
@@ -5571,7 +5624,7 @@ msgstr "Son Etkinlik"
 msgid "Recently Updated"
 msgstr "Son Güncelleme"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:144
+#: packages/admin/src/components/settings/EmailSettings.tsx:118
 msgid "Recipient email"
 msgstr "Alıcı e-postası"
 
@@ -5602,7 +5655,7 @@ msgstr "Yinele"
 msgid "Reference"
 msgstr "Referans"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:251
+#: packages/admin/src/components/settings/GeneralSettings.tsx:228
 msgid "Referenced favicon unavailable."
 msgstr "Başvurulan site simgesi kullanılamıyor."
 
@@ -5611,7 +5664,7 @@ msgid "Register"
 msgstr "Kaydol"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:146
-#: packages/admin/src/components/settings/SecuritySettings.tsx:220
+#: packages/admin/src/components/settings/SecuritySettings.tsx:195
 msgid "Register Passkey"
 msgstr "Geçiş Anahtarı Kaydet"
 
@@ -5640,11 +5693,11 @@ msgstr "Sürüm yüklenemeyecek kadar yeni"
 #: packages/admin/src/components/ContentEditor.tsx:1965
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/PortableTextEditor.tsx:3196
-#: packages/admin/src/components/settings/GeneralSettings.tsx:217
-#: packages/admin/src/components/settings/GeneralSettings.tsx:271
+#: packages/admin/src/components/settings/GeneralSettings.tsx:194
+#: packages/admin/src/components/settings/GeneralSettings.tsx:248
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
 #: packages/admin/src/components/settings/PasskeyItem.tsx:209
-#: packages/admin/src/components/settings/SeoSettings.tsx:209
+#: packages/admin/src/components/settings/SeoSettings.tsx:176
 msgid "Remove"
 msgstr "Kaldır"
 
@@ -5663,11 +5716,11 @@ msgstr "{entry} öğesini kaldır"
 msgid "Remove {label}"
 msgstr "{label}'i kaldırın"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:430
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:397
 msgid "Remove Domain"
 msgstr "Alan Adını Kaldır"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:414
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
 msgid "Remove Domain?"
 msgstr "Alan adı kaldırılsın mı?"
 
@@ -5829,7 +5882,7 @@ msgstr "Geri yükleniyor..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1950
+#: packages/admin/src/router.tsx:1941
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Yeniden dene"
@@ -5838,7 +5891,7 @@ msgstr "Yeniden dene"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Herhangi bir içeriğe ekleyebileceğiniz yeniden kullanılabilir içerik blokları"
 
-#: packages/admin/src/router.tsx:907
+#: packages/admin/src/router.tsx:906
 msgid "Reverted to published version"
 msgstr "Yayınlanan sürüme geri dönüldü"
 
@@ -5927,7 +5980,7 @@ msgstr "Aynı pencere"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
-#: packages/admin/src/components/MediaDetailPanel.tsx:255
+#: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:533
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
@@ -5961,18 +6014,18 @@ msgstr "İçeriği yayınlamadan önce taslak olarak kaydedin"
 msgid "Save name"
 msgstr "Adı kaydet"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/components/settings/SeoSettings.tsx:251
+#: packages/admin/src/components/settings/SeoSettings.tsx:111
+#: packages/admin/src/components/settings/SeoSettings.tsx:218
 msgid "Save SEO Settings"
 msgstr "SEO Ayarlarını Kaydet"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:125
-#: packages/admin/src/components/settings/GeneralSettings.tsx:321
+#: packages/admin/src/components/settings/GeneralSettings.tsx:120
+#: packages/admin/src/components/settings/GeneralSettings.tsx:298
 msgid "Save Settings"
 msgstr "Ayarları Kaydet"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:99
-#: packages/admin/src/components/settings/SocialSettings.tsx:173
+#: packages/admin/src/components/settings/SocialSettings.tsx:91
+#: packages/admin/src/components/settings/SocialSettings.tsx:147
 msgid "Save Social Links"
 msgstr "Sosyal Bağlantıları Kaydet"
 
@@ -5990,16 +6043,16 @@ msgstr "\"{0}\" kaydedildi."
 #: packages/admin/src/components/ContentEditor.tsx:2103
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 #: packages/admin/src/components/FieldEditor.tsx:660
-#: packages/admin/src/components/MediaDetailPanel.tsx:255
+#: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:533
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/SaveButton.tsx:42
-#: packages/admin/src/components/settings/GeneralSettings.tsx:125
-#: packages/admin/src/components/settings/GeneralSettings.tsx:321
-#: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/components/settings/SeoSettings.tsx:251
-#: packages/admin/src/components/settings/SocialSettings.tsx:99
-#: packages/admin/src/components/settings/SocialSettings.tsx:173
+#: packages/admin/src/components/settings/GeneralSettings.tsx:120
+#: packages/admin/src/components/settings/GeneralSettings.tsx:298
+#: packages/admin/src/components/settings/SeoSettings.tsx:111
+#: packages/admin/src/components/settings/SeoSettings.tsx:218
+#: packages/admin/src/components/settings/SocialSettings.tsx:91
+#: packages/admin/src/components/settings/SocialSettings.tsx:147
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
@@ -6038,7 +6091,7 @@ msgstr "zamanlandı"
 
 #: packages/admin/src/components/ContentEditor.tsx:859
 #: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/router.tsx:927
+#: packages/admin/src/router.tsx:926
 msgid "Scheduled"
 msgstr "Zamanlandı"
 
@@ -6119,7 +6172,7 @@ msgstr "{0}'te arama yapın"
 msgid "Search {0}..."
 msgstr "{0}'i arayın..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:383
+#: packages/admin/src/components/MediaLibrary.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:578
 msgid "Search by filename..."
 msgstr "Dosya adına göre ara..."
@@ -6149,7 +6202,7 @@ msgstr "Yorumları ara..."
 msgid "Search content..."
 msgstr "İçerik ara..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:155
+#: packages/admin/src/components/settings/SeoSettings.tsx:122
 msgid "Search Engine Optimization"
 msgstr "Arama Motoru Optimizasyonu"
 
@@ -6157,7 +6210,7 @@ msgstr "Arama Motoru Optimizasyonu"
 msgid "Search engine optimization and verification"
 msgstr "Arama motoru optimizasyonu ve doğrulama"
 
-#: packages/admin/src/components/MediaLibrary.tsx:384
+#: packages/admin/src/components/MediaLibrary.tsx:417
 #: packages/admin/src/components/MediaPickerModal.tsx:579
 msgid "Search media"
 msgstr "Medya ara"
@@ -6197,7 +6250,7 @@ msgstr "Temaları arayın..."
 msgid "Search users"
 msgstr "Kullanıcıları ara"
 
-#: packages/admin/src/components/MediaLibrary.tsx:383
+#: packages/admin/src/components/MediaLibrary.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:578
 msgid "Search..."
 msgstr "Ara..."
@@ -6298,7 +6351,7 @@ msgstr "Güvenlik hatası. Güvenli bir bağlantıda olduğunuzdan emin olun."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:243
 #: packages/admin/src/components/Header.tsx:85
-#: packages/admin/src/components/settings/SecuritySettings.tsx:104
+#: packages/admin/src/components/settings/SecuritySettings.tsx:95
 msgid "Security Settings"
 msgstr "Güvenlik Ayarları"
 
@@ -6336,12 +6389,12 @@ msgstr "{0}'in yorumunu seçin"
 msgid "Select Content"
 msgstr "İçerik Seç"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:268
+#: packages/admin/src/components/settings/SeoSettings.tsx:235
 msgid "Select Default Social Image"
 msgstr "Varsayılan Sosyal Görseli Seç"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:283
-#: packages/admin/src/components/settings/GeneralSettings.tsx:344
+#: packages/admin/src/components/settings/GeneralSettings.tsx:260
+#: packages/admin/src/components/settings/GeneralSettings.tsx:321
 msgid "Select Favicon"
 msgstr "Favicon Seç"
 
@@ -6360,12 +6413,12 @@ msgstr "Resim seç"
 #: packages/admin/src/components/MediaPickerModal.tsx:145
 #: packages/admin/src/components/PortableTextEditor.tsx:2583
 #: packages/admin/src/components/PortableTextEditor.tsx:3270
-#: packages/admin/src/components/settings/SeoSettings.tsx:221
+#: packages/admin/src/components/settings/SeoSettings.tsx:188
 msgid "Select Image"
 msgstr "Resim Seç"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:229
-#: packages/admin/src/components/settings/GeneralSettings.tsx:336
+#: packages/admin/src/components/settings/GeneralSettings.tsx:206
+#: packages/admin/src/components/settings/GeneralSettings.tsx:313
 msgid "Select Logo"
 msgstr "Logo Seç"
 
@@ -6396,11 +6449,11 @@ msgid "Selected:"
 msgstr "Seçilen:"
 
 #: packages/admin/src/components/Settings.tsx:98
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:167
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:152
 msgid "Self-Signup Domains"
 msgstr "Kendi Kendine Kayıt Alan Adları"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:139
+#: packages/admin/src/components/settings/EmailSettings.tsx:113
 msgid "Send a test email through the full pipeline to verify your email configuration."
 msgstr "E-posta yapılandırmanızı doğrulamak için tüm işlem hattı üzerinden bir test e-postası gönderin."
 
@@ -6420,16 +6473,16 @@ msgstr "Sihirli bağlantı gönder"
 msgid "Send Recovery Link"
 msgstr "Kurtarma Bağlantısını Gönder"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:153
+#: packages/admin/src/components/settings/EmailSettings.tsx:127
 msgid "Send Test"
 msgstr "Test Gönder"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:136
+#: packages/admin/src/components/settings/EmailSettings.tsx:110
 msgid "Send Test Email"
 msgstr "Test E-postası Gönder"
 
 #: packages/admin/src/components/LoginPage.tsx:149
-#: packages/admin/src/components/settings/EmailSettings.tsx:153
+#: packages/admin/src/components/settings/EmailSettings.tsx:127
 #: packages/admin/src/components/SignupPage.tsx:88
 #: packages/admin/src/components/SignupPage.tsx:151
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
@@ -6443,8 +6496,8 @@ msgstr "Gönderiliyor..."
 msgid "SEO"
 msgstr "SEO"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:105
-#: packages/admin/src/components/settings/SeoSettings.tsx:130
+#: packages/admin/src/components/settings/SeoSettings.tsx:90
+#: packages/admin/src/components/settings/SeoSettings.tsx:115
 msgid "SEO Settings"
 msgstr "SEO Ayarları"
 
@@ -6452,7 +6505,7 @@ msgstr "SEO Ayarları"
 msgid "SEO settings (Yoast)"
 msgstr "SEO ayarları (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:57
+#: packages/admin/src/components/settings/SeoSettings.tsx:40
 msgid "SEO settings saved"
 msgstr "SEO ayarları kaydedildi"
 
@@ -6504,7 +6557,7 @@ msgstr "Ayarları Yönet"
 msgid "Settings Read"
 msgstr "Ayarları Oku"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:43
 msgid "Settings saved successfully"
 msgstr "Ayarlar başarıyla kaydedildi"
 
@@ -6592,7 +6645,7 @@ msgstr "Tek satırlık metin girişi"
 msgid "Site"
 msgstr "Site"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:153
+#: packages/admin/src/components/settings/GeneralSettings.tsx:130
 msgid "Site Identity"
 msgstr "Site Kimliği"
 
@@ -6604,7 +6657,7 @@ msgstr "Site kimliği, logo, favicon ve okuma tercihleri"
 msgid "Site Settings"
 msgstr "Site Ayarları"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:156
+#: packages/admin/src/components/settings/GeneralSettings.tsx:133
 #: packages/admin/src/components/SetupWizard.tsx:116
 msgid "Site Title"
 msgstr "Site Başlığı"
@@ -6617,15 +6670,15 @@ msgstr "Site başlığı ve sloganı"
 msgid "Site title is required"
 msgstr "Site başlığı gerekli"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:168
+#: packages/admin/src/components/settings/GeneralSettings.tsx:145
 msgid "Site URL"
 msgstr "Site URL'si"
 
-#: packages/admin/src/components/MediaLibrary.tsx:492
+#: packages/admin/src/components/MediaLibrary.tsx:589
 msgid "Size"
 msgstr "Boyut"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:174
+#: packages/admin/src/components/MediaDetailPanel.tsx:274
 msgid "Size:"
 msgstr "Boyut:"
 
@@ -6667,12 +6720,12 @@ msgid "Small section heading"
 msgstr "Küçük bölüm başlığı"
 
 #: packages/admin/src/components/Settings.tsx:75
-#: packages/admin/src/components/settings/SocialSettings.tsx:78
-#: packages/admin/src/components/settings/SocialSettings.tsx:103
+#: packages/admin/src/components/settings/SocialSettings.tsx:70
+#: packages/admin/src/components/settings/SocialSettings.tsx:95
 msgid "Social Links"
 msgstr "Sosyal Bağlantılar"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:48
+#: packages/admin/src/components/settings/SocialSettings.tsx:38
 msgid "Social links saved"
 msgstr "Sosyal bağlantılar kaydedildi"
 
@@ -6680,7 +6733,7 @@ msgstr "Sosyal bağlantılar kaydedildi"
 msgid "Social media profile links"
 msgstr "Sosyal medya profil bağlantıları"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:126
+#: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Social Profiles"
 msgstr "Sosyal Profiller"
 
@@ -6807,7 +6860,7 @@ msgstr "Sistem Alanları"
 msgid "Table"
 msgstr "Tablo"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:139
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
 msgstr "Slogan"
@@ -6870,7 +6923,7 @@ msgstr "\"{0}\" terimi {1} içinde oluşturuldu."
 msgid "Term deleted"
 msgstr "Terim silindi"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:148
+#: packages/admin/src/components/settings/EmailSettings.tsx:122
 msgid "test@example.com"
 msgstr "test@example.com"
 
@@ -6907,11 +6960,11 @@ msgstr "Pazar yeri boş. Yeni eklentiler için daha sonra tekrar kontrol edin."
 msgid "The menu has been deleted."
 msgstr "Menü silindi."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:159
+#: packages/admin/src/components/settings/GeneralSettings.tsx:136
 msgid "The name of your site, used in the header and metadata"
 msgstr "Başlıkta ve meta verilerde kullanılan sitenizin adı"
 
-#: packages/admin/src/router.tsx:1964
+#: packages/admin/src/router.tsx:1955
 msgid "The page you're looking for doesn't exist."
 msgstr "Aradığınız sayfa mevcut değil."
 
@@ -6919,15 +6972,15 @@ msgstr "Aradığınız sayfa mevcut değil."
 msgid "The plugin field widget failed to render."
 msgstr "Eklenti alanı widget'ı oluşturulamadı."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:172
+#: packages/admin/src/components/settings/GeneralSettings.tsx:149
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "Sitenizin genel URL'si (kanonik bağlantılar ve site haritaları için kullanılır)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:189
+#: packages/admin/src/components/settings/SeoSettings.tsx:156
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "Referans verilen görsel artık mevcut değil. Yeni bir tane seçin veya referansı kaldırın."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:197
+#: packages/admin/src/components/settings/GeneralSettings.tsx:174
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "Referans verilen logo artık mevcut değil. Yeni bir tane seçin veya referansı kaldırın."
 
@@ -7068,11 +7121,11 @@ msgstr "Bu, yayınlanan sürüme geri dönecektir. Taslak değişiklikleriniz ka
 msgid "Thoughts, tutorials, and more"
 msgstr "Düşünceler, öğreticiler ve daha fazlası"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:310
+#: packages/admin/src/components/settings/GeneralSettings.tsx:287
 msgid "Timezone"
 msgstr "Saat dilimi"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:313
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "Tarihleri ​​görüntülemek için saat dilimi (ör. Amerika/New_York)"
 
@@ -7089,7 +7142,7 @@ msgstr "Başlık"
 msgid "Title (Tooltip)"
 msgstr "Başlık (İpucu)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:159
+#: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "Title Separator"
 msgstr "Başlık Ayırıcı"
 
@@ -7171,7 +7224,7 @@ msgstr "Çeviri..."
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/router.tsx:979
+#: packages/admin/src/router.tsx:978
 msgid "Translation created"
 msgstr "Çeviri oluşturuldu"
 
@@ -7203,7 +7256,10 @@ msgstr "Çöp kutusu boş."
 msgid "True/false toggle"
 msgstr "Doğru/yanlış anahtarı"
 
-#: packages/admin/src/components/MediaLibrary.tsx:440
+#: packages/admin/src/components/MediaLibrary.tsx:494
+msgid "Try a broader media type or clear your filters."
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:643
 msgid "Try a different search term"
 msgstr "Farklı bir arama terimi deneyin"
@@ -7229,6 +7285,14 @@ msgstr "Tekrar deneyin"
 msgid "Try another code"
 msgstr "Başka bir kod deneyin"
 
+#: packages/admin/src/components/MediaLibrary.tsx:519
+msgid "Try another filename or clear your search."
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:493
+msgid "Try another filename, or clear your search and filters."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1125
 #: packages/admin/src/components/WordPressImport.tsx:1247
 msgid "Try Another URL"
@@ -7247,13 +7311,13 @@ msgstr "TSX"
 msgid "Turn into"
 msgstr "Şuna dönüştür"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:132
+#: packages/admin/src/components/settings/SocialSettings.tsx:106
 msgid "Twitter"
 msgstr "Twitter"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:571
-#: packages/admin/src/components/MediaLibrary.tsx:491
+#: packages/admin/src/components/MediaLibrary.tsx:588
 #: packages/admin/src/routes/byline-schema.tsx:240
 msgid "Type"
 msgstr "Tür"
@@ -7337,7 +7401,7 @@ msgstr "Adsız geçiş anahtarı"
 msgid "Unpublish"
 msgstr "Yayından kaldır"
 
-#: packages/admin/src/router.tsx:887
+#: packages/admin/src/router.tsx:886
 msgid "Unpublished"
 msgstr "Yayımlanmamış"
 
@@ -7349,7 +7413,7 @@ msgstr "Kayıtlı Olmayan İçerik Tabloları Bulundu"
 msgid "Unschedule"
 msgstr "Programı iptal et"
 
-#: packages/admin/src/router.tsx:948
+#: packages/admin/src/router.tsx:947
 msgid "Unscheduled"
 msgstr "Zamanlanmamış"
 
@@ -7388,7 +7452,7 @@ msgid "Update Field"
 msgstr "Alanı Güncelle"
 
 #. placeholder {0}: editingDomain?.domain
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:367
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:334
 msgid "Update settings for {0}"
 msgstr "{0} için ayarları güncelleyin"
 
@@ -7475,11 +7539,12 @@ msgstr "Dosya yükle"
 msgid "Upload File"
 msgstr "Dosya Yükle"
 
-#: packages/admin/src/components/MediaLibrary.tsx:368
+#: packages/admin/src/components/MediaLibrary.tsx:366
 msgid "Upload files"
 msgstr "Dosyaları yükle"
 
-#: packages/admin/src/components/MediaLibrary.tsx:431
+#: packages/admin/src/components/MediaLibrary.tsx:509
+#: packages/admin/src/components/MediaLibrary.tsx:533
 msgid "Upload Files"
 msgstr "Dosyaları Yükle"
 
@@ -7487,20 +7552,20 @@ msgstr "Dosyaları Yükle"
 msgid "Upload Image"
 msgstr "Resim Yükle"
 
-#: packages/admin/src/components/MediaLibrary.tsx:428
-msgid "Upload images, videos, and documents to get started."
-msgstr "Başlamak için görselleri, videoları ve belgeleri yükleyin."
+#: packages/admin/src/components/MediaLibrary.tsx:506
+msgid "Upload images, videos, and documents to keep reusable assets in one place."
+msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:89
 msgid "Upload Media"
 msgstr "Medya Yükle"
 
-#: packages/admin/src/components/MediaLibrary.tsx:442
-msgid "Upload media to get started"
-msgstr "Başlamak için medya yükleyin"
+#: packages/admin/src/components/MediaLibrary.tsx:530
+msgid "Upload media to keep reusable assets in one place."
+msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:359
+#: packages/admin/src/components/MediaLibrary.tsx:357
 msgid "Upload to {0}"
 msgstr "{0}'e yükle"
 
@@ -7508,7 +7573,7 @@ msgstr "{0}'e yükle"
 msgid "Upload WordPress export file"
 msgstr "WordPress dışa aktarma dosyasını yükleyin"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:188
+#: packages/admin/src/components/MediaDetailPanel.tsx:289
 msgid "Uploaded:"
 msgstr "Yüklendi:"
 
@@ -7518,11 +7583,11 @@ msgstr "Yükleniyor"
 
 #. placeholder {0}: uploadState.progress.current
 #. placeholder {1}: uploadState.progress.total
-#: packages/admin/src/components/MediaLibrary.tsx:334
+#: packages/admin/src/components/MediaLibrary.tsx:332
 msgid "Uploading {0}/{1}..."
 msgstr "{0}/{1} yükleniyor..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:335
+#: packages/admin/src/components/MediaLibrary.tsx:333
 #: packages/admin/src/components/MediaPickerModal.tsx:601
 msgid "Uploading..."
 msgstr "Yükleniyor..."
@@ -7549,7 +7614,7 @@ msgstr "URL dostu tanımlayıcı"
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 msgstr "URL dostu tanımlayıcı (ör. \"birincil\", \"alt bilgi\")"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:193
+#: packages/admin/src/components/MediaDetailPanel.tsx:295
 msgid "URL:"
 msgstr "URL'si:"
 
@@ -7565,7 +7630,7 @@ msgstr "Oturum açmak için cihazınızın biyometrik kimlik doğrulamasını, g
 msgid "Use your registered passkey to sign in securely."
 msgstr "Güvenli oturum açmak için kayıtlı geçiş anahtarınızı kullanın."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:173
+#: packages/admin/src/components/settings/SeoSettings.tsx:140
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "Sayfada görsel olmadığında yedek Open Graph görseli olarak kullanılır. Önerilen boyut: 1200×630."
 
@@ -7577,7 +7642,7 @@ msgstr "Tanımlayıcı olarak kullanılır. Yalnızca küçük harfler, sayılar
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Listeleme sayfalarında ve gönderinin üst kısmında bu yazının ana görseli olarak kullanıldı"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:220
+#: packages/admin/src/components/MediaDetailPanel.tsx:122
 msgid "Used by screen readers and when image fails to load"
 msgstr "Ekran okuyucular tarafından ve resim yüklenemediğinde kullanılır"
 
@@ -7598,7 +7663,7 @@ msgid "User"
 msgstr "Kullanıcı"
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:192
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:177
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
 msgstr "Kullanıcı erişimi harici bir sağlayıcı ({0}) tarafından yönetiliyor. Harici kimlik doğrulama kullanılırken kendi kendine kayıt alan adı ayarları kullanılamaz."
 
@@ -7616,11 +7681,11 @@ msgstr "Kullanıcı bulunamadı"
 msgid "Users"
 msgstr "Kullanıcılar"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:416
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:383
 msgid "Users from"
 msgstr "Şuradan kullanıcılar:"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:244
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:211
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
 msgstr "Bu alanlardan e-posta adreslerine sahip kullanıcılar davetsiz kaydolabilirler. Belirtilen rol otomatik olarak kendilerine atanacaktır."
 
@@ -7675,7 +7740,7 @@ msgid "Version {0}"
 msgstr "Sürüm {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
-#: packages/admin/src/components/MediaLibrary.tsx:402
+#: packages/admin/src/components/MediaLibrary.tsx:436
 msgid "Video"
 msgstr "Video"
 
@@ -7687,7 +7752,7 @@ msgstr "E-posta sağlayıcı durumunu görüntüleyin ve test e-postaları gönd
 msgid "View in Marketplace"
 msgstr "Pazar yerinde görüntüle"
 
-#: packages/admin/src/components/MediaLibrary.tsx:272
+#: packages/admin/src/components/MediaLibrary.tsx:448
 msgid "View mode"
 msgstr "Görünüm modu"
 
@@ -7799,6 +7864,14 @@ msgstr "Bu sınıflandırmayı hangi içerik türleri kullanabilir?"
 msgid "Whole number"
 msgstr "Tam sayı"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:121
+msgid "Why can't this be changed?"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:123
+msgid "Why is this important?"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:163
 msgid "Wide"
 msgstr ""
@@ -7848,11 +7921,11 @@ msgstr "Genişlik"
 msgid "Will create"
 msgstr "Oluşturacak"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:417
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:384
 msgid "will no longer be able to sign up without an invite. Existing users are not affected."
 msgstr "artık davet olmadan kayıt olamayacak. Mevcut kullanıcılar etkilenmez."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:184
+#: packages/admin/src/components/settings/EmailSettings.tsx:158
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "E-posta sağlayıcısı olmadığında davet bağlantılarının manuel olarak paylaşılması gerekir."
 
@@ -7914,7 +7987,7 @@ msgstr "Kullanıcılar, ayarlar ve tüm içerik dahil olmak üzere bu siteyi yö
 msgid "You need admin permissions to manage byline schema."
 msgstr "Yazar bilgisi şemasını yönetmek için yönetici izinleri gerekir."
 
-#: packages/admin/src/router.tsx:1298
+#: packages/admin/src/router.tsx:1289
 msgid "You need Editor permissions to moderate comments."
 msgstr "Yorumları denetlemek için Editör izinlerine ihtiyacınız var."
 
@@ -7979,21 +8052,26 @@ msgstr "Cihazınız gerekli güvenlik özelliklerini desteklemiyor."
 msgid "Your Email"
 msgstr "E-postanız"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:147
+#: packages/admin/src/components/settings/SocialSettings.tsx:121
 msgid "Your Facebook page or profile username"
 msgstr "Facebook sayfanız veya profil kullanıcı adınız"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:141
+#: packages/admin/src/components/settings/SocialSettings.tsx:115
 msgid "Your GitHub username"
 msgstr "GitHub kullanıcı adınız"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:153
+#: packages/admin/src/components/settings/SocialSettings.tsx:127
 msgid "Your Instagram username"
 msgstr "Instagram kullanıcı adınız"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:159
+#: packages/admin/src/components/settings/SocialSettings.tsx:133
 msgid "Your LinkedIn profile username"
 msgstr "LinkedIn profil kullanıcı adınız"
+
+#: packages/admin/src/components/MediaLibrary.tsx:505
+#: packages/admin/src/components/MediaLibrary.tsx:529
+msgid "Your media library is empty"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:209
 msgid "Your Name"
@@ -8013,19 +8091,23 @@ msgstr "Rolünüz"
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "Siteniz, sürümlerin yüklenebilmesi için en az {0} eski olmasını gerektiriyor. Bu sürüm daha sonra yüklenebilir hale gelecek."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:135
+#: packages/admin/src/components/settings/SocialSettings.tsx:109
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Twitter/X kullanıcı adınız (ör. @username)"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:437
+msgid "Your unsaved media changes will be lost."
+msgstr ""
 
 #. placeholder {0}: attachments.count
 #: packages/admin/src/components/WordPressImport.tsx:1898
 msgid "Your WordPress export contains {0} media files."
 msgstr "WordPress dışa aktarımınız {0} medya dosyalarını içerir."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:165
+#: packages/admin/src/components/settings/SocialSettings.tsx:139
 msgid "Your YouTube channel ID or handle"
 msgstr "YouTube kanal kimliğiniz veya kullanıcı adınız"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:162
+#: packages/admin/src/components/settings/SocialSettings.tsx:136
 msgid "YouTube"
 msgstr "YouTube"

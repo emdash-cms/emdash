@@ -1062,15 +1062,18 @@ export async function handleContentDelete(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ deleted: true }>> {
+): Promise<ApiResult<{ deleted: true; id: string }>> {
 	try {
-		const deleted = await withTransaction(db, async (trx) => {
+		const result = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.delete(collection, resolvedId);
+			return {
+				id: resolvedId,
+				deleted: await repo.delete(collection, resolvedId),
+			};
 		});
 
-		if (!deleted) {
+		if (!result.deleted) {
 			return {
 				success: false,
 				error: {
@@ -1082,7 +1085,7 @@ export async function handleContentDelete(
 
 		return {
 			success: true,
-			data: { deleted: true },
+			data: { deleted: true, id: result.id },
 		};
 	} catch (error) {
 		console.error("Content delete error:", error);
@@ -1145,7 +1148,7 @@ export async function handleContentPermanentDelete(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ deleted: true }>> {
+): Promise<ApiResult<{ deleted: true; id: string }>> {
 	try {
 		const repo = new ContentRepository(db);
 		const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
@@ -1182,7 +1185,7 @@ export async function handleContentPermanentDelete(
 
 		return {
 			success: true,
-			data: { deleted: true },
+			data: { deleted: true, id: resolvedId },
 		};
 	} catch (error) {
 		console.error("Content permanent delete error:", error);

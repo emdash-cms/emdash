@@ -84,7 +84,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# coleção} other {# coleções}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1277
+#: packages/admin/src/router.tsx:1268
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr ""
 
@@ -328,6 +328,10 @@ msgstr "{pluginName} está solicitando permissões adicionais:"
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} requer as seguintes permissões:"
 
+#: packages/admin/src/components/MediaLibrary.tsx:299
+msgid "{resultCount, plural, one {# item} other {# items}}"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:742
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr ""
@@ -336,13 +340,13 @@ msgstr ""
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {# total} other {# total}}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:185
-#: packages/admin/src/components/MediaLibrary.tsx:221
+#: packages/admin/src/components/MediaLibrary.tsx:212
+#: packages/admin/src/components/MediaLibrary.tsx:248
 msgid "{total, plural, one {File uploaded} other {# files uploaded}}"
 msgstr "{total, plural, one {Arquivo enviado} other {# arquivos enviados}}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:190
-#: packages/admin/src/components/MediaLibrary.tsx:226
+#: packages/admin/src/components/MediaLibrary.tsx:217
+#: packages/admin/src/components/MediaLibrary.tsx:253
 msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
 msgstr "{total, plural, one {Envio falhou} other {Todos os # envios falharam}}"
 
@@ -362,8 +366,8 @@ msgstr "{unchangedCount, plural, one {Ocultar # inalterado} other {Ocultar # ina
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {Mostrar # inalterado} other {Mostrar # inalterados}}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:195
-#: packages/admin/src/components/MediaLibrary.tsx:231
+#: packages/admin/src/components/MediaLibrary.tsx:222
+#: packages/admin/src/components/MediaLibrary.tsx:258
 msgid "{uploaded} uploaded, {failed} failed"
 msgstr "{uploaded} enviados, {failed} falharam"
 
@@ -486,7 +490,7 @@ msgstr ""
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:165
+#: packages/admin/src/components/settings/GeneralSettings.tsx:142
 msgid "A short description of your site"
 msgstr "Uma breve descrição do seu site"
 
@@ -506,7 +510,7 @@ msgstr ""
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1297
+#: packages/admin/src/router.tsx:1288
 msgid "Access Denied"
 msgstr ""
 
@@ -535,7 +539,6 @@ msgstr "Informações da conta"
 #: packages/admin/src/components/ContentList.tsx:345
 #: packages/admin/src/components/ContentList.tsx:463
 #: packages/admin/src/components/ContentTypeList.tsx:106
-#: packages/admin/src/components/MediaLibrary.tsx:493
 #: packages/admin/src/components/TaxonomyManager.tsx:823
 #: packages/admin/src/routes/byline-schema.tsx:249
 msgid "Actions"
@@ -565,11 +568,11 @@ msgstr ""
 msgid "Add {label}"
 msgstr "Adicionar {label}"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:204
+#: packages/admin/src/components/settings/SecuritySettings.tsx:177
 msgid "Add a new passkey"
 msgstr "Adicionar uma nova chave de acesso"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:304
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:271
 msgid "Add an allowed domain"
 msgstr "Adicionar um domínio permitido"
 
@@ -596,8 +599,8 @@ msgstr "Adicionar conteúdo"
 msgid "Add Custom Link"
 msgstr "Adicionar link personalizado"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:349
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:316
 msgid "Add Domain"
 msgstr "Adicionar domínio"
 
@@ -660,7 +663,7 @@ msgstr ""
 msgid "Add noindex meta tag"
 msgstr "Adicionar meta tag noindex"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:225
+#: packages/admin/src/components/settings/SecuritySettings.tsx:200
 msgid "Add Passkey"
 msgstr "Adicionar chave de acesso"
 
@@ -692,12 +695,12 @@ msgstr "Adicionar tags..."
 msgid "Add Widget Area"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:128
+#: packages/admin/src/components/settings/SocialSettings.tsx:102
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "Adicione seus perfis de redes sociais. Eles estão disponíveis para o tema do seu site e podem ser exibidos em cabeçalhos, rodapés ou biografias de autores."
 
 #: packages/admin/src/components/MenuEditor.tsx:362
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
 msgid "Adding..."
 msgstr "Adicionando..."
 
@@ -719,7 +722,7 @@ msgstr "Navegação administrativa"
 msgid "Administrator"
 msgstr "Administrador"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:224
+#: packages/admin/src/components/settings/EmailSettings.tsx:198
 msgid "After send:"
 msgstr "Após envio:"
 
@@ -787,7 +790,7 @@ msgstr "Todas as origens"
 msgid "All statuses"
 msgstr "Todos os status"
 
-#: packages/admin/src/components/MediaLibrary.tsx:400
+#: packages/admin/src/components/MediaLibrary.tsx:434
 #: packages/admin/src/components/Redirects.tsx:424
 msgid "All types"
 msgstr "Todos os tipos"
@@ -800,7 +803,7 @@ msgstr "Permitir que usuários de domínios específicos se cadastrem"
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:240
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
 msgid "Allowed Domains"
 msgstr "Domínios permitidos"
 
@@ -817,17 +820,19 @@ msgid "Also delete plugin storage data"
 msgstr "Também excluir dados de armazenamento do plugin"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:231
+#: packages/admin/src/components/MediaLibrary.tsx:590
 msgid "Alt text"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:344
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:533
-#: packages/admin/src/components/MediaDetailPanel.tsx:216
+#: packages/admin/src/components/MediaDetailPanel.tsx:354
+#: packages/admin/src/components/MediaDetailPanel.tsx:371
 msgid "Alt Text"
 msgstr "Texto alternativo"
 
-#: packages/admin/src/components/MediaLibrary.tsx:697
-#: packages/admin/src/components/MediaLibrary.tsx:754
+#: packages/admin/src/components/MediaLibrary.tsx:834
+#: packages/admin/src/components/MediaLibrary.tsx:891
 msgid "Alt text set"
 msgstr "Texto alternativo definido"
 
@@ -839,25 +844,34 @@ msgstr "Alternativamente, você pode exportar do WordPress (Ferramentas → Expo
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
 #: packages/admin/src/components/PluginManager.tsx:98
 #: packages/admin/src/components/PluginManager.tsx:117
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:95
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
+#: packages/admin/src/components/settings/EmailSettings.tsx:51
+#: packages/admin/src/components/settings/GeneralSettings.tsx:51
+#: packages/admin/src/components/settings/SecuritySettings.tsx:54
+#: packages/admin/src/components/settings/SecuritySettings.tsx:71
+#: packages/admin/src/components/settings/SeoSettings.tsx:45
+#: packages/admin/src/components/settings/SocialSettings.tsx:43
 #: packages/admin/src/components/TaxonomySidebar.tsx:350
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:399
-#: packages/admin/src/router.tsx:414
-#: packages/admin/src/router.tsx:428
-#: packages/admin/src/router.tsx:442
-#: packages/admin/src/router.tsx:818
-#: packages/admin/src/router.tsx:856
-#: packages/admin/src/router.tsx:874
-#: packages/admin/src/router.tsx:892
-#: packages/admin/src/router.tsx:913
-#: packages/admin/src/router.tsx:934
-#: packages/admin/src/router.tsx:955
-#: packages/admin/src/router.tsx:986
-#: packages/admin/src/router.tsx:1006
-#: packages/admin/src/router.tsx:1242
-#: packages/admin/src/router.tsx:1258
-#: packages/admin/src/router.tsx:1283
-#: packages/admin/src/router.tsx:1765
+#: packages/admin/src/router.tsx:398
+#: packages/admin/src/router.tsx:413
+#: packages/admin/src/router.tsx:427
+#: packages/admin/src/router.tsx:441
+#: packages/admin/src/router.tsx:817
+#: packages/admin/src/router.tsx:855
+#: packages/admin/src/router.tsx:873
+#: packages/admin/src/router.tsx:891
+#: packages/admin/src/router.tsx:912
+#: packages/admin/src/router.tsx:933
+#: packages/admin/src/router.tsx:954
+#: packages/admin/src/router.tsx:985
+#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:1233
+#: packages/admin/src/router.tsx:1249
+#: packages/admin/src/router.tsx:1274
+#: packages/admin/src/router.tsx:1756
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -974,7 +988,7 @@ msgid "Astro"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:403
+#: packages/admin/src/components/MediaLibrary.tsx:437
 msgid "Audio"
 msgstr ""
 
@@ -993,7 +1007,7 @@ msgid "Authentication failed"
 msgstr ""
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/SecuritySettings.tsx:129
+#: packages/admin/src/components/settings/SecuritySettings.tsx:120
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
 msgstr "A autenticação é gerenciada por um provedor externo ({0}). As configurações de chave de acesso não estão disponíveis ao usar autenticação externa."
 
@@ -1052,7 +1066,7 @@ msgstr ""
 msgid "Auto-generated from name (you can edit)"
 msgstr "Gerado automaticamente a partir do nome (você pode editar)"
 
-#: packages/admin/src/router.tsx:855
+#: packages/admin/src/router.tsx:854
 msgid "Autosave failed"
 msgstr ""
 
@@ -1064,7 +1078,7 @@ msgstr ""
 msgid "Available media"
 msgstr "Mídia disponível"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:233
+#: packages/admin/src/components/settings/EmailSettings.tsx:207
 msgid "Available Providers"
 msgstr "Provedores disponíveis"
 
@@ -1127,11 +1141,11 @@ msgstr "Voltar aos temas"
 msgid "Bash"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:219
+#: packages/admin/src/components/settings/EmailSettings.tsx:193
 msgid "Before send:"
 msgstr "Antes do envio:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:233
+#: packages/admin/src/components/settings/SeoSettings.tsx:200
 msgid "Bing Verification"
 msgstr "Verificação do Bing"
 
@@ -1246,7 +1260,7 @@ msgstr "Pode visualizar conteúdo"
 #: packages/admin/src/components/editor/ImageNode.tsx:253
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
 #: packages/admin/src/components/FieldEditor.tsx:649
-#: packages/admin/src/components/MediaDetailPanel.tsx:248
+#: packages/admin/src/components/MediaDetailPanel.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:744
 #: packages/admin/src/components/MenuEditor.tsx:359
 #: packages/admin/src/components/MenuEditor.tsx:530
@@ -1256,11 +1270,11 @@ msgstr "Pode visualizar conteúdo"
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/SectionPickerModal.tsx:130
 #: packages/admin/src/components/Sections.tsx:209
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:313
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:423
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:280
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:390
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:325
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
-#: packages/admin/src/components/settings/SecuritySettings.tsx:206
+#: packages/admin/src/components/settings/SecuritySettings.tsx:179
 #: packages/admin/src/components/TaxonomyManager.tsx:187
 #: packages/admin/src/components/TaxonomyManager.tsx:472
 #: packages/admin/src/components/TaxonomyManager.tsx:686
@@ -1300,7 +1314,7 @@ msgstr "Consentimento de capacidade"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:352
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:541
-#: packages/admin/src/components/MediaDetailPanel.tsx:224
+#: packages/admin/src/components/MediaDetailPanel.tsx:381
 msgid "Caption"
 msgstr "Legenda"
 
@@ -1338,15 +1352,15 @@ msgstr "Alterar"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:262
+#: packages/admin/src/components/settings/GeneralSettings.tsx:239
 msgid "Change Favicon"
 msgstr "Alterar favicon"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:200
+#: packages/admin/src/components/settings/SeoSettings.tsx:167
 msgid "Change Image"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:208
+#: packages/admin/src/components/settings/GeneralSettings.tsx:185
 msgid "Change Logo"
 msgstr "Alterar logo"
 
@@ -1354,11 +1368,11 @@ msgstr "Alterar logo"
 msgid "Changelog"
 msgstr ""
 
-#: packages/admin/src/router.tsx:906
+#: packages/admin/src/router.tsx:905
 msgid "Changes discarded"
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:162
+#: packages/admin/src/components/settings/SeoSettings.tsx:129
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Caractere entre o título da página e o nome do site (ex.: \"Meu Post | Meu Site\")"
 
@@ -1398,8 +1412,14 @@ msgid "Choose your preferred admin language"
 msgstr "Escolha o idioma preferido do painel"
 
 #: packages/admin/src/components/ContentList.tsx:639
+#: packages/admin/src/components/MediaLibrary.tsx:498
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:498
+#: packages/admin/src/components/MediaLibrary.tsx:522
+msgid "Clear search"
 msgstr ""
 
 #: packages/admin/src/components/SignupPage.tsx:138
@@ -1425,8 +1445,8 @@ msgstr "Clique no link no e-mail para entrar."
 #: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/FieldEditor.tsx:355
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:436
-#: packages/admin/src/components/MediaDetailPanel.tsx:135
-#: packages/admin/src/components/MediaDetailPanel.tsx:137
+#: packages/admin/src/components/MediaDetailPanel.tsx:229
+#: packages/admin/src/components/MediaDetailPanel.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:482
 #: packages/admin/src/components/MediaPickerModal.tsx:488
 #: packages/admin/src/components/MediaPickerModal.tsx:492
@@ -1450,9 +1470,9 @@ msgstr "Clique no link no e-mail para entrar."
 #: packages/admin/src/components/Sections.tsx:153
 #: packages/admin/src/components/Sections.tsx:159
 #: packages/admin/src/components/Sections.tsx:163
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:371
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:377
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:338
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
 #: packages/admin/src/components/TaxonomyManager.tsx:164
 #: packages/admin/src/components/TaxonomyManager.tsx:371
 #: packages/admin/src/components/TaxonomyManager.tsx:377
@@ -1604,7 +1624,7 @@ msgstr "Erros de conteúdo ({0})"
 msgid "Content found:"
 msgstr "Conteúdo encontrado:"
 
-#: packages/admin/src/router.tsx:928
+#: packages/admin/src/router.tsx:927
 msgid "Content has been scheduled for publishing"
 msgstr ""
 
@@ -1616,7 +1636,7 @@ msgstr "O conteúdo foi atualizado para a revisão selecionada."
 msgid "Content ID:"
 msgstr "ID do conteúdo:"
 
-#: packages/admin/src/router.tsx:869
+#: packages/admin/src/router.tsx:868
 msgid "Content is now live"
 msgstr ""
 
@@ -1628,11 +1648,11 @@ msgstr "itens de conteúdo"
 msgid "Content Read"
 msgstr "Leitura de conteúdo"
 
-#: packages/admin/src/router.tsx:887
+#: packages/admin/src/router.tsx:886
 msgid "Content removed from public view"
 msgstr ""
 
-#: packages/admin/src/router.tsx:949
+#: packages/admin/src/router.tsx:948
 msgid "Content reverted to draft"
 msgstr ""
 
@@ -1704,7 +1724,7 @@ msgstr "Copiar token"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:322
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:323
-#: packages/admin/src/components/MediaDetailPanel.tsx:198
+#: packages/admin/src/components/MediaDetailPanel.tsx:301
 msgid "Copy URL"
 msgstr ""
 
@@ -1917,7 +1937,7 @@ msgid "Created {0}"
 msgstr "Criado em {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:980
+#: packages/admin/src/router.tsx:979
 msgid "Created {0} translation"
 msgstr ""
 
@@ -1964,7 +1984,7 @@ msgstr "Personalizado"
 msgid "Custom Fields"
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:243
+#: packages/admin/src/components/settings/SeoSettings.tsx:210
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "Conteúdo personalizado de robots.txt. Deixe vazio para usar o padrão."
 
@@ -2006,7 +2026,7 @@ msgstr "Seletor de data e hora"
 msgid "Date field to filter on"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:304
+#: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "Date Format"
 msgstr "Formato de data"
 
@@ -2018,20 +2038,20 @@ msgstr "Número decimal"
 msgid "Declared permissions"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:327
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:389
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:294
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:356
 msgid "Default Role"
 msgstr "Função padrão"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:266
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:233
 msgid "Default role:"
 msgstr "Função padrão:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:180
+#: packages/admin/src/components/settings/SeoSettings.tsx:147
 msgid "Default social image"
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:171
+#: packages/admin/src/components/settings/SeoSettings.tsx:138
 msgid "Default Social Image"
 msgstr ""
 
@@ -2058,8 +2078,8 @@ msgstr ""
 #: packages/admin/src/components/editor/BlockMenu.tsx:301
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
-#: packages/admin/src/components/MediaDetailPanel.tsx:244
-#: packages/admin/src/components/MediaDetailPanel.tsx:269
+#: packages/admin/src/components/MediaDetailPanel.tsx:410
+#: packages/admin/src/components/MediaDetailPanel.tsx:453
 #: packages/admin/src/components/MenuEditor.tsx:463
 #: packages/admin/src/components/MenuList.tsx:255
 #: packages/admin/src/components/Redirects.tsx:582
@@ -2074,7 +2094,7 @@ msgid "Delete"
 msgstr "Excluir"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:268
+#: packages/admin/src/components/MediaDetailPanel.tsx:452
 msgid "Delete \"{0}\"? This cannot be undone."
 msgstr "Excluir \"{0}\"? Isso não pode ser desfeito."
 
@@ -2083,7 +2103,7 @@ msgstr "Excluir \"{0}\"? Isso não pode ser desfeito."
 #. placeholder {0}: field.label
 #: packages/admin/src/components/ContentTypeList.tsx:229
 #: packages/admin/src/components/Sections.tsx:408
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:285
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:252
 #: packages/admin/src/components/TaxonomyManager.tsx:97
 #: packages/admin/src/components/Widgets.tsx:737
 #: packages/admin/src/routes/byline-schema.tsx:458
@@ -2147,7 +2167,7 @@ msgstr ""
 msgid "Delete image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:267
+#: packages/admin/src/components/MediaDetailPanel.tsx:451
 msgid "Delete Media?"
 msgstr "Excluir mídia?"
 
@@ -2210,8 +2230,8 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:664
 #: packages/admin/src/components/ContentTypeList.tsx:149
-#: packages/admin/src/components/MediaDetailPanel.tsx:244
-#: packages/admin/src/components/MediaDetailPanel.tsx:270
+#: packages/admin/src/components/MediaDetailPanel.tsx:410
+#: packages/admin/src/components/MediaDetailPanel.tsx:454
 #: packages/admin/src/components/MenuList.tsx:256
 #: packages/admin/src/components/Redirects.tsx:583
 #: packages/admin/src/components/Sections.tsx:309
@@ -2252,7 +2272,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:347
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:536
-#: packages/admin/src/components/MediaDetailPanel.tsx:219
+#: packages/admin/src/components/MediaDetailPanel.tsx:374
 msgid "Describe this image for accessibility"
 msgstr "Descreva esta imagem para acessibilidade"
 
@@ -2308,7 +2328,7 @@ msgstr "Não recebeu o e-mail?"
 msgid "Diff"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:180
+#: packages/admin/src/components/MediaDetailPanel.tsx:280
 msgid "Dimensions:"
 msgstr "Dimensões:"
 
@@ -2352,14 +2372,26 @@ msgstr ""
 msgid "Disabling..."
 msgstr ""
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:438
+msgid "Discard"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:691
 #: packages/admin/src/components/ContentEditor.tsx:713
 msgid "Discard changes"
 msgstr "Descartar alterações"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:436
+msgid "Discard changes?"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:697
 msgid "Discard draft changes?"
 msgstr "Descartar alterações do rascunho?"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:439
+msgid "Discarding..."
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:235
@@ -2403,23 +2435,23 @@ msgid "Dockerfile"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:63
-#: packages/admin/src/components/MediaLibrary.tsx:404
+#: packages/admin/src/components/MediaLibrary.tsx:438
 msgid "Documents"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:319
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:286
 msgid "Domain"
 msgstr "Domínio"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:66
 msgid "Domain added successfully"
 msgstr "Domínio adicionado com sucesso"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:124
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
 msgid "Domain removed"
 msgstr "Domínio removido"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:107
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:90
 msgid "Domain updated"
 msgstr "Domínio atualizado"
 
@@ -2541,7 +2573,7 @@ msgstr "Editar"
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:1438
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:276
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:243
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/byline-schema.tsx:449
@@ -2570,7 +2602,7 @@ msgstr "Editar crédito"
 msgid "Edit byline field"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:364
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:331
 msgid "Edit Domain"
 msgstr "Editar domínio"
 
@@ -2642,20 +2674,20 @@ msgstr "Endereço de e-mail"
 msgid "Email is required"
 msgstr "O e-mail é obrigatório"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:215
+#: packages/admin/src/components/settings/EmailSettings.tsx:189
 msgid "Email Middleware"
 msgstr "Middleware de e-mail"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:125
+#: packages/admin/src/components/settings/EmailSettings.tsx:99
 msgid "Email Pipeline"
 msgstr "Pipeline de e-mail"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:199
+#: packages/admin/src/components/settings/EmailSettings.tsx:173
 msgid "Email provider active"
 msgstr "Provedor de e-mail ativo"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:85
-#: packages/admin/src/components/settings/EmailSettings.tsx:100
+#: packages/admin/src/components/settings/EmailSettings.tsx:77
+#: packages/admin/src/components/settings/EmailSettings.tsx:92
 msgid "Email Settings"
 msgstr "Configurações de e-mail"
 
@@ -2773,7 +2805,7 @@ msgstr "Digite a URL do seu site WordPress"
 #: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1947
+#: packages/admin/src/router.tsx:1938
 msgid "Error"
 msgstr "Erro"
 
@@ -2834,7 +2866,7 @@ msgstr "Exportar do WordPress manualmente"
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Exporte seu conteúdo do WordPress para importar tudo, incluindo rascunhos."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:144
+#: packages/admin/src/components/settings/SocialSettings.tsx:118
 msgid "Facebook"
 msgstr "Facebook"
 
@@ -2850,9 +2882,13 @@ msgstr "Falhou"
 msgid "Failed security audit"
 msgstr "Auditoria de segurança falhou"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:90
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:70
 msgid "Failed to add domain"
 msgstr "Falha ao adicionar domínio"
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:188
+msgid "Failed to add passkey"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:367
 msgid "Failed to analyze WordPress site"
@@ -2894,13 +2930,13 @@ msgstr "Falha ao criar algumas coleções"
 msgid "Failed to create term"
 msgstr ""
 
-#: packages/admin/src/router.tsx:985
+#: packages/admin/src/router.tsx:984
 msgid "Failed to create translation"
 msgstr ""
 
-#: packages/admin/src/router.tsx:398
-#: packages/admin/src/router.tsx:427
-#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:397
+#: packages/admin/src/router.tsx:426
+#: packages/admin/src/router.tsx:1004
 msgid "Failed to delete"
 msgstr ""
 
@@ -2921,7 +2957,7 @@ msgid "Failed to delete collection"
 msgstr ""
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1257
+#: packages/admin/src/router.tsx:1248
 msgid "Failed to delete comment"
 msgstr ""
 
@@ -2987,7 +3023,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr ""
 
-#: packages/admin/src/router.tsx:912
+#: packages/admin/src/router.tsx:911
 msgid "Failed to discard changes"
 msgstr ""
 
@@ -2995,7 +3031,7 @@ msgstr ""
 msgid "Failed to dismiss welcome"
 msgstr ""
 
-#: packages/admin/src/router.tsx:441
+#: packages/admin/src/router.tsx:440
 msgid "Failed to duplicate"
 msgstr ""
 
@@ -3094,8 +3130,8 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:742
-#: packages/admin/src/router.tsx:1188
+#: packages/admin/src/router.tsx:741
+#: packages/admin/src/router.tsx:1179
 msgid "Failed to fetch user"
 msgstr ""
 
@@ -3137,11 +3173,11 @@ msgstr ""
 msgid "Failed to list byline fields"
 msgstr ""
 
-#: packages/admin/src/router.tsx:258
+#: packages/admin/src/router.tsx:257
 msgid "Failed to load admin"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:192
 msgid "Failed to load allowed domains"
 msgstr "Falha ao carregar domínios permitidos"
 
@@ -3150,7 +3186,7 @@ msgstr "Falha ao carregar domínios permitidos"
 msgid "Failed to load bylines: {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:89
+#: packages/admin/src/components/settings/EmailSettings.tsx:81
 msgid "Failed to load email settings"
 msgstr "Falha ao carregar configurações de e-mail"
 
@@ -3158,7 +3194,7 @@ msgstr "Falha ao carregar configurações de e-mail"
 msgid "Failed to load image"
 msgstr ""
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:144
+#: packages/admin/src/components/settings/SecuritySettings.tsx:135
 msgid "Failed to load passkeys"
 msgstr "Falha ao carregar chaves de acesso"
 
@@ -3196,7 +3232,7 @@ msgstr ""
 msgid "Failed to load widget"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1282
+#: packages/admin/src/router.tsx:1273
 msgid "Failed to perform bulk action"
 msgstr ""
 
@@ -3208,7 +3244,7 @@ msgstr ""
 msgid "Failed to prepare import"
 msgstr ""
 
-#: packages/admin/src/router.tsx:873
+#: packages/admin/src/router.tsx:872
 msgid "Failed to publish"
 msgstr ""
 
@@ -3216,16 +3252,16 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:130
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:112
 msgid "Failed to remove domain"
 msgstr "Falha ao remover domínio"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:99
-#: packages/admin/src/components/settings/SecuritySettings.tsx:82
+#: packages/admin/src/components/settings/SecuritySettings.tsx:70
 msgid "Failed to remove passkey"
 msgstr "Falha ao remover chave de acesso"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:66
+#: packages/admin/src/components/settings/SecuritySettings.tsx:53
 msgid "Failed to rename passkey"
 msgstr "Falha ao renomear chave de acesso"
 
@@ -3242,7 +3278,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr ""
 
-#: packages/admin/src/router.tsx:413
+#: packages/admin/src/router.tsx:412
 msgid "Failed to restore"
 msgstr ""
 
@@ -3263,8 +3299,8 @@ msgstr ""
 msgid "Failed to rewrite URLs"
 msgstr ""
 
-#: packages/admin/src/router.tsx:817
-#: packages/admin/src/router.tsx:1764
+#: packages/admin/src/router.tsx:816
+#: packages/admin/src/router.tsx:1755
 msgid "Failed to save"
 msgstr ""
 
@@ -3272,13 +3308,13 @@ msgstr ""
 msgid "Failed to save field"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:58
-#: packages/admin/src/components/settings/SeoSettings.tsx:62
-#: packages/admin/src/components/settings/SocialSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:50
+#: packages/admin/src/components/settings/SeoSettings.tsx:44
+#: packages/admin/src/components/settings/SocialSettings.tsx:42
 msgid "Failed to save settings"
 msgstr "Falha ao salvar configurações"
 
-#: packages/admin/src/router.tsx:933
+#: packages/admin/src/router.tsx:932
 msgid "Failed to schedule"
 msgstr ""
 
@@ -3291,7 +3327,7 @@ msgstr "Falha ao enviar link mágico"
 msgid "Failed to send recovery link"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:61
+#: packages/admin/src/components/settings/EmailSettings.tsx:50
 #: packages/admin/src/lib/api/email-settings.ts:45
 msgid "Failed to send test email"
 msgstr "Falha ao enviar e-mail de teste"
@@ -3309,11 +3345,11 @@ msgstr ""
 msgid "Failed to uninstall plugin"
 msgstr ""
 
-#: packages/admin/src/router.tsx:891
+#: packages/admin/src/router.tsx:890
 msgid "Failed to unpublish"
 msgstr ""
 
-#: packages/admin/src/router.tsx:954
+#: packages/admin/src/router.tsx:953
 msgid "Failed to unschedule"
 msgstr ""
 
@@ -3330,7 +3366,7 @@ msgstr "Falha ao atualizar crédito"
 msgid "Failed to update byline field"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:94
 msgid "Failed to update domain"
 msgstr "Falha ao atualizar domínio"
 
@@ -3351,7 +3387,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1241
+#: packages/admin/src/router.tsx:1232
 msgid "Failed to update status"
 msgstr ""
 
@@ -3379,8 +3415,8 @@ msgstr ""
 msgid "FAQ"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:236
-#: packages/admin/src/components/settings/GeneralSettings.tsx:242
+#: packages/admin/src/components/settings/GeneralSettings.tsx:213
+#: packages/admin/src/components/settings/GeneralSettings.tsx:219
 msgid "Favicon"
 msgstr "Favicon"
 
@@ -3446,12 +3482,13 @@ msgstr "Arquivo {0}"
 msgid "File from media library"
 msgstr "Arquivo da biblioteca de mídia"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:206
-#: packages/admin/src/components/MediaLibrary.tsx:490
+#: packages/admin/src/components/MediaDetailPanel.tsx:325
+#: packages/admin/src/components/MediaDetailPanel.tsx:342
+#: packages/admin/src/components/MediaLibrary.tsx:587
 msgid "Filename"
 msgstr "Nome do arquivo"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:210
+#: packages/admin/src/components/MediaDetailPanel.tsx:120
 msgid "Filename cannot be changed after upload"
 msgstr "O nome do arquivo não pode ser alterado após o envio"
 
@@ -3484,7 +3521,7 @@ msgstr ""
 msgid "Filter by status"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:406
+#: packages/admin/src/components/MediaLibrary.tsx:440
 #: packages/admin/src/components/Redirects.tsx:425
 msgid "Filter by type"
 msgstr ""
@@ -3529,8 +3566,8 @@ msgstr "Acesso administrativo completo"
 msgid "General"
 msgstr "Geral"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:101
-#: packages/admin/src/components/settings/GeneralSettings.tsx:129
+#: packages/admin/src/components/settings/GeneralSettings.tsx:96
+#: packages/admin/src/components/settings/GeneralSettings.tsx:124
 msgid "General Settings"
 msgstr "Configurações gerais"
 
@@ -3542,7 +3579,7 @@ msgstr ""
 msgid "Get Started"
 msgstr "Começar"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:138
+#: packages/admin/src/components/settings/SocialSettings.tsx:112
 msgid "GitHub"
 msgstr "GitHub"
 
@@ -3555,11 +3592,11 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1967
+#: packages/admin/src/router.tsx:1958
 msgid "Go to Dashboard"
 msgstr "Ir para o painel"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:227
+#: packages/admin/src/components/settings/SeoSettings.tsx:194
 msgid "Google Verification"
 msgstr "Verificação do Google"
 
@@ -3567,7 +3604,7 @@ msgstr "Verificação do Google"
 msgid "GraphQL"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:277
+#: packages/admin/src/components/MediaLibrary.tsx:461
 msgid "Grid view"
 msgstr "Visualização em grade"
 
@@ -3716,7 +3753,7 @@ msgid "image URLs updated in"
 msgstr "URLs de imagem atualizadas em"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:61
-#: packages/admin/src/components/MediaLibrary.tsx:401
+#: packages/admin/src/components/MediaLibrary.tsx:435
 msgid "Images"
 msgstr ""
 
@@ -3877,7 +3914,7 @@ msgstr "Inserir seção"
 msgid "Insert Table"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:150
+#: packages/admin/src/components/settings/SocialSettings.tsx:124
 msgid "Instagram"
 msgstr "Instagram"
 
@@ -3886,7 +3923,7 @@ msgstr "Instagram"
 msgid "Install"
 msgstr "Instalar"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:181
+#: packages/admin/src/components/settings/EmailSettings.tsx:155
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "Instale e ative um plugin de provedor de e-mail para habilitar recursos de e-mail como convites, links mágicos e recuperação de senha."
 
@@ -4097,9 +4134,9 @@ msgstr "Deixar sem atribuição"
 msgid "Left"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:127
-#: packages/admin/src/components/MediaLibrary.tsx:247
-#: packages/admin/src/components/MediaLibrary.tsx:359
+#: packages/admin/src/components/MediaLibrary.tsx:137
+#: packages/admin/src/components/MediaLibrary.tsx:274
+#: packages/admin/src/components/MediaLibrary.tsx:357
 #: packages/admin/src/components/MediaPickerModal.tsx:203
 #: packages/admin/src/components/MediaPickerModal.tsx:462
 msgid "Library"
@@ -4138,7 +4175,7 @@ msgstr ""
 msgid "Linked user"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:156
+#: packages/admin/src/components/settings/SocialSettings.tsx:130
 msgid "LinkedIn"
 msgstr "LinkedIn"
 
@@ -4146,7 +4183,7 @@ msgstr "LinkedIn"
 msgid "Links"
 msgstr "Links"
 
-#: packages/admin/src/components/MediaLibrary.tsx:286
+#: packages/admin/src/components/MediaLibrary.tsx:470
 msgid "List view"
 msgstr "Visualização em lista"
 
@@ -4164,7 +4201,7 @@ msgstr "Carregar mais"
 
 #: packages/admin/src/components/ContentList.tsx:444
 #: packages/admin/src/components/ContentList.tsx:501
-#: packages/admin/src/components/MediaLibrary.tsx:540
+#: packages/admin/src/components/MediaLibrary.tsx:636
 #: packages/admin/src/components/MediaPickerModal.tsx:723
 #: packages/admin/src/components/users/UserList.tsx:169
 msgid "Load More"
@@ -4182,7 +4219,7 @@ msgstr "Carregando coleções..."
 msgid "Loading comments..."
 msgstr "Carregando comentários..."
 
-#: packages/admin/src/router.tsx:1936
+#: packages/admin/src/router.tsx:1927
 msgid "Loading configuration..."
 msgstr ""
 
@@ -4215,9 +4252,9 @@ msgstr "Carregando redirecionamentos..."
 msgid "Loading sections..."
 msgstr "Carregando seções..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:104
-#: packages/admin/src/components/settings/SeoSettings.tsx:108
-#: packages/admin/src/components/settings/SocialSettings.tsx:81
+#: packages/admin/src/components/settings/GeneralSettings.tsx:99
+#: packages/admin/src/components/settings/SeoSettings.tsx:93
+#: packages/admin/src/components/settings/SocialSettings.tsx:73
 msgid "Loading settings..."
 msgstr "Carregando configurações..."
 
@@ -4239,12 +4276,12 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:501
 #: packages/admin/src/components/ContentPickerModal.tsx:233
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
-#: packages/admin/src/components/MediaLibrary.tsx:540
+#: packages/admin/src/components/MediaLibrary.tsx:636
 #: packages/admin/src/components/MediaPickerModal.tsx:723
 #: packages/admin/src/components/PortableTextEditor.tsx:1946
 #: packages/admin/src/components/RegistryBrowse.tsx:143
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:176
-#: packages/admin/src/components/settings/SecuritySettings.tsx:113
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:161
+#: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/TaxonomyManager.tsx:779
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:252
@@ -4275,8 +4312,8 @@ msgstr ""
 msgid "Log out"
 msgstr "Sair"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:182
-#: packages/admin/src/components/settings/GeneralSettings.tsx:188
+#: packages/admin/src/components/settings/GeneralSettings.tsx:159
+#: packages/admin/src/components/settings/GeneralSettings.tsx:165
 msgid "Logo"
 msgstr "Logo"
 
@@ -4349,6 +4386,14 @@ msgstr "Gerencie redirecionamentos de URL e visualize erros 404."
 msgid "Manage your passkeys and authentication"
 msgstr "Gerencie suas chaves de acesso e autenticação"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:317
+msgid "Managed by {providerName}"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:318
+msgid "Managed by an external media provider"
+msgstr ""
+
 #: packages/admin/src/components/Redirects.tsx:424
 msgid "Manual"
 msgstr "Manual"
@@ -4413,7 +4458,7 @@ msgstr ""
 msgid "Media"
 msgstr "Mídia"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:134
+#: packages/admin/src/components/MediaDetailPanel.tsx:222
 msgid "Media Details"
 msgstr "Detalhes da mídia"
 
@@ -4435,7 +4480,7 @@ msgid "Media import was skipped"
 msgstr "A importação de mídia foi ignorada"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:154
-#: packages/admin/src/components/MediaLibrary.tsx:271
+#: packages/admin/src/components/MediaLibrary.tsx:323
 msgid "Media Library"
 msgstr "Biblioteca de mídia"
 
@@ -4514,11 +4559,11 @@ msgstr ""
 msgid "Meta Description"
 msgstr "Meta descrição"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:236
+#: packages/admin/src/components/settings/SeoSettings.tsx:203
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Conteúdo da meta tag para verificação do Bing Webmaster Tools"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:230
+#: packages/admin/src/components/settings/SeoSettings.tsx:197
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Conteúdo da meta tag para verificação do Google Search Console"
 
@@ -4640,7 +4685,7 @@ msgstr "Navegação"
 msgid "Never"
 msgstr "Nunca"
 
-#: packages/admin/src/router.tsx:980
+#: packages/admin/src/router.tsx:979
 msgid "new"
 msgstr ""
 
@@ -4756,8 +4801,8 @@ msgstr "Nenhum {0} ainda. Crie um para começar."
 msgid "No 404 errors recorded yet."
 msgstr "Nenhum erro 404 registrado ainda."
 
-#: packages/admin/src/components/MediaLibrary.tsx:697
-#: packages/admin/src/components/MediaLibrary.tsx:754
+#: packages/admin/src/components/MediaLibrary.tsx:834
+#: packages/admin/src/components/MediaLibrary.tsx:891
 msgid "No alt text"
 msgstr "Sem texto alternativo"
 
@@ -4821,11 +4866,11 @@ msgstr ""
 msgid "No detailed description available."
 msgstr "Nenhuma descrição detalhada disponível."
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:295
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:262
 msgid "No domains configured. Users must be invited individually."
 msgstr "Nenhum domínio configurado. Os usuários devem ser convidados individualmente."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:178
+#: packages/admin/src/components/settings/EmailSettings.tsx:152
 msgid "No email provider configured"
 msgstr "Nenhum provedor de e-mail configurado"
 
@@ -4878,6 +4923,11 @@ msgstr ""
 msgid "No matching bylines."
 msgstr ""
 
+#: packages/admin/src/components/MediaLibrary.tsx:490
+#: packages/admin/src/components/MediaLibrary.tsx:518
+msgid "No matching media"
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:266
 msgid "No matching passkey found for this account."
 msgstr "Nenhuma chave de acesso correspondente encontrada para esta conta."
@@ -4887,19 +4937,18 @@ msgstr "Nenhuma chave de acesso correspondente encontrada para esta conta."
 msgid "No maximum"
 msgstr "Sem máximo"
 
-#: packages/admin/src/components/MediaLibrary.tsx:443
 #: packages/admin/src/components/MediaPickerModal.tsx:646
 msgid "No media available from this provider"
 msgstr "Nenhuma mídia disponível deste provedor"
 
-#: packages/admin/src/components/MediaLibrary.tsx:437
+#: packages/admin/src/components/MediaLibrary.tsx:541
+msgid "No media available from this provider."
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:540
 #: packages/admin/src/components/MediaPickerModal.tsx:640
 msgid "No media found"
 msgstr "Nenhuma mídia encontrada"
-
-#: packages/admin/src/components/MediaLibrary.tsx:426
-msgid "No media yet"
-msgstr "Nenhuma mídia ainda"
 
 #: packages/admin/src/components/MenuEditor.tsx:406
 msgid "No menu items yet"
@@ -4922,7 +4971,7 @@ msgstr ""
 msgid "No passkeys registered"
 msgstr "Nenhuma chave de acesso registrada"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:195
+#: packages/admin/src/components/settings/SecuritySettings.tsx:168
 msgid "No passkeys registered yet."
 msgstr "Nenhuma chave de acesso registrada ainda."
 
@@ -4945,6 +4994,10 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:343
 msgid "No preview"
 msgstr "Sem pré-visualização"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:304
+msgid "No public URL available"
+msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:236
 msgid "No recent activity"
@@ -5028,7 +5081,7 @@ msgstr ""
 msgid "Number"
 msgstr "Número"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Number of posts to show per page on list views"
 msgstr "Número de posts a exibir por página na visualização em lista"
 
@@ -5092,7 +5145,7 @@ msgstr ""
 msgid "Optional caption displayed below the image"
 msgstr "Legenda opcional exibida abaixo da imagem"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:227
+#: packages/admin/src/components/MediaDetailPanel.tsx:384
 msgid "Optional caption for display"
 msgstr "Legenda opcional para exibição"
 
@@ -5156,7 +5209,7 @@ msgstr "Propriedade"
 msgid "Package"
 msgstr "Pacote"
 
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1953
 msgid "Page Not Found"
 msgstr ""
 
@@ -5182,7 +5235,7 @@ msgstr "Parte de um loop de redirecionamento"
 msgid "Pass"
 msgstr "Aprovar"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:98
+#: packages/admin/src/components/settings/SecuritySettings.tsx:89
 msgid "Passkey added successfully"
 msgstr "Chave de acesso adicionada com sucesso"
 
@@ -5198,15 +5251,15 @@ msgstr "Nome da chave de acesso (opcional)"
 msgid "Passkey registered successfully!"
 msgstr "Chave de acesso registrada com sucesso!"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:76
+#: packages/admin/src/components/settings/SecuritySettings.tsx:66
 msgid "Passkey removed"
 msgstr "Chave de acesso removida"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:60
+#: packages/admin/src/components/settings/SecuritySettings.tsx:49
 msgid "Passkey renamed"
 msgstr "Chave de acesso renomeada"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:177
+#: packages/admin/src/components/settings/SecuritySettings.tsx:150
 #: packages/admin/src/components/users/UserList.tsx:110
 msgid "Passkeys"
 msgstr "Chaves de acesso"
@@ -5216,7 +5269,7 @@ msgstr "Chaves de acesso"
 msgid "Passkeys ({0})"
 msgstr "Chaves de acesso ({0})"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:181
+#: packages/admin/src/components/settings/SecuritySettings.tsx:154
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Chaves de acesso são uma forma segura de acessar sua conta sem senha. Você pode registrar várias chaves de acesso para diferentes dispositivos."
 
@@ -5412,7 +5465,7 @@ msgstr ""
 msgid "Posts"
 msgstr "Posts"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:295
+#: packages/admin/src/components/settings/GeneralSettings.tsx:272
 msgid "Posts Per Page"
 msgstr "Posts por página"
 
@@ -5435,7 +5488,7 @@ msgstr "Preparando..."
 
 #: packages/admin/src/components/ContentEditor.tsx:680
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
-#: packages/admin/src/components/MediaLibrary.tsx:489
+#: packages/admin/src/components/MediaLibrary.tsx:586
 msgid "Preview"
 msgstr "Pré-visualização"
 
@@ -5464,7 +5517,7 @@ msgstr "Captura de tela anterior"
 msgid "Primary Navigation"
 msgstr "Navegação principal"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:202
+#: packages/admin/src/components/settings/EmailSettings.tsx:176
 msgid "Provider:"
 msgstr "Provedor:"
 
@@ -5486,7 +5539,7 @@ msgstr "publicado"
 #: packages/admin/src/components/ContentList.tsx:552
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:869
+#: packages/admin/src/router.tsx:868
 msgid "Published"
 msgstr "Publicado"
 
@@ -5548,7 +5601,7 @@ msgstr ""
 msgid "Read your content"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:292
+#: packages/admin/src/components/settings/GeneralSettings.tsx:269
 msgid "Reading"
 msgstr "Leitura"
 
@@ -5565,7 +5618,7 @@ msgstr "Atividade recente"
 msgid "Recently Updated"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:144
+#: packages/admin/src/components/settings/EmailSettings.tsx:118
 msgid "Recipient email"
 msgstr "E-mail do destinatário"
 
@@ -5596,7 +5649,7 @@ msgstr ""
 msgid "Reference"
 msgstr "Referência"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:251
+#: packages/admin/src/components/settings/GeneralSettings.tsx:228
 msgid "Referenced favicon unavailable."
 msgstr ""
 
@@ -5605,7 +5658,7 @@ msgid "Register"
 msgstr "Cadastrar"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:146
-#: packages/admin/src/components/settings/SecuritySettings.tsx:220
+#: packages/admin/src/components/settings/SecuritySettings.tsx:195
 msgid "Register Passkey"
 msgstr "Cadastrar chave de acesso"
 
@@ -5634,11 +5687,11 @@ msgstr ""
 #: packages/admin/src/components/ContentEditor.tsx:1965
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/PortableTextEditor.tsx:3196
-#: packages/admin/src/components/settings/GeneralSettings.tsx:217
-#: packages/admin/src/components/settings/GeneralSettings.tsx:271
+#: packages/admin/src/components/settings/GeneralSettings.tsx:194
+#: packages/admin/src/components/settings/GeneralSettings.tsx:248
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
 #: packages/admin/src/components/settings/PasskeyItem.tsx:209
-#: packages/admin/src/components/settings/SeoSettings.tsx:209
+#: packages/admin/src/components/settings/SeoSettings.tsx:176
 msgid "Remove"
 msgstr "Remover"
 
@@ -5657,11 +5710,11 @@ msgstr ""
 msgid "Remove {label}"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:430
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:397
 msgid "Remove Domain"
 msgstr "Remover domínio"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:414
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
 msgid "Remove Domain?"
 msgstr "Remover domínio?"
 
@@ -5823,7 +5876,7 @@ msgstr "Restaurando..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1950
+#: packages/admin/src/router.tsx:1941
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Tentar novamente"
@@ -5832,7 +5885,7 @@ msgstr "Tentar novamente"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Blocos de conteúdo reutilizáveis que você pode inserir em qualquer conteúdo"
 
-#: packages/admin/src/router.tsx:907
+#: packages/admin/src/router.tsx:906
 msgid "Reverted to published version"
 msgstr ""
 
@@ -5921,7 +5974,7 @@ msgstr "Mesma janela"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
-#: packages/admin/src/components/MediaDetailPanel.tsx:255
+#: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:533
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
@@ -5955,18 +6008,18 @@ msgstr "Salvar conteúdo como rascunho antes de publicar"
 msgid "Save name"
 msgstr "Salvar nome"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/components/settings/SeoSettings.tsx:251
+#: packages/admin/src/components/settings/SeoSettings.tsx:111
+#: packages/admin/src/components/settings/SeoSettings.tsx:218
 msgid "Save SEO Settings"
 msgstr "Salvar configurações de SEO"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:125
-#: packages/admin/src/components/settings/GeneralSettings.tsx:321
+#: packages/admin/src/components/settings/GeneralSettings.tsx:120
+#: packages/admin/src/components/settings/GeneralSettings.tsx:298
 msgid "Save Settings"
 msgstr "Salvar configurações"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:99
-#: packages/admin/src/components/settings/SocialSettings.tsx:173
+#: packages/admin/src/components/settings/SocialSettings.tsx:91
+#: packages/admin/src/components/settings/SocialSettings.tsx:147
 msgid "Save Social Links"
 msgstr "Salvar links sociais"
 
@@ -5984,16 +6037,16 @@ msgstr ""
 #: packages/admin/src/components/ContentEditor.tsx:2103
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 #: packages/admin/src/components/FieldEditor.tsx:660
-#: packages/admin/src/components/MediaDetailPanel.tsx:255
+#: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:533
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/SaveButton.tsx:42
-#: packages/admin/src/components/settings/GeneralSettings.tsx:125
-#: packages/admin/src/components/settings/GeneralSettings.tsx:321
-#: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/components/settings/SeoSettings.tsx:251
-#: packages/admin/src/components/settings/SocialSettings.tsx:99
-#: packages/admin/src/components/settings/SocialSettings.tsx:173
+#: packages/admin/src/components/settings/GeneralSettings.tsx:120
+#: packages/admin/src/components/settings/GeneralSettings.tsx:298
+#: packages/admin/src/components/settings/SeoSettings.tsx:111
+#: packages/admin/src/components/settings/SeoSettings.tsx:218
+#: packages/admin/src/components/settings/SocialSettings.tsx:91
+#: packages/admin/src/components/settings/SocialSettings.tsx:147
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
@@ -6032,7 +6085,7 @@ msgstr "agendado"
 
 #: packages/admin/src/components/ContentEditor.tsx:859
 #: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/router.tsx:927
+#: packages/admin/src/router.tsx:926
 msgid "Scheduled"
 msgstr "Agendado"
 
@@ -6113,7 +6166,7 @@ msgstr "Pesquisar {0}"
 msgid "Search {0}..."
 msgstr "Pesquisar {0}..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:383
+#: packages/admin/src/components/MediaLibrary.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:578
 msgid "Search by filename..."
 msgstr ""
@@ -6143,7 +6196,7 @@ msgstr "Pesquisar comentários..."
 msgid "Search content..."
 msgstr "Pesquisar conteúdo..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:155
+#: packages/admin/src/components/settings/SeoSettings.tsx:122
 msgid "Search Engine Optimization"
 msgstr "Otimização para mecanismos de busca"
 
@@ -6151,7 +6204,7 @@ msgstr "Otimização para mecanismos de busca"
 msgid "Search engine optimization and verification"
 msgstr "Otimização e verificação para mecanismos de pesquisa"
 
-#: packages/admin/src/components/MediaLibrary.tsx:384
+#: packages/admin/src/components/MediaLibrary.tsx:417
 #: packages/admin/src/components/MediaPickerModal.tsx:579
 msgid "Search media"
 msgstr "Pesquisar mídia"
@@ -6191,7 +6244,7 @@ msgstr "Pesquisar temas..."
 msgid "Search users"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:383
+#: packages/admin/src/components/MediaLibrary.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:578
 msgid "Search..."
 msgstr "Pesquisar..."
@@ -6292,7 +6345,7 @@ msgstr "Erro de segurança. Certifique-se de estar em uma conexão segura."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:243
 #: packages/admin/src/components/Header.tsx:85
-#: packages/admin/src/components/settings/SecuritySettings.tsx:104
+#: packages/admin/src/components/settings/SecuritySettings.tsx:95
 msgid "Security Settings"
 msgstr "Configurações de segurança"
 
@@ -6330,12 +6383,12 @@ msgstr "Selecionar comentário de {0}"
 msgid "Select Content"
 msgstr "Selecionar conteúdo"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:268
+#: packages/admin/src/components/settings/SeoSettings.tsx:235
 msgid "Select Default Social Image"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:283
-#: packages/admin/src/components/settings/GeneralSettings.tsx:344
+#: packages/admin/src/components/settings/GeneralSettings.tsx:260
+#: packages/admin/src/components/settings/GeneralSettings.tsx:321
 msgid "Select Favicon"
 msgstr "Selecionar favicon"
 
@@ -6354,12 +6407,12 @@ msgstr "Selecionar imagem"
 #: packages/admin/src/components/MediaPickerModal.tsx:145
 #: packages/admin/src/components/PortableTextEditor.tsx:2583
 #: packages/admin/src/components/PortableTextEditor.tsx:3270
-#: packages/admin/src/components/settings/SeoSettings.tsx:221
+#: packages/admin/src/components/settings/SeoSettings.tsx:188
 msgid "Select Image"
 msgstr "Selecionar imagem"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:229
-#: packages/admin/src/components/settings/GeneralSettings.tsx:336
+#: packages/admin/src/components/settings/GeneralSettings.tsx:206
+#: packages/admin/src/components/settings/GeneralSettings.tsx:313
 msgid "Select Logo"
 msgstr "Selecionar logo"
 
@@ -6390,11 +6443,11 @@ msgid "Selected:"
 msgstr "Selecionado:"
 
 #: packages/admin/src/components/Settings.tsx:98
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:167
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:152
 msgid "Self-Signup Domains"
 msgstr "Domínios de auto-cadastro"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:139
+#: packages/admin/src/components/settings/EmailSettings.tsx:113
 msgid "Send a test email through the full pipeline to verify your email configuration."
 msgstr "Envie um e-mail de teste pela pipeline completa para verificar sua configuração de e-mail."
 
@@ -6414,16 +6467,16 @@ msgstr "Enviar link mágico"
 msgid "Send Recovery Link"
 msgstr "Enviar link de recuperação"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:153
+#: packages/admin/src/components/settings/EmailSettings.tsx:127
 msgid "Send Test"
 msgstr "Enviar teste"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:136
+#: packages/admin/src/components/settings/EmailSettings.tsx:110
 msgid "Send Test Email"
 msgstr "Enviar e-mail de teste"
 
 #: packages/admin/src/components/LoginPage.tsx:149
-#: packages/admin/src/components/settings/EmailSettings.tsx:153
+#: packages/admin/src/components/settings/EmailSettings.tsx:127
 #: packages/admin/src/components/SignupPage.tsx:88
 #: packages/admin/src/components/SignupPage.tsx:151
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
@@ -6437,8 +6490,8 @@ msgstr "Enviando..."
 msgid "SEO"
 msgstr "SEO"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:105
-#: packages/admin/src/components/settings/SeoSettings.tsx:130
+#: packages/admin/src/components/settings/SeoSettings.tsx:90
+#: packages/admin/src/components/settings/SeoSettings.tsx:115
 msgid "SEO Settings"
 msgstr "Configurações de SEO"
 
@@ -6446,7 +6499,7 @@ msgstr "Configurações de SEO"
 msgid "SEO settings (Yoast)"
 msgstr "Configurações de SEO (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:57
+#: packages/admin/src/components/settings/SeoSettings.tsx:40
 msgid "SEO settings saved"
 msgstr "Configurações de SEO salvas"
 
@@ -6498,7 +6551,7 @@ msgstr ""
 msgid "Settings Read"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:43
 msgid "Settings saved successfully"
 msgstr "Configurações salvas com sucesso"
 
@@ -6586,7 +6639,7 @@ msgstr "Entrada de texto de linha única"
 msgid "Site"
 msgstr "Site"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:153
+#: packages/admin/src/components/settings/GeneralSettings.tsx:130
 msgid "Site Identity"
 msgstr "Identidade do site"
 
@@ -6598,7 +6651,7 @@ msgstr "Identidade do site, logo, favicon e preferências de leitura"
 msgid "Site Settings"
 msgstr "Configurações do site"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:156
+#: packages/admin/src/components/settings/GeneralSettings.tsx:133
 #: packages/admin/src/components/SetupWizard.tsx:116
 msgid "Site Title"
 msgstr "Título do site"
@@ -6611,15 +6664,15 @@ msgstr "Título e slogan do site"
 msgid "Site title is required"
 msgstr "O título do site é obrigatório"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:168
+#: packages/admin/src/components/settings/GeneralSettings.tsx:145
 msgid "Site URL"
 msgstr "URL do site"
 
-#: packages/admin/src/components/MediaLibrary.tsx:492
+#: packages/admin/src/components/MediaLibrary.tsx:589
 msgid "Size"
 msgstr "Tamanho"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:174
+#: packages/admin/src/components/MediaDetailPanel.tsx:274
 msgid "Size:"
 msgstr "Tamanho:"
 
@@ -6661,12 +6714,12 @@ msgid "Small section heading"
 msgstr "Título de seção pequeno"
 
 #: packages/admin/src/components/Settings.tsx:75
-#: packages/admin/src/components/settings/SocialSettings.tsx:78
-#: packages/admin/src/components/settings/SocialSettings.tsx:103
+#: packages/admin/src/components/settings/SocialSettings.tsx:70
+#: packages/admin/src/components/settings/SocialSettings.tsx:95
 msgid "Social Links"
 msgstr "Links sociais"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:48
+#: packages/admin/src/components/settings/SocialSettings.tsx:38
 msgid "Social links saved"
 msgstr "Links sociais salvos"
 
@@ -6674,7 +6727,7 @@ msgstr "Links sociais salvos"
 msgid "Social media profile links"
 msgstr "Links de perfis em redes sociais"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:126
+#: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Social Profiles"
 msgstr "Perfis sociais"
 
@@ -6801,7 +6854,7 @@ msgstr ""
 msgid "Table"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:139
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
 msgstr "Slogan"
@@ -6864,7 +6917,7 @@ msgstr ""
 msgid "Term deleted"
 msgstr "Termo excluído"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:148
+#: packages/admin/src/components/settings/EmailSettings.tsx:122
 msgid "test@example.com"
 msgstr "test@example.com"
 
@@ -6901,11 +6954,11 @@ msgstr "O marketplace está vazio. Verifique novamente mais tarde para novos plu
 msgid "The menu has been deleted."
 msgstr "O menu foi excluído."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:159
+#: packages/admin/src/components/settings/GeneralSettings.tsx:136
 msgid "The name of your site, used in the header and metadata"
 msgstr "O nome do seu site, usado no cabeçalho e metadados"
 
-#: packages/admin/src/router.tsx:1964
+#: packages/admin/src/router.tsx:1955
 msgid "The page you're looking for doesn't exist."
 msgstr ""
 
@@ -6913,15 +6966,15 @@ msgstr ""
 msgid "The plugin field widget failed to render."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:172
+#: packages/admin/src/components/settings/GeneralSettings.tsx:149
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "A URL pública do seu site (usada para links canônicos e sitemaps)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:189
+#: packages/admin/src/components/settings/SeoSettings.tsx:156
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:197
+#: packages/admin/src/components/settings/GeneralSettings.tsx:174
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr ""
 
@@ -7062,11 +7115,11 @@ msgstr "Isso reverterá para a versão publicada. Suas alterações de rascunho 
 msgid "Thoughts, tutorials, and more"
 msgstr "Pensamentos, tutoriais e mais"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:310
+#: packages/admin/src/components/settings/GeneralSettings.tsx:287
 msgid "Timezone"
 msgstr "Fuso horário"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:313
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "Fuso horário para exibição de datas (ex.: América/São_Paulo)"
 
@@ -7083,7 +7136,7 @@ msgstr "Título"
 msgid "Title (Tooltip)"
 msgstr "Título (Dica de ferramenta)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:159
+#: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "Title Separator"
 msgstr "Separador de título"
 
@@ -7165,7 +7218,7 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/router.tsx:979
+#: packages/admin/src/router.tsx:978
 msgid "Translation created"
 msgstr ""
 
@@ -7197,7 +7250,10 @@ msgstr "A lixeira está vazia."
 msgid "True/false toggle"
 msgstr "Alternância verdadeiro/falso"
 
-#: packages/admin/src/components/MediaLibrary.tsx:440
+#: packages/admin/src/components/MediaLibrary.tsx:494
+msgid "Try a broader media type or clear your filters."
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:643
 msgid "Try a different search term"
 msgstr "Tente um termo de pesquisa diferente"
@@ -7223,6 +7279,14 @@ msgstr "Tentar novamente"
 msgid "Try another code"
 msgstr "Tente outro código"
 
+#: packages/admin/src/components/MediaLibrary.tsx:519
+msgid "Try another filename or clear your search."
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:493
+msgid "Try another filename, or clear your search and filters."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1125
 #: packages/admin/src/components/WordPressImport.tsx:1247
 msgid "Try Another URL"
@@ -7241,13 +7305,13 @@ msgstr ""
 msgid "Turn into"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:132
+#: packages/admin/src/components/settings/SocialSettings.tsx:106
 msgid "Twitter"
 msgstr "Twitter"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:571
-#: packages/admin/src/components/MediaLibrary.tsx:491
+#: packages/admin/src/components/MediaLibrary.tsx:588
 #: packages/admin/src/routes/byline-schema.tsx:240
 msgid "Type"
 msgstr "Tipo"
@@ -7331,7 +7395,7 @@ msgstr "Chave de acesso sem nome"
 msgid "Unpublish"
 msgstr "Despublicar"
 
-#: packages/admin/src/router.tsx:887
+#: packages/admin/src/router.tsx:886
 msgid "Unpublished"
 msgstr ""
 
@@ -7343,7 +7407,7 @@ msgstr "Tabelas de conteúdo não registradas encontradas"
 msgid "Unschedule"
 msgstr "Cancelar agendamento"
 
-#: packages/admin/src/router.tsx:948
+#: packages/admin/src/router.tsx:947
 msgid "Unscheduled"
 msgstr ""
 
@@ -7382,7 +7446,7 @@ msgid "Update Field"
 msgstr "Atualizar campo"
 
 #. placeholder {0}: editingDomain?.domain
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:367
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:334
 msgid "Update settings for {0}"
 msgstr "Atualizar configurações para {0}"
 
@@ -7469,11 +7533,12 @@ msgstr ""
 msgid "Upload File"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:368
+#: packages/admin/src/components/MediaLibrary.tsx:366
 msgid "Upload files"
 msgstr "Enviar arquivos"
 
-#: packages/admin/src/components/MediaLibrary.tsx:431
+#: packages/admin/src/components/MediaLibrary.tsx:509
+#: packages/admin/src/components/MediaLibrary.tsx:533
 msgid "Upload Files"
 msgstr "Enviar arquivos"
 
@@ -7481,20 +7546,20 @@ msgstr "Enviar arquivos"
 msgid "Upload Image"
 msgstr "Enviar imagem"
 
-#: packages/admin/src/components/MediaLibrary.tsx:428
-msgid "Upload images, videos, and documents to get started."
-msgstr "Envie imagens, vídeos e documentos para começar."
+#: packages/admin/src/components/MediaLibrary.tsx:506
+msgid "Upload images, videos, and documents to keep reusable assets in one place."
+msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:89
 msgid "Upload Media"
 msgstr "Enviar mídia"
 
-#: packages/admin/src/components/MediaLibrary.tsx:442
-msgid "Upload media to get started"
-msgstr "Envie mídia para começar"
+#: packages/admin/src/components/MediaLibrary.tsx:530
+msgid "Upload media to keep reusable assets in one place."
+msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:359
+#: packages/admin/src/components/MediaLibrary.tsx:357
 msgid "Upload to {0}"
 msgstr "Enviar para {0}"
 
@@ -7502,7 +7567,7 @@ msgstr "Enviar para {0}"
 msgid "Upload WordPress export file"
 msgstr "Enviar arquivo de exportação do WordPress"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:188
+#: packages/admin/src/components/MediaDetailPanel.tsx:289
 msgid "Uploaded:"
 msgstr "Enviado:"
 
@@ -7512,11 +7577,11 @@ msgstr "Enviando"
 
 #. placeholder {0}: uploadState.progress.current
 #. placeholder {1}: uploadState.progress.total
-#: packages/admin/src/components/MediaLibrary.tsx:334
+#: packages/admin/src/components/MediaLibrary.tsx:332
 msgid "Uploading {0}/{1}..."
 msgstr "Enviando {0}/{1}..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:335
+#: packages/admin/src/components/MediaLibrary.tsx:333
 #: packages/admin/src/components/MediaPickerModal.tsx:601
 msgid "Uploading..."
 msgstr "Enviando..."
@@ -7543,7 +7608,7 @@ msgstr "Identificador amigável para URL"
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 msgstr "Identificador amigável para URL (ex.: \"primary\", \"footer\")"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:193
+#: packages/admin/src/components/MediaDetailPanel.tsx:295
 msgid "URL:"
 msgstr ""
 
@@ -7559,7 +7624,7 @@ msgstr "Use a autenticação biométrica, chave de segurança ou PIN do seu disp
 msgid "Use your registered passkey to sign in securely."
 msgstr "Use sua chave de acesso cadastrada para acessar com segurança."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:173
+#: packages/admin/src/components/settings/SeoSettings.tsx:140
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr ""
 
@@ -7571,7 +7636,7 @@ msgstr "Usado como identificador. Apenas letras minúsculas, números e sublinha
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Usado como imagem principal do post nas páginas de listagem e no topo do post"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:220
+#: packages/admin/src/components/MediaDetailPanel.tsx:122
 msgid "Used by screen readers and when image fails to load"
 msgstr "Usado por leitores de tela e quando a imagem falha ao carregar"
 
@@ -7592,7 +7657,7 @@ msgid "User"
 msgstr "Usuário"
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:192
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:177
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
 msgstr "O acesso do usuário é gerenciado por um provedor externo ({0}). As configurações de auto-registro de domínio não estão disponíveis ao usar autenticação externa."
 
@@ -7610,11 +7675,11 @@ msgstr "Usuário não encontrado"
 msgid "Users"
 msgstr "Usuários"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:416
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:383
 msgid "Users from"
 msgstr "Usuários de"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:244
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:211
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
 msgstr "Usuários com endereços de e-mail destes domínios podem se registrar sem um convite. Eles receberão a função especificada automaticamente."
 
@@ -7669,7 +7734,7 @@ msgid "Version {0}"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
-#: packages/admin/src/components/MediaLibrary.tsx:402
+#: packages/admin/src/components/MediaLibrary.tsx:436
 msgid "Video"
 msgstr ""
 
@@ -7681,7 +7746,7 @@ msgstr "Verificar status do provedor de e-mail e enviar e-mails de teste"
 msgid "View in Marketplace"
 msgstr "Ver no marketplace"
 
-#: packages/admin/src/components/MediaLibrary.tsx:272
+#: packages/admin/src/components/MediaLibrary.tsx:448
 msgid "View mode"
 msgstr "Modo de visualização"
 
@@ -7793,6 +7858,14 @@ msgstr "Quais tipos de conteúdo podem usar esta taxonomia"
 msgid "Whole number"
 msgstr "Número inteiro"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:121
+msgid "Why can't this be changed?"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:123
+msgid "Why is this important?"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:163
 msgid "Wide"
 msgstr ""
@@ -7842,11 +7915,11 @@ msgstr "Largura"
 msgid "Will create"
 msgstr "Criará"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:417
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:384
 msgid "will no longer be able to sign up without an invite. Existing users are not affected."
 msgstr "não poderá mais se registrar sem um convite. Usuários existentes não são afetados."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:184
+#: packages/admin/src/components/settings/EmailSettings.tsx:158
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "Sem um provedor de e-mail, os links de convite devem ser compartilhados manualmente."
 
@@ -7908,7 +7981,7 @@ msgstr "Você tem acesso completo para gerenciar este site, incluindo usuários,
 msgid "You need admin permissions to manage byline schema."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1298
+#: packages/admin/src/router.tsx:1289
 msgid "You need Editor permissions to moderate comments."
 msgstr ""
 
@@ -7973,21 +8046,26 @@ msgstr "Seu dispositivo não suporta os recursos de segurança necessários."
 msgid "Your Email"
 msgstr "Seu e-mail"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:147
+#: packages/admin/src/components/settings/SocialSettings.tsx:121
 msgid "Your Facebook page or profile username"
 msgstr "Seu nome de usuário de página ou perfil do Facebook"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:141
+#: packages/admin/src/components/settings/SocialSettings.tsx:115
 msgid "Your GitHub username"
 msgstr "Seu nome de usuário do GitHub"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:153
+#: packages/admin/src/components/settings/SocialSettings.tsx:127
 msgid "Your Instagram username"
 msgstr "Seu nome de usuário do Instagram"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:159
+#: packages/admin/src/components/settings/SocialSettings.tsx:133
 msgid "Your LinkedIn profile username"
 msgstr "Seu nome de usuário de perfil do LinkedIn"
+
+#: packages/admin/src/components/MediaLibrary.tsx:505
+#: packages/admin/src/components/MediaLibrary.tsx:529
+msgid "Your media library is empty"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:209
 msgid "Your Name"
@@ -8007,19 +8085,23 @@ msgstr "Sua função"
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:135
+#: packages/admin/src/components/settings/SocialSettings.tsx:109
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Seu usuário do Twitter/X (ex.: @usuario)"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:437
+msgid "Your unsaved media changes will be lost."
+msgstr ""
 
 #. placeholder {0}: attachments.count
 #: packages/admin/src/components/WordPressImport.tsx:1898
 msgid "Your WordPress export contains {0} media files."
 msgstr "Sua exportação do WordPress contém {0} arquivos de mídia."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:165
+#: packages/admin/src/components/settings/SocialSettings.tsx:139
 msgid "Your YouTube channel ID or handle"
 msgstr "Seu ID ou usuário do canal do YouTube"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:162
+#: packages/admin/src/components/settings/SocialSettings.tsx:136
 msgid "YouTube"
 msgstr "YouTube"

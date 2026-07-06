@@ -125,6 +125,18 @@ emdash({
 
 See [Object Cache](/deployment/object-cache/) for KV setup, options, and invalidation behavior.
 
+## Workers Cache
+
+Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) (`"cache": { "enabled": true }` in `wrangler.jsonc`) puts an edge cache **in front of** your Worker: matching requests are served without running your Worker at all. This works well with EmDash:
+
+- EmDash admin and API responses send `Cache-Control: private, no-store` and are never stored.
+- Your public pages control their own caching through the `Cache-Control` headers they return.
+
+Two things to know before enabling it:
+
+1. **Responses without a `Cache-Control` header are still cached.** Workers Cache applies RFC 9111 heuristic freshness — a `200` without any header is cached for 2 hours. Give every custom route an explicit `Cache-Control` (use `private, no-store` for anything session-dependent).
+2. **Cached pages are shared with logged-in editors.** The cache runs before your Worker, so it cannot bypass based on request cookies. A logged-in editor may receive the cached anonymous variant of a public page — without the visual editing toolbar — until the entry expires. Editor-rendered responses themselves are never stored (they carry `private, no-store`), so nothing leaks in the other direction.
+
 ## Custom Domain
 
 Add a custom domain in the Cloudflare dashboard:

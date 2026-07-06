@@ -77,6 +77,55 @@ interface EpochEntry {
 	at: number;
 	/** In-flight read, so concurrent callers share one backend round-trip. */
 	promise?: Promise<number>;
+	/**
+	 * `Date.now()` at which the in-flight read started. Callers use it to
+	 * decide whether the read's owner can still be alive (see
+	 * {@link epochReadDeadline}) — past the deadline the promise is presumed
+	 * dead and the next caller reclaims by starting a fresh read.
+	 */
+	promiseAt?: number;
+}
+
+/**
+ * Extra time past the configured read timeout before an in-flight epoch read
+ * is presumed dead. A live owner's read settles within `timeout` (enforced by
+ * {@link withTimeout}), so the grace only needs to absorb scheduling jitter.
+ */
+const EPOCH_READ_GRACE_MS = 1_000;
+
+/**
+ * How long an in-flight epoch read may be trusted. A read older than this can
+ * only exist because its owning request was cancelled mid-await — on workerd
+ * a cancelled request's continuations never run, *including the timeout's own
+ * `setTimeout` callback*, so the shared promise never settles and is never
+ * replaced. With the timeout disabled (`timeout: 0`) the default is used as
+ * the deadline; the worst case of guessing too short is one duplicate
+ * backend read.
+ */
+function epochReadDeadline(): number {
+	const timeout = holder.config.timeout > 0 ? holder.config.timeout : DEFAULT_TIMEOUT_MS;
+	return timeout + EPOCH_READ_GRACE_MS;
+}
+
+/**
+ * Await another request's in-flight epoch read, bounded by the waiter's own
+ * timer. The bare promise must never be awaited across requests: if the
+ * owning request is cancelled, the promise never settles (see
+ * {@link epochReadDeadline}) and an unguarded waiter hangs until the isolate
+ * is evicted. The race timer below belongs to the *waiter's* request context
+ * and therefore always fires; on timeout the waiter degrades to `fallback`
+ * (the last known epoch), the same contract as a failed backend read.
+ */
+function raceInFlightEpochRead(
+	promise: Promise<number>,
+	ms: number,
+	fallback: number,
+): Promise<number> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<number>((resolve) => {
+		timer = setTimeout(resolve, Math.max(ms, 1), fallback);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 const BACKEND_KEY = Symbol.for("emdash:object-cache:backend");
@@ -263,7 +312,17 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 	if (cached && now - cached.at < holder.config.revalidate) {
 		return cached.value;
 	}
-	if (cached?.promise) return cached.promise;
+	if (cached?.promise) {
+		// Share the in-flight read only while its owner can still be alive,
+		// and never await it bare (a cancelled owner's promise never settles;
+		// see epochReadDeadline). Past the deadline, fall through and reclaim
+		// with a fresh read — the dead entry is overwritten below.
+		const age = now - (cached.promiseAt ?? 0);
+		const deadline = epochReadDeadline();
+		if (age < deadline) {
+			return raceInFlightEpochRead(cached.promise, deadline - age, cached.value);
+		}
+	}
 
 	const promise = (async () => {
 		let value: number;
@@ -287,12 +346,28 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 		return merged;
 	})();
 
-	// Concurrent callers share this in-flight read (dedup). The timeout above
-	// guarantees `promise` settles — its success/catch handler then replaces
-	// this entry with a fresh, promise-free one — so a stalled backend can no
-	// longer pin the namespace to a never-settling promise (the bug that
-	// poisoned an isolate until it was recycled).
-	epochCache.set(namespace, { value: cached?.value ?? 0, at: cached?.at ?? 0, promise });
+	// Anchor the read on the host's lifetime extender: if the owning request
+	// is cancelled mid-await, the anchored copy keeps the read alive so it
+	// still settles and its handler replaces this entry with a fresh,
+	// promise-free one. Where no extender exists, the deadline reclaim above
+	// recovers instead.
+	after(() =>
+		promise.then(
+			() => undefined,
+			() => undefined,
+		),
+	);
+
+	// Concurrent callers share this in-flight read (dedup) — bounded by their
+	// own timers via raceInFlightEpochRead, never awaited bare. The timeout
+	// above makes a live owner's read settle; `promiseAt` lets callers detect
+	// a dead one (cancelled owner) and reclaim.
+	epochCache.set(namespace, {
+		value: cached?.value ?? 0,
+		at: cached?.at ?? 0,
+		promise,
+		promiseAt: now,
+	});
 	return promise;
 }
 

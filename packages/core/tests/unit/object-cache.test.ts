@@ -317,6 +317,93 @@ describe("cachedQuery", () => {
 		expect(load).toHaveBeenCalledTimes(1);
 	});
 
+	it("reclaims an epoch read whose owner was cancelled and never settles", async () => {
+		// On workerd a cancelled request's continuations never run — including
+		// the epoch read's own timeout timer — so the shared in-flight promise
+		// neither settles nor gets replaced. Simulated here with a get that
+		// never settles and a timeout too long to fire during the test; the
+		// deadline check is driven by Date.now, not timers.
+		const store = new Map<string, string>();
+		let stallEpoch = true;
+		const backend: ObjectCacheBackend = {
+			get: (key) => {
+				if (stallEpoch && key.includes(":epoch:")) return new Promise<string | null>(() => {});
+				return Promise.resolve(store.get(key) ?? null);
+			},
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		};
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600, timeout: 5000 });
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+
+		// The cancelled owner: parks on the epoch read and is never awaited.
+		void cachedQuery({ namespace: "posts", key: "k", load }).catch(() => {});
+		await flush();
+
+		// Past the read deadline (timeout + grace) the owner is presumed dead:
+		// the next caller must start a fresh read instead of joining the dead
+		// promise — which, on a recovered backend, settles normally.
+		const realNow = Date.now();
+		vi.spyOn(Date, "now").mockReturnValue(realNow + 6001);
+		stallEpoch = false;
+
+		await expect(cachedQuery({ namespace: "posts", key: "k", load })).resolves.toEqual({
+			n: 1,
+		});
+		expect(load).toHaveBeenCalledTimes(1);
+		vi.restoreAllMocks();
+	});
+
+	it("bounds a waiter on a foreign in-flight epoch read with its own timer", async () => {
+		// A waiter must never await another request's epoch-read promise bare:
+		// if the owner was cancelled the promise never settles. The waiter's
+		// race timer belongs to the waiter's own (live) request, so the query
+		// degrades to the last-known epoch instead of hanging.
+		const store = new Map<string, string>();
+		const backend: ObjectCacheBackend = {
+			get: (key) => {
+				if (key.includes(":epoch:")) return new Promise<string | null>(() => {}); // never settles
+				return Promise.resolve(store.get(key) ?? null);
+			},
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		};
+		__setObjectCacheBackendForTests(backend, {
+			revalidate: 0,
+			defaultTtl: 3600,
+			timeout: 20_000,
+		});
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+
+		// The cancelled owner parks on the epoch read.
+		void cachedQuery({ namespace: "posts", key: "k", load }).catch(() => {});
+		await flush();
+
+		// A waiter arriving late in the share window: its remaining bound is
+		// short, so its own timer fires and the query settles. (Unfixed, the
+		// waiter awaits the dead promise and hangs past the test timeout.)
+		const realNow = Date.now();
+		vi.spyOn(Date, "now").mockReturnValue(realNow + 20_900);
+		await expect(cachedQuery({ namespace: "posts", key: "k", load })).resolves.toEqual({
+			n: 1,
+		});
+		vi.restoreAllMocks();
+	});
+
 	it("self-heals after a stalled read instead of poisoning the namespace", async () => {
 		// First the backend stalls (epoch + value reads hang); after the timeout
 		// the namespace must recover and serve from cache on a healthy backend.

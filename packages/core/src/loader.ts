@@ -116,12 +116,23 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 	const agg = (inner: RawBuilder<unknown>) =>
 		pg ? sql`coalesce(json_agg(${inner}), '[]'::json)` : sql`json_group_array(${inner})`;
 
+	// Pin the join order for the per-entry hydration subqueries on SQLite (#1722).
+	// SQLite honours `CROSS JOIN` ordering, forcing the join to drive from the
+	// pivot (`content_taxonomies` / `_emdash_content_bylines`) by
+	// `(collection, entry_id)` and probe the term/byline table by
+	// `translation_group`. Without it, a stats-blind D1 planner (D1 never runs
+	// ANALYZE / maintains `sqlite_stat1`) is free to drive the correlated
+	// subquery from `taxonomies`/`_emdash_bylines` by `locale`, scanning every
+	// row in the locale per emitted entry. Postgres keeps statistics and rejects
+	// `CROSS JOIN … ON`, so it stays a plain `JOIN` there.
+	const foldJoin = pg ? sql`JOIN` : sql`CROSS JOIN`;
+
 	const termObj = obj(
 		"'id', t.id, 'name', t.name, 'slug', t.slug, 'label', t.label, 'parent_id', t.parent_id, 'locale', t.locale, 'translation_group', t.translation_group",
 	);
 	// Filter terms to the entry's own locale (matches #1441: terms render in the
 	// entry's resolved locale, not all locale variants of the attached group).
-	const terms = sql`(SELECT ${agg(termObj)} FROM ${sql.ref("content_taxonomies")} AS ct JOIN ${sql.ref("taxonomies")} AS t ON t.translation_group = ct.taxonomy_id WHERE ct.collection = ${type} AND ct.entry_id = ${o}.id AND t.locale = ${o}.locale) AS ${sql.ref("_emdash_terms")}`;
+	const terms = sql`(SELECT ${agg(termObj)} FROM ${sql.ref("content_taxonomies")} AS ct ${foldJoin} ${sql.ref("taxonomies")} AS t ON t.translation_group = ct.taxonomy_id WHERE ct.collection = ${type} AND ct.entry_id = ${o}.id AND t.locale = ${o}.locale) AS ${sql.ref("_emdash_terms")}`;
 
 	const bylineInner = obj(
 		"'id', b.id, 'slug', b.slug, 'displayName', b.display_name, 'bio', b.bio, 'avatarMediaId', b.avatar_media_id, 'avatarStorageKey', m.storage_key, 'avatarAlt', m.alt, 'avatarBlurhash', m.blurhash, 'avatarDominantColor', m.dominant_color, 'websiteUrl', b.website_url, 'userId', b.user_id, 'isGuest', b.is_guest, 'createdAt', b.created_at, 'updatedAt', b.updated_at, 'locale', b.locale, 'translationGroup', b.translation_group",
@@ -132,7 +143,7 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 			)
 		: sql.raw("json_object('roleLabel', cb.role_label, 'sortOrder', cb.sort_order, 'byline', ");
 	const credit = sql`${creditObj}${bylineInner})`;
-	const bylines = sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb JOIN ${sql.ref("_emdash_bylines")} AS b ON b.translation_group = cb.byline_id LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id AND b.locale = ${o}.locale) AS ${sql.ref("_emdash_bylines")}`;
+	const bylines = sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb ${foldJoin} ${sql.ref("_emdash_bylines")} AS b ON b.translation_group = cb.byline_id LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id AND b.locale = ${o}.locale) AS ${sql.ref("_emdash_bylines")}`;
 	return { terms, bylines };
 }
 

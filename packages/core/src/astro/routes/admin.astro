@@ -24,6 +24,15 @@ const messages = await loadMessages(resolvedLocale);
 
 const adminConfig = Astro.locals.emdash?.config?.admin;
 const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmDash Admin";
+
+// The admin shell must never be stored by a shared cache. Without an explicit
+// Cache-Control, caches fall back to RFC 9111 heuristic freshness — e.g.
+// Cloudflare's Workers Cache stores header-less 200s for 2 hours — so an
+// authenticated editor's 200 could be replayed to anonymous visitors instead
+// of the login redirect. The shell is also personalized per request (locale
+// via cookie/Accept-Language). API routes already send `private, no-store`
+// (API_CACHE_HEADERS); this closes the same gap for the admin HTML.
+Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
 <!doctype html>
