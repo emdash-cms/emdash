@@ -234,6 +234,94 @@ describeEachDialect("content media usage repair", (dialect) => {
 		);
 	});
 
+	it("reports skipped-only repair source conflicts as partial", async () => {
+		await insertPost(ctx, {
+			id: "post_conflict",
+			slug: "conflicted-post",
+			status: "published",
+			data: {
+				title: "Conflicted Post",
+				hero: { id: "media-repair", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await installFresherColumnsSourceDuringRepairTrigger(ctx);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "partial",
+				indexedSourceCount: 0,
+				failedSourceCount: 0,
+				skippedSourceCount: 1,
+				deletedSourceCount: 0,
+				lastErrorCode: "CONTENT_USAGE_REPAIR_CONFLICT",
+			}),
+		);
+		expect(await usageRepo.findSource(sourceKey("post_conflict", "columns"))).toEqual(
+			expect.objectContaining({
+				currentGeneration: "trigger_columns_generation",
+				contentTitle: "Runtime Fresh Columns",
+				sourceFingerprint: "runtime-fresher-columns",
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-fresher-columns")).toHaveLength(1);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-repair")).toHaveLength(0);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(
+			expect.objectContaining({
+				status: "partial",
+				indexedSourceCount: 0,
+				failedSourceCount: 0,
+				lastErrorCode: "CONTENT_USAGE_REPAIR_CONFLICT",
+			}),
+		);
+	});
+
+	it("does not delete draft sources that become fresher during absent-source cleanup", async () => {
+		const item = await insertPost(ctx, {
+			id: "post_draft_conflict",
+			slug: "draft-conflict-post",
+			status: "published",
+			data: {
+				title: "Draft Conflict Post",
+				hero: { id: "media-columns", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await usageRepo.replaceSource(contentSource(item.id, "draft_overlay"), [
+			occurrence("hero", "media-stale-draft"),
+		]);
+		await installFresherDraftSourceDuringRepairTrigger(ctx);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "partial",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 1,
+				deletedSourceCount: 0,
+				lastErrorCode: "CONTENT_USAGE_REPAIR_CONFLICT",
+			}),
+		);
+		expect(await usageRepo.findSource(sourceKey(item.id, "draft_overlay"))).toEqual(
+			expect.objectContaining({
+				currentGeneration: "trigger_draft_generation",
+				contentTitle: "Runtime Fresh Draft",
+				sourceFingerprint: "runtime-fresher-draft",
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-columns")).toHaveLength(1);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-fresher-draft")).toHaveLength(1);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-stale-draft")).toHaveLength(0);
+	});
+
 	it("returns the winning stale error when final status CAS loses", async () => {
 		await insertPost(ctx, {
 			slug: "stale-status-post",
@@ -533,6 +621,303 @@ async function installStaleStatusTrigger(ctx: DialectTestContext): Promise<void>
 			WHERE adapter_id = 'content-media'
 			AND scope_type = 'collection'
 			AND scope_key = 'posts';
+		END
+	`.execute(ctx.db);
+}
+
+async function installFresherColumnsSourceDuringRepairTrigger(
+	ctx: DialectTestContext,
+): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_insert_fresher_columns_source()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				IF NEW.media_id = 'media-repair' THEN
+					INSERT INTO _emdash_media_usage_sources (
+						source_key,
+						source_type,
+						collection_slug,
+						content_id,
+						source_variant,
+						locale,
+						translation_group,
+						content_slug,
+						content_title,
+						content_status,
+						current_generation,
+						schema_version,
+						source_updated_at,
+						source_version,
+						source_fingerprint,
+						source_completeness,
+						last_attempted_at,
+						indexed_at,
+						created_at,
+						updated_at
+					) VALUES (
+						'content:posts:post_conflict:columns',
+						'content',
+						'posts',
+						'post_conflict',
+						'columns',
+						'en',
+						'post_conflict',
+						'runtime-fresh-columns',
+						'Runtime Fresh Columns',
+						'published',
+						'trigger_columns_generation',
+						1,
+						'2099-01-01T00:00:01.000Z',
+						2,
+						'runtime-fresher-columns',
+						'complete',
+						'2099-01-01T00:00:01.000Z',
+						'2099-01-01T00:00:01.000Z',
+						'2099-01-01T00:00:01.000Z',
+						'2099-01-01T00:00:01.000Z'
+					)
+					ON CONFLICT (source_key) DO NOTHING;
+
+					INSERT INTO _emdash_media_usage (
+						id,
+						source_key,
+						generation,
+						field_slug,
+						field_path,
+						occurrence_index,
+						reference_type,
+						media_id,
+						provider,
+						provider_asset_id,
+						media_kind,
+						mime_type,
+						created_at
+					) VALUES (
+						'usage_trigger_columns',
+						'content:posts:post_conflict:columns',
+						'trigger_columns_generation',
+						'hero',
+						'hero',
+						0,
+						'image_field',
+						'media-fresher-columns',
+						'local',
+						'media-fresher-columns',
+						'image',
+						'image/webp',
+						'2099-01-01T00:00:01.000Z'
+					)
+					ON CONFLICT (id) DO NOTHING;
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_insert_fresher_columns_source
+			AFTER INSERT ON _emdash_media_usage
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_insert_fresher_columns_source()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_insert_fresher_columns_source
+		AFTER INSERT ON _emdash_media_usage
+		WHEN NEW.media_id = 'media-repair'
+		BEGIN
+			INSERT OR IGNORE INTO _emdash_media_usage_sources (
+				source_key,
+				source_type,
+				collection_slug,
+				content_id,
+				source_variant,
+				locale,
+				translation_group,
+				content_slug,
+				content_title,
+				content_status,
+				current_generation,
+				schema_version,
+				source_updated_at,
+				source_version,
+				source_fingerprint,
+				source_completeness,
+				last_attempted_at,
+				indexed_at,
+				created_at,
+				updated_at
+			) VALUES (
+				'content:posts:post_conflict:columns',
+				'content',
+				'posts',
+				'post_conflict',
+				'columns',
+				'en',
+				'post_conflict',
+				'runtime-fresh-columns',
+				'Runtime Fresh Columns',
+				'published',
+				'trigger_columns_generation',
+				1,
+				'2099-01-01T00:00:01.000Z',
+				2,
+				'runtime-fresher-columns',
+				'complete',
+				'2099-01-01T00:00:01.000Z',
+				'2099-01-01T00:00:01.000Z',
+				'2099-01-01T00:00:01.000Z',
+				'2099-01-01T00:00:01.000Z'
+			);
+
+			INSERT OR IGNORE INTO _emdash_media_usage (
+				id,
+				source_key,
+				generation,
+				field_slug,
+				field_path,
+				occurrence_index,
+				reference_type,
+				media_id,
+				provider,
+				provider_asset_id,
+				media_kind,
+				mime_type,
+				created_at
+			) VALUES (
+				'usage_trigger_columns',
+				'content:posts:post_conflict:columns',
+				'trigger_columns_generation',
+				'hero',
+				'hero',
+				0,
+				'image_field',
+				'media-fresher-columns',
+				'local',
+				'media-fresher-columns',
+				'image',
+				'image/webp',
+				'2099-01-01T00:00:01.000Z'
+			);
+		END
+	`.execute(ctx.db);
+}
+
+async function installFresherDraftSourceDuringRepairTrigger(
+	ctx: DialectTestContext,
+): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_update_fresher_draft_source()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				IF NEW.media_id = 'media-columns' THEN
+					INSERT INTO _emdash_media_usage (
+						id,
+						source_key,
+						generation,
+						field_slug,
+						field_path,
+						occurrence_index,
+						reference_type,
+						media_id,
+						provider,
+						provider_asset_id,
+						media_kind,
+						mime_type,
+						created_at
+					) VALUES (
+						'usage_trigger_draft',
+						'content:posts:post_draft_conflict:draft_overlay',
+						'trigger_draft_generation',
+						'hero',
+						'hero',
+						0,
+						'image_field',
+						'media-fresher-draft',
+						'local',
+						'media-fresher-draft',
+						'image',
+						'image/webp',
+						'2099-01-01T00:00:01.000Z'
+					)
+					ON CONFLICT (id) DO NOTHING;
+
+					UPDATE _emdash_media_usage_sources
+					SET current_generation = 'trigger_draft_generation',
+						source_updated_at = '2099-01-01T00:00:01.000Z',
+						source_version = 2,
+						source_fingerprint = 'runtime-fresher-draft',
+						content_title = 'Runtime Fresh Draft',
+						last_attempted_at = '2099-01-01T00:00:01.000Z',
+						indexed_at = '2099-01-01T00:00:01.000Z',
+						updated_at = '2099-01-01T00:00:01.000Z'
+					WHERE source_key = 'content:posts:post_draft_conflict:draft_overlay';
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_update_fresher_draft_source
+			AFTER INSERT ON _emdash_media_usage
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_update_fresher_draft_source()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_update_fresher_draft_source
+		AFTER INSERT ON _emdash_media_usage
+		WHEN NEW.media_id = 'media-columns'
+		BEGIN
+			INSERT OR IGNORE INTO _emdash_media_usage (
+				id,
+				source_key,
+				generation,
+				field_slug,
+				field_path,
+				occurrence_index,
+				reference_type,
+				media_id,
+				provider,
+				provider_asset_id,
+				media_kind,
+				mime_type,
+				created_at
+			) VALUES (
+				'usage_trigger_draft',
+				'content:posts:post_draft_conflict:draft_overlay',
+				'trigger_draft_generation',
+				'hero',
+				'hero',
+				0,
+				'image_field',
+				'media-fresher-draft',
+				'local',
+				'media-fresher-draft',
+				'image',
+				'image/webp',
+				'2099-01-01T00:00:01.000Z'
+			);
+
+			UPDATE _emdash_media_usage_sources
+			SET current_generation = 'trigger_draft_generation',
+				source_updated_at = '2099-01-01T00:00:01.000Z',
+				source_version = 2,
+				source_fingerprint = 'runtime-fresher-draft',
+				content_title = 'Runtime Fresh Draft',
+				last_attempted_at = '2099-01-01T00:00:01.000Z',
+				indexed_at = '2099-01-01T00:00:01.000Z',
+				updated_at = '2099-01-01T00:00:01.000Z'
+			WHERE source_key = 'content:posts:post_draft_conflict:draft_overlay';
 		END
 	`.execute(ctx.db);
 }
