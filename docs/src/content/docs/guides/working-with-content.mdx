@@ -232,8 +232,9 @@ Schedule content to publish at a future date:
 When the publication date arrives, the content automatically becomes published.
 
 <Aside type="tip">
-	Scheduled publishing requires your site to be server-rendered or have a scheduled task that checks
-	for pending publications.
+	On Node.js deployments, EmDash runs the scheduled publishing sweep automatically. On Cloudflare
+	Workers, add a Cron Trigger so due entries are published on schedule. See
+	[Deploy to Cloudflare](/deployment/cloudflare/#scheduled-publishing).
 </Aside>
 
 ## Deleting Content
