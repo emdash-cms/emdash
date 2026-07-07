@@ -3,11 +3,13 @@ import { ulid } from "ulidx";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
+import { validateIdentifier } from "../../../src/database/validate.js";
 import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 } from "../../../src/media/usage/content-refresh.js";
 import {
+	repairContentMediaUsageAll,
 	repairContentMediaUsageCollection,
 	scanContentMediaUsageCollection,
 } from "../../../src/media/usage/content-repair.js";
@@ -696,6 +698,180 @@ describeEachDialect("content media usage repair", (dialect) => {
 	});
 });
 
+describeEachDialect("all-content media usage repair", (dialect) => {
+	let ctx: DialectTestContext;
+	let registry: SchemaRegistry;
+	let usageRepo: MediaUsageRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		registry = new SchemaRegistry(ctx.db);
+		usageRepo = new MediaUsageRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("repairs all collections in deterministic slug order", async () => {
+		await createMediaCollection(registry, "zines", "Zines");
+		await createMediaCollection(registry, "articles", "Articles");
+		const zine = await insertContentItem(ctx, "zines", {
+			slug: "launch-zine",
+			status: "published",
+			data: {
+				title: "Launch Zine",
+				hero: { id: "media-zine", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const article = await insertContentItem(ctx, "articles", {
+			slug: "launch-article",
+			status: "published",
+			data: {
+				title: "Launch Article",
+				hero: { id: "media-article", provider: "local", mimeType: "image/webp" },
+			},
+		});
+
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "complete",
+				indexedSourceCount: 2,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+			}),
+		);
+		expect(result.collections.map((collection) => collection.scope.scopeKey)).toEqual([
+			"articles",
+			"zines",
+		]);
+		expect(result.collections).toEqual([
+			expect.objectContaining({
+				scope: expect.objectContaining({
+					adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+					scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+					scopeKey: "articles",
+				}),
+				status: "complete",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+				lastErrorCode: null,
+			}),
+			expect.objectContaining({
+				scope: expect.objectContaining({
+					adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+					scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+					scopeKey: "zines",
+				}),
+				status: "complete",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+				lastErrorCode: null,
+			}),
+		]);
+		expect(
+			await usageRepo.findSource(collectionSourceKey("articles", article.id, "columns")),
+		).toEqual(
+			expect.objectContaining({ contentTitle: "Launch Article", sourceCompleteness: "complete" }),
+		);
+		expect(await usageRepo.findSource(collectionSourceKey("zines", zine.id, "columns"))).toEqual(
+			expect.objectContaining({ contentTitle: "Launch Zine", sourceCompleteness: "complete" }),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-article")).toHaveLength(1);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-zine")).toHaveLength(1);
+		await expectCollectionStatus(usageRepo, "articles", {
+			status: "complete",
+			indexedSourceCount: 1,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+		});
+		await expectCollectionStatus(usageRepo, "zines", {
+			status: "complete",
+			indexedSourceCount: 1,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+		});
+	});
+
+	it("aggregates complete and failed collection results as partial", async () => {
+		await createMediaCollection(registry, "broken", "Broken");
+		await createMediaCollection(registry, "zines", "Zines");
+		await registry.createField("broken", { slug: "sections", label: "Sections", type: "repeater" });
+		await ctx.db
+			.updateTable("_emdash_fields")
+			.set({ validation: "{" })
+			.where("slug", "=", "sections")
+			.execute();
+		const zine = await insertContentItem(ctx, "zines", {
+			slug: "launch-zine",
+			status: "published",
+			data: {
+				title: "Launch Zine",
+				hero: { id: "media-zine", provider: "local", mimeType: "image/webp" },
+			},
+		});
+
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "partial",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+			}),
+		);
+		expect(result.collections.map((collection) => collection.scope.scopeKey)).toEqual([
+			"broken",
+			"zines",
+		]);
+		expect(result.collections).toEqual([
+			expect.objectContaining({
+				scope: expect.objectContaining({
+					scopeKey: "broken",
+				}),
+				status: "failed",
+				indexedSourceCount: 0,
+				failedSourceCount: 0,
+				lastErrorCode: "INVALID_REPEATER_VALIDATION",
+			}),
+			expect.objectContaining({
+				scope: expect.objectContaining({
+					scopeKey: "zines",
+				}),
+				status: "complete",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				lastErrorCode: null,
+			}),
+		]);
+		expect(await usageRepo.findSource(collectionSourceKey("zines", zine.id, "columns"))).toEqual(
+			expect.objectContaining({ contentTitle: "Launch Zine", sourceCompleteness: "complete" }),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-zine")).toHaveLength(1);
+		await expectCollectionStatus(usageRepo, "broken", {
+			status: "failed",
+			indexedSourceCount: 0,
+			failedSourceCount: 0,
+			lastErrorCode: "INVALID_REPEATER_VALIDATION",
+		});
+		await expectCollectionStatus(usageRepo, "zines", {
+			status: "complete",
+			indexedSourceCount: 1,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+		});
+	});
+});
+
 interface TestPostInput {
 	id?: string;
 	slug: string;
@@ -708,11 +884,31 @@ interface TestPost {
 	id: string;
 }
 
+async function createMediaCollection(
+	registry: SchemaRegistry,
+	slug: string,
+	label: string,
+): Promise<void> {
+	await registry.createCollection({ slug, label });
+	await registry.createField(slug, { slug: "title", label: "Title", type: "string" });
+	await registry.createField(slug, { slug: "hero", label: "Hero", type: "image" });
+}
+
 async function insertPost(ctx: DialectTestContext, input: TestPostInput): Promise<TestPost> {
+	return insertContentItem(ctx, "posts", input);
+}
+
+async function insertContentItem(
+	ctx: DialectTestContext,
+	collectionSlug: string,
+	input: TestPostInput,
+): Promise<TestPost> {
+	validateIdentifier(collectionSlug, "test collection slug");
 	const id = input.id ?? ulid();
 	const now = new Date().toISOString();
+	const tableName = `ec_${collectionSlug}`;
 	await sql`
-		INSERT INTO ${sql.ref("ec_posts")} (
+		INSERT INTO ${sql.ref(tableName)} (
 			id,
 			slug,
 			status,
@@ -740,6 +936,25 @@ async function insertPost(ctx: DialectTestContext, input: TestPostInput): Promis
 	`.execute(ctx.db);
 
 	return { id };
+}
+
+async function expectCollectionStatus(
+	usageRepo: MediaUsageRepository,
+	scopeKey: string,
+	expected: {
+		status: string;
+		indexedSourceCount: number;
+		failedSourceCount: number;
+		lastErrorCode: string | null;
+	},
+): Promise<void> {
+	expect(
+		await usageRepo.findIndexStatus({
+			adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+			scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+			scopeKey,
+		}),
+	).toEqual(expect.objectContaining({ ...expected, cursor: null }));
 }
 
 function contentSource(
@@ -802,8 +1017,16 @@ function occurrence(
 }
 
 function sourceKey(contentId: string, sourceVariant: MediaUsageContentSourceVariant): string {
+	return collectionSourceKey("posts", contentId, sourceVariant);
+}
+
+function collectionSourceKey(
+	collectionSlug: string,
+	contentId: string,
+	sourceVariant: MediaUsageContentSourceVariant,
+): string {
 	return buildContentMediaUsageSourceKey({
-		collectionSlug: "posts",
+		collectionSlug,
 		contentId,
 		sourceVariant,
 	});
