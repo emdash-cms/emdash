@@ -330,8 +330,42 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 				success: false,
 				error: "DRAFT_REVISION_MISMATCH",
 				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
+				snapshots: [
+					expect.objectContaining({
+						source: expect.objectContaining({ sourceVariant: "columns" }),
+					}),
+				],
 			}),
 		);
+	});
+
+	it("fails with a columns snapshot when draft_revision_id is missing", async () => {
+		const item = await insertPost(ctx, {
+			slug: "live-post",
+			status: "published",
+			data: {
+				title: "Live Title",
+				hero: { id: "media-live", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await setDraftRevision(ctx, item.id, "missing_revision", { allowMissing: true });
+
+		const result = await loadContentMediaUsageSnapshots(ctx.db, "posts", item.id);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				success: false,
+				error: "DRAFT_REVISION_NOT_FOUND",
+				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
+				snapshots: [
+					expect.objectContaining({
+						source: expect.objectContaining({ sourceVariant: "columns" }),
+						occurrences: [expect.objectContaining({ mediaId: "media-live" })],
+					}),
+				],
+			}),
+		);
+		expect(result.source).not.toHaveProperty("sourceFingerprint");
 	});
 
 	it("fails when draft revision data is invalid JSON", async () => {
@@ -354,6 +388,11 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 				success: false,
 				error: "DRAFT_REVISION_INVALID",
 				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
+				snapshots: [
+					expect.objectContaining({
+						source: expect.objectContaining({ sourceVariant: "columns" }),
+					}),
+				],
 			}),
 		);
 		expect(result.source).not.toHaveProperty("sourceFingerprint");
@@ -543,13 +582,27 @@ async function setDraftRevision(
 	ctx: DialectTestContext,
 	contentId: string,
 	revisionId: string,
+	options: { allowMissing?: boolean } = {},
 ): Promise<void> {
+	if (options.allowMissing) await allowMissingDraftRevision(ctx);
 	await sql`
 		UPDATE ${sql.ref("ec_posts")}
 		SET draft_revision_id = ${revisionId},
 			updated_at = ${new Date().toISOString()}
 		WHERE id = ${contentId}
 	`.execute(ctx.db);
+}
+
+async function allowMissingDraftRevision(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			ALTER TABLE ${sql.ref("ec_posts")}
+			DROP CONSTRAINT IF EXISTS ec_posts_draft_revision_id_fkey
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`PRAGMA foreign_keys = OFF`.execute(ctx.db);
 }
 
 async function updatePostHero(
