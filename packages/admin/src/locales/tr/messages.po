@@ -26,7 +26,7 @@ msgstr " - Bağlı"
 msgid " (default)"
 msgstr " (varsayılan)"
 
-#: packages/admin/src/components/MenuEditor.tsx:435
+#: packages/admin/src/components/MenuEditor.tsx:521
 msgid " (opens in new window)"
 msgstr " (yeni pencerede açılır)"
 
@@ -83,6 +83,11 @@ msgstr "{0, plural, one {(# öğe)} other {(# öğe)}}"
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# koleksiyon} other {# koleksiyon}}"
 
+#. placeholder {0}: result.comments.imported
+#: packages/admin/src/components/WordPressImport.tsx:2263
+msgid "{0, plural, one {# comment imported} other {# comments imported}}"
+msgstr ""
+
 #. placeholder {0}: result.affected
 #: packages/admin/src/router.tsx:1268
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
@@ -94,12 +99,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# yorum} other {# yorum}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2080
+#: packages/admin/src/components/WordPressImport.tsx:2274
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# içerik hatası} other {# içerik hatası}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2056
+#: packages/admin/src/components/WordPressImport.tsx:2215
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {# içerik öğesi içe aktarıldı} other {# içerik öğesi içe aktarıldı}}"
 
@@ -111,12 +116,12 @@ msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# öğe} other {# öğe}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2085
+#: packages/admin/src/components/WordPressImport.tsx:2279
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# medya hatası} other {# medya hatası}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2072
+#: packages/admin/src/components/WordPressImport.tsx:2231
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# medya dosyası içe aktarıldı} other {# medya dosyası içe aktarıldı}}"
 
@@ -125,8 +130,13 @@ msgstr "{0, plural, one {# medya dosyası içe aktarıldı} other {# medya dosya
 msgid "{0, plural, one {# media file} other {# media files}}"
 msgstr "{0, plural, one {# medya dosyası} other {# medya dosyası}}"
 
+#. placeholder {0}: result.menus.created
+#: packages/admin/src/components/WordPressImport.tsx:2255
+msgid "{0, plural, one {# menu imported} other {# menus imported}}"
+msgstr ""
+
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1739
+#: packages/admin/src/components/WordPressImport.tsx:1903
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {# menü içe aktarılacak} other {# menü içe aktarılacak}}"
 
@@ -137,7 +147,7 @@ msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# izin} other {# izin}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2292
+#: packages/admin/src/components/WordPressImport.tsx:2486
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# gönderi} other {# gönderi}}"
 
@@ -152,9 +162,19 @@ msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, one {# seçildi} other {# seçildi}}"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2064
+#: packages/admin/src/components/WordPressImport.tsx:2223
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {# atlandı (zaten mevcut)} other {# atlandı (zaten mevcut)}}"
+
+#. placeholder {0}: result.taxonomyAssignments
+#: packages/admin/src/components/WordPressImport.tsx:2247
+msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
+msgstr ""
+
+#. placeholder {0}: result.taxonomiesCreated.length
+#: packages/admin/src/components/WordPressImport.tsx:2239
+msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
+msgstr ""
 
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:128
@@ -185,7 +205,7 @@ msgid "{0} banner"
 msgstr "{0} banner'ı"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1142
+#: packages/admin/src/components/WordPressImport.tsx:1303
 msgid "{0} detected"
 msgstr "{0} algılandı"
 
@@ -216,12 +236,12 @@ msgstr "{0} artık aktif"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:1809
+#: packages/admin/src/components/WordPressImport.tsx:1973
 msgid "{0} items → {1}"
 msgstr "{0} öğeleri → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1732
+#: packages/admin/src/components/WordPressImport.tsx:1896
 msgid "{0} items will be imported"
 msgstr "{0} öğe içe aktarılacak"
 
@@ -274,15 +294,15 @@ msgstr "{base}'ten: {0}'e"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {sonraki revizyondan # değişiklik} other {sonraki revizyondan # değişiklik}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1908
+#: packages/admin/src/components/WordPressImport.tsx:2072
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# dosya} other {# dosya}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2157
+#: packages/admin/src/components/WordPressImport.tsx:2351
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# öğe} other {# öğe}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1979
+#: packages/admin/src/components/WordPressImport.tsx:2143
 msgid "{current} of {total}"
 msgstr "{total}'in {current}'i"
 
@@ -304,19 +324,19 @@ msgstr "{label} — çeviriyi görüntüle"
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {\"{searchQuery}\" ile eşleşen # öğe} other {\"{searchQuery}\" ile eşleşen # öğe}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2279
+#: packages/admin/src/components/WordPressImport.tsx:2473
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{totalCount}'in {matchedCount}'i atandı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2267
+#: packages/admin/src/components/WordPressImport.tsx:2461
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{totalCount} yazarlarından {matchedCount} e-postayla eşleştirildi"
 
-#: packages/admin/src/components/WordPressImport.tsx:1715
+#: packages/admin/src/components/WordPressImport.tsx:1879
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {# yeni koleksiyon oluşturulacak} other {# yeni koleksiyon oluşturulacak}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1724
+#: packages/admin/src/components/WordPressImport.tsx:1888
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {# mevcut koleksiyona alan eklenecek} other {# mevcut koleksiyona alan eklenecek}}"
 
@@ -379,22 +399,22 @@ msgstr "/new-page veya /articles/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page veya /blog/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:1929
+#: packages/admin/src/components/WordPressImport.tsx:2093
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• Dosyalar WordPress sitenizden indirilir"
 
-#: packages/admin/src/components/WordPressImport.tsx:1930
+#: packages/admin/src/components/WordPressImport.tsx:2094
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• EmDash medya depolama alanınıza yüklendi"
 
-#: packages/admin/src/components/WordPressImport.tsx:1931
+#: packages/admin/src/components/WordPressImport.tsx:2095
 msgid "• URLs in your content are updated automatically"
 msgstr "• İçeriğinizdeki URL'ler otomatik olarak güncellenir"
 
 #: packages/admin/src/components/SetupWizard.tsx:225
 #: packages/admin/src/components/SetupWizard.tsx:277
 #: packages/admin/src/components/SetupWizard.tsx:332
-#: packages/admin/src/components/WordPressImport.tsx:1440
+#: packages/admin/src/components/WordPressImport.tsx:1601
 msgid "← Back"
 msgstr "← Geri"
 
@@ -402,27 +422,27 @@ msgstr "← Geri"
 msgid "1 year"
 msgstr "1 yıl"
 
-#: packages/admin/src/components/WordPressImport.tsx:1361
+#: packages/admin/src/components/WordPressImport.tsx:1522
 msgid "1. Log into your WordPress admin"
 msgstr "1. WordPress yöneticinize giriş yapın"
 
-#: packages/admin/src/components/WordPressImport.tsx:1114
+#: packages/admin/src/components/WordPressImport.tsx:1275
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. WordPress yönetici kontrol panelinize giriş yapın"
 
-#: packages/admin/src/components/WordPressImport.tsx:1116
+#: packages/admin/src/components/WordPressImport.tsx:1277
 msgid "2. Go to"
 msgstr "2. Şuraya gidin:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1362
+#: packages/admin/src/components/WordPressImport.tsx:1523
 msgid "2. Go to Users → Profile"
 msgstr "2. Kullanıcılar → Profil'e gidin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1363
+#: packages/admin/src/components/WordPressImport.tsx:1524
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. \"Uygulama Şifreleri\"ne gidin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1118
+#: packages/admin/src/components/WordPressImport.tsx:1279
 msgid "3. Select \"All content\""
 msgstr "3. \"Tüm içerik\"i seçin"
 
@@ -446,11 +466,11 @@ msgstr "307 Geçici (Katı)"
 msgid "308 Permanent (Strict)"
 msgstr "308 Kalıcı (Katı)"
 
-#: packages/admin/src/components/WordPressImport.tsx:1119
+#: packages/admin/src/components/WordPressImport.tsx:1280
 msgid "4. Click \"Download Export File\""
 msgstr "4. \"Dışa Aktarma Dosyasını İndir\"e tıklayın"
 
-#: packages/admin/src/components/WordPressImport.tsx:1364
+#: packages/admin/src/components/WordPressImport.tsx:1525
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. \"EmDash\" girin ve \"Yeni Ekle\"ye tıklayın"
 
@@ -466,11 +486,11 @@ msgstr "410 İçerik Silindi (Gitti)"
 msgid "451 Unavailable for legal reasons"
 msgstr "451 Yasal nedenlerden dolayı kullanılamıyor"
 
-#: packages/admin/src/components/WordPressImport.tsx:1365
+#: packages/admin/src/components/WordPressImport.tsx:1526
 msgid "5. Copy the generated password"
 msgstr "5. Oluşturulan şifreyi kopyalayın"
 
-#: packages/admin/src/components/WordPressImport.tsx:1120
+#: packages/admin/src/components/WordPressImport.tsx:1281
 msgid "5. Upload the file here"
 msgstr "5. Dosyayı buraya yükleyin"
 
@@ -535,6 +555,10 @@ msgstr "Hesap mevcut"
 msgid "Account Info"
 msgstr "Hesap Bilgileri"
 
+#: packages/admin/src/components/WordPressImport.tsx:1158
+msgid "ACF Fields"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentInbox.tsx:299
 #: packages/admin/src/components/ContentList.tsx:345
 #: packages/admin/src/components/ContentList.tsx:463
@@ -551,7 +575,7 @@ msgstr "Aktif"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
 #: packages/admin/src/components/ContentEditor.tsx:1915
-#: packages/admin/src/components/MenuEditor.tsx:362
+#: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/TaxonomySidebar.tsx:476
 msgid "Add"
 msgstr "Ekle"
@@ -588,14 +612,14 @@ msgstr "Sonrasına sütun ekle"
 msgid "Add column before"
 msgstr "Öncesine sütun ekle"
 
-#: packages/admin/src/components/MenuEditor.tsx:299
-#: packages/admin/src/components/MenuEditor.tsx:414
+#: packages/admin/src/components/MenuEditor.tsx:378
+#: packages/admin/src/components/MenuEditor.tsx:493
 msgid "Add Content"
 msgstr "İçerik Ekle"
 
-#: packages/admin/src/components/MenuEditor.tsx:311
-#: packages/admin/src/components/MenuEditor.tsx:318
-#: packages/admin/src/components/MenuEditor.tsx:417
+#: packages/admin/src/components/MenuEditor.tsx:390
+#: packages/admin/src/components/MenuEditor.tsx:397
+#: packages/admin/src/components/MenuEditor.tsx:496
 msgid "Add Custom Link"
 msgstr "Özel Bağlantı Ekle"
 
@@ -610,7 +634,7 @@ msgstr "Alan Adı Ekle"
 msgid "Add Field"
 msgstr "Alan Ekle"
 
-#: packages/admin/src/components/WordPressImport.tsx:1820
+#: packages/admin/src/components/WordPressImport.tsx:1984
 msgid "Add fields"
 msgstr "Alan ekle"
 
@@ -642,7 +666,7 @@ msgstr "Öğe Ekle"
 msgid "Add link"
 msgstr "Bağlantı ekle"
 
-#: packages/admin/src/components/MenuEditor.tsx:407
+#: packages/admin/src/components/MenuEditor.tsx:486
 msgid "Add links to build your navigation menu"
 msgstr "Gezinme menünüzü oluşturmak için bağlantılar ekleyin"
 
@@ -699,14 +723,18 @@ msgstr "Widget Alanı Ekle"
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "Sosyal medya profillerinizi ekleyin. Bunlar sitenizin temasında mevcuttur ve üstbilgilerde, altbilgilerde veya yazar biyografilerinde görüntülenebilir."
 
-#: packages/admin/src/components/MenuEditor.tsx:362
+#: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
 msgid "Adding..."
 msgstr "Ekleniyor..."
 
-#: packages/admin/src/components/WordPressImport.tsx:1592
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Additional data to import."
 msgstr "İçe aktarılacak ek veriler."
+
+#: packages/admin/src/components/WordPressImport.tsx:1483
+msgid "admin"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
 #: packages/admin/src/components/Sidebar.tsx:469
@@ -768,7 +796,7 @@ msgstr "Tüm koleksiyonlar"
 msgid "All comments require approval"
 msgstr "Tüm yorumlar onay gerektirir"
 
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2518
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "İçe aktarılan tüm içeriğin ataması kaldırılacak. Yazarları daha sonra içerik düzenleyiciden yeniden atayabilirsiniz."
 
@@ -836,7 +864,7 @@ msgstr "Alternatif Metin"
 msgid "Alt text set"
 msgstr "Alternatif metin seti"
 
-#: packages/admin/src/components/WordPressImport.tsx:1234
+#: packages/admin/src/components/WordPressImport.tsx:1395
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Alternatif olarak WordPress'ten (Araçlar → Dışa Aktar) dışa aktarabilir ve dosyayı yükleyebilirsiniz."
 
@@ -887,11 +915,11 @@ msgstr "Beklenmeyen bir hata oluştu."
 msgid "An unknown error occurred"
 msgstr "Bilinmeyen bir hata oluştu"
 
-#: packages/admin/src/components/WordPressImport.tsx:1414
+#: packages/admin/src/components/WordPressImport.tsx:1575
 msgid "Analyzing export file..."
 msgstr "Dışa aktarma dosyası analiz ediliyor..."
 
-#: packages/admin/src/components/WordPressImport.tsx:735
+#: packages/admin/src/components/WordPressImport.tsx:810
 msgid "Analyzing WordPress site..."
 msgstr "WordPress sitesi analiz ediliyor..."
 
@@ -908,7 +936,7 @@ msgstr "API Belirteçleri"
 msgid "Appears on posts and pages"
 msgstr "Gönderilerde ve sayfalarda görünür"
 
-#: packages/admin/src/components/WordPressImport.tsx:1329
+#: packages/admin/src/components/WordPressImport.tsx:1490
 msgid "Application Password"
 msgstr "Uygulama Şifresi"
 
@@ -979,7 +1007,7 @@ msgstr "Bu menüyü silmek istediğinizden emin misiniz? Bu aynı zamanda tüm m
 msgid "As an administrator, you can invite other users from the Users section."
 msgstr "Yönetici olarak Kullanıcılar bölümünden diğer kullanıcıları davet edebilirsiniz."
 
-#: packages/admin/src/components/WordPressImport.tsx:2262
+#: packages/admin/src/components/WordPressImport.tsx:2456
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "WordPress yazarlarını EmDash kullanıcılarına atayın. Gönderiler seçilen kullanıcıya atfedilecektir."
 
@@ -1022,7 +1050,7 @@ msgstr "Kimlik doğrulama iptal edildi veya zaman aşımına uğradı. Lütfen t
 msgid "Author"
 msgstr "Yazar"
 
-#: packages/admin/src/components/WordPressImport.tsx:2277
+#: packages/admin/src/components/WordPressImport.tsx:2471
 msgid "Author Mapping"
 msgstr "Yazar Eşleme"
 
@@ -1092,9 +1120,9 @@ msgid "Avatar"
 msgstr "avatar"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:257
-#: packages/admin/src/components/MenuEditor.tsx:283
-#: packages/admin/src/components/WordPressImport.tsx:1349
-#: packages/admin/src/components/WordPressImport.tsx:2333
+#: packages/admin/src/components/MenuEditor.tsx:362
+#: packages/admin/src/components/WordPressImport.tsx:1510
+#: packages/admin/src/components/WordPressImport.tsx:2527
 msgid "Back"
 msgstr "Geri"
 
@@ -1180,8 +1208,8 @@ msgstr "Merkeziyetsiz kayıt deposunda yayımlanan eklentilere göz atın ve bun
 msgid "Browse and install plugins to extend your site."
 msgstr "Sitenizi genişletmek için eklentilere göz atın ve yükleyin."
 
-#: packages/admin/src/components/WordPressImport.tsx:966
-#: packages/admin/src/components/WordPressImport.tsx:1433
+#: packages/admin/src/components/WordPressImport.tsx:1124
+#: packages/admin/src/components/WordPressImport.tsx:1594
 msgid "Browse Files"
 msgstr "Dosyalara göz at"
 
@@ -1262,8 +1290,8 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/FieldEditor.tsx:649
 #: packages/admin/src/components/MediaDetailPanel.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:744
-#: packages/admin/src/components/MenuEditor.tsx:359
-#: packages/admin/src/components/MenuEditor.tsx:530
+#: packages/admin/src/components/MenuEditor.tsx:438
+#: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:172
 #: packages/admin/src/components/PluginManager.tsx:640
 #: packages/admin/src/components/PortableTextEditor.tsx:3184
@@ -1280,7 +1308,7 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/TaxonomyManager.tsx:686
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/Widgets.tsx:386
-#: packages/admin/src/components/WordPressImport.tsx:1753
+#: packages/admin/src/components/WordPressImport.tsx:1917
 msgid "Cancel"
 msgstr "İptal"
 
@@ -1327,9 +1355,13 @@ msgid "Categories"
 msgstr "Kategoriler"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1621
+#: packages/admin/src/components/WordPressImport.tsx:1785
 msgid "Categories ({0})"
 msgstr "Kategoriler ({0})"
+
+#: packages/admin/src/components/WordPressImport.tsx:1146
+msgid "Categories & Tags"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:161
 msgid "Center"
@@ -1380,7 +1412,7 @@ msgstr "Sayfa başlığı ile site adı arasındaki karakter (ör. \"Gönderim |
 msgid "Check for updates"
 msgstr "Güncellemeleri kontrol et"
 
-#: packages/admin/src/components/WordPressImport.tsx:937
+#: packages/admin/src/components/WordPressImport.tsx:1095
 msgid "Check Site"
 msgstr "Siteyi Kontrol Et"
 
@@ -1390,7 +1422,7 @@ msgstr "Siteyi Kontrol Et"
 msgid "Check your email"
 msgstr "E-postanızı kontrol edin"
 
-#: packages/admin/src/components/WordPressImport.tsx:701
+#: packages/admin/src/components/WordPressImport.tsx:776
 msgid "Checking {urlInput}..."
 msgstr "{urlInput} kontrol ediliyor..."
 
@@ -1450,12 +1482,12 @@ msgstr "Oturum açmak için e-postadaki bağlantıya tıklayın."
 #: packages/admin/src/components/MediaPickerModal.tsx:482
 #: packages/admin/src/components/MediaPickerModal.tsx:488
 #: packages/admin/src/components/MediaPickerModal.tsx:492
-#: packages/admin/src/components/MenuEditor.tsx:321
-#: packages/admin/src/components/MenuEditor.tsx:327
-#: packages/admin/src/components/MenuEditor.tsx:331
-#: packages/admin/src/components/MenuEditor.tsx:489
-#: packages/admin/src/components/MenuEditor.tsx:495
-#: packages/admin/src/components/MenuEditor.tsx:499
+#: packages/admin/src/components/MenuEditor.tsx:400
+#: packages/admin/src/components/MenuEditor.tsx:406
+#: packages/admin/src/components/MenuEditor.tsx:410
+#: packages/admin/src/components/MenuEditor.tsx:576
+#: packages/admin/src/components/MenuEditor.tsx:582
+#: packages/admin/src/components/MenuEditor.tsx:586
 #: packages/admin/src/components/MenuList.tsx:136
 #: packages/admin/src/components/MenuList.tsx:142
 #: packages/admin/src/components/MenuList.tsx:146
@@ -1535,7 +1567,7 @@ msgstr "Koleksiyon:"
 msgid "Collections"
 msgstr "Koleksiyonlar"
 
-#: packages/admin/src/components/WordPressImport.tsx:2133
+#: packages/admin/src/components/WordPressImport.tsx:2327
 msgid "Collections created:"
 msgstr "Oluşturulan koleksiyonlar:"
 
@@ -1578,20 +1610,21 @@ msgstr "Alanı Yapılandır"
 msgid "Confirm"
 msgstr "Onayla"
 
-#: packages/admin/src/components/WordPressImport.tsx:627
+#: packages/admin/src/components/WordPressImport.tsx:701
+#: packages/admin/src/components/WordPressImport.tsx:1054
 msgid "Connect"
 msgstr "Bağlan"
 
-#: packages/admin/src/components/WordPressImport.tsx:1346
+#: packages/admin/src/components/WordPressImport.tsx:1507
 msgid "Connect & Analyze"
 msgstr "Bağlan ve Analiz Et"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1296
+#: packages/admin/src/components/WordPressImport.tsx:1457
 msgid "Connect to {0}"
 msgstr "{0}'e bağlanın"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1373
 msgid "Connect with WordPress"
 msgstr "WordPress ile bağlanın"
 
@@ -1616,11 +1649,11 @@ msgid "Content Block"
 msgstr "İçerik Bloğu"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2188
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Content Errors ({0})"
 msgstr "İçerik Hataları ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1156
+#: packages/admin/src/components/WordPressImport.tsx:1317
 msgid "Content found:"
 msgstr "Bulunan içerik:"
 
@@ -1640,7 +1673,7 @@ msgstr "İçerik Kimliği:"
 msgid "Content is now live"
 msgstr "İçerik artık yayında"
 
-#: packages/admin/src/components/WordPressImport.tsx:2177
+#: packages/admin/src/components/WordPressImport.tsx:2371
 msgid "content items"
 msgstr "içerik öğeleri"
 
@@ -1660,7 +1693,7 @@ msgstr "İçerik taslağa geri döndürüldü"
 msgid "Content snapshot:"
 msgstr "İçeriğin anlık görüntüsü:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1570
+#: packages/admin/src/components/WordPressImport.tsx:1731
 msgid "Content to Import"
 msgstr "İçe Aktarılacak İçerik"
 
@@ -1670,7 +1703,7 @@ msgstr "İçe Aktarılacak İçerik"
 msgid "Content Types"
 msgstr "İçerik Türleri"
 
-#: packages/admin/src/components/WordPressImport.tsx:2116
+#: packages/admin/src/components/WordPressImport.tsx:2310
 msgid "Content was skipped because it already exists"
 msgstr "İçerik zaten mevcut olduğundan atlandı"
 
@@ -1687,7 +1720,7 @@ msgstr "Devam et"
 msgid "Continue →"
 msgstr "Devam →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2335
+#: packages/admin/src/components/WordPressImport.tsx:2529
 msgid "Continue Import"
 msgstr "İçe Aktarmaya Devam Et"
 
@@ -1736,7 +1769,7 @@ msgstr "Otomatik olarak kopyalanamadı. Lütfen yukarıdaki URL'yi seçin ve man
 msgid "Could not load image from URL"
 msgstr "URL'den resim yüklenemedi"
 
-#: packages/admin/src/components/WordPressImport.tsx:1103
+#: packages/admin/src/components/WordPressImport.tsx:1264
 msgid "Couldn't detect WordPress"
 msgstr "WordPress algılanamadı"
 
@@ -1827,7 +1860,7 @@ msgstr "Yeni Menü Oluştur"
 msgid "Create New Token"
 msgstr "Yeni Belirteç Oluştur"
 
-#: packages/admin/src/components/WordPressImport.tsx:1340
+#: packages/admin/src/components/WordPressImport.tsx:1501
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "WordPress'te bir tane oluşturun: Kullanıcılar → Profil → Uygulama Şifreleri"
 
@@ -1853,7 +1886,7 @@ msgstr "Bu yol için yönlendirme oluştur"
 msgid "Create redirect rules to manage URL changes."
 msgstr "URL değişikliklerini yönetmek için yönlendirme kuralları oluşturun."
 
-#: packages/admin/src/components/WordPressImport.tsx:1757
+#: packages/admin/src/components/WordPressImport.tsx:1921
 msgid "Create Schema & Import"
 msgstr "Şema Oluştur ve İçe Aktar"
 
@@ -1950,7 +1983,7 @@ msgstr "Oluşturulma Tarihi"
 msgid "Created: {0}"
 msgstr "Oluşturulan: {0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:812
+#: packages/admin/src/components/WordPressImport.tsx:887
 msgid "Creating collections and fields..."
 msgstr "Koleksiyonlar ve alanlar oluşturuluyor..."
 
@@ -1991,6 +2024,10 @@ msgstr "Özel robots.txt içeriği. Varsayılanı kullanmak için boş bırakın
 #: packages/admin/src/components/SectionEditor.tsx:184
 msgid "Custom Section"
 msgstr "Özel Bölüm"
+
+#: packages/admin/src/components/WordPressImport.tsx:1147
+msgid "Custom Taxonomies"
+msgstr ""
 
 #: packages/admin/src/components/ThemeToggle.tsx:22
 msgid "dark"
@@ -2080,7 +2117,7 @@ msgstr "Kodda tanımlandı"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:453
-#: packages/admin/src/components/MenuEditor.tsx:463
+#: packages/admin/src/components/MenuEditor.tsx:549
 #: packages/admin/src/components/MenuList.tsx:255
 #: packages/admin/src/components/Redirects.tsx:582
 #: packages/admin/src/components/Sections.tsx:308
@@ -2460,7 +2497,7 @@ msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Hesabınız yok mu? <0>Sign up</0>"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:144
-#: packages/admin/src/components/WordPressImport.tsx:1964
+#: packages/admin/src/components/WordPressImport.tsx:2128
 msgid "Done"
 msgstr "Tamam"
 
@@ -2472,7 +2509,7 @@ msgstr "Aşağı"
 msgid "Download SBOM"
 msgstr "SBOM'u indirin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1962
+#: packages/admin/src/components/WordPressImport.tsx:2126
 msgid "Downloading"
 msgstr "İndiriliyor"
 
@@ -2495,7 +2532,11 @@ msgstr "taslak, yayınlanmış veya arşivlenmiş"
 msgid "Drafts"
 msgstr "Taslaklar"
 
-#: packages/admin/src/components/WordPressImport.tsx:961
+#: packages/admin/src/components/WordPressImport.tsx:1166
+msgid "Drafts & Private"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Göz atmak için sürükleyip bırakın veya tıklayın (.xml)"
 
@@ -2530,7 +2571,7 @@ msgstr "Widget'ları eklemek için bir alana sürükleyin"
 msgid "Drop to add widget"
 msgstr "Widget eklemek için bırakın"
 
-#: packages/admin/src/components/WordPressImport.tsx:1427
+#: packages/admin/src/components/WordPressImport.tsx:1588
 msgid "Drop your WordPress export file here"
 msgstr "WordPress dışa aktarma dosyanızı buraya bırakın"
 
@@ -2561,7 +2602,7 @@ msgstr "ör. MacBook Pro, iPhone"
 #: packages/admin/src/components/ContentEditor.tsx:1956
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
-#: packages/admin/src/components/MenuEditor.tsx:458
+#: packages/admin/src/components/MenuEditor.tsx:544
 #: packages/admin/src/components/MenuList.tsx:231
 #: packages/admin/src/components/Sections.tsx:392
 #: packages/admin/src/components/TranslationsPanel.tsx:88
@@ -2614,11 +2655,11 @@ msgstr "Alanı Düzenle"
 msgid "Edit link"
 msgstr "Bağlantıyı düzenle"
 
-#: packages/admin/src/components/MenuEditor.tsx:486
+#: packages/admin/src/components/MenuEditor.tsx:573
 msgid "Edit Menu Item"
 msgstr "Menü Öğesini Düzenle"
 
-#: packages/admin/src/components/MenuEditor.tsx:290
+#: packages/admin/src/components/MenuEditor.tsx:369
 msgid "Edit menu items"
 msgstr "Menü öğelerini düzenle"
 
@@ -2654,6 +2695,10 @@ msgstr ""
 "Editör\n"
 "Muhabir\n"
 "Fotoğrafçı"
+
+#: packages/admin/src/components/WordPressImport.tsx:1044
+msgid "em1.…"
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:59
 #: packages/admin/src/components/Settings.tsx:115
@@ -2711,11 +2756,11 @@ msgstr "{0} yerleştirme"
 msgid "Embeds"
 msgstr "Gömmeler"
 
-#: packages/admin/src/components/WordPressImport.tsx:1047
+#: packages/admin/src/components/WordPressImport.tsx:1208
 msgid "EmDash Exporter"
 msgstr "EmDash Exporter"
 
-#: packages/admin/src/components/WordPressImport.tsx:1146
+#: packages/admin/src/components/WordPressImport.tsx:1307
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "EmDash Exporter eklentisi algılandı! Doğrudan içe aktarabilirsiniz."
 
@@ -2749,8 +2794,8 @@ msgstr "Etkin"
 msgid "Enter {0}..."
 msgstr "{0}'i girin..."
 
-#: packages/admin/src/components/MenuEditor.tsx:344
-#: packages/admin/src/components/MenuEditor.tsx:514
+#: packages/admin/src/components/MenuEditor.tsx:423
+#: packages/admin/src/components/MenuEditor.tsx:601
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Bir URL (https://…) veya göreli yol (/…) girin"
 
@@ -2758,7 +2803,7 @@ msgstr "Bir URL (https://…) veya göreli yol (/…) girin"
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Geçerli bir URL girin (ör. https://example.com)"
 
-#: packages/admin/src/components/WordPressImport.tsx:1219
+#: packages/admin/src/components/WordPressImport.tsx:1380
 msgid "Enter credentials manually"
 msgstr "Kimlik bilgilerini manuel olarak girin"
 
@@ -2795,17 +2840,17 @@ msgstr "URL'yi girin..."
 msgid "Enter your handle to sign in."
 msgstr "Oturum açmak için kullanıcı adınızı girin."
 
-#: packages/admin/src/components/WordPressImport.tsx:1298
+#: packages/admin/src/components/WordPressImport.tsx:1459
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "İçeriği doğrudan içe aktarmak için WordPress kimlik bilgilerinizi girin."
 
-#: packages/admin/src/components/WordPressImport.tsx:924
+#: packages/admin/src/components/WordPressImport.tsx:1082
 msgid "Enter your WordPress site URL"
 msgstr "WordPress site URL'nizi girin"
 
-#: packages/admin/src/components/MenuEditor.tsx:101
-#: packages/admin/src/components/MenuEditor.tsx:139
-#: packages/admin/src/components/MenuEditor.tsx:179
+#: packages/admin/src/components/MenuEditor.tsx:155
+#: packages/admin/src/components/MenuEditor.tsx:193
+#: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
 #: packages/admin/src/router.tsx:1938
@@ -2832,7 +2877,7 @@ msgstr "Widget güncellenirken hata oluştu"
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "Bu eklentinin yayınlanan her sürümü geri çekildi veya doğrulanamadı. Daha sonra tekrar kontrol edin veya yayıncıyla iletişime geçin."
 
-#: packages/admin/src/components/WordPressImport.tsx:1846
+#: packages/admin/src/components/WordPressImport.tsx:2010
 msgid "Exists"
 msgstr "Var"
 
@@ -2861,11 +2906,11 @@ msgstr "{0}'in süresi doluyor"
 msgid "Expiry"
 msgstr "Son kullanma tarihi"
 
-#: packages/admin/src/components/WordPressImport.tsx:1112
+#: packages/admin/src/components/WordPressImport.tsx:1273
 msgid "Export from WordPress manually"
 msgstr "WordPress'ten manuel olarak dışa aktarın"
 
-#: packages/admin/src/components/WordPressImport.tsx:1236
+#: packages/admin/src/components/WordPressImport.tsx:1397
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Taslaklar dahil her şeyi içe aktarmak için içeriğinizi WordPress'ten dışa aktarın."
 
@@ -2877,7 +2922,7 @@ msgstr "Facebook"
 msgid "Fail"
 msgstr "Başarısız"
 
-#: packages/admin/src/components/WordPressImport.tsx:1966
+#: packages/admin/src/components/WordPressImport.tsx:2130
 msgid "Failed"
 msgstr "Başarısız"
 
@@ -2893,7 +2938,7 @@ msgstr "Alan eklenemedi"
 msgid "Failed to add passkey"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:367
+#: packages/admin/src/components/WordPressImport.tsx:413
 msgid "Failed to analyze WordPress site"
 msgstr "WordPress sitesi analiz edilemedi"
 
@@ -2925,7 +2970,7 @@ msgstr "Alan oluşturulamadı"
 msgid "Failed to create section"
 msgstr "Bölüm oluşturulamadı"
 
-#: packages/admin/src/components/WordPressImport.tsx:1553
+#: packages/admin/src/components/WordPressImport.tsx:1714
 msgid "Failed to create some collections"
 msgstr "Bazı koleksiyonlar oluşturulamadı"
 
@@ -3051,7 +3096,7 @@ msgstr "Arama etkinleştirilemedi"
 msgid "Failed to enable user"
 msgstr "Kullanıcı etkinleştirilemedi"
 
-#: packages/admin/src/components/WordPressImport.tsx:295
+#: packages/admin/src/components/WordPressImport.tsx:340
 msgid "Failed to execute import"
 msgstr "İçe aktarma yürütülemedi"
 
@@ -3158,12 +3203,12 @@ msgstr "Kayıt seçenekleri alınamadı"
 msgid "Failed to get upload URL"
 msgstr "Yükleme URL'si alınamadı"
 
-#: packages/admin/src/components/WordPressImport.tsx:386
+#: packages/admin/src/components/WordPressImport.tsx:436
 msgid "Failed to import from WordPress"
 msgstr "WordPress'ten içe aktarma başarısız oldu"
 
-#: packages/admin/src/components/WordPressImport.tsx:319
-#: packages/admin/src/lib/api/import.ts:256
+#: packages/admin/src/components/WordPressImport.tsx:365
+#: packages/admin/src/lib/api/import.ts:422
 msgid "Failed to import media"
 msgstr "Medya içe aktarılamadı"
 
@@ -3243,7 +3288,7 @@ msgstr "Toplu işlem gerçekleştirilemedi"
 msgid "Failed to permanently delete content"
 msgstr "İçerik kalıcı olarak silinemedi"
 
-#: packages/admin/src/components/WordPressImport.tsx:276
+#: packages/admin/src/components/WordPressImport.tsx:321
 msgid "Failed to prepare import"
 msgstr "İçe aktarma hazırlanamadı"
 
@@ -3298,7 +3343,7 @@ msgstr "Revizyon geri yüklenemedi"
 msgid "Failed to revoke API token"
 msgstr "API belirteci iptal edilemedi"
 
-#: packages/admin/src/components/WordPressImport.tsx:332
+#: packages/admin/src/components/WordPressImport.tsx:378
 msgid "Failed to rewrite URLs"
 msgstr "URL'ler yeniden yazılamadı"
 
@@ -3423,16 +3468,20 @@ msgstr "SSS"
 msgid "Favicon"
 msgstr "Site simgesi"
 
-#: packages/admin/src/components/WordPressImport.tsx:1022
+#: packages/admin/src/components/WordPressImport.tsx:1180
 msgid "Feature"
 msgstr "Özellik"
+
+#: packages/admin/src/components/WordPressImport.tsx:1148
+msgid "Featured Images"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:442
 #: packages/admin/src/components/ContentTypeList.tsx:103
 msgid "Features"
 msgstr "Özellikler"
 
-#: packages/admin/src/components/WordPressImport.tsx:736
+#: packages/admin/src/components/WordPressImport.tsx:811
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "EmDash Exporter API'sinden içerik getiriliyor."
 
@@ -3468,7 +3517,7 @@ msgstr "Alan güncellendi"
 msgid "Fields"
 msgstr "Alanlar"
 
-#: packages/admin/src/components/WordPressImport.tsx:2139
+#: packages/admin/src/components/WordPressImport.tsx:2333
 msgid "Fields created:"
 msgstr "Oluşturulan alanlar:"
 
@@ -3477,7 +3526,7 @@ msgid "File"
 msgstr "Dosya"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:1994
+#: packages/admin/src/components/WordPressImport.tsx:2158
 msgid "File {0}"
 msgstr "Dosya {0}"
 
@@ -3495,7 +3544,7 @@ msgstr "Dosya adı"
 msgid "Filename cannot be changed after upload"
 msgstr "Dosya adı yüklemeden sonra değiştirilemez"
 
-#: packages/admin/src/components/WordPressImport.tsx:2172
+#: packages/admin/src/components/WordPressImport.tsx:2366
 msgid "files imported"
 msgstr "içe aktarılan dosyalar"
 
@@ -3541,11 +3590,11 @@ msgstr "Yalnızca ilk kez yorum yapanlar"
 msgid "Fonts"
 msgstr "Yazı tipleri"
 
-#: packages/admin/src/components/WordPressImport.tsx:1237
+#: packages/admin/src/components/WordPressImport.tsx:1398
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "Taslaklar ve tüm içerik dahil olmak üzere eksiksiz bir içe aktarma için WordPress'ten dışa aktarın."
 
-#: packages/admin/src/components/WordPressImport.tsx:1046
+#: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "For the best import experience, install the"
 msgstr "En iyi içe aktarma deneyimi için"
 
@@ -3554,6 +3603,7 @@ msgid "From date"
 msgstr "Tarihten itibaren"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:164
+#: packages/admin/src/components/WordPressImport.tsx:1155
 msgid "Full"
 msgstr ""
 
@@ -3594,7 +3644,7 @@ msgstr "Daha sonra tanıyabilmeniz için bu geçiş anahtarına bir ad verin."
 msgid "Go"
 msgstr "Git"
 
-#: packages/admin/src/components/WordPressImport.tsx:2224
+#: packages/admin/src/components/WordPressImport.tsx:2418
 #: packages/admin/src/router.tsx:1958
 msgid "Go to Dashboard"
 msgstr "Kontrol Paneline Git"
@@ -3671,7 +3721,7 @@ msgstr "Hiyerarşik (kategoriler gibi, ebeveyn/çocuk ilişkilerine sahip)"
 msgid "Hits"
 msgstr "İsabetler"
 
-#: packages/admin/src/components/MenuEditor.tsx:337
+#: packages/admin/src/components/MenuEditor.tsx:416
 msgid "Home"
 msgstr "Ana sayfa"
 
@@ -3683,7 +3733,7 @@ msgstr "Ana sayfa"
 msgid "Hooks"
 msgstr "Kancalar"
 
-#: packages/admin/src/components/WordPressImport.tsx:1359
+#: packages/admin/src/components/WordPressImport.tsx:1520
 msgid "How to create an Application Password"
 msgstr "Uygulama Şifresi nasıl oluşturulur?"
 
@@ -3697,13 +3747,17 @@ msgstr "HTML"
 msgid "HTML source"
 msgstr "HTML kaynağı"
 
-#: packages/admin/src/components/MenuEditor.tsx:345
+#: packages/admin/src/components/MenuEditor.tsx:424
 msgid "https://example.com or /about"
 msgstr "https://example.com veya /about"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:508
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
+
+#: packages/admin/src/components/WordPressImport.tsx:1089
+msgid "https://yoursite.com"
+msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:241
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:142
@@ -3751,7 +3805,7 @@ msgstr "Bu sayfa sosyal medyada paylaşıldığında gösterilen resim"
 msgid "Image URL"
 msgstr "Görsel URL'si"
 
-#: packages/admin/src/components/WordPressImport.tsx:2176
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "image URLs updated in"
 msgstr "resim URL'leri şu tarihte güncellendi:"
 
@@ -3762,60 +3816,60 @@ msgstr "Görseller"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
 #: packages/admin/src/components/Sidebar.tsx:378
-#: packages/admin/src/components/WordPressImport.tsx:664
+#: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import"
 msgstr "İçe aktar"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:1794
+#: packages/admin/src/components/WordPressImport.tsx:1958
 msgid "Import {0}"
 msgstr "{0}'i içe aktar"
 
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1366
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "Taslaklar, özel gönderi türleri, ACF alanları ve SEO verileri dahil tüm içeriği doğrudan içe aktarın. Dosya indirmeye gerek yok."
 
-#: packages/admin/src/components/WordPressImport.tsx:2222
+#: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "Import Another File"
 msgstr "Başka Bir Dosyayı İçe Aktar"
 
-#: packages/admin/src/components/WordPressImport.tsx:1016
+#: packages/admin/src/components/WordPressImport.tsx:1174
 msgid "Import Capabilities"
 msgstr "İçe Aktarma Yetenekleri"
 
-#: packages/admin/src/components/WordPressImport.tsx:2110
+#: packages/admin/src/components/WordPressImport.tsx:2304
 msgid "Import Complete"
 msgstr "İçe Aktarma Tamamlandı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2111
+#: packages/admin/src/components/WordPressImport.tsx:2305
 msgid "Import Completed with Errors"
 msgstr "İçe Aktarma Hatalarla Tamamlandı"
 
-#: packages/admin/src/components/WordPressImport.tsx:1538
+#: packages/admin/src/components/WordPressImport.tsx:1699
 msgid "Import failed"
 msgstr "İçe aktarma başarısız oldu"
 
-#: packages/admin/src/components/WordPressImport.tsx:617
+#: packages/admin/src/components/WordPressImport.tsx:691
 msgid "Import from WordPress"
 msgstr "WordPress'ten içe aktar"
 
-#: packages/admin/src/components/WordPressImport.tsx:1943
+#: packages/admin/src/components/WordPressImport.tsx:2107
 msgid "Import Media"
 msgstr "Medyayı İçe Aktar"
 
-#: packages/admin/src/components/WordPressImport.tsx:1896
+#: packages/admin/src/components/WordPressImport.tsx:2060
 msgid "Import Media Files"
 msgstr "Medya Dosyalarını İçe Aktar"
 
-#: packages/admin/src/components/WordPressImport.tsx:619
+#: packages/admin/src/components/WordPressImport.tsx:693
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "WordPress'ten gönderileri, sayfaları ve özel gönderi türlerini içe aktarın."
 
-#: packages/admin/src/components/WordPressImport.tsx:1650
+#: packages/admin/src/components/WordPressImport.tsx:1814
 msgid "Import site configuration from WordPress."
 msgstr "Site yapılandırmasını WordPress'ten içe aktarın."
 
-#: packages/admin/src/components/WordPressImport.tsx:1203
+#: packages/admin/src/components/WordPressImport.tsx:1364
 msgid "Import via EmDash Exporter"
 msgstr "EmDash Exporter ile içe aktar"
 
@@ -3823,23 +3877,42 @@ msgstr "EmDash Exporter ile içe aktar"
 msgid "Imported"
 msgstr "İçe aktarıldı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2150
+#: packages/admin/src/components/WordPressImport.tsx:2344
 msgid "Imported by Collection"
 msgstr "Koleksiyona göre içe aktarıldı"
 
-#: packages/admin/src/components/WordPressImport.tsx:820
+#. placeholder {0}: wpImportProgress.comments
+#: packages/admin/src/components/WordPressImport.tsx:903
+msgid "Importing comments... {0}"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:920
 msgid "Importing content..."
 msgstr "İçerik içe aktarılıyor..."
 
-#: packages/admin/src/components/WordPressImport.tsx:1975
+#. placeholder {0}: wpImportProgress.processed
+#: packages/admin/src/components/WordPressImport.tsx:901
+msgid "Importing content... {0}"
+msgstr ""
+
+#. placeholder {0}: wpImportProgress.processed
+#: packages/admin/src/components/WordPressImport.tsx:900
+msgid "Importing content... {0} of {totalSelectedPosts}"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:2139
 msgid "Importing Media"
 msgstr "Medyayı İçe Aktarma"
+
+#: packages/admin/src/components/WordPressImport.tsx:904
+msgid "Importing menus and site settings..."
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Include sample content (recommended for new sites)"
 msgstr "Örnek içerik ekleyin (yeni siteler için önerilir)"
 
-#: packages/admin/src/components/WordPressImport.tsx:1816
+#: packages/admin/src/components/WordPressImport.tsx:1980
 msgid "Incompatible"
 msgstr "Uyumsuz"
 
@@ -3934,6 +4007,10 @@ msgstr "Davetiyeler, sihirli bağlantılar ve şifre kurtarma gibi e-posta özel
 msgid "Install blocked"
 msgstr "Yükleme engellendi"
 
+#: packages/admin/src/components/WordPressImport.tsx:1039
+msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginDetail.tsx:791
 msgid "Installation"
 msgstr "Kurulum"
@@ -4007,15 +4084,15 @@ msgstr "İtalik"
 msgid "Item {0}"
 msgstr "Öğe {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:121
+#: packages/admin/src/components/MenuEditor.tsx:175
 msgid "Item added"
 msgstr "Öğe eklendi"
 
-#: packages/admin/src/components/MenuEditor.tsx:133
+#: packages/admin/src/components/MenuEditor.tsx:187
 msgid "Item deleted"
 msgstr "Öğe silindi"
 
-#: packages/admin/src/components/MenuEditor.tsx:158
+#: packages/admin/src/components/MenuEditor.tsx:212
 msgid "Item updated"
 msgstr "Öğe güncellendi"
 
@@ -4049,6 +4126,10 @@ msgstr "JSON"
 msgid "JSX"
 msgstr "JSX"
 
+#: packages/admin/src/components/WordPressImport.tsx:916
+msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:1926
 msgid "Keep typing to narrow down more bylines."
 msgstr "Daha fazla yazar bilgisi sonucunu daraltmak için yazmaya devam edin."
@@ -4066,8 +4147,8 @@ msgstr "Kotlin"
 #: packages/admin/src/components/BylineFieldEditor.tsx:232
 #: packages/admin/src/components/FieldEditor.tsx:411
 #: packages/admin/src/components/FieldEditor.tsx:553
-#: packages/admin/src/components/MenuEditor.tsx:337
-#: packages/admin/src/components/MenuEditor.tsx:506
+#: packages/admin/src/components/MenuEditor.tsx:416
+#: packages/admin/src/components/MenuEditor.tsx:593
 #: packages/admin/src/components/MenuList.tsx:166
 #: packages/admin/src/components/TaxonomyManager.tsx:623
 #: packages/admin/src/components/Widgets.tsx:371
@@ -4129,7 +4210,7 @@ msgstr "Son kullanılan {0}"
 msgid "Leave blank to use a discoverable passkey."
 msgstr "Bulunabilir bir geçiş anahtarı kullanmak için boş bırakın."
 
-#: packages/admin/src/components/WordPressImport.tsx:2303
+#: packages/admin/src/components/WordPressImport.tsx:2497
 msgid "Leave unassigned"
 msgstr "Atanmamış olarak bırak"
 
@@ -4234,7 +4315,7 @@ msgstr "İçerik yükleniyor..."
 msgid "Loading editor..."
 msgstr "Editör yükleniyor..."
 
-#: packages/admin/src/components/MenuEditor.tsx:263
+#: packages/admin/src/components/MenuEditor.tsx:342
 msgid "Loading menu..."
 msgstr "Menü yükleniyor..."
 
@@ -4320,7 +4401,7 @@ msgstr "Oturumu kapat"
 msgid "Logo"
 msgstr "Logo"
 
-#: packages/admin/src/components/WordPressImport.tsx:1668
+#: packages/admin/src/components/WordPressImport.tsx:1832
 msgid "Logo & favicon"
 msgstr "Logo ve site simgesi"
 
@@ -4401,12 +4482,12 @@ msgstr ""
 msgid "Manual"
 msgstr "Manuel"
 
-#: packages/admin/src/components/WordPressImport.tsx:2260
+#: packages/admin/src/components/WordPressImport.tsx:2454
 msgid "Map Authors"
 msgstr "Yazarları Eşle"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2308
+#: packages/admin/src/components/WordPressImport.tsx:2502
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPress kullanıcısı {0} ile EmDash kullanıcısını eşle"
 
@@ -4456,8 +4537,9 @@ msgstr "MDX"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2197
 #: packages/admin/src/components/Sidebar.tsx:321
-#: packages/admin/src/components/WordPressImport.tsx:678
-#: packages/admin/src/components/WordPressImport.tsx:1173
+#: packages/admin/src/components/WordPressImport.tsx:752
+#: packages/admin/src/components/WordPressImport.tsx:1145
+#: packages/admin/src/components/WordPressImport.tsx:1334
 msgid "Media"
 msgstr "Medya"
 
@@ -4466,19 +4548,19 @@ msgid "Media Details"
 msgstr "Medya Ayrıntıları"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2206
+#: packages/admin/src/components/WordPressImport.tsx:2400
 msgid "Media Errors ({0})"
 msgstr "Medya Hataları ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:2168
+#: packages/admin/src/components/WordPressImport.tsx:2362
 msgid "Media Import"
 msgstr "Medyayı İçe Aktarma"
 
-#: packages/admin/src/components/WordPressImport.tsx:2109
+#: packages/admin/src/components/WordPressImport.tsx:2303
 msgid "Media Import Complete"
 msgstr "Medya İçe Aktarma Tamamlandı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2120
+#: packages/admin/src/components/WordPressImport.tsx:2314
 msgid "Media import was skipped"
 msgstr "Medya içe aktarma atlandı"
 
@@ -4506,7 +4588,7 @@ msgstr "Menü"
 
 #. placeholder {0}: translated.label
 #. placeholder {1}: translated.locale.toUpperCase()
-#: packages/admin/src/components/MenuEditor.tsx:90
+#: packages/admin/src/components/MenuEditor.tsx:144
 msgid "Menu \"{0}\" ({1}) created."
 msgstr "\"{0}\" ({1}) menüsü oluşturuldu."
 
@@ -4523,34 +4605,35 @@ msgstr "Menü oluşturuldu"
 msgid "Menu deleted"
 msgstr "Menü silindi"
 
-#: packages/admin/src/components/MenuEditor.tsx:121
+#: packages/admin/src/components/MenuEditor.tsx:175
 msgid "Menu item has been added."
 msgstr "Menü öğesi eklendi."
 
-#: packages/admin/src/components/MenuEditor.tsx:134
+#: packages/admin/src/components/MenuEditor.tsx:188
 msgid "Menu item has been deleted."
 msgstr "Menü öğesi silindi."
 
-#: packages/admin/src/components/MenuEditor.tsx:159
+#: packages/admin/src/components/MenuEditor.tsx:213
 msgid "Menu item has been updated."
 msgstr "Menü öğesi güncellendi."
 
-#: packages/admin/src/components/MenuEditor.tsx:271
+#: packages/admin/src/components/MenuEditor.tsx:350
 msgid "Menu not found"
 msgstr "Menü bulunamadı"
 
-#: packages/admin/src/components/MenuEditor.tsx:174
+#: packages/admin/src/components/MenuEditor.tsx:228
 msgid "Menu order has been updated."
 msgstr "Menü sırası güncellendi."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:103
 #: packages/admin/src/components/Sidebar.tsx:331
+#: packages/admin/src/components/WordPressImport.tsx:1149
 msgid "Menus"
 msgstr "Menüler"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1604
+#: packages/admin/src/components/WordPressImport.tsx:1767
 msgid "Menus ({0})"
 msgstr "Menüler ({0})"
 
@@ -4570,9 +4653,13 @@ msgstr "Bing Web Yöneticisi Araçları doğrulaması için meta etiket içeriğ
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Google Arama Konsolu doğrulaması için meta etiket içeriği"
 
-#: packages/admin/src/components/WordPressImport.tsx:1681
+#: packages/admin/src/components/WordPressImport.tsx:1845
 msgid "Meta titles, descriptions, and social images"
 msgstr "Meta başlıkları, açıklamalar ve sosyal görseller"
+
+#: packages/admin/src/components/WordPressImport.tsx:1051
+msgid "Migration key"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:620
 msgid "Min Items"
@@ -4624,7 +4711,7 @@ msgstr "\"{title}\" çöp kutusuna taşınsın mı? Daha sonra geri yükleyebili
 msgid "Move {title} to trash"
 msgstr "{title}'i çöp kutusuna taşıyın"
 
-#: packages/admin/src/components/MenuEditor.tsx:451
+#: packages/admin/src/components/MenuEditor.tsx:537
 msgid "Move down"
 msgstr "Aşağı taşı"
 
@@ -4639,7 +4726,7 @@ msgstr "Çöp Kutusuna Taşı"
 msgid "Move to Trash?"
 msgstr "Çöp Kutusu'na taşınsın mı?"
 
-#: packages/admin/src/components/MenuEditor.tsx:442
+#: packages/admin/src/components/MenuEditor.tsx:528
 msgid "Move up"
 msgstr "Yukarı taşı"
 
@@ -4713,7 +4800,7 @@ msgstr "Yeni {collectionLabel}"
 msgid "New byline field"
 msgstr "Yeni yazar bilgisi alanı"
 
-#: packages/admin/src/components/WordPressImport.tsx:1818
+#: packages/admin/src/components/WordPressImport.tsx:1982
 msgid "New collection"
 msgstr "Yeni koleksiyon"
 
@@ -4747,10 +4834,10 @@ msgstr "yeni sekme"
 msgid "New Taxonomy"
 msgstr "Yeni Taksonomi"
 
-#: packages/admin/src/components/MenuEditor.tsx:351
-#: packages/admin/src/components/MenuEditor.tsx:354
-#: packages/admin/src/components/MenuEditor.tsx:522
-#: packages/admin/src/components/MenuEditor.tsx:525
+#: packages/admin/src/components/MenuEditor.tsx:430
+#: packages/admin/src/components/MenuEditor.tsx:433
+#: packages/admin/src/components/MenuEditor.tsx:609
+#: packages/admin/src/components/MenuEditor.tsx:612
 msgid "New window"
 msgstr "Yeni pencere"
 
@@ -4881,7 +4968,7 @@ msgstr "Hiçbir e-posta sağlayıcı yapılandırılmadı"
 msgid "No email provider configured. Share this link manually."
 msgstr "Hiçbir e-posta sağlayıcısı yapılandırılmadı. Bu bağlantıyı manuel olarak paylaşın."
 
-#: packages/admin/src/components/WordPressImport.tsx:2322
+#: packages/admin/src/components/WordPressImport.tsx:2516
 msgid "No EmDash users found"
 msgstr "EmDash kullanıcısı bulunamadı"
 
@@ -4953,7 +5040,7 @@ msgstr ""
 msgid "No media found"
 msgstr "Medya bulunamadı"
 
-#: packages/admin/src/components/MenuEditor.tsx:406
+#: packages/admin/src/components/MenuEditor.tsx:485
 msgid "No menu items yet"
 msgstr "Henüz menü öğesi yok"
 
@@ -4969,6 +5056,10 @@ msgstr "Minimum yok"
 #: packages/admin/src/components/ContentTypeEditor.tsx:65
 msgid "No moderation (auto-approve all)"
 msgstr "Denetleme yok (tümünü otomatik onayla)"
+
+#: packages/admin/src/components/MenuEditor.tsx:329
+msgid "No parent (top level)"
+msgstr ""
 
 #: packages/admin/src/components/users/UserDetail.tsx:248
 msgid "No passkeys registered"
@@ -5094,6 +5185,10 @@ msgstr "Liste görünümlerinde sayfa başına gösterilecek gönderi sayısı"
 msgid "Numbered List"
 msgstr "Numaralı Liste"
 
+#: packages/admin/src/components/WordPressImport.tsx:494
+msgid "OAuth authorization requires HTTPS. Please use manual credentials."
+msgstr ""
+
 #: packages/admin/src/components/SeoImageField.tsx:41
 msgid "OG Image"
 msgstr "OG Görseli"
@@ -5132,7 +5227,7 @@ msgstr "Hata!"
 msgid "Open in new tab"
 msgstr "Yeni sekmede aç"
 
-#: packages/admin/src/components/WordPressImport.tsx:1373
+#: packages/admin/src/components/WordPressImport.tsx:1534
 msgid "Open WordPress Profile"
 msgstr "WordPress Profilini Aç"
 
@@ -5173,24 +5268,28 @@ msgstr "Seçenekler (her satıra bir tane)"
 msgid "or choose from library"
 msgstr "veya kütüphaneden seçin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1429
+#: packages/admin/src/components/WordPressImport.tsx:1590
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "Veya göz atmak için tıklayın. WordPress'ten dışa aktarılan.xml dosyalarını kabul eder."
+
+#: packages/admin/src/components/WordPressImport.tsx:1071
+msgid "or connect by URL"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:261
 #: packages/admin/src/components/SetupWizard.tsx:310
 msgid "Or continue with"
 msgstr "Veya şununla devam edin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1230
+#: packages/admin/src/components/WordPressImport.tsx:1391
 msgid "Or upload an export file"
 msgstr "Veya bir dışa aktarma dosyası yükleyin"
 
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:1107
 msgid "or upload directly"
 msgstr "veya doğrudan yükleyin"
 
-#: packages/admin/src/components/MenuEditor.tsx:173
+#: packages/admin/src/components/MenuEditor.tsx:227
 msgid "Order saved"
 msgstr "Sipariş kaydedildi"
 
@@ -5220,7 +5319,7 @@ msgid "Page Not Found"
 msgstr "Sayfa Bulunamadı"
 
 #: packages/admin/src/components/PluginManager.tsx:373
-#: packages/admin/src/components/WordPressImport.tsx:1167
+#: packages/admin/src/components/WordPressImport.tsx:1328
 msgid "Pages"
 msgstr "Sayfalar"
 
@@ -5228,6 +5327,7 @@ msgstr "Sayfalar"
 msgid "Paragraph"
 msgstr "Paragraf"
 
+#: packages/admin/src/components/MenuEditor.tsx:615
 #: packages/admin/src/components/TaxonomyManager.tsx:414
 msgid "Parent"
 msgstr "Ebeveyn"
@@ -5236,6 +5336,10 @@ msgstr "Ebeveyn"
 #: packages/admin/src/components/Redirects.tsx:515
 msgid "Part of a redirect loop"
 msgstr "Yönlendirme döngüsünün parçası"
+
+#: packages/admin/src/components/WordPressImport.tsx:1153
+msgid "Partial"
+msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:322
 msgid "Pass"
@@ -5297,6 +5401,10 @@ msgstr "Geçiş anahtarları için"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:158
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
 msgstr "Geçiş anahtarları HTTPS veya http://localhost (portunuzla) gerektirir; bu ana makine adı güvenli bir tarayıcı bağlamı değildir."
+
+#: packages/admin/src/components/WordPressImport.tsx:1037
+msgid "Paste your migration key"
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:224
 msgid "Path"
@@ -5379,7 +5487,7 @@ msgstr "Geçerli bir e"
 msgid "Please enter a valid URL"
 msgstr "Lütfen geçerli bir URL girin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1024
+#: packages/admin/src/components/WordPressImport.tsx:1182
 msgid "Plugin"
 msgstr "Eklenti"
 
@@ -5416,7 +5524,7 @@ msgstr "Eklenti bulunamadı"
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
 msgstr "Eklenti bulunamadı. Yayıncı kullanıcı adı veya slug hatalı olabilir."
 
-#: packages/admin/src/components/WordPressImport.tsx:1048
+#: packages/admin/src/components/WordPressImport.tsx:1209
 msgid "plugin on your WordPress site."
 msgstr "eklentisini WordPress sitenize kurun."
 
@@ -5467,9 +5575,13 @@ msgid "Post"
 msgstr "Gönderi"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:397
-#: packages/admin/src/components/WordPressImport.tsx:1161
+#: packages/admin/src/components/WordPressImport.tsx:1322
 msgid "Posts"
 msgstr "Gönderiler"
+
+#: packages/admin/src/components/WordPressImport.tsx:1144
+msgid "Posts & Pages"
+msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:272
 msgid "Posts Per Page"
@@ -5483,7 +5595,7 @@ msgstr "Ön sürüm"
 msgid "Preparing registration..."
 msgstr "Kayıt hazırlanıyor..."
 
-#: packages/admin/src/components/WordPressImport.tsx:2020
+#: packages/admin/src/components/WordPressImport.tsx:2179
 msgid "Preparing to download files from WordPress..."
 msgstr "WordPress'ten dosya indirmeye hazırlanıyor..."
 
@@ -5581,6 +5693,10 @@ msgstr "Alternatif metni hızlı düzenleme"
 msgid "Quote"
 msgstr "Alıntı"
 
+#: packages/admin/src/components/WordPressImport.tsx:1162
+msgid "Raw meta"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:66
 msgid "Read collection schemas"
 msgstr "Koleksiyon şemalarını okuyun"
@@ -5611,7 +5727,7 @@ msgstr "İçeriğinizi okuyun"
 msgid "Reading"
 msgstr "Okuma"
 
-#: packages/admin/src/components/WordPressImport.tsx:1822
+#: packages/admin/src/components/WordPressImport.tsx:1986
 msgid "Ready"
 msgstr "Hazır"
 
@@ -5822,7 +5938,7 @@ msgstr "İstek başarısız oldu"
 msgid "Required"
 msgstr "Gerekli"
 
-#: packages/admin/src/components/WordPressImport.tsx:1835
+#: packages/admin/src/components/WordPressImport.tsx:1999
 msgid "Required fields:"
 msgstr "Gerekli alanlar:"
 
@@ -5895,7 +6011,7 @@ msgstr "Herhangi bir içeriğe ekleyebileceğiniz yeniden kullanılabilir içeri
 msgid "Reverted to published version"
 msgstr "Yayınlanan sürüme geri dönüldü"
 
-#: packages/admin/src/components/WordPressImport.tsx:650
+#: packages/admin/src/components/WordPressImport.tsx:724
 msgid "Review"
 msgstr "İncele"
 
@@ -5968,10 +6084,10 @@ msgstr "Ruby"
 msgid "Rust"
 msgstr "Rust"
 
-#: packages/admin/src/components/MenuEditor.tsx:351
-#: packages/admin/src/components/MenuEditor.tsx:353
-#: packages/admin/src/components/MenuEditor.tsx:522
-#: packages/admin/src/components/MenuEditor.tsx:524
+#: packages/admin/src/components/MenuEditor.tsx:430
+#: packages/admin/src/components/MenuEditor.tsx:432
+#: packages/admin/src/components/MenuEditor.tsx:609
+#: packages/admin/src/components/MenuEditor.tsx:611
 msgid "Same window"
 msgstr "Aynı pencere"
 
@@ -5981,7 +6097,7 @@ msgstr "Aynı pencere"
 #: packages/admin/src/components/editor/ImageNode.tsx:264
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
-#: packages/admin/src/components/MenuEditor.tsx:533
+#: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
@@ -6044,7 +6160,7 @@ msgstr "\"{0}\" kaydedildi."
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
-#: packages/admin/src/components/MenuEditor.tsx:533
+#: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/settings/GeneralSettings.tsx:120
@@ -6100,11 +6216,11 @@ msgstr "Zamanlandı"
 msgid "Scheduled for: {0}"
 msgstr "Planlandığı tarih: {0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2128
+#: packages/admin/src/components/WordPressImport.tsx:2322
 msgid "Schema Changes"
 msgstr "Şema Değişiklikleri"
 
-#: packages/admin/src/components/WordPressImport.tsx:1538
+#: packages/admin/src/components/WordPressImport.tsx:1699
 msgid "Schema preparation failed"
 msgstr "Şema hazırlığı başarısız oldu"
 
@@ -6434,7 +6550,7 @@ msgstr "OG görselini seçin"
 msgid "Select OG Image"
 msgstr "OG Görseli Seç"
 
-#: packages/admin/src/components/WordPressImport.tsx:1571
+#: packages/admin/src/components/WordPressImport.tsx:1732
 msgid "Select which content types to import."
 msgstr "Hangi içerik türlerinin içe aktarılacağını seçin."
 
@@ -6501,7 +6617,7 @@ msgstr "SEO"
 msgid "SEO Settings"
 msgstr "SEO Ayarları"
 
-#: packages/admin/src/components/WordPressImport.tsx:1679
+#: packages/admin/src/components/WordPressImport.tsx:1843
 msgid "SEO settings (Yoast)"
 msgstr "SEO ayarları (Yoast)"
 
@@ -6545,7 +6661,7 @@ msgstr "Kurulum..."
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:379
-#: packages/admin/src/components/WordPressImport.tsx:1647
+#: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
 msgstr "Ayarlar"
 
@@ -6649,11 +6765,16 @@ msgstr "Site"
 msgid "Site Identity"
 msgstr "Site Kimliği"
 
+#: packages/admin/src/components/WordPressImport.tsx:2270
+msgid "site identity applied (title, tagline, logo)"
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:70
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Site kimliği, logo, favicon ve okuma tercihleri"
 
 #: packages/admin/src/components/SetupWizard.tsx:351
+#: packages/admin/src/components/WordPressImport.tsx:1151
 msgid "Site Settings"
 msgstr "Site Ayarları"
 
@@ -6662,7 +6783,7 @@ msgstr "Site Ayarları"
 msgid "Site Title"
 msgstr "Site Başlığı"
 
-#: packages/admin/src/components/WordPressImport.tsx:1659
+#: packages/admin/src/components/WordPressImport.tsx:1823
 msgid "Site title & tagline"
 msgstr "Site başlığı ve sloganı"
 
@@ -6682,11 +6803,11 @@ msgstr "Boyut"
 msgid "Size:"
 msgstr "Boyut:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1940
+#: packages/admin/src/components/WordPressImport.tsx:2104
 msgid "Skip Media Import"
 msgstr "Medya İçe Aktarmayı Atla"
 
-#: packages/admin/src/components/WordPressImport.tsx:1965
+#: packages/admin/src/components/WordPressImport.tsx:2129
 msgid "Skipped"
 msgstr "Atlandı"
 
@@ -6737,7 +6858,7 @@ msgstr "Sosyal medya profil bağlantıları"
 msgid "Social Profiles"
 msgstr "Sosyal Profiller"
 
-#: packages/admin/src/components/WordPressImport.tsx:1696
+#: packages/admin/src/components/WordPressImport.tsx:1860
 msgid "Some content types cannot be imported"
 msgstr "Bazı içerik türleri içe aktarılamaz"
 
@@ -6790,7 +6911,7 @@ msgstr "E-tablolar"
 msgid "SQL"
 msgstr "SQL"
 
-#: packages/admin/src/components/WordPressImport.tsx:1758
+#: packages/admin/src/components/WordPressImport.tsx:1922
 msgid "Start Import"
 msgstr "İçe aktarmayı başlat"
 
@@ -6815,9 +6936,13 @@ msgstr "Her yerel ayar için ayrı saklanır — bir yazar bilgisinin her çevir
 msgid "Strikethrough"
 msgstr "Üstü çizili"
 
-#: packages/admin/src/components/WordPressImport.tsx:1591
+#: packages/admin/src/components/WordPressImport.tsx:1752
 msgid "Structure"
 msgstr "Yapı"
+
+#: packages/admin/src/components/WordPressImport.tsx:1164
+msgid "Structured"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:523
 msgid "Sub-Fields"
@@ -6870,12 +6995,12 @@ msgid "Tags"
 msgstr "Etiketler"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1633
+#: packages/admin/src/components/WordPressImport.tsx:1797
 msgid "Tags ({0})"
 msgstr "Etiketler ({0})"
 
-#: packages/admin/src/components/MenuEditor.tsx:348
-#: packages/admin/src/components/MenuEditor.tsx:519
+#: packages/admin/src/components/MenuEditor.tsx:427
+#: packages/admin/src/components/MenuEditor.tsx:606
 msgid "Target"
 msgstr "Hedef"
 
@@ -6935,7 +7060,7 @@ msgstr "Metin biçimlendirmesi"
 msgid "The device will not be granted access."
 msgstr "Cihaza erişim izni verilmeyecek."
 
-#: packages/admin/src/components/WordPressImport.tsx:1698
+#: packages/admin/src/components/WordPressImport.tsx:1862
 msgid "The existing collection has fields with incompatible types."
 msgstr "Mevcut koleksiyonda uyumsuz türlere sahip alanlar var."
 
@@ -7022,6 +7147,10 @@ msgstr "Temalar"
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Bu koleksiyon kodda tanımlanmıştır. Bazı ayarlar burada değiştirilemez. Şemayı değiştirmek için live.config.ts dosyanızı düzenleyin."
 
+#: packages/admin/src/components/WordPressImport.tsx:1059
+msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:418
 msgid "This field does not accept {sniffedMime} files."
 msgstr "Bu alan {sniffedMime} dosyalarını kabul etmiyor."
@@ -7035,7 +7164,7 @@ msgstr "Bu alan zorunludur"
 msgid "This is a custom section."
 msgstr "Bu özel bir bölümdür."
 
-#: packages/admin/src/components/WordPressImport.tsx:1147
+#: packages/admin/src/components/WordPressImport.tsx:1308
 msgid "This is a WordPress site."
 msgstr "Bu bir WordPress sitesidir."
 
@@ -7043,7 +7172,7 @@ msgstr "Bu bir WordPress sitesidir."
 msgid "This link expires in 7 days and can only be used once."
 msgstr "Bu bağlantının süresi 7 gün içinde dolar ve yalnızca bir kez kullanılabilir."
 
-#: packages/admin/src/components/WordPressImport.tsx:821
+#: packages/admin/src/components/WordPressImport.tsx:921
 msgid "This may take a while for large exports."
 msgstr "Büyük ihracatlarda bu biraz zaman alabilir."
 
@@ -7188,7 +7317,7 @@ msgstr "Belirteç Adı"
 msgid "TOML"
 msgstr "TOML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1116
+#: packages/admin/src/components/WordPressImport.tsx:1277
 msgid "Tools → Export"
 msgstr "Araçlar → Dışa Aktar"
 
@@ -7222,7 +7351,7 @@ msgstr "{0}'i tercüme et"
 msgid "Translating..."
 msgstr "Çeviri..."
 
-#: packages/admin/src/components/MenuEditor.tsx:89
+#: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:758
 #: packages/admin/src/router.tsx:978
 msgid "Translation created"
@@ -7277,7 +7406,7 @@ msgstr "Aramanızı veya filtrelerinizi ayarlamayı deneyin."
 msgid "Try again"
 msgstr "Tekrar deneyin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1421
+#: packages/admin/src/components/WordPressImport.tsx:1582
 msgid "Try Again"
 msgstr "Tekrar deneyin"
 
@@ -7293,8 +7422,8 @@ msgstr ""
 msgid "Try another filename, or clear your search and filters."
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1125
-#: packages/admin/src/components/WordPressImport.tsx:1247
+#: packages/admin/src/components/WordPressImport.tsx:1286
+#: packages/admin/src/components/WordPressImport.tsx:1408
 msgid "Try Another URL"
 msgstr "Başka Bir URL Deneyin"
 
@@ -7323,7 +7452,7 @@ msgid "Type"
 msgstr "Tür"
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:1854
+#: packages/admin/src/components/WordPressImport.tsx:2018
 msgid "Type mismatch ({0})"
 msgstr "Tür uyuşmazlığı ({0})"
 
@@ -7488,7 +7617,7 @@ msgstr "Güncelleme Tarihi:"
 msgid "Updated: {0}"
 msgstr "Güncellendi: {0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:844
+#: packages/admin/src/components/WordPressImport.tsx:946
 msgid "Updating content URLs..."
 msgstr "İçerik URL'leri güncelleniyor..."
 
@@ -7505,7 +7634,7 @@ msgstr "Yükle"
 msgid "Upload a file to get started"
 msgstr "Başlamak için bir dosya yükleyin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1230
+#: packages/admin/src/components/WordPressImport.tsx:1391
 msgid "Upload an export file"
 msgstr "Bir dışa aktarma dosyası yükleyin"
 
@@ -7522,8 +7651,8 @@ msgstr "Medyayı yükleme ve silme"
 msgid "Upload and manage media"
 msgstr "Medyayı yükleyin ve yönetin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1123
-#: packages/admin/src/components/WordPressImport.tsx:1244
+#: packages/admin/src/components/WordPressImport.tsx:1284
+#: packages/admin/src/components/WordPressImport.tsx:1405
 msgid "Upload Export File"
 msgstr "Dışa Aktarma Dosyasını Yükle"
 
@@ -7569,7 +7698,7 @@ msgstr ""
 msgid "Upload to {0}"
 msgstr "{0}'e yükle"
 
-#: packages/admin/src/components/WordPressImport.tsx:960
+#: packages/admin/src/components/WordPressImport.tsx:1118
 msgid "Upload WordPress export file"
 msgstr "WordPress dışa aktarma dosyasını yükleyin"
 
@@ -7577,7 +7706,7 @@ msgstr "WordPress dışa aktarma dosyasını yükleyin"
 msgid "Uploaded:"
 msgstr "Yüklendi:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1963
+#: packages/admin/src/components/WordPressImport.tsx:2127
 msgid "Uploading"
 msgstr "Yükleniyor"
 
@@ -7595,8 +7724,8 @@ msgstr "Yükleniyor..."
 #: packages/admin/src/components/BylineFieldEditor.tsx:54
 #: packages/admin/src/components/FieldEditor.tsx:234
 #: packages/admin/src/components/FieldEditor.tsx:586
-#: packages/admin/src/components/MenuEditor.tsx:339
-#: packages/admin/src/components/MenuEditor.tsx:509
+#: packages/admin/src/components/MenuEditor.tsx:418
+#: packages/admin/src/components/MenuEditor.tsx:596
 #: packages/admin/src/components/PortableTextEditor.tsx:3162
 msgid "URL"
 msgstr "URL"
@@ -7790,7 +7919,7 @@ msgid "Warn"
 msgstr "Uyar"
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1105
+#: packages/admin/src/components/WordPressImport.tsx:1266
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "{0}'te bir WordPress sitesine bağlanamadık. Bu, sitenin WordPress olmadığı, REST API'nin devre dışı olduğu veya siteye erişilemediği anlamına gelebilir."
 
@@ -7798,7 +7927,7 @@ msgstr "{0}'te bir WordPress sitesine bağlanamadık. Bu, sitenin WordPress olma
 msgid "We couldn't verify this publisher's identity"
 msgstr "Bu yayıncının kimliğini doğrulayamadık"
 
-#: packages/admin/src/components/WordPressImport.tsx:926
+#: packages/admin/src/components/WordPressImport.tsx:1084
 msgid "We'll check what import options are available for your site."
 msgstr "Siteniz için hangi içe aktarma seçeneklerinin mevcut olduğunu kontrol edeceğiz."
 
@@ -7836,11 +7965,11 @@ msgstr "EmDash, {firstName}'e hoş geldiniz!"
 msgid "Welcome to EmDash!"
 msgstr "EmDash'e hoş geldiniz!"
 
-#: packages/admin/src/components/WordPressImport.tsx:1927
+#: packages/admin/src/components/WordPressImport.tsx:2091
 msgid "What happens when you import:"
 msgstr "İçe aktardığınızda ne olur:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1710
+#: packages/admin/src/components/WordPressImport.tsx:1874
 msgid "What will happen when you import"
 msgstr "İthalat yaptığınızda ne olacak?"
 
@@ -7909,6 +8038,7 @@ msgstr "Widget güncellendi"
 #: packages/admin/src/components/PluginManager.tsx:379
 #: packages/admin/src/components/Sidebar.tsx:333
 #: packages/admin/src/components/Widgets.tsx:325
+#: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "Widgets"
 msgstr "Widget'lar"
 
@@ -7917,7 +8047,7 @@ msgstr "Widget'lar"
 msgid "Width"
 msgstr "Genişlik"
 
-#: packages/admin/src/components/WordPressImport.tsx:1850
+#: packages/admin/src/components/WordPressImport.tsx:2014
 msgid "Will create"
 msgstr "Oluşturacak"
 
@@ -7929,7 +8059,11 @@ msgstr "artık davet olmadan kayıt olamayacak. Mevcut kullanıcılar etkilenmez
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "E-posta sağlayıcısı olmadığında davet bağlantılarının manuel olarak paylaşılması gerekir."
 
-#: packages/admin/src/components/WordPressImport.tsx:1315
+#: packages/admin/src/components/WordPressImport.tsx:210
+msgid "WordPress authorization was rejected"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1476
 msgid "WordPress Username"
 msgstr "WordPress Kullanıcı Adı"
 
@@ -7937,13 +8071,17 @@ msgstr "WordPress Kullanıcı Adı"
 msgid "Write widget content..."
 msgstr "Widget içeriğini yaz..."
 
-#: packages/admin/src/components/WordPressImport.tsx:1023
+#: packages/admin/src/components/WordPressImport.tsx:1181
 msgid "WXR File"
 msgstr "WXR Dosyası"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:58
 msgid "XML"
 msgstr "XML"
+
+#: packages/admin/src/components/WordPressImport.tsx:1497
+msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
+msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:59
 msgid "YAML"
@@ -7954,6 +8092,10 @@ msgstr "YAML"
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "Yes"
 msgstr "Evet"
+
+#: packages/admin/src/components/WordPressImport.tsx:1160
+msgid "Yoast/RankMath"
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "You can close this page and return to your terminal."
@@ -8009,7 +8151,7 @@ msgstr "<0>{0}</0> olarak katılacaksınız"
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "Cihazınızın biyometrik kimlik doğrulamasını, güvenlik anahtarını veya PIN'ini kullanmanız istenecektir."
 
-#: packages/admin/src/components/WordPressImport.tsx:1208
+#: packages/admin/src/components/WordPressImport.tsx:1369
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "Bağlantıyı yetkilendirmek için WordPress'e yönlendirileceksiniz."
 
@@ -8100,7 +8242,7 @@ msgid "Your unsaved media changes will be lost."
 msgstr ""
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:1898
+#: packages/admin/src/components/WordPressImport.tsx:2062
 msgid "Your WordPress export contains {0} media files."
 msgstr "WordPress dışa aktarımınız {0} medya dosyalarını içerir."
 
