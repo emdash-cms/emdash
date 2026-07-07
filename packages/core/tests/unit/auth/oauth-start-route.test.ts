@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 import { GET as startOAuth } from "../../../src/astro/routes/api/auth/oauth/[provider].js";
 
@@ -30,6 +30,11 @@ function makeThrowingRuntimeLocals() {
 }
 
 describe("OAuth start route (#1736)", () => {
+	afterEach(() => {
+		vi.doUnmock("virtual:emdash/env");
+		vi.resetModules();
+	});
+
 	it("does not throw when locals.runtime.env is a throwing getter (Astro 6+ Cloudflare)", async () => {
 		const request = new Request("http://localhost:4321/_emdash/api/auth/oauth/google");
 
