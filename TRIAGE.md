@@ -115,7 +115,7 @@ Start by identifying what kind of issue it is.
 | If it is...            | Do this                                                                                                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------- |
 | A bug report           | Ask for missing reproduction details, try to reproduce if practical, and add priority if the impact is clear. |
-| A feature request      | Point the author to Discussions.                                                                              |
+| A feature request      | Convert it to an Ideas Discussion, or point the author there.                                                 |
 | A docs problem         | Add `documentation`, or comment with the specific page/section that needs work.                               |
 | A support question     | Answer if you know, or point to docs, Discussions or Discord then close.                                 |
 | A duplicate            | Link the earlier issue and close as a duplicate if you are confident.                                         |
@@ -243,6 +243,18 @@ The labels you apply by hand on a PR:
 - `bot:review` to summon a bot re-review.
 - `needs-discussion` when a feature/refactor PR has no maintainer approval anywhere.
 - `blocked` when progress depends on another issue, PR, or maintainer decision.
+
+## Discussions
+
+Discussions is where ideas get shaped before they become work, and where a lot of community support happens. Triage there is just as valuable as on issues and PRs:
+
+- **Answer Q&A questions when you can**, and mark the accepted answer so the next person searching finds it. A marked answer turns a one-off reply into documentation.
+- **Weigh in on Ideas.** You know this project from contributing to it, and a comment like "this would conflict with how revisions work" or "I'd use this, and here's my use case" is exactly what a maintainer needs when deciding whether to approve a proposal. Don't hold back because approval isn't your call — shaping the proposal is how you help it get there.
+- **Convert misfiled issues.** A feature request opened as an issue can be converted to an Ideas Discussion directly (the "Convert to discussion" option in the issue sidebar) — friendlier than asking the author to repost.
+- **Connect the dots.** Link related Discussions, issues, and prior proposals. Many ideas have been discussed before, and a link to the earlier thread saves everyone from re-litigating it.
+- **Surface proposals that look ready.** If an Idea has a worked-through design and community support but no maintainer response, raise it in `#triage`.
+
+The one thing that stays with maintainers is the decision itself: `Approved for PR` on a Discussion is a maintainer call.
 
 ## Area Labels
 
