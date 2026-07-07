@@ -413,9 +413,7 @@ Return a `toast` alongside blocks to show a notification:
 
 ```typescript
 return {
-	blocks: [
-		/* ... */
-	],
+	blocks: [/* ... */],
 	toast: { message: "Settings saved", type: "success" }, // "success" | "error" | "info"
 };
 ```
