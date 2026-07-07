@@ -26,7 +26,7 @@ function buildContext(opts: {
 	search?: string;
 	user?: { id: string; role: number } | null;
 	editCookie?: boolean;
-	cache?: { set: (input: unknown) => void };
+	cache: { set: (input: unknown) => void };
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
 	return {
@@ -94,13 +94,5 @@ describe("route-cache opt-out for preview and toolbar responses", () => {
 		await onRequest(context, async () => htmlResponse());
 
 		expect(cache.set).not.toHaveBeenCalled();
-	});
-
-	it("does not throw when context.cache is absent (older Astro)", async () => {
-		const context = buildContext({ search: "?_preview=some-token" });
-
-		const response = await onRequest(context, async () => htmlResponse());
-
-		expect(response.status).toBe(200);
 	});
 });

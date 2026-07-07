@@ -10,6 +10,7 @@
  * - Toolbar injection: floating pill for authenticated editors
  */
 
+import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 
 import { resolveSecretsCached } from "#config/secrets.js";
@@ -18,15 +19,8 @@ import { verifyPreviewToken, parseContentId } from "../../preview/tokens.js";
 import { getRequestContext, runWithContext } from "../../request-context.js";
 import { renderToolbar } from "../../visual-editing/toolbar.js";
 
-/**
- * The subset of Astro's route-cache API the middleware needs. `context.cache`
- * ships with Astro's route caching; typed structurally (and called
- * optionally) so the middleware stays compatible with Astro versions that
- * predate it.
- */
-interface RouteCacheLike {
-	set(input: false): void;
-}
+/** Astro's route-cache handle. EmDash requires Astro 6+, so it's always present. */
+type RouteCache = APIContext["cache"];
 
 /**
  * Opt the current request out of Astro's route cache (e.g. Workers Cache on
@@ -34,10 +28,11 @@ interface RouteCacheLike {
  * the shared-cache TTL from the route-cache options (on Cloudflare via
  * `Cloudflare-CDN-Cache-Control`), so session-specific responses must
  * explicitly disable it or they get stored in the shared cache and served to
- * anonymous visitors without ever invoking the middleware again.
+ * anonymous visitors without ever invoking the middleware again. With no cache
+ * provider configured this is a no-op (`NoopAstroCache`/`DisabledAstroCache`).
  */
-function optOutOfRouteCache(cache: RouteCacheLike | undefined): void {
-	cache?.set(false);
+function optOutOfRouteCache(cache: RouteCache): void {
+	cache.set(false);
 }
 
 /**
@@ -47,7 +42,7 @@ function optOutOfRouteCache(cache: RouteCacheLike | undefined): void {
 async function injectToolbar(
 	response: Response,
 	toolbarHtml: string,
-	routeCache: RouteCacheLike | undefined,
+	routeCache: RouteCache,
 ): Promise<Response> {
 	const contentType = response.headers.get("content-type");
 	if (!contentType?.includes("text/html")) return response;
@@ -115,10 +110,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Astro context includes currentLocale when i18n is configured
 	const locale = (context as { currentLocale?: string }).currentLocale;
 
-	// Astro's route-cache handle. Read defensively — absent on Astro
-	// versions that predate route caching.
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- structural read, see RouteCacheLike
-	const routeCache = (context as { cache?: RouteCacheLike }).cache;
+	const routeCache = context.cache;
 
 	// Verify preview token if present.
 	// The preview secret is resolved via `resolveSecretsCached`: env wins,
