@@ -19,6 +19,8 @@ import { kyselyLogOption } from "./database/instrumentation.js";
 import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import type { Database } from "./index.js";
+import { CacheNamespace, cachedQuery, contentNamespace } from "./object-cache/index.js";
+import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 
@@ -317,6 +319,119 @@ async function getTaxonomyNames(db: Kysely<Database>): Promise<Set<string>> {
  */
 export function resetTaxonomyNamesCache(): void {
 	taxonomyNames = null;
+}
+
+/** A term's entry count within one collection's status/locale slice. */
+export interface TermCount {
+	/** The term's `translation_group` — the key `content_taxonomies.taxonomy_id` stores. */
+	translationGroup: string;
+	/** Taxonomy name (e.g. "category"). */
+	name: string;
+	/** Term slug, unique within `(name, locale)`. */
+	slug: string;
+	/** Entries in this collection carrying the term, matching the query's status + locale. */
+	count: number;
+}
+
+/** Result of {@link getTermCountsForCollection}. */
+export interface CollectionTermCounts {
+	/** Per-term counts keyed by `translation_group`. */
+	terms: Map<string, TermCount>;
+	/** Entries in the collection matching status + locale, ignoring terms (the ratio's denominator). */
+	total: number;
+}
+
+/**
+ * Per-term entry counts for one collection's `(status, locale)` slice, used to
+ * plan taxonomy-filtered listings (which term is selective enough to drive a
+ * seek vs. a collection scan). The numbers mirror the seek join exactly, so a
+ * term's count equals how many rows that plan would actually fetch.
+ *
+ * The counts are **advisory**: they change *how* rows are fetched, never *which*
+ * rows come back. A stale count only degrades plan quality.
+ *
+ * Cached under `[content:<collection>, taxonomies]` so it invalidates for free
+ * on the writes that move a count — content create/delete/status-change/attach
+ * bump `content:<collection>`; term rename/delete bumps `taxonomies`. Wrapped in
+ * `requestCached` too, so several taxonomy-filtered queries on the same
+ * collection in one render (archive body + sidebar widget) share one lookup.
+ *
+ * Keyed by `translation_group` and carrying `name`/`slug` so a future public
+ * term-count API can reuse this load unchanged. Deliberately per-collection
+ * (`ct.collection = collection`): a term shared across collections is counted
+ * only in the queried slice.
+ */
+export function getTermCountsForCollection(
+	db: Kysely<Database>,
+	collection: string,
+	status: string,
+	locale: string | undefined,
+): Promise<CollectionTermCounts> {
+	const tableName = getTableName(collection);
+	const localeKey = locale ?? "";
+	return requestCached(`termcounts:${collection}:${status}:${localeKey}`, () =>
+		cachedQuery<CollectionTermCounts>({
+			namespace: [contentNamespace(collection), CacheNamespace.TAXONOMIES],
+			key: `termcounts:${collection}:${status}:${localeKey}`,
+			load: () => loadTermCountsForCollection(db, collection, tableName, status, locale),
+			// A missing content table (pre-migration) yields an empty result; don't
+			// cache it — the plan falls back to scan and the map fills once migrated.
+			cacheable: (value) => value.total > 0 || value.terms.size > 0,
+		}),
+	);
+}
+
+async function loadTermCountsForCollection(
+	db: Kysely<Database>,
+	collection: string,
+	tableName: string,
+	status: string,
+	locale: string | undefined,
+): Promise<CollectionTermCounts> {
+	// Content-side status/locale predicates, aliased to the joined content table.
+	const statusCond = buildStatusCondition(db, status, "e");
+	const contentLocale = locale ? sql`AND e.locale = ${locale}` : sql``;
+	// Term-side locale predicate mirrors the seek join, so a term's count matches
+	// what the filtered query would fetch for that locale.
+	const termLocale = locale ? sql`AND t.locale = ${locale}` : sql``;
+
+	try {
+		const [countsResult, totalResult] = await Promise.all([
+			sql<{ tg: string; name: string; slug: string; n: number }>`
+				SELECT t.translation_group AS tg, t.name AS name, t.slug AS slug, count(e.id) AS n
+				FROM content_taxonomies ct
+				INNER JOIN taxonomies t ON t.translation_group = ct.taxonomy_id
+				INNER JOIN ${sql.ref(tableName)} e ON e.id = ct.entry_id
+				WHERE ct.collection = ${collection}
+					AND ${statusCond}
+					AND e.deleted_at IS NULL
+					${contentLocale}
+					${termLocale}
+				GROUP BY t.translation_group, t.name, t.slug
+			`.execute(db),
+			sql<{ n: number }>`
+				SELECT count(*) AS n FROM ${sql.ref(tableName)} e
+				WHERE ${statusCond} AND e.deleted_at IS NULL ${contentLocale}
+			`.execute(db),
+		]);
+
+		const terms = new Map<string, TermCount>();
+		for (const row of countsResult.rows) {
+			terms.set(row.tg, {
+				translationGroup: row.tg,
+				name: row.name,
+				slug: row.slug,
+				count: Number(row.n),
+			});
+		}
+		return { terms, total: Number(totalResult.rows[0]?.n ?? 0) };
+	} catch (error) {
+		// Pre-migration (missing content/pivot table): no counts, plan falls back
+		// to scan. Any other error propagates — a broken count query shouldn't be
+		// silently masked into a wrong plan choice on every request.
+		if (isMissingTableError(error)) return { terms: new Map(), total: 0 };
+		throw error;
+	}
 }
 
 /**
@@ -731,26 +846,6 @@ export interface CollectionFilterBase {
 	 * When set, only returns content in this locale.
 	 */
 	locale?: string;
-	/**
-	 * Plan hint for taxonomy-filtered listings on SQLite/D1 (#1834). Only
-	 * consulted when `where` includes a taxonomy filter; ignored otherwise and
-	 * on Postgres (which has statistics and plans this well on its own).
-	 *
-	 * - `"scan"` (default): the collection table drives the scan and each row is
-	 *   probed with a correlated `EXISTS`. The `LIMIT` fills quickly when the
-	 *   term matches *most* of the collection (a popular "news" category), so
-	 *   this is best for non-selective terms.
-	 * - `"seek"`: drive from `content_taxonomies`, seeking the term by
-	 *   `taxonomy_id` and joining the collection by primary key. Best for
-	 *   *selective* terms (a fine-grained tag matching few entries), where
-	 *   `"scan"` would walk the whole collection in `ORDER BY` order — tens of
-	 *   thousands of D1 rows read for a page returning a handful.
-	 *
-	 * Selectivity is a property of the *term*, which the framework can't know
-	 * without a query, so pass `"seek"` on routes that filter by a selective
-	 * term (category/tag archive pages) and leave the default elsewhere.
-	 */
-	taxonomyStrategy?: "scan" | "seek";
 }
 
 /** Keyset-paginated collection filter. Cannot also carry an `offset`. */
@@ -888,7 +983,6 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const cursor = filter?.cursor;
 				const where = filter?.where;
 				const orderBy = filter?.orderBy;
-				const taxonomyStrategy = filter?.taxonomyStrategy ?? "scan";
 				const locale = filter?.locale;
 
 				// Cursor pagination: over-fetch by 1 to detect next page
@@ -985,11 +1079,14 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					// One `EXISTS` per taxonomy, AND'd together: an entry must be
 					// tagged with a matching term in *every* requested taxonomy.
 					// Each clause pins its own `t.name`, so slugs never pool
-					// across taxonomies (they're only unique within one).
-					const taxonomyCond =
-						taxonomyFilters.length > 0
+					// across taxonomies (they're only unique within one). Correlated
+					// by `ct.entry_id`, the probe seeks the pivot's `(collection,
+					// entry_id, …)` PK — so it doubles as the index-nested-loop probe
+					// for the non-driver arms of the seek plan below.
+					const taxonomyExists = (filters: { name: string; slugs: string[] }[]) =>
+						filters.length > 0
 							? sql`${sql.join(
-									taxonomyFilters.map(
+									filters.map(
 										(f) => sql`AND EXISTS (
 							SELECT 1 FROM content_taxonomies ct
 							INNER JOIN taxonomies t ON t.translation_group = ct.taxonomy_id
@@ -1003,6 +1100,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 									sql` `,
 								)}`
 							: sql``;
+					const taxonomyCond = taxonomyExists(taxonomyFilters);
 
 					// `_emdash_content_bylines.byline_id` stores the byline's
 					// translation_group (migration 040), so a credit spans every
@@ -1036,51 +1134,77 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							? sql`OFFSET ${offset}`
 							: sql`LIMIT -1 OFFSET ${offset}`;
 					}
-					// SQLite driven-filter rewrite, opt-in via `taxonomyStrategy:
-					// "seek"` (#1834). The default `EXISTS` query below lets a
-					// stats-blind D1 planner drive the scan from the collection's
-					// `published_at` index and probe the taxonomy per row — which is
-					// cheap for a non-selective term (the `LIMIT` fills fast) but a
-					// full table scan for a *selective* one (tens of thousands of D1
-					// rows read for a page returning a handful). For selective terms
-					// the caller passes `"seek"`: we drive from `content_taxonomies`,
-					// seeking the term by `taxonomy_id` (materialized once) and
-					// joining the collection by primary key, then sort the small
-					// candidate set. `CROSS JOIN` pins that join order; the explicit
-					// `INDEXED BY idx_content_taxonomies_term_lookup` forces the
-					// composite `(taxonomy_id, collection, entry_id)` seek. Without
-					// the hint the stats-blind planner drives from the pivot PK's
-					// `(collection, …)` autoindex — a whole-collection scan of the
-					// join table (the #1834 failure). The hint also lets `collection`
-					// be a plain equality that the index seeks on its second column,
-					// so a term shared across collections reads only this
-					// collection's slice, not the term's rows in every collection.
-					// Postgres has statistics and plans this well on its own, so the
-					// hint is SQLite-only.
-					if (taxonomyStrategy === "seek" && !isPostgres(db) && taxonomyFilters.length > 0) {
-						// Each filter's matched entry ids. `DISTINCT` dedupes within a
-						// filter: an entry tagged by multiple matching slugs of the same
-						// taxonomy (OR-within, `{ category: ['news', 'sports'] }`) has one
-						// pivot row per slug, and without it the outer `CROSS JOIN` would
-						// fan those into duplicate content rows (the `EXISTS` scan path is
-						// a semi-join and never does). INTERSECT across filters then
-						// enforces the "tagged in every taxonomy" AND semantics.
-						const matchedSelect = sql.join(
-							taxonomyFilters.map(
-								(f) => sql`SELECT DISTINCT ct.entry_id AS _matched_id
-							FROM taxonomies t
-							INNER JOIN content_taxonomies ct INDEXED BY idx_content_taxonomies_term_lookup
-								ON ct.taxonomy_id = t.translation_group
-							WHERE ct.collection = ${type}
-								AND t.name = ${f.name}
-								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
-								${locale ? sql`AND t.locale = ${locale}` : sql``}`,
-							),
-							sql` INTERSECT `,
-						);
+					// Taxonomy filter planning (SQLite/D1 only; Postgres has statistics
+					// and plans the `EXISTS` scan below well on its own). The default
+					// scan lets the planner drive from the collection's `orderBy` index
+					// and probe the taxonomy per row — cheap for a *non-selective* term
+					// (the `LIMIT` fills fast) but a whole-collection scan for a
+					// *selective* one (tens of thousands of D1 rows for a page returning
+					// a handful — the #1834 failure). When cached per-term counts show a
+					// selective term, we instead **seek**: drive from that term's pivot
+					// rows and index-nested-loop the rest.
+					//
+					// The choice is driven by counts (`getTermCountsForCollection`) that
+					// mirror this query's own collection/status/locale, so a term's
+					// count equals the rows the plan would fetch. Counts are advisory —
+					// they change *how* rows are fetched, never *which* come back — so a
+					// stale/missing count only costs plan quality (default: scan).
+					let seekDriver: { name: string; slugs: string[] } | undefined;
+					let seekRest: { name: string; slugs: string[] }[] = [];
+					if (!isPostgres(db) && taxonomyFilters.length > 0) {
+						const { terms, total } = await getTermCountsForCollection(db, type, status, locale);
+						if (total > 0 && terms.size > 0) {
+							const bySlug = new Map<string, number>();
+							for (const tc of terms.values()) bySlug.set(`${tc.name} ${tc.slug}`, tc.count);
+							// Each filter's selectivity = published entries carrying any of
+							// its slugs (OR-within-taxonomy sums; a term absent from the map
+							// contributes 0). Rank ascending so the smallest drives.
+							const ranked = taxonomyFilters
+								.map((f) => ({
+									f,
+									count: f.slugs.reduce((n, s) => n + (bySlug.get(`${f.name} ${s}`) ?? 0), 0),
+								}))
+								.toSorted((a, b) => a.count - b.count);
+							// Cost model: a scan reads ~ `pageRows * total / driverCount`
+							// rows before the LIMIT fills; a seek reads ~ `driverCount`.
+							// They cross at `driverCount² ≈ pageRows * total`, so seek when
+							// the driver's count is under that root. With no LIMIT the scan
+							// reads the whole slice, so `pageRows` falls back to `total` and
+							// any taxonomy filter seeks. The margin is a tuning knob
+							// (validate rows-read against real D1 before moving it).
+							const TAXONOMY_SEEK_MARGIN = 1;
+							const pageRows = fetchLimit ?? total;
+							const seekBudget = Math.sqrt(pageRows * total) * TAXONOMY_SEEK_MARGIN;
+							const driver = ranked[0];
+							if (driver && driver.count <= seekBudget) {
+								seekDriver = driver.f;
+								seekRest = ranked.slice(1).map((r) => r.f);
+							}
+						}
+					}
 
+					// Seek plan: materialize the driver term's entry ids by seeking the
+					// composite `(taxonomy_id, collection, entry_id)` index (the explicit
+					// `INDEXED BY` pins it over the stats-blind planner's pivot-PK
+					// autoindex, which would whole-collection-scan the join table). Then
+					// join the collection by PK and index-nested-loop the remaining
+					// taxonomy filters as `EXISTS` probes on the pivot PK. `DISTINCT`
+					// dedupes an entry tagged by multiple matching slugs of the driver
+					// taxonomy (OR-within), which the `CROSS JOIN` would otherwise fan
+					// into duplicate content rows.
+					if (seekDriver) {
+						const restCond = taxonomyExists(seekRest);
 						result = await sql<Record<string, unknown>>`
-							WITH _matched AS MATERIALIZED (${matchedSelect})
+							WITH _matched AS MATERIALIZED (
+								SELECT DISTINCT ct.entry_id AS _matched_id
+								FROM taxonomies t
+								INNER JOIN content_taxonomies ct INDEXED BY idx_content_taxonomies_term_lookup
+									ON ct.taxonomy_id = t.translation_group
+								WHERE ct.collection = ${type}
+									AND t.name = ${seekDriver.name}
+									AND t.slug IN (${sql.join(seekDriver.slugs.map((s) => sql`${s}`))})
+									${locale ? sql`AND t.locale = ${locale}` : sql``}
+							)
 							SELECT ${sql.ref(tableName)}.*, ${termsSelect}, ${bylinesSelect}
 							FROM _matched
 							CROSS JOIN ${sql.ref(tableName)} ON ${sql.ref(tableName)}.id = _matched._matched_id
@@ -1088,6 +1212,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							AND ${statusCondition}
 							${localeFilter}
 							${cursorCond}
+							${restCond}
 							${bylineCond}
 							${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
 							${orderByClause}

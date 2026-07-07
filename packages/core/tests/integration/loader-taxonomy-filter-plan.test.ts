@@ -1,24 +1,23 @@
 /**
  * Query-plan shape of a taxonomy-filtered collection listing (#1834).
  *
- * The old query applied the taxonomy filter as a correlated `EXISTS` on a
- * `SELECT * FROM ec_<collection> ... ORDER BY published_at DESC LIMIT ?`. On a
- * stats-blind D1/SQLite planner (no ANALYZE, no `sqlite_stat1`) the planner
- * drives the scan from `idx_ec_<collection>_deleted_published_id` to satisfy the
- * `ORDER BY` for free, then evaluates the `EXISTS` per row. When the term is
- * selective the `LIMIT` never fills early, so it walks the *whole* collection
- * table — tens of thousands of D1 rows read for a page returning one row.
+ * A taxonomy filter applied as a correlated `EXISTS` on a
+ * `SELECT * FROM ec_<collection> ... ORDER BY published_at DESC LIMIT ?` lets a
+ * stats-blind D1/SQLite planner (no ANALYZE, no `sqlite_stat1`) drive the scan
+ * from `idx_ec_<collection>_deleted_published_id` to satisfy the `ORDER BY` for
+ * free, then evaluate the `EXISTS` per row. When the term is *selective* the
+ * `LIMIT` never fills early, so it walks the *whole* collection table — tens of
+ * thousands of D1 rows read for a page returning one row.
  *
- * Opt-in via `taxonomyStrategy: "seek"`, the fix drives the query from
- * `content_taxonomies`, seeking the selective term by `taxonomy_id` (via
- * `idx_content_taxonomies_term_lookup`) and joining the collection table by
- * primary key. Selectivity is a per-term property the framework can't know for
- * free, so the caller opts in on selective (category/tag archive) routes; the
- * default keeps today's `EXISTS` scan, which is best for non-selective terms.
- *
- * This asserts the *plan*, not the output (output is covered by
- * loader-taxonomy-filter). Since the planner is stats-blind here, the plan is
- * schema-driven and matches D1's shape exactly.
+ * The loader now auto-decides from cached per-term counts
+ * (`getTermCountsForCollection`): a *selective* term drives a **seek** from
+ * `content_taxonomies` (seeking `taxonomy_id` via
+ * `idx_content_taxonomies_term_lookup`, joining the collection by primary key),
+ * while a *non-selective* term keeps the `EXISTS` **scan** (the `LIMIT` fills
+ * fast). For multi-term AND, the smallest-count term drives and the rest become
+ * index-nested-loop `EXISTS` probes. The counts are advisory — they change the
+ * plan, never the rows — so these assert the plan shape; output is covered by
+ * loader-taxonomy-filter.
  *
  * SQLite-only: `EXPLAIN QUERY PLAN` is a SQLite concern, and the driven rewrite
  * is SQLite-only (Postgres keeps `EXISTS`, since it has statistics).
@@ -44,6 +43,8 @@ interface CapturedQuery {
 let sqlite: Database.Database;
 let db: Kysely<DatabaseSchema>;
 let captured: CapturedQuery[];
+let content: ContentRepository;
+let tax: TaxonomyRepository;
 
 beforeEach(async () => {
 	captured = [];
@@ -65,30 +66,42 @@ beforeEach(async () => {
 
 	// eslint-disable-next-line typescript/no-explicit-any -- schema type vs Database type
 	const anyDb = db as any;
-	const content = new ContentRepository(anyDb);
-	const tax = new TaxonomyRepository(anyDb);
-
-	// A single selective term attached to one of several published entries.
-	const news = await tax.create({ name: "category", slug: "news", label: "News", locale: "en" });
-	for (let i = 0; i < 5; i++) {
-		const post = await content.create({
-			type: "post",
-			slug: `post-${i}`,
-			data: { title: `Post ${i}` },
-			locale: "en",
-		});
-		await anyDb
-			.updateTable("ec_post")
-			.set({ status: "published", published_at: `2026-01-0${i + 1}T00:00:00Z` })
-			.where("id", "=", post.id)
-			.execute();
-		if (i === 2) await tax.attachToEntry("post", post.id, news.id);
-	}
+	content = new ContentRepository(anyDb);
+	tax = new TaxonomyRepository(anyDb);
 });
 
 afterEach(async () => {
 	await db.destroy();
 });
+
+/** Create a published post `Post {i}` (dated so `published_at DESC` is stable). */
+async function publish(i: number): Promise<string> {
+	const post = await content.create({
+		type: "post",
+		slug: `post-${i}`,
+		data: { title: `Post ${i}` },
+		locale: "en",
+	});
+	// eslint-disable-next-line typescript/no-explicit-any -- dynamic ec_* table not in the schema type
+	await (db as any)
+		.updateTable("ec_post")
+		.set({
+			status: "published",
+			published_at: `2026-01-${String(i + 1).padStart(2, "0")}T00:00:00Z`,
+		})
+		.where("id", "=", post.id)
+		.execute();
+	return post.id;
+}
+
+function runList(where: Record<string, unknown>, limit: number) {
+	const loader = emdashLoader();
+	return runWithContext({ editMode: false, db }, () =>
+		loader.loadCollection!({
+			filter: { type: "post", where: where as never, orderBy: { published_at: "desc" }, limit },
+		}),
+	);
+}
 
 /** better-sqlite3 only binds primitives; coerce the JS values Kysely captured. */
 function bindable(p: unknown): unknown {
@@ -106,71 +119,91 @@ function explain(query: CapturedQuery): string {
 }
 
 /** The filtered list query is the one exposing the `_emdash_terms` alias. */
-function listQueryPlan(): string {
-	const listQuery = captured.find((q) => q.sql.includes("_emdash_terms"));
-	expect(listQuery, "expected the loader to emit a folded list query").toBeDefined();
-	return explain(listQuery!);
+function listQuery(): CapturedQuery {
+	const q = captured.find((c) => c.sql.includes("_emdash_terms"));
+	expect(q, "expected the loader to emit a folded list query").toBeDefined();
+	return q!;
 }
 
-it("with taxonomyStrategy 'seek', drives from content_taxonomies, not the collection's published index", async () => {
-	const loader = emdashLoader();
-	const result = await runWithContext({ editMode: false, db }, () =>
-		loader.loadCollection!({
-			filter: {
-				type: "post",
-				where: { category: "news" } as never,
-				orderBy: { published_at: "desc" },
-				limit: 10,
-				taxonomyStrategy: "seek",
-			},
-		}),
-	);
+it("seeks from content_taxonomies for a selective term", async () => {
+	// One selective term on 1 of 5 published posts. driverCount(1) is well under
+	// the seek budget (sqrt(fetchLimit * total)), so the loader seeks.
+	const news = await tax.create({ name: "category", slug: "news", label: "News", locale: "en" });
+	for (let i = 0; i < 5; i++) {
+		const id = await publish(i);
+		if (i === 2) await tax.attachToEntry("post", id, news.id);
+	}
 
-	// Proves the SQL executes and stays correct on the driven path.
+	const result = await runList({ category: "news" }, 10);
 	expect(result.entries).toHaveLength(1);
 	expect(result.entries[0]!.data.title).toBe("Post 2");
 
-	const plan = listQueryPlan();
+	const plan = explain(listQuery());
 	// Good plan: seek the selective term via the composite pivot index, using
-	// BOTH leading columns. The two-column seek (`INDEXED BY` + plain
-	// `collection` equality) reads only this collection's slice of the term; a
-	// one-column `(taxonomy_id=?)` seek with a residual collection filter would
-	// read the term's rows in *every* collection (verified on D1: 704 vs 2 rows
-	// read for a term shared across collections). Asserting the second column
-	// guards against regressing to the residual-filter form.
+	// BOTH leading columns. The two-column seek (`INDEXED BY` + plain `collection`
+	// equality) reads only this collection's slice of the term; a one-column
+	// `(taxonomy_id=?)` seek with a residual collection filter would read the
+	// term's rows in *every* collection (verified on D1: 704 vs 2 rows read for a
+	// term shared across collections). Asserting the second column guards against
+	// regressing to the residual-filter form.
 	expect(plan, "must seek content_taxonomies by taxonomy_id AND collection").toContain(
 		"idx_content_taxonomies_term_lookup (taxonomy_id=? AND collection=?)",
 	);
-	// Bad plan: drive the scan from the collection's published-order index.
 	expect(plan, "must not drive the scan from the collection's published index").not.toContain(
 		"idx_ec_post_deleted_published_id",
 	);
 });
 
-it("by default (no hint) keeps the EXISTS scan — opt-in, no behavior change", async () => {
-	const loader = emdashLoader();
-	const result = await runWithContext({ editMode: false, db }, () =>
-		loader.loadCollection!({
-			filter: {
-				type: "post",
-				where: { category: "news" } as never,
-				orderBy: { published_at: "desc" },
-				limit: 10,
-			},
-		}),
-	);
+it("keeps the EXISTS scan for a non-selective term", async () => {
+	// Every published post carries the term (driverCount == total), so seeking
+	// would materialize the whole collection. With a small page the scan budget
+	// (sqrt(fetchLimit * total)) is below driverCount, so the loader scans.
+	const news = await tax.create({ name: "category", slug: "news", label: "News", locale: "en" });
+	for (let i = 0; i < 6; i++) {
+		const id = await publish(i);
+		await tax.attachToEntry("post", id, news.id);
+	}
 
-	// Same rows regardless of plan.
-	expect(result.entries).toHaveLength(1);
-	expect(result.entries[0]!.data.title).toBe("Post 2");
+	const result = await runList({ category: "news" }, 2);
+	expect(result.entries).toHaveLength(2);
 
-	const plan = listQueryPlan();
-	// The default keeps today's shape: the collection drives the scan in
-	// published order and the taxonomy filter is a correlated EXISTS.
-	expect(plan, "default must drive from the collection's published index").toContain(
+	const plan = explain(listQuery());
+	// The collection drives the scan in published order; the taxonomy filter is a
+	// correlated EXISTS.
+	expect(plan, "must drive from the collection's published index").toContain(
 		"idx_ec_post_deleted_published_id",
 	);
-	expect(plan, "default must not use the driven seek rewrite").not.toContain(
+	expect(plan, "must not use the driven seek rewrite").not.toContain(
 		"idx_content_taxonomies_term_lookup",
 	);
+});
+
+it("drives the seek from the smallest-count term across a multi-term AND", async () => {
+	// Broad `category:news` on all 6, selective `tag:featured` on 1. The loader
+	// must drive the seek from `featured` (count 1), not `news` (count 6), and
+	// probe `news` as an index-nested-loop EXISTS.
+	const news = await tax.create({ name: "category", slug: "news", label: "News", locale: "en" });
+	const featured = await tax.create({ name: "tag", slug: "featured", label: "Feat", locale: "en" });
+	for (let i = 0; i < 6; i++) {
+		const id = await publish(i);
+		await tax.attachToEntry("post", id, news.id);
+		if (i === 4) await tax.attachToEntry("post", id, featured.id);
+	}
+
+	const result = await runList({ category: "news", tag: "featured" }, 10);
+	expect(result.entries).toHaveLength(1);
+	expect(result.entries[0]!.data.title).toBe("Post 4");
+
+	const q = listQuery();
+	expect(explain(q), "must seek the driver term via the composite pivot index").toContain(
+		"idx_content_taxonomies_term_lookup (taxonomy_id=? AND collection=?)",
+	);
+	// The driver's `_matched` CTE precedes the EXISTS probe in the SQL text, so
+	// the selective term's slug binds before the broad term's — proving
+	// smallest-first ordering rather than filter (insertion) order.
+	const params = q.parameters as unknown[];
+	expect(
+		params.indexOf("featured") < params.indexOf("news"),
+		"selective term must drive (bind first), broad term must probe",
+	).toBe(true);
 });

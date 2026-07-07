@@ -61,29 +61,23 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 			.execute();
 	}
 
-	function load(where: Record<string, unknown>, locale?: string) {
-		const loader = emdashLoader();
-		return runWithContext({ editMode: false, db }, () =>
-			loader.loadCollection!({
-				filter: { type: "post", where: where as never, ...(locale ? { locale } : {}) },
-			}),
-		);
-	}
-
 	/**
-	 * Same as `load` but opts into the `"seek"` taxonomy strategy (the pivot-driven
-	 * rewrite). SQLite-only — on Postgres the loader ignores the hint and uses the
-	 * default `EXISTS` path — so results must match `load` on both dialects.
+	 * Run a taxonomy-filtered collection query. The loader auto-picks seek vs scan
+	 * from cached per-term counts; results are identical either way (the choice is
+	 * advisory). With no `limit` the loader always seeks — a scan reads the whole
+	 * slice anyway — so unlimited queries here exercise the seek path, and the
+	 * dedicated scan case below forces a scan with a limit over a non-selective
+	 * term. On Postgres the loader ignores counts and always uses `EXISTS`.
 	 */
-	function loadSeek(where: Record<string, unknown>, locale?: string) {
+	function load(where: Record<string, unknown>, opts: { locale?: string; limit?: number } = {}) {
 		const loader = emdashLoader();
 		return runWithContext({ editMode: false, db }, () =>
 			loader.loadCollection!({
 				filter: {
 					type: "post",
 					where: where as never,
-					taxonomyStrategy: "seek",
-					...(locale ? { locale } : {}),
+					...(opts.locale ? { locale: opts.locale } : {}),
+					...(opts.limit ? { limit: opts.limit } : {}),
 				},
 			}),
 		);
@@ -166,7 +160,7 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		expect(titles).toContain("Sports + Featured");
 	});
 
-	it("seek strategy does not duplicate an entry tagged with multiple OR-ed slugs of one taxonomy", async () => {
+	it("does not duplicate an entry tagged with multiple OR-ed slugs of one taxonomy", async () => {
 		const news = await term("category", "news");
 		const sports = await term("category", "sports");
 
@@ -180,16 +174,15 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		await tag(both.id, sports);
 		await tag(newsOnly.id, news);
 
-		const seek = await loadSeek({ category: ["news", "sports"] });
-		const seekTitles = seek.entries.map((e) => e.data.title).toSorted();
-		expect(seekTitles).toEqual(["News + Sports", "News Only"]);
-
-		// Matches the default scan path exactly.
-		const scan = await load({ category: ["news", "sports"] });
-		expect(scan.entries.map((e) => e.data.title).toSorted()).toEqual(seekTitles);
+		// Unlimited → seek path. DISTINCT in the driver CTE must dedupe.
+		const result = await load({ category: ["news", "sports"] });
+		expect(result.entries.map((e) => e.data.title).toSorted()).toEqual([
+			"News + Sports",
+			"News Only",
+		]);
 	});
 
-	it("seek strategy ORs slugs within a taxonomy while ANDing across taxonomies", async () => {
+	it("ORs slugs within a taxonomy while ANDing across taxonomies via the seek plan", async () => {
 		const news = await term("category", "news");
 		const sports = await term("category", "sports");
 		const featured = await term("tag", "featured");
@@ -207,12 +200,12 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		await tag(b.id, featured);
 		await tag(c.id, news);
 
-		const result = await loadSeek({ category: ["news", "sports"], tag: ["featured"] });
+		const result = await load({ category: ["news", "sports"], tag: ["featured"] });
 		const titles = result.entries.map((e) => e.data.title).toSorted();
 		expect(titles).toEqual(["News + Sports + Featured", "Sports + Featured"]);
 	});
 
-	it("seek strategy scopes to the queried collection when a term is shared across collections", async () => {
+	it("scopes to the queried collection when a term is shared across collections", async () => {
 		// A single global term tagged on entries in two different collections.
 		// The seek path's `_matched` CTE constrains `ct.collection` to the queried
 		// type ("post"), so the `page` entry's pivot row must not surface here.
@@ -235,12 +228,31 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 			.values({ collection: "page", entry_id: page.id, taxonomy_id: news } as never)
 			.execute();
 
-		const seek = await loadSeek({ category: "news" });
-		expect(seek.entries.map((e) => e.data.title)).toEqual(["Post in News"]);
+		const result = await load({ category: "news" });
+		expect(result.entries.map((e) => e.data.title)).toEqual(["Post in News"]);
+	});
 
-		// Matches the default scan path exactly.
-		const scan = await load({ category: "news" });
-		expect(scan.entries.map((e) => e.data.title)).toEqual(["Post in News"]);
+	it("returns identical rows on the scan path (non-selective term, limited)", async () => {
+		// Force the scan plan: a term on every entry with a small limit makes the
+		// seek's materialized slice larger than the scan budget, so the loader
+		// scans. Results must match what the seek path returns unlimited.
+		const news = await term("category", "news");
+		const titles: string[] = [];
+		for (let i = 0; i < 6; i++) {
+			const post = await createPost(`Post ${i}`);
+			await tag(post.id, news);
+			titles.push(`Post ${i}`);
+		}
+
+		// Unlimited (seek) sees every tagged entry.
+		const seek = await load({ category: "news" });
+		expect(seek.entries.map((e) => e.data.title).toSorted()).toEqual(titles.toSorted());
+
+		// Limited over a non-selective term (scan) returns the first page, same rows
+		// the seek path would return for that page.
+		const scan = await load({ category: "news" }, { limit: 2 });
+		expect(scan.entries).toHaveLength(2);
+		for (const e of scan.entries) expect(titles).toContain(e.data.title as string);
 	});
 
 	it("returns no entries when any one taxonomy filter is an empty array", async () => {
@@ -281,13 +293,13 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 
 		// FR site, FR slug → matches. Before the fix the join landed on the EN
 		// anchor (slug "news"), so this returned 0.
-		const hit = await load({ category: "actualites" }, "fr");
+		const hit = await load({ category: "actualites" }, { locale: "fr" });
 		expect(hit.entries).toHaveLength(1);
 		expect(hit.entries[0]!.data.title).toBe("Actualités");
 
 		// FR site, EN slug → must NOT match: the `t.locale` predicate scopes the
 		// slug to the active locale, where the term is "actualites", not "news".
-		const miss = await load({ category: "news" }, "fr");
+		const miss = await load({ category: "news" }, { locale: "fr" });
 		expect(miss.entries).toHaveLength(0);
 
 		// Locale-less query still resolves the default-locale slug — the locale
