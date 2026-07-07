@@ -1,4 +1,4 @@
-import { Badge, LayerCard } from "@cloudflare/kumo";
+import { Badge, Banner, LayerCard, SkeletonLine } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -31,7 +31,11 @@ export interface DashboardProps {
  */
 export function Dashboard({ manifest }: DashboardProps) {
 	const { t } = useLingui();
-	const { data: stats, isLoading } = useQuery({
+	const {
+		data: stats,
+		isLoading,
+		isError,
+	} = useQuery({
 		queryKey: ["dashboard-stats"],
 		queryFn: fetchDashboardStats,
 		refetchOnWindowFocus: true,
@@ -44,21 +48,39 @@ export function Dashboard({ manifest }: DashboardProps) {
 				<QuickActions manifest={manifest} />
 			</div>
 
-			<SummaryMetrics stats={stats} loading={isLoading} />
+			{isError ? (
+				<DashboardDataError />
+			) : (
+				<>
+					<SummaryMetrics stats={stats} loading={isLoading} />
 
-			{/* Collections + Recent activity */}
-			<div className="grid gap-6 lg:grid-cols-2">
-				<CollectionList
-					collections={stats?.collections ?? []}
-					manifest={manifest}
-					loading={isLoading}
-				/>
-				<RecentActivity items={stats?.recentItems ?? []} loading={isLoading} />
-			</div>
+					{/* Collections + Recent activity */}
+					<div className="grid gap-6 lg:grid-cols-2">
+						<CollectionList
+							collections={stats?.collections ?? []}
+							manifest={manifest}
+							loading={isLoading}
+						/>
+						<RecentActivity items={stats?.recentItems ?? []} loading={isLoading} />
+					</div>
+				</>
+			)}
 
 			{/* Plugin widgets */}
 			<PluginWidgets manifest={manifest} />
 		</div>
+	);
+}
+
+function DashboardDataError() {
+	const { t } = useLingui();
+
+	return (
+		<Banner
+			variant="error"
+			title={t`Could not load dashboard data`}
+			description={t`Refresh the page or try again.`}
+		/>
 	);
 }
 
@@ -96,7 +118,14 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 		return (
 			<div className="grid gap-4 sm:grid-cols-3">
 				{[1, 2, 3].map((i) => (
-					<div key={i} className="h-[76px] animate-pulse rounded-lg bg-kumo-tint" />
+					<LayerCard key={i}>
+						<LayerCard.Secondary>
+							<SkeletonLine minWidth={45} maxWidth={70} />
+						</LayerCard.Secondary>
+						<LayerCard.Primary className="text-2xl font-semibold">
+							<SkeletonLine minWidth={20} maxWidth={35} />
+						</LayerCard.Primary>
+					</LayerCard>
 				))}
 			</div>
 		);
@@ -141,6 +170,16 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 	);
 }
 
+function SkeletonRows({ count }: { count: number }) {
+	return (
+		<div className="space-y-3 px-3">
+			{Array.from({ length: count }, (_, i) => (
+				<SkeletonLine key={i} blockHeight={40} minWidth={65} maxWidth={95} />
+			))}
+		</div>
+	);
+}
+
 // --- Collection list with counts ---
 
 function CollectionList({
@@ -162,11 +201,7 @@ function CollectionList({
 			</LayerCard.Secondary>
 			<LayerCard.Primary className="flex-1">
 				{loading ? (
-					<div className="space-y-3">
-						{[1, 2, 3].map((i) => (
-							<div key={i} className="h-10 animate-pulse rounded-md bg-kumo-tint" />
-						))}
-					</div>
+					<SkeletonRows count={3} />
 				) : collections.length === 0 ? (
 					<p className="px-3 text-sm text-kumo-subtle">{t`No collections configured`}</p>
 				) : (
@@ -244,11 +279,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 			</LayerCard.Secondary>
 			<LayerCard.Primary className="flex-1">
 				{loading ? (
-					<div className="space-y-3">
-						{[1, 2, 3, 4, 5].map((i) => (
-							<div key={i} className="h-10 animate-pulse rounded-md bg-kumo-tint" />
-						))}
-					</div>
+					<SkeletonRows count={5} />
 				) : items.length === 0 ? (
 					<p className="px-3 text-sm text-kumo-subtle">{t`No recent activity`}</p>
 				) : (
