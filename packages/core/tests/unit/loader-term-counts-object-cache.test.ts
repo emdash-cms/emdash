@@ -4,6 +4,7 @@ import { expect, it, vi } from "vitest";
 vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
 
 import { handleContentCreate } from "../../src/api/index.js";
+import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
 import { getTermCountsForCollection } from "../../src/loader.js";
 import {
@@ -92,6 +93,54 @@ it("term counts survive an object-cache round-trip (Map is rebuilt on read)", as
 		expect(second.terms.size).toBe(1);
 		expect(second.terms.get(news)?.count).toBe(1);
 		expect(second.total).toBe(1);
+	} finally {
+		__setObjectCacheBackendForTests(null);
+		await teardownTestDatabase(db);
+	}
+});
+
+/**
+ * Regression: attaching/detaching a term invalidates the count cache.
+ *
+ * The counts are keyed under `[content:<collection>, taxonomies]`, and a value
+ * is a cache HIT only when *every* namespace epoch still matches (`epochsMatch`
+ * is all-must-match). `TaxonomyRepository.attachToEntry`/`detachFromEntry`/
+ * `setTermsForEntry`/`clearEntryTerms` bump the `taxonomies` epoch, which alone
+ * invalidates the counts — no separate `content:<collection>` bump is needed.
+ * This test pins that so the counts can't be left stale after a term write.
+ */
+it("attaching a term invalidates the cached counts (taxonomies epoch bump)", async () => {
+	const db: Kysely<Database> = await setupTestDatabaseWithCollections();
+	__setObjectCacheBackendForTests(memoryBackend(), { revalidate: 60_000, defaultTtl: 3600 });
+
+	try {
+		const taxRepo = new TaxonomyRepository(db);
+		const term = await taxRepo.create({ name: "category", slug: "news", label: "News" });
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Published" },
+			status: "published",
+		});
+		if (!created.success) throw new Error("Failed to create post");
+		const postId = created.data!.item.id;
+		await flush();
+
+		// Populate the cache while the post carries no term.
+		const before = await runWithContext({ editMode: false }, () =>
+			getTermCountsForCollection(db, "post", "published", undefined),
+		);
+		expect(before.terms.get(term.translationGroup)?.count ?? 0).toBe(0);
+		await flush();
+
+		// Attach the term — bumps only the `taxonomies` namespace.
+		await taxRepo.attachToEntry("post", postId, term.id);
+		await flush();
+
+		// Fresh request: a stale hit would still report 0. The taxonomies bump
+		// must have invalidated the count cache, so we see the new count.
+		const after = await runWithContext({ editMode: false }, () =>
+			getTermCountsForCollection(db, "post", "published", undefined),
+		);
+		expect(after.terms.get(term.translationGroup)?.count).toBe(1);
 	} finally {
 		__setObjectCacheBackendForTests(null);
 		await teardownTestDatabase(db);
