@@ -9,7 +9,7 @@ The triage team is a small group of trusted community members who help keep issu
 - **There is no quota, schedule, or minimum commitment.** Triage when you have the time and energy, and don't when you don't.
 - **Pick the work you enjoy.** If you like reproducing bugs, do that. If you prefer answering questions or welcoming first-time contributors, do that instead. Nobody covers everything.
 - **You can step back at any time**, temporarily or permanently, no explanation needed.
-- **Mistakes are fine.** Labels can be changed, issues can be reopened, comments can be clarified. Nothing in triage is irreversible if you're welcoming to new contributors.
+- **Mistakes are fine.** Labels can be changed, issues can be reopened, comments can be clarified. Nothing in triage is irreversible.
 
 If the work stops being enjoyable or a thread is stressing you out, hand it off and walk away. Sustainable help beats heroic help.
 
@@ -187,7 +187,7 @@ Thanks for the PR. This looks like a feature/change in project direction, so it 
 
 ### What To Look For Before Review
 
-The bot does code-level review and is evry good at it, but it's not perfect. The most useful human checks are the ones the bot gets wrong or can't judge:
+The bot does code-level review and is good at it, but it's not perfect. The most useful human checks are the ones the bot gets wrong or can't judge:
 
 - Is the PR template filled out?
 - Does the PR explain _why_ the change is needed, and does that reason hold up?
