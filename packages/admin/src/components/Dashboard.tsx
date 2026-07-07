@@ -1,4 +1,4 @@
-import { LayerCard } from "@cloudflare/kumo";
+import { Badge, LayerCard } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -155,61 +155,78 @@ function CollectionList({
 	const { t } = useLingui();
 
 	return (
-		<div className="rounded-lg border bg-kumo-base p-4 sm:p-6">
-			<h2 className="mb-4 text-lg font-semibold">{t`Content`}</h2>
-			{loading ? (
-				<div className="space-y-3">
-					{[1, 2, 3].map((i) => (
-						<div key={i} className="h-10 animate-pulse rounded-md bg-kumo-tint" />
-					))}
-				</div>
-			) : collections.length === 0 ? (
-				<p className="text-sm text-kumo-subtle">{t`No collections configured`}</p>
-			) : (
-				<div className="space-y-1">
-					{collections.map((col) => {
-						const config = manifest.collections[col.slug];
-						return (
-							<Link
-								key={col.slug}
-								to="/content/$collection"
-								params={{ collection: col.slug }}
-								search={{ locale: undefined }}
-								className="group flex items-center justify-between rounded-md px-3 py-2 hover:bg-kumo-tint"
-							>
-								<span className="font-medium">{config?.label ?? col.label}</span>
-								<span className="flex items-center gap-3 text-xs text-kumo-subtle">
-									<CountBadge icon={CheckCircle} count={col.published} title={t`Published`} />
-									<CountBadge icon={PencilSimple} count={col.draft} title={t`Drafts`} />
-									<ArrowRight
-										className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
-										aria-hidden="true"
-									/>
-								</span>
-							</Link>
-						);
-					})}
-				</div>
-			)}
-		</div>
+		<LayerCard>
+			<LayerCard.Secondary>
+				<h2>{t`Content`}</h2>
+			</LayerCard.Secondary>
+			<LayerCard.Primary>
+				{loading ? (
+					<div className="space-y-3">
+						{[1, 2, 3].map((i) => (
+							<div key={i} className="h-10 animate-pulse rounded-md bg-kumo-tint" />
+						))}
+					</div>
+				) : collections.length === 0 ? (
+					<p className="text-sm text-kumo-subtle">{t`No collections configured`}</p>
+				) : (
+					<div className="space-y-1">
+						{collections.map((col) => {
+							const config = manifest.collections[col.slug];
+							return (
+								<Link
+									key={col.slug}
+									to="/content/$collection"
+									params={{ collection: col.slug }}
+									search={{ locale: undefined }}
+									className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
+								>
+									<span className="font-medium">{config?.label ?? col.label}</span>
+									<span className="flex shrink-0 items-center gap-2">
+										<CountBadge
+											icon={CheckCircle}
+											count={col.published}
+											variant="success"
+											label={t`Published`}
+										/>
+										<CountBadge
+											icon={PencilSimple}
+											count={col.draft}
+											variant="secondary"
+											label={t`Drafts`}
+										/>
+										<ArrowRight
+											className="h-3.5 w-3.5 text-kumo-subtle opacity-0 transition-opacity group-hover:opacity-100"
+											aria-hidden="true"
+										/>
+									</span>
+								</Link>
+							);
+						})}
+					</div>
+				)}
+			</LayerCard.Primary>
+		</LayerCard>
 	);
 }
 
 function CountBadge({
 	icon: Icon,
 	count,
-	title,
+	variant,
+	label,
 }: {
 	icon: React.ElementType;
 	count: number;
-	title: string;
+	variant: "success" | "secondary";
+	label: string;
 }) {
 	if (count === 0) return null;
 	return (
-		<span className="inline-flex items-center gap-1" title={title}>
+		<Badge variant={variant} className="gap-1">
 			<Icon className="h-3 w-3" aria-hidden="true" />
+			<span className="sr-only">{label}</span>
 			{count}
-		</span>
+		</Badge>
 	);
 }
 
