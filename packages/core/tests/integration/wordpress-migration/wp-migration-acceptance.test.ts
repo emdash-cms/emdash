@@ -446,11 +446,27 @@ describe("WordPress migration acceptance (#1691)", () => {
 		// 9 existing items + the unmapped wp_block.
 		expect(rerun.skipped).toBe(10);
 
-		const rows = await db
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- dynamic ec_ table not in the static schema
-			.selectFrom("ec_post" as keyof Database)
-			.select((eb) => eb.fn.countAll().as("count"))
-			.executeTakeFirstOrThrow();
-		expect(Number(rows.count)).toBe(5);
+		const sectionsRerun = await importReusableBlocksAsSections(wxr.posts, db);
+		expect(sectionsRerun.sectionsCreated).toBe(0);
+		expect(sectionsRerun.sectionsSkipped).toBe(1);
+
+		// Row counts across every table the import writes to must be unchanged —
+		// a rerun that duplicates pages, books, bylines, or sections would
+		// otherwise slip through a posts-only guard.
+		const expectedCounts: Record<string, number> = {
+			ec_post: 5,
+			ec_page: 2,
+			ec_book: 2,
+			_emdash_bylines: 2,
+			_emdash_sections: 1,
+		};
+		for (const [table, expected] of Object.entries(expectedCounts)) {
+			const rows = await db
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- dynamic ec_ table not in the static schema
+				.selectFrom(table as keyof Database)
+				.select((eb) => eb.fn.countAll().as("count"))
+				.executeTakeFirstOrThrow();
+			expect(Number(rows.count), `row count of ${table}`).toBe(expected);
+		}
 	});
 });
