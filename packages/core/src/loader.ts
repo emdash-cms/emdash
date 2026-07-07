@@ -369,16 +369,27 @@ export function getTermCountsForCollection(
 ): Promise<CollectionTermCounts> {
 	const tableName = getTableName(collection);
 	const localeKey = locale ?? "";
+	// Cache a plain `Record`, not the public `Map`: the object-cache codec is
+	// JSON-based and only preserves `Date`, so a `Map` round-trips to `{}` (its
+	// `.size` becomes `undefined`, silently disabling the seek plan). Rebuild the
+	// `Map` at the boundary, after the cache read.
 	return requestCached(`termcounts:${collection}:${status}:${localeKey}`, () =>
-		cachedQuery<CollectionTermCounts>({
+		cachedQuery<SerializableTermCounts>({
 			namespace: [contentNamespace(collection), CacheNamespace.TAXONOMIES],
 			key: `termcounts:${collection}:${status}:${localeKey}`,
 			load: () => loadTermCountsForCollection(db, collection, tableName, status, locale),
 			// A missing content table (pre-migration) yields an empty result; don't
 			// cache it — the plan falls back to scan and the map fills once migrated.
-			cacheable: (value) => value.total > 0 || value.terms.size > 0,
-		}),
+			cacheable: (value) => value.total > 0 || Object.keys(value.terms).length > 0,
+		}).then(({ terms, total }) => ({ terms: new Map(Object.entries(terms)), total })),
 	);
+}
+
+/** Serializable mirror of {@link CollectionTermCounts} — what actually goes through the object-cache codec. */
+interface SerializableTermCounts {
+	/** Per-term counts keyed by `translation_group` (rebuilt into a `Map` on read). */
+	terms: Record<string, TermCount>;
+	total: number;
 }
 
 async function loadTermCountsForCollection(
@@ -387,7 +398,7 @@ async function loadTermCountsForCollection(
 	tableName: string,
 	status: string,
 	locale: string | undefined,
-): Promise<CollectionTermCounts> {
+): Promise<SerializableTermCounts> {
 	// Content-side status/locale predicates, aliased to the joined content table.
 	const statusCond = buildStatusCondition(db, status, "e");
 	const contentLocale = locale ? sql`AND e.locale = ${locale}` : sql``;
@@ -415,21 +426,21 @@ async function loadTermCountsForCollection(
 			`.execute(db),
 		]);
 
-		const terms = new Map<string, TermCount>();
+		const terms: Record<string, TermCount> = {};
 		for (const row of countsResult.rows) {
-			terms.set(row.tg, {
+			terms[row.tg] = {
 				translationGroup: row.tg,
 				name: row.name,
 				slug: row.slug,
 				count: Number(row.n),
-			});
+			};
 		}
 		return { terms, total: Number(totalResult.rows[0]?.n ?? 0) };
 	} catch (error) {
 		// Pre-migration (missing content/pivot table): no counts, plan falls back
 		// to scan. Any other error propagates — a broken count query shouldn't be
 		// silently masked into a wrong plan choice on every request.
-		if (isMissingTableError(error)) return { terms: new Map(), total: 0 };
+		if (isMissingTableError(error)) return { terms: {}, total: 0 };
 		throw error;
 	}
 }
