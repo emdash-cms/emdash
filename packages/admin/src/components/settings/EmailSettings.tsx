@@ -76,7 +76,7 @@ export function EmailSettings() {
 					<BackToSettingsLink />
 					<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
 				</div>
-				<div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
+				<div className="flex items-center gap-2 rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
 					<WarningCircle className="h-4 w-4 flex-shrink-0" />
 					{getMutationError(fetchError) || t`Failed to load email settings`}
 				</div>
@@ -144,17 +144,17 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 
 	if (!settings.available) {
 		return (
-			<div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4">
+			<div className="rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-4">
 				<div className="flex items-start gap-3">
-					<WarningCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+					<WarningCircle className="h-5 w-5 text-kumo-warning mt-0.5 flex-shrink-0" />
 					<div>
-						<p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+						<p className="text-sm font-medium text-kumo-warning">
 							{t`No email provider configured`}
 						</p>
-						<p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+						<p className="text-sm text-kumo-subtle mt-1">
 							{t`Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery.`}
 						</p>
-						<p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
+						<p className="text-sm text-kumo-subtle mt-2">
 							{t`Without an email provider, invite links must be shared manually.`}
 						</p>
 					</div>
@@ -166,15 +166,13 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 	return (
 		<div className="space-y-4">
 			{/* Provider */}
-			<div className="flex items-center gap-3 p-3 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-				<CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+			<div className="flex items-center gap-3 p-3 rounded-md bg-kumo-success-tint border border-kumo-success/50">
+				<CheckCircle className="h-5 w-5 text-kumo-success flex-shrink-0" />
 				<div>
-					<p className="text-sm font-medium text-green-800 dark:text-green-200">
-						{t`Email provider active`}
-					</p>
-					<p className="text-sm text-green-700 dark:text-green-300">
+					<p className="text-sm font-medium text-kumo-success">{t`Email provider active`}</p>
+					<p className="text-sm text-kumo-subtle">
 						{t`Provider:`}{" "}
-						<code className="rounded bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs">
+						<code className="rounded bg-kumo-tint px-1.5 py-0.5 text-xs">
 							{settings.selectedProviderId || "default"}
 						</code>
 					</p>

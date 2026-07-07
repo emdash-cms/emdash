@@ -315,7 +315,7 @@ export function AuditBadge({ verdict }: { verdict: "pass" | "warn" | "fail" }) {
 	if (verdict === "pass") {
 		return (
 			<span
-				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-green-500/10 text-green-600"
+				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-kumo-success/10 text-kumo-success"
 				title={t`Security audit passed`}
 			>
 				<ShieldCheck className="h-3 w-3" />

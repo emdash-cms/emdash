@@ -111,12 +111,12 @@ function StatusBar({ stats, loading }: { stats?: DashboardStats; loading: boolea
 		totalDrafts > 0 && {
 			icon: PencilSimple,
 			label: plural(totalDrafts, { one: "# draft", other: "# drafts" }),
-			className: "text-amber-700 dark:text-amber-400",
+			className: "text-kumo-warning",
 		},
 		totalScheduled > 0 && {
 			icon: CalendarBlank,
 			label: plural(totalScheduled, { one: "# scheduled", other: "# scheduled" }),
-			className: "text-blue-600 dark:text-blue-400",
+			className: "text-kumo-info",
 		},
 		{
 			icon: Image,
@@ -265,9 +265,9 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 
 function StatusDot({ status }: { status: string }) {
 	const colors: Record<string, string> = {
-		published: "text-green-500",
-		draft: "text-amber-500",
-		scheduled: "text-blue-500",
+		published: "text-kumo-success",
+		draft: "text-kumo-warning",
+		scheduled: "text-kumo-info",
 	};
 	const Icon = status === "published" ? CheckCircle : CircleDashed;
 	return (

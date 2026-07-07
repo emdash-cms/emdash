@@ -179,12 +179,12 @@ export function DeviceAuthorizePage() {
 
 				{/* Success state */}
 				{pageState === "success" && (
-					<div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/50 p-6 text-center">
-						<div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/50 mb-3">
-							<CheckIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+					<div className="rounded-lg border border-kumo-success/50 bg-kumo-success-tint p-6 text-center">
+						<div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-kumo-success/15 mb-3">
+							<CheckIcon className="w-5 h-5 text-kumo-success" />
 						</div>
-						<h2 className="font-medium text-green-900 dark:text-green-100">{t`Device authorized`}</h2>
-						<p className="text-sm text-green-700 dark:text-green-300 mt-1">
+						<h2 className="font-medium text-kumo-success">{t`Device authorized`}</h2>
+						<p className="text-sm text-kumo-subtle mt-1">
 							{t`You can close this page and return to your terminal.`}
 						</p>
 						<p className="text-xs text-kumo-subtle mt-3">{t`Signed in as ${user.email}`}</p>
