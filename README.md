@@ -66,8 +66,7 @@ A visual portfolio for showcasing creative work.
 - Case study pages
 - RSS feed
 - Dark / light mode
-  <br /><br />
-
+<br /><br />
 </td>
 </tr>
 </table>
