@@ -66,9 +66,46 @@ export interface ContentMediaUsageRepairCollectionResult {
 	completedAt: string | null;
 }
 
+export interface ContentMediaUsageRepairAllResult {
+	status: ContentMediaUsageRepairStatus;
+	collections: ContentMediaUsageRepairCollectionResult[];
+	indexedSourceCount: number;
+	failedSourceCount: number;
+	skippedSourceCount: number;
+	deletedSourceCount: number;
+}
+
 export interface ContentMediaUsageCollectionScan {
 	collectionSlug: string;
 	contentIds: string[];
+}
+
+interface ContentMediaUsageCollectionRecord {
+	id: string;
+	slug: string;
+}
+
+interface ContentMediaUsageInitialCollectionResult {
+	collection: ContentMediaUsageCollectionRecord;
+	result: ContentMediaUsageRepairCollectionResult;
+}
+
+export async function repairContentMediaUsageAll(
+	db: Kysely<Database>,
+): Promise<ContentMediaUsageRepairAllResult> {
+	const collections = await loadContentMediaUsageCollectionRecords(db);
+	const results: ContentMediaUsageInitialCollectionResult[] = [];
+
+	for (const collection of collections) {
+		results.push({
+			collection,
+			result: await repairContentMediaUsageCollectionSafely(db, collection.slug),
+		});
+	}
+
+	return aggregateContentMediaUsageRepairAll(
+		await filterExistingContentMediaUsageCollectionResults(db, results),
+	);
 }
 
 export async function scanContentMediaUsageCollection(
@@ -104,6 +141,102 @@ export async function repairContentMediaUsageCollection(
 	return withContentUsageCollectionLock(input.collectionSlug, () =>
 		repairContentMediaUsageCollectionUnlocked(db, input.collectionSlug),
 	);
+}
+
+async function loadContentMediaUsageCollectionRecords(
+	db: Kysely<Database>,
+): Promise<ContentMediaUsageCollectionRecord[]> {
+	return db
+		.selectFrom("_emdash_collections")
+		.select(["id", "slug"])
+		.orderBy("slug", "asc")
+		.execute();
+}
+
+async function repairContentMediaUsageCollectionSafely(
+	db: Kysely<Database>,
+	collectionSlug: string,
+): Promise<ContentMediaUsageRepairCollectionResult> {
+	try {
+		return await repairContentMediaUsageCollection(db, { collectionSlug });
+	} catch (error) {
+		console.error(`[media-usage] Failed to repair collection ${collectionSlug}:`, error);
+		const now = new Date().toISOString();
+		return {
+			scope: contentMediaUsageCollectionScope(collectionSlug),
+			status: "failed",
+			indexedSourceCount: 0,
+			failedSourceCount: 0,
+			skippedSourceCount: 0,
+			deletedSourceCount: 0,
+			lastErrorCode: CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_ERROR,
+			startedAt: now,
+			completedAt: now,
+		};
+	}
+}
+
+async function filterExistingContentMediaUsageCollectionResults(
+	db: Kysely<Database>,
+	results: readonly ContentMediaUsageInitialCollectionResult[],
+): Promise<ContentMediaUsageRepairCollectionResult[]> {
+	const currentCollections = await loadContentMediaUsageCollectionRecordsSafely(db);
+	if (!currentCollections) return results.map((result) => result.result);
+
+	const currentIdsBySlug = new Map(
+		currentCollections.map((collection) => [collection.slug, collection.id]),
+	);
+	return results
+		.filter(({ collection }) => currentIdsBySlug.get(collection.slug) === collection.id)
+		.map(({ result }) => result);
+}
+
+async function loadContentMediaUsageCollectionRecordsSafely(
+	db: Kysely<Database>,
+): Promise<ContentMediaUsageCollectionRecord[] | null> {
+	try {
+		return await loadContentMediaUsageCollectionRecords(db);
+	} catch {
+		// Retry once before falling back to unpruned results so completed work remains visible.
+	}
+
+	try {
+		return await loadContentMediaUsageCollectionRecords(db);
+	} catch (error) {
+		console.error("[media-usage] Failed to reconcile all-content repair collections:", error);
+		return null;
+	}
+}
+
+function aggregateContentMediaUsageRepairAll(
+	collections: readonly ContentMediaUsageRepairCollectionResult[],
+): ContentMediaUsageRepairAllResult {
+	return {
+		status: determineRepairAllStatus(collections),
+		collections: [...collections],
+		indexedSourceCount: sumCollectionRepairCount(collections, "indexedSourceCount"),
+		failedSourceCount: sumCollectionRepairCount(collections, "failedSourceCount"),
+		skippedSourceCount: sumCollectionRepairCount(collections, "skippedSourceCount"),
+		deletedSourceCount: sumCollectionRepairCount(collections, "deletedSourceCount"),
+	};
+}
+
+function determineRepairAllStatus(
+	collections: readonly ContentMediaUsageRepairCollectionResult[],
+): ContentMediaUsageRepairStatus {
+	if (collections.length === 0) return "complete";
+	if (collections.every((collection) => collection.status === "complete")) return "complete";
+	if (collections.some((collection) => collection.status === "stale")) return "stale";
+	if (collections.some((collection) => collection.status === "partial")) return "partial";
+	if (collections.every((collection) => collection.status === "failed")) return "failed";
+	return "partial";
+}
+
+function sumCollectionRepairCount(
+	collections: readonly ContentMediaUsageRepairCollectionResult[],
+	key: "indexedSourceCount" | "failedSourceCount" | "skippedSourceCount" | "deletedSourceCount",
+): number {
+	return collections.reduce((sum, collection) => sum + collection[key], 0);
 }
 
 async function repairContentMediaUsageCollectionUnlocked(
