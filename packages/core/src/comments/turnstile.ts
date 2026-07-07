@@ -45,6 +45,9 @@ export async function verifyTurnstileToken(
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
+			// Fail closed *quickly* if siteverify is slow — without a timeout
+			// the comment POST would hang until the runtime kills it
+			signal: AbortSignal.timeout(10_000),
 		});
 		const data: { success?: boolean; "error-codes"?: string[] } = await res.json();
 		if (!data.success) {

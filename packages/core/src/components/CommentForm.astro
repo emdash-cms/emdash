@@ -179,12 +179,6 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 
 			const result = await res.json();
 
-			// Reset Turnstile on success and failure — tokens are single-use,
-			// so a retry after a server rejection needs a fresh challenge
-			if (typeof window.turnstile !== "undefined") {
-				window.turnstile.reset();
-			}
-
 			if (res.ok) {
 				statusEl.textContent = result.message || "Comment submitted!";
 				statusEl.classList.add("ec-comment-form-success");
@@ -204,6 +198,12 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			statusEl.textContent = "Network error. Please try again.";
 			statusEl.classList.add("ec-comment-form-error");
 		} finally {
+			// Reset Turnstile on success and failure alike (incl. network
+			// errors) — tokens are single-use, so any retry needs a fresh
+			// challenge
+			if (typeof window.turnstile !== "undefined") {
+				window.turnstile.reset();
+			}
 			submitBtn.disabled = false;
 			submitBtn.textContent = "Post Comment";
 		}

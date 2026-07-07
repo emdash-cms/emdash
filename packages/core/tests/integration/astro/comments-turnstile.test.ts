@@ -20,22 +20,26 @@ import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
-function buildRequest(body: Record<string, unknown>): Request {
+function buildRequest(body: Record<string, unknown>, headers?: Record<string, string>): Request {
 	return new Request("http://localhost/_emdash/api/comments/post/post-1", {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: { "content-type": "application/json", ...headers },
 		body: JSON.stringify(body),
 	});
 }
 
-function buildContext(db: Kysely<Database>, request: Request): APIContext {
+function buildContext(
+	db: Kysely<Database>,
+	request: Request,
+	config: Record<string, unknown> = {},
+): APIContext {
 	return {
 		params: { collection: "post", contentId: "post-1" },
 		request,
 		locals: {
 			emdash: {
 				db,
-				config: {},
+				config,
 				hooks: {
 					runCommentBeforeCreate: async (event: unknown) => event,
 					invokeExclusiveHook: async () => null,
@@ -143,6 +147,29 @@ describe("POST /comments — Turnstile verification", () => {
 			response: "valid-token",
 		});
 		expect(await commentCount()).toBe(1);
+	});
+
+	it("forwards the trusted remote IP to siteverify", async () => {
+		vi.stubEnv("EMDASH_TURNSTILE_SECRET_KEY", "test-secret");
+		const fetchSpy = stubSiteverify(true);
+
+		const request = buildRequest(
+			{ ...VALID_BODY, turnstileToken: "valid-token" },
+			{ "x-forwarded-for": "203.0.113.45" },
+		);
+		const res = await postComment(
+			buildContext(db, request, { trustedProxyHeaders: ["x-forwarded-for"] }),
+		);
+
+		expect(res.status).toBe(201);
+		expect(fetchSpy).toHaveBeenCalledOnce();
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape fixed by the code under test
+		const [, init] = fetchSpy.mock.calls[0] as unknown as [string, { body: string }];
+		expect(JSON.parse(init.body)).toMatchObject({
+			secret: "test-secret",
+			response: "valid-token",
+			remoteip: "203.0.113.45",
+		});
 	});
 
 	it("fails closed when siteverify itself errors", async () => {
