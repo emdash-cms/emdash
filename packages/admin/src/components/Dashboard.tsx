@@ -354,13 +354,17 @@ function PluginWidgetCard({
 	const WidgetComponent = usePluginWidget(widget.pluginId, widget.id);
 
 	return (
-		<div className="rounded-lg border bg-kumo-base p-4 sm:p-6">
-			<h2 className="text-lg font-semibold mb-4">{widget.title || widget.id}</h2>
-			{WidgetComponent ? (
-				<WidgetComponent />
-			) : (
-				<SandboxedPluginWidget pluginId={widget.pluginId} widgetId={widget.id} />
-			)}
-		</div>
+		<LayerCard className="h-full">
+			<LayerCard.Secondary>
+				<h2>{widget.title || widget.id}</h2>
+			</LayerCard.Secondary>
+			<LayerCard.Primary className="flex-1">
+				{WidgetComponent ? (
+					<WidgetComponent />
+				) : (
+					<SandboxedPluginWidget pluginId={widget.pluginId} widgetId={widget.id} />
+				)}
+			</LayerCard.Primary>
+		</LayerCard>
 	);
 }
