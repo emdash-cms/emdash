@@ -1,6 +1,6 @@
 import { sql } from "kysely";
 import { ulid } from "ulidx";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { validateIdentifier } from "../../../src/database/validate.js";
@@ -965,6 +965,54 @@ describeEachDialect("all-content media usage repair", (dialect) => {
 		).toHaveLength(0);
 	});
 
+	it("fails when final collection reconciliation cannot verify current collections", async () => {
+		await createMediaCollection(registry, "articles", "Articles");
+		const article = await insertContentItem(ctx, "articles", {
+			slug: "launch-article",
+			status: "published",
+			data: {
+				title: "Launch Article",
+				hero: { id: "media-article", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const selectFrom = ctx.db.selectFrom.bind(ctx.db) as typeof ctx.db.selectFrom;
+		let collectionSelects = 0;
+		const selectFromSpy = vi.spyOn(ctx.db, "selectFrom").mockImplementation(((table: string) => {
+			if (table === "_emdash_collections") {
+				collectionSelects++;
+				if (collectionSelects > 4) {
+					throw new Error("collection reconciliation unavailable");
+				}
+			}
+			return selectFrom(table as never);
+		}) as typeof ctx.db.selectFrom);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(repairContentMediaUsageAll(ctx.db)).rejects.toThrow(
+				"collection reconciliation unavailable",
+			);
+			expect(consoleError).toHaveBeenCalledWith(
+				"[media-usage] Failed to reconcile all-content repair collections:",
+				expect.any(Error),
+			);
+		} finally {
+			selectFromSpy.mockRestore();
+			consoleError.mockRestore();
+		}
+
+		expect(collectionSelects).toBe(6);
+		expect(
+			await usageRepo.findSource(collectionSourceKey("articles", article.id, "columns")),
+		).toEqual(expect.objectContaining({ contentTitle: "Launch Article" }));
+		await expectCollectionStatus(usageRepo, "articles", {
+			status: "complete",
+			indexedSourceCount: 1,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+		});
+	});
+
 	it("excludes listed collections deleted before their repair result", async () => {
 		await createMediaCollection(registry, "articles", "Articles");
 		await createMediaCollection(registry, "doomed", "Doomed");
@@ -1067,6 +1115,13 @@ describeEachDialect("all-content media usage repair", (dialect) => {
 		).toEqual(expect.objectContaining({ contentTitle: "Vanishing Entry" }));
 		expect(await usageRepo.findCurrentUsageByMediaId("media-vanishing")).toHaveLength(1);
 		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "vanishing",
+			}),
+		).toBeNull();
+		expect(
 			await ctx.db
 				.selectFrom("_emdash_collections")
 				.select("id")
@@ -1123,6 +1178,13 @@ describeEachDialect("all-content media usage repair", (dialect) => {
 			await usageRepo.findSource(collectionSourceKey("recreated", recreated.id, "columns")),
 		).toEqual(expect.objectContaining({ contentTitle: "Recreated Entry" }));
 		expect(await usageRepo.findCurrentUsageByMediaId("media-recreated")).toHaveLength(1);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "recreated",
+			}),
+		).toBeNull();
 	});
 });
 

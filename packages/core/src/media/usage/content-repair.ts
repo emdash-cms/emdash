@@ -181,30 +181,44 @@ async function filterExistingContentMediaUsageCollectionResults(
 	results: readonly ContentMediaUsageInitialCollectionResult[],
 ): Promise<ContentMediaUsageRepairCollectionResult[]> {
 	const currentCollections = await loadContentMediaUsageCollectionRecordsSafely(db);
-	if (!currentCollections) return results.map((result) => result.result);
-
 	const currentIdsBySlug = new Map(
 		currentCollections.map((collection) => [collection.slug, collection.id]),
 	);
-	return results
-		.filter(({ collection }) => currentIdsBySlug.get(collection.slug) === collection.id)
-		.map(({ result }) => result);
+	const includedResults: ContentMediaUsageRepairCollectionResult[] = [];
+	const excludedResults: ContentMediaUsageRepairCollectionResult[] = [];
+
+	for (const { collection, result } of results) {
+		if (currentIdsBySlug.get(collection.slug) === collection.id) {
+			includedResults.push(result);
+		} else {
+			excludedResults.push(result);
+		}
+	}
+
+	if (excludedResults.length > 0) {
+		const repo = new MediaUsageRepository(db);
+		for (const result of excludedResults) {
+			await repo.deleteIndexStatus(result.scope);
+		}
+	}
+
+	return includedResults;
 }
 
 async function loadContentMediaUsageCollectionRecordsSafely(
 	db: Kysely<Database>,
-): Promise<ContentMediaUsageCollectionRecord[] | null> {
+): Promise<ContentMediaUsageCollectionRecord[]> {
 	try {
 		return await loadContentMediaUsageCollectionRecords(db);
 	} catch {
-		// Retry once before falling back to unpruned results so completed work remains visible.
+		// Retry once before failing; returning unpruned results can over-report deleted collections.
 	}
 
 	try {
 		return await loadContentMediaUsageCollectionRecords(db);
 	} catch (error) {
 		console.error("[media-usage] Failed to reconcile all-content repair collections:", error);
-		return null;
+		throw error;
 	}
 }
 
