@@ -127,6 +127,18 @@ export default defineConfig({
 	definition.
 </Aside>
 
+<Aside type="caution" title="Incompatible with global_fetch_strictly_public">
+	Do not enable `session: "auto"` (or `"primary-first"`) together with the
+	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
+	compatibility flag. The Sessions API establishes the session through an internal Cloudflare
+	request, which that flag blocks — every SSR request then hangs until the Worker hits its wall-clock
+	limit (~10s) and is canceled, with no error in the logs (`wrangler tail` shows `outcome: "canceled"`
+	and near-zero CPU time).
+
+	If you need `global_fetch_strictly_public`, set `session: "disabled"` (the default). All queries go
+	to the primary database — you lose replica read latency, but requests resolve normally.
+</Aside>
+
 ## libSQL
 
 libSQL is a fork of SQLite that supports remote connections. Use it when you need a remote database without Cloudflare D1.
