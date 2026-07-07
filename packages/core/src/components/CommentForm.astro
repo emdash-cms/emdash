@@ -22,7 +22,12 @@ interface Props {
 	contentId: string;
 	parentId?: string | null;
 	class?: string;
-	/** Turnstile site key. If provided, the widget is rendered. */
+	/**
+	 * Turnstile site key. If provided, the widget is rendered and its
+	 * token is submitted. Set the matching secret key on the server
+	 * (EMDASH_TURNSTILE_SECRET_KEY) so submissions are actually verified —
+	 * without it the token is ignored.
+	 */
 	turnstileSiteKey?: string;
 }
 
@@ -174,6 +179,12 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 
 			const result = await res.json();
 
+			// Reset Turnstile on success and failure — tokens are single-use,
+			// so a retry after a server rejection needs a fresh challenge
+			if (typeof window.turnstile !== "undefined") {
+				window.turnstile.reset();
+			}
+
 			if (res.ok) {
 				statusEl.textContent = result.message || "Comment submitted!";
 				statusEl.classList.add("ec-comment-form-success");
@@ -182,10 +193,6 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 					"textarea[name='body']"
 				);
 				if (textarea) textarea.value = "";
-				// Reset Turnstile if present
-				if (typeof window.turnstile !== "undefined") {
-					window.turnstile.reset();
-				}
 			} else {
 				statusEl.textContent =
 					result.error?.message ||
