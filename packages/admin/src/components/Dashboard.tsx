@@ -19,6 +19,7 @@ import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/das
 import { fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
 import { formatRelativeTime } from "../lib/utils";
+import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
 
 export interface DashboardProps {
@@ -68,26 +69,22 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 	const collections = Object.entries(manifest.collections);
 
 	return (
-		<div className="flex flex-wrap gap-2">
+		<div className="flex flex-wrap items-center gap-2">
 			{collections.map(([slug, config]) => (
-				<Link
+				<RouterLinkButton
 					key={slug}
-					to="/content/$collection"
+					to="/content/$collection/new"
 					params={{ collection: slug }}
 					search={{ locale: undefined }}
-					className="inline-flex items-center gap-1.5 rounded-md border bg-kumo-base px-3 py-1.5 text-sm font-medium transition-colors hover:bg-kumo-tint"
+					variant="secondary"
+					icon={<Plus aria-hidden="true" />}
 				>
-					<Plus className="h-3.5 w-3.5" aria-hidden="true" />
 					{config.labelSingular ?? config.label}
-				</Link>
+				</RouterLinkButton>
 			))}
-			<Link
-				to="/media"
-				className="inline-flex items-center gap-1.5 rounded-md border bg-kumo-base px-3 py-1.5 text-sm font-medium transition-colors hover:bg-kumo-tint"
-			>
-				<Upload className="h-3.5 w-3.5" aria-hidden="true" />
+			<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
 				{t`Upload Media`}
-			</Link>
+			</RouterLinkButton>
 		</div>
 	);
 }
