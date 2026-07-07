@@ -36,7 +36,7 @@ The GitHub triage role lets you:
 
 It does not let you merge PRs, push to branches, or change repository settings — those stay with maintainers.
 
-You can also review and approve PRs, and that's genuinely useful: an approval from a triager tells maintainers "a human has looked at this and it holds up," which makes the final review much faster. A PR still needs maintainer approval before it can be merged, so your approval is a recommendation, not a commitment — don't let that stop you from giving one.
+You can also review and approve PRs, and while these do not change ther PR status to "approved", they are still useful: an approval from a triager tells maintainers "a human has looked at this and it holds up," which makes the final review much faster. A PR still needs maintainer approval before it can be merged, but don't let that stop you from giving one.
 
 ## Working With the Bots
 
