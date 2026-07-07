@@ -5,6 +5,7 @@ import {
 	Plus,
 	Upload,
 	ArrowRight,
+	CircleDashed,
 	CheckCircle,
 	PencilSimple,
 	Image,
@@ -257,15 +258,17 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 								key={`${item.collection}-${item.id}`}
 								to="/content/$collection/$id"
 								params={{ collection: item.collection, id: item.id }}
-								className="group flex items-center gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
+								className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
 							>
-								<StatusBadge status={item.status} />
-								<span className="min-w-0 flex-1 truncate font-medium">
-									{item.title || item.slug || t`Untitled`}
-								</span>
-								<span className="hidden shrink-0 text-xs text-kumo-subtle sm:inline">
-									{item.collectionLabel}
-								</span>
+								<div className="flex min-w-0 items-center gap-2">
+									<StatusDot status={item.status} />
+									<span className="truncate font-medium">
+										{item.title || item.slug || t`Untitled`}
+									</span>
+									<span className="hidden shrink-0 text-xs text-kumo-subtle sm:inline">
+										{item.collectionLabel}
+									</span>
+								</div>
 								<span className="shrink-0 text-xs text-kumo-subtle">
 									{formatRelativeTime(item.updatedAt)}
 								</span>
@@ -278,23 +281,31 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 	);
 }
 
-type BadgeVariant = NonNullable<React.ComponentProps<typeof Badge>["variant"]>;
-
-function StatusBadge({ status }: { status: string }) {
+function StatusDot({ status }: { status: string }) {
 	const { t } = useLingui();
 
-	const map: Record<string, { variant: BadgeVariant; label: string }> = {
-		published: { variant: "success", label: t`Published` },
-		draft: { variant: "secondary", label: t`Draft` },
-		scheduled: { variant: "outline", label: t`Scheduled` },
-		pending: { variant: "secondary", label: t`Pending` },
-		private: { variant: "neutral", label: t`Private` },
-		archived: { variant: "outline", label: t`Archived` },
+	// Semantic Kumo tokens (not raw text-green/amber/blue) render the same colors.
+	const colors: Record<string, string> = {
+		published: "text-kumo-success",
+		draft: "text-kumo-warning",
+		scheduled: "text-kumo-info",
+	};
+	const labels: Record<string, string> = {
+		published: t`Published`,
+		draft: t`Draft`,
+		scheduled: t`Scheduled`,
+		pending: t`Pending`,
+		private: t`Private`,
+		archived: t`Archived`,
 	};
 
-	const entry = map[status] ?? { variant: "neutral", label: t`Status: ${status}` };
-
-	return <Badge variant={entry.variant}>{entry.label}</Badge>;
+	const Icon = status === "published" ? CheckCircle : CircleDashed;
+	return (
+		<Icon
+			className={`h-3.5 w-3.5 shrink-0 ${colors[status] ?? "text-kumo-subtle"}`}
+			aria-label={labels[status] ?? t`Status: ${status}`}
+		/>
+	);
 }
 
 // --- Plugin widgets ---

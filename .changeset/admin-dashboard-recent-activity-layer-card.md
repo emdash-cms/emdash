@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Presents dashboard Recent Activity as a Kumo card with localized status badges in place of colored status dots.
+Presents dashboard Recent Activity as a Kumo card and renders status indicators with semantic theme colors.
