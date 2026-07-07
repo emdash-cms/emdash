@@ -1,13 +1,15 @@
 import { sql } from "kysely";
 import { ulid } from "ulidx";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
+import { validateIdentifier } from "../../../src/database/validate.js";
 import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 } from "../../../src/media/usage/content-refresh.js";
 import {
+	repairContentMediaUsageAll,
 	repairContentMediaUsageCollection,
 	scanContentMediaUsageCollection,
 } from "../../../src/media/usage/content-repair.js";
@@ -696,6 +698,496 @@ describeEachDialect("content media usage repair", (dialect) => {
 	});
 });
 
+describeEachDialect("all-content media usage repair", (dialect) => {
+	let ctx: DialectTestContext;
+	let registry: SchemaRegistry;
+	let usageRepo: MediaUsageRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		registry = new SchemaRegistry(ctx.db);
+		usageRepo = new MediaUsageRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("repairs all collections in deterministic slug order", async () => {
+		await createMediaCollection(registry, "zines", "Zines");
+		await createMediaCollection(registry, "articles", "Articles");
+		const zine = await insertContentItem(ctx, "zines", {
+			slug: "launch-zine",
+			status: "published",
+			data: {
+				title: "Launch Zine",
+				hero: { id: "media-zine", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const article = await insertContentItem(ctx, "articles", {
+			slug: "launch-article",
+			status: "published",
+			data: {
+				title: "Launch Article",
+				hero: { id: "media-article", provider: "local", mimeType: "image/webp" },
+			},
+		});
+
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "complete",
+				indexedSourceCount: 2,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+			}),
+		);
+		expect(result.collections.map((collection) => collection.scope.scopeKey)).toEqual([
+			"articles",
+			"zines",
+		]);
+		expect(result.collections).toEqual([
+			expect.objectContaining({
+				scope: expect.objectContaining({
+					adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+					scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+					scopeKey: "articles",
+				}),
+				status: "complete",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+				lastErrorCode: null,
+			}),
+			expect.objectContaining({
+				scope: expect.objectContaining({
+					adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+					scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+					scopeKey: "zines",
+				}),
+				status: "complete",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+				lastErrorCode: null,
+			}),
+		]);
+		expect(
+			await usageRepo.findSource(collectionSourceKey("articles", article.id, "columns")),
+		).toEqual(
+			expect.objectContaining({ contentTitle: "Launch Article", sourceCompleteness: "complete" }),
+		);
+		expect(await usageRepo.findSource(collectionSourceKey("zines", zine.id, "columns"))).toEqual(
+			expect.objectContaining({ contentTitle: "Launch Zine", sourceCompleteness: "complete" }),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-article")).toHaveLength(1);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-zine")).toHaveLength(1);
+		await expectCollectionStatus(usageRepo, "articles", {
+			status: "complete",
+			indexedSourceCount: 1,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+		});
+		await expectCollectionStatus(usageRepo, "zines", {
+			status: "complete",
+			indexedSourceCount: 1,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+		});
+	});
+
+	it("aggregates complete and failed collection results as partial", async () => {
+		await createMediaCollection(registry, "broken", "Broken");
+		await createMediaCollection(registry, "zines", "Zines");
+		await createInvalidRepeaterField(ctx, registry, "broken");
+		const zine = await insertContentItem(ctx, "zines", {
+			slug: "launch-zine",
+			status: "published",
+			data: {
+				title: "Launch Zine",
+				hero: { id: "media-zine", provider: "local", mimeType: "image/webp" },
+			},
+		});
+
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "partial",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+			}),
+		);
+		expect(result.collections.map((collection) => collection.scope.scopeKey)).toEqual([
+			"broken",
+			"zines",
+		]);
+		expect(result.collections).toEqual([
+			expect.objectContaining({
+				scope: expect.objectContaining({
+					scopeKey: "broken",
+				}),
+				status: "failed",
+				indexedSourceCount: 0,
+				failedSourceCount: 0,
+				lastErrorCode: "INVALID_REPEATER_VALIDATION",
+			}),
+			expect.objectContaining({
+				scope: expect.objectContaining({
+					scopeKey: "zines",
+				}),
+				status: "complete",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				lastErrorCode: null,
+			}),
+		]);
+		expect(await usageRepo.findSource(collectionSourceKey("zines", zine.id, "columns"))).toEqual(
+			expect.objectContaining({ contentTitle: "Launch Zine", sourceCompleteness: "complete" }),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-zine")).toHaveLength(1);
+		await expectCollectionStatus(usageRepo, "broken", {
+			status: "failed",
+			indexedSourceCount: 0,
+			failedSourceCount: 0,
+			lastErrorCode: "INVALID_REPEATER_VALIDATION",
+		});
+		await expectCollectionStatus(usageRepo, "zines", {
+			status: "complete",
+			indexedSourceCount: 1,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+		});
+	});
+
+	it("gives stale collection results aggregate precedence", async () => {
+		await createMediaCollection(registry, "broken", "Broken");
+		await createMediaCollection(registry, "posts", "Posts");
+		await createMediaCollection(registry, "zines", "Zines");
+		await createInvalidRepeaterField(ctx, registry, "broken");
+		await insertContentItem(ctx, "posts", {
+			slug: "stale-status-post",
+			status: "published",
+			data: {
+				title: "Stale Status Post",
+				hero: { id: "media-stale-status", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const zine = await insertContentItem(ctx, "zines", {
+			slug: "launch-zine",
+			status: "published",
+			data: {
+				title: "Launch Zine",
+				hero: { id: "media-zine", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await setMismatchedDraftRevision(ctx, "zines", zine.id);
+		await installStaleStatusTrigger(ctx);
+
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				indexedSourceCount: 2,
+				failedSourceCount: 1,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+			}),
+		);
+		expect(result.collections).toEqual([
+			expect.objectContaining({
+				scope: expect.objectContaining({ scopeKey: "broken" }),
+				status: "failed",
+				indexedSourceCount: 0,
+				lastErrorCode: "INVALID_REPEATER_VALIDATION",
+			}),
+			expect.objectContaining({
+				scope: expect.objectContaining({ scopeKey: "posts" }),
+				status: "stale",
+				indexedSourceCount: 1,
+				lastErrorCode: "CONTENT_USAGE_STALE",
+				completedAt: null,
+			}),
+			expect.objectContaining({
+				scope: expect.objectContaining({ scopeKey: "zines" }),
+				status: "partial",
+				indexedSourceCount: 1,
+				failedSourceCount: 1,
+				lastErrorCode: "DRAFT_REVISION_MISMATCH",
+			}),
+		]);
+	});
+
+	it("aggregates only failed collection results as failed", async () => {
+		await createMediaCollection(registry, "broken", "Broken");
+		await createInvalidRepeaterField(ctx, registry, "broken");
+
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "failed",
+				indexedSourceCount: 0,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+			}),
+		);
+		expect(result.collections).toEqual([
+			expect.objectContaining({
+				scope: expect.objectContaining({ scopeKey: "broken" }),
+				status: "failed",
+				lastErrorCode: "INVALID_REPEATER_VALIDATION",
+			}),
+		]);
+	});
+
+	it("repairs empty sites as complete without creating status rows", async () => {
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual({
+			status: "complete",
+			collections: [],
+			indexedSourceCount: 0,
+			failedSourceCount: 0,
+			skippedSourceCount: 0,
+			deletedSourceCount: 0,
+		});
+		expect(
+			await ctx.db.selectFrom("_emdash_media_usage_index_status").select("adapter_id").execute(),
+		).toHaveLength(0);
+	});
+
+	it("fails when final collection reconciliation cannot verify current collections", async () => {
+		await createMediaCollection(registry, "articles", "Articles");
+		const article = await insertContentItem(ctx, "articles", {
+			slug: "launch-article",
+			status: "published",
+			data: {
+				title: "Launch Article",
+				hero: { id: "media-article", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const selectFrom = ctx.db.selectFrom.bind(ctx.db) as typeof ctx.db.selectFrom;
+		let collectionSelects = 0;
+		const selectFromSpy = vi.spyOn(ctx.db, "selectFrom").mockImplementation(((table: string) => {
+			if (table === "_emdash_collections") {
+				collectionSelects++;
+				if (collectionSelects > 4) {
+					throw new Error("collection reconciliation unavailable");
+				}
+			}
+			return selectFrom(table as never);
+		}) as typeof ctx.db.selectFrom);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(repairContentMediaUsageAll(ctx.db)).rejects.toThrow(
+				"collection reconciliation unavailable",
+			);
+			expect(consoleError).toHaveBeenCalledWith(
+				"[media-usage] Failed to reconcile all-content repair collections:",
+				expect.any(Error),
+			);
+		} finally {
+			selectFromSpy.mockRestore();
+			consoleError.mockRestore();
+		}
+
+		expect(collectionSelects).toBe(6);
+		expect(
+			await usageRepo.findSource(collectionSourceKey("articles", article.id, "columns")),
+		).toEqual(expect.objectContaining({ contentTitle: "Launch Article" }));
+		await expectCollectionStatus(usageRepo, "articles", {
+			status: "complete",
+			indexedSourceCount: 1,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+		});
+	});
+
+	it("excludes listed collections deleted before their repair result", async () => {
+		await createMediaCollection(registry, "articles", "Articles");
+		await createMediaCollection(registry, "doomed", "Doomed");
+		const article = await insertContentItem(ctx, "articles", {
+			slug: "launch-article",
+			status: "published",
+			data: {
+				title: "Launch Article",
+				hero: { id: "media-article", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const doomed = await insertContentItem(ctx, "doomed", {
+			slug: "doomed-entry",
+			status: "published",
+			data: {
+				title: "Doomed Entry",
+				hero: { id: "media-doomed", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await installDoomedCollectionDeleteTrigger(ctx);
+
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "complete",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+			}),
+		);
+		expect(result.collections).toEqual([
+			expect.objectContaining({
+				scope: expect.objectContaining({ scopeKey: "articles" }),
+				status: "complete",
+				indexedSourceCount: 1,
+			}),
+		]);
+		expect(
+			await usageRepo.findSource(collectionSourceKey("articles", article.id, "columns")),
+		).toEqual(expect.objectContaining({ contentTitle: "Launch Article" }));
+		expect(
+			await usageRepo.findSource(collectionSourceKey("doomed", doomed.id, "columns")),
+		).toBeNull();
+		expect(await usageRepo.findCurrentUsageByMediaId("media-doomed")).toEqual([]);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_collections")
+				.select("id")
+				.where("slug", "=", "doomed")
+				.executeTakeFirst(),
+		).toBeUndefined();
+	});
+
+	it("excludes listed collections deleted after indexing from aggregate counts", async () => {
+		await createMediaCollection(registry, "articles", "Articles");
+		await createMediaCollection(registry, "vanishing", "Vanishing");
+		const article = await insertContentItem(ctx, "articles", {
+			slug: "launch-article",
+			status: "published",
+			data: {
+				title: "Launch Article",
+				hero: { id: "media-article", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const vanishing = await insertContentItem(ctx, "vanishing", {
+			slug: "vanishing-entry",
+			status: "published",
+			data: {
+				title: "Vanishing Entry",
+				hero: { id: "media-vanishing", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await installVanishingCollectionDeleteTrigger(ctx);
+
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "complete",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+			}),
+		);
+		expect(result.collections).toEqual([
+			expect.objectContaining({
+				scope: expect.objectContaining({ scopeKey: "articles" }),
+				status: "complete",
+				indexedSourceCount: 1,
+			}),
+		]);
+		expect(
+			await usageRepo.findSource(collectionSourceKey("articles", article.id, "columns")),
+		).toEqual(expect.objectContaining({ contentTitle: "Launch Article" }));
+		expect(
+			await usageRepo.findSource(collectionSourceKey("vanishing", vanishing.id, "columns")),
+		).toEqual(expect.objectContaining({ contentTitle: "Vanishing Entry" }));
+		expect(await usageRepo.findCurrentUsageByMediaId("media-vanishing")).toHaveLength(1);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "vanishing",
+			}),
+		).toBeNull();
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_collections")
+				.select("id")
+				.where("slug", "=", "vanishing")
+				.executeTakeFirst(),
+		).toBeUndefined();
+	});
+
+	it("excludes listed collections recreated with the same slug and a new ID", async () => {
+		await createMediaCollection(registry, "articles", "Articles");
+		await createMediaCollection(registry, "recreated", "Recreated");
+		const originalRecreatedId = await getCollectionId(ctx, "recreated");
+		const article = await insertContentItem(ctx, "articles", {
+			slug: "launch-article",
+			status: "published",
+			data: {
+				title: "Launch Article",
+				hero: { id: "media-article", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const recreated = await insertContentItem(ctx, "recreated", {
+			slug: "recreated-entry",
+			status: "published",
+			data: {
+				title: "Recreated Entry",
+				hero: { id: "media-recreated", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await installRecreatedCollectionRecreateTrigger(ctx);
+
+		const result = await repairContentMediaUsageAll(ctx.db);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "complete",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+			}),
+		);
+		expect(result.collections).toEqual([
+			expect.objectContaining({
+				scope: expect.objectContaining({ scopeKey: "articles" }),
+				status: "complete",
+				indexedSourceCount: 1,
+			}),
+		]);
+		expect(await getCollectionId(ctx, "recreated")).not.toBe(originalRecreatedId);
+		expect(
+			await usageRepo.findSource(collectionSourceKey("articles", article.id, "columns")),
+		).toEqual(expect.objectContaining({ contentTitle: "Launch Article" }));
+		expect(
+			await usageRepo.findSource(collectionSourceKey("recreated", recreated.id, "columns")),
+		).toEqual(expect.objectContaining({ contentTitle: "Recreated Entry" }));
+		expect(await usageRepo.findCurrentUsageByMediaId("media-recreated")).toHaveLength(1);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "recreated",
+			}),
+		).toBeNull();
+	});
+});
+
 interface TestPostInput {
 	id?: string;
 	slug: string;
@@ -708,11 +1200,86 @@ interface TestPost {
 	id: string;
 }
 
+async function createMediaCollection(
+	registry: SchemaRegistry,
+	slug: string,
+	label: string,
+): Promise<void> {
+	await registry.createCollection({ slug, label });
+	await registry.createField(slug, { slug: "title", label: "Title", type: "string" });
+	await registry.createField(slug, { slug: "hero", label: "Hero", type: "image" });
+}
+
+async function getCollectionId(ctx: DialectTestContext, collectionSlug: string): Promise<string> {
+	const row = await ctx.db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collectionSlug)
+		.executeTakeFirst();
+	if (!row) throw new Error(`Collection ${collectionSlug} was not found`);
+	return row.id;
+}
+
+async function createInvalidRepeaterField(
+	ctx: DialectTestContext,
+	registry: SchemaRegistry,
+	collectionSlug: string,
+): Promise<void> {
+	await registry.createField(collectionSlug, {
+		slug: "sections",
+		label: "Sections",
+		type: "repeater",
+	});
+	await ctx.db
+		.updateTable("_emdash_fields")
+		.set({ validation: "{" })
+		.where("slug", "=", "sections")
+		.where(
+			"collection_id",
+			"=",
+			ctx.db.selectFrom("_emdash_collections").select("id").where("slug", "=", collectionSlug),
+		)
+		.execute();
+}
+
+async function setMismatchedDraftRevision(
+	ctx: DialectTestContext,
+	collectionSlug: string,
+	contentId: string,
+): Promise<void> {
+	validateIdentifier(collectionSlug, "test collection slug");
+	const revisionId = `mismatched_revision_${collectionSlug}`;
+	await ctx.db
+		.insertInto("revisions")
+		.values({
+			id: revisionId,
+			collection: "mismatched_collection",
+			entry_id: contentId,
+			data: JSON.stringify({ hero: { id: "media-draft", provider: "local" } }),
+		})
+		.execute();
+	await sql`
+		UPDATE ${sql.ref(`ec_${collectionSlug}`)}
+		SET draft_revision_id = ${revisionId}
+		WHERE id = ${contentId}
+	`.execute(ctx.db);
+}
+
 async function insertPost(ctx: DialectTestContext, input: TestPostInput): Promise<TestPost> {
+	return insertContentItem(ctx, "posts", input);
+}
+
+async function insertContentItem(
+	ctx: DialectTestContext,
+	collectionSlug: string,
+	input: TestPostInput,
+): Promise<TestPost> {
+	validateIdentifier(collectionSlug, "test collection slug");
 	const id = input.id ?? ulid();
 	const now = new Date().toISOString();
+	const tableName = `ec_${collectionSlug}`;
 	await sql`
-		INSERT INTO ${sql.ref("ec_posts")} (
+		INSERT INTO ${sql.ref(tableName)} (
 			id,
 			slug,
 			status,
@@ -740,6 +1307,25 @@ async function insertPost(ctx: DialectTestContext, input: TestPostInput): Promis
 	`.execute(ctx.db);
 
 	return { id };
+}
+
+async function expectCollectionStatus(
+	usageRepo: MediaUsageRepository,
+	scopeKey: string,
+	expected: {
+		status: string;
+		indexedSourceCount: number;
+		failedSourceCount: number;
+		lastErrorCode: string | null;
+	},
+): Promise<void> {
+	expect(
+		await usageRepo.findIndexStatus({
+			adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+			scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+			scopeKey,
+		}),
+	).toEqual(expect.objectContaining({ ...expected, cursor: null }));
 }
 
 function contentSource(
@@ -802,8 +1388,16 @@ function occurrence(
 }
 
 function sourceKey(contentId: string, sourceVariant: MediaUsageContentSourceVariant): string {
+	return collectionSourceKey("posts", contentId, sourceVariant);
+}
+
+function collectionSourceKey(
+	collectionSlug: string,
+	contentId: string,
+	sourceVariant: MediaUsageContentSourceVariant,
+): string {
 	return buildContentMediaUsageSourceKey({
-		collectionSlug: "posts",
+		collectionSlug,
 		contentId,
 		sourceVariant,
 	});
@@ -961,6 +1555,146 @@ async function installStaleStatusTrigger(ctx: DialectTestContext): Promise<void>
 			WHERE adapter_id = 'content-media'
 			AND scope_type = 'collection'
 			AND scope_key = 'posts';
+		END
+	`.execute(ctx.db);
+}
+
+async function installDoomedCollectionDeleteTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_delete_doomed_collection()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				IF NEW.media_id = 'media-article' THEN
+					DELETE FROM _emdash_collections WHERE slug = 'doomed';
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_delete_doomed_collection
+			AFTER INSERT ON _emdash_media_usage
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_delete_doomed_collection()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_delete_doomed_collection
+		AFTER INSERT ON _emdash_media_usage
+		WHEN NEW.media_id = 'media-article'
+		BEGIN
+			DELETE FROM _emdash_collections WHERE slug = 'doomed';
+		END
+	`.execute(ctx.db);
+}
+
+async function installVanishingCollectionDeleteTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_delete_vanishing_collection()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				IF NEW.media_id = 'media-vanishing' THEN
+					DELETE FROM _emdash_collections WHERE slug = 'vanishing';
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_delete_vanishing_collection
+			AFTER INSERT ON _emdash_media_usage
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_delete_vanishing_collection()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_delete_vanishing_collection
+		AFTER INSERT ON _emdash_media_usage
+		WHEN NEW.media_id = 'media-vanishing'
+		BEGIN
+			DELETE FROM _emdash_collections WHERE slug = 'vanishing';
+		END
+	`.execute(ctx.db);
+}
+
+async function installRecreatedCollectionRecreateTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_recreate_collection()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				IF NEW.media_id = 'media-recreated' THEN
+					DELETE FROM _emdash_collections WHERE slug = 'recreated';
+					INSERT INTO _emdash_collections (
+						id,
+						slug,
+						label,
+						supports,
+						source,
+						has_seo,
+						comments_enabled,
+						url_pattern
+					) VALUES (
+						'collection_recreated_new',
+						'recreated',
+						'Recreated New',
+						'["drafts","revisions"]',
+						'manual',
+						0,
+						0,
+						NULL
+					);
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_recreate_collection
+			AFTER INSERT ON _emdash_media_usage
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_recreate_collection()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_recreate_collection
+		AFTER INSERT ON _emdash_media_usage
+		WHEN NEW.media_id = 'media-recreated'
+		BEGIN
+			DELETE FROM _emdash_collections WHERE slug = 'recreated';
+			INSERT INTO _emdash_collections (
+				id,
+				slug,
+				label,
+				supports,
+				source,
+				has_seo,
+				comments_enabled,
+				url_pattern
+			) VALUES (
+				'collection_recreated_new',
+				'recreated',
+				'Recreated New',
+				'["drafts","revisions"]',
+				'manual',
+				0,
+				0,
+				NULL
+			);
 		END
 	`.execute(ctx.db);
 }
