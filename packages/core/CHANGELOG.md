@@ -1,5 +1,18 @@
 # emdash
 
+## 0.28.1
+
+### Patch Changes
+
+- [#1850](https://github.com/emdash-cms/emdash/pull/1850) [`b92807f`](https://github.com/emdash-cms/emdash/commit/b92807f02b3c7da9a19a0758a2213c6bda7ddc4c) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes internal media usage repair so partial draft failures, concurrent content deletes, and fresher usage writes keep repair coverage non-complete without discarding valid indexed usage.
+
+- [#1863](https://github.com/emdash-cms/emdash/pull/1863) [`9e4701e`](https://github.com/emdash-cms/emdash/commit/9e4701e89cffd77e98ea10f46731c47e2815b4e6) Thanks [@swissky](https://github.com/swissky)! - Fixes a privilege escalation on private plugin API routes: an editor (or a cross-origin page) could invoke admin-only, state-changing plugin routes by sending them as `GET` or `HEAD` instead of `POST`, which bypassed the permission tier and CSRF check. Every private plugin route now requires `plugins:manage` and the CSRF header regardless of HTTP method.
+
+- Updated dependencies []:
+  - @emdash-cms/admin@0.28.1
+  - @emdash-cms/auth@0.28.1
+  - @emdash-cms/gutenberg-to-portable-text@0.28.1
+
 ## 0.28.0
 
 ### Minor Changes
