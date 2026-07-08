@@ -9,6 +9,7 @@ import {
 	LinkButton,
 	Loader,
 	Select,
+	Sidebar,
 	Switch,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
@@ -38,6 +39,8 @@ import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
+import { getLocaleDir } from "../locales/config.js";
+import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { ContentSettingsPanel } from "./ContentSettingsPanel.js";
@@ -220,6 +223,10 @@ export function ContentEditor({
 	manifest,
 }: ContentEditorProps) {
 	const { t } = useLingui();
+	const { locale: uiLocale } = useLocale();
+	// Kumo Sidebar's `side` prop is physical, not logical: the settings panel
+	// sits opposite the nav sidebar (which the Shell flips the same way).
+	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
@@ -559,218 +566,215 @@ export function ContentEditor({
 		<form
 			onSubmit={handleSubmit}
 			className={cn(
-				"space-y-6 transition-all duration-300",
-				isDistractionFree && "fixed inset-0 z-50 bg-kumo-base p-8 overflow-auto",
+				"transition-all duration-300",
+				isDistractionFree
+					? "space-y-6 fixed inset-0 z-50 bg-kumo-base p-8 overflow-auto"
+					: "flex h-full flex-col overflow-y-auto bg-kumo-base lg:flex-row lg:overflow-hidden",
 			)}
 		>
-			{/* Header. In distraction-free mode this becomes a hover-revealed
+			{/* Editor column — scrolls independently of the settings panel on
+			    desktop; below lg the whole form scrolls as one page. */}
+			<div className={cn(!isDistractionFree && "p-6 lg:flex-1 lg:min-w-0 lg:overflow-y-auto")}>
+				{/* Header. In distraction-free mode this becomes a hover-revealed
 			    overlay so the chrome stays out of the way while writing. In
 			    normal mode it's a regular block; the form also renders a
 			    Save button at the bottom so save is reachable without
 			    scrolling back up. */}
-			<div
-				className={cn(
-					"flex flex-wrap items-center justify-between gap-y-2",
-					isDistractionFree &&
-						"opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10",
-				)}
-			>
-				<div className="flex items-center space-x-4">
-					{!isDistractionFree && (
-						<RouterLinkButton
-							to="/content/$collection"
-							params={{ collection }}
-							search={{ locale: undefined }}
-							aria-label={t`Back to ${collectionLabel} list`}
-							variant="ghost"
-							shape="square"
-							icon={<ArrowPrev />}
-						/>
+				<div
+					className={cn(
+						"flex flex-wrap items-center justify-between gap-y-2",
+						isDistractionFree
+							? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10"
+							: "mx-auto mb-6 max-w-3xl",
 					)}
-					{isDistractionFree && (
-						<Button
-							variant="ghost"
-							shape="square"
-							onClick={() => setIsDistractionFree(false)}
-							aria-label={t`Exit distraction-free mode`}
-						>
-							<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
-						</Button>
-					)}
-					<h1 className="text-2xl font-bold">
-						{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
-					</h1>
-					{i18n && item?.locale && (
-						<Badge variant="outline" className="uppercase text-xs">
-							{item.locale}
-						</Badge>
-					)}
-				</div>
-				<div className="flex items-center space-x-2">
-					{/* Autosave indicator */}
-					{!isNew && onAutosave && (
-						<div
-							className="flex items-center text-xs text-kumo-subtle"
-							role="status"
-							aria-label={t`Autosave status`}
-							aria-live="polite"
-						>
-							{isAutosaving ? (
-								<>
-									<Loader size="sm" />
-									<span className="ms-1">{t`Saving...`}</span>
-								</>
-							) : lastAutosaveAt ? (
-								<>
-									<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
-									<span>{t`Saved`}</span>
-								</>
-							) : null}
-						</div>
-					)}
-					{!isDistractionFree && (
-						<Button
-							variant="ghost"
-							shape="square"
-							type="button"
-							onClick={() => setIsDistractionFree(true)}
-							aria-label={t`Enter distraction-free mode`}
-							title={t`Distraction-free mode (⌘⇧\\)`}
-						>
-							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
-						</Button>
-					)}
-					{!isNew && supportsPreview && (
-						<Button
-							variant="outline"
-							type="button"
-							onClick={handlePreview}
-							disabled={isLoadingPreview}
-							icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
-						>
-							{hasPendingChanges ? t`Preview draft` : t`Preview`}
-						</Button>
-					)}
-					<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
-					{!isNew && (
-						<>
-							{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-								<Dialog.Root>
-									<Dialog.Trigger
-										render={(p) => (
-											<Button {...p} type="button" variant="outline" icon={<X />}>
-												{t`Discard changes`}
+				>
+					<div className="flex items-center space-x-4">
+						{!isDistractionFree && (
+							<RouterLinkButton
+								to="/content/$collection"
+								params={{ collection }}
+								search={{ locale: undefined }}
+								aria-label={t`Back to ${collectionLabel} list`}
+								variant="ghost"
+								shape="square"
+								icon={<ArrowPrev />}
+							/>
+						)}
+						{isDistractionFree && (
+							<Button
+								variant="ghost"
+								shape="square"
+								onClick={() => setIsDistractionFree(false)}
+								aria-label={t`Exit distraction-free mode`}
+							>
+								<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
+							</Button>
+						)}
+						<h1 className="text-2xl font-bold">
+							{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
+						</h1>
+						{i18n && item?.locale && (
+							<Badge variant="outline" className="uppercase text-xs">
+								{item.locale}
+							</Badge>
+						)}
+					</div>
+					<div className="flex items-center space-x-2">
+						{/* Autosave indicator */}
+						{!isNew && onAutosave && (
+							<div
+								className="flex items-center text-xs text-kumo-subtle"
+								role="status"
+								aria-label={t`Autosave status`}
+								aria-live="polite"
+							>
+								{isAutosaving ? (
+									<>
+										<Loader size="sm" />
+										<span className="ms-1">{t`Saving...`}</span>
+									</>
+								) : lastAutosaveAt ? (
+									<>
+										<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
+										<span>{t`Saved`}</span>
+									</>
+								) : null}
+							</div>
+						)}
+						{!isDistractionFree && (
+							<Button
+								variant="ghost"
+								shape="square"
+								type="button"
+								onClick={() => setIsDistractionFree(true)}
+								aria-label={t`Enter distraction-free mode`}
+								title={t`Distraction-free mode (⌘⇧\\)`}
+							>
+								<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
+							</Button>
+						)}
+						{!isNew && supportsPreview && (
+							<Button
+								variant="outline"
+								type="button"
+								onClick={handlePreview}
+								disabled={isLoadingPreview}
+								icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
+							>
+								{hasPendingChanges ? t`Preview draft` : t`Preview`}
+							</Button>
+						)}
+						<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+						{!isNew && (
+							<>
+								{supportsDrafts && hasPendingChanges && onDiscardDraft && (
+									<Dialog.Root>
+										<Dialog.Trigger
+											render={(p) => (
+												<Button {...p} type="button" variant="outline" icon={<X />}>
+													{t`Discard changes`}
+												</Button>
+											)}
+										/>
+										<Dialog className="p-6" size="sm">
+											<Dialog.Title className="text-lg font-semibold">
+												{t`Discard draft changes?`}
+											</Dialog.Title>
+											<Dialog.Description className="text-kumo-subtle">
+												{t`This will revert to the published version. Your draft changes will be lost.`}
+											</Dialog.Description>
+											<div className="mt-6 flex justify-end gap-2">
+												<Dialog.Close
+													render={(p) => (
+														<Button {...p} variant="secondary">
+															{t`Cancel`}
+														</Button>
+													)}
+												/>
+												<Dialog.Close
+													render={(p) => (
+														<Button {...p} variant="destructive" onClick={onDiscardDraft}>
+															{t`Discard changes`}
+														</Button>
+													)}
+												/>
+											</div>
+										</Dialog>
+									</Dialog.Root>
+								)}
+								{isLive ? (
+									<>
+										{hasPendingChanges ? (
+											<Button type="button" variant="primary" onClick={onPublish}>
+												{t`Publish changes`}
+											</Button>
+										) : (
+											<Button type="button" variant="outline" onClick={onUnpublish}>
+												{t`Unpublish`}
 											</Button>
 										)}
-									/>
-									<Dialog className="p-6" size="sm">
-										<Dialog.Title className="text-lg font-semibold">
-											{t`Discard draft changes?`}
-										</Dialog.Title>
-										<Dialog.Description className="text-kumo-subtle">
-											{t`This will revert to the published version. Your draft changes will be lost.`}
-										</Dialog.Description>
-										<div className="mt-6 flex justify-end gap-2">
-											<Dialog.Close
-												render={(p) => (
-													<Button {...p} variant="secondary">
-														{t`Cancel`}
-													</Button>
-												)}
-											/>
-											<Dialog.Close
-												render={(p) => (
-													<Button {...p} variant="destructive" onClick={onDiscardDraft}>
-														{t`Discard changes`}
-													</Button>
-												)}
-											/>
-										</div>
-									</Dialog>
-								</Dialog.Root>
-							)}
-							{isLive ? (
-								<>
-									{hasPendingChanges ? (
-										<Button type="button" variant="primary" onClick={onPublish}>
-											{t`Publish changes`}
-										</Button>
-									) : (
-										<Button type="button" variant="outline" onClick={onUnpublish}>
-											{t`Unpublish`}
-										</Button>
-									)}
-								</>
-							) : (
-								<Button type="button" variant="secondary" onClick={onPublish}>
-									{t`Publish`}
-								</Button>
-							)}
-							{isLive && item?.slug && (
-								<LinkButton
-									href={contentUrl(collection, item.slug, urlPattern)}
-									external
-									variant="outline"
-									icon={<ArrowSquareOut />}
-								>
-									{t`Live View`}
-								</LinkButton>
-							)}
-						</>
-					)}
-				</div>
-			</div>
-
-			{/* Main content area */}
-			<div
-				className={cn(
-					"grid gap-6 lg:grid-cols-3",
-					isDistractionFree && "lg:grid-cols-1 max-w-4xl mx-auto pt-16",
-				)}
-			>
-				{/* Editor fields */}
-				<div className="space-y-6 lg:col-span-2">
-					<div
-						className={cn(
-							"rounded-lg border bg-kumo-base p-6",
-							isDistractionFree && "border-0 bg-transparent p-0",
+									</>
+								) : (
+									<Button type="button" variant="secondary" onClick={onPublish}>
+										{t`Publish`}
+									</Button>
+								)}
+								{isLive && item?.slug && (
+									<LinkButton
+										href={contentUrl(collection, item.slug, urlPattern)}
+										external
+										variant="outline"
+										icon={<ArrowSquareOut />}
+									>
+										{t`Live View`}
+									</LinkButton>
+								)}
+							</>
 						)}
-					>
-						<div className="space-y-4">
-							{Object.entries(fields).map(([name, field]) => {
-								// Key by item id so all field editors remount cleanly when the
-								// underlying content item changes (e.g. switching translations).
-								// PortableTextEditor in particular freezes its initial content on
-								// mount; without this key, navigating between translations leaves
-								// the previous locale's body in the editor and silently overwrites
-								// the new translation on the next edit.
-								const fieldKey = `${name}:${item?.id ?? "new"}`;
-								const fieldEl = (
-									<FieldRenderer
-										key={fieldKey}
-										name={name}
-										field={field}
-										value={formData[name]}
-										onChange={handleFieldChange}
-										onEditorReady={
-											field.kind === "portableText" && name === "content"
-												? setPortableTextEditor
-												: undefined
-										}
-										minimal={isDistractionFree}
-										pluginBlocks={pluginBlocks}
-										onBlockSidebarOpen={
-											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
-										}
-										onBlockSidebarClose={
-											field.kind === "portableText" ? handleBlockSidebarClose : undefined
-										}
-										manifest={manifest}
-									/>
-								);
-								return fieldEl;
-							})}
-						</div>
+					</div>
+				</div>
+
+				{/* Editor fields — no card chrome; fields sit directly on the page
+				    in a centered column (Notion style). */}
+				<div
+					className={cn(
+						isDistractionFree ? "max-w-4xl mx-auto pt-16" : "mx-auto max-w-3xl space-y-6",
+					)}
+				>
+					<div className="space-y-4">
+						{Object.entries(fields).map(([name, field]) => {
+							// Key by item id so all field editors remount cleanly when the
+							// underlying content item changes (e.g. switching translations).
+							// PortableTextEditor in particular freezes its initial content on
+							// mount; without this key, navigating between translations leaves
+							// the previous locale's body in the editor and silently overwrites
+							// the new translation on the next edit.
+							const fieldKey = `${name}:${item?.id ?? "new"}`;
+							const fieldEl = (
+								<FieldRenderer
+									key={fieldKey}
+									name={name}
+									field={field}
+									value={formData[name]}
+									onChange={handleFieldChange}
+									onEditorReady={
+										field.kind === "portableText" && name === "content"
+											? setPortableTextEditor
+											: undefined
+									}
+									minimal={isDistractionFree}
+									pluginBlocks={pluginBlocks}
+									onBlockSidebarOpen={
+										field.kind === "portableText" ? handleBlockSidebarOpen : undefined
+									}
+									onBlockSidebarClose={
+										field.kind === "portableText" ? handleBlockSidebarClose : undefined
+									}
+									manifest={manifest}
+								/>
+							);
+							return fieldEl;
+						})}
 					</div>
 
 					{/* Save action at the bottom of the main column so users hit it
@@ -782,48 +786,71 @@ export function ContentEditor({
 						</div>
 					)}
 				</div>
+			</div>
 
-				{/* Sidebar - hidden in distraction-free mode */}
-				<div className={cn("space-y-6", isDistractionFree && "hidden")}>
-					<ContentSettingsPanel
-						collection={collection}
-						item={item}
-						isNew={isNew}
-						entryLocale={entryLocale}
-						slug={slug}
-						onSlugChange={handleSlugChange}
-						status={status}
-						supportsDrafts={supportsDrafts}
-						supportsRevisions={supportsRevisions}
-						isLive={isLive}
-						hasPendingChanges={hasPendingChanges}
-						hasSchedule={hasSchedule}
-						canSchedule={canSchedule}
-						onSchedule={onSchedule}
-						onUnschedule={onUnschedule}
-						isScheduling={isScheduling}
-						onDelete={onDelete}
-						isDeleting={isDeleting}
-						currentUser={currentUser}
-						users={users}
-						onAuthorChange={onAuthorChange}
-						activeBylines={activeBylines}
-						availableBylines={availableBylines}
-						availableBylinesLoaded={availableBylinesLoaded}
-						onBylinesChange={handleBylinesChange}
-						onQuickCreateByline={onQuickCreateByline}
-						onQuickEditByline={onQuickEditByline}
-						i18n={i18n}
-						translations={translations}
-						onTranslate={onTranslate}
-						hasSeo={hasSeo}
-						onSeoChange={onSeoChange ? handleSeoChange : undefined}
-						portableTextEditor={portableTextEditor}
-						blockSidebarPanel={blockSidebarPanel}
-						onBlockSidebarClose={handleBlockSidebarClose}
-						onBlockSidebarDelete={handleBlockSidebarDelete}
-					/>
-				</div>
+			{/* Settings panel — structural full-height pane on desktop (Kumo
+			    Sidebar renders an in-flow aside with collapsible="none"); stacks
+			    below the fields under lg until the sheet lands. Kept mounted but
+			    hidden in distraction-free mode so panel-local state survives.
+			    The aside stays inside the <form> so its inputs and submit
+			    buttons keep native form association. */}
+			<div
+				className={cn(
+					"max-lg:w-full max-lg:p-6 max-lg:pt-0 lg:h-full lg:w-80 lg:shrink-0",
+					isDistractionFree && "hidden",
+				)}
+			>
+				<Sidebar.Provider
+					contained
+					defaultOpen
+					side={panelSide}
+					collapsible="none"
+					className="h-full"
+					style={{ "--sidebar-width": "100%" } as React.CSSProperties}
+				>
+					<Sidebar className="max-lg:border-e-0 max-lg:border-s-0">
+						<div className="flex-1 overflow-y-auto p-4">
+							<ContentSettingsPanel
+								collection={collection}
+								item={item}
+								isNew={isNew}
+								entryLocale={entryLocale}
+								slug={slug}
+								onSlugChange={handleSlugChange}
+								status={status}
+								supportsDrafts={supportsDrafts}
+								supportsRevisions={supportsRevisions}
+								isLive={isLive}
+								hasPendingChanges={hasPendingChanges}
+								hasSchedule={hasSchedule}
+								canSchedule={canSchedule}
+								onSchedule={onSchedule}
+								onUnschedule={onUnschedule}
+								isScheduling={isScheduling}
+								onDelete={onDelete}
+								isDeleting={isDeleting}
+								currentUser={currentUser}
+								users={users}
+								onAuthorChange={onAuthorChange}
+								activeBylines={activeBylines}
+								availableBylines={availableBylines}
+								availableBylinesLoaded={availableBylinesLoaded}
+								onBylinesChange={handleBylinesChange}
+								onQuickCreateByline={onQuickCreateByline}
+								onQuickEditByline={onQuickEditByline}
+								i18n={i18n}
+								translations={translations}
+								onTranslate={onTranslate}
+								hasSeo={hasSeo}
+								onSeoChange={onSeoChange ? handleSeoChange : undefined}
+								portableTextEditor={portableTextEditor}
+								blockSidebarPanel={blockSidebarPanel}
+								onBlockSidebarClose={handleBlockSidebarClose}
+								onBlockSidebarDelete={handleBlockSidebarDelete}
+							/>
+						</div>
+					</Sidebar>
+				</Sidebar.Provider>
 			</div>
 		</form>
 	);

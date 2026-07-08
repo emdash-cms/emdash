@@ -598,6 +598,7 @@ const contentNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/new",
 	component: ContentNewPage,
+	staticData: { fullBleed: true },
 	validateSearch: (search: Record<string, unknown>) => ({
 		locale: typeof search.locale === "string" ? search.locale : undefined,
 	}),
@@ -729,6 +730,7 @@ const contentEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/$id",
 	component: ContentEditPage,
+	staticData: { fullBleed: true },
 	validateSearch: (search) => ({
 		...(typeof search.field === "string" && { field: search.field }),
 		...(typeof search.locale === "string" && { locale: search.locale }),
