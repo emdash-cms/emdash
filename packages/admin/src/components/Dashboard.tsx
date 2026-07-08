@@ -40,6 +40,8 @@ export function Dashboard({ manifest }: DashboardProps) {
 		queryFn: fetchDashboardStats,
 		refetchOnWindowFocus: true,
 	});
+	const hasDashboardData = stats !== undefined;
+	const showDashboardData = !isError || hasDashboardData;
 
 	return (
 		<div className="space-y-6">
@@ -50,7 +52,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 
 			{isError && <DashboardDataError />}
 
-			{(!isError || stats) && (
+			{showDashboardData && (
 				<>
 					<SummaryMetrics stats={stats} loading={isLoading} />
 
