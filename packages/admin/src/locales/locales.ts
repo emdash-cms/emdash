@@ -34,6 +34,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "en", label: "English", enabled: true },
 	{ code: "ar", label: "العربية", enabled: true, dir: "rtl" }, // Arabic
 	{ code: "eu", label: "Euskara", enabled: true }, // Basque
+	{ code: "ca", label: "Català", enabled: true }, // Catalan
 	{ code: "zh-CN", label: "简体中文", enabled: true }, // Chinese (Simplified)
 	{ code: "zh-TW", label: "繁體中文", enabled: true }, // Chinese (Traditional)
 	{ code: "en-GB", label: "English (UK)", enabled: true }, // English (United Kingdom)

@@ -149,6 +149,14 @@ export interface ImportConfig {
 	skipExisting: boolean;
 	/** Author mappings (WP author login -> EmDash user ID) */
 	authorMappings?: Record<string, string | null>;
+	/** Import navigation menus (plugin import; default true) */
+	importMenus?: boolean;
+	/** Take over site title & tagline (plugin import; default true) */
+	importSiteTitle?: boolean;
+	/** Take over logo & favicon (plugin import; default true) */
+	importLogo?: boolean;
+	/** Import per-post Yoast/Rank Math SEO fields (plugin import; default true) */
+	importSeo?: boolean;
 }
 
 export interface ImportResult {
@@ -169,6 +177,152 @@ export interface ImportResult {
 	comments?: { imported: number; skipped: number };
 	/** Site settings applied from the source (plugin import) */
 	siteSettings?: string[];
+}
+
+// =============================================================================
+// Chunked plugin import (issue #475)
+//
+// A single /execute request importing a whole site exceeds Cloudflare
+// Worker resource limits. The admin drives the import as a loop of bounded
+// requests instead: one WP content page per call, then paginated comments,
+// then a small finalize step. Cross-chunk state (ID maps, translation
+// groups, comment roots) is accumulated here and sent with each request,
+// so the server stays stateless and an aborted import can simply re-run.
+// =============================================================================
+
+interface WpImportCursor {
+	postTypeIndex: number;
+	page: number;
+}
+
+/** Client-accumulated state passed back to the server with each chunk. */
+interface WpImportChunkState {
+	idMap: Record<string, { id: string; collection: string }>;
+	translationGroups: Record<string, string>;
+	commentRoots: Record<string, string>;
+}
+
+interface WpImportChunkResponse {
+	success: boolean;
+	result: ImportResult;
+	done: boolean;
+	cursor?: WpImportCursor;
+	chunk?: Partial<WpImportChunkState>;
+}
+
+/** Progress snapshot reported after every chunk. */
+export interface WpImportProgress {
+	phase: "content" | "comments" | "finalize";
+	/** Content items imported + skipped so far (content phase) */
+	processed: number;
+	/** Comments imported + skipped so far (comments phase) */
+	comments: number;
+}
+
+async function executeWpPluginImportChunk(
+	url: string,
+	token: string,
+	config: ImportConfig,
+	phase: WpImportProgress["phase"],
+	cursor: WpImportCursor | undefined,
+	state: WpImportChunkState,
+): Promise<WpImportChunkResponse> {
+	const response = await apiFetch(`${API_BASE}/import/wordpress-plugin/execute`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			url,
+			token,
+			config,
+			phase,
+			cursor,
+			idMap: state.idMap,
+			translationGroups: state.translationGroups,
+			commentRoots: state.commentRoots,
+		}),
+	});
+	return parseApiResponse<WpImportChunkResponse>(response, "Failed to import from WordPress");
+}
+
+/** Merge a chunk's partial result into the running aggregate. */
+function mergeImportResults(into: ImportResult, chunk: ImportResult): void {
+	into.imported += chunk.imported;
+	into.skipped += chunk.skipped;
+	into.errors.push(...chunk.errors);
+	for (const [collection, count] of Object.entries(chunk.byCollection)) {
+		into.byCollection[collection] = (into.byCollection[collection] || 0) + count;
+	}
+	if (chunk.taxonomyAssignments) {
+		into.taxonomyAssignments = (into.taxonomyAssignments ?? 0) + chunk.taxonomyAssignments;
+	}
+	if (chunk.missingTaxonomies?.length) {
+		into.missingTaxonomies = [
+			...new Set([...(into.missingTaxonomies ?? []), ...chunk.missingTaxonomies]),
+		];
+	}
+	if (chunk.taxonomiesCreated?.length) {
+		into.taxonomiesCreated = [...(into.taxonomiesCreated ?? []), ...chunk.taxonomiesCreated];
+	}
+	if (chunk.menus) into.menus = chunk.menus;
+	if (chunk.comments) {
+		into.comments = {
+			imported: (into.comments?.imported ?? 0) + chunk.comments.imported,
+			skipped: (into.comments?.skipped ?? 0) + chunk.comments.skipped,
+		};
+	}
+	if (chunk.siteSettings) into.siteSettings = chunk.siteSettings;
+	into.success = into.errors.length === 0;
+}
+
+/**
+ * Run the full plugin import as a sequence of bounded requests: content
+ * pages, then comment pages, then finalize (menus + site identity).
+ * Each request stays well below Worker resource limits regardless of
+ * site size. Re-running after an abort is safe: `skipExisting` skips
+ * already-imported content while rebuilding the ID maps the later
+ * phases need.
+ */
+export async function executeWpPluginImport(
+	url: string,
+	token: string,
+	config: ImportConfig,
+	onProgress?: (progress: WpImportProgress) => void,
+): Promise<ImportResult> {
+	const aggregate: ImportResult = {
+		success: true,
+		imported: 0,
+		skipped: 0,
+		errors: [],
+		byCollection: {},
+	};
+	const state: WpImportChunkState = { idMap: {}, translationGroups: {}, commentRoots: {} };
+	let comments = 0;
+
+	const runPhase = async (phase: WpImportProgress["phase"]) => {
+		let cursor: WpImportCursor | undefined;
+		let done = false;
+		while (!done) {
+			const chunk = await executeWpPluginImportChunk(url, token, config, phase, cursor, state);
+			mergeImportResults(aggregate, chunk.result);
+			Object.assign(state.idMap, chunk.chunk?.idMap);
+			Object.assign(state.translationGroups, chunk.chunk?.translationGroups);
+			Object.assign(state.commentRoots, chunk.chunk?.commentRoots);
+			comments += (chunk.result.comments?.imported ?? 0) + (chunk.result.comments?.skipped ?? 0);
+			onProgress?.({
+				phase,
+				processed: aggregate.imported + aggregate.skipped,
+				comments,
+			});
+			done = chunk.done;
+			cursor = chunk.cursor;
+		}
+	};
+
+	await runPhase("content");
+	await runPhase("comments");
+	await runPhase("finalize");
+
+	return aggregate;
 }
 
 /**
@@ -334,6 +488,41 @@ export async function importWxrMedia(
 	return result;
 }
 
+/** Attachments per media request. Bounds each Worker invocation (issue #475). */
+const MEDIA_BATCH_SIZE = 25;
+
+/**
+ * Import media in bounded batches instead of one giant request, so each
+ * Worker invocation stays below resource limits and an aborted run only
+ * loses the batch in flight (the server dedupes re-sent files by content
+ * hash). Progress is reported against the overall total.
+ */
+export async function importWxrMediaBatched(
+	attachments: AttachmentInfo[],
+	onProgress?: (progress: MediaImportProgress) => void,
+): Promise<MediaImportResult> {
+	const merged: MediaImportResult = { imported: [], failed: [], urlMap: {} };
+
+	for (let offset = 0; offset < attachments.length; offset += MEDIA_BATCH_SIZE) {
+		const batch = attachments.slice(offset, offset + MEDIA_BATCH_SIZE);
+		const result = await importWxrMedia(
+			batch,
+			onProgress &&
+				((progress) =>
+					onProgress({
+						...progress,
+						current: offset + progress.current,
+						total: attachments.length,
+					})),
+		);
+		merged.imported.push(...result.imported);
+		merged.failed.push(...result.failed);
+		Object.assign(merged.urlMap, result.urlMap);
+	}
+
+	return merged;
+}
+
 // =============================================================================
 // Import Source Probing
 // =============================================================================
@@ -457,24 +646,4 @@ export async function analyzeWpPluginSite(url: string, token: string): Promise<W
 		"Failed to analyze WordPress site",
 	);
 	return data.analysis;
-}
-
-/**
- * Execute import from WordPress plugin API
- */
-export async function executeWpPluginImport(
-	url: string,
-	token: string,
-	config: ImportConfig,
-): Promise<ImportResult> {
-	const response = await apiFetch(`${API_BASE}/import/wordpress-plugin/execute`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ url, token, config }),
-	});
-	const data = await parseApiResponse<{ result: ImportResult }>(
-		response,
-		"Failed to import from WordPress",
-	);
-	return data.result;
 }

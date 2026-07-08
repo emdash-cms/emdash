@@ -496,7 +496,7 @@ export class MediaUsageRepository {
 				.executeTakeFirst();
 			deleted = Number(result.numDeletedRows ?? 0) > 0;
 			if (!deleted) return;
-			await trx.deleteFrom("_emdash_media_usage").where("source_key", "=", sourceKey).execute();
+			await this.deleteSourceGenerationOccurrences(trx, sourceKey, expectedCurrentGeneration);
 		});
 
 		return {
@@ -518,7 +518,11 @@ export class MediaUsageRepository {
 				.executeTakeFirst();
 			deleted = Number(result.numDeletedRows ?? 0) > 0;
 			if (!deleted) return;
-			await trx.deleteFrom("_emdash_media_usage").where("source_key", "=", sourceKey).execute();
+			await this.deleteSourceGenerationOccurrences(
+				trx,
+				sourceKey,
+				expectedSource.currentGeneration,
+			);
 		});
 
 		return {
@@ -547,7 +551,11 @@ export class MediaUsageRepository {
 				.executeTakeFirst();
 			deleted = Number(result.numDeletedRows ?? 0) > 0;
 			if (!deleted) return;
-			await trx.deleteFrom("_emdash_media_usage").where("source_key", "=", sourceKey).execute();
+			await this.deleteSourceGenerationOccurrences(
+				trx,
+				sourceKey,
+				expectedSource.currentGeneration,
+			);
 		});
 		const contentPresent = deleted ? false : await this.contentRowExists(tableName, contentId);
 
@@ -901,6 +909,20 @@ export class MediaUsageRepository {
 			}
 			return deleted;
 		});
+	}
+
+	private async deleteSourceGenerationOccurrences(
+		db: DatabaseExecutor,
+		sourceKey: string,
+		generation: string,
+	): Promise<void> {
+		// Guarded source deletes remove only the generation that won the source CAS;
+		// unmatched generations become invisible orphans reclaimed by age-gated cleanup.
+		await db
+			.deleteFrom("_emdash_media_usage")
+			.where("source_key", "=", sourceKey)
+			.where("generation", "=", generation)
+			.execute();
 	}
 
 	private async insertOccurrences(

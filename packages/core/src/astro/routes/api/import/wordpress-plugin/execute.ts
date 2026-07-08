@@ -15,6 +15,7 @@ import {
 	type WxrTag,
 	type WxrTerm,
 } from "emdash";
+import type { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
@@ -28,6 +29,8 @@ import { importMenusFromPlugin } from "#import/menus.js";
 import { importSiteSettings, parseSiteSettingsFromPlugin } from "#import/settings.js";
 import {
 	fetchPluginComments,
+	fetchPluginCommentsPage,
+	fetchPluginContentPage,
 	fetchPluginMenus,
 	fetchPluginOptions,
 	fetchPluginTaxonomies,
@@ -37,6 +40,7 @@ import type { ImportConfig, ImportResult, NormalizedItem } from "#import/types.j
 import { resolveImportByline, sanitizeFieldSlug } from "#import/utils.js";
 import {
 	attachPostTaxonomies,
+	loadTaxonomyPlanFromDb,
 	preImportWxrTaxonomies,
 	type TaxonomyImportPlan,
 } from "#import/wxr-taxonomies.js";
@@ -51,12 +55,82 @@ export const prerender = false;
 export interface WpPluginImportConfig extends ImportConfig {
 	/** Author mappings (WP author login -> EmDash user ID) */
 	authorMappings?: Record<string, string | null>;
+	/** Wizard toggles. Absent means enabled (older admins don't send them). */
+	importMenus?: boolean;
+	importSiteTitle?: boolean;
+	importLogo?: boolean;
+	importSeo?: boolean;
 }
 
 export interface WpPluginImportResponse {
 	success: boolean;
 	result?: ImportResult;
 	error?: { message: string };
+}
+
+// =============================================================================
+// Chunked mode (issue #475)
+//
+// A single-invocation import of a large site exceeds Cloudflare Worker
+// resource limits (CPU time, subrequests). In chunked mode the admin drives
+// the import as a loop of bounded requests: one WP content page per call,
+// then paginated comments, then a small finalize step (menus + site
+// identity). Cross-chunk state — the WP-ID -> EmDash-ID map, translation
+// groups, comment threading roots — is accumulated by the client and sent
+// back with each request, so the server stays stateless and an aborted
+// import simply re-runs (skipExisting rebuilds the map while skipping work).
+// =============================================================================
+
+/** Posts per content chunk. 50 posts ≈ a few hundred D1 ops per invocation. */
+const CONTENT_CHUNK_SIZE = 50;
+
+interface ChunkCursor {
+	postTypeIndex: number;
+	page: number;
+}
+
+/** Per-chunk response payload: partial result + state the client must carry. */
+interface ChunkResponse {
+	success: boolean;
+	result: ImportResult;
+	done: boolean;
+	cursor?: ChunkCursor;
+	chunk?: {
+		idMap?: Record<string, { id: string; collection: string }>;
+		translationGroups?: Record<string, string>;
+		commentRoots?: Record<string, string>;
+	};
+}
+
+function emptyImportResult(): ImportResult {
+	return { success: true, imported: 0, skipped: 0, errors: [], byCollection: {} };
+}
+
+function parseIdMap(idMap: Record<string, { id: string; collection: string }> | undefined): {
+	contentIdMap: Map<number, string>;
+	collectionByWpId: Map<number, string>;
+} {
+	const contentIdMap = new Map<number, string>();
+	const collectionByWpId = new Map<number, string>();
+	for (const [key, value] of Object.entries(idMap ?? {})) {
+		const wpId = Number(key);
+		if (!Number.isFinite(wpId)) continue;
+		contentIdMap.set(wpId, value.id);
+		collectionByWpId.set(wpId, value.collection);
+	}
+	return { contentIdMap, collectionByWpId };
+}
+
+function serializeIdMap(
+	contentIdMap: Map<number, string>,
+	collectionByWpId: Map<number, string>,
+): Record<string, { id: string; collection: string }> {
+	const out: Record<string, { id: string; collection: string }> = {};
+	for (const [wpId, id] of contentIdMap) {
+		const collection = collectionByWpId.get(wpId);
+		if (collection) out[String(wpId)] = { id, collection };
+	}
+	return out;
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -105,6 +179,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		console.log("[WP Plugin Import] Starting import for:", body.url);
 		console.log("[WP Plugin Import] Post types:", postTypes);
 
+		// Chunked mode: one bounded unit of work per invocation (issue #475).
+		if (body.phase) {
+			const chunk = await runImportPhase(emdash, body, config, postTypes, emdashManifest);
+			return apiSuccess(chunk);
+		}
+
 		// Pre-create taxonomy defs (for custom CPT taxonomies) and terms so
 		// per-post assignments can attach.
 		// Non-fatal: a site whose /taxonomies call fails still gets content.
@@ -132,21 +212,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Import navigation menus, resolving item references through the
 		// WP-post-ID -> EmDash-ID map collected during the content pass.
-		// Non-fatal: older plugin versions have no /menus endpoint.
-		try {
-			const menus = await fetchPluginMenus(body.url, body.token);
-			if (menus.length > 0) {
-				const menuResult = await importMenusFromPlugin(menus, emdash.db, contentIdMap);
-				result.menus = {
-					created: menuResult.menusCreated,
-					items: menuResult.itemsCreated,
-				};
-				for (const menuError of menuResult.errors) {
-					result.errors.push({ title: `Menu: ${menuError.menu}`, error: menuError.error });
-				}
-			}
-		} catch (e) {
-			console.warn("[WP Plugin Import] Menu import failed:", e);
+		if (config.importMenus !== false) {
+			await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
 		}
 
 		// Import comments into EmDash's native comments table, preserving
@@ -180,7 +247,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// site's options, replacing the starter template's seed placeholders.
 		// Non-fatal: content is already imported at this point.
 		try {
-			result.siteSettings = await applySiteSettings(emdash, body.url, body.token);
+			result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
 		} catch (e) {
 			console.warn("[WP Plugin Import] Site settings import failed:", e);
 		}
@@ -199,6 +266,213 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		return handleError(error, "Failed to import from WordPress", "WP_PLUGIN_IMPORT_ERROR");
 	}
 };
+
+/**
+ * Import navigation menus into `result`, resolving item references through
+ * the WP-post-ID -> EmDash-ID map collected during the content pass.
+ * Non-fatal: older plugin versions have no /menus endpoint.
+ */
+async function importMenusInto(
+	result: ImportResult,
+	emdash: EmDashHandlers,
+	url: string,
+	token: string,
+	contentIdMap: Map<number, string>,
+): Promise<void> {
+	try {
+		const menus = await fetchPluginMenus(url, token);
+		if (menus.length > 0) {
+			const menuResult = await importMenusFromPlugin(menus, emdash.db, contentIdMap);
+			result.menus = {
+				created: menuResult.menusCreated,
+				items: menuResult.itemsCreated,
+			};
+			for (const menuError of menuResult.errors) {
+				result.errors.push({ title: `Menu: ${menuError.menu}`, error: menuError.error });
+			}
+		}
+	} catch (e) {
+		console.warn("[WP Plugin Import] Menu import failed:", e);
+	}
+}
+
+type ExecuteBody = z.infer<typeof wpPluginExecuteBody>;
+
+/** Dispatch one chunk of work for the requested phase. */
+async function runImportPhase(
+	emdash: EmDashHandlers,
+	body: ExecuteBody,
+	config: WpPluginImportConfig,
+	postTypes: string[],
+	manifest: EmDashManifest,
+): Promise<ChunkResponse> {
+	switch (body.phase) {
+		case "content":
+			return runContentChunk(emdash, body, config, postTypes, manifest);
+		case "comments":
+			return runCommentsChunk(emdash, body);
+		case "finalize":
+			return runFinalizePhase(emdash, body, config);
+		case undefined:
+			throw new Error("runImportPhase called without a phase");
+		default:
+			body.phase satisfies never;
+			throw new Error("Unknown import phase");
+	}
+}
+
+/**
+ * Import one page of one post type. The first chunk additionally runs the
+ * taxonomy setup (def + term creation); later chunks only reload the
+ * lookup maps from the database.
+ */
+async function runContentChunk(
+	emdash: EmDashHandlers,
+	body: ExecuteBody,
+	config: WpPluginImportConfig,
+	postTypes: string[],
+	manifest: EmDashManifest,
+): Promise<ChunkResponse> {
+	const cursor = body.cursor ?? { postTypeIndex: 0, page: 1 };
+	const postType = postTypes[cursor.postTypeIndex];
+	if (!postType) {
+		return { success: true, result: emptyImportResult(), done: true };
+	}
+
+	const isFirstChunk = cursor.postTypeIndex === 0 && cursor.page === 1;
+	let taxonomyPlan: TaxonomyImportPlan | undefined;
+	let taxonomyDefsCreated: string[] = [];
+	try {
+		if (isFirstChunk) {
+			const built = await buildTaxonomyPlan(emdash, body.url, body.token, config);
+			taxonomyPlan = built.plan;
+			taxonomyDefsCreated = built.defsCreated;
+		} else {
+			taxonomyPlan = await loadTaxonomyPlanFromDb(emdash.db);
+		}
+	} catch (e) {
+		console.warn("[WP Plugin Import] Taxonomy pre-import failed:", e);
+	}
+
+	const page = await fetchPluginContentPage({
+		siteUrl: body.url,
+		token: body.token,
+		postType,
+		page: cursor.page,
+		perPage: CONTENT_CHUNK_SIZE,
+		includeDrafts: true,
+	});
+
+	// Seed translation-group state from earlier chunks so a translation in
+	// this page links to its sibling imported three chunks ago.
+	const translationGroupMap = new Map(Object.entries(body.translationGroups ?? {}));
+
+	const { result, contentIdMap, collectionByWpId } = await importContent(
+		page.items,
+		config,
+		emdash,
+		manifest,
+		taxonomyPlan,
+		translationGroupMap,
+	);
+
+	if (taxonomyDefsCreated.length > 0) {
+		result.taxonomiesCreated = taxonomyDefsCreated;
+	}
+
+	// Advance: next page of this post type, first page of the next one,
+	// or done. An empty last page (totalPages can shrink while paginating
+	// a live site) still terminates because page >= totalPages.
+	let next: ChunkCursor | undefined;
+	if (cursor.page < page.totalPages) {
+		next = { postTypeIndex: cursor.postTypeIndex, page: cursor.page + 1 };
+	} else if (cursor.postTypeIndex + 1 < postTypes.length) {
+		next = { postTypeIndex: cursor.postTypeIndex + 1, page: 1 };
+	}
+
+	return {
+		success: true,
+		result,
+		done: next === undefined,
+		cursor: next,
+		chunk: {
+			idMap: serializeIdMap(contentIdMap, collectionByWpId),
+			translationGroups: Object.fromEntries(translationGroupMap),
+		},
+	};
+}
+
+/**
+ * Import one page of comments (500 per page, ordered by WP comment ID so
+ * parents precede children across pages). Requires the accumulated idMap
+ * from the content phase; threading roots accumulate in `commentRoots`.
+ */
+async function runCommentsChunk(emdash: EmDashHandlers, body: ExecuteBody): Promise<ChunkResponse> {
+	const page = body.cursor?.page ?? 1;
+	const result = emptyImportResult();
+
+	const { contentIdMap, collectionByWpId } = parseIdMap(body.idMap);
+	const rootIds = new Map<number, string>();
+	for (const [key, value] of Object.entries(body.commentRoots ?? {})) {
+		const wpId = Number(key);
+		if (Number.isFinite(wpId)) rootIds.set(wpId, value);
+	}
+
+	const { items, totalPages } = await fetchPluginCommentsPage(body.url, body.token, page);
+
+	if (items.length > 0) {
+		const commentsResult = await importCommentsFromPlugin(
+			items,
+			emdash.db,
+			contentIdMap,
+			collectionByWpId,
+			rootIds,
+		);
+		result.comments = {
+			imported: commentsResult.imported,
+			skipped: commentsResult.skipped,
+		};
+		for (const commentError of commentsResult.errors) {
+			result.errors.push({ title: `Comment: ${commentError.comment}`, error: commentError.error });
+		}
+		result.success = result.errors.length === 0;
+	}
+
+	const done = page >= totalPages;
+	const commentRoots: Record<string, string> = {};
+	for (const [wpId, id] of rootIds) commentRoots[String(wpId)] = id;
+
+	return {
+		success: true,
+		result,
+		done,
+		cursor: done ? undefined : { postTypeIndex: 0, page: page + 1 },
+		chunk: { commentRoots },
+	};
+}
+
+/** Menus + site identity — small, runs as a single closing chunk. */
+async function runFinalizePhase(
+	emdash: EmDashHandlers,
+	body: ExecuteBody,
+	config: WpPluginImportConfig,
+): Promise<ChunkResponse> {
+	const result = emptyImportResult();
+	const { contentIdMap } = parseIdMap(body.idMap);
+
+	if (config.importMenus !== false) {
+		await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+	}
+
+	try {
+		result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
+	} catch (e) {
+		console.warn("[WP Plugin Import] Site settings import failed:", e);
+	}
+
+	result.success = result.errors.length === 0;
+	return { success: true, result, done: true };
+}
 
 /** Fields that should be auto-created if they don't exist */
 const IMPORT_FIELDS: Array<{
@@ -244,6 +518,8 @@ const IMPORT_FIELDS: Array<{
 		check: (item) => !!extractSeo(item).description,
 	},
 ];
+
+const SEO_FIELD_SLUGS = new Set(["seo_title", "seo_description"]);
 
 /**
  * Coerce a WordPress meta value to an EmDash field type. WP postmeta is
@@ -428,9 +704,22 @@ async function applySiteSettings(
 	emdash: EmDashHandlers,
 	url: string,
 	token: string,
+	config: WpPluginImportConfig,
 ): Promise<string[]> {
+	const wantTitle = config.importSiteTitle !== false;
+	const wantLogo = config.importLogo !== false;
+	if (!wantTitle && !wantLogo) return [];
+
 	const options = await fetchPluginOptions(url, token);
 	const parsed = parseSiteSettingsFromPlugin(options);
+	if (!wantTitle) {
+		delete parsed.title;
+		delete parsed.tagline;
+	}
+	if (!wantLogo) {
+		delete parsed.logo;
+		delete parsed.favicon;
+	}
 
 	const media: { logoMediaId?: string; faviconMediaId?: string } = {};
 	if (emdash.storage && (parsed.logo?.url || parsed.favicon?.url)) {
@@ -484,11 +773,12 @@ function toWxrAssignments(item: NormalizedItem): WxrPost {
 
 /** Exported for tests (field auto-creation regression coverage). */
 export async function importContent(
-	items: AsyncGenerator<NormalizedItem>,
+	items: AsyncIterable<NormalizedItem> | Iterable<NormalizedItem>,
 	config: WpPluginImportConfig,
 	emdash: EmDashHandlers,
 	manifest: EmDashManifest,
 	taxonomyPlan: TaxonomyImportPlan | undefined,
+	seedTranslationGroups?: Map<string, string>,
 ): Promise<{
 	result: ImportResult;
 	contentIdMap: Map<number, string>;
@@ -525,8 +815,9 @@ export async function importContent(
 
 	// Track source translationGroup -> EmDash item ID for translation linking.
 	// Maps source-side translation group ID to the EmDash ID of the first item
-	// imported for that group (the default-locale item).
-	const translationGroupMap = new Map<string, string>();
+	// imported for that group (the default-locale item). The chunked import
+	// seeds this from earlier chunks so groups can span page boundaries.
+	const translationGroupMap = seedTranslationGroups ?? new Map<string, string>();
 
 	for await (const item of items) {
 		console.log("[WP Plugin Import] Processing item:", {
@@ -565,6 +856,7 @@ export async function importContent(
 			// is needed depends on the item — the first post may have no SEO
 			// override while a later one does.
 			for (const field of IMPORT_FIELDS) {
+				if (config.importSeo === false && SEO_FIELD_SLUGS.has(field.slug)) continue;
 				const ensureKey = `${collection}:${field.slug}`;
 				if (ensuredFields.has(ensureKey) || !field.check(item)) continue;
 				ensuredFields.add(ensureKey);
@@ -647,12 +939,14 @@ export async function importContent(
 			}
 
 			// Per-post SEO overrides from Yoast / Rank Math
-			const seo = extractSeo(item);
-			if (seo.title) {
-				data.seo_title = seo.title;
-			}
-			if (seo.description) {
-				data.seo_description = seo.description;
+			if (config.importSeo !== false) {
+				const seo = extractSeo(item);
+				if (seo.title) {
+					data.seo_title = seo.title;
+				}
+				if (seo.description) {
+					data.seo_description = seo.description;
+				}
 			}
 
 			// Map ACF values and custom meta onto schema fields with the same
