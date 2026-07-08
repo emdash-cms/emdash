@@ -16,7 +16,7 @@ import type {
 } from "../lib/api";
 import { fetchBylines } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
-import { slugify } from "../lib/utils";
+import { cn, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
@@ -31,6 +31,14 @@ import { TranslationsPanel } from "./TranslationsPanel.js";
 
 // Editor role level (40) from @emdash-cms/auth
 const ROLE_EDITOR = 40;
+
+/**
+ * Shared muted label style for panel section headings. Child components
+ * rendered inside the panel (TranslationsPanel, TaxonomySidebar,
+ * DocumentOutline, RevisionHistory) mirror this so the panel reads as one
+ * system.
+ */
+const PANEL_HEADING = "text-xs font-semibold uppercase tracking-wider text-kumo-subtle";
 
 /** Format scheduled date for display */
 function formatScheduledDate(dateStr: string | null) {
@@ -323,28 +331,32 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	if (blockSidebarPanel) {
 		// Block sidebar panel – replaces default sections when a block requests it
 		return blockSidebarPanel.type === "image" ? (
-			<ImageDetailPanel
-				attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-				onUpdate={(attrs) =>
-					blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-				}
-				onReplace={(attrs) =>
-					blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
-				}
-				onDelete={onBlockSidebarDelete}
-				onClose={onBlockSidebarClose}
-				inline
-			/>
+			<div className="p-4">
+				<ImageDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+					onUpdate={(attrs) =>
+						blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
+					}
+					onReplace={(attrs) =>
+						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+					}
+					onDelete={onBlockSidebarDelete}
+					onClose={onBlockSidebarClose}
+					inline
+				/>
+			</div>
 		) : null;
 	}
 
-	// Default content settings sections – single card with dividers
+	// Default content settings sections – flat panel, hairline dividers.
+	// Section headings share the muted label style (see PANEL_HEADING);
+	// hierarchy comes from position and content weight, not heading size.
 	return (
-		<div className="rounded-lg border bg-kumo-base flex flex-col">
+		<div className="flex flex-col">
 			{/* Publish settings */}
 			<div className="p-4">
-				<h3 className="mb-4 font-semibold">{t`Publish`}</h3>
-				<div className="space-y-4">
+				<h3 className={cn("mb-3", PANEL_HEADING)}>{t`Publish`}</h3>
+				<div className="space-y-3">
 					<Input
 						label={t`Slug`}
 						value={slug}
@@ -414,55 +426,13 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							<p>{t`Updated: ${new Date(item.updatedAt).toLocaleString()}`}</p>
 						</div>
 					)}
-					{!isNew && onDelete && (
-						<div className="pt-4 border-t">
-							<Dialog.Root disablePointerDismissal>
-								<Dialog.Trigger
-									render={(p) => (
-										<Button
-											{...p}
-											type="button"
-											variant="outline"
-											className="w-full text-kumo-danger hover:text-kumo-danger"
-											disabled={isDeleting}
-											icon={isDeleting ? <Loader size="sm" /> : <Trash />}
-										>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-								<Dialog className="p-6" size="sm">
-									<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-									<Dialog.Description className="text-kumo-subtle">
-										{t`This will move the item to trash. You can restore it later from the trash.`}
-									</Dialog.Description>
-									<div className="mt-6 flex justify-end gap-2">
-										<Dialog.Close
-											render={(p) => (
-												<Button {...p} variant="secondary">
-													{t`Cancel`}
-												</Button>
-											)}
-										/>
-										<Dialog.Close
-											render={(p) => (
-												<Button {...p} variant="destructive" onClick={onDelete}>
-													{t`Move to Trash`}
-												</Button>
-											)}
-										/>
-									</div>
-								</Dialog>
-							</Dialog.Root>
-						</div>
-					)}
 				</div>
 			</div>
 
 			{/* Ownership selector - shown only to editors and above */}
 			{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
 				<div className="p-4 border-t">
-					<h3 className="mb-4 font-semibold">{t`Ownership`}</h3>
+					<h3 className={cn("mb-3", PANEL_HEADING)}>{t`Ownership`}</h3>
 					<AuthorSelector
 						authorId={item?.authorId || null}
 						users={users}
@@ -474,7 +444,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{/* Byline credits */}
 			{currentUser && currentUser.role >= ROLE_EDITOR && (
 				<div className="p-4 border-t">
-					<h3 className="mb-4 font-semibold">{t`Bylines`}</h3>
+					<h3 className={cn("mb-3", PANEL_HEADING)}>{t`Bylines`}</h3>
 					<BylineCreditsEditor
 						credits={activeBylines}
 						bylines={availableBylines ?? []}
@@ -495,6 +465,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{i18n && item && !isNew && (
 				<div className="p-4 border-t">
 					<TranslationsPanel
+						headingClassName={cn("mb-3", PANEL_HEADING)}
 						locales={i18n.locales}
 						defaultLocale={i18n.defaultLocale}
 						currentLocale={item.locale ?? undefined}
@@ -525,8 +496,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{/* SEO panel - shown for collections with hasSeo enabled */}
 			{hasSeo && !isNew && onSeoChange && (
 				<div className="p-4 border-t">
-					<h3 className="mb-4 font-semibold flex items-center gap-2">
-						<MagnifyingGlass className="h-4 w-4" />
+					<h3 className={cn("mb-3 flex items-center gap-1.5", PANEL_HEADING)}>
+						<MagnifyingGlass className="h-3.5 w-3.5" />
 						{t`SEO`}
 					</h3>
 					<SeoPanel
@@ -548,6 +519,50 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{!isNew && item && supportsRevisions && (
 				<div className="p-4 border-t">
 					<RevisionHistory collection={collection} entryId={item.id} />
+				</div>
+			)}
+
+			{/* Destructive action, isolated at the very bottom of the panel */}
+			{!isNew && onDelete && (
+				<div className="mt-4 border-t p-4">
+					<Dialog.Root disablePointerDismissal>
+						<Dialog.Trigger
+							render={(p) => (
+								<Button
+									{...p}
+									type="button"
+									variant="outline"
+									className="w-full text-kumo-danger hover:text-kumo-danger"
+									disabled={isDeleting}
+									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
+								>
+									{t`Move to Trash`}
+								</Button>
+							)}
+						/>
+						<Dialog className="p-6" size="sm">
+							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
+							<Dialog.Description className="text-kumo-subtle">
+								{t`This will move the item to trash. You can restore it later from the trash.`}
+							</Dialog.Description>
+							<div className="mt-6 flex justify-end gap-2">
+								<Dialog.Close
+									render={(p) => (
+										<Button {...p} variant="secondary">
+											{t`Cancel`}
+										</Button>
+									)}
+								/>
+								<Dialog.Close
+									render={(p) => (
+										<Button {...p} variant="destructive" onClick={onDelete}>
+											{t`Move to Trash`}
+										</Button>
+									)}
+								/>
+							</div>
+						</Dialog>
+					</Dialog.Root>
 				</div>
 			)}
 		</div>

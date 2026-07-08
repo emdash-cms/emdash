@@ -149,16 +149,18 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 
 	return (
 		<>
-			<div className="rounded-lg border bg-kumo-base">
+			<div>
 				{/* Header - always visible */}
 				<button
 					type="button"
 					onClick={() => setIsExpanded(!isExpanded)}
-					className="flex w-full items-center justify-between p-4 text-start hover:bg-kumo-tint/50 transition-colors"
+					className="-m-2 flex w-[calc(100%+1rem)] items-center justify-between rounded-md p-2 text-start hover:bg-kumo-tint/50 transition-colors"
 				>
-					<div className="flex items-center gap-2">
-						<ClockCounterClockwise className="h-4 w-4 text-kumo-subtle" />
-						<span className="font-semibold">{t`Revisions`}</span>
+					<div className="flex items-center gap-1.5">
+						<ClockCounterClockwise className="h-3.5 w-3.5 text-kumo-subtle" />
+						<span className="text-xs font-semibold uppercase tracking-wider text-kumo-subtle">
+							{t`Revisions`}
+						</span>
 						{total > 0 && <span className="text-xs text-kumo-subtle">({total})</span>}
 					</div>
 					{isExpanded ? (
@@ -170,7 +172,7 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 
 				{/* Content - shown when expanded */}
 				{isExpanded && (
-					<div className="border-t px-4 pb-4">
+					<div className="pt-3">
 						{isLoading ? (
 							<div className="flex items-center justify-center py-6">
 								<Loader />

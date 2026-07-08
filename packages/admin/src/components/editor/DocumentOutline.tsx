@@ -176,9 +176,11 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 				className="w-full justify-between px-2 h-8"
 				onClick={() => setIsExpanded(!isExpanded)}
 			>
-				<span className="flex items-center gap-2">
-					<List className="h-4 w-4" />
-					<span className="font-semibold">{t`Outline`}</span>
+				<span className="flex items-center gap-1.5">
+					<List className="h-3.5 w-3.5 text-kumo-subtle" />
+					<span className="text-xs font-semibold uppercase tracking-wider text-kumo-subtle">
+						{t`Outline`}
+					</span>
 				</span>
 				{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
 			</Button>

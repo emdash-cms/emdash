@@ -18,6 +18,8 @@ interface PanelTranslation {
 export interface TranslationsPanelProps {
 	/** Heading shown above the list (default: "Translations"). */
 	title?: string;
+	/** Extra classes for the heading, e.g. the content editor's muted panel label style. */
+	headingClassName?: string;
 	/** All configured locales. */
 	locales: string[];
 	/** Marked as "(default)" in the list. */
@@ -37,6 +39,7 @@ export interface TranslationsPanelProps {
 
 export function TranslationsPanel({
 	title,
+	headingClassName,
 	locales,
 	defaultLocale,
 	currentLocale,
@@ -53,7 +56,7 @@ export function TranslationsPanel({
 
 	return (
 		<div>
-			<h3 className="mb-4 font-semibold">{title ?? t`Translations`}</h3>
+			<h3 className={cn("mb-4 font-semibold", headingClassName)}>{title ?? t`Translations`}</h3>
 			<div className="space-y-2">
 				{locales.map((locale) => {
 					const translation = byLocale.get(locale);

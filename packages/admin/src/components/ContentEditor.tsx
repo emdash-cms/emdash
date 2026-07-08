@@ -777,7 +777,7 @@ export function ContentEditor({
 								isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern) : null
 							}
 						/>
-						<div className="flex-1 overflow-y-auto p-4">
+						<div className="flex-1 overflow-y-auto">
 							<ContentSettingsPanel
 								collection={collection}
 								item={item}
