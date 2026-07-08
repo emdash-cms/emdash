@@ -7,6 +7,7 @@ import { describe } from "vitest";
 
 import { getMigrationStatus, runMigrations } from "../../src/database/migrations/runner.js";
 import type { MigrationStatus } from "../../src/database/migrations/runner.js";
+import { withFailFastPgMigrationLock } from "../../src/database/pg-migration-lock.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
@@ -286,7 +287,9 @@ export async function createTestPostgresDatabase(): Promise<PgTestContext> {
 	});
 
 	const db = new Kysely<DatabaseSchema>({
-		dialect: new PostgresDialect({ pool: testPool }),
+		// Wrapped like the production Postgres dialects so every PG test
+		// exercises the fail-fast migration lock.
+		dialect: withFailFastPgMigrationLock(new PostgresDialect({ pool: testPool })),
 	});
 
 	return { db, schemaName };

@@ -571,8 +571,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							// requests carry no session.
 							storage: runtime.storage,
 						} as EmDashHandlers;
-					} catch {
-						// Non-fatal — EmDashHead will fall back to base SEO contributions
+					} catch (error) {
+						// Non-fatal — EmDashHead falls back to base SEO contributions —
+						// but log it: a persistently failing init (e.g. a failing
+						// migration, #1744) is otherwise invisible on the anonymous
+						// path, silently degrading every public page.
+						console.error("[emdash] runtime init failed (page renders without CMS data):", error);
 					}
 					timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 					// Append cold-only sub-phase timings so the breakdown is visible

@@ -385,17 +385,41 @@ const DB_HOLDER_KEY = Symbol.for("emdash:db-cache");
 interface DbHolder {
 	cache: Map<string, Kysely<Database>>;
 	lock: InitLock;
+	/**
+	 * Recent migration failures, keyed like `cache`. A failed migration is
+	 * near-certain to fail again immediately (schema conflict, broken
+	 * migration), and without this every request in a warm isolate would
+	 * re-attempt it — on Workers with Postgres that stampedes the database
+	 * through the migration advisory lock (#1744). Entries expire after
+	 * DB_INIT_FAILURE_BACKOFF_MS; a successful init clears them.
+	 */
+	failures: Map<string, { at: number; message: string }>;
 }
 const globalSymbolStore = globalThis as Record<symbol, unknown>;
 function getDbHolder(): DbHolder {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
 	let holder = globalSymbolStore[DB_HOLDER_KEY] as DbHolder | undefined;
 	if (!holder) {
-		holder = { cache: new Map<string, Kysely<Database>>(), lock: createInitLock() };
+		holder = {
+			cache: new Map<string, Kysely<Database>>(),
+			lock: createInitLock(),
+			failures: new Map(),
+		};
 		globalSymbolStore[DB_HOLDER_KEY] = holder;
 	}
+	// A holder created by an older copy of this module (dev-server HMR keeps
+	// globalThis across reloads) may predate the failures map.
+	holder.failures ??= new Map();
 	return holder;
 }
+
+/**
+ * After a database init fails (migrations threw), skip re-attempting for
+ * this long. Cold isolates still get one attempt each, so a transient
+ * failure heals on its own; a persistently failing migration is retried at
+ * most once per backoff window per isolate instead of on every request.
+ */
+const DB_INIT_FAILURE_BACKOFF_MS = 30_000;
 
 /**
  * Auto-seed runs at most once per isolate per database. Its lock + "done" set
@@ -1623,14 +1647,43 @@ export class EmDashRuntime {
 		// owner's init still completes and populates the cache. Net: a stale
 		// lock is reclaimed after a deadline.
 		const holder = getDbHolder();
+
+		const throwIfBackingOff = () => {
+			const failure = holder.failures.get(cacheKey);
+			if (failure && Date.now() - failure.at < DB_INIT_FAILURE_BACKOFF_MS) {
+				throw new Error(
+					`Database initialization is backing off after a recent migration failure: ${failure.message}`,
+				);
+			}
+		};
+		throwIfBackingOff();
+
 		return initWithLock(
 			holder.lock,
 			() => holder.cache.get(cacheKey),
 			async (isCurrentClaim) => {
+				// Re-check under the lock: a request that entered the wait loop
+				// before the failure was recorded must not immediately re-run
+				// the failing migration when the lock frees up.
+				throwIfBackingOff();
+
 				const dialect = deps.createDialect(dbConfig.config);
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
-				await runMigrations(db);
+				try {
+					await runMigrations(db);
+				} catch (error) {
+					holder.failures.set(cacheKey, {
+						at: Date.now(),
+						message: error instanceof Error ? error.message : String(error),
+					});
+					// Every attempt builds a fresh dialect/pool; close it or each
+					// failed init leaks its connection(s) (#1744 observed these
+					// piling up as idle Postgres connections).
+					await db.destroy().catch(() => {});
+					throw error;
+				}
+				holder.failures.delete(cacheKey);
 
 				// Note: legacy installs may carry a stray `emdash:manifest_cache`
 				// row in the options table from versions that persisted a JSON

@@ -5,15 +5,16 @@
  * Loaded at runtime via virtual module.
  */
 
-import { PostgresDialect } from "kysely";
+import { type Dialect, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 
+import { withFailFastPgMigrationLock } from "../database/pg-migration-lock.js";
 import type { PostgresConfig } from "./adapters.js";
 
 /**
  * Create a PostgreSQL dialect from config
  */
-export function createDialect(config: PostgresConfig): PostgresDialect {
+export function createDialect(config: PostgresConfig): Dialect {
 	const pool = new Pool({
 		connectionString: config.connectionString,
 		host: config.host,
@@ -26,5 +27,7 @@ export function createDialect(config: PostgresConfig): PostgresDialect {
 		max: config.pool?.max ?? 10,
 	});
 
-	return new PostgresDialect({ pool });
+	// Fail-fast migration locking instead of Kysely's blocking advisory
+	// lock — see pg-migration-lock.ts (#1744).
+	return withFailFastPgMigrationLock(new PostgresDialect({ pool }));
 }
