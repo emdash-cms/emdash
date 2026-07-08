@@ -10,7 +10,7 @@
  * rolls back, the next waiter acquires the lock and re-runs the same
  * failing migration.
  *
- * `withFailFastPgMigrationLock` swaps the blocking wait for
+ * `FailFastPostgresDialect` swaps the blocking wait for
  * `pg_try_advisory_xact_lock`: when another migrator holds the lock, the
  * adapter throws `MIGRATION_LOCK_BUSY_MESSAGE` immediately instead of
  * queueing inside the database. `runMigrations` treats that error like the
@@ -19,8 +19,8 @@
  * wait deadline passes), without holding a transaction open.
  */
 
-import type { Dialect, Kysely, MigrationLockOptions } from "kysely";
-import { PostgresAdapter as KyselyPostgresAdapter, sql } from "kysely";
+import type { DialectAdapter, Kysely, MigrationLockOptions } from "kysely";
+import { PostgresAdapter as KyselyPostgresAdapter, PostgresDialect, sql } from "kysely";
 
 /**
  * Sentinel message thrown when another migrator holds the advisory lock.
@@ -59,22 +59,14 @@ class PostgresAdapter extends KyselyPostgresAdapter {
 }
 
 /**
- * Wrap a Postgres dialect so migration locking fails fast instead of
- * blocking inside the database. Everything except `acquireMigrationLock`
- * delegates to the wrapped dialect unchanged.
+ * Drop-in replacement for Kysely's `PostgresDialect` whose migration lock
+ * fails fast instead of blocking inside the database. Everything except
+ * `createAdapter` is inherited unchanged, and because it subclasses
+ * `PostgresDialect`, the public dialect type of `emdash/db/postgres` stays
+ * `PostgresDialect` and `instanceof` checks keep working.
  */
-export function withFailFastPgMigrationLock(dialect: Dialect): Dialect {
-	// Guard misuse up front: the replacement adapter is Postgres-specific
-	// (advisory-lock SQL, capability flags), so wrapping a non-Postgres
-	// dialect must fail here with a clear error, not at query time with a
-	// wrong-dialect one.
-	if (!(dialect.createAdapter() instanceof KyselyPostgresAdapter)) {
-		throw new Error("withFailFastPgMigrationLock requires a Postgres dialect");
+export class FailFastPostgresDialect extends PostgresDialect {
+	override createAdapter(): DialectAdapter {
+		return new PostgresAdapter();
 	}
-	return {
-		createAdapter: () => new PostgresAdapter(),
-		createDriver: () => dialect.createDriver(),
-		createIntrospector: (db) => dialect.createIntrospector(db),
-		createQueryCompiler: () => dialect.createQueryCompiler(),
-	};
 }

@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 
 import Database from "better-sqlite3";
-import { Kysely, PostgresDialect, SqliteDialect } from "kysely";
+import { Kysely, SqliteDialect } from "kysely";
 import { Pool } from "pg";
 import { describe } from "vitest";
 
 import { getMigrationStatus, runMigrations } from "../../src/database/migrations/runner.js";
 import type { MigrationStatus } from "../../src/database/migrations/runner.js";
-import { withFailFastPgMigrationLock } from "../../src/database/pg-migration-lock.js";
+import { FailFastPostgresDialect } from "../../src/database/pg-migration-lock.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
@@ -287,9 +287,9 @@ export async function createTestPostgresDatabase(): Promise<PgTestContext> {
 	});
 
 	const db = new Kysely<DatabaseSchema>({
-		// Wrapped like the production Postgres dialects so every PG test
+		// Same dialect as the production Postgres adapters so every PG test
 		// exercises the fail-fast migration lock.
-		dialect: withFailFastPgMigrationLock(new PostgresDialect({ pool: testPool })),
+		dialect: new FailFastPostgresDialect({ pool: testPool }),
 	});
 
 	return { db, schemaName };

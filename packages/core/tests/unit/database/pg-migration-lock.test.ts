@@ -1,52 +1,38 @@
-import Database from "better-sqlite3";
-import { PostgresDialect, SqliteDialect } from "kysely";
+import { PostgresDialect } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import { withFailFastPgMigrationLock } from "../../../src/database/pg-migration-lock.js";
+import { FailFastPostgresDialect } from "../../../src/database/pg-migration-lock.js";
 
 /**
- * The wrapper must change only `acquireMigrationLock`. If it dropped the
+ * The dialect must change only `acquireMigrationLock`. If it dropped the
  * adapter's capability flags, the Kysely Migrator would stop running
  * migrations inside a transaction (supportsTransactionalDdl) — silently
  * breaking rollback-on-failure. The lock behavior itself is covered by the
  * Postgres integration tests (migration-lock-pg.test.ts).
  */
-describe("withFailFastPgMigrationLock", () => {
-	it("preserves the wrapped adapter's capability flags", () => {
-		const dialect = new PostgresDialect({ pool: {} as never });
-		const inner = dialect.createAdapter();
-		const wrapped = withFailFastPgMigrationLock(dialect).createAdapter();
+describe("FailFastPostgresDialect", () => {
+	it("preserves the stock adapter's capability flags", () => {
+		const stock = new PostgresDialect({ pool: {} as never }).createAdapter();
+		const adapter = new FailFastPostgresDialect({ pool: {} as never }).createAdapter();
 
-		expect(wrapped.supportsTransactionalDdl).toBe(true);
-		expect(wrapped.supportsTransactionalDdl).toBe(inner.supportsTransactionalDdl);
-		expect(wrapped.supportsReturning).toBe(inner.supportsReturning);
-		expect(wrapped.supportsCreateIfNotExists).toBe(inner.supportsCreateIfNotExists ?? false);
-		expect(wrapped.supportsMultipleConnections).toBe(inner.supportsMultipleConnections ?? true);
+		expect(adapter.supportsTransactionalDdl).toBe(true);
+		expect(adapter.supportsTransactionalDdl).toBe(stock.supportsTransactionalDdl);
+		expect(adapter.supportsReturning).toBe(stock.supportsReturning);
+		expect(adapter.supportsCreateIfNotExists).toBe(stock.supportsCreateIfNotExists ?? false);
+		expect(adapter.supportsMultipleConnections).toBe(stock.supportsMultipleConnections ?? true);
 	});
 
 	it("still identifies as PostgresAdapter for dialect detection", () => {
 		// detectDialect() (dialect-helpers.ts) matches on the adapter's
 		// constructor name; a differently-named adapter class would make
 		// every dialect helper emit SQLite SQL against Postgres.
-		const wrapped = withFailFastPgMigrationLock(new PostgresDialect({ pool: {} as never }));
-		expect(wrapped.createAdapter().constructor.name).toBe("PostgresAdapter");
+		const adapter = new FailFastPostgresDialect({ pool: {} as never }).createAdapter();
+		expect(adapter.constructor.name).toBe("PostgresAdapter");
 	});
 
-	it("rejects a non-Postgres dialect at wrap time", () => {
-		// The replacement adapter runs Postgres advisory-lock SQL; wrapping
-		// another dialect must fail immediately, not at query time.
-		expect(() =>
-			withFailFastPgMigrationLock(new SqliteDialect({ database: new Database(":memory:") })),
-		).toThrow(/requires a Postgres dialect/i);
-	});
-
-	it("delegates the non-adapter dialect factories unchanged", () => {
-		const dialect = new PostgresDialect({ pool: {} as never });
-		const wrapped = withFailFastPgMigrationLock(dialect);
-
-		expect(wrapped.createQueryCompiler().constructor).toBe(
-			dialect.createQueryCompiler().constructor,
-		);
-		expect(wrapped.createDriver().constructor).toBe(dialect.createDriver().constructor);
+	it("remains a PostgresDialect for the public dialect type", () => {
+		// `emdash/db/postgres` publicly returns PostgresDialect; the fail-fast
+		// dialect must not narrow or break that type contract.
+		expect(new FailFastPostgresDialect({ pool: {} as never })).toBeInstanceOf(PostgresDialect);
 	});
 });
