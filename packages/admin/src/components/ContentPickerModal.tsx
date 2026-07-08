@@ -202,7 +202,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 														? "bg-kumo-success"
 														: status === "published_with_changes"
 															? "bg-kumo-warning"
-															: "bg-kumo-subtle",
+															: "bg-kumo-fill",
 												)}
 											/>
 											{status === "published"
