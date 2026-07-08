@@ -47,6 +47,38 @@ function formatScheduledDate(dateStr: string | null) {
 	return date.toLocaleString();
 }
 
+/** Autosave status indicator shared by the action bar, the editor strip
+ * (below lg), and the distraction-free overlay. */
+export function AutosaveIndicator({
+	isAutosaving,
+	lastAutosaveAt,
+}: {
+	isAutosaving?: boolean;
+	lastAutosaveAt?: Date | null;
+}) {
+	const { t } = useLingui();
+	return (
+		<div
+			className="flex items-center text-xs text-kumo-subtle"
+			role="status"
+			aria-label={t`Autosave status`}
+			aria-live="polite"
+		>
+			{isAutosaving ? (
+				<>
+					<Loader size="sm" />
+					<span className="ms-1">{t`Saving...`}</span>
+				</>
+			) : lastAutosaveAt ? (
+				<>
+					<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
+					<span>{t`Saved`}</span>
+				</>
+			) : null}
+		</div>
+	);
+}
+
 export interface SettingsActionBarProps {
 	isNew?: boolean;
 	isDirty: boolean;
@@ -107,25 +139,11 @@ export function SettingsActionBar({
 		<div className="shrink-0 border-b">
 			{/* Tier 1: autosave status + primary actions */}
 			<div className="flex flex-wrap items-center justify-between gap-2 p-3">
-				<div
-					className="flex items-center text-xs text-kumo-subtle"
-					role="status"
-					aria-label={t`Autosave status`}
-					aria-live="polite"
-				>
-					{showAutosave &&
-						(isAutosaving ? (
-							<>
-								<Loader size="sm" />
-								<span className="ms-1">{t`Saving...`}</span>
-							</>
-						) : lastAutosaveAt ? (
-							<>
-								<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
-								<span>{t`Saved`}</span>
-							</>
-						) : null)}
-				</div>
+				{showAutosave ? (
+					<AutosaveIndicator isAutosaving={isAutosaving} lastAutosaveAt={lastAutosaveAt} />
+				) : (
+					<div />
+				)}
 				<div className="flex flex-wrap items-center justify-end gap-2">
 					{!isNew && supportsPreview && (
 						<Button

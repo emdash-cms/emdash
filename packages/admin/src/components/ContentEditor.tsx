@@ -9,9 +9,10 @@ import {
 	Select,
 	Sidebar,
 	Switch,
+	useSidebar,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Check, Eye, Paperclip, X, ArrowsInSimple, ArrowsOutSimple } from "@phosphor-icons/react";
+import { Eye, Faders, Paperclip, X, ArrowsInSimple, ArrowsOutSimple } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -33,7 +34,11 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
-import { ContentSettingsPanel, SettingsActionBar } from "./ContentSettingsPanel.js";
+import {
+	AutosaveIndicator,
+	ContentSettingsPanel,
+	SettingsActionBar,
+} from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
@@ -217,6 +222,18 @@ export function ContentEditor({
 	// Kumo Sidebar's `side` prop is physical, not logical: the settings panel
 	// sits opposite the nav sidebar (which the Shell flips the same way).
 	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
+	// Mirrors the Sidebar's mobileBreakpoint (lg = 1024px). `contained` must
+	// flip with it: the desktop pane anchors inside the provider wrapper, but
+	// the mobile sheet needs viewport-fixed positioning.
+	const [isBelowLg, setIsBelowLg] = React.useState(
+		() => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches,
+	);
+	React.useEffect(() => {
+		const mq = window.matchMedia("(max-width: 1023px)");
+		const onChange = () => setIsBelowLg(mq.matches);
+		mq.addEventListener("change", onChange);
+		return () => mq.removeEventListener("change", onChange);
+	}, []);
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
@@ -559,199 +576,196 @@ export function ContentEditor({
 				"transition-all duration-300",
 				isDistractionFree
 					? "space-y-6 fixed inset-0 z-50 bg-kumo-base p-8 overflow-auto"
-					: "flex h-full flex-col overflow-y-auto bg-kumo-base lg:flex-row lg:overflow-hidden",
+					: "flex h-full bg-kumo-base",
 			)}
 		>
-			{/* Editor column — scrolls independently of the settings panel on
-			    desktop; below lg the whole form scrolls as one page. */}
-			<div className={cn(!isDistractionFree && "p-6 lg:flex-1 lg:min-w-0 lg:overflow-y-auto")}>
-				{/* Header. In distraction-free mode this becomes a hover-revealed
+			{/* The Sidebar.Provider wraps the whole editor layout so the strip's
+			    Settings button (below lg) and the block-panel sync can reach the
+			    sidebar context. Desktop: contained offcanvas pane (a layout gap
+			    element keeps the editor column at the right width). Below lg
+			    (mobileBreakpoint) Kumo renders the panel as a slide-in sheet —
+			    inline in the DOM, not portaled, so form association holds. */}
+			<Sidebar.Provider
+				contained={!isBelowLg}
+				defaultOpen
+				side={panelSide}
+				collapsible="offcanvas"
+				mobileBreakpoint={1024}
+				className={cn(!isDistractionFree && "h-full min-h-0")}
+				style={{ "--sidebar-width": "20rem" } as React.CSSProperties}
+			>
+				{/* Editor column — scrolls independently of the settings panel */}
+				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
+					{/* Header. In distraction-free mode this becomes a hover-revealed
 			    overlay so the chrome stays out of the way while writing. In
 			    normal mode it's a regular block; the form also renders a
 			    Save button at the bottom so save is reachable without
 			    scrolling back up. */}
-				<div
-					className={cn(
-						"flex flex-wrap items-center justify-between gap-y-2",
-						isDistractionFree
-							? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10"
-							: "mx-auto mb-6 max-w-3xl",
-					)}
-				>
-					<div className="flex items-center space-x-4">
-						{!isDistractionFree && (
-							<RouterLinkButton
-								to="/content/$collection"
-								params={{ collection }}
-								search={{ locale: undefined }}
-								aria-label={t`Back to ${collectionLabel} list`}
-								variant="ghost"
-								shape="square"
-								icon={<ArrowPrev />}
-							/>
+					<div
+						className={cn(
+							"flex flex-wrap items-center justify-between gap-y-2",
+							isDistractionFree
+								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10"
+								: "mx-auto mb-6 max-w-3xl",
 						)}
-						{isDistractionFree && (
-							<Button
-								variant="ghost"
-								shape="square"
-								onClick={() => setIsDistractionFree(false)}
-								aria-label={t`Exit distraction-free mode`}
-							>
-								<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
-							</Button>
-						)}
-						<h1 className="text-2xl font-bold">
-							{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
-						</h1>
-						{i18n && item?.locale && (
-							<Badge variant="outline" className="uppercase text-xs">
-								{item.locale}
-							</Badge>
-						)}
-					</div>
-					<div className="flex items-center space-x-2">
-						{!isDistractionFree ? (
-							/* Normal mode: actions live in the settings panel's action
-							   bar; the strip only keeps editor chrome. */
-							<Button
-								variant="ghost"
-								shape="square"
-								type="button"
-								onClick={() => setIsDistractionFree(true)}
-								aria-label={t`Enter distraction-free mode`}
-								title={t`Distraction-free mode (⌘⇧\\)`}
-							>
-								<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
-							</Button>
-						) : (
-							/* Distraction-free: the panel (and its action bar) is hidden,
-							   so this hover overlay is the only save/exit surface. */
-							<>
-								{!isNew && onAutosave && (
-									<div
-										className="flex items-center text-xs text-kumo-subtle"
-										role="status"
-										aria-label={t`Autosave status`}
-										aria-live="polite"
-									>
-										{isAutosaving ? (
-											<>
-												<Loader size="sm" />
-												<span className="ms-1">{t`Saving...`}</span>
-											</>
-										) : lastAutosaveAt ? (
-											<>
-												<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
-												<span>{t`Saved`}</span>
-											</>
-										) : null}
-									</div>
-								)}
-								{!isNew && supportsPreview && (
-									<Button
-										variant="outline"
-										type="button"
-										onClick={handlePreview}
-										disabled={isLoadingPreview}
-										icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
-									>
-										{hasPendingChanges ? t`Preview draft` : t`Preview`}
-									</Button>
-								)}
-								<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
-								{!isNew && (
-									<>
-										{isLive ? (
-											<>
-												{hasPendingChanges ? (
-													<Button type="button" variant="primary" onClick={onPublish}>
-														{t`Publish changes`}
-													</Button>
-												) : (
-													<Button type="button" variant="outline" onClick={onUnpublish}>
-														{t`Unpublish`}
-													</Button>
-												)}
-											</>
-										) : (
-											<Button type="button" variant="secondary" onClick={onPublish}>
-												{t`Publish`}
-											</Button>
-										)}
-									</>
-								)}
-							</>
-						)}
-					</div>
-				</div>
-
-				{/* Editor fields — no card chrome; fields sit directly on the page
-				    in a centered column (Notion style). */}
-				<div
-					className={cn(
-						isDistractionFree ? "max-w-4xl mx-auto pt-16" : "mx-auto max-w-3xl space-y-6",
-					)}
-				>
-					<div className="space-y-4">
-						{Object.entries(fields).map(([name, field]) => {
-							// Key by item id so all field editors remount cleanly when the
-							// underlying content item changes (e.g. switching translations).
-							// PortableTextEditor in particular freezes its initial content on
-							// mount; without this key, navigating between translations leaves
-							// the previous locale's body in the editor and silently overwrites
-							// the new translation on the next edit.
-							const fieldKey = `${name}:${item?.id ?? "new"}`;
-							const fieldEl = (
-								<FieldRenderer
-									key={fieldKey}
-									name={name}
-									field={field}
-									value={formData[name]}
-									onChange={handleFieldChange}
-									onEditorReady={
-										field.kind === "portableText" && name === "content"
-											? setPortableTextEditor
-											: undefined
-									}
-									minimal={isDistractionFree}
-									pluginBlocks={pluginBlocks}
-									onBlockSidebarOpen={
-										field.kind === "portableText" ? handleBlockSidebarOpen : undefined
-									}
-									onBlockSidebarClose={
-										field.kind === "portableText" ? handleBlockSidebarClose : undefined
-									}
-									manifest={manifest}
+					>
+						<div className="flex items-center space-x-4">
+							{!isDistractionFree && (
+								<RouterLinkButton
+									to="/content/$collection"
+									params={{ collection }}
+									search={{ locale: undefined }}
+									aria-label={t`Back to ${collectionLabel} list`}
+									variant="ghost"
+									shape="square"
+									icon={<ArrowPrev />}
 								/>
-							);
-							return fieldEl;
-						})}
+							)}
+							{isDistractionFree && (
+								<Button
+									variant="ghost"
+									shape="square"
+									onClick={() => setIsDistractionFree(false)}
+									aria-label={t`Exit distraction-free mode`}
+								>
+									<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
+								</Button>
+							)}
+							<h1 className="text-2xl font-bold">
+								{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
+							</h1>
+							{i18n && item?.locale && (
+								<Badge variant="outline" className="uppercase text-xs">
+									{item.locale}
+								</Badge>
+							)}
+						</div>
+						<div className="flex items-center space-x-2">
+							{!isDistractionFree ? (
+								/* Normal mode: actions live in the settings panel's action
+							   bar; the strip keeps editor chrome, plus Save/autosave and
+							   the sheet trigger below lg where the panel is hidden
+							   behind the Settings sheet. */
+								<>
+									<div className="flex items-center gap-2 lg:hidden">
+										{!isNew && onAutosave && (
+											<AutosaveIndicator
+												isAutosaving={isAutosaving}
+												lastAutosaveAt={lastAutosaveAt}
+											/>
+										)}
+										<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+										<MobileSettingsButton />
+									</div>
+									<Button
+										variant="ghost"
+										shape="square"
+										type="button"
+										onClick={() => setIsDistractionFree(true)}
+										aria-label={t`Enter distraction-free mode`}
+										title={t`Distraction-free mode (⌘⇧\\)`}
+									>
+										<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
+									</Button>
+								</>
+							) : (
+								/* Distraction-free: the panel (and its action bar) is hidden,
+							   so this hover overlay is the only save/exit surface. */
+								<>
+									{!isNew && onAutosave && (
+										<AutosaveIndicator
+											isAutosaving={isAutosaving}
+											lastAutosaveAt={lastAutosaveAt}
+										/>
+									)}
+									{!isNew && supportsPreview && (
+										<Button
+											variant="outline"
+											type="button"
+											onClick={handlePreview}
+											disabled={isLoadingPreview}
+											icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
+										>
+											{hasPendingChanges ? t`Preview draft` : t`Preview`}
+										</Button>
+									)}
+									<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+									{!isNew && (
+										<>
+											{isLive ? (
+												<>
+													{hasPendingChanges ? (
+														<Button type="button" variant="primary" onClick={onPublish}>
+															{t`Publish changes`}
+														</Button>
+													) : (
+														<Button type="button" variant="outline" onClick={onUnpublish}>
+															{t`Unpublish`}
+														</Button>
+													)}
+												</>
+											) : (
+												<Button type="button" variant="secondary" onClick={onPublish}>
+													{t`Publish`}
+												</Button>
+											)}
+										</>
+									)}
+								</>
+							)}
+						</div>
 					</div>
 
+					{/* Editor fields — no card chrome; fields sit directly on the page
+				    in a centered column (Notion style). */}
+					<div
+						className={cn(
+							isDistractionFree ? "max-w-4xl mx-auto pt-16" : "mx-auto max-w-3xl space-y-6",
+						)}
+					>
+						<div className="space-y-4">
+							{Object.entries(fields).map(([name, field]) => {
+								// Key by item id so all field editors remount cleanly when the
+								// underlying content item changes (e.g. switching translations).
+								// PortableTextEditor in particular freezes its initial content on
+								// mount; without this key, navigating between translations leaves
+								// the previous locale's body in the editor and silently overwrites
+								// the new translation on the next edit.
+								const fieldKey = `${name}:${item?.id ?? "new"}`;
+								const fieldEl = (
+									<FieldRenderer
+										key={fieldKey}
+										name={name}
+										field={field}
+										value={formData[name]}
+										onChange={handleFieldChange}
+										onEditorReady={
+											field.kind === "portableText" && name === "content"
+												? setPortableTextEditor
+												: undefined
+										}
+										minimal={isDistractionFree}
+										pluginBlocks={pluginBlocks}
+										onBlockSidebarOpen={
+											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
+										}
+										onBlockSidebarClose={
+											field.kind === "portableText" ? handleBlockSidebarClose : undefined
+										}
+										manifest={manifest}
+									/>
+								);
+								return fieldEl;
+							})}
+						</div>
+					</div>
 				</div>
-			</div>
 
-			{/* Settings panel — structural full-height pane on desktop (Kumo
-			    Sidebar renders an in-flow aside with collapsible="none"); stacks
-			    below the fields under lg until the sheet lands. Kept mounted but
-			    hidden in distraction-free mode so panel-local state survives.
-			    The aside stays inside the <form> so its inputs and submit
-			    buttons keep native form association. */}
-			<div
-				className={cn(
-					"max-lg:w-full max-lg:p-6 max-lg:pt-0 lg:h-full lg:w-80 lg:shrink-0",
-					isDistractionFree && "hidden",
-				)}
-			>
-				<Sidebar.Provider
-					contained
-					defaultOpen
-					side={panelSide}
-					collapsible="none"
-					className="h-full"
-					style={{ "--sidebar-width": "100%" } as React.CSSProperties}
-				>
-					<Sidebar className="max-lg:border-e-0 max-lg:border-s-0">
+				{/* Settings panel — desktop pane / mobile sheet. Unmounted (not just
+			    hidden) in distraction-free mode: keeping a contained offcanvas
+			    pane mounted would leave its layout gap behind. */}
+				{!isDistractionFree && (
+					<Sidebar>
 						{/* Action bar absorbs the high-frequency props (isDirty,
 						    isSaving, isAutosaving) so they never reach the memoized
 						    panel body below. */}
@@ -813,9 +827,60 @@ export function ContentEditor({
 							/>
 						</div>
 					</Sidebar>
-				</Sidebar.Provider>
-			</div>
+				)}
+
+				{/* Below lg, opening a block detail panel must open the sheet —
+				    otherwise it renders into a closed drawer and nothing visibly
+				    happens. */}
+				<MobileBlockSidebarSync active={!!blockSidebarPanel} />
+			</Sidebar.Provider>
 		</form>
+	);
+}
+
+/**
+ * Opens the settings sheet when a portable-text block requests sidebar
+ * space below the mobile breakpoint, and restores the sheet's prior
+ * open/closed state when the block panel closes. Renders nothing.
+ */
+function MobileBlockSidebarSync({ active }: { active: boolean }) {
+	const { isMobile, openMobile, setOpenMobile } = useSidebar();
+	const prevActiveRef = React.useRef(active);
+	const priorOpenRef = React.useRef<boolean | null>(null);
+
+	React.useEffect(() => {
+		if (active === prevActiveRef.current) return;
+		prevActiveRef.current = active;
+		if (!isMobile) return;
+		if (active) {
+			priorOpenRef.current = openMobile;
+			setOpenMobile(true);
+		} else {
+			setOpenMobile(priorOpenRef.current ?? false);
+			priorOpenRef.current = null;
+		}
+	}, [active, isMobile, openMobile, setOpenMobile]);
+
+	return null;
+}
+
+/**
+ * "Settings" trigger for the mobile sheet. Lives in the editor strip,
+ * which sits inside the Sidebar.Provider, so it can reach the context.
+ */
+function MobileSettingsButton() {
+	const { t } = useLingui();
+	const { toggleSidebar } = useSidebar();
+	return (
+		<Button
+			type="button"
+			variant="outline"
+			className="lg:hidden"
+			icon={<Faders />}
+			onClick={toggleSidebar}
+		>
+			{t`Settings`}
+		</Button>
 	);
 }
 
