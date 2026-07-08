@@ -1255,6 +1255,14 @@
       "created_at": "2026-07-06T17:15:08Z",
       "repoId": 1198246700,
       "pullRequestNo": 1848
+    },
+    {
+      "name": "afonsojramos",
+      "id": 19473034,
+      "comment_id": 4910231722,
+      "created_at": "2026-07-08T00:20:49Z",
+      "repoId": 1198246700,
+      "pullRequestNo": 1868
     }
   ]
 }
