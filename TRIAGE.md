@@ -36,7 +36,7 @@ The GitHub triage role lets you:
 
 It does not let you merge PRs, push to branches, or change repository settings — those stay with maintainers.
 
-You can also review and approve PRs, and while these do not change ther PR status to "approved", they are still useful: an approval from a triager tells maintainers "a human has looked at this and it holds up," which makes the final review much faster. A PR still needs maintainer approval before it can be merged, but don't let that stop you from giving one.
+You can also review and approve PRs. A triager's approval doesn't change the PR's status to "approved", but it is still useful: it tells maintainers "a human has looked at this and it holds up," which makes the final review much faster. A PR still needs maintainer approval before it can be merged, but don't let that stop you from giving one.
 
 ## Working With the Bots
 
@@ -46,7 +46,7 @@ EmDash has a lot of automation. Probably the most important piece is @emdashbot,
 - **Apply the `bot:review` label to summon a re-review**, for example after an author pushes significant changes. It sometimes fails to review the first time (e.g. if there's an error while it is running), in which case it is useful to ask for a re-review.
 - Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically by workflows. See [PR Labels](#pr-labels) for what they mean.
 
-Currently the bots do not attempt to triage or reproduce issues, so your work here is particularly valuable. There _are_ ways to get emdashbot to try and reproduce issues, but it's really unreliable right now so we don't recommend it.
+Issue triage is a different story. There is an experimental bot that tries to reproduce bugs (see [The Repro Bot and `triage/*` Labels](#the-repro-bot-and-triage-labels)), but it is unreliable enough that we don't currently use it. In practice, issues are triaged and reproduced by humans, so your work here is particularly valuable.
 
 You can help by:
 
@@ -110,6 +110,8 @@ The boundary runs the other way too: triage access doesn't move you away from wr
 
 ## Issue Triage
 
+Not sure where to begin? A good first session: pick a `bug` issue with no `priority/*` label, try to reproduce it, and leave a comment with what you found. Confirmed, not confirmed, or "I got this far and then hit X" — all three move the issue forward.
+
 Start by identifying what kind of issue it is.
 
 | If it is...            | Do this                                                                                                       |
@@ -148,6 +150,23 @@ For issues, priority is often the best thing a human triager can add — it's a 
 Use priority labels when you have enough context to make a reasonable call. If you are unsure, leave priority unset and explain what information would help judge impact.
 
 For bugs, a confirmed reproduction is the most useful evidence for priority. If you reproduce something, leave the exact environment and steps you used.
+
+### The Repro Bot and `triage/*` Labels
+
+There is an experimental issue-investigation agent: applying the `bot:repro` label to an issue sends an agent off to try to reproduce the bug, and if it succeeds it may push a fix branch. It's honestly not very reliable yet — it misdiagnoses bugs and produces plausible-looking results that don't hold up — so maintainers rarely use it and you should not apply `bot:repro` yourself. If you think an issue is a great candidate for it, suggest it in `#triage`. We hope to make it dependable enough to become a normal part of triage; until then, treat human reproduction as the real thing.
+
+You may still occasionally see its state labels on an issue. Like the PR labels, these are managed by workflows — you read them, you don't set them:
+
+- `triage/reproducing` — the bot is currently investigating.
+- `triage/reproduced` — the bot reproduced the bug.
+- `triage/not-reproduced` — the bot could not reproduce it.
+- `triage/by-design` — the bot reproduced the behavior but it appears intentional.
+- `triage/awaiting-reporter` — a fix has been pushed and we're waiting for the reporter to verify it.
+- `triage/verified` — the reporter confirmed the fix.
+- `triage/skipped` — the bot declined to investigate.
+- `triage/failed` — the bot crashed or hit its retry cap.
+
+If an issue has one of these labels, a bot investigation has happened or is in flight — read the bot's comments before starting a manual reproduction. In particular, `triage/awaiting-reporter` means a fix branch already exists, and the most useful thing you can do is test that fix rather than re-reproduce the original bug. Given how unreliable the bot is, double-checking its conclusions is itself valuable triage: a human confirming or refuting a `triage/reproduced` or `triage/not-reproduced` verdict is worth more than the label.
 
 ## PR Triage
 
