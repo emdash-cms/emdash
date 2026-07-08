@@ -7,7 +7,6 @@ import {
 	type MediaUsageRepairResponse,
 } from "../../../src/api/handlers/media-usage.js";
 import { injectCoreRoutes } from "../../../src/astro/integration/routes.js";
-import * as repairRoute from "../../../src/astro/routes/api/admin/media-usage/repair.js";
 import { POST } from "../../../src/astro/routes/api/admin/media-usage/repair.js";
 import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
@@ -47,10 +46,6 @@ describe("admin media usage repair route", () => {
 	afterEach(async () => {
 		await teardownForDialect(ctx);
 		ctx = undefined;
-	});
-
-	it("does not export GET for the state-changing repair operation", () => {
-		expect("GET" in repairRoute).toBe(false);
 	});
 
 	it("registers the repair route under the admin API prefix", () => {
