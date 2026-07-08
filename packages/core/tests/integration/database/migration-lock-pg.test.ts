@@ -17,7 +17,11 @@
 import { sql } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import { MIGRATION_COUNT, runMigrations } from "../../../src/database/migrations/runner.js";
+import {
+	ConcurrentMigrationTimeoutError,
+	MIGRATION_COUNT,
+	runMigrations,
+} from "../../../src/database/migrations/runner.js";
 import {
 	createTestPostgresDatabase,
 	hasPgTestDatabase,
@@ -72,9 +76,12 @@ describe.runIf(hasPgTestDatabase)("Fail-fast Postgres migration lock (#1744)", (
 			const lock = await holdMigrationLock(ctx);
 			try {
 				const start = Date.now();
+				// The distinct error type matters: getDatabase() exempts it from
+				// the failure backoff, since the lock holder may simply be slow
+				// rather than failing.
 				await expect(
 					runMigrations(ctx.db, { migrationTableSchema: ctx.schemaName, raceWaitMs: 300 }),
-				).rejects.toThrow(/holds the migration lock/i);
+				).rejects.toThrow(ConcurrentMigrationTimeoutError);
 				// The old behavior blocked inside pg_advisory_xact_lock until the
 				// holder finished — i.e. forever in this test. The fail-fast path
 				// must return promptly: try-lock + a bounded ~300ms poll.

@@ -1,4 +1,5 @@
-import { PostgresDialect } from "kysely";
+import Database from "better-sqlite3";
+import { PostgresDialect, SqliteDialect } from "kysely";
 import { describe, expect, it } from "vitest";
 
 import { withFailFastPgMigrationLock } from "../../../src/database/pg-migration-lock.js";
@@ -29,6 +30,14 @@ describe("withFailFastPgMigrationLock", () => {
 		// every dialect helper emit SQLite SQL against Postgres.
 		const wrapped = withFailFastPgMigrationLock(new PostgresDialect({ pool: {} as never }));
 		expect(wrapped.createAdapter().constructor.name).toBe("PostgresAdapter");
+	});
+
+	it("rejects a non-Postgres dialect at wrap time", () => {
+		// The replacement adapter runs Postgres advisory-lock SQL; wrapping
+		// another dialect must fail immediately, not at query time.
+		expect(() =>
+			withFailFastPgMigrationLock(new SqliteDialect({ database: new Database(":memory:") })),
+		).toThrow(/requires a Postgres dialect/i);
 	});
 
 	it("delegates the non-adapter dialect factories unchanged", () => {

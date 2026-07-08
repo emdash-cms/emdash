@@ -64,6 +64,13 @@ class PostgresAdapter extends KyselyPostgresAdapter {
  * delegates to the wrapped dialect unchanged.
  */
 export function withFailFastPgMigrationLock(dialect: Dialect): Dialect {
+	// Guard misuse up front: the replacement adapter is Postgres-specific
+	// (advisory-lock SQL, capability flags), so wrapping a non-Postgres
+	// dialect must fail here with a clear error, not at query time with a
+	// wrong-dialect one.
+	if (!(dialect.createAdapter() instanceof KyselyPostgresAdapter)) {
+		throw new Error("withFailFastPgMigrationLock requires a Postgres dialect");
+	}
 	return {
 		createAdapter: () => new PostgresAdapter(),
 		createDriver: () => dialect.createDriver(),

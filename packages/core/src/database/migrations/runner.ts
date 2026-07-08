@@ -124,6 +124,24 @@ export interface MigrationStatus {
 	pending: string[];
 }
 
+/**
+ * Thrown when another instance held the migration lock for the whole wait
+ * window. This is NOT a migration failure — the holder may simply be slow
+ * (e.g. many pending migrations over a remote Postgres connection) — so
+ * callers with failure-backoff logic (`getDatabase` in emdash-runtime.ts)
+ * exempt it: the next request waits again instead of backing off, and init
+ * recovers as soon as the holder finishes.
+ */
+export class ConcurrentMigrationTimeoutError extends Error {
+	constructor(waitMs: number) {
+		super(
+			`Timed out waiting for another instance's migrations: the migration lock was still held after ${waitMs}ms. ` +
+				"It may still be applying migrations, or its migration may be failing repeatedly.",
+		);
+		this.name = "ConcurrentMigrationTimeoutError";
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
 const MIGRATION_LOCK_TABLE = "_emdash_migrations_lock";
@@ -364,12 +382,11 @@ export async function runMigrations(
 				return { applied };
 			}
 			if (lockBusy) {
-				// The lock holder never finished (its migration is likely
-				// failing too). Surface a clear error instead of the raw
-				// sentinel message.
-				throw new Error(
-					"Migration failed: another instance holds the migration lock and pending migrations were not applied within the wait window",
-				);
+				// The lock holder didn't finish within the wait window —
+				// either it's slow or its migration is failing. Surface a
+				// distinct error type instead of the raw sentinel message so
+				// callers can tell "still in progress" from "failed".
+				throw new ConcurrentMigrationTimeoutError(options?.raceWaitMs ?? MIGRATION_RACE_WAIT_MS);
 			}
 		}
 

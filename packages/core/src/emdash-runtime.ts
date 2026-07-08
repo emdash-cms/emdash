@@ -22,7 +22,11 @@ import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
-import { MIGRATION_RACE_WAIT_MS, runMigrations } from "./database/migrations/runner.js";
+import {
+	ConcurrentMigrationTimeoutError,
+	MIGRATION_RACE_WAIT_MS,
+	runMigrations,
+} from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type {
 	ContentItem as ContentItemInternal,
@@ -1650,11 +1654,14 @@ export class EmDashRuntime {
 
 		const throwIfBackingOff = () => {
 			const failure = holder.failures.get(cacheKey);
-			if (failure && Date.now() - failure.at < DB_INIT_FAILURE_BACKOFF_MS) {
+			if (!failure) return;
+			if (Date.now() - failure.at < DB_INIT_FAILURE_BACKOFF_MS) {
 				throw new Error(
 					`Database initialization is backing off after a recent migration failure: ${failure.message}`,
 				);
 			}
+			// Expired — drop it so the map only ever holds active backoffs.
+			holder.failures.delete(cacheKey);
 		};
 		throwIfBackingOff();
 
@@ -1673,10 +1680,16 @@ export class EmDashRuntime {
 				try {
 					await runMigrations(db);
 				} catch (error) {
-					holder.failures.set(cacheKey, {
-						at: Date.now(),
-						message: error instanceof Error ? error.message : String(error),
-					});
+					// Timing out behind another instance's in-flight migrations
+					// is not a failure of OUR migration — the holder may just be
+					// slow. Don't back off for it: the next request waits again
+					// and init recovers the moment the holder finishes.
+					if (!(error instanceof ConcurrentMigrationTimeoutError)) {
+						holder.failures.set(cacheKey, {
+							at: Date.now(),
+							message: error instanceof Error ? error.message : String(error),
+						});
+					}
 					// Every attempt builds a fresh dialect/pool; close it or each
 					// failed init leaks its connection(s) (#1744 observed these
 					// piling up as idle Postgres connections).
