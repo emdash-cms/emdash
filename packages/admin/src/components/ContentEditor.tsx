@@ -15,16 +15,12 @@ import { useLingui } from "@lingui/react/macro";
 import {
 	Check,
 	Eye,
-	MagnifyingGlass,
 	Paperclip,
 	X,
-	Trash,
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowSquareOut,
 } from "@phosphor-icons/react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -36,16 +32,15 @@ import type {
 	UserListItem,
 	TranslationSummary,
 } from "../lib/api";
-import { fetchBylines, getPreviewUrl, getDraftStatus } from "../lib/api";
+import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
-import { useDebouncedValue } from "../lib/hooks.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
-import { DocumentOutline } from "./editor/DocumentOutline";
+import { ContentSettingsPanel } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
@@ -67,22 +62,13 @@ function serializeEditorState(input: {
 }
 
 import type { ContentSeoInput } from "../lib/api";
-import { ImageDetailPanel } from "./editor/ImageDetailPanel";
-import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
 	type PluginBlockDef,
 	type BlockSidebarPanel,
 } from "./PortableTextEditor";
-import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
-import { SeoPanel } from "./SeoPanel";
-import { TaxonomySidebar } from "./TaxonomySidebar";
-import { TranslationsPanel } from "./TranslationsPanel.js";
-
-// Editor role level (40) from @emdash-cms/auth
-const ROLE_EDITOR = 40;
 
 export interface FieldDescriptor {
 	id?: string;
@@ -190,13 +176,6 @@ export interface ContentEditorProps {
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 }
 
-/** Format scheduled date for display */
-function formatScheduledDate(dateStr: string | null) {
-	if (!dateStr) return null;
-	const date = new Date(dateStr);
-	return date.toLocaleString();
-}
-
 /**
  * Content editor with dynamic field rendering
  */
@@ -241,7 +220,6 @@ export function ContentEditor({
 	manifest,
 }: ContentEditorProps) {
 	const { t } = useLingui();
-	const navigate = useNavigate();
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
@@ -272,6 +250,13 @@ export function ContentEditor({
 	const handleBlockSidebarClose = React.useCallback(() => {
 		setBlockSidebarPanel((prev) => {
 			prev?.onClose();
+			return null;
+		});
+	}, []);
+
+	const handleBlockSidebarDelete = React.useCallback(() => {
+		setBlockSidebarPanel((prev) => {
+			prev?.onDelete();
 			return null;
 		});
 	}, []);
@@ -533,10 +518,10 @@ export function ContentEditor({
 		[slugTouched],
 	);
 
-	const handleSlugChange = (value: string) => {
+	const handleSlugChange = React.useCallback((value: string) => {
 		setSlug(value);
 		setSlugTouched(true);
-	};
+	}, []);
 
 	const isPublished = status === "published";
 
@@ -550,10 +535,6 @@ export function ContentEditor({
 	const hasSchedule = Boolean(item?.scheduledAt);
 	const canSchedule =
 		!isNew && !hasSchedule && Boolean(onSchedule) && (!isPublished || hasPendingChanges);
-
-	// Schedule datetime state
-	const [scheduleDate, setScheduleDate] = React.useState<string>("");
-	const [showScheduler, setShowScheduler] = React.useState(false);
 
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
@@ -573,16 +554,6 @@ export function ContentEditor({
 		document.addEventListener("keydown", handleKeyDown, { capture: true });
 		return () => document.removeEventListener("keydown", handleKeyDown, { capture: true });
 	}, [isDistractionFree]);
-
-	const handleScheduleSubmit = () => {
-		if (scheduleDate && onSchedule) {
-			// Convert local datetime to ISO string
-			const date = new Date(scheduleDate);
-			onSchedule(date.toISOString());
-			setShowScheduler(false);
-			setScheduleDate("");
-		}
-	};
 
 	return (
 		<form
@@ -814,260 +785,44 @@ export function ContentEditor({
 
 				{/* Sidebar - hidden in distraction-free mode */}
 				<div className={cn("space-y-6", isDistractionFree && "hidden")}>
-					{blockSidebarPanel ? (
-						/* Block sidebar panel – replaces default sections when a block requests it */
-						blockSidebarPanel.type === "image" ? (
-							<ImageDetailPanel
-								attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-								onUpdate={(attrs) =>
-									blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-								}
-								onReplace={(attrs) =>
-									blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
-								}
-								onDelete={() => {
-									blockSidebarPanel.onDelete();
-									setBlockSidebarPanel(null);
-								}}
-								onClose={handleBlockSidebarClose}
-								inline
-							/>
-						) : null
-					) : (
-						/* Default content settings sections – single card with dividers */
-						<div className="rounded-lg border bg-kumo-base flex flex-col">
-							{/* Publish settings */}
-							<div className="p-4">
-								<h3 className="mb-4 font-semibold">{t`Publish`}</h3>
-								<div className="space-y-4">
-									<Input
-										label={t`Slug`}
-										value={slug}
-										onChange={(e) => handleSlugChange(e.target.value)}
-										placeholder="my-post-slug"
-									/>
-									<div>
-										<Label>{t`Status`}</Label>
-										<div className="mt-1 flex flex-wrap items-center gap-1.5">
-											{supportsDrafts ? (
-												<>
-													{isLive && <Badge variant="success">{t`Published`}</Badge>}
-													{hasPendingChanges && (
-														<Badge variant="secondary">{t`Pending changes`}</Badge>
-													)}
-													{!isLive && !hasSchedule && <Badge variant="secondary">{t`Draft`}</Badge>}
-													{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}
-												</>
-											) : (
-												<span className="text-sm text-kumo-subtle">
-													{status.charAt(0).toUpperCase() + status.slice(1)}
-												</span>
-											)}
-										</div>
-										{item?.scheduledAt && (
-											<div className="mt-2 flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-												<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
-												<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
-													{t`Unschedule`}
-												</Button>
-											</div>
-										)}
-									</div>
-
-									{canSchedule && (
-										<div className="pt-2">
-											{showScheduler ? (
-												<div className="space-y-2">
-													<Input
-														label={t`Schedule for`}
-														type="datetime-local"
-														value={scheduleDate}
-														onChange={(e) => setScheduleDate(e.target.value)}
-														min={new Date().toISOString().slice(0, 16)}
-													/>
-													<div className="flex gap-2">
-														<Button
-															type="button"
-															size="sm"
-															onClick={handleScheduleSubmit}
-															disabled={!scheduleDate || isScheduling}
-															icon={isScheduling ? <Loader size="sm" /> : undefined}
-														>
-															{t`Schedule`}
-														</Button>
-														<Button
-															type="button"
-															variant="outline"
-															size="sm"
-															onClick={() => {
-																setShowScheduler(false);
-																setScheduleDate("");
-															}}
-														>
-															{t`Cancel`}
-														</Button>
-													</div>
-												</div>
-											) : (
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													className="w-full"
-													onClick={() => setShowScheduler(true)}
-												>
-													{t`Schedule for later`}
-												</Button>
-											)}
-										</div>
-									)}
-
-									{item && (
-										<div className="text-xs text-kumo-subtle">
-											<p>{t`Created: ${new Date(item.createdAt).toLocaleString()}`}</p>
-											<p>{t`Updated: ${new Date(item.updatedAt).toLocaleString()}`}</p>
-										</div>
-									)}
-									{!isNew && onDelete && (
-										<div className="pt-4 border-t">
-											<Dialog.Root disablePointerDismissal>
-												<Dialog.Trigger
-													render={(p) => (
-														<Button
-															{...p}
-															type="button"
-															variant="outline"
-															className="w-full text-kumo-danger hover:text-kumo-danger"
-															disabled={isDeleting}
-															icon={isDeleting ? <Loader size="sm" /> : <Trash />}
-														>
-															{t`Move to Trash`}
-														</Button>
-													)}
-												/>
-												<Dialog className="p-6" size="sm">
-													<Dialog.Title className="text-lg font-semibold">
-														{t`Move to Trash?`}
-													</Dialog.Title>
-													<Dialog.Description className="text-kumo-subtle">
-														{t`This will move the item to trash. You can restore it later from the trash.`}
-													</Dialog.Description>
-													<div className="mt-6 flex justify-end gap-2">
-														<Dialog.Close
-															render={(p) => (
-																<Button {...p} variant="secondary">
-																	{t`Cancel`}
-																</Button>
-															)}
-														/>
-														<Dialog.Close
-															render={(p) => (
-																<Button {...p} variant="destructive" onClick={onDelete}>
-																	{t`Move to Trash`}
-																</Button>
-															)}
-														/>
-													</div>
-												</Dialog>
-											</Dialog.Root>
-										</div>
-									)}
-								</div>
-							</div>
-
-							{/* Ownership selector - shown only to editors and above */}
-							{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
-								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">{t`Ownership`}</h3>
-									<AuthorSelector
-										authorId={item?.authorId || null}
-										users={users}
-										onChange={onAuthorChange}
-									/>
-								</div>
-							)}
-
-							{/* Byline credits */}
-							{currentUser && currentUser.role >= ROLE_EDITOR && (
-								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">{t`Bylines`}</h3>
-									<BylineCreditsEditor
-										credits={activeBylines}
-										bylines={availableBylines ?? []}
-										selectedBylineDetails={item?.bylines?.map((entry) => entry.byline)}
-										bylinesLoaded={availableBylinesLoaded}
-										onChange={handleBylinesChange}
-										onQuickCreate={onQuickCreateByline}
-										onQuickEdit={onQuickEditByline}
-										// Existing entry: use its own locale. New entry: use the
-										// URL `?locale=` (passed in via `entryLocale`).
-										entryLocale={item?.locale ?? entryLocale}
-										i18n={i18n}
-									/>
-								</div>
-							)}
-
-							{/* Translations sidebar - shown when i18n is enabled */}
-							{i18n && item && !isNew && (
-								<div className="p-4 border-t">
-									<TranslationsPanel
-										locales={i18n.locales}
-										defaultLocale={i18n.defaultLocale}
-										currentLocale={item.locale ?? undefined}
-										translations={translations ?? []}
-										onOpen={(tr) =>
-											navigate({
-												to: "/content/$collection/$id",
-												params: { collection, id: tr.id },
-												search: { locale: tr.locale },
-											})
-										}
-										onCreate={onTranslate}
-									/>
-								</div>
-							)}
-
-							{/* Taxonomy selector */}
-							{item && (
-								<div className="p-4 border-t">
-									<TaxonomySidebar
-										collection={collection}
-										entryId={item.id}
-										entryLocale={item.locale ?? entryLocale}
-									/>
-								</div>
-							)}
-
-							{/* SEO panel - shown for collections with hasSeo enabled */}
-							{hasSeo && !isNew && onSeoChange && (
-								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold flex items-center gap-2">
-										<MagnifyingGlass className="h-4 w-4" />
-										{t`SEO`}
-									</h3>
-									<SeoPanel
-										contentKey={item?.id ?? `new:${collection}`}
-										seo={item?.seo}
-										onChange={handleSeoChange}
-									/>
-								</div>
-							)}
-
-							{/* Document outline - shown when editing content with portableText */}
-							{portableTextEditor && (
-								<div className="p-4 border-t">
-									<DocumentOutline editor={portableTextEditor} />
-								</div>
-							)}
-
-							{/* Revision history - shown for existing items in collections that support it */}
-							{!isNew && item && supportsRevisions && (
-								<div className="p-4 border-t">
-									<RevisionHistory collection={collection} entryId={item.id} />
-								</div>
-							)}
-						</div>
-					)}
+					<ContentSettingsPanel
+						collection={collection}
+						item={item}
+						isNew={isNew}
+						entryLocale={entryLocale}
+						slug={slug}
+						onSlugChange={handleSlugChange}
+						status={status}
+						supportsDrafts={supportsDrafts}
+						supportsRevisions={supportsRevisions}
+						isLive={isLive}
+						hasPendingChanges={hasPendingChanges}
+						hasSchedule={hasSchedule}
+						canSchedule={canSchedule}
+						onSchedule={onSchedule}
+						onUnschedule={onUnschedule}
+						isScheduling={isScheduling}
+						onDelete={onDelete}
+						isDeleting={isDeleting}
+						currentUser={currentUser}
+						users={users}
+						onAuthorChange={onAuthorChange}
+						activeBylines={activeBylines}
+						availableBylines={availableBylines}
+						availableBylinesLoaded={availableBylinesLoaded}
+						onBylinesChange={handleBylinesChange}
+						onQuickCreateByline={onQuickCreateByline}
+						onQuickEditByline={onQuickEditByline}
+						i18n={i18n}
+						translations={translations}
+						onTranslate={onTranslate}
+						hasSeo={hasSeo}
+						onSeoChange={onSeoChange ? handleSeoChange : undefined}
+						portableTextEditor={portableTextEditor}
+						blockSidebarPanel={blockSidebarPanel}
+						onBlockSidebarClose={handleBlockSidebarClose}
+						onBlockSidebarDelete={handleBlockSidebarDelete}
+					/>
 				</div>
 			</div>
 		</form>
@@ -1737,410 +1492,6 @@ function FileFieldRenderer({
 			{required && !normalized && (
 				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
 			)}
-		</div>
-	);
-}
-
-/**
- * Author selector component for editors and above
- */
-interface AuthorSelectorProps {
-	authorId: string | null;
-	users: UserListItem[];
-	onChange?: (authorId: string | null) => void;
-}
-
-interface BylineCreditsEditorProps {
-	credits: BylineCreditInput[];
-	bylines: BylineSummary[];
-	/**
-	 * Full byline details for the entry's already-selected credits. Seeded from
-	 * the saved entry so credited bylines always render their name/slug even when
-	 * they fall outside the initial (unsearched) picker list.
-	 */
-	selectedBylineDetails?: BylineSummary[];
-	onChange: (bylines: BylineCreditInput[]) => void;
-	onQuickCreate?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
-	onQuickEdit?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
-	/**
-	 * Locale of the entry being edited. When the picker comes back empty and
-	 * the install is multi-locale, the empty-state copy and CTA link are
-	 * scoped to this locale (post-migration 040, the picker is strict
-	 * per-locale — see the bylines manager flow).
-	 */
-	entryLocale?: string | null;
-	/** i18n config from the manifest. When set with >1 locales, the editor renders the locale-scoped empty-state. */
-	i18n?: { defaultLocale: string; locales: string[] } | null;
-	/** Suppresses the empty-state until the picker query resolves. Defaults to true. */
-	bylinesLoaded?: boolean;
-}
-
-function BylineCreditsEditor({
-	credits,
-	bylines,
-	selectedBylineDetails,
-	onChange,
-	onQuickCreate,
-	onQuickEdit,
-	entryLocale,
-	i18n,
-	bylinesLoaded = true,
-}: BylineCreditsEditorProps) {
-	const { t } = useLingui();
-	const [search, setSearch] = React.useState("");
-	const debouncedSearch = useDebouncedValue(search, 300);
-	const [quickName, setQuickName] = React.useState("");
-	const [quickSlug, setQuickSlug] = React.useState("");
-	const [quickError, setQuickError] = React.useState<string | null>(null);
-	const [isCreating, setIsCreating] = React.useState(false);
-	const [editBylineId, setEditBylineId] = React.useState<string | null>(null);
-	const [editName, setEditName] = React.useState("");
-	const [editSlug, setEditSlug] = React.useState("");
-	const [editError, setEditError] = React.useState<string | null>(null);
-	const [isEditing, setIsEditing] = React.useState(false);
-
-	// Server-side search so the picker isn't limited to the first page of
-	// bylines (previously capped at 100 with no way to find the rest). When the
-	// search box is empty we fall back to the parent-provided initial list.
-	const trimmedSearch = debouncedSearch.trim();
-	const searchEnabled = trimmedSearch.length > 0;
-	const searchResults = useQuery({
-		queryKey: ["bylines", "credit-picker", entryLocale ?? null, trimmedSearch],
-		queryFn: () =>
-			fetchBylines({ search: trimmedSearch, locale: entryLocale ?? undefined, limit: 20 }),
-		enabled: searchEnabled,
-		placeholderData: keepPreviousData,
-	});
-
-	const resultPool = searchEnabled ? (searchResults.data?.items ?? []) : bylines;
-	const hasMoreResults = searchEnabled ? !!searchResults.data?.nextCursor : bylines.length >= 100;
-
-	// Resolve credited bylines to their full details for display. Selected rows
-	// come from the parent-provided details so they keep rendering even when the
-	// current search results no longer include them.
-	const bylineMap = React.useMemo(() => {
-		const map = new Map<string, BylineSummary>();
-		for (const b of selectedBylineDetails ?? []) map.set(b.id, b);
-		for (const b of bylines) map.set(b.id, b);
-		for (const b of searchResults.data?.items ?? []) map.set(b.id, b);
-		return map;
-	}, [selectedBylineDetails, bylines, searchResults.data?.items]);
-
-	const availableToAdd = resultPool.filter((b) => !credits.some((c) => c.bylineId === b.id));
-
-	const addByline = (bylineId: string) => {
-		if (credits.some((c) => c.bylineId === bylineId)) return;
-		onChange([...credits, { bylineId, roleLabel: null }]);
-	};
-
-	const move = (index: number, direction: -1 | 1) => {
-		const target = index + direction;
-		if (target < 0 || target >= credits.length) return;
-		const next = [...credits];
-		const [moved] = next.splice(index, 1);
-		if (!moved) return;
-		next.splice(target, 0, moved);
-		onChange(next);
-	};
-
-	const resetQuickCreate = () => {
-		setQuickName("");
-		setQuickSlug("");
-		setQuickError(null);
-	};
-
-	const openEditByline = (byline: BylineSummary) => {
-		setEditBylineId(byline.id);
-		setEditName(byline.displayName);
-		setEditSlug(byline.slug);
-		setEditError(null);
-	};
-
-	const resetQuickEdit = () => {
-		setEditBylineId(null);
-		setEditName("");
-		setEditSlug("");
-		setEditError(null);
-	};
-
-	// Multi-locale install with no bylines at the entry's locale: show a
-	// CTA to the byline manager, scoped to that locale. Quick-create
-	// still works inline.
-	const isMultiLocale = !!i18n && i18n.locales.length > 1;
-	const showLocaleEmptyState =
-		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
-
-	return (
-		<div className="space-y-3">
-			{showLocaleEmptyState && (
-				<div className="rounded border border-dashed p-3 text-sm space-y-2">
-					<p className="text-kumo-subtle">
-						{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
-					</p>
-					<RouterLinkButton
-						to="/bylines"
-						search={{ locale: entryLocale ?? undefined }}
-						variant="secondary"
-						size="sm"
-					>
-						{t`Manage bylines in ${entryLocale}`}
-					</RouterLinkButton>
-				</div>
-			)}
-			<div className="space-y-2">
-				<Input
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-					placeholder={t`Search bylines to add...`}
-					aria-label={t`Search bylines`}
-				/>
-				{searchEnabled && searchResults.isLoading ? (
-					<p className="text-sm text-kumo-subtle">{t`Searching...`}</p>
-				) : availableToAdd.length > 0 ? (
-					<ul className="max-h-48 divide-y overflow-y-auto rounded border">
-						{availableToAdd.map((b) => (
-							<li key={b.id}>
-								<button
-									type="button"
-									className="flex w-full items-center justify-between gap-2 p-2 text-start hover:bg-kumo-tint"
-									onClick={() => addByline(b.id)}
-								>
-									<span className="min-w-0">
-										<span className="block truncate text-sm font-medium">{b.displayName}</span>
-										<span className="block truncate text-xs text-kumo-subtle">{b.slug}</span>
-									</span>
-									<span className="text-xs text-kumo-subtle">{t`Add`}</span>
-								</button>
-							</li>
-						))}
-					</ul>
-				) : searchEnabled && searchResults.isError ? (
-					<p className="text-sm text-kumo-danger">{t`Couldn't search bylines. Please try again.`}</p>
-				) : searchEnabled ? (
-					<p className="text-sm text-kumo-subtle">{t`No matching bylines.`}</p>
-				) : null}
-				{hasMoreResults && (
-					<p className="text-xs text-kumo-subtle">{t`Keep typing to narrow down more bylines.`}</p>
-				)}
-			</div>
-
-			{credits.length > 0 ? (
-				<div className="space-y-2">
-					{credits.map((credit, index) => {
-						const byline = bylineMap.get(credit.bylineId);
-						if (!byline) return null;
-						return (
-							<div key={`${credit.bylineId}-${index}`} className="rounded border p-2 space-y-2">
-								<div className="flex items-center justify-between gap-2">
-									<div>
-										<p className="text-sm font-medium">{byline.displayName}</p>
-										<p className="text-xs text-kumo-subtle">{byline.slug}</p>
-									</div>
-									<div className="flex gap-1">
-										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, -1)}>
-											{t`Up`}
-										</Button>
-										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, 1)}>
-											{t`Down`}
-										</Button>
-										{onQuickEdit && (
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												onClick={() => openEditByline(byline)}
-											>
-												{t`Edit`}
-											</Button>
-										)}
-										<Button
-											type="button"
-											variant="destructive"
-											size="sm"
-											onClick={() => onChange(credits.filter((_, i) => i !== index))}
-										>
-											{t`Remove`}
-										</Button>
-									</div>
-								</div>
-								<Input
-									label={t`Role label`}
-									value={credit.roleLabel ?? ""}
-									onChange={(e) => {
-										const next = [...credits];
-										const current = next[index];
-										if (!current) return;
-										next[index] = {
-											...current,
-											roleLabel: e.target.value || null,
-										};
-										onChange(next);
-									}}
-								/>
-							</div>
-						);
-					})}
-				</div>
-			) : (
-				<p className="text-sm text-kumo-subtle">{t`No bylines selected.`}</p>
-			)}
-
-			{onQuickCreate && (
-				<Dialog.Root>
-					<Dialog.Trigger
-						render={(p) => (
-							<Button {...p} type="button" variant="secondary">
-								{t`Quick create byline`}
-							</Button>
-						)}
-					/>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Create byline`}</Dialog.Title>
-						<div className="mt-4 space-y-3">
-							<Input
-								label={t`Display name`}
-								value={quickName}
-								onChange={(e) => {
-									setQuickName(e.target.value);
-									if (!quickSlug) setQuickSlug(slugify(e.target.value));
-								}}
-							/>
-							<Input
-								label={t`Slug`}
-								value={quickSlug}
-								onChange={(e) => setQuickSlug(e.target.value)}
-							/>
-							{quickError && <p className="text-sm text-kumo-danger">{quickError}</p>}
-						</div>
-						<div className="mt-6 flex justify-end gap-2">
-							<Dialog.Close
-								render={(p) => (
-									<Button
-										{...p}
-										variant="secondary"
-										onClick={(e) => {
-											resetQuickCreate();
-											p.onClick?.(e);
-										}}
-									>
-										{t`Cancel`}
-									</Button>
-								)}
-							/>
-							<Button
-								type="button"
-								disabled={!quickName || !quickSlug || isCreating}
-								onClick={async () => {
-									setQuickError(null);
-									setIsCreating(true);
-									try {
-										const created = await onQuickCreate({
-											displayName: quickName,
-											slug: quickSlug,
-										});
-										onChange([...credits, { bylineId: created.id, roleLabel: null }]);
-										resetQuickCreate();
-									} catch (err) {
-										setQuickError(err instanceof Error ? err.message : t`Failed to create byline`);
-									} finally {
-										setIsCreating(false);
-									}
-								}}
-							>
-								{isCreating ? t`Creating...` : t`Create`}
-							</Button>
-						</div>
-					</Dialog>
-				</Dialog.Root>
-			)}
-
-			{onQuickEdit && editBylineId && (
-				<Dialog.Root open onOpenChange={(open) => (!open ? resetQuickEdit() : undefined)}>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Edit byline`}</Dialog.Title>
-						<div className="mt-4 space-y-3">
-							<Input
-								label={t`Display name`}
-								value={editName}
-								onChange={(e) => {
-									setEditName(e.target.value);
-									if (!editSlug) setEditSlug(slugify(e.target.value));
-								}}
-							/>
-							<Input
-								label={t`Slug`}
-								value={editSlug}
-								onChange={(e) => setEditSlug(e.target.value)}
-							/>
-							{editError && <p className="text-sm text-kumo-danger">{editError}</p>}
-						</div>
-						<div className="mt-6 flex justify-end gap-2">
-							<Button type="button" variant="secondary" onClick={resetQuickEdit}>
-								{t`Cancel`}
-							</Button>
-							<Button
-								type="button"
-								disabled={!editName || !editSlug || isEditing}
-								onClick={async () => {
-									setEditError(null);
-									setIsEditing(true);
-									try {
-										await onQuickEdit(editBylineId, {
-											displayName: editName,
-											slug: editSlug,
-										});
-										resetQuickEdit();
-									} catch (err) {
-										setEditError(err instanceof Error ? err.message : t`Failed to update byline`);
-									} finally {
-										setIsEditing(false);
-									}
-								}}
-							>
-								{isEditing ? t`Saving...` : t`Save`}
-							</Button>
-						</div>
-					</Dialog>
-				</Dialog.Root>
-			)}
-		</div>
-	);
-}
-
-function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
-	const { t } = useLingui();
-	const currentAuthor = users.find((u) => u.id === authorId);
-
-	const authorItems: Record<string, string> = { unassigned: t`Unassigned` };
-	for (const user of users) {
-		authorItems[user.id] = user.name || user.email;
-	}
-
-	return (
-		<div className="space-y-2">
-			<Select
-				value={authorId || "unassigned"}
-				onValueChange={(value) =>
-					onChange?.(value === "unassigned" || value === null ? null : value)
-				}
-				items={authorItems}
-			>
-				<Select.Option value="unassigned">
-					<span className="text-kumo-subtle">{t`Unassigned`}</span>
-				</Select.Option>
-				{users.map((user) => (
-					<Select.Option key={user.id} value={user.id}>
-						<span className="flex items-center gap-2">
-							{user.name || user.email}
-							{user.name && <span className="text-xs text-kumo-subtle">({user.email})</span>}
-						</span>
-					</Select.Option>
-				))}
-			</Select>
-			{currentAuthor && <p className="text-xs text-kumo-subtle">{currentAuthor.email}</p>}
 		</div>
 	);
 }

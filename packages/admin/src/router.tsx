@@ -671,6 +671,27 @@ function ContentNewPage() {
 		},
 	});
 
+	// Stable handler identities: these flow into the memoized
+	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
+	// would defeat the memo. mutate/mutateAsync are referentially stable.
+	const handleSave = React.useCallback(
+		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+			createMutation.mutate(payload);
+		},
+		[createMutation.mutate],
+	);
+
+	const handleQuickCreateByline = React.useCallback(
+		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		[createBylineMutation.mutateAsync],
+	);
+
+	const handleQuickEditByline = React.useCallback(
+		(bylineId: string, input: { slug: string; displayName: string }) =>
+			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		[updateBylineMutation.mutateAsync],
+	);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -680,14 +701,6 @@ function ContentNewPage() {
 	if (!collectionConfig) {
 		return <NotFoundPage message={`Collection "${collection}" not found`} />;
 	}
-
-	const handleSave = (payload: {
-		data: Record<string, unknown>;
-		slug?: string;
-		bylines?: BylineCreditInput[];
-	}) => {
-		createMutation.mutate(payload);
-	};
 
 	return (
 		<ContentEditor
@@ -704,14 +717,8 @@ function ContentNewPage() {
 			availableBylinesLoaded={bylinesLoaded}
 			selectedBylines={selectedBylines}
 			onBylinesChange={setSelectedBylines}
-			onQuickCreateByline={async (input) => {
-				const created = await createBylineMutation.mutateAsync(input);
-				return created;
-			}}
-			onQuickEditByline={async (bylineId, input) => {
-				const updated = await updateBylineMutation.mutateAsync({ id: bylineId, ...input });
-				return updated;
-			}}
+			onQuickCreateByline={handleQuickCreateByline}
+			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
 		/>
 	);
@@ -1088,6 +1095,70 @@ function ContentEditPage() {
 
 	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
+	// Stable handler identities: these flow into the memoized
+	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
+	// (twice per autosave cycle) would defeat the memo. mutate/mutateAsync
+	// are referentially stable.
+	const handleSave = React.useCallback(
+		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+			updateMutation.mutate(payload);
+		},
+		[updateMutation.mutate],
+	);
+
+	const handleAutosave = React.useCallback(
+		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+			autosaveMutation.mutate(payload);
+		},
+		[autosaveMutation.mutate],
+	);
+
+	const handleAuthorChange = React.useCallback(
+		(authorId: string | null) => {
+			updateMutation.mutate({ authorId });
+		},
+		[updateMutation.mutate],
+	);
+
+	const handleSeoChange = React.useCallback(
+		(seo: ContentSeoInput) => {
+			updateMutation.mutate({ seo });
+		},
+		[updateMutation.mutate],
+	);
+
+	const handlePublish = React.useCallback(() => publishMutation.mutate(), [publishMutation.mutate]);
+	const handleUnpublish = React.useCallback(
+		() => unpublishMutation.mutate(),
+		[unpublishMutation.mutate],
+	);
+	const handleDiscardDraft = React.useCallback(
+		() => discardDraftMutation.mutate(),
+		[discardDraftMutation.mutate],
+	);
+	const handleSchedule = React.useCallback(
+		(scheduledAt: string) => scheduleMutation.mutate(scheduledAt),
+		[scheduleMutation.mutate],
+	);
+	const handleUnschedule = React.useCallback(
+		() => unscheduleMutation.mutate(),
+		[unscheduleMutation.mutate],
+	);
+	const handleDelete = React.useCallback(() => deleteMutation.mutate(), [deleteMutation.mutate]);
+	const handleTranslate = React.useCallback(
+		(locale: string) => translateMutation.mutate(locale),
+		[translateMutation.mutate],
+	);
+	const handleQuickCreateByline = React.useCallback(
+		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		[createBylineMutation.mutateAsync],
+	);
+	const handleQuickEditByline = React.useCallback(
+		(bylineId: string, input: { slug: string; displayName: string }) =>
+			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		[updateBylineMutation.mutateAsync],
+	);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -1102,30 +1173,6 @@ function ContentEditPage() {
 		return <LoadingScreen />;
 	}
 
-	const handleSave = (payload: {
-		data: Record<string, unknown>;
-		slug?: string;
-		bylines?: BylineCreditInput[];
-	}) => {
-		updateMutation.mutate(payload);
-	};
-
-	const handleAutosave = (payload: {
-		data: Record<string, unknown>;
-		slug?: string;
-		bylines?: BylineCreditInput[];
-	}) => {
-		autosaveMutation.mutate(payload);
-	};
-
-	const handleAuthorChange = (authorId: string | null) => {
-		updateMutation.mutate({ authorId });
-	};
-
-	const handleSeoChange = (seo: ContentSeoInput) => {
-		updateMutation.mutate({ seo });
-	};
-
 	return (
 		<ContentEditor
 			collection={collection}
@@ -1137,13 +1184,13 @@ function ContentEditPage() {
 			onAutosave={handleAutosave}
 			isAutosaving={autosaveMutation.isPending}
 			lastAutosaveAt={lastAutosaveAt}
-			onPublish={() => publishMutation.mutate()}
-			onUnpublish={() => unpublishMutation.mutate()}
-			onDiscardDraft={() => discardDraftMutation.mutate()}
-			onSchedule={(scheduledAt) => scheduleMutation.mutate(scheduledAt)}
-			onUnschedule={() => unscheduleMutation.mutate()}
+			onPublish={handlePublish}
+			onUnpublish={handleUnpublish}
+			onDiscardDraft={handleDiscardDraft}
+			onSchedule={handleSchedule}
+			onUnschedule={handleUnschedule}
 			isScheduling={scheduleMutation.isPending}
-			onDelete={() => deleteMutation.mutate()}
+			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
@@ -1153,20 +1200,14 @@ function ContentEditPage() {
 			onAuthorChange={handleAuthorChange}
 			i18n={i18n}
 			translations={translationsData?.translations}
-			onTranslate={(locale) => translateMutation.mutate(locale)}
+			onTranslate={handleTranslate}
 			pluginBlocks={pluginBlocks}
 			hasSeo={collectionConfig.hasSeo}
 			onSeoChange={handleSeoChange}
 			availableBylines={bylinesData?.items}
 			availableBylinesLoaded={bylinesLoaded}
-			onQuickCreateByline={async (input) => {
-				const created = await createBylineMutation.mutateAsync(input);
-				return created;
-			}}
-			onQuickEditByline={async (bylineId, input) => {
-				const updated = await updateBylineMutation.mutateAsync({ id: bylineId, ...input });
-				return updated;
-			}}
+			onQuickCreateByline={handleQuickCreateByline}
+			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
 		/>
 	);
