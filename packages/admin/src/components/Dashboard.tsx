@@ -40,8 +40,6 @@ export function Dashboard({ manifest }: DashboardProps) {
 		queryFn: fetchDashboardStats,
 		refetchOnWindowFocus: true,
 	});
-	// TanStack Query can keep previous data while reporting a background refetch error.
-	const showDashboardData = !isError || stats !== undefined;
 
 	return (
 		<div className="space-y-6">
@@ -52,7 +50,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 
 			{isError && <DashboardDataError />}
 
-			{showDashboardData && (
+			{(!isError || stats) && (
 				<>
 					<SummaryMetrics stats={stats} loading={isLoading} />
 
