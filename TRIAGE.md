@@ -149,7 +149,7 @@ For issues, priority is often the best thing a human triager can add — it's a 
 
 Use priority labels when you have enough context to make a reasonable call. If you are unsure, leave priority unset and explain what information would help judge impact.
 
-For bugs, a confirmed reproduction is the most useful evidence for priority. If you reproduce something, leave the exact environment and steps you used.
+For bugs, a confirmed reproduction is the most useful evidence for priority. If you reproduce something, leave the exact environment and steps you used. Where the bug is visual or interactive — admin UI glitches, editor behavior, layout problems — a screenshot or short screen recording is extra useful: it shows exactly what you saw, and often settles "works for me" threads instantly. You can drag media straight into a GitHub comment.
 
 ### The Repro Bot and `triage/*` Labels
 
