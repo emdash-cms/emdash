@@ -265,6 +265,51 @@ describe("content_translations + locale", () => {
 		expect(frTitle).toBe("FR");
 	});
 
+	it("content_update with locale param resolves slug per-locale", async () => {
+		const slug = "shared-update";
+		await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "EN" }, slug, locale: "en" },
+		});
+		await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "FR" }, slug, locale: "fr" },
+		});
+
+		const currentFr = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id: slug, locale: "fr" },
+		});
+		const rev = extractJson<{ _rev: string }>(currentFr)._rev;
+
+		const updated = await harness.client.callTool({
+			name: "content_update",
+			arguments: {
+				collection: "post",
+				id: slug,
+				locale: "fr",
+				data: { title: "FR Updated" },
+				_rev: rev,
+			},
+		});
+		expect(updated.isError, extractText(updated)).toBeFalsy();
+
+		const en = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id: slug, locale: "en" },
+		});
+		const fr = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id: slug, locale: "fr" },
+		});
+		const enItem = extractJson<{ item: { data: { title?: unknown } } }>(en).item;
+		const frItem = extractJson<{ item: { data: { title?: unknown }; locale: string } }>(fr).item;
+
+		expect(enItem.data.title).toBe("EN");
+		expect(frItem.locale).toBe("fr");
+		expect(frItem.data.title).toBe("FR Updated");
+	});
+
 	it("rejects translationOf pointing to a non-existent item", async () => {
 		const result = await harness.client.callTool({
 			name: "content_create",

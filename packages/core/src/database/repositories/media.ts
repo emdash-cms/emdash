@@ -81,6 +81,8 @@ export interface FindManyMediaOptions {
 	/** Filter by MIME type. Pass a string for a single prefix/exact, or an array to match any. Strings ending with "/" are treated as LIKE prefix matches; others are exact equality. */
 	mimeType?: string | readonly string[];
 	status?: MediaStatus | "all"; // Filter by status, defaults to "ready"
+	/** Case-insensitive substring matched against the filename (covers filename and extension). */
+	q?: string;
 }
 
 /**
@@ -141,7 +143,13 @@ export class MediaRepository {
 	 */
 	async confirmUpload(
 		id: string,
-		metadata?: { width?: number; height?: number; size?: number },
+		metadata?: {
+			width?: number;
+			height?: number;
+			size?: number;
+			blurhash?: string;
+			dominantColor?: string;
+		},
 	): Promise<MediaItem | null> {
 		const existing = await this.findById(id);
 		if (!existing) {
@@ -154,6 +162,8 @@ export class MediaRepository {
 		if (metadata?.width !== undefined) updates.width = metadata.width;
 		if (metadata?.height !== undefined) updates.height = metadata.height;
 		if (metadata?.size !== undefined) updates.size = metadata.size;
+		if (metadata?.blurhash !== undefined) updates.blurhash = metadata.blurhash;
+		if (metadata?.dominantColor !== undefined) updates.dominant_color = metadata.dominantColor;
 
 		await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
 
@@ -248,6 +258,18 @@ export class MediaRepository {
 		const mimeFilters = normalizeMimeFilter(options.mimeType);
 		if (mimeFilters.length > 0) {
 			query = query.where((eb) => mimeMatchExpr(eb, mimeFilters));
+		}
+
+		// Case-insensitive filename substring search (also matches extensions).
+		// LIKE wildcards in the term are escaped so they're treated literally.
+		const term = options.q?.trim();
+		if (term) {
+			const pattern = `%${escapeLike(term)}%`;
+			query = query.where(
+				sql<string>`lower(filename)`,
+				"like",
+				sql<string>`lower(${pattern}) escape '\\'`,
+			);
 		}
 
 		// Default to only showing ready items

@@ -16,7 +16,9 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 1 : 0,
 	reporter: "html",
-	timeout: 30000,
+	// The Cloudflare (workerd) dev runner compiles each admin route slowly on
+	// first hit; give it headroom so cold compilation doesn't time out specs.
+	timeout: process.env.EMDASH_E2E_TARGET === "cloudflare" ? 90_000 : 30000,
 
 	globalSetup: "./e2e/global-setup.ts",
 	globalTeardown: "./e2e/global-teardown.ts",

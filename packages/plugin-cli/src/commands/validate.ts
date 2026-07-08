@@ -15,11 +15,14 @@
  * sanity check that's safe to wire into `pre-commit` / CI.
  */
 
+import { dirname } from "node:path";
+
 import { defineCommand } from "citty";
 import consola from "consola";
 import pc from "picocolors";
 
 import { ManifestError, loadManifest, MANIFEST_FILENAME } from "../manifest/load.js";
+import { resolveSections, SectionError } from "../manifest/translate.js";
 
 export const validateCommand = defineCommand({
 	meta: {
@@ -42,7 +45,11 @@ export const validateCommand = defineCommand({
 	async run({ args }) {
 		const path = args.path ?? ".";
 		try {
-			const { path: resolved } = await loadManifest(path);
+			const { manifest, path: resolved } = await loadManifest(path);
+			// Resolve `{ file }` section refs offline: reads their content and
+			// enforces the per-section byte/grapheme caps and the path-escape
+			// guard, so a bad ref fails here instead of at publish time.
+			await resolveSections(manifest.sections, dirname(resolved));
 
 			if (args.json) {
 				process.stdout.write(`${JSON.stringify({ ok: true, path: resolved })}\n`);
@@ -62,6 +69,19 @@ export const validateCommand = defineCommand({
 								path: error.path,
 								issues: error.issues,
 							},
+						})}\n`,
+					);
+				} else {
+					consola.error(error.message);
+				}
+				process.exit(1);
+			}
+			if (error instanceof SectionError) {
+				if (args.json) {
+					process.stdout.write(
+						`${JSON.stringify({
+							ok: false,
+							error: { code: error.code, message: error.message, section: error.section },
 						})}\n`,
 					);
 				} else {

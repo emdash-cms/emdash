@@ -10,14 +10,14 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@flue/runtime": "^0.8.0",
+		"@flue/runtime": "^0.11.1",
 		"valibot": "^1.0.0"
 	},
 	"devDependencies": {
-		"@flue/cli": "^0.8.0",
+		"@flue/cli": "^0.11.1",
 		"@types/node": "^25.8.0",
 		"tsx": "^4.20.0",
 		"typescript": "^5.9.0",
-		"wrangler": "^4.95.0"
+		"wrangler": "^4.100.0"
 	}
 }

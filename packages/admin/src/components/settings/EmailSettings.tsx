@@ -5,7 +5,7 @@
  * sending a test email through the full pipeline.
  */
 
-import { Button, Input, Loader } from "@cloudflare/kumo";
+import { Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	CheckCircle,
@@ -27,18 +27,8 @@ import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
 export function EmailSettings() {
 	const { t } = useLingui();
+	const toastManager = useKumoToastManager();
 	const [testEmail, setTestEmail] = React.useState("");
-	const [status, setStatus] = React.useState<{
-		type: "success" | "error";
-		message: string;
-	} | null>(null);
-
-	// Clear status after 5 seconds
-	React.useEffect(() => {
-		if (!status) return;
-		const timer = setTimeout(setStatus, 5000, null);
-		return () => clearTimeout(timer);
-	}, [status]);
 
 	const {
 		data: settings,
@@ -52,13 +42,15 @@ export function EmailSettings() {
 	const testMutation = useMutation({
 		mutationFn: (to: string) => sendTestEmail(to),
 		onSuccess: (result) => {
-			setStatus({ type: "success", message: result.message });
+			toastManager.add({ title: result.message, variant: "success", timeout: 5000 });
 			setTestEmail("");
 		},
 		onError: (error) => {
-			setStatus({
-				type: "error",
-				message: getMutationError(error) || t`Failed to send test email`,
+			toastManager.add({
+				title: t`Failed to send test email`,
+				description: getMutationError(error) || t`An error occurred`,
+				variant: "error",
+				timeout: 5000,
 			});
 		},
 	});
@@ -99,24 +91,6 @@ export function EmailSettings() {
 				<BackToSettingsLink />
 				<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
 			</div>
-
-			{/* Status banner */}
-			{status && (
-				<div
-					className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${
-						status.type === "success"
-							? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-200"
-							: "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-					}`}
-				>
-					{status.type === "success" ? (
-						<CheckCircle className="h-4 w-4 flex-shrink-0" />
-					) : (
-						<WarningCircle className="h-4 w-4 flex-shrink-0" />
-					)}
-					{status.message}
-				</div>
-			)}
 
 			{/* Pipeline status */}
 			<div className="rounded-lg border bg-kumo-base p-6">

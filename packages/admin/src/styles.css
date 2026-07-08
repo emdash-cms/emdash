@@ -8,12 +8,12 @@
  * - User preference stored in localStorage, applied via data-mode attribute on <html>
  */
 
-@import "tailwindcss";
-@import "@cloudflare/kumo/styles/tailwind";
-@plugin "@tailwindcss/typography";
-
 /* Scan Kumo component JS for Tailwind utility classes (e.g. Dialog centering) */
-@source "../node_modules/@cloudflare/kumo/dist";
+@source "../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+
+@import "@cloudflare/kumo/styles";
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Map Tailwind dark: variant to kumo's data-mode attribute */
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
@@ -38,8 +38,9 @@
 
 [data-theme="classic"]:not([data-mode="dark"]) {
 	/* Surfaces */
+	--color-kumo-canvas: oklch(98.75% 0 0);
 	--color-kumo-base: #ffffff;
-	--color-kumo-elevated: #f0f0f1;
+	--color-kumo-elevated: oklch(98.75% 0 0);
 	--color-kumo-recessed: #dcdcde;
 	--color-kumo-overlay: #ffffff;
 	--color-kumo-control: #ffffff;
@@ -50,7 +51,7 @@
 	--color-kumo-interact: #c3c4c7;
 
 	/* Borders */
-	--color-kumo-line: #c3c4c7;
+	--color-kumo-line: oklch(14.5% 0 0 / 0.1);
 	--color-kumo-ring: #2271b1;
 
 	/* Text hierarchy */
@@ -106,6 +107,11 @@
 body {
 	background-color: var(--color-kumo-elevated);
 	color: var(--text-color-kumo-default);
+}
+
+[data-sidebar-popup] {
+	width: var(--sidebar-width);
+	transition-property: transform, translate, opacity !important;
 }
 
 /* Fix text selection contrast */

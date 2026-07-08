@@ -80,8 +80,13 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 	}, []);
 
 	const flushPendingDraft = React.useCallback(() => {
+		const nextDraft = currentDraftRef.current;
+		const nextSnapshot = serializeDraft(nextDraft);
 		clearPendingTextFlush();
-		emitChange(currentDraftRef.current);
+		if (nextSnapshot === lastEmittedSnapshotRef.current) {
+			return;
+		}
+		emitChange(nextDraft);
 	}, [clearPendingTextFlush, emitChange]);
 
 	React.useEffect(() => {

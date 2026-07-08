@@ -39,6 +39,13 @@ export interface RequestMetrics {
 	dbLastOffset: number | null;
 	cacheHits: number;
 	cacheMisses: number;
+	/**
+	 * Physical database round trips. Differs from `dbCount` (logical queries)
+	 * when a backend batches: the DO SQL driver coalesces same-turn SELECTs into
+	 * one RPC, so `rpcCount` can be far lower than `dbCount`. Bumped by the
+	 * adapter, not the Kysely log hook.
+	 */
+	rpcCount: number;
 }
 
 export function createRequestMetrics(start: number): RequestMetrics {
@@ -50,6 +57,7 @@ export function createRequestMetrics(start: number): RequestMetrics {
 		dbLastOffset: null,
 		cacheHits: 0,
 		cacheMisses: 0,
+		rpcCount: 0,
 	};
 }
 

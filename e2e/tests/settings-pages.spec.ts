@@ -187,13 +187,13 @@ test.describe("Language Switcher", () => {
 
 		// Switch to German
 		await page.locator('[aria-label="Language"]').click();
-		await page.locator("[role='option']", { hasText: "Deutsch" }).click();
+		await page.getByRole("option", { name: "Deutsch", exact: true }).click();
 
 		await expect(page.locator("h1")).toContainText("Einstellungen", { timeout: 5000 });
 
 		// Switch back — the select now shows "Deutsch" as its value
 		await page.locator("[role='combobox']", { hasText: "Deutsch" }).click();
-		await page.locator("[role='option']", { hasText: "English" }).click();
+		await page.getByRole("option", { name: "English", exact: true }).click();
 
 		await expect(page.locator("h1")).toContainText("Settings", { timeout: 5000 });
 	});
@@ -213,15 +213,6 @@ test.describe("Email Settings", () => {
 		await expect(page.locator("h1")).toContainText("Email Settings");
 
 		// Should show the Email Pipeline section
-		await expect(page.locator("text=Email Pipeline")).toBeVisible({ timeout: 10000 });
-	});
-
-	test("shows pipeline section without crashing", async ({ admin, page }) => {
-		await admin.goto("/settings/email");
-		await admin.waitForShell();
-		await admin.waitForLoading();
-
-		// The Email Pipeline section heading should be visible
 		await expect(page.getByRole("heading", { name: "Email Pipeline" })).toBeVisible({
 			timeout: 10000,
 		});

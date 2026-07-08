@@ -177,3 +177,75 @@ describe("redirect middleware — issue #808", () => {
 		expect(next).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe("redirect middleware — trailing-slash normalisation (issue #1271)", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	async function runMiddleware(
+		context: MiddlewareContext,
+		next: () => Promise<Response>,
+	): Promise<Response> {
+		const result = await onRequest(context, next);
+		if (!(result instanceof Response)) {
+			throw new Error("Middleware returned void; expected a Response");
+		}
+		return result;
+	}
+
+	it("matches an unslashed request when the redirect source has a trailing slash", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/test-3/", destination: "/", type: 301 });
+
+		const { context, redirect } = buildContext({ pathname: "/test-3" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/", 301);
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/");
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("matches a slashed request when the redirect source has no trailing slash", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/test-3", destination: "/", type: 301 });
+
+		const { context, redirect } = buildContext({ pathname: "/test-3/" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/", 301);
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/");
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("prefers an exact match over the alternate slash form", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/old", destination: "/new", type: 301 });
+		await repo.create({ source: "/old/", destination: "/newer", type: 301 });
+
+		const { context: ctx1, redirect: redirect1 } = buildContext({ pathname: "/old" });
+		const next1 = vi.fn(async () => new Response("not found", { status: 404 }));
+		const r1 = await runMiddleware(ctx1, next1);
+		expect(redirect1).toHaveBeenCalledWith("/new", 301);
+		expect(r1.headers.get("Location")).toBe("/new");
+
+		const { context: ctx2, redirect: redirect2 } = buildContext({ pathname: "/old/" });
+		const next2 = vi.fn(async () => new Response("not found", { status: 404 }));
+		const r2 = await runMiddleware(ctx2, next2);
+		expect(redirect2).toHaveBeenCalledWith("/newer", 301);
+		expect(r2.headers.get("Location")).toBe("/newer");
+	});
+});

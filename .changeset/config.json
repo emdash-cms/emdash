@@ -50,6 +50,7 @@
 		"docs",
 		"emdash-demo",
 		"emdash-e2e-fixture",
+		"emdash-e2e-fixture-cloudflare",
 		"emdash-plugins-demo"
 	]
 }

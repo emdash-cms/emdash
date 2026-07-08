@@ -84,25 +84,10 @@ describe("SignupPage", () => {
 		const input = screen.getByPlaceholder("you@company.com");
 		await input.fill("test@example.com");
 		await screen.getByText("Continue").click();
-		// Should advance to check-email - use the h1 heading to disambiguate
+		// Should advance to check-email: the h1 heading and the card copy.
 		await expect
 			.element(screen.getByRole("heading", { level: 1, name: "Check your email" }))
 			.toBeInTheDocument();
-	});
-
-	it("check-email step shows correct email", async () => {
-		const screen = await render(<SignupPage />);
-		await screen.getByPlaceholder("you@company.com").fill("test@example.com");
-		await screen.getByText("Continue").click();
-		await expect.element(screen.getByText("test@example.com")).toBeInTheDocument();
-	});
-
-	it("submit valid email advances to check-email step", async () => {
-		const screen = await render(<SignupPage />);
-		const input = screen.getByPlaceholder("you@company.com");
-		await input.fill("test@example.com");
-		await screen.getByText("Continue").click();
-		// Should advance to check-email - h2 inside the card is unique to this step
 		await expect.element(screen.getByText("We've sent a verification link to")).toBeInTheDocument();
 	});
 

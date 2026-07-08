@@ -64,7 +64,7 @@
 		},
 		"artifacts": {
 			"type": "object",
-			"description": "Map of artifact-type-name to artifact. Field names follow atproto's lowerCamelCase style; FAIR's HTTP transport's kebab-case names ('content-type', 'requires-auth', 'release-asset') translate to these by mechanical mapping at the aggregator boundary. Common artifact-type keys: 'package' (the installable bundle, REQUIRED), 'icon', 'screenshot', 'banner'. Custom types use 'x-' prefix and pass through as unrecognised fields.",
+			"description": "Map of artifact-type-name to artifact. Field names follow atproto's lowerCamelCase style; FAIR's HTTP transport's kebab-case names ('content-type', 'requires-auth', 'release-asset') translate to these by mechanical mapping at the aggregator boundary. Common artifact-type keys: 'package' (the installable bundle, REQUIRED), 'icon', 'screenshots' (a list), 'banner'. FAIR's artifacts map allows an artifact value to be a single object or a list of objects; 'screenshots' is the list form. Custom types use 'x-' prefix and pass through as unrecognised fields.",
 			"required": ["package"],
 			"properties": {
 				"package": {
@@ -76,9 +76,14 @@
 					"type": "ref",
 					"ref": "#artifact"
 				},
-				"screenshot": {
-					"type": "ref",
-					"ref": "#artifact"
+				"screenshots": {
+					"type": "array",
+					"items": {
+						"type": "ref",
+						"ref": "#artifact"
+					},
+					"maxLength": 8,
+					"description": "Ordered screenshot gallery for the plugin's detail page. FAIR's singular 'screenshot' alias is a transport-boundary concern and does not appear on the record."
 				},
 				"banner": {
 					"type": "ref",

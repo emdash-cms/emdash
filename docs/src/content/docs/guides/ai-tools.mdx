@@ -11,13 +11,15 @@ EmDash has a built-in [MCP server](https://modelcontextprotocol.io) that lets AI
 	This guide covers your **site's** MCP server -- for managing the content of an EmDash site. If you want to give an AI coding assistant access to the EmDash documentation itself (so it can answer questions about EmDash as you build), see [Docs MCP for AI Tools](/docs-mcp) instead. Most developers connect both.
 </Aside>
 
-## Enable the MCP Server
+## The MCP Server
 
-The MCP server is disabled by default. Enable it in your Astro configuration:
+The MCP server is enabled by default -- the route at `/_emdash/api/mcp` is mounted unless you explicitly turn it off. It always requires authentication, so no content is exposed without valid credentials.
+
+To disable it, set `mcp: false` in your Astro configuration:
 
 ```js title="astro.config.mjs"
 emdash({
-  mcp: true,
+  mcp: false,
 })
 ```
 

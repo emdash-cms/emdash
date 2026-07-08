@@ -108,6 +108,12 @@ export interface EmDashManifest {
 	version: string;
 	commit?: string;
 	hash: string;
+	/**
+	 * Version of Astro the host project is built with. Present when the
+	 * integration could resolve it. Surfaced so the admin can evaluate a
+	 * registry plugin's `env:astro` requirement against the running host.
+	 */
+	astroVersion?: string;
 	collections: Record<string, ManifestCollection>;
 	plugins: Record<string, ManifestPlugin>;
 	/**
@@ -227,8 +233,15 @@ export interface EmDashHandlers {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			q?: string;
+			authorId?: string;
+			dateField?: "createdAt" | "updatedAt" | "publishedAt";
+			dateFrom?: string;
+			dateTo?: string;
 		},
 	) => Promise<HandlerResponse>;
+
+	handleContentAuthors: (collection: string) => Promise<HandlerResponse>;
 
 	handleContentGet: (
 		collection: string,
@@ -252,6 +265,7 @@ export interface EmDashHandlers {
 			slug?: string;
 			status?: string;
 			authorId?: string;
+			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
 			createdAt?: string | null;
@@ -268,6 +282,7 @@ export interface EmDashHandlers {
 			status?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
+			locale?: string;
 			seo?: {
 				title?: string | null;
 				description?: string | null;
@@ -306,7 +321,7 @@ export interface EmDashHandlers {
 	handleContentPublish: (
 		collection: string,
 		id: string,
-		options?: { publishedAt?: string },
+		options?: { publishedAt?: string; requireScheduledDue?: boolean },
 	) => Promise<HandlerResponse>;
 
 	handleContentUnpublish: (collection: string, id: string) => Promise<HandlerResponse>;
@@ -385,6 +400,14 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
+	// Public-only plugin API route handler for SSR page components.
+	handlePublicPluginApiRoute: (
+		pluginId: string,
+		method: string,
+		path: string,
+		request: Request,
+	) => Promise<HandlerResponse>;
+
 	// Plugin route metadata (for auth decisions before dispatch)
 	getPluginRouteMeta: (pluginId: string, path: string) => { public: boolean } | null;
 
@@ -410,6 +433,10 @@ export interface EmDashHandlers {
 
 	// Configured plugins (for plugin management)
 	configuredPlugins: import("../plugins/types.js").ResolvedPlugin[];
+
+	// Statically-sandboxed plugin entries (registered via `sandboxed: []`),
+	// surfaced through the admin plugin management API alongside configured plugins.
+	sandboxedPluginEntries: import("../emdash-runtime.js").SandboxedPluginEntry[];
 
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;

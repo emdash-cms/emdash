@@ -7,15 +7,26 @@
 
 import type { Kysely } from "kysely";
 
+import { CommentReactionRepository } from "../database/repositories/comment-reaction.js";
 import { CommentRepository } from "../database/repositories/comment.js";
 import type { PublicComment } from "../database/repositories/comment.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
+import { reactionScore } from "./ranking.js";
 
 export interface GetCommentsOptions {
 	collection: string;
 	contentId: string;
 	threaded?: boolean;
+	/** Attach aggregate reaction counts to each comment. */
+	reactions?: boolean;
+	/**
+	 * Order of top-level comments. `oldest` (default) preserves the existing
+	 * chronological display; `best` ranks by Wilson-scored reactions (implies
+	 * `reactions`). Replies always stay chronological.
+	 */
+	sort?: "oldest" | "best";
 }
 
 export interface GetCommentsResult {
@@ -38,8 +49,21 @@ export interface GetCommentsResult {
  * ```
  */
 export async function getComments(options: GetCommentsOptions): Promise<GetCommentsResult> {
-	const db = await getDb();
-	return getCommentsWithDb(db, options);
+	// The result varies by every option getCommentsWithDb branches on, so all of
+	// them belong in the key. `best` implies reactions, so normalize the reaction
+	// flag — `{ sort: "best" }` and `{ sort: "best", reactions: true }` produce
+	// identical output and should share one entry.
+	const sort = options.sort ?? "oldest";
+	const withReactions = options.reactions || sort === "best";
+	const threaded = options.threaded ? "t" : "f";
+	return cachedQuery({
+		namespace: CacheNamespace.COMMENTS,
+		key: `comments:${options.collection}:${options.contentId}:${threaded}:${withReactions ? "r" : "n"}:${sort}`,
+		load: async () => {
+			const db = await getDb();
+			return getCommentsWithDb(db, options);
+		},
+	});
 }
 
 /**
@@ -65,14 +89,61 @@ export async function getCommentsWithDb(
 		limit: MAX_COMMENTS,
 	});
 
-	if (options.threaded) {
-		const threaded = CommentRepository.assembleThreads(result.items);
-		const items = threaded.map((c) => CommentRepository.toPublicComment(c));
-		return { items, total };
+	const items: PublicComment[] = options.threaded
+		? CommentRepository.assembleThreads(result.items).map((c) =>
+				CommentRepository.toPublicComment(c),
+			)
+		: result.items.map((c) => CommentRepository.toPublicComment(c));
+
+	// `best` sort needs reaction data, so it implies reactions.
+	if (options.reactions || options.sort === "best") {
+		await attachReactions(db, items);
+		if (options.sort === "best") {
+			sortByBest(items);
+		}
 	}
 
-	const items = result.items.map((c) => CommentRepository.toPublicComment(c));
 	return { items, total };
+}
+
+/**
+ * Attach aggregate reaction counts to a list of public comments (and their
+ * replies), in a single batched query.
+ */
+async function attachReactions(db: Kysely<Database>, items: PublicComment[]): Promise<void> {
+	const ids: string[] = [];
+	for (const comment of items) {
+		ids.push(comment.id);
+		if (comment.replies) {
+			for (const reply of comment.replies) ids.push(reply.id);
+		}
+	}
+	if (ids.length === 0) return;
+
+	const counts = await new CommentReactionRepository(db).countsForComments(ids);
+
+	const assign = (comment: PublicComment) => {
+		const reactions = counts.get(comment.id);
+		if (reactions) comment.reactions = reactions;
+	};
+	for (const comment of items) {
+		assign(comment);
+		comment.replies?.forEach(assign);
+	}
+}
+
+/**
+ * Sort top-level comments by Wilson-scored reactions (descending), tie-broken
+ * by oldest-first to keep ordering stable.
+ */
+function sortByBest(items: PublicComment[]): void {
+	items.sort((a, b) => {
+		const scoreDelta = reactionScore(b.reactions ?? {}) - reactionScore(a.reactions ?? {});
+		if (scoreDelta !== 0) return scoreDelta;
+		if (a.createdAt < b.createdAt) return -1;
+		if (a.createdAt > b.createdAt) return 1;
+		return 0;
+	});
 }
 
 /**

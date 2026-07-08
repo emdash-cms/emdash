@@ -100,8 +100,16 @@ const _artifactsSchema = /*#__PURE__*/ v.object({
 	get package() {
 		return artifactSchema;
 	},
-	get screenshot() {
-		return /*#__PURE__*/ v.optional(artifactSchema);
+	/**
+	 * Ordered screenshot gallery for the plugin's detail page. FAIR's singular 'screenshot' alias is a transport-boundary concern and does not appear on the record.
+	 * @maxLength 8
+	 */
+	get screenshots() {
+		return /*#__PURE__*/ v.optional(
+			/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.array(artifactSchema), [
+				/*#__PURE__*/ v.arrayLength(0, 8),
+			]),
+		);
 	},
 });
 const _mainSchema = /*#__PURE__*/ v.record(

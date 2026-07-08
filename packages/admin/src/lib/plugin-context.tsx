@@ -48,12 +48,33 @@ export function usePluginWidget(pluginId: string, widgetId: string): React.Compo
 	return admins[pluginId]?.widgets?.[widgetId] ?? null;
 }
 
+function togglePagePathTrailingSlash(path: string): string {
+	if (path === "/") return path;
+	return path.endsWith("/") ? path.slice(0, -1) : `${path}/`;
+}
+
 /**
- * Get a plugin page component by plugin ID and path
+ * Resolve a plugin page component by path, treating a trailing slash as equivalent and falling back to the first registered page at the root
+ */
+export function resolvePluginPagePath(
+	pages: Record<string, React.ComponentType> | undefined,
+	path: string,
+): React.ComponentType | null {
+	if (!pages) return null;
+	const match = pages[path] ?? pages[togglePagePathTrailingSlash(path)];
+	if (match) return match;
+	// The Plugin Manager gear opens a plugin at "/plugins/<id>/", so the root
+	// falls back to the first registered page when no page is keyed at "/".
+	if (path === "/") return Object.values(pages)[0] ?? null;
+	return null;
+}
+
+/**
+ * Get a plugin page component by plugin ID and path, with trailing-slash and root-fallback resolution
  */
 export function usePluginPage(pluginId: string, path: string): React.ComponentType | null {
 	const admins = useContext(PluginAdminContext);
-	return admins[pluginId]?.pages?.[path] ?? null;
+	return resolvePluginPagePath(admins[pluginId]?.pages, path);
 }
 
 /**

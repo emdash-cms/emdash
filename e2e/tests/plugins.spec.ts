@@ -42,8 +42,10 @@ test.describe("Plugins Manager", () => {
 			await admin.waitForShell();
 			await admin.waitForLoading();
 
-			// The bug that prompted this test caused the page to show an error.
-			// Verify no error state is visible.
+			// Regression guard: the page must actually render its content (a blank
+			// page must fail this) and must not fall back to the error state that
+			// prompted this test.
+			await expect(page.locator("text=/\\d+ plugin/")).toBeVisible({ timeout: 10000 });
 			await expect(page.locator("text=Failed to load plugins")).not.toBeVisible();
 		});
 	});

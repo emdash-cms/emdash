@@ -15,8 +15,15 @@ import type { CronScheduler, SystemCleanupFn } from "./types.js";
 /** Minimum polling interval (ms) — prevents tight loops if next_run_at is in the past */
 const MIN_INTERVAL_MS = 1000;
 
-/** Maximum polling interval (ms) — wake up periodically to check for stale locks */
-const MAX_INTERVAL_MS = 5 * 60 * 1000;
+/**
+ * Maximum polling interval (ms). Each wake runs the maintenance pass — stale
+ * lock recovery *and* the scheduled-publishing sweep + system cleanup. The cap
+ * is the worst-case latency for scheduled content when no plugin cron task is
+ * due sooner (`getNextDueTime()` only knows about cron tasks, not content
+ * `scheduled_at`). Held at 60s so Node publish latency matches the Cloudflare
+ * Cron Trigger cadence (`* * * * *`) rather than lagging up to five minutes.
+ */
+const MAX_INTERVAL_MS = 60 * 1000;
 
 export class NodeCronScheduler implements CronScheduler {
 	private timer: ReturnType<typeof setTimeout> | null = null;

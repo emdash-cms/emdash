@@ -58,6 +58,9 @@ function RedirectFormDialog({
 	const [enabled, setEnabled] = useState(redirect?.enabled ?? true);
 	const [groupName, setGroupName] = useState(redirect?.groupName ?? "");
 
+	// Terminal statuses (410 Gone / 451) serve a status directly — no destination.
+	const isTerminal = type === "410" || type === "451";
+
 	const createMutation = useMutation({
 		mutationFn: (input: CreateRedirectInput) => createRedirect(input),
 		onSuccess: () => {
@@ -80,7 +83,7 @@ function RedirectFormDialog({
 		e.preventDefault();
 		const input = {
 			source: source.trim(),
-			destination: destination.trim(),
+			destination: isTerminal ? "" : destination.trim(),
 			type: Number(type),
 			enabled,
 			groupName: groupName.trim() || null,
@@ -132,13 +135,15 @@ function RedirectFormDialog({
 						required
 					/>
 
-					<Input
-						label={t`Destination path`}
-						placeholder={t`/new-page or /articles/[slug]`}
-						value={destination}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
-						required
-					/>
+					{!isTerminal && (
+						<Input
+							label={t`Destination path`}
+							placeholder={t`/new-page or /articles/[slug]`}
+							value={destination}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
+							required
+						/>
+					)}
 
 					<div className="grid grid-cols-2 gap-4">
 						<div>
@@ -151,6 +156,8 @@ function RedirectFormDialog({
 									"302": t`302 Temporary`,
 									"307": t`307 Temporary (Strict)`,
 									"308": t`308 Permanent (Strict)`,
+									"410": t`410 Content Deleted (Gone)`,
+									"451": t`451 Unavailable for legal reasons`,
 								}}
 							/>
 						</div>
@@ -197,9 +204,11 @@ function RedirectFormDialog({
 function NotFoundPanel({
 	items,
 	onCreateRedirect,
+	onMarkGone,
 }: {
 	items: NotFoundSummary[];
 	onCreateRedirect: (path: string) => void;
+	onMarkGone: (path: string) => void;
 }) {
 	const { t } = useLingui();
 
@@ -215,7 +224,7 @@ function NotFoundPanel({
 				<div className="flex-1">{t`Path`}</div>
 				<div className="w-16 text-end">{t`Hits`}</div>
 				<div className="w-32">{t`Last seen`}</div>
-				<div className="w-8" />
+				<div className="w-20" />
 			</div>
 			{items.map((item) => (
 				<div
@@ -230,7 +239,7 @@ function NotFoundPanel({
 							return Number.isNaN(d.getTime()) ? item.lastSeen : d.toLocaleDateString();
 						})()}
 					</div>
-					<div className="w-8">
+					<div className="w-20 flex items-center justify-end gap-3">
 						<button
 							onClick={() => onCreateRedirect(item.path)}
 							className="text-kumo-subtle hover:text-kumo-default"
@@ -238,6 +247,14 @@ function NotFoundPanel({
 							aria-label={t`Create redirect for ${item.path}`}
 						>
 							<ArrowsLeftRight size={14} />
+						</button>
+						<button
+							onClick={() => onMarkGone(item.path)}
+							className="text-kumo-subtle hover:text-kumo-danger text-xs font-semibold tabular-nums"
+							title={t`Mark as Gone (410) — tells search engines it was permanently deleted`}
+							aria-label={t`Mark ${item.path} as Gone (410)`}
+						>
+							410
 						</button>
 					</div>
 				</div>
@@ -311,6 +328,15 @@ export function Redirects() {
 			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
 		},
 		onError: () => {
+			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+		},
+	});
+
+	// One-click "Gone": create a 410 rule (no destination) for a 404 path.
+	const markGoneMutation = useMutation({
+		mutationFn: (path: string) =>
+			createRedirect({ source: path, destination: "", type: 410, enabled: true }),
+		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
 		},
 	});
@@ -520,7 +546,11 @@ export function Redirects() {
 			)}
 
 			{tab === "404s" && (
-				<NotFoundPanel items={notFoundQuery.data ?? []} onCreateRedirect={handleCreateFrom404} />
+				<NotFoundPanel
+					items={notFoundQuery.data ?? []}
+					onCreateRedirect={handleCreateFrom404}
+					onMarkGone={(path) => markGoneMutation.mutate(path)}
+				/>
 			)}
 
 			{/* Create dialog */}

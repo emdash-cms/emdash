@@ -158,9 +158,8 @@ const finalAlt = alt ?? (embed?.type === "image" ? embed.alt : undefined) ?? med
 	</audio>
 )}
 
+{/* Custom component embeds (Mux player, etc.) require dynamic import. Placeholder until that lands. */}
 {embed?.type === "component" && (
-	<!-- Custom component embeds (Mux player, etc.) require dynamic import -->
-	<!-- For now, show a placeholder - full implementation TBD -->
 	<div class="emdash-media-component" data-package={embed.package} data-export={embed.export}>
 		<p>Custom media component: {embed.package}</p>
 	</div>

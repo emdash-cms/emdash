@@ -6,7 +6,9 @@
  * Without JavaScript, all pages are visible as one long form.
  * The client-side script enhances with multi-page navigation, AJAX, etc.
  */
-import { parsePublicFormDefinitionResponse } from "../public-definition.js";
+import { getPublicPluginApiRouteHandler } from "emdash/plugin-utils";
+
+import { loadPublicFormDefinition } from "../public-definition.js";
 import type { FormField, FormPage } from "../types.js";
 
 interface Props {
@@ -16,17 +18,13 @@ interface Props {
 const { node } = Astro.props;
 const formId = node.formId;
 
-// Fetch form definition server-side
-const response = await fetch(
-	new URL("/_emdash/api/plugins/emdash-forms/definition", Astro.url),
-	{
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ id: formId }),
-	}
-);
+const handlePublicPluginApiRoute = getPublicPluginApiRouteHandler(Astro.locals);
 
-const form = await parsePublicFormDefinitionResponse(response);
+const form = await loadPublicFormDefinition({
+	formId,
+	baseUrl: Astro.url,
+	handlePublicPluginApiRoute,
+});
 if (!form) return;
 
 const submitUrl = `/_emdash/api/plugins/emdash-forms/submit`;

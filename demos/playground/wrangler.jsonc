@@ -3,6 +3,9 @@
 	"name": "emdash-playground",
 	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+	},
 	// Custom entrypoint that exports EmDashPreviewDB
 	"main": "./src/worker.ts",
 	"durable_objects": {

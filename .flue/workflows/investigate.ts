@@ -15,10 +15,12 @@
 //      and rate confidence.
 //   4. Verify -- decide whether the diagnosed behaviour is actually a
 //      bug or intended. Gates the fix stage.
-//   5. Fix -- only when verify=='bug' AND diagnose.confidence=='high'.
-//      Writes the change, runs the reproduce test, runs the broader
-//      package tests, typecheck, lint, format. Stages but does not
-//      commit -- the YAML orchestrator does that.
+//   5. Fix -- runs when verify=='bug', diagnose.confidence!='low', and
+//      diagnose.fixApproach!='needs-design-decision'. Runs on a cheaper
+//      model in its own session (the reasoning is already done; it
+//      implements diagnose's proposedFix). Writes the change, runs the
+//      reproduce test, the broader package tests, typecheck, lint,
+//      format. Stages but does not commit -- the YAML orchestrator does.
 //
 // Every stage uses session.skill() with a valibot result schema. The
 // orchestrator (the GH Actions workflow) reads the final JSON via jq
@@ -35,6 +37,7 @@ import { createAgent, type FlueContext } from "@flue/runtime";
 import { local } from "@flue/runtime/node";
 import * as v from "valibot";
 
+import { withCapacityRetry } from "../lib/capacity.js";
 import { issueClassificationSchema, type IssueClassification } from "../lib/classifier.js";
 // Skill imports. Each is bundled as a SkillReference by the Flue build
 // and works the same on Node (this workflow runs on GH Actions) or
@@ -56,6 +59,16 @@ interface InvestigatePayload {
 	repo: string;
 	/** Reporter feedback from a previous attempt, when re-triggered. */
 	retryContext?: string;
+	/**
+	 * A maintainer's authoritative implementation directive, when the run
+	 * was triggered by `maintainer-reply.yml`. Its presence overrides the
+	 * fix gate: the maintainer has made the design call diagnose deferred,
+	 * so the fix stage runs even on a `needs-design-decision`. The produced
+	 * fix then flows through the orchestrator's normal `awaiting-reporter`
+	 * loop -- the directive changes whether a fix is attempted, not what
+	 * happens to it afterwards.
+	 */
+	maintainerDirective?: string;
 }
 
 const reproduceResultSchema = v.object({
@@ -65,7 +78,6 @@ const reproduceResultSchema = v.object({
 		"failing-test",
 		"repro-script",
 		"pnpm-command",
-		"playwright-test",
 		"agent-browser-only",
 		"none",
 	]),
@@ -96,9 +108,23 @@ const reproduceResultSchema = v.object({
 });
 type ReproduceResult = v.InferOutput<typeof reproduceResultSchema>;
 
+// `confidence` rates certainty in the *root cause* (have we found the
+// code responsible?). `fixApproach` rates clarity of the *fix*, an
+// independent axis -- a bug can have an unambiguous cause but a fix
+// shape that needs a maintainer's design call, or a clearly-correct
+// fix that happens to be larger than one line. The old single-axis
+// `high` rating conflated the two and starved the fix stage of real,
+// fixable bugs (see issues #1178, #1199). `as const` preserves the
+// literal unions under valibot's inference, same reason as verify.
 const diagnoseResultSchema = v.object({
 	rootCause: v.pipe(v.string(), v.minLength(10), v.maxLength(2000)),
-	confidence: v.picklist(["high", "medium", "low"]),
+	confidence: v.picklist(["high", "medium", "low"] as const),
+	fixApproach: v.picklist(["mechanical", "clear-best-option", "needs-design-decision"] as const),
+	// Always populated: the concrete change to make (mechanical /
+	// clear-best-option) or the options a maintainer must choose
+	// between (needs-design-decision). Fed into the fix stage as its
+	// target, and surfaced in the maintainer comment when fix defers.
+	proposedFix: v.pipe(v.string(), v.minLength(10), v.maxLength(2000)),
 	hypothesisNotes: v.pipe(v.string(), v.maxLength(2000)),
 });
 type DiagnoseResult = v.InferOutput<typeof diagnoseResultSchema>;
@@ -159,7 +185,7 @@ interface InvestigateResult {
 // correct `area` instead of guessing. Without it, kimi spends most of
 // its budget reasoning about what EmDash is and where a bug lives.
 const classifierAgent = createAgent(() => ({
-	model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6",
+	model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code",
 	instructions: [
 		"You classify GitHub issues for the EmDash CMS investigation bot. Output strictly matches the requested schema.",
 		"",
@@ -175,36 +201,75 @@ const classifierAgent = createAgent(() => ({
 	].join("\n"),
 }));
 
-// Investigator: opus + local() sandbox + the six stage skills registered.
-// The sandbox cwd is pinned to GITHUB_WORKSPACE so skill resolution and
-// shell commands land in the EmDash checkout, not in .flue/.
+// Shared local() sandbox config. Both the investigator and the fix
+// agent run shell commands against the same EmDash checkout, so they
+// use identical sandbox settings -- cwd pinned to GITHUB_WORKSPACE (so
+// skill resolution and bash land in the checkout, not in .flue/) and a
+// read-only GH token. Because both sandboxes point at the same cwd,
+// edits the fix agent stages on disk are exactly what the orchestrator
+// later commits, even though fix runs in its own session.
+function investigateSandbox(cwd: string) {
+	return local({
+		cwd,
+		env: {
+			// Read-only token. The agent can clone and read issues; it
+			// cannot comment, label, or push. The orchestrator owns
+			// every write.
+			GH_TOKEN: process.env.AGENT_GH_TOKEN,
+			CI: "true",
+			NODE_ENV: "test",
+			// Used by bgproc when the repro-admin or repro-public skill
+			// boots `pnpm dev`. Standard Node convention.
+			NODE_OPTIONS: process.env.NODE_OPTIONS,
+		},
+	});
+}
+
+// Investigator: opus + local() sandbox. Runs the reasoning-heavy
+// stages -- reproduce, diagnose, verify. The fix stage runs on a
+// separate, cheaper agent (below), so fix is intentionally NOT in this
+// agent's skill set.
 const investigatorAgent = createAgent(() => {
 	const cwd = process.env.GITHUB_WORKSPACE ?? process.cwd();
 	return {
 		model: process.env.FLUE_INVESTIGATE_MODEL ?? "cloudflare-ai-gateway/claude-opus-4-7",
 		cwd,
-		sandbox: local({
-			cwd,
-			env: {
-				// Read-only token. The agent can clone and read issues; it
-				// cannot comment, label, or push. The orchestrator owns
-				// every write.
-				GH_TOKEN: process.env.AGENT_GH_TOKEN,
-				CI: "true",
-				NODE_ENV: "test",
-				// Used by bgproc when the repro-admin or repro-public skill
-				// boots `pnpm dev`. Standard Node convention.
-				NODE_OPTIONS: process.env.NODE_OPTIONS,
-			},
-		}),
+		sandbox: investigateSandbox(cwd),
 		instructions: [
 			"You are EmDash's investigation bot.",
-			"You walk a four-stage pipeline (reproduce -> diagnose -> verify -> fix) on one GitHub issue at a time.",
+			"You walk the reasoning stages (reproduce -> diagnose -> verify) on one GitHub issue at a time.",
 			"You return read-only on GitHub: no comments, no labels, no branch pushes. The orchestrator does all writes after you finish.",
 			"At every stage you obey the skill's hard prohibitions and produce strictly schema-conformant output.",
 			"When you guess, say you guessed; when you skip, say why.",
 		].join(" "),
-		skills: [reproApi, reproAdmin, reproPublic, diagnose, verify, fix],
+		skills: [reproApi, reproAdmin, reproPublic, diagnose, verify],
+	};
+});
+
+// Fix implementer: a cheaper coding model (Kimi K2.7 Code) is enough here because the
+// expensive reasoning is already done -- diagnose hands over a concrete
+// `proposedFix`, and this stage only runs for `mechanical` /
+// `clear-best-option` approaches. Its job is guided implementation:
+// write the change, make the reproduce test pass, run lint / typecheck
+// / format, and `git add`. It runs in its own session (fresh context,
+// fed the diagnosis explicitly via args) with the same local() sandbox
+// so it has real pnpm / git / gh on PATH and the EmDash checkout as cwd.
+const fixAgent = createAgent(() => {
+	const cwd = process.env.GITHUB_WORKSPACE ?? process.cwd();
+	return {
+		model:
+			process.env.FLUE_FIX_MODEL ??
+			"cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code",
+		cwd,
+		sandbox: investigateSandbox(cwd),
+		instructions: [
+			"You are EmDash's fix implementer.",
+			"Diagnose has already found the root cause and written a proposed fix; your job is to implement that plan, not to re-investigate from scratch.",
+			"You return read-only on GitHub: no comments, no labels, no commits, no branch pushes. You stage changes with `git add` and stop; the orchestrator commits and pushes.",
+			"Obey the fix skill's hard prohibitions and produce strictly schema-conformant output.",
+			"If reading the code convinces you the proposed fix is wrong, abandon with `fixed: false` and explain why in notes rather than forcing a change you don't believe in.",
+		].join(" "),
+		skills: [fix],
 	};
 });
 
@@ -231,6 +296,16 @@ function issueContext(payload: InvestigatePayload): string {
 			payload.retryContext,
 			"",
 			"Treat the above as new information. Do not repeat the same approach that produced the failed previous attempt.",
+		);
+	}
+	if (payload.maintainerDirective) {
+		parts.push(
+			"",
+			"## Maintainer directive (authoritative)",
+			"",
+			payload.maintainerDirective,
+			"",
+			"A maintainer has decided how this should be fixed. Implement the directive above. It overrides any earlier suggestion that this needs a design decision -- the decision has been made. If reading the code convinces you the directive is mistaken, abandon with `fixed: false` and explain why rather than forcing a change you don't believe in.",
 		);
 	}
 	return parts.join("\n");
@@ -289,30 +364,65 @@ async function runImpl({
 		throw new Error("AGENT_GH_TOKEN required (read-only token for the sandbox)");
 	}
 
+	// A maintainer directive overrides the bot's *judgment* gates -- the
+	// human has already decided this is worth fixing and how. It does NOT
+	// override the *capability* gates (can we reproduce it? did the fix
+	// hold?): those bail honestly so the maintainer learns the directive
+	// couldn't be carried out rather than getting a silent no-op.
+	const directed = Boolean(payload.maintainerDirective);
+
+	// Every model-bearing stage goes through this: it bounds each attempt with a
+	// hard timeout (so a stalled Workers AI call fails loudly instead of hanging
+	// the run) and retries genuine capacity (429) errors with backoff. Workers AI
+	// returns 429 under load, which is why the classifier and fix stages (kimi)
+	// are the most exposed.
+	const withRetry = <T>(
+		label: string,
+		fn: (signal: AbortSignal) => PromiseLike<T>,
+		perAttemptTimeoutMs: number,
+	): Promise<T> =>
+		withCapacityRetry(fn, {
+			label: `${label}#${payload.issueNumber}`,
+			attempts: 3,
+			perAttemptTimeoutMs,
+			onRetry: ({ attempt, delayMs, error }) =>
+				log.warn?.(`${label}: model over capacity, backing off`, {
+					issueNumber: payload.issueNumber,
+					attempt,
+					delayMs,
+					error: String(error),
+				}),
+		});
+
 	// --- Stage 0: classify ---
 
 	const classifierHarness = await init(classifierAgent, { name: "classify" });
 	const classifierSession = await classifierHarness.session();
-	const { data: classification } = await classifierSession.prompt(
-		[
-			"Classify the following EmDash issue.",
-			"",
-			issueContext(payload),
-			"",
-			"## Decide",
-			"",
-			"- kind: bug | enhancement | documentation | question",
-			"- area: api | admin | public | migration | build | other",
-			"- requiresBrowser: true for admin/public bugs, false otherwise",
-			"- summary: one factual sentence describing the reported behaviour",
-			"",
-			"Return strictly the requested schema. No prose outside it.",
-		].join("\n"),
-		{ result: issueClassificationSchema },
+	const { data: classification } = await withRetry(
+		"classify",
+		(signal) =>
+			classifierSession.prompt(
+				[
+					"Classify the following EmDash issue.",
+					"",
+					issueContext(payload),
+					"",
+					"## Decide",
+					"",
+					"- kind: bug | enhancement | documentation | question",
+					"- area: api | admin | public | migration | build | other",
+					"- requiresBrowser: true for admin/public bugs, false otherwise",
+					"- summary: one factual sentence describing the reported behaviour",
+					"",
+					"Return strictly the requested schema. No prose outside it.",
+				].join("\n"),
+				{ result: issueClassificationSchema, signal },
+			),
+		90_000,
 	);
 	log.info("classified", { issueNumber: payload.issueNumber, ...classification });
 
-	if (classification.kind !== "bug") {
+	if (classification.kind !== "bug" && !directed) {
 		return {
 			skipped: true,
 			reproduced: false,
@@ -334,13 +444,19 @@ async function runImpl({
 	const investigatorSession = await investigatorHarness.session();
 
 	const reproduceSkill = pickReproduceSkill(classification.area);
-	const { data: reproduce } = await investigatorSession.skill(reproduceSkill, {
-		args: {
-			issueContext: issueContext(payload),
-			classification,
-		},
-		result: reproduceResultSchema,
-	});
+	const { data: reproduce } = await withRetry(
+		"reproduce",
+		(signal) =>
+			investigatorSession.skill(reproduceSkill, {
+				args: {
+					issueContext: issueContext(payload),
+					classification,
+				},
+				result: reproduceResultSchema,
+				signal,
+			}),
+		12 * 60_000,
+	);
 	log.info("reproduce", {
 		issueNumber: payload.issueNumber,
 		reproduced: reproduce.reproduced,
@@ -368,14 +484,20 @@ async function runImpl({
 	// --- Stage 2: diagnose (runs even if reproduce failed; the body alone
 	// is often enough to point at the code path, with lower confidence). ---
 
-	const { data: diagnoseOut } = await investigatorSession.skill(diagnose, {
-		args: {
-			issueContext: issueContext(payload),
-			classification,
-			reproduce,
-		},
-		result: diagnoseResultSchema,
-	});
+	const { data: diagnoseOut } = await withRetry(
+		"diagnose",
+		(signal) =>
+			investigatorSession.skill(diagnose, {
+				args: {
+					issueContext: issueContext(payload),
+					classification,
+					reproduce,
+				},
+				result: diagnoseResultSchema,
+				signal,
+			}),
+		12 * 60_000,
+	);
 	log.info("diagnose", {
 		issueNumber: payload.issueNumber,
 		confidence: diagnoseOut.confidence,
@@ -383,17 +505,23 @@ async function runImpl({
 
 	// --- Stage 3: verify ---
 
-	const { data: verifyOut } = await investigatorSession.skill(verify, {
-		args: {
-			issueContext: issueContext(payload),
-			classification,
-			diagnose: diagnoseOut,
-		},
-		result: verifyResultSchema,
-	});
+	const { data: verifyOut } = await withRetry(
+		"verify",
+		(signal) =>
+			investigatorSession.skill(verify, {
+				args: {
+					issueContext: issueContext(payload),
+					classification,
+					diagnose: diagnoseOut,
+				},
+				result: verifyResultSchema,
+				signal,
+			}),
+		12 * 60_000,
+	);
 	log.info("verify", { issueNumber: payload.issueNumber, verdict: verifyOut.verdict });
 
-	if (verifyOut.verdict === "intended-behavior") {
+	if (verifyOut.verdict === "intended-behavior" && !directed) {
 		return {
 			skipped: false,
 			reproduced: reproduce.reproduced,
@@ -431,11 +559,41 @@ async function runImpl({
 		};
 	}
 
-	// --- Stage 4: fix (gated on bug verdict + high diagnose confidence) ---
-
-	const shouldFix = verifyOut.verdict === "bug" && diagnoseOut.confidence === "high";
+	// --- Stage 4: fix (conditional) ---
+	//
+	// Gate on two independent axes, not the old single `confidence ===
+	// "high"`:
+	//   - verify says it's a bug,
+	//   - diagnose pinned the root cause with at least medium confidence
+	//     (a `low` cause is too shaky to write code against), and
+	//   - the fix is `mechanical` or `clear-best-option` -- i.e. there
+	//     is a correct change to make that doesn't require a maintainer's
+	//     design call.
+	// `needs-design-decision` defers to a human even when the cause is
+	// certain (e.g. the fix needs a new public API or a component that
+	// doesn't exist yet).
+	//
+	// A maintainer directive overrides the gate entirely (see `directed`
+	// above): the human has made the design call diagnose deferred, asserted
+	// it's worth fixing, and asked for an implementation. We reach this point
+	// only past the `!reproduce.reproduced` early return, so a directed fix is
+	// always verified against a live reproduction. The fix agent abandons with
+	// `fixed: false` if the directive turns out wrong.
+	const shouldFix =
+		directed ||
+		(verifyOut.verdict === "bug" &&
+			diagnoseOut.confidence !== "low" &&
+			diagnoseOut.fixApproach !== "needs-design-decision");
 
 	if (!shouldFix) {
+		// Explain precisely why no fix was attempted, since the reason
+		// now varies (unclear verdict / shaky cause / design decision).
+		const notAttemptedReason =
+			verifyOut.verdict !== "bug"
+				? "The bot could not conclusively confirm this is a bug (`unclear` verdict), so it did not attempt an automated fix."
+				: diagnoseOut.confidence === "low"
+					? "The root cause is not pinned down with enough confidence to write a fix against it."
+					: "The fix needs a design decision a maintainer should make, so the bot did not attempt it automatically. The proposed options are above.";
 		return {
 			skipped: false,
 			reproduced: true,
@@ -446,13 +604,15 @@ async function runImpl({
 			notes: [
 				`**Root cause (\`${diagnoseOut.confidence}\` confidence):** ${diagnoseOut.rootCause}`,
 				"",
-				diagnoseOut.confidence === "high"
-					? ""
-					: `**Hypotheses considered:** ${diagnoseOut.hypothesisNotes}`,
+				`**Proposed fix:** ${diagnoseOut.proposedFix}`,
+				"",
+				diagnoseOut.hypothesisNotes
+					? `**Alternative causes considered:** ${diagnoseOut.hypothesisNotes}`
+					: "",
 				"",
 				`**Verdict:** \`${verifyOut.verdict}\` — ${verifyOut.reasoning}`,
 				"",
-				"The bot reproduced the bug but did not attempt a fix. The fix stage requires `verdict: bug` AND `confidence: high`.",
+				notAttemptedReason,
 			]
 				.filter(Boolean)
 				.join("\n"),
@@ -466,15 +626,27 @@ async function runImpl({
 		};
 	}
 
-	const { data: fixOut } = await investigatorSession.skill(fix, {
-		args: {
-			issueContext: issueContext(payload),
-			classification,
-			reproduce,
-			diagnose: diagnoseOut,
-		},
-		result: fixResultSchema,
-	});
+	// Fix runs on its own (cheaper) agent and a fresh session. It is fed
+	// the diagnosis -- including the concrete `proposedFix` -- via args,
+	// and operates on the same on-disk checkout, so its staged edits are
+	// what the orchestrator commits.
+	const fixHarness = await init(fixAgent, { name: "fix" });
+	const fixSession = await fixHarness.session();
+	const { data: fixOut } = await withRetry(
+		"fix",
+		(signal) =>
+			fixSession.skill(fix, {
+				args: {
+					issueContext: issueContext(payload),
+					classification,
+					reproduce,
+					diagnose: diagnoseOut,
+				},
+				result: fixResultSchema,
+				signal,
+			}),
+		12 * 60_000,
+	);
 	log.info("fix", { issueNumber: payload.issueNumber, fixed: fixOut.fixed });
 
 	if (!fixOut.fixed) {

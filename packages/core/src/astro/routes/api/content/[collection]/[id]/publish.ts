@@ -20,7 +20,7 @@ import { contentPublishBody } from "#api/schemas.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, request, locals, cache }) => {
+export const POST: APIRoute = async ({ params, request, locals, url, cache }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
@@ -34,8 +34,10 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const body = await parseOptionalBody(request, contentPublishBody, {});
 	if (isParseError(body)) return body;
 
+	const locale = url.searchParams.get("locale") || undefined;
+
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGet(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",

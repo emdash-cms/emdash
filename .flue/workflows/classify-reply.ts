@@ -1,7 +1,7 @@
 // Classify a reporter's reply to the bot's verification ask.
 //
 // Triggered by .github/workflows/reporter-reply.yml when the issue
-// author comments on an issue that has the `bot:awaiting-reporter`
+// author comments on an issue that has the `triage/awaiting-reporter`
 // label. The workflow YAML reads the classification from this run's
 // output and decides whether to open a PR, retry, or ask for
 // clarification.
@@ -10,8 +10,10 @@
 
 import type { FlueContext } from "@flue/runtime";
 
+import { withCapacityRetry } from "../lib/capacity.js";
 import {
 	classifier,
+	persistClassifierResult,
 	replyClassificationSchema,
 	type ReplyClassification,
 } from "../lib/classifier.js";
@@ -63,10 +65,24 @@ export async function run({
 		"Quote the specific phrase that drove your decision in the reasoning field.",
 	].join("\n");
 
-	const { data } = await session.prompt(prompt, { result: replyClassificationSchema });
+	const { data } = await withCapacityRetry(
+		(signal) => session.prompt(prompt, { result: replyClassificationSchema, signal }),
+		{
+			label: `classify-reply#${payload.issueNumber}`,
+			attempts: 4,
+			perAttemptTimeoutMs: 90_000,
+			onRetry: ({ attempt, delayMs, error }) =>
+				log.warn?.("model over capacity, backing off", {
+					issueNumber: payload.issueNumber,
+					attempt,
+					delayMs,
+					error: String(error),
+				}),
+		},
+	);
 	log.info("classified reply", {
 		issueNumber: payload.issueNumber,
 		classification: data.classification,
 	});
-	return data;
+	return persistClassifierResult(data);
 }

@@ -85,6 +85,10 @@ export interface MediaProviderItem {
 	/** Dimensions (for images/video) */
 	width?: number;
 	height?: number;
+	/** LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 	/** Accessibility text */
 	alt?: string;
 	/** Preview URL for admin UI thumbnail */
@@ -126,6 +130,10 @@ export interface ImageEmbed {
 	sizes?: string;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash placeholder for rendering before the image loads */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color */
+	dominantColor?: string;
 	alt?: string;
 	/** Base URL without transforms, for responsive image generation */
 	cdnBaseUrl?: string;
@@ -256,6 +264,10 @@ export interface MediaValue {
 	mimeType?: string;
 	width?: number;
 	height?: number;
+	/** Cached LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** Cached LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 	alt?: string;
 
 	/** Provider-specific data needed for embedding */
@@ -273,6 +285,8 @@ export function mediaItemToValue(providerId: string, item: MediaProviderItem): M
 		mimeType: item.mimeType,
 		width: item.width,
 		height: item.height,
+		blurhash: item.blurhash,
+		dominantColor: item.dominantColor,
 		alt: item.alt,
 		meta: item.meta,
 	};

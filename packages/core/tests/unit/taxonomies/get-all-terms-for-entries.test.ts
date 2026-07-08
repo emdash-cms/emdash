@@ -16,6 +16,7 @@ import { runWithContext } from "../../../src/request-context.js";
 import {
 	getAllTermsForEntries,
 	getEntryTerms,
+	getTermsForEntries,
 	invalidateTermCache,
 } from "../../../src/taxonomies/index.js";
 
@@ -224,5 +225,74 @@ describe("getAllTermsForEntries", () => {
 
 		// At least one DB call should have happened in the second request.
 		expect(getDbSpy.mock.calls.length).toBeGreaterThan(callsBeforeSecondRequest);
+	});
+
+	it("getTermsForEntries serves primed entries from cache without re-querying", async () => {
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["posts", "post"]) })
+			.where("name", "=", "tag")
+			.execute();
+
+		const tag = await taxRepo.create({ name: "tag", slug: "web", label: "Web" });
+		const p1 = await contentRepo.create({ type: "post", slug: "p1", data: { title: "P1" } });
+		const p2 = await contentRepo.create({ type: "post", slug: "p2", data: { title: "P2" } });
+		await taxRepo.attachToEntry("post", p1.id, tag.id);
+
+		invalidateTermCache();
+		const getDbSpy = vi.mocked(getDb);
+
+		await runWithContext({ editMode: false }, async () => {
+			await getAllTermsForEntries("post", [p1.id, p2.id]); // primes the per-entry cache
+			const callsAfterBatch = getDbSpy.mock.calls.length;
+
+			const map = await getTermsForEntries("post", [p1.id, p2.id], "tag");
+
+			// All entries were primed, so no further DB calls.
+			expect(getDbSpy.mock.calls.length).toBe(callsAfterBatch);
+			expect(map.get(p1.id)!.map((t) => t.slug)).toEqual(["web"]);
+			expect(map.get(p2.id)).toEqual([]);
+		});
+	});
+
+	it("getTermsForEntries returns private copies that can't poison the cache", async () => {
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["posts", "post"]) })
+			.where("name", "=", "tag")
+			.execute();
+
+		const tagA = await taxRepo.create({ name: "tag", slug: "a", label: "A" });
+		const tagB = await taxRepo.create({ name: "tag", slug: "b", label: "B" });
+		const p1 = await contentRepo.create({ type: "post", slug: "p1", data: { title: "P1" } });
+		await taxRepo.attachToEntry("post", p1.id, tagA.id);
+		await taxRepo.attachToEntry("post", p1.id, tagB.id);
+
+		invalidateTermCache();
+
+		await runWithContext({ editMode: false }, async () => {
+			await getAllTermsForEntries("post", [p1.id]); // prime
+
+			const first = await getTermsForEntries("post", [p1.id], "tag");
+			const arr = first.get(p1.id)!;
+			expect(arr.map((t) => t.slug).toSorted()).toEqual(["a", "b"]);
+
+			// Mutate the returned array in place (truncate + push junk) and mutate
+			// a term's children — none of this must leak into the shared cache.
+			arr.length = 0;
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- deliberate junk for the mutation test
+			arr.push({ slug: "junk" } as unknown as (typeof arr)[number]);
+
+			const viaEntry = await getEntryTerms("post", p1.id, "tag");
+			expect(viaEntry.map((t) => t.slug).toSorted()).toEqual(["a", "b"]);
+
+			const second = await getTermsForEntries("post", [p1.id], "tag");
+			expect(
+				second
+					.get(p1.id)!
+					.map((t) => t.slug)
+					.toSorted(),
+			).toEqual(["a", "b"]);
+		});
 	});
 });

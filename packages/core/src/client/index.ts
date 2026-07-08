@@ -521,6 +521,7 @@ export class EmDashClient {
 			slug?: string;
 			status?: string;
 			_rev?: string;
+			locale?: string;
 		},
 	): Promise<ContentItem> {
 		// Convert markdown strings to PT
@@ -536,9 +537,11 @@ export class EmDashClient {
 			status: input.status,
 			...(input._rev ? { _rev: input._rev } : {}),
 		};
+		const params = new URLSearchParams();
+		if (input.locale) params.set("locale", input.locale);
 		const result = await this.request<{ item: ContentItem; _rev?: string }>(
 			"PUT",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}${params.toString() ? `?${params}` : ""}`,
 			body,
 		);
 
