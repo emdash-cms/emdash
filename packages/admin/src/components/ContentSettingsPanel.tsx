@@ -777,12 +777,12 @@ function BylineCreditsEditor({
 						if (!byline) return null;
 						return (
 							<div key={`${credit.bylineId}-${index}`} className="rounded border p-2 space-y-2">
-								<div className="flex items-center justify-between gap-2">
-									<div>
-										<p className="text-sm font-medium">{byline.displayName}</p>
-										<p className="text-xs text-kumo-subtle">{byline.slug}</p>
+								<div className="flex flex-wrap items-center justify-between gap-2">
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium">{byline.displayName}</p>
+										<p className="truncate text-xs text-kumo-subtle">{byline.slug}</p>
 									</div>
-									<div className="flex gap-1">
+									<div className="flex shrink-0 flex-wrap gap-1">
 										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, -1)}>
 											{t`Up`}
 										</Button>

@@ -592,7 +592,13 @@ export function ContentEditor({
 				collapsible="offcanvas"
 				mobileBreakpoint={1024}
 				className={cn(!isDistractionFree && "h-full min-h-0")}
-				style={{ "--sidebar-width": "20rem" } as React.CSSProperties}
+				style={
+					{
+						// Wider pane on desktop; the mobile sheet stays at 20rem so it
+						// still fits small phone viewports.
+						"--sidebar-width": isBelowLg ? "20rem" : "23rem",
+					} as React.CSSProperties
+				}
 			>
 				{/* Editor column — scrolls independently of the settings panel */}
 				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
@@ -791,7 +797,7 @@ export function ContentEditor({
 								isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern) : null
 							}
 						/>
-						<div className="flex-1 overflow-y-auto">
+						<div className="flex-1 overflow-y-auto overflow-x-hidden">
 							<ContentSettingsPanel
 								collection={collection}
 								item={item}
