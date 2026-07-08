@@ -153,7 +153,7 @@ For bugs, a confirmed reproduction is the most useful evidence for priority. If 
 
 ### The Repro Bot and `triage/*` Labels
 
-There is an experimental issue-investigation agent: applying the `bot:repro` label to an issue sends an agent off to try to reproduce the bug, and if it succeeds it may push a fix branch. It's honestly not very reliable yet — it misdiagnoses bugs and produces plausible-looking results that don't hold up — so maintainers rarely use it and you should not apply `bot:repro` yourself. If you think an issue is a great candidate for it, suggest it in `#triage`. We hope to make it dependable enough to become a normal part of triage; until then, treat human reproduction as the real thing.
+There is an experimental issue-investigation agent: applying the `bot:repro` label to an issue sends an agent off to try to reproduce the bug, and if it succeeds it may push a fix branch. It's too unreliable to be useful right now – reproduction runs fail, or time out after a very long time, so maintainers rarely use it and you should not apply `bot:repro` yourself. 
 
 You may still occasionally see its state labels on an issue. Like the PR labels, these are managed by workflows — you read them, you don't set them:
 
