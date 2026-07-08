@@ -7,6 +7,7 @@ import {
 	CircleDashed,
 	CheckCircle,
 	PencilSimple,
+	CalendarBlank,
 	Image,
 	Users,
 } from "@phosphor-icons/react";
@@ -136,6 +137,8 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 	if (!stats) return null;
 
 	const totalDrafts = stats.collections.reduce((sum, c) => sum + c.draft, 0);
+	const totalScheduled = stats.collections.reduce((sum, c) => sum + c.scheduled, 0);
+	const hasScheduledContent = totalScheduled > 0;
 
 	const metrics: Array<{ icon: React.ElementType; label: string; value: number }> = [
 		{
@@ -143,6 +146,15 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 			label: plural(totalDrafts, { one: "Draft", other: "Drafts" }),
 			value: totalDrafts,
 		},
+		...(hasScheduledContent
+			? [
+					{
+						icon: CalendarBlank,
+						label: plural(totalScheduled, { one: "Scheduled", other: "Scheduled" }),
+						value: totalScheduled,
+					},
+				]
+			: []),
 		{
 			icon: Image,
 			label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
@@ -156,7 +168,13 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 	];
 
 	return (
-		<div className="grid gap-4 sm:grid-cols-3">
+		<div
+			className={
+				hasScheduledContent
+					? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+					: "grid gap-4 sm:grid-cols-3"
+			}
+		>
 			{metrics.map((metric) => (
 				<LayerCard key={metric.label}>
 					<LayerCard.Secondary className="flex items-center gap-2 text-kumo-subtle">
