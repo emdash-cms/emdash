@@ -2,6 +2,9 @@
  * Site settings APIs
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse } from "./client.js";
 
 export interface SiteSettings {
@@ -44,7 +47,7 @@ export interface SiteSettings {
  */
 export async function fetchSettings(): Promise<Partial<SiteSettings>> {
 	const response = await apiFetch(`${API_BASE}/settings`);
-	return parseApiResponse<Partial<SiteSettings>>(response, "Failed to fetch settings");
+	return parseApiResponse<Partial<SiteSettings>>(response, i18n._(msg`Failed to fetch settings`));
 }
 
 /**
@@ -58,5 +61,5 @@ export async function updateSettings(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(settings),
 	});
-	return parseApiResponse<Partial<SiteSettings>>(response, "Failed to update settings");
+	return parseApiResponse<Partial<SiteSettings>>(response, i18n._(msg`Failed to update settings`));
 }

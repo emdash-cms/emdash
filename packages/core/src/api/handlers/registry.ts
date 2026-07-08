@@ -40,6 +40,8 @@
 
 import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
+import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
+import type { HostEnv } from "@emdash-cms/registry-client/env";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
@@ -47,6 +49,8 @@ import { extractBundle } from "../../plugins/marketplace.js";
 import type { PluginBundle } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import { declaredAccessToCapabilities } from "../../plugins/types.js";
+import type { DeclaredAccess } from "../../plugins/types.js";
 import {
 	canonicalCapabilitiesForDriftCheck,
 	coerceRegistryConfig,
@@ -67,6 +71,26 @@ import {
 	loadBundleFromR2,
 	storeBundleInR2,
 } from "./marketplace.js";
+
+const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
+
+/**
+ * Whether two `declaredAccess` blocks grant exactly the same enforced access --
+ * the same capabilities AND the same host allow-list. Both are lowered through
+ * the canonical converter so that constraint content (`allowedHosts`), not just
+ * the capability set, is part of the comparison. The capability-set consent
+ * gate is blind to host scope; this is what keeps a bundle from being installed
+ * with a wider (or simply different) host allow-list than its published record
+ * advertised and the user consented to.
+ */
+export function enforcedAccessEqual(a: DeclaredAccess, b: DeclaredAccess): boolean {
+	const aa = declaredAccessToCapabilities(a);
+	const bb = declaredAccessToCapabilities(b);
+	return (
+		JSON.stringify(aa.capabilities.toSorted()) === JSON.stringify(bb.capabilities.toSorted()) &&
+		JSON.stringify(aa.allowedHosts.toSorted()) === JSON.stringify(bb.allowedHosts.toSorted())
+	);
+}
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -520,6 +544,52 @@ async function fetchArtifact(mirrors: string[], declaredUrl: string): Promise<Ui
 	);
 }
 
+/**
+ * The shape of a single env-compatibility failure returned to the admin in
+ * the `ENV_INCOMPATIBLE` error's `details`.
+ */
+interface EnvIncompatibleError {
+	code: "ENV_INCOMPATIBLE";
+	message: string;
+	details: { requires: Record<string, string>; host: HostEnv };
+}
+
+/**
+ * Gate a release's `requires` constraints against the running host
+ * environment. `requires` is the lexicon-`unknown` value off the signed
+ * release record — never trust its shape; `checkEnvCompatibility` guards it.
+ *
+ * Returns `null` when every advertised constraint is satisfied (or there are
+ * none), or a structured `ENV_INCOMPATIBLE` error naming the unsatisfied
+ * constraints and the host versions. The error carries the guarded `requires`
+ * and `host` maps so the admin can render the same mismatch the UI gate shows.
+ */
+export function assertEnvCompatible(
+	requires: unknown,
+	hostEnv: HostEnv,
+): EnvIncompatibleError | null {
+	// A constraint the host can't evaluate (unknown or unparseable host
+	// version) downgrades the gate to a no-op for that env. Log it so a
+	// silent bypass is observable rather than invisible.
+	for (const skipped of findSkippedEnvConstraints(requires, hostEnv)) {
+		console.warn(
+			`[registry] env compatibility constraint skipped: ${skipped.key} requires ${skipped.required} but host version is ${skipped.reason}`,
+		);
+	}
+	const mismatches = checkEnvCompatibility(requires, hostEnv);
+	if (mismatches.length === 0) return null;
+	const guarded: Record<string, string> = {};
+	for (const m of mismatches) guarded[m.key] = m.required;
+	const summary = mismatches
+		.map((m) => `${m.key} requires ${m.required} but host is ${m.host}`)
+		.join("; ");
+	return {
+		code: "ENV_INCOMPATIBLE",
+		message: `This release is not compatible with the current environment: ${summary}.`,
+		details: { requires: guarded, host: hostEnv },
+	};
+}
+
 // ── Install ────────────────────────────────────────────────────────
 
 export async function handleRegistryInstall(
@@ -528,7 +598,7 @@ export async function handleRegistryInstall(
 	sandboxRunner: SandboxRunner | null,
 	registryConfigInput: RegistryConfigInput | undefined,
 	input: RegistryInstallInput,
-	opts?: { configuredPluginIds?: Set<string> },
+	opts?: { configuredPluginIds?: Set<string>; hostEnv?: HostEnv },
 ): Promise<ApiResult<RegistryInstallResult>> {
 	// Accept either the bare-string shorthand or the full
 	// `RegistryConfig` object (see `RegistryConfigInput`).
@@ -737,6 +807,17 @@ export async function handleRegistryInstall(
 			};
 		}
 
+		// Step 3b: environment compatibility. The signed release record may
+		// carry a `requires` block (`env:emdash`, `env:astro`, ...). Refuse
+		// the install if the running host doesn't satisfy a constraint, so a
+		// stale browser tab or non-UI caller can't bypass the admin's
+		// disabled Install button. `requires` is lexicon-`unknown`; the
+		// helper guards its shape.
+		if (opts?.hostEnv) {
+			const envError = assertEnvCompatible(releaseView.release?.requires, opts.hostEnv);
+			if (envError) return { success: false, error: envError };
+		}
+
 		// Step 3a: enforce the configured minimum release age. The browser
 		// applies the same check up front for UX, but the gate lives here
 		// -- a stale browser tab, a deep link, or a non-admin-UI caller
@@ -939,6 +1020,31 @@ export async function handleRegistryInstall(
 		// in sync and prevents registry installs from colliding with
 		// marketplace plugins that happen to share the publisher's slug.
 		bundle.manifest = { ...bundle.manifest, id: pluginId };
+
+		// Integrity: the bundle that will run MUST declare exactly the access
+		// the signed release record advertises. The consent dialog is driven
+		// from the record's `declaredAccess`, so a bundle enforcing something
+		// different -- a wider host allow-list, an extra capability -- would run
+		// outside what the user reviewed. The capability-set consent gate below
+		// is blind to constraint content (host scope), so compare the full
+		// enforced access of record vs bundle here and refuse on any difference.
+		const recordExt =
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- extensions is the lexicon's open `unknown` map; narrow to read our own extension
+			(release?.extensions as Record<string, { declaredAccess?: DeclaredAccess }> | undefined)?.[
+				RELEASE_EXTENSION_NSID
+			];
+		if (
+			!enforcedAccessEqual(recordExt?.declaredAccess ?? {}, bundle.manifest.declaredAccess ?? {})
+		) {
+			return {
+				success: false,
+				error: {
+					code: "DECLARED_ACCESS_DRIFT",
+					message:
+						"The plugin bundle declares different permissions than its published record. Installation refused.",
+				},
+			};
+		}
 
 		// Capability consent gate: the admin MUST acknowledge the
 		// capabilities the bundle's manifest actually declares before we
@@ -1212,6 +1318,7 @@ export async function handleRegistryUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		hostEnv?: HostEnv;
 	},
 ): Promise<ApiResult<RegistryUpdateResult>> {
 	const registryConfig = coerceRegistryConfig(registryConfigInput);
@@ -1363,6 +1470,14 @@ export async function handleRegistryUpdate(
 			};
 		}
 
+		// Environment compatibility gate. An ungated update could otherwise
+		// land a version whose `requires` the host doesn't satisfy. Same
+		// guard as install; `requires` is lexicon-`unknown`.
+		if (opts?.hostEnv) {
+			const envError = assertEnvCompatible(signedRelease.requires, opts.hostEnv);
+			if (envError) return { success: false, error: envError };
+		}
+
 		const declaredUrl = signedRelease.artifacts?.package?.url;
 		const declaredChecksum = signedRelease.artifacts?.package?.checksum;
 		if (!declaredUrl || !declaredChecksum) {
@@ -1419,6 +1534,29 @@ export async function handleRegistryUpdate(
 		// Rewrite manifest.id to the opaque pluginId so the sandbox loader
 		// and R2 layout stay in sync across install and update.
 		bundle.manifest = { ...bundle.manifest, id: pluginId };
+
+		// Integrity: same gate as install. The new bundle must declare exactly
+		// the access its signed release record advertises. Without it, an update
+		// that changes only the host scope (e.g. api.good.com -> evil.com) keeps
+		// the capability set identical, sails through the escalation diff below,
+		// and installs a bundle enforcing a scope the record never showed.
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- extensions is the lexicon's open `unknown` map; narrow to read our own extension
+		const updateRecordExtensions = signedRelease?.extensions as
+			| Record<string, { declaredAccess?: DeclaredAccess }>
+			| undefined;
+		const recordExt = updateRecordExtensions?.[RELEASE_EXTENSION_NSID];
+		if (
+			!enforcedAccessEqual(recordExt?.declaredAccess ?? {}, bundle.manifest.declaredAccess ?? {})
+		) {
+			return {
+				success: false,
+				error: {
+					code: "DECLARED_ACCESS_DRIFT",
+					message:
+						"The plugin bundle declares different permissions than its published record. Update refused.",
+				},
+			};
+		}
 
 		// Diff capabilities + route visibility against the currently
 		// installed bundle. Loading from R2 keeps us honest: the diff is

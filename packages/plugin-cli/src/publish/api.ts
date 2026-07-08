@@ -45,6 +45,7 @@ import { ClientResponseError } from "@atcute/client";
 import type { Nsid } from "@atcute/lexicons";
 import { safeParse } from "@atcute/lexicons/validations";
 import {
+	capabilitiesToDeclaredAccess,
 	deriveSlugFromId,
 	isDeprecatedCapability,
 	isPluginSlug,
@@ -130,6 +131,38 @@ export interface ProfileInput {
 	name?: string;
 	description?: string;
 	keywords?: string[];
+	/**
+	 * Long-form profile sections (description / installation / faq / changelog
+	 * / security), resolved to inline CommonMark strings. Profile-level: written
+	 * to the profile record on first publish, ignored on subsequent publishes
+	 * like the other profile fields.
+	 */
+	sections?: Record<string, string>;
+}
+
+/**
+ * A resolved image artifact ready to embed in the release. The CLI command
+ * reads the file, computes the checksum, measures the dimensions, and uploads
+ * the bytes before constructing this; `publishRelease` only writes it.
+ */
+export interface ReleaseArtifactInput {
+	url: string;
+	checksum: string;
+	contentType: string;
+	width: number;
+	height: number;
+	lang?: string;
+}
+
+/**
+ * Resolved release media artifacts. `icon` / `banner` are single images;
+ * `screenshots` is the ordered gallery, written verbatim to the lexicon's
+ * `artifacts.screenshots` array.
+ */
+export interface ReleaseArtifactsInput {
+	icon?: ReleaseArtifactInput;
+	banner?: ReleaseArtifactInput;
+	screenshots?: ReleaseArtifactInput[];
 }
 
 export interface PublishOptions {
@@ -162,6 +195,19 @@ export interface PublishOptions {
 	 * immutable per version, so this is not a first-publish-only field.
 	 */
 	repo?: string;
+	/**
+	 * Environment constraints for this release (`release.requires` in the
+	 * lexicon). Map of `env:*`/DID keys to semver ranges. Written to the
+	 * release record when non-empty; omitted otherwise.
+	 */
+	requires?: Record<string, string>;
+	/**
+	 * Resolved media artifacts (icon / screenshot / banner) for this release.
+	 * Already uploaded and measured by the caller. Written verbatim into the
+	 * release record. Releases are immutable per version, so this is not a
+	 * first-publish-only field.
+	 */
+	artifacts?: ReleaseArtifactsInput;
 	/**
 	 * Allow overwriting an existing release at `<slug>:<version>`. Default
 	 * is `false`, which causes publish to refuse with `RELEASE_ALREADY_PUBLISHED`.
@@ -230,6 +276,17 @@ interface PackageProfileRecordShape {
 	name?: string;
 	description?: string;
 	keywords?: string[];
+	sections?: Record<string, string>;
+}
+
+/** An image artifact embedded in a release (`release.json#artifact`). */
+interface ImageArtifact {
+	url: string;
+	checksum: string;
+	contentType: string;
+	width: number;
+	height: number;
+	lang?: string;
 }
 
 interface PackageReleaseRecordShape {
@@ -242,9 +299,15 @@ interface PackageReleaseRecordShape {
 			checksum: string;
 			contentType?: string;
 		};
+		icon?: ImageArtifact;
+		banner?: ImageArtifact;
+		/** Ordered screenshot gallery (`artifacts.screenshots` in the lexicon). */
+		screenshots?: ImageArtifact[];
 	};
 	/** Source-repository URL (`release.repo`). Omitted when not provided. */
 	repo?: string;
+	/** Environment constraints (`release.requires`). Omitted when empty. */
+	requires?: Record<string, string>;
 	/**
 	 * Open-union extension container, keyed by NSID. Releases of type
 	 * `emdash-plugin` MUST include a `releaseExtension` entry carrying the
@@ -252,13 +315,6 @@ interface PackageReleaseRecordShape {
 	 * have no contract to enforce against.
 	 */
 	extensions: Record<string, unknown>;
-}
-
-interface DeclaredAccess {
-	content?: { read?: Record<string, unknown>; write?: Record<string, unknown> };
-	media?: { read?: Record<string, unknown>; write?: Record<string, unknown> };
-	network?: { request?: { allowedHosts?: string[] } };
-	email?: { send?: Record<string, unknown> };
 }
 
 interface FetchedRecord {
@@ -357,26 +413,14 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	const profileCreated = existingProfile === null;
 	const ignoredProfileFields: string[] = [];
 
-	// Build the EmDash trust extension (declaredAccess) from the manifest's
-	// capabilities + allowedHosts. The lexicon REQUIRES this extension on
-	// every emdash-plugin release; without it, sandbox runtimes have no
-	// contract to enforce, and aggregators may reject the record.
-	const declaredAccess = buildDeclaredAccess(options.manifest);
-
-	// Warn about capabilities that don't appear in the published
-	// declaredAccess. The lexicon's vocabulary is closed today (see
-	// releaseExtension.json line 20: "Categories not enumerated here cannot
-	// be declared"), so any capability not handled by `buildDeclaredAccess`
-	// is invisible to the trust contract. Driving the gap detection from
-	// what was actually emitted (rather than a hard-coded prefix list)
-	// means a future capability added to plugin-types but not to
-	// `buildDeclaredAccess` still fires the warning.
-	const unmappedCaps = findUnmappedCapabilities(normalizedCaps, declaredAccess);
-	if (unmappedCaps.length > 0) {
-		log.warn?.(
-			`Capabilities ${unmappedCaps.join(", ")} are not expressible in declaredAccess today (lexicon limitation). Sandbox runtimes will gate these on manifest.capabilities until the lexicon evolves to cover them.`,
-		);
-	}
+	// The EmDash trust extension carries the manifest's declaredAccess
+	// verbatim -- the lexicon REQUIRES it on every emdash-plugin release, and
+	// the install-time deep-equal compares the bundle's declaredAccess against
+	// it. A tarball built before the wire format carried declaredAccess has it
+	// derived from the (normalized) legacy capability list as a fallback.
+	const declaredAccess =
+		options.manifest.declaredAccess ??
+		capabilitiesToDeclaredAccess(normalizedCaps, options.manifest.allowedHosts);
 	const releaseExtension = {
 		$type: NSID.packageReleaseExtension,
 		declaredAccess,
@@ -400,6 +444,10 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	if (options.repo !== undefined) {
 		releaseRecord.repo = options.repo;
 	}
+	if (options.requires !== undefined && Object.keys(options.requires).length > 0) {
+		releaseRecord.requires = options.requires;
+	}
+	applyArtifacts(releaseRecord, options.artifacts);
 
 	type WriteOp =
 		| {
@@ -554,95 +602,22 @@ function atUri(did: Did, collection: string, rkey: string): string {
 }
 
 /**
- * Determine which capabilities in `normalizedCaps` have no representation
- * in the `declaredAccess` we just built. The mapping rules are derived
- * from what `buildDeclaredAccess` actually emits, so a future capability
- * added to plugin-types but not to that function will surface here.
+ * Write resolved media artifacts into a release record's `artifacts` map.
  *
- * The check is: for each capability, derive its target declaredAccess
- * coordinate (category + operation). If that coordinate is missing,
- * the capability is unmapped.
+ * `icon` and `banner` map to their single-`#artifact` lexicon slots directly;
+ * `screenshots` is written as the lexicon's `artifacts.screenshots` array,
+ * preserving gallery order.
  */
-function findUnmappedCapabilities(
-	normalizedCaps: string[],
-	declaredAccess: DeclaredAccess,
-): string[] {
-	const unmapped: string[] = [];
-	for (const cap of normalizedCaps) {
-		if (capabilityIsRepresented(cap, declaredAccess)) continue;
-		unmapped.push(cap);
+function applyArtifacts(
+	record: PackageReleaseRecordShape,
+	artifacts: ReleaseArtifactsInput | undefined,
+): void {
+	if (!artifacts) return;
+	if (artifacts.icon) record.artifacts.icon = { ...artifacts.icon };
+	if (artifacts.banner) record.artifacts.banner = { ...artifacts.banner };
+	if (artifacts.screenshots && artifacts.screenshots.length > 0) {
+		record.artifacts.screenshots = artifacts.screenshots.map((shot) => ({ ...shot }));
 	}
-	return unmapped;
-}
-
-function capabilityIsRepresented(cap: string, declared: DeclaredAccess): boolean {
-	switch (cap) {
-		case "content:read":
-			return declared.content?.read !== undefined;
-		case "content:write":
-			return declared.content?.write !== undefined;
-		case "media:read":
-			return declared.media?.read !== undefined;
-		case "media:write":
-			return declared.media?.write !== undefined;
-		case "network:request":
-		case "network:request:unrestricted":
-			return declared.network?.request !== undefined;
-		case "email:send":
-			return declared.email?.send !== undefined;
-		default:
-			// Anything else (users:*, hooks.*:register, future capabilities)
-			// is unmapped. The lexicon doesn't have a category for it yet.
-			return false;
-	}
-}
-
-/**
- * Translate `manifest.capabilities` + `manifest.allowedHosts` into the
- * `declaredAccess` shape required by the EmDash release extension.
- *
- * Only the canonical capability names are inspected here; the manifest's
- * `capabilities` is normalized at publish-time entry, and deprecated names
- * are hard-failed before we get here.
- */
-function buildDeclaredAccess(manifest: PluginManifest): DeclaredAccess {
-	// Normalize so legacy aliases don't slip through (defence in depth -- the
-	// manifest should have been normalized at definePlugin time).
-	const caps = new Set(manifest.capabilities.map((c) => normalizeCapability(c)));
-	const declared: DeclaredAccess = {};
-
-	// The lexicon documents that `content.write` IMPLIES `content.read`
-	// (releaseExtension.json line 53-56) and same for `media.write`.
-	// Canonicalise here so the published trust contract matches the
-	// documented semantics: any capability that implies read also surfaces
-	// `read: {}` in declaredAccess. Aggregators and sandbox runtimes can
-	// then gate on `declaredAccess.content.read` without also having to
-	// know the implication rules.
-	if (caps.has("content:read") || caps.has("content:write")) {
-		declared.content = { read: {} };
-		if (caps.has("content:write")) declared.content.write = {};
-	}
-	if (caps.has("media:read") || caps.has("media:write")) {
-		declared.media = { read: {} };
-		if (caps.has("media:write")) declared.media.write = {};
-	}
-	if (caps.has("network:request") || caps.has("network:request:unrestricted")) {
-		declared.network = {};
-		// The lexicon's `networkRequestConstraints.allowedHosts` is "absent =
-		// no host restriction; empty array MUST NOT appear". So we only set
-		// the key when the manifest declares hosts and the unrestricted
-		// capability is NOT present.
-		const constraint: { allowedHosts?: string[] } = {};
-		if (!caps.has("network:request:unrestricted") && manifest.allowedHosts.length > 0) {
-			constraint.allowedHosts = [...manifest.allowedHosts];
-		}
-		declared.network.request = constraint;
-	}
-	if (caps.has("email:send")) {
-		declared.email = { send: {} };
-	}
-
-	return declared;
 }
 
 /**
@@ -832,6 +807,9 @@ function buildProfileRecord(input: {
 	if (profile.keywords !== undefined && profile.keywords.length > 0) {
 		record.keywords = profile.keywords;
 	}
+	if (profile.sections !== undefined && Object.keys(profile.sections).length > 0) {
+		record.sections = profile.sections;
+	}
 	return record;
 }
 
@@ -879,6 +857,9 @@ function listProvidedProfileInputFields(input: ProfileInput | undefined): string
 	if (input.keywords !== undefined && input.keywords.length > 0) fields.push("keywords");
 	if (input.authors !== undefined && input.authors.length > 0) fields.push("authors");
 	if (input.security !== undefined && input.security.length > 0) fields.push("security");
+	if (input.sections !== undefined && Object.keys(input.sections).length > 0) {
+		fields.push("sections");
+	}
 	return fields;
 }
 

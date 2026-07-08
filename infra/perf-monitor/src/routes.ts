@@ -19,8 +19,11 @@ export interface TargetRoute {
 
 /**
  * A deployed demo we measure. Sites share the same route set and are compared
- * head-to-head on the dashboard. `blog` is the baseline; `cache` runs with
- * Astro's experimental cache provider enabled.
+ * head-to-head on the dashboard. `blog` is the baseline (D1, smart placement);
+ * `cache` runs with Astro's experimental cache provider enabled; `do` runs on
+ * the Durable Objects SQL backend with read replicas; `do-solo` runs the same
+ * DO backend with a single primary (no replica routing), isolating the
+ * DO-architecture cost from the replica-routing win.
  */
 export interface Site {
 	/** Stable slug stored in `perf_results.site`. */
@@ -43,6 +46,18 @@ export const SITES: readonly Site[] = [
 		label: "Astro cache",
 		targetUrl: "https://cache-demo.emdashcms.com",
 		workerName: "emdash-demo-cache",
+	},
+	{
+		id: "do",
+		label: "DO read replica",
+		targetUrl: "https://do-demo.emdashcms.com",
+		workerName: "emdash-demo-do",
+	},
+	{
+		id: "do-solo",
+		label: "DO single primary",
+		targetUrl: "https://do-solo-demo.emdashcms.com",
+		workerName: "emdash-demo-do-solo",
 	},
 ] as const;
 
@@ -84,7 +99,7 @@ export const TARGET_ROUTES: TargetRoute[] = [
 		expectedStatuses: [200],
 	},
 	{
-		path: "/posts/marshland-birds-at-the-lake-havasu-national-wildlife-refuge",
+		path: "/posts/notes-on-simplicity",
 		label: "Single Post",
 		coldThresholdMs: 2000,
 		expectedStatuses: [200],
@@ -97,7 +112,7 @@ export const TARGET_ROUTES: TargetRoute[] = [
 	},
 ];
 
-export const REGIONS = ["use", "euw", "ape", "aps"] as const;
+export const REGIONS = ["use", "euw", "ape", "aps", "sae", "oce"] as const;
 export type Region = (typeof REGIONS)[number];
 
 export const REGION_LABELS: Record<Region, string> = {
@@ -105,6 +120,8 @@ export const REGION_LABELS: Record<Region, string> = {
 	euw: "Europe West",
 	ape: "Asia Pacific East",
 	aps: "Asia Pacific South",
+	sae: "South America",
+	oce: "Oceania",
 };
 
 /** Number of warm requests per route (we take the median). */

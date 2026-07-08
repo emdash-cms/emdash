@@ -224,7 +224,7 @@ export const widgets = {
 ```
 
 <Aside type="caution">
-	Page paths in `pages` must match the `path` values in `admin.pages`. Widget keys must match the `id` values in `admin.widgets`.
+	Page paths in `pages` should match the `path` values in `admin.pages`. A trailing slash is treated as equivalent, so `/settings` and `/settings/` resolve to the same page. Opening a plugin at its root resolves to the first registered page. Widget keys must match the `id` values in `admin.widgets`.
 </Aside>
 
 ## Using admin components

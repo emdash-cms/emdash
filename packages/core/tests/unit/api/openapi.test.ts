@@ -154,6 +154,18 @@ describe("OpenAPI document generation", () => {
 		expect(itemPath).toHaveProperty("delete");
 	});
 
+	it("documents locale query parameter on content item update", () => {
+		const doc = generateOpenApiDocument();
+		const itemPath = doc.paths?.["/_emdash/api/content/{collection}/{id}"];
+		const updateOp = itemPath?.put as {
+			parameters?: Array<{ name?: string; in?: string }>;
+		};
+
+		expect(updateOp.parameters).toEqual(
+			expect.arrayContaining([expect.objectContaining({ name: "locale", in: "query" })]),
+		);
+	});
+
 	it("generates unique operation IDs for all operations", () => {
 		const doc = generateOpenApiDocument();
 		const operationIds: string[] = [];

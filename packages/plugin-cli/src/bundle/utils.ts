@@ -15,6 +15,7 @@ import { pipeline } from "node:stream/promises";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 
+import { capabilitiesToDeclaredAccess } from "./types.js";
 import type { ManifestHookEntry, PluginManifest, ResolvedPlugin } from "./types.js";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -25,7 +26,7 @@ export const MAX_BUNDLE_SIZE = 256 * 1024;
 export const MAX_FILE_SIZE = 128 * 1024;
 export const MAX_FILE_COUNT = 20;
 
-export const MAX_SCREENSHOTS = 5;
+export const MAX_SCREENSHOTS = 8;
 export const MAX_SCREENSHOT_WIDTH = 1920;
 export const MAX_SCREENSHOT_HEIGHT = 1080;
 export const ICON_SIZE = 256;
@@ -147,6 +148,7 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 	return {
 		id: plugin.id,
 		version: plugin.version,
+		declaredAccess: capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts),
 		capabilities: plugin.capabilities,
 		allowedHosts: plugin.allowedHosts,
 		storage: plugin.storage,

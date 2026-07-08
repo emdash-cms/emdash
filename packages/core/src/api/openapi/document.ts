@@ -24,6 +24,7 @@ import {
 import { apiErrorSchema, deleteResponseSchema, successEnvelope } from "../schemas/common.js";
 import {
 	contentCompareResponseSchema,
+	contentAuthorsResponseSchema,
 	contentCreateBody,
 	contentItemSchema,
 	contentListQuery,
@@ -256,6 +257,9 @@ const contentPaths = {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
+				}),
+				query: z.object({
+					locale: z.string().optional().meta({ description: "Locale filter" }),
 				}),
 			},
 			requestBody: {
@@ -594,6 +598,30 @@ const contentPaths = {
 		},
 	},
 
+	"/_emdash/api/content/{collection}/authors": {
+		get: {
+			operationId: "listContentAuthors",
+			summary: "List distinct authors of a collection's content",
+			tags: ["Content"],
+			requestParams: {
+				path: z.object({
+					collection: z.string().meta({ description: "Collection slug" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Content authors",
+					content: {
+						[JSON_CONTENT]: {
+							schema: successEnvelope(contentAuthorsResponseSchema),
+						},
+					},
+				},
+				...authErrors,
+				...standardErrors(500),
+			},
+		},
+	},
 	"/_emdash/api/content/{collection}/trash": {
 		get: {
 			operationId: "listTrashedContent",

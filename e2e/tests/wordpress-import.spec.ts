@@ -40,7 +40,9 @@ test.describe("WordPress Import", () => {
 			await admin.waitForShell();
 			await admin.waitForLoading();
 
-			// No error overlays or crash states
+			// The page must actually render its heading (a blank page must fail)...
+			await admin.expectPageTitle("Import from WordPress");
+			// ...and must not show an error/crash state.
 			await expect(page.locator("text=Failed to load")).not.toBeVisible();
 			await expect(page.locator("text=Something went wrong")).not.toBeVisible();
 		});

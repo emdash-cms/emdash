@@ -29,6 +29,14 @@ export interface LocalMediaRuntimeConfig {
 	enabled?: boolean;
 	// These are injected by the runtime, not from user config
 	db?: Kysely<Database>;
+	/**
+	 * Resolver for the live connection, preferred over `db`. The runtime
+	 * injects it so a connection-backed adapter (Postgres over Hyperdrive)
+	 * serves provider queries from the current request-scoped connection in ALS
+	 * rather than a snapshot of the per-isolate singleton. Omitted for stateless
+	 * adapters (D1, Node SQLite), where `db` is used directly.
+	 */
+	getDb?: () => Kysely<Database>;
 	storage?: Storage;
 }
 
@@ -42,11 +50,15 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 		throw new Error("Local media provider requires database connection");
 	}
 
-	const repo = new MediaRepository(db);
+	// Resolve the connection per operation (not captured once) so a
+	// connection-backed adapter uses the current event-scoped connection; falls
+	// back to the injected `db` for stateless adapters.
+	const resolveDb = config.getDb ?? (() => db);
+	const repo = () => new MediaRepository(resolveDb());
 
 	const provider: MediaProvider = {
 		async list(options: MediaListOptions) {
-			const result = await repo.findMany({
+			const result = await repo().findMany({
 				cursor: options.cursor,
 				limit: options.limit,
 				mimeType: options.mimeType,
@@ -61,6 +73,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 					size: item.size ?? undefined,
 					width: item.width ?? undefined,
 					height: item.height ?? undefined,
+					blurhash: item.blurhash ?? undefined,
+					dominantColor: item.dominantColor ?? undefined,
 					alt: item.alt ?? undefined,
 					previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
 					meta: {
@@ -75,7 +89,7 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 		},
 
 		async get(id: string) {
-			const item = await repo.findById(id);
+			const item = await repo().findById(id);
 			if (!item) return null;
 
 			return {
@@ -85,6 +99,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 				size: item.size ?? undefined,
 				width: item.width ?? undefined,
 				height: item.height ?? undefined,
+				blurhash: item.blurhash ?? undefined,
+				dominantColor: item.dominantColor ?? undefined,
 				alt: item.alt ?? undefined,
 				previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
 				meta: {
@@ -108,7 +124,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 		},
 
 		async delete(id: string) {
-			const item = await repo.findById(id);
+			const repoInstance = repo();
+			const item = await repoInstance.findById(id);
 			if (!item) return;
 
 			// Delete from storage if available
@@ -120,7 +137,7 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 				}
 			}
 
-			await repo.delete(id);
+			await repoInstance.delete(id);
 
 			// If this row was referenced by `logo`, `favicon`, or
 			// `seo.defaultOgImage`, the worker-scoped settings cache now
@@ -135,6 +152,15 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 			const src = `/_emdash/api/media/file/${storageKey}`;
 			const mimeType = value.mimeType || "";
 
+			// Prefer the first-class fields; fall back to `meta` for legacy snapshots
+			// stored before LQIP was promoted off the provider-specific `meta` bag.
+			const blurhash =
+				value.blurhash ??
+				(typeof value.meta?.blurhash === "string" ? value.meta.blurhash : undefined);
+			const dominantColor =
+				value.dominantColor ??
+				(typeof value.meta?.dominantColor === "string" ? value.meta.dominantColor : undefined);
+
 			// Determine embed type based on MIME type
 			if (mimeType.startsWith("image/")) {
 				return {
@@ -142,6 +168,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 					src,
 					width: value.width,
 					height: value.height,
+					blurhash,
+					dominantColor,
 					alt: value.alt,
 				};
 			}
@@ -172,6 +200,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 				src,
 				width: value.width,
 				height: value.height,
+				blurhash,
+				dominantColor,
 				alt: value.alt,
 			};
 		},
@@ -208,6 +238,8 @@ export function repoItemToProviderItem(item: {
 		size: item.size ?? undefined,
 		width: item.width ?? undefined,
 		height: item.height ?? undefined,
+		blurhash: item.blurhash ?? undefined,
+		dominantColor: item.dominantColor ?? undefined,
 		alt: item.alt ?? undefined,
 		previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
 		meta: {

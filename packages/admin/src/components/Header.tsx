@@ -39,7 +39,7 @@ export function Header() {
 	const initials = (initialsSource[0] ?? "U").toUpperCase();
 
 	return (
-		<header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-kumo-base px-4">
+		<header className="sticky top-0 z-10 flex h-[58px] items-center justify-between border-b bg-kumo-elevated px-4">
 			{/* Sidebar toggle — collapses to icon mode on desktop, opens drawer on mobile */}
 			<Sidebar.Trigger className="cursor-pointer rtl:rotate-180" />
 
@@ -95,7 +95,7 @@ export function Header() {
 							<hr className="my-1" />
 							<button
 								onClick={handleLogout}
-								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-start"
+								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-start cursor-pointer"
 							>
 								<SignOut className="h-4 w-4" />
 								{t`Log out`}

@@ -2,7 +2,7 @@
  * Backfill contributor:{github_id} KV keys from merged PR history.
  *
  * Usage:
- *   node --env-file=.dev.vars scripts/backfill-contributors.mjs
+ *   node --env-file=.env scripts/backfill-contributors.mjs
  *
  * Requires: GITHUB_OWNER_LOGIN, and a GITHUB_TOKEN with repo read access
  * (or no token for public repos, but you'll hit rate limits fast).

@@ -14,13 +14,14 @@
  * -----
  *
  * Only fields the manifest controls are eligible for update: `license`,
- * `authors`, `security`, `name`, `description`, `keywords`. Required fields
- * are diffed and written; optional fields (`name`, `description`,
- * `keywords`) follow a "manifest absent = no change" policy so removing a
- * manifest key doesn't silently wipe a published value. Identity fields
- * (`$type`, `id`, `slug`, `type`) are preserved verbatim. `lastUpdated` is
- * auto-set to now whenever there are changes to apply. Unknown fields
- * (e.g. `sections` from a future lexicon revision) pass through unchanged
+ * `authors`, `security`, `name`, `description`, `keywords`, `sections`.
+ * Required fields are diffed and written; optional fields (`name`,
+ * `description`, `keywords`, `sections`) follow a "manifest absent = no
+ * change" policy so removing a manifest key doesn't silently wipe a
+ * published value. Identity fields (`$type`, `id`, `slug`, `type`) are
+ * preserved verbatim. `lastUpdated` is auto-set to now whenever there are
+ * changes to apply. Unknown fields from a future lexicon revision pass
+ * through unchanged
  * so a CLI from an older revision doesn't silently drop forward-compatible
  * data on a write-back.
  *
@@ -96,6 +97,7 @@ export interface PackageUpdateInput {
 	name?: string;
 	description?: string;
 	keywords?: string[];
+	sections?: Record<string, string>;
 }
 
 /**
@@ -170,6 +172,7 @@ const FIELD_ORDER: ReadonlyArray<keyof PackageUpdateInput> = [
 	"keywords",
 	"authors",
 	"security",
+	"sections",
 ];
 
 export async function updatePackage(options: UpdatePackageOptions): Promise<UpdatePackageResult> {
@@ -389,6 +392,9 @@ function normaliseInput(
 	if (input.name !== undefined) out.name = input.name;
 	if (input.description !== undefined) out.description = input.description;
 	if (input.keywords !== undefined && input.keywords.length > 0) out.keywords = input.keywords;
+	if (input.sections !== undefined && Object.keys(input.sections).length > 0) {
+		out.sections = input.sections;
+	}
 
 	return out;
 }

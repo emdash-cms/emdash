@@ -6,6 +6,8 @@ const PROBE_REGIONS = [
 	{ id: "euw", region: "aws:eu-west-2" },
 	{ id: "ape", region: "aws:ap-northeast-1" },
 	{ id: "aps", region: "aws:ap-southeast-1" },
+	{ id: "sae", region: "aws:sa-east-1" },
+	{ id: "oce", region: "aws:ap-southeast-2" },
 ] as const;
 
 export default defineConfig({

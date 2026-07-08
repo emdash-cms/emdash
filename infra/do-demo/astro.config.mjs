@@ -1,0 +1,46 @@
+import cloudflare from "@astrojs/cloudflare";
+import react from "@astrojs/react";
+import { durableObjects, r2, sandbox } from "@emdash-cms/cloudflare";
+import { formsPlugin } from "@emdash-cms/plugin-forms";
+import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
+import { defineConfig, fontProviders } from "astro/config";
+import emdash from "emdash/astro";
+
+export default defineConfig({
+	output: "server",
+	adapter: cloudflare(),
+	image: {
+		layout: "constrained",
+		responsiveStyles: true,
+	},
+	integrations: [
+		react(),
+		emdash({
+			database: durableObjects({ binding: "DB_DO", session: "auto" }),
+			storage: r2({ binding: "MEDIA" }),
+			plugins: [formsPlugin()],
+			sandboxed: [webhookNotifier],
+			sandboxRunner: sandbox(),
+			experimental: {
+				registry: "https://registry.emdashcms.com",
+			},
+		}),
+	],
+	fonts: [
+		{
+			provider: fontProviders.google(),
+			name: "Inter",
+			cssVariable: "--font-sans",
+			weights: [400, 500, 600, 700],
+			fallbacks: ["sans-serif"],
+		},
+		{
+			provider: fontProviders.google(),
+			name: "JetBrains Mono",
+			cssVariable: "--font-mono",
+			weights: [400, 500],
+			fallbacks: ["monospace"],
+		},
+	],
+	devToolbar: { enabled: false },
+});

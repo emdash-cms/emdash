@@ -24,53 +24,63 @@ const DEFAULT_MAX_TIMEOUT_SECONDS = 60;
 const DEFAULT_BOT_SCORE_THRESHOLD = 30;
 
 /**
- * Cached resource server instance.
- * Initialized once per process, reused across requests.
+ * Cached, fully-initialized resource server instance.
+ * Built once per isolate/process, reused across requests.
+ *
+ * Deliberately caches only the *ready* server, never an in-flight
+ * initialization promise: on Cloudflare Workers (workerd), a request
+ * cancelled mid-`initialize()` leaves a shared promise forever pending, and
+ * every later request awaiting it hangs until the isolate is evicted
+ * (observed as 524s at the 100s wall). Caching the ready instance instead
+ * means a cancelled initializer simply leaves the cache empty so the next
+ * request rebuilds.
  */
 let _resourceServer: x402ResourceServer | null = null;
-let _initPromise: Promise<void> | null = null;
 
 /**
  * Get or create the x402ResourceServer singleton.
+ *
+ * No cross-request promise sharing (see `_resourceServer`'s note). The cost
+ * is that concurrent cold-start requests may each build a throwaway server
+ * before one wins the assignment — harmless, since construction is cheap and
+ * idempotent with no shared mutable state, and it only happens during the
+ * brief cold-start window.
  */
 async function getResourceServer(config: X402Config): Promise<x402ResourceServer> {
-	if (!_resourceServer) {
-		const facilitatorUrl = config.facilitatorUrl ?? DEFAULT_FACILITATOR_URL;
-		const facilitator = new HTTPFacilitatorClient({ url: facilitatorUrl });
-		const server = new x402ResourceServer(facilitator);
+	const existing = _resourceServer;
+	if (existing) return existing;
 
-		// Register EVM scheme (default)
-		if (config.evm !== false) {
-			try {
-				const evmMod = await import("@x402/evm/exact/server");
-				const evmScheme = new evmMod.ExactEvmScheme();
-				server.register("eip155:*" as `${string}:${string}`, evmScheme);
-			} catch {
-				// @x402/evm not installed -- skip EVM support
-			}
+	const facilitatorUrl = config.facilitatorUrl ?? DEFAULT_FACILITATOR_URL;
+	const facilitator = new HTTPFacilitatorClient({ url: facilitatorUrl });
+	const server = new x402ResourceServer(facilitator);
+
+	// Register EVM scheme (default)
+	if (config.evm !== false) {
+		try {
+			const evmMod = await import("@x402/evm/exact/server");
+			const evmScheme = new evmMod.ExactEvmScheme();
+			server.register("eip155:*" as `${string}:${string}`, evmScheme);
+		} catch {
+			// @x402/evm not installed -- skip EVM support
 		}
-
-		// Register SVM scheme (opt-in)
-		if (config.svm) {
-			try {
-				const svmMod = await import("@x402/svm/exact/server");
-				const svmScheme = new svmMod.ExactSvmScheme();
-				server.register("solana:*" as `${string}:${string}`, svmScheme);
-			} catch {
-				// @x402/svm not installed -- skip Solana support
-			}
-		}
-
-		_resourceServer = server;
-		_initPromise = server.initialize();
 	}
 
-	if (_initPromise) {
-		await _initPromise;
-		_initPromise = null;
+	// Register SVM scheme (opt-in)
+	if (config.svm) {
+		try {
+			const svmMod = await import("@x402/svm/exact/server");
+			const svmScheme = new svmMod.ExactSvmScheme();
+			server.register("solana:*" as `${string}:${string}`, svmScheme);
+		} catch {
+			// @x402/svm not installed -- skip Solana support
+		}
 	}
 
-	return _resourceServer;
+	await server.initialize();
+
+	// Publish only once fully initialized.
+	_resourceServer = server;
+	return server;
 }
 
 /**

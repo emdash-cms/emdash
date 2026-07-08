@@ -7,6 +7,8 @@
 // Content handlers
 export {
 	handleContentList,
+	handleContentAuthors,
+	type ContentAuthor,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,
@@ -171,6 +173,8 @@ export {
 
 // Registry handlers (experimental)
 export {
+	assertEnvCompatible,
+	assertSafeArtifactUrl,
 	handleRegistryInstall,
 	handleRegistryUninstall,
 	handleRegistryUpdate,

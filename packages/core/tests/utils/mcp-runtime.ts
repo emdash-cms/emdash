@@ -202,6 +202,7 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		hooks: runtime.hooks,
 		email: runtime.email,
 		configuredPlugins: runtime.configuredPlugins,
+		sandboxedPluginEntries: runtime.sandboxedPluginEntries,
 		config: runtime.config,
 		getManifest: runtime.getManifest.bind(runtime),
 		invalidateUrlPatternCache,
@@ -211,6 +212,9 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		// clear error rather than silently no-op.
 		handlePluginApiRoute: () => {
 			throw new Error("handlePluginApiRoute not implemented in test runtime");
+		},
+		handlePublicPluginApiRoute: () => {
+			throw new Error("handlePublicPluginApiRoute not implemented in test runtime");
 		},
 		getPluginRouteMeta: () => null,
 		getMediaProvider: runtime.getMediaProvider.bind(runtime),

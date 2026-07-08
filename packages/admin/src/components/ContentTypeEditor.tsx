@@ -386,7 +386,7 @@ export function ContentTypeEditor({
 								label={t`Label (Singular)`}
 								value={labelSingular}
 								onChange={(e) => handleSingularLabelChange(e.target.value)}
-								placeholder="Post"
+								placeholder={t`Post`}
 								disabled={isFromCode}
 							/>
 
@@ -394,7 +394,7 @@ export function ContentTypeEditor({
 								label={t`Label (Plural)`}
 								value={label}
 								onChange={(e) => handleLabelChange(e.target.value)}
-								placeholder="Posts"
+								placeholder={t`Posts`}
 								disabled={isFromCode}
 							/>
 
@@ -439,7 +439,7 @@ export function ContentTypeEditor({
 							</div>
 
 							<div className="space-y-3">
-								<Label>Features</Label>
+								<Label>{t`Features`}</Label>
 								{SUPPORT_OPTIONS.map((option) => (
 									<div
 										key={option.value}

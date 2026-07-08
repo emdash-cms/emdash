@@ -1,4 +1,4 @@
-import { Badge, Button, Dialog, Input, LinkButton, Loader, Tabs } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, LinkButton, Loader, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -12,11 +12,13 @@ import {
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
+	X,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import type { ContentItem, TrashedContentItem } from "../lib/api";
+import type { ContentAuthor, ContentDateField, ContentItem, TrashedContentItem } from "../lib/api";
+import { useDebouncedValue } from "../lib/hooks.js";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
@@ -29,6 +31,23 @@ export interface ContentListSort {
 	field: ContentListSortField;
 	direction: "asc" | "desc";
 }
+
+/** Status filter values. `"all"` clears the status filter. */
+export type ContentStatusFilter = "all" | "published" | "draft" | "scheduled" | "archived";
+
+/**
+ * Date-range filter state. `from`/`to` are raw `YYYY-MM-DD` values from the
+ * date inputs (empty string = unset); the parent converts them to UTC day
+ * boundaries before calling the API.
+ */
+export interface ContentDateFilter {
+	field: ContentDateField;
+	from: string;
+	to: string;
+}
+
+/** An empty (inactive) date filter, defaulting to the created-at column. */
+export const EMPTY_DATE_FILTER: ContentDateFilter = { field: "createdAt", from: "", to: "" };
 
 export interface ContentListProps {
 	collection: string;
@@ -68,6 +87,30 @@ export interface ContentListProps {
 	 * growing as more API pages are fetched.
 	 */
 	total?: number;
+	/**
+	 * When provided, search is performed server-side: the (debounced) query is
+	 * reported here so the caller can refetch, and `items`/`total` are assumed
+	 * to already reflect the filter. Without it, the list falls back to
+	 * filtering the loaded page client-side (legacy behavior).
+	 */
+	onSearchChange?: (q: string) => void;
+	/**
+	 * Filter controls. The whole bar is opt-in: it only renders when
+	 * `onStatusFilterChange` is provided, keeping the component
+	 * backward-compatible for callers that haven't wired filters yet. Each
+	 * control renders independently based on the presence of its callback
+	 * (and, for the author filter, a non-empty `authors` list).
+	 */
+	statusFilter?: ContentStatusFilter;
+	onStatusFilterChange?: (status: ContentStatusFilter) => void;
+	/** Authors who have content in this collection, for the author filter. */
+	authors?: ContentAuthor[];
+	/** Selected author id; empty string means "all authors". */
+	authorFilter?: string;
+	onAuthorFilterChange?: (authorId: string) => void;
+	/** Controlled date-range filter state. */
+	dateFilter?: ContentDateFilter;
+	onDateFilterChange?: (filter: ContentDateFilter) => void;
 }
 
 type ViewTab = "all" | "trash";
@@ -111,11 +154,29 @@ export function ContentList({
 	sort,
 	onSortChange,
 	total,
+	onSearchChange,
+	statusFilter = "all",
+	onStatusFilterChange,
+	authors,
+	authorFilter = "",
+	onAuthorFilterChange,
+	dateFilter = EMPTY_DATE_FILTER,
+	onDateFilterChange,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
+
+	// Server-side search mode: the caller refetches based on the (debounced)
+	// query, so `items`/`total` already reflect the filter and we must not
+	// re-filter client-side (that would re-introduce the "only matches the
+	// loaded page" bug for non-title columns).
+	const serverSearch = !!onSearchChange;
+	const debouncedSearch = useDebouncedValue(searchQuery, 300);
+	React.useEffect(() => {
+		if (onSearchChange) onSearchChange(debouncedSearch.trim());
+	}, [debouncedSearch, onSearchChange]);
 
 	// Reset page when search changes
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,16 +185,22 @@ export function ContentList({
 	};
 
 	const filteredItems = React.useMemo(() => {
-		if (!searchQuery) return items;
+		if (serverSearch || !searchQuery) return items;
 		const query = searchQuery.toLowerCase();
 		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [items, searchQuery]);
+	}, [items, searchQuery, serverSearch]);
+
+	// The query the current `items` reflect: server-side filtering lags behind
+	// typing by the debounce, so the empty-state message must use the debounced
+	// term; client-side filtering is immediate, so it uses the live query.
+	const activeSearch = serverSearch ? debouncedSearch.trim() : searchQuery;
 
 	// When the server reports a total, it's the source of truth for the
-	// denominator. Otherwise fall back to the size of the (possibly partial)
-	// client list, matching pre-refactor behavior. Client-side search always
-	// defers to `filteredItems` because `total` reflects the unfiltered set.
-	const effectiveTotal = typeof total === "number" && !searchQuery ? total : filteredItems.length;
+	// denominator. In server-search mode that total already reflects the query,
+	// so we use it even while searching; in client mode an active query falls
+	// back to the filtered client count.
+	const effectiveTotal =
+		typeof total === "number" && (serverSearch || !searchQuery) ? total : filteredItems.length;
 	const totalPages = Math.max(1, Math.ceil(effectiveTotal / PAGE_SIZE));
 
 	// Clamp the current page in case filters collapse the count (user was on
@@ -154,12 +221,15 @@ export function ContentList({
 	// The router wires this to TanStack Query's `fetchNextPage`, which is
 	// idempotent while a fetch is in flight.
 	React.useEffect(() => {
-		if (!hasMore || !onLoadMore || searchQuery) return;
+		// In client-search mode we skip auto-fetch while a query is active
+		// (filtering can collapse the list). In server-search mode the loaded
+		// items already are the matches, so paging forward should keep fetching.
+		if (!hasMore || !onLoadMore || (!serverSearch && searchQuery)) return;
 		const loadedPages = Math.ceil(filteredItems.length / PAGE_SIZE);
 		if (clampedPage >= loadedPages - 1) {
 			onLoadMore();
 		}
-	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, searchQuery]);
+	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, searchQuery, serverSearch]);
 
 	return (
 		<div className="space-y-4">
@@ -188,7 +258,7 @@ export function ContentList({
 			</div>
 
 			{/* Search */}
-			{items.length > 0 && (
+			{(serverSearch || items.length > 0) && (
 				<div className="relative max-w-sm">
 					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
@@ -227,6 +297,19 @@ export function ContentList({
 			{/* Content based on active tab */}
 			{activeTab === "all" ? (
 				<>
+					{/* Filters */}
+					{onStatusFilterChange && (
+						<FilterBar
+							statusFilter={statusFilter}
+							onStatusFilterChange={onStatusFilterChange}
+							authors={authors}
+							authorFilter={authorFilter}
+							onAuthorFilterChange={onAuthorFilterChange}
+							dateFilter={dateFilter}
+							onDateFilterChange={onDateFilterChange}
+						/>
+					)}
+
 					{/* Table */}
 					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
@@ -276,21 +359,27 @@ export function ContentList({
 								) : items.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
-											<Link
-												to="/content/$collection/new"
-												params={{ collection }}
-												search={{ locale: activeLocale }}
-												className="text-kumo-brand underline"
-											>
-												{t`Create your first one`}
-											</Link>
+											{activeSearch ? (
+												t`No results for "${activeSearch}"`
+											) : (
+												<>
+													{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
+													<Link
+														to="/content/$collection/new"
+														params={{ collection }}
+														search={{ locale: activeLocale }}
+														className="text-kumo-brand underline"
+													>
+														{t`Create your first one`}
+													</Link>
+												</>
+											)}
 										</td>
 									</tr>
 								) : paginatedItems.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No results for "${searchQuery}"`}
+											{t`No results for "${activeSearch}"`}
 										</td>
 									</tr>
 								) : (
@@ -315,10 +404,11 @@ export function ContentList({
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
 								{renderItemCount({
-									searchQuery,
+									searchQuery: activeSearch,
 									filteredCount: filteredItems.length,
 									total,
 									hasMore,
+									serverSearch,
 								})}
 							</span>
 							<div className="flex items-center gap-2">
@@ -418,6 +508,141 @@ export function ContentList({
 	);
 }
 
+interface FilterBarProps {
+	statusFilter: ContentStatusFilter;
+	onStatusFilterChange: (status: ContentStatusFilter) => void;
+	authors?: ContentAuthor[];
+	authorFilter: string;
+	onAuthorFilterChange?: (authorId: string) => void;
+	dateFilter: ContentDateFilter;
+	onDateFilterChange?: (filter: ContentDateFilter) => void;
+}
+
+/**
+ * Filter controls for the content list: status, author, and a date range over
+ * a chosen timestamp column (#1288). All controls report changes to the
+ * parent, which owns the state and refetches. Filtering happens server-side,
+ * so it works across the whole collection rather than the loaded page.
+ */
+function FilterBar({
+	statusFilter,
+	onStatusFilterChange,
+	authors,
+	authorFilter,
+	onAuthorFilterChange,
+	dateFilter,
+	onDateFilterChange,
+}: FilterBarProps) {
+	const { t } = useLingui();
+
+	const showAuthorFilter = !!onAuthorFilterChange && !!authors && authors.length > 0;
+	const showDateFilter = !!onDateFilterChange;
+
+	const statusItems: Record<string, string> = {
+		all: t`All statuses`,
+		published: t`Published`,
+		draft: t`Draft`,
+		scheduled: t`Scheduled`,
+		archived: t`Archived`,
+	};
+
+	const dateFieldItems: Record<string, string> = {
+		createdAt: t`Created`,
+		updatedAt: t`Updated`,
+		publishedAt: t`Published`,
+	};
+
+	const hasActiveFilter =
+		statusFilter !== "all" || authorFilter !== "" || !!dateFilter.from || !!dateFilter.to;
+
+	const handleClear = () => {
+		onStatusFilterChange("all");
+		onAuthorFilterChange?.("");
+		onDateFilterChange?.(EMPTY_DATE_FILTER);
+	};
+
+	return (
+		<div className="flex flex-wrap items-end gap-3">
+			<Select
+				size="sm"
+				aria-label={t`Filter by status`}
+				value={statusFilter}
+				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
+				items={statusItems}
+			>
+				{Object.entries(statusItems).map(([value, label]) => (
+					<Select.Option key={value} value={value}>
+						{label}
+					</Select.Option>
+				))}
+			</Select>
+
+			{showAuthorFilter && (
+				<Select
+					size="sm"
+					aria-label={t`Filter by author`}
+					value={authorFilter}
+					onValueChange={(v) => onAuthorFilterChange?.(v ?? "")}
+					items={{
+						"": t`All authors`,
+						...Object.fromEntries(authors.map((a) => [a.id, a.name || a.email])),
+					}}
+				>
+					<Select.Option value="">{t`All authors`}</Select.Option>
+					{authors.map((a) => (
+						<Select.Option key={a.id} value={a.id}>
+							{a.name || a.email}
+						</Select.Option>
+					))}
+				</Select>
+			)}
+
+			{showDateFilter && (
+				<div className="flex flex-wrap items-end gap-2">
+					<Select
+						size="sm"
+						aria-label={t`Date field to filter on`}
+						value={dateFilter.field}
+						onValueChange={(v) =>
+							onDateFilterChange?.({ ...dateFilter, field: (v as ContentDateField) ?? "createdAt" })
+						}
+						items={dateFieldItems}
+					>
+						{Object.entries(dateFieldItems).map(([value, label]) => (
+							<Select.Option key={value} value={value}>
+								{label}
+							</Select.Option>
+						))}
+					</Select>
+					<Input
+						type="date"
+						size="sm"
+						aria-label={t`From date`}
+						value={dateFilter.from}
+						max={dateFilter.to || undefined}
+						onChange={(e) => onDateFilterChange?.({ ...dateFilter, from: e.target.value })}
+					/>
+					<span className="pb-2 text-sm text-kumo-subtle">{t`to`}</span>
+					<Input
+						type="date"
+						size="sm"
+						aria-label={t`To date`}
+						value={dateFilter.to}
+						min={dateFilter.from || undefined}
+						onChange={(e) => onDateFilterChange?.({ ...dateFilter, to: e.target.value })}
+					/>
+				</div>
+			)}
+
+			{hasActiveFilter && (
+				<Button variant="ghost" size="sm" onClick={handleClear} icon={<X />}>
+					{t`Clear filters`}
+				</Button>
+			)}
+		</div>
+	);
+}
+
 interface SortableThProps {
 	field: ContentListSortField;
 	sort: ContentListSort | undefined;
@@ -485,7 +710,9 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 
 /**
  * Render the row-count line above pagination. The rules are:
- * - A search query always wins — say how many matches there are.
+ * - A search query always wins — say how many matches there are. In
+ *   server-search mode the server reports the full match count via `total`;
+ *   `filteredCount` is only the loaded page, so it would undercount.
  * - When the server reported a total, use it (no `+` suffix needed —
  *   we know the count).
  * - Otherwise fall back to the pre-refactor behavior: loaded count,
@@ -496,14 +723,17 @@ function renderItemCount({
 	filteredCount,
 	total,
 	hasMore,
+	serverSearch,
 }: {
 	searchQuery: string;
 	filteredCount: number;
 	total: number | undefined;
 	hasMore: boolean | undefined;
+	serverSearch: boolean;
 }): string {
 	if (searchQuery) {
-		return plural(filteredCount, {
+		const matchCount = serverSearch && typeof total === "number" ? total : filteredCount;
+		return plural(matchCount, {
 			one: `# item matching "${searchQuery}"`,
 			other: `# items matching "${searchQuery}"`,
 		});
@@ -547,6 +777,7 @@ function ContentListItem({
 				<Link
 					to="/content/$collection/$id"
 					params={{ collection, id: item.id }}
+					search={{ locale: item.locale }}
 					className="font-medium hover:text-kumo-brand"
 				>
 					{title}
@@ -581,6 +812,7 @@ function ContentListItem({
 					<RouterLinkButton
 						to="/content/$collection/$id"
 						params={{ collection, id: item.id }}
+						search={{ locale: item.locale }}
 						aria-label={t`Edit ${title}`}
 						variant="ghost"
 						shape="square"

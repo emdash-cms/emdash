@@ -45,4 +45,4 @@ Return:
 - A verdict: `bug`, `intended-behavior`, or `unclear`.
 - Reasoning: the prose that supports the verdict, with paths to the comments, docs, or tests you relied on.
 
-The orchestrator uses your verdict as a gate. `bug` plus a `high`-confidence diagnose triggers the fix stage. Anything else stops here and produces a comment-only outcome.
+The orchestrator uses your verdict as a gate. `bug` triggers the fix stage when diagnose also pinned the cause (confidence not `low`) and rated the fix `mechanical` or `clear-best-option`. A `bug` whose fix `needs-design-decision`, an `unclear` verdict, or `intended-behavior` all stop here and produce a comment-only outcome for a maintainer.

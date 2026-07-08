@@ -18,11 +18,16 @@
  */
 import type { MediaValue } from "../fields/types.js";
 import type { HTMLAttributes } from "astro/types";
+import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
-// Standard responsive breakpoints
-const BREAKPOINTS = [640, 750, 828, 960, 1080, 1280, 1600, 1920];
+import {
+	buildResponsiveImage,
+	toAbsoluteMediaUrl,
+	RESPONSIVE_BREAKPOINTS,
+} from "../media/responsive.js";
+import { getPublicOrigin } from "../api/public-url.js";
 
 interface Props extends Omit<
 	HTMLAttributes<"img">,
@@ -38,9 +43,20 @@ interface Props extends Omit<
 	height?: number;
 	/** Priority loading (disables lazy loading) */
 	priority?: boolean;
+	/** Render the LQIP placeholder as an inline background. Disable for strict CSP. */
+	placeholder?: boolean;
 }
 
-const { image, alt, width, height, priority, ...attrs } = Astro.props;
+const {
+	image,
+	alt,
+	width,
+	height,
+	priority,
+	placeholder = true,
+	class: className,
+	...attrs
+} = Astro.props;
 
 // Normalize string URLs to object form
 function normalizeImage(
@@ -72,7 +88,7 @@ function generateSrcset(
 	maxWidth: number,
 	aspectRatio?: number
 ): string {
-	return BREAKPOINTS.filter((w) => w <= maxWidth * 2) // Include up to 2x for retina
+	return RESPONSIVE_BREAKPOINTS.filter((w) => w <= maxWidth * 2) // Include up to 2x for retina
 		.map((w) => {
 			const h = aspectRatio ? Math.round(w / aspectRatio) : undefined;
 			return `${getSrc({ width: w, height: h })} ${w}w`;
@@ -93,13 +109,29 @@ const aspectRatio =
 let src = "";
 let srcset: string | undefined;
 let sizes: string | undefined;
+let astroImageSrc = "";
 
 if (img) {
 	const providerId = img.provider ?? "local";
 
 	if (providerId === "local" || img.src) {
-		// Local provider or direct src URL
 		src = img.src || buildLocalImageUrl(img);
+		const publicOrigin = getPublicOrigin(Astro.url, Astro.locals.emdash?.config);
+		const absoluteSrc = toAbsoluteMediaUrl(src, publicOrigin);
+		if (finalWidth && finalHeight && absoluteSrc.startsWith(`${publicOrigin}/`)) {
+			astroImageSrc = absoluteSrc;
+		} else {
+			const optimized = await buildResponsiveImage(getImage, {
+				src: absoluteSrc,
+				width: finalWidth,
+				height: finalHeight,
+			});
+			if (optimized) {
+				src = optimized.src;
+				srcset = optimized.srcset;
+				sizes = optimized.sizes;
+			}
+		}
 	} else {
 		// External provider
 		try {
@@ -140,27 +172,20 @@ if (img) {
 	}
 }
 
-// Build placeholder background style
+// Build placeholder background style. Prefer the first-class MediaValue fields;
+// fall back to `meta` for snapshots stored before LQIP was promoted off `meta`.
 const blurhash =
-	typeof image === "object"
-		? (image?.meta?.blurhash as string | undefined)
-		: undefined;
+	img?.blurhash ?? (img?.meta?.blurhash as string | undefined);
 const dominantColor =
-	typeof image === "object"
-		? (image?.meta?.dominantColor as string | undefined)
-		: undefined;
+	img?.dominantColor ?? (img?.meta?.dominantColor as string | undefined);
 
 let placeholderStyle = "";
-if (blurhash) {
+if (placeholder && blurhash) {
 	const { blurhashToImageCssString } = await import("@unpic/placeholder");
 	placeholderStyle = blurhashToImageCssString(blurhash);
-} else if (dominantColor) {
+} else if (placeholder && dominantColor) {
 	placeholderStyle = `background-color: ${dominantColor};`;
 }
-
-const baseStyle = aspectRatio
-	? `aspect-ratio: ${aspectRatio}; max-width: 100%; height: auto;`
-	: "max-width: 100%; height: auto;";
 
 const imgProps: Record<string, unknown> = {
 	src,
@@ -170,10 +195,37 @@ const imgProps: Record<string, unknown> = {
 	height: finalHeight,
 	alt: finalAlt,
 	loading: priority ? "eager" : "lazy",
+	fetchpriority: priority ? "high" : undefined,
 	decoding: "async",
-	style: placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseStyle,
+	style: placeholderStyle || undefined,
+	class: ["emdash-image-media", className].filter(Boolean).join(" "),
 	...attrs,
 };
 ---
 
-{img && src ? <img {...imgProps} /> : null}
+{
+	img && astroImageSrc ? (
+		<AstroImage
+			src={astroImageSrc}
+			alt={finalAlt}
+			width={finalWidth}
+			height={finalHeight}
+			priority={priority}
+			layout="constrained"
+			loading={priority ? "eager" : "lazy"}
+			decoding="async"
+			class={className}
+			style={placeholderStyle || undefined}
+			{...attrs}
+		/>
+	) : img && src ? (
+		<img {...imgProps} />
+	) : null
+}
+
+<style>
+	.emdash-image-media {
+		max-width: 100%;
+		height: auto;
+	}
+</style>

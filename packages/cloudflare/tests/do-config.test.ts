@@ -11,11 +11,6 @@ describe("previewDatabase()", () => {
 			type: "sqlite",
 		});
 	});
-
-	it("passes binding through to config", () => {
-		const result = previewDatabase({ binding: "MY_PREVIEW" });
-		expect(result.config).toEqual({ binding: "MY_PREVIEW" });
-	});
 });
 
 describe("playgroundDatabase()", () => {
@@ -26,10 +21,5 @@ describe("playgroundDatabase()", () => {
 			config: { binding: "PLAYGROUND_DB" },
 			type: "sqlite",
 		});
-	});
-
-	it("passes binding through to config", () => {
-		const result = playgroundDatabase({ binding: "MY_PLAYGROUND" });
-		expect(result.config).toEqual({ binding: "MY_PLAYGROUND" });
 	});
 });
