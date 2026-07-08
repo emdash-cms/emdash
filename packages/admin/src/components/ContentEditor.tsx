@@ -2,26 +2,16 @@ import {
 	Badge,
 	Button,
 	Checkbox,
-	Dialog,
 	Input,
 	InputArea,
 	Label,
-	LinkButton,
 	Loader,
 	Select,
 	Sidebar,
 	Switch,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	Check,
-	Eye,
-	Paperclip,
-	X,
-	ArrowsInSimple,
-	ArrowsOutSimple,
-	ArrowSquareOut,
-} from "@phosphor-icons/react";
+import { Check, Eye, Paperclip, X, ArrowsInSimple, ArrowsOutSimple } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -43,7 +33,7 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
-import { ContentSettingsPanel } from "./ContentSettingsPanel.js";
+import { ContentSettingsPanel, SettingsActionBar } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
@@ -620,28 +610,9 @@ export function ContentEditor({
 						)}
 					</div>
 					<div className="flex items-center space-x-2">
-						{/* Autosave indicator */}
-						{!isNew && onAutosave && (
-							<div
-								className="flex items-center text-xs text-kumo-subtle"
-								role="status"
-								aria-label={t`Autosave status`}
-								aria-live="polite"
-							>
-								{isAutosaving ? (
-									<>
-										<Loader size="sm" />
-										<span className="ms-1">{t`Saving...`}</span>
-									</>
-								) : lastAutosaveAt ? (
-									<>
-										<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
-										<span>{t`Saved`}</span>
-									</>
-								) : null}
-							</div>
-						)}
-						{!isDistractionFree && (
+						{!isDistractionFree ? (
+							/* Normal mode: actions live in the settings panel's action
+							   bar; the strip only keeps editor chrome. */
 							<Button
 								variant="ghost"
 								shape="square"
@@ -652,82 +623,62 @@ export function ContentEditor({
 							>
 								<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
 							</Button>
-						)}
-						{!isNew && supportsPreview && (
-							<Button
-								variant="outline"
-								type="button"
-								onClick={handlePreview}
-								disabled={isLoadingPreview}
-								icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
-							>
-								{hasPendingChanges ? t`Preview draft` : t`Preview`}
-							</Button>
-						)}
-						<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
-						{!isNew && (
+						) : (
+							/* Distraction-free: the panel (and its action bar) is hidden,
+							   so this hover overlay is the only save/exit surface. */
 							<>
-								{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-									<Dialog.Root>
-										<Dialog.Trigger
-											render={(p) => (
-												<Button {...p} type="button" variant="outline" icon={<X />}>
-													{t`Discard changes`}
-												</Button>
-											)}
-										/>
-										<Dialog className="p-6" size="sm">
-											<Dialog.Title className="text-lg font-semibold">
-												{t`Discard draft changes?`}
-											</Dialog.Title>
-											<Dialog.Description className="text-kumo-subtle">
-												{t`This will revert to the published version. Your draft changes will be lost.`}
-											</Dialog.Description>
-											<div className="mt-6 flex justify-end gap-2">
-												<Dialog.Close
-													render={(p) => (
-														<Button {...p} variant="secondary">
-															{t`Cancel`}
-														</Button>
-													)}
-												/>
-												<Dialog.Close
-													render={(p) => (
-														<Button {...p} variant="destructive" onClick={onDiscardDraft}>
-															{t`Discard changes`}
-														</Button>
-													)}
-												/>
-											</div>
-										</Dialog>
-									</Dialog.Root>
+								{!isNew && onAutosave && (
+									<div
+										className="flex items-center text-xs text-kumo-subtle"
+										role="status"
+										aria-label={t`Autosave status`}
+										aria-live="polite"
+									>
+										{isAutosaving ? (
+											<>
+												<Loader size="sm" />
+												<span className="ms-1">{t`Saving...`}</span>
+											</>
+										) : lastAutosaveAt ? (
+											<>
+												<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
+												<span>{t`Saved`}</span>
+											</>
+										) : null}
+									</div>
 								)}
-								{isLive ? (
+								{!isNew && supportsPreview && (
+									<Button
+										variant="outline"
+										type="button"
+										onClick={handlePreview}
+										disabled={isLoadingPreview}
+										icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
+									>
+										{hasPendingChanges ? t`Preview draft` : t`Preview`}
+									</Button>
+								)}
+								<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+								{!isNew && (
 									<>
-										{hasPendingChanges ? (
-											<Button type="button" variant="primary" onClick={onPublish}>
-												{t`Publish changes`}
-											</Button>
+										{isLive ? (
+											<>
+												{hasPendingChanges ? (
+													<Button type="button" variant="primary" onClick={onPublish}>
+														{t`Publish changes`}
+													</Button>
+												) : (
+													<Button type="button" variant="outline" onClick={onUnpublish}>
+														{t`Unpublish`}
+													</Button>
+												)}
+											</>
 										) : (
-											<Button type="button" variant="outline" onClick={onUnpublish}>
-												{t`Unpublish`}
+											<Button type="button" variant="secondary" onClick={onPublish}>
+												{t`Publish`}
 											</Button>
 										)}
 									</>
-								) : (
-									<Button type="button" variant="secondary" onClick={onPublish}>
-										{t`Publish`}
-									</Button>
-								)}
-								{isLive && item?.slug && (
-									<LinkButton
-										href={contentUrl(collection, item.slug, urlPattern)}
-										external
-										variant="outline"
-										icon={<ArrowSquareOut />}
-									>
-										{t`Live View`}
-									</LinkButton>
 								)}
 							</>
 						)}
@@ -777,14 +728,6 @@ export function ContentEditor({
 						})}
 					</div>
 
-					{/* Save action at the bottom of the main column so users hit it
-					    naturally when they finish editing, without needing to scroll
-					    past the entire sidebar. */}
-					{!isDistractionFree && (
-						<div className="flex justify-end">
-							<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
-						</div>
-					)}
 				</div>
 			</div>
 
@@ -809,6 +752,31 @@ export function ContentEditor({
 					style={{ "--sidebar-width": "100%" } as React.CSSProperties}
 				>
 					<Sidebar className="max-lg:border-e-0 max-lg:border-s-0">
+						{/* Action bar absorbs the high-frequency props (isDirty,
+						    isSaving, isAutosaving) so they never reach the memoized
+						    panel body below. */}
+						<SettingsActionBar
+							isNew={isNew}
+							isDirty={isDirty}
+							isSaving={isSaving || false}
+							showAutosave={!isNew && !!onAutosave}
+							isAutosaving={isAutosaving}
+							lastAutosaveAt={lastAutosaveAt}
+							status={status}
+							supportsDrafts={supportsDrafts}
+							isLive={isLive}
+							hasPendingChanges={hasPendingChanges}
+							hasSchedule={hasSchedule}
+							supportsPreview={supportsPreview}
+							isLoadingPreview={isLoadingPreview}
+							onPreview={handlePreview}
+							onPublish={onPublish}
+							onUnpublish={onUnpublish}
+							onDiscardDraft={onDiscardDraft}
+							liveViewUrl={
+								isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern) : null
+							}
+						/>
 						<div className="flex-1 overflow-y-auto p-4">
 							<ContentSettingsPanel
 								collection={collection}
@@ -817,12 +785,7 @@ export function ContentEditor({
 								entryLocale={entryLocale}
 								slug={slug}
 								onSlugChange={handleSlugChange}
-								status={status}
-								supportsDrafts={supportsDrafts}
 								supportsRevisions={supportsRevisions}
-								isLive={isLive}
-								hasPendingChanges={hasPendingChanges}
-								hasSchedule={hasSchedule}
 								canSchedule={canSchedule}
 								onSchedule={onSchedule}
 								onUnschedule={onUnschedule}

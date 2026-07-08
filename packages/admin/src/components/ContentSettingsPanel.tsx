@@ -1,6 +1,6 @@
-import { Badge, Button, Dialog, Input, Label, Loader, Select } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, LinkButton, Loader, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, Trash } from "@phosphor-icons/react";
+import { ArrowSquareOut, Check, Eye, MagnifyingGlass, Trash, X } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -24,6 +24,7 @@ import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { RevisionHistory } from "./RevisionHistory";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
 import { TaxonomySidebar } from "./TaxonomySidebar";
 import { TranslationsPanel } from "./TranslationsPanel.js";
@@ -38,6 +39,189 @@ function formatScheduledDate(dateStr: string | null) {
 	return date.toLocaleString();
 }
 
+export interface SettingsActionBarProps {
+	isNew?: boolean;
+	isDirty: boolean;
+	isSaving: boolean;
+	/** Whether the autosave indicator should render (existing item with autosave wired) */
+	showAutosave: boolean;
+	isAutosaving?: boolean;
+	lastAutosaveAt?: Date | null;
+	status: string;
+	supportsDrafts: boolean;
+	isLive: boolean;
+	hasPendingChanges: boolean;
+	hasSchedule: boolean;
+	supportsPreview: boolean;
+	isLoadingPreview: boolean;
+	onPreview: () => void;
+	onPublish?: () => void;
+	onUnpublish?: () => void;
+	onDiscardDraft?: () => void;
+	/** Public URL of the live entry, when published with a slug */
+	liveViewUrl?: string | null;
+}
+
+/**
+ * Two-tier action bar pinned above the settings panel body: primary
+ * actions + autosave status on top, publish-state context below.
+ *
+ * Deliberately NOT memoized — it exists so high-frequency props
+ * (isDirty, isSaving, isAutosaving) stop here instead of busting the
+ * memoized panel body below it.
+ */
+export function SettingsActionBar({
+	isNew,
+	isDirty,
+	isSaving,
+	showAutosave,
+	isAutosaving,
+	lastAutosaveAt,
+	status,
+	supportsDrafts,
+	isLive,
+	hasPendingChanges,
+	hasSchedule,
+	supportsPreview,
+	isLoadingPreview,
+	onPreview,
+	onPublish,
+	onUnpublish,
+	onDiscardDraft,
+	liveViewUrl,
+}: SettingsActionBarProps) {
+	const { t } = useLingui();
+
+	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
+	const showContextTier = !isNew || supportsDrafts;
+
+	return (
+		<div className="shrink-0 border-b">
+			{/* Tier 1: autosave status + primary actions */}
+			<div className="flex flex-wrap items-center justify-between gap-2 p-3">
+				<div
+					className="flex items-center text-xs text-kumo-subtle"
+					role="status"
+					aria-label={t`Autosave status`}
+					aria-live="polite"
+				>
+					{showAutosave &&
+						(isAutosaving ? (
+							<>
+								<Loader size="sm" />
+								<span className="ms-1">{t`Saving...`}</span>
+							</>
+						) : lastAutosaveAt ? (
+							<>
+								<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
+								<span>{t`Saved`}</span>
+							</>
+						) : null)}
+				</div>
+				<div className="flex flex-wrap items-center justify-end gap-2">
+					{!isNew && supportsPreview && (
+						<Button
+							variant="ghost"
+							shape="square"
+							type="button"
+							onClick={onPreview}
+							disabled={isLoadingPreview}
+							aria-label={hasPendingChanges ? t`Preview draft` : t`Preview`}
+							title={hasPendingChanges ? t`Preview draft` : t`Preview`}
+							icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
+						/>
+					)}
+					<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving} />
+					{!isNew &&
+						(isLive ? (
+							hasPendingChanges ? (
+								<Button type="button" variant="primary" onClick={onPublish}>
+									{t`Publish changes`}
+								</Button>
+							) : (
+								<Button type="button" variant="outline" onClick={onUnpublish}>
+									{t`Unpublish`}
+								</Button>
+							)
+						) : (
+							<Button type="button" variant="secondary" onClick={onPublish}>
+								{t`Publish`}
+							</Button>
+						))}
+				</div>
+			</div>
+
+			{/* Tier 2: publish-state context */}
+			{showContextTier && (
+				<div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
+					<div className="flex flex-wrap items-center gap-1.5">
+						{supportsDrafts ? (
+							<>
+								{isLive && <Badge variant="success">{t`Published`}</Badge>}
+								{hasPendingChanges && <Badge variant="secondary">{t`Pending changes`}</Badge>}
+								{!isLive && !hasSchedule && <Badge variant="secondary">{t`Draft`}</Badge>}
+								{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}
+							</>
+						) : (
+							<span className="text-sm text-kumo-subtle">
+								{status.charAt(0).toUpperCase() + status.slice(1)}
+							</span>
+						)}
+					</div>
+					<div className="flex items-center gap-1">
+						{showDiscard && (
+							<Dialog.Root>
+								<Dialog.Trigger
+									render={(p) => (
+										<Button {...p} type="button" variant="ghost" size="sm" icon={<X />}>
+											{t`Discard changes`}
+										</Button>
+									)}
+								/>
+								<Dialog className="p-6" size="sm">
+									<Dialog.Title className="text-lg font-semibold">
+										{t`Discard draft changes?`}
+									</Dialog.Title>
+									<Dialog.Description className="text-kumo-subtle">
+										{t`This will revert to the published version. Your draft changes will be lost.`}
+									</Dialog.Description>
+									<div className="mt-6 flex justify-end gap-2">
+										<Dialog.Close
+											render={(p) => (
+												<Button {...p} variant="secondary">
+													{t`Cancel`}
+												</Button>
+											)}
+										/>
+										<Dialog.Close
+											render={(p) => (
+												<Button {...p} variant="destructive" onClick={onDiscardDraft}>
+													{t`Discard changes`}
+												</Button>
+											)}
+										/>
+									</div>
+								</Dialog>
+							</Dialog.Root>
+						)}
+						{liveViewUrl && (
+							<LinkButton
+								href={liveViewUrl}
+								external
+								variant="ghost"
+								size="sm"
+								icon={<ArrowSquareOut />}
+							>
+								{t`Live View`}
+							</LinkButton>
+						)}
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
 export interface ContentSettingsPanelProps {
 	collection: string;
 	item?: ContentItem | null;
@@ -46,12 +230,7 @@ export interface ContentSettingsPanelProps {
 	entryLocale?: string | null;
 	slug: string;
 	onSlugChange: (value: string) => void;
-	status: string;
-	supportsDrafts: boolean;
 	supportsRevisions: boolean;
-	isLive: boolean;
-	hasPendingChanges: boolean;
-	hasSchedule: boolean;
 	canSchedule: boolean;
 	onSchedule?: (scheduledAt: string) => void;
 	onUnschedule?: () => void;
@@ -98,12 +277,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	entryLocale,
 	slug,
 	onSlugChange,
-	status,
-	supportsDrafts,
 	supportsRevisions,
-	isLive,
-	hasPendingChanges,
-	hasSchedule,
 	canSchedule,
 	onSchedule,
 	onUnschedule,
@@ -177,31 +351,14 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						onChange={(e) => onSlugChange(e.target.value)}
 						placeholder="my-post-slug"
 					/>
-					<div>
-						<Label>{t`Status`}</Label>
-						<div className="mt-1 flex flex-wrap items-center gap-1.5">
-							{supportsDrafts ? (
-								<>
-									{isLive && <Badge variant="success">{t`Published`}</Badge>}
-									{hasPendingChanges && <Badge variant="secondary">{t`Pending changes`}</Badge>}
-									{!isLive && !hasSchedule && <Badge variant="secondary">{t`Draft`}</Badge>}
-									{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}
-								</>
-							) : (
-								<span className="text-sm text-kumo-subtle">
-									{status.charAt(0).toUpperCase() + status.slice(1)}
-								</span>
-							)}
+					{item?.scheduledAt && (
+						<div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+							<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
+							<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
+								{t`Unschedule`}
+							</Button>
 						</div>
-						{item?.scheduledAt && (
-							<div className="mt-2 flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-								<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
-								<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
-									{t`Unschedule`}
-								</Button>
-							</div>
-						)}
-					</div>
+					)}
 
 					{canSchedule && (
 						<div className="pt-2">
