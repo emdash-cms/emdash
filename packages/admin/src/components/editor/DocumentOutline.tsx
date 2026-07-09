@@ -180,7 +180,11 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 					<List className="h-3.5 w-3.5 text-kumo-subtle" />
 					<span className="font-semibold">{t`Outline`}</span>
 				</span>
-				{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
+				{isExpanded ? (
+					<CaretDown className="h-4 w-4 text-kumo-subtle" />
+				) : (
+					<CaretNext className="h-4 w-4 text-kumo-subtle" />
+				)}
 			</Button>
 
 			{isExpanded && (

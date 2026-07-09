@@ -5,7 +5,6 @@ import {
 	ClockCounterClockwise,
 	ArrowCounterClockwise,
 	CaretDown,
-	CaretUp,
 	Plus,
 	Minus,
 	PencilSimple,
@@ -15,6 +14,7 @@ import * as React from "react";
 
 import { fetchRevisions, restoreRevision, type Revision } from "../lib/api";
 import { formatRelativeTime } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 // =============================================================================
@@ -151,22 +151,24 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 		<>
 			<div>
 				{/* Header - always visible */}
-				<button
+				<Button
 					type="button"
 					onClick={() => setIsExpanded(!isExpanded)}
-					className="-m-2 flex w-[calc(100%+1rem)] items-center justify-between rounded-md p-2 text-start hover:bg-kumo-tint/50 transition-colors"
+					variant="ghost"
+					size="sm"
+					className="h-8 w-full justify-between px-2"
 				>
-					<div className="flex items-center gap-1.5">
+					<span className="flex items-center gap-1.5">
 						<ClockCounterClockwise className="h-3.5 w-3.5 text-kumo-subtle" />
 						<span className="font-semibold">{t`Revisions`}</span>
-						{total > 0 && <span className="text-xs text-kumo-subtle">({total})</span>}
-					</div>
+						{total > 0 && <span className="font-normal text-kumo-subtle">({total})</span>}
+					</span>
 					{isExpanded ? (
-						<CaretUp className="h-4 w-4 text-kumo-subtle" />
-					) : (
 						<CaretDown className="h-4 w-4 text-kumo-subtle" />
+					) : (
+						<CaretNext className="h-4 w-4 text-kumo-subtle" />
 					)}
-				</button>
+				</Button>
 
 				{/* Content - shown when expanded */}
 				{isExpanded && (
