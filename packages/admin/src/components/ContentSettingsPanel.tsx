@@ -361,7 +361,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						placeholder="my-post-slug"
 					/>
 					<div>
-						<div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+						<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
 							<Label>{t`Status`}</Label>
 							{supportsDrafts ? (
 								<>
