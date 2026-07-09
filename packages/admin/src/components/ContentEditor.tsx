@@ -544,6 +544,7 @@ export function ContentEditor({
 	const draftStatus = item ? getDraftStatus(item) : "unpublished";
 	const hasPendingChanges = draftStatus === "published_with_changes";
 	const isLive = draftStatus === "published" || draftStatus === "published_with_changes";
+	const liveViewUrl = isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern) : null;
 
 	// Scheduling — keyed off scheduledAt rather than status, since published
 	// posts can now have a pending schedule without changing status.
@@ -787,17 +788,11 @@ export function ContentEditor({
 							showAutosave={!isNew && !!onAutosave}
 							isAutosaving={isAutosaving}
 							lastAutosaveAt={lastAutosaveAt}
-							status={status}
-							supportsDrafts={supportsDrafts}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
-							hasSchedule={hasSchedule}
-							supportsPreview={supportsPreview}
-							isLoadingPreview={isLoadingPreview}
-							onPreview={handlePreview}
+							liveViewUrl={liveViewUrl}
 							onPublish={onPublish}
 							onUnpublish={onUnpublish}
-							onDiscardDraft={onDiscardDraft}
 						/>
 						<div className="flex-1 overflow-y-auto overflow-x-hidden">
 							<ContentSettingsPanel
@@ -807,14 +802,17 @@ export function ContentEditor({
 								entryLocale={entryLocale}
 								slug={slug}
 								onSlugChange={handleSlugChange}
+								status={status}
+								supportsDrafts={supportsDrafts}
+								isLive={isLive}
+								hasPendingChanges={hasPendingChanges}
+								hasSchedule={hasSchedule}
 								supportsRevisions={supportsRevisions}
 								canSchedule={canSchedule}
-								liveViewUrl={
-									isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern) : null
-								}
 								onSchedule={onSchedule}
 								onUnschedule={onUnschedule}
 								isScheduling={isScheduling}
+								onDiscardDraft={onDiscardDraft}
 								onDelete={onDelete}
 								isDeleting={isDeleting}
 								currentUser={currentUser}
