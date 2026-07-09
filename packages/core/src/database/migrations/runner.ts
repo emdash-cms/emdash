@@ -1,6 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import { type Migration, type MigrationProvider, Migrator } from "kysely/migration";
 
+import { MIGRATION_LOCK_BUSY_MESSAGE } from "../pg-migration-lock.js";
 import type { Database } from "../types.js";
 // Import migrations statically for bundling
 import * as m001 from "./001_initial.js";
@@ -123,12 +124,36 @@ export interface MigrationStatus {
 	pending: string[];
 }
 
+/**
+ * Thrown when another instance held the migration lock for the whole wait
+ * window. This is NOT a migration failure — the holder may simply be slow
+ * (e.g. many pending migrations over a remote Postgres connection) — so
+ * callers with failure-backoff logic (`getDatabase` in emdash-runtime.ts)
+ * exempt it: the next request waits again instead of backing off, and init
+ * recovers as soon as the holder finishes.
+ */
+export class ConcurrentMigrationTimeoutError extends Error {
+	constructor(waitMs: number) {
+		super(
+			`Timed out waiting for another instance's migrations: the migration lock was still held after ${waitMs}ms. ` +
+				"It may still be applying migrations, or its migration may be failing repeatedly.",
+		);
+		this.name = "ConcurrentMigrationTimeoutError";
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
 const MIGRATION_LOCK_TABLE = "_emdash_migrations_lock";
 
 export interface MigrationOptions {
 	migrationTableSchema?: string;
+	/**
+	 * Override how long to wait for a concurrent migrator to finish before
+	 * giving up. Defaults to MIGRATION_RACE_WAIT_MS; tests shorten it so the
+	 * give-up path doesn't take 10 seconds per case.
+	 */
+	raceWaitMs?: number;
 }
 
 function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
@@ -260,8 +285,11 @@ async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | 
  * been migrated by a newer build still treats the wait as settled instead
  * of timing out.
  */
-async function waitForConcurrentMigrator(db: Kysely<Database>): Promise<boolean> {
-	const deadline = Date.now() + MIGRATION_RACE_WAIT_MS;
+async function waitForConcurrentMigrator(
+	db: Kysely<Database>,
+	waitMs: number = MIGRATION_RACE_WAIT_MS,
+): Promise<boolean> {
+	const deadline = Date.now() + waitMs;
 	while (Date.now() < deadline) {
 		const count = await getAppliedMigrationCount(db);
 		if (count !== null && count >= MIGRATION_COUNT) {
@@ -341,12 +369,24 @@ export async function runMigrations(
 		const failedMigration = results?.find((r) => r.status === "Error");
 
 		// Concurrent-migration race: another caller is applying (or just
-		// applied) the same migration. Wait for it to finish, then verify
-		// the schema is fully migrated and treat as success.
-		if (MIGRATION_RACE_PATTERN.test(msg)) {
-			const settled = await waitForConcurrentMigrator(db);
+		// applied) the same migration. SQLite/D1 surface it as the
+		// bookkeeping UNIQUE violation (their migration lock is a no-op);
+		// Postgres surfaces it as the fail-fast advisory try-lock reporting
+		// busy (see pg-migration-lock.ts). Either way: wait for the
+		// concurrent migrator to finish, then verify the schema is fully
+		// migrated and treat as success.
+		const lockBusy = msg.includes(MIGRATION_LOCK_BUSY_MESSAGE);
+		if (MIGRATION_RACE_PATTERN.test(msg) || lockBusy) {
+			const settled = await waitForConcurrentMigrator(db, options?.raceWaitMs);
 			if (settled) {
 				return { applied };
+			}
+			if (lockBusy) {
+				// The lock holder didn't finish within the wait window —
+				// either it's slow or its migration is failing. Surface a
+				// distinct error type instead of the raw sentinel message so
+				// callers can tell "still in progress" from "failed".
+				throw new ConcurrentMigrationTimeoutError(options?.raceWaitMs ?? MIGRATION_RACE_WAIT_MS);
 			}
 		}
 

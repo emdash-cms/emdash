@@ -142,6 +142,35 @@ export interface MediaItem {
 	updatedAt: string;
 }
 
+/** Media usage repair request */
+export type MediaUsageRepairInput = { scope: "collection"; collection: string } | { scope: "all" };
+
+/** Media usage repair status */
+export type MediaUsageRepairStatus = "complete" | "partial" | "failed" | "stale";
+
+/** Per-collection media usage repair summary */
+export interface MediaUsageRepairCollectionSummary {
+	collection: string;
+	status: MediaUsageRepairStatus;
+	indexedSourceCount: number;
+	failedSourceCount: number;
+	skippedSourceCount: number;
+	deletedSourceCount: number;
+	lastErrorCode: string | null;
+	startedAt: string;
+	completedAt: string | null;
+}
+
+/** Media usage repair response */
+export interface MediaUsageRepairResponse {
+	status: MediaUsageRepairStatus;
+	indexedSourceCount: number;
+	failedSourceCount: number;
+	skippedSourceCount: number;
+	deletedSourceCount: number;
+	collections: MediaUsageRepairCollectionSummary[];
+}
+
 /** Search result */
 export interface SearchResult {
 	id: string;
@@ -702,6 +731,11 @@ export class EmDashClient {
 		await this.request<unknown>("DELETE", `/media/${encodeURIComponent(id)}`);
 	}
 
+	/** Repair content media usage indexes for one collection or all collections */
+	async mediaRepairUsage(input: MediaUsageRepairInput): Promise<MediaUsageRepairResponse> {
+		return this.request<MediaUsageRepairResponse>("POST", "/admin/media-usage/repair", input);
+	}
+
 	// -----------------------------------------------------------------------
 	// Search
 	// -----------------------------------------------------------------------
@@ -845,6 +879,11 @@ export class EmDashClient {
 		}
 	}
 }
+
+type _AssertTrue<T extends true> = T;
+type _MediaRepairUsageRequiresExplicitInput = _AssertTrue<
+	Parameters<EmDashClient["mediaRepairUsage"]> extends [MediaUsageRepairInput] ? true : false
+>;
 
 // Re-export transport types for interceptor authors
 export type { Interceptor } from "./transport.js";

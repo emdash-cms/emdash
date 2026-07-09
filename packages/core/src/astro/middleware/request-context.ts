@@ -10,6 +10,7 @@
  * - Toolbar injection: floating pill for authenticated editors
  */
 
+import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 
 import { resolveSecretsCached } from "#config/secrets.js";
@@ -18,11 +19,31 @@ import { verifyPreviewToken, parseContentId } from "../../preview/tokens.js";
 import { getRequestContext, runWithContext } from "../../request-context.js";
 import { renderToolbar } from "../../visual-editing/toolbar.js";
 
+/** Astro's route-cache handle. EmDash requires Astro 6+, so it's always present. */
+type RouteCache = APIContext["cache"];
+
+/**
+ * Opt the current request out of Astro's route cache (e.g. Workers Cache on
+ * Cloudflare). `Cache-Control` headers do NOT cover this: the adapter derives
+ * the shared-cache TTL from the route-cache options (on Cloudflare via
+ * `Cloudflare-CDN-Cache-Control`), so session-specific responses must
+ * explicitly disable it or they get stored in the shared cache and served to
+ * anonymous visitors without ever invoking the middleware again. With no cache
+ * provider configured this is a no-op (`NoopAstroCache`/`DisabledAstroCache`).
+ */
+function optOutOfRouteCache(cache: RouteCache): void {
+	cache.set(false);
+}
+
 /**
  * Inject toolbar HTML into a response if it's an HTML page.
  * Returns the original response if not HTML.
  */
-async function injectToolbar(response: Response, toolbarHtml: string): Promise<Response> {
+async function injectToolbar(
+	response: Response,
+	toolbarHtml: string,
+	routeCache: RouteCache,
+): Promise<Response> {
 	const contentType = response.headers.get("content-type");
 	if (!contentType?.includes("text/html")) return response;
 
@@ -37,7 +58,10 @@ async function injectToolbar(response: Response, toolbarHtml: string): Promise<R
 	// Toolbar-injected HTML is session-specific (its presence reveals an active
 	// editor session); it must never be stored in a shared CDN cache and served
 	// to anonymous visitors. Mirrors the preview branch's guard (#1398).
+	// `Cache-Control` covers browsers/downstream proxies; the route-cache
+	// opt-out covers the shared edge cache, which ignores `Cache-Control`.
 	result.headers.set("Cache-Control", "private, no-store");
+	optOutOfRouteCache(routeCache);
 	return result;
 }
 
@@ -86,6 +110,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Astro context includes currentLocale when i18n is configured
 	const locale = (context as { currentLocale?: string }).currentLocale;
 
+	const routeCache = context.cache;
+
 	// Verify preview token if present.
 	// The preview secret is resolved via `resolveSecretsCached`: env wins,
 	// otherwise a DB-stored value is read (or generated on first need).
@@ -122,6 +148,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 			// Preview responses must not be cached -- draft content could leak past token expiry.
 			// Clone the response before modifying headers — the original may be immutable.
+			// `Cache-Control` only governs browsers/downstream proxies; the shared
+			// edge cache follows the route-cache options, so opt out of those too —
+			// otherwise the draft response is stored in the shared cache and served
+			// on cache hits without token verification until TTL/purge. Opt out for
+			// any request carrying a `_preview` param (valid or not): those URLs are
+			// per-token, so cached copies are useless at best and drafts at worst.
+			if (hasPreviewToken) {
+				optOutOfRouteCache(routeCache);
+			}
 			if (preview) {
 				response = new Response(response.body, response);
 				response.headers.set("Cache-Control", "private, no-store");
@@ -133,7 +168,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					editMode,
 					isPreview: !!preview,
 				});
-				return injectToolbar(response, toolbarHtml);
+				return injectToolbar(response, toolbarHtml, routeCache);
 			}
 
 			return response;
@@ -147,7 +182,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			editMode: false,
 			isPreview: false,
 		});
-		return injectToolbar(response, toolbarHtml);
+		return injectToolbar(response, toolbarHtml, routeCache);
 	}
 
 	return next();
