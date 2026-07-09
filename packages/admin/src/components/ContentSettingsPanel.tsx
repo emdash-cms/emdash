@@ -511,15 +511,15 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				</div>
 			)}
 
-			{/* Taxonomy selector */}
+			{/* Taxonomy selector — renders nothing (no chrome) when no taxonomies
+			    apply to this collection, so it owns its own section border. */}
 			{item && (
-				<div className="p-4 border-t">
-					<TaxonomySidebar
-						collection={collection}
-						entryId={item.id}
-						entryLocale={item.locale ?? entryLocale}
-					/>
-				</div>
+				<TaxonomySidebar
+					className="p-4 border-t"
+					collection={collection}
+					entryId={item.id}
+					entryLocale={item.locale ?? entryLocale}
+				/>
 			)}
 
 			{/* SEO panel - shown for collections with hasSeo enabled */}

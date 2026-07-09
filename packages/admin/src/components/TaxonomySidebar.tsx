@@ -17,7 +17,7 @@ import * as React from "react";
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
 import { createTerm, withLocale } from "../lib/api/taxonomies.js";
 import { termExactMatches, termMatches } from "../lib/taxonomy-match.js";
-import { slugify } from "../lib/utils.js";
+import { cn, slugify } from "../lib/utils.js";
 
 interface TaxonomyTerm {
 	id: string;
@@ -44,6 +44,9 @@ interface TaxonomySidebarProps {
 	 * matching translation variants are shown — see issue #1218. */
 	entryLocale?: string;
 	onChange?: (taxonomyName: string, termIds: string[]) => void;
+	/** Applied to the root when the section renders. Omitted when the section
+	 * is empty so the caller doesn't need to guess whether to draw chrome. */
+	className?: string;
 }
 
 const EMPTY_TERMS: TaxonomyTerm[] = [];
@@ -517,6 +520,7 @@ export function TaxonomySidebar({
 	entryId,
 	entryLocale,
 	onChange,
+	className,
 }: TaxonomySidebarProps) {
 	const { t } = useLingui();
 	const { data: taxonomies = [] } = useQuery({
@@ -532,7 +536,7 @@ export function TaxonomySidebar({
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className={cn("space-y-6", className)}>
 			<div>
 				<h3 className="mb-4 font-semibold">{t`Taxonomies`}</h3>
 				<div className="space-y-4">
