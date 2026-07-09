@@ -40,7 +40,8 @@
  * ```
  */
 
-import type { PluginContext, PluginDefinition } from "emdash";
+import type { PluginContext, PluginDescriptor, ResolvedPlugin } from "emdash";
+import { definePlugin } from "emdash";
 import type { EmailDeliverEvent } from "emdash/plugin";
 
 /**
@@ -143,13 +144,8 @@ export function createCloudflareEmailDeliver(
 	};
 }
 
-/**
- * Create a Cloudflare Email Sending provider plugin definition.
- *
- * Pass it to the emdash() integration's plugins array, activate it under
- * Admin → Extensions, then select it under Settings → Email.
- */
-export function cloudflareEmail(config: CloudflareEmailConfig): PluginDefinition {
+/** Validate the sender address early so misconfiguration fails at config time. */
+function assertValidFrom(config: CloudflareEmailConfig): void {
 	const fromEmail = typeof config.from === "string" ? config.from : config.from?.email;
 	if (!fromEmail || !fromEmail.includes("@")) {
 		throw new Error(
@@ -157,8 +153,19 @@ export function cloudflareEmail(config: CloudflareEmailConfig): PluginDefinition
 				"Cloudflare Email Sending rejects messages without a verified sender address.",
 		);
 	}
+}
 
-	return {
+/**
+ * Instantiate the Cloudflare Email Sending provider plugin.
+ *
+ * Called by the generated `virtual:emdash/plugins` module with the
+ * `options` from the {@link cloudflareEmail} descriptor. Use
+ * `cloudflareEmail()` in the astro config — this export exists so the
+ * integration can bundle the plugin from a static entrypoint.
+ */
+export function createPlugin(config: CloudflareEmailConfig): ResolvedPlugin {
+	assertValidFrom(config);
+	return definePlugin({
 		id: "cloudflare-email",
 		version: "1.0.0",
 		capabilities: ["hooks.email-transport:register"],
@@ -168,6 +175,31 @@ export function cloudflareEmail(config: CloudflareEmailConfig): PluginDefinition
 				handler: createCloudflareEmailDeliver(config),
 			},
 		},
+	});
+}
+
+/**
+ * Create a Cloudflare Email Sending provider plugin descriptor.
+ *
+ * Pass it to the emdash() integration's plugins array, activate it under
+ * Admin → Extensions, then select it under Settings → Email.
+ *
+ * Returns a `PluginDescriptor` (not an in-process definition): the astro
+ * integration requires every `plugins: []` entry to resolve to a bundlable
+ * `entrypoint`, so the descriptor points at this module and the integration
+ * imports {@link createPlugin} from it at build time (#1721).
+ */
+export function cloudflareEmail(
+	config: CloudflareEmailConfig,
+): PluginDescriptor<CloudflareEmailConfig> {
+	assertValidFrom(config);
+	return {
+		id: "cloudflare-email",
+		version: "1.0.0",
+		entrypoint: "@emdash-cms/cloudflare/plugins/cloudflare-email",
+		format: "native",
+		options: config,
+		capabilities: ["hooks.email-transport:register"],
 	};
 }
 

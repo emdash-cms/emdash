@@ -2,6 +2,8 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateCollectionCache } from "../../object-cache/index.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -402,16 +404,26 @@ export class ContentRepository {
 			? (t: string, s: string) => this.findBySlugIncludingTrashed(t, s, locale)
 			: (t: string, s: string) => this.findBySlug(t, s, locale);
 
-		if (looksLikeUlid) {
-			// Try ID first, fall back to slug
-			const byId = await findById(type, identifier);
-			if (byId) return byId;
-			return findBySlug(type, identifier);
+		try {
+			if (looksLikeUlid) {
+				// Try ID first, fall back to slug
+				const byId = await findById(type, identifier);
+				if (byId) return byId;
+				return await findBySlug(type, identifier);
+			}
+			// Try slug first, fall back to ID
+			const bySlug = await findBySlug(type, identifier);
+			if (bySlug) return bySlug;
+			return await findById(type, identifier);
+		} catch (error) {
+			// A collection dropped out from under a still-referencing caller (e.g. a
+			// relation whose collection was deleted without cascading) leaves the
+			// ec_* table missing. Treat that as "not found", matching
+			// findManyByIdOrSlug and findTranslationsForGroups, so callers surface a
+			// structured NOT_FOUND instead of a 500.
+			if (isMissingTableError(error)) return null;
+			throw error;
 		}
-		// Try slug first, fall back to ID
-		const bySlug = await findBySlug(type, identifier);
-		if (bySlug) return bySlug;
-		return findById(type, identifier);
 	}
 
 	/**
@@ -895,8 +907,10 @@ export class ContentRepository {
 			.filter((id): id is string => id !== null);
 	}
 
-	// get overall statistics (total, published, draft) for a content type in a single query
-	async getStats(type: string): Promise<{ total: number; published: number; draft: number }> {
+	// get overall statistics for a content type in a single query
+	async getStats(
+		type: string,
+	): Promise<{ total: number; published: number; draft: number; scheduled: number }> {
 		const tableName = getTableName(type);
 
 		const result = await this.db
@@ -905,6 +919,7 @@ export class ContentRepository {
 				eb.fn.count("id").as("total"),
 				eb.fn.sum(eb.case().when("status", "=", "published").then(1).else(0).end()).as("published"),
 				eb.fn.sum(eb.case().when("status", "=", "draft").then(1).else(0).end()).as("draft"),
+				sql<number>`SUM(CASE WHEN scheduled_at IS NOT NULL THEN 1 ELSE 0 END)`.as("scheduled"),
 			])
 			.where("deleted_at" as never, "is", null)
 			.executeTakeFirst();
@@ -913,6 +928,7 @@ export class ContentRepository {
 			total: Number(result?.total || 0),
 			published: Number(result?.published || 0),
 			draft: Number(result?.draft || 0),
+			scheduled: Number(result?.scheduled || 0),
 		};
 	}
 
@@ -1052,6 +1068,115 @@ export class ContentRepository {
 		`.execute(this.db);
 
 		return result.rows.map((row) => this.mapRow(type, row));
+	}
+
+	/**
+	 * Batch variant of {@link findTranslations}: every (non-deleted) locale
+	 * variant for any of `translationGroups`, in one `WHERE translation_group IN
+	 * (...)` query chunked at `SQL_BATCH_SIZE` for D1's bind-parameter limit.
+	 * Lets callers resolve many edge groups without an N+1 per group. The caller
+	 * groups the flat result by `translationGroup` itself.
+	 *
+	 * `publishedOnly` restricts the result to `status = 'published'` — reference
+	 * reads pass this for callers without `content:read_drafts` so draft/scheduled
+	 * entries never leak through an edge traversal.
+	 *
+	 * A reference edge stores only a collection slug (no SQL FK), so the table may
+	 * have been dropped since the edge was written. That is a tolerated dangling
+	 * state, not an error: a missing table resolves to no rows, mirroring how the
+	 * content read handlers treat `isMissingTableError`.
+	 */
+	async findTranslationsForGroups(
+		type: string,
+		translationGroups: string[],
+		options: { publishedOnly?: boolean } = {},
+	): Promise<ContentItem[]> {
+		if (translationGroups.length === 0) return [];
+		const tableName = getTableName(type);
+		const publishedFilter = options.publishedOnly ? sql`AND status = 'published'` : sql``;
+
+		const items: ContentItem[] = [];
+		try {
+			for (const chunk of chunks(translationGroups, SQL_BATCH_SIZE)) {
+				const result = await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+					WHERE translation_group IN (${sql.join(chunk)})
+					AND deleted_at IS NULL
+					${publishedFilter}
+					ORDER BY locale ASC
+				`.execute(this.db);
+				for (const row of result.rows) items.push(this.mapRow(type, row));
+			}
+		} catch (error) {
+			if (isMissingTableError(error)) return [];
+			throw error;
+		}
+		return items;
+	}
+
+	/**
+	 * Batch variant of {@link findByIdOrSlug}: resolve many identifiers (each an
+	 * id OR a slug) within `type` in a constant number of queries — one `WHERE id
+	 * IN (...)` and one `WHERE slug IN (...)`, each chunked at `SQL_BATCH_SIZE`.
+	 * Returns a map from the input identifier to its resolved item; identifiers
+	 * that match nothing are absent. Used on write paths that accept a list of
+	 * references, so a single request doesn't fan out to an N+1 of point lookups.
+	 *
+	 * Resolution mirrors {@link findByIdOrSlug}: a ULID-shaped identifier prefers
+	 * the id match and falls back to slug; anything else prefers the slug match
+	 * and falls back to id. Slug matches collapse to the lowest-locale variant
+	 * (`ORDER BY locale ASC`), matching the slug-without-locale lookup.
+	 */
+	async findManyByIdOrSlug(type: string, identifiers: string[]): Promise<Map<string, ContentItem>> {
+		const resolved = new Map<string, ContentItem>();
+		const unique = [...new Set(identifiers)];
+		if (unique.length === 0) return resolved;
+
+		const tableName = getTableName(type);
+		const byId = new Map<string, ContentItem>();
+		const bySlug = new Map<string, ContentItem>();
+
+		try {
+			for (const chunk of chunks(unique, SQL_BATCH_SIZE)) {
+				const idRows = await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+					WHERE id IN (${sql.join(chunk)})
+					AND deleted_at IS NULL
+				`.execute(this.db);
+				for (const row of idRows.rows) {
+					const item = this.mapRow(type, row);
+					byId.set(item.id, item);
+				}
+
+				const slugRows = await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+					WHERE slug IN (${sql.join(chunk)})
+					AND deleted_at IS NULL
+					ORDER BY locale ASC
+				`.execute(this.db);
+				for (const row of slugRows.rows) {
+					const item = this.mapRow(type, row);
+					// First write wins → lowest locale, matching findBySlug without a locale.
+					if (item.slug != null && !bySlug.has(item.slug)) bySlug.set(item.slug, item);
+				}
+			}
+		} catch (error) {
+			// A collection dropped after a relation was created leaves the relation
+			// pointing at a missing table. Treat it like an empty collection (no
+			// matches) so callers surface a structured NOT_FOUND, not a 500 —
+			// mirroring findTranslationsForGroups.
+			if (isMissingTableError(error)) return resolved;
+			throw error;
+		}
+
+		for (const identifier of unique) {
+			const looksLikeUlid = ULID_PATTERN.test(identifier);
+			const item = looksLikeUlid
+				? (byId.get(identifier) ?? bySlug.get(identifier))
+				: (bySlug.get(identifier) ?? byId.get(identifier));
+			if (item) resolved.set(identifier, item);
+		}
+		return resolved;
 	}
 
 	/**

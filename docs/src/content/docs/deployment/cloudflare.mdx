@@ -70,6 +70,28 @@ If the database is empty (no collections) and the setup wizard hasn't been compl
 
 To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
 
+## Scheduled Publishing
+
+On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from a Worker Cron Trigger. New Cloudflare templates include this setup automatically. If you are adding updating an existing project, export the EmDash Worker entry from `@emdash-cms/cloudflare/worker`:
+
+```ts title="src/worker.ts"
+export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
+```
+
+Then add a Cron Trigger to `wrangler.jsonc`:
+
+```jsonc title="wrangler.jsonc"
+{
+	"triggers": {
+		"crons": ["* * * * *"],
+	},
+}
+```
+
+<Aside type="caution">
+	Without the Cron Trigger, content scheduled in the admin panel does not publish on Cloudflare Workers, and plugin cron jobs do not run. Local `astro dev` still uses the in-process scheduler.
+</Aside>
+
 ## Deploy
 
 Deploy to Cloudflare Workers:
@@ -124,6 +146,18 @@ emdash({
 ```
 
 See [Object Cache](/deployment/object-cache/) for KV setup, options, and invalidation behavior.
+
+## Workers Cache
+
+Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) (`"cache": { "enabled": true }` in `wrangler.jsonc`) puts an edge cache **in front of** your Worker: matching requests are served without running your Worker at all. This works well with EmDash:
+
+- EmDash admin and API responses send `Cache-Control: private, no-store` and are never stored.
+- Your public pages control their own caching through the `Cache-Control` headers they return.
+
+Two things to know before enabling it:
+
+1. **Responses without a `Cache-Control` header are still cached.** Workers Cache applies RFC 9111 heuristic freshness — a `200` without any header is cached for 2 hours. Give every custom route an explicit `Cache-Control` (use `private, no-store` for anything session-dependent).
+2. **Cached pages are shared with logged-in editors.** The cache runs before your Worker, so it cannot bypass based on request cookies. A logged-in editor may receive the cached anonymous variant of a public page — without the visual editing toolbar — until the entry expires. Editor-rendered responses themselves are never stored (they carry `private, no-store`), so nothing leaks in the other direction.
 
 ## Custom Domain
 

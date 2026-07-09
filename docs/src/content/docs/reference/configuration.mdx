@@ -646,6 +646,7 @@ EmDash respects these environment variables:
 | `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, a stable per-site value is generated and stored in the database. |
 | `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, a stable per-site value is generated and stored in the database. |
 | `EMDASH_AUTH_SECRET`      | Legacy. Used as the IP-salt source if set; existing installs should keep this to preserve stable commenter-IP hashes across upgrade. |
+| `EMDASH_TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key (falls back to `TURNSTILE_SECRET_KEY`). When set, comment submissions must include a valid Turnstile token — pair it with the `turnstileSiteKey` prop on `<CommentForm>`. |
 | `EMDASH_URL`              | Remote EmDash URL for schema sync         |
 
 Generate an encryption key with the following command:

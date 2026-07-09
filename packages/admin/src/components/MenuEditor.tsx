@@ -36,6 +36,60 @@ import { DialogError, getMutationError } from "./DialogError.js";
 import { useI18nConfig } from "./LocaleSwitcher.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
 
+/** A menu item with its nesting depth, in parent-then-children display order. */
+interface DisplayItem {
+	item: MenuItem;
+	depth: number;
+}
+
+/**
+ * Flattens items into parent-then-children display order. Guards against
+ * cyclic parentId data (not currently possible via this UI, but the API
+ * doesn't validate against it either) with a visited set.
+ */
+function buildDisplayList(items: MenuItem[]): DisplayItem[] {
+	const childrenByParent = new Map<string | null, MenuItem[]>();
+	for (const item of items) {
+		const siblings = childrenByParent.get(item.parentId) ?? [];
+		siblings.push(item);
+		childrenByParent.set(item.parentId, siblings);
+	}
+
+	const result: DisplayItem[] = [];
+	const visited = new Set<string>();
+	function visit(parentId: string | null, depth: number) {
+		for (const item of childrenByParent.get(parentId) ?? []) {
+			if (visited.has(item.id)) continue;
+			visited.add(item.id);
+			result.push({ item, depth });
+			visit(item.id, depth + 1);
+		}
+	}
+	visit(null, 0);
+	return result;
+}
+
+/** IDs of `rootId` and everything nested under it, so it can't become its own descendant's child. */
+function getSelfAndDescendantIds(items: MenuItem[], rootId: string): Set<string> {
+	const childrenByParent = new Map<string | null, MenuItem[]>();
+	for (const item of items) {
+		const siblings = childrenByParent.get(item.parentId) ?? [];
+		siblings.push(item);
+		childrenByParent.set(item.parentId, siblings);
+	}
+
+	const ids = new Set<string>([rootId]);
+	function visit(parentId: string) {
+		for (const child of childrenByParent.get(parentId) ?? []) {
+			if (ids.has(child.id)) continue;
+			ids.add(child.id);
+			visit(child.id);
+		}
+	}
+	visit(rootId);
+	return ids;
+}
+
 export function MenuEditor() {
 	const { t } = useLingui();
 	const { name } = useParams({ from: "/_admin/menus/$name" });
@@ -223,6 +277,7 @@ export function MenuEditor() {
 		const uLabelVal = formData.get("label");
 		const uUrlVal = formData.get("url");
 		const uTargetVal = formData.get("target");
+		const uParentIdVal = formData.get("parentId");
 		updateMutation.mutate({
 			itemId: editingItem.id,
 			input: {
@@ -230,21 +285,29 @@ export function MenuEditor() {
 				customUrl:
 					editingItem.type === "custom" ? (typeof uUrlVal === "string" ? uUrlVal : "") : undefined,
 				target: (typeof uTargetVal === "string" ? uTargetVal : "") || undefined,
+				parentId: typeof uParentIdVal === "string" && uParentIdVal !== "" ? uParentIdVal : null,
 			},
 		});
 	};
 
-	const moveItem = (index: number, direction: "up" | "down") => {
+	// Moves an item relative to its siblings (same parentId) only, so reordering
+	// can't accidentally move an item into a different parent's children.
+	const moveItem = (itemId: string, direction: "up" | "down") => {
+		const currentItem = localItems.find((i) => i.id === itemId);
+		if (!currentItem) return;
+
+		const siblings = localItems.filter((i) => i.parentId === currentItem.parentId);
+		const siblingIndex = siblings.findIndex((i) => i.id === itemId);
+		const targetSiblingIndex = direction === "up" ? siblingIndex - 1 : siblingIndex + 1;
+		if (targetSiblingIndex < 0 || targetSiblingIndex >= siblings.length) return;
+		const targetItem = siblings[targetSiblingIndex];
+		if (!targetItem) return;
+
+		const currentPos = localItems.findIndex((i) => i.id === currentItem.id);
+		const targetPos = localItems.findIndex((i) => i.id === targetItem.id);
 		const newItems = [...localItems];
-		const targetIndex = direction === "up" ? index - 1 : index + 1;
-		if (targetIndex < 0 || targetIndex >= newItems.length) return;
-
-		const currentItem = newItems[index];
-		const targetItem = newItems[targetIndex];
-		if (!currentItem || !targetItem) return;
-
-		newItems[index] = targetItem;
-		newItems[targetIndex] = currentItem;
+		newItems[currentPos] = targetItem;
+		newItems[targetPos] = currentItem;
 
 		// Update sort orders
 		const reorderedItems = newItems.map((item, i) => ({
@@ -256,6 +319,22 @@ export function MenuEditor() {
 		setLocalItems(newItems);
 		reorderMutation.mutate({ items: reorderedItems });
 	};
+
+	const displayList = React.useMemo(() => buildDisplayList(localItems), [localItems]);
+
+	const parentOptions = React.useMemo(() => {
+		if (!editingItem) return [];
+		const excluded = getSelfAndDescendantIds(localItems, editingItem.id);
+		return [
+			{ value: "", label: t`No parent (top level)` },
+			...buildDisplayList(localItems)
+				.filter(({ item }) => !excluded.has(item.id))
+				.map(({ item, depth }) => ({
+					value: item.id,
+					label: <span style={{ marginInlineStart: `${depth * 1.5}rem` }}>{item.label}</span>,
+				})),
+		];
+	}, [editingItem, localItems, t]);
 
 	if (isLoading) {
 		return (
@@ -420,54 +499,62 @@ export function MenuEditor() {
 				</div>
 			) : (
 				<div className="space-y-2">
-					{localItems.map((item, index) => (
-						<div key={item.id} className="border rounded-lg p-4 flex items-center justify-between">
-							<div className="flex-1">
-								<div className="font-medium">{item.label}</div>
-								<div className="text-sm text-kumo-subtle">
-									{item.type === "custom" ? (
-										item.customUrl
-									) : (
-										<span className="inline-flex items-center rounded-full bg-kumo-brand/10 px-2 py-0.5 text-xs font-medium text-kumo-brand">
-											{item.referenceCollection ?? item.type}
-										</span>
-									)}
-									{item.target === "_blank" && t` (opens in new window)`}
+					{displayList.map(({ item, depth }) => {
+						const siblings = localItems.filter((i) => i.parentId === item.parentId);
+						const siblingIndex = siblings.findIndex((i) => i.id === item.id);
+						return (
+							<div
+								key={item.id}
+								className="border rounded-lg p-4 flex items-center justify-between"
+								style={{ marginInlineStart: `${depth * 1.5}rem` }}
+							>
+								<div className="flex-1">
+									<div className="font-medium">{item.label}</div>
+									<div className="text-sm text-kumo-subtle">
+										{item.type === "custom" ? (
+											item.customUrl
+										) : (
+											<span className="inline-flex items-center rounded-full bg-kumo-brand/10 px-2 py-0.5 text-xs font-medium text-kumo-brand">
+												{item.referenceCollection ?? item.type}
+											</span>
+										)}
+										{item.target === "_blank" && t` (opens in new window)`}
+									</div>
+								</div>
+								<div className="flex gap-2">
+									<Button
+										variant="ghost"
+										size="sm"
+										aria-label={t`Move up`}
+										onClick={() => moveItem(item.id, "up")}
+										disabled={siblingIndex === 0}
+									>
+										<CaretUp className="h-4 w-4" />
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										aria-label={t`Move down`}
+										onClick={() => moveItem(item.id, "down")}
+										disabled={siblingIndex === siblings.length - 1}
+									>
+										<CaretDown className="h-4 w-4" />
+									</Button>
+									<Button variant="outline" size="sm" onClick={() => setEditingItem(item)}>
+										{t`Edit`}
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										aria-label={t`Delete`}
+										onClick={() => deleteMutation.mutate(item.id)}
+									>
+										<Trash className="h-4 w-4" />
+									</Button>
 								</div>
 							</div>
-							<div className="flex gap-2">
-								<Button
-									variant="ghost"
-									size="sm"
-									aria-label={t`Move up`}
-									onClick={() => moveItem(index, "up")}
-									disabled={index === 0}
-								>
-									<CaretUp className="h-4 w-4" />
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									aria-label={t`Move down`}
-									onClick={() => moveItem(index, "down")}
-									disabled={index === localItems.length - 1}
-								>
-									<CaretDown className="h-4 w-4" />
-								</Button>
-								<Button variant="outline" size="sm" onClick={() => setEditingItem(item)}>
-									{t`Edit`}
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									aria-label={t`Delete`}
-									onClick={() => deleteMutation.mutate(item.id)}
-								>
-									<Trash className="h-4 w-4" />
-								</Button>
-							</div>
-						</div>
-					))}
+						);
+					})}
 				</div>
 			)}
 
@@ -524,6 +611,12 @@ export function MenuEditor() {
 								<Select.Option value="">{t`Same window`}</Select.Option>
 								<Select.Option value="_blank">{t`New window`}</Select.Option>
 							</Select>
+							<Select
+								label={t`Parent`}
+								name="parentId"
+								defaultValue={editingItem.parentId ?? ""}
+								items={parentOptions}
+							/>
 							<DialogError message={editError || getMutationError(updateMutation.error)} />
 							<div className="flex justify-end gap-2">
 								<Button type="button" variant="outline" onClick={() => setEditingItem(null)}>

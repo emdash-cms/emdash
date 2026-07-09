@@ -13,6 +13,7 @@ import { ulid } from "ulidx";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { Database, TaxonomyDefTable } from "../../database/types.js";
 import { invalidateTaxonomyDefsCache, invalidateTermCache } from "../../taxonomies/index.js";
+import { fetchVisibleTermCounts } from "../../taxonomies/term-counts.js";
 import type { ApiResult } from "../types.js";
 
 const NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -139,6 +140,13 @@ async function requireTaxonomyDef(
 		};
 	}
 	return { success: true, def };
+}
+
+/** Declared collections of a taxonomy def row (deduped, parsed from JSON). */
+function defCollections(def: Selectable<TaxonomyDefTable>): string[] {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- column stores a JSON string[] written by handleTaxonomyCreate
+	const parsed = def.collections ? (JSON.parse(def.collections) as string[]) : [];
+	return [...new Set(parsed)];
 }
 
 function rowToDef(row: Selectable<TaxonomyDefTable>): TaxonomyDef {
@@ -384,11 +392,16 @@ export async function handleTermList(
 		const repo = new TaxonomyRepository(db);
 		const terms = await repo.findByName(taxonomyName, { locale: options.locale });
 
-		// Batch count entries per term in a single query (replaces N+1 pattern).
+		// Counts match what visitors see on the public site: published (or
+		// scheduled-and-due) entries that aren't soft-deleted, scoped to the
+		// taxonomy's declared collections — one query for the whole list.
 		// content_taxonomies.taxonomy_id stores the translation_group, so we
 		// look up by group and map back to each term's id.
-		const groups = terms.map((t) => t.translationGroup ?? t.id);
-		const countsByGroup = await repo.countEntriesForTerms(groups);
+		const countsByGroup = await fetchVisibleTermCounts(
+			db,
+			taxonomyName,
+			defCollections(lookup.def),
+		);
 
 		const termData: TermWithCount[] = terms.map((term) => ({
 			id: term.id,
@@ -634,7 +647,16 @@ export async function handleTermGet(
 			};
 		}
 
-		const count = await repo.countEntriesWithTerm(term.id);
+		// Count matches public visibility (published or scheduled-and-due, not
+		// soft-deleted) scoped to the def's declared collections. The def lookup
+		// is lenient: a term whose def is missing still resolves, with count 0.
+		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		const counts = await fetchVisibleTermCounts(
+			db,
+			taxonomyName,
+			lookup.success ? defCollections(lookup.def) : [],
+		);
+		const count = counts.get(term.translationGroup ?? term.id) ?? 0;
 		// Children share this term's translation_group as their parent_id; scope
 		// to the term's own locale so the response stays within one locale's tree.
 		const children = await repo.findChildren(term.id, term.locale);

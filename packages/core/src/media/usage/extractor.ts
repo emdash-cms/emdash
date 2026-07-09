@@ -1,4 +1,5 @@
 import { normalizeMime } from "../mime.js";
+import { INTERNAL_MEDIA_PREFIX } from "../normalize.js";
 import type {
 	ExtractedMediaUsageOccurrence,
 	ExtractMediaUsageOccurrencesInput,
@@ -7,7 +8,6 @@ import type {
 	MediaUsageReferenceType,
 } from "./types.js";
 
-const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
 const URL_LIKE_RE = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 
 interface MediaRef {
@@ -84,14 +84,14 @@ function extractRepeaterOccurrences(
 		if (!isRecord(item)) continue;
 
 		for (const subField of subFields) {
-			if (subField.type !== "image" && subField.type !== "file") continue;
+			if (subField.type !== "image") continue;
 
 			addOccurrence(occurrences, seen, {
 				fieldSlug,
 				fieldPath: `${fieldSlug}[${itemIndex}].${subField.slug}`,
-				referenceType: subField.type === "image" ? "image_field" : "file_field",
+				referenceType: "image_field",
 				value: item[subField.slug],
-				fallbackKind: subField.type === "image" ? "image" : null,
+				fallbackKind: "image",
 			});
 		}
 	}

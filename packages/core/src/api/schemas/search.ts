@@ -13,6 +13,7 @@ export const searchQuery = z
 		status: z.string().optional(),
 		locale: localeCode.optional(),
 		limit: z.coerce.number().int().min(1).max(100).optional(),
+		cursor: z.string().optional(),
 	})
 	.meta({ id: "SearchQuery" });
 

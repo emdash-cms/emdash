@@ -175,7 +175,9 @@ routes: {
 	},
 	"settings/save": {
 		handler: async (ctx) => {
-			const input = await ctx.request.json();
+			// EmDash parses the request body once and exposes it as ctx.input.
+			// Don't call ctx.request.json() — the body stream is already consumed.
+			const input = ctx.input as Record<string, unknown>;
 			for (const [key, value] of Object.entries(input)) {
 				if (value !== undefined) await ctx.kv.set(`settings:${key}`, value);
 			}

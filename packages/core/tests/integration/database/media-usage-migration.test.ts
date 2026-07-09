@@ -43,7 +43,7 @@ describeEachDialect("media usage index migration", (dialect) => {
 	});
 
 	it("accepts a content usage source and one occurrence", async () => {
-		const sourceKey = "content:posts:entry1:live";
+		const sourceKey = "content:posts:entry1:columns";
 		const generation = "gen1";
 
 		await ctx.db
@@ -53,7 +53,7 @@ describeEachDialect("media usage index migration", (dialect) => {
 				source_type: "content",
 				collection_slug: "posts",
 				content_id: "entry1",
-				source_variant: "live",
+				source_variant: "columns",
 				content_slug: "hello-world",
 				content_title: "Hello World",
 				locale: "en",

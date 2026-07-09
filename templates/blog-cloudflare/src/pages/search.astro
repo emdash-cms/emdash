@@ -100,14 +100,14 @@ const { items: results } = query
 
 	.search-input:focus {
 		outline: none;
-		border-color: var(--color-accent);
+		border-color: var(--color-brand);
 	}
 
 	.search-button {
 		padding: var(--spacing-2) var(--spacing-6);
 		font-size: var(--font-size-base);
-		background: var(--color-accent);
-		color: var(--color-on-accent);
+		background: var(--color-brand);
+		color: var(--color-on-brand);
 		border: none;
 		border-radius: var(--radius);
 		cursor: pointer;
@@ -156,14 +156,14 @@ const { items: results } = query
 
 	.result-title {
 		font-size: var(--font-size-xl);
-		font-weight: 600;
+		font-weight: var(--font-weight-heading);
 		line-height: var(--leading-snug);
 		margin-bottom: var(--spacing-2);
 		transition: color var(--transition-fast);
 	}
 
 	.result-link:hover .result-title {
-		color: var(--color-accent);
+		color: var(--color-brand);
 	}
 
 	.result-snippet {
@@ -174,7 +174,7 @@ const { items: results } = query
 
 	/* FTS returns <mark> wrapping the matched terms */
 	.result-snippet :global(mark) {
-		background: var(--color-accent-ring, rgba(99, 102, 241, 0.2));
+		background: var(--color-brand-ring);
 		color: inherit;
 		padding: 0 0.1em;
 		border-radius: 2px;
