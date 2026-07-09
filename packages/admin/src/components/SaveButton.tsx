@@ -96,6 +96,7 @@ function getSlotStyle(
 		display: "inline-flex",
 		gridArea: "stack",
 		alignItems: "center",
+		color: state === "saved" ? "var(--text-color-kumo-success)" : undefined,
 		justifyContent: "center",
 		gap: "0.375rem",
 		opacity: isActive ? 1 : 0,

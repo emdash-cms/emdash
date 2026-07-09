@@ -62,6 +62,11 @@ describe("SaveButton", () => {
 
 		await screen.rerender(<SaveButton isDirty={false} isSaving={false} />);
 		await vi.waitFor(() => expect(getStatus()).toBe("Saved"), { timeout: 600 });
+		const savedSlot = [...screen.container.querySelectorAll('span[aria-hidden="true"]')].find(
+			(element) => element.textContent?.trim() === "Saved",
+		) as HTMLElement | undefined;
+		expect(savedSlot?.style.color).toBe("var(--text-color-kumo-success)");
+		expect(savedSlot?.querySelector("svg")).not.toBeNull();
 		await vi.waitFor(() => expect(getStatus()).toBe(""), { timeout: 1200 });
 	});
 
