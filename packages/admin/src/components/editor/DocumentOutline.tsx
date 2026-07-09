@@ -7,14 +7,13 @@
  * - Highlights the current section based on cursor position
  */
 
-import { Button, Text } from "@cloudflare/kumo";
+import { Button, Collapsible, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { CaretDown } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
-import { CaretNext } from "../ArrowIcons.js";
 
 function getIndentClass(level: number) {
 	switch (level) {
@@ -169,24 +168,37 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 	};
 
 	return (
-		<div className={className}>
-			<Button
-				variant="ghost"
-				className="relative mb-4 justify-between"
-				style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
-				onClick={() => setIsExpanded(!isExpanded)}
+		<Collapsible.Root className={className} open={isExpanded} onOpenChange={setIsExpanded}>
+			<Collapsible.Trigger
+				render={
+					<Button
+						variant="ghost"
+						className="relative justify-between"
+						style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
+					/>
+				}
 			>
 				<Text bold as="span">
 					{t`Outline`}
 				</Text>
-				{isExpanded ? (
-					<CaretDown className="h-4 w-4 text-kumo-subtle" />
-				) : (
-					<CaretNext className="h-4 w-4 text-kumo-subtle" />
-				)}
-			</Button>
+				<CaretDown
+					className={cn(
+						"h-4 w-4 text-kumo-subtle transition-transform duration-150 ease-out motion-reduce:transition-none",
+						isExpanded && "rotate-180",
+					)}
+				/>
+			</Collapsible.Trigger>
 
-			{isExpanded && (
+			<Collapsible.Panel
+				className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+				style={({ transitionStatus }) => ({
+					height:
+						transitionStatus === "starting" || transitionStatus === "ending"
+							? 0
+							: "var(--collapsible-panel-height)",
+					transitionProperty: "height",
+				})}
+			>
 				<div className="space-y-0.5">
 					{headings.length === 0 ? (
 						<p className="text-sm text-kumo-subtle px-2 py-1">{t`No headings in document`}</p>
@@ -214,7 +226,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 						})
 					)}
 				</div>
-			)}
-		</div>
+			</Collapsible.Panel>
+		</Collapsible.Root>
 	);
 }

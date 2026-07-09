@@ -1,4 +1,4 @@
-import { Badge, Button, Loader, Text, Toast } from "@cloudflare/kumo";
+import { Badge, Button, Collapsible, Loader, Text, Toast } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowCounterClockwise, CaretDown, Plus, Minus, PencilSimple } from "@phosphor-icons/react";
@@ -6,8 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchRevisions, restoreRevision, type Revision } from "../lib/api";
-import { formatRelativeTime } from "../lib/utils";
-import { CaretNext } from "./ArrowIcons.js";
+import { cn, formatRelativeTime } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 // =============================================================================
@@ -142,14 +141,17 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 
 	return (
 		<>
-			<div>
+			<Collapsible.Root open={isExpanded} onOpenChange={setIsExpanded}>
 				{/* Header - always visible */}
-				<Button
-					type="button"
-					onClick={() => setIsExpanded(!isExpanded)}
-					variant="ghost"
-					className="relative mb-4 justify-between"
-					style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
+				<Collapsible.Trigger
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							className="relative justify-between"
+							style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
+						/>
+					}
 				>
 					<span className="flex items-center gap-1.5">
 						<Text bold as="span">
@@ -157,16 +159,26 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 						</Text>
 						{total > 0 && <span className="font-normal text-kumo-subtle">({total})</span>}
 					</span>
-					{isExpanded ? (
-						<CaretDown className="h-4 w-4 text-kumo-subtle" />
-					) : (
-						<CaretNext className="h-4 w-4 text-kumo-subtle" />
-					)}
-				</Button>
+					<CaretDown
+						className={cn(
+							"h-4 w-4 text-kumo-subtle transition-transform duration-150 ease-out motion-reduce:transition-none",
+							isExpanded && "rotate-180",
+						)}
+					/>
+				</Collapsible.Trigger>
 
 				{/* Content - shown when expanded */}
-				{isExpanded && (
-					<div className="pt-3">
+				<Collapsible.Panel
+					className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+					style={({ transitionStatus }) => ({
+						height:
+							transitionStatus === "starting" || transitionStatus === "ending"
+								? 0
+								: "var(--collapsible-panel-height)",
+						transitionProperty: "height",
+					})}
+				>
+					<div>
 						{isLoading ? (
 							<div className="flex items-center justify-center py-6">
 								<Loader />
@@ -198,8 +210,8 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 							</div>
 						)}
 					</div>
-				)}
-			</div>
+				</Collapsible.Panel>
+			</Collapsible.Root>
 
 			<ConfirmDialog
 				open={!!restoreTarget}
