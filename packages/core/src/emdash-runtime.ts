@@ -472,6 +472,7 @@ const marketplaceManifestCache = new Map<
 		admin?: {
 			pages?: PluginAdminPage[];
 			widgets?: PluginDashboardWidget[];
+			settingsSchema?: Record<string, SettingField>;
 		};
 	}
 >();
@@ -1809,6 +1810,7 @@ export class EmDashRuntime {
 					storage: entry.storage as never,
 					adminPages,
 					adminWidgets,
+					settingsSchema: entry.settingsSchema,
 					portableTextBlocks: entry.portableTextBlocks,
 					fieldWidgets: entry.fieldWidgets,
 				});
@@ -3317,6 +3319,18 @@ export class EmDashRuntime {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Resolve the settings schema for a runtime-installed (marketplace or
+	 * registry) plugin from its cached manifest. Returns `{}` for a known
+	 * plugin without a schema and `null` for unknown plugins, matching the
+	 * contract of `getPluginSettingsSchema` for build-time plugins.
+	 */
+	getRuntimePluginSettingsSchema(pluginId: string): Record<string, SettingField> | null {
+		const meta = marketplaceManifestCache.get(pluginId);
+		if (!meta) return null;
+		return meta.admin?.settingsSchema ?? {};
 	}
 
 	async handlePluginApiRoute(pluginId: string, _method: string, path: string, request: Request) {

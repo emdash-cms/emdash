@@ -62,6 +62,7 @@ describe("plugin settings route", () => {
 			db,
 			configuredPlugins: [PLUGIN],
 			sandboxedPluginEntries: [],
+			getRuntimePluginSettingsSchema: () => null,
 		},
 		user,
 	});

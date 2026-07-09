@@ -39,11 +39,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		return apiError("INVALID_REQUEST", "Plugin ID required", 400);
 	}
 
-	const schema = getPluginSettingsSchema(
-		emdash.configuredPlugins,
-		emdash.sandboxedPluginEntries,
-		id,
-	);
+	const schema =
+		getPluginSettingsSchema(emdash.configuredPlugins, emdash.sandboxedPluginEntries, id) ??
+		emdash.getRuntimePluginSettingsSchema(id);
 	if (schema === null) {
 		return apiError("NOT_FOUND", `Plugin not found: ${id}`, 404);
 	}
@@ -67,11 +65,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		return apiError("INVALID_REQUEST", "Plugin ID required", 400);
 	}
 
-	const schema = getPluginSettingsSchema(
-		emdash.configuredPlugins,
-		emdash.sandboxedPluginEntries,
-		id,
-	);
+	const schema =
+		getPluginSettingsSchema(emdash.configuredPlugins, emdash.sandboxedPluginEntries, id) ??
+		emdash.getRuntimePluginSettingsSchema(id);
 	if (schema === null) {
 		return apiError("NOT_FOUND", `Plugin not found: ${id}`, 404);
 	}

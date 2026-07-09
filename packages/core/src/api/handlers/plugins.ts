@@ -129,6 +129,12 @@ export async function handlePluginList(
 	configuredPlugins: ResolvedPlugin[],
 	sandboxedPluginEntries: SandboxedPluginEntry[],
 	marketplaceUrl?: string,
+	/**
+	 * Settings-schema lookup for runtime-installed (marketplace/registry)
+	 * plugins, which aren't in either build-time list. Typically
+	 * `EmDashRuntime.getRuntimePluginSettingsSchema`.
+	 */
+	runtimeSettingsSchemaLookup?: (pluginId: string) => Record<string, unknown> | null,
 ): Promise<ApiResult<PluginListResponse>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -170,7 +176,7 @@ export async function handlePluginList(
 				hasAdminPages: false,
 				hasDashboardWidgets: false,
 				hasHooks: false,
-				hasSettings: false,
+				hasSettings: Object.keys(runtimeSettingsSchemaLookup?.(state.pluginId) ?? {}).length > 0,
 				installedAt: state.installedAt?.toISOString(),
 				activatedAt: state.activatedAt?.toISOString() ?? undefined,
 				deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
