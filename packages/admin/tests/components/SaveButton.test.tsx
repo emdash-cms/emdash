@@ -70,6 +70,52 @@ describe("SaveButton", () => {
 		await vi.waitFor(() => expect(getStatus()).toBe(""), { timeout: 1200 });
 	});
 
+	it("does not announce a save when edits are reverted", async () => {
+		const screen = await render(<SaveButton isDirty={true} isSaving={false} />);
+		const getStatus = () =>
+			screen.container.querySelector('span[role="status"][aria-live="polite"]')?.textContent ?? "";
+
+		await screen.rerender(<SaveButton isDirty={false} isSaving={false} />);
+
+		expect(getStatus()).toBe("");
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+	});
+
+	it("announces a successful save when clean state arrives later", async () => {
+		const screen = await render(
+			<SaveButton isDirty={true} isSaving={false} saveCompletionToken={0} />,
+		);
+		const getStatus = () =>
+			screen.container.querySelector('span[role="status"][aria-live="polite"]')?.textContent ?? "";
+
+		await screen.rerender(<SaveButton isDirty={true} isSaving={true} saveCompletionToken={0} />);
+		await vi.waitFor(() => expect(getStatus()).toBe("Saving..."), { timeout: 500 });
+
+		await screen.rerender(<SaveButton isDirty={true} isSaving={false} saveCompletionToken={1} />);
+		expect(getStatus()).toBe("");
+
+		await screen.rerender(<SaveButton isDirty={false} isSaving={false} saveCompletionToken={1} />);
+		await vi.waitFor(() => expect(getStatus()).toBe("Saved"), { timeout: 600 });
+	});
+
+	it("drops a pending completion when the edited entry changes", async () => {
+		const screen = await render(
+			<SaveButton isDirty={true} isSaving={true} saveCompletionToken={0} saveScope="post-1" />,
+		);
+		const getStatus = () =>
+			screen.container.querySelector('span[role="status"][aria-live="polite"]')?.textContent ?? "";
+
+		await screen.rerender(
+			<SaveButton isDirty={true} isSaving={false} saveCompletionToken={1} saveScope="post-1" />,
+		);
+		await screen.rerender(
+			<SaveButton isDirty={false} isSaving={false} saveCompletionToken={0} saveScope="post-2" />,
+		);
+
+		expect(getStatus()).toBe("");
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+	});
+
 	it("respects external disabled prop", async () => {
 		const screen = await render(<SaveButton isDirty={true} isSaving={false} disabled={true} />);
 		await expect.element(screen.getByRole("button")).toBeDisabled();

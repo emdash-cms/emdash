@@ -43,6 +43,10 @@ export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "ch
 	isDirty: boolean;
 	/** Whether currently saving */
 	isSaving: boolean;
+	/** Monotonic token advanced after each successful save. */
+	saveCompletionToken?: number;
+	/** Identity of the entry being saved. Resets pending feedback when it changes. */
+	saveScope?: string;
 	/** Whether this instance should announce save state changes to assistive tech. */
 	announceStatus?: boolean;
 	/** Whether the visual saving state should block manual submit. */
@@ -117,6 +121,8 @@ function getSlotStyle(
 export function SaveButton({
 	isDirty,
 	isSaving,
+	saveCompletionToken,
+	saveScope,
 	announceStatus = true,
 	disableWhileSaving,
 	className,
@@ -128,8 +134,10 @@ export function SaveButton({
 	const prefersReducedMotion = usePrefersReducedMotion();
 	const [visualState, setVisualState] = React.useState<SaveButtonVisualState>("idle");
 	const visualStateRef = React.useRef<SaveButtonVisualState>("idle");
-	const wasDirtyRef = React.useRef(isDirty);
 	const wasSavingRef = React.useRef(isSaving);
+	const saveScopeRef = React.useRef(saveScope);
+	const latestSaveCompletionRef = React.useRef(saveCompletionToken ?? 0);
+	const pendingSaveCompletionRef = React.useRef(false);
 	const savingRevealTimeoutRef = React.useRef<ReturnType<typeof globalThis.setTimeout> | null>(
 		null,
 	);
@@ -150,12 +158,30 @@ export function SaveButton({
 	}, []);
 
 	React.useEffect(() => {
-		const wasDirty = wasDirtyRef.current;
+		if (saveScopeRef.current !== saveScope) {
+			saveScopeRef.current = saveScope;
+			wasSavingRef.current = isSaving;
+			latestSaveCompletionRef.current = saveCompletionToken ?? 0;
+			pendingSaveCompletionRef.current = false;
+			savingShownAtRef.current = null;
+			clearTimeoutRef(savingRevealTimeoutRef);
+			clearTimeoutRef(minSavingTimeoutRef);
+			clearTimeoutRef(savedTimeoutRef);
+			setVisualStateSafely("idle");
+			return;
+		}
+
 		const wasSaving = wasSavingRef.current;
-		wasDirtyRef.current = isDirty;
 		wasSavingRef.current = isSaving;
+		const hasNewSaveCompletion =
+			saveCompletionToken !== undefined && saveCompletionToken > latestSaveCompletionRef.current;
+		if (hasNewSaveCompletion) {
+			latestSaveCompletionRef.current = saveCompletionToken;
+			pendingSaveCompletionRef.current = true;
+		}
 
 		if (isSaving) {
+			if (!hasNewSaveCompletion) pendingSaveCompletionRef.current = false;
 			clearTimeoutRef(savedTimeoutRef);
 			clearTimeoutRef(minSavingTimeoutRef);
 
@@ -180,7 +206,8 @@ export function SaveButton({
 			return;
 		}
 
-		if (wasDirty || wasSaving) {
+		if (pendingSaveCompletionRef.current || (saveCompletionToken === undefined && wasSaving)) {
+			pendingSaveCompletionRef.current = false;
 			const savingShownAt = savingShownAtRef.current;
 			savingShownAtRef.current = null;
 
@@ -202,7 +229,7 @@ export function SaveButton({
 		}
 
 		setVisualStateSafely("idle");
-	}, [isDirty, isSaving, setVisualStateSafely]);
+	}, [isDirty, isSaving, saveCompletionToken, saveScope, setVisualStateSafely]);
 
 	const isClean = !isDirty && !isSaving;
 	const isVisuallySaving = visualState === "saving";

@@ -114,6 +114,8 @@ export interface ContentEditorProps {
 	 */
 	entryLocale?: string | null;
 	isSaving?: boolean;
+	/** Monotonic token advanced after a successful manual save or autosave. */
+	saveCompletionToken?: number;
 	onSave?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
@@ -127,8 +129,8 @@ export interface ContentEditorProps {
 	}) => void;
 	/** Whether autosave is in progress */
 	isAutosaving?: boolean;
-	/** Last autosave timestamp (for UI indicator) */
-	lastAutosaveAt?: Date | null;
+	/** Entry-scoped token advanced after a successful autosave. */
+	autosaveCompletionToken?: number;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	/** Callback to discard draft changes (revert to published version) */
@@ -197,10 +199,11 @@ export function ContentEditor({
 	isNew,
 	entryLocale,
 	isSaving,
+	saveCompletionToken,
 	onSave,
 	onAutosave,
 	isAutosaving,
-	lastAutosaveAt,
+	autosaveCompletionToken,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
@@ -268,23 +271,25 @@ export function ContentEditor({
 	// the panel data. When non-null the sidebar shows the block panel instead of the
 	// default content settings sections.
 	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
+	const blockSidebarPanelRef = React.useRef<BlockSidebarPanel | null>(null);
 
 	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
+		blockSidebarPanelRef.current = panel;
 		setBlockSidebarPanel(panel);
 	}, []);
 
 	const handleBlockSidebarClose = React.useCallback(() => {
-		setBlockSidebarPanel((prev) => {
-			prev?.onClose();
-			return null;
-		});
+		const panel = blockSidebarPanelRef.current;
+		blockSidebarPanelRef.current = null;
+		panel?.onClose();
+		setBlockSidebarPanel(null);
 	}, []);
 
 	const handleBlockSidebarDelete = React.useCallback(() => {
-		setBlockSidebarPanel((prev) => {
-			prev?.onDelete();
-			return null;
-		});
+		const panel = blockSidebarPanelRef.current;
+		blockSidebarPanelRef.current = null;
+		panel?.onDelete();
+		setBlockSidebarPanel(null);
 	}, []);
 
 	const handleSeoChange = React.useCallback(
@@ -407,13 +412,13 @@ export function ContentEditor({
 	slugRef.current = slug;
 
 	React.useEffect(() => {
-		if (!lastAutosaveAt || !pendingAutosaveStateRef.current) {
+		if (!autosaveCompletionToken || !pendingAutosaveStateRef.current) {
 			return;
 		}
 
 		setLastSavedData(pendingAutosaveStateRef.current);
 		pendingAutosaveStateRef.current = null;
-	}, [lastAutosaveAt]);
+	}, [autosaveCompletionToken]);
 
 	const hasInvalidUrls = React.useCallback(
 		(data: Record<string, unknown>) => {
@@ -678,9 +683,12 @@ export function ContentEditor({
 												/>
 											)}
 											<SaveButton
+												key={item?.id ?? "new"}
 												type="submit"
 												isDirty={isDirty}
 												isSaving={isSaving || isAutosaving || false}
+												saveCompletionToken={saveCompletionToken}
+												saveScope={item?.id ?? "new"}
 												disableWhileSaving={Boolean(isSaving)}
 											/>
 											{liveViewUrl && (
@@ -726,9 +734,12 @@ export function ContentEditor({
 										/>
 									)}
 									<SaveButton
+										key={item?.id ?? "new"}
 										type="submit"
 										isDirty={isDirty}
 										isSaving={isSaving || isAutosaving || false}
+										saveCompletionToken={saveCompletionToken}
+										saveScope={item?.id ?? "new"}
 										disableWhileSaving={Boolean(isSaving)}
 									/>
 									{!isNew && (
@@ -798,7 +809,7 @@ export function ContentEditor({
 			    hidden) in distraction-free mode: keeping a contained offcanvas
 			    pane mounted would leave its layout gap behind. */}
 				{!isDistractionFree && (
-					<Sidebar>
+					<Sidebar aria-label={t`Settings`}>
 						{/* Desktop action bar absorbs the high-frequency props (isDirty,
 						    isSaving, isAutosaving) so they never reach the memoized
 						    panel body below. Below lg, the sticky editor header owns
@@ -808,6 +819,8 @@ export function ContentEditor({
 								isNew={isNew}
 								isDirty={isDirty}
 								isSaving={isSaving || false}
+								saveCompletionToken={saveCompletionToken}
+								saveScope={item?.id ?? "new"}
 								isAutosaving={isAutosaving}
 								isLive={isLive}
 								hasPendingChanges={hasPendingChanges}
@@ -824,6 +837,11 @@ export function ContentEditor({
 							className="flex-1 overflow-y-auto overflow-x-hidden"
 							style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
 						>
+							{isBelowLg && (
+								<div className="flex justify-end px-4 pt-3">
+									<MobileSettingsCloseButton />
+								</div>
+							)}
 							<ContentSettingsPanel
 								collection={collection}
 								item={item}
@@ -926,6 +944,21 @@ function MobileSettingsButton() {
 		<Button type="button" variant="outline" icon={<Faders />} onClick={toggleSidebar}>
 			{t`Settings`}
 		</Button>
+	);
+}
+
+function MobileSettingsCloseButton() {
+	const { t } = useLingui();
+	const { setOpenMobile } = useSidebar();
+	return (
+		<Button
+			type="button"
+			variant="ghost"
+			shape="square"
+			icon={<X />}
+			aria-label={t`Close settings`}
+			onClick={() => setOpenMobile(false)}
+		/>
 	);
 }
 

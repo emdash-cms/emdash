@@ -40,8 +40,11 @@ function makeByline(overrides: Partial<BylineSummary> = {}): BylineSummary {
 let portableTextMountCount = 0;
 type EditorReadyCall = { mockId: number | null };
 let onEditorReadyCalls: EditorReadyCall[] = [];
+const portableTextProps: { current: Record<string, unknown> | null } = { current: null };
 vi.mock("../../src/components/PortableTextEditor", () => ({
-	PortableTextEditor: ({ value, placeholder, onEditorReady }: any) => {
+	PortableTextEditor: (props: Record<string, any>) => {
+		const { value, placeholder, onEditorReady } = props;
+		portableTextProps.current = props;
 		// Mirror the real component: capture initial value once, never update.
 		const [initialValue] = React.useState(() => value);
 		const mountIdRef = React.useRef<number>(0);
@@ -190,6 +193,44 @@ describe("ContentEditor", () => {
 		vi.clearAllMocks();
 		portableTextMountCount = 0;
 		onEditorReadyCalls = [];
+		portableTextProps.current = null;
+	});
+
+	describe("block settings sidebar", () => {
+		it("invokes a block deletion callback once in Strict Mode", async () => {
+			const onDelete = vi.fn();
+			const screen = await render(
+				<React.StrictMode>
+					<ContentEditor
+						collection="posts"
+						collectionLabel="Post"
+						fields={{ content: { kind: "portableText", label: "Content" } }}
+						isNew
+						onSave={vi.fn()}
+					/>
+				</React.StrictMode>,
+			);
+			await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+
+			const openSidebar = portableTextProps.current?.onBlockSidebarOpen as
+				| ((panel: unknown) => void)
+				| undefined;
+			expect(typeof openSidebar).toBe("function");
+			openSidebar!({
+				type: "image",
+				attrs: { src: "https://example.com/image.png", alt: "Example" },
+				onUpdate: vi.fn(),
+				onReplace: vi.fn(),
+				onDelete,
+				onClose: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Remove Image" }).click();
+			const confirm = screen.getByRole("button", { name: "Remove" });
+			(confirm.element() as HTMLButtonElement).click();
+
+			await vi.waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
+		});
 	});
 
 	describe("slug generation", () => {
@@ -802,7 +843,7 @@ describe("ContentEditor", () => {
 					onSave: vi.fn(),
 					onAutosave,
 					isAutosaving: false,
-					lastAutosaveAt: null,
+					autosaveCompletionToken: 0,
 				};
 
 				const screen = await render(<ContentEditor {...props} />);
@@ -822,7 +863,7 @@ describe("ContentEditor", () => {
 						{...props}
 						item={autosavedItem}
 						isAutosaving={false}
-						lastAutosaveAt={new Date("2026-04-12T18:38:00Z")}
+						autosaveCompletionToken={1}
 					/>,
 				);
 
@@ -912,6 +953,25 @@ describe("ContentEditor", () => {
 				const publishButtons = screen.getByRole("button", { name: "Publish" }).all();
 				expect(publishButtons).toHaveLength(1);
 				await expect.element(publishButtons[0]!).toBeVisible();
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("labels and closes the settings sheet below lg", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				await expect
+					.element(screen.getByRole("navigation", { name: "Settings" }))
+					.toBeInTheDocument();
+
+				await screen.getByRole("button", { name: "Close settings" }).click();
+				await expect
+					.element(screen.getByRole("navigation", { name: "Settings" }))
+					.not.toBeInTheDocument();
 			} finally {
 				media.restore();
 			}

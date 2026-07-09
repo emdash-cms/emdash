@@ -102,6 +102,8 @@ export interface SettingsActionBarProps {
 	isNew?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
+	saveCompletionToken?: number;
+	saveScope?: string;
 	/** Autosave in flight — folded into the SaveButton's "Saving..." state. */
 	isAutosaving?: boolean;
 	isLive: boolean;
@@ -197,6 +199,8 @@ export function SettingsActionBar({
 	isNew,
 	isDirty,
 	isSaving,
+	saveCompletionToken,
+	saveScope,
 	isAutosaving,
 	isLive,
 	hasPendingChanges,
@@ -213,10 +217,13 @@ export function SettingsActionBar({
 	return (
 		<div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-3">
 			<SaveButton
+				key={saveScope}
 				type="submit"
 				size="sm"
 				isDirty={isDirty}
 				isSaving={isSaving || Boolean(isAutosaving)}
+				saveCompletionToken={saveCompletionToken}
+				saveScope={saveScope}
 				disableWhileSaving={isSaving}
 				announceStatus={announceSaveStatus}
 			/>

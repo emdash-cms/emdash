@@ -47,14 +47,26 @@ vi.mock("../src/components/ContentEditor", () => ({
 		item,
 		onSave,
 		onAutosave,
+		onSeoChange,
+		saveCompletionToken,
+		lastAutosaveAt,
+		autosaveCompletionToken,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
+		onSeoChange?: (seo: { title: string }) => void;
+		saveCompletionToken?: number;
+		lastAutosaveAt?: Date | null;
+		autosaveCompletionToken?: number;
 	}) => (
 		<div data-testid="content-editor">
 			<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
 			<div data-testid="mock-slug">{item?.slug ?? ""}</div>
+			<div data-testid="save-completion-token">{saveCompletionToken ?? 0}</div>
+			<div data-testid="autosave-completion-token">
+				{lastAutosaveAt ? "legacy-complete" : (autosaveCompletionToken ?? 0)}
+			</div>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -73,6 +85,9 @@ vi.mock("../src/components/ContentEditor", () => ({
 				}
 			>
 				Trigger Draft Sync
+			</button>
+			<button type="button" onClick={() => onSeoChange?.({ title: "Search title" })}>
+				Trigger SEO Sync
 			</button>
 		</div>
 	),
@@ -411,6 +426,27 @@ describe("ContentEditPage – autosave cache patching", () => {
 					},
 				},
 			})
+			.on("GET", "/_emdash/api/content/posts/post_2", {
+				data: {
+					item: {
+						id: "post_2",
+						type: "posts",
+						slug: "second-post",
+						status: "draft",
+						locale: "en",
+						translationGroup: null,
+						data: { title: "Second Post" },
+						authorId: null,
+						primaryBylineId: null,
+						createdAt: "2025-01-01T00:00:00Z",
+						updatedAt: "2025-01-01T00:00:00Z",
+						publishedAt: null,
+						scheduledAt: null,
+						liveRevisionId: null,
+						draftRevisionId: null,
+					},
+				},
+			})
 			.on("GET", "/_emdash/api/revisions/rev_draft", {
 				data: {
 					item: {
@@ -471,5 +507,90 @@ describe("ContentEditPage – autosave cache patching", () => {
 			expect(screen.getByTestId("mock-title").element().textContent).toBe("Autosaved Title");
 			expect(screen.getByTestId("mock-slug").element().textContent).toBe("autosaved-title");
 		});
+	});
+
+	it("advances save completion only for editor-content writes", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("save-completion-token").element().textContent).toBe("0");
+		});
+
+		await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		expect(screen.getByTestId("save-completion-token").element().textContent).toBe("0");
+
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+		await waitFor(() => {
+			expect(screen.getByTestId("save-completion-token").element().textContent).toBe("1");
+		});
+	});
+
+	it("does not deliver an old entry's autosave completion to the current entry", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		const fetchWithMocks = globalThis.fetch;
+		let resolveFirstAutosave: (() => void) | undefined;
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				return new Promise<Response>((resolve) => {
+					resolveFirstAutosave = () =>
+						resolve(
+							new Response(
+								JSON.stringify({
+									data: {
+										item: {
+											id: "post_1",
+											type: "posts",
+											slug: "autosaved-title",
+											status: "draft",
+											locale: "en",
+											data: { title: "Autosaved Title" },
+											updatedAt: "2025-01-02T00:00:00Z",
+											draftRevisionId: "rev_draft",
+										},
+									},
+								}),
+								{ status: 200, headers: { "Content-Type": "application/json" } },
+							),
+						);
+				});
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+			await router.navigate({
+				to: "/content/$collection/$id",
+				params: { collection: "posts", id: "post_2" },
+			});
+			await waitFor(() => {
+				expect(screen.getByTestId("mock-title").element().textContent).toBe("Second Post");
+			});
+
+			resolveFirstAutosave?.();
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			expect(screen.getByTestId("autosave-completion-token").element().textContent).toBe("0");
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
 	});
 });
