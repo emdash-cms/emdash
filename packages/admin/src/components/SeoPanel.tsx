@@ -182,14 +182,16 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 				/>
 			</div>
 
-			<Input
-				label={t`Canonical URL`}
-				description={t`Points search engines to the original version of this page, if it's duplicated from another URL`}
-				value={draft.canonical}
-				onChange={(e) => {
-					updateDraft({ canonical: e.target.value });
-				}}
-			/>
+			<div>
+				<Input
+					label={t`Canonical URL`}
+					description={t`Points search engines to the original version of this page, if it's duplicated from another URL`}
+					value={draft.canonical}
+					onChange={(e) => {
+						updateDraft({ canonical: e.target.value });
+					}}
+				/>
+			</div>
 
 			<div className="flex items-center justify-between pt-1">
 				<div>
