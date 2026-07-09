@@ -19,18 +19,48 @@ export function apiFetch(input: string | URL | Request, init?: RequestInit): Pro
 }
 
 /**
+ * Extract per-field validation messages from `error.details.issues`
+ * (the shape `parseBody` returns for VALIDATION_ERROR). Returns e.g.
+ * `"name: Too big: expected string to have <=63 characters"`, or
+ * `undefined` when the details don't match that shape.
+ */
+function formatIssueDetails(error: object): string | undefined {
+	if (!("details" in error)) return undefined;
+	const { details } = error;
+	if (typeof details !== "object" || details === null || !("issues" in details)) return undefined;
+	const { issues } = details;
+	if (!Array.isArray(issues)) return undefined;
+	const parts: string[] = [];
+	for (const issue of issues) {
+		if (typeof issue !== "object" || issue === null) continue;
+		const message = "message" in issue && typeof issue.message === "string" ? issue.message : "";
+		if (!message) continue;
+		const path = "path" in issue && typeof issue.path === "string" ? issue.path : "";
+		parts.push(path ? `${path}: ${message}` : message);
+	}
+	return parts.length > 0 ? parts.join("; ") : undefined;
+}
+
+/**
  * Throw an error with the message from the API response body if available,
  * falling back to a generic message. All API error responses use the shape
- * `{ error: { code, message } }`.
+ * `{ error: { code, message, details? } }`. For validation errors the
+ * per-field messages in `details.issues` are appended so the user sees
+ * what to fix instead of a generic "Invalid request data" (#255).
  */
 export async function throwResponseError(res: Response, fallback: string): Promise<never> {
 	const body: unknown = await res.json().catch(() => ({}));
 	let message: string | undefined;
 	if (typeof body === "object" && body !== null && "error" in body) {
 		const { error } = body;
-		if (typeof error === "object" && error !== null && "message" in error) {
-			const { message: errorMessage } = error;
-			if (typeof errorMessage === "string") message = errorMessage;
+		if (typeof error === "object" && error !== null) {
+			if ("message" in error && typeof error.message === "string") {
+				message = error.message;
+			}
+			const issueDetails = formatIssueDetails(error);
+			if (issueDetails) {
+				message = message ? `${message}: ${issueDetails}` : issueDetails;
+			}
 		}
 	}
 	throw new Error(message || `${fallback}: ${res.statusText}`);
