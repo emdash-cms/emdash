@@ -404,6 +404,12 @@ export class TaxonomyRepository {
 	/**
 	 * Count content entries that use any translation of this term. Accepts
 	 * either a term id or a translation_group — we normalise to the group.
+	 *
+	 * Counts raw pivot rows regardless of the entry's status or deletion —
+	 * drafts and trashed entries are included. User-facing counts (admin term
+	 * list/get, public widget and term pages) use `fetchVisibleTermCounts`
+	 * from `taxonomies/term-counts.ts` instead, which counts only publicly
+	 * visible entries.
 	 */
 	async countEntriesWithTerm(termIdOrGroup: string): Promise<number> {
 		const group = await this.resolveTranslationGroup(termIdOrGroup);
@@ -453,6 +459,9 @@ export class TaxonomyRepository {
 	 *
 	 * Pass translation_groups (not term ids) — `content_taxonomies.taxonomy_id`
 	 * stores the translation_group so a single assignment spans every locale.
+	 *
+	 * Like `countEntriesWithTerm`, this counts raw pivot rows regardless of
+	 * status/deletion; user-facing counts go through `fetchVisibleTermCounts`.
 	 */
 	async countEntriesForTerms(translationGroups: string[]): Promise<Map<string, number>> {
 		if (translationGroups.length === 0) return new Map();
