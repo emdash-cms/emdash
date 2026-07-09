@@ -60,6 +60,64 @@ export interface MediaTable {
 	author_id: string | null;
 }
 
+export interface MediaUsageSourceTable {
+	source_key: string;
+	source_type: string;
+	collection_slug: string | null;
+	content_id: string | null;
+	source_variant: string;
+	locale: string | null;
+	translation_group: string | null;
+	content_slug: string | null;
+	content_title: string | null;
+	content_status: string | null;
+	content_scheduled_at: string | null;
+	content_deleted_at: string | null;
+	revision_id: string | null;
+	current_generation: string;
+	schema_version: Generated<number>;
+	source_updated_at: Generated<string | null>;
+	source_version: Generated<number | null>;
+	source_fingerprint: Generated<string | null>;
+	source_completeness: Generated<string>;
+	last_attempted_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	indexed_at: Generated<string>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageTable {
+	id: string;
+	source_key: string;
+	generation: string;
+	field_slug: string;
+	field_path: string;
+	occurrence_index: Generated<number>;
+	reference_type: string;
+	media_id: string | null;
+	provider: Generated<string>;
+	provider_asset_id: string;
+	media_kind: string | null;
+	mime_type: string | null;
+	created_at: Generated<string>;
+}
+
+export interface MediaUsageIndexStatusTable {
+	adapter_id: string;
+	scope_type: string;
+	scope_key: string;
+	status: string;
+	schema_version: Generated<number>;
+	started_at: Generated<string | null>;
+	completed_at: Generated<string | null>;
+	cursor: Generated<string | null>;
+	indexed_source_count: Generated<number>;
+	failed_source_count: Generated<number>;
+	last_error_code: Generated<string | null>;
+	updated_at: Generated<string>;
+}
+
 export interface UserTable {
 	id: string;
 	email: string;
@@ -414,6 +472,9 @@ export interface Database {
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	_emdash_media_usage_sources: MediaUsageSourceTable;
+	_emdash_media_usage: MediaUsageTable;
+	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;
 	users: UserTable;
 	credentials: CredentialTable;
 	auth_tokens: AuthTokenTable;

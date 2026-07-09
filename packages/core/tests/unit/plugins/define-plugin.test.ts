@@ -161,6 +161,24 @@ describe("definePlugin", () => {
 		});
 	});
 
+	// Regression: #1370 — the id/version validation patterns must stay
+	// function-local (evaluated at call time). As module-scope consts, a
+	// circular module init on Cloudflare Workers could reach defineNativePlugin
+	// before they initialized, throwing "Cannot access 'SIMPLE_ID' before
+	// initialization" and 500-ing every route. Validation must keep working.
+	describe("#1370 — call-time validation regexes", () => {
+		it("validates id and version on every call", () => {
+			expect(definePlugin({ id: "first", version: "1.0.0" }).id).toBe("first");
+			expect(definePlugin({ id: "@scope/second", version: "2.3.4" }).version).toBe("2.3.4");
+			expect(() => definePlugin({ id: "Bad_Id", version: "1.0.0" })).toThrow(
+				INVALID_PLUGIN_ID_PATTERN,
+			);
+			expect(() => definePlugin({ id: "ok", version: "nope" })).toThrow(
+				INVALID_PLUGIN_VERSION_PATTERN,
+			);
+		});
+	});
+
 	describe("capability validation", () => {
 		it("accepts valid capabilities", () => {
 			const plugin = definePlugin({

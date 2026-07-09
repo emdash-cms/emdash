@@ -114,4 +114,24 @@ describe("RepeaterField sub-field types", () => {
 
 		expect(onChange).toHaveBeenCalledWith([{ image: null, caption: "" }]);
 	});
+
+	it("renders a searchable combobox for select sub-fields", async () => {
+		const screen = await render(
+			<RepeaterField
+				label="Services"
+				id="services"
+				value={[{ service: "CT" }]}
+				onChange={vi.fn()}
+				subFields={[
+					{ slug: "service", type: "select", label: "Service", options: ["MRI", "CT", "PET"] },
+				]}
+			/>,
+		);
+
+		// Select sub-field → searchable typeahead input (role "combobox"),
+		// not a plain native select, and it reflects the stored value.
+		const input = screen.getByRole("combobox");
+		await expect.element(input).toBeVisible();
+		await expect.element(input).toHaveValue("CT");
+	});
 });

@@ -9,6 +9,8 @@
 import { encode } from "blurhash";
 import { imageSize } from "image-size";
 
+import { normalizeMime } from "./mime.js";
+
 export interface PlaceholderData {
 	blurhash: string;
 	dominantColor: string;
@@ -85,8 +87,12 @@ function extractDominantColor(data: Uint8Array, width: number, height: number): 
 
 /**
  * Read image dimensions from headers without decoding pixel data.
+ * Returns null when the header cannot be parsed.
+ *
+ * Shared by every caller that needs pixel dimensions so the header is parsed
+ * once per buffer, not re-read inside generatePlaceholder.
  */
-function getImageDimensions(buffer: Uint8Array): { width: number; height: number } | null {
+export function readDimensions(buffer: Uint8Array): { width: number; height: number } | null {
 	try {
 		const result = imageSize(buffer);
 		if (result.width != null && result.height != null) {
@@ -102,23 +108,37 @@ function getImageDimensions(buffer: Uint8Array): { width: number; height: number
  * Generate blurhash and dominant color from an image buffer.
  * Returns null for non-image MIME types or on failure.
  *
- * @param dimensions - Optional pre-known dimensions. Used as a fallback when
- *   image-size cannot parse the buffer (e.g. truncated headers). When the
- *   decoded size (width * height * 4) exceeds MAX_DECODED_BYTES, placeholder
- *   generation is skipped to avoid OOM on memory-constrained runtimes.
+ * @param dimensions - Optional pre-known dimensions. When present they are
+ *   trusted verbatim (the caller has typically already read them via
+ *   readDimensions); otherwise dimensions are read from this buffer's header.
+ *   Generation is skipped (returns null) when no dimensions are available at
+ *   all, or when the decoded size (width * height * 4) exceeds
+ *   MAX_DECODED_BYTES — both guards avoid OOM from unbounded decodes on
+ *   memory-constrained runtimes.
  */
 export async function generatePlaceholder(
 	buffer: Uint8Array,
 	mimeType: string,
 	dimensions?: { width: number; height: number },
 ): Promise<PlaceholderData | null> {
-	const format = SUPPORTED_TYPES[mimeType];
+	const format = SUPPORTED_TYPES[normalizeMime(mimeType)];
 	if (!format) return null;
 
 	try {
-		// Safety net: skip decode if the image would exceed the memory budget
-		const dims = getImageDimensions(buffer) ?? dimensions;
-		if (dims && dims.width * dims.height * 4 > MAX_DECODED_BYTES) {
+		// Trust caller-supplied dimensions when present (the caller has usually
+		// already read them via readDimensions); otherwise read them from this
+		// buffer. The header is parsed at most once per call.
+		const dims = dimensions ?? readDimensions(buffer);
+
+		// Safety net: the decoders allocate the full RGBA buffer with no internal
+		// cap, so refuse to decode unless we can bound the output size. When we
+		// have no parseable header AND no known dimensions, the decoded size is
+		// unbounded — a crafted/truncated PNG whose header image-size can't read
+		// could still be decodable by upng-js, so we must bail to avoid OOM on
+		// memory-constrained runtimes. LQIP is progressive enhancement; missing
+		// it is preferable to crashing the request.
+		if (!dims) return null;
+		if (dims.width * dims.height * 4 > MAX_DECODED_BYTES) {
 			return null;
 		}
 

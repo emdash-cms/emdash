@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { generateOpenApiDocument } from "../../../src/api/openapi/document.js";
+import { mediaUsageRepairResponseSchema } from "../../../src/api/schemas/media-usage.js";
 
 describe("OpenAPI document generation", () => {
 	it("generates a valid OpenAPI 3.1 document", () => {
@@ -33,6 +34,36 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/media/{id}");
 		expect(paths).toContain("/_emdash/api/media/upload-url");
 		expect(paths).toContain("/_emdash/api/media/{id}/confirm");
+		expect(paths).toContain("/_emdash/api/admin/media-usage/repair");
+	});
+
+	it("documents the media usage repair operation", () => {
+		const doc = generateOpenApiDocument();
+		const path = doc.paths?.["/_emdash/api/admin/media-usage/repair"];
+		const post = path?.post as {
+			operationId?: string;
+			tags?: string[];
+			description?: string;
+			requestBody?: unknown;
+			responses?: Record<string, unknown>;
+		};
+
+		expect(post).toBeDefined();
+		expect(post.operationId).toBe("repairMediaUsage");
+		expect(post.tags).toEqual(["Media"]);
+		expect(post.description).toContain("failed");
+		expect(post.description).toContain("stale");
+		expect(post.requestBody).toBeDefined();
+		expect(post.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"413": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
 	});
 
 	it("includes schema paths", () => {
@@ -195,6 +226,7 @@ describe("OpenAPI document generation", () => {
 		expect(operationIds).toContain("getMedia");
 		expect(operationIds).toContain("deleteMedia");
 		expect(operationIds).toContain("getMediaUploadUrl");
+		expect(operationIds).toContain("repairMediaUsage");
 
 		// Schema operations
 		expect(operationIds).toContain("listCollections");
@@ -263,6 +295,8 @@ describe("OpenAPI document generation", () => {
 		// Media schemas
 		expect(schemas).toHaveProperty("MediaItem");
 		expect(schemas).toHaveProperty("MediaListResponse");
+		expect(schemas).toHaveProperty("MediaUsageRepairBody");
+		expect(schemas).toHaveProperty("MediaUsageRepairResponse");
 
 		// Schema schemas
 		expect(schemas).toHaveProperty("Collection");
@@ -283,6 +317,34 @@ describe("OpenAPI document generation", () => {
 		// User schemas
 		expect(schemas).toHaveProperty("User");
 		expect(schemas).toHaveProperty("UserListResponse");
+	});
+
+	it("accepts stale media usage repair responses with null completion time", () => {
+		expect(
+			mediaUsageRepairResponseSchema.parse({
+				status: "stale",
+				indexedSourceCount: 0,
+				failedSourceCount: 0,
+				skippedSourceCount: 1,
+				deletedSourceCount: 0,
+				collections: [
+					{
+						collection: "posts",
+						status: "stale",
+						indexedSourceCount: 0,
+						failedSourceCount: 0,
+						skippedSourceCount: 1,
+						deletedSourceCount: 0,
+						lastErrorCode: "CONTENT_USAGE_REPAIR_CONFLICT",
+						startedAt: "2026-07-07T00:00:00.000Z",
+						completedAt: null,
+					},
+				],
+			}),
+		).toMatchObject({
+			status: "stale",
+			collections: [expect.objectContaining({ completedAt: null })],
+		});
 	});
 
 	it("wraps success responses in { data } envelope", () => {

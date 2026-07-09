@@ -375,9 +375,10 @@ async function exportTaxonomies(
 		// Terms in this def's locale.
 		const terms = await termRepo.findByName(def.name, { locale: def.locale });
 
-		// id -> slug for parent resolution within this locale.
-		const idToSlug = new Map<string, string>();
-		for (const term of terms) idToSlug.set(term.id, term.slug);
+		// translation_group -> slug for parent resolution within this locale.
+		// `parentId` stores the parent's translation_group, not a row id.
+		const groupToSlug = new Map<string, string>();
+		for (const term of terms) groupToSlug.set(term.translationGroup ?? term.id, term.slug);
 
 		// translation_group -> seed id of the anchor term.
 		const termGroupToSeedId = new Map<string, string>();
@@ -396,7 +397,7 @@ async function exportTaxonomies(
 				description: typeof term.data?.description === "string" ? term.data.description : undefined,
 			};
 
-			if (term.parentId) seedTerm.parent = idToSlug.get(term.parentId);
+			if (term.parentId) seedTerm.parent = groupToSlug.get(term.parentId);
 
 			if (i18nEnabled && term.locale) {
 				seedTerm.locale = term.locale;

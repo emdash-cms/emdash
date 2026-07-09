@@ -1,6 +1,7 @@
 import { execFile, spawn } from "node:child_process";
 import { rmSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
@@ -21,6 +22,15 @@ interface SiteCase {
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const execAsync = promisify(execFile);
+const FONT_FETCH_RETRY_IMPORT = pathToFileURL(
+	resolve(import.meta.dirname, "retry-font-fetch.mjs"),
+).href;
+
+function nodeOptionsWithFontFetchRetry(): string {
+	return [process.env.NODE_OPTIONS, `--import=${FONT_FETCH_RETRY_IMPORT}`]
+		.filter(Boolean)
+		.join(" ");
+}
 
 const SITE_MATRIX: SiteCase[] = [
 	{
@@ -121,7 +131,9 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 
 // ---------------------------------------------------------------------------
 // Build verification — runs a single recursive `pnpm build` across templates
-// and the playground demo in parallel.
+// and the playground demo in parallel. The child process imports a test-only
+// fetch retry shim for Astro's remote Google font-file downloads so transient
+// network errors don't make smoke tests flaky.
 // ---------------------------------------------------------------------------
 
 describe("Site build verification", () => {
@@ -146,6 +158,7 @@ describe("Site build verification", () => {
 					env: {
 						...process.env,
 						CI: "true",
+						NODE_OPTIONS: nodeOptionsWithFontFetchRetry(),
 					},
 				},
 			);
@@ -185,6 +198,7 @@ async function bootSite(site: SiteCase): Promise<BootedServer> {
 		env: {
 			...process.env,
 			CI: "true",
+			NODE_OPTIONS: nodeOptionsWithFontFetchRetry(),
 		},
 		stdio: "pipe",
 	});

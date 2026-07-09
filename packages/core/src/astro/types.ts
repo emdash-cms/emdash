@@ -268,6 +268,7 @@ export interface EmDashHandlers {
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
+			taxonomies?: Record<string, string[]>;
 			createdAt?: string | null;
 			publishedAt?: string | null;
 		},
@@ -290,6 +291,7 @@ export interface EmDashHandlers {
 				canonical?: string | null;
 				noIndex?: boolean;
 			};
+			taxonomies?: Record<string, string[]>;
 			publishedAt?: string | null;
 			_rev?: string;
 		},
@@ -433,6 +435,10 @@ export interface EmDashHandlers {
 
 	// Configured plugins (for plugin management)
 	configuredPlugins: import("../plugins/types.js").ResolvedPlugin[];
+
+	// Statically-sandboxed plugin entries (registered via `sandboxed: []`),
+	// surfaced through the admin plugin management API alongside configured plugins.
+	sandboxedPluginEntries: import("../emdash-runtime.js").SandboxedPluginEntry[];
 
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;

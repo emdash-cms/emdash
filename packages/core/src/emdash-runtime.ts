@@ -22,7 +22,11 @@ import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
-import { MIGRATION_RACE_WAIT_MS, runMigrations } from "./database/migrations/runner.js";
+import {
+	ConcurrentMigrationTimeoutError,
+	MIGRATION_RACE_WAIT_MS,
+	runMigrations,
+} from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type {
 	ContentItem as ContentItemInternal,
@@ -31,6 +35,12 @@ import type {
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
+import {
+	deleteContentMediaUsage,
+	findNonTranslatableSiblingContentIds,
+	markContentMediaUsageCollectionStale,
+	refreshContentMediaUsageAfterWrite,
+} from "./media/usage/content-refresh.js";
 import type { SandboxedPluginInstance, SandboxRunner } from "./plugins/sandbox/types.js";
 import type {
 	ResolvedPlugin,
@@ -379,17 +389,41 @@ const DB_HOLDER_KEY = Symbol.for("emdash:db-cache");
 interface DbHolder {
 	cache: Map<string, Kysely<Database>>;
 	lock: InitLock;
+	/**
+	 * Recent migration failures, keyed like `cache`. A failed migration is
+	 * near-certain to fail again immediately (schema conflict, broken
+	 * migration), and without this every request in a warm isolate would
+	 * re-attempt it — on Workers with Postgres that stampedes the database
+	 * through the migration advisory lock (#1744). Entries expire after
+	 * DB_INIT_FAILURE_BACKOFF_MS; a successful init clears them.
+	 */
+	failures: Map<string, { at: number; message: string }>;
 }
 const globalSymbolStore = globalThis as Record<symbol, unknown>;
 function getDbHolder(): DbHolder {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
 	let holder = globalSymbolStore[DB_HOLDER_KEY] as DbHolder | undefined;
 	if (!holder) {
-		holder = { cache: new Map<string, Kysely<Database>>(), lock: createInitLock() };
+		holder = {
+			cache: new Map<string, Kysely<Database>>(),
+			lock: createInitLock(),
+			failures: new Map(),
+		};
 		globalSymbolStore[DB_HOLDER_KEY] = holder;
 	}
+	// A holder created by an older copy of this module (dev-server HMR keeps
+	// globalThis across reloads) may predate the failures map.
+	holder.failures ??= new Map();
 	return holder;
 }
+
+/**
+ * After a database init fails (migrations threw), skip re-attempting for
+ * this long. Cold isolates still get one attempt each, so a transient
+ * failure heals on its own; a persistently failing migration is retried at
+ * most once per backoff window per isolate instead of on every request.
+ */
+const DB_INIT_FAILURE_BACKOFF_MS = 30_000;
 
 /**
  * Auto-seed runs at most once per isolate per database. Its lock + "done" set
@@ -1617,14 +1651,52 @@ export class EmDashRuntime {
 		// owner's init still completes and populates the cache. Net: a stale
 		// lock is reclaimed after a deadline.
 		const holder = getDbHolder();
+
+		const throwIfBackingOff = () => {
+			const failure = holder.failures.get(cacheKey);
+			if (!failure) return;
+			if (Date.now() - failure.at < DB_INIT_FAILURE_BACKOFF_MS) {
+				throw new Error(
+					`Database initialization is backing off after a recent migration failure: ${failure.message}`,
+				);
+			}
+			// Expired — drop it so the map only ever holds active backoffs.
+			holder.failures.delete(cacheKey);
+		};
+		throwIfBackingOff();
+
 		return initWithLock(
 			holder.lock,
 			() => holder.cache.get(cacheKey),
 			async (isCurrentClaim) => {
+				// Re-check under the lock: a request that entered the wait loop
+				// before the failure was recorded must not immediately re-run
+				// the failing migration when the lock frees up.
+				throwIfBackingOff();
+
 				const dialect = deps.createDialect(dbConfig.config);
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
-				await runMigrations(db);
+				try {
+					await runMigrations(db);
+				} catch (error) {
+					// Timing out behind another instance's in-flight migrations
+					// is not a failure of OUR migration — the holder may just be
+					// slow. Don't back off for it: the next request waits again
+					// and init recovers the moment the holder finishes.
+					if (!(error instanceof ConcurrentMigrationTimeoutError)) {
+						holder.failures.set(cacheKey, {
+							at: Date.now(),
+							message: error instanceof Error ? error.message : String(error),
+						});
+					}
+					// Every attempt builds a fresh dialect/pool; close it or each
+					// failed init leaks its connection(s) (#1744 observed these
+					// piling up as idle Postgres connections).
+					await db.destroy().catch(() => {});
+					throw error;
+				}
+				holder.failures.delete(cacheKey);
 
 				// Note: legacy installs may carry a stray `emdash:manifest_cache`
 				// row in the options table from versions that persisted a JSON
@@ -2534,6 +2606,7 @@ export class EmDashRuntime {
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
+			taxonomies?: Record<string, string[]>;
 		},
 	) {
 		// Run beforeSave hooks (trusted plugins)
@@ -2570,6 +2643,9 @@ export class EmDashRuntime {
 			authorId: body.authorId,
 			bylines: body.bylines,
 		});
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterSave hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2595,6 +2671,7 @@ export class EmDashRuntime {
 				canonical?: string | null;
 				noIndex?: boolean;
 			};
+			taxonomies?: Record<string, string[]>;
 			publishedAt?: string | null;
 			locale?: string;
 			/** Skip revision creation (used by autosave) */
@@ -2664,6 +2741,7 @@ export class EmDashRuntime {
 		// Content table columns = published data (never written by saves).
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
+		let draftStorageChanged = false;
 		if (processedData) {
 			try {
 				const collectionInfo = await this.schemaRegistry.getCollectionWithFields(collection);
@@ -2693,6 +2771,7 @@ export class EmDashRuntime {
 						if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
 							// Autosave: update existing draft revision in place
 							await revisionRepo.updateData(existing.draftRevisionId, mergedData);
+							draftStorageChanged = true;
 						} else {
 							// Create new draft revision
 							const revision = await revisionRepo.create({
@@ -2711,6 +2790,7 @@ export class EmDashRuntime {
 									updated_at = ${new Date().toISOString()}
 								WHERE id = ${resolvedId}
 							`.execute(this.db);
+							draftStorageChanged = true;
 
 							// Fire-and-forget: prune old revisions to prevent unbounded growth
 							void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
@@ -2738,6 +2818,43 @@ export class EmDashRuntime {
 		// supporting collections, that's the just-saved draft, not the live
 		// columns.
 		const hydrated = await this.hydrateDraftData(result);
+		if (hydrated.success && hydrated.data) {
+			const contentIdsToRefresh = [resolvedId];
+			if (!usesDraftRevisions && processedData) {
+				try {
+					contentIdsToRefresh.push(
+						...(await findNonTranslatableSiblingContentIds(
+							this.db,
+							collection,
+							resolvedId,
+							hydrated.data.item.translationGroup,
+							processedData,
+						)),
+					);
+				} catch (error) {
+					console.error(
+						`[media-usage] Failed to discover synced i18n siblings for ${collection}/${resolvedId}:`,
+						error,
+					);
+					try {
+						await markContentMediaUsageCollectionStale(
+							this.db,
+							collection,
+							"CONTENT_USAGE_REFRESH_ERROR",
+						);
+					} catch (staleError) {
+						console.error(`[media-usage] Failed to mark ${collection} stale:`, staleError);
+					}
+				}
+			}
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, contentIdsToRefresh);
+		} else if (draftStorageChanged) {
+			try {
+				await markContentMediaUsageCollectionStale(this.db, collection, "CONTENT_USAGE_STALE");
+			} catch (error) {
+				console.error(`[media-usage] Failed to mark ${collection} stale:`, error);
+			}
+		}
 
 		// Run afterSave hooks (fire-and-forget)
 		if (hydrated.success && hydrated.data) {
@@ -2776,6 +2893,9 @@ export class EmDashRuntime {
 
 		// Delete the content
 		const result = await handleContentDelete(this.db, collection, id);
+		if (result.success) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.id]);
+		}
 
 		// Run afterDelete hooks (fire-and-forget)
 		if (result.success) {
@@ -2797,11 +2917,24 @@ export class EmDashRuntime {
 	}
 
 	async handleContentRestore(collection: string, id: string) {
-		return handleContentRestore(this.db, collection, id);
+		const result = await handleContentRestore(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+
+		// Run afterRestore hooks (fire-and-forget)
+		if (result.success) {
+			this.runAfterRestoreHooks(contentItemToRecord(result.data.item), collection);
+		}
+
+		return result;
 	}
 
 	async handleContentPermanentDelete(collection: string, id: string) {
 		const result = await handleContentPermanentDelete(this.db, collection, id);
+		if (result.success) {
+			await this.deleteContentUsageAfterSuccessfulPermanentDelete(collection, result.data.id);
+		}
 
 		// Run afterDelete hooks so plugins (e.g. AI Search) can clean up
 		if (result.success) {
@@ -2816,7 +2949,11 @@ export class EmDashRuntime {
 	}
 
 	async handleContentDuplicate(collection: string, id: string, authorId?: string) {
-		return handleContentDuplicate(this.db, collection, id, authorId);
+		const result = await handleContentDuplicate(this.db, collection, id, authorId);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+		return result;
 	}
 
 	// =========================================================================
@@ -2829,6 +2966,9 @@ export class EmDashRuntime {
 		options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterPublish hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2840,6 +2980,9 @@ export class EmDashRuntime {
 
 	async handleContentUnpublish(collection: string, id: string) {
 		const result = await handleContentUnpublish(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterUnpublish hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2850,11 +2993,31 @@ export class EmDashRuntime {
 	}
 
 	async handleContentSchedule(collection: string, id: string, scheduledAt: string) {
-		return handleContentSchedule(this.db, collection, id, scheduledAt);
+		const result = await handleContentSchedule(this.db, collection, id, scheduledAt);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+
+		// Run afterSchedule hooks (fire-and-forget)
+		if (result.success && result.data) {
+			this.runAfterScheduleHooks(contentItemToRecord(result.data.item), collection);
+		}
+
+		return result;
 	}
 
 	async handleContentUnschedule(collection: string, id: string) {
-		return handleContentUnschedule(this.db, collection, id);
+		const result = await handleContentUnschedule(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+
+		// Run afterUnschedule hooks (fire-and-forget)
+		if (result.success && result.data) {
+			this.runAfterUnscheduleHooks(contentItemToRecord(result.data.item), collection);
+		}
+
+		return result;
 	}
 
 	async handleContentCountScheduled(collection: string) {
@@ -2862,7 +3025,11 @@ export class EmDashRuntime {
 	}
 
 	async handleContentDiscardDraft(collection: string, id: string) {
-		return handleContentDiscardDraft(this.db, collection, id);
+		const result = await handleContentDiscardDraft(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+		return result;
 	}
 
 	async handleContentCompare(collection: string, id: string) {
@@ -3004,6 +3171,9 @@ export class EmDashRuntime {
 		// behavior for collections that opt out of the draft model.
 		if (!usesDraftRevisions) {
 			const result = await handleRevisionRestore(this.db, revisionId, callerUserId);
+			if (result.success) {
+				await this.refreshContentUsageAfterSuccessfulWrite(revision.collection, [revision.entryId]);
+			}
 			return this.hydrateDraftData(result);
 		}
 
@@ -3039,7 +3209,11 @@ export class EmDashRuntime {
 			// columns and the next `content_get` would surface different
 			// values (the bug that motivated this rewrite).
 			const refetched = await handleContentGet(this.db, revision.collection, revision.entryId);
-			return this.hydrateDraftData(refetched);
+			const hydrated = await this.hydrateDraftData(refetched);
+			if (hydrated.success) {
+				await this.refreshContentUsageAfterSuccessfulWrite(revision.collection, [revision.entryId]);
+			}
+			return hydrated;
 		} catch (error) {
 			console.error("[emdash] revision restore failed:", error);
 			return {
@@ -3049,6 +3223,41 @@ export class EmDashRuntime {
 					message: "Failed to restore revision",
 				},
 			};
+		}
+	}
+
+	private async refreshContentUsageAfterSuccessfulWrite(
+		collection: string,
+		contentIds: readonly string[],
+	): Promise<void> {
+		for (const contentId of new Set(contentIds)) {
+			try {
+				await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
+			} catch (error) {
+				console.error(
+					`[media-usage] Failed after content write ${collection}/${contentId}:`,
+					error,
+				);
+			}
+		}
+	}
+
+	private async deleteContentUsageAfterSuccessfulPermanentDelete(
+		collection: string,
+		contentId: string,
+	): Promise<void> {
+		try {
+			const result = await deleteContentMediaUsage(this.db, collection, contentId);
+			if (!result.success) {
+				console.error(
+					`[media-usage] Usage delete for ${collection}/${contentId} finished with ${result.errorCode}`,
+				);
+			}
+		} catch (error) {
+			console.error(
+				`[media-usage] Failed after permanent content delete ${collection}/${contentId}:`,
+				error,
+			);
 		}
 	}
 
@@ -3313,14 +3522,41 @@ export class EmDashRuntime {
 		}
 	}
 
-	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
+	private runDeferredContentHook(
+		name:
+			| "content:afterPublish"
+			| "content:afterUnpublish"
+			| "content:afterRestore"
+			| "content:afterSchedule"
+			| "content:afterUnschedule",
+		content: Record<string, unknown>,
+		collection: string,
+	): void {
+		const label = name.slice("content:".length);
+
 		after(async () => {
 			// Trusted plugins
-			if (this.hooks.hasHooks("content:afterPublish")) {
+			if (this.hooks.hasHooks(name)) {
 				try {
-					await this.hooks.runContentAfterPublish(content, collection);
+					switch (name) {
+						case "content:afterPublish":
+							await this.hooks.runContentAfterPublish(content, collection);
+							break;
+						case "content:afterUnpublish":
+							await this.hooks.runContentAfterUnpublish(content, collection);
+							break;
+						case "content:afterRestore":
+							await this.hooks.runContentAfterRestore(content, collection);
+							break;
+						case "content:afterSchedule":
+							await this.hooks.runContentAfterSchedule(content, collection);
+							break;
+						case "content:afterUnschedule":
+							await this.hooks.runContentAfterUnschedule(content, collection);
+							break;
+					}
 				} catch (err) {
-					console.error("EmDash afterPublish hook error:", err);
+					console.error(`EmDash ${label} hook error:`, err);
 				}
 			}
 
@@ -3333,9 +3569,9 @@ export class EmDashRuntime {
 				tasks.push(
 					(async () => {
 						try {
-							await plugin.invokeHook("content:afterPublish", { content, collection });
+							await plugin.invokeHook(name, { content, collection });
 						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err);
+							console.error(`EmDash: Sandboxed plugin ${pluginId} ${label} error:`, err);
 						}
 					})(),
 				);
@@ -3344,25 +3580,24 @@ export class EmDashRuntime {
 		});
 	}
 
+	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
+		this.runDeferredContentHook("content:afterPublish", content, collection);
+	}
+
 	private runAfterUnpublishHooks(content: Record<string, unknown>, collection: string): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterUnpublish")) {
-			this.hooks
-				.runContentAfterUnpublish(content, collection)
-				.catch((err) => console.error("EmDash afterUnpublish hook error:", err));
-		}
+		this.runDeferredContentHook("content:afterUnpublish", content, collection);
+	}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+	private runAfterRestoreHooks(content: Record<string, unknown>, collection: string): void {
+		this.runDeferredContentHook("content:afterRestore", content, collection);
+	}
 
-			plugin
-				.invokeHook("content:afterUnpublish", { content, collection })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterUnpublish error:`, err),
-				);
-		}
+	private runAfterScheduleHooks(content: Record<string, unknown>, collection: string): void {
+		this.runDeferredContentHook("content:afterSchedule", content, collection);
+	}
+
+	private runAfterUnscheduleHooks(content: Record<string, unknown>, collection: string): void {
+		this.runDeferredContentHook("content:afterUnschedule", content, collection);
 	}
 
 	private async handleSandboxedRoute(

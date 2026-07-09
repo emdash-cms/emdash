@@ -215,6 +215,9 @@ describe("Loader field filters", () => {
 				name: "category",
 				slug: "news",
 				label: "News",
+				// content_taxonomies.taxonomy_id stores the term's translation_group
+				// (migration 036). Single-locale terms seed translation_group = id.
+				translation_group: "tax_cat_news",
 			} as never)
 			.execute();
 
@@ -254,6 +257,7 @@ describe("Loader field filters", () => {
 				name: "category",
 				slug: "tech",
 				label: "Tech",
+				translation_group: "tax_cat_tech",
 			} as never)
 			.execute();
 
@@ -306,6 +310,7 @@ describe("Loader field filters", () => {
 				name: "category",
 				slug: "test",
 				label: "Test",
+				translation_group: "tax_cat_range",
 			} as never)
 			.execute();
 

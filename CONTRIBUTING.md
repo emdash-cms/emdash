@@ -93,6 +93,8 @@ pnpm test        # all packages
 pnpm test:e2e    # Playwright
 ```
 
+`pnpm build` is required before the first typecheck in a fresh checkout. Scoped package typechecks such as `pnpm --filter @emdash-cms/plugin-cli typecheck` resolve internal workspace type declarations from `dist/`, which the build emits; this matches CI's build-then-typecheck order.
+
 Tests use real in-memory SQLite -- no mocking. Each test gets a fresh database. Typecheck and lint must pass.
 
 ### Building your own site in the monorepo
@@ -255,6 +257,7 @@ For RTL rules and the full Lingui pattern reference, see [AGENTS.md § Admin UI:
 ## Getting Help
 
 - [AGENTS.md](AGENTS.md) -- architecture and code patterns
+- [TRIAGE.md](TRIAGE.md) -- guidance for community triagers
 - [docs.emdashcms.com](https://docs.emdashcms.com) -- user guides and API reference
 - [Discussions](https://github.com/emdash-cms/emdash/discussions) -- ask questions, propose features
 - [Issues](https://github.com/emdash-cms/emdash/issues) -- bug reports

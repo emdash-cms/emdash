@@ -28,4 +28,18 @@ describe("hyperdrive()", () => {
 		const result = hyperdrive();
 		expect(result.supportsRequestScope).toBe(true);
 	});
+
+	it("omits cachedBinding from the descriptor when not provided", () => {
+		const result = hyperdrive({ binding: "HYPERDRIVE" });
+		expect(result.config).not.toHaveProperty("cachedBinding");
+	});
+
+	it("passes through a cachedBinding for split caching", () => {
+		const result = hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" });
+		expect(result.config).toEqual({
+			binding: "HYPERDRIVE",
+			max: undefined,
+			cachedBinding: "HYPERDRIVE_CACHED",
+		});
+	});
 });
