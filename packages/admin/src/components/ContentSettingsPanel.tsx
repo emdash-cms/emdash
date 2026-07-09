@@ -361,8 +361,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						placeholder="my-post-slug"
 					/>
 					<div>
-						<Label>{t`Status`}</Label>
-						<div className="mt-1 flex flex-wrap items-center gap-1.5">
+						<div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+							<Label>{t`Status`}</Label>
 							{supportsDrafts ? (
 								<>
 									{isLive && <Badge variant="success">{t`Published`}</Badge>}
@@ -371,9 +371,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}
 								</>
 							) : (
-								<span className="text-sm text-kumo-subtle">
+								<Badge variant="secondary">
 									{status.charAt(0).toUpperCase() + status.slice(1)}
-								</span>
+								</Badge>
 							)}
 						</div>
 						{showDiscard && (
