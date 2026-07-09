@@ -196,6 +196,40 @@ interface ContentEntry<T> {
 
 The `data` object within `entry` contains all fields defined for the content type. The `edit` proxy provides visual editing annotations (see below).
 
+## Rendering SEO Panel Data
+
+For collections with `supports: ["seo"]`, editors can set an SEO title, meta description, OG image, canonical URL, and a "hide from search engines" (noindex) toggle in the admin's SEO panel. That data is delivered on the entry as `entry.data.seo` — but it only reaches the rendered page if your template emits it. Use `getSeoMeta` to resolve the panel fields (with sensible fallbacks to `data.title` / `data.excerpt`) into ready-to-render meta tags:
+
+```astro title="src/pages/posts/[...slug].astro"
+---
+import { getEmDashEntry, getSeoMeta } from "emdash";
+
+const { entry } = await getEmDashEntry("posts", Astro.params.slug);
+if (!entry) return Astro.redirect("/404");
+
+const seo = getSeoMeta(entry, {
+  siteTitle: "My Site",
+  siteUrl: "https://example.com",
+  path: Astro.url.pathname,
+});
+---
+
+<head>
+  <title>{seo.title}</title>
+  {seo.description && <meta name="description" content={seo.description} />}
+  {seo.ogImage && <meta property="og:image" content={seo.ogImage} />}
+  {seo.canonical && <link rel="canonical" href={seo.canonical} />}
+  {seo.robots && <meta name="robots" content={seo.robots} />}
+</head>
+```
+
+<Aside type="caution">
+	Templates that hand-roll meta tags from `data.title` / `data.excerpt` silently bypass the
+	entire SEO panel — including the noindex toggle, which is an indexing risk, not just
+	cosmetic. Every detail-page template for an SEO-enabled collection should render through
+	`getSeoMeta` (or read the raw fields via `getContentSeo`).
+</Aside>
+
 ## Preview Mode
 
 EmDash handles preview automatically via middleware. When a URL contains a valid `_preview` token, the middleware verifies it and sets up the request context. Your query functions then serve draft content without any special parameters:
