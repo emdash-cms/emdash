@@ -12,6 +12,12 @@ import { ThemeToggle } from "./ThemeToggle";
 export type { CurrentUser } from "../lib/api/current-user";
 
 async function handleLogout() {
+	// Clear the public-site toolbar-bootstrap flag (see Shell.tsx).
+	try {
+		localStorage.removeItem("emdash-editor");
+	} catch {
+		// ignore — flag is best-effort
+	}
 	const res = await apiFetch("/_emdash/api/auth/logout?redirect=/_emdash/admin/login", {
 		method: "POST",
 		credentials: "same-origin",
