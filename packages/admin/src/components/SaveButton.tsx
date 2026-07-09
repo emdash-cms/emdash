@@ -43,6 +43,10 @@ export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "ch
 	isDirty: boolean;
 	/** Whether currently saving */
 	isSaving: boolean;
+	/** Whether this instance should announce save state changes to assistive tech. */
+	announceStatus?: boolean;
+	/** Whether the visual saving state should block manual submit. */
+	disableWhileSaving?: boolean;
 }
 
 function usePrefersReducedMotion() {
@@ -112,6 +116,8 @@ function getSlotStyle(
 export function SaveButton({
 	isDirty,
 	isSaving,
+	announceStatus = true,
+	disableWhileSaving,
 	className,
 	disabled,
 	style,
@@ -199,6 +205,8 @@ export function SaveButton({
 
 	const isClean = !isDirty && !isSaving;
 	const isVisuallySaving = visualState === "saving";
+	const isSavingBlocked = disableWhileSaving ?? isSaving;
+	const isDisabled = disabled || isClean || (isSaving && (!isDirty || isSavingBlocked));
 	const label =
 		visualState === "saving" ? t`Saving...` : visualState === "saved" ? t`Saved` : t`Save`;
 	const liveStatus =
@@ -214,7 +222,7 @@ export function SaveButton({
 		<>
 			<Button
 				className={cn("min-w-[100px]", className)}
-				disabled={disabled || isSaving || isClean}
+				disabled={isDisabled}
 				variant={isDirty || isSaving || isVisuallySaving ? "primary" : "secondary"}
 				aria-label={props["aria-label"] ?? label}
 				aria-busy={isSaving || isVisuallySaving}
@@ -239,9 +247,11 @@ export function SaveButton({
 					</span>
 				</span>
 			</Button>
-			<span className="sr-only" role="status" aria-live="polite">
-				{liveStatus}
-			</span>
+			{announceStatus && (
+				<span className="sr-only" role="status" aria-live="polite">
+					{liveStatus}
+				</span>
+			)}
 		</>
 	);
 }

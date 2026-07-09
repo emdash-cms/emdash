@@ -1,6 +1,14 @@
 import { Badge, Button, Dialog, Input, Label, LinkButton, Loader, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, Trash, X } from "@phosphor-icons/react";
+import {
+	ArrowSquareOut,
+	Eye,
+	EyeSlash,
+	MagnifyingGlass,
+	Trash,
+	Upload,
+	X,
+} from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -105,8 +113,81 @@ export interface SettingsActionBarProps {
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	liveViewUrl?: string | null;
+	supportsPreview?: boolean;
+	isLoadingPreview?: boolean;
+	onPreview?: () => void;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
+	announceSaveStatus?: boolean;
+}
+
+export interface PreviewButtonProps {
+	hasPendingChanges: boolean;
+	isLoadingPreview?: boolean;
+	onPreview?: () => void;
+	size?: "sm";
+}
+
+export function PreviewButton({
+	hasPendingChanges,
+	isLoadingPreview,
+	onPreview,
+	size,
+}: PreviewButtonProps) {
+	const { t } = useLingui();
+	return (
+		<Button
+			type="button"
+			variant="outline"
+			size={size}
+			onClick={onPreview}
+			disabled={isLoadingPreview}
+			icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
+		>
+			{hasPendingChanges ? t`Preview draft` : t`Preview`}
+		</Button>
+	);
+}
+
+export interface PublishActionsProps {
+	isNew?: boolean;
+	isLive: boolean;
+	hasPendingChanges: boolean;
+	onPublish?: () => void;
+	onUnpublish?: () => void;
+	size?: "sm";
+}
+
+export function PublishActions({
+	isNew,
+	isLive,
+	hasPendingChanges,
+	onPublish,
+	onUnpublish,
+	size,
+}: PublishActionsProps) {
+	const { t } = useLingui();
+
+	if (isNew) return null;
+	if (!isLive) {
+		return (
+			<Button type="button" variant="secondary" size={size} onClick={onPublish} icon={<Upload />}>
+				{t`Publish`}
+			</Button>
+		);
+	}
+	if (hasPendingChanges) {
+		return (
+			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
+				{t`Publish changes`}
+			</Button>
+		);
+	}
+	return (
+		<Button type="button" variant="outline" size={size} onClick={onUnpublish} icon={<EyeSlash />}>
+			{t`Unpublish`}
+		</Button>
+	);
 }
 
 /**
@@ -126,8 +207,12 @@ export function SettingsActionBar({
 	isLive,
 	hasPendingChanges,
 	liveViewUrl,
+	supportsPreview,
+	isLoadingPreview,
+	onPreview,
 	onPublish,
 	onUnpublish,
+	announceSaveStatus,
 }: SettingsActionBarProps) {
 	const { t } = useLingui();
 
@@ -139,28 +224,36 @@ export function SettingsActionBar({
 				className="min-w-0"
 				isDirty={isDirty}
 				isSaving={isSaving || Boolean(isAutosaving)}
+				disableWhileSaving={isSaving}
+				announceStatus={announceSaveStatus}
 			/>
 			{liveViewUrl && (
-				<LinkButton href={liveViewUrl} external variant="outline" size="sm">
+				<LinkButton
+					href={liveViewUrl}
+					external
+					variant="outline"
+					size="sm"
+					icon={<ArrowSquareOut />}
+				>
 					{t`Live View`}
 				</LinkButton>
 			)}
-			{!isNew &&
-				(isLive ? (
-					hasPendingChanges ? (
-						<Button type="button" variant="primary" size="sm" onClick={onPublish}>
-							{t`Publish changes`}
-						</Button>
-					) : (
-						<Button type="button" variant="outline" size="sm" onClick={onUnpublish}>
-							{t`Unpublish`}
-						</Button>
-					)
-				) : (
-					<Button type="button" variant="secondary" size="sm" onClick={onPublish}>
-						{t`Publish`}
-					</Button>
-				))}
+			{!isNew && supportsPreview && (
+				<PreviewButton
+					size="sm"
+					hasPendingChanges={hasPendingChanges}
+					isLoadingPreview={isLoadingPreview}
+					onPreview={onPreview}
+				/>
+			)}
+			<PublishActions
+				isNew={isNew}
+				isLive={isLive}
+				hasPendingChanges={hasPendingChanges}
+				onPublish={onPublish}
+				onUnpublish={onUnpublish}
+				size="sm"
+			/>
 		</div>
 	);
 }

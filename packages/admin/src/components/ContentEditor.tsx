@@ -5,14 +5,21 @@ import {
 	Input,
 	InputArea,
 	Label,
-	Loader,
+	LinkButton,
 	Select,
 	Sidebar,
 	Switch,
 	useSidebar,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Eye, Faders, Paperclip, X, ArrowsInSimple, ArrowsOutSimple } from "@phosphor-icons/react";
+import {
+	ArrowSquareOut,
+	Faders,
+	Paperclip,
+	X,
+	ArrowsInSimple,
+	ArrowsOutSimple,
+} from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -37,6 +44,8 @@ import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import {
 	ContentSettingsPanel,
 	DiscardDraftDialog,
+	PreviewButton,
+	PublishActions,
 	SettingsActionBar,
 } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
@@ -46,6 +55,9 @@ import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
+// Matches Header.tsx's h-[58px]. Kumo's mobile Sidebar is viewport-fixed,
+// so the settings sheet body needs to clear the sticky admin shell header.
+const ADMIN_HEADER_HEIGHT_PX = 58;
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -588,7 +600,7 @@ export function ContentEditor({
 			    inline in the DOM, not portaled, so form association holds. */}
 			<Sidebar.Provider
 				contained={!isBelowLg}
-				defaultOpen={!isBelowLg}
+				defaultOpen
 				side={panelSide}
 				collapsible="offcanvas"
 				mobileBreakpoint={1024}
@@ -612,10 +624,13 @@ export function ContentEditor({
 							"flex flex-wrap items-center justify-between gap-y-2",
 							isDistractionFree
 								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10"
-								: "mx-auto mb-6 max-w-3xl",
+								: cn(
+										"mx-auto mb-6 max-w-3xl",
+										isBelowLg && "sticky top-0 z-20 bg-kumo-base/95 py-3 backdrop-blur",
+									),
 						)}
 					>
-						<div className="flex items-center space-x-4">
+						<div className="flex items-center gap-4">
 							{!isDistractionFree && (
 								<RouterLinkButton
 									to="/content/$collection"
@@ -646,7 +661,7 @@ export function ContentEditor({
 								</Badge>
 							)}
 						</div>
-						<div className="flex items-center space-x-2">
+						<div className="flex items-center gap-2">
 							{!isDistractionFree ? (
 								/* Normal mode: actions live in the settings panel's action
 							   bar; the strip keeps editor chrome, plus Save/autosave and
@@ -654,11 +669,36 @@ export function ContentEditor({
 							   behind the Settings sheet. */
 								<>
 									{isBelowLg && (
-										<div className="flex items-center gap-2">
+										<div className="flex flex-wrap items-center justify-end gap-2">
+											{!isNew && supportsPreview && (
+												<PreviewButton
+													hasPendingChanges={hasPendingChanges}
+													isLoadingPreview={isLoadingPreview}
+													onPreview={handlePreview}
+												/>
+											)}
 											<SaveButton
 												type="submit"
 												isDirty={isDirty}
 												isSaving={isSaving || isAutosaving || false}
+												disableWhileSaving={Boolean(isSaving)}
+											/>
+											{liveViewUrl && (
+												<LinkButton
+													href={liveViewUrl}
+													external
+													variant="outline"
+													icon={<ArrowSquareOut />}
+												>
+													{t`Live View`}
+												</LinkButton>
+											)}
+											<PublishActions
+												isNew={isNew}
+												isLive={isLive}
+												hasPendingChanges={hasPendingChanges}
+												onPublish={onPublish}
+												onUnpublish={onUnpublish}
 											/>
 											<MobileSettingsButton />
 										</div>
@@ -679,43 +719,29 @@ export function ContentEditor({
 							   so this hover overlay is the only save/exit surface. */
 								<>
 									{!isNew && supportsPreview && (
-										<Button
-											variant="outline"
-											type="button"
-											onClick={handlePreview}
-											disabled={isLoadingPreview}
-											icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
-										>
-											{hasPendingChanges ? t`Preview draft` : t`Preview`}
-										</Button>
+										<PreviewButton
+											hasPendingChanges={hasPendingChanges}
+											isLoadingPreview={isLoadingPreview}
+											onPreview={handlePreview}
+										/>
 									)}
 									<SaveButton
 										type="submit"
 										isDirty={isDirty}
 										isSaving={isSaving || isAutosaving || false}
+										disableWhileSaving={Boolean(isSaving)}
 									/>
 									{!isNew && (
 										<>
 											{supportsDrafts && hasPendingChanges && onDiscardDraft && (
 												<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
 											)}
-											{isLive ? (
-												<>
-													{hasPendingChanges ? (
-														<Button type="button" variant="primary" onClick={onPublish}>
-															{t`Publish changes`}
-														</Button>
-													) : (
-														<Button type="button" variant="outline" onClick={onUnpublish}>
-															{t`Unpublish`}
-														</Button>
-													)}
-												</>
-											) : (
-												<Button type="button" variant="secondary" onClick={onPublish}>
-													{t`Publish`}
-												</Button>
-											)}
+											<PublishActions
+												isLive={isLive}
+												hasPendingChanges={hasPendingChanges}
+												onPublish={onPublish}
+												onUnpublish={onUnpublish}
+											/>
 										</>
 									)}
 								</>
@@ -773,21 +799,31 @@ export function ContentEditor({
 			    pane mounted would leave its layout gap behind. */}
 				{!isDistractionFree && (
 					<Sidebar>
-						{/* Action bar absorbs the high-frequency props (isDirty,
+						{/* Desktop action bar absorbs the high-frequency props (isDirty,
 						    isSaving, isAutosaving) so they never reach the memoized
-						    panel body below. */}
-						<SettingsActionBar
-							isNew={isNew}
-							isDirty={isDirty}
-							isSaving={isSaving || false}
-							isAutosaving={isAutosaving}
-							isLive={isLive}
-							hasPendingChanges={hasPendingChanges}
-							liveViewUrl={liveViewUrl}
-							onPublish={onPublish}
-							onUnpublish={onUnpublish}
-						/>
-						<div className="flex-1 overflow-y-auto overflow-x-hidden">
+						    panel body below. Below lg, the sticky editor header owns
+						    actions because the sheet starts under the admin shell header. */}
+						{!isBelowLg && (
+							<SettingsActionBar
+								isNew={isNew}
+								isDirty={isDirty}
+								isSaving={isSaving || false}
+								isAutosaving={isAutosaving}
+								isLive={isLive}
+								hasPendingChanges={hasPendingChanges}
+								liveViewUrl={liveViewUrl}
+								supportsPreview={supportsPreview}
+								isLoadingPreview={isLoadingPreview}
+								onPreview={handlePreview}
+								onPublish={onPublish}
+								onUnpublish={onUnpublish}
+								announceSaveStatus
+							/>
+						)}
+						<div
+							className="flex-1 overflow-y-auto overflow-x-hidden"
+							style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
+						>
 							<ContentSettingsPanel
 								collection={collection}
 								item={item}
@@ -848,18 +884,31 @@ export function ContentEditor({
 function MobileBlockSidebarSync({ active }: { active: boolean }) {
 	const { isMobile, openMobile, setOpenMobile } = useSidebar();
 	const prevActiveRef = React.useRef(active);
+	const prevIsMobileRef = React.useRef(isMobile);
 	const priorOpenRef = React.useRef<boolean | null>(null);
 
 	React.useEffect(() => {
-		if (active === prevActiveRef.current) return;
+		const becameActive = active && !prevActiveRef.current;
+		const becameInactive = !active && prevActiveRef.current;
+		const becameMobileWithActivePanel = active && isMobile && !prevIsMobileRef.current;
 		prevActiveRef.current = active;
-		if (!isMobile) return;
-		if (active) {
-			priorOpenRef.current = openMobile;
-			setOpenMobile(true);
-		} else {
+		prevIsMobileRef.current = isMobile;
+
+		if (!isMobile) {
+			priorOpenRef.current = null;
+			if (openMobile) setOpenMobile(false);
+			return;
+		}
+
+		if (becameInactive) {
 			setOpenMobile(priorOpenRef.current ?? false);
 			priorOpenRef.current = null;
+			return;
+		}
+
+		if (becameActive || becameMobileWithActivePanel) {
+			priorOpenRef.current = openMobile;
+			setOpenMobile(true);
 		}
 	}, [active, isMobile, openMobile, setOpenMobile]);
 
@@ -874,13 +923,7 @@ function MobileSettingsButton() {
 	const { t } = useLingui();
 	const { toggleSidebar } = useSidebar();
 	return (
-		<Button
-			type="button"
-			variant="outline"
-			className="lg:hidden"
-			icon={<Faders />}
-			onClick={toggleSidebar}
-		>
+		<Button type="button" variant="outline" icon={<Faders />} onClick={toggleSidebar}>
 			{t`Settings`}
 		</Button>
 	);

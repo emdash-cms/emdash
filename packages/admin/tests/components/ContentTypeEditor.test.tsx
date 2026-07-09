@@ -421,13 +421,13 @@ describe("ContentTypeEditor", () => {
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
 		// The sticky save button uses the SaveButton component, which renders
-		// "Saved" when there are no unsaved changes. The bottom-of-form button
-		// renders "Save Changes". Both should be present so users have a
+		// disabled "Save" when there are no unsaved changes. The bottom-of-form
+		// button renders "Save Changes". Both should be present so users have a
 		// visible save action regardless of where they are on the page.
-		// Use exact: true so "Save Changes" doesn't shadow the sticky "Saved"
+		// Use exact: true so "Save Changes" doesn't shadow the sticky "Save"
 		// match (Playwright role-name matching is partial by default).
 		await expect
-			.element(screen.getByRole("button", { name: "Saved", exact: true }))
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
 			.toBeInTheDocument();
 		await expect
 			.element(screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX }))
@@ -438,8 +438,8 @@ describe("ContentTypeEditor", () => {
 		const collection = makeCollection({ label: "Posts" });
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
-		// Initially clean -> "Saved" disabled
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		// Initially clean -> disabled "Save"
+		await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
 
 		// Make a change -> sticky button should now read "Save" and be enabled.
 		// exact:true so it doesn't also match "Save Changes".
@@ -464,11 +464,8 @@ describe("ContentTypeEditor", () => {
 		const collection = makeCollection({ source: "code" });
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
-		// Neither sticky variant should appear (and the bottom Save Changes
+		// The sticky button should not appear (and the bottom Save Changes
 		// button is also hidden for code-source collections).
-		await expect
-			.element(screen.getByRole("button", { name: "Saved", exact: true }))
-			.not.toBeInTheDocument();
 		await expect
 			.element(screen.getByRole("button", { name: "Save", exact: true }))
 			.not.toBeInTheDocument();
@@ -478,10 +475,7 @@ describe("ContentTypeEditor", () => {
 		const screen = await render(<ContentTypeEditor {...defaultProps()} isNew />);
 
 		// On the new flow only the bottom 'Create Content Type' button is
-		// expected. No SaveButton ('Save'/'Saved') should render at the top.
-		await expect
-			.element(screen.getByRole("button", { name: "Saved", exact: true }))
-			.not.toBeInTheDocument();
+		// expected. No sticky SaveButton should render at the top.
 		await expect
 			.element(screen.getByRole("button", { name: "Save", exact: true }))
 			.not.toBeInTheDocument();

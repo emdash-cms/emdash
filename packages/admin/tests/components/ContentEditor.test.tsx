@@ -145,6 +145,46 @@ function renderEditor(props: Partial<ContentEditorProps> = {}) {
 	return render(<ContentEditor {...defaultProps} />);
 }
 
+function installMatchMedia(initialMatches: boolean) {
+	let matches = initialMatches;
+	const listeners = new Set<(event: MediaQueryListEvent) => void>();
+	const mediaQuery = {
+		get matches() {
+			return matches;
+		},
+		media: "(max-width: 1023px)",
+		onchange: null,
+		addEventListener: (_type: string, listener: unknown) => {
+			if (typeof listener === "function")
+				listeners.add(listener as (event: MediaQueryListEvent) => void);
+		},
+		removeEventListener: (_type: string, listener: unknown) => {
+			if (typeof listener === "function") {
+				listeners.delete(listener as (event: MediaQueryListEvent) => void);
+			}
+		},
+		addListener: (listener: ((event: MediaQueryListEvent) => void) | null) => {
+			if (listener) listeners.add(listener);
+		},
+		removeListener: (listener: ((event: MediaQueryListEvent) => void) | null) => {
+			if (listener) listeners.delete(listener);
+		},
+		dispatchEvent: () => true,
+	} as MediaQueryList;
+	const spy = vi.spyOn(window, "matchMedia").mockImplementation(() => mediaQuery);
+
+	return {
+		setMatches(nextMatches: boolean) {
+			matches = nextMatches;
+			const event = { matches, media: mediaQuery.media } as MediaQueryListEvent;
+			for (const listener of listeners) listener(event);
+		},
+		restore() {
+			spy.mockRestore();
+		},
+	};
+}
+
 describe("ContentEditor", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -673,11 +713,11 @@ describe("ContentEditor", () => {
 			await expect.element(saveBtn).toBeEnabled();
 		});
 
-		it("SaveButton is disabled (Saved) for existing item with no changes", async () => {
+		it("SaveButton is disabled for existing item with no changes", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item });
-			const savedBtn = screen.getByRole("button", { name: "Saved" }).first();
-			await expect.element(savedBtn).toBeDisabled();
+			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
+			await expect.element(saveBtn).toBeDisabled();
 		});
 
 		// Strict per-locale hydration (migration 040) can return
@@ -852,6 +892,76 @@ describe("ContentEditor", () => {
 			const publishBtn = screen.getByRole("button", { name: "Publish" });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
+		});
+
+		it("shows Preview in normal mode when previews are supported", async () => {
+			const item = makeItem({ status: "draft" });
+			const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
+			const previewBtn = screen.getByRole("button", { name: "Preview" });
+			await expect.element(previewBtn).toBeInTheDocument();
+		});
+
+		it("keeps one publish action reachable below lg", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const item = makeItem({ status: "draft" });
+				const screen = await renderEditor({ isNew: false, item, onPublish: vi.fn() });
+
+				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+				const publishButtons = screen.getByRole("button", { name: "Publish" }).all();
+				expect(publishButtons).toHaveLength(1);
+				await expect.element(publishButtons[0]!).toBeVisible();
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps live view and unpublish reachable below lg", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const item = makeItem({
+					status: "published",
+					liveRevisionId: "rev-1",
+					draftRevisionId: "rev-1",
+				});
+				const screen = await renderEditor({
+					isNew: false,
+					item,
+					onUnpublish: vi.fn(),
+					supportsDrafts: true,
+				});
+
+				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+				await expect.element(screen.getByRole("link", { name: "Live View" })).toBeVisible();
+				const unpublishButtons = screen.getByRole("button", { name: "Unpublish" }).all();
+				expect(unpublishButtons).toHaveLength(1);
+				await expect.element(unpublishButtons[0]!).toBeVisible();
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps actions reachable when crossing from mobile to desktop layout", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const item = makeItem({ status: "draft" });
+				const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
+
+				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+				await expect
+					.element(screen.getByRole("button", { name: "Preview" }).first())
+					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+
+				media.setMatches(false);
+				await expect
+					.element(screen.getByRole("button", { name: "Settings" }))
+					.not.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Publish" })).toBeVisible();
+			} finally {
+				media.restore();
+			}
 		});
 
 		it("shows Unpublish for published items with supportsDrafts", async () => {

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import { SaveButton } from "../../src/components/SaveButton";
 import { render } from "../utils/render.tsx";
@@ -7,20 +7,24 @@ import { render } from "../utils/render.tsx";
 describe("SaveButton", () => {
 	it("shows 'Save' when dirty and not saving", async () => {
 		const screen = await render(<SaveButton isDirty={true} isSaving={false} />);
-		await expect.element(screen.getByText("Save")).toBeInTheDocument();
-		await expect.element(screen.getByRole("button")).toBeEnabled();
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 	});
 
 	it("shows 'Saving...' when saving", async () => {
 		const screen = await render(<SaveButton isDirty={true} isSaving={true} />);
-		await expect.element(screen.getByText("Saving...")).toBeInTheDocument();
-		await expect.element(screen.getByRole("button")).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
 	});
 
-	it("shows 'Saved' when not dirty and not saving", async () => {
+	it("can show saving feedback without blocking manual save", async () => {
+		const screen = await render(
+			<SaveButton isDirty={true} isSaving={true} disableWhileSaving={false} />,
+		);
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeEnabled();
+	});
+
+	it("shows disabled 'Save' when clean and not saving", async () => {
 		const screen = await render(<SaveButton isDirty={false} isSaving={false} />);
-		await expect.element(screen.getByText("Saved")).toBeInTheDocument();
-		await expect.element(screen.getByRole("button")).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
 	});
 
 	it("has aria-busy when saving", async () => {
@@ -33,9 +37,32 @@ describe("SaveButton", () => {
 		await expect.element(screen.getByRole("button")).toHaveAttribute("aria-busy", "false");
 	});
 
-	it("has aria-live polite", async () => {
+	it("has an aria-live status region", async () => {
 		const screen = await render(<SaveButton isDirty={true} isSaving={false} />);
-		await expect.element(screen.getByRole("button")).toHaveAttribute("aria-live", "polite");
+		const status = screen.container.querySelector('span[role="status"][aria-live="polite"]');
+		expect(status).not.toBeNull();
+	});
+
+	it("can suppress the aria-live status region", async () => {
+		const screen = await render(
+			<SaveButton isDirty={true} isSaving={false} announceStatus={false} />,
+		);
+		expect(screen.container.querySelector('span[role="status"][aria-live="polite"]')).toBeNull();
+	});
+
+	it("announces the transient saved pulse after saving completes", async () => {
+		const screen = await render(<SaveButton isDirty={true} isSaving={false} />);
+		const getStatus = () =>
+			screen.container.querySelector('span[role="status"][aria-live="polite"]')?.textContent ?? "";
+		const status = screen.container.querySelector('span[role="status"][aria-live="polite"]');
+		expect(status).not.toBeNull();
+
+		await screen.rerender(<SaveButton isDirty={true} isSaving={true} />);
+		await vi.waitFor(() => expect(getStatus()).toBe("Saving..."), { timeout: 500 });
+
+		await screen.rerender(<SaveButton isDirty={false} isSaving={false} />);
+		await vi.waitFor(() => expect(getStatus()).toBe("Saved"), { timeout: 600 });
+		await vi.waitFor(() => expect(getStatus()).toBe(""), { timeout: 1200 });
 	});
 
 	it("respects external disabled prop", async () => {

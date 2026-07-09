@@ -85,6 +85,11 @@ function makePanelProps(
 		isNew: false,
 		slug: "my-post",
 		onSlugChange: vi.fn(),
+		status: "draft",
+		supportsDrafts: true,
+		isLive: false,
+		hasPendingChanges: false,
+		hasSchedule: false,
 		supportsRevisions: true,
 		canSchedule: false,
 		onDelete: vi.fn(),
@@ -194,15 +199,6 @@ describe("ContentSettingsPanel", () => {
 		const lastSection = root?.lastElementChild;
 		expect(lastSection?.textContent).toContain("Move to Trash");
 	});
-
-	it("renders a Live View link in the Publish section when a live URL is provided", async () => {
-		const screen = await render(
-			<ContentSettingsPanel {...makePanelProps({ liveViewUrl: "https://example.com/my-post" })} />,
-		);
-		const link = screen.getByRole("link", { name: /Live View/ });
-		await expect.element(link).toBeInTheDocument();
-		await expect.element(link).toHaveAttribute("href", "https://example.com/my-post");
-	});
 });
 
 function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): SettingsActionBarProps {
@@ -210,18 +206,15 @@ function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): Settings
 		isNew: false,
 		isDirty: false,
 		isSaving: false,
-		showAutosave: false,
-		status: "draft",
-		supportsDrafts: true,
 		isLive: false,
 		hasPendingChanges: false,
-		hasSchedule: false,
+		liveViewUrl: null,
 		supportsPreview: false,
 		isLoadingPreview: false,
 		onPreview: vi.fn(),
 		onPublish: vi.fn(),
 		onUnpublish: vi.fn(),
-		onDiscardDraft: vi.fn(),
+		announceSaveStatus: true,
 		...overrides,
 	};
 }
@@ -231,25 +224,19 @@ describe("SettingsActionBar", () => {
 		vi.clearAllMocks();
 	});
 
-	it("shows Publish and the Draft badge for an unpublished draft", async () => {
+	it("shows Publish for an unpublished draft", async () => {
 		const screen = await render(<SettingsActionBar {...makeBarProps()} />);
 
 		await expect.element(screen.getByRole("button", { name: "Publish" })).toBeInTheDocument();
-		await expect.element(screen.getByText("Draft")).toBeInTheDocument();
 		expect(screen.container.textContent).not.toContain("Unpublish");
-		expect(screen.container.textContent).not.toContain("Discard changes");
 	});
 
-	it("shows Publish changes, Pending changes badge, and Discard for a live item with edits", async () => {
+	it("shows Publish changes for a live item with edits", async () => {
 		const props = makeBarProps({ isLive: true, hasPendingChanges: true });
 		const screen = await render(<SettingsActionBar {...props} />);
 
 		const publishChanges = screen.getByRole("button", { name: "Publish changes" });
 		await expect.element(publishChanges).toBeInTheDocument();
-		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
-		await expect
-			.element(screen.getByRole("button", { name: "Discard changes" }))
-			.toBeInTheDocument();
 
 		await publishChanges.click();
 		expect(props.onPublish).toHaveBeenCalled();
@@ -261,15 +248,29 @@ describe("SettingsActionBar", () => {
 
 		const unpublish = screen.getByRole("button", { name: "Unpublish" });
 		await expect.element(unpublish).toBeInTheDocument();
-		expect(screen.container.textContent).not.toContain("Discard changes");
 
 		await unpublish.click();
 		expect(props.onUnpublish).toHaveBeenCalled();
 	});
 
-	it("shows the Scheduled badge when a schedule exists", async () => {
-		const screen = await render(<SettingsActionBar {...makeBarProps({ hasSchedule: true })} />);
-		await expect.element(screen.getByText("Scheduled")).toBeInTheDocument();
+	it("renders Live View when a live URL is provided", async () => {
+		const screen = await render(
+			<SettingsActionBar {...makeBarProps({ liveViewUrl: "https://example.com/my-post" })} />,
+		);
+		const link = screen.getByRole("link", { name: /Live View/ });
+		await expect.element(link).toBeInTheDocument();
+		await expect.element(link).toHaveAttribute("href", "https://example.com/my-post");
+	});
+
+	it("renders Preview when preview is supported", async () => {
+		const props = makeBarProps({ supportsPreview: true, hasPendingChanges: true });
+		const screen = await render(<SettingsActionBar {...props} />);
+
+		const preview = screen.getByRole("button", { name: "Preview draft" });
+		await expect.element(preview).toBeInTheDocument();
+
+		await preview.click();
+		expect(props.onPreview).toHaveBeenCalled();
 	});
 
 	it("hides the publish cluster for new items", async () => {
@@ -281,21 +282,18 @@ describe("SettingsActionBar", () => {
 		await expect.element(screen.getByRole("button", { name: /Save/ })).toBeInTheDocument();
 	});
 
-	it("shows the in-flight autosave indicator", async () => {
+	it("folds in-flight autosave into the Save button", async () => {
 		const screen = await render(
-			<SettingsActionBar {...makeBarProps({ showAutosave: true, isAutosaving: true })} />,
+			<SettingsActionBar {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
 		);
-		await expect.element(screen.getByText("Saving...")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeEnabled();
 	});
 
-	it("shows the saved autosave indicator after an autosave", async () => {
+	it("can suppress its SaveButton live region when another mounted copy announces status", async () => {
 		const screen = await render(
-			<SettingsActionBar
-				{...makeBarProps({ showAutosave: true, lastAutosaveAt: new Date("2025-01-15") })}
-			/>,
+			<SettingsActionBar {...makeBarProps({ announceSaveStatus: false })} />,
 		);
-		// Scoped to the status region — the Save button also reads "Saved" when clean
-		await expect.element(screen.getByRole("status").getByText("Saved")).toBeInTheDocument();
+		expect(screen.container.querySelector('span[role="status"][aria-live="polite"]')).toBeNull();
 	});
 
 	it("marks the Save button dirty state", async () => {
