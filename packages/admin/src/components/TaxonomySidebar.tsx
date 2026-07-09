@@ -264,7 +264,7 @@ function TagInput({
 					onKeyDown={handleKeyDown}
 					placeholder={t`Add tags...`}
 					aria-label={t`Add ${label}`}
-					className="text-sm"
+					className="w-full text-sm"
 				/>
 
 				{/* Suggestions dropdown */}
@@ -480,14 +480,15 @@ function TaxonomySection({
 							</Button>
 						</div>
 					) : (
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="sm"
 							onClick={() => setShowCategoryInput(true)}
-							className="text-sm text-kumo-accent hover:underline flex items-center gap-1"
+							icon={<Plus />}
 						>
-							<Plus className="w-3 h-3" />
 							{t`Add new ${(taxonomy.labelSingular || taxonomy.label).toLowerCase()}`}
-						</button>
+						</Button>
 					)}
 					{createTermMutation.error && (
 						<p className="text-sm text-kumo-danger">

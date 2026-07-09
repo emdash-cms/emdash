@@ -797,6 +797,7 @@ function BylineCreditsEditor({
 					onChange={(e) => setSearch(e.target.value)}
 					placeholder={t`Search bylines to add...`}
 					aria-label={t`Search bylines`}
+					className="w-full"
 				/>
 				{searchEnabled && searchResults.isLoading ? (
 					<p className="text-sm text-kumo-subtle">{t`Searching...`}</p>
@@ -896,7 +897,7 @@ function BylineCreditsEditor({
 				<Dialog.Root>
 					<Dialog.Trigger
 						render={(p) => (
-							<Button {...p} type="button" variant="secondary">
+							<Button {...p} type="button" variant="secondary" className="w-full">
 								{t`Quick create byline`}
 							</Button>
 						)}
@@ -1026,6 +1027,8 @@ function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
 	return (
 		<div className="space-y-2">
 			<Select
+				aria-label={t`Author`}
+				className="w-full"
 				value={authorId || "unassigned"}
 				onValueChange={(value) =>
 					onChange?.(value === "unassigned" || value === null ? null : value)
