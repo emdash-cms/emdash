@@ -7,9 +7,9 @@
  * - Highlights the current section based on cursor position
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Button, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { CaretDown, List } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -169,17 +169,16 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 	};
 
 	return (
-		<div className={cn("space-y-2", className)}>
+		<div className={className}>
 			<Button
 				variant="ghost"
-				size="sm"
-				className="w-full justify-between px-2 h-8"
+				className="relative mb-4 justify-between"
+				style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
 				onClick={() => setIsExpanded(!isExpanded)}
 			>
-				<span className="flex items-center gap-1.5">
-					<List className="h-3.5 w-3.5 text-kumo-subtle" />
-					<span className="font-semibold">{t`Outline`}</span>
-				</span>
+				<Text bold as="span">
+					{t`Outline`}
+				</Text>
 				{isExpanded ? (
 					<CaretDown className="h-4 w-4 text-kumo-subtle" />
 				) : (

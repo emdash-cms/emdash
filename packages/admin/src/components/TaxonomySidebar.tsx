@@ -6,7 +6,7 @@
  * - Tag input for flat taxonomies (tags)
  */
 
-import { Button, Checkbox, Input, Label, Toast } from "@cloudflare/kumo";
+import { Button, Checkbox, Input, Label, Text, Toast } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -539,7 +539,9 @@ export function TaxonomySidebar({
 	return (
 		<div className={cn("space-y-6", className)}>
 			<div>
-				<h3 className="mb-4 font-semibold">{t`Taxonomies`}</h3>
+				<Text bold as="h3" DANGEROUS_className="mb-4">
+					{t`Taxonomies`}
+				</Text>
 				<div className="space-y-4">
 					{applicableTaxonomies.map((taxonomy) => (
 						<TaxonomySection

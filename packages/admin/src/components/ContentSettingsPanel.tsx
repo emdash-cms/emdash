@@ -1,14 +1,16 @@
-import { Badge, Button, Dialog, Input, Label, LinkButton, Loader, Select } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowSquareOut,
-	Eye,
-	EyeSlash,
-	MagnifyingGlass,
-	Trash,
-	Upload,
-	X,
-} from "@phosphor-icons/react";
+	Badge,
+	Button,
+	Dialog,
+	Input,
+	Label,
+	LinkButton,
+	Loader,
+	Select,
+	Text,
+} from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
+import { ArrowSquareOut, Eye, EyeSlash, Trash, Upload, X } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -24,7 +26,7 @@ import type {
 } from "../lib/api";
 import { fetchBylines } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
-import { cn, slugify } from "../lib/utils";
+import { slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
@@ -39,14 +41,6 @@ import { TranslationsPanel } from "./TranslationsPanel.js";
 
 // Editor role level (40) from @emdash-cms/auth
 const ROLE_EDITOR = 40;
-
-/**
- * Shared style for panel section headings, matching the `Publish` heading.
- * Child components rendered inside the panel (TranslationsPanel,
- * TaxonomySidebar, DocumentOutline, RevisionHistory) mirror this so every
- * section heading reads consistently.
- */
-const PANEL_HEADING = "mb-4 font-semibold";
 
 /** Format scheduled date for display */
 function formatScheduledDate(dateStr: string | null) {
@@ -221,7 +215,6 @@ export function SettingsActionBar({
 			<SaveButton
 				type="submit"
 				size="sm"
-				className="min-w-0"
 				isDirty={isDirty}
 				isSaving={isSaving || Boolean(isAutosaving)}
 				disableWhileSaving={isSaving}
@@ -399,7 +392,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		<div className="flex flex-col whitespace-normal">
 			{/* Publish settings */}
 			<div className="p-4">
-				<h3 className={PANEL_HEADING}>{t`Publish`}</h3>
+				<Text bold as="h3" DANGEROUS_className="mb-4">
+					{t`Publish`}
+				</Text>
 				<div className="space-y-4">
 					<Input
 						label={t`Slug`}
@@ -508,7 +503,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{/* Ownership selector - shown only to editors and above */}
 			{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
 				<div className="p-4 border-t">
-					<h3 className={PANEL_HEADING}>{t`Ownership`}</h3>
+					<Text bold as="h3" DANGEROUS_className="mb-4">
+						{t`Ownership`}
+					</Text>
 					<AuthorSelector
 						authorId={item?.authorId || null}
 						users={users}
@@ -520,7 +517,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{/* Byline credits */}
 			{currentUser && currentUser.role >= ROLE_EDITOR && (
 				<div className="p-4 border-t">
-					<h3 className={PANEL_HEADING}>{t`Bylines`}</h3>
+					<Text bold as="h3" DANGEROUS_className="mb-4">
+						{t`Bylines`}
+					</Text>
 					<BylineCreditsEditor
 						credits={activeBylines}
 						bylines={availableBylines ?? []}
@@ -541,7 +540,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{i18n && item && !isNew && (
 				<div className="p-4 border-t">
 					<TranslationsPanel
-						headingClassName={PANEL_HEADING}
 						locales={i18n.locales}
 						defaultLocale={i18n.defaultLocale}
 						currentLocale={item.locale ?? undefined}
@@ -572,10 +570,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{/* SEO panel - shown for collections with hasSeo enabled */}
 			{hasSeo && !isNew && onSeoChange && (
 				<div className="p-4 border-t">
-					<h3 className={cn(PANEL_HEADING, "flex items-center gap-1.5")}>
-						<MagnifyingGlass className="h-3.5 w-3.5" />
+					<Text bold as="h3" DANGEROUS_className="mb-4">
 						{t`SEO`}
-					</h3>
+					</Text>
 					<SeoPanel
 						contentKey={item?.id ?? `new:${collection}`}
 						seo={item?.seo}

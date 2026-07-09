@@ -4,7 +4,7 @@
  * taxonomy term edit so the admin shows one consistent affordance.
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Button, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -56,7 +56,9 @@ export function TranslationsPanel({
 
 	return (
 		<div>
-			<h3 className={cn("mb-4 font-semibold", headingClassName)}>{title ?? t`Translations`}</h3>
+			<Text bold as="h3" DANGEROUS_className={cn("mb-4", headingClassName)}>
+				{title ?? t`Translations`}
+			</Text>
 			<div className="space-y-2">
 				{locales.map((locale) => {
 					const translation = byLocale.get(locale);

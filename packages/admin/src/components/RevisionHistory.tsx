@@ -1,14 +1,7 @@
-import { Badge, Button, Loader, Toast } from "@cloudflare/kumo";
+import { Badge, Button, Loader, Text, Toast } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ClockCounterClockwise,
-	ArrowCounterClockwise,
-	CaretDown,
-	Plus,
-	Minus,
-	PencilSimple,
-} from "@phosphor-icons/react";
+import { ArrowCounterClockwise, CaretDown, Plus, Minus, PencilSimple } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -155,12 +148,13 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 					type="button"
 					onClick={() => setIsExpanded(!isExpanded)}
 					variant="ghost"
-					size="sm"
-					className="h-8 w-full justify-between px-2"
+					className="relative mb-4 justify-between"
+					style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
 				>
 					<span className="flex items-center gap-1.5">
-						<ClockCounterClockwise className="h-3.5 w-3.5 text-kumo-subtle" />
-						<span className="font-semibold">{t`Revisions`}</span>
+						<Text bold as="span">
+							{t`Revisions`}
+						</Text>
 						{total > 0 && <span className="font-normal text-kumo-subtle">({total})</span>}
 					</span>
 					{isExpanded ? (
