@@ -126,15 +126,18 @@ describe("CLI media usage repair contract", () => {
 		["partial", 0],
 		["stale", 0],
 		["failed", 1],
-	] as const)("classifies a structured %s repair result with exit %i", async (status, expectedCode) => {
-		response = repairResponse(status);
+	] as const)(
+		"classifies a structured %s repair result with exit %i",
+		async (status, expectedCode) => {
+			response = repairResponse(status);
 
-		const result = await runCli("media", "repair-usage", "--collection", "posts");
+			const result = await runCli("media", "repair-usage", "--collection", "posts");
 
-		expect(result.code).toBe(expectedCode);
-		expect(result.stdout).toBe(JSON.stringify(response, null, 2) + "\n");
-		expect(JSON.parse(result.stdout)).toEqual(response);
-	});
+			expect(result.code).toBe(expectedCode);
+			expect(result.stdout).toBe(JSON.stringify(response, null, 2) + "\n");
+			expect(JSON.parse(result.stdout)).toEqual(response);
+		},
+	);
 
 	async function runCli(...args: string[]): Promise<CliResult> {
 		const child = spawn(

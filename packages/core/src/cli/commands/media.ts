@@ -10,8 +10,11 @@ import { basename } from "node:path";
 import { defineCommand } from "citty";
 import { consola } from "consola";
 
+import type { MediaUsageRepairResponse } from "../../client/index.js";
 import { connectionArgs, createClientFromArgs } from "../client-factory.js";
 import { configureOutputMode, output } from "../output.js";
+
+const repairScopeError = "Specify exactly one of --collection or --all";
 
 const listCommand = defineCommand({
 	meta: {
@@ -155,6 +158,97 @@ const deleteCommand = defineCommand({
 	},
 });
 
+const repairUsageCommand = defineCommand({
+	meta: {
+		name: "repair-usage",
+		description: "Repair content media usage indexes",
+	},
+	args: {
+		...connectionArgs,
+		collection: {
+			type: "string",
+			alias: "c",
+			description: "Repair one content collection",
+		},
+		all: {
+			type: "boolean",
+			description: "Repair every content collection",
+		},
+	},
+	async run({ args }) {
+		configureOutputMode(args);
+
+		const hasCollection = typeof args.collection === "string";
+		const hasAll = args.all === true;
+		if (hasCollection === hasAll) {
+			consola.error(repairScopeError);
+			process.exit(1);
+		}
+
+		const client = createClientFromArgs(args);
+
+		try {
+			const result = await client.mediaRepairUsage(
+				hasCollection ? { scope: "collection", collection: args.collection } : { scope: "all" },
+			);
+
+			if (args.json || !process.stdout.isTTY) {
+				output(result, args);
+			} else {
+				printRepairUsageSummary(result);
+			}
+
+			if (result.status === "failed") {
+				process.exitCode = 1;
+			}
+		} catch (error) {
+			consola.error(
+				"Failed to repair media usage:",
+				error instanceof Error ? error.message : error,
+			);
+			process.exit(1);
+		}
+	},
+});
+
+function printRepairUsageSummary(result: MediaUsageRepairResponse): void {
+	const counts = `indexed ${result.indexedSourceCount}, failed ${result.failedSourceCount}, skipped ${result.skippedSourceCount}, deleted ${result.deletedSourceCount}`;
+	const scope =
+		result.collections.length === 1 && result.collections[0]
+			? `collection ${result.collections[0].collection}`
+			: `${result.collections.length} collections`;
+
+	if (result.status === "complete") {
+		consola.success(`Media usage repair complete for ${scope} (${counts}).`);
+		return;
+	}
+
+	const details = result.collections
+		.filter((collection) => collection.status !== "complete")
+		.map((collection) => {
+			const error = collection.lastErrorCode ? `, ${collection.lastErrorCode}` : "";
+			return `${collection.collection}: ${collection.status}${error}`;
+		})
+		.join("; ");
+	const suffix = details ? ` ${details}.` : "";
+
+	if (result.status === "stale") {
+		consola.warn(
+			`Media usage repair is stale for ${scope}; trustworthy complete coverage was not established. Rerun when writes are quiet (${counts}).${suffix}`,
+		);
+		return;
+	}
+
+	if (result.status === "partial") {
+		consola.warn(
+			`Media usage repair is partial for ${scope}; some sources or collections need attention (${counts}).${suffix}`,
+		);
+		return;
+	}
+
+	consola.warn(`Media usage repair failed for ${scope} (${counts}).${suffix}`);
+}
+
 export const mediaCommand = defineCommand({
 	meta: {
 		name: "media",
@@ -165,5 +259,6 @@ export const mediaCommand = defineCommand({
 		upload: uploadCommand,
 		get: getCommand,
 		delete: deleteCommand,
+		"repair-usage": repairUsageCommand,
 	},
 });
