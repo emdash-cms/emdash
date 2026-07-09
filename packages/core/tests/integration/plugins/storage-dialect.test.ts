@@ -56,7 +56,7 @@ describeEachDialect("plugin storage filtered query/count (#920)", (dialect) => {
 		await seed(repo);
 
 		const result = await repo.query({ where: { provider: "resend" } });
-		expect(result.items.map((i) => i.id).sort()).toEqual(["p1", "p3"]);
+		expect(result.items.map((i) => i.id).toSorted()).toEqual(["p1", "p3"]);
 	});
 
 	it("query() combines where with orderBy", async () => {
@@ -75,7 +75,7 @@ describeEachDialect("plugin storage filtered query/count (#920)", (dialect) => {
 		await seed(repo);
 
 		const result = await repo.query({ where: { priority: { gt: 1 } } });
-		expect(result.items.map((i) => i.id).sort()).toEqual(["p2", "p3"]);
+		expect(result.items.map((i) => i.id).toSorted()).toEqual(["p2", "p3"]);
 	});
 
 	it("count() with a where filter counts matching documents", async () => {
