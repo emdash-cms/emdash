@@ -13,6 +13,7 @@ import { promisify } from "node:util";
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
+import type { MediaUsageRepairResponse } from "../../../src/client/index.js";
 import type { TestServerContext } from "../server.js";
 import { assertNodeVersion, createTestServer } from "../server.js";
 
@@ -313,6 +314,23 @@ describe("CLI Integration", () => {
 	// -----------------------------------------------------------------------
 
 	describe("media", () => {
+		it("repairs media usage for a collection", async () => {
+			const result = await cliJson<MediaUsageRepairResponse>(
+				"media",
+				"repair-usage",
+				"--collection",
+				"posts",
+			);
+
+			expect(result.status).toBe("complete");
+			expect(result.collections).toHaveLength(1);
+			expect(result.collections[0]).toMatchObject({
+				collection: "posts",
+				status: "complete",
+			});
+			expect(result.indexedSourceCount).toBeGreaterThanOrEqual(0);
+		});
+
 		it("uploads, lists, gets, and deletes media", async () => {
 			// Create a temp file to upload
 			const { writeFileSync } = await import("node:fs");
