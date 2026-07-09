@@ -199,10 +199,10 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 												className={cn(
 													"inline-block h-2 w-2 rounded-full",
 													status === "published"
-														? "bg-green-500"
+														? "bg-kumo-success"
 														: status === "published_with_changes"
-															? "bg-yellow-500"
-															: "bg-gray-400",
+															? "bg-kumo-warning"
+															: "bg-kumo-fill",
 												)}
 											/>
 											{status === "published"

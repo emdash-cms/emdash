@@ -9,9 +9,9 @@ import { Badge, Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { X, Check, Trash, Warning, UserCircle, EnvelopeSimple } from "@phosphor-icons/react";
 import * as React from "react";
+import type { ComponentProps } from "react";
 
 import type { AdminComment, CommentStatus } from "../../lib/api/comments.js";
-import { cn } from "../../lib/utils.js";
 
 export interface CommentDetailProps {
 	comment: AdminComment;
@@ -198,19 +198,12 @@ export function CommentStatusBadge({ status }: { status: CommentStatus }) {
 		trash: t`trash`,
 	};
 
-	return (
-		<span
-			className={cn(
-				"inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
-				status === "approved" &&
-					"bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-				status === "pending" &&
-					"bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-				status === "spam" && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-				status === "trash" && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-			)}
-		>
-			{labels[status]}
-		</span>
-	);
+	const variants: Record<CommentStatus, ComponentProps<typeof Badge>["variant"]> = {
+		approved: "success",
+		pending: "warning",
+		spam: "error",
+		trash: "neutral",
+	};
+
+	return <Badge variant={variants[status]}>{labels[status]}</Badge>;
 }
