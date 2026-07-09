@@ -24,6 +24,7 @@ import { OptionsRepository } from "../../database/repositories/options.js";
 import type { Database } from "../../database/types.js";
 import type { Storage } from "../../storage/types.js";
 import { VERSION } from "../../version.js";
+import { ErrorCode } from "../errors.js";
 import type { ApiResult } from "../types.js";
 import { generateSnapshot } from "./snapshot.js";
 
@@ -164,7 +165,7 @@ export async function updateBackupSettings(
 		console.error("[backup] Failed to update settings:", error);
 		return {
 			success: false,
-			error: { code: "BACKUP_SETTINGS_ERROR", message: "Failed to update backup settings" },
+			error: { code: ErrorCode.BACKUP_SETTINGS_ERROR, message: "Failed to update backup settings" },
 		};
 	}
 }
@@ -196,7 +197,7 @@ export async function listBackupArchives(storage: Storage): Promise<ApiResult<Ba
 		console.error("[backup] Failed to list archives:", error);
 		return {
 			success: false,
-			error: { code: "BACKUP_LIST_ERROR", message: "Failed to list backup archives" },
+			error: { code: ErrorCode.BACKUP_LIST_ERROR, message: "Failed to list backup archives" },
 		};
 	}
 }
@@ -231,7 +232,7 @@ export async function runBackupToStorage(
 		console.error("[backup] Failed to create archive:", error);
 		return {
 			success: false,
-			error: { code: "BACKUP_CREATE_ERROR", message: "Failed to create backup archive" },
+			error: { code: ErrorCode.BACKUP_CREATE_ERROR, message: "Failed to create backup archive" },
 		};
 	}
 }
@@ -257,7 +258,7 @@ export async function deleteBackupArchive(
 	if (!isValidArchiveName(name)) {
 		return {
 			success: false,
-			error: { code: "VALIDATION_ERROR", message: "Invalid archive name" },
+			error: { code: ErrorCode.VALIDATION_ERROR, message: "Invalid archive name" },
 		};
 	}
 	try {
@@ -267,7 +268,7 @@ export async function deleteBackupArchive(
 		console.error(`[backup] Failed to delete archive ${name}:`, error);
 		return {
 			success: false,
-			error: { code: "BACKUP_DELETE_ERROR", message: "Failed to delete backup archive" },
+			error: { code: ErrorCode.BACKUP_DELETE_ERROR, message: "Failed to delete backup archive" },
 		};
 	}
 }

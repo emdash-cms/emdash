@@ -12,6 +12,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
+import { ErrorCode } from "#api/errors.js";
 import {
 	BACKUP_STORAGE_PREFIX,
 	deleteBackupArchive,
@@ -54,7 +55,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		if (error instanceof Error && error.message.toLowerCase().includes("not found")) {
 			return apiError("NOT_FOUND", "Archive not found", 404);
 		}
-		return handleError(error, "Failed to download archive", "BACKUP_DOWNLOAD_ERROR");
+		return handleError(error, "Failed to download archive", ErrorCode.BACKUP_DOWNLOAD_ERROR);
 	}
 };
 

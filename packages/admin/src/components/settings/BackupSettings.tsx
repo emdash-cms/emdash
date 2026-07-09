@@ -29,7 +29,7 @@ import {
 	type BackupArchive,
 } from "../../lib/api/backups.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
-import { getMutationError } from "../DialogError.js";
+import { DialogError, getMutationError } from "../DialogError.js";
 import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
 function formatBytes(bytes: number): string {
@@ -39,7 +39,7 @@ function formatBytes(bytes: number): string {
 }
 
 export function BackupSettings() {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const toastManager = useKumoToastManager();
 	const queryClient = useQueryClient();
 	const [archiveToDelete, setArchiveToDelete] = React.useState<BackupArchive | null>(null);
@@ -132,10 +132,7 @@ export function BackupSettings() {
 					<BackToSettingsLink />
 					<h1 className="text-2xl font-bold">{t`Backups`}</h1>
 				</div>
-				<div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
-					<WarningCircle className="h-4 w-4 flex-shrink-0" />
-					{getMutationError(fetchError) || t`Failed to load backup settings`}
-				</div>
+				<DialogError message={getMutationError(fetchError) || t`Failed to load backup settings`} />
 			</div>
 		);
 	}
@@ -204,9 +201,9 @@ export function BackupSettings() {
 						</div>
 					</div>
 				) : (
-					<div className="flex items-start gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4">
-						<WarningCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-						<p className="text-sm text-amber-800 dark:text-amber-200">
+					<div className="flex items-start gap-3 rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-4">
+						<WarningCircle className="h-5 w-5 text-kumo-warning mt-0.5 flex-shrink-0" />
+						<p className="text-sm">
 							{t`Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them.`}
 						</p>
 					</div>
@@ -226,7 +223,11 @@ export function BackupSettings() {
 								<div className="min-w-0">
 									<div className="font-mono text-sm truncate">{archive.name}</div>
 									<div className="text-sm text-kumo-subtle">
-										{new Date(archive.lastModified).toLocaleString()} · {formatBytes(archive.size)}
+										{i18n.date(new Date(archive.lastModified), {
+											dateStyle: "medium",
+											timeStyle: "short",
+										})}{" "}
+										· {formatBytes(archive.size)}
 									</div>
 								</div>
 								<div className="flex items-center gap-2 flex-shrink-0">

@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
+import { ErrorCode } from "#api/errors.js";
 import {
 	BACKUP_RETENTION_MAX,
 	BACKUP_RETENTION_MIN,
@@ -45,7 +46,11 @@ export const GET: APIRoute = async ({ locals }) => {
 
 		return apiSuccess({ settings, archives, storageAvailable });
 	} catch (error) {
-		return handleError(error, "Failed to load backup settings", "BACKUP_SETTINGS_READ_ERROR");
+		return handleError(
+			error,
+			"Failed to load backup settings",
+			ErrorCode.BACKUP_SETTINGS_READ_ERROR,
+		);
 	}
 };
 

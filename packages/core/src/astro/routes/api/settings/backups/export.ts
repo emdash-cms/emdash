@@ -10,6 +10,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError } from "#api/error.js";
+import { ErrorCode } from "#api/errors.js";
 import { archiveNameForDate, generateBackupJson } from "#api/handlers/backup.js";
 
 export const prerender = false;
@@ -37,6 +38,6 @@ export const GET: APIRoute = async ({ locals }) => {
 			},
 		});
 	} catch (error) {
-		return handleError(error, "Failed to generate backup", "BACKUP_EXPORT_ERROR");
+		return handleError(error, "Failed to generate backup", ErrorCode.BACKUP_EXPORT_ERROR);
 	}
 };
