@@ -18,8 +18,12 @@ export interface Relation {
 
 export interface CreateRelationInput {
 	name: string;
-	parentCollection: string;
-	childCollection: string;
+	/** Required for a base relation; ignored (inherited from the source) when
+	 * `translationOf` is set. */
+	parentCollection?: string;
+	/** Required for a base relation; ignored (inherited from the source) when
+	 * `translationOf` is set. */
+	childCollection?: string;
 	parentLabel: string;
 	childLabel: string;
 	/** Omit to let the DB default (current value: 'en') apply. Higher layers
@@ -74,9 +78,9 @@ export class RelationRepository {
 		const now = new Date().toISOString();
 
 		let translationGroup = id;
-		let name = input.name;
-		let parentCollection = input.parentCollection;
-		let childCollection = input.childCollection;
+		let name: string;
+		let parentCollection: string;
+		let childCollection: string;
 
 		if (input.translationOf) {
 			const source = await this.findById(input.translationOf);
@@ -88,6 +92,18 @@ export class RelationRepository {
 			name = source.name;
 			parentCollection = source.parentCollection;
 			childCollection = source.childCollection;
+		} else {
+			// A base relation carries its own structural fields. The API layer's Zod
+			// schema enforces this; guard here too since the repo trusts its inputs
+			// and the columns are NOT NULL.
+			if (input.parentCollection === undefined || input.childCollection === undefined) {
+				throw new Error(
+					"parentCollection and childCollection are required unless translationOf is set",
+				);
+			}
+			name = input.name;
+			parentCollection = input.parentCollection;
+			childCollection = input.childCollection;
 		}
 
 		await this.db

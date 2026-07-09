@@ -342,6 +342,46 @@ describeEachDialect("reference children handlers", (dialect) => {
 		expect(set.error.code).toBe("NOT_FOUND");
 	});
 
+	it("a parent collection dropped after the relation is created yields NOT_FOUND, not a 500", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({ type: "post", slug: "p", data: { title: "P" } });
+
+		// The anchor entry lives in the parent collection. If that table is dropped
+		// (collection deletion doesn't cascade to relation defs), resolving the
+		// anchor must yield NOT_FOUND rather than a 500 — the symmetric case to the
+		// child-collection drop above, and consistent across children and parents.
+		await ctx.db.schema.dropTable("ec_post").ifExists().execute();
+
+		const childrenGet = await handleReferenceChildrenGet(
+			ctx.db,
+			"post",
+			parent.id,
+			rel.id,
+			{},
+			true,
+		);
+		expect(childrenGet.success).toBe(false);
+		if (!childrenGet.success) expect(childrenGet.error.code).toBe("NOT_FOUND");
+
+		const childrenSet = await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, []);
+		expect(childrenSet.success).toBe(false);
+		if (!childrenSet.success) expect(childrenSet.error.code).toBe("NOT_FOUND");
+
+		// The parents endpoint anchors on the child side; drop that table too.
+		await ctx.db.schema.dropTable("ec_page").ifExists().execute();
+		const parentsGet = await handleReferenceParentsGet(
+			ctx.db,
+			"page",
+			"whatever",
+			rel.id,
+			{},
+			true,
+		);
+		expect(parentsGet.success).toBe(false);
+		if (!parentsGet.success) expect(parentsGet.error.code).toBe("NOT_FOUND");
+	});
+
 	it("a hand-crafted cursor with a non-numeric order value is INVALID_CURSOR", async () => {
 		const rel = await makeRelation();
 		const content = new ContentRepository(ctx.db);

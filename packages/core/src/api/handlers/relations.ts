@@ -46,6 +46,16 @@ export async function handleRelationCreate(
 		// `translationOf` is set — structural fields are then inherited from an
 		// already-validated source, and the input collections are ignored.
 		if (!input.translationOf) {
+			if (!input.parentCollection || !input.childCollection) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message:
+							"parentCollection and childCollection are required unless translationOf is set",
+					},
+				};
+			}
 			const registry = new SchemaRegistry(db);
 			for (const collection of [input.parentCollection, input.childCollection]) {
 				if (!(await registry.getCollection(collection))) {

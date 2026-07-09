@@ -14,13 +14,23 @@ export const createRelationBody = z
 			.min(1)
 			.max(63)
 			.regex(slugPattern, "Name must be lowercase alphanumeric with underscores"),
-		parentCollection: collectionSlug,
-		childCollection: collectionSlug,
+		parentCollection: collectionSlug.optional(),
+		childCollection: collectionSlug.optional(),
 		parentLabel: z.string().min(1).max(200),
 		childLabel: z.string().min(1).max(200),
 		locale: z.string().min(1).optional(),
 		translationOf: z.string().min(1).optional(),
 	})
+	// A translation inherits its structural fields (name, parentCollection,
+	// childCollection) from the source relation, so the handler ignores any
+	// collections supplied alongside `translationOf`. Require them only when
+	// minting a base relation, so callers aren't forced to pass discarded values.
+	.refine(
+		(body) =>
+			body.translationOf !== undefined ||
+			(body.parentCollection !== undefined && body.childCollection !== undefined),
+		{ message: "parentCollection and childCollection are required unless translationOf is set" },
+	)
 	.meta({ id: "CreateRelationBody" });
 
 export const updateRelationBody = z
