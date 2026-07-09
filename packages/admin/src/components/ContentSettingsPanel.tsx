@@ -604,9 +604,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				</div>
 			)}
 
-			{/* Destructive action, isolated at the very bottom of the panel */}
+			{/* Destructive action at the very bottom of the panel */}
 			{!isNew && onDelete && (
-				<div className="mt-4 border-t p-4">
+				<div className="border-t p-4">
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
 							render={(p) => (
