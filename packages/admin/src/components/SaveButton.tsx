@@ -1,11 +1,11 @@
 /**
  * Save Button with inline feedback
  *
- * A single stateful control that reports save state, so clean editors don't
- * carry a separate passive "Saved" indicator alongside the button:
- * - "Saved" when clean (no unsaved changes)
- * - "Save" when dirty (has unsaved changes)
+ * A single stateful control that reports save progress without becoming a
+ * sticky status label:
+ * - "Save" when clean or dirty (disabled when clean)
  * - "Saving..." while saving (manual save or autosave)
+ * - "Saved" briefly after saving completes
  */
 
 import { Button, Loader } from "@cloudflare/kumo";
@@ -15,6 +15,8 @@ import type { ComponentProps } from "react";
 import * as React from "react";
 
 import { cn } from "../lib/utils";
+
+const SAVED_FEEDBACK_MS = 1200;
 
 export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "children" | "shape"> {
 	/** Whether there are unsaved changes */
@@ -28,20 +30,49 @@ export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "ch
  */
 export function SaveButton({ isDirty, isSaving, className, disabled, ...props }: SaveButtonProps) {
 	const { t } = useLingui();
-	const isSaved = !isDirty && !isSaving;
+	const [showSavedFeedback, setShowSavedFeedback] = React.useState(false);
+	const wasDirtyRef = React.useRef(isDirty);
+	const wasSavingRef = React.useRef(isSaving);
+
+	React.useEffect(() => {
+		const wasDirty = wasDirtyRef.current;
+		const wasSaving = wasSavingRef.current;
+		wasDirtyRef.current = isDirty;
+		wasSavingRef.current = isSaving;
+
+		if (isDirty || isSaving) {
+			setShowSavedFeedback(false);
+			return;
+		}
+
+		if (wasDirty || wasSaving) {
+			setShowSavedFeedback(true);
+			const timeout = globalThis.setTimeout(setShowSavedFeedback, SAVED_FEEDBACK_MS, false);
+			return () => globalThis.clearTimeout(timeout);
+		}
+	}, [isDirty, isSaving]);
+
+	const isClean = !isDirty && !isSaving;
+	const isComplete = isClean && showSavedFeedback;
+	const label = isSaving ? t`Saving...` : isComplete ? t`Saved` : t`Save`;
+	const liveStatus = isSaving ? t`Saving...` : isComplete ? t`Saved` : "";
 
 	return (
-		<Button
-			className={cn("min-w-[100px] transition-all", className)}
-			disabled={disabled || isSaving || isSaved}
-			variant={isSaved ? "secondary" : "primary"}
-			icon={isSaving ? <Loader size="sm" /> : isSaved ? <Check /> : <FloppyDisk />}
-			aria-live="polite"
-			aria-busy={isSaving}
-			{...props}
-		>
-			{isSaving ? t`Saving...` : isSaved ? t`Saved` : t`Save`}
-		</Button>
+		<>
+			<Button
+				className={cn("min-w-[100px] transition-all", className)}
+				disabled={disabled || isSaving || isClean}
+				variant={isDirty || isSaving ? "primary" : "secondary"}
+				icon={isSaving ? <Loader size="sm" /> : isComplete ? <Check /> : <FloppyDisk />}
+				aria-busy={isSaving}
+				{...props}
+			>
+				{label}
+			</Button>
+			<span className="sr-only" role="status" aria-live="polite">
+				{liveStatus}
+			</span>
+		</>
 	);
 }
 
