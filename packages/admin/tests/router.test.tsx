@@ -48,25 +48,24 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onSave,
 		onAutosave,
 		onSeoChange,
+		isSaving,
 		saveCompletionToken,
-		lastAutosaveAt,
 		autosaveCompletionToken,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
 		onSeoChange?: (seo: { title: string }) => void;
+		isSaving?: boolean;
 		saveCompletionToken?: number;
-		lastAutosaveAt?: Date | null;
 		autosaveCompletionToken?: number;
 	}) => (
 		<div data-testid="content-editor">
 			<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
 			<div data-testid="mock-slug">{item?.slug ?? ""}</div>
+			<div data-testid="is-saving">{isSaving ? "saving" : "idle"}</div>
 			<div data-testid="save-completion-token">{saveCompletionToken ?? 0}</div>
-			<div data-testid="autosave-completion-token">
-				{lastAutosaveAt ? "legacy-complete" : (autosaveCompletionToken ?? 0)}
-			</div>
+			<div data-testid="autosave-completion-token">{autosaveCompletionToken ?? 0}</div>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -530,6 +529,73 @@ describe("ContentEditPage – autosave cache patching", () => {
 		await waitFor(() => {
 			expect(screen.getByTestId("save-completion-token").element().textContent).toBe("1");
 		});
+	});
+
+	it("does not report auxiliary writes as saving; editor saves still do", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		// Hold every PUT open so the mutation's pending window is observable.
+		const fetchWithMocks = globalThis.fetch;
+		let resolvePut: (() => void) | undefined;
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				return new Promise<Response>((resolve) => {
+					resolvePut = () =>
+						resolve(
+							new Response(
+								JSON.stringify({
+									data: {
+										item: {
+											id: "post_1",
+											type: "posts",
+											slug: "published-slug",
+											status: "draft",
+											locale: "en",
+											data: { title: "Published Title" },
+											updatedAt: "2025-01-02T00:00:00Z",
+											draftRevisionId: "rev_draft",
+										},
+									},
+								}),
+								{ status: 200, headers: { "Content-Type": "application/json" } },
+							),
+						);
+				});
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			// Auxiliary write (SEO): the Save control must stay idle while it flies.
+			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
+			resolvePut?.();
+			resolvePut = undefined;
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			// Editor save: the same mutation with source "editor" must report saving.
+			await screen.getByRole("button", { name: "Save", exact: true }).click();
+			await waitFor(() => {
+				expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+			});
+			resolvePut?.();
+			await waitFor(() => {
+				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
+			});
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
 	});
 
 	it("does not deliver an old entry's autosave completion to the current entry", async () => {

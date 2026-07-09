@@ -174,7 +174,25 @@ function installMatchMedia(initialMatches: boolean) {
 		},
 		dispatchEvent: () => true,
 	} as MediaQueryList;
-	const spy = vi.spyOn(window, "matchMedia").mockImplementation(() => mediaQuery);
+	// Only viewport-width queries get the simulated value. Everything else
+	// (e.g. prefers-reduced-motion in SaveButton/Kumo) keeps its real default
+	// so these tests exercise the normal animation code paths.
+	const nonMatching = (query: string) =>
+		({
+			matches: false,
+			media: query,
+			onchange: null,
+			addEventListener: () => {},
+			removeEventListener: () => {},
+			addListener: () => {},
+			removeListener: () => {},
+			dispatchEvent: () => true,
+		}) as unknown as MediaQueryList;
+	const spy = vi
+		.spyOn(window, "matchMedia")
+		.mockImplementation((query: string) =>
+			query.includes("max-width") ? mediaQuery : nonMatching(query),
+		);
 
 	return {
 		setMatches(nextMatches: boolean) {
@@ -230,6 +248,96 @@ describe("ContentEditor", () => {
 			(confirm.element() as HTMLButtonElement).click();
 
 			await vi.waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
+		});
+	});
+
+	describe("block panel + mobile sheet sync", () => {
+		const ptFields: Record<string, FieldDescriptor> = {
+			content: { kind: "portableText", label: "Content" },
+		};
+
+		function makeBlockPanel() {
+			return {
+				type: "image",
+				attrs: { src: "https://example.com/image.png", alt: "Example" },
+				onUpdate: vi.fn(),
+				onReplace: vi.fn(),
+				onDelete: vi.fn(),
+				onClose: vi.fn(),
+			};
+		}
+
+		function getPanelHooks() {
+			const open = portableTextProps.current?.onBlockSidebarOpen as
+				| ((panel: unknown) => void)
+				| undefined;
+			const close = portableTextProps.current?.onBlockSidebarClose as (() => void) | undefined;
+			expect(typeof open).toBe("function");
+			expect(typeof close).toBe("function");
+			return { open: open!, close: close! };
+		}
+
+		it("auto-opens the sheet for a block panel below lg and re-closes it after", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem(), fields: ptFields });
+				await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+				// Sheet starts closed.
+				await expect
+					.element(screen.getByRole("navigation", { name: "Settings" }), { timeout: 100 })
+					.not.toBeInTheDocument();
+
+				const { open, close } = getPanelHooks();
+				open(makeBlockPanel());
+
+				// The sheet must open by itself, showing the block detail panel.
+				await expect
+					.element(screen.getByRole("navigation", { name: "Settings" }))
+					.toBeInTheDocument();
+				await expect
+					.element(screen.getByRole("button", { name: "Remove Image" }))
+					.toBeInTheDocument();
+
+				// Closing the block panel restores the sheet's prior (closed) state.
+				close();
+				await expect
+					.element(screen.getByRole("navigation", { name: "Settings" }))
+					.not.toBeInTheDocument();
+			} finally {
+				media.restore();
+			}
+		});
+
+		// Not covered: the "restore to previously-open sheet" branch. Real input
+		// can't reach it below lg (the open sheet overlays the editor, so a block
+		// can't be tapped while it's up), and triggering it programmatically trips
+		// Kumo's focusout dismissal when the focused settings content is swapped
+		// out — pinning that would test Kumo internals, not the sync.
+
+		it("closes the sheet but keeps the block panel when crossing to desktop", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem(), fields: ptFields });
+				await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+
+				const { open } = getPanelHooks();
+				open(makeBlockPanel());
+				await expect
+					.element(screen.getByRole("navigation", { name: "Settings" }))
+					.toBeInTheDocument();
+
+				media.setMatches(false);
+
+				// No sheet on desktop; the block panel now lives in the pane.
+				await expect
+					.element(screen.getByRole("navigation", { name: "Settings" }))
+					.not.toBeInTheDocument();
+				await expect
+					.element(screen.getByRole("button", { name: "Remove Image" }))
+					.toBeInTheDocument();
+			} finally {
+				media.restore();
+			}
 		});
 	});
 
@@ -1088,6 +1196,35 @@ describe("ContentEditor", () => {
 				form = document.querySelector("form");
 				expect(form?.classList.toString()).not.toContain("fixed");
 			});
+		});
+
+		it("preserves settings panel state across a distraction-free round trip", async () => {
+			// The panel is hidden, not unmounted, in distraction-free mode —
+			// otherwise panel-local state (an open scheduler, a typed date)
+			// is silently destroyed by the toggle.
+			const item = makeItem({ status: "draft" });
+			const screen = await renderEditor({ isNew: false, item, onSchedule: vi.fn() });
+
+			await screen.getByRole("button", { name: "Schedule for later" }).click();
+			const scheduleInput = screen.getByLabelText("Schedule for");
+			await scheduleInput.fill("2026-08-01T10:00");
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			// Hidden while writing. Stylesheets aren't loaded in vitest browser
+			// mode, so assert the class hook (like the other DF tests) rather
+			// than computed visibility.
+			await vi.waitFor(() => {
+				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
+				expect(aside?.classList.toString()).toContain("hidden");
+			});
+
+			await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
+			// …and still open with the typed date after exiting.
+			await vi.waitFor(() => {
+				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
+				expect(aside?.classList.toString()).not.toContain("hidden");
+			});
+			await expect.element(screen.getByLabelText("Schedule for")).toHaveValue("2026-08-01T10:00");
 		});
 	});
 

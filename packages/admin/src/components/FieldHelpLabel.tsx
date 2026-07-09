@@ -1,4 +1,4 @@
-import { Label, Tooltip } from "@cloudflare/kumo";
+import { Button, Label, Tooltip } from "@cloudflare/kumo";
 import { Info } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
@@ -23,13 +23,15 @@ export function FieldHelpLabel({
 				delay={0}
 				closeDelay={0}
 				render={
-					<button
+					<Button
 						type="button"
-						className="inline-flex cursor-help rounded-full text-kumo-subtle hover:text-kumo-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
+						variant="ghost"
+						shape="square"
+						size="xs"
+						icon={<Info aria-hidden="true" />}
+						className="text-kumo-subtle hover:text-kumo-default"
 						aria-label={helpLabel}
-					>
-						<Info className="h-4 w-4" aria-hidden="true" />
-					</button>
+					/>
 				}
 			/>
 		</div>

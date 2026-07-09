@@ -805,85 +805,85 @@ export function ContentEditor({
 					</div>
 				</div>
 
-				{/* Settings panel — desktop pane / mobile sheet. Unmounted (not just
-			    hidden) in distraction-free mode: keeping a contained offcanvas
-			    pane mounted would leave its layout gap behind. */}
-				{!isDistractionFree && (
-					<Sidebar aria-label={t`Settings`}>
-						{/* Desktop action bar absorbs the high-frequency props (isDirty,
+				{/* Settings panel — desktop pane / mobile sheet. Hidden (not
+			    unmounted) in distraction-free mode so panel-local state — an
+			    open scheduler, a typed date, a byline search — survives the
+			    round trip. `hidden` lands on the pane's own layout element
+			    (the desktop <aside> / mobile <nav>), so no layout gap remains. */}
+				<Sidebar aria-label={t`Settings`} className={cn(isDistractionFree && "hidden")}>
+					{/* Desktop action bar absorbs the high-frequency props (isDirty,
 						    isSaving, isAutosaving) so they never reach the memoized
 						    panel body below. Below lg, the sticky editor header owns
 						    actions because the sheet starts under the admin shell header. */}
-						{!isBelowLg && (
-							<SettingsActionBar
-								isNew={isNew}
-								isDirty={isDirty}
-								isSaving={isSaving || false}
-								saveCompletionToken={saveCompletionToken}
-								saveScope={item?.id ?? "new"}
-								isAutosaving={isAutosaving}
-								isLive={isLive}
-								hasPendingChanges={hasPendingChanges}
-								liveViewUrl={liveViewUrl}
-								supportsPreview={supportsPreview}
-								isLoadingPreview={isLoadingPreview}
-								onPreview={handlePreview}
-								onPublish={onPublish}
-								onUnpublish={onUnpublish}
-								announceSaveStatus
-							/>
+					{!isBelowLg && (
+						<SettingsActionBar
+							isNew={isNew}
+							isDirty={isDirty}
+							isSaving={isSaving || false}
+							saveCompletionToken={saveCompletionToken}
+							saveScope={item?.id ?? "new"}
+							isAutosaving={isAutosaving}
+							isLive={isLive}
+							hasPendingChanges={hasPendingChanges}
+							liveViewUrl={liveViewUrl}
+							supportsPreview={supportsPreview}
+							isLoadingPreview={isLoadingPreview}
+							onPreview={handlePreview}
+							onPublish={onPublish}
+							onUnpublish={onUnpublish}
+							announceSaveStatus
+						/>
+					)}
+					<div
+						className="flex-1 overflow-y-auto overflow-x-hidden"
+						style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
+					>
+						{isBelowLg && (
+							<div className="flex justify-end px-4 pt-3">
+								<MobileSettingsCloseButton />
+							</div>
 						)}
-						<div
-							className="flex-1 overflow-y-auto overflow-x-hidden"
-							style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
-						>
-							{isBelowLg && (
-								<div className="flex justify-end px-4 pt-3">
-									<MobileSettingsCloseButton />
-								</div>
-							)}
-							<ContentSettingsPanel
-								collection={collection}
-								item={item}
-								isNew={isNew}
-								entryLocale={entryLocale}
-								slug={slug}
-								onSlugChange={handleSlugChange}
-								status={status}
-								supportsDrafts={supportsDrafts}
-								isLive={isLive}
-								hasPendingChanges={hasPendingChanges}
-								hasSchedule={hasSchedule}
-								supportsRevisions={supportsRevisions}
-								canSchedule={canSchedule}
-								onSchedule={onSchedule}
-								onUnschedule={onUnschedule}
-								isScheduling={isScheduling}
-								onDiscardDraft={onDiscardDraft}
-								onDelete={onDelete}
-								isDeleting={isDeleting}
-								currentUser={currentUser}
-								users={users}
-								onAuthorChange={onAuthorChange}
-								activeBylines={activeBylines}
-								availableBylines={availableBylines}
-								availableBylinesLoaded={availableBylinesLoaded}
-								onBylinesChange={handleBylinesChange}
-								onQuickCreateByline={onQuickCreateByline}
-								onQuickEditByline={onQuickEditByline}
-								i18n={i18n}
-								translations={translations}
-								onTranslate={onTranslate}
-								hasSeo={hasSeo}
-								onSeoChange={onSeoChange ? handleSeoChange : undefined}
-								portableTextEditor={portableTextEditor}
-								blockSidebarPanel={blockSidebarPanel}
-								onBlockSidebarClose={handleBlockSidebarClose}
-								onBlockSidebarDelete={handleBlockSidebarDelete}
-							/>
-						</div>
-					</Sidebar>
-				)}
+						<ContentSettingsPanel
+							collection={collection}
+							item={item}
+							isNew={isNew}
+							entryLocale={entryLocale}
+							slug={slug}
+							onSlugChange={handleSlugChange}
+							status={status}
+							supportsDrafts={supportsDrafts}
+							isLive={isLive}
+							hasPendingChanges={hasPendingChanges}
+							hasSchedule={hasSchedule}
+							supportsRevisions={supportsRevisions}
+							canSchedule={canSchedule}
+							onSchedule={onSchedule}
+							onUnschedule={onUnschedule}
+							isScheduling={isScheduling}
+							onDiscardDraft={onDiscardDraft}
+							onDelete={onDelete}
+							isDeleting={isDeleting}
+							currentUser={currentUser}
+							users={users}
+							onAuthorChange={onAuthorChange}
+							activeBylines={activeBylines}
+							availableBylines={availableBylines}
+							availableBylinesLoaded={availableBylinesLoaded}
+							onBylinesChange={handleBylinesChange}
+							onQuickCreateByline={onQuickCreateByline}
+							onQuickEditByline={onQuickEditByline}
+							i18n={i18n}
+							translations={translations}
+							onTranslate={onTranslate}
+							hasSeo={hasSeo}
+							onSeoChange={onSeoChange ? handleSeoChange : undefined}
+							portableTextEditor={portableTextEditor}
+							blockSidebarPanel={blockSidebarPanel}
+							onBlockSidebarClose={handleBlockSidebarClose}
+							onBlockSidebarDelete={handleBlockSidebarDelete}
+						/>
+					</div>
+				</Sidebar>
 
 				{/* Below lg, opening a block detail panel must open the sheet —
 				    otherwise it renders into a closed drawer and nothing visibly

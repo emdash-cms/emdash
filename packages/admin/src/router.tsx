@@ -1226,7 +1226,14 @@ function ContentEditPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
 			fields={collectionConfig.fields}
-			isSaving={updateMutation.isPending && updateMutation.variables?.targetId === id}
+			isSaving={
+				// Auxiliary writes (author, SEO) must not puppet the editor's Save
+				// control: they don't advance the completion token, so showing
+				// "Saving..." for them would announce a save that never terminates.
+				updateMutation.isPending &&
+				updateMutation.variables?.targetId === id &&
+				updateMutation.variables?.source === "editor"
+			}
 			saveCompletionToken={saveCompletion.entryId === id ? saveCompletion.token : 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
