@@ -109,6 +109,12 @@ export {
 	type PluginListResponse,
 	type PluginResponse,
 } from "./plugins.js";
+export {
+	handlePluginSettingsGet,
+	handlePluginSettingsUpdate,
+	getPluginSettingsSchema,
+	type PluginSettingsResponse,
+} from "./plugin-settings.js";
 
 // Menu handlers
 export {

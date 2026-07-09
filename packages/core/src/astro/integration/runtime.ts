@@ -15,6 +15,7 @@ import type {
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
 	ResolvedPlugin,
+	SettingField,
 } from "../../plugins/types.js";
 import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
@@ -103,6 +104,8 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
+	/** Settings schema for the auto-generated admin settings form */
+	settingsSchema?: Record<string, SettingField>;
 	/**
 	 * Portable Text block types this plugin contributes to the editor.
 	 * Declarative (Block Kit) — surfaced in the admin slash menu and consumed

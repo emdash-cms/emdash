@@ -53,6 +53,7 @@ import type {
 	PageFragmentContribution,
 	PortableTextBlockConfig,
 	FieldWidgetConfig,
+	SettingField,
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
@@ -224,6 +225,8 @@ export interface SandboxedPluginEntry {
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
+	/** Settings schema for the auto-generated admin settings form */
+	settingsSchema?: Record<string, SettingField>;
 	/** Portable Text block types contributed to the editor (declarative Block Kit) */
 	portableTextBlocks?: PortableTextBlockConfig[];
 	/** Field widget types contributed for schema-field editing UIs */
@@ -1029,6 +1032,7 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
+						settingsSchema: bundle.manifest.admin?.settingsSchema,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -2103,6 +2107,7 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
+						settingsSchema: bundle.manifest.admin?.settingsSchema,
 					});
 					resolved.push(adapted);
 					console.log(

@@ -29,6 +29,8 @@ export interface PluginInfo {
 	hasAdminPages: boolean;
 	hasDashboardWidgets: boolean;
 	hasHooks: boolean;
+	/** True when the plugin declares `admin.settingsSchema` (auto-generated settings form) */
+	hasSettings: boolean;
 	installedAt?: string;
 	activatedAt?: string;
 	deactivatedAt?: string;
@@ -78,6 +80,7 @@ function buildPluginInfo(
 		hasAdminPages: (plugin.admin.pages?.length ?? 0) > 0,
 		hasDashboardWidgets: (plugin.admin.widgets?.length ?? 0) > 0,
 		hasHooks: Object.keys(plugin.hooks ?? {}).length > 0,
+		hasSettings: Object.keys(plugin.admin.settingsSchema ?? {}).length > 0,
 		installedAt: state?.installedAt?.toISOString(),
 		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
@@ -110,6 +113,7 @@ function buildSandboxedPluginInfo(
 		hasAdminPages: (entry.adminPages?.length ?? 0) > 0,
 		hasDashboardWidgets: (entry.adminWidgets?.length ?? 0) > 0,
 		hasHooks: false,
+		hasSettings: Object.keys(entry.settingsSchema ?? {}).length > 0,
 		installedAt: state?.installedAt?.toISOString(),
 		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
@@ -166,6 +170,7 @@ export async function handlePluginList(
 				hasAdminPages: false,
 				hasDashboardWidgets: false,
 				hasHooks: false,
+				hasSettings: false,
 				installedAt: state.installedAt?.toISOString(),
 				activatedAt: state.activatedAt?.toISOString() ?? undefined,
 				deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
@@ -266,6 +271,7 @@ function buildStateOnlyPluginInfo(
 		hasAdminPages: false,
 		hasDashboardWidgets: false,
 		hasHooks: false,
+		hasSettings: false,
 		installedAt: state.installedAt?.toISOString(),
 		activatedAt: state.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,

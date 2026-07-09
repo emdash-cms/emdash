@@ -430,14 +430,25 @@ function PluginCard({
 							</RouterLinkButton>
 						)}
 
-						{plugin.hasAdminPages && plugin.enabled && (
+						{plugin.hasSettings && plugin.enabled && (
 							<RouterLinkButton
-								to="/plugins/$pluginId/$"
-								params={{ pluginId: plugin.id, _splat: "" }}
+								to="/plugins-manager/$pluginId/settings"
+								params={{ pluginId: plugin.id }}
 								aria-label={t`Settings`}
 								variant="ghost"
 								shape="square"
 								icon={<Gear />}
+							/>
+						)}
+
+						{plugin.hasAdminPages && plugin.enabled && (
+							<RouterLinkButton
+								to="/plugins/$pluginId/$"
+								params={{ pluginId: plugin.id, _splat: "" }}
+								aria-label={t`Plugin pages`}
+								variant="ghost"
+								shape="square"
+								icon={<FileText />}
 							/>
 						)}
 
