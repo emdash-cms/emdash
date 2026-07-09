@@ -153,11 +153,17 @@ describe("toolbar bootstrap script", () => {
 		const { renderToolbarBootstrap } =
 			await import("../../../src/visual-editing/toolbar-bootstrap.js");
 		const html = renderToolbarBootstrap();
-		const match = /<script>([\s\S]*)<\/script>/.exec(html);
-		expect(match?.[1]).toBeTruthy();
+		// Index-based extraction (not regex): this parses our own generated
+		// string with known fixed tags, not untrusted HTML.
+		const open = html.indexOf("<script>");
+		const close = html.lastIndexOf("</script>");
+		expect(open).toBeGreaterThanOrEqual(0);
+		expect(close).toBeGreaterThan(open);
+		const script = html.slice(open + "<script>".length, close);
+		expect(script.trim()).toBeTruthy();
 		// Throws SyntaxError if the template literal produced broken JS.
 		// eslint-disable-next-line typescript/no-implied-eval -- deliberate parse-only syntax check of generated script, never invoked
-		expect(() => new Function(match![1]!)).not.toThrow();
+		expect(() => new Function(script)).not.toThrow();
 	});
 });
 
