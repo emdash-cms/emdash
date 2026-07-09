@@ -1,13 +1,16 @@
 ---
 import { getEmDashCollection } from "../../query.js";
+import { buildLiveSearchResultUrl } from "../live-search-routing.js";
 
 interface Props {
 	count?: number;
 	showThumbnails?: boolean;
 	showDate?: boolean;
+	/** URL template for post links, e.g. "/blog/:slug" (tokens: :collection, :id, :slug, :path) */
+	urlTemplate?: string;
 }
 
-const { count = 5, showThumbnails = false, showDate = true } = Astro.props;
+const { count = 5, showThumbnails = false, showDate = true, urlTemplate } = Astro.props;
 
 const { entries: posts } = await getEmDashCollection("posts", {
 	limit: count,
@@ -27,6 +30,10 @@ function getString(data: Record<string, unknown>, key: string): string | undefin
 			const publishedAt = getString(post.data, "publishedAt");
 			const featuredImage = getString(post.data, "featured_image");
 			const title = getString(post.data, "title");
+			const href = buildLiveSearchResultUrl(
+				{ collection: "posts", id: post.id, slug: getString(post.data, "slug") },
+				urlTemplate ? { posts: urlTemplate } : {},
+			);
 			return (
 				<li>
 					{showThumbnails && featuredImage && (
@@ -36,7 +43,7 @@ function getString(data: Record<string, unknown>, key: string): string | undefin
 							class="widget-recent-posts__thumbnail"
 						/>
 					)}
-					<a href={`/posts/${post.id}`} class="widget-recent-posts__link">
+					<a href={href} class="widget-recent-posts__link">
 						{title}
 					</a>
 					{showDate && publishedAt && (
