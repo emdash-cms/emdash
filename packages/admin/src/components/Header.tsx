@@ -57,11 +57,11 @@ export function Header() {
 				{/* User menu */}
 				<Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
 					<Popover.Trigger asChild>
-						<Button variant="ghost" size="sm" className="gap-2 py-1 h-auto">
+						<Button variant="ghost" size="sm" className="gap-2">
 							{user?.avatarUrl ? (
-								<img src={user.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+								<img src={user.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
 							) : (
-								<div className="h-6 w-6 rounded-full bg-kumo-brand/10 flex items-center justify-center text-xs font-medium">
+								<div className="h-5 w-5 rounded-full bg-kumo-brand/10 flex items-center justify-center text-[10px] font-medium">
 									{initials}
 								</div>
 							)}
@@ -95,7 +95,7 @@ export function Header() {
 							<hr className="my-1" />
 							<button
 								onClick={handleLogout}
-								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-start"
+								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-start cursor-pointer"
 							>
 								<SignOut className="h-4 w-4" />
 								{t`Log out`}

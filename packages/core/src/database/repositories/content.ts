@@ -658,19 +658,22 @@ export class ContentRepository {
 	/**
 	 * Restore content from trash
 	 */
-	async restore(type: string, id: string): Promise<boolean> {
+	async restore(type: string, id: string): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
 
-		const result = await sql`
+		const result = await sql<Record<string, unknown>>`
 			UPDATE ${sql.ref(tableName)}
 			SET deleted_at = NULL
 			WHERE id = ${id}
 			AND deleted_at IS NOT NULL
+			RETURNING *
 		`.execute(this.db);
 
-		const changed = (result.numAffectedRows ?? 0n) > 0n;
-		if (changed) invalidateCollectionCache(type);
-		return changed;
+		const restored = result.rows[0];
+		if (!restored) return null;
+
+		invalidateCollectionCache(type);
+		return this.mapRow(type, restored);
 	}
 
 	/**
@@ -894,8 +897,10 @@ export class ContentRepository {
 			.filter((id): id is string => id !== null);
 	}
 
-	// get overall statistics (total, published, draft) for a content type in a single query
-	async getStats(type: string): Promise<{ total: number; published: number; draft: number }> {
+	// get overall statistics for a content type in a single query
+	async getStats(
+		type: string,
+	): Promise<{ total: number; published: number; draft: number; scheduled: number }> {
 		const tableName = getTableName(type);
 
 		const result = await this.db
@@ -904,6 +909,7 @@ export class ContentRepository {
 				eb.fn.count("id").as("total"),
 				eb.fn.sum(eb.case().when("status", "=", "published").then(1).else(0).end()).as("published"),
 				eb.fn.sum(eb.case().when("status", "=", "draft").then(1).else(0).end()).as("draft"),
+				sql<number>`SUM(CASE WHEN scheduled_at IS NOT NULL THEN 1 ELSE 0 END)`.as("scheduled"),
 			])
 			.where("deleted_at" as never, "is", null)
 			.executeTakeFirst();
@@ -912,6 +918,7 @@ export class ContentRepository {
 			total: Number(result?.total || 0),
 			published: Number(result?.published || 0),
 			draft: Number(result?.draft || 0),
+			scheduled: Number(result?.scheduled || 0),
 		};
 	}
 

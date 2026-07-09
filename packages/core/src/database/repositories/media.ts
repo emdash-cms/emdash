@@ -143,7 +143,13 @@ export class MediaRepository {
 	 */
 	async confirmUpload(
 		id: string,
-		metadata?: { width?: number; height?: number; size?: number },
+		metadata?: {
+			width?: number;
+			height?: number;
+			size?: number;
+			blurhash?: string;
+			dominantColor?: string;
+		},
 	): Promise<MediaItem | null> {
 		const existing = await this.findById(id);
 		if (!existing) {
@@ -156,6 +162,8 @@ export class MediaRepository {
 		if (metadata?.width !== undefined) updates.width = metadata.width;
 		if (metadata?.height !== undefined) updates.height = metadata.height;
 		if (metadata?.size !== undefined) updates.size = metadata.size;
+		if (metadata?.blurhash !== undefined) updates.blurhash = metadata.blurhash;
+		if (metadata?.dominantColor !== undefined) updates.dominant_color = metadata.dominantColor;
 
 		await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
 

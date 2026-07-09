@@ -170,7 +170,31 @@ describe("applySeed", () => {
 			expect(row?.translation_group).toBe(row?.id);
 		});
 
-		it("should create flat taxonomy terms", async () => {
+		it("should not create terms by default", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				taxonomies: [
+					{
+						name: "tags",
+						label: "Tags",
+						hierarchical: false,
+						collections: ["posts"],
+						terms: [{ slug: "javascript", label: "JavaScript" }],
+					},
+				],
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.taxonomies.created).toBe(1);
+			expect(result.taxonomies.terms).toBe(0);
+
+			const termRepo = new TaxonomyRepository(db);
+			const term = await termRepo.findBySlug("tags", "javascript");
+			expect(term).toBeFalsy();
+		});
+
+		it("should create flat taxonomy terms when includeContent is true", async () => {
 			const seed: SeedFile = {
 				version: "1",
 				taxonomies: [
@@ -188,7 +212,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			const result = await applySeed(db, seed);
+			const result = await applySeed(db, seed, { includeContent: true });
 
 			expect(result.taxonomies.created).toBe(1);
 			expect(result.taxonomies.terms).toBe(3);
@@ -213,7 +237,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			const result = await applySeed(db, seed);
+			const result = await applySeed(db, seed, { includeContent: true });
 
 			expect(result.taxonomies.terms).toBe(4);
 
@@ -261,7 +285,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			const result = await applySeed(db, seed);
+			const result = await applySeed(db, seed, { includeContent: true });
 
 			// Definition already exists, so not created
 			expect(result.taxonomies.created).toBe(0);
@@ -673,6 +697,21 @@ describe("applySeed", () => {
 			expect(entry?.primaryBylineId).toBe(credits[0]?.byline.id);
 		});
 
+		it("should not create bylines by default", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				bylines: [{ id: "editorial", slug: "editorial", displayName: "Editorial" }],
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.bylines.created).toBe(0);
+
+			const bylineRepo = new BylineRepository(db);
+			const byline = await bylineRepo.findBySlug("editorial");
+			expect(byline).toBeFalsy();
+		});
+
 		it("should seed a byline avatar as a media row and link it", async () => {
 			const seed: SeedFile = {
 				version: "1",
@@ -691,7 +730,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			const result = await applySeed(db, seed);
+			const result = await applySeed(db, seed, { includeContent: true });
 
 			expect(result.bylines.created).toBe(1);
 			// The avatar created a backing media row.
@@ -716,10 +755,14 @@ describe("applySeed", () => {
 			const bylineRepo = new BylineRepository(db);
 
 			// First seed: no avatar.
-			await applySeed(db, {
-				version: "1",
-				bylines: [{ id: "grace", slug: "grace-hopper", displayName: "Grace Hopper" }],
-			});
+			await applySeed(
+				db,
+				{
+					version: "1",
+					bylines: [{ id: "grace", slug: "grace-hopper", displayName: "Grace Hopper" }],
+				},
+				{ includeContent: true },
+			);
 			const before = await bylineRepo.findBySlug("grace-hopper");
 			expect(before?.avatarMediaId).toBeNull();
 
@@ -737,7 +780,7 @@ describe("applySeed", () => {
 						},
 					],
 				},
-				{ onConflict: "update" },
+				{ onConflict: "update", includeContent: true },
 			);
 
 			expect(result.bylines.updated).toBe(1);
@@ -760,7 +803,7 @@ describe("applySeed", () => {
 						},
 					],
 				},
-				{ onConflict: "update" },
+				{ onConflict: "update", includeContent: true },
 			);
 			expect(rerun.media.created).toBe(0);
 			const mediaRows = await db
@@ -1400,7 +1443,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			await applySeed(db, seed);
+			await applySeed(db, seed, { includeContent: true });
 
 			const terms = await db
 				.selectFrom("taxonomies")

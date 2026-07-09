@@ -11,6 +11,7 @@ import type { APIRoute } from "astro";
 
 import { handleError } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
+import { OptionsRepository } from "#db/repositories/options.js";
 
 import { COMMIT, VERSION } from "../../../version.js";
 import type { EmDashManifest } from "../../types.js";
@@ -39,7 +40,25 @@ export const GET: APIRoute = async ({ locals }) => {
 		// doesn't assign it to globalThis, so getStoredConfig() always returned
 		// null and the React SPA never received custom logo/siteName/favicon.
 		// See issue #835.
-		const adminBranding = emdash?.config?.admin;
+		let adminBranding = emdash?.config?.admin;
+
+		// When no build-time `admin.siteName` is configured, brand the admin with
+		// the site's own title so multi-site operators can tell backends apart
+		// (WordPress-style: wp-admin always shows the site name). Precedence:
+		// explicit `admin.siteName` → Site Title (Settings → General) → the title
+		// captured by the setup wizard → the bundled "EmDash" default in the SPA.
+		if (!adminBranding?.siteName && emdash?.db) {
+			try {
+				const options = new OptionsRepository(emdash.db);
+				const titles = await options.getMany<string>(["site:title", "emdash:site_title"]);
+				const siteTitle = titles.get("site:title") || titles.get("emdash:site_title");
+				if (siteTitle) {
+					adminBranding = { ...adminBranding, siteName: siteTitle };
+				}
+			} catch {
+				// options table may not exist yet (pre-setup) — keep the default.
+			}
+		}
 
 		// Check if self-signup is enabled (any allowed domain with enabled = 1)
 		// Only relevant for passkey auth — external auth providers handle their own signup

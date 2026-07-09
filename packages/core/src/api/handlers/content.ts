@@ -12,6 +12,7 @@ import { ContentRepository } from "../../database/repositories/content.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
+import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
 	EmDashValidationError,
 	ScheduledNotDueError,
@@ -30,6 +31,7 @@ import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
@@ -327,6 +329,36 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 	return columns;
 }
 
+/**
+ * Create a 301 auto-redirect from an entry's old URL to its new one after a
+ * slug change, using the collection's URL pattern. Shared by
+ * handleContentUpdate (direct slug edits) and handleContentPublish (slug edits
+ * staged as `_slug` in a draft revision, which only land on publish).
+ */
+async function createSlugChangeRedirect(
+	db: Kysely<Database>,
+	collection: string,
+	oldSlug: string,
+	newSlug: string,
+	contentId: string,
+): Promise<void> {
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("url_pattern")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+
+	const redirectRepo = new RedirectRepository(db);
+	await redirectRepo.createAutoRedirect(
+		collection,
+		oldSlug,
+		newSlug,
+		contentId,
+		collectionRow?.url_pattern ?? null,
+	);
+	invalidateRedirectCache();
+}
+
 /** Matches a date-only `YYYY-MM-DD` bound (no time component). */
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -608,6 +640,7 @@ export async function handleContentCreate(
 		locale?: string;
 		translationOf?: string;
 		seo?: ContentSeoInput;
+		taxonomies?: Record<string, string[]>;
 		createdAt?: string | null;
 		publishedAt?: string | null;
 	},
@@ -682,7 +715,6 @@ export async function handleContentCreate(
 			// when the target already has credits, but the cleaner guard
 			// is to skip the call entirely.
 			if (body.translationOf) {
-				const { TaxonomyRepository } = await import("../../database/repositories/taxonomy.js");
 				const taxRepo = new TaxonomyRepository(trx);
 				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
 
@@ -705,6 +737,18 @@ export async function handleContentCreate(
 			} else if (hasSeo) {
 				// Assign defaults in-memory — no DB round-trip needed
 				created.seo = { ...SEO_DEFAULTS };
+			}
+
+			// Attach taxonomy terms in the same transaction. The MCP tool
+			// (and the REST create body) previously accepted a `taxonomies`
+			// field on `content_create` without doing anything with it, so
+			// agents publishing a categorized/tagged entry had to make N
+			// follow-up REST calls per taxonomy. This resolves each slug in
+			// the entry's locale and pipes it through the same
+			// `setTermsForEntry` path the `.../terms/{taxonomy}` REST route
+			// uses, so the two entry points can't drift.
+			if (body.taxonomies) {
+				await assignTaxonomies(trx, collection, created.id, effectiveLocale, body.taxonomies);
 			}
 
 			return created;
@@ -786,6 +830,7 @@ export async function handleContentUpdate(
 		locale?: string;
 		_rev?: string;
 		seo?: ContentSeoInput;
+		taxonomies?: Record<string, string[]>;
 		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
@@ -865,21 +910,7 @@ export async function handleContentUpdate(
 
 			// Create auto-redirect when slug changes
 			if (oldSlug && body.slug) {
-				const collectionRow = await trx
-					.selectFrom("_emdash_collections")
-					.select("url_pattern")
-					.where("slug", "=", collection)
-					.executeTakeFirst();
-
-				const redirectRepo = new RedirectRepository(trx);
-				await redirectRepo.createAutoRedirect(
-					collection,
-					oldSlug,
-					body.slug,
-					resolvedId,
-					collectionRow?.url_pattern ?? null,
-				);
-				invalidateRedirectCache();
+				await createSlugChangeRedirect(trx, collection, oldSlug, body.slug, resolvedId);
 			}
 
 			// Sync non-translatable fields to sibling locales in the same
@@ -905,6 +936,20 @@ export async function handleContentUpdate(
 			}
 
 			await hydrateBylines(trx, collection, updated);
+
+			// Replace taxonomy assignments in the same transaction. Uses the
+			// entry's own locale (post-update) to resolve slugs so an update
+			// that also changes locale still lands on the correct term
+			// variants. See handleContentCreate for rationale.
+			if (body.taxonomies) {
+				await assignTaxonomies(
+					trx,
+					collection,
+					resolvedId,
+					updated.locale ?? body.locale,
+					body.taxonomies,
+				);
+			}
 
 			return updated;
 		});
@@ -1046,15 +1091,18 @@ export async function handleContentDelete(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ deleted: true }>> {
+): Promise<ApiResult<{ deleted: true; id: string }>> {
 	try {
-		const deleted = await withTransaction(db, async (trx) => {
+		const result = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.delete(collection, resolvedId);
+			return {
+				id: resolvedId,
+				deleted: await repo.delete(collection, resolvedId),
+			};
 		});
 
-		if (!deleted) {
+		if (!result.deleted) {
 			return {
 				success: false,
 				error: {
@@ -1066,7 +1114,7 @@ export async function handleContentDelete(
 
 		return {
 			success: true,
-			data: { deleted: true },
+			data: { deleted: true, id: result.id },
 		};
 	} catch (error) {
 		console.error("Content delete error:", error);
@@ -1087,15 +1135,15 @@ export async function handleContentRestore(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ restored: true }>> {
+): Promise<ApiResult<{ restored: true; item: ContentItem }>> {
 	try {
-		const restored = await withTransaction(db, async (trx) => {
+		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
 			return repo.restore(collection, resolvedId);
 		});
 
-		if (!restored) {
+		if (!item) {
 			return {
 				success: false,
 				error: {
@@ -1107,7 +1155,7 @@ export async function handleContentRestore(
 
 		return {
 			success: true,
-			data: { restored: true },
+			data: { restored: true, item },
 		};
 	} catch (error) {
 		console.error("Content restore error:", error);
@@ -1129,7 +1177,7 @@ export async function handleContentPermanentDelete(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ deleted: true }>> {
+): Promise<ApiResult<{ deleted: true; id: string }>> {
 	try {
 		const repo = new ContentRepository(db);
 		const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
@@ -1166,7 +1214,7 @@ export async function handleContentPermanentDelete(
 
 		return {
 			success: true,
-			data: { deleted: true },
+			data: { deleted: true, id: resolvedId },
 		};
 	} catch (error) {
 		console.error("Content permanent delete error:", error);
@@ -1362,7 +1410,34 @@ export async function handleContentPublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId, options.publishedAt, options.requireScheduledDue);
+
+			// Capture the pre-publish state. For revision-supporting collections a
+			// slug edit is staged as `_slug` in the draft revision and only lands
+			// on the live `slug` column here, inside `repo.publish()` — it never
+			// passes through handleContentUpdate, where slug-change auto-redirects
+			// are normally created.
+			const existing = await repo.findById(collection, resolvedId);
+
+			const published = await repo.publish(
+				collection,
+				resolvedId,
+				options.publishedAt,
+				options.requireScheduledDue,
+			);
+
+			// Leave a 301 behind when publishing changed the slug of an entry that
+			// was already published — its old URL was live and may be indexed or
+			// linked. A first publish is excluded: a draft's URL was never public.
+			if (
+				existing?.status === "published" &&
+				existing.slug &&
+				published.slug &&
+				existing.slug !== published.slug
+			) {
+				await createSlugChangeRedirect(trx, collection, existing.slug, published.slug, resolvedId);
+			}
+
+			return published;
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1722,4 +1797,58 @@ async function syncNonTranslatableFields(
 		WHERE translation_group = ${translationGroup}
 		AND id != ${updatedItemId}
 	`.execute(trx);
+}
+
+/**
+ * Resolve a `{ taxonomyName: [slug, ...] }` map to term IDs and replace the
+ * entry's assignments for each named taxonomy.
+ *
+ * Shared by handleContentCreate and handleContentUpdate so both MCP entry
+ * points behave identically. Slug resolution is scoped to `locale`; passing
+ * `undefined` lets `findBySlug` fall back to its default (lowest locale code)
+ * so callers on single-locale sites don't need to know the site's default.
+ *
+ * Throws EmDashValidationError on unknown slug or wrong shape; the calling
+ * handler translates that into a VALIDATION_ERROR response.
+ */
+async function assignTaxonomies(
+	trx: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	locale: string | undefined,
+	taxonomies: Record<string, string[]>,
+): Promise<void> {
+	const taxRepo = new TaxonomyRepository(trx);
+	let anyChange = false;
+
+	for (const [taxonomyName, slugs] of Object.entries(taxonomies)) {
+		if (!Array.isArray(slugs)) {
+			throw new EmDashValidationError(`taxonomies.${taxonomyName} must be an array of term slugs`);
+		}
+
+		const termIds: string[] = [];
+		for (const slug of slugs) {
+			if (typeof slug !== "string" || slug.length === 0) {
+				throw new EmDashValidationError(
+					`taxonomies.${taxonomyName} contains a non-string or empty slug`,
+				);
+			}
+			const term = await taxRepo.findBySlug(taxonomyName, slug, locale);
+			if (!term) {
+				throw new EmDashValidationError(
+					`Unknown taxonomy term: ${taxonomyName}='${slug}'${
+						locale ? ` (locale '${locale}')` : ""
+					}`,
+				);
+			}
+			termIds.push(term.id);
+		}
+
+		await taxRepo.setTermsForEntry(collection, entryId, taxonomyName, termIds);
+		anyChange = true;
+	}
+
+	// Match the REST route's behaviour: taxonomy term assignments changed,
+	// so invalidate the taxonomy object cache used during hydration.
+	if (anyChange) invalidateTermCache();
 }

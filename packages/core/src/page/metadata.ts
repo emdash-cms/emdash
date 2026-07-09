@@ -20,6 +20,10 @@ export interface ResolvedPageMetadata {
 	jsonld: Array<{ id?: string; json: string }>;
 }
 
+interface RenderPageMetadataOptions {
+	includeJsonLd?: boolean;
+}
+
 // ── Validation ──────────────────────────────────────────────────
 
 /** Schemes safe for use in link href attributes */
@@ -64,6 +68,16 @@ export function safeJsonLdSerialize(value: unknown): string {
 		.replace(JSONLD_GT_RE, "\\u003e")
 		.replace(JSONLD_U2028_RE, "\\u2028")
 		.replace(JSONLD_U2029_RE, "\\u2029");
+}
+
+export async function createSha256CspHash(value: string): Promise<string> {
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+	const bytes = new Uint8Array(digest);
+	let binary = "";
+	for (const byte of bytes) {
+		binary += String.fromCharCode(byte);
+	}
+	return `sha256-${btoa(binary)}`;
 }
 
 // ── Merge / dedupe ──────────────────────────────────────────────
@@ -155,8 +169,12 @@ export function resolvePageMetadata(
 // ── HTML rendering ──────────────────────────────────────────────
 
 /** Render resolved metadata to an HTML string for embedding in <head> */
-export function renderPageMetadata(metadata: ResolvedPageMetadata): string {
+export function renderPageMetadata(
+	metadata: ResolvedPageMetadata,
+	options: RenderPageMetadataOptions = {},
+): string {
 	const parts: string[] = [];
+	const includeJsonLd = options.includeJsonLd ?? true;
 
 	for (const m of metadata.meta) {
 		parts.push(`<meta name="${escapeHtmlAttr(m.name)}" content="${escapeHtmlAttr(m.content)}">`);
@@ -177,8 +195,10 @@ export function renderPageMetadata(metadata: ResolvedPageMetadata): string {
 		parts.push(tag);
 	}
 
-	for (const j of metadata.jsonld) {
-		parts.push(`<script type="application/ld+json">${j.json}</script>`);
+	if (includeJsonLd) {
+		for (const j of metadata.jsonld) {
+			parts.push(`<script type="application/ld+json">${j.json}</script>`);
+		}
 	}
 
 	return parts.join("\n");

@@ -77,7 +77,6 @@ import {
 	fetchTranslations,
 	fetchMediaList,
 	uploadMedia,
-	deleteMedia,
 	fetchCollections,
 	fetchCollection,
 	createCollection,
@@ -120,6 +119,7 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { runBulkAction } from "./lib/bulk";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
@@ -445,6 +445,80 @@ function ContentListPage() {
 		},
 	});
 
+	// Bulk actions run the existing per-entry endpoints through a
+	// concurrency-limited queue (runBulkAction) — selection persists across
+	// pagination, so an unbounded fan-out could fire hundreds of parallel
+	// requests. Per-id failures are collected (not thrown) and returned to
+	// ContentList, which keeps the failed rows selected for a retry; the
+	// toasts surface the failure count and the list is refetched either way.
+	const bulkPublishMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) =>
+				publishContent(collection, id, { locale: activeLocale }),
+			);
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Published ${total} items`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to publish`,
+					description: t`${failedIds.length} of ${total} could not be published`,
+					type: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+		},
+	});
+
+	const bulkUnpublishMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) =>
+				unpublishContent(collection, id, { locale: activeLocale }),
+			);
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Moved ${total} items to draft`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to update`,
+					description: t`${failedIds.length} of ${total} could not be updated`,
+					type: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+		},
+	});
+
+	const bulkDeleteMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) => deleteContent(collection, id));
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Moved ${total} items to trash`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to delete`,
+					description: t`${failedIds.length} of ${total} could not be deleted`,
+					type: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+		},
+	});
+
 	const items = React.useMemo(() => {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
@@ -453,6 +527,11 @@ function ContentListPage() {
 	// because filters don't change within a fetch cycle. Fall back to the
 	// loaded count so old servers (pre-total) still render a denominator.
 	const total = data?.pages[0]?.total ?? items.length;
+
+	// Keep every hook above the early returns below — a render that takes a
+	// guard (e.g. `error`) must run the same number of hooks as a full render,
+	// or React throws #300 "Rendered fewer hooks than expected" (#1415).
+	const handleLoadMore = React.useCallback(() => void fetchNextPage(), [fetchNextPage]);
 
 	if (!manifest) {
 		return <LoadingScreen />;
@@ -486,7 +565,7 @@ function ContentListPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
 			hasMore={!!hasNextPage}
-			onLoadMore={React.useCallback(() => void fetchNextPage(), [fetchNextPage])}
+			onLoadMore={handleLoadMore}
 			trashedCount={trashedData?.items?.length || 0}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
@@ -507,6 +586,9 @@ function ContentListPage() {
 			onAuthorFilterChange={setAuthorFilter}
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
+			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
 		/>
 	);
 }
@@ -1126,13 +1208,6 @@ function MediaPage() {
 		},
 	});
 
-	const deleteMutation = useMutation({
-		mutationFn: (id: string) => deleteMedia(id),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["media"] });
-		},
-	});
-
 	const items = React.useMemo(() => {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
@@ -1148,7 +1223,6 @@ function MediaPage() {
 			hasMore={!!hasNextPage}
 			onLoadMore={() => void fetchNextPage()}
 			onUpload={(file) => uploadMutation.mutate(file)}
-			onDelete={(id) => deleteMutation.mutate(id)}
 			onLocalSearchChange={setSearch}
 			onLocalMimeFilterChange={setMimeFilter}
 		/>

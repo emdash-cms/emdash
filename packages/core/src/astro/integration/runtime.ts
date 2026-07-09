@@ -220,14 +220,11 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
-	 * import { auditLogPlugin } from "@emdash-cms/plugin-audit-log";
-	 * import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
+	 * import auditLog from "@emdash-cms/plugin-audit-log";
+	 * import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
 	 *
 	 * emdash({
-	 *   plugins: [
-	 *     auditLogPlugin(),
-	 *     webhookNotifierPlugin({ url: "https://example.com/webhook" }),
-	 *   ],
+	 *   plugins: [auditLog, webhookNotifier],
 	 * })
 	 * ```
 	 */

@@ -77,6 +77,17 @@ import type { EmDashHandlers } from "./types.js";
 const RUNTIME_INIT_DEADLINE_MS = DB_INIT_DEADLINE_MS + 15_000;
 
 /**
+ * Throttle for the anonymous-path runtime-init failure log. While a site is
+ * stuck (e.g. a failing migration in its backoff window, #1744) every
+ * anonymous request lands in that catch; one line per interval per isolate
+ * keeps the failure visible without flooding logs on a busy site. Plain
+ * module state (not globalThis): a duplicated SSR chunk just means an extra
+ * log line, which is harmless.
+ */
+const RUNTIME_INIT_ERROR_LOG_INTERVAL_MS = 30_000;
+let lastRuntimeInitErrorLogAt = 0;
+
+/**
  * Whether we've verified the database has been set up.
  * On a fresh deployment the first request may hit a public page, bypassing
  * runtime init. Without this check, template helpers like getSiteSettings()
@@ -490,6 +501,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
 
+		// Credentialed API requests (API tokens `ec_pat_*`, OAuth tokens
+		// `ec_oat_*`, and other Bearer credentials) carry no `astro-session`
+		// cookie, so `sessionUser` is null for them -- yet they still expect
+		// read-your-writes. The auth middleware that resolves the token runs
+		// *after* this one, so `locals.user` isn't populated here; detect the
+		// credential directly on the request. Request-scoped adapters use this to
+		// keep such requests on the primary/uncached connection (not a lagging
+		// read replica or the Hyperdrive query cache).
+		const hasBearerAuth = (request.headers.get("authorization") ?? "")
+			.toLowerCase()
+			.startsWith("bearer ");
+
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
 				const timings: Array<{ name: string; dur: number; desc?: string }> = [];
@@ -559,8 +582,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							// requests carry no session.
 							storage: runtime.storage,
 						} as EmDashHandlers;
-					} catch {
-						// Non-fatal — EmDashHead will fall back to base SEO contributions
+					} catch (error) {
+						// Non-fatal — EmDashHead falls back to base SEO contributions —
+						// but log it (throttled): a persistently failing init (e.g. a
+						// failing migration, #1744) is otherwise invisible on the
+						// anonymous path, silently degrading every public page.
+						if (Date.now() - lastRuntimeInitErrorLogAt >= RUNTIME_INIT_ERROR_LOG_INTERVAL_MS) {
+							lastRuntimeInitErrorLogAt = Date.now();
+							console.error("[emdash] runtime init failed (page renders without CMS data):", error);
+						}
 					}
 					timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 					// Append cold-only sub-phase timings so the breakdown is visible
@@ -668,6 +698,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Content handlers
 					handleContentList: runtime.handleContentList.bind(runtime),
 					handleContentGet: runtime.handleContentGet.bind(runtime),
+					handleContentAuthors: runtime.handleContentAuthors.bind(runtime),
 					handleContentCreate: runtime.handleContentCreate.bind(runtime),
 					handleContentUpdate: runtime.handleContentUpdate.bind(runtime),
 					handleContentDelete: runtime.handleContentDelete.bind(runtime),
@@ -739,6 +770,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					hooks: runtime.hooks,
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,
+					sandboxedPluginEntries: runtime.sandboxedPluginEntries,
 
 					// Configuration (for checking database type, auth mode, etc.)
 					config,
@@ -775,7 +807,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// per-request state (e.g. a D1 bookmark cookie for read-your-writes).
 			const scoped = createRequestScopedDb({
 				config: config?.database?.config,
-				isAuthenticated: !!sessionUser,
+				isAuthenticated: !!sessionUser || hasBearerAuth,
 				isWrite: request.method !== "GET" && request.method !== "HEAD",
 				cookies: context.cookies,
 				url,

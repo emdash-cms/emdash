@@ -490,7 +490,7 @@ function CommentRow({
 							onClick={() => onStatusChange(comment.id, "approved")}
 							disabled={isStatusPending}
 						>
-							<Check className="h-4 w-4 text-green-600" />
+							<Check className="h-4 w-4 text-kumo-success" />
 						</Button>
 					)}
 					{comment.status !== "spam" && (
@@ -502,7 +502,7 @@ function CommentRow({
 							onClick={() => onStatusChange(comment.id, "spam")}
 							disabled={isStatusPending}
 						>
-							<Warning className="h-4 w-4 text-orange-500" />
+							<Warning className="h-4 w-4 text-kumo-warning" />
 						</Button>
 					)}
 					{comment.status !== "trash" && (

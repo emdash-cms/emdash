@@ -1,6 +1,7 @@
 export * from "./common.js";
 export * from "./content.js";
 export * from "./media.js";
+export * from "./media-usage.js";
 export * from "./schema.js";
 export * from "./comments.js";
 export * from "./auth.js";

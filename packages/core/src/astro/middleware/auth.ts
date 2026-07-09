@@ -34,7 +34,7 @@ import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
-import { buildEmDashCsp } from "./csp.js";
+import { buildEmDashCsp, getConfiguredStorageEndpoint } from "./csp.js";
 
 declare global {
 	namespace App {
@@ -120,6 +120,7 @@ const PUBLIC_API_EXACT = new Set([
 	// so unauthenticated callers only see published content. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
 	"/_emdash/api/search",
+	"/_emdash/api/search/suggest",
 ]);
 
 // Build merged public routes at module load from auth provider descriptors.
@@ -305,7 +306,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (!import.meta.env.DEV) {
 			response.headers.set(
 				"Content-Security-Policy",
-				buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+				buildEmDashCsp(
+					context.locals.emdash?.config.experimental?.registry,
+					getConfiguredStorageEndpoint(context.locals.emdash?.config.storage),
+				),
 			);
 		}
 		return response;
@@ -317,7 +321,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (!import.meta.env.DEV) {
 		response.headers.set(
 			"Content-Security-Policy",
-			buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+			buildEmDashCsp(
+				context.locals.emdash?.config.experimental?.registry,
+				getConfiguredStorageEndpoint(context.locals.emdash?.config.storage),
+			),
 		);
 	}
 
