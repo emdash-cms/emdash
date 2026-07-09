@@ -172,6 +172,15 @@ export async function acceptInviteViaOAuth(
 		if (!user) {
 			throw new OAuthError("user_not_found", "Linked user not found");
 		}
+		// The linked user must actually own the invited email; otherwise a
+		// provider identity whose EmDash email was changed after linking could
+		// consume an invite issued to someone else.
+		if (user.email.toLowerCase() !== invite.email.toLowerCase()) {
+			throw new OAuthError(
+				"invite_email_mismatch",
+				"This invite was sent to a different email address than your account.",
+			);
+		}
 		await adapter.deleteToken(hashToken(inviteToken));
 		return user;
 	}

@@ -134,6 +134,36 @@ describe("acceptInviteViaOAuth", () => {
 		).rejects.toMatchObject({ code: "invite_invalid" });
 	});
 
+	it("rejects (and does not consume) when the already-linked account's user has a different email", async () => {
+		const token = await invite("invitee@example.com");
+		// An OAuth identity is already linked to a user whose EmDash email differs
+		// from the invited address (e.g. the email was changed after linking).
+		const other = await adapter.createUser({
+			email: "other@example.com",
+			name: "Other",
+			role: Role.AUTHOR,
+			emailVerified: true,
+		});
+		await adapter.createOAuthAccount({
+			provider: "google",
+			providerAccountId: "google-linked",
+			userId: other.id,
+		});
+
+		await expect(
+			acceptInviteViaOAuth(
+				adapter,
+				"google",
+				makeProfile({ id: "google-linked", email: "invitee@example.com" }),
+				token,
+			),
+		).rejects.toMatchObject({ code: "invite_email_mismatch" });
+
+		// The invite was not consumed: a fresh, correctly-matched identity still works.
+		const user = await acceptInviteViaOAuth(adapter, "google", makeProfile(), token);
+		expect(user.email).toBe("invitee@example.com");
+	});
+
 	it("rejects an invalid or unknown invite token", async () => {
 		await expect(
 			acceptInviteViaOAuth(adapter, "google", makeProfile(), "not-a-real-token"),
