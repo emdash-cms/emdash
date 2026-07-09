@@ -90,28 +90,30 @@ export function CapabilityConsentDialog({
 								key={cap}
 								className={cn(
 									"flex items-start gap-3 rounded-md p-2 text-sm",
-									isNew ? "bg-warning/10 border border-warning/30" : "bg-kumo-tint/50",
+									isNew ? "bg-kumo-warning/10 border border-kumo-warning/30" : "bg-kumo-tint/50",
 								)}
 							>
 								<ShieldCheck
 									className={cn(
 										"mt-0.5 h-4 w-4 shrink-0",
-										isNew ? "text-warning" : "text-kumo-subtle",
+										isNew ? "text-kumo-warning" : "text-kumo-subtle",
 									)}
 								/>
 								<div>
 									<span className={cn(isNew && "font-medium")}>
 										{describeCapability(cap, allowedHosts)}
 									</span>
-									{isNew && <span className="ms-2 text-xs text-warning font-medium">{t`NEW`}</span>}
+									{isNew && (
+										<span className="ms-2 text-xs text-kumo-warning font-medium">{t`NEW`}</span>
+									)}
 								</div>
 							</div>
 						);
 					})}
 
 					{newlyPublicRoutes.length > 0 && (
-						<div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
-							<div className="flex items-center gap-2 font-medium text-warning">
+						<div className="rounded-md border border-kumo-warning/30 bg-kumo-warning/10 p-3 text-sm">
+							<div className="flex items-center gap-2 font-medium text-kumo-warning">
 								<Warning className="h-4 w-4 shrink-0" />
 								{t`New public routes`}
 							</div>
@@ -134,7 +136,7 @@ export function CapabilityConsentDialog({
 							className={cn(
 								"flex items-center gap-2 rounded-md p-3 text-sm mt-2",
 								auditVerdict === "warn"
-									? "bg-warning/10 text-warning"
+									? "bg-kumo-warning/10 text-kumo-warning"
 									: "bg-kumo-danger/10 text-kumo-danger",
 							)}
 						>

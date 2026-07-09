@@ -55,6 +55,38 @@ function jsonResponse(body: unknown, status: number = 200): Response {
 	});
 }
 
+function mediaUsageRepairCollection(
+	collection: string,
+	status: "complete" | "partial" | "failed" | "stale",
+) {
+	return {
+		collection,
+		status,
+		indexedSourceCount: status === "complete" ? 1 : 0,
+		failedSourceCount: status === "failed" ? 1 : 0,
+		skippedSourceCount: status === "partial" || status === "stale" ? 1 : 0,
+		deletedSourceCount: 0,
+		lastErrorCode: status === "complete" ? null : "CONTENT_USAGE_REPAIR_CONFLICT",
+		startedAt: "2026-07-07T00:00:00.000Z",
+		completedAt: status === "stale" ? null : "2026-07-07T00:00:01.000Z",
+	};
+}
+
+function mediaUsageRepairResponse(
+	collection: string,
+	status: "complete" | "partial" | "failed" | "stale",
+) {
+	const summary = mediaUsageRepairCollection(collection, status);
+	return {
+		status,
+		indexedSourceCount: summary.indexedSourceCount,
+		failedSourceCount: summary.failedSourceCount,
+		skippedSourceCount: summary.skippedSourceCount,
+		deletedSourceCount: summary.deletedSourceCount,
+		collections: [summary],
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -645,6 +677,99 @@ describe("EmDashClient", () => {
 				slug: "events",
 				label: "Events",
 				labelSingular: "Event",
+			});
+		});
+	});
+
+	describe("mediaRepairUsage()", () => {
+		it("sends collection repair requests with the caller-provided body", async () => {
+			let capturedPath = "";
+			let capturedBody: unknown;
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/repair",
+					handler: async (req) => {
+						capturedPath = new URL(req.url).pathname;
+						capturedBody = await req.json();
+						return jsonResponse(mediaUsageRepairResponse("posts", "complete"));
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaRepairUsage({ scope: "collection", collection: "posts" });
+
+			expect(capturedPath).toBe("/_emdash/api/admin/media-usage/repair");
+			expect(capturedBody).toEqual({ scope: "collection", collection: "posts" });
+			expect(result).toMatchObject({
+				status: "complete",
+				collections: [expect.objectContaining({ collection: "posts", status: "complete" })],
+			});
+		});
+
+		it("sends all-content repair requests with the explicit all scope", async () => {
+			let capturedBody: unknown;
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/repair",
+					handler: async (req) => {
+						capturedBody = await req.json();
+						return jsonResponse({
+							...mediaUsageRepairResponse("posts", "complete"),
+							collections: [
+								mediaUsageRepairCollection("pages", "complete"),
+								mediaUsageRepairCollection("posts", "complete"),
+							],
+						});
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaRepairUsage({ scope: "all" });
+
+			expect(capturedBody).toEqual({ scope: "all" });
+			expect(result.collections.map((collection) => collection.collection)).toEqual([
+				"pages",
+				"posts",
+			]);
+		});
+
+		it("returns structured failed and stale 200 responses without throwing", async () => {
+			const statuses = ["failed", "stale"] as const;
+			let call = 0;
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/repair",
+					handler: () => jsonResponse(mediaUsageRepairResponse("posts", statuses[call++]!)),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await expect(
+				client.mediaRepairUsage({ scope: "collection", collection: "posts" }),
+			).resolves.toMatchObject({ status: "failed" });
+			await expect(client.mediaRepairUsage({ scope: "all" })).resolves.toMatchObject({
+				status: "stale",
+				collections: [expect.objectContaining({ completedAt: null })],
 			});
 		});
 	});

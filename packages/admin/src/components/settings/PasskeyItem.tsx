@@ -153,9 +153,7 @@ export function PasskeyItem({
 					)}
 					<div className="text-sm text-kumo-subtle">
 						{deviceTypeLabel}
-						{passkey.backedUp && (
-							<span className="text-green-600 dark:text-green-400"> {t`(synced)`}</span>
-						)}
+						{passkey.backedUp && <span className="text-kumo-success"> {t`(synced)`}</span>}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-1">
 						{t`Last used`} {formatRelativeTime(passkey.lastUsedAt)}

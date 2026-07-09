@@ -61,6 +61,12 @@ export {
 	type MediaResponse,
 } from "./media.js";
 
+export {
+	handleMediaUsageRepair,
+	toMediaUsageRepairResponse,
+	type MediaUsageRepairResponse,
+} from "./media-usage.js";
+
 // Schema handlers
 export {
 	handleSchemaCollectionList,

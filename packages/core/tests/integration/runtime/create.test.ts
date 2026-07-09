@@ -11,7 +11,7 @@
 import { randomUUID } from "node:crypto";
 
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
+import { Kysely, sql, SqliteDialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
@@ -215,6 +215,40 @@ describe("EmDashRuntime.create — cold boot", () => {
 				// already closed
 			}
 		}
+	});
+
+	// A failed migration must not be retried on every create() call: on
+	// Workers each request in a warm isolate re-enters create(), and without
+	// a backoff every request re-runs the failing migration against the
+	// database (#1744). The failure is remembered per database entrypoint
+	// and re-attempts are skipped for a backoff window.
+	it("backs off after a migration failure instead of retrying immediately", async () => {
+		// A database whose next migration deterministically fails: fully
+		// migrated, then the 001_initial bookkeeping row is removed so the
+		// migrator re-runs it against existing tables.
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await sql`DELETE FROM _emdash_migrations WHERE name = '001_initial'`.execute(setupDb);
+
+		let dialectCalls = 0;
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			createDialect: () => {
+				dialectCalls += 1;
+				return new SqliteDialect({ database: sqlite });
+			},
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/Migration failed/i);
+		expect(dialectCalls).toBe(1);
+
+		// An immediate retry (same entrypoint → same failure record) must
+		// fail fast without building a new connection or touching the db.
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
+		expect(dialectCalls).toBe(1);
 	});
 
 	// A per-request isolated db (playground / DO preview) must never be

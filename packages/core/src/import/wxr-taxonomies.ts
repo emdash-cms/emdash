@@ -199,6 +199,45 @@ async function findTaxonomyDef(
 }
 
 /**
+ * Rebuild the taxonomy lookup maps from the database without creating
+ * anything. The chunked WP import runs term creation once (first content
+ * chunk); every later chunk only needs the maps to attach per-post
+ * assignments, and two SELECTs are far cheaper than re-walking every term
+ * through the ensure path.
+ *
+ * ponytail: first row wins per (name, slug), ordered by locale asc — the
+ * same row `findBySlug` without a locale resolves to. Per-locale term
+ * variants beyond that are the mirror pass's job, not the importer's.
+ */
+export async function loadTaxonomyPlanFromDb(db: Kysely<Database>): Promise<TaxonomyImportPlan> {
+	const state = makeState();
+
+	const defs = await db
+		.selectFrom("_emdash_taxonomy_defs")
+		.select(["name", "collections"])
+		.orderBy("locale", "asc")
+		.execute();
+	for (const def of defs) {
+		if (!state.plan.collectionsByTaxonomy.has(def.name)) {
+			state.plan.collectionsByTaxonomy.set(def.name, new Set(parseDefCollections(def.collections)));
+		}
+	}
+
+	const terms = await db
+		.selectFrom("taxonomies")
+		.select(["name", "slug", "id"])
+		.orderBy("locale", "asc")
+		.execute();
+	for (const term of terms) {
+		if (!state.plan.termIdByNameAndSlug.get(term.name)?.has(term.slug)) {
+			rememberTerm(state, term.name, term.slug, term.id);
+		}
+	}
+
+	return state.plan;
+}
+
+/**
  * Find or create a term in the given taxonomy. Returns the term id. Callers
  * must verify the taxonomy def exists before calling — this helper assumes
  * the def is present.
