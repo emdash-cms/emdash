@@ -16,13 +16,16 @@ import { authProviders } from "virtual:emdash/auth-providers";
 interface AdminWrapperProps {
 	locale: string;
 	messages: Messages;
+	/** Configured admin white-label branding (logo, site name), read server-side from `admin.astro`. */
+	adminBranding?: { logo?: string; siteName?: string };
 }
 
-export default function AdminWrapper({ locale, messages }: AdminWrapperProps) {
+export default function AdminWrapper({ locale, messages, adminBranding }: AdminWrapperProps) {
 	return (
 		<AdminApp
 			pluginAdmins={pluginAdmins}
 			authProviders={authProviders}
+			adminBranding={adminBranding}
 			locale={locale}
 			messages={messages}
 		/>
