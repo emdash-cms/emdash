@@ -215,7 +215,9 @@ export function SettingsActionBar({
 	const { t } = useLingui();
 
 	return (
-		<div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-3">
+		// px-4 keeps the bar's button edges on the same 16px gutter as the
+		// section content below it
+		<div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3">
 			<SaveButton
 				key={saveScope}
 				type="submit"
@@ -779,7 +781,7 @@ function BylineCreditsEditor({
 		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
 
 	return (
-		<div className="space-y-3">
+		<div className="space-y-4">
 			{showLocaleEmptyState && (
 				<div className="rounded-lg border border-dashed p-3 text-sm space-y-2">
 					<p className="text-kumo-subtle">

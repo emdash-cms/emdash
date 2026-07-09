@@ -156,7 +156,7 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 	};
 
 	return (
-		<div className="space-y-3">
+		<div className="space-y-4">
 			<SeoImageField key={contentKey} seo={seo} onChange={onChange} />
 
 			<div className="space-y-2">
@@ -222,7 +222,7 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 				/>
 			</div>
 
-			<div className="flex items-center justify-between pt-1">
+			<div className="flex items-center justify-between">
 				<FieldHelpLabel
 					help={t`Add noindex meta tag`}
 					helpLabel={t`Why is this important for search visibility?`}

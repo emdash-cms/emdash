@@ -236,7 +236,7 @@ function TagInput({
 					{selectedTerms.map((term) => (
 						<span
 							key={term.id}
-							className="inline-flex items-center gap-1 px-2 py-1 text-sm bg-kumo-tint rounded"
+							className="inline-flex items-center gap-1 px-2 py-1 text-sm bg-kumo-tint rounded-md"
 						>
 							{term.label}
 							<button
@@ -485,6 +485,9 @@ function TaxonomySection({
 							type="button"
 							variant="ghost"
 							size="sm"
+							// -ms-2 cancels the ghost button's own start padding so its
+							// icon sits on the section's 16px text gutter
+							className="-ms-2"
 							onClick={() => setShowCategoryInput(true)}
 							icon={<Plus />}
 						>
@@ -538,7 +541,7 @@ export function TaxonomySidebar({
 	}
 
 	return (
-		<div className={cn("space-y-6", className)}>
+		<div className={cn(className)}>
 			<div>
 				<Text bold as="h3" DANGEROUS_className="mb-4">
 					{t`Taxonomies`}

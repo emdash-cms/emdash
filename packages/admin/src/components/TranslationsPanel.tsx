@@ -67,7 +67,9 @@ export function TranslationsPanel({
 						<div
 							key={locale}
 							className={cn(
-								"flex items-center justify-between rounded-md px-3 py-2 text-sm",
+								// -mx-3 bleeds the row's hover/current box into the section
+								// gutter so the locale text stays on the 16px content edge
+								"-mx-3 flex items-center justify-between rounded-md px-3 py-2 text-sm",
 								isCurrent
 									? "bg-kumo-brand/10 font-medium"
 									: translation
