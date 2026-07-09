@@ -59,6 +59,7 @@ describe("Dashboard Handlers", () => {
 			expect(postStats!.total).toBe(3);
 			expect(postStats!.published).toBe(2);
 			expect(postStats!.draft).toBe(1);
+			expect(postStats!.scheduled).toBe(0);
 
 			const pageStats = collections.find((c) => c.slug === "page");
 			expect(pageStats).toBeDefined();
@@ -66,6 +67,41 @@ describe("Dashboard Handlers", () => {
 			expect(pageStats!.total).toBe(1);
 			expect(pageStats!.published).toBe(0);
 			expect(pageStats!.draft).toBe(1);
+			expect(pageStats!.scheduled).toBe(0);
+		});
+
+		it("counts entries with pending schedules in collection stats", async () => {
+			db = await setupTestDatabaseWithCollections();
+			const contentRepo = new ContentRepository(db);
+
+			const draftScheduled = await contentRepo.create(
+				createPostFixture({ slug: "draft-scheduled" }),
+			);
+			await contentRepo.schedule(
+				"post",
+				draftScheduled.id,
+				new Date(Date.now() + 86_400_000).toISOString(),
+			);
+
+			const publishedScheduled = await contentRepo.create(
+				createPostFixture({ slug: "published-scheduled" }),
+			);
+			await contentRepo.publish("post", publishedScheduled.id);
+			await contentRepo.schedule(
+				"post",
+				publishedScheduled.id,
+				new Date(Date.now() + 172_800_000).toISOString(),
+			);
+
+			await contentRepo.create(createPostFixture({ slug: "archived", status: "archived" }));
+
+			const result = await handleDashboardStats(db);
+
+			expect(result.success).toBe(true);
+			const postStats = result.data!.collections.find((c) => c.slug === "post");
+			expect(postStats).toBeDefined();
+			expect(postStats!.total).toBe(3);
+			expect(postStats!.scheduled).toBe(2);
 		});
 
 		it("returns recent items across collections", async () => {

@@ -77,6 +77,17 @@ import type { EmDashHandlers } from "./types.js";
 const RUNTIME_INIT_DEADLINE_MS = DB_INIT_DEADLINE_MS + 15_000;
 
 /**
+ * Throttle for the anonymous-path runtime-init failure log. While a site is
+ * stuck (e.g. a failing migration in its backoff window, #1744) every
+ * anonymous request lands in that catch; one line per interval per isolate
+ * keeps the failure visible without flooding logs on a busy site. Plain
+ * module state (not globalThis): a duplicated SSR chunk just means an extra
+ * log line, which is harmless.
+ */
+const RUNTIME_INIT_ERROR_LOG_INTERVAL_MS = 30_000;
+let lastRuntimeInitErrorLogAt = 0;
+
+/**
  * Whether we've verified the database has been set up.
  * On a fresh deployment the first request may hit a public page, bypassing
  * runtime init. Without this check, template helpers like getSiteSettings()
@@ -571,8 +582,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							// requests carry no session.
 							storage: runtime.storage,
 						} as EmDashHandlers;
-					} catch {
-						// Non-fatal — EmDashHead will fall back to base SEO contributions
+					} catch (error) {
+						// Non-fatal — EmDashHead falls back to base SEO contributions —
+						// but log it (throttled): a persistently failing init (e.g. a
+						// failing migration, #1744) is otherwise invisible on the
+						// anonymous path, silently degrading every public page.
+						if (Date.now() - lastRuntimeInitErrorLogAt >= RUNTIME_INIT_ERROR_LOG_INTERVAL_MS) {
+							lastRuntimeInitErrorLogAt = Date.now();
+							console.error("[emdash] runtime init failed (page renders without CMS data):", error);
+						}
 					}
 					timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 					// Append cold-only sub-phase timings so the breakdown is visible

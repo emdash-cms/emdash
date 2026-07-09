@@ -660,6 +660,12 @@ export function createMcpServer(): McpServer {
 					.describe(
 						"Bylines to credit. Each entry references an existing byline by id (see byline_list / byline_create) with an optional roleLabel. The first entry becomes the primary byline.",
 					),
+				taxonomies: z
+					.record(z.string(), z.array(z.string()))
+					.optional()
+					.describe(
+						"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Call taxonomy_list to see available taxonomies and taxonomy_list_terms to look up slugs. Missing keys leave that taxonomy unchanged.",
+					),
 			}),
 			annotations: { destructiveHint: false },
 		},
@@ -698,6 +704,7 @@ export function createMcpServer(): McpServer {
 					locale: args.locale,
 					translationOf: args.translationOf,
 					bylines: args.bylines,
+					taxonomies: args.taxonomies,
 				});
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
@@ -715,6 +722,7 @@ export function createMcpServer(): McpServer {
 					locale: args.locale,
 					translationOf: args.translationOf,
 					bylines: args.bylines,
+					taxonomies: args.taxonomies,
 				}),
 			);
 		},
@@ -771,6 +779,12 @@ export function createMcpServer(): McpServer {
 					.describe(
 						"Replace the byline list for this item. The first entry becomes the primary byline. Pass an empty array to clear all bylines.",
 					),
+				taxonomies: z
+					.record(z.string(), z.array(z.string()))
+					.optional()
+					.describe(
+						"Replace taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Only named taxonomies are touched; other taxonomies are left unchanged. Pass an empty array to clear a taxonomy.",
+					),
 				publishedAt: z.iso
 					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
 					.nullish()
@@ -823,6 +837,7 @@ export function createMcpServer(): McpServer {
 					args.slug ||
 					args.seo !== undefined ||
 					args.bylines !== undefined ||
+					args.taxonomies !== undefined ||
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
@@ -832,6 +847,7 @@ export function createMcpServer(): McpServer {
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
+						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
 						_rev: args._rev,
 					});
@@ -847,6 +863,7 @@ export function createMcpServer(): McpServer {
 					args.slug ||
 					args.seo !== undefined ||
 					args.bylines !== undefined ||
+					args.taxonomies !== undefined ||
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
@@ -856,6 +873,7 @@ export function createMcpServer(): McpServer {
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
+						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
 						_rev: args._rev,
 					});
@@ -872,6 +890,7 @@ export function createMcpServer(): McpServer {
 					locale: args.locale,
 					seo: args.seo,
 					bylines: args.bylines,
+					taxonomies: args.taxonomies,
 					publishedAt: args.publishedAt,
 					_rev: args._rev,
 				}),

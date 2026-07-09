@@ -12,6 +12,7 @@ import { ContentRepository } from "../../database/repositories/content.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
+import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
 	EmDashValidationError,
 	ScheduledNotDueError,
@@ -30,6 +31,7 @@ import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
@@ -638,6 +640,7 @@ export async function handleContentCreate(
 		locale?: string;
 		translationOf?: string;
 		seo?: ContentSeoInput;
+		taxonomies?: Record<string, string[]>;
 		createdAt?: string | null;
 		publishedAt?: string | null;
 	},
@@ -712,7 +715,6 @@ export async function handleContentCreate(
 			// when the target already has credits, but the cleaner guard
 			// is to skip the call entirely.
 			if (body.translationOf) {
-				const { TaxonomyRepository } = await import("../../database/repositories/taxonomy.js");
 				const taxRepo = new TaxonomyRepository(trx);
 				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
 
@@ -735,6 +737,18 @@ export async function handleContentCreate(
 			} else if (hasSeo) {
 				// Assign defaults in-memory — no DB round-trip needed
 				created.seo = { ...SEO_DEFAULTS };
+			}
+
+			// Attach taxonomy terms in the same transaction. The MCP tool
+			// (and the REST create body) previously accepted a `taxonomies`
+			// field on `content_create` without doing anything with it, so
+			// agents publishing a categorized/tagged entry had to make N
+			// follow-up REST calls per taxonomy. This resolves each slug in
+			// the entry's locale and pipes it through the same
+			// `setTermsForEntry` path the `.../terms/{taxonomy}` REST route
+			// uses, so the two entry points can't drift.
+			if (body.taxonomies) {
+				await assignTaxonomies(trx, collection, created.id, effectiveLocale, body.taxonomies);
 			}
 
 			return created;
@@ -816,6 +830,7 @@ export async function handleContentUpdate(
 		locale?: string;
 		_rev?: string;
 		seo?: ContentSeoInput;
+		taxonomies?: Record<string, string[]>;
 		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
@@ -921,6 +936,20 @@ export async function handleContentUpdate(
 			}
 
 			await hydrateBylines(trx, collection, updated);
+
+			// Replace taxonomy assignments in the same transaction. Uses the
+			// entry's own locale (post-update) to resolve slugs so an update
+			// that also changes locale still lands on the correct term
+			// variants. See handleContentCreate for rationale.
+			if (body.taxonomies) {
+				await assignTaxonomies(
+					trx,
+					collection,
+					resolvedId,
+					updated.locale ?? body.locale,
+					body.taxonomies,
+				);
+			}
 
 			return updated;
 		});
@@ -1768,4 +1797,58 @@ async function syncNonTranslatableFields(
 		WHERE translation_group = ${translationGroup}
 		AND id != ${updatedItemId}
 	`.execute(trx);
+}
+
+/**
+ * Resolve a `{ taxonomyName: [slug, ...] }` map to term IDs and replace the
+ * entry's assignments for each named taxonomy.
+ *
+ * Shared by handleContentCreate and handleContentUpdate so both MCP entry
+ * points behave identically. Slug resolution is scoped to `locale`; passing
+ * `undefined` lets `findBySlug` fall back to its default (lowest locale code)
+ * so callers on single-locale sites don't need to know the site's default.
+ *
+ * Throws EmDashValidationError on unknown slug or wrong shape; the calling
+ * handler translates that into a VALIDATION_ERROR response.
+ */
+async function assignTaxonomies(
+	trx: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	locale: string | undefined,
+	taxonomies: Record<string, string[]>,
+): Promise<void> {
+	const taxRepo = new TaxonomyRepository(trx);
+	let anyChange = false;
+
+	for (const [taxonomyName, slugs] of Object.entries(taxonomies)) {
+		if (!Array.isArray(slugs)) {
+			throw new EmDashValidationError(`taxonomies.${taxonomyName} must be an array of term slugs`);
+		}
+
+		const termIds: string[] = [];
+		for (const slug of slugs) {
+			if (typeof slug !== "string" || slug.length === 0) {
+				throw new EmDashValidationError(
+					`taxonomies.${taxonomyName} contains a non-string or empty slug`,
+				);
+			}
+			const term = await taxRepo.findBySlug(taxonomyName, slug, locale);
+			if (!term) {
+				throw new EmDashValidationError(
+					`Unknown taxonomy term: ${taxonomyName}='${slug}'${
+						locale ? ` (locale '${locale}')` : ""
+					}`,
+				);
+			}
+			termIds.push(term.id);
+		}
+
+		await taxRepo.setTermsForEntry(collection, entryId, taxonomyName, termIds);
+		anyChange = true;
+	}
+
+	// Match the REST route's behaviour: taxonomy term assignments changed,
+	// so invalidate the taxonomy object cache used during hydration.
+	if (anyChange) invalidateTermCache();
 }

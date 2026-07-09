@@ -37,6 +37,7 @@ import {
 	contentUpdateBody,
 	trashedContentListResponseSchema,
 } from "../schemas/content.js";
+import { mediaUsageRepairBody, mediaUsageRepairResponseSchema } from "../schemas/media-usage.js";
 import {
 	DEFAULT_MAX_UPLOAD_SIZE,
 	mediaConfirmBody,
@@ -151,6 +152,7 @@ function standardErrors(
 		403: "Forbidden",
 		404: "Not Found",
 		409: "Conflict",
+		413: "Payload Too Large",
 		500: "Internal Server Error",
 	};
 	for (const code of codes) {
@@ -719,6 +721,29 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(404, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/repair": {
+			post: {
+				operationId: "repairMediaUsage",
+				summary: "Repair media usage indexes",
+				description:
+					"Repairs content media usage indexes for one collection or all collections. The request succeeds with HTTP 200 when a structured repair result is produced; inspect `data.status` because it may be `failed` or `stale`.",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageRepairBody } },
+				},
+				responses: {
+					"200": {
+						description: "Media usage repair result",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageRepairResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 413, 500),
 				},
 			},
 		},

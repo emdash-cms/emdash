@@ -70,6 +70,28 @@ If the database is empty (no collections) and the setup wizard hasn't been compl
 
 To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
 
+## Scheduled Publishing
+
+On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from a Worker Cron Trigger. New Cloudflare templates include this setup automatically. If you are adding updating an existing project, export the EmDash Worker entry from `@emdash-cms/cloudflare/worker`:
+
+```ts title="src/worker.ts"
+export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
+```
+
+Then add a Cron Trigger to `wrangler.jsonc`:
+
+```jsonc title="wrangler.jsonc"
+{
+	"triggers": {
+		"crons": ["* * * * *"],
+	},
+}
+```
+
+<Aside type="caution">
+	Without the Cron Trigger, content scheduled in the admin panel does not publish on Cloudflare Workers, and plugin cron jobs do not run. Local `astro dev` still uses the in-process scheduler.
+</Aside>
+
 ## Deploy
 
 Deploy to Cloudflare Workers:

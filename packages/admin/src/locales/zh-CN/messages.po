@@ -26,7 +26,7 @@ msgstr " - 已关联"
 msgid " (default)"
 msgstr "（默认）"
 
-#: packages/admin/src/components/MenuEditor.tsx:435
+#: packages/admin/src/components/MenuEditor.tsx:521
 msgid " (opens in new window)"
 msgstr "（在新窗口中打开）"
 
@@ -83,8 +83,13 @@ msgstr "{0, plural, one {(# 个项目)} other {(# 个项目)}}"
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# 个合集} other {# 个合集}}"
 
+#. placeholder {0}: result.comments.imported
+#: packages/admin/src/components/WordPressImport.tsx:2263
+msgid "{0, plural, one {# comment imported} other {# comments imported}}"
+msgstr ""
+
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1268
+#: packages/admin/src/router.tsx:1346
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# 条评论已更新} other {# 条评论已更新}}"
 
@@ -94,12 +99,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# 条评论} other {# 条评论}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2080
+#: packages/admin/src/components/WordPressImport.tsx:2274
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# 个内容错误} other {# 个内容错误}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2056
+#: packages/admin/src/components/WordPressImport.tsx:2215
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {# 个内容项已导入} other {# 个内容项已导入}}"
 
@@ -111,22 +116,22 @@ msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# 个项目} other {# 个项目}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2085
+#: packages/admin/src/components/WordPressImport.tsx:2279
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# 个媒体错误} other {# 个媒体错误}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2072
+#: packages/admin/src/components/WordPressImport.tsx:2231
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# 个媒体文件已导入} other {# 个媒体文件已导入}}"
 
-#. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:123
-msgid "{0, plural, one {# media file} other {# media files}}"
-msgstr "{0, plural, one {# 个媒体文件} other {# 个媒体文件}}"
+#. placeholder {0}: result.menus.created
+#: packages/admin/src/components/WordPressImport.tsx:2255
+msgid "{0, plural, one {# menu imported} other {# menus imported}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1739
+#: packages/admin/src/components/WordPressImport.tsx:1903
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {# 个菜单将导入} other {# 个菜单将导入}}"
 
@@ -137,7 +142,7 @@ msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# 个权限} other {# 个权限}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2292
+#: packages/admin/src/components/WordPressImport.tsx:2486
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# 篇文章} other {# 篇文章}}"
 
@@ -152,19 +157,34 @@ msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, one {# 个已选择} other {# 个已选择}}"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2064
+#: packages/admin/src/components/WordPressImport.tsx:2223
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {# 个已跳过（已存在）} other {# 个已跳过（已存在）}}"
 
-#. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:128
-msgid "{0, plural, one {# user} other {# users}}"
-msgstr "{0, plural, one {# 位用户} other {# 位用户}}"
+#. placeholder {0}: result.taxonomyAssignments
+#: packages/admin/src/components/WordPressImport.tsx:2247
+msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
+msgstr ""
+
+#. placeholder {0}: result.taxonomiesCreated.length
+#: packages/admin/src/components/WordPressImport.tsx:2239
+msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
+msgstr ""
 
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:576
 msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {# 个字段} other {# 个字段}}"
+
+#. placeholder {0}: stats.mediaCount
+#: packages/admin/src/components/Dashboard.tsx:160
+msgid "{0, plural, one {Media file} other {Media files}}"
+msgstr ""
+
+#. placeholder {0}: stats.userCount
+#: packages/admin/src/components/Dashboard.tsx:165
+msgid "{0, plural, one {User} other {Users}}"
+msgstr ""
 
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
@@ -185,7 +205,7 @@ msgid "{0} banner"
 msgstr "{0} 横幅"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1142
+#: packages/admin/src/components/WordPressImport.tsx:1303
 msgid "{0} detected"
 msgstr "检测到 {0}"
 
@@ -216,14 +236,29 @@ msgstr "{0} 现已激活"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:1809
+#: packages/admin/src/components/WordPressImport.tsx:1973
 msgid "{0} items → {1}"
 msgstr "{0} 个项目 → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1732
+#: packages/admin/src/components/WordPressImport.tsx:1896
 msgid "{0} items will be imported"
 msgstr "将导入 {0} 个项目"
+
+#. placeholder {0}: failedIds.length
+#: packages/admin/src/router.tsx:511
+msgid "{0} of {total} could not be deleted"
+msgstr ""
+
+#. placeholder {0}: failedIds.length
+#: packages/admin/src/router.tsx:467
+msgid "{0} of {total} could not be published"
+msgstr ""
+
+#. placeholder {0}: failedIds.length
+#: packages/admin/src/router.tsx:490
+msgid "{0} of {total} could not be updated"
+msgstr ""
 
 #. placeholder {0}: plugins?.length ?? 0
 #: packages/admin/src/components/PluginManager.tsx:170
@@ -274,21 +309,21 @@ msgstr "{base} 到：{0}"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# 个变更来自下一个修订版本} other {# 个变更来自下一个修订版本}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1908
+#: packages/admin/src/components/WordPressImport.tsx:2072
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# 个文件} other {# 个文件}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2157
+#: packages/admin/src/components/WordPressImport.tsx:2351
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# 个项目} other {# 个项目}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1979
+#: packages/admin/src/components/WordPressImport.tsx:2143
 msgid "{current} of {total}"
 msgstr "{current} / {total}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:747
+#: packages/admin/src/components/ContentList.tsx:933
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} 个项目} other {#{1} 个项目}}"
 
@@ -300,23 +335,23 @@ msgstr "{label} — 无翻译"
 msgid "{label} — view translation"
 msgstr "{label} — 查看翻译"
 
-#: packages/admin/src/components/ContentList.tsx:736
+#: packages/admin/src/components/ContentList.tsx:922
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# 个项目匹配 \"{searchQuery}\"} other {# 个项目匹配 \"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2279
+#: packages/admin/src/components/WordPressImport.tsx:2473
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "已分配 {matchedCount} / {totalCount}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2267
+#: packages/admin/src/components/WordPressImport.tsx:2461
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "通过电子邮件匹配 {matchedCount} / {totalCount} 位作者"
 
-#: packages/admin/src/components/WordPressImport.tsx:1715
+#: packages/admin/src/components/WordPressImport.tsx:1879
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {将创建 # 个新合集} other {将创建 # 个新合集}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1724
+#: packages/admin/src/components/WordPressImport.tsx:1888
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {字段将添加到 # 个现有合集} other {字段将添加到 # 个现有合集}}"
 
@@ -332,7 +367,15 @@ msgstr "{pluginName} 需要以下权限："
 msgid "{resultCount, plural, one {# item} other {# items}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:742
+#: packages/admin/src/components/ContentList.tsx:405
+msgid "{selectedCount, plural, one {# selected} other {# selected}}"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:446
+msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:928
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# 个项目} other {# 个项目}}"
 
@@ -350,13 +393,13 @@ msgstr "{total, plural, one {文件已上传} other {# 个文件已上传}}"
 msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
 msgstr "{total, plural, one {上传失败} other {全部 # 个上传失败}}"
 
-#: packages/admin/src/components/Dashboard.tsx:113
-msgid "{totalDrafts, plural, one {# draft} other {# drafts}}"
-msgstr "{totalDrafts, plural, one {# 篇草稿} other {# 篇草稿}}"
+#: packages/admin/src/components/Dashboard.tsx:146
+msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
+msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:118
-msgid "{totalScheduled, plural, one {# scheduled} other {# scheduled}}"
-msgstr "{totalScheduled, plural, one {# 个定时发布} other {# 个定时发布}}"
+#: packages/admin/src/components/Dashboard.tsx:153
+msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
+msgstr ""
 
 #: packages/admin/src/components/RevisionHistory.tsx:349
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
@@ -379,22 +422,22 @@ msgstr "/new-page 或 /articles/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page 或 /blog/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:1929
+#: packages/admin/src/components/WordPressImport.tsx:2093
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• 文件从您的 WordPress 站点下载"
 
-#: packages/admin/src/components/WordPressImport.tsx:1930
+#: packages/admin/src/components/WordPressImport.tsx:2094
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• 已上传到您的 EmDash 媒体存储"
 
-#: packages/admin/src/components/WordPressImport.tsx:1931
+#: packages/admin/src/components/WordPressImport.tsx:2095
 msgid "• URLs in your content are updated automatically"
 msgstr "• 您内容中的 URL 将自动更新"
 
 #: packages/admin/src/components/SetupWizard.tsx:225
 #: packages/admin/src/components/SetupWizard.tsx:277
 #: packages/admin/src/components/SetupWizard.tsx:332
-#: packages/admin/src/components/WordPressImport.tsx:1440
+#: packages/admin/src/components/WordPressImport.tsx:1601
 msgid "← Back"
 msgstr "← 返回"
 
@@ -402,27 +445,27 @@ msgstr "← 返回"
 msgid "1 year"
 msgstr "1 年"
 
-#: packages/admin/src/components/WordPressImport.tsx:1361
+#: packages/admin/src/components/WordPressImport.tsx:1522
 msgid "1. Log into your WordPress admin"
 msgstr "1. 登录您的 WordPress 管理后台"
 
-#: packages/admin/src/components/WordPressImport.tsx:1114
+#: packages/admin/src/components/WordPressImport.tsx:1275
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. 登录您的 WordPress 管理后台"
 
-#: packages/admin/src/components/WordPressImport.tsx:1116
+#: packages/admin/src/components/WordPressImport.tsx:1277
 msgid "2. Go to"
 msgstr "2. 前往"
 
-#: packages/admin/src/components/WordPressImport.tsx:1362
+#: packages/admin/src/components/WordPressImport.tsx:1523
 msgid "2. Go to Users → Profile"
 msgstr "2. 前往 用户 → 个人资料"
 
-#: packages/admin/src/components/WordPressImport.tsx:1363
+#: packages/admin/src/components/WordPressImport.tsx:1524
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. 滚动到 \"应用程序密码\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1118
+#: packages/admin/src/components/WordPressImport.tsx:1279
 msgid "3. Select \"All content\""
 msgstr "3. 选择 \"所有内容\""
 
@@ -446,11 +489,11 @@ msgstr "307 临时（严格）"
 msgid "308 Permanent (Strict)"
 msgstr "308 永久（严格）"
 
-#: packages/admin/src/components/WordPressImport.tsx:1119
+#: packages/admin/src/components/WordPressImport.tsx:1280
 msgid "4. Click \"Download Export File\""
 msgstr "4. 点击 \"下载导出文件\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1364
+#: packages/admin/src/components/WordPressImport.tsx:1525
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. 输入 \"EmDash\" 并点击 \"添加新密码\""
 
@@ -466,11 +509,11 @@ msgstr "410 内容已删除（已移除）"
 msgid "451 Unavailable for legal reasons"
 msgstr "451 因法律原因不可用"
 
-#: packages/admin/src/components/WordPressImport.tsx:1365
+#: packages/admin/src/components/WordPressImport.tsx:1526
 msgid "5. Copy the generated password"
 msgstr "5. 复制生成的密码"
 
-#: packages/admin/src/components/WordPressImport.tsx:1120
+#: packages/admin/src/components/WordPressImport.tsx:1281
 msgid "5. Upload the file here"
 msgstr "5. 在此处上传文件"
 
@@ -510,7 +553,7 @@ msgstr "接受邀请"
 msgid "Access denied"
 msgstr "访问被拒绝"
 
-#: packages/admin/src/router.tsx:1288
+#: packages/admin/src/router.tsx:1366
 msgid "Access Denied"
 msgstr "访问被拒绝"
 
@@ -535,9 +578,13 @@ msgstr "账户已存在"
 msgid "Account Info"
 msgstr "账户信息"
 
+#: packages/admin/src/components/WordPressImport.tsx:1158
+msgid "ACF Fields"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentInbox.tsx:299
-#: packages/admin/src/components/ContentList.tsx:345
-#: packages/admin/src/components/ContentList.tsx:463
+#: packages/admin/src/components/ContentList.tsx:528
+#: packages/admin/src/components/ContentList.tsx:649
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/TaxonomyManager.tsx:823
 #: packages/admin/src/routes/byline-schema.tsx:249
@@ -551,7 +598,7 @@ msgstr "活跃"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
 #: packages/admin/src/components/ContentEditor.tsx:1915
-#: packages/admin/src/components/MenuEditor.tsx:362
+#: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/TaxonomySidebar.tsx:476
 msgid "Add"
 msgstr "添加"
@@ -588,14 +635,14 @@ msgstr "在后面添加列"
 msgid "Add column before"
 msgstr "在前面添加列"
 
-#: packages/admin/src/components/MenuEditor.tsx:299
-#: packages/admin/src/components/MenuEditor.tsx:414
+#: packages/admin/src/components/MenuEditor.tsx:378
+#: packages/admin/src/components/MenuEditor.tsx:493
 msgid "Add Content"
 msgstr "添加内容"
 
-#: packages/admin/src/components/MenuEditor.tsx:311
-#: packages/admin/src/components/MenuEditor.tsx:318
-#: packages/admin/src/components/MenuEditor.tsx:417
+#: packages/admin/src/components/MenuEditor.tsx:390
+#: packages/admin/src/components/MenuEditor.tsx:397
+#: packages/admin/src/components/MenuEditor.tsx:496
 msgid "Add Custom Link"
 msgstr "添加自定义链接"
 
@@ -610,7 +657,7 @@ msgstr "添加域名"
 msgid "Add Field"
 msgstr "添加字段"
 
-#: packages/admin/src/components/WordPressImport.tsx:1820
+#: packages/admin/src/components/WordPressImport.tsx:1984
 msgid "Add fields"
 msgstr "添加字段"
 
@@ -642,7 +689,7 @@ msgstr "添加项目"
 msgid "Add link"
 msgstr "添加链接"
 
-#: packages/admin/src/components/MenuEditor.tsx:407
+#: packages/admin/src/components/MenuEditor.tsx:486
 msgid "Add links to build your navigation menu"
 msgstr "添加链接以构建您的导航菜单"
 
@@ -650,7 +697,7 @@ msgstr "添加链接以构建您的导航菜单"
 msgid "Add MIME type or extension"
 msgstr "添加 MIME 类型或扩展名"
 
-#: packages/admin/src/components/ContentList.tsx:256
+#: packages/admin/src/components/ContentList.tsx:342
 msgid "Add New"
 msgstr "添加新内容"
 
@@ -699,14 +746,18 @@ msgstr "添加小部件区域"
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "添加您的社交媒体资料。这些可供您站点的主题使用，并可以显示在页眉、页脚或作者简介中。"
 
-#: packages/admin/src/components/MenuEditor.tsx:362
+#: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
 msgid "Adding..."
 msgstr "添加中..."
 
-#: packages/admin/src/components/WordPressImport.tsx:1592
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Additional data to import."
 msgstr "要导入的其他数据。"
+
+#: packages/admin/src/components/WordPressImport.tsx:1483
+msgid "admin"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
 #: packages/admin/src/components/Sidebar.tsx:469
@@ -743,12 +794,12 @@ msgstr "右对齐"
 msgid "Alignment"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:283
+#: packages/admin/src/components/ContentList.tsx:369
 msgid "All"
 msgstr "全部"
 
-#: packages/admin/src/components/ContentList.tsx:587
-#: packages/admin/src/components/ContentList.tsx:591
+#: packages/admin/src/components/ContentList.tsx:773
+#: packages/admin/src/components/ContentList.tsx:777
 msgid "All authors"
 msgstr "所有作者"
 
@@ -768,7 +819,7 @@ msgstr "所有合集"
 msgid "All comments require approval"
 msgstr "所有评论需要审核"
 
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2518
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "所有导入的内容将被取消分配。您可以稍后在内容编辑器中重新分配作者。"
 
@@ -785,7 +836,7 @@ msgstr "所有角色"
 msgid "All Sources"
 msgstr "所有来源"
 
-#: packages/admin/src/components/ContentList.tsx:542
+#: packages/admin/src/components/ContentList.tsx:728
 #: packages/admin/src/components/Redirects.tsx:418
 msgid "All statuses"
 msgstr "所有状态"
@@ -836,7 +887,7 @@ msgstr "替代文本"
 msgid "Alt text set"
 msgstr "替代文本已设置"
 
-#: packages/admin/src/components/WordPressImport.tsx:1234
+#: packages/admin/src/components/WordPressImport.tsx:1395
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "或者，您可以从 WordPress 导出（工具 → 导出）并上传文件。"
 
@@ -855,23 +906,23 @@ msgstr "或者，您可以从 WordPress 导出（工具 → 导出）并上传�
 #: packages/admin/src/components/settings/SocialSettings.tsx:43
 #: packages/admin/src/components/TaxonomySidebar.tsx:350
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:398
-#: packages/admin/src/router.tsx:413
-#: packages/admin/src/router.tsx:427
-#: packages/admin/src/router.tsx:441
-#: packages/admin/src/router.tsx:817
-#: packages/admin/src/router.tsx:855
-#: packages/admin/src/router.tsx:873
-#: packages/admin/src/router.tsx:891
-#: packages/admin/src/router.tsx:912
+#: packages/admin/src/router.tsx:399
+#: packages/admin/src/router.tsx:414
+#: packages/admin/src/router.tsx:428
+#: packages/admin/src/router.tsx:442
+#: packages/admin/src/router.tsx:895
 #: packages/admin/src/router.tsx:933
-#: packages/admin/src/router.tsx:954
-#: packages/admin/src/router.tsx:985
-#: packages/admin/src/router.tsx:1005
-#: packages/admin/src/router.tsx:1233
-#: packages/admin/src/router.tsx:1249
-#: packages/admin/src/router.tsx:1274
-#: packages/admin/src/router.tsx:1756
+#: packages/admin/src/router.tsx:951
+#: packages/admin/src/router.tsx:969
+#: packages/admin/src/router.tsx:990
+#: packages/admin/src/router.tsx:1011
+#: packages/admin/src/router.tsx:1032
+#: packages/admin/src/router.tsx:1063
+#: packages/admin/src/router.tsx:1083
+#: packages/admin/src/router.tsx:1311
+#: packages/admin/src/router.tsx:1327
+#: packages/admin/src/router.tsx:1352
+#: packages/admin/src/router.tsx:1834
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -887,11 +938,11 @@ msgstr "发生意外错误。"
 msgid "An unknown error occurred"
 msgstr "发生了未知错误。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1414
+#: packages/admin/src/components/WordPressImport.tsx:1575
 msgid "Analyzing export file..."
 msgstr "正在分析导出文件..."
 
-#: packages/admin/src/components/WordPressImport.tsx:735
+#: packages/admin/src/components/WordPressImport.tsx:810
 msgid "Analyzing WordPress site..."
 msgstr "正在分析 WordPress 站点..."
 
@@ -908,7 +959,7 @@ msgstr "API 令牌"
 msgid "Appears on posts and pages"
 msgstr "显示在文章和页面上"
 
-#: packages/admin/src/components/WordPressImport.tsx:1329
+#: packages/admin/src/components/WordPressImport.tsx:1490
 msgid "Application Password"
 msgstr "应用程序密码"
 
@@ -944,11 +995,12 @@ msgstr "已批准"
 msgid "Arbitrary JSON data"
 msgstr "任意 JSON 数据"
 
-#: packages/admin/src/components/ContentList.tsx:963
+#: packages/admin/src/components/ContentList.tsx:1164
 msgid "archived"
 msgstr "已归档"
 
-#: packages/admin/src/components/ContentList.tsx:546
+#: packages/admin/src/components/ContentList.tsx:732
+#: packages/admin/src/components/Dashboard.tsx:350
 msgid "Archived"
 msgstr "已归档"
 
@@ -979,7 +1031,7 @@ msgstr "您确定要删除此菜单吗？这也将删除所有菜单项。此操
 msgid "As an administrator, you can invite other users from the Users section."
 msgstr "作为管理员，您可以从\"用户\"部分邀请其他用户。"
 
-#: packages/admin/src/components/WordPressImport.tsx:2262
+#: packages/admin/src/components/WordPressImport.tsx:2456
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "将 WordPress 作者分配给 EmDash 用户。文章将归属于所选用户。"
 
@@ -1022,7 +1074,7 @@ msgstr "认证已取消或超时。请重试。"
 msgid "Author"
 msgstr "作者"
 
-#: packages/admin/src/components/WordPressImport.tsx:2277
+#: packages/admin/src/components/WordPressImport.tsx:2471
 msgid "Author Mapping"
 msgstr "作者映射"
 
@@ -1066,7 +1118,7 @@ msgstr "自动批准已认证用户"
 msgid "Auto-generated from name (you can edit)"
 msgstr "从名称自动生成（您可以编辑）"
 
-#: packages/admin/src/router.tsx:854
+#: packages/admin/src/router.tsx:932
 msgid "Autosave failed"
 msgstr "自动保存失败"
 
@@ -1092,9 +1144,9 @@ msgid "Avatar"
 msgstr "头像"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:257
-#: packages/admin/src/components/MenuEditor.tsx:283
-#: packages/admin/src/components/WordPressImport.tsx:1349
-#: packages/admin/src/components/WordPressImport.tsx:2333
+#: packages/admin/src/components/MenuEditor.tsx:362
+#: packages/admin/src/components/WordPressImport.tsx:1510
+#: packages/admin/src/components/WordPressImport.tsx:2527
 msgid "Back"
 msgstr "返回"
 
@@ -1180,8 +1232,8 @@ msgstr "浏览并安装发布到去中心化插件仓库的插件。"
 msgid "Browse and install plugins to extend your site."
 msgstr "浏览并安装插件以扩展您的网站。"
 
-#: packages/admin/src/components/WordPressImport.tsx:966
-#: packages/admin/src/components/WordPressImport.tsx:1433
+#: packages/admin/src/components/WordPressImport.tsx:1124
+#: packages/admin/src/components/WordPressImport.tsx:1594
 msgid "Browse Files"
 msgstr "浏览文件"
 
@@ -1250,8 +1302,9 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/ContentEditor.tsx:959
 #: packages/admin/src/components/ContentEditor.tsx:2029
 #: packages/admin/src/components/ContentEditor.tsx:2082
-#: packages/admin/src/components/ContentList.tsx:851
-#: packages/admin/src/components/ContentList.tsx:922
+#: packages/admin/src/components/ContentList.tsx:455
+#: packages/admin/src/components/ContentList.tsx:1052
+#: packages/admin/src/components/ContentList.tsx:1123
 #: packages/admin/src/components/ContentPickerModal.tsx:248
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:193
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:194
@@ -1262,8 +1315,8 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/FieldEditor.tsx:649
 #: packages/admin/src/components/MediaDetailPanel.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:744
-#: packages/admin/src/components/MenuEditor.tsx:359
-#: packages/admin/src/components/MenuEditor.tsx:530
+#: packages/admin/src/components/MenuEditor.tsx:438
+#: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:172
 #: packages/admin/src/components/PluginManager.tsx:640
 #: packages/admin/src/components/PortableTextEditor.tsx:3184
@@ -1280,7 +1333,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/TaxonomyManager.tsx:686
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/Widgets.tsx:386
-#: packages/admin/src/components/WordPressImport.tsx:1753
+#: packages/admin/src/components/WordPressImport.tsx:1917
 msgid "Cancel"
 msgstr "取消"
 
@@ -1327,9 +1380,13 @@ msgid "Categories"
 msgstr "分类"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1621
+#: packages/admin/src/components/WordPressImport.tsx:1785
 msgid "Categories ({0})"
 msgstr "分类 ({0})"
+
+#: packages/admin/src/components/WordPressImport.tsx:1146
+msgid "Categories & Tags"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:161
 msgid "Center"
@@ -1368,7 +1425,7 @@ msgstr "更改徽标"
 msgid "Changelog"
 msgstr "更新日志"
 
-#: packages/admin/src/router.tsx:905
+#: packages/admin/src/router.tsx:983
 msgid "Changes discarded"
 msgstr "更改已丢弃"
 
@@ -1380,7 +1437,7 @@ msgstr "页面标题和网站名称之间的分隔符（例如，\"My Post | My 
 msgid "Check for updates"
 msgstr "检查更新"
 
-#: packages/admin/src/components/WordPressImport.tsx:937
+#: packages/admin/src/components/WordPressImport.tsx:1095
 msgid "Check Site"
 msgstr "检查站点"
 
@@ -1390,7 +1447,7 @@ msgstr "检查站点"
 msgid "Check your email"
 msgstr "查看您的邮箱"
 
-#: packages/admin/src/components/WordPressImport.tsx:701
+#: packages/admin/src/components/WordPressImport.tsx:776
 msgid "Checking {urlInput}..."
 msgstr "正在检查 {urlInput}..."
 
@@ -1411,7 +1468,11 @@ msgstr "选择登录方式"
 msgid "Choose your preferred admin language"
 msgstr "选择您的首选管理语言"
 
-#: packages/admin/src/components/ContentList.tsx:639
+#: packages/admin/src/components/ContentList.tsx:481
+msgid "Clear"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:825
 #: packages/admin/src/components/MediaLibrary.tsx:498
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
@@ -1450,12 +1511,12 @@ msgstr "点击邮件中的链接即可登录。"
 #: packages/admin/src/components/MediaPickerModal.tsx:482
 #: packages/admin/src/components/MediaPickerModal.tsx:488
 #: packages/admin/src/components/MediaPickerModal.tsx:492
-#: packages/admin/src/components/MenuEditor.tsx:321
-#: packages/admin/src/components/MenuEditor.tsx:327
-#: packages/admin/src/components/MenuEditor.tsx:331
-#: packages/admin/src/components/MenuEditor.tsx:489
-#: packages/admin/src/components/MenuEditor.tsx:495
-#: packages/admin/src/components/MenuEditor.tsx:499
+#: packages/admin/src/components/MenuEditor.tsx:400
+#: packages/admin/src/components/MenuEditor.tsx:406
+#: packages/admin/src/components/MenuEditor.tsx:410
+#: packages/admin/src/components/MenuEditor.tsx:576
+#: packages/admin/src/components/MenuEditor.tsx:582
+#: packages/admin/src/components/MenuEditor.tsx:586
 #: packages/admin/src/components/MenuList.tsx:136
 #: packages/admin/src/components/MenuList.tsx:142
 #: packages/admin/src/components/MenuList.tsx:146
@@ -1535,7 +1596,7 @@ msgstr "合集："
 msgid "Collections"
 msgstr "合集"
 
-#: packages/admin/src/components/WordPressImport.tsx:2133
+#: packages/admin/src/components/WordPressImport.tsx:2327
 msgid "Collections created:"
 msgstr "已创建的合集："
 
@@ -1578,20 +1639,21 @@ msgstr "配置字段"
 msgid "Confirm"
 msgstr "确认"
 
-#: packages/admin/src/components/WordPressImport.tsx:627
+#: packages/admin/src/components/WordPressImport.tsx:701
+#: packages/admin/src/components/WordPressImport.tsx:1054
 msgid "Connect"
 msgstr "连接"
 
-#: packages/admin/src/components/WordPressImport.tsx:1346
+#: packages/admin/src/components/WordPressImport.tsx:1507
 msgid "Connect & Analyze"
 msgstr "连接并分析"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1296
+#: packages/admin/src/components/WordPressImport.tsx:1457
 msgid "Connect to {0}"
 msgstr "连接到 {0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1373
 msgid "Connect with WordPress"
 msgstr "连接 WordPress"
 
@@ -1603,7 +1665,7 @@ msgstr "已连接 {0}"
 #: packages/admin/src/components/AdminCommandPalette.tsx:365
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
-#: packages/admin/src/components/Dashboard.tsx:164
+#: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:2211
 #: packages/admin/src/components/SectionEditor.tsx:194
 #: packages/admin/src/components/Sidebar.tsx:451
@@ -1616,15 +1678,15 @@ msgid "Content Block"
 msgstr "内容块"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2188
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Content Errors ({0})"
 msgstr "内容错误 ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1156
+#: packages/admin/src/components/WordPressImport.tsx:1317
 msgid "Content found:"
 msgstr "找到的内容："
 
-#: packages/admin/src/router.tsx:927
+#: packages/admin/src/router.tsx:1005
 msgid "Content has been scheduled for publishing"
 msgstr "内容已安排发布"
 
@@ -1636,11 +1698,11 @@ msgstr "内容已更新到所选修订版本。"
 msgid "Content ID:"
 msgstr "内容 ID："
 
-#: packages/admin/src/router.tsx:868
+#: packages/admin/src/router.tsx:946
 msgid "Content is now live"
 msgstr "内容现已上线"
 
-#: packages/admin/src/components/WordPressImport.tsx:2177
+#: packages/admin/src/components/WordPressImport.tsx:2371
 msgid "content items"
 msgstr "内容项"
 
@@ -1648,11 +1710,11 @@ msgstr "内容项"
 msgid "Content Read"
 msgstr "内容读取"
 
-#: packages/admin/src/router.tsx:886
+#: packages/admin/src/router.tsx:964
 msgid "Content removed from public view"
 msgstr "内容已从公开视图中移除"
 
-#: packages/admin/src/router.tsx:948
+#: packages/admin/src/router.tsx:1026
 msgid "Content reverted to draft"
 msgstr "内容已恢复为草稿"
 
@@ -1660,7 +1722,7 @@ msgstr "内容已恢复为草稿"
 msgid "Content snapshot:"
 msgstr "内容快照："
 
-#: packages/admin/src/components/WordPressImport.tsx:1570
+#: packages/admin/src/components/WordPressImport.tsx:1731
 msgid "Content to Import"
 msgstr "要导入的内容"
 
@@ -1670,7 +1732,7 @@ msgstr "要导入的内容"
 msgid "Content Types"
 msgstr "内容类型"
 
-#: packages/admin/src/components/WordPressImport.tsx:2116
+#: packages/admin/src/components/WordPressImport.tsx:2310
 msgid "Content was skipped because it already exists"
 msgstr "内容已跳过，因为它已存在"
 
@@ -1687,7 +1749,7 @@ msgstr "继续"
 msgid "Continue →"
 msgstr "继续 →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2335
+#: packages/admin/src/components/WordPressImport.tsx:2529
 msgid "Continue Import"
 msgstr "继续导入"
 
@@ -1732,11 +1794,15 @@ msgstr "复制 URL"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "无法自动复制。请选择上面的 URL 并手动复制。"
 
+#: packages/admin/src/components/Dashboard.tsx:84
+msgid "Could not load dashboard data"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:439
 msgid "Could not load image from URL"
 msgstr "无法从 URL 加载图片"
 
-#: packages/admin/src/components/WordPressImport.tsx:1103
+#: packages/admin/src/components/WordPressImport.tsx:1264
 msgid "Couldn't detect WordPress"
 msgstr "无法检测到 WordPress"
 
@@ -1827,7 +1893,7 @@ msgstr "创建新菜单"
 msgid "Create New Token"
 msgstr "创建新令牌"
 
-#: packages/admin/src/components/WordPressImport.tsx:1340
+#: packages/admin/src/components/WordPressImport.tsx:1501
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "在 WordPress 中创建：用户 → 个人资料 → 应用程序密码"
 
@@ -1853,7 +1919,7 @@ msgstr "为此路径创建重定向"
 msgid "Create redirect rules to manage URL changes."
 msgstr "创建重定向规则以管理 URL 更改。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1757
+#: packages/admin/src/components/WordPressImport.tsx:1921
 msgid "Create Schema & Import"
 msgstr "创建架构并导入"
 
@@ -1888,7 +1954,7 @@ msgstr "创建您的账户"
 msgid "Create your first navigation menu to get started"
 msgstr "创建您的第一个导航菜单以开始使用"
 
-#: packages/admin/src/components/ContentList.tsx:373
+#: packages/admin/src/components/ContentList.tsx:556
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "Create your first one"
 msgstr "创建第一个内容"
@@ -1919,7 +1985,7 @@ msgstr "创建、更新、删除分类词条"
 msgid "Create, update, delete content"
 msgstr "创建、更新、删除内容"
 
-#: packages/admin/src/components/ContentList.tsx:550
+#: packages/admin/src/components/ContentList.tsx:736
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "已创建"
@@ -1937,7 +2003,7 @@ msgid "Created {0}"
 msgstr "创建于 {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:979
+#: packages/admin/src/router.tsx:1057
 msgid "Created {0} translation"
 msgstr "已创建 {0} 翻译"
 
@@ -1950,7 +2016,7 @@ msgstr "创建时间"
 msgid "Created: {0}"
 msgstr "创建于：{0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:812
+#: packages/admin/src/components/WordPressImport.tsx:887
 msgid "Creating collections and fields..."
 msgstr "正在创建合集和字段..."
 
@@ -1992,6 +2058,10 @@ msgstr "自定义 robots.txt 内容。留空则使用默认值。"
 msgid "Custom Section"
 msgstr "自定义区块"
 
+#: packages/admin/src/components/WordPressImport.tsx:1147
+msgid "Custom Taxonomies"
+msgstr ""
+
 #: packages/admin/src/components/ThemeToggle.tsx:22
 msgid "dark"
 msgstr "深色"
@@ -2002,14 +2072,14 @@ msgstr "深色"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
-#: packages/admin/src/components/Dashboard.tsx:42
+#: packages/admin/src/components/Dashboard.tsx:50
 #: packages/admin/src/components/Sidebar.tsx:312
 #: packages/admin/src/components/Sidebar.tsx:442
 msgid "Dashboard"
 msgstr "仪表板"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:296
-#: packages/admin/src/components/ContentList.tsx:342
+#: packages/admin/src/components/ContentList.tsx:525
 msgid "Date"
 msgstr "日期"
 
@@ -2022,7 +2092,7 @@ msgstr "日期和时间"
 msgid "Date and time picker"
 msgstr "日期和时间选择器"
 
-#: packages/admin/src/components/ContentList.tsx:604
+#: packages/admin/src/components/ContentList.tsx:790
 msgid "Date field to filter on"
 msgstr "用于筛选的日期字段"
 
@@ -2080,7 +2150,7 @@ msgstr "代码定义"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:453
-#: packages/admin/src/components/MenuEditor.tsx:463
+#: packages/admin/src/components/MenuEditor.tsx:549
 #: packages/admin/src/components/MenuList.tsx:255
 #: packages/admin/src/components/Redirects.tsx:582
 #: packages/admin/src/components/Sections.tsx:308
@@ -2180,11 +2250,11 @@ msgid "Delete permanently"
 msgstr "永久删除"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:933
+#: packages/admin/src/components/ContentList.tsx:1134
 msgid "Delete Permanently"
 msgstr "永久删除"
 
-#: packages/admin/src/components/ContentList.tsx:913
+#: packages/admin/src/components/ContentList.tsx:1114
 msgid "Delete Permanently?"
 msgstr "永久删除？"
 
@@ -2217,7 +2287,7 @@ msgstr "删除表格"
 msgid "Delete Widget Area?"
 msgstr "删除小部件区域？"
 
-#: packages/admin/src/components/ContentList.tsx:460
+#: packages/admin/src/components/ContentList.tsx:646
 msgid "Deleted"
 msgstr "已删除"
 
@@ -2460,7 +2530,7 @@ msgid "Don't have an account? <0>Sign up</0>"
 msgstr "还没有账号？<0>立即注册</0>"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:144
-#: packages/admin/src/components/WordPressImport.tsx:1964
+#: packages/admin/src/components/WordPressImport.tsx:2128
 msgid "Done"
 msgstr "完成"
 
@@ -2472,17 +2542,18 @@ msgstr "下移"
 msgid "Download SBOM"
 msgstr "下载 SBOM"
 
-#: packages/admin/src/components/WordPressImport.tsx:1962
+#: packages/admin/src/components/WordPressImport.tsx:2126
 msgid "Downloading"
 msgstr "下载中"
 
-#: packages/admin/src/components/ContentList.tsx:959
+#: packages/admin/src/components/ContentList.tsx:1160
 msgid "draft"
 msgstr "草稿"
 
 #: packages/admin/src/components/ContentEditor.tsx:858
-#: packages/admin/src/components/ContentList.tsx:544
+#: packages/admin/src/components/ContentList.tsx:730
 #: packages/admin/src/components/ContentPickerModal.tsx:212
+#: packages/admin/src/components/Dashboard.tsx:346
 msgid "Draft"
 msgstr "草稿"
 
@@ -2491,11 +2562,15 @@ msgid "draft, published, or archived"
 msgstr "草稿、已发布或已归档"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:188
+#: packages/admin/src/components/Dashboard.tsx:251
 msgid "Drafts"
 msgstr "草稿"
 
-#: packages/admin/src/components/WordPressImport.tsx:961
+#: packages/admin/src/components/WordPressImport.tsx:1166
+msgid "Drafts & Private"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "拖放或点击浏览 (.xml)"
 
@@ -2530,7 +2605,7 @@ msgstr "将小部件拖动到区域中以添加它们"
 msgid "Drop to add widget"
 msgstr "放置以添加小部件"
 
-#: packages/admin/src/components/WordPressImport.tsx:1427
+#: packages/admin/src/components/WordPressImport.tsx:1588
 msgid "Drop your WordPress export file here"
 msgstr "将 WordPress 导出文件拖放到此处"
 
@@ -2538,7 +2613,7 @@ msgstr "将 WordPress 导出文件拖放到此处"
 msgid "Duplicate"
 msgstr "复制"
 
-#: packages/admin/src/components/ContentList.tsx:824
+#: packages/admin/src/components/ContentList.tsx:1025
 msgid "Duplicate {title}"
 msgstr "复制 {title}"
 
@@ -2561,7 +2636,7 @@ msgstr "例如：MacBook Pro、iPhone"
 #: packages/admin/src/components/ContentEditor.tsx:1956
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
-#: packages/admin/src/components/MenuEditor.tsx:458
+#: packages/admin/src/components/MenuEditor.tsx:544
 #: packages/admin/src/components/MenuList.tsx:231
 #: packages/admin/src/components/Sections.tsx:392
 #: packages/admin/src/components/TranslationsPanel.tsx:88
@@ -2590,7 +2665,7 @@ msgstr "编辑 {0} 字段"
 msgid "Edit {collectionLabel}"
 msgstr "编辑 {collectionLabel}"
 
-#: packages/admin/src/components/ContentList.tsx:816
+#: packages/admin/src/components/ContentList.tsx:1017
 msgid "Edit {title}"
 msgstr "编辑 {title}"
 
@@ -2614,11 +2689,11 @@ msgstr "编辑字段"
 msgid "Edit link"
 msgstr "编辑链接"
 
-#: packages/admin/src/components/MenuEditor.tsx:486
+#: packages/admin/src/components/MenuEditor.tsx:573
 msgid "Edit Menu Item"
 msgstr "编辑菜单项"
 
-#: packages/admin/src/components/MenuEditor.tsx:290
+#: packages/admin/src/components/MenuEditor.tsx:369
 msgid "Edit menu items"
 msgstr "编辑菜单项"
 
@@ -2654,6 +2729,10 @@ msgstr ""
 "编辑\n"
 "记者\n"
 "摄影师"
+
+#: packages/admin/src/components/WordPressImport.tsx:1044
+msgid "em1.…"
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:59
 #: packages/admin/src/components/Settings.tsx:115
@@ -2711,11 +2790,11 @@ msgstr "嵌入 {0}"
 msgid "Embeds"
 msgstr "嵌入"
 
-#: packages/admin/src/components/WordPressImport.tsx:1047
+#: packages/admin/src/components/WordPressImport.tsx:1208
 msgid "EmDash Exporter"
 msgstr "EmDash 导出器"
 
-#: packages/admin/src/components/WordPressImport.tsx:1146
+#: packages/admin/src/components/WordPressImport.tsx:1307
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "检测到 EmDash 导出器插件！您可以直接导入。"
 
@@ -2749,8 +2828,8 @@ msgstr "已启用"
 msgid "Enter {0}..."
 msgstr "输入 {0}..."
 
-#: packages/admin/src/components/MenuEditor.tsx:344
-#: packages/admin/src/components/MenuEditor.tsx:514
+#: packages/admin/src/components/MenuEditor.tsx:423
+#: packages/admin/src/components/MenuEditor.tsx:601
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "输入 URL (https://…) 或相对路径 (/…)"
 
@@ -2758,7 +2837,7 @@ msgstr "输入 URL (https://…) 或相对路径 (/…)"
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "输入有效的 URL（例如 https://example.com）"
 
-#: packages/admin/src/components/WordPressImport.tsx:1219
+#: packages/admin/src/components/WordPressImport.tsx:1380
 msgid "Enter credentials manually"
 msgstr "手动输入凭据"
 
@@ -2795,20 +2874,20 @@ msgstr "输入 URL..."
 msgid "Enter your handle to sign in."
 msgstr "输入您的账号以登录。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1298
+#: packages/admin/src/components/WordPressImport.tsx:1459
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "输入您的 WordPress 凭据以直接导入内容。"
 
-#: packages/admin/src/components/WordPressImport.tsx:924
+#: packages/admin/src/components/WordPressImport.tsx:1082
 msgid "Enter your WordPress site URL"
 msgstr "输入您的 WordPress 站点 URL"
 
-#: packages/admin/src/components/MenuEditor.tsx:101
-#: packages/admin/src/components/MenuEditor.tsx:139
-#: packages/admin/src/components/MenuEditor.tsx:179
+#: packages/admin/src/components/MenuEditor.tsx:155
+#: packages/admin/src/components/MenuEditor.tsx:193
+#: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1938
+#: packages/admin/src/router.tsx:2016
 msgid "Error"
 msgstr "错误"
 
@@ -2832,7 +2911,7 @@ msgstr "更新小部件时出错"
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "此插件的每个已发布版本均已撤回或无法验证。请稍后查看，或联系发布者。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1846
+#: packages/admin/src/components/WordPressImport.tsx:2010
 msgid "Exists"
 msgstr "已存在"
 
@@ -2861,11 +2940,11 @@ msgstr "过期于 {0}"
 msgid "Expiry"
 msgstr "过期时间"
 
-#: packages/admin/src/components/WordPressImport.tsx:1112
+#: packages/admin/src/components/WordPressImport.tsx:1273
 msgid "Export from WordPress manually"
 msgstr "从 WordPress 手动导出"
 
-#: packages/admin/src/components/WordPressImport.tsx:1236
+#: packages/admin/src/components/WordPressImport.tsx:1397
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "从 WordPress 导出您的内容，以导入所有内容（包括草稿）。"
 
@@ -2877,7 +2956,7 @@ msgstr "Facebook"
 msgid "Fail"
 msgstr "失败"
 
-#: packages/admin/src/components/WordPressImport.tsx:1966
+#: packages/admin/src/components/WordPressImport.tsx:2130
 msgid "Failed"
 msgstr "失败"
 
@@ -2893,7 +2972,7 @@ msgstr "添加域名失败"
 msgid "Failed to add passkey"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:367
+#: packages/admin/src/components/WordPressImport.tsx:413
 msgid "Failed to analyze WordPress site"
 msgstr "分析 WordPress 站点失败"
 
@@ -2925,7 +3004,7 @@ msgstr "创建字段失败"
 msgid "Failed to create section"
 msgstr "创建分区失败"
 
-#: packages/admin/src/components/WordPressImport.tsx:1553
+#: packages/admin/src/components/WordPressImport.tsx:1714
 msgid "Failed to create some collections"
 msgstr "创建部分合集失败"
 
@@ -2933,13 +3012,14 @@ msgstr "创建部分合集失败"
 msgid "Failed to create term"
 msgstr "创建词条失败"
 
-#: packages/admin/src/router.tsx:984
+#: packages/admin/src/router.tsx:1062
 msgid "Failed to create translation"
 msgstr "创建翻译失败"
 
-#: packages/admin/src/router.tsx:397
-#: packages/admin/src/router.tsx:426
-#: packages/admin/src/router.tsx:1004
+#: packages/admin/src/router.tsx:398
+#: packages/admin/src/router.tsx:427
+#: packages/admin/src/router.tsx:510
+#: packages/admin/src/router.tsx:1082
 msgid "Failed to delete"
 msgstr "删除失败"
 
@@ -2960,7 +3040,7 @@ msgid "Failed to delete collection"
 msgstr "删除合集失败"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1248
+#: packages/admin/src/router.tsx:1326
 msgid "Failed to delete comment"
 msgstr "删除评论失败"
 
@@ -3026,7 +3106,7 @@ msgstr "禁用搜索失败"
 msgid "Failed to disable user"
 msgstr "禁用用户失败"
 
-#: packages/admin/src/router.tsx:911
+#: packages/admin/src/router.tsx:989
 msgid "Failed to discard changes"
 msgstr "丢弃更改失败"
 
@@ -3034,7 +3114,7 @@ msgstr "丢弃更改失败"
 msgid "Failed to dismiss welcome"
 msgstr "关闭欢迎页面失败"
 
-#: packages/admin/src/router.tsx:440
+#: packages/admin/src/router.tsx:441
 msgid "Failed to duplicate"
 msgstr "复制失败"
 
@@ -3051,7 +3131,7 @@ msgstr "启用搜索失败"
 msgid "Failed to enable user"
 msgstr "启用用户失败"
 
-#: packages/admin/src/components/WordPressImport.tsx:295
+#: packages/admin/src/components/WordPressImport.tsx:340
 msgid "Failed to execute import"
 msgstr "执行导入失败"
 
@@ -3064,7 +3144,7 @@ msgstr "获取认证模式失败"
 msgid "Failed to fetch collection"
 msgstr "获取合集失败"
 
-#: packages/admin/src/lib/api/dashboard.ts:41
+#: packages/admin/src/lib/api/dashboard.ts:42
 msgid "Failed to fetch dashboard stats"
 msgstr "获取仪表盘统计数据失败"
 
@@ -3133,8 +3213,8 @@ msgstr "获取词条失败"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:741
-#: packages/admin/src/router.tsx:1179
+#: packages/admin/src/router.tsx:819
+#: packages/admin/src/router.tsx:1257
 msgid "Failed to fetch user"
 msgstr "获取用户失败"
 
@@ -3158,12 +3238,12 @@ msgstr "获取注册选项失败"
 msgid "Failed to get upload URL"
 msgstr "获取上传 URL 失败"
 
-#: packages/admin/src/components/WordPressImport.tsx:386
+#: packages/admin/src/components/WordPressImport.tsx:436
 msgid "Failed to import from WordPress"
 msgstr "从 WordPress 导入失败"
 
-#: packages/admin/src/components/WordPressImport.tsx:319
-#: packages/admin/src/lib/api/import.ts:256
+#: packages/admin/src/components/WordPressImport.tsx:365
+#: packages/admin/src/lib/api/import.ts:422
 msgid "Failed to import media"
 msgstr "导入媒体失败"
 
@@ -3176,7 +3256,7 @@ msgstr "安装插件失败"
 msgid "Failed to list byline fields"
 msgstr "列出署名字段失败"
 
-#: packages/admin/src/router.tsx:257
+#: packages/admin/src/router.tsx:258
 msgid "Failed to load admin"
 msgstr "加载管理后台失败"
 
@@ -3235,7 +3315,7 @@ msgstr "加载用户失败：{0}"
 msgid "Failed to load widget"
 msgstr "加载小部件失败"
 
-#: packages/admin/src/router.tsx:1273
+#: packages/admin/src/router.tsx:1351
 msgid "Failed to perform bulk action"
 msgstr "执行批量操作失败"
 
@@ -3243,11 +3323,12 @@ msgstr "执行批量操作失败"
 msgid "Failed to permanently delete content"
 msgstr "永久删除内容失败"
 
-#: packages/admin/src/components/WordPressImport.tsx:276
+#: packages/admin/src/components/WordPressImport.tsx:321
 msgid "Failed to prepare import"
 msgstr "准备导入失败"
 
-#: packages/admin/src/router.tsx:872
+#: packages/admin/src/router.tsx:466
+#: packages/admin/src/router.tsx:950
 msgid "Failed to publish"
 msgstr "发布失败"
 
@@ -3281,7 +3362,7 @@ msgstr "重新排序字段失败"
 msgid "Failed to reorder widgets"
 msgstr "重新排序小部件失败"
 
-#: packages/admin/src/router.tsx:412
+#: packages/admin/src/router.tsx:413
 msgid "Failed to restore"
 msgstr "恢复失败"
 
@@ -3298,12 +3379,12 @@ msgstr "恢复版本失败"
 msgid "Failed to revoke API token"
 msgstr "撤销 API 令牌失败"
 
-#: packages/admin/src/components/WordPressImport.tsx:332
+#: packages/admin/src/components/WordPressImport.tsx:378
 msgid "Failed to rewrite URLs"
 msgstr "重写 URL 失败"
 
-#: packages/admin/src/router.tsx:816
-#: packages/admin/src/router.tsx:1755
+#: packages/admin/src/router.tsx:894
+#: packages/admin/src/router.tsx:1833
 msgid "Failed to save"
 msgstr "保存失败"
 
@@ -3317,7 +3398,7 @@ msgstr "保存字段失败"
 msgid "Failed to save settings"
 msgstr "保存设置失败"
 
-#: packages/admin/src/router.tsx:932
+#: packages/admin/src/router.tsx:1010
 msgid "Failed to schedule"
 msgstr "安排发布失败"
 
@@ -3348,13 +3429,17 @@ msgstr "设置条目词条失败"
 msgid "Failed to uninstall plugin"
 msgstr "卸载插件失败"
 
-#: packages/admin/src/router.tsx:890
+#: packages/admin/src/router.tsx:968
 msgid "Failed to unpublish"
 msgstr "取消发布失败"
 
-#: packages/admin/src/router.tsx:953
+#: packages/admin/src/router.tsx:1031
 msgid "Failed to unschedule"
 msgstr "取消安排发布失败"
+
+#: packages/admin/src/router.tsx:489
+msgid "Failed to update"
+msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:349
@@ -3390,7 +3475,7 @@ msgstr "更新分区失败"
 msgid "Failed to update settings"
 msgstr "更新设置失败"
 
-#: packages/admin/src/router.tsx:1232
+#: packages/admin/src/router.tsx:1310
 msgid "Failed to update status"
 msgstr "更新状态失败"
 
@@ -3423,16 +3508,20 @@ msgstr "常见问题"
 msgid "Favicon"
 msgstr "网站图标"
 
-#: packages/admin/src/components/WordPressImport.tsx:1022
+#: packages/admin/src/components/WordPressImport.tsx:1180
 msgid "Feature"
 msgstr "功能"
+
+#: packages/admin/src/components/WordPressImport.tsx:1148
+msgid "Featured Images"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:442
 #: packages/admin/src/components/ContentTypeList.tsx:103
 msgid "Features"
 msgstr "功能"
 
-#: packages/admin/src/components/WordPressImport.tsx:736
+#: packages/admin/src/components/WordPressImport.tsx:811
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "正在从 EmDash Exporter API 获取内容。"
 
@@ -3468,7 +3557,7 @@ msgstr "字段已更新"
 msgid "Fields"
 msgstr "字段"
 
-#: packages/admin/src/components/WordPressImport.tsx:2139
+#: packages/admin/src/components/WordPressImport.tsx:2333
 msgid "Fields created:"
 msgstr "已创建字段："
 
@@ -3477,7 +3566,7 @@ msgid "File"
 msgstr "文件"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:1994
+#: packages/admin/src/components/WordPressImport.tsx:2158
 msgid "File {0}"
 msgstr "文件 {0}"
 
@@ -3495,11 +3584,11 @@ msgstr "文件名"
 msgid "Filename cannot be changed after upload"
 msgstr "文件名上传后无法更改"
 
-#: packages/admin/src/components/WordPressImport.tsx:2172
+#: packages/admin/src/components/WordPressImport.tsx:2366
 msgid "files imported"
 msgstr "文件已导入"
 
-#: packages/admin/src/components/ContentList.tsx:583
+#: packages/admin/src/components/ContentList.tsx:769
 msgid "Filter by author"
 msgstr "按作者筛选"
 
@@ -3519,7 +3608,7 @@ msgstr "按角色筛选"
 msgid "Filter by source"
 msgstr "按来源筛选"
 
-#: packages/admin/src/components/ContentList.tsx:568
+#: packages/admin/src/components/ContentList.tsx:754
 #: packages/admin/src/components/Redirects.tsx:419
 msgid "Filter by status"
 msgstr "按状态筛选"
@@ -3541,19 +3630,20 @@ msgstr "仅首次评论者"
 msgid "Fonts"
 msgstr "字体"
 
-#: packages/admin/src/components/WordPressImport.tsx:1237
+#: packages/admin/src/components/WordPressImport.tsx:1398
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "如需完整导入（包括草稿和所有内容），请从 WordPress 导出。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1046
+#: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "For the best import experience, install the"
 msgstr "为获得最佳导入体验，请安装"
 
-#: packages/admin/src/components/ContentList.tsx:620
+#: packages/admin/src/components/ContentList.tsx:806
 msgid "From date"
 msgstr "起始日期"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:164
+#: packages/admin/src/components/WordPressImport.tsx:1155
 msgid "Full"
 msgstr ""
 
@@ -3594,8 +3684,8 @@ msgstr "为此通行密钥命名以便日后识别。"
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1958
+#: packages/admin/src/components/WordPressImport.tsx:2418
+#: packages/admin/src/router.tsx:2036
 msgid "Go to Dashboard"
 msgstr "前往仪表板"
 
@@ -3671,7 +3761,7 @@ msgstr "层级式（类似分类，具有父子关系）"
 msgid "Hits"
 msgstr "点击量"
 
-#: packages/admin/src/components/MenuEditor.tsx:337
+#: packages/admin/src/components/MenuEditor.tsx:416
 msgid "Home"
 msgstr "首页"
 
@@ -3683,7 +3773,7 @@ msgstr "主页"
 msgid "Hooks"
 msgstr "钩子"
 
-#: packages/admin/src/components/WordPressImport.tsx:1359
+#: packages/admin/src/components/WordPressImport.tsx:1520
 msgid "How to create an Application Password"
 msgstr "如何创建应用程序密码"
 
@@ -3697,13 +3787,17 @@ msgstr "HTML"
 msgid "HTML source"
 msgstr "HTML 源代码"
 
-#: packages/admin/src/components/MenuEditor.tsx:345
+#: packages/admin/src/components/MenuEditor.tsx:424
 msgid "https://example.com or /about"
 msgstr "https://example.com 或 /about"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:508
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
+
+#: packages/admin/src/components/WordPressImport.tsx:1089
+msgid "https://yoursite.com"
+msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:241
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:142
@@ -3751,7 +3845,7 @@ msgstr "当此页面在社交媒体上分享时显示的图片"
 msgid "Image URL"
 msgstr "图片 URL"
 
-#: packages/admin/src/components/WordPressImport.tsx:2176
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "image URLs updated in"
 msgstr "图片 URL 已更新于"
 
@@ -3762,60 +3856,60 @@ msgstr "图片"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
 #: packages/admin/src/components/Sidebar.tsx:378
-#: packages/admin/src/components/WordPressImport.tsx:664
+#: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import"
 msgstr "导入"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:1794
+#: packages/admin/src/components/WordPressImport.tsx:1958
 msgid "Import {0}"
 msgstr "导入 {0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1366
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "直接导入所有内容，包括草稿、自定义文章类型、ACF 字段和 SEO 数据。无需下载文件。"
 
-#: packages/admin/src/components/WordPressImport.tsx:2222
+#: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "Import Another File"
 msgstr "导入另一个文件"
 
-#: packages/admin/src/components/WordPressImport.tsx:1016
+#: packages/admin/src/components/WordPressImport.tsx:1174
 msgid "Import Capabilities"
 msgstr "导入功能"
 
-#: packages/admin/src/components/WordPressImport.tsx:2110
+#: packages/admin/src/components/WordPressImport.tsx:2304
 msgid "Import Complete"
 msgstr "导入完成"
 
-#: packages/admin/src/components/WordPressImport.tsx:2111
+#: packages/admin/src/components/WordPressImport.tsx:2305
 msgid "Import Completed with Errors"
 msgstr "导入完成但有错误"
 
-#: packages/admin/src/components/WordPressImport.tsx:1538
+#: packages/admin/src/components/WordPressImport.tsx:1699
 msgid "Import failed"
 msgstr "导入失败"
 
-#: packages/admin/src/components/WordPressImport.tsx:617
+#: packages/admin/src/components/WordPressImport.tsx:691
 msgid "Import from WordPress"
 msgstr "从 WordPress 导入"
 
-#: packages/admin/src/components/WordPressImport.tsx:1943
+#: packages/admin/src/components/WordPressImport.tsx:2107
 msgid "Import Media"
 msgstr "导入媒体"
 
-#: packages/admin/src/components/WordPressImport.tsx:1896
+#: packages/admin/src/components/WordPressImport.tsx:2060
 msgid "Import Media Files"
 msgstr "导入媒体文件"
 
-#: packages/admin/src/components/WordPressImport.tsx:619
+#: packages/admin/src/components/WordPressImport.tsx:693
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "从 WordPress 导入文章、页面和自定义文章类型。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1650
+#: packages/admin/src/components/WordPressImport.tsx:1814
 msgid "Import site configuration from WordPress."
 msgstr "从 WordPress 导入站点配置。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1203
+#: packages/admin/src/components/WordPressImport.tsx:1364
 msgid "Import via EmDash Exporter"
 msgstr "通过 EmDash Exporter 导入"
 
@@ -3823,23 +3917,42 @@ msgstr "通过 EmDash Exporter 导入"
 msgid "Imported"
 msgstr "已导入"
 
-#: packages/admin/src/components/WordPressImport.tsx:2150
+#: packages/admin/src/components/WordPressImport.tsx:2344
 msgid "Imported by Collection"
 msgstr "按合集导入"
 
-#: packages/admin/src/components/WordPressImport.tsx:820
+#. placeholder {0}: wpImportProgress.comments
+#: packages/admin/src/components/WordPressImport.tsx:903
+msgid "Importing comments... {0}"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:920
 msgid "Importing content..."
 msgstr "正在导入内容..."
 
-#: packages/admin/src/components/WordPressImport.tsx:1975
+#. placeholder {0}: wpImportProgress.processed
+#: packages/admin/src/components/WordPressImport.tsx:901
+msgid "Importing content... {0}"
+msgstr ""
+
+#. placeholder {0}: wpImportProgress.processed
+#: packages/admin/src/components/WordPressImport.tsx:900
+msgid "Importing content... {0} of {totalSelectedPosts}"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:2139
 msgid "Importing Media"
 msgstr "正在导入媒体"
+
+#: packages/admin/src/components/WordPressImport.tsx:904
+msgid "Importing menus and site settings..."
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Include sample content (recommended for new sites)"
 msgstr "包含示例内容（推荐新站点使用）"
 
-#: packages/admin/src/components/WordPressImport.tsx:1816
+#: packages/admin/src/components/WordPressImport.tsx:1980
 msgid "Incompatible"
 msgstr "不兼容"
 
@@ -3934,6 +4047,10 @@ msgstr "安装并激活电子邮件提供商插件以启用电子邮件功能，
 msgid "Install blocked"
 msgstr "安装被阻止"
 
+#: packages/admin/src/components/WordPressImport.tsx:1039
+msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginDetail.tsx:791
 msgid "Installation"
 msgstr "安装"
@@ -4007,15 +4124,15 @@ msgstr "斜体"
 msgid "Item {0}"
 msgstr "项目 {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:121
+#: packages/admin/src/components/MenuEditor.tsx:175
 msgid "Item added"
 msgstr "项目已添加"
 
-#: packages/admin/src/components/MenuEditor.tsx:133
+#: packages/admin/src/components/MenuEditor.tsx:187
 msgid "Item deleted"
 msgstr "项目已删除"
 
-#: packages/admin/src/components/MenuEditor.tsx:158
+#: packages/admin/src/components/MenuEditor.tsx:212
 msgid "Item updated"
 msgstr "项目已更新"
 
@@ -4049,6 +4166,10 @@ msgstr "JSON"
 msgid "JSX"
 msgstr "JSX"
 
+#: packages/admin/src/components/WordPressImport.tsx:916
+msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:1926
 msgid "Keep typing to narrow down more bylines."
 msgstr "继续输入以缩小署名范围。"
@@ -4066,8 +4187,8 @@ msgstr "Kotlin"
 #: packages/admin/src/components/BylineFieldEditor.tsx:232
 #: packages/admin/src/components/FieldEditor.tsx:411
 #: packages/admin/src/components/FieldEditor.tsx:553
-#: packages/admin/src/components/MenuEditor.tsx:337
-#: packages/admin/src/components/MenuEditor.tsx:506
+#: packages/admin/src/components/MenuEditor.tsx:416
+#: packages/admin/src/components/MenuEditor.tsx:593
 #: packages/admin/src/components/MenuList.tsx:166
 #: packages/admin/src/components/TaxonomyManager.tsx:623
 #: packages/admin/src/components/Widgets.tsx:371
@@ -4129,7 +4250,7 @@ msgstr "最后使用于 {0}"
 msgid "Leave blank to use a discoverable passkey."
 msgstr "留空以使用可发现的通行密钥。"
 
-#: packages/admin/src/components/WordPressImport.tsx:2303
+#: packages/admin/src/components/WordPressImport.tsx:2497
 msgid "Leave unassigned"
 msgstr "不分配"
 
@@ -4202,8 +4323,8 @@ msgstr "实时预览"
 msgid "Load more"
 msgstr "加载更多"
 
-#: packages/admin/src/components/ContentList.tsx:444
-#: packages/admin/src/components/ContentList.tsx:501
+#: packages/admin/src/components/ContentList.tsx:630
+#: packages/admin/src/components/ContentList.tsx:687
 #: packages/admin/src/components/MediaLibrary.tsx:636
 #: packages/admin/src/components/MediaPickerModal.tsx:723
 #: packages/admin/src/components/users/UserList.tsx:169
@@ -4222,7 +4343,7 @@ msgstr "正在加载合集..."
 msgid "Loading comments..."
 msgstr "正在加载评论..."
 
-#: packages/admin/src/router.tsx:1927
+#: packages/admin/src/router.tsx:2005
 msgid "Loading configuration..."
 msgstr "正在加载配置..."
 
@@ -4234,7 +4355,7 @@ msgstr "正在加载内容..."
 msgid "Loading editor..."
 msgstr "正在加载编辑器..."
 
-#: packages/admin/src/components/MenuEditor.tsx:263
+#: packages/admin/src/components/MenuEditor.tsx:342
 msgid "Loading menu..."
 msgstr "正在加载菜单..."
 
@@ -4273,10 +4394,10 @@ msgstr "正在加载词条..."
 msgid "Loading widgets..."
 msgstr "正在加载小部件..."
 
-#: packages/admin/src/components/ContentList.tsx:355
-#: packages/admin/src/components/ContentList.tsx:444
-#: packages/admin/src/components/ContentList.tsx:473
-#: packages/admin/src/components/ContentList.tsx:501
+#: packages/admin/src/components/ContentList.tsx:538
+#: packages/admin/src/components/ContentList.tsx:630
+#: packages/admin/src/components/ContentList.tsx:659
+#: packages/admin/src/components/ContentList.tsx:687
 #: packages/admin/src/components/ContentPickerModal.tsx:233
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/MediaLibrary.tsx:636
@@ -4295,7 +4416,7 @@ msgstr "正在加载小部件..."
 msgid "Loading..."
 msgstr "加载中..."
 
-#: packages/admin/src/components/ContentList.tsx:335
+#: packages/admin/src/components/ContentList.tsx:518
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "语言区域"
@@ -4320,7 +4441,7 @@ msgstr "退出登录"
 msgid "Logo"
 msgstr "徽标"
 
-#: packages/admin/src/components/WordPressImport.tsx:1668
+#: packages/admin/src/components/WordPressImport.tsx:1832
 msgid "Logo & favicon"
 msgstr "徽标和网站图标"
 
@@ -4401,12 +4522,12 @@ msgstr ""
 msgid "Manual"
 msgstr "手动"
 
-#: packages/admin/src/components/WordPressImport.tsx:2260
+#: packages/admin/src/components/WordPressImport.tsx:2454
 msgid "Map Authors"
 msgstr "映射作者"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2308
+#: packages/admin/src/components/WordPressImport.tsx:2502
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "将 WordPress 用户 {0} 映射到 EmDash 用户"
 
@@ -4456,8 +4577,9 @@ msgstr "MDX"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2197
 #: packages/admin/src/components/Sidebar.tsx:321
-#: packages/admin/src/components/WordPressImport.tsx:678
-#: packages/admin/src/components/WordPressImport.tsx:1173
+#: packages/admin/src/components/WordPressImport.tsx:752
+#: packages/admin/src/components/WordPressImport.tsx:1145
+#: packages/admin/src/components/WordPressImport.tsx:1334
 msgid "Media"
 msgstr "媒体"
 
@@ -4466,19 +4588,19 @@ msgid "Media Details"
 msgstr "媒体详情"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2206
+#: packages/admin/src/components/WordPressImport.tsx:2400
 msgid "Media Errors ({0})"
 msgstr "媒体错误 ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:2168
+#: packages/admin/src/components/WordPressImport.tsx:2362
 msgid "Media Import"
 msgstr "媒体导入"
 
-#: packages/admin/src/components/WordPressImport.tsx:2109
+#: packages/admin/src/components/WordPressImport.tsx:2303
 msgid "Media Import Complete"
 msgstr "媒体导入完成"
 
-#: packages/admin/src/components/WordPressImport.tsx:2120
+#: packages/admin/src/components/WordPressImport.tsx:2314
 msgid "Media import was skipped"
 msgstr "媒体导入已跳过"
 
@@ -4506,7 +4628,7 @@ msgstr "菜单"
 
 #. placeholder {0}: translated.label
 #. placeholder {1}: translated.locale.toUpperCase()
-#: packages/admin/src/components/MenuEditor.tsx:90
+#: packages/admin/src/components/MenuEditor.tsx:144
 msgid "Menu \"{0}\" ({1}) created."
 msgstr "菜单 \"{0}\" ({1}) 已创建。"
 
@@ -4523,34 +4645,35 @@ msgstr "菜单已创建"
 msgid "Menu deleted"
 msgstr "菜单已删除"
 
-#: packages/admin/src/components/MenuEditor.tsx:121
+#: packages/admin/src/components/MenuEditor.tsx:175
 msgid "Menu item has been added."
 msgstr "菜单项已添加。"
 
-#: packages/admin/src/components/MenuEditor.tsx:134
+#: packages/admin/src/components/MenuEditor.tsx:188
 msgid "Menu item has been deleted."
 msgstr "菜单项已删除。"
 
-#: packages/admin/src/components/MenuEditor.tsx:159
+#: packages/admin/src/components/MenuEditor.tsx:213
 msgid "Menu item has been updated."
 msgstr "菜单项已更新。"
 
-#: packages/admin/src/components/MenuEditor.tsx:271
+#: packages/admin/src/components/MenuEditor.tsx:350
 msgid "Menu not found"
 msgstr "菜单未找到"
 
-#: packages/admin/src/components/MenuEditor.tsx:174
+#: packages/admin/src/components/MenuEditor.tsx:228
 msgid "Menu order has been updated."
 msgstr "菜单顺序已更新。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:103
 #: packages/admin/src/components/Sidebar.tsx:331
+#: packages/admin/src/components/WordPressImport.tsx:1149
 msgid "Menus"
 msgstr "菜单"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1604
+#: packages/admin/src/components/WordPressImport.tsx:1767
 msgid "Menus ({0})"
 msgstr "菜单 ({0})"
 
@@ -4570,9 +4693,13 @@ msgstr "Bing 网站管理员工具验证的元标签内容"
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Google Search Console 验证的元标签内容"
 
-#: packages/admin/src/components/WordPressImport.tsx:1681
+#: packages/admin/src/components/WordPressImport.tsx:1845
 msgid "Meta titles, descriptions, and social images"
 msgstr "元标题、描述和社交图片"
+
+#: packages/admin/src/components/WordPressImport.tsx:1051
+msgid "Migration key"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:620
 msgid "Min Items"
@@ -4616,32 +4743,46 @@ msgstr "将 \"{0}\" 下移"
 msgid "Move \"{0}\" up"
 msgstr "将 \"{0}\" 上移"
 
-#: packages/admin/src/components/ContentList.tsx:845
+#: packages/admin/src/components/ContentList.tsx:1046
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "将「{title}」移至回收站？您可以稍后恢复它。"
 
-#: packages/admin/src/components/ContentList.tsx:836
+#: packages/admin/src/components/ContentList.tsx:1037
 msgid "Move {title} to trash"
 msgstr "将 {title} 移至回收站"
 
-#: packages/admin/src/components/MenuEditor.tsx:451
+#: packages/admin/src/components/MenuEditor.tsx:537
 msgid "Move down"
 msgstr "下移"
 
+#: packages/admin/src/components/ContentList.tsx:439
+msgid "Move to trash"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:944
 #: packages/admin/src/components/ContentEditor.tsx:966
-#: packages/admin/src/components/ContentList.tsx:858
+#: packages/admin/src/components/ContentList.tsx:466
+#: packages/admin/src/components/ContentList.tsx:1059
 msgid "Move to Trash"
 msgstr "移至回收站"
 
 #: packages/admin/src/components/ContentEditor.tsx:950
-#: packages/admin/src/components/ContentList.tsx:843
+#: packages/admin/src/components/ContentList.tsx:444
+#: packages/admin/src/components/ContentList.tsx:1044
 msgid "Move to Trash?"
 msgstr "移至回收站？"
 
-#: packages/admin/src/components/MenuEditor.tsx:442
+#: packages/admin/src/components/MenuEditor.tsx:528
 msgid "Move up"
 msgstr "上移"
+
+#: packages/admin/src/router.tsx:486
+msgid "Moved {total} items to draft"
+msgstr ""
+
+#: packages/admin/src/router.tsx:507
+msgid "Moved {total} items to trash"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:192
 msgid "Multi Select"
@@ -4688,7 +4829,7 @@ msgstr "导航"
 msgid "Never"
 msgstr "从未"
 
-#: packages/admin/src/router.tsx:979
+#: packages/admin/src/router.tsx:1057
 msgid "new"
 msgstr "新建"
 
@@ -4713,7 +4854,7 @@ msgstr "新建 {collectionLabel}"
 msgid "New byline field"
 msgstr "新建署名字段"
 
-#: packages/admin/src/components/WordPressImport.tsx:1818
+#: packages/admin/src/components/WordPressImport.tsx:1982
 msgid "New collection"
 msgstr "新合集"
 
@@ -4747,10 +4888,10 @@ msgstr "新标签页"
 msgid "New Taxonomy"
 msgstr "新分类"
 
-#: packages/admin/src/components/MenuEditor.tsx:351
-#: packages/admin/src/components/MenuEditor.tsx:354
-#: packages/admin/src/components/MenuEditor.tsx:522
-#: packages/admin/src/components/MenuEditor.tsx:525
+#: packages/admin/src/components/MenuEditor.tsx:430
+#: packages/admin/src/components/MenuEditor.tsx:433
+#: packages/admin/src/components/MenuEditor.tsx:609
+#: packages/admin/src/components/MenuEditor.tsx:612
 msgid "New window"
 msgstr "新窗口"
 
@@ -4768,7 +4909,7 @@ msgid "Next"
 msgstr "下一步"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:371
-#: packages/admin/src/components/ContentList.tsx:432
+#: packages/admin/src/components/ContentList.tsx:618
 msgid "Next page"
 msgstr "下一页"
 
@@ -4791,7 +4932,7 @@ msgid "No {0} available."
 msgstr "暂无{0}。"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:366
+#: packages/admin/src/components/ContentList.tsx:549
 msgid "No {0} yet."
 msgstr "暂无 {0}。"
 
@@ -4833,7 +4974,7 @@ msgstr "未找到署名"
 msgid "No bylines selected."
 msgstr "未选择任何署名。"
 
-#: packages/admin/src/components/Dashboard.tsx:172
+#: packages/admin/src/components/Dashboard.tsx:226
 msgid "No collections configured"
 msgstr "未配置任何合集"
 
@@ -4845,7 +4986,7 @@ msgstr "暂无待审核评论。"
 msgid "No comments match your search."
 msgstr "暂无评论符合您的搜索。"
 
-#: packages/admin/src/components/SandboxedPluginWidget.tsx:80
+#: packages/admin/src/components/SandboxedPluginWidget.tsx:82
 msgid "No content"
 msgstr "无内容"
 
@@ -4881,7 +5022,7 @@ msgstr "未配置邮件提供商"
 msgid "No email provider configured. Share this link manually."
 msgstr "未配置邮件提供商。请手动分享此链接。"
 
-#: packages/admin/src/components/WordPressImport.tsx:2322
+#: packages/admin/src/components/WordPressImport.tsx:2516
 msgid "No EmDash users found"
 msgstr "未找到 EmDash 用户"
 
@@ -4953,7 +5094,7 @@ msgstr ""
 msgid "No media found"
 msgstr "未找到媒体"
 
-#: packages/admin/src/components/MenuEditor.tsx:406
+#: packages/admin/src/components/MenuEditor.tsx:485
 msgid "No menu items yet"
 msgstr "暂无菜单项"
 
@@ -4969,6 +5110,10 @@ msgstr "无最小值"
 #: packages/admin/src/components/ContentTypeEditor.tsx:65
 msgid "No moderation (auto-approve all)"
 msgstr "无审核（自动批准所有）"
+
+#: packages/admin/src/components/MenuEditor.tsx:329
+msgid "No parent (top level)"
+msgstr ""
 
 #: packages/admin/src/components/users/UserDetail.tsx:248
 msgid "No passkeys registered"
@@ -5002,7 +5147,7 @@ msgstr "无预览"
 msgid "No public URL available"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:236
+#: packages/admin/src/components/Dashboard.tsx:304
 msgid "No recent activity"
 msgstr "暂无最近活动"
 
@@ -5015,8 +5160,8 @@ msgstr "暂无重定向"
 msgid "No results"
 msgstr "无结果"
 
-#: packages/admin/src/components/ContentList.tsx:363
-#: packages/admin/src/components/ContentList.tsx:382
+#: packages/admin/src/components/ContentList.tsx:546
+#: packages/admin/src/components/ContentList.tsx:565
 msgid "No results for \"{activeSearch}\""
 msgstr "没有 \"{activeSearch}\"的搜索结果"
 
@@ -5094,6 +5239,10 @@ msgstr "列表视图每页显示的文章数量"
 msgid "Numbered List"
 msgstr "有序列表"
 
+#: packages/admin/src/components/WordPressImport.tsx:494
+msgid "OAuth authorization requires HTTPS. Please use manual credentials."
+msgstr ""
+
 #: packages/admin/src/components/SeoImageField.tsx:41
 msgid "OG Image"
 msgstr "OG 图片"
@@ -5132,7 +5281,7 @@ msgstr "哎呀！"
 msgid "Open in new tab"
 msgstr "在新标签页中打开"
 
-#: packages/admin/src/components/WordPressImport.tsx:1373
+#: packages/admin/src/components/WordPressImport.tsx:1534
 msgid "Open WordPress Profile"
 msgstr "打开 WordPress 个人资料"
 
@@ -5173,24 +5322,28 @@ msgstr "选项（每行一个）"
 msgid "or choose from library"
 msgstr "或从库中选择"
 
-#: packages/admin/src/components/WordPressImport.tsx:1429
+#: packages/admin/src/components/WordPressImport.tsx:1590
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "或点击浏览。接受从 WordPress 导出的 .xml 文件。"
+
+#: packages/admin/src/components/WordPressImport.tsx:1071
+msgid "or connect by URL"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:261
 #: packages/admin/src/components/SetupWizard.tsx:310
 msgid "Or continue with"
 msgstr "或继续使用"
 
-#: packages/admin/src/components/WordPressImport.tsx:1230
+#: packages/admin/src/components/WordPressImport.tsx:1391
 msgid "Or upload an export file"
 msgstr "或上传导出文件"
 
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:1107
 msgid "or upload directly"
 msgstr "或直接上传"
 
-#: packages/admin/src/components/MenuEditor.tsx:173
+#: packages/admin/src/components/MenuEditor.tsx:227
 msgid "Order saved"
 msgstr "顺序已保存"
 
@@ -5215,12 +5368,12 @@ msgstr "所有权"
 msgid "Package"
 msgstr "包"
 
-#: packages/admin/src/router.tsx:1953
+#: packages/admin/src/router.tsx:2031
 msgid "Page Not Found"
 msgstr "页面未找到"
 
 #: packages/admin/src/components/PluginManager.tsx:373
-#: packages/admin/src/components/WordPressImport.tsx:1167
+#: packages/admin/src/components/WordPressImport.tsx:1328
 msgid "Pages"
 msgstr "页面"
 
@@ -5228,6 +5381,7 @@ msgstr "页面"
 msgid "Paragraph"
 msgstr "段落"
 
+#: packages/admin/src/components/MenuEditor.tsx:615
 #: packages/admin/src/components/TaxonomyManager.tsx:414
 msgid "Parent"
 msgstr "父级"
@@ -5236,6 +5390,10 @@ msgstr "父级"
 #: packages/admin/src/components/Redirects.tsx:515
 msgid "Part of a redirect loop"
 msgstr "重定向循环的一部分"
+
+#: packages/admin/src/components/WordPressImport.tsx:1153
+msgid "Partial"
+msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:322
 msgid "Pass"
@@ -5298,6 +5456,10 @@ msgstr "通行密钥需要"
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
 msgstr "通行密钥需要 HTTPS 或 http://localhost（带您的端口）；此主机名不是安全的浏览器上下文。"
 
+#: packages/admin/src/components/WordPressImport.tsx:1037
+msgid "Paste your migration key"
+msgstr ""
+
 #: packages/admin/src/components/Redirects.tsx:224
 msgid "Path"
 msgstr "路径"
@@ -5321,11 +5483,12 @@ msgid "PDF"
 msgstr "PDF"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:982
+#: packages/admin/src/components/ContentList.tsx:1183
 msgid "pending"
 msgstr "待处理"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:197
+#: packages/admin/src/components/Dashboard.tsx:348
 msgid "Pending"
 msgstr "待处理"
 
@@ -5333,11 +5496,11 @@ msgstr "待处理"
 msgid "Pending changes"
 msgstr "待处理的更改"
 
-#: packages/admin/src/components/ContentList.tsx:916
+#: packages/admin/src/components/ContentList.tsx:1117
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "永久删除「{title}」？此操作无法撤销。"
 
-#: packages/admin/src/components/ContentList.tsx:905
+#: packages/admin/src/components/ContentList.tsx:1106
 msgid "Permanently delete {title}"
 msgstr "永久删除 {title}"
 
@@ -5379,7 +5542,7 @@ msgstr "请输入有效的邮箱地址"
 msgid "Please enter a valid URL"
 msgstr "请输入有效的 URL"
 
-#: packages/admin/src/components/WordPressImport.tsx:1024
+#: packages/admin/src/components/WordPressImport.tsx:1182
 msgid "Plugin"
 msgstr "插件"
 
@@ -5416,7 +5579,7 @@ msgstr "未找到插件"
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
 msgstr "未找到插件。发布者用户名或插件别名可能有误。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1048
+#: packages/admin/src/components/WordPressImport.tsx:1209
 msgid "plugin on your WordPress site."
 msgstr "在您的 WordPress 站点上的插件。"
 
@@ -5467,9 +5630,13 @@ msgid "Post"
 msgstr "文章"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:397
-#: packages/admin/src/components/WordPressImport.tsx:1161
+#: packages/admin/src/components/WordPressImport.tsx:1322
 msgid "Posts"
 msgstr "文章"
+
+#: packages/admin/src/components/WordPressImport.tsx:1144
+msgid "Posts & Pages"
+msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:272
 msgid "Posts Per Page"
@@ -5483,7 +5650,7 @@ msgstr "预发布"
 msgid "Preparing registration..."
 msgstr "正在准备注册..."
 
-#: packages/admin/src/components/WordPressImport.tsx:2020
+#: packages/admin/src/components/WordPressImport.tsx:2179
 msgid "Preparing to download files from WordPress..."
 msgstr "正在准备从 WordPress 下载文件..."
 
@@ -5511,7 +5678,7 @@ msgid "Previous"
 msgstr "上一步"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:352
-#: packages/admin/src/components/ContentList.tsx:420
+#: packages/admin/src/components/ContentList.tsx:606
 msgid "Previous page"
 msgstr "上一页"
 
@@ -5523,12 +5690,17 @@ msgstr "上一张截图"
 msgid "Primary Navigation"
 msgstr "主导航"
 
+#: packages/admin/src/components/Dashboard.tsx:349
+msgid "Private"
+msgstr ""
+
 #: packages/admin/src/components/settings/EmailSettings.tsx:176
 msgid "Provider:"
 msgstr "提供商："
 
 #: packages/admin/src/components/ContentEditor.tsx:735
 #: packages/admin/src/components/ContentEditor.tsx:841
+#: packages/admin/src/components/ContentList.tsx:415
 msgid "Publish"
 msgstr "发布"
 
@@ -5536,16 +5708,17 @@ msgstr "发布"
 msgid "Publish changes"
 msgstr "发布更改"
 
-#: packages/admin/src/components/ContentList.tsx:957
+#: packages/admin/src/components/ContentList.tsx:1158
 msgid "published"
 msgstr "已发布"
 
 #: packages/admin/src/components/ContentEditor.tsx:854
-#: packages/admin/src/components/ContentList.tsx:543
-#: packages/admin/src/components/ContentList.tsx:552
+#: packages/admin/src/components/ContentList.tsx:729
+#: packages/admin/src/components/ContentList.tsx:738
 #: packages/admin/src/components/ContentPickerModal.tsx:209
-#: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:868
+#: packages/admin/src/components/Dashboard.tsx:245
+#: packages/admin/src/components/Dashboard.tsx:345
+#: packages/admin/src/router.tsx:946
 msgid "Published"
 msgstr "已发布"
 
@@ -5553,6 +5726,10 @@ msgstr "已发布"
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:326
 msgid "Published {0}"
 msgstr "发布于 {0}"
+
+#: packages/admin/src/router.tsx:463
+msgid "Published {total} items"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 msgid "Published At"
@@ -5580,6 +5757,10 @@ msgstr "快速编辑替代文本"
 #: packages/admin/src/components/PortableTextEditor.tsx:3097
 msgid "Quote"
 msgstr "引用"
+
+#: packages/admin/src/components/WordPressImport.tsx:1162
+msgid "Raw meta"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:66
 msgid "Read collection schemas"
@@ -5611,11 +5792,11 @@ msgstr "读取您的内容"
 msgid "Reading"
 msgstr "阅读"
 
-#: packages/admin/src/components/WordPressImport.tsx:1822
+#: packages/admin/src/components/WordPressImport.tsx:1986
 msgid "Ready"
 msgstr "就绪"
 
-#: packages/admin/src/components/Dashboard.tsx:228
+#: packages/admin/src/components/Dashboard.tsx:298
 msgid "Recent Activity"
 msgstr "最近活动"
 
@@ -5658,6 +5839,10 @@ msgstr "引用"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:228
 msgid "Referenced favicon unavailable."
 msgstr "引用的网站图标无法使用。"
+
+#: packages/admin/src/components/Dashboard.tsx:85
+msgid "Refresh the page or try again."
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:78
 msgid "Register"
@@ -5822,7 +6007,7 @@ msgstr "请求失败"
 msgid "Required"
 msgstr "必填"
 
-#: packages/admin/src/components/WordPressImport.tsx:1835
+#: packages/admin/src/components/WordPressImport.tsx:1999
 msgid "Required fields:"
 msgstr "必填字段："
 
@@ -5853,7 +6038,7 @@ msgstr "重置为原始"
 msgid "Restore"
 msgstr "恢复"
 
-#: packages/admin/src/components/ContentList.tsx:893
+#: packages/admin/src/components/ContentList.tsx:1094
 msgid "Restore {title}"
 msgstr "恢复 {title}"
 
@@ -5882,7 +6067,7 @@ msgstr "正在恢复..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1941
+#: packages/admin/src/router.tsx:2019
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "重试"
@@ -5891,11 +6076,11 @@ msgstr "重试"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "可重用的内容区块，可插入到任何内容中"
 
-#: packages/admin/src/router.tsx:906
+#: packages/admin/src/router.tsx:984
 msgid "Reverted to published version"
 msgstr "已恢复到发布版本"
 
-#: packages/admin/src/components/WordPressImport.tsx:650
+#: packages/admin/src/components/WordPressImport.tsx:724
 msgid "Review"
 msgstr "审核"
 
@@ -5968,10 +6153,10 @@ msgstr "Ruby"
 msgid "Rust"
 msgstr "Rust"
 
-#: packages/admin/src/components/MenuEditor.tsx:351
-#: packages/admin/src/components/MenuEditor.tsx:353
-#: packages/admin/src/components/MenuEditor.tsx:522
-#: packages/admin/src/components/MenuEditor.tsx:524
+#: packages/admin/src/components/MenuEditor.tsx:430
+#: packages/admin/src/components/MenuEditor.tsx:432
+#: packages/admin/src/components/MenuEditor.tsx:609
+#: packages/admin/src/components/MenuEditor.tsx:611
 msgid "Same window"
 msgstr "同一窗口"
 
@@ -5981,7 +6166,7 @@ msgstr "同一窗口"
 #: packages/admin/src/components/editor/ImageNode.tsx:264
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
-#: packages/admin/src/components/MenuEditor.tsx:533
+#: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
@@ -6044,7 +6229,7 @@ msgstr "已保存 \"{0}\"."
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
-#: packages/admin/src/components/MenuEditor.tsx:533
+#: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/settings/GeneralSettings.tsx:120
@@ -6085,13 +6270,14 @@ msgstr "定时发布于"
 msgid "Schedule for later"
 msgstr "稍后定时发布"
 
-#: packages/admin/src/components/ContentList.tsx:961
+#: packages/admin/src/components/ContentList.tsx:1162
 msgid "scheduled"
 msgstr "已定时"
 
 #: packages/admin/src/components/ContentEditor.tsx:859
-#: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/router.tsx:926
+#: packages/admin/src/components/ContentList.tsx:731
+#: packages/admin/src/components/Dashboard.tsx:347
+#: packages/admin/src/router.tsx:1004
 msgid "Scheduled"
 msgstr "已定时"
 
@@ -6100,11 +6286,11 @@ msgstr "已定时"
 msgid "Scheduled for: {0}"
 msgstr "计划发布于：{0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2128
+#: packages/admin/src/components/WordPressImport.tsx:2322
 msgid "Schema Changes"
 msgstr "架构更改"
 
-#: packages/admin/src/components/WordPressImport.tsx:1538
+#: packages/admin/src/components/WordPressImport.tsx:1699
 msgid "Schema preparation failed"
 msgstr "架构准备失败"
 
@@ -6163,12 +6349,12 @@ msgid "Search"
 msgstr "搜索"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:267
+#: packages/admin/src/components/ContentList.tsx:353
 msgid "Search {0}"
 msgstr "搜索 {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:266
+#: packages/admin/src/components/ContentList.tsx:352
 msgid "Search {0}..."
 msgstr "搜索 {0}..."
 
@@ -6368,6 +6554,10 @@ msgstr "选择"
 msgid "Select {label}"
 msgstr "选择 {label}"
 
+#: packages/admin/src/components/ContentList.tsx:973
+msgid "Select {title}"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:871
 msgid "Select a component..."
 msgstr "选择组件..."
@@ -6379,6 +6569,10 @@ msgstr "选择菜单..."
 #: packages/admin/src/components/comments/CommentInbox.tsx:283
 msgid "Select all"
 msgstr "全选"
+
+#: packages/admin/src/components/ContentList.tsx:497
+msgid "Select all on this page"
+msgstr ""
 
 #. placeholder {0}: comment.authorName
 #: packages/admin/src/components/comments/CommentInbox.tsx:456
@@ -6434,7 +6628,7 @@ msgstr "选择 OG 图片"
 msgid "Select OG Image"
 msgstr "选择 OG 图片"
 
-#: packages/admin/src/components/WordPressImport.tsx:1571
+#: packages/admin/src/components/WordPressImport.tsx:1732
 msgid "Select which content types to import."
 msgstr "选择要导入的内容类型。"
 
@@ -6501,7 +6695,7 @@ msgstr "SEO"
 msgid "SEO Settings"
 msgstr "SEO 设置"
 
-#: packages/admin/src/components/WordPressImport.tsx:1679
+#: packages/admin/src/components/WordPressImport.tsx:1843
 msgid "SEO settings (Yoast)"
 msgstr "SEO 设置（Yoast）"
 
@@ -6531,6 +6725,10 @@ msgstr "设置语言（当前：{label}）"
 msgid "Set to 0 to never close comments automatically."
 msgstr "设置为 0 以永不自动关闭评论。"
 
+#: packages/admin/src/components/ContentList.tsx:425
+msgid "Set to draft"
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:559
 msgid "Set up your site"
 msgstr "设置您的站点"
@@ -6545,7 +6743,7 @@ msgstr "正在设置..."
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:379
-#: packages/admin/src/components/WordPressImport.tsx:1647
+#: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
 msgstr "设置"
 
@@ -6649,11 +6847,16 @@ msgstr "站点"
 msgid "Site Identity"
 msgstr "站点标识"
 
+#: packages/admin/src/components/WordPressImport.tsx:2270
+msgid "site identity applied (title, tagline, logo)"
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:70
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "站点标识、徽标、网站图标和阅读偏好"
 
 #: packages/admin/src/components/SetupWizard.tsx:351
+#: packages/admin/src/components/WordPressImport.tsx:1151
 msgid "Site Settings"
 msgstr "站点设置"
 
@@ -6662,7 +6865,7 @@ msgstr "站点设置"
 msgid "Site Title"
 msgstr "站点标题"
 
-#: packages/admin/src/components/WordPressImport.tsx:1659
+#: packages/admin/src/components/WordPressImport.tsx:1823
 msgid "Site title & tagline"
 msgstr "站点标题和副标题"
 
@@ -6682,11 +6885,11 @@ msgstr "大小"
 msgid "Size:"
 msgstr "大小："
 
-#: packages/admin/src/components/WordPressImport.tsx:1940
+#: packages/admin/src/components/WordPressImport.tsx:2104
 msgid "Skip Media Import"
 msgstr "跳过媒体导入"
 
-#: packages/admin/src/components/WordPressImport.tsx:1965
+#: packages/admin/src/components/WordPressImport.tsx:2129
 msgid "Skipped"
 msgstr "已跳过"
 
@@ -6737,7 +6940,7 @@ msgstr "社交媒体个人资料链接"
 msgid "Social Profiles"
 msgstr "社交资料"
 
-#: packages/admin/src/components/WordPressImport.tsx:1696
+#: packages/admin/src/components/WordPressImport.tsx:1860
 msgid "Some content types cannot be imported"
 msgstr "某些内容类型无法导入"
 
@@ -6790,12 +6993,12 @@ msgstr "电子表格"
 msgid "SQL"
 msgstr "SQL"
 
-#: packages/admin/src/components/WordPressImport.tsx:1758
+#: packages/admin/src/components/WordPressImport.tsx:1922
 msgid "Start Import"
 msgstr "开始导入"
 
 #: packages/admin/src/components/ContentEditor.tsx:850
-#: packages/admin/src/components/ContentList.tsx:328
+#: packages/admin/src/components/ContentList.tsx:511
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:471
 #: packages/admin/src/components/users/UserList.tsx:104
@@ -6806,6 +7009,10 @@ msgstr "状态"
 msgid "Status code"
 msgstr "状态码"
 
+#: packages/admin/src/components/Dashboard.tsx:357
+msgid "Status: {status}"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "按语言环境存储 — 署名的每个翻译都有各自的值。"
@@ -6815,9 +7022,13 @@ msgstr "按语言环境存储 — 署名的每个翻译都有各自的值。"
 msgid "Strikethrough"
 msgstr "删除线"
 
-#: packages/admin/src/components/WordPressImport.tsx:1591
+#: packages/admin/src/components/WordPressImport.tsx:1752
 msgid "Structure"
 msgstr "结构"
+
+#: packages/admin/src/components/WordPressImport.tsx:1164
+msgid "Structured"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:523
 msgid "Sub-Fields"
@@ -6870,12 +7081,12 @@ msgid "Tags"
 msgstr "标签"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1633
+#: packages/admin/src/components/WordPressImport.tsx:1797
 msgid "Tags ({0})"
 msgstr "标签 ({0})"
 
-#: packages/admin/src/components/MenuEditor.tsx:348
-#: packages/admin/src/components/MenuEditor.tsx:519
+#: packages/admin/src/components/MenuEditor.tsx:427
+#: packages/admin/src/components/MenuEditor.tsx:606
 msgid "Target"
 msgstr "目标"
 
@@ -6935,7 +7146,7 @@ msgstr "文本格式化"
 msgid "The device will not be granted access."
 msgstr "设备将不会被授予访问权限。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1698
+#: packages/admin/src/components/WordPressImport.tsx:1862
 msgid "The existing collection has fields with incompatible types."
 msgstr "现有合集包含类型不兼容的字段。"
 
@@ -6964,7 +7175,7 @@ msgstr "菜单已删除。"
 msgid "The name of your site, used in the header and metadata"
 msgstr "您站点的名称，用于页眉和元数据"
 
-#: packages/admin/src/router.tsx:1955
+#: packages/admin/src/router.tsx:2033
 msgid "The page you're looking for doesn't exist."
 msgstr "您查找的页面不存在。"
 
@@ -7009,7 +7220,7 @@ msgstr "主题区块"
 msgid "Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that."
 msgstr "主题提供的区块无法删除。编辑区块以创建自定义副本，然后删除该副本。"
 
-#: packages/admin/src/components/ThemeToggle.tsx:32
+#: packages/admin/src/components/ThemeToggle.tsx:33
 msgid "Theme: {label}"
 msgstr "主题：{label}"
 
@@ -7021,6 +7232,10 @@ msgstr "主题"
 #: packages/admin/src/components/ContentTypeEditor.tsx:372
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "此合集在代码中定义。某些设置无法在此处更改。请编辑您的 live.config.ts 文件以修改架构。"
+
+#: packages/admin/src/components/WordPressImport.tsx:1059
+msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:418
 msgid "This field does not accept {sniffedMime} files."
@@ -7035,7 +7250,7 @@ msgstr "此字段为必填项"
 msgid "This is a custom section."
 msgstr "这是自定义区块。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1147
+#: packages/admin/src/components/WordPressImport.tsx:1308
 msgid "This is a WordPress site."
 msgstr "这是一个 WordPress 站点。"
 
@@ -7043,7 +7258,7 @@ msgstr "这是一个 WordPress 站点。"
 msgid "This link expires in 7 days and can only be used once."
 msgstr "此链接将在 7 天后过期，且只能使用一次。"
 
-#: packages/admin/src/components/WordPressImport.tsx:821
+#: packages/admin/src/components/WordPressImport.tsx:921
 msgid "This may take a while for large exports."
 msgstr "对于大型导出，这可能需要一些时间。"
 
@@ -7129,8 +7344,8 @@ msgstr "时区"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "用于显示日期的时区（例如：America/New_York）"
 
-#: packages/admin/src/components/ContentList.tsx:322
-#: packages/admin/src/components/ContentList.tsx:457
+#: packages/admin/src/components/ContentList.tsx:505
+#: packages/admin/src/components/ContentList.tsx:643
 #: packages/admin/src/components/SectionEditor.tsx:236
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:811
@@ -7146,7 +7361,7 @@ msgstr "标题（工具提示）"
 msgid "Title Separator"
 msgstr "标题分隔符"
 
-#: packages/admin/src/components/ContentList.tsx:625
+#: packages/admin/src/components/ContentList.tsx:811
 msgid "to"
 msgstr "至"
 
@@ -7154,7 +7369,7 @@ msgstr "至"
 msgid "to close"
 msgstr "关闭"
 
-#: packages/admin/src/components/ContentList.tsx:629
+#: packages/admin/src/components/ContentList.tsx:815
 msgid "To date"
 msgstr "截止日期"
 
@@ -7170,8 +7385,8 @@ msgstr "选择"
 msgid "Toggle header row"
 msgstr "切换表头行"
 
-#: packages/admin/src/components/ThemeToggle.tsx:30
-#: packages/admin/src/components/ThemeToggle.tsx:41
+#: packages/admin/src/components/ThemeToggle.tsx:31
+#: packages/admin/src/components/ThemeToggle.tsx:42
 msgid "Toggle theme (current: {label})"
 msgstr "切换主题（当前：{label}）"
 
@@ -7188,7 +7403,7 @@ msgstr "令牌名称"
 msgid "TOML"
 msgstr "TOML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1116
+#: packages/admin/src/components/WordPressImport.tsx:1277
 msgid "Tools → Export"
 msgstr "工具 → 导出"
 
@@ -7222,9 +7437,9 @@ msgstr "翻译 {0}"
 msgid "Translating..."
 msgstr "翻译中..."
 
-#: packages/admin/src/components/MenuEditor.tsx:89
+#: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/router.tsx:978
+#: packages/admin/src/router.tsx:1056
 msgid "Translation created"
 msgstr "翻译已创建"
 
@@ -7240,11 +7455,11 @@ msgstr "回收站"
 #: packages/admin/src/components/comments/CommentInbox.tsx:216
 #: packages/admin/src/components/comments/CommentInbox.tsx:257
 #: packages/admin/src/components/comments/CommentInbox.tsx:513
-#: packages/admin/src/components/ContentList.tsx:289
+#: packages/admin/src/components/ContentList.tsx:375
 msgid "Trash"
 msgstr "回收站"
 
-#: packages/admin/src/components/ContentList.tsx:480
+#: packages/admin/src/components/ContentList.tsx:666
 msgid "Trash is empty"
 msgstr "回收站为空"
 
@@ -7277,7 +7492,7 @@ msgstr "尝试调整您的搜索或筛选条件。"
 msgid "Try again"
 msgstr "重试"
 
-#: packages/admin/src/components/WordPressImport.tsx:1421
+#: packages/admin/src/components/WordPressImport.tsx:1582
 msgid "Try Again"
 msgstr "重试"
 
@@ -7293,8 +7508,8 @@ msgstr ""
 msgid "Try another filename, or clear your search and filters."
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1125
-#: packages/admin/src/components/WordPressImport.tsx:1247
+#: packages/admin/src/components/WordPressImport.tsx:1286
+#: packages/admin/src/components/WordPressImport.tsx:1408
 msgid "Try Another URL"
 msgstr "尝试其他 URL"
 
@@ -7323,7 +7538,7 @@ msgid "Type"
 msgstr "类型"
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:1854
+#: packages/admin/src/components/WordPressImport.tsx:2018
 msgid "Type mismatch ({0})"
 msgstr "类型不匹配 ({0})"
 
@@ -7401,7 +7616,7 @@ msgstr "未命名通行密钥"
 msgid "Unpublish"
 msgstr "取消发布"
 
-#: packages/admin/src/router.tsx:886
+#: packages/admin/src/router.tsx:964
 msgid "Unpublished"
 msgstr "已取消发布"
 
@@ -7413,7 +7628,7 @@ msgstr "发现未注册的内容表"
 msgid "Unschedule"
 msgstr "取消定时发布"
 
-#: packages/admin/src/router.tsx:947
+#: packages/admin/src/router.tsx:1025
 msgid "Unscheduled"
 msgstr "已取消安排"
 
@@ -7422,7 +7637,7 @@ msgstr "已取消安排"
 msgid "Unsupported widget element type: {0}"
 msgstr "不支持的小部件元素类型：{0}"
 
-#: packages/admin/src/components/Dashboard.tsx:249
+#: packages/admin/src/components/Dashboard.tsx:317
 msgid "Untitled"
 msgstr "无标题"
 
@@ -7474,7 +7689,7 @@ msgstr "更新此重定向规则。"
 msgid "Update to v{0}"
 msgstr "更新至 v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:551
+#: packages/admin/src/components/ContentList.tsx:737
 #: packages/admin/src/components/RegistryPluginDetail.tsx:488
 msgid "Updated"
 msgstr "已更新"
@@ -7488,7 +7703,7 @@ msgstr "更新时间"
 msgid "Updated: {0}"
 msgstr "更新于：{0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:844
+#: packages/admin/src/components/WordPressImport.tsx:946
 msgid "Updating content URLs..."
 msgstr "正在更新内容 URL..."
 
@@ -7505,7 +7720,7 @@ msgstr "上传"
 msgid "Upload a file to get started"
 msgstr "上传文件以开始使用"
 
-#: packages/admin/src/components/WordPressImport.tsx:1230
+#: packages/admin/src/components/WordPressImport.tsx:1391
 msgid "Upload an export file"
 msgstr "上传导出文件"
 
@@ -7522,8 +7737,8 @@ msgstr "上传和删除媒体"
 msgid "Upload and manage media"
 msgstr "上传和管理媒体"
 
-#: packages/admin/src/components/WordPressImport.tsx:1123
-#: packages/admin/src/components/WordPressImport.tsx:1244
+#: packages/admin/src/components/WordPressImport.tsx:1284
+#: packages/admin/src/components/WordPressImport.tsx:1405
 msgid "Upload Export File"
 msgstr "上传导出文件"
 
@@ -7556,7 +7771,7 @@ msgstr "上传图片"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:89
+#: packages/admin/src/components/Dashboard.tsx:111
 msgid "Upload Media"
 msgstr "上传媒体"
 
@@ -7569,7 +7784,7 @@ msgstr ""
 msgid "Upload to {0}"
 msgstr "上传至 {0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:960
+#: packages/admin/src/components/WordPressImport.tsx:1118
 msgid "Upload WordPress export file"
 msgstr "上传 WordPress 导出文件"
 
@@ -7577,7 +7792,7 @@ msgstr "上传 WordPress 导出文件"
 msgid "Uploaded:"
 msgstr "已上传："
 
-#: packages/admin/src/components/WordPressImport.tsx:1963
+#: packages/admin/src/components/WordPressImport.tsx:2127
 msgid "Uploading"
 msgstr "上传中"
 
@@ -7595,8 +7810,8 @@ msgstr "上传中..."
 #: packages/admin/src/components/BylineFieldEditor.tsx:54
 #: packages/admin/src/components/FieldEditor.tsx:234
 #: packages/admin/src/components/FieldEditor.tsx:586
-#: packages/admin/src/components/MenuEditor.tsx:339
-#: packages/admin/src/components/MenuEditor.tsx:509
+#: packages/admin/src/components/MenuEditor.tsx:418
+#: packages/admin/src/components/MenuEditor.tsx:596
 #: packages/admin/src/components/PortableTextEditor.tsx:3162
 msgid "URL"
 msgstr "URL"
@@ -7756,7 +7971,7 @@ msgstr "在市场查看"
 msgid "View mode"
 msgstr "查看模式"
 
-#: packages/admin/src/components/ContentList.tsx:808
+#: packages/admin/src/components/ContentList.tsx:1009
 msgid "View published {title}"
 msgstr "查看已发布的 {title}"
 
@@ -7790,7 +8005,7 @@ msgid "Warn"
 msgstr "警告"
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1105
+#: packages/admin/src/components/WordPressImport.tsx:1266
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "我们无法连接到位于 {0} 的 WordPress 站点。这可能意味着该站点不是 WordPress、REST API 被禁用或站点无法访问。"
 
@@ -7798,7 +8013,7 @@ msgstr "我们无法连接到位于 {0} 的 WordPress 站点。这可能意味�
 msgid "We couldn't verify this publisher's identity"
 msgstr "我们无法验证此发布者的身份"
 
-#: packages/admin/src/components/WordPressImport.tsx:926
+#: packages/admin/src/components/WordPressImport.tsx:1084
 msgid "We'll check what import options are available for your site."
 msgstr "我们将检查您的站点有哪些导入选项可用。"
 
@@ -7836,11 +8051,11 @@ msgstr "欢迎使用 EmDash，{firstName}！"
 msgid "Welcome to EmDash!"
 msgstr "欢迎使用 EmDash！"
 
-#: packages/admin/src/components/WordPressImport.tsx:1927
+#: packages/admin/src/components/WordPressImport.tsx:2091
 msgid "What happens when you import:"
 msgstr "导入时会发生什么："
 
-#: packages/admin/src/components/WordPressImport.tsx:1710
+#: packages/admin/src/components/WordPressImport.tsx:1874
 msgid "What will happen when you import"
 msgstr "导入时会发生什么"
 
@@ -7909,6 +8124,7 @@ msgstr "小部件已更新"
 #: packages/admin/src/components/PluginManager.tsx:379
 #: packages/admin/src/components/Sidebar.tsx:333
 #: packages/admin/src/components/Widgets.tsx:325
+#: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "Widgets"
 msgstr "小部件"
 
@@ -7917,7 +8133,7 @@ msgstr "小部件"
 msgid "Width"
 msgstr "宽度"
 
-#: packages/admin/src/components/WordPressImport.tsx:1850
+#: packages/admin/src/components/WordPressImport.tsx:2014
 msgid "Will create"
 msgstr "将创建"
 
@@ -7929,21 +8145,33 @@ msgstr "将不再能够无需邀请即可注册。现有用户不受影响。"
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "如果没有邮件提供商，必须手动分享邀请链接。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1315
+#: packages/admin/src/components/WordPressImport.tsx:210
+msgid "WordPress authorization was rejected"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1476
 msgid "WordPress Username"
 msgstr "WordPress 用户名"
+
+#: packages/admin/src/components/ContentList.tsx:404
+msgid "Working on {selectedCount} items…"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:824
 msgid "Write widget content..."
 msgstr "编写小部件内容..."
 
-#: packages/admin/src/components/WordPressImport.tsx:1023
+#: packages/admin/src/components/WordPressImport.tsx:1181
 msgid "WXR File"
 msgstr "WXR 文件"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:58
 msgid "XML"
 msgstr "XML"
+
+#: packages/admin/src/components/WordPressImport.tsx:1497
+msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
+msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:59
 msgid "YAML"
@@ -7954,6 +8182,10 @@ msgstr "YAML"
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "Yes"
 msgstr "是"
+
+#: packages/admin/src/components/WordPressImport.tsx:1160
+msgid "Yoast/RankMath"
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "You can close this page and return to your terminal."
@@ -7987,7 +8219,7 @@ msgstr "您拥有完全访问权限来管理此网站，包括用户、设置和
 msgid "You need admin permissions to manage byline schema."
 msgstr "您需要管理员权限才能管理署名架构。"
 
-#: packages/admin/src/router.tsx:1289
+#: packages/admin/src/router.tsx:1367
 msgid "You need Editor permissions to moderate comments."
 msgstr "您需要编辑权限才能审核评论。"
 
@@ -8009,7 +8241,7 @@ msgstr "您将以 <0>{0}</0> 身份加入"
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "系统将提示您使用设备的生物识别认证、安全密钥或 PIN 码。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1208
+#: packages/admin/src/components/WordPressImport.tsx:1369
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "您将被重定向到 WordPress 以授权连接。"
 
@@ -8100,7 +8332,7 @@ msgid "Your unsaved media changes will be lost."
 msgstr ""
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:1898
+#: packages/admin/src/components/WordPressImport.tsx:2062
 msgid "Your WordPress export contains {0} media files."
 msgstr "您的 WordPress 导出包含 {0} 个媒体文件。"
 

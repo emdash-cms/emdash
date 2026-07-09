@@ -164,6 +164,130 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(await repo.findCurrentUsageByMediaId("media-stale")).toEqual([]);
 	});
 
+	it("finds source rows by key in a deduplicated map", async () => {
+		const columns = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-columns"),
+		]);
+		const draft = await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
+			occurrence("hero", "media-draft"),
+		]);
+
+		const sources = await repo.findSources([
+			columns.sourceKey,
+			draft.sourceKey,
+			columns.sourceKey,
+			"content:posts:missing:columns",
+		]);
+
+		expect([...sources.keys()].toSorted()).toEqual([columns.sourceKey, draft.sourceKey].toSorted());
+		expect(sources.get(columns.sourceKey)).toEqual(
+			expect.objectContaining({ currentGeneration: columns.currentGeneration }),
+		);
+		expect(sources.get(draft.sourceKey)).toEqual(
+			expect.objectContaining({ currentGeneration: draft.currentGeneration }),
+		);
+	});
+
+	it("replaces a source only when nullable source metadata still matches", async () => {
+		const observed = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-old"),
+		]);
+
+		const replaced = await repo.replaceSourceIfMatching(
+			contentSource("entry1", "columns", {
+				sourceUpdatedAt: "2026-01-01T00:00:00.000Z",
+				sourceVersion: 2,
+				sourceFingerprint: "fingerprint-new",
+			}),
+			[occurrence("hero", "media-new")],
+			observed,
+		);
+
+		expect(replaced.replaced).toBe(true);
+		expect(replaced.source).toBeNull();
+		expect(await repo.findCurrentUsageByMediaId("media-old")).toEqual([]);
+		expect(await repo.findCurrentUsageByMediaId("media-new")).toHaveLength(1);
+		expect(await repo.findSource(observed.sourceKey)).toEqual(
+			expect.objectContaining({
+				sourceUpdatedAt: "2026-01-01T00:00:00.000Z",
+				sourceVersion: 2,
+				sourceFingerprint: "fingerprint-new",
+			}),
+		);
+	});
+
+	it("replaces a source when nullable row timestamps still match", async () => {
+		const source = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-old-null-updated"),
+		]);
+		await sql`
+			UPDATE _emdash_media_usage_sources
+			SET updated_at = ${null}
+			WHERE source_key = ${source.sourceKey}
+		`.execute(ctx.db);
+		const observed = await repo.findSource(source.sourceKey);
+
+		const replaced = await repo.replaceSourceIfMatching(
+			contentSource("entry1", "columns"),
+			[occurrence("hero", "media-new-null-updated")],
+			observed,
+		);
+
+		expect(observed?.updatedAt).toBeNull();
+		expect(replaced.replaced).toBe(true);
+		expect(replaced.source).toBeNull();
+		expect(await repo.findCurrentUsageByMediaId("media-old-null-updated")).toEqual([]);
+		expect(await repo.findCurrentUsageByMediaId("media-new-null-updated")).toHaveLength(1);
+	});
+
+	it("does not replace a source when source metadata changed despite the same generation", async () => {
+		const observed = await repo.replaceSource(
+			contentSource("entry1", "columns", { sourceFingerprint: "fingerprint-observed" }),
+			[occurrence("hero", "media-current")],
+		);
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_sources")
+			.set({ source_fingerprint: "fingerprint-concurrent" })
+			.where("source_key", "=", observed.sourceKey)
+			.execute();
+
+		const stale = await repo.replaceSourceIfMatching(
+			contentSource("entry1", "columns", { sourceFingerprint: "fingerprint-stale" }),
+			[occurrence("hero", "media-stale")],
+			observed,
+		);
+
+		expect(stale.replaced).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({
+				currentGeneration: observed.currentGeneration,
+				sourceFingerprint: "fingerprint-concurrent",
+			}),
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-current")).toHaveLength(1);
+		expect(await repo.findCurrentUsageByMediaId("media-stale")).toEqual([]);
+	});
+
+	it("does not insert a matching replacement when an observed-absent source was created", async () => {
+		const concurrent = await repo.replaceSource(contentSource("entry-new", "columns"), [
+			occurrence("hero", "media-concurrent-matching"),
+		]);
+
+		const stale = await repo.replaceSourceIfMatching(
+			contentSource("entry-new", "columns"),
+			[occurrence("hero", "media-stale-matching")],
+			null,
+		);
+
+		expect(stale.replaced).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({ currentGeneration: concurrent.currentGeneration }),
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-concurrent-matching")).toHaveLength(1);
+		expect(await repo.findCurrentUsageByMediaId("media-stale-matching")).toEqual([]);
+	});
+
 	it("does not delete a source when the expected generation is stale", async () => {
 		const first = await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
 			occurrence("hero", "media-old-draft"),
@@ -185,6 +309,159 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 			expect.objectContaining({ currentGeneration: second.currentGeneration }),
 		);
 		expect(await repo.findCurrentUsageByMediaId("media-concurrent-draft")).toHaveLength(1);
+	});
+
+	it("leaves unmatched generations for orphan cleanup when current-generation delete wins", async () => {
+		const observed = await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
+			occurrence("hero", "media-current-delete-generation"),
+		]);
+		await insertOccurrenceGeneration(
+			ctx,
+			observed.sourceKey,
+			"preserved_generation_current_delete",
+			"media-preserved-current-delete",
+		);
+		await ctx.db
+			.updateTable("_emdash_media_usage")
+			.set({ created_at: "2026-01-01T00:00:00.000Z" })
+			.where("source_key", "=", observed.sourceKey)
+			.execute();
+
+		const deleted = await repo.deleteSourceIfCurrent(
+			observed.sourceKey,
+			observed.currentGeneration,
+		);
+
+		expect(deleted.deleted).toBe(true);
+		expect(deleted.source).toBeNull();
+		expect(await mediaUsageRows(ctx, observed.sourceKey)).toEqual([
+			expect.objectContaining({
+				generation: "preserved_generation_current_delete",
+				media_id: "media-preserved-current-delete",
+			}),
+		]);
+		expect(await repo.findCurrentUsageByMediaId("media-preserved-current-delete")).toEqual([]);
+
+		expect(await repo.deleteOrphanOccurrencesOlderThan("2026-01-02T00:00:00.000Z", 10)).toBe(1);
+		expect(await mediaUsageRows(ctx, observed.sourceKey)).toEqual([]);
+	});
+
+	it("deletes a source only when nullable source metadata still matches", async () => {
+		const observed = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-delete"),
+		]);
+
+		const deleted = await repo.deleteSourceIfMatching(observed.sourceKey, observed);
+
+		expect(deleted.deleted).toBe(true);
+		expect(deleted.source).toBeNull();
+		expect(await repo.findCurrentUsageByMediaId("media-delete")).toEqual([]);
+	});
+
+	it("deletes only the matched generation when guarded source delete wins", async () => {
+		const observed = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-delete-generation"),
+		]);
+		await insertOccurrenceGeneration(
+			ctx,
+			observed.sourceKey,
+			"preserved_generation_delete",
+			"media-preserved-generation-delete",
+		);
+
+		const deleted = await repo.deleteSourceIfMatching(observed.sourceKey, observed);
+
+		expect(deleted.deleted).toBe(true);
+		expect(deleted.source).toBeNull();
+		expect(await mediaUsageRows(ctx, observed.sourceKey)).toEqual([
+			expect.objectContaining({
+				generation: "preserved_generation_delete",
+				media_id: "media-preserved-generation-delete",
+			}),
+		]);
+	});
+
+	it("does not delete a source when source metadata changed despite the same generation", async () => {
+		const observed = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-preserved-delete"),
+		]);
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_sources")
+			.set({ source_version: 3 })
+			.where("source_key", "=", observed.sourceKey)
+			.execute();
+
+		const stale = await repo.deleteSourceIfMatching(observed.sourceKey, observed);
+
+		expect(stale.deleted).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({
+				currentGeneration: observed.currentGeneration,
+				sourceVersion: 3,
+			}),
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-preserved-delete")).toHaveLength(1);
+	});
+
+	it("does not delete content-absent sources when source metadata changed", async () => {
+		await sql`CREATE TABLE ${sql.ref("ec_posts")} (id text primary key)`.execute(ctx.db);
+		const observed = await repo.replaceSource(
+			contentSource("orphan-entry", "columns", { sourceFingerprint: "fingerprint-observed" }),
+			[occurrence("hero", "media-orphan-observed")],
+		);
+		const concurrent = await repo.replaceSource(
+			contentSource("orphan-entry", "columns", { sourceFingerprint: "fingerprint-concurrent" }),
+			[occurrence("hero", "media-orphan-concurrent")],
+		);
+
+		const stale = await repo.deleteSourceIfMatchingContentAbsent(
+			observed.sourceKey,
+			observed,
+			"posts",
+			"orphan-entry",
+		);
+
+		expect(stale.deleted).toBe(false);
+		expect(stale.contentPresent).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({
+				currentGeneration: concurrent.currentGeneration,
+				sourceFingerprint: "fingerprint-concurrent",
+			}),
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-orphan-observed")).toEqual([]);
+		expect(await repo.findCurrentUsageByMediaId("media-orphan-concurrent")).toHaveLength(1);
+	});
+
+	it("deletes only the matched generation when content-absent guarded delete wins", async () => {
+		await sql`CREATE TABLE ${sql.ref("ec_posts")} (id text primary key)`.execute(ctx.db);
+		const observed = await repo.replaceSource(contentSource("orphan-entry", "columns"), [
+			occurrence("hero", "media-delete-orphan-generation"),
+		]);
+		await insertOccurrenceGeneration(
+			ctx,
+			observed.sourceKey,
+			"preserved_generation_orphan",
+			"media-preserved-generation-orphan",
+		);
+
+		const deleted = await repo.deleteSourceIfMatchingContentAbsent(
+			observed.sourceKey,
+			observed,
+			"posts",
+			"orphan-entry",
+		);
+
+		expect(deleted.deleted).toBe(true);
+		expect(deleted.contentPresent).toBe(false);
+		expect(deleted.source).toBeNull();
+		expect(await mediaUsageRows(ctx, observed.sourceKey)).toEqual([
+			expect.objectContaining({
+				generation: "preserved_generation_orphan",
+				media_id: "media-preserved-generation-orphan",
+			}),
+		]);
 	});
 
 	it("writes ISO occurrence timestamps for safe cleanup cutoffs", async () => {
@@ -462,6 +739,124 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 			}),
 		);
 		expect(await repo.findCurrentUsageByMediaId("media-live")).toHaveLength(1);
+	});
+
+	it("marks failed source attempts only when source metadata still matches", async () => {
+		const observed = await repo.replaceSource(
+			contentSource("entry1", "columns", {
+				sourceUpdatedAt: "2026-01-01T00:00:00.000Z",
+				sourceVersion: 7,
+				sourceFingerprint: "fingerprint-observed",
+			}),
+			[occurrence("hero", "media-live-matching-attempt")],
+		);
+
+		const attempted = await repo.markSourceAttemptedIfMatching(
+			{
+				sourceKey: observed.sourceKey,
+				sourceType: "content",
+				sourceVariant: "columns",
+				lastAttemptedAt: "2026-01-01T00:00:01.000Z",
+				lastErrorCode: "LOAD_FAILED",
+			},
+			observed,
+		);
+
+		expect(attempted.attempted).toBe(true);
+		expect(attempted.source).toBeNull();
+		expect(await repo.findSource(observed.sourceKey)).toEqual(
+			expect.objectContaining({
+				sourceUpdatedAt: "2026-01-01T00:00:00.000Z",
+				sourceVersion: 7,
+				sourceFingerprint: "fingerprint-observed",
+				sourceCompleteness: "failed",
+				lastErrorCode: "LOAD_FAILED",
+			}),
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-live-matching-attempt")).toHaveLength(1);
+	});
+
+	it("does not mark failed source attempts when source metadata changed", async () => {
+		const observed = await repo.replaceSource(
+			contentSource("entry1", "columns", { sourceFingerprint: "fingerprint-observed" }),
+			[occurrence("hero", "media-preserved-attempt")],
+		);
+		await ctx.db
+			.updateTable("_emdash_media_usage_sources")
+			.set({ source_fingerprint: "fingerprint-concurrent" })
+			.where("source_key", "=", observed.sourceKey)
+			.execute();
+
+		const stale = await repo.markSourceAttemptedIfMatching(
+			{
+				sourceKey: observed.sourceKey,
+				sourceType: "content",
+				sourceVariant: "columns",
+				lastAttemptedAt: "2026-01-01T00:00:01.000Z",
+				lastErrorCode: "LOAD_FAILED",
+			},
+			observed,
+		);
+
+		expect(stale.attempted).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({
+				sourceFingerprint: "fingerprint-concurrent",
+				sourceCompleteness: "complete",
+				lastErrorCode: null,
+			}),
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-preserved-attempt")).toHaveLength(1);
+	});
+
+	it("does not mark failed source attempts when attempt metadata changed", async () => {
+		const observed = await repo.markSourceAttempted(
+			contentSource("entry1", "columns", {
+				lastAttemptedAt: "2026-01-01T00:00:00.000Z",
+				lastErrorCode: "OLD_FAILURE",
+			}),
+		);
+		await repo.markSourceAttempted(
+			contentSource("entry1", "columns", {
+				lastAttemptedAt: "2026-01-01T00:00:01.000Z",
+				lastErrorCode: "NEW_FAILURE",
+			}),
+		);
+
+		const stale = await repo.markSourceAttemptedIfMatching(
+			contentSource("entry1", "columns", {
+				lastAttemptedAt: "2026-01-01T00:00:02.000Z",
+				lastErrorCode: "STALE_FAILURE",
+			}),
+			observed,
+		);
+
+		expect(stale.attempted).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({
+				lastAttemptedAt: "2026-01-01T00:00:01.000Z",
+				lastErrorCode: "NEW_FAILURE",
+			}),
+		);
+	});
+
+	it("inserts a failed source attempt only when an observed-absent source stays absent", async () => {
+		const attempted = await repo.markSourceAttemptedIfMatching(
+			contentSource("entry-missing", "draft_overlay", {
+				lastAttemptedAt: "2026-01-01T00:00:01.000Z",
+				lastErrorCode: "DRAFT_REVISION_INVALID",
+			}),
+			null,
+		);
+
+		expect(attempted.attempted).toBe(true);
+		expect(attempted.source).toBeNull();
+		expect(await repo.findSource("content:posts:entry-missing:draft_overlay")).toEqual(
+			expect.objectContaining({
+				sourceCompleteness: "failed",
+				lastErrorCode: "DRAFT_REVISION_INVALID",
+			}),
+		);
 	});
 
 	it("supports empty replacement while preserving the source row", async () => {
@@ -770,6 +1165,158 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		).toEqual(complete);
 	});
 
+	it("begins repair status with a cursor run token and zeroed counts", async () => {
+		await repo.upsertIndexStatus({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			status: "partial",
+			startedAt: "2026-01-01T00:00:00.000Z",
+			completedAt: "2026-01-01T00:00:02.000Z",
+			cursor: "old-cursor",
+			indexedSourceCount: 12,
+			failedSourceCount: 2,
+			lastErrorCode: "OLD_ERROR",
+		});
+
+		const running = await repo.beginIndexStatusRepair({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			runToken: "repair-run-1",
+			schemaVersion: 5,
+			startedAt: "2026-01-02T00:00:00.000Z",
+			updatedAt: "2026-01-02T00:00:01.000Z",
+		});
+
+		expect(running).toEqual(
+			expect.objectContaining({
+				status: "running",
+				schemaVersion: 5,
+				startedAt: "2026-01-02T00:00:00.000Z",
+				completedAt: null,
+				cursor: "repair-run-1",
+				indexedSourceCount: 0,
+				failedSourceCount: 0,
+				lastErrorCode: null,
+				updatedAt: "2026-01-02T00:00:01.000Z",
+			}),
+		);
+	});
+
+	it("finalizes repair status only when status and run token still match", async () => {
+		await repo.beginIndexStatusRepair({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			runToken: "repair-run-1",
+			startedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		const finalized = await repo.finalizeIndexStatusRepairIfRunning({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			runToken: "repair-run-1",
+			status: "complete",
+			schemaVersion: 4,
+			completedAt: "2026-01-01T00:00:02.000Z",
+			indexedSourceCount: 3,
+			failedSourceCount: 0,
+			updatedAt: "2026-01-01T00:00:03.000Z",
+		});
+
+		expect(finalized.finalized).toBe(true);
+		expect(finalized.status).toEqual(
+			expect.objectContaining({
+				status: "complete",
+				schemaVersion: 4,
+				startedAt: "2026-01-01T00:00:00.000Z",
+				completedAt: "2026-01-01T00:00:02.000Z",
+				cursor: null,
+				indexedSourceCount: 3,
+				failedSourceCount: 0,
+				lastErrorCode: null,
+				updatedAt: "2026-01-01T00:00:03.000Z",
+			}),
+		);
+	});
+
+	it("does not finalize repair status after a stale mark wins the race", async () => {
+		await repo.beginIndexStatusRepair({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			runToken: "repair-run-1",
+			startedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await repo.upsertIndexStatus({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			status: "stale",
+			startedAt: "2026-01-01T00:00:00.000Z",
+			cursor: "repair-run-1",
+			lastErrorCode: "CONTENT_USAGE_STALE",
+			updatedAt: "2026-01-01T00:00:01.000Z",
+		});
+
+		const stale = await repo.finalizeIndexStatusRepairIfRunning({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			runToken: "repair-run-1",
+			status: "complete",
+			completedAt: "2026-01-01T00:00:02.000Z",
+			indexedSourceCount: 3,
+		});
+
+		expect(stale.finalized).toBe(false);
+		expect(stale.status).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				cursor: "repair-run-1",
+				lastErrorCode: "CONTENT_USAGE_STALE",
+			}),
+		);
+	});
+
+	it("does not finalize repair status after a newer running repair wins the race", async () => {
+		await repo.beginIndexStatusRepair({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			runToken: "repair-run-1",
+			startedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await repo.beginIndexStatusRepair({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			runToken: "repair-run-2",
+			startedAt: "2026-01-01T00:00:01.000Z",
+		});
+
+		const stale = await repo.finalizeIndexStatusRepairIfRunning({
+			adapterId: "content-media",
+			scopeType: "collection",
+			scopeKey: "posts",
+			runToken: "repair-run-1",
+			status: "complete",
+			completedAt: "2026-01-01T00:00:02.000Z",
+			indexedSourceCount: 3,
+		});
+
+		expect(stale.finalized).toBe(false);
+		expect(stale.status).toEqual(
+			expect.objectContaining({
+				status: "running",
+				startedAt: "2026-01-01T00:00:01.000Z",
+				cursor: "repair-run-2",
+			}),
+		);
+	});
+
 	it("replaces more occurrences than one D1 insert batch", async () => {
 		const occurrences = Array.from({ length: SQL_BATCH_SIZE + 7 }, (_, index) =>
 			occurrence(`gallery-${index}`, `media-${index}`, {
@@ -834,6 +1381,40 @@ function occurrence(
 		mimeType: null,
 		...overrides,
 	};
+}
+
+async function insertOccurrenceGeneration(
+	ctx: DialectTestContext,
+	sourceKey: string,
+	generation: string,
+	mediaId: string,
+): Promise<void> {
+	await ctx.db
+		.insertInto("_emdash_media_usage")
+		.values({
+			id: `${generation}-usage`,
+			source_key: sourceKey,
+			generation,
+			field_slug: "hero",
+			field_path: `hero-${generation}`,
+			occurrence_index: 0,
+			reference_type: "image_field",
+			media_id: mediaId,
+			provider: "local",
+			provider_asset_id: mediaId,
+			media_kind: "image",
+			mime_type: null,
+		})
+		.execute();
+}
+
+async function mediaUsageRows(ctx: DialectTestContext, sourceKey: string) {
+	return ctx.db
+		.selectFrom("_emdash_media_usage")
+		.select(["generation", "media_id"])
+		.where("source_key", "=", sourceKey)
+		.orderBy("generation", "asc")
+		.execute();
 }
 
 function withoutTransactions(db: DialectTestContext["db"]): DialectTestContext["db"] {
