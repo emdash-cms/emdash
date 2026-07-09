@@ -25,6 +25,15 @@ interface Props {
 	reactions?: boolean;
 	/** Order of top-level comments: chronological (default) or Wilson-ranked. */
 	sort?: "oldest" | "best";
+	/**
+	 * Opt-in: listen for the `ec:comment:created` event dispatched by a
+	 * sibling `<CommentForm live>` and insert the new comment into this
+	 * list client-side, so a visitor sees their comment without a page
+	 * reload. Comments awaiting moderation are inserted in a visually
+	 * distinct, muted state (never mixed in as if they were publicly
+	 * visible). Default off — zero extra JS ships unless set.
+	 */
+	live?: boolean;
 	class?: string;
 }
 
@@ -34,6 +43,7 @@ const {
 	threaded = false,
 	reactions = false,
 	sort = "oldest",
+	live = false,
 	class: className,
 } = Astro.props;
 
@@ -123,6 +133,137 @@ const REACTION_SCRIPT = `
   });
 })();
 `;
+
+// Progressive-enhancement script for live/optimistic display. Emitted
+// verbatim (is:inline) only when `live` is enabled, so pages that don't opt
+// in ship zero extra JS. Listens for the `ec:comment:created` event that a
+// sibling <CommentForm live> dispatches on successful submission, and
+// inserts the new comment client-side — respecting the active sort. Both
+// "oldest" and "best" (Wilson-ranked) place a brand-new, zero-reaction
+// comment at the very end of its list: chronologically it's the newest, and
+// under Wilson ranking a zero-reaction comment scores exactly 0 (the
+// minimum), tying with any other zero-reaction comments and losing every
+// oldest-first tiebreak against them since it's the newest of the group. So
+// "append at the end" is correct for both sorts — no client-side ranking
+// math needed. Replies always stay chronological (per the SSR list), so
+// appending to the end of the parent's reply list is correct there too.
+// Mirrors the escaping/autolink logic in formatBody() above (duplicated,
+// not imported — this runs in the browser).
+const LIVE_SCRIPT = `
+(() => {
+  const URL_RE = /https?:\\/\\/[^\\s<>"')\\]]+/g;
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatBody(text) {
+    return escapeHtml(text).replace(URL_RE, (url) => '<a href="' + url + '" rel="nofollow ugc noopener" target="_blank">' + url + '</a>');
+  }
+
+  function renderComment(section, comment, isReply) {
+    const pending = comment.status !== 'approved';
+    const li = document.createElement('li');
+    const article = document.createElement('article');
+    article.className = 'ec-comment' + (isReply ? ' ec-comment-reply' : '') + (pending ? ' ec-comment-pending' : '');
+    article.id = 'comment-' + comment.id;
+    article.setAttribute('data-comment-id', comment.id);
+
+    const header = document.createElement('header');
+    header.className = 'ec-comment-header';
+    const authorSpan = document.createElement('span');
+    authorSpan.className = 'ec-comment-author';
+    authorSpan.textContent = comment.authorName;
+    if (comment.isRegisteredUser) {
+      const badge = document.createElement('span');
+      badge.className = 'ec-comment-badge';
+      badge.setAttribute('aria-label', 'Site member');
+      badge.innerHTML = '&#x2713;';
+      authorSpan.appendChild(badge);
+    }
+    header.appendChild(authorSpan);
+
+    const time = document.createElement('time');
+    time.className = 'ec-comment-date';
+    time.setAttribute('datetime', comment.createdAt);
+    time.textContent = new Date(comment.createdAt).toLocaleDateString('en-US', {
+      year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+    header.appendChild(time);
+    article.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'ec-comment-body';
+    body.innerHTML = formatBody(comment.body);
+    article.appendChild(body);
+
+    if (pending) {
+      const notice = document.createElement('p');
+      notice.className = 'ec-comment-pending-notice';
+      notice.textContent = 'Awaiting moderation — visible only to you.';
+      article.appendChild(notice);
+    } else if (section.hasAttribute('data-ec-reactions')) {
+      const actions = document.createElement('div');
+      actions.className = 'ec-comment-actions';
+      actions.innerHTML =
+        '<button type="button" class="ec-reaction" data-ec-reaction="like" data-comment-id="' + comment.id + '" aria-pressed="false">' +
+        '<span class="ec-reaction-icon" aria-hidden="true">&#x2661;</span>' +
+        '<span class="ec-reaction-label">Like</span>' +
+        '<span class="ec-reaction-count" data-ec-reaction-count>0</span></button>';
+      article.appendChild(actions);
+    }
+
+    li.appendChild(article);
+    return li;
+  }
+
+  function updateHeading(section) {
+    const heading = section.querySelector('.ec-comments-heading');
+    if (!heading) return;
+    const count = section.querySelectorAll('.ec-comment:not(.ec-comment-pending)').length;
+    heading.textContent = count === 0 ? 'No comments yet' : count === 1 ? '1 Comment' : count + ' Comments';
+  }
+
+  document.addEventListener('ec:comment:created', (event) => {
+    const detail = event.detail;
+    if (!detail || !detail.comment) return;
+
+    const sections = document.querySelectorAll('[data-ec-comments][data-ec-live]');
+    sections.forEach((section) => {
+      if (section.getAttribute('data-collection') !== detail.collection) return;
+      if (section.getAttribute('data-content-id') !== detail.contentId) return;
+
+      const comment = detail.comment;
+
+      if (comment.parentId && section.hasAttribute('data-ec-threaded')) {
+        const parentArticle = section.querySelector('.ec-comment[data-comment-id="' + comment.parentId + '"]');
+        if (!parentArticle) return; // parent not rendered on this page — nothing to attach to
+        let repliesList = parentArticle.querySelector('.ec-comment-replies');
+        if (!repliesList) {
+          repliesList = document.createElement('ol');
+          repliesList.className = 'ec-comment-replies';
+          parentArticle.appendChild(repliesList);
+        }
+        repliesList.appendChild(renderComment(section, comment, true));
+      } else {
+        let list = section.querySelector('.ec-comments-list');
+        if (!list) {
+          list = document.createElement('ol');
+          list.className = 'ec-comments-list';
+          section.appendChild(list);
+        }
+        list.appendChild(renderComment(section, comment, false));
+      }
+
+      updateHeading(section);
+    });
+  });
+})();
+`;
 ---
 
 {
@@ -134,6 +275,8 @@ const REACTION_SCRIPT = `
 			data-collection={collection}
 			data-content-id={contentId}
 			{...(reactions ? { "data-ec-reactions": "" } : {})}
+			{...(live ? { "data-ec-live": "" } : {})}
+			{...(live && threaded ? { "data-ec-threaded": "" } : {})}
 		>
 			<h3 class="ec-comments-heading">
 				{total === 0
@@ -262,6 +405,7 @@ const REACTION_SCRIPT = `
 			)}
 		</section>
 		{reactions && <script is:inline set:html={REACTION_SCRIPT} />}
+		{live && <script is:inline set:html={LIVE_SCRIPT} />}
 		</Fragment>
 	)
 }
@@ -331,6 +475,19 @@ const REACTION_SCRIPT = `
 
 	.ec-comment-actions {
 		margin-top: 0.5rem;
+	}
+
+	/* Client-inserted comment awaiting moderation (<Comments live>) — muted
+	   so it never reads as visible-to-everyone the way a live comment does. */
+	.ec-comment-pending {
+		opacity: 0.6;
+	}
+
+	.ec-comment-pending-notice {
+		margin: 0.5rem 0 0;
+		font-size: 0.8125em;
+		font-style: italic;
+		opacity: 0.8;
 	}
 
 	.ec-reaction {
