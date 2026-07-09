@@ -1951,6 +1951,12 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe("Filter results by locale (omit to search all locales)"),
 				limit: z.number().int().min(1).max(50).optional().describe("Max results (default 20)"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(2048)
+					.optional()
+					.describe("Pagination cursor from a previous response"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1963,6 +1969,7 @@ export function createMcpServer(): McpServer {
 					collections: args.collections,
 					locale: args.locale,
 					limit: args.limit,
+					cursor: args.cursor,
 				});
 				return jsonResult(results);
 			} catch (error) {
