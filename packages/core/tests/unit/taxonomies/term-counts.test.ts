@@ -13,6 +13,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { handleTermGet, handleTermList } from "../../../src/api/handlers/taxonomies.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { fetchVisibleTermCounts } from "../../../src/taxonomies/term-counts.js";
 import {
 	describeEachDialect,
@@ -74,7 +75,12 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		);
 	}
 
-	async function insertDef(name: string, collections: string[]): Promise<void> {
+	async function insertDef(
+		name: string,
+		collections: string[],
+		locale = "en",
+		translationGroup?: string,
+	): Promise<string> {
 		const id = ulid();
 		await ctx.db
 			.insertInto("_emdash_taxonomy_defs")
@@ -85,10 +91,11 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 				label_singular: null,
 				hierarchical: 0,
 				collections: JSON.stringify(collections),
-				locale: "en",
-				translation_group: id,
+				locale,
+				translation_group: translationGroup ?? id,
 			})
 			.execute();
+		return id;
 	}
 
 	it("counts only visible entries on every path (widget, term page, admin)", async () => {
@@ -268,6 +275,44 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 
 		const termPage = await getTerm("category", "tech");
 		expect(termPage?.count).toBe(1);
+	});
+
+	it("does not share request-cached counts across differing collection scopes", async () => {
+		// Nothing forces per-locale rows of the same def to declare identical
+		// collections. When they drift, a request that renders both locales must
+		// not serve the first locale's counts to the second — the request-cache
+		// key has to include the collection scope, not just the taxonomy name.
+		const enDefId = await insertDef("drifty", ["post"], "en");
+		await insertDef("drifty", ["page"], "fr", enDefId);
+
+		const enTerm = await taxRepo.create({
+			name: "drifty",
+			slug: "shared",
+			label: "Shared",
+			locale: "en",
+		});
+		await taxRepo.create({
+			name: "drifty",
+			slug: "partage",
+			label: "Partagé",
+			locale: "fr",
+			translationOf: enTerm.id,
+		});
+
+		const post = await createEntry("post", "p1");
+		const page1 = await createEntry("page", "g1");
+		const page2 = await createEntry("page", "g2");
+		await taxRepo.attachToEntry("post", post.id, enTerm.id);
+		await taxRepo.attachToEntry("page", page1.id, enTerm.id);
+		await taxRepo.attachToEntry("page", page2.id, enTerm.id);
+
+		await runWithContext({ editMode: false }, async () => {
+			const enTerms = await getTaxonomyTerms("drifty", { locale: "en" });
+			const frTerms = await getTaxonomyTerms("drifty", { locale: "fr" });
+			// EN def scopes to ["post"] (1 entry), FR def to ["page"] (2 entries).
+			expect(enTerms[0]!.count).toBe(1);
+			expect(frTerms[0]!.count).toBe(2);
+		});
 	});
 
 	it("returns an empty map when the taxonomy declares no collections", async () => {

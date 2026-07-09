@@ -306,7 +306,12 @@ function getVisibleTermCounts(
 	taxonomyName: string,
 	collections: string[],
 ): Promise<Map<string, number>> {
-	return requestCached(`taxonomy-term-counts:${taxonomyName}`, async () => {
+	// The collection scope is part of the key: per-locale rows of the same def
+	// can drift in their declared collections, and a caller may pass a narrower
+	// scope. Identical inputs (the widget + term-page hot path) still share one
+	// entry.
+	const scope = [...new Set(collections)].toSorted().join(",");
+	return requestCached(`taxonomy-term-counts:${taxonomyName}:${scope}`, async () => {
 		const db = await getDb();
 		return fetchVisibleTermCounts(db, taxonomyName, collections);
 	});
