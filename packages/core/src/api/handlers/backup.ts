@@ -32,6 +32,13 @@ import { generateSnapshot } from "./snapshot.js";
 /** Storage key prefix for scheduled/manual archives. */
 export const BACKUP_STORAGE_PREFIX = "backups/";
 
+/**
+ * Filename prefix within the backups/ folder. Included in the list() prefix
+ * so LocalStorage (which matches directory + filename prefix, not flat keys
+ * like S3/R2) finds the archives too.
+ */
+const BACKUP_FILE_PREFIX = "emdash-backup-";
+
 /** Options key holding the scheduled-backup settings. */
 export const BACKUP_SETTINGS_KEY = "emdash:backups";
 
@@ -172,7 +179,10 @@ export async function updateBackupSettings(
  */
 export async function listBackupArchives(storage: Storage): Promise<ApiResult<BackupArchive[]>> {
 	try {
-		const result = await storage.list({ prefix: BACKUP_STORAGE_PREFIX, limit: 100 });
+		const result = await storage.list({
+			prefix: `${BACKUP_STORAGE_PREFIX}${BACKUP_FILE_PREFIX}`,
+			limit: 100,
+		});
 		const archives = result.files
 			.map((file) => ({
 				name: file.key.slice(BACKUP_STORAGE_PREFIX.length),

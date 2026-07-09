@@ -48,7 +48,14 @@ If your site has a storage backend configured (R2 on Cloudflare, S3, or local st
 
 </Steps>
 
-Archives are stored under the `backups/` prefix in your bucket as `emdash-backup-<timestamp>.json`. The **Stored Backups** list in the admin lets you download or delete individual archives, and **Back up now** creates one on demand.
+Archives are stored under the `backups/` prefix in your bucket as `emdash-backup-<timestamp>-<random>.json`. The **Stored Backups** list in the admin lets you download or delete individual archives, and **Back up now** creates one on demand.
+
+<Aside type="caution">
+	Archives share the bucket with your media files. EmDash's media route refuses to serve anything
+	under `backups/`, and archive names carry a random suffix — but if you expose the bucket itself
+	through a public R2 domain or CDN, anything in it is reachable by URL. Prefer serving media
+	through EmDash (or scope your public domain to the media prefix).
+</Aside>
 
 <Aside type="note">
 	Automatic backups piggyback on the scheduled maintenance tick (the same mechanism that powers
