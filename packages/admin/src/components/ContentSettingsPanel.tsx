@@ -346,7 +346,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	// Section headings share the muted label style (see PANEL_HEADING);
 	// hierarchy comes from position and content weight, not heading size.
 	return (
-		<div className="flex flex-col">
+		// The Kumo Sidebar wrapper sets `whitespace-nowrap` (for its collapse
+		// animation), which inherits into the panel and stops long field
+		// descriptions from wrapping — overflowing the panel. Reset it here.
+		<div className="flex flex-col whitespace-normal">
 			{/* Publish settings */}
 			<div className="p-4">
 				<h3 className={PANEL_HEADING}>{t`Publish`}</h3>
