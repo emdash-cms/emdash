@@ -79,6 +79,55 @@ export function AutosaveIndicator({
 	);
 }
 
+/**
+ * Discard-draft confirmation shared by the settings action bar and the
+ * distraction-free overlay, so the copy and behavior can't drift.
+ */
+export function DiscardDraftDialog({
+	onDiscard,
+	triggerVariant = "ghost",
+	triggerSize,
+}: {
+	onDiscard?: () => void;
+	triggerVariant?: "ghost" | "outline";
+	triggerSize?: "sm";
+}) {
+	const { t } = useLingui();
+	return (
+		<Dialog.Root>
+			<Dialog.Trigger
+				render={(p) => (
+					<Button {...p} type="button" variant={triggerVariant} size={triggerSize} icon={<X />}>
+						{t`Discard changes`}
+					</Button>
+				)}
+			/>
+			<Dialog className="p-6" size="sm">
+				<Dialog.Title className="text-lg font-semibold">{t`Discard draft changes?`}</Dialog.Title>
+				<Dialog.Description className="text-kumo-subtle">
+					{t`This will revert to the published version. Your draft changes will be lost.`}
+				</Dialog.Description>
+				<div className="mt-6 flex justify-end gap-2">
+					<Dialog.Close
+						render={(p) => (
+							<Button {...p} variant="secondary">
+								{t`Cancel`}
+							</Button>
+						)}
+					/>
+					<Dialog.Close
+						render={(p) => (
+							<Button {...p} variant="destructive" onClick={onDiscard}>
+								{t`Discard changes`}
+							</Button>
+						)}
+					/>
+				</div>
+			</Dialog>
+		</Dialog.Root>
+	);
+}
+
 export interface SettingsActionBarProps {
 	isNew?: boolean;
 	isDirty: boolean;
@@ -98,8 +147,6 @@ export interface SettingsActionBarProps {
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	onDiscardDraft?: () => void;
-	/** Public URL of the live entry, when published with a slug */
-	liveViewUrl?: string | null;
 }
 
 /**
@@ -128,7 +175,6 @@ export function SettingsActionBar({
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
-	liveViewUrl,
 }: SettingsActionBarProps) {
 	const { t } = useLingui();
 
@@ -147,15 +193,14 @@ export function SettingsActionBar({
 				<div className="flex flex-wrap items-center justify-end gap-2">
 					{!isNew && supportsPreview && (
 						<Button
-							variant="ghost"
-							shape="square"
+							variant="outline"
 							type="button"
 							onClick={onPreview}
 							disabled={isLoadingPreview}
-							aria-label={hasPendingChanges ? t`Preview draft` : t`Preview`}
-							title={hasPendingChanges ? t`Preview draft` : t`Preview`}
 							icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
-						/>
+						>
+							{hasPendingChanges ? t`Preview draft` : t`Preview`}
+						</Button>
 					)}
 					<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving} />
 					{!isNew &&
@@ -196,50 +241,11 @@ export function SettingsActionBar({
 					</div>
 					<div className="flex items-center gap-1">
 						{showDiscard && (
-							<Dialog.Root>
-								<Dialog.Trigger
-									render={(p) => (
-										<Button {...p} type="button" variant="ghost" size="sm" icon={<X />}>
-											{t`Discard changes`}
-										</Button>
-									)}
-								/>
-								<Dialog className="p-6" size="sm">
-									<Dialog.Title className="text-lg font-semibold">
-										{t`Discard draft changes?`}
-									</Dialog.Title>
-									<Dialog.Description className="text-kumo-subtle">
-										{t`This will revert to the published version. Your draft changes will be lost.`}
-									</Dialog.Description>
-									<div className="mt-6 flex justify-end gap-2">
-										<Dialog.Close
-											render={(p) => (
-												<Button {...p} variant="secondary">
-													{t`Cancel`}
-												</Button>
-											)}
-										/>
-										<Dialog.Close
-											render={(p) => (
-												<Button {...p} variant="destructive" onClick={onDiscardDraft}>
-													{t`Discard changes`}
-												</Button>
-											)}
-										/>
-									</div>
-								</Dialog>
-							</Dialog.Root>
-						)}
-						{liveViewUrl && (
-							<LinkButton
-								href={liveViewUrl}
-								external
-								variant="ghost"
-								size="sm"
-								icon={<ArrowSquareOut />}
-							>
-								{t`Live View`}
-							</LinkButton>
+							<DiscardDraftDialog
+								onDiscard={onDiscardDraft}
+								triggerVariant="ghost"
+								triggerSize="sm"
+							/>
 						)}
 					</div>
 				</div>
@@ -258,6 +264,8 @@ export interface ContentSettingsPanelProps {
 	onSlugChange: (value: string) => void;
 	supportsRevisions: boolean;
 	canSchedule: boolean;
+	/** Public URL of the live entry, when published with a slug */
+	liveViewUrl?: string | null;
 	onSchedule?: (scheduledAt: string) => void;
 	onUnschedule?: () => void;
 	isScheduling?: boolean;
@@ -305,6 +313,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onSlugChange,
 	supportsRevisions,
 	canSchedule,
+	liveViewUrl,
 	onSchedule,
 	onUnschedule,
 	isScheduling,
@@ -436,6 +445,19 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								</Button>
 							)}
 						</div>
+					)}
+
+					{liveViewUrl && (
+						<LinkButton
+							href={liveViewUrl}
+							external
+							variant="outline"
+							size="sm"
+							className="w-full"
+							icon={<ArrowSquareOut />}
+						>
+							{t`Live View`}
+						</LinkButton>
 					)}
 
 					{item && (

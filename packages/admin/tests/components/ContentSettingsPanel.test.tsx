@@ -194,6 +194,15 @@ describe("ContentSettingsPanel", () => {
 		const lastSection = root?.lastElementChild;
 		expect(lastSection?.textContent).toContain("Move to Trash");
 	});
+
+	it("renders a Live View link in the Publish section when a live URL is provided", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ liveViewUrl: "https://example.com/my-post" })} />,
+		);
+		const link = screen.getByRole("link", { name: /Live View/ });
+		await expect.element(link).toBeInTheDocument();
+		await expect.element(link).toHaveAttribute("href", "https://example.com/my-post");
+	});
 });
 
 function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): SettingsActionBarProps {
@@ -213,7 +222,6 @@ function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): Settings
 		onPublish: vi.fn(),
 		onUnpublish: vi.fn(),
 		onDiscardDraft: vi.fn(),
-		liveViewUrl: null,
 		...overrides,
 	};
 }
@@ -271,17 +279,6 @@ describe("SettingsActionBar", () => {
 		expect(screen.container.textContent).not.toContain("Unpublish");
 		// Save is still available
 		await expect.element(screen.getByRole("button", { name: /Save/ })).toBeInTheDocument();
-	});
-
-	it("renders a Live View link when a live URL is provided", async () => {
-		const screen = await render(
-			<SettingsActionBar
-				{...makeBarProps({ isLive: true, liveViewUrl: "https://example.com/my-post" })}
-			/>,
-		);
-		const link = screen.getByRole("link", { name: /Live View/ });
-		await expect.element(link).toBeInTheDocument();
-		await expect.element(link).toHaveAttribute("href", "https://example.com/my-post");
 	});
 
 	it("shows the in-flight autosave indicator", async () => {

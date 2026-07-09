@@ -37,6 +37,7 @@ import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import {
 	AutosaveIndicator,
 	ContentSettingsPanel,
+	DiscardDraftDialog,
 	SettingsActionBar,
 } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
@@ -698,6 +699,9 @@ export function ContentEditor({
 									<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
 									{!isNew && (
 										<>
+											{supportsDrafts && hasPendingChanges && onDiscardDraft && (
+												<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
+											)}
 											{isLive ? (
 												<>
 													{hasPendingChanges ? (
@@ -793,9 +797,6 @@ export function ContentEditor({
 							onPublish={onPublish}
 							onUnpublish={onUnpublish}
 							onDiscardDraft={onDiscardDraft}
-							liveViewUrl={
-								isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern) : null
-							}
 						/>
 						<div className="flex-1 overflow-y-auto overflow-x-hidden">
 							<ContentSettingsPanel
@@ -807,6 +808,9 @@ export function ContentEditor({
 								onSlugChange={handleSlugChange}
 								supportsRevisions={supportsRevisions}
 								canSchedule={canSchedule}
+								liveViewUrl={
+									isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern) : null
+								}
 								onSchedule={onSchedule}
 								onUnschedule={onUnschedule}
 								isScheduling={isScheduling}
