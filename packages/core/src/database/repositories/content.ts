@@ -1126,28 +1126,37 @@ export class ContentRepository {
 		const byId = new Map<string, ContentItem>();
 		const bySlug = new Map<string, ContentItem>();
 
-		for (const chunk of chunks(unique, SQL_BATCH_SIZE)) {
-			const idRows = await sql<Record<string, unknown>>`
-				SELECT * FROM ${sql.ref(tableName)}
-				WHERE id IN (${sql.join(chunk)})
-				AND deleted_at IS NULL
-			`.execute(this.db);
-			for (const row of idRows.rows) {
-				const item = this.mapRow(type, row);
-				byId.set(item.id, item);
-			}
+		try {
+			for (const chunk of chunks(unique, SQL_BATCH_SIZE)) {
+				const idRows = await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+					WHERE id IN (${sql.join(chunk)})
+					AND deleted_at IS NULL
+				`.execute(this.db);
+				for (const row of idRows.rows) {
+					const item = this.mapRow(type, row);
+					byId.set(item.id, item);
+				}
 
-			const slugRows = await sql<Record<string, unknown>>`
-				SELECT * FROM ${sql.ref(tableName)}
-				WHERE slug IN (${sql.join(chunk)})
-				AND deleted_at IS NULL
-				ORDER BY locale ASC
-			`.execute(this.db);
-			for (const row of slugRows.rows) {
-				const item = this.mapRow(type, row);
-				// First write wins → lowest locale, matching findBySlug without a locale.
-				if (item.slug != null && !bySlug.has(item.slug)) bySlug.set(item.slug, item);
+				const slugRows = await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+					WHERE slug IN (${sql.join(chunk)})
+					AND deleted_at IS NULL
+					ORDER BY locale ASC
+				`.execute(this.db);
+				for (const row of slugRows.rows) {
+					const item = this.mapRow(type, row);
+					// First write wins → lowest locale, matching findBySlug without a locale.
+					if (item.slug != null && !bySlug.has(item.slug)) bySlug.set(item.slug, item);
+				}
 			}
+		} catch (error) {
+			// A collection dropped after a relation was created leaves the relation
+			// pointing at a missing table. Treat it like an empty collection (no
+			// matches) so callers surface a structured NOT_FOUND, not a 500 —
+			// mirroring findTranslationsForGroups.
+			if (isMissingTableError(error)) return resolved;
+			throw error;
 		}
 
 		for (const identifier of unique) {

@@ -324,6 +324,24 @@ describeEachDialect("reference children handlers", (dialect) => {
 		expect(get.data.children.map((r) => r.slug)).toEqual(["b"]);
 	});
 
+	it("a child collection dropped after the relation is created yields NOT_FOUND, not a 500", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({ type: "post", slug: "p", data: { title: "P" } });
+		const a = await content.create({ type: "page", slug: "a", data: { title: "A" } });
+
+		// Collection deletion drops the content table but does not cascade to the
+		// relation def, so the relation still points at a now-missing child table.
+		// The write path must surface a structured NOT_FOUND rather than 500 —
+		// mirroring the read path, which tolerates the missing table.
+		await ctx.db.schema.dropTable("ec_page").ifExists().execute();
+
+		const set = await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [a.id]);
+		expect(set.success).toBe(false);
+		if (set.success) return;
+		expect(set.error.code).toBe("NOT_FOUND");
+	});
+
 	it("a hand-crafted cursor with a non-numeric order value is INVALID_CURSOR", async () => {
 		const rel = await makeRelation();
 		const content = new ContentRepository(ctx.db);
