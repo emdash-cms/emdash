@@ -1808,7 +1808,7 @@ async function syncNonTranslatableFields(
  * `undefined` lets `findBySlug` fall back to its default (lowest locale code)
  * so callers on single-locale sites don't need to know the site's default.
  *
- * Throws EmDashValidationError on unknown slug or wrong shape — the calling
+ * Throws EmDashValidationError on unknown slug or wrong shape; the calling
  * handler translates that into a VALIDATION_ERROR response.
  */
 async function assignTaxonomies(
@@ -1848,7 +1848,7 @@ async function assignTaxonomies(
 		anyChange = true;
 	}
 
-	// Match the REST route's behaviour: term assignments changed, so
-	// invalidate the `hasAnyTermAssignments` cache used during hydration.
+	// Match the REST route's behaviour: taxonomy term assignments changed,
+	// so invalidate the taxonomy object cache used during hydration.
 	if (anyChange) invalidateTermCache();
 }

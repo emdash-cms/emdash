@@ -664,7 +664,7 @@ export function createMcpServer(): McpServer {
 					.record(z.string(), z.array(z.string()))
 					.optional()
 					.describe(
-						"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale — call taxonomy_list to see available taxonomies and term_list to look up slugs. Missing keys leave that taxonomy unchanged.",
+						"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Call taxonomy_list to see available taxonomies and taxonomy_list_terms to look up slugs. Missing keys leave that taxonomy unchanged.",
 					),
 			}),
 			annotations: { destructiveHint: false },

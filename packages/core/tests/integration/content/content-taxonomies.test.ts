@@ -47,7 +47,7 @@ async function seedTerms(db: Kysely<Database>) {
 	return { cat, tagAi, tagSeo };
 }
 
-describeEachDialect("Content taxonomies field — create/update", (dialect) => {
+describeEachDialect("Content taxonomies field - create/update", (dialect) => {
 	let ctx: DialectTestContext;
 
 	beforeEach(async () => {
@@ -88,7 +88,7 @@ describeEachDialect("Content taxonomies field — create/update", (dialect) => {
 		expect(result.error?.code).toBe("VALIDATION_ERROR");
 		expect(result.error?.message).toContain("does-not-exist");
 
-		// The transaction must have rolled back — no orphan content row and no
+		// The transaction must have rolled back. No orphan content row and no
 		// partial term assignment for the tag that did exist.
 		const list = await ctx.db
 			.selectFrom("ec_post")
@@ -162,7 +162,7 @@ describeEachDialect("Content taxonomies field — create/update", (dialect) => {
 		});
 		const entryId = created.data!.item.id;
 
-		// Update only `tag` — `category` must survive.
+		// Update only `tag`; `category` must survive.
 		const updated = await handleContentUpdate(ctx.db, "post", entryId, {
 			taxonomies: { tag: ["seo"] },
 		});
@@ -206,7 +206,7 @@ describeEachDialect("Content taxonomies field — create/update", (dialect) => {
 		});
 		expect(enResult.success).toBe(true);
 
-		// FR entry references the FR slug — the EN slug must NOT resolve here.
+		// FR entry references the FR slug. The EN slug must NOT resolve here.
 		const frResult = await handleContentCreate(ctx.db, "post", {
 			data: { title: "Bonjour" },
 			locale: "fr",
