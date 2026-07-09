@@ -11,7 +11,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleTermCreate, handleTermList } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
-import { createTermBody, localeFilterQuery } from "#api/schemas.js";
+import { createTermBody, termListQuery } from "#api/schemas.js";
 
 export const prerender = false;
 
@@ -29,11 +29,14 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	const denied = requirePerm(user, "taxonomies:read");
 	if (denied) return denied;
 
-	const query = parseQuery(new URL(request.url), localeFilterQuery);
+	const query = parseQuery(new URL(request.url), termListQuery);
 	if (isParseError(query)) return query;
 
 	try {
-		const result = await handleTermList(emdash.db, name, { locale: query.locale });
+		const result = await handleTermList(emdash.db, name, {
+			locale: query.locale,
+			rollup: query.rollup,
+		});
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to list terms", "TERM_LIST_ERROR");

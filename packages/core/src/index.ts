@@ -131,6 +131,7 @@ export type {
 	TranslationSummary,
 	TranslationsResult,
 	WhereRange,
+	WhereSubtree,
 	WhereValue,
 } from "./query.js";
 

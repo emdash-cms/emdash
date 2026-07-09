@@ -32,6 +32,7 @@ import {
 	FOLDED_TERMS,
 	type WhereRange,
 	type WhereValue,
+	type WhereSubtree,
 } from "./loader.js";
 import {
 	cachedQuery,
@@ -94,7 +95,7 @@ export type SortDirection = "asc" | "desc";
  */
 export type OrderBySpec = Record<string, SortDirection>;
 
-export type { WhereRange, WhereValue };
+export type { WhereRange, WhereValue, WhereSubtree };
 
 /**
  * Fields shared by every collection query, independent of pagination mode.
@@ -123,6 +124,7 @@ export interface CollectionFilterBase {
 	 * @example { byline: ['01HXYZ...', '01HABC...'] } - Credited to any of these bylines (OR)
 	 * @example { series: 'main' } - Exact match on a content field
 	 * @example { published_at: { gte: '2024-01-01', lt: '2025-01-01' } } - Date range
+	 * @example { category: { subtree: 'news' } } - Match a term and all its descendants
 	 */
 	where?: Record<string, WhereValue>;
 	/**
