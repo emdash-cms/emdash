@@ -598,6 +598,75 @@ describe("ContentEditPage – autosave cache patching", () => {
 		}
 	});
 
+	it("keeps the editor save's saving state when an auxiliary write lands mid-flight", async () => {
+		// Regression: when both write kinds shared one mutation instance,
+		// `mutation.variables` rebound to the newest mutate() call, so an SEO
+		// flush dispatched during an editor save flipped isSaving false while
+		// the editor PUT was still on the wire (unblocking a duplicate save).
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		const fetchWithMocks = globalThis.fetch;
+		const resolvers: (() => void)[] = [];
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				return new Promise<Response>((resolve) => {
+					resolvers.push(() =>
+						resolve(
+							new Response(
+								JSON.stringify({
+									data: {
+										item: {
+											id: "post_1",
+											type: "posts",
+											slug: "published-slug",
+											status: "draft",
+											locale: "en",
+											data: { title: "Published Title" },
+											updatedAt: "2025-01-02T00:00:00Z",
+											draftRevisionId: "rev_draft",
+										},
+									},
+								}),
+								{ status: 200, headers: { "Content-Type": "application/json" } },
+							),
+						),
+					);
+				});
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			await screen.getByRole("button", { name: "Save", exact: true }).click();
+			await waitFor(() => {
+				expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+			});
+
+			// Auxiliary write lands while the editor save is still in flight.
+			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+
+			for (const resolve of resolvers) resolve();
+			await waitFor(() => {
+				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
+				expect(screen.getByTestId("save-completion-token").element().textContent).toBe("1");
+			});
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
+	});
+
 	it("does not deliver an old entry's autosave completion to the current entry", async () => {
 		const { router, TestApp } = buildRouter();
 		await router.navigate({

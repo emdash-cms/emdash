@@ -314,6 +314,39 @@ describe("ContentEditor", () => {
 		// Kumo's focusout dismissal when the focused settings content is swapped
 		// out — pinning that would test Kumo internals, not the sync.
 
+		it("keeps the sheet closed for block panels in distraction-free mode", async () => {
+			// The sheet's nav is hidden in DF, but Kumo's mobile backdrop is a
+			// separate sibling: letting the sheet open would paint a full-screen
+			// scrim over the writing surface with nothing visible to dismiss.
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem(), fields: ptFields });
+				await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+
+				await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+				const { open } = getPanelHooks();
+				open(makeBlockPanel());
+
+				// Sheet must not open (no nav, and the backdrop must not be scrimming).
+				await expect
+					.element(screen.getByRole("navigation", { name: "Settings" }), { timeout: 200 })
+					.not.toBeInTheDocument();
+				const backdrop = document.querySelector("[data-sidebar-backdrop]");
+				expect(backdrop?.classList.contains("pointer-events-none") ?? true).toBe(true);
+
+				// Exiting DF with the panel still active surfaces it in the sheet.
+				document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+				await expect
+					.element(screen.getByRole("navigation", { name: "Settings" }))
+					.toBeInTheDocument();
+				await expect
+					.element(screen.getByRole("button", { name: "Remove Image" }))
+					.toBeInTheDocument();
+			} finally {
+				media.restore();
+			}
+		});
+
 		it("closes the sheet but keeps the block panel when crossing to desktop", async () => {
 			const media = installMatchMedia(true);
 			try {
@@ -1215,14 +1248,14 @@ describe("ContentEditor", () => {
 			// than computed visibility.
 			await vi.waitFor(() => {
 				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.toString()).toContain("hidden");
+				expect(aside?.classList.contains("hidden")).toBe(true);
 			});
 
 			await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
 			// …and still open with the typed date after exiting.
 			await vi.waitFor(() => {
 				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.toString()).not.toContain("hidden");
+				expect(aside?.classList.contains("hidden")).toBe(false);
 			});
 			await expect.element(screen.getByLabelText("Schedule for")).toHaveValue("2026-08-01T10:00");
 		});

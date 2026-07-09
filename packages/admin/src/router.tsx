@@ -144,7 +144,6 @@ interface ContentUpdateChanges {
 interface ContentUpdateMutationInput {
 	targetId: string;
 	targetLocale?: string;
-	source: "editor" | "auxiliary";
 	changes: ContentUpdateChanges;
 }
 
@@ -905,22 +904,19 @@ function ContentEditPage() {
 		},
 	});
 
-	const updateMutation = useMutation({
-		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
-			updateContent(collection, targetId, changes, { locale: targetLocale }),
-		onSuccess: (savedItem, variables) => {
-			if (variables.source === "editor") recordSaveCompletion(variables.targetId);
+	const handleContentUpdateSuccess = React.useCallback(
+		(savedItem: ContentItem, targetId: string) => {
 			// Invalidate by (collection, id) prefix without the locale object: the
 			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
 			// i18n is off) while `rawItem.locale` is the DB default "en", so a
 			// locale-scoped invalidation key would not match and the item would never
 			// refetch — leaving the publish/save buttons stale until a hard refresh.
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, variables.targetId],
+				queryKey: ["content", collection, targetId],
 			});
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({
-				queryKey: ["revisions", collection, variables.targetId],
+				queryKey: ["revisions", collection, targetId],
 			});
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
 			if (savedItem.draftRevisionId) {
@@ -929,13 +925,43 @@ function ContentEditPage() {
 				});
 			}
 		},
-		onError: (error) => {
+		[collection, queryClient],
+	);
+	const handleContentUpdateError = React.useCallback(
+		(error: unknown) => {
 			toastManager.add({
 				title: t`Failed to save`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
+		[t, toastManager],
+	);
+
+	// Editor-content saves (Save button). Kept on its own mutation instance:
+	// `mutation.variables` always reflects the LATEST mutate() call, so mixing
+	// auxiliary writes into the same instance would let an author/SEO write
+	// dispatched mid-save flip the Save control out of its saving state while
+	// the editor PUT is still on the wire.
+	const updateMutation = useMutation({
+		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
+			updateContent(collection, targetId, changes, { locale: targetLocale }),
+		onSuccess: (savedItem, variables) => {
+			recordSaveCompletion(variables.targetId);
+			handleContentUpdateSuccess(savedItem, variables.targetId);
+		},
+		onError: handleContentUpdateError,
+	});
+
+	// Auxiliary writes (author, SEO): same endpoint, but they neither advance
+	// the save-completion token nor drive the Save control's saving state.
+	const auxiliaryUpdateMutation = useMutation({
+		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
+			updateContent(collection, targetId, changes, { locale: targetLocale }),
+		onSuccess: (savedItem, variables) => {
+			handleContentUpdateSuccess(savedItem, variables.targetId);
+		},
+		onError: handleContentUpdateError,
 	});
 
 	// Autosave mutation - skips revision creation
@@ -1133,7 +1159,6 @@ function ContentEditPage() {
 			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
-				source: "editor",
 				changes: payload,
 			});
 		},
@@ -1152,26 +1177,24 @@ function ContentEditPage() {
 	);
 	const handleAuthorChange = React.useCallback(
 		(authorId: string | null) => {
-			updateMutation.mutate({
+			auxiliaryUpdateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
-				source: "auxiliary",
 				changes: { authorId },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, auxiliaryUpdateMutation.mutate, id, rawItem?.locale],
 	);
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
-			updateMutation.mutate({
+			auxiliaryUpdateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
-				source: "auxiliary",
 				changes: { seo },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, auxiliaryUpdateMutation.mutate, id, rawItem?.locale],
 	);
 
 	const handlePublish = React.useCallback(() => publishMutation.mutate(), [publishMutation.mutate]);
@@ -1227,12 +1250,10 @@ function ContentEditPage() {
 			item={item}
 			fields={collectionConfig.fields}
 			isSaving={
-				// Auxiliary writes (author, SEO) must not puppet the editor's Save
-				// control: they don't advance the completion token, so showing
-				// "Saving..." for them would announce a save that never terminates.
-				updateMutation.isPending &&
-				updateMutation.variables?.targetId === id &&
-				updateMutation.variables?.source === "editor"
+				// updateMutation carries editor-content saves only; auxiliary
+				// writes (author, SEO) live on their own mutation instance so
+				// they can't puppet — or mid-flight cancel — the Save control.
+				updateMutation.isPending && updateMutation.variables?.targetId === id
 			}
 			saveCompletionToken={saveCompletion.entryId === id ? saveCompletion.token : 0}
 			onSave={handleSave}

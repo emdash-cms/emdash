@@ -887,8 +887,11 @@ export function ContentEditor({
 
 				{/* Below lg, opening a block detail panel must open the sheet —
 				    otherwise it renders into a closed drawer and nothing visibly
-				    happens. */}
-				<MobileBlockSidebarSync active={!!blockSidebarPanel} />
+				    happens. Suspended in distraction-free mode: the Sidebar's nav
+				    is hidden there but Kumo's mobile backdrop is a separate
+				    sibling that would paint a full-screen scrim over the writing
+				    surface if the sheet were allowed to open. */}
+				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
 			</Sidebar.Provider>
 		</form>
 	);
@@ -899,20 +902,31 @@ export function ContentEditor({
  * space below the mobile breakpoint, and restores the sheet's prior
  * open/closed state when the block panel closes. Renders nothing.
  */
-function MobileBlockSidebarSync({ active }: { active: boolean }) {
+function MobileBlockSidebarSync({ active, suspended }: { active: boolean; suspended?: boolean }) {
 	const { isMobile, openMobile, setOpenMobile } = useSidebar();
 	const prevActiveRef = React.useRef(active);
 	const prevIsMobileRef = React.useRef(isMobile);
+	const prevSuspendedRef = React.useRef(suspended);
 	const priorOpenRef = React.useRef<boolean | null>(null);
 
 	React.useEffect(() => {
 		const becameActive = active && !prevActiveRef.current;
 		const becameInactive = !active && prevActiveRef.current;
 		const becameMobileWithActivePanel = active && isMobile && !prevIsMobileRef.current;
+		const becameUnsuspendedWithActivePanel = active && !suspended && prevSuspendedRef.current;
 		prevActiveRef.current = active;
 		prevIsMobileRef.current = isMobile;
+		prevSuspendedRef.current = suspended;
 
 		if (!isMobile) {
+			priorOpenRef.current = null;
+			if (openMobile) setOpenMobile(false);
+			return;
+		}
+
+		// While suspended (distraction-free), keep the sheet closed: its nav is
+		// display:none but the backdrop sibling would still scrim the screen.
+		if (suspended) {
 			priorOpenRef.current = null;
 			if (openMobile) setOpenMobile(false);
 			return;
@@ -924,11 +938,11 @@ function MobileBlockSidebarSync({ active }: { active: boolean }) {
 			return;
 		}
 
-		if (becameActive || becameMobileWithActivePanel) {
+		if (becameActive || becameMobileWithActivePanel || becameUnsuspendedWithActivePanel) {
 			priorOpenRef.current = openMobile;
 			setOpenMobile(true);
 		}
-	}, [active, isMobile, openMobile, setOpenMobile]);
+	}, [active, isMobile, openMobile, setOpenMobile, suspended]);
 
 	return null;
 }
