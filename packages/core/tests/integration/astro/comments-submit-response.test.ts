@@ -45,9 +45,7 @@ function buildContext(opts: {
 				hooks: {
 					runCommentBeforeCreate: async (event: unknown) => event,
 					invokeExclusiveHook: async () =>
-						opts.moderateResult === undefined
-							? null
-							: { result: opts.moderateResult },
+						opts.moderateResult === undefined ? null : { result: opts.moderateResult },
 					runCommentAfterCreate: async () => undefined,
 					runCommentAfterModerate: async () => undefined,
 				},
