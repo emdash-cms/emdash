@@ -37,6 +37,7 @@ function buildContext(opts: {
 	return {
 		request: new Request(url),
 		url,
+		cache: { set: vi.fn() },
 		cookies: {
 			get: vi.fn((name: string) =>
 				name === "emdash-edit-mode" && opts.editCookie ? { value: "true" } : undefined,
@@ -78,11 +79,14 @@ describe("toolbar: server (default)", () => {
 describe("toolbar: client", () => {
 	it("injects the identical bootstrap into anonymous HTML without touching cache headers", async () => {
 		const onRequest = await loadMiddleware("client");
-		const res = await onRequest(buildContext({}), async () => htmlResponse());
+		const context = buildContext({});
+		const res = await onRequest(context, async () => htmlResponse());
 		const html = await res.text();
 		expect(html).toContain("emdash-toolbar-bootstrap");
 		expect(html).not.toContain('id="emdash-toolbar"');
 		expect(res.headers.get("Cache-Control")).toBeNull();
+		// The response stays shareable — no route-cache opt-out.
+		expect(context.cache.set).not.toHaveBeenCalled();
 	});
 
 	it("serves editors the same bootstrap variant when no _edit param is present", async () => {
@@ -99,12 +103,13 @@ describe("toolbar: client", () => {
 
 	it("renders the full server toolbar for editors on _edit requests, uncacheable", async () => {
 		const onRequest = await loadMiddleware("client");
-		const res = await onRequest(buildContext({ user: EDITOR, search: "?_edit=1" }), async () =>
-			htmlResponse(),
-		);
+		const context = buildContext({ user: EDITOR, search: "?_edit=1" });
+		const res = await onRequest(context, async () => htmlResponse());
 		const html = await res.text();
 		expect(html).toContain('id="emdash-toolbar"');
 		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+		// _edit responses must never enter the shared route cache.
+		expect(context.cache.set).toHaveBeenCalledWith(false);
 	});
 
 	it("redirects non-editors on _edit URLs to the canonical URL without rendering", async () => {
@@ -112,12 +117,15 @@ describe("toolbar: client", () => {
 		const next = vi.fn(async () => htmlResponse());
 
 		for (const user of [null, { id: "u2", role: 20 }]) {
-			const res = await onRequest(
-				buildContext({ user, search: "?_edit=1&page=2", pathname: "/blog" }),
-				next,
-			);
+			const context = buildContext({ user, search: "?_edit=1&page=2", pathname: "/blog" });
+			const res = await onRequest(context, next);
 			expect(res.status).toBe(302);
 			expect(res.headers.get("Location")).toBe("/blog?page=2");
+			// The redirect must not be stored either — a cached 302 would bounce
+			// editors back to the canonical URL. Route-cache opt-out covers the
+			// Workers Cache; the header covers header-following caches.
+			expect(context.cache.set).toHaveBeenCalledWith(false);
+			expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 		}
 		expect(next).not.toHaveBeenCalled();
 	});

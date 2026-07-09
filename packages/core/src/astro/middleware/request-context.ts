@@ -15,7 +15,6 @@
 
 import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
-
 // @ts-ignore - virtual module
 import virtualConfig from "virtual:emdash/config";
 
@@ -117,7 +116,14 @@ function redirectToCanonical(url: URL): Response {
 	canonical.searchParams.delete(EDIT_PARAM);
 	return new Response(null, {
 		status: 302,
-		headers: { Location: canonical.pathname + canonical.search + canonical.hash },
+		headers: {
+			Location: canonical.pathname + canonical.search + canonical.hash,
+			// Header-following caches (Fastly, Varnish, browsers) must not store
+			// the redirect — a cached 302 would bounce editors back to the
+			// canonical URL. The route-cache opt-out at the call site covers the
+			// Workers Cache, which ignores Cache-Control.
+			"Cache-Control": "private, no-store",
+		},
 	});
 }
 
