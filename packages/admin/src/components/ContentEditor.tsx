@@ -588,7 +588,7 @@ export function ContentEditor({
 			    inline in the DOM, not portaled, so form association holds. */}
 			<Sidebar.Provider
 				contained={!isBelowLg}
-				defaultOpen
+				defaultOpen={!isBelowLg}
 				side={panelSide}
 				collapsible="offcanvas"
 				mobileBreakpoint={1024}
@@ -605,9 +605,8 @@ export function ContentEditor({
 				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
 					{/* Header. In distraction-free mode this becomes a hover-revealed
 			    overlay so the chrome stays out of the way while writing. In
-			    normal mode it's a regular block; the form also renders a
-			    Save button at the bottom so save is reachable without
-			    scrolling back up. */}
+			    normal mode desktop actions live in the settings panel; the
+			    header keeps navigation, title, mobile actions, and focus. */}
 					<div
 						className={cn(
 							"flex flex-wrap items-center justify-between gap-y-2",
@@ -654,16 +653,18 @@ export function ContentEditor({
 							   the sheet trigger below lg where the panel is hidden
 							   behind the Settings sheet. */
 								<>
-									<div className="flex items-center gap-2 lg:hidden">
-										{!isNew && onAutosave && (
-											<AutosaveIndicator
-												isAutosaving={isAutosaving}
-												lastAutosaveAt={lastAutosaveAt}
-											/>
-										)}
-										<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
-										<MobileSettingsButton />
-									</div>
+									{isBelowLg && (
+										<div className="flex items-center gap-2">
+											{!isNew && onAutosave && (
+												<AutosaveIndicator
+													isAutosaving={isAutosaving}
+													lastAutosaveAt={lastAutosaveAt}
+												/>
+											)}
+											<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+											<MobileSettingsButton />
+										</div>
+									)}
 									<Button
 										variant="ghost"
 										shape="square"
