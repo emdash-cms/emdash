@@ -66,6 +66,7 @@ export default defineConfig({
 							slug: "guides/working-with-content",
 						},
 						{ label: "Querying Content", slug: "guides/querying-content" },
+						{ label: "Render Math with KaTeX", slug: "guides/katex" },
 						{ label: "Media Library", slug: "guides/media-library" },
 						{ label: "Taxonomies", slug: "guides/taxonomies" },
 						{ label: "Navigation Menus", slug: "guides/menus" },
