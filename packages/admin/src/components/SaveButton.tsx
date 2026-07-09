@@ -1,14 +1,16 @@
 /**
- * Save Button with inline progress feedback
+ * Save Button with inline feedback
  *
- * The saved/dirty state is reported by a passive status indicator. This
- * component always reads as an action so clean editors don't show duplicate
- * "Saved" labels in both status text and disabled buttons.
+ * A single stateful control that reports save state, so clean editors don't
+ * carry a separate passive "Saved" indicator alongside the button:
+ * - "Saved" when clean (no unsaved changes)
+ * - "Save" when dirty (has unsaved changes)
+ * - "Saving..." while saving (manual save or autosave)
  */
 
 import { Button, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { FloppyDisk } from "@phosphor-icons/react";
+import { FloppyDisk, Check } from "@phosphor-icons/react";
 import type { ComponentProps } from "react";
 import * as React from "react";
 
@@ -33,12 +35,12 @@ export function SaveButton({ isDirty, isSaving, className, disabled, ...props }:
 			className={cn("min-w-[100px] transition-all", className)}
 			disabled={disabled || isSaving || isSaved}
 			variant={isSaved ? "secondary" : "primary"}
-			icon={isSaving ? <Loader size="sm" /> : <FloppyDisk />}
+			icon={isSaving ? <Loader size="sm" /> : isSaved ? <Check /> : <FloppyDisk />}
 			aria-live="polite"
 			aria-busy={isSaving}
 			{...props}
 		>
-			{isSaving ? t`Saving...` : t`Save`}
+			{isSaving ? t`Saving...` : isSaved ? t`Saved` : t`Save`}
 		</Button>
 	);
 }

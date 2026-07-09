@@ -35,7 +35,6 @@ import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import {
-	AutosaveIndicator,
 	ContentSettingsPanel,
 	DiscardDraftDialog,
 	SettingsActionBar,
@@ -656,13 +655,11 @@ export function ContentEditor({
 								<>
 									{isBelowLg && (
 										<div className="flex items-center gap-2">
-											{!isNew && onAutosave && (
-												<AutosaveIndicator
-													isAutosaving={isAutosaving}
-													lastAutosaveAt={lastAutosaveAt}
-												/>
-											)}
-											<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+											<SaveButton
+												type="submit"
+												isDirty={isDirty}
+												isSaving={isSaving || isAutosaving || false}
+											/>
 											<MobileSettingsButton />
 										</div>
 									)}
@@ -681,12 +678,6 @@ export function ContentEditor({
 								/* Distraction-free: the panel (and its action bar) is hidden,
 							   so this hover overlay is the only save/exit surface. */
 								<>
-									{!isNew && onAutosave && (
-										<AutosaveIndicator
-											isAutosaving={isAutosaving}
-											lastAutosaveAt={lastAutosaveAt}
-										/>
-									)}
 									{!isNew && supportsPreview && (
 										<Button
 											variant="outline"
@@ -698,7 +689,11 @@ export function ContentEditor({
 											{hasPendingChanges ? t`Preview draft` : t`Preview`}
 										</Button>
 									)}
-									<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+									<SaveButton
+										type="submit"
+										isDirty={isDirty}
+										isSaving={isSaving || isAutosaving || false}
+									/>
 									{!isNew && (
 										<>
 											{supportsDrafts && hasPendingChanges && onDiscardDraft && (
@@ -785,9 +780,7 @@ export function ContentEditor({
 							isNew={isNew}
 							isDirty={isDirty}
 							isSaving={isSaving || false}
-							showAutosave={!isNew && !!onAutosave}
 							isAutosaving={isAutosaving}
-							lastAutosaveAt={lastAutosaveAt}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
 							liveViewUrl={liveViewUrl}

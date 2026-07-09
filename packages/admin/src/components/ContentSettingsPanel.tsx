@@ -1,6 +1,6 @@
 import { Badge, Button, Dialog, Input, Label, LinkButton, Loader, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Check, MagnifyingGlass, Trash, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, Trash, X } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -45,40 +45,6 @@ function formatScheduledDate(dateStr: string | null) {
 	if (!dateStr) return null;
 	const date = new Date(dateStr);
 	return date.toLocaleString();
-}
-
-/** Autosave status indicator shared by the action bar, the editor strip
- * (below lg), and the distraction-free overlay. */
-export function AutosaveIndicator({
-	isAutosaving,
-	lastAutosaveAt,
-	showSaved,
-}: {
-	isAutosaving?: boolean;
-	lastAutosaveAt?: Date | null;
-	showSaved?: boolean;
-}) {
-	const { t } = useLingui();
-	return (
-		<div
-			className="flex items-center text-xs text-kumo-subtle"
-			role="status"
-			aria-label={t`Autosave status`}
-			aria-live="polite"
-		>
-			{isAutosaving ? (
-				<>
-					<Loader size="sm" />
-					<span className="ms-1">{t`Saving...`}</span>
-				</>
-			) : showSaved || lastAutosaveAt ? (
-				<>
-					<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
-					<span>{t`Saved`}</span>
-				</>
-			) : null}
-		</div>
-	);
 }
 
 /**
@@ -134,10 +100,8 @@ export interface SettingsActionBarProps {
 	isNew?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
-	/** Whether the autosave indicator should render (existing item with autosave wired) */
-	showAutosave: boolean;
+	/** Autosave in flight — folded into the SaveButton's "Saving..." state. */
 	isAutosaving?: boolean;
-	lastAutosaveAt?: Date | null;
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	liveViewUrl?: string | null;
@@ -158,9 +122,7 @@ export function SettingsActionBar({
 	isNew,
 	isDirty,
 	isSaving,
-	showAutosave,
 	isAutosaving,
-	lastAutosaveAt,
 	isLive,
 	hasPendingChanges,
 	liveViewUrl,
@@ -168,23 +130,15 @@ export function SettingsActionBar({
 	onUnpublish,
 }: SettingsActionBarProps) {
 	const { t } = useLingui();
-	const showSaved = !isDirty && !isSaving && !isAutosaving;
 
 	return (
 		<div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-3">
-			{showAutosave && (
-				<AutosaveIndicator
-					isAutosaving={isAutosaving || isSaving}
-					lastAutosaveAt={showSaved ? lastAutosaveAt : null}
-					showSaved={showSaved}
-				/>
-			)}
 			<SaveButton
 				type="submit"
 				size="sm"
 				className="min-w-0"
 				isDirty={isDirty}
-				isSaving={isSaving}
+				isSaving={isSaving || Boolean(isAutosaving)}
 			/>
 			{liveViewUrl && (
 				<LinkButton href={liveViewUrl} external variant="outline" size="sm">
