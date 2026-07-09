@@ -211,7 +211,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 									type="button"
 									onClick={() => handleHeadingClick(heading)}
 									className={cn(
-										"w-full text-start px-2 py-1 text-sm rounded transition-colors",
+										"w-full text-start px-2 py-1 text-sm rounded-md transition-colors",
 										"hover:bg-kumo-tint/50 cursor-pointer",
 										"truncate",
 										getIndentClass(heading.level),

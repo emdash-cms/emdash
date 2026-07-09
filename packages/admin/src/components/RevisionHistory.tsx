@@ -261,7 +261,7 @@ function RevisionItem({
 	const { t } = useLingui();
 	return (
 		<div
-			className={`rounded-md border p-3 transition-colors ${
+			className={`rounded-lg border p-3 transition-colors ${
 				isSelected ? "border-kumo-brand bg-kumo-brand/5" : "hover:bg-kumo-tint/50"
 			}`}
 		>
@@ -302,7 +302,7 @@ function RevisionItem({
 					) : (
 						<>
 							<div className="text-xs font-medium text-kumo-subtle mb-2">{t`Content snapshot:`}</div>
-							<pre className="text-xs bg-kumo-tint p-2 rounded overflow-auto max-h-48">
+							<pre className="text-xs bg-kumo-tint p-2 rounded-md overflow-auto max-h-48">
 								{JSON.stringify(revision.data, null, 2)}
 							</pre>
 						</>
@@ -398,7 +398,7 @@ function DiffFieldRow({ diff }: { diff: FieldDiff }) {
 	const style = DIFF_STYLES[diff.kind];
 
 	return (
-		<div className={`rounded border px-3 py-2 text-xs ${style.bg}`}>
+		<div className={`rounded-lg border px-3 py-2 text-xs ${style.bg}`}>
 			<div className="flex items-center gap-1.5 mb-1">
 				{style.icon}
 				<span className="font-medium">{diff.field}</span>

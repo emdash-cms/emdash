@@ -436,7 +436,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						)}
 					</div>
 					{item?.scheduledAt && (
-						<div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+						<div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
 							<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
 							<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
 								{t`Unschedule`}
@@ -781,7 +781,7 @@ function BylineCreditsEditor({
 	return (
 		<div className="space-y-3">
 			{showLocaleEmptyState && (
-				<div className="rounded border border-dashed p-3 text-sm space-y-2">
+				<div className="rounded-lg border border-dashed p-3 text-sm space-y-2">
 					<p className="text-kumo-subtle">
 						{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
 					</p>
@@ -806,7 +806,7 @@ function BylineCreditsEditor({
 				{searchEnabled && searchResults.isLoading ? (
 					<p className="text-sm text-kumo-subtle">{t`Searching...`}</p>
 				) : availableToAdd.length > 0 ? (
-					<ul className="max-h-48 divide-y overflow-y-auto rounded border">
+					<ul className="max-h-48 divide-y overflow-y-auto rounded-lg border">
 						{availableToAdd.map((b) => (
 							<li key={b.id}>
 								<button
@@ -839,7 +839,7 @@ function BylineCreditsEditor({
 						const byline = bylineMap.get(credit.bylineId);
 						if (!byline) return null;
 						return (
-							<div key={`${credit.bylineId}-${index}`} className="rounded border p-2 space-y-2">
+							<div key={`${credit.bylineId}-${index}`} className="rounded-lg border p-2 space-y-2">
 								<div
 									className="grid items-start gap-2"
 									style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}

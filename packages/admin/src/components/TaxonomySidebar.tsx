@@ -267,9 +267,10 @@ function TagInput({
 					className="w-full text-sm"
 				/>
 
-				{/* Suggestions dropdown */}
+				{/* Suggestions dropdown. overflow-hidden clips the square hover state
+				    of the first/last suggestion to the dropdown's radius. */}
 				{isOpen && (suggestions.length > 0 || showCreateOption) && (
-					<div className="absolute top-full start-0 end-0 mt-1 bg-kumo-overlay border rounded-md shadow-lg z-10">
+					<div className="absolute top-full start-0 end-0 mt-1 overflow-hidden bg-kumo-overlay border rounded-lg shadow-lg z-10">
 						{suggestions.map((term) => (
 							<button
 								key={term.id}
@@ -437,7 +438,7 @@ function TaxonomySection({
 							{t`No ${taxonomy.label.toLowerCase()} available.`}
 						</p>
 					) : (
-						<div className="border rounded-md p-2 max-h-64 overflow-y-auto">
+						<div className="border rounded-lg p-2 max-h-64 overflow-y-auto">
 							{terms.map((term) => (
 								<CategoryCheckboxTree
 									key={term.id}
