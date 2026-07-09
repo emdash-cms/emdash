@@ -158,9 +158,7 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 				>
 					<div className="flex items-center gap-1.5">
 						<ClockCounterClockwise className="h-3.5 w-3.5 text-kumo-subtle" />
-						<span className="text-xs font-semibold uppercase tracking-wider text-kumo-subtle">
-							{t`Revisions`}
-						</span>
+						<span className="font-semibold">{t`Revisions`}</span>
 						{total > 0 && <span className="text-xs text-kumo-subtle">({total})</span>}
 					</div>
 					{isExpanded ? (

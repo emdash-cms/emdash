@@ -33,12 +33,12 @@ import { TranslationsPanel } from "./TranslationsPanel.js";
 const ROLE_EDITOR = 40;
 
 /**
- * Shared muted label style for panel section headings. Child components
- * rendered inside the panel (TranslationsPanel, TaxonomySidebar,
- * DocumentOutline, RevisionHistory) mirror this so the panel reads as one
- * system.
+ * Shared style for panel section headings, matching the `Publish` heading.
+ * Child components rendered inside the panel (TranslationsPanel,
+ * TaxonomySidebar, DocumentOutline, RevisionHistory) mirror this so every
+ * section heading reads consistently.
  */
-const PANEL_HEADING = "text-xs font-semibold uppercase tracking-wider text-kumo-subtle";
+const PANEL_HEADING = "mb-4 font-semibold";
 
 /** Format scheduled date for display */
 function formatScheduledDate(dateStr: string | null) {
@@ -349,7 +349,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		<div className="flex flex-col">
 			{/* Publish settings */}
 			<div className="p-4">
-				<h3 className="mb-4 font-semibold">{t`Publish`}</h3>
+				<h3 className={PANEL_HEADING}>{t`Publish`}</h3>
 				<div className="space-y-4">
 					<Input
 						label={t`Slug`}
@@ -439,20 +439,26 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							)}
 						</div>
 					)}
-
-					{item && (
-						<div className="text-xs text-kumo-subtle">
-							<p>{t`Created: ${new Date(item.createdAt).toLocaleString()}`}</p>
-							<p>{t`Updated: ${new Date(item.updatedAt).toLocaleString()}`}</p>
-						</div>
-					)}
 				</div>
+
+				{item && (
+					<dl className="mt-4 border-t pt-4 space-y-1 text-xs text-kumo-subtle">
+						<div className="flex items-center justify-between gap-2">
+							<dt>{t`Created`}</dt>
+							<dd>{new Date(item.createdAt).toLocaleString()}</dd>
+						</div>
+						<div className="flex items-center justify-between gap-2">
+							<dt>{t`Updated`}</dt>
+							<dd>{new Date(item.updatedAt).toLocaleString()}</dd>
+						</div>
+					</dl>
+				)}
 			</div>
 
 			{/* Ownership selector - shown only to editors and above */}
 			{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
 				<div className="p-4 border-t">
-					<h3 className={cn("mb-3", PANEL_HEADING)}>{t`Ownership`}</h3>
+					<h3 className={PANEL_HEADING}>{t`Ownership`}</h3>
 					<AuthorSelector
 						authorId={item?.authorId || null}
 						users={users}
@@ -464,7 +470,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{/* Byline credits */}
 			{currentUser && currentUser.role >= ROLE_EDITOR && (
 				<div className="p-4 border-t">
-					<h3 className={cn("mb-3", PANEL_HEADING)}>{t`Bylines`}</h3>
+					<h3 className={PANEL_HEADING}>{t`Bylines`}</h3>
 					<BylineCreditsEditor
 						credits={activeBylines}
 						bylines={availableBylines ?? []}
@@ -485,7 +491,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{i18n && item && !isNew && (
 				<div className="p-4 border-t">
 					<TranslationsPanel
-						headingClassName={cn("mb-3", PANEL_HEADING)}
+						headingClassName={PANEL_HEADING}
 						locales={i18n.locales}
 						defaultLocale={i18n.defaultLocale}
 						currentLocale={item.locale ?? undefined}
@@ -516,7 +522,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			{/* SEO panel - shown for collections with hasSeo enabled */}
 			{hasSeo && !isNew && onSeoChange && (
 				<div className="p-4 border-t">
-					<h3 className={cn("mb-3 flex items-center gap-1.5", PANEL_HEADING)}>
+					<h3 className={cn(PANEL_HEADING, "flex items-center gap-1.5")}>
 						<MagnifyingGlass className="h-3.5 w-3.5" />
 						{t`SEO`}
 					</h3>

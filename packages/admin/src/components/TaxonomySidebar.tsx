@@ -534,7 +534,7 @@ export function TaxonomySidebar({
 	return (
 		<div className="space-y-6">
 			<div>
-				<h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-kumo-subtle">{t`Taxonomies`}</h3>
+				<h3 className="mb-4 font-semibold">{t`Taxonomies`}</h3>
 				<div className="space-y-4">
 					{applicableTaxonomies.map((taxonomy) => (
 						<TaxonomySection
