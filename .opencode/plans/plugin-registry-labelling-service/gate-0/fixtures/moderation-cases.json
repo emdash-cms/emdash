@@ -1,0 +1,946 @@
+{
+	"schemaVersion": 2,
+	"policyFixture": "./moderation-policy.json",
+	"evaluatedAt": "2026-07-10T12:00:00Z",
+	"fixtureEncoding": {
+		"sourceAliases": "Each label src is a key in sources; expand it to that DID before evaluation.",
+		"subjectAliases": "Each label subject selects the URI from caseDefaults.subject; publisher selects publisherDid.",
+		"labelReferences": "Expected labels use source:subject:value after alias expansion.",
+		"merge": "Recursively merge each case over caseDefaults; case arrays replace default arrays."
+	},
+	"sources": {
+		"A": "did:web:labels.emdashcms.com",
+		"B": "did:web:other-labels.example",
+		"U": "did:web:unaccepted-labels.example"
+	},
+	"caseDefaults": {
+		"acceptedLabellers": [{ "src": "A", "redact": true }],
+		"subject": {
+			"publisherDid": "did:plc:ewvi7nxzyoun6zhxrhs64oiz",
+			"packageUri": "at://did:plc:ewvi7nxzyoun6zhxrhs64oiz/com.emdashcms.experimental.package.profile/gallery-plugin",
+			"packageCid": "bafyreiclpjmh2e5ug4oufdmfnz4r4a6o2lrfu5hzgopzjlb3u2v5il5z4a",
+			"releaseUri": "at://did:plc:ewvi7nxzyoun6zhxrhs64oiz/com.emdashcms.experimental.package.release/gallery-plugin:1.2.0",
+			"releaseCid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+			"oldReleaseCid": "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixa",
+			"oldPackageCid": "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixb"
+		},
+		"labels": []
+	},
+	"cases": [
+		{
+			"id": "eligible-exact-cid-pass",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "blocked-missing-pass",
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["missing-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "pending-over-pass",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-pending",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "pending",
+				"reasonCodes": ["assessment-pending"],
+				"blockingLabels": [],
+				"stateLabels": ["A:release:assessment-pending"],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "error-over-pending-and-pass",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T08:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-pending",
+					"cts": "2026-07-10T09:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-error",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "error",
+				"reasonCodes": ["assessment-error"],
+				"blockingLabels": [],
+				"stateLabels": ["A:release:assessment-error", "A:release:assessment-pending"],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "blocked-automated-security-label",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["automated-block"],
+				"blockingLabels": ["A:release:malware"],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "eligible-warning-only",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "obfuscated-code",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-assessment-pass", "warning-labels"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": ["A:release:obfuscated-code"],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "blocked-cid-mismatch-pass",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixa",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["missing-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "blocked-expired-pass",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z",
+					"exp": "2026-07-10T12:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["missing-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "eligible-negated-block",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T08:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"neg": true,
+					"cts": "2026-07-10T09:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "blocked-package-cascade",
+			"labels": [
+				{ "src": "A", "subject": "package", "val": "!takedown", "cts": "2026-07-10T10:00:00Z" },
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["manual-block"],
+				"blockingLabels": ["A:package:!takedown"],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": true
+			}
+		},
+		{
+			"id": "blocked-publisher-cascade",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "publisher",
+					"val": "publisher-compromised",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["manual-block"],
+				"blockingLabels": ["A:publisher:publisher-compromised"],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "eligible-same-source-override",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T08:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-pending",
+					"cts": "2026-07-10T09:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-error",
+					"cts": "2026-07-10T09:30:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-overridden",
+					"cts": "2026-07-10T10:00:01Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-manual-override"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [
+					"A:release:assessment-error",
+					"A:release:assessment-pending",
+					"A:release:malware"
+				],
+				"redacted": false
+			}
+		},
+		{
+			"id": "blocked-broader-manual-block-over-override",
+			"labels": [
+				{ "src": "A", "subject": "package", "val": "!takedown", "cts": "2026-07-10T11:00:00Z" },
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T08:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-overridden",
+					"cts": "2026-07-10T10:00:01Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["manual-block"],
+				"blockingLabels": ["A:package:!takedown"],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": ["A:release:malware"],
+				"redacted": true
+			}
+		},
+		{
+			"id": "blocked-unaccepted-pass-ignored",
+			"labels": [
+				{
+					"src": "U",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["missing-assessment-pass", "unaccepted-labels-ignored"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "blocked-takedown-without-redact",
+			"acceptedLabellers": [{ "src": "A", "redact": false }],
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				},
+				{ "src": "A", "subject": "release", "val": "!takedown", "cts": "2026-07-10T10:00:00Z" }
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["manual-block"],
+				"blockingLabels": ["A:release:!takedown"],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "eligible-uri-wide-package-dispute",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "package",
+					"val": "package-disputed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-assessment-pass", "warning-labels"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": ["A:package:package-disputed"],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "eligible-package-current-cid-label",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "package",
+					"cid": "bafyreiclpjmh2e5ug4oufdmfnz4r4a6o2lrfu5hzgopzjlb3u2v5il5z4a",
+					"val": "package-disputed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-assessment-pass", "warning-labels"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": ["A:package:package-disputed"],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "eligible-package-mismatched-cid-label-ignored",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "package",
+					"cid": "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixb",
+					"val": "package-disputed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "eligible-uri-wide-release-label-negated-by-cid-event",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"val": "security-yanked",
+					"cts": "2026-07-10T08:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "security-yanked",
+					"neg": true,
+					"cts": "2026-07-10T09:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "eligible-expired-block",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T08:00:00Z",
+					"exp": "2026-07-10T12:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "eligible-expired-negation-does-not-reactivate-block",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T08:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"neg": true,
+					"cts": "2026-07-10T09:00:00Z",
+					"exp": "2026-07-10T12:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "eligible",
+				"reasonCodes": ["eligible-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "blocked-newer-different-cid-replaces-pass-stream",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixa",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["missing-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "blocked-parsed-cts-ordering-not-text-ordering",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:30:00+02:00"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixa",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T09:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["missing-assessment-pass"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "error-equal-cts-nonidentical-collision",
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixa",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00+00:00"
+				}
+			],
+			"expected": {
+				"eligibility": "error",
+				"reasonCodes": ["label-state-collision"],
+				"blockingLabels": [],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "pending-source-b-not-bypassed-by-source-a-override",
+			"acceptedLabellers": [
+				{ "src": "A", "redact": true },
+				{ "src": "B", "redact": false }
+			],
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T08:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-overridden",
+					"cts": "2026-07-10T10:00:01Z"
+				},
+				{
+					"src": "B",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-pending",
+					"cts": "2026-07-10T11:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "pending",
+				"reasonCodes": ["assessment-pending"],
+				"blockingLabels": [],
+				"stateLabels": ["B:release:assessment-pending"],
+				"warningLabels": [],
+				"suppressedLabels": ["A:release:malware"],
+				"redacted": false
+			}
+		},
+		{
+			"id": "error-source-b-not-bypassed-by-source-a-override",
+			"acceptedLabellers": [
+				{ "src": "A", "redact": true },
+				{ "src": "B", "redact": false }
+			],
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T08:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-overridden",
+					"cts": "2026-07-10T10:00:01Z"
+				},
+				{
+					"src": "B",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-error",
+					"cts": "2026-07-10T11:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "error",
+				"reasonCodes": ["assessment-error"],
+				"blockingLabels": [],
+				"stateLabels": ["B:release:assessment-error"],
+				"warningLabels": [],
+				"suppressedLabels": ["A:release:malware"],
+				"redacted": false
+			}
+		},
+		{
+			"id": "block-source-b-not-bypassed-by-source-a-override",
+			"acceptedLabellers": [
+				{ "src": "A", "redact": true },
+				{ "src": "B", "redact": false }
+			],
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T08:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-overridden",
+					"cts": "2026-07-10T10:00:01Z"
+				},
+				{
+					"src": "B",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T11:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["automated-block"],
+				"blockingLabels": ["B:release:malware"],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": ["A:release:malware"],
+				"redacted": false
+			}
+		},
+		{
+			"id": "pending-source-b-not-bypassed-by-source-a-pass",
+			"acceptedLabellers": [
+				{ "src": "A", "redact": true },
+				{ "src": "B", "redact": false }
+			],
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "B",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-pending",
+					"cts": "2026-07-10T11:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "pending",
+				"reasonCodes": ["assessment-pending"],
+				"blockingLabels": [],
+				"stateLabels": ["B:release:assessment-pending"],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "error-source-b-not-bypassed-by-source-a-pass",
+			"acceptedLabellers": [
+				{ "src": "A", "redact": true },
+				{ "src": "B", "redact": false }
+			],
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "B",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-error",
+					"cts": "2026-07-10T11:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "error",
+				"reasonCodes": ["assessment-error"],
+				"blockingLabels": [],
+				"stateLabels": ["B:release:assessment-error"],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		},
+		{
+			"id": "block-source-b-not-bypassed-by-source-a-pass",
+			"acceptedLabellers": [
+				{ "src": "A", "redact": true },
+				{ "src": "B", "redact": false }
+			],
+			"labels": [
+				{
+					"src": "A",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "assessment-passed",
+					"cts": "2026-07-10T10:00:00Z"
+				},
+				{
+					"src": "B",
+					"subject": "release",
+					"cid": "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e",
+					"val": "malware",
+					"cts": "2026-07-10T11:00:00Z"
+				}
+			],
+			"expected": {
+				"eligibility": "blocked",
+				"reasonCodes": ["automated-block"],
+				"blockingLabels": ["B:release:malware"],
+				"stateLabels": [],
+				"warningLabels": [],
+				"suppressedLabels": [],
+				"redacted": false
+			}
+		}
+	]
+}
