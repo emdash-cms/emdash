@@ -1,7 +1,7 @@
 {
 	"lexicon": 1,
-	"id": "com.emdashcms.experimental.labeller.defs",
-	"description": "Shared public views for the experimental EmDash registry labeller. These views explain standard ATProto labels; label distribution remains com.atproto.label.*. EXPERIMENTAL.",
+	"id": "com.emdashcms.experimental.labeler.defs",
+	"description": "Shared public views for the experimental EmDash registry labeler. These views explain standard ATProto labels; label distribution remains com.atproto.label.*. EXPERIMENTAL.",
 	"defs": {
 		"assessmentSubject": {
 			"type": "object",
@@ -209,7 +209,7 @@
 				"schemaVersion",
 				"policyVersion",
 				"effectiveAt",
-				"labellerDid",
+				"labelerDid",
 				"assessmentSchemaVersion",
 				"supportedSubjects",
 				"reasonCodes",
@@ -224,7 +224,7 @@
 				"schemaVersion": { "type": "integer", "minimum": 1, "maximum": 1 },
 				"policyVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
 				"effectiveAt": { "type": "string", "format": "datetime" },
-				"labellerDid": { "type": "string", "format": "did" },
+				"labelerDid": { "type": "string", "format": "did" },
 				"assessmentSchemaVersion": { "type": "integer", "minimum": 1 },
 				"supportedSubjects": { "type": "ref", "ref": "#supportedSubjects" },
 				"reasonCodes": {

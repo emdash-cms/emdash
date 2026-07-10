@@ -178,14 +178,14 @@ CREATE TABLE mirrored_artifacts (
 );
 
 ------------------------------------------------------------------------------
--- Labels (populated when the labeller integration lands)
+-- Labels (populated when the labeler integration lands)
 ------------------------------------------------------------------------------
 
 -- Append-only label history. Every label received is written here, including
 -- negations. Current state is derived from latest cts per (src, uri, val) and
 -- projected into label_state below for hot-path lookups.
 CREATE TABLE labels (
-	src TEXT NOT NULL,                          -- labeller DID
+	src TEXT NOT NULL,                          -- labeler DID
 	uri TEXT NOT NULL,                          -- AT URI of subject
 	cid TEXT,                                   -- optional version-specific CID
 	val TEXT NOT NULL,                          -- e.g. 'security:yanked', '!takedown'
@@ -229,8 +229,8 @@ CREATE TABLE label_state (
 CREATE INDEX idx_label_state_enforce ON label_state(uri, val, trusted)
 	WHERE neg = 0 AND trusted = 1;
 
--- Trusted/known labellers (operator config, edited via deployment).
-CREATE TABLE labellers (
+-- Trusted/known labelers (operator config, edited via deployment).
+CREATE TABLE labelers (
 	did TEXT PRIMARY KEY,
 	endpoint TEXT NOT NULL,                     -- subscribeLabels URL
 	signing_key TEXT NOT NULL,                  -- cached #atproto_label key
@@ -278,9 +278,9 @@ END;
 ------------------------------------------------------------------------------
 
 -- Cursor state for ingest sources (Jetstream microsecond timestamp,
--- subscribeLabels seq cursors per labeller, etc.).
+-- subscribeLabels seq cursors per labeler, etc.).
 CREATE TABLE ingest_state (
-	source TEXT PRIMARY KEY,                    -- 'jetstream', 'labeller:did:web:labels.example.com', etc.
+	source TEXT PRIMARY KEY,                    -- 'jetstream', 'labeler:did:web:labels.example.com', etc.
 	cursor TEXT NOT NULL,
 	updated_at TEXT NOT NULL
 );

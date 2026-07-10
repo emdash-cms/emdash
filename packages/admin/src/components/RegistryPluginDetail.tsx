@@ -113,8 +113,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const handleResult = usePublisherHandle(pkg?.did ?? "", pkg?.handle);
 
 	// `listReleases` returns releases in descending semver order. The aggregator
-	// strips yanked releases server-side when `acceptLabelers` includes a labeller
-	// applying the `security:yanked` label, but sites with no labeller config
+	// strips yanked releases server-side when `acceptLabelers` includes a labeler
+	// applying the `security:yanked` label, but sites with no labeler config
 	// receive yanked releases interleaved by version. Filter them out client-side
 	// as defense in depth so the picker never offers an actively-yanked install.
 	// Lexicon-invalid records (`release === null`) are also filtered: they carry
@@ -160,7 +160,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		setSelectedVersion(undefined);
 	}
 	// Reconcile when the release list changes underneath an explicit selection
-	// (the selected version got yanked between visits, the labeller config
+	// (the selected version got yanked between visits, the labeler config
 	// changed, etc.). Dropping back to the default avoids the Select trigger
 	// rendering a value with no matching option.
 	if (
@@ -233,14 +233,14 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// `repo` is a release-level field (`release.repo`), not a profile field.
 	const repoHref = safeExternalHref(release?.release?.repo);
 
-	// Verified-publisher label. `src` is the labeller DID that issued it — shown
+	// Verified-publisher label. `src` is the labeler DID that issued it — shown
 	// in the shield tooltip so the admin can judge who is vouching for the
 	// publisher, not just that *someone* did.
 	const verifiedLabel = (pkg?.labels ?? []).find((l: { val?: string }) => l.val === "verified") as
 		| { val?: string; src?: string }
 		| undefined;
 	const verified = Boolean(verifiedLabel);
-	const verifiedLabeller = typeof verifiedLabel?.src === "string" ? verifiedLabel.src : null;
+	const verifiedLabeler = typeof verifiedLabel?.src === "string" ? verifiedLabel.src : null;
 
 	// Long-form profile sections (description / installation / faq / changelog /
 	// security). Empty / whitespace-only entries are dropped by `presentSections`;
@@ -435,17 +435,17 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						{verified ? (
 							<Tooltip
 								content={
-									verifiedLabeller
-										? t`Verified publisher. A labeller (${verifiedLabeller}) has confirmed this publisher's identity.`
-										: t`Verified publisher. A labeller has confirmed this publisher's identity.`
+									verifiedLabeler
+										? t`Verified publisher. A labeler (${verifiedLabeler}) has confirmed this publisher's identity.`
+										: t`Verified publisher. A labeler has confirmed this publisher's identity.`
 								}
 								render={
 									<button
 										type="button"
 										className="inline-flex shrink-0 cursor-help rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
 										aria-label={
-											verifiedLabeller
-												? t`Verified publisher, confirmed by labeller ${verifiedLabeller}`
+											verifiedLabeler
+												? t`Verified publisher, confirmed by labeler ${verifiedLabeler}`
 												: t`Verified publisher`
 										}
 									>
@@ -833,10 +833,10 @@ function envLabel(key: string): string {
 const YANKED_LABEL_VALUE = "security:yanked";
 
 /**
- * Aggregators forward labels applied by their configured labellers. `security:yanked`
- * is a hard-enforcement label that publishers can self-apply (or that a labeller
+ * Aggregators forward labels applied by their configured labelers. `security:yanked`
+ * is a hard-enforcement label that publishers can self-apply (or that a labeler
  * applies on their behalf) to retract a release after publication. Sites whose
- * `acceptLabelers` config includes the labeller never see yanked releases at all
+ * `acceptLabelers` config includes the labeler never see yanked releases at all
  * (server filtering), but sites without it receive yanked releases interleaved
  * with installable ones — filter them out so they never reach the picker.
  *

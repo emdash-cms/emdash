@@ -1,10 +1,10 @@
 import type {} from "@atcute/lexicons";
 import * as v from "@atcute/lexicons/validations";
 import type {} from "@atcute/lexicons/ambient";
-import * as ComEmdashcmsExperimentalLabellerDefs from "./defs.js";
+import * as ComEmdashcmsExperimentalLabelerDefs from "./defs.js";
 
 const _mainSchema = /*#__PURE__*/ v.query(
-	"com.emdashcms.experimental.labeller.getCurrentAssessment",
+	"com.emdashcms.experimental.labeler.getCurrentAssessment",
 	{
 		params: /*#__PURE__*/ v.object({
 			cid: /*#__PURE__*/ v.cidString(),
@@ -14,7 +14,7 @@ const _mainSchema = /*#__PURE__*/ v.query(
 		output: {
 			type: "lex",
 			get schema() {
-				return ComEmdashcmsExperimentalLabellerDefs.currentAssessmentViewSchema;
+				return ComEmdashcmsExperimentalLabelerDefs.currentAssessmentViewSchema;
 			},
 		},
 	},
@@ -31,6 +31,6 @@ export type $output = v.InferXRPCBodyInput<mainSchema["output"]>;
 
 declare module "@atcute/lexicons/ambient" {
 	interface XRPCQueries {
-		"com.emdashcms.experimental.labeller.getCurrentAssessment": mainSchema;
+		"com.emdashcms.experimental.labeler.getCurrentAssessment": mainSchema;
 	}
 }

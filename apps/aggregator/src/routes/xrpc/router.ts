@@ -52,7 +52,7 @@ const SYNC_GET_RECORD_PATH = "/xrpc/com.atproto.sync.getRecord";
  * caller's origin or credentials -- there are no cookies, no auth, no
  * per-origin policy. We allow `atproto-accept-labelers` and
  * `content-type` as request headers (the only two clients send), echo
- * back the labellers header for symmetry with atproto's labeller-aware
+ * back the labelers header for symmetry with atproto's labeler-aware
  * clients, and cap preflight cache at 24h.
  */
 const CORS_HEADERS: Record<string, string> = {

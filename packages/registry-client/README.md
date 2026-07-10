@@ -28,7 +28,7 @@ The interactive OAuth flow lives in the CLI, not here. This module accepts a pre
 
 Read-only XRPC client over an aggregator. No authentication. Used by the CLI (`emdash-plugin search`, `emdash-plugin info`) and the EmDash admin UI's install flow.
 
-The `acceptLabelers` option threads the `atproto-accept-labelers` request header through every call so callers can configure which labellers' hard-takedown labels the aggregator should apply.
+The `acceptLabelers` option threads the `atproto-accept-labelers` request header through every call so callers can configure which labelers' hard-takedown labels the aggregator should apply.
 
 ## Stability
 

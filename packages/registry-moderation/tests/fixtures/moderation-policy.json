@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"policyVersion": "2026-07-10.experimental.2",
 	"effectiveAt": "2026-07-10T00:00:00Z",
-	"labellerDid": "did:web:labels.emdashcms.com",
+	"labelerDid": "did:web:labels.emdashcms.com",
 	"assessmentSchemaVersion": 1,
 	"supportedSubjects": {
 		"publisher": { "kind": "did" },
@@ -419,10 +419,10 @@
 	"publicApi": {
 		"baseUrl": "https://labels.emdashcms.com/xrpc/",
 		"policyUrl": "https://labels.emdashcms.com/.well-known/emdash-labeler-policy.json",
-		"getAssessmentNsid": "com.emdashcms.experimental.labeller.getAssessment",
-		"getCurrentAssessmentNsid": "com.emdashcms.experimental.labeller.getCurrentAssessment",
-		"listAssessmentsNsid": "com.emdashcms.experimental.labeller.listAssessments",
-		"getPolicyNsid": "com.emdashcms.experimental.labeller.getPolicy"
+		"getAssessmentNsid": "com.emdashcms.experimental.labeler.getAssessment",
+		"getCurrentAssessmentNsid": "com.emdashcms.experimental.labeler.getCurrentAssessment",
+		"listAssessmentsNsid": "com.emdashcms.experimental.labeler.listAssessments",
+		"getPolicyNsid": "com.emdashcms.experimental.labeler.getPolicy"
 	},
 	"contact": {
 		"reconsiderationUrl": "https://emdashcms.com/plugin-moderation/reconsideration",

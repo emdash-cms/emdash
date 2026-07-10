@@ -1,6 +1,6 @@
 {
 	"lexicon": 1,
-	"id": "com.emdashcms.experimental.labeller.getAssessment",
+	"id": "com.emdashcms.experimental.labeler.getAssessment",
 	"description": "Fetch one immutable public assessment by ID. EXPERIMENTAL.",
 	"defs": {
 		"main": {
@@ -14,7 +14,7 @@
 				"encoding": "application/json",
 				"schema": {
 					"type": "ref",
-					"ref": "com.emdashcms.experimental.labeller.defs#publicAssessment"
+					"ref": "com.emdashcms.experimental.labeler.defs#publicAssessment"
 				}
 			},
 			"errors": [

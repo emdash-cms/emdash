@@ -99,9 +99,9 @@ export interface DiscoveryClientOptions {
 	aggregatorUrl: string;
 
 	/**
-	 * Optional comma-separated list of labeller DIDs to forward as the
+	 * Optional comma-separated list of labeler DIDs to forward as the
 	 * `atproto-accept-labelers` request header. The aggregator uses this to
-	 * decide which labellers' hard-enforcement labels (`!takedown`, etc.) to
+	 * decide which labelers' hard-enforcement labels (`!takedown`, etc.) to
 	 * apply when filtering results.
 	 *
 	 * Format follows the atproto convention: `did:plc:abc;redact, did:plc:def`
@@ -109,7 +109,7 @@ export interface DiscoveryClientOptions {
 	 *
 	 * Defaults to no header, which means the aggregator applies whatever its
 	 * own default policy is (typically: filter on its own publisher-verification
-	 * labeller plus any operator-configured trusted labellers).
+	 * labeler plus any operator-configured trusted labelers).
 	 */
 	acceptLabelers?: string;
 
@@ -169,7 +169,7 @@ export class DiscoveryClient {
 		// `atproto-accept-labelers` header when configured. We always
 		// *overwrite* any value the caller might have supplied: this is the
 		// aggregator's policy, not a per-request setting, and letting
-		// downstream code substitute its own labellers would defeat the
+		// downstream code substitute its own labelers would defeat the
 		// point of the wrapper.
 		const acceptLabelers = this.acceptLabelers;
 		const handler: typeof baseHandler = acceptLabelers

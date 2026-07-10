@@ -1,10 +1,10 @@
 import type {} from "@atcute/lexicons";
 import * as v from "@atcute/lexicons/validations";
 import type {} from "@atcute/lexicons/ambient";
-import * as ComEmdashcmsExperimentalLabellerDefs from "./defs.js";
+import * as ComEmdashcmsExperimentalLabelerDefs from "./defs.js";
 
 const _mainSchema = /*#__PURE__*/ v.query(
-	"com.emdashcms.experimental.labeller.listAssessments",
+	"com.emdashcms.experimental.labeler.listAssessments",
 	{
 		params: /*#__PURE__*/ v.object({
 			cid: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.cidString()),
@@ -50,7 +50,7 @@ const _mainSchema = /*#__PURE__*/ v.query(
 				get assessments() {
 					return /*#__PURE__*/ v.constrain(
 						/*#__PURE__*/ v.array(
-							ComEmdashcmsExperimentalLabellerDefs.publicAssessmentSchema,
+							ComEmdashcmsExperimentalLabelerDefs.publicAssessmentSchema,
 						),
 						[/*#__PURE__*/ v.arrayLength(0, 100)],
 					);
@@ -79,6 +79,6 @@ export interface $output extends v.InferXRPCBodyInput<mainSchema["output"]> {}
 
 declare module "@atcute/lexicons/ambient" {
 	interface XRPCQueries {
-		"com.emdashcms.experimental.labeller.listAssessments": mainSchema;
+		"com.emdashcms.experimental.labeler.listAssessments": mainSchema;
 	}
 }

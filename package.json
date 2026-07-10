@@ -5,7 +5,7 @@
 	"version": "1.0.0",
 	"description": "Agent-portable reimplementation of WordPress on Astro",
 	"scripts": {
-		"typecheck": "pnpm run --filter {./packages/**} typecheck",
+		"typecheck": "pnpm run --filter {./packages/**} --filter @emdash-cms/labeler typecheck",
 		"typecheck:demos": "pnpm run --workspace-concurrency=1 --filter {./demos/*} --filter !@emdash-cms/demo-cloudflare typecheck",
 		"typecheck:templates": "pnpm run --workspace-concurrency=1 --filter {./templates/*} typecheck",
 		"check": "pnpm run typecheck && pnpm run --filter {./packages/*} check",
@@ -14,7 +14,7 @@
 		"test:browser": "pnpm run --filter @emdash-cms/admin test",
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
-		"build": "pnpm run --filter {./packages/**} build",
+		"build": "pnpm run --filter {./packages/**} --filter @emdash-cms/labeler build",
 		"postbuild": "node scripts/relink-bins-if-needed.mjs",
 		"format": "oxfmt --ignore-path .gitignore && prettier --write .",
 		"format:check": "oxfmt --ignore-path .gitignore --check && prettier --check .",

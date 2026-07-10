@@ -5,7 +5,7 @@
 	"defs": {
 		"packageView": {
 			"type": "object",
-			"description": "An aggregator's view of a package, hydrating a profile record with denormalised metadata, mirror URLs for the latest release's primary artifact, and any labels applied by trusted labellers the aggregator hydrates.",
+			"description": "An aggregator's view of a package, hydrating a profile record with denormalized metadata, mirror URLs for the latest release's primary artifact, and any labels applied by trusted labelers the aggregator hydrates.",
 			"required": ["uri", "cid", "did", "slug", "profile", "indexedAt"],
 			"properties": {
 				"uri": {
@@ -50,7 +50,7 @@
 				},
 				"labels": {
 					"type": "array",
-					"description": "Hydrated labels applying to this package, per the labellers the request asked for via the atproto-accept-labelers header.",
+					"description": "Hydrated labels applying to this package, per the labelers the request asked for via the atproto-accept-labelers header.",
 					"maxLength": 64,
 					"items": {
 						"type": "ref",
@@ -112,7 +112,7 @@
 				},
 				"labels": {
 					"type": "array",
-					"description": "Hydrated labels applying to this release, per the labellers the request asked for.",
+					"description": "Hydrated labels applying to this release, per the labelers the request asked for.",
 					"maxLength": 64,
 					"items": {
 						"type": "ref",

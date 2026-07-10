@@ -29,15 +29,15 @@ export interface RegistryConfig {
 	aggregatorUrl: string;
 
 	/**
-	 * Optional comma-separated list of labeller DIDs forwarded as the
+	 * Optional comma-separated list of labeler DIDs forwarded as the
 	 * `atproto-accept-labelers` header on every aggregator request.
 	 *
 	 * Format follows the atproto convention:
 	 * `did:plc:abc;redact, did:plc:def`
 	 *
-	 * When unset, the aggregator applies its operator-default labeller set
-	 * (typically the EmDash publisher-verification labeller and any
-	 * additional trusted labellers the aggregator operator configured).
+	 * When unset, the aggregator applies its operator-default labeler set
+	 * (typically the EmDash publisher-verification labeler and any
+	 * additional trusted labelers the aggregator operator configured).
 	 */
 	acceptLabelers?: string;
 
@@ -53,7 +53,7 @@ export interface RegistryConfig {
 		 * Hold back releases newer than this when computing the recommended
 		 * install or update version. Mitigates "compromised publisher
 		 * account pushes a malicious release of an established plugin" by
-		 * giving the takedown labeller a detection window.
+		 * giving the takedown labeler a detection window.
 		 *
 		 * Accepts a duration string (`"24h"`, `"48h"`, `"72h"`, `"7d"`) or a
 		 * number of seconds.
@@ -192,7 +192,7 @@ export interface ExperimentalConfig {
 	 * yourself or one you trust with the same level of authority as
 	 * a centralized plugin source. The `policy.minimumReleaseAge` and
 	 * `acceptLabelers` knobs partially mitigate by widening the
-	 * detection window for takedowns, but they assume the labeller
+	 * detection window for takedowns, but they assume the labeler
 	 * system is operating.
 	 *
 	 * Requires `sandboxRunner` to be configured -- registry plugins

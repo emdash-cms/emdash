@@ -2,15 +2,15 @@ import { is } from "@atcute/lexicons/validations";
 import { describe, expect, it } from "vitest";
 
 import {
-	LabellerDefs,
-	LabellerGetAssessment,
-	LabellerGetCurrentAssessment,
-	LabellerGetPolicy,
-	LabellerListAssessments,
+	LabelerDefs,
+	LabelerGetAssessment,
+	LabelerGetCurrentAssessment,
+	LabelerGetPolicy,
+	LabelerListAssessments,
 	NSID,
 } from "../src/index.js";
 
-const assessment: LabellerDefs.PublicAssessment = {
+const assessment: LabelerDefs.PublicAssessment = {
 	id: "asmt_01J2Q5Y7V8N9M0K1H2G3F4E5D6",
 	src: "did:web:labels.emdashcms.com",
 	subject: {
@@ -34,9 +34,9 @@ const assessment: LabellerDefs.PublicAssessment = {
 	reconsiderationUrl: "https://emdashcms.com/plugin-moderation/reconsideration",
 };
 
-describe("labeller Lexicons", () => {
+describe("labeler Lexicons", () => {
 	it("validates the public assessment and current-assessment output", () => {
-		const output: LabellerGetCurrentAssessment.$output = {
+		const output: LabelerGetCurrentAssessment.$output = {
 			src: assessment.src,
 			subject: assessment.subject,
 			current: assessment,
@@ -52,18 +52,18 @@ describe("labeller Lexicons", () => {
 			],
 		};
 
-		expect(is(LabellerDefs.publicAssessmentSchema, assessment)).toBe(true);
+		expect(is(LabelerDefs.publicAssessmentSchema, assessment)).toBe(true);
 		expect(
-			is(LabellerDefs.publicAssessmentSchema, {
+			is(LabelerDefs.publicAssessmentSchema, {
 				...assessment,
 				subject: { ...assessment.subject, uri: "did:web:publisher.example.com" },
 			}),
 		).toBe(false);
-		expect(is(LabellerGetCurrentAssessment.mainSchema.output.schema, output)).toBe(true);
+		expect(is(LabelerGetCurrentAssessment.mainSchema.output.schema, output)).toBe(true);
 	});
 
 	it("validates a publisher-level manual action with a DID subject", () => {
-		const action: LabellerDefs.PublicManualAction = {
+		const action: LabelerDefs.PublicManualAction = {
 			id: "action_01J2Q5Y7V8N9M0K1H2G3F4E5D6",
 			src: assessment.src,
 			subject: { uri: "did:web:publisher.example.com" },
@@ -79,39 +79,39 @@ describe("labeller Lexicons", () => {
 			createdAt: "2026-07-10T12:00:00Z",
 		};
 
-		expect(is(LabellerDefs.publicManualActionSchema, action)).toBe(true);
+		expect(is(LabelerDefs.publicManualActionSchema, action)).toBe(true);
 	});
 
 	it("validates query parameters and rejects schema-invalid inputs", () => {
-		const current: LabellerGetCurrentAssessment.$params = {
+		const current: LabelerGetCurrentAssessment.$params = {
 			uri: assessment.subject.uri,
 			cid: assessment.subject.cid,
 			src: assessment.src,
 		};
-		const list: LabellerListAssessments.$params = { state: "passed", limit: 50 };
+		const list: LabelerListAssessments.$params = { state: "passed", limit: 50 };
 
-		expect(is(LabellerGetCurrentAssessment.mainSchema.params, current)).toBe(true);
-		expect(is(LabellerListAssessments.mainSchema.params, list)).toBe(true);
+		expect(is(LabelerGetCurrentAssessment.mainSchema.params, current)).toBe(true);
+		expect(is(LabelerListAssessments.mainSchema.params, list)).toBe(true);
 		expect(
-			is(LabellerGetCurrentAssessment.mainSchema.params, { ...current, src: "not-a-did" }),
+			is(LabelerGetCurrentAssessment.mainSchema.params, { ...current, src: "not-a-did" }),
 		).toBe(false);
 		expect(
-			is(LabellerGetCurrentAssessment.mainSchema.params, {
+			is(LabelerGetCurrentAssessment.mainSchema.params, {
 				...current,
 				uri: "https://example.com/release",
 			}),
 		).toBe(false);
-		expect(is(LabellerListAssessments.mainSchema.params, { cursor: "a".repeat(1025) })).toBe(false);
-		expect(is(LabellerListAssessments.mainSchema.params, { limit: 101 })).toBe(false);
+		expect(is(LabelerListAssessments.mainSchema.params, { cursor: "a".repeat(1025) })).toBe(false);
+		expect(is(LabelerListAssessments.mainSchema.params, { limit: 101 })).toBe(false);
 	});
 
 	it("validates endpoint output shapes and the fixed-field policy document", () => {
-		const list: LabellerListAssessments.$output = { assessments: [assessment] };
-		const policy: LabellerGetPolicy.$output = {
+		const list: LabelerListAssessments.$output = { assessments: [assessment] };
+		const policy: LabelerGetPolicy.$output = {
 			schemaVersion: 1,
 			policyVersion: "2026-07-10",
 			effectiveAt: "2026-07-10T00:00:00Z",
-			labellerDid: assessment.src,
+			labelerDid: assessment.src,
 			assessmentSchemaVersion: 1,
 			supportedSubjects: {
 				publisher: { kind: "did" },
@@ -131,10 +131,10 @@ describe("labeller Lexicons", () => {
 			publicApi: {
 				baseUrl: "https://labels.emdashcms.com/xrpc/",
 				policyUrl: "https://labels.emdashcms.com/.well-known/emdash-labeler-policy.json",
-				getAssessmentNsid: NSID.labellerGetAssessment,
-				getCurrentAssessmentNsid: NSID.labellerGetCurrentAssessment,
-				listAssessmentsNsid: NSID.labellerListAssessments,
-				getPolicyNsid: NSID.labellerGetPolicy,
+				getAssessmentNsid: NSID.labelerGetAssessment,
+				getCurrentAssessmentNsid: NSID.labelerGetCurrentAssessment,
+				listAssessmentsNsid: NSID.labelerListAssessments,
+				getPolicyNsid: NSID.labelerGetPolicy,
 			},
 			contact: {
 				reconsiderationUrl: assessment.reconsiderationUrl,
@@ -143,11 +143,11 @@ describe("labeller Lexicons", () => {
 			transparency: { modelOutputIsAdvisoryEvidence: true },
 		};
 
-		expect(is(LabellerGetAssessment.mainSchema.params, { id: assessment.id })).toBe(true);
-		expect(is(LabellerGetAssessment.mainSchema.params, { id: "" })).toBe(false);
-		expect(is(LabellerListAssessments.mainSchema.output.schema, list)).toBe(true);
-		expect(is(LabellerGetPolicy.mainSchema.output.schema, policy)).toBe(true);
-		expect(is(LabellerGetPolicy.mainSchema.output.schema, { ...policy, schemaVersion: 2 })).toBe(
+		expect(is(LabelerGetAssessment.mainSchema.params, { id: assessment.id })).toBe(true);
+		expect(is(LabelerGetAssessment.mainSchema.params, { id: "" })).toBe(false);
+		expect(is(LabelerListAssessments.mainSchema.output.schema, list)).toBe(true);
+		expect(is(LabelerGetPolicy.mainSchema.output.schema, policy)).toBe(true);
+		expect(is(LabelerGetPolicy.mainSchema.output.schema, { ...policy, schemaVersion: 2 })).toBe(
 			false,
 		);
 	});

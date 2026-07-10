@@ -19,7 +19,7 @@ export async function getPackage(
 	params: AggregatorGetPackage.$params,
 ): Promise<Response> {
 	// `first-primary` because the same row could become subject to a takedown
-	// label between two reads; once the labeller (Slice 2) writes, the next
+	// label between two reads; once the labeler (Slice 2) writes, the next
 	// read everywhere should reflect it. Per plan §XRPC endpoints.
 	const session = env.DB.withSession("first-primary");
 	const row = await session

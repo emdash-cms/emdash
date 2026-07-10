@@ -25,7 +25,7 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 	 */
 	indexedAt: /*#__PURE__*/ v.datetimeString(),
 	/**
-	 * Hydrated labels applying to this package, per the labellers the request asked for via the atproto-accept-labelers header.
+	 * Hydrated labels applying to this package, per the labelers the request asked for via the atproto-accept-labelers header.
 	 * @maxLength 64
 	 */
 	get labels() {
@@ -81,7 +81,7 @@ const _releaseViewSchema = /*#__PURE__*/ v.object({
 	 */
 	indexedAt: /*#__PURE__*/ v.datetimeString(),
 	/**
-	 * Hydrated labels applying to this release, per the labellers the request asked for.
+	 * Hydrated labels applying to this release, per the labelers the request asked for.
 	 * @maxLength 64
 	 */
 	get labels() {

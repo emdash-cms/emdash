@@ -34,7 +34,7 @@
  *     trust boundary for the bytes that end up in the sandbox.
  *   - `acceptLabelers` is forwarded as-is to the aggregator; this
  *     handler does not independently re-fetch and verify labels from
- *     each labeller's DID. Aggregator label envelope tampering is
+ *     each labeler's DID. Aggregator label envelope tampering is
  *     mitigated by the artifact checksum but not detected.
  */
 
@@ -1466,7 +1466,7 @@ export async function handleRegistryUpdate(
 		if (releaseYanked) {
 			return {
 				success: false,
-				error: { code: "YANKED", message: "Release has been yanked by a trusted labeller" },
+				error: { code: "YANKED", message: "Release has been yanked by a trusted labeler" },
 			};
 		}
 
