@@ -34,7 +34,7 @@ The implementation is complete when:
 - No positive assessment requirement is enabled in production until first-party releases have been assessed and rollback is tested.
 - Incomplete integration remains unreachable by default. Feature flags may expose staging paths, but production clients must not depend on half-built label state.
 - Tests land with each workstream. Protocol, security, and failure tests are not deferred to the final gate.
-- `.opencode/plans` is ephemeral coordination material. Retained runtime code and tests must never import it; ratified contracts, fixtures, and vectors move into normal package/test directories before consumers use them.
+- `.opencode/plans` is ephemeral coordination material. Retained runtime code and tests must never import it. A feasibility spike does not become a product test merely because it was useful; vectors and fixtures move into normal package/test directories only when they test an implemented EmDash component.
 - The operator console uses Kumo, Lingui, and RTL-safe logical layout from its first UI change.
 - Existing unrelated worktree changes are left untouched.
 - Published-package changes receive changesets when their workstream lands.
@@ -163,7 +163,7 @@ Required before production implementation is treated as stable:
 - The aggregator mirror contract can supply artifact bytes and metadata required by the assessor.
 - Initial dependency/advisory sources and critical-applicability rules are selected.
 - The initial Workers AI model and structured-output path can process representative plugin inputs through AI Gateway.
-- Cloudflare Access JWT group/email claims for reviewer/admin mapping are confirmed with the production identity provider.
+- Cloudflare Access JWT validation, configurable claim extraction, and human/service-token distinction are proved without assuming an organization-specific role schema.
 
 Gate owner: `W0`.
 
@@ -227,7 +227,7 @@ Gate owners: `W9`, `W10`.
 - Signing-key rotation, compromised-key response, D1 restore, Jetstream cursor recovery, Queue/DLQ recovery, and notification recovery drills pass.
 - External security review has no unresolved critical or high findings.
 - Production smoke succeeds from release publication through assessment, label ingest, discovery, and clean-site install decision.
-- Every retained contract/fixture/vector lives under a normal package or test directory, no source/test imports `.opencode/plans`, and this planning folder is removed before the umbrella PR merges.
+- No source/test imports `.opencode/plans`, every retained fixture tests an implemented EmDash component, and this planning folder is removed before the umbrella PR merges.
 
 Gate owners: `W11`, `W12`, with all preceding gates complete.
 
@@ -294,7 +294,7 @@ Build a focused workerd prototype using `@atcute/cbor` and `@atcute/crypto`:
 - Reject extra fields, wrong keys, malformed bytes, and invalid signatures.
 - Define the minimal routine-rotation and compromise procedure: issuance pause boundary, DID update ordering, old-key identification, historical re-signing, and subscriber recovery.
 
-Output: committed vectors, selected crypto API, and key-lifecycle contract consumed by `W3.7` and documented by `W11.4`.
+Output: selected crypto API and key-lifecycle contract consumed by `W3.7` and documented by `W11.4`. W1.4 adds vectors only alongside the implemented signer/verifier.
 
 Dependencies: signing-key format draft.
 
@@ -341,30 +341,17 @@ Output: versioned adapter choices and calibration baseline.
 
 Dependencies: policy fixtures from `W0.2`.
 
-### `W0.8` Prove Access role claims
+### `W0.8` Prove Access JWT mechanics
 
 Create staging Access policies and verify:
 
-- JWT issuer/audience validation.
-- Reviewer/admin group or email claim shape.
-- User and service-token distinction.
-- Expiry, revoked membership, missing group, and spoofed header behavior.
+- JWT issuer, audience, signature, expiry, and not-before validation.
+- JWKS retrieval/cache/rotation behavior.
+- Configurable extraction of a role claim without assuming a Cloudflare organization-specific group or email shape.
+- Human and service-token identity distinction.
+- Missing claim, malformed token, and spoofed header behavior.
 
-Output: exact role-mapping configuration and JWT fixtures.
-
-Dependencies: none.
-
-### `W0.9` Decide retention and communications
-
-Ratify:
-
-- Private evidence and incident evidence retention.
-- AI Gateway log retention/training controls.
-- Email provider and sending domain.
-- Monitored reconsideration address.
-- Security contact fallback behavior.
-
-Output: deployable constants and privacy/communications checklist.
+Output: generic Access validation contract and JWT fixtures consumed by W9. Deployment configuration supplies the actual role mapping.
 
 Dependencies: none.
 
@@ -558,10 +545,10 @@ Dependencies: `W2.3`.
 - Hash every evidence object.
 - Store large private evidence in R2 and references in D1.
 - Separate public summaries from private detail at the type boundary.
-- Apply retention class metadata.
+- Support lifecycle metadata without deciding an organization retention policy.
 - Prevent public serializers from accepting private evidence types.
 
-Dependencies: `W0.9`, `W2.3`.
+Dependencies: `W2.3`.
 
 ### `W2.6` Add health and internal diagnostics
 
@@ -1239,7 +1226,7 @@ Resolve in order:
 
 Do not access private PDS account email. Store delivery addresses only as long as needed and retain keyed hashes for audit/deduplication.
 
-Dependencies: `W0.9`, registry profile/package reads.
+Dependencies: registry profile/package reads.
 
 ### `W10.5` Implement notification outbox and email adapter
 
@@ -1336,7 +1323,7 @@ Dependencies: `W3.7`.
 - Contact-data minimization.
 - AI Gateway retention configuration.
 
-Dependencies: `W0.9`, `W2.5`.
+Dependencies: `W2.5`.
 
 ### `W11.6` Write operational runbooks
 
