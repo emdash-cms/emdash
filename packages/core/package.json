@@ -212,6 +212,7 @@
     "@emdash-cms/gutenberg-to-portable-text": "workspace:*",
     "@emdash-cms/plugin-types": "workspace:*",
     "@emdash-cms/registry-client": "workspace:*",
+    "@emdash-cms/registry-verification": "workspace:*",
     "@floating-ui/react": "^0.27.16",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "@oslojs/crypto": "catalog:",

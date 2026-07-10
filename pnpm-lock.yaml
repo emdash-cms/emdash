@@ -1599,6 +1599,9 @@ importers:
       '@emdash-cms/registry-client':
         specifier: workspace:*
         version: link:../registry-client
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../registry-verification
       '@floating-ui/react':
         specifier: ^0.27.16
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1886,6 +1889,9 @@ importers:
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../registry-lexicons
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../registry-verification
       '@oslojs/crypto':
         specifier: 'catalog:'
         version: 1.0.1
@@ -1934,6 +1940,10 @@ importers:
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.16(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/plugin-types:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.1
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
@@ -2233,6 +2243,13 @@ importers:
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@25.9.1)(jsdom@26.1.0)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/registry-verification:
+    dependencies:
+      '@emdash-cms/plugin-types':
+        specifier: workspace:*
+        version: link:../plugin-types
+      modern-tar:
+        specifier: ^0.7.6
+        version: 0.7.6
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'

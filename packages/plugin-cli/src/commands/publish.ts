@@ -24,11 +24,16 @@ import { dirname, join, resolve } from "node:path";
 
 import type { PluginManifest } from "@emdash-cms/plugin-types";
 import { FileCredentialStore, PublishingClient } from "@emdash-cms/registry-client";
+import {
+	MAX_BUNDLE_COMPRESSED_BYTES,
+	validatePluginBundle,
+} from "@emdash-cms/registry-verification";
+import type { ValidatePluginBundleOptions } from "@emdash-cms/registry-verification";
 import { defineCommand } from "citty";
 import consola from "consola";
 import pc from "picocolors";
 
-import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
+import { formatBytes, MAX_BUNDLE_SIZE } from "../bundle/utils.js";
 import { redirectConsolaToStderr } from "../cli-output.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
 import { checkPublisher, PublisherCheckError, writePublisherBack } from "../manifest/publisher.js";
@@ -57,7 +62,7 @@ import { ArtifactUploadError, resolveReleaseArtifacts } from "../publish/upload-
  * fetch time before decompression. The decompressed bundle is then re-checked
  * against the per-file and total caps via `validateBundleSize`.
  */
-const MAX_TARBALL_BYTES = 384 * 1024;
+const MAX_TARBALL_BYTES = MAX_BUNDLE_COMPRESSED_BYTES;
 
 export const publishCommand = defineCommand({
 	meta: {
@@ -239,7 +244,15 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	consola.start(`Fetching ${args.url}...`);
 	const tarballBytes = await fetchTarball(args.url);
 	const checksum = sha256Multihash(tarballBytes);
-	const manifest = await extractManifestFromTarball(tarballBytes);
+	const manifest = await extractManifestFromTarball(
+		tarballBytes,
+		manifestLoad
+			? {
+					expectedSlug: manifestLoad.manifest.slug,
+					expectedVersion: manifestLoad.manifest.version,
+				}
+			: undefined,
+	);
 
 	consola.info(`Tarball: ${formatBytes(tarballBytes.length)}`);
 	consola.info(`Multihash: ${pc.dim(checksum)}`);
@@ -787,7 +800,6 @@ async function validateResolvedHost(host: string): Promise<string | null> {
 // guard is the FIRST line of defence -- the redirect loop additionally runs
 // a DNS-resolved check (`validateResolvedHost`) so a public hostname
 // pointing at a private IP is also caught.
-const TAR_LEADING_DOT_SLASH_RE = /^\.\//;
 const IPV4_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 // IPv6 ULA (fc00::/7), link-local (fe80::/10). Bracket-stripped form.
 const IPV6_ULA_FC_RE = /^fc[0-9a-f]{2}(?::|$)/i;
@@ -1087,130 +1099,13 @@ async function fetchTarball(url: string): Promise<Uint8Array> {
 // Exported for unit tests; not part of the public CLI surface.
 export const extractManifestFromTarballForTest = extractManifestFromTarball;
 
-async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginManifest> {
-	const { unpackTar, createGzipDecoder } = await import("modern-tar");
-	const source = new ReadableStream<Uint8Array>({
-		start(controller) {
-			controller.enqueue(bytes);
-			controller.close();
-		},
-	});
-	let entries;
-	try {
-		const decoded = source.pipeThrough(createGzipDecoder()) as ReadableStream<Uint8Array>;
-		entries = await unpackTar(decoded);
-	} catch (error) {
-		throw new Error(
-			`tarball at the URL is not a valid gzipped tar archive: ${error instanceof Error ? error.message : String(error)}`,
-			{ cause: error },
-		);
+async function extractManifestFromTarball(
+	bytes: Uint8Array,
+	options: ValidatePluginBundleOptions = {},
+): Promise<PluginManifest> {
+	const result = await validatePluginBundle(bytes, options);
+	if (!result.success) {
+		throw new Error(`tarball at the URL is invalid: ${result.error.message}`);
 	}
-	// The bundle size caps apply to regular files only: directories,
-	// symlinks, hardlinks, devices, and FIFOs all carry no content and
-	// shouldn't appear in a sandboxed plugin bundle anyway. Filtering by
-	// header.type matches what `collectBundleEntries` does for the staging
-	// dir (where `item.isFile()` already excludes non-files), so the bundle
-	// command and the publish command agree on what counts.
-	const fileEntries = entries
-		.filter((e) => (e.header.type ?? "file") === "file")
-		.map((e) => ({
-			name: e.header.name.replace(TAR_LEADING_DOT_SLASH_RE, ""),
-			bytes: e.data?.byteLength ?? 0,
-		}));
-	const sizeViolations = validateBundleSize(fileEntries);
-	if (sizeViolations.length > 0) {
-		throw new Error(
-			`tarball at the URL violates bundle size caps:\n  - ${sizeViolations.join("\n  - ")}`,
-		);
-	}
-	const manifestEntry = entries.find((e) => {
-		const name = e.header.name;
-		return name === "manifest.json" || name === "./manifest.json";
-	});
-	if (!manifestEntry?.data) {
-		throw new Error("manifest.json not found in tarball");
-	}
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(new TextDecoder().decode(manifestEntry.data));
-	} catch (error) {
-		throw new Error(
-			`manifest.json in the tarball is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
-			{ cause: error },
-		);
-	}
-	return assertManifestShape(parsed);
-}
-
-/**
- * Best-effort structural sanity check on a parsed `manifest.json`. NOT a
- * full lexicon validation: we check the shapes the publish flow actually
- * touches (`id`, `version`, `capabilities`, `allowedHosts`, plus that
- * `storage`/`hooks`/`routes`/`admin` are at least the right top-level
- * shape). Hook and route entries are only checked to be string-or-object;
- * we deliberately don't validate their inner structure here because (a)
- * the publish flow doesn't iterate them and (b) the inner shape varies
- * across manifest schema versions and is core's read-side problem.
- *
- * Callers who need a full validation should round-trip through the runtime
- * narrowing helper in `packages/core/src/plugins/manifest-schema.ts`.
- */
-function assertManifestShape(value: unknown): PluginManifest {
-	if (!value || typeof value !== "object" || Array.isArray(value)) {
-		throw new Error("manifest.json must be a JSON object");
-	}
-	const v = value as Record<string, unknown>;
-	if (typeof v.id !== "string" || v.id.length === 0) {
-		throw new Error("manifest.json: `id` must be a non-empty string");
-	}
-	if (typeof v.version !== "string" || v.version.length === 0) {
-		throw new Error("manifest.json: `version` must be a non-empty string");
-	}
-	if (!Array.isArray(v.capabilities) || v.capabilities.some((c) => typeof c !== "string")) {
-		throw new Error("manifest.json: `capabilities` must be an array of strings");
-	}
-	if (!Array.isArray(v.allowedHosts) || v.allowedHosts.some((h) => typeof h !== "string")) {
-		throw new Error("manifest.json: `allowedHosts` must be an array of strings");
-	}
-	// `typeof null === "object"` and `typeof [] === "object"`, so both checks
-	// matter. Same for `admin` below.
-	if (!v.storage || typeof v.storage !== "object" || Array.isArray(v.storage)) {
-		throw new Error("manifest.json: `storage` must be an object");
-	}
-	if (!Array.isArray(v.hooks)) {
-		throw new Error("manifest.json: `hooks` must be an array");
-	}
-	for (const [i, entry] of v.hooks.entries()) {
-		// Hook entries are either bare hook-name strings or
-		// `{ hook: string, ... }` objects per the manifest contract. Anything
-		// else means the publisher hand-edited (or corrupted) the manifest.
-		if (typeof entry === "string") continue;
-		if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-			throw new Error(
-				`manifest.json: \`hooks[${i}]\` must be a string or object, got ${describeJsonValue(entry)}`,
-			);
-		}
-	}
-	if (!Array.isArray(v.routes)) {
-		throw new Error("manifest.json: `routes` must be an array");
-	}
-	for (const [i, entry] of v.routes.entries()) {
-		if (typeof entry === "string") continue;
-		if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-			throw new Error(
-				`manifest.json: \`routes[${i}]\` must be a string or object, got ${describeJsonValue(entry)}`,
-			);
-		}
-	}
-	if (!v.admin || typeof v.admin !== "object" || Array.isArray(v.admin)) {
-		throw new Error("manifest.json: `admin` must be an object");
-	}
-	return v as unknown as PluginManifest;
-}
-
-/** Shape-describing string for error messages. Distinguishes null/array/object. */
-function describeJsonValue(value: unknown): string {
-	if (value === null) return "null";
-	if (Array.isArray(value)) return "array";
-	return typeof value;
+	return result.value.manifest;
 }
