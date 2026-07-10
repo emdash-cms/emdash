@@ -41,7 +41,6 @@ export function SectionEditor() {
 		onSuccess: (updated) => {
 			void queryClient.invalidateQueries({ queryKey: ["sections"] });
 			void queryClient.invalidateQueries({ queryKey: ["sections", slug] });
-			toastManager.add({ title: t`Section saved` });
 			// If slug changed, navigate to new URL
 			if (updated.slug !== slug) {
 				void navigate({ to: "/sections/$slug", params: { slug: updated.slug } });
@@ -203,8 +202,13 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 					{/* Save action at the bottom of the main column so users hit
 					    it naturally when they finish editing, without needing to
 					    scroll past the entire sidebar. */}
-					<div className="flex justify-end">
-						<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
+					<div className="flex items-center justify-end gap-2">
+						<SaveButton
+							isSaving={isSaving}
+							isDirty={isDirty}
+							announce={false}
+							onClick={handleSave}
+						/>
 					</div>
 				</div>
 
