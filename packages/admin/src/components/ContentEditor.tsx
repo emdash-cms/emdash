@@ -819,9 +819,7 @@ export function ContentEditor({
 						blockSidebarPanel.type === "image" ? (
 							<ImageDetailPanel
 								attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-								onUpdate={(attrs) =>
-									blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-								}
+								onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 								onReplace={(attrs) =>
 									blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
 								}

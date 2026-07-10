@@ -16,7 +16,6 @@ import * as React from "react";
 
 import {
 	type MediaItem,
-	type MediaProviderInfo,
 	type MediaProviderItem,
 	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaProviders,
@@ -136,7 +135,7 @@ export function MediaLibrary({
 				id: "local",
 				name: t`Library`,
 				capabilities: { browse: true, search: false, upload: true, delete: true },
-			} as MediaProviderInfo;
+			};
 		}
 		return providers?.find((p) => p.id === activeProvider);
 	}, [activeProvider, providers, t]);

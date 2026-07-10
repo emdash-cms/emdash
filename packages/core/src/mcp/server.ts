@@ -691,7 +691,7 @@ export function createMcpServer(): McpServer {
 			// Publishing requires publish permission — create as draft then publish
 			if (args.status === "published") {
 				const user = { id: userId, role: getExtra(extra).userRole };
-				if (!hasPermission(user, "content:publish_own" as Permission)) {
+				if (!hasPermission(user, "content:publish_own")) {
 					throw new EmDashAuthError(
 						"Insufficient permissions: publishing requires content:publish_own",
 						"INSUFFICIENT_PERMISSIONS",
@@ -819,7 +819,7 @@ export function createMcpServer(): McpServer {
 			// route. Status-driven publishes are gated separately below.
 			if (args.publishedAt !== undefined) {
 				const user = { id: userId, role: userRole };
-				if (!hasPermission(user, "content:publish_any" as Permission)) {
+				if (!hasPermission(user, "content:publish_any")) {
 					throw new EmDashAuthError(
 						"Setting publishedAt requires content:publish_any permission",
 						"INSUFFICIENT_PERMISSIONS",
@@ -1027,7 +1027,7 @@ export function createMcpServer(): McpServer {
 			// regardless of ownership (mirrors the REST PUT route's publishedAt gate).
 			if (args.publishedAt !== undefined) {
 				const user = { id: userId, role: userRole };
-				if (!hasPermission(user, "content:publish_any" as Permission)) {
+				if (!hasPermission(user, "content:publish_any")) {
 					throw new EmDashAuthError(
 						"Setting publishedAt requires content:publish_any permission",
 						"INSUFFICIENT_PERMISSIONS",

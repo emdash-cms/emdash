@@ -762,7 +762,7 @@ async function verifyJwt(token: string, secret: string): Promise<Record<string, 
 	try {
 		const key = new TextEncoder().encode(secret);
 		const { payload } = await jwtVerify(token, key, { algorithms: ["HS256"] });
-		return payload as Record<string, unknown>;
+		return payload;
 	} catch {
 		return null;
 	}

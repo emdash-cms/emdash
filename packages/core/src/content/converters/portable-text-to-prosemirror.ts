@@ -417,7 +417,7 @@ function convertMarks(
 						// Unknown mark def type - preserve attrs
 						pmMarks.push({
 							type: markDef._type,
-							attrs: markDef as Record<string, unknown>,
+							attrs: markDef,
 						});
 					}
 				}

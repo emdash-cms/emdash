@@ -1890,7 +1890,7 @@ function ContentTypesEditPage() {
 		<ContentTypeEditor
 			collection={collection}
 			isSaving={updateMutation.isPending}
-			onSave={(input) => updateMutation.mutate(input as UpdateCollectionInput)}
+			onSave={(input) => updateMutation.mutate(input)}
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}
 			onDeleteField={(fieldSlug) => deleteFieldMutation.mutate(fieldSlug)}

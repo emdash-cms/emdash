@@ -194,7 +194,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 						<Label className="text-lg font-semibold mb-4 block">{t`Content`}</Label>
 						<PortableTextEditor
 							value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
-							onChange={(value) => setContent(value as unknown[])}
+							onChange={(value) => setContent(value)}
 							onBlockSidebarOpen={handleBlockSidebarOpen}
 							onBlockSidebarClose={handleBlockSidebarClose}
 						/>
@@ -213,9 +213,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 					{blockSidebarPanel?.type === "image" ? (
 						<ImageDetailPanel
 							attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-							onUpdate={(attrs) =>
-								blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-							}
+							onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 							onReplace={(attrs) =>
 								blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
 							}
