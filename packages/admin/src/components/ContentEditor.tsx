@@ -52,6 +52,7 @@ import { DocumentOutline } from "./editor/DocumentOutline";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { ReferencePickerModal, type ReferencePickerRow } from "./ReferencePickerModal.js";
+import { ReferencesSidebar } from "./ReferencesSidebar.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -1242,6 +1243,17 @@ export function ContentEditor({
 							{item && (
 								<div className="p-4 border-t">
 									<TaxonomySidebar
+										collection={collection}
+										entryId={item.id}
+										entryLocale={item.locale ?? entryLocale}
+									/>
+								</div>
+							)}
+
+							{/* Referenced by — read-only backlinks for existing entries */}
+							{item && !isNew && (
+								<div className="p-4 border-t">
+									<ReferencesSidebar
 										collection={collection}
 										entryId={item.id}
 										entryLocale={item.locale ?? entryLocale}
