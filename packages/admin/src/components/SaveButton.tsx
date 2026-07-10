@@ -34,7 +34,8 @@ export function SaveButton({
 	const savedLabel = t`Saved`;
 	const isBusy = isSaving || Boolean(loading);
 	const activeState: SaveState = isBusy ? "saving" : isDirty ? "save" : "saved";
-	const activeLabel = activeState === "save" ? saveLabel : activeState === "saving" ? savingLabel : savedLabel;
+	const activeLabel =
+		activeState === "save" ? saveLabel : activeState === "saving" ? savingLabel : savedLabel;
 	const states = [
 		{ id: "save", label: saveLabel },
 		{ id: "saving", label: savingLabel },
@@ -47,13 +48,17 @@ export function SaveButton({
 	const displayedLabel =
 		displayedState === "save" ? saveLabel : displayedState === "saving" ? savingLabel : savedLabel;
 	const displayedIcon =
-		displayedState === "save"
-			? isValidElement(icon)
-				? icon
-				: <FloppyDisk />
-			: displayedState === "saving"
-				? <Loader size="sm" />
-				: <Check />;
+		displayedState === "save" ? (
+			isValidElement(icon) ? (
+				icon
+			) : (
+				<FloppyDisk />
+			)
+		) : displayedState === "saving" ? (
+			<Loader size="sm" />
+		) : (
+			<Check />
+		);
 
 	useEffect(() => {
 		let animationFrame = 0;

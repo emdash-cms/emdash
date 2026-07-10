@@ -176,9 +176,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 						icon={<ArrowPrev />}
 					/>
 				}
-				actions={
-					<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
-				}
+				actions={<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />}
 			>
 				<h1 className="text-2xl font-bold truncate">{section.title}</h1>
 				<p className="text-sm text-kumo-subtle">
