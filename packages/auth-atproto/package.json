@@ -32,11 +32,16 @@
 	"devDependencies": {
 		"@atcute/lexicons": "catalog:",
 		"@cloudflare/kumo": "catalog:",
+		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@cloudflare/workers-types": "catalog:",
+		"@types/node": "catalog:",
 		"@types/react": "^19.0.0",
 		"vitest": "catalog:"
 	},
 	"scripts": {
-		"test": "vitest run",
+		"test": "pnpm test:node && pnpm test:workerd",
+		"test:node": "vitest run --config vitest.config.ts",
+		"test:workerd": "vitest run --config vitest.workerd.config.ts",
 		"typecheck": "tsgo --noEmit"
 	},
 	"repository": {

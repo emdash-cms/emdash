@@ -1,0 +1,14 @@
+{
+	"extends": "../../../../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["@cloudflare/vitest-pool-workers/types", "@cloudflare/workers-types", "node"],
+		"lib": ["es2023", "DOM", "DOM.Iterable", "esnext.typedarrays"],
+		"noEmit": true
+	},
+	"include": [
+		"./**/*.ts",
+		"../../confidential-oauth-workerd.test.ts",
+		"../../../vitest.config.ts",
+		"../../../vitest.workerd.config.ts"
+	]
+}

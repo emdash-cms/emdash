@@ -1,0 +1,14 @@
+{
+	"name": "auth-atproto-confidential-oauth-test",
+	"main": "./worker.ts",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_als"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "auth-atproto-confidential-oauth-test",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "./migrations",
+		},
+	],
+}
