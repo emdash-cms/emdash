@@ -97,11 +97,16 @@ describe("setProfilePolicy", () => {
 		await expect(set(pds, { requireProvenance: true })).rejects.toMatchObject({
 			code: "REPOSITORY_REQUIRED",
 		});
-		await set(
+		const created = await set(
 			pds,
 			{ repository: "https://github.com/example/plugin", requireProvenance: true },
 			true,
 		);
+		expect(created.diffs).toContainEqual({
+			field: "repository",
+			before: undefined,
+			after: "https://github.com/example/plugin",
+		});
 		await set(pds, { confirmation: "always" }, true);
 		const stored = pds.records.get(`at://${DID}/${NSID.packageProfile}/${SLUG}`)!.value as Record<
 			string,

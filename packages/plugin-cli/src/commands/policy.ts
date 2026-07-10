@@ -104,9 +104,13 @@ export const policySetCommand = defineCommand({
 					? error.code
 					: "INTERNAL_ERROR";
 			const message = error instanceof Error ? error.message : String(error);
+			const detail =
+				error instanceof ProfilePolicyError || error instanceof CliError ? error.detail : undefined;
 			consola.error(message);
-			if (json) process.stdout.write(`${JSON.stringify(formatPolicyJsonError(code, message))}\n`);
-			exitCode = 1;
+			if (json) {
+				process.stdout.write(`${JSON.stringify(formatPolicyJsonError(code, message, detail))}\n`);
+			}
+			exitCode = error instanceof CliError ? error.exitCode : 1;
 		} finally {
 			restoreReporters?.();
 		}
@@ -164,13 +168,21 @@ export function formatPolicyJsonResult(
 		profile: result.profileUri,
 		written: result.written,
 		applied,
-		diffs: result.diffs,
+		diffs: result.diffs.map((diff) => ({
+			field: diff.field,
+			before: diff.before ?? null,
+			after: diff.after ?? null,
+		})),
 		...(result.cid ? { cid: result.cid } : {}),
 	};
 }
 
-export function formatPolicyJsonError(code: string, message: string) {
-	return { error: { code, message } };
+export function formatPolicyJsonError(
+	code: string,
+	message: string,
+	detail?: Record<string, unknown>,
+) {
+	return { error: { code, message, ...(detail === undefined ? {} : { detail }) } };
 }
 
 async function loadPolicyManifest(path: string) {
@@ -193,6 +205,8 @@ class CliError extends Error {
 	constructor(
 		message: string,
 		readonly code: string,
+		readonly exitCode = 1,
+		readonly detail?: Record<string, unknown>,
 	) {
 		super(message);
 	}

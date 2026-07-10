@@ -7,6 +7,7 @@ import {
 	policySetArgs,
 	resolvePolicyCommandInput,
 } from "../src/commands/policy.js";
+import { ProfilePolicyError } from "../src/policy/api.js";
 
 function resolve(rawArgs: string[]) {
 	return resolvePolicyCommandInput(parseArgs(rawArgs, policySetArgs), rawArgs);
@@ -79,6 +80,28 @@ describe("policy set command parsing", () => {
 			applied: false,
 			diffs: [],
 		});
+		expect(
+			formatPolicyJsonResult(
+				{
+					profileUri: "at://did:plc:test/profile/test",
+					written: false,
+					diffs: [{ field: "repository", before: undefined, after: "https://example.com/repo" }],
+					candidate: {},
+				},
+				false,
+			),
+		).toMatchObject({
+			diffs: [{ field: "repository", before: null, after: "https://example.com/repo" }],
+		});
+		const stale = new ProfilePolicyError("STALE_RECORD", "stale", { expectedCid: "bafyold" });
+		const errorEnvelope = formatPolicyJsonError(stale.code, stale.message, stale.detail);
+		expect(errorEnvelope).toEqual({
+			error: { code: "STALE_RECORD", message: "stale", detail: { expectedCid: "bafyold" } },
+		});
+		const stdout = `${JSON.stringify(errorEnvelope)}\n`;
+		expect(stdout).toBe(
+			'{"error":{"code":"STALE_RECORD","message":"stale","detail":{"expectedCid":"bafyold"}}}\n',
+		);
 		expect(formatPolicyJsonError("INVALID_POLICY_FLAGS", "bad flags")).toEqual({
 			error: { code: "INVALID_POLICY_FLAGS", message: "bad flags" },
 		});
