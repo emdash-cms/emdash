@@ -75,6 +75,10 @@ examples/wp-theme-unit-test/
 # pattern so we can re-include the agents subdirectory.
 .opencode/*
 !.opencode/agents/
+!.opencode/plans/
+.opencode/plans/*
+!.opencode/plans/delegated-release-service/
+!.opencode/plans/delegated-release-service/**
 
 # .claude is local-only EXCEPT for the symlinks pointing at AGENTS.md and skills/
 .claude/*
