@@ -473,9 +473,26 @@ export async function handleSchemaFieldUpdate(
 				};
 			}
 
+			// `relation` and `targetCollection` are immutable identity for a wired
+			// reference field. An update that sends `validation: null` or a partial
+			// validation object omitting these keys must not be allowed to clear
+			// them -- registry.updateField() writes whatever is passed verbatim,
+			// which would otherwise orphan the relation row and its edges.
+			const updateInput =
+				input.validation !== undefined
+					? {
+							...input,
+							validation: {
+								...input.validation,
+								relation: existing.validation?.relation,
+								targetCollection: existing.validation?.targetCollection,
+							},
+						}
+					: input;
+
 			const item = await withTransaction(db, async (trx) => {
 				const registry = new SchemaRegistry(trx);
-				const updated = await registry.updateField(collectionSlug, fieldSlug, input);
+				const updated = await registry.updateField(collectionSlug, fieldSlug, updateInput);
 
 				if (input.label !== undefined && input.label !== existing.label) {
 					const relations = new RelationRepository(trx);

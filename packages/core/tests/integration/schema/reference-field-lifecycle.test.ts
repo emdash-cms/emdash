@@ -145,6 +145,78 @@ describeEachDialect("reference field lifecycle", (dialect) => {
 		}
 	});
 
+	it("preserves relation and targetCollection when validation is explicitly null", async () => {
+		ctx = await setupForDialect(dialect);
+		try {
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
+
+			const created = await handleSchemaFieldCreate(ctx.db, "posts", {
+				slug: "related",
+				label: "Related",
+				type: "reference",
+				validation: { targetCollection: "posts", multiple: true },
+			});
+			expect(created.success).toBe(true);
+			if (!created.success) return;
+			const relationGroup = created.data.item.validation?.relation;
+			expect(relationGroup).toBeTruthy();
+			if (!relationGroup) return;
+
+			const updated = await handleSchemaFieldUpdate(ctx.db, "posts", "related", {
+				label: "Related posts",
+				validation: null,
+			});
+			expect(updated.success).toBe(true);
+
+			const field = await registry.getField("posts", "related");
+			expect(field?.validation?.relation).toBe(relationGroup);
+			expect(field?.validation?.targetCollection).toBe("posts");
+
+			const relRepo = new RelationRepository(ctx.db);
+			const relations = await relRepo.list();
+			expect(relations.find((r) => r.name === "posts_related")).toBeTruthy();
+		} finally {
+			await teardownForDialect(ctx);
+		}
+	});
+
+	it("preserves relation and targetCollection when validation omits them", async () => {
+		ctx = await setupForDialect(dialect);
+		try {
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
+
+			const created = await handleSchemaFieldCreate(ctx.db, "posts", {
+				slug: "related",
+				label: "Related",
+				type: "reference",
+				validation: { targetCollection: "posts", multiple: true },
+			});
+			expect(created.success).toBe(true);
+			if (!created.success) return;
+			const relationGroup = created.data.item.validation?.relation;
+			expect(relationGroup).toBeTruthy();
+			if (!relationGroup) return;
+
+			const updated = await handleSchemaFieldUpdate(ctx.db, "posts", "related", {
+				validation: { multiple: false },
+			});
+			expect(updated.success).toBe(true);
+
+			const field = await registry.getField("posts", "related");
+			expect(field?.validation?.relation).toBe(relationGroup);
+			expect(field?.validation?.targetCollection).toBe("posts");
+			expect(field?.validation?.multiple).toBe(false);
+
+			const relRepo = new RelationRepository(ctx.db);
+			const relations = await relRepo.list();
+			expect(relations.find((r) => r.name === "posts_related")).toBeTruthy();
+		} finally {
+			await teardownForDialect(ctx);
+		}
+	});
+
 	it("rejects changing the target collection of an existing reference field", async () => {
 		ctx = await setupForDialect(dialect);
 		try {
