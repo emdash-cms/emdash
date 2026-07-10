@@ -101,10 +101,10 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				<div
 					className={`fixed end-4 top-4 z-50 rounded-lg border px-4 py-3 text-sm shadow-lg ${
 						toast.type === "success"
-							? "border-green-200 bg-green-50 text-green-800"
+							? "border-kumo-success/50 bg-kumo-success-tint text-kumo-success"
 							: toast.type === "error"
-								? "border-red-200 bg-red-50 text-red-800"
-								: "border-blue-200 bg-blue-50 text-blue-800"
+								? "border-kumo-danger/50 bg-kumo-danger/10 text-kumo-danger"
+								: "border-kumo-info/50 bg-kumo-info-tint text-kumo-info"
 					}`}
 				>
 					{toast.message}

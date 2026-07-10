@@ -171,7 +171,7 @@ export class PublishingClient {
 		return this.#putRecord({
 			collection: input.collection,
 			rkey: input.rkey,
-			record: input.record as Record<string, unknown>,
+			record: input.record,
 			skipValidation: input.skipValidation ?? false,
 			...(input.swapRecord !== undefined ? { swapRecord: input.swapRecord } : {}),
 		});
@@ -244,16 +244,16 @@ export class PublishingClient {
 				case "create":
 					return {
 						$type: "com.atproto.repo.applyWrites#create" as const,
-						collection: op.collection as Nsid,
+						collection: op.collection,
 						rkey: op.rkey,
-						value: op.record as Record<string, unknown>,
+						value: op.record,
 					};
 				case "update":
 					return {
 						$type: "com.atproto.repo.applyWrites#update" as const,
-						collection: op.collection as Nsid,
+						collection: op.collection,
 						rkey: op.rkey,
-						value: op.record as Record<string, unknown>,
+						value: op.record,
 					};
 				case "delete":
 					return {

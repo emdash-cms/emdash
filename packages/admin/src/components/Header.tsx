@@ -12,6 +12,12 @@ import { ThemeToggle } from "./ThemeToggle";
 export type { CurrentUser } from "../lib/api/current-user";
 
 async function handleLogout() {
+	// Clear the public-site toolbar-bootstrap flag (see Shell.tsx).
+	try {
+		localStorage.removeItem("emdash-editor");
+	} catch {
+		// ignore — flag is best-effort
+	}
 	const res = await apiFetch("/_emdash/api/auth/logout?redirect=/_emdash/admin/login", {
 		method: "POST",
 		credentials: "same-origin",
@@ -39,6 +45,8 @@ export function Header() {
 	const initials = (initialsSource[0] ?? "U").toUpperCase();
 
 	return (
+		// h-[58px] is mirrored by ADMIN_HEADER_HEIGHT_PX in ContentEditor.tsx
+		// (the settings sheet offsets its body by it) — change both together.
 		<header className="sticky top-0 z-10 flex h-[58px] items-center justify-between border-b bg-kumo-elevated px-4">
 			{/* Sidebar toggle — collapses to icon mode on desktop, opens drawer on mobile */}
 			<Sidebar.Trigger className="cursor-pointer rtl:rotate-180" />

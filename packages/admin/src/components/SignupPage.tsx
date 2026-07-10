@@ -176,9 +176,9 @@ function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
 	return (
 		<div className="space-y-6">
 			<div className="text-center">
-				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 mx-auto mb-4">
+				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-success/10 mx-auto mb-4">
 					<svg
-						className="w-8 h-8 text-green-600"
+						className="w-8 h-8 text-kumo-success"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"

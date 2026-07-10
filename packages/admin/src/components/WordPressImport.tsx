@@ -1257,9 +1257,9 @@ function ProbeResultStep({
 	if (!result.isWordPress) {
 		return (
 			<div className="space-y-6">
-				<div className="rounded-lg border-s-4 border-s-orange-500 border border-kumo-line bg-kumo-base p-6">
+				<div className="rounded-lg border-s-4 border-s-kumo-warning border border-kumo-line bg-kumo-base p-6">
 					<div className="flex items-start gap-4">
-						<Warning className="h-6 w-6 text-orange-500 flex-shrink-0" />
+						<Warning className="h-6 w-6 text-kumo-warning flex-shrink-0" />
 						<div>
 							<h3 className="font-medium">{t`Couldn't detect WordPress`}</h3>
 							<p className="mt-1 text-sm text-kumo-subtle">
@@ -1617,7 +1617,7 @@ interface NavMenuItem {
 
 function getNavMenus(analysis: ImportAnalysis): NavMenuItem[] | undefined {
 	if ("navMenus" in analysis && Array.isArray(analysis.navMenus)) {
-		return analysis.navMenus as NavMenuItem[];
+		return analysis.navMenus;
 	}
 	return undefined;
 }

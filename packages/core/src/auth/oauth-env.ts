@@ -13,8 +13,7 @@ export async function resolveOAuthEnv(locals: App.Locals): Promise<Record<string
 	try {
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- locals.runtime is injected by the Cloudflare adapter at runtime; not declared on App.Locals since the adapter is optional
 		const runtimeLocals = locals as unknown as { runtime?: { env?: Record<string, unknown> } };
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
-		return runtimeLocals.runtime?.env ?? (import.meta.env as Record<string, unknown>);
+		return runtimeLocals.runtime?.env ?? import.meta.env;
 	} catch (error) {
 		// Astro v6: locals.runtime.env accessor throws — import from cloudflare:workers instead.
 		// The module id is held in a variable so Rollup cannot statically resolve it: in the
@@ -30,8 +29,7 @@ export async function resolveOAuthEnv(locals: App.Locals): Promise<Record<string
 			return cfEnv as Record<string, unknown>;
 		} catch {
 			// Not running on Cloudflare Workers — fall back to Vite's import.meta.env
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion
-			return import.meta.env as Record<string, unknown>;
+			return import.meta.env;
 		}
 	}
 }

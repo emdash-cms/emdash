@@ -163,8 +163,7 @@ function getConfig(): EmDashConfig | null {
 			}
 		}
 
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
-		return virtualConfig as EmDashConfig;
+		return virtualConfig;
 	}
 	return null;
 }
@@ -535,11 +534,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					try {
 						const { getDb } = await import("../loader.js");
 						const db = await getDb();
-						await db
-							.selectFrom("_emdash_migrations" as keyof Database)
-							.selectAll()
-							.limit(1)
-							.execute();
+						await db.selectFrom("_emdash_migrations").selectAll().limit(1).execute();
 						markSetupVerified();
 					} catch (error) {
 						// Only a genuinely-missing migrations table means a fresh,
