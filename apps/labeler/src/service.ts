@@ -1,6 +1,7 @@
 import type { LabelSigner, SignedLabel } from "@emdash-cms/registry-moderation";
 
 import type { LabelerConfig } from "./config.js";
+import type { LabelPublisher } from "./subscribe-labels.js";
 
 const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*$/;
 const REGISTRY_RECORD =
@@ -59,6 +60,7 @@ export async function issueManualLabel(
 	action: AuthorizedIssuanceAction,
 	proposal: AllowedLabelProposal,
 	now = new Date(),
+	publisher?: LabelPublisher,
 ): Promise<IssuedLabel> {
 	if (signer.issuerDid !== config.labelerDid)
 		throw new TypeError("signer issuer does not match the configured labeler DID");
@@ -66,7 +68,11 @@ export async function issueManualLabel(
 	validateProposal(proposal);
 
 	const existing = await getIssuedLabel(db, action.idempotencyKey);
-	if (existing) return assertMatches(existing, signer, action, proposal);
+	if (existing) {
+		const result = assertMatches(existing, signer, action, proposal);
+		await publisher?.publish(result);
+		return result;
+	}
 
 	const label = await signer.sign({
 		ver: 1,
@@ -113,7 +119,11 @@ export async function issueManualLabel(
 
 	const issued = await getIssuedLabel(db, action.idempotencyKey);
 	if (!issued) throw new Error("label issuance did not persist");
-	return assertMatches(issued, signer, action, proposal);
+	const result = assertMatches(issued, signer, action, proposal);
+	// The D1 batch commits before this notification; replay covers subscribers
+	// which connect before the singleton processes the post-commit broadcast.
+	await publisher?.publish(result);
+	return result;
 }
 
 async function getIssuedLabel(

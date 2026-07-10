@@ -15,6 +15,7 @@
 		"db:migrate": "wrangler d1 migrations apply emdash-labeler --remote"
 	},
 	"dependencies": {
+		"@atcute/cbor": "catalog:",
 		"@emdash-cms/registry-moderation": "workspace:*"
 	},
 	"devDependencies": {

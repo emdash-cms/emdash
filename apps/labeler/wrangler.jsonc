@@ -12,6 +12,20 @@
 			"migrations_dir": "./migrations",
 		},
 	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "LABEL_SUBSCRIPTION",
+				"class_name": "LabelSubscriptionDO",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["LabelSubscriptionDO"],
+		},
+	],
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",
 	},
