@@ -32,6 +32,7 @@ const exec = promisify(execFile);
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const CLI_BIN = resolve(import.meta.dirname, "../../../dist/cli/index.mjs");
 const VALIDATION_FAILED_RE = /validation failed/i;
+const SEED_SCHEMA_URL = "https://emdashcms.com/seed.schema.json";
 
 // ---------------------------------------------------------------------------
 // Discover all templates and demos with seed files
@@ -95,6 +96,22 @@ function discoverFixtures(): SiteFixture[] {
 }
 
 const fixtures = discoverFixtures();
+
+describe("published seed schema", () => {
+	it("is available at the canonical docs site path", () => {
+		const schemaPath = resolve(WORKSPACE_ROOT, "docs/public/seed.schema.json");
+		const schema = JSON.parse(readFileSync(schemaPath, "utf-8")) as {
+			$id?: string;
+			properties?: { version?: { const?: string } };
+		};
+
+		expect(schema.$id).toBe(SEED_SCHEMA_URL);
+		expect(schema.properties?.version?.const).toBe("1");
+		for (const fixture of fixtures) {
+			expect(fixture.seed.$schema).toBe(SEED_SCHEMA_URL);
+		}
+	});
+});
 
 // ---------------------------------------------------------------------------
 // Tests
