@@ -2,22 +2,22 @@
 
 Companion: [Implementation spec](./spec.md)
 
-Status: execution plan pending Gate 0 decisions and feasibility results
+Status: execution plan pending Gate 0 external validation
 
 This plan turns the delegated release service spec into independently deliverable workstreams. It defines ownership boundaries, dependencies, integration gates, and completion criteria. It intentionally contains no time estimates.
 
 ## Stage Deliverables
 
-| Stage  | Deliverable                                                                                     | Repository change allowed                                         |
-| ------ | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Gate 0 | Ratified RFC decisions, supported-platform matrix, and documented external research conclusions | Spec and plan updates only                                        |
-| Gate 1 | Experimental lexicons, generated types, and one shared verification contract                    | Production contract code and tests                                |
-| Gate 2 | Secure delegated release service vertical slice                                                 | Service, client, and installer code and tests                     |
-| Gate 3 | Independent install and minimum discovery enforcement                                           | Installer and aggregator code and tests                           |
-| Gate 4 | Hosted beta product and operational readiness                                                   | Console, notifications, tooling, operations, and conformance code |
-| Gate 5 | Accurate historical policy enforcement and production launch evidence                           | Aggregator history implementation and production verification     |
+| Stage  | Deliverable                                                                                                | Repository change allowed                                         |
+| ------ | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Gate 0 | RFC implementation clarifications, supported-platform matrix, and documented external research conclusions | Spec and plan updates only                                        |
+| Gate 1 | Experimental lexicons, generated types, and one shared verification contract                               | Production contract code and tests                                |
+| Gate 2 | Secure delegated release service vertical slice                                                            | Service, client, and installer code and tests                     |
+| Gate 3 | Independent install and minimum discovery enforcement                                                      | Installer and aggregator code and tests                           |
+| Gate 4 | Hosted beta product and operational readiness                                                              | Console, notifications, tooling, operations, and conformance code |
+| Gate 5 | Accurate historical policy enforcement and production launch evidence                                      | Aggregator history implementation and production verification     |
 
-Gate 0 is deliberately not an implementation stage. It records the decisions and external validation required to begin implementation. Do not add test harnesses, prototype services, package dependencies, root scripts, CI wiring, or production code for Gate 0. If external research changes an assumption, commit only the resulting spec or plan update.
+Gate 0 is deliberately not an implementation stage. RFC #1870 is the product and protocol decision; Gate 0 records only implementation clarifications and external validation required to begin implementation. Do not reopen RFC decisions unless its text is ambiguous, contradicts an existing constraint, or an external result makes it impossible. Do not add test harnesses, prototype services, package dependencies, root scripts, CI wiring, or production code for Gate 0. If external research changes an assumption, commit only the resulting spec or plan update.
 
 ## Outcomes
 
@@ -51,7 +51,7 @@ The implementation is complete when:
 
 | ID    | Workstream                            | Primary output                                              |
 | ----- | ------------------------------------- | ----------------------------------------------------------- |
-| `W0`  | Decisions and feasibility             | Ratified contracts and proved platform assumptions          |
+| `W0`  | Clarification and external validation | RFC-derived acceptance criteria and platform assumptions    |
 | `W1`  | Protocol and lexicons                 | Profile policy and release provenance records               |
 | `W2`  | Shared verification                   | One verification implementation for all consumers           |
 | `W3`  | OAuth, crypto, and passkeys           | Secure identity, grant custody, and approval primitives     |
@@ -131,9 +131,9 @@ W0 record/auth/provenance feasibility
 
 Required before protocol or service implementation is treated as production work:
 
-- Package profile extension and repository anchor are ratified.
-- Release baseline and declared-access escalation semantics are ratified.
-- Public CLI spelling is decided.
+- Package profile extension and repository anchor have an implementation acceptance table derived from the RFC.
+- Release baseline and declared-access escalation semantics have an implementation acceptance table derived from the RFC.
+- Public CLI spelling is `emdash-plugin`.
 - Create-only repo scope works on each supported PDS without broad fallback.
 - Confidential OAuth sessions can be restored and refreshed safely in workerd.
 - The selected Sigstore implementation verifies a real GitHub provenance bundle in workerd.
@@ -141,7 +141,7 @@ Required before protocol or service implementation is treated as production work
 
 Gate owner: `W0`.
 
-Gate 0 evidence is a ratification note in the tracked spec/plan and, where useful, a link to an external reproduction or upstream issue. It is not a repository test suite. The umbrella PR records the final decision and evidence summary after human ratification.
+Gate 0 evidence is an implementation-clarification note in the tracked spec/plan and, where useful, a link to an external reproduction or upstream issue. It is not a repository test suite. The umbrella PR records the accepted external-validation summary before implementation begins.
 
 ### Gate 1: Protocol and Verification Foundation
 
@@ -190,11 +190,11 @@ Gate owners: `W10`, `W12`.
 
 ## Workstream W0: Decisions and Feasibility
 
-This workstream closes the implementation blockers in the spec. Its outputs are ratified decisions and concise research conclusions. It does not land product code, test fixtures, package dependencies, or internal prototypes.
+This workstream closes the implementation blockers in the spec. Its outputs are RFC-derived acceptance criteria and concise research conclusions. It does not land product code, test fixtures, package dependencies, or internal prototypes.
 
-### `W0.1` Ratify the record shape
+### `W0.1` Record the profile contract acceptance criteria
 
-Decide and update RFC #1870 with:
+Extract from RFC #1870:
 
 - Exact profile extension NSID.
 - Exact location and canonical form of the signed repository URL.
@@ -203,13 +203,13 @@ Decide and update RFC #1870 with:
 - Stable treatment of unknown provenance predicates.
 - Experimental-to-stable NSID migration consequences for OAuth grants.
 
-Output: accepted RFC text and matching JSON examples.
+Output: an implementation acceptance table and matching JSON examples. Do not reopen the RFC decision unless its text is contradictory or ambiguous.
 
 Dependencies: none.
 
-### `W0.2` Ratify escalation semantics
+### `W0.2` Record escalation acceptance criteria
 
-Decide:
+Extract from RFC #1870:
 
 - Highest-semver current release as the baseline.
 - First release uses empty access.
@@ -218,7 +218,7 @@ Decide:
 - Unknown constraint changes are conservatively escalating.
 - Which baseline changes invalidate an approval.
 
-Output: decision table consumed directly by `W2.4` tests.
+Output: an implementation acceptance table consumed directly by `W2.4` tests. Do not reopen the RFC decision unless its text is contradictory or ambiguous.
 
 Dependencies: none.
 
@@ -278,15 +278,15 @@ Dependencies: none.
 
 ### `W0.7` Decide public CLI shape
 
-Resolve `emdash-plugin` versus `emdash plugin`, including compatibility policy and documentation naming.
+Use `emdash-plugin` as the v1 public command. A future `emdash plugin` alias is additive work, not a Gate 0 blocker.
 
-Output: one command spelling used by `W8` and RFC examples.
+Output: update the RFC examples and implementation documentation to use `emdash-plugin`.
 
 Dependencies: none.
 
 ### W0 Completion
 
-Gate 0 passes only after the human ratifies `W0.1`, `W0.2`, and `W0.7`, and accepts the recorded conclusions for `W0.3` through `W0.6`. Any incompatible external result changes the RFC or architecture before downstream work proceeds.
+Gate 0 passes after `W0.1`, `W0.2`, and `W0.7` accurately reflect the RFC and established command decision, and the recorded conclusions for `W0.3` through `W0.6` reveal no incompatible external constraint. Any incompatible external result changes the RFC or architecture before downstream work proceeds.
 
 ## Workstream W1: Protocol and Lexicons
 
