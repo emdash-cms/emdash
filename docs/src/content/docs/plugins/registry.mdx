@@ -25,8 +25,8 @@ Both the [marketplace](/plugins/installing/#from-the-marketplace) and the regist
 | --- | --- | --- |
 | **Control** | One company owns and operates it | No central owner; anyone can run an aggregator |
 | **Discovery** | Served by the marketplace service | Served by an aggregator that indexes the network |
-| **Moderation** | The operator vets listings and can remove them | Labellers issue takedown and verification labels you choose to accept |
-| **Who you trust** | The marketplace operator | The aggregator you point at, plus any labellers you accept |
+| **Moderation** | The operator vets listings and can remove them | Labelers issue takedown and verification labels you choose to accept |
+| **Who you trust** | The marketplace operator | The aggregator you point at, plus any labelers you accept |
 
 You configure one or the other for a given site. When `experimental.registry` is set, the admin's browse and install flows use the registry.
 
@@ -52,7 +52,7 @@ export default defineConfig({
 });
 ```
 
-The bare URL string is shorthand. Use the object form when you need a labeller or a release-age policy:
+The bare URL string is shorthand. Use the object form when you need a labeler or a release-age policy:
 
 ```typescript title="astro.config.mjs"
 emdash({
@@ -74,7 +74,7 @@ The aggregator URL must be HTTPS in production (`http://localhost` is allowed in
 
 ### Configuration options
 
-- **`acceptLabelers`** — a comma-separated list of labeller DIDs forwarded to the aggregator. Labellers apply takedown and verification labels; the aggregator filters and annotates results according to the ones you accept. When unset, the aggregator applies its operator default set.
+- **`acceptLabelers`** — a comma-separated list of labeler DIDs forwarded to the aggregator. Labelers apply takedown and verification labels; the aggregator filters and annotates results according to the ones you accept. When unset, the aggregator applies its operator default set.
 - **`policy.minimumReleaseAge`** — hold back releases newer than this age when choosing the version to install or update to, widening the window for a takedown to land before a compromised release reaches your site. Accepts a duration string (`"24h"`, `"7d"`) or a number of seconds.
 - **`policy.minimumReleaseAgeExclude`** — DIDs exempt from the holdback, for publishers whose release tempo you have explicitly accepted (such as your own first-party plugins). Each entry is a bare publisher DID, or a `<did>/<slug>` pair to exempt a single package. Only DIDs are accepted, not handles.
 
@@ -97,7 +97,7 @@ The registry is decentralized, so trust is explicit. Before activating a plugin,
 <Aside type="caution">
 	Point `aggregatorUrl` only at an aggregator you operate or trust with the same
 	authority as a central plugin source. `policy.minimumReleaseAge` and
-	`acceptLabelers` widen the takedown window but assume the labeller system is
+	`acceptLabelers` widen the takedown window but assume the labeler system is
 	operating.
 </Aside>
 

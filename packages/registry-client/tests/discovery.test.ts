@@ -66,13 +66,13 @@ describe("DiscoveryClient", () => {
 
 		const client = new DiscoveryClient({
 			aggregatorUrl: aggregator,
-			acceptLabelers: "did:plc:labeller-a, did:plc:labeller-b",
+			acceptLabelers: "did:plc:labeler-a, did:plc:labeler-b",
 			fetch,
 		});
 		await client.searchPackages({ q: "x" });
 
 		const headers = new Headers(calls[0]!.init?.headers);
-		expect(headers.get("atproto-accept-labelers")).toBe("did:plc:labeller-a, did:plc:labeller-b");
+		expect(headers.get("atproto-accept-labelers")).toBe("did:plc:labeler-a, did:plc:labeler-b");
 	});
 
 	it("does not set atproto-accept-labelers when the option is omitted", async () => {

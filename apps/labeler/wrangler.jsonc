@@ -1,0 +1,19 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-labeler",
+	"main": "./src/index.ts",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-labeler",
+			// Omitted intentionally: Wrangler auto-provisions this D1 database on first deploy.
+			"migrations_dir": "./migrations",
+		},
+	],
+	"vars": {
+		"LABELER_DID": "did:web:labels.emdashcms.com",
+	},
+	"observability": { "enabled": true },
+}

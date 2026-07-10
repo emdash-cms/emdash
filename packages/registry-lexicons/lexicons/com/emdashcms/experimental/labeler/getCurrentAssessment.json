@@ -1,6 +1,6 @@
 {
 	"lexicon": 1,
-	"id": "com.emdashcms.experimental.labeller.getCurrentAssessment",
+	"id": "com.emdashcms.experimental.labeler.getCurrentAssessment",
 	"description": "Fetch effective assessment state for an exact release URI and CID. EXPERIMENTAL.",
 	"defs": {
 		"main": {
@@ -18,7 +18,7 @@
 				"encoding": "application/json",
 				"schema": {
 					"type": "ref",
-					"ref": "com.emdashcms.experimental.labeller.defs#currentAssessmentView"
+					"ref": "com.emdashcms.experimental.labeler.defs#currentAssessmentView"
 				}
 			},
 			"errors": [

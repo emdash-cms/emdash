@@ -4,9 +4,7 @@ import * as ComAtprotoLabelDefs from "@atcute/atproto/types/label/defs";
 
 const _artifactSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#artifact",
-		),
+		/*#__PURE__*/ v.literal("com.emdashcms.experimental.labeler.defs#artifact"),
 	),
 	/**
 	 * @minLength 1
@@ -27,7 +25,7 @@ const _artifactSchema = /*#__PURE__*/ v.object({
 const _assessmentSubjectSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#assessmentSubject",
+			"com.emdashcms.experimental.labeler.defs#assessmentSubject",
 		),
 	),
 	cid: /*#__PURE__*/ v.cidString(),
@@ -35,7 +33,7 @@ const _assessmentSubjectSchema = /*#__PURE__*/ v.object({
 });
 const _contactSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.labeller.defs#contact"),
+		/*#__PURE__*/ v.literal("com.emdashcms.experimental.labeler.defs#contact"),
 	),
 	/**
 	 * @minLength 1
@@ -54,9 +52,7 @@ const _contactSchema = /*#__PURE__*/ v.object({
 });
 const _coverageSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#coverage",
-		),
+		/*#__PURE__*/ v.literal("com.emdashcms.experimental.labeler.defs#coverage"),
 	),
 	code: /*#__PURE__*/ v.string<
 		"complete" | "partial" | "unavailable" | (string & {})
@@ -74,7 +70,7 @@ const _coverageSchema = /*#__PURE__*/ v.object({
 const _currentAssessmentViewSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#currentAssessmentView",
+			"com.emdashcms.experimental.labeler.defs#currentAssessmentView",
 		),
 	),
 	/**
@@ -103,7 +99,7 @@ const _currentAssessmentViewSchema = /*#__PURE__*/ v.object({
 const _labelSummarySchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#labelSummary",
+			"com.emdashcms.experimental.labeler.defs#labelSummary",
 		),
 	),
 	active: /*#__PURE__*/ v.boolean(),
@@ -120,7 +116,7 @@ const _labelSummarySchema = /*#__PURE__*/ v.object({
 const _labelerPolicySchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#labelerPolicy",
+			"com.emdashcms.experimental.labeler.defs#labelerPolicy",
 		),
 	),
 	/**
@@ -134,7 +130,7 @@ const _labelerPolicySchema = /*#__PURE__*/ v.object({
 		return contactSchema;
 	},
 	effectiveAt: /*#__PURE__*/ v.datetimeString(),
-	labellerDid: /*#__PURE__*/ v.didString(),
+	labelerDid: /*#__PURE__*/ v.didString(),
 	/**
 	 * @maxLength 256
 	 */
@@ -192,7 +188,7 @@ const _labelerPolicySchema = /*#__PURE__*/ v.object({
 const _manualActionSubjectSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#manualActionSubject",
+			"com.emdashcms.experimental.labeler.defs#manualActionSubject",
 		),
 	),
 	cid: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.cidString()),
@@ -200,7 +196,7 @@ const _manualActionSubjectSchema = /*#__PURE__*/ v.object({
 });
 const _modelSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.labeller.defs#model"),
+		/*#__PURE__*/ v.literal("com.emdashcms.experimental.labeler.defs#model"),
 	),
 	/**
 	 * @minLength 1
@@ -221,7 +217,7 @@ const _modelSchema = /*#__PURE__*/ v.object({
 const _overrideRuleSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#overrideRule",
+			"com.emdashcms.experimental.labeler.defs#overrideRule",
 		),
 	),
 	cidRule: /*#__PURE__*/ v.string<"required" | (string & {})>(),
@@ -244,7 +240,7 @@ const _overrideRuleSchema = /*#__PURE__*/ v.object({
 const _policyLabelSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#policyLabel",
+			"com.emdashcms.experimental.labeler.defs#policyLabel",
 		),
 	),
 	category: /*#__PURE__*/ v.string<
@@ -285,7 +281,7 @@ const _policyLabelSchema = /*#__PURE__*/ v.object({
 const _policyLocaleSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#policyLocale",
+			"com.emdashcms.experimental.labeler.defs#policyLocale",
 		),
 	),
 	/**
@@ -307,7 +303,7 @@ const _policyLocaleSchema = /*#__PURE__*/ v.object({
 const _publicApiSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#publicApi",
+			"com.emdashcms.experimental.labeler.defs#publicApi",
 		),
 	),
 	/**
@@ -330,7 +326,7 @@ const _publicApiSchema = /*#__PURE__*/ v.object({
 const _publicAssessmentSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#publicAssessment",
+			"com.emdashcms.experimental.labeler.defs#publicAssessment",
 		),
 	),
 	get artifact() {
@@ -423,7 +419,7 @@ const _publicAssessmentSchema = /*#__PURE__*/ v.object({
 const _publicManualActionSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#publicManualAction",
+			"com.emdashcms.experimental.labeler.defs#publicManualAction",
 		),
 	),
 	createdAt: /*#__PURE__*/ v.datetimeString(),
@@ -465,7 +461,7 @@ const _publicManualActionSchema = /*#__PURE__*/ v.object({
 const _publisherSubjectSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#publisherSubject",
+			"com.emdashcms.experimental.labeler.defs#publisherSubject",
 		),
 	),
 	kind: /*#__PURE__*/ v.string<"did" | (string & {})>(),
@@ -473,7 +469,7 @@ const _publisherSubjectSchema = /*#__PURE__*/ v.object({
 const _reasonCodeSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#reasonCode",
+			"com.emdashcms.experimental.labeler.defs#reasonCode",
 		),
 	),
 	/**
@@ -494,7 +490,7 @@ const _reasonCodeSchema = /*#__PURE__*/ v.object({
 const _scannerVersionSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#scannerVersion",
+			"com.emdashcms.experimental.labeler.defs#scannerVersion",
 		),
 	),
 	/**
@@ -515,7 +511,7 @@ const _scannerVersionSchema = /*#__PURE__*/ v.object({
 const _subjectRuleSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#subjectRule",
+			"com.emdashcms.experimental.labeler.defs#subjectRule",
 		),
 	),
 	cidRule: /*#__PURE__*/ v.string<
@@ -540,7 +536,7 @@ const _subjectRuleSchema = /*#__PURE__*/ v.object({
 const _supportedSubjectsSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#supportedSubjects",
+			"com.emdashcms.experimental.labeler.defs#supportedSubjects",
 		),
 	),
 	/**
@@ -564,7 +560,7 @@ const _supportedSubjectsSchema = /*#__PURE__*/ v.object({
 const _transparencySchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeller.defs#transparency",
+			"com.emdashcms.experimental.labeler.defs#transparency",
 		),
 	),
 	modelOutputIsAdvisoryEvidence: /*#__PURE__*/ v.boolean(),

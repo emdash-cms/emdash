@@ -10,7 +10,7 @@
  * a non-issue.
  *
  * Takedown filter joins `label_state` even though that table is empty in
- * Slice 1 — keeps the contract honest for Slice 2 (when the labeller starts
+ * Slice 1 — keeps the contract honest for Slice 2 (when the labeler starts
  * writing), and the optimiser short-circuits the NOT EXISTS subquery
  * cheaply when no rows match. See plan §Search.
  *
@@ -145,7 +145,7 @@ function buildBrowseBindings(
 	return out;
 }
 
-/** Hard-enforcement label filter. The Slice 2 labeller writes to
+/** Hard-enforcement label filter. The Slice 2 labeler writes to
  * `label_state`; until then the table is empty so this clause is a no-op
  * (the NOT EXISTS short-circuits). The plan calls for shipping the filter
  * now to lock the contract — adding it later would be a behaviour change

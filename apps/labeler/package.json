@@ -1,0 +1,29 @@
+{
+	"name": "@emdash-cms/labeler",
+	"version": "0.0.0",
+	"private": true,
+	"description": "EmDash registry moderation label service.",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"deploy": "vite build && wrangler deploy",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"db:migrate:local": "wrangler d1 migrations apply emdash-labeler --local",
+		"db:migrate": "wrangler d1 migrations apply emdash-labeler --remote"
+	},
+	"dependencies": {
+		"@emdash-cms/registry-moderation": "workspace:*"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "catalog:",
+		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@types/node": "catalog:",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"vitest": "catalog:",
+		"wrangler": "catalog:"
+	}
+}

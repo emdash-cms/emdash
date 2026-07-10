@@ -117,7 +117,7 @@ export const publishCommand = defineCommand({
 		"allow-overwrite": {
 			type: "boolean",
 			description:
-				"Allow overwriting an existing release at <slug>:<version>. Default refuses, since FAIR treats version records as immutable and aggregators/labellers may flag any change as a takedown event.",
+				"Allow overwriting an existing release at <slug>:<version>. Default refuses, since FAIR treats version records as immutable and aggregators/labelers may flag any change as a takedown event.",
 			default: false,
 		},
 		"artifact-base-url": {

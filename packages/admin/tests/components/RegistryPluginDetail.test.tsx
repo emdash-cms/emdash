@@ -261,16 +261,16 @@ describe("RegistryPluginDetail lastUpdated + verified tooltip", () => {
 		await expect.element(screen.getByText("Indexed")).toBeInTheDocument();
 	});
 
-	it("exposes the labeller DID through the verified shield trigger", async () => {
-		setup(makePackage({ labels: [{ val: "verified", src: "did:plc:labeller" }] }), [makeRelease()]);
+	it("exposes the labeler DID through the verified shield trigger", async () => {
+		setup(makePackage({ labels: [{ val: "verified", src: "did:plc:labeler" }] }), [makeRelease()]);
 		const screen = await render(
 			<Wrapper>
 				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
 			</Wrapper>,
 		);
-		// The shield trigger is a focusable button whose accessible name names the labeller.
+		// The shield trigger is a focusable button whose accessible name names the labeler.
 		const trigger = screen.getByRole("button", { name: /Verified publisher/ });
 		await expect.element(trigger).toBeInTheDocument();
-		await expect.element(trigger).toHaveAccessibleName(/did:plc:labeller/);
+		await expect.element(trigger).toHaveAccessibleName(/did:plc:labeler/);
 	});
 });

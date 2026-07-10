@@ -1,6 +1,6 @@
 {
 	"lexicon": 1,
-	"id": "com.emdashcms.experimental.labeller.listAssessments",
+	"id": "com.emdashcms.experimental.labeler.listAssessments",
 	"description": "Page through public assessments using bounded exact-subject and state filters. EXPERIMENTAL.",
 	"defs": {
 		"main": {
@@ -30,7 +30,7 @@
 							"maxLength": 100,
 							"items": {
 								"type": "ref",
-								"ref": "com.emdashcms.experimental.labeller.defs#publicAssessment"
+								"ref": "com.emdashcms.experimental.labeler.defs#publicAssessment"
 							}
 						},
 						"cursor": { "type": "string", "maxLength": 1024 }
