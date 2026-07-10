@@ -167,9 +167,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				capabilities: manifest.capabilities || [],
 				allowedHosts: manifest.allowedHosts || [],
 				storageCollections: Object.keys(manifest.storage || {}),
-				storageConfig: manifest.storage as
-					| Record<string, { indexes?: Array<string | string[]> }>
-					| undefined,
+				storageConfig: manifest.storage,
 				db: this.options.db,
 				emailSend: () => this.emailSendCallback,
 				storage: this.options.mediaStorage,

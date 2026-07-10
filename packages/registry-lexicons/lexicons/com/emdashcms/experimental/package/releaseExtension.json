@@ -24,6 +24,11 @@
 					"ref": "#contentAccess",
 					"description": "Access to site content (posts, pages, custom collections)."
 				},
+				"taxonomies": {
+					"type": "ref",
+					"ref": "#taxonomiesAccess",
+					"description": "Access to taxonomy definitions and terms."
+				},
 				"media": {
 					"type": "ref",
 					"ref": "#mediaAccess",
@@ -74,6 +79,21 @@
 		"contentWriteConstraints": {
 			"type": "object",
 			"description": "Constraint object for content.write. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
+		},
+		"taxonomiesAccess": {
+			"type": "object",
+			"description": "Operations under taxonomies. Read-only: there is no plugin-facing taxonomy write operation.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#taxonomiesReadConstraints",
+					"description": "Plugin may read taxonomy definitions, their terms, and the terms assigned to content entries."
+				}
+			}
+		},
+		"taxonomiesReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for taxonomies.read. No constraint keys are normatively defined here."
 		},
 		"mediaAccess": {
 			"type": "object",

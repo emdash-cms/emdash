@@ -546,7 +546,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	// dispatch happens at the host parsing the release record's extensions
 	// map; we want to fail-fast here so a malformed extension doesn't silently
 	// reach the registry.
-	validateLocally(NSID.packageReleaseExtension, releaseExtension as unknown);
+	validateLocally(NSID.packageReleaseExtension, releaseExtension);
 
 	// 6. Apply atomically. `skipValidation: true` because we've already
 	// validated locally and the PDS doesn't know our experimental lexicons.

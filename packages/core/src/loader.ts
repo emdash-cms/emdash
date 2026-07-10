@@ -14,7 +14,7 @@
 import type { LiveLoader } from "astro/loaders";
 import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
 
-import { currentTimestampValue, isPostgres } from "./database/dialect-helpers.js";
+import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
@@ -514,36 +514,6 @@ export type SortDirection = "asc" | "desc";
  * @example { title: "asc" } - Sort by title ascending
  */
 export type OrderBySpec = Record<string, SortDirection>;
-
-/**
- * Build WHERE clause for status filtering.
- * When filtering for 'published' status, also include scheduled content
- * whose scheduled_at time has passed (treating it as effectively published).
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-function buildStatusCondition(
-	db: Kysely<any>,
-	status: string,
-	tablePrefix?: string,
-): ReturnType<typeof sql> {
-	const statusField = tablePrefix ? `${tablePrefix}.status` : "status";
-	const scheduledAtField = tablePrefix ? `${tablePrefix}.scheduled_at` : "scheduled_at";
-
-	if (status === "published") {
-		// Include both published content AND scheduled content past its publish time.
-		// scheduled_at is stored as text (ISO 8601). On Postgres, we must cast it
-		// to timestamptz for the comparison with CURRENT_TIMESTAMP to work.
-		const scheduledAtExpr = isPostgres(db)
-			? sql`${sql.ref(scheduledAtField)}::timestamptz`
-			: sql.ref(scheduledAtField);
-		const nowExpr = isPostgres(db)
-			? currentTimestampValue(db)
-			: sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
-		return sql`(${sql.ref(statusField)} = 'published' OR (${sql.ref(statusField)} = 'scheduled' AND ${scheduledAtExpr} <= ${nowExpr}))`;
-	}
-
-	return sql`${sql.ref(statusField)} = ${status}`;
-}
 
 /**
  * Resolved primary sort field and direction (used for cursor pagination).

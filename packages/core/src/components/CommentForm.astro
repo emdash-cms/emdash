@@ -22,7 +22,12 @@ interface Props {
 	contentId: string;
 	parentId?: string | null;
 	class?: string;
-	/** Turnstile site key. If provided, the widget is rendered. */
+	/**
+	 * Turnstile site key. If provided, the widget is rendered and its
+	 * token is submitted. Set the matching secret key on the server
+	 * (EMDASH_TURNSTILE_SECRET_KEY) so submissions are actually verified —
+	 * without it the token is ignored.
+	 */
 	turnstileSiteKey?: string;
 }
 
@@ -182,10 +187,6 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 					"textarea[name='body']"
 				);
 				if (textarea) textarea.value = "";
-				// Reset Turnstile if present
-				if (typeof window.turnstile !== "undefined") {
-					window.turnstile.reset();
-				}
 			} else {
 				statusEl.textContent =
 					result.error?.message ||
@@ -197,6 +198,12 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			statusEl.textContent = "Network error. Please try again.";
 			statusEl.classList.add("ec-comment-form-error");
 		} finally {
+			// Reset Turnstile on success and failure alike (incl. network
+			// errors) — tokens are single-use, so any retry needs a fresh
+			// challenge
+			if (typeof window.turnstile !== "undefined") {
+				window.turnstile.reset();
+			}
 			submitBtn.disabled = false;
 			submitBtn.textContent = "Post Comment";
 		}

@@ -369,9 +369,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			<div className="p-4">
 				<ImageDetailPanel
 					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-					onUpdate={(attrs) =>
-						blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-					}
+					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 					onReplace={(attrs) =>
 						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
 					}

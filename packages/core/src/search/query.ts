@@ -7,6 +7,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { encodeCursor, decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
@@ -20,6 +21,44 @@ import type {
 	Suggestion,
 	SearchStats,
 } from "./types.js";
+
+/**
+ * Marker stored in the `id` slot of a search pagination cursor.
+ *
+ * Search results are merged from per-collection FTS queries and re-sorted by
+ * score, so there is no single stable keyset column to encode (the way
+ * `getEmDashCollection` encodes `(orderValue, id)`). We page over the merged,
+ * score-sorted set by offset instead, carried as the cursor's `orderValue`.
+ * Reusing `encodeCursor`/`decodeCursor` keeps the opaque base64-JSON shape and
+ * the `InvalidCursorError` handling consistent with the rest of the API.
+ */
+const SEARCH_CURSOR_MARKER = "search";
+
+/** Encode the next-page offset into an opaque search cursor. */
+function encodeSearchCursor(offset: number): string {
+	return encodeCursor(String(offset), SEARCH_CURSOR_MARKER);
+}
+
+/**
+ * Decode a search cursor back to its offset. Throws `InvalidCursorError` for a
+ * malformed cursor or one that doesn't carry a non-negative integer offset, so
+ * a client pagination bug surfaces immediately rather than silently restarting
+ * from the first page.
+ */
+/** Upper bound on a decoded search offset, to cap the per-collection row fetch a forged cursor can trigger. */
+const MAX_SEARCH_OFFSET = 10_000;
+
+function decodeSearchOffset(cursor: string): number {
+	const { orderValue, id } = decodeCursor(cursor);
+	if (id !== SEARCH_CURSOR_MARKER) {
+		throw new InvalidCursorError(cursor);
+	}
+	const offset = Number(orderValue);
+	if (!Number.isInteger(offset) || offset < 0 || offset > MAX_SEARCH_OFFSET) {
+		throw new InvalidCursorError(cursor);
+	}
+	return offset;
+}
 
 /** Pattern to split on whitespace for query term extraction */
 const WHITESPACE_SPLIT_PATTERN = /\s+/;
@@ -86,6 +125,7 @@ export async function searchWithDb(
 	const ftsManager = new FTSManager(db);
 	const limit = options.limit ?? 20;
 	const status = options.status ?? "published";
+	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 
 	// Get searchable collections
 	let collections = options.collections;
@@ -97,8 +137,15 @@ export async function searchWithDb(
 		return { items: [] };
 	}
 
+	// To rank the merged window [offset, offset + limit) correctly, each
+	// collection must contribute its own top (offset + limit) rows — in the
+	// worst case the entire window comes from one collection. The extra +1
+	// row detects whether a further page exists.
+	const perCollectionLimit = offset + limit + 1;
+
 	// Search each collection and merge results
 	const allResults: SearchResult[] = [];
+	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
 
 	for (const collection of collections) {
 		const config = await ftsManager.getSearchConfig(collection);
@@ -113,9 +160,10 @@ export async function searchWithDb(
 			{
 				status,
 				locale: options.locale,
-				limit: limit * 2, // Get extra for merging
+				limit: perCollectionLimit,
 			},
 			config.weights,
+			titleColumns.has(collection),
 		);
 
 		allResults.push(...collectionResults);
@@ -124,10 +172,13 @@ export async function searchWithDb(
 	// Sort by score descending
 	allResults.sort((a, b) => b.score - a.score);
 
-	// Apply limit
-	const items = allResults.slice(0, limit);
+	// Page the merged set by offset. A nextCursor is issued only when at least
+	// one result exists past this page.
+	const items = allResults.slice(offset, offset + limit);
+	const hasMore = allResults.length > offset + limit;
+	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
 
-	return { items };
+	return { items, nextCursor };
 }
 
 /**
@@ -159,9 +210,25 @@ export async function searchCollection(
 		return { items: [] };
 	}
 
-	const items = await searchSingleCollection(db, collection, query, options, config.weights);
+	const limit = options.limit ?? 20;
+	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 
-	return { items };
+	// Over-fetch the [offset, offset + limit) window plus one row to detect a
+	// further page, then slice. Keeps the FTS SQL (LIMIT-only) unchanged and
+	// the cursor contract identical to the cross-collection path.
+	const fetched = await searchSingleCollection(
+		db,
+		collection,
+		query,
+		{ status: options.status, locale: options.locale, limit: offset + limit + 1 },
+		config.weights,
+	);
+
+	const items = fetched.slice(offset, offset + limit);
+	const hasMore = fetched.length > offset + limit;
+	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
+
+	return { items, nextCursor };
 }
 
 /**
@@ -173,6 +240,7 @@ async function searchSingleCollection(
 	query: string,
 	options: CollectionSearchOptions,
 	weights?: Record<string, number>,
+	hasTitle?: boolean,
 ): Promise<SearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
@@ -197,6 +265,14 @@ async function searchSingleCollection(
 
 	// Get searchable fields for snippet generation
 	const searchableFields = await ftsManager.getSearchableFields(collection);
+
+	// `title` is an optional user-defined field, not a system column. Only
+	// select it when the collection actually has one; otherwise the query
+	// errors with "no such column: c.title" (#1178). Multi-collection callers
+	// precompute this in bulk and pass it in; single-collection callers fall
+	// back to the per-collection check.
+	const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
+	const titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
 
 	// Build weight string for bm25 if weights provided
 	// Format: bm25(table, weight1, weight2, ...)
@@ -225,11 +301,11 @@ async function searchSingleCollection(
 			snippet: string | null;
 			score: number;
 		}>`
-		SELECT 
+		SELECT
 			c.id,
 			c.slug,
 			c.locale,
-			c.title,
+			${titleExpr} as title,
 			snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) as snippet,
 			${sql.raw(bm25Expr)} as score
 		FROM "${sql.raw(ftsTable)}" f
@@ -334,11 +410,20 @@ export async function getSuggestions(
 	}
 
 	const suggestions: Suggestion[] = [];
+	const ftsManager = new FTSManager(db);
+	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
 
 	for (const collection of collections) {
-		const ftsManager = new FTSManager(db);
 		const config = await ftsManager.getSearchConfig(collection);
 		if (!config?.enabled) {
+			continue;
+		}
+
+		// Suggestions are title-based (Suggestion.title is required and the
+		// query filters on `c.title IS NOT NULL`). Collections without a
+		// `title` field can't produce one, and selecting `c.title` would
+		// error, so skip them. See #1178.
+		if (!titleColumns.has(collection)) {
 			continue;
 		}
 

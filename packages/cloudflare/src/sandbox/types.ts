@@ -109,6 +109,34 @@ interface BridgeContentItem {
 }
 
 /**
+ * Taxonomy definition shape returned by bridge taxonomy operations.
+ * Matches core's TaxonomyDefInfo from plugins/types.ts.
+ */
+interface BridgeTaxonomyDef {
+	name: string;
+	label: string;
+	labelSingular: string | null;
+	hierarchical: boolean;
+	collections: string[];
+	locale: string;
+}
+
+/**
+ * Taxonomy term shape returned by bridge taxonomy operations.
+ * Matches core's TaxonomyTermInfo from plugins/types.ts.
+ */
+interface BridgeTaxonomyTerm {
+	id: string;
+	taxonomy: string;
+	slug: string;
+	label: string;
+	parentId: string | null;
+	data: Record<string, unknown> | null;
+	locale: string;
+	translationGroup: string | null;
+}
+
+/**
  * Media item shape returned by bridge media operations.
  * Matches core's MediaItem from plugins/types.ts.
  */
@@ -156,6 +184,14 @@ export interface PluginBridgeBinding {
 		data: Record<string, unknown>,
 	): Promise<BridgeContentItem>;
 	contentDelete(collection: string, id: string): Promise<boolean>;
+	// Taxonomies (read-only, gated on taxonomies:read)
+	taxonomyList(opts?: { locale?: string }): Promise<BridgeTaxonomyDef[]>;
+	taxonomyTerms(taxonomy: string, opts?: { locale?: string }): Promise<BridgeTaxonomyTerm[]>;
+	taxonomyEntryTerms(
+		collection: string,
+		entryId: string,
+		opts?: { taxonomy?: string; locale?: string },
+	): Promise<BridgeTaxonomyTerm[]>;
 	// Media
 	mediaGet(id: string): Promise<BridgeMediaItem | null>;
 	mediaList(opts?: {

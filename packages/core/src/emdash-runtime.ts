@@ -2586,7 +2586,7 @@ export class EmDashRuntime {
 					...r.data,
 					item: { ...item, data: mergedData, liveData },
 				},
-			} as T;
+			};
 		} catch (error) {
 			// Non-fatal — fall back to the unhydrated response. Log so the
 			// failure isn't completely silent (the response will look stale
@@ -2606,6 +2606,7 @@ export class EmDashRuntime {
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
+			taxonomies?: Record<string, string[]>;
 		},
 	) {
 		// Run beforeSave hooks (trusted plugins)
@@ -2670,6 +2671,7 @@ export class EmDashRuntime {
 				canonical?: string | null;
 				noIndex?: boolean;
 			};
+			taxonomies?: Record<string, string[]>;
 			publishedAt?: string | null;
 			locale?: string;
 			/** Skip revision creation (used by autosave) */

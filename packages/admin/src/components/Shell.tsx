@@ -61,6 +61,26 @@ export function Shell({ children, manifest }: ShellProps) {
 		}
 	}, [user?.isFirstLogin]);
 
+	// Maintain the non-secret "an editor session may exist in this browser"
+	// localStorage flag consumed by the public-site toolbar bootstrap
+	// (`toolbar: "client"`, Discussion #1742). Set here — not in the login
+	// flows — so every auth method (passkey, OAuth, magic link, dev bypass)
+	// is covered. Opening the admin also un-dismisses the toolbar.
+	// Key literals are duplicated in emdash core, which the admin can't import.
+	React.useEffect(() => {
+		if (!user) return;
+		try {
+			if (user.role >= 30) {
+				localStorage.setItem("emdash-editor", "1");
+				localStorage.removeItem("emdash-toolbar-dismissed");
+			} else {
+				localStorage.removeItem("emdash-editor");
+			}
+		} catch {
+			// localStorage unavailable — the toolbar pill just won't appear
+		}
+	}, [user]);
+
 	return (
 		<Sidebar.Provider
 			defaultOpen

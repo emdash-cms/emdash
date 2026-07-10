@@ -350,6 +350,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
 		maxUploadSize: resolvedConfig.maxUploadSize,
 		admin: resolvedConfig.admin,
+		toolbar: resolvedConfig.toolbar,
 	};
 
 	// Determine auth mode for route injection
