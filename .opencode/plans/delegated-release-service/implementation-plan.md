@@ -6,6 +6,19 @@ Status: execution plan pending Gate 0 decisions and feasibility results
 
 This plan turns the delegated release service spec into independently deliverable workstreams. It defines ownership boundaries, dependencies, integration gates, and completion criteria. It intentionally contains no time estimates.
 
+## Stage Deliverables
+
+| Stage  | Deliverable                                                                                     | Repository change allowed                                         |
+| ------ | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Gate 0 | Ratified RFC decisions, supported-platform matrix, and documented external research conclusions | Spec and plan updates only                                        |
+| Gate 1 | Experimental lexicons, generated types, and one shared verification contract                    | Production contract code and tests                                |
+| Gate 2 | Secure delegated release service vertical slice                                                 | Service, client, and installer code and tests                     |
+| Gate 3 | Independent install and minimum discovery enforcement                                           | Installer and aggregator code and tests                           |
+| Gate 4 | Hosted beta product and operational readiness                                                   | Console, notifications, tooling, operations, and conformance code |
+| Gate 5 | Accurate historical policy enforcement and production launch evidence                           | Aggregator history implementation and production verification     |
+
+Gate 0 is deliberately not an implementation stage. It records the decisions and external validation required to begin implementation. Do not add test harnesses, prototype services, package dependencies, root scripts, CI wiring, or production code for Gate 0. If external research changes an assumption, commit only the resulting spec or plan update.
+
 ## Outcomes
 
 The implementation is complete when:
@@ -128,6 +141,8 @@ Required before protocol or service implementation is treated as production work
 
 Gate owner: `W0`.
 
+Gate 0 evidence is a ratification note in the tracked spec/plan and, where useful, a link to an external reproduction or upstream issue. It is not a repository test suite. The umbrella PR records the final decision and evidence summary after human ratification.
+
 ### Gate 1: Protocol and Verification Foundation
 
 - New profile and release extension fixtures round-trip through generated lexicon types.
@@ -175,7 +190,7 @@ Gate owners: `W10`, `W12`.
 
 ## Workstream W0: Decisions and Feasibility
 
-This workstream closes the implementation blockers in the spec. Its outputs are executable fixtures and recorded decisions, not exploratory prose alone.
+This workstream closes the implementation blockers in the spec. Its outputs are ratified decisions and concise research conclusions. It does not land product code, test fixtures, package dependencies, or internal prototypes.
 
 ### `W0.1` Ratify the record shape
 
@@ -209,7 +224,7 @@ Dependencies: none.
 
 ### `W0.3` Prove create-only PDS support
 
-Build a minimal confidential client and test:
+Validate externally, against the candidate PDS implementations:
 
 - `atproto repo:<experimental-release-nsid>?action=create` authorization.
 - Successful release create.
@@ -219,13 +234,13 @@ Build a minimal confidential client and test:
 
 Targets: Bluesky-hosted PDS and at least one alternative implementation intended for support.
 
-Output: committed integration fixture or reproducible test harness plus compatibility matrix.
+Output: a supported-PDS compatibility matrix and any required RFC/spec correction. Commit only the resulting spec/plan update; keep disposable clients and accounts outside this repository.
 
 Dependencies: `W0.1` draft NSID.
 
 ### `W0.4` Prove confidential OAuth custody in workerd
 
-Exercise real `@atcute/oauth-node-client` behavior with:
+Research the real `@atcute/oauth-node-client` behavior needed by the future service:
 
 - Private-key JWT and published JWKS.
 - Separate client assertion and DPoP keys.
@@ -234,13 +249,13 @@ Exercise real `@atcute/oauth-node-client` behavior with:
 - Concurrent refresh attempts under a D1 lease.
 - Rotating refresh tokens and client assertion keys.
 
-Output: service-auth prototype and exact persisted session requirements.
+Output: exact persisted session requirements, lock expectations, key-rotation constraints, and any incompatible upstream behavior. Commit only a concise spec/plan update when the result changes the design.
 
 Dependencies: none.
 
 ### `W0.5` Prove Sigstore verification in workerd
 
-Use a real `actions/attest-build-provenance` bundle to map and verify:
+Inspect a real `actions/attest-build-provenance` bundle and validate, outside this repository:
 
 - Sigstore signature and transparency evidence.
 - Artifact subject digest.
@@ -249,15 +264,15 @@ Use a real `actions/attest-build-provenance` bundle to map and verify:
 - Workflow identity and SLSA builder fields.
 - RFC `sourceRepository` and `builderId` mapping.
 
-Output: Workers-compatible verifier choice, fixture, and field-mapping contract.
+Output: a Workers-compatible verifier choice and exact field-mapping contract. Commit only the resulting spec/plan decision; fixture acquisition and experimentation remain external until `W2.5` implements the verifier.
 
 Dependencies: `W0.1` provenance draft.
 
 ### `W0.6` Prove historical aggregator input
 
-Publish profile states `strict -> relaxed -> strict` before the aggregator queue drains, with a release between transitions. Prove the chosen source can recover all values, ordering keys, CIDs, revisions, and commit proof material.
+Determine whether an event source can recover profile states `strict -> relaxed -> strict`, with a release between transitions, after queue delay. The selected source must provide event-specific record values, ordering keys, CIDs, revisions, and verifiable commit proof material.
 
-Output: selected event source and ingest prototype. If no source can provide this, return to the RFC before implementing cooldown semantics.
+Output: a source-selection decision and explicit W10.1 constraints. If no source can provide this, return to the RFC before implementing cooldown semantics. Do not add an aggregator prototype to this repository.
 
 Dependencies: none.
 
@@ -271,7 +286,7 @@ Dependencies: none.
 
 ### W0 Completion
 
-Gate 0 passes. Any failed feasibility spike changes the RFC or architecture before downstream work proceeds.
+Gate 0 passes only after the human ratifies `W0.1`, `W0.2`, and `W0.7`, and accepts the recorded conclusions for `W0.3` through `W0.6`. Any incompatible external result changes the RFC or architecture before downstream work proceeds.
 
 ## Workstream W1: Protocol and Lexicons
 
