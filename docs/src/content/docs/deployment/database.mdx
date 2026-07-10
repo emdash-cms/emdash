@@ -111,13 +111,17 @@ export default defineConfig({
 	REST API. The `session` option only controls EmDash's client-side session management.
 </Aside>
 
-<Aside type="caution">
-	Sessions are incompatible with the
+<Aside type="caution" title="Incompatible with global_fetch_strictly_public">
+	Do not enable `session: "auto"` (or `"primary-first"`) together with the
 	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
-	compatibility flag: the internal request the D1 Sessions API makes to route queries to replicas
-	is silently blocked, and every SSR request hangs with nothing in the logs. The hang may only
-	begin once replicas finish provisioning, so it can pass an initial post-deploy check. If your
-	Worker needs that flag, keep `session` disabled. See
+	compatibility flag. The Sessions API establishes the session through an internal Cloudflare
+	request, which that flag blocks — every SSR request then hangs until the Worker hits its wall-clock
+	limit (~10s) and is canceled, with no error in the logs (`wrangler tail` shows `outcome: "canceled"`
+	and near-zero CPU time). The hang may only begin once replicas finish provisioning, so it can pass
+	an initial post-deploy check.
+
+	If you need `global_fetch_strictly_public`, set `session: "disabled"` (the default). All queries go
+	to the primary database — you lose replica read latency, but requests resolve normally. See
 	[#1273](https://github.com/emdash-cms/emdash/issues/1273).
 </Aside>
 
@@ -125,18 +129,6 @@ export default defineConfig({
 	Anonymous visitors may see data that is a few seconds stale. For a CMS this is expected — content
 	changes are not real-time, and if you have route caching enabled the response is already stale by
 	definition.
-</Aside>
-
-<Aside type="caution" title="Incompatible with global_fetch_strictly_public">
-	Do not enable `session: "auto"` (or `"primary-first"`) together with the
-	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
-	compatibility flag. The Sessions API establishes the session through an internal Cloudflare
-	request, which that flag blocks — every SSR request then hangs until the Worker hits its wall-clock
-	limit (~10s) and is canceled, with no error in the logs (`wrangler tail` shows `outcome: "canceled"`
-	and near-zero CPU time).
-
-	If you need `global_fetch_strictly_public`, set `session: "disabled"` (the default). All queries go
-	to the primary database — you lose replica read latency, but requests resolve normally.
 </Aside>
 
 ## libSQL
