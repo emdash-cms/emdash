@@ -1,5 +1,17 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.4
+
+### Patch Changes
+
+- [#1395](https://github.com/emdash-cms/emdash/pull/1395) [`298895d`](https://github.com/emdash-cms/emdash/commit/298895de11562d4a2e9864da91d961fd4ff1eeda) Thanks [@jcheese1](https://github.com/jcheese1)! - Fixes enhanced form submissions so standard EmDash plugin API responses wrapped in `{ data }` show the configured success message instead of the generic error state.
+
+## 0.2.3
+
+### Patch Changes
+
+- [#985](https://github.com/emdash-cms/emdash/pull/985) [`5456514`](https://github.com/emdash-cms/emdash/commit/54565143205035e475dabb16075e09ade046a74c) Thanks [@ppppangu](https://github.com/ppppangu)! - Fixes public form embeds during SSR by allowing frontend plugin components to call public plugin routes without self-fetching.
+
 ## 0.2.2
 
 ### Patch Changes

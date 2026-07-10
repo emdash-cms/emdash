@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, rmdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { BundleError, bundlePlugin, type PluginManifest } from "../src/api.js";
+import {
+	probeAndAssemble,
+	type ProbeAndAssembleContext,
+	type ResolvedSources,
+} from "../src/build/pipeline.js";
 
 const FIXTURE = fileURLToPath(new URL("./fixtures/minimal-plugin", import.meta.url));
 const BAD_FIXTURE = fileURLToPath(new URL("./fixtures/bad-plugin", import.meta.url));
@@ -181,3 +186,80 @@ describe("bundlePlugin", () => {
 		expect(b.manifest.id).toBe("fixture-minimal");
 	});
 });
+
+describe("probeAndAssemble", () => {
+	it("imports drive-letter probe artifact paths through file URLs", async () => {
+		const tmpDir = await createDriveLetterTmpDir();
+		try {
+			const entries = makeResolvedSources(tmpDir);
+			const build: ProbeAndAssembleContext["build"] = async (options) => {
+				if (typeof options?.outDir !== "string") {
+					throw new Error("Expected probe build to receive an outDir");
+				}
+				await mkdir(options.outDir, { recursive: true });
+				await writeFile(
+					join(options.outDir, "plugin.mjs"),
+					"export default { hooks: {}, routes: {} };\n",
+				);
+				return [];
+			};
+
+			const result = await probeAndAssemble({ entries, tmpDir, build });
+
+			expect(result.id).toBe("fixture-minimal");
+			expect(result.hooks).toEqual({});
+			expect(result.routes).toEqual({});
+		} finally {
+			await removeDriveLetterTmpDir(tmpDir);
+		}
+	});
+});
+
+async function createDriveLetterTmpDir(): Promise<string> {
+	if (process.platform === "win32") {
+		return mkdtemp(join(tmpdir(), "emdash-probe-"));
+	}
+
+	const driveRoot = "Z:";
+	const base = join(driveRoot, `emdash-probe-${process.pid}-${Date.now()}`);
+	await mkdir(base, { recursive: true });
+	return mkdtemp(join(base, "tmp-"));
+}
+
+async function removeDriveLetterTmpDir(tmpDir: string): Promise<void> {
+	if (process.platform === "win32") {
+		await rm(tmpDir, { recursive: true, force: true });
+		return;
+	}
+
+	await rm(join(tmpDir, ".."), { recursive: true, force: true });
+	await rmdir("Z:").catch(() => {});
+}
+
+function makeResolvedSources(tmpDir: string): ResolvedSources {
+	return {
+		pluginDir: tmpDir,
+		pluginEntry: join(tmpDir, "src", "plugin.ts"),
+		manifest: {
+			slug: "fixture-minimal",
+			version: "1.2.3",
+			publisher: "did:plc:fixture",
+			license: "MIT",
+			authors: [{ name: "Fixture Author" }],
+			securityContacts: [{ email: "security@example.com" }],
+			name: undefined,
+			description: undefined,
+			keywords: undefined,
+			repo: undefined,
+			requires: undefined,
+			artifacts: undefined,
+			capabilities: ["content:read"],
+			allowedHosts: [],
+			storage: {},
+			admin: { pages: [], widgets: [] },
+		},
+		manifestPath: join(tmpDir, "emdash-plugin.jsonc"),
+		packageName: "fixture-minimal",
+		hasPackageJson: true,
+	};
+}

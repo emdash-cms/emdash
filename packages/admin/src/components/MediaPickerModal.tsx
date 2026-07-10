@@ -15,6 +15,7 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tansta
 import * as React from "react";
 
 import {
+	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaList,
 	fetchMediaProviders,
 	fetchProviderMedia,
@@ -25,7 +26,13 @@ import {
 	type MediaProviderInfo,
 	type MediaProviderItem,
 } from "../lib/api";
-import { providerItemToMediaItem, getFileIcon } from "../lib/media-utils";
+import { useDebouncedValue } from "../lib/hooks.js";
+import {
+	providerItemToMediaItem,
+	getFileIcon,
+	getMediaThumbnailUrl,
+	fallbackToOriginalThumbnail,
+} from "../lib/media-utils";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
 import { DialogError } from "./DialogError.js";
@@ -145,6 +152,8 @@ export function MediaPickerModal({
 	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const [searchQuery, setSearchQuery] = React.useState("");
+	// Debounced for the local library's server-side filename search.
+	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 	const fileInputRef = React.useRef<HTMLInputElement>(null);
 
 	// URL input state
@@ -191,16 +200,19 @@ export function MediaPickerModal({
 		if (activeProvider === "local") {
 			return {
 				id: "local",
-				name: "Library",
+				name: t`Library`,
 				icon: undefined,
 				capabilities: { browse: true, search: false, upload: true, delete: true },
 			} as MediaProviderInfo;
 		}
 		return providers?.find((p) => p.id === activeProvider);
-	}, [activeProvider, providers]);
+	}, [activeProvider, providers, t]);
 
 	// Fetch local media list (cursor-paginated so libraries beyond the
 	// first page remain selectable from the picker, not just the first 50).
+	// setQueryData is exact-match, so the optimistic dimension update below
+	// must share this exact key with the query that populates it.
+	const mediaQueryKey = ["media", filters?.join(",") ?? "", debouncedSearch.trim()];
 	const {
 		data: localData,
 		isLoading: localLoading,
@@ -208,12 +220,13 @@ export function MediaPickerModal({
 		hasNextPage: hasNextLocalPage,
 		isFetchingNextPage: isFetchingNextLocalPage,
 	} = useInfiniteQuery({
-		queryKey: ["media", filters?.join(",") ?? ""],
+		queryKey: mediaQueryKey,
 		queryFn: ({ pageParam }) =>
 			fetchMediaList({
 				mimeType: filters,
-				cursor: pageParam as string | undefined,
+				cursor: pageParam,
 				limit: 100,
+				search: debouncedSearch.trim() || undefined,
 			}),
 		initialPageParam: undefined as string | undefined,
 		getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -278,7 +291,7 @@ export function MediaPickerModal({
 			updateMedia(id, { width, height }),
 		onSuccess: (_updated, { id, width, height }) => {
 			queryClient.setQueryData(
-				["media", filters?.join(",") ?? ""],
+				mediaQueryKey,
 				(
 					old:
 						| {
@@ -446,7 +459,7 @@ export function MediaPickerModal({
 	// picker can only return locally-stored media (see prop docs).
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: "Library", icon: undefined },
+			{ id: "local", name: t`Library`, icon: undefined },
 		];
 		if (providers && !localOnly) {
 			for (const p of providers) {
@@ -456,7 +469,7 @@ export function MediaPickerModal({
 			}
 		}
 		return tabs;
-	}, [providers, localOnly]);
+	}, [providers, localOnly, t]);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleClose}>
@@ -555,16 +568,18 @@ export function MediaPickerModal({
 
 				{/* Toolbar */}
 				<div className="flex items-center justify-between pb-3 gap-4">
-					{/* Search (if provider supports it) */}
-					{canSearch ? (
+					{/* Search — providers that support it, plus the local library
+					    (filename/extension search, handled server-side). */}
+					{canSearch || activeProvider === "local" ? (
 						<div className="relative flex-1 max-w-xs">
 							<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 							<Input
 								type="search"
-								placeholder={t`Search...`}
+								placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
 								aria-label={t`Search media`}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
+								maxLength={MEDIA_SEARCH_MAX_LENGTH}
 								className="ps-9"
 							/>
 						</div>
@@ -756,6 +771,12 @@ function MediaPickerItem({
 	const isImage = item.mimeType.startsWith("image/");
 	const needsDimensions = isImage && (!item.width || !item.height);
 
+	// Serve a resized thumbnail only when the original dimensions are already
+	// known. When they're missing we display the original so `onLoad` can read
+	// the true `naturalWidth`/`naturalHeight` to backfill them — a resized
+	// rendition would report the thumbnail's dimensions and corrupt the record.
+	const displayUrl = needsDimensions ? item.url : getMediaThumbnailUrl(item.url, item.mimeType);
+
 	const handleImageLoad = React.useCallback(
 		(e: React.SyntheticEvent<HTMLImageElement>) => {
 			if (needsDimensions && onDimensionsDetected) {
@@ -783,10 +804,11 @@ function MediaPickerItem({
 			>
 				{isImage ? (
 					<img
-						src={item.url}
+						src={displayUrl}
 						alt=""
 						className="h-full w-full object-cover"
 						onLoad={handleImageLoad}
+						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 					/>
 				) : (
 					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">

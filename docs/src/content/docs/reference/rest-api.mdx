@@ -265,6 +265,95 @@ Content-Type: application/json
 DELETE /_emdash/api/media/:id
 ```
 
+### Repair Media Usage
+
+```http
+POST /_emdash/api/admin/media-usage/repair
+Content-Type: application/json
+X-EmDash-Request: 1
+```
+
+Repairs the content media usage index for one collection or for all content collections. This is an admin/operator endpoint: session-authenticated callers need `schema:manage`, and bearer tokens must have the `admin` scope because the route is under `/_emdash/api/admin`.
+
+All-content repair runs synchronously and sequentially in the current version. It can be expensive on large sites, so callers should trigger it deliberately and wait for the response.
+
+#### Request Body
+
+Repair one collection:
+
+```json
+{
+	"scope": "collection",
+	"collection": "posts"
+}
+```
+
+Repair all content collections:
+
+```json
+{
+	"scope": "all"
+}
+```
+
+The request body is required. Invalid slugs, unknown request keys, missing `scope`, and body-less requests return `400` instead of defaulting to all-content repair.
+
+#### Response
+
+The endpoint returns `200` when a repair invocation produces a structured result. Inspect `data.status`: `failed` and `stale` are repair-domain statuses, not transport errors.
+
+```json
+{
+	"data": {
+		"status": "complete",
+		"indexedSourceCount": 12,
+		"failedSourceCount": 0,
+		"skippedSourceCount": 0,
+		"deletedSourceCount": 1,
+		"collections": [
+			{
+				"collection": "posts",
+				"status": "complete",
+				"indexedSourceCount": 12,
+				"failedSourceCount": 0,
+				"skippedSourceCount": 0,
+				"deletedSourceCount": 1,
+				"lastErrorCode": null,
+				"startedAt": "2026-07-07T12:00:00.000Z",
+				"completedAt": "2026-07-07T12:00:01.000Z"
+			}
+		]
+	}
+}
+```
+
+Top-level response fields:
+
+| Field                | Type                                                | Description                                |
+| -------------------- | --------------------------------------------------- | ------------------------------------------ |
+| `status`             | `complete` \| `partial` \| `failed` \| `stale` | Aggregate repair status                    |
+| `indexedSourceCount` | `number`                                            | Sources indexed during repair              |
+| `failedSourceCount`  | `number`                                            | Sources that failed during repair          |
+| `skippedSourceCount` | `number`                                            | Sources skipped, including stale conflicts |
+| `deletedSourceCount` | `number`                                            | Stale usage rows deleted during repair     |
+| `collections`        | `array`                                             | Per-collection repair summaries            |
+
+Collection summary fields:
+
+| Field                | Type                                                | Description                                  |
+| -------------------- | --------------------------------------------------- | -------------------------------------------- |
+| `collection`         | `string`                                            | Collection slug                              |
+| `status`             | `complete` \| `partial` \| `failed` \| `stale` | Collection repair status                     |
+| `indexedSourceCount` | `number`                                            | Sources indexed for this collection          |
+| `failedSourceCount`  | `number`                                            | Sources that failed for this collection      |
+| `skippedSourceCount` | `number`                                            | Sources skipped for this collection          |
+| `deletedSourceCount` | `number`                                            | Stale usage rows deleted for this collection |
+| `lastErrorCode`      | `string \| null`                                   | Last collection repair error, when available |
+| `startedAt`          | `string`                                            | Repair start time                            |
+| `completedAt`        | `string \| null`                                   | Completion time, or `null` for stale results |
+
+Unknown collections return `200` with `data.status: "failed"` and a per-collection `lastErrorCode` such as `COLLECTION_NOT_FOUND`. Transport errors still use the standard error envelope, including `400`, `401`, `403`, `413`, and `500`.
+
 ### Get Media File
 
 ```http

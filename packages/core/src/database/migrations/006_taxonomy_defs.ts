@@ -23,7 +23,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 	// Seed default taxonomies
 	await db
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely migration runs against unknown schema
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely migration runs against unknown schema
 		.insertInto("_emdash_taxonomy_defs" as never)
 		.values([
 			{

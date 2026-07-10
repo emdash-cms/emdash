@@ -17,7 +17,6 @@
 
 import { EnvCredentialStore } from "./env.js";
 import { FileCredentialStore } from "./file.js";
-import { MemoryCredentialStore } from "./memory.js";
 import type { CredentialStore } from "./types.js";
 
 export {

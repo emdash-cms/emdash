@@ -333,6 +333,94 @@ describe("PluginRouteHandler", () => {
 			expect(result.success).toBe(true);
 			expect(result.data).toEqual({ hasEmail: true, hasSend: true });
 		});
+
+		it("surfaces an actionable error when a handler reads the consumed request body (#1293)", async () => {
+			// EmDash parses the body once and exposes it as ctx.input; the same
+			// Request is then handed to the handler with its stream already spent.
+			// A handler that instinctively calls ctx.request.json() should get a
+			// message pointing at ctx.input, not the runtime's opaque
+			// "body already read" error.
+			const bodyMethods = ["json", "text", "arrayBuffer", "formData", "blob"] as const;
+			const plugin = createTestPlugin({
+				routes: {
+					echo: {
+						handler: async (ctx) => {
+							const errors: Record<string, string> = {};
+							for (const method of bodyMethods) {
+								try {
+									// eslint-disable-next-line @typescript-eslint/no-explicit-any
+									await (ctx.request as any)[method]();
+									errors[method] = "NO_ERROR";
+								} catch (e) {
+									errors[method] = (e as Error).message;
+								}
+							}
+							return { errors, input: ctx.input };
+						},
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("echo", {
+				request: new Request("http://test.com/echo", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ hello: "world" }),
+				}),
+				body: { hello: "world" },
+			});
+
+			expect(result.success).toBe(true);
+			const data = result.data as { errors: Record<string, string>; input: unknown };
+			for (const method of bodyMethods) {
+				expect(data.errors[method]).toContain("ctx.input");
+				expect(data.errors[method]).toContain("[emdash]");
+			}
+			// The parsed body is still available as ctx.input.
+			expect(data.input).toEqual({ hello: "world" });
+		});
+
+		it("passes request url, method, and headers through the body guard (#1293)", async () => {
+			// The guard must not interfere with non-body members — notably the
+			// `headers.forEach` the sandbox-entry adapter relies on.
+			const plugin = createTestPlugin({
+				routes: {
+					meta: {
+						handler: async (ctx) => {
+							const collected: Record<string, string> = {};
+							ctx.request.headers.forEach((value, name) => {
+								collected[name] = value;
+							});
+							return {
+								url: ctx.request.url,
+								method: ctx.request.method,
+								contentType: ctx.request.headers.get("content-type"),
+								forEachSawContentType: collected["content-type"] === "application/json",
+							};
+						},
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("meta", {
+				request: new Request("http://test.com/meta", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: "{}",
+				}),
+				body: {},
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data).toEqual({
+				url: "http://test.com/meta",
+				method: "POST",
+				contentType: "application/json",
+				forEachSawContentType: true,
+			});
+		});
 	});
 });
 

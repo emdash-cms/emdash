@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import {
@@ -997,6 +997,33 @@ describe("SEO", () => {
 			expect(new Date(col.entries[0]!.updatedAt).getTime()).not.toBeNaN();
 		});
 
+		it("normalizes a non-ISO updated_at to W3C Datetime for <lastmod>", async () => {
+			await repo.create({
+				type: "post",
+				slug: "legacy-date",
+				data: { title: "Legacy" },
+				status: "published",
+			});
+
+			// Simulate a row whose updated_at came from the column default
+			// (`datetime('now')` on SQLite / `CURRENT_TIMESTAMP` on Postgres) or
+			// a content import: a space-separated "YYYY-MM-DD HH:MM:SS" string.
+			// This is not valid W3C Datetime and Google Search Console rejects
+			// it in <lastmod> as "Invalid date".
+			await sql`UPDATE ec_post SET updated_at = '2026-06-28 04:01:26'`.execute(db);
+
+			const result = await handleSitemapData(db);
+			expect(result.success).toBe(true);
+
+			const col = result.data!.collections[0]!;
+			// Both the index <lastmod> and the per-entry value are normalized
+			// to ISO 8601 (UTC assumed, matching SQLite's datetime('now')).
+			expect(col.lastmod).toBe("2026-06-28T04:01:26.000Z");
+			expect(col.entries[0]!.updatedAt).toBe("2026-06-28T04:01:26.000Z");
+			// The raw, space-separated form must not leak into the sitemap.
+			expect(col.lastmod).not.toContain(" ");
+		});
+
 		it("should include urlPattern from collection", async () => {
 			await db
 				.updateTable("_emdash_collections")
@@ -1060,6 +1087,54 @@ describe("SEO", () => {
 
 			expect(result.success).toBe(true);
 			expect(result.data!.collections).toEqual([]);
+		});
+
+		it("should include locale on each entry", async () => {
+			await repo.create({
+				type: "post",
+				slug: "hello",
+				data: { title: "Hello" },
+				status: "published",
+			});
+
+			const result = await handleSitemapData(db);
+
+			expect(result.success).toBe(true);
+			const entries = flatEntries(result.data!);
+			expect(entries).toHaveLength(1);
+			// Default locale is `'en'` from migration 019. Rows backfill to it.
+			expect(result.data!.collections[0]!.entries[0]!.locale).toBe("en");
+		});
+
+		it("should expose translation_group so siblings can be linked", async () => {
+			// Create an English post, then a French translation of it. The
+			// repo wires `translation_group` so both rows share a group.
+			const en = await repo.create({
+				type: "post",
+				slug: "hello",
+				data: { title: "Hello" },
+				status: "published",
+				locale: "en",
+			});
+			await repo.create({
+				type: "post",
+				slug: "bonjour",
+				data: { title: "Bonjour" },
+				status: "published",
+				locale: "fr",
+				translationOf: en.id,
+			});
+
+			const result = await handleSitemapData(db, "post");
+
+			expect(result.success).toBe(true);
+			const entries = result.data!.collections[0]!.entries;
+			expect(entries).toHaveLength(2);
+			const locales = entries.map((e) => e.locale).toSorted();
+			expect(locales).toEqual(["en", "fr"]);
+			const groups = new Set(entries.map((e) => e.translationGroup));
+			expect(groups.size).toBe(1);
+			expect(groups.has(en.translationGroup ?? en.id)).toBe(true);
 		});
 	});
 

@@ -1,5 +1,80 @@
 # @emdash-cms/registry-cli
 
+## 0.6.0
+
+### Minor Changes
+
+- [#1461](https://github.com/emdash-cms/emdash/pull/1461) [`b01aa9b`](https://github.com/emdash-cms/emdash/commit/b01aa9bbb436bcec07516b499eb0516cfbe414b4) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes registry installs failing with "Plugin manifest has changed since you consented" for plugins that declare hook-registration capabilities (email transport, email events, page fragments) or read user records. Plugin bundles now declare their access as a structured `declaredAccess` contract that the registry record, the install-consent dialog, and the sandbox all read consistently, so every capability a plugin declares is shown for consent and enforced — no capability is silently dropped. Re-publish affected plugins to adopt the new bundle format; existing installs are unaffected.
+
+### Patch Changes
+
+- [#1447](https://github.com/emdash-cms/emdash/pull/1447) [`141aa11`](https://github.com/emdash-cms/emdash/commit/141aa11213206d9ea5e14d1f1cd75c07cfacae7b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes `@atcute` peer dependency warnings on install ([#1435](https://github.com/emdash-cms/emdash/issues/1435))
+
+  Installing EmDash pulled in mismatched `@atcute` package versions, so `pnpm install` / `npm install` reported unmet peer warnings for `@atcute/identity` and `@atcute/lexicons`. The bundled `@atcute` dependencies are now aligned on v2 and installs are clean. If your project also depends on `@atcute` packages directly, note they have moved to v2 (`@atcute/client` 5, `@atcute/lexicons` 2, `@atcute/atproto` 4, `@atcute/oauth-node-client` 2).
+
+- Updated dependencies [[`141aa11`](https://github.com/emdash-cms/emdash/commit/141aa11213206d9ea5e14d1f1cd75c07cfacae7b), [`b01aa9b`](https://github.com/emdash-cms/emdash/commit/b01aa9bbb436bcec07516b499eb0516cfbe414b4)]:
+  - @emdash-cms/registry-client@0.3.2
+  - @emdash-cms/registry-lexicons@0.1.1
+  - @emdash-cms/plugin-types@0.1.0
+
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`69bdc97`](https://github.com/emdash-cms/emdash/commit/69bdc97e3e4b69a111b3e5210900e23f35134f8d)]:
+  - @emdash-cms/registry-client@0.3.1
+
+## 0.5.0
+
+### Minor Changes
+
+- [#1238](https://github.com/emdash-cms/emdash/pull/1238) [`60c0b2e`](https://github.com/emdash-cms/emdash/commit/60c0b2eeab7726471b313d0c453de82df1e08558) Thanks [@ascorbic](https://github.com/ascorbic)! - Registry plugins can now declare environment requirements. A plugin's manifest may set a release-level `requires` block (e.g. `{ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" }`), which is published into the release record. When browsing a registry plugin, the admin compares those constraints against the running EmDash and Astro versions: if the host doesn't satisfy them, it shows a compatibility warning and disables the Install button. The server enforces the same check on install and update, refusing an incompatible release with `ENV_INCOMPATIBLE` so the gate can't be bypassed.
+
+- [#1239](https://github.com/emdash-cms/emdash/pull/1239) [`1a4918f`](https://github.com/emdash-cms/emdash/commit/1a4918ff989d57b4f12e44b647542e406dce7cb9) Thanks [@ascorbic](https://github.com/ascorbic)! - Plugins published to the experimental registry can now ship icon, screenshot, and banner images. Declare them in `emdash-plugin.jsonc` under `release.artifacts` as file refs; `emdash-plugin publish --artifact-base-url <url>` measures each image's dimensions, uploads it, and records it in the release. The admin plugin detail page renders the icon, banner, and a screenshot gallery, fetched through a server-side image proxy. The proxy resolves each artifact's URL server-side from the validated release record (the client sends only the artifact's coordinates, never a URL), then applies SSRF defences and an image content-type allowlist before serving the bytes. Supported image types are PNG, JPEG, WebP, GIF, and AVIF; SVG is rejected at both publish and proxy because it is active content.
+
+- [#1253](https://github.com/emdash-cms/emdash/pull/1253) [`d2f2679`](https://github.com/emdash-cms/emdash/commit/d2f26792bc8f053693bfb0a6a9d65a7403753f0a) Thanks [@ascorbic](https://github.com/ascorbic)! - Plugins published to the experimental registry can now ship long-form profile sections. Declare them in `emdash-plugin.jsonc` under a top-level `sections` block with any of `description`, `installation`, `faq`, `changelog`, and `security`. Each value is either inline CommonMark Markdown or a `{ file: "./path.md" }` ref read relative to the manifest at load time. Every section is capped at 20000 bytes and 2000 graphemes, enforced locally (inline strings during schema validation, file refs once their content is read) so `emdash-plugin validate`/`publish` fails with a clear message instead of a 400 from the PDS. File refs are resolved within the manifest directory; paths that escape it (via `..` or an absolute path) are rejected. Sections are profile-level: written to the package profile record on first publish and editable afterward with `emdash-registry update-package`, like the other profile fields.
+
+### Patch Changes
+
+- [#1247](https://github.com/emdash-cms/emdash/pull/1247) [`245f8dc`](https://github.com/emdash-cms/emdash/commit/245f8dc221913853d720963d899a8b2d62053985) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes plugin builds on Windows by importing the probe artifact through a file URL.
+
+- Updated dependencies [[`60c0b2e`](https://github.com/emdash-cms/emdash/commit/60c0b2eeab7726471b313d0c453de82df1e08558)]:
+  - @emdash-cms/registry-client@0.3.0
+
+## 0.4.0
+
+### Minor Changes
+
+- [#1126](https://github.com/emdash-cms/emdash/pull/1126) [`cf3c706`](https://github.com/emdash-cms/emdash/commit/cf3c706a65087696eb6cca5844b7668a50e4a090) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `emdash-plugin update-package`, a CLI command for editing an already-published plugin's registry record (license, authors, security contacts, name, description, keywords) without cutting a new release. Without `--yes` it prints a diff and exits without writing; with `--yes` it writes the updated record to the publisher's PDS using atproto's `swapRecord` precondition (concurrent writes surface as `STALE_RECORD` instead of silently overwriting each other) and bumps `lastUpdated`. Optional fields use a "manifest absent = no change" policy: removing a key from the manifest doesn't wipe the published value, matching `publish` semantics. Renaming a plugin via the manifest now surfaces a "looks like a rename" message listing the publisher's existing packages instead of a generic not-found, so publishers don't accidentally orphan releases under the old slug.
+
+  The publishing client (`@emdash-cms/registry-client`) gains a `swapRecord` parameter on `putRecord` and `unsafePutRecord` for callers needing optimistic-concurrency writes.
+
+### Patch Changes
+
+- [#1145](https://github.com/emdash-cms/emdash/pull/1145) [`463c7a2`](https://github.com/emdash-cms/emdash/commit/463c7a23036d55fee3f5105c1a878c9abdee2e1f) Thanks [@ascorbic](https://github.com/ascorbic)! - Refactors the build pipeline's runtime validation of the probed plugin's
+  default export to use a Zod schema. Error messages keep the same format
+  (`hook "X" must be a function or { handler, ... }`, `hook "X" has
+invalid FIELD VALUE (...)`). Exotic-object entries (Date, RegExp,
+  Promise, class instances) now produce the wrong-shape error instead of
+  falling through to a misleading "missing handler" error. BigInt /
+  cyclic-object / function / symbol field values are rendered safely in
+  error messages instead of crashing with a TypeError.
+- Updated dependencies [[`cf3c706`](https://github.com/emdash-cms/emdash/commit/cf3c706a65087696eb6cca5844b7668a50e4a090)]:
+  - @emdash-cms/registry-client@0.2.0
+
+## 0.3.0
+
+### Minor Changes
+
+- [#1112](https://github.com/emdash-cms/emdash/pull/1112) [`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a) Thanks [@ascorbic](https://github.com/ascorbic)! - Publishes the full profile block from `emdash-plugin.jsonc`. First publish now writes `name`, `description`, `keywords`, multiple authors, and multiple security contacts to the package profile record, plus the source `repo` URL to the release record — previously only `license` and a single author/security contact were sent.
+
+  Deprecates the `--license`, `--author-*`, and `--security-*` flags in favour of declaring these in `emdash-plugin.jsonc`. The flags still work and override the manifest when both are present; a deprecation warning is printed when they are used.
+
+### Patch Changes
+
+- Updated dependencies [[`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a)]:
+  - @emdash-cms/registry-client@0.1.0
+
 ## 0.2.0
 
 ### Minor Changes

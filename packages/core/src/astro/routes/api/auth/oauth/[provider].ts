@@ -95,9 +95,9 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 
 		// Get OAuth providers from environment
 		// Access via locals.runtime for Cloudflare, or import.meta.env for Node
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- locals.runtime is injected by the Cloudflare adapter at runtime; not declared on App.Locals since the adapter is optional
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- locals.runtime is injected by the Cloudflare adapter at runtime; not declared on App.Locals since the adapter is optional
 		const runtimeLocals = locals as unknown as { runtime?: { env?: Record<string, unknown> } };
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
 		const env = runtimeLocals.runtime?.env ?? (import.meta.env as Record<string, unknown>);
 		const providers = getOAuthConfig(env);
 

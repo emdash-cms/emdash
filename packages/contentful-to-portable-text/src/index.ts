@@ -48,6 +48,12 @@ import { transformCodeBlock } from "./blocks/code-block.js";
 import { transformEmbeddedHtml } from "./blocks/embedded-html.js";
 import { transformImageBlock } from "./blocks/image-block.js";
 import { sanitizeUri } from "./sanitize.js";
+import {
+	getStringField,
+	isContentfulLinkPayload,
+	isContentfulSysEnvelope,
+	parseAssetFile,
+} from "./types.js";
 import type { ContentfulIncludes, ConvertOptions } from "./types.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -187,13 +193,11 @@ function convertTextBlock(
 	const { children, markDefs } = convertInlineContent(content, includes, options, generateKey);
 
 	// Skip empty paragraphs (Contentful emits these often)
-	if (
-		style === "normal" &&
-		children.length === 1 &&
-		children[0]!._type === "span" &&
-		(children[0] as PortableTextSpan).text === ""
-	) {
-		return null;
+	if (style === "normal" && children.length === 1) {
+		const only = children[0]!;
+		if (only._type === "span" && typeof only.text === "string" && only.text === "") {
+			return null;
+		}
 	}
 
 	return {
@@ -321,8 +325,9 @@ function convertEmbeddedEntry(
 	includes: ContentfulIncludes,
 	generateKey: () => string,
 ): OutputBlock | null {
-	const targetId = (node.data?.target as { sys?: { id?: string } })?.sys?.id;
-	if (!targetId) return null;
+	const target: unknown = node.data?.target;
+	if (!isContentfulLinkPayload(target)) return null;
+	const targetId = target.sys.id;
 
 	const entry = includes.entries.get(targetId);
 	if (!entry) {
@@ -355,8 +360,9 @@ function convertEmbeddedAsset(
 	includes: ContentfulIncludes,
 	generateKey: () => string,
 ): OutputBlock | null {
-	const targetId = (node.data?.target as { sys?: { id?: string } })?.sys?.id;
-	if (!targetId) return null;
+	const target: unknown = node.data?.target;
+	if (!isContentfulLinkPayload(target)) return null;
+	const targetId = target.sys.id;
 
 	const asset = includes.assets.get(targetId);
 	if (!asset) {
@@ -400,7 +406,8 @@ function convertInlineContent(
 				marks,
 			});
 		} else if (node.nodeType === INLINES.HYPERLINK) {
-			const rawUri = (node.data?.uri as string) ?? "";
+			const uri: unknown = node.data?.uri;
+			const rawUri = typeof uri === "string" ? uri : "";
 			const href = sanitizeUri(rawUri);
 			const markKey = generateKey();
 			const isExternal = isExternalLink(href, options.blogHostname);
@@ -431,16 +438,18 @@ function convertInlineContent(
 			node.nodeType === INLINES.ENTRY_HYPERLINK ||
 			node.nodeType === INLINES.ASSET_HYPERLINK
 		) {
-			const targetId = (node.data?.target as { sys?: { id?: string } })?.sys?.id;
+			const target: unknown = node.data?.target;
+			const targetId = isContentfulLinkPayload(target) ? target.sys.id : undefined;
 			let href = "#";
 
 			if (node.nodeType === INLINES.ENTRY_HYPERLINK && targetId) {
 				const entry = includes.entries.get(targetId);
 				if (entry) {
+					const slug = getStringField(entry.fields, "slug");
 					const rawHref = options.entryHrefResolver
 						? options.entryHrefResolver(entry)
-						: entry.fields.slug
-							? `/${entry.fields.slug as string}/`
+						: slug
+							? `/${slug}/`
 							: "#";
 					href = sanitizeUri(rawHref);
 				}
@@ -473,7 +482,8 @@ function convertInlineContent(
 			node.nodeType === INLINES.EMBEDDED_ENTRY ||
 			node.nodeType === INLINES.EMBEDDED_RESOURCE
 		) {
-			const targetId = (node.data?.target as { sys?: { id?: string } })?.sys?.id;
+			const target: unknown = node.data?.target;
+			const targetId = isContentfulLinkPayload(target) ? target.sys.id : undefined;
 			console.warn(
 				`[rich-text-to-pt] Inline ${node.nodeType} encountered (target: ${targetId ?? "unknown"}). ` +
 					`Preserved as custom inline block — consumer should handle or strip.`,
@@ -560,30 +570,21 @@ export function buildIncludes(raw: {
 	const assets = new Map<string, import("./types.js").ContentfulAsset>();
 
 	for (const entry of raw.Entry ?? []) {
-		const sys = entry.sys as { id?: string; contentType?: { sys?: { id?: string } } } | undefined;
-		if (!sys?.id) continue;
-		entries.set(sys.id, {
-			id: sys.id,
-			contentType: sys.contentType?.sys?.id ?? "unknown",
-			fields: (entry.fields as Record<string, unknown>) ?? {},
+		if (!isContentfulSysEnvelope(entry)) continue;
+		entries.set(entry.sys.id, {
+			id: entry.sys.id,
+			contentType: entry.sys.contentType?.sys.id ?? "unknown",
+			fields: entry.fields ?? {},
 		});
 	}
 
 	for (const asset of raw.Asset ?? []) {
-		const sys = asset.sys as { id?: string } | undefined;
-		if (!sys?.id) continue;
-		const fields = asset.fields as Record<string, unknown> | undefined;
-		const file = fields?.file as
-			| {
-					url?: string;
-					contentType?: string;
-					details?: { image?: { width?: number; height?: number } };
-			  }
-			| undefined;
-		assets.set(sys.id, {
-			id: sys.id,
-			title: fields?.title as string | undefined,
-			description: fields?.description as string | undefined,
+		if (!isContentfulSysEnvelope(asset)) continue;
+		const file = parseAssetFile(asset.fields?.file);
+		assets.set(asset.sys.id, {
+			id: asset.sys.id,
+			title: getStringField(asset.fields, "title"),
+			description: getStringField(asset.fields, "description"),
 			url: file?.url ?? "",
 			width: file?.details?.image?.width,
 			height: file?.details?.image?.height,

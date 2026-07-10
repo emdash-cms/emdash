@@ -1,5 +1,154 @@
 # @emdash-cms/plugin-embeds
 
+## 0.1.35
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.28.1
+
+## 0.1.34
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.28.0
+
+## 0.1.33
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.27.0
+
+## 0.1.32
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.26.0
+
+## 0.1.31
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.25.1
+
+## 0.1.30
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.25.0
+
+## 0.1.29
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.24.1
+
+## 0.1.28
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.24.0
+
+## 0.1.27
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.23.0
+
+## 0.1.26
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.22.0
+
+## 0.1.25
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.21.0
+
+## 0.1.24
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.20.0
+
+## 0.1.23
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.19.0
+
+## 0.1.22
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.18.0
+
+## 0.1.21
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.17.2
+
+## 0.1.20
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.17.1
+
+## 0.1.19
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.17.0
+
+## 0.1.18
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.16.1
+
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.16.0
+
+## 0.1.16
+
+### Patch Changes
+
+- Updated dependencies [[`b9cc08e`](https://github.com/emdash-cms/emdash/commit/b9cc08e7556ccdbcbbcea6d3c06cae6abef18766), [`02ed8ba`](https://github.com/emdash-cms/emdash/commit/02ed8ba32ef1f4301d84465b934430eee08eef74), [`11b3001`](https://github.com/emdash-cms/emdash/commit/11b300100e066c6b3463070a9b65fba868f37e9b), [`fae97ee`](https://github.com/emdash-cms/emdash/commit/fae97ee5465934365864557e9fa3ee8754cfd49c), [`88f544d`](https://github.com/emdash-cms/emdash/commit/88f544db4b8e2f30060a3b4d670ff72aa8760d61), [`9a30607`](https://github.com/emdash-cms/emdash/commit/9a30607791a2f27473b1d2fe7700291e0be1ea1c), [`d0ff94b`](https://github.com/emdash-cms/emdash/commit/d0ff94bd476e7fd4b5d18c94904cfb5c071fea92)]:
+  - @emdash-cms/blocks@0.15.0
+  - emdash@0.15.0
+
+## 0.1.15
+
+### Patch Changes
+
+- Updated dependencies [[`cf85941`](https://github.com/emdash-cms/emdash/commit/cf85941c1c631d355ca4df216e790ecf75420bbe), [`cf85941`](https://github.com/emdash-cms/emdash/commit/cf85941c1c631d355ca4df216e790ecf75420bbe), [`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a)]:
+  - emdash@0.14.0
+  - @emdash-cms/blocks@0.14.0
+
 ## 0.1.14
 
 ### Patch Changes

@@ -88,6 +88,22 @@ storage: s3({
 
 See [Storage Options](/deployment/storage/) for details.
 
+### `objectCache`
+
+**Optional.** Caches content and configuration query results in a key/value store so reads are served without querying the database on every request. Disabled when omitted. Choose one adapter:
+
+```js
+// Cloudflare KV (shared across all isolates)
+import { kvCache } from "@emdash-cms/cloudflare";
+objectCache: kvCache({ binding: "CACHE" });
+
+// In-memory (Node.js / development)
+import { memoryCache } from "emdash/astro";
+objectCache: memoryCache();
+```
+
+See [Object Cache](/deployment/object-cache/) for setup and options.
+
 ### `plugins`
 
 **Optional.** Array of EmDash plugins. The following example registers one plugin:
@@ -351,6 +367,72 @@ emdash({
 
 Uploads that exceed the configured limit are rejected with a `413 Payload Too Large` response on the direct upload path, or a `400 Validation Error` on the signed-URL path.
 
+### `toolbar`
+
+**Optional.** Controls how the editor toolbar (the floating pill on public pages) is delivered. Defaults to `"server"`.
+
+| Value | Behavior |
+| ----- | -------- |
+| `"server"` (default) | The toolbar is injected server-side into every HTML response rendered for an authenticated editor. |
+| `"client"` | Public HTML is identical for every visitor. A tiny bootstrap script shows an "Edit" pill in browsers that have logged into the admin; clicking it verifies the session and reloads the page with an `_edit` query param, which is always rendered fresh (never cached) with the full toolbar. |
+| `false` | Never render the toolbar or the bootstrap script. |
+
+```js
+emdash({
+	toolbar: "client",
+})
+```
+
+Use `"client"` when your public HTML is served through a shared cache (Cloudflare Cache Everything / [Workers Cache](https://developers.cloudflare.com/workers/cache/), Fastly, Varnish, …). With server-side injection, an editor browsing the public site receives the cached anonymous variant — without the toolbar — whenever an anonymous visitor primed the cache first, so the toolbar appears and disappears with cache state. In client mode nothing session-specific is injected into shareable HTML, so the cache stays fully effective and the toolbar is reliable.
+
+Notes on `"client"` mode:
+
+- Logged-out visitors who open a shared `?_edit` URL are redirected to the canonical URL, so the param can't leak drafts or prime extra cache entries with page content.
+- The "logged in" signal is a non-secret `localStorage` flag set by the admin; the pill verifies the real session before entering the edit view.
+- The bootstrap is a small inline `<script>`. If your site sends a strict `Content-Security-Policy` without `'unsafe-inline'`, add a hash for it — the same applies to the server-injected toolbar.
+- EmDash injects nothing session-specific — but if your own templates branch on `Astro.locals.user` (e.g. an "Admin" nav link for logged-in users), that variance is still in your HTML and still fragments the cache.
+
+In every mode, the toolbar can be dismissed in the browser via its × button (per-browser, until the next time an editor opens the admin). Preview and edit-mode responses always render server-side with `Cache-Control: private, no-store`.
+
+### `experimental`
+
+**Optional.** Opt-in features whose behaviour or wire format may change, or be removed, in a minor release. Each field is independently enabled.
+
+<Aside type="caution">
+	Experimental options are unstable. Pin EmDash to an exact version when you depend on one, and check the changelog before upgrading.
+</Aside>
+
+#### `experimental.registry`
+
+**Optional.** Point the admin dashboard's plugin browse and install flows at a federated [plugin registry](/plugins/registry/) instead of the central marketplace. Requires `sandboxRunner`, because registry plugins run sandboxed.
+
+Pass a bare aggregator URL string, or an object when you need a labeller or a release-age policy. The following example uses the object form:
+
+```js title="astro.config.mjs"
+emdash({
+	sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	experimental: {
+		registry: {
+			aggregatorUrl: "https://registry.emdashcms.com",
+			acceptLabelers: "did:plc:emdashverification",
+			policy: {
+				minimumReleaseAge: "48h",
+				minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
+			},
+		},
+	},
+});
+```
+
+| Option                            | Type                   | Description                                                                                   |
+| --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
+| `aggregatorUrl`                   | `string`               | Aggregator origin where the registry's XRPC endpoints are mounted. HTTPS in production.        |
+| `acceptLabelers`                  | `string`               | Comma-separated labeller DIDs forwarded to the aggregator for takedown and verification labels. |
+| `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
+| `policy.minimumReleaseAgeExclude` | `string[]`             | DIDs (or `<did>/<slug>` pairs) exempt from the holdback.                                        |
+
+See [The plugin registry](/plugins/registry/) for the full workflow, trust model, and how to query the registry from your own site.
+
 ## Database adapters
 
 Import the adapters from `emdash/db`:
@@ -522,6 +604,39 @@ not picked up. Workers deployments should either use the [`r2(config)`](#r2confi
 adapter or pass explicit values to `s3({...})`. See
 [Storage Options](/deployment/storage/#s3-compatible-storage) for details.
 
+## Object cache adapters
+
+Pass one of these to the [`objectCache`](#objectcache) option.
+
+### `kvCache(config)`
+
+Cloudflare KV backend, shared across all isolates. Import from `@emdash-cms/cloudflare`.
+
+```js
+kvCache({
+	binding: "CACHE", // KV binding name (required)
+	defaultTtl: 3600, // entry TTL in seconds (optional, KV minimum 60)
+	revalidate: 1000, // cross-isolate staleness window in ms (optional)
+	timeout: 2000, // per-op timeout in ms before a miss (optional, 0 disables)
+	keyPrefix: "em", // cache key prefix (optional)
+})
+```
+
+### `memoryCache(config?)`
+
+In-process backend for Node.js and development. Import from `emdash/astro`.
+
+```js
+memoryCache({
+	defaultTtl: 3600, // entry TTL in seconds (optional)
+	revalidate: 1000, // staleness window in ms (optional)
+	maxEntries: 1000, // max cached keys before eviction (optional)
+	keyPrefix: "em", // cache key prefix (optional)
+})
+```
+
+See [Object Cache](/deployment/object-cache/) for setup and behavior.
+
 ## Live collections
 
 Configure the EmDash loader in `src/live.config.ts`:
@@ -558,6 +673,7 @@ EmDash respects these environment variables:
 | `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, a stable per-site value is generated and stored in the database. |
 | `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, a stable per-site value is generated and stored in the database. |
 | `EMDASH_AUTH_SECRET`      | Legacy. Used as the IP-salt source if set; existing installs should keep this to preserve stable commenter-IP hashes across upgrade. |
+| `EMDASH_TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key (falls back to `TURNSTILE_SECRET_KEY`). When set, comment submissions must include a valid Turnstile token — pair it with the `turnstileSiteKey` prop on `<CommentForm>`. |
 | `EMDASH_URL`              | Remote EmDash URL for schema sync         |
 
 Generate an encryption key with the following command:

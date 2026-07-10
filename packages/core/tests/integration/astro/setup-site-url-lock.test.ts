@@ -54,7 +54,7 @@ function buildContext(db: Kysely<Database>, request: Request): APIContext {
 				storage: undefined,
 			},
 		},
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub
 	} as unknown as APIContext;
 }
 

@@ -16,6 +16,7 @@ import type { FindManyResult } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { wouldCreateLoop, detectLoops, type RedirectEdge } from "../../redirects/loops.js";
 import { validatePattern, validateDestinationParams, isPattern } from "../../redirects/patterns.js";
+import { isTerminalStatus } from "../../redirects/status.js";
 import type { ApiResult } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -70,7 +71,7 @@ export async function handleRedirectCreate(
 	db: Kysely<Database>,
 	input: {
 		source: string;
-		destination: string;
+		destination?: string;
 		type?: number;
 		enabled?: boolean;
 		groupName?: string | null;
@@ -79,8 +80,14 @@ export async function handleRedirectCreate(
 	try {
 		const repo = new RedirectRepository(db);
 
+		const type = input.type ?? 301;
+		// Terminal statuses (410 Gone / 451) are served directly and have no
+		// destination — skip the destination/loop checks for them.
+		const terminal = isTerminalStatus(type);
+		const destination = terminal ? "" : (input.destination ?? "");
+
 		// Source and destination must differ
-		if (input.source === input.destination) {
+		if (!terminal && input.source === destination) {
 			return {
 				success: false,
 				error: {
@@ -102,12 +109,15 @@ export async function handleRedirectCreate(
 			}
 
 			// Validate destination params reference valid source params
-			const destError = validateDestinationParams(input.source, input.destination);
-			if (destError) {
-				return {
-					success: false,
-					error: { code: "VALIDATION_ERROR", message: destError },
-				};
+			// (terminal rules have no destination to interpolate)
+			if (!terminal) {
+				const destError = validateDestinationParams(input.source, destination);
+				if (destError) {
+					return {
+						success: false,
+						error: { code: "VALIDATION_ERROR", message: destError },
+					};
+				}
 			}
 		}
 
@@ -123,17 +133,18 @@ export async function handleRedirectCreate(
 			};
 		}
 
-		// Check for redirect loops (skip if creating as disabled)
-		if (input.enabled !== false) {
+		// Check for redirect loops (skip if creating as disabled, or terminal —
+		// a Gone rule has no destination, so it can't form a loop)
+		if (!terminal && input.enabled !== false) {
 			const edges = toEdges(await repo.findAllEnabled());
-			const loopPath = wouldCreateLoop(input.source, input.destination, edges);
+			const loopPath = wouldCreateLoop(input.source, destination, edges);
 			if (loopPath) return loopError(loopPath);
 		}
 
 		const redirect = await repo.create({
 			source: input.source,
-			destination: input.destination,
-			type: input.type ?? 301,
+			destination,
+			type,
 			isPattern: sourceIsPattern,
 			enabled: input.enabled ?? true,
 			groupName: input.groupName ?? null,

@@ -46,6 +46,7 @@
 			"slug": "pages",
 			"label": "Pages",
 			"labelSingular": "Page",
+			"urlPattern": "/{slug}",
 			"supports": ["drafts", "revisions", "search"],
 			"fields": [
 				{

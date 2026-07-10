@@ -230,7 +230,7 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 	// Check if user has a linked Discord account
 	const link = await findByGitHubId(env.KV, githubId);
 
-	const prLink = `[#${prNumber} ${prTitle}](${prUrl})`;
+	const prLink = `[#${prNumber} ${prTitle}](<${prUrl}>)`;
 
 	if (link) {
 		await postMessage(

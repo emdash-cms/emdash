@@ -56,6 +56,7 @@ import {
 	Minus,
 	LinkBreak,
 	ArrowSquareOut,
+	BracketsAngle,
 	CodeBlock,
 	Stack,
 	Eye,
@@ -91,7 +92,9 @@ import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
+import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import {
@@ -127,18 +130,24 @@ interface PortableTextTextBlock {
 	level?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
+	textAlign?: "left" | "center" | "right" | "justify";
 }
 
 interface PortableTextImageBlock {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string };
+	asset: { _ref: string; url?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash — first-class field (legacy snapshots store it in `asset.meta`). */
+	blurhash?: string;
+	/** LQIP dominant color — first-class field (legacy snapshots store it in `asset.meta`). */
+	dominantColor?: string;
 	displayWidth?: number;
 	displayHeight?: number;
+	alignment?: "left" | "center" | "right" | "wide" | "full";
 }
 
 interface PortableTextCodeBlock {
@@ -148,10 +157,17 @@ interface PortableTextCodeBlock {
 	language?: string;
 }
 
+interface PortableTextHtmlBlock {
+	_type: "htmlBlock";
+	_key: string;
+	html: string;
+}
+
 type PortableTextBlock =
 	| PortableTextTextBlock
 	| PortableTextImageBlock
 	| PortableTextCodeBlock
+	| PortableTextHtmlBlock
 	| { _type: string; _key: string; [key: string]: unknown };
 
 // Generate unique key
@@ -205,12 +221,15 @@ function convertPMNode(node: {
 		case "paragraph": {
 			const { children, markDefs } = convertInlineContent(node.content || []);
 			if (children.length === 0) return null;
+			const ta = node.attrs?.textAlign;
+			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
 				_key: generateKey(),
 				style: "normal",
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(textAlign ? { textAlign } : {}),
 			};
 		}
 
@@ -223,12 +242,15 @@ function convertPMNode(node: {
 				level >= 1 && level <= 6
 					? (`h${level}` as PortableTextTextBlock["style"])
 					: ("h1" as PortableTextTextBlock["style"]);
+			const ta = node.attrs?.textAlign;
+			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
 				_key: generateKey(),
 				style: headingStyle,
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(textAlign ? { textAlign } : {}),
 			};
 		}
 
@@ -276,9 +298,25 @@ function convertPMNode(node: {
 			};
 		}
 
+		case "htmlBlock": {
+			const rawHtml = node.attrs?.html;
+			return {
+				_type: "htmlBlock",
+				_key: generateKey(),
+				html: typeof rawHtml === "string" ? rawHtml : "",
+			};
+		}
+
 		case "image": {
 			const attrs = node.attrs ?? {};
 			const provider = attrStr(attrs.provider);
+			const blurhash = attrStr(attrs.blurhash);
+			const dominantColor = attrStr(attrs.dominantColor);
+			// Persist LQIP as first-class block fields, matching the image-field
+			// path (MediaValue.blurhash/dominantColor) so read sites and normalize
+			// don't need a `asset.meta` dual-shape. `asset.meta` is left to carry
+			// only provider-specific data (we don't reconstruct it here, so any
+			// non-LQIP meta keys are never silently dropped on editor round-trip).
 			return {
 				_type: "image",
 				_key: generateKey(),
@@ -291,8 +329,11 @@ function convertPMNode(node: {
 				caption: attrStr(attrs.caption) ?? attrStr(attrs.title),
 				width: attrNum(attrs.width),
 				height: attrNum(attrs.height),
+				...(blurhash ? { blurhash } : {}),
+				...(dominantColor ? { dominantColor } : {}),
 				displayWidth: attrNum(attrs.displayWidth),
 				displayHeight: attrNum(attrs.displayHeight),
+				alignment: attrStr(attrs.alignment) as PortableTextImageBlock["alignment"],
 			};
 		}
 
@@ -380,7 +421,11 @@ function convertPMNode(node: {
 	}
 }
 
-function convertList(items: unknown[], listItem: "bullet" | "number"): PortableTextTextBlock[] {
+function convertList(
+	items: unknown[],
+	listItem: "bullet" | "number",
+	level = 1,
+): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
 
@@ -399,11 +444,15 @@ function convertList(items: unknown[], listItem: "bullet" | "number"): PortableT
 							_key: generateKey(),
 							style: "normal",
 							listItem,
-							level: 1,
+							level,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
+				} else if (child.type === "bulletList") {
+					blocks.push(...convertList(child.content || [], "bullet", level + 1));
+				} else if (child.type === "orderedList") {
+					blocks.push(...convertList(child.content || [], "number", level + 1));
 				}
 			}
 		}
@@ -542,9 +591,14 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
 
+			// A list "run" is a level=1 anchor block plus everything that nests
+			// under it (level > 1) or repeats it at the same root level/type.
+			// A level=1 block with a different listItem ends the run.
 			while (i < blocks.length) {
 				const current = blocks[i]!;
-				if (isTextBlock(current) && current.listItem === listType) {
+				if (!isTextBlock(current) || !current.listItem) break;
+				const level = current.level || 1;
+				if (level > 1 || current.listItem === listType) {
 					listBlocks.push(current);
 					i++;
 				} else {
@@ -572,7 +626,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 	switch (block._type) {
 		case "block": {
 			if (!isTextBlock(block)) return null;
-			const { style = "normal", children, markDefs = [] } = block;
+			const { style = "normal", children, markDefs = [], textAlign } = block;
 			const pmContent = convertPTSpans(children, markDefs);
 
 			switch (style) {
@@ -585,7 +639,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					const level = parseInt(style.substring(1), 10);
 					return {
 						type: "heading",
-						attrs: { level },
+						attrs: { level, ...(textAlign ? { textAlign } : {}) },
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 				}
@@ -602,6 +656,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 				default:
 					return {
 						type: "paragraph",
+						attrs: textAlign ? { textAlign } : undefined,
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 			}
@@ -610,6 +665,21 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "image": {
 			if (!isImageBlock(block)) return null;
 			const imageBlock = block;
+			const meta = imageBlock.asset.meta;
+			// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy
+			// snapshots persisted before LQIP was promoted out of the provider meta bag.
+			const blurhash =
+				typeof imageBlock.blurhash === "string"
+					? imageBlock.blurhash
+					: typeof meta?.blurhash === "string"
+						? meta.blurhash
+						: null;
+			const dominantColor =
+				typeof imageBlock.dominantColor === "string"
+					? imageBlock.dominantColor
+					: typeof meta?.dominantColor === "string"
+						? meta.dominantColor
+						: null;
 			return {
 				type: "image",
 				attrs: {
@@ -620,8 +690,11 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					mediaId: imageBlock.asset._ref,
 					width: imageBlock.width,
 					height: imageBlock.height,
+					blurhash,
+					dominantColor,
 					displayWidth: imageBlock.displayWidth,
 					displayHeight: imageBlock.displayHeight,
+					alignment: imageBlock.alignment,
 				},
 			};
 		}
@@ -638,6 +711,14 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 
 		case "break":
 			return { type: "horizontalRule" };
+
+		case "htmlBlock": {
+			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
+			return {
+				type: "htmlBlock",
+				attrs: { html: htmlBlock.html || "" },
+			};
+		}
 
 		case "table": {
 			const tableBlock = block as {
@@ -733,22 +814,95 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 }
 
 function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
-	const listItems = items.map((item) => {
-		const pmContent = convertPTSpans(item.children, item.markDefs || []);
-		return {
-			type: "listItem",
-			content: [
-				{
-					type: "paragraph",
-					content: pmContent.length > 0 ? pmContent : undefined,
-				},
-			],
-		};
-	});
+	// Group items into root-level items (level === 1) and their nested
+	// descendants (level > 1). For each root item, all subsequent items with
+	// level > 1 belong to its nested subtree — recurse on them with level
+	// decremented so the inner pass sees them as its own root level.
+	const rootItems: unknown[] = [];
+	let i = 0;
+
+	while (i < items.length) {
+		const item = items[i]!;
+		const level = item.level || 1;
+
+		if (level === 1) {
+			const nestedItems: PortableTextTextBlock[] = [];
+			i++;
+			while (i < items.length && (items[i]!.level || 1) > 1) {
+				nestedItems.push(items[i]!);
+				i++;
+			}
+			rootItems.push(convertPTListItem(item, nestedItems, listType));
+		} else {
+			// Orphan nested item with no preceding level=1 anchor — treat as root
+			// so we don't drop content.
+			rootItems.push(convertPTListItem(item, [], listType));
+			i++;
+		}
+	}
 
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
-		content: listItems,
+		content: rootItems,
+	};
+}
+
+function convertPTListItem(
+	item: PortableTextTextBlock,
+	nestedItems: PortableTextTextBlock[],
+	parentListType: "bullet" | "number",
+): unknown {
+	const content: unknown[] = [];
+
+	const pmContent = convertPTSpans(item.children, item.markDefs || []);
+	content.push({
+		type: "paragraph",
+		content: pmContent.length > 0 ? pmContent : undefined,
+	});
+
+	if (nestedItems.length > 0) {
+		// The shallowest level in `nestedItems` is the effective root of this
+		// item's nested subtree. A new sub-list only starts when we hit
+		// another block at that root level with a different `listItem` type;
+		// deeper blocks (level > minLevel) belong to the current group as
+		// descendants regardless of their own `listItem`. The previous
+		// grouping broke on any type change at any depth, so a deep mixed
+		// tree like `bullet L1 → number L2 → bullet L3 → number L2` would
+		// emit C(L3) as a sibling list under A(L1) instead of nesting it
+		// under B(L2), then degrade C to L2 on round-trip.
+		let minLevel = Infinity;
+		for (const ni of nestedItems) {
+			const level = ni.level || 2;
+			if (level < minLevel) minLevel = level;
+		}
+
+		let j = 0;
+		while (j < nestedItems.length) {
+			const anchorType: "bullet" | "number" = nestedItems[j]!.listItem || parentListType;
+			const nestedGroup: PortableTextTextBlock[] = [];
+
+			do {
+				nestedGroup.push(nestedItems[j]!);
+				j++;
+			} while (
+				j < nestedItems.length &&
+				((nestedItems[j]!.level || 2) > minLevel ||
+					(nestedItems[j]!.listItem || parentListType) === anchorType)
+			);
+
+			if (nestedGroup.length > 0) {
+				const adjustedGroup = nestedGroup.map((ni) => ({
+					...ni,
+					level: (ni.level || 2) - 1,
+				}));
+				content.push(convertPTList(adjustedGroup, anchorType));
+			}
+		}
+	}
+
+	return {
+		type: "listItem",
+		content,
 	};
 }
 
@@ -919,6 +1073,21 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		aliases: ["code", "pre", "```"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+		},
+	},
+	{
+		id: "htmlBlock",
+		title: msg`HTML`,
+		description: msg`Insert raw HTML`,
+		icon: BracketsAngle,
+		aliases: ["html", "raw", "markup"],
+		command: ({ editor, range }) => {
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+				.run();
 		},
 	},
 	{
@@ -1266,7 +1435,7 @@ function PluginBlockModal({
 			<Dialog className="p-6" size={dialogSize}>
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEditing ? t`Edit` : t`Insert`} {block?.label || ""}
+						{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
 					</Dialog.Title>
 					<Dialog.Close
 						aria-label={t`Close`}
@@ -1805,19 +1974,55 @@ export {
 // Editor Footer with Writing Metrics
 // =============================================================================
 
+// Reading speed used for the footer metrics. CJK characters get a separate,
+// higher rate because they are denser than space-delimited words. These mirror
+// the published reading-time util (templates/blog/src/utils/reading-time.ts,
+// covered by packages/core/tests/unit/templates/blog-reading-time.test.ts) so
+// the editor footer and the rendered site report the same numbers.
+const WORDS_PER_MINUTE = 200;
+const CJK_CHARACTERS_PER_MINUTE = 500;
+const WHITESPACE_REGEX = /\s+/;
+
+// CJK scripts do not separate words with spaces, so a split()-based count treats
+// a whole paragraph as a single word. Count those characters individually.
+const CJK_CHARACTER_REGEX =
+	/\p{Script=Han}|\p{Script=Hangul}|\p{Script=Hiragana}|\p{Script=Katakana}/gu;
+
+function countCjkCharacters(text: string): number {
+	return text.match(CJK_CHARACTER_REGEX)?.length ?? 0;
+}
+
+function countNonCjkWords(text: string): number {
+	return text.replace(CJK_CHARACTER_REGEX, " ").split(WHITESPACE_REGEX).filter(Boolean).length;
+}
+
 /**
- * Calculate reading time in minutes based on word count
- * Uses a standard reading speed of 200 words per minute
+ * Word count for the editor footer. CJK characters are counted individually
+ * because they are not delimited by spaces; other scripts are counted by word.
+ * Used as the `wordCounter` for the CharacterCount extension, whose default
+ * (`text.split(' ')`) reports a spaceless CJK paragraph as a single word.
  */
-export function calculateReadingTime(words: number): number {
-	return Math.ceil(words / 200);
+export function countWords(text: string): number {
+	return countNonCjkWords(text) + countCjkCharacters(text);
+}
+
+/**
+ * Calculate reading time in minutes for the given text. Word-based scripts are
+ * read at WORDS_PER_MINUTE and CJK characters at CJK_CHARACTERS_PER_MINUTE.
+ * Returns 0 for an empty document.
+ */
+export function calculateReadingTime(text: string): number {
+	return Math.ceil(
+		countNonCjkWords(text) / WORDS_PER_MINUTE +
+			countCjkCharacters(text) / CJK_CHARACTERS_PER_MINUTE,
+	);
 }
 
 /**
  * Editor footer showing writing metrics (word count, character count, reading time)
  */
 function EditorFooter({ editor }: { editor: Editor }) {
-	const { words, characters } = useEditorState({
+	const { words, characters, text } = useEditorState({
 		editor,
 		selector: (ctx) => {
 			const storage: { words: () => number; characters: () => number } =
@@ -1825,11 +2030,12 @@ function EditorFooter({ editor }: { editor: Editor }) {
 			return {
 				words: storage.words(),
 				characters: storage.characters(),
+				text: ctx.editor.getText(),
 			};
 		},
 	});
 
-	const readingTime = calculateReadingTime(words);
+	const readingTime = calculateReadingTime(text);
 
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
@@ -2074,6 +2280,8 @@ export function PortableTextEditor({
 					color: "#3b82f6",
 					width: 2,
 				},
+				// Replaced with CodeBlockExtension below (adds language picker node view).
+				codeBlock: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
 					openOnClick: false,
@@ -2084,6 +2292,8 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			CodeBlockExtension,
+			HtmlBlockExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
@@ -2110,7 +2320,7 @@ export function PortableTextEditor({
 				onStateChange: setSlashMenuState,
 				getState: () => slashMenuStateRef.current,
 			}),
-			CharacterCount,
+			CharacterCount.configure({ wordCounter: countWords }),
 			Focus.configure({
 				className: "has-focus",
 				mode: "all",
@@ -2236,6 +2446,8 @@ export function PortableTextEditor({
 						provider: item.provider || "local",
 						width: item.width,
 						height: item.height,
+						blurhash: item.blurhash,
+						dominantColor: item.dominantColor,
 					})
 					.run();
 			}
@@ -2253,17 +2465,25 @@ export function PortableTextEditor({
 			const editPos = editingBlockPosRef.current;
 
 			if (editPos !== null) {
-				// Editing an existing block — update its attributes in place
-				const { tr } = editor.state;
-				const node = tr.doc.nodeAt(editPos);
-				if (node?.type.name === "pluginBlock") {
-					tr.setNodeMarkup(editPos, undefined, {
-						...node.attrs,
-						id: typeof id === "string" ? id : node.attrs.id,
-						data,
-					});
-					editor.view.dispatch(tr);
-				}
+				// Editing an existing block — update its attributes in place.
+				// Use the chain API so TipTap's onUpdate fires reliably
+				// (raw view.dispatch may not trigger onUpdate for attribute-only
+				// changes on atom nodes in some TipTap versions).
+				editor
+					.chain()
+					.command(({ tr }) => {
+						const node = tr.doc.nodeAt(editPos);
+						if (node?.type.name === "pluginBlock") {
+							tr.setNodeMarkup(editPos, undefined, {
+								...node.attrs,
+								id: typeof id === "string" ? id : node.attrs.id,
+								data,
+							});
+							return true;
+						}
+						return false;
+					})
+					.run();
 			} else {
 				// Inserting a new block
 				editor
@@ -2326,7 +2546,7 @@ export function PortableTextEditor({
 	return (
 		<div
 			className={cn(
-				"border rounded-lg overflow-hidden",
+				"border rounded-lg overflow-clip",
 				minimal && "border-0 rounded-none -mx-4",
 				focusMode === "spotlight" && "spotlight-mode",
 				className,
@@ -2731,6 +2951,8 @@ function EditorToolbar({
 					mediaId: item.id,
 					width: item.width,
 					height: item.height,
+					blurhash: item.blurhash,
+					dominantColor: item.dominantColor,
 				})
 				.run();
 		},
@@ -2782,7 +3004,7 @@ function EditorToolbar({
 			ref={toolbarRef}
 			role="toolbar"
 			aria-label={t`Text formatting`}
-			className="border-b bg-kumo-tint/50 p-1 flex flex-wrap gap-0.5"
+			className="sticky -top-6 z-10 border-b bg-kumo-tint p-1 flex flex-wrap gap-0.5"
 			onKeyDown={handleKeyDown}
 		>
 			{/* Text formatting */}
@@ -2985,6 +3207,18 @@ function EditorToolbar({
 				</div>
 				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title={t`Insert Image`}>
 					<ImageIcon className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
+					onClick={() =>
+						editor
+							.chain()
+							.focus()
+							.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+							.run()
+					}
+					title={t`Insert HTML`}
+				>
+					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setHorizontalRule().run()}

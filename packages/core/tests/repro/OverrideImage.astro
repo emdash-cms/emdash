@@ -1,0 +1,7 @@
+---
+import Image from "../../src/components/Image.astro";
+const { node } = Astro.props as { node: unknown };
+---
+<div data-override="delegating" data-node={JSON.stringify(node)}>
+	<Image node={node} />
+</div>

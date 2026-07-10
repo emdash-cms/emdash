@@ -118,7 +118,7 @@ devRoutes.post("/dev/audit", async (c) => {
 		if (iconData) {
 			imageFiles.push({
 				filename: "icon.png",
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Uint8Array.buffer is ArrayBuffer at runtime
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Uint8Array.buffer is ArrayBuffer at runtime
 				data: iconData.buffer as ArrayBuffer,
 			});
 		}
@@ -126,7 +126,7 @@ devRoutes.post("/dev/audit", async (c) => {
 			if (path.startsWith("screenshots/")) {
 				imageFiles.push({
 					filename: path,
-					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Uint8Array.buffer is ArrayBuffer at runtime
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Uint8Array.buffer is ArrayBuffer at runtime
 					data: data.buffer as ArrayBuffer,
 				});
 			}

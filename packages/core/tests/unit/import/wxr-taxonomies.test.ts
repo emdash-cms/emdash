@@ -54,9 +54,9 @@ async function createPostsCollectionWithEntry(
 	// this test — we just need an existing row to attach taxonomies to).
 	const id = `post_${Math.random().toString(36).slice(2, 10)}`;
 	await db
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- ec_* tables aren't typed in Database
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- ec_* tables aren't typed in Database
 		.insertInto("ec_posts" as never)
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- dynamic content table shape
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- dynamic content table shape
 		.values({ id, slug, status: "published" } as never)
 		.execute();
 	return id;
@@ -303,9 +303,9 @@ describe("attachPostTaxonomies", () => {
 
 		const productId = "prod_test1";
 		await db
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- ec_* tables aren't typed in Database
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- ec_* tables aren't typed in Database
 			.insertInto("ec_products" as never)
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- dynamic content table shape
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- dynamic content table shape
 			.values({ id: productId, slug: "thing", status: "published" } as never)
 			.execute();
 

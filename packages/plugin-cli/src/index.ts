@@ -14,9 +14,10 @@
  *   - init     — scaffold a new sandboxed plugin
  *   - build    — produce the npm distribution artifacts (dist/index.mjs, dist/plugin.mjs, dist/manifest.json)
  *   - dev      — watch sources and rebuild on change
- *   - bundle   — bundle a plugin source directory into a tarball
- *   - publish  — publish a release that points at a hosted tarball
- *   - validate — validate an emdash-plugin.jsonc manifest against the v1 schema
+ *   - bundle         — bundle a plugin source directory into a tarball
+ *   - publish        — publish a release that points at a hosted tarball
+ *   - update-package — edit an already-published package without a new release
+ *   - validate       — validate an emdash-plugin.jsonc manifest against the v1 schema
  *
  * EXPERIMENTAL: this CLI targets `com.emdashcms.experimental.*` and the
  * experimental aggregator. Pin to an exact version while RFC 0001 is in flight.
@@ -33,6 +34,7 @@ import { logoutCommand } from "./commands/logout.js";
 import { publishCommand } from "./commands/publish.js";
 import { searchCommand } from "./commands/search.js";
 import { switchCommand } from "./commands/switch.js";
+import { updatePackageCommand } from "./commands/update-package.js";
 import { validateCommand } from "./commands/validate.js";
 import { whoamiCommand } from "./commands/whoami.js";
 import { devCommand } from "./dev/command.js";
@@ -54,6 +56,7 @@ const main = defineCommand({
 		dev: devCommand,
 		bundle: bundleCommand,
 		publish: publishCommand,
+		"update-package": updatePackageCommand,
 		validate: validateCommand,
 	},
 });

@@ -1,0 +1,18 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+
+export const prerender = true;
+
+const frontmatter = {
+	title: "404",
+	template: "splash",
+	editUrl: false,
+	pagefind: false,
+	hero: {
+		tagline: Astro.locals.t("404.text"),
+		actions: [],
+	},
+};
+---
+
+<StarlightPage frontmatter={frontmatter} />

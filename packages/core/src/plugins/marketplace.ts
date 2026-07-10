@@ -8,7 +8,7 @@
 
 import { createGzipDecoder, unpackTar } from "modern-tar";
 
-import { pluginManifestSchema } from "./manifest-schema.js";
+import { pluginManifestSchema, reconcileManifestAccess } from "./manifest-schema.js";
 import type { PluginManifest } from "./types.js";
 
 // ── Module-level regex patterns ───────────────────────────────────
@@ -495,10 +495,7 @@ export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBun
 				"INVALID_BUNDLE",
 			);
 		}
-		// Elements are validated as unknown[] by Zod; cast to PluginManifest
-		// for the Element[] type (Block Kit validation happens at render time).
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Zod types elements as unknown[]; Element type validated at render time
-		manifest = result.data as unknown as PluginManifest;
+		manifest = reconcileManifestAccess(result.data);
 	} catch (err) {
 		if (err instanceof MarketplaceError) throw err;
 		throw new MarketplaceError(
@@ -509,7 +506,7 @@ export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBun
 	}
 
 	// Compute SHA-256 checksum of the tarball for verification
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Uint8Array is a valid BufferSource at runtime; TS lib mismatch
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Uint8Array is a valid BufferSource at runtime; TS lib mismatch
 	const hashBuffer = await crypto.subtle.digest("SHA-256", tarballBytes as unknown as BufferSource);
 	const hashArray = new Uint8Array(hashBuffer);
 	const checksum = Array.from(hashArray, (b) => b.toString(16).padStart(2, "0")).join("");

@@ -56,7 +56,7 @@ function buildContext(opts: { db: Kysely<Database>; request: Request }): APICont
 			},
 			user: null,
 		},
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub for tests
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
 }
 

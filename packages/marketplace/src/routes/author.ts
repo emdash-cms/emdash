@@ -64,7 +64,7 @@ async function authenticateWithGitHubToken(
 		throw new Error(`Failed to fetch GitHub user: ${userResponse.status}`);
 	}
 
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- GitHub API response
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- GitHub API response
 	const githubUser: GitHubUser = await userResponse.json();
 	const githubId = String(githubUser.id);
 
@@ -131,7 +131,7 @@ authorRoutes.post("/auth/github", async (c) => {
 			}),
 		});
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- GitHub OAuth response
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- GitHub OAuth response
 		const tokenData: {
 			access_token?: string;
 			error?: string;
@@ -921,7 +921,7 @@ async function extractTarball(data: ArrayBuffer): Promise<Map<string, Uint8Array
 function safeJsonParse<T>(value: string | null, fallback: T): T {
 	if (!value) return fallback;
 	try {
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- caller provides type parameter
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- caller provides type parameter
 		const parsed: T = JSON.parse(value);
 		return parsed;
 	} catch {

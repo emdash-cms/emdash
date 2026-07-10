@@ -23,7 +23,7 @@ import type { PreviewDOConfig } from "./do-types.js";
  * This is passed as `config.name` by the preview middleware.
  */
 export function createDialect(config: PreviewDOConfig & { name: string }): Dialect {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Worker binding accessed from untyped env object
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding accessed from untyped env object
 	const ns = (env as Record<string, unknown>)[config.binding];
 
 	if (!ns) {
@@ -40,14 +40,14 @@ export function createDialect(config: PreviewDOConfig & { name: string }): Diale
 		);
 	}
 
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- DO namespace binding from untyped env object
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- DO namespace binding from untyped env object
 	const namespace = ns as DurableObjectNamespace<EmDashPreviewDB>;
 	const id = namespace.idFromName(config.name);
 
 	// Return a factory that creates a fresh stub per connection.
 	const getStub = (): PreviewDBStub => {
 		const stub = namespace.get(id);
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Rpc type limitation with unknown in return types
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown in return types
 		return stub as unknown as PreviewDBStub;
 	};
 

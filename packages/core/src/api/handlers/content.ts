@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
@@ -12,18 +13,27 @@ import { ContentRepository } from "../../database/repositories/content.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
+import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
 	EmDashValidationError,
+	ScheduledNotDueError,
 	InvalidCursorError,
+	type BylineSummary,
+	type ContentBylineCredit,
+	type ContentDateField,
 	type ContentItem,
 	type ContentSeo,
 	type ContentSeoInput,
+	type FindManyOptions,
 } from "../../database/repositories/types.js";
+import { UserRepository } from "../../database/repositories/user.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
-import { isI18nEnabled } from "../../i18n/config.js";
+import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { FTSManager } from "../../search/fts-manager.js";
+import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
@@ -116,7 +126,11 @@ async function hydrateBylines(
 	item: ContentItem,
 ): Promise<void> {
 	const bylineRepo = new BylineRepository(db);
-	const bylines = await bylineRepo.getContentBylines(collection, item.id);
+	// Strict per-locale (migration 040): a credit at locale X renders iff a
+	// byline row exists at locale X in the credited translation_group. The
+	// junction itself spans translations; rendering does not fall back.
+	const localeOpt = item.locale ? { locale: item.locale } : undefined;
+	const bylines = await bylineRepo.getContentBylines(collection, item.id, localeOpt);
 
 	if (bylines.length > 0) {
 		item.bylines = bylines.map((c) => ({ ...c, source: "explicit" as const }));
@@ -124,13 +138,21 @@ async function hydrateBylines(
 		return;
 	}
 
-	// Defensive: if primaryBylineId is set but no junction rows exist, it's orphaned
+	// `primaryBylineId` is set iff junction rows exist; non-null
+	// suppresses author fallback even when the credit doesn't resolve
+	// at this locale.
 	if (item.primaryBylineId) {
-		item.primaryBylineId = null;
+		item.bylines = [];
+		item.byline = null;
+		return;
 	}
 
 	if (item.authorId) {
-		const fallback = await bylineRepo.findByUserId(item.authorId);
+		// Same strict-locale rule as explicit credits: a user-linked byline
+		// renders on the entry only when a sibling exists at the entry's
+		// locale. Without this we'd silently surface the default-locale
+		// row, which contradicts the per-locale model.
+		const fallback = await bylineRepo.findByUserId(item.authorId, localeOpt);
 		if (fallback) {
 			item.bylines = [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
 			item.byline = fallback;
@@ -144,6 +166,11 @@ async function hydrateBylines(
 
 /**
  * Batch-hydrate bylines for multiple items using two bulk queries instead of N+1.
+ *
+ * Items may live at different locales (e.g. a list endpoint returning the
+ * translations of an entry). Group by `item.locale` and call the strict
+ * per-locale repo method once per group so each item resolves against its
+ * own locale's byline rows.
  */
 async function hydrateBylinesMany(
 	db: Kysely<Database>,
@@ -154,43 +181,76 @@ async function hydrateBylinesMany(
 
 	const bylineRepo = new BylineRepository(db);
 
-	// 1. Batch fetch all explicit byline credits
-	const contentIds = items.map((i) => i.id);
-	const bylinesMap = await bylineRepo.getContentBylinesMany(collection, contentIds);
-
-	// 2. Collect authorIds that need fallback lookup
-	const fallbackAuthorIds: string[] = [];
+	// 1. Bucket items by locale so we can call the strict-locale repo
+	//    once per bucket. Items with a null/undefined locale (pre-i18n
+	//    rows on a single-locale install) share an "unscoped" bucket.
+	const localeBuckets = new Map<string | null, ContentItem[]>();
 	for (const item of items) {
-		if (!bylinesMap.has(item.id) && item.authorId) {
-			fallbackAuthorIds.push(item.authorId);
+		const key = item.locale ?? null;
+		const bucket = localeBuckets.get(key);
+		if (bucket) bucket.push(item);
+		else localeBuckets.set(key, [item]);
+	}
+
+	// 2. Per-locale: fetch explicit credits. Items whose credits don't
+	//    resolve at this locale go through a locale-agnostic "has any
+	//    junction" check before being considered for author inference —
+	//    explicit editorial intent at any locale beats inferred fallback.
+	const bylinesByItem = new Map<string, ContentBylineCredit[]>();
+	const itemsNeedingAuthorCheck: ContentItem[] = [];
+	for (const [locale, bucket] of localeBuckets) {
+		const localeOpt = locale ? { locale } : undefined;
+		const ids = bucket.map((i) => i.id);
+		const credits = await bylineRepo.getContentBylinesMany(collection, ids, localeOpt);
+		for (const [id, list] of credits) bylinesByItem.set(id, list);
+
+		for (const item of bucket) {
+			if (credits.has(item.id) && credits.get(item.id)!.length > 0) continue;
+			if (item.authorId) itemsNeedingAuthorCheck.push(item);
 		}
 	}
 
-	// 3. Batch fetch user-linked bylines for fallback
-	const uniqueAuthorIds = [...new Set(fallbackAuthorIds)];
-	const authorBylineMap = await bylineRepo.findByUserIds(uniqueAuthorIds);
+	// 3. Author fallback applies only when no explicit credit exists
+	//    (primaryBylineId null).
+	const fallbackByItem = new Map<string, BylineSummary>();
+	if (itemsNeedingAuthorCheck.length > 0) {
+		const authorBuckets = new Map<string | null, ContentItem[]>();
+		for (const item of itemsNeedingAuthorCheck) {
+			if (item.primaryBylineId) continue;
+			const key = item.locale ?? null;
+			const bucket = authorBuckets.get(key);
+			if (bucket) bucket.push(item);
+			else authorBuckets.set(key, [item]);
+		}
 
-	// 4. Assign to each item
+		for (const [locale, bucket] of authorBuckets) {
+			const localeOpt = locale ? { locale } : undefined;
+			const authorIds = bucket.map((i) => i.authorId).filter((id): id is string => id !== null);
+			const uniqueAuthorIds = [...new Set(authorIds)];
+			if (uniqueAuthorIds.length === 0) continue;
+			const authorMap = await bylineRepo.findByUserIds(uniqueAuthorIds, localeOpt);
+			for (const item of bucket) {
+				if (!item.authorId) continue;
+				const f = authorMap.get(item.authorId);
+				if (f) fallbackByItem.set(item.id, f);
+			}
+		}
+	}
+
+	// 4. Assign to each item.
 	for (const item of items) {
-		const explicit = bylinesMap.get(item.id);
+		const explicit = bylinesByItem.get(item.id);
 		if (explicit && explicit.length > 0) {
 			item.bylines = explicit.map((c) => ({ ...c, source: "explicit" as const }));
 			item.byline = explicit[0]?.byline ?? null;
 			continue;
 		}
 
-		// Defensive: if primaryBylineId is set but no junction rows exist, it's orphaned
-		if (item.primaryBylineId) {
-			item.primaryBylineId = null;
-		}
-
-		if (item.authorId) {
-			const fallback = authorBylineMap.get(item.authorId);
-			if (fallback) {
-				item.bylines = [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
-				item.byline = fallback;
-				continue;
-			}
+		const fallback = fallbackByItem.get(item.id);
+		if (fallback) {
+			item.bylines = [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
+			item.byline = fallback;
+			continue;
 		}
 
 		item.bylines = [];
@@ -244,6 +304,106 @@ export interface TrashedContentItem {
 }
 
 /**
+ * Resolve the columns a content-list search should match against. Always
+ * includes `slug` (a standard column) and adds the `title`/`name` display
+ * fields when the collection actually defines them, mirroring the admin's
+ * item-title resolution (title -> name -> slug). Returning only existing
+ * columns avoids "no such column" errors on collections without them.
+ */
+async function resolveSearchColumns(db: Kysely<Database>, collection: string): Promise<string[]> {
+	const columns = ["slug"];
+	const row = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	if (!row) return columns;
+
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select("slug")
+		.where("collection_id", "=", row.id)
+		.execute();
+	const fieldSlugs = new Set(fields.map((f) => f.slug));
+	for (const candidate of ["title", "name"]) {
+		if (fieldSlugs.has(candidate)) columns.push(candidate);
+	}
+	return columns;
+}
+
+/**
+ * Decide whether the content-list `q` filter can be served from the
+ * collection's FTS5 index instead of a full-scan substring LIKE (#1517).
+ *
+ * Requires SQLite (FTS5 is SQLite-only), search enabled on the collection,
+ * every non-slug display column present in the searchable-field set (or the
+ * index would miss matches the LIKE finds), and the index table actually
+ * existing.
+ */
+async function canUseFtsForListFilter(
+	db: Kysely<Database>,
+	collection: string,
+	searchColumns: string[],
+): Promise<boolean> {
+	if (!isSqlite(db)) return false;
+	const ftsManager = new FTSManager(db);
+	const config = await ftsManager.getSearchConfig(collection);
+	if (!config?.enabled) return false;
+	const searchable = new Set(await ftsManager.getSearchableFields(collection));
+	const covered = searchColumns.every((col) => col === "slug" || searchable.has(col));
+	if (!covered) return false;
+	return ftsManager.ftsTableExists(collection);
+}
+
+/**
+ * Create a 301 auto-redirect from an entry's old URL to its new one after a
+ * slug change, using the collection's URL pattern. Shared by
+ * handleContentUpdate (direct slug edits) and handleContentPublish (slug edits
+ * staged as `_slug` in a draft revision, which only land on publish).
+ */
+async function createSlugChangeRedirect(
+	db: Kysely<Database>,
+	collection: string,
+	oldSlug: string,
+	newSlug: string,
+	contentId: string,
+): Promise<void> {
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("url_pattern")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+
+	const redirectRepo = new RedirectRepository(db);
+	await redirectRepo.createAutoRedirect(
+		collection,
+		oldSlug,
+		newSlug,
+		contentId,
+		collectionRow?.url_pattern ?? null,
+	);
+	invalidateRedirectCache();
+}
+
+/** Matches a date-only `YYYY-MM-DD` bound (no time component). */
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Normalize a date-range bound to an ISO datetime for lexicographic comparison
+ * against stored ISO 8601 timestamps. A bare `YYYY-MM-DD` is widened to the
+ * appropriate UTC day boundary so the range stays inclusive: a `start` bound
+ * becomes the start of the day and an `end` bound the end of the day.
+ * Otherwise a date-only upper bound would exclude every same-day row (since
+ * `2024-06-01T12:00:00Z` sorts after `2024-06-01`). Full datetimes pass
+ * through unchanged.
+ */
+function normalizeDateBound(value: string | undefined, edge: "start" | "end"): string | undefined {
+	if (!value) return undefined;
+	if (!DATE_ONLY_RE.test(value)) return value;
+	return edge === "start" ? `${value}T00:00:00.000Z` : `${value}T23:59:59.999Z`;
+}
+
+/**
  * Create content list handler
  */
 export async function handleContentList(
@@ -256,13 +416,36 @@ export async function handleContentList(
 		orderBy?: string;
 		order?: "asc" | "desc";
 		locale?: string;
+		q?: string;
+		authorId?: string;
+		dateField?: ContentDateField;
+		dateFrom?: string;
+		dateTo?: string;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
 		const repo = new ContentRepository(db);
-		const where: { status?: string; locale?: string } = {};
+		const where: FindManyOptions["where"] = {};
 		if (params.status) where.status = params.status;
 		if (params.locale) where.locale = params.locale;
+		if (params.authorId) where.authorId = params.authorId;
+
+		// A date range requires a target column; ignore stray from/to without
+		// a field so a half-specified filter doesn't silently drop all rows.
+		if (params.dateField && (params.dateFrom || params.dateTo)) {
+			where.dateFilter = {
+				field: params.dateField,
+				from: normalizeDateBound(params.dateFrom, "start"),
+				to: normalizeDateBound(params.dateTo, "end"),
+			};
+		}
+
+		const q = params.q?.trim();
+		if (q) {
+			where.q = q;
+			where.searchColumns = await resolveSearchColumns(db, collection);
+			where.useFts = await canUseFtsForListFilter(db, collection, where.searchColumns);
+		}
 
 		const result = await repo.findMany(collection, {
 			cursor: params.cursor,
@@ -315,6 +498,62 @@ export async function handleContentList(
 			error: {
 				code: "CONTENT_LIST_ERROR",
 				message: "Failed to list content",
+			},
+		};
+	}
+}
+
+/** A content author option for the admin author filter. */
+export interface ContentAuthor {
+	id: string;
+	name: string | null;
+	email: string;
+	avatarUrl: string | null;
+}
+
+/**
+ * List the distinct authors of a collection's live content.
+ *
+ * Backs the admin content-list author filter. Unlike `/admin/users` (ADMIN
+ * only), this is gated on `content:read`, so any editor can filter by author.
+ * Returns only users who have authored at least one non-trashed entry, sorted
+ * by display name then email for a stable dropdown order.
+ */
+export async function handleContentAuthors(
+	db: Kysely<Database>,
+	collection: string,
+): Promise<ApiResult<{ items: ContentAuthor[] }>> {
+	try {
+		const repo = new ContentRepository(db);
+		const authorIds = await repo.findDistinctAuthorIds(collection);
+		if (authorIds.length === 0) {
+			return { success: true, data: { items: [] } };
+		}
+
+		const userRepo = new UserRepository(db);
+		const users = await userRepo.findByIds(authorIds);
+
+		const items: ContentAuthor[] = users
+			.map((u) => ({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl }))
+			.toSorted((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
+
+		return { success: true, data: { items } };
+	} catch (error) {
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		console.error("Content authors error:", error);
+		return {
+			success: false,
+			error: {
+				code: "CONTENT_AUTHORS_ERROR",
+				message: "Failed to list content authors",
 			},
 		};
 	}
@@ -428,6 +667,7 @@ export async function handleContentCreate(
 		locale?: string;
 		translationOf?: string;
 		seo?: ContentSeoInput;
+		taxonomies?: Record<string, string[]>;
 		createdAt?: string | null;
 		publishedAt?: string | null;
 	},
@@ -454,12 +694,16 @@ export async function handleContentCreate(
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 
-			// Auto-generate slug from title/name if not explicitly provided
+			// Default to the configured site locale rather than the repo's
+			// hard-coded "en" — otherwise non-English default-locale sites
+			// silently create entries in a locale the editor never chose.
+			const effectiveLocale = body.locale ?? getI18nConfig()?.defaultLocale;
+
 			let slug: string | null | undefined = body.slug;
 			if (!slug) {
 				const slugSource = getSlugSource(body.data);
 				if (slugSource) {
-					slug = await repo.generateUniqueSlug(collection, slugSource, body.locale);
+					slug = await repo.generateUniqueSlug(collection, slugSource, effectiveLocale);
 				}
 			}
 
@@ -469,28 +713,49 @@ export async function handleContentCreate(
 				data: body.data,
 				status: body.status || "draft",
 				authorId: body.authorId,
-				locale: body.locale,
+				locale: effectiveLocale,
 				translationOf: body.translationOf,
 				createdAt: body.createdAt,
 				publishedAt: body.publishedAt,
 			});
 
 			if (body.bylines !== undefined) {
-				await bylineRepo.setContentBylines(collection, created.id, body.bylines);
-				created.primaryBylineId = body.bylines[0]?.bylineId ?? null;
+				const credits = await bylineRepo.setContentBylines(collection, created.id, body.bylines);
+				// `setContentBylines` translates wire row ids to their
+				// `translation_group` before writing. The response-shape
+				// `primaryBylineId` must match what's now in the DB, so read
+				// it from the returned credit (whose `byline` came from a
+				// hydration round-trip).
+				created.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
-			await hydrateBylines(trx, collection, created);
 
-			// When this row is a translation of an existing item, inherit the
-			// source's taxonomy assignments. The pivot stores translation_groups
-			// so the copied rows apply to every locale of the translation group
-			// (existing per-locale assignments still resolve correctly in
-			// `getEntryTerms` because the join picks the locale-specific row).
+			// When this row is a translation of an existing item, inherit
+			// the source's taxonomy assignments AND byline credits. Both
+			// pivots store translation_groups (taxonomies post-mig 036,
+			// bylines post-mig 040), so a copied row applies across every
+			// locale of the credited identity — and the locale-strict
+			// hydration below renders the variant that matches the entry's
+			// locale (or nothing if no variant exists yet at this locale,
+			// which is the documented Phase 4 behaviour).
+			//
+			// Explicit `body.bylines` wins — `copyContentBylines` no-ops
+			// when the target already has credits, but the cleaner guard
+			// is to skip the call entirely.
 			if (body.translationOf) {
-				const { TaxonomyRepository } = await import("../../database/repositories/taxonomy.js");
 				const taxRepo = new TaxonomyRepository(trx);
 				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
+
+				if (body.bylines === undefined) {
+					await bylineRepo.copyContentBylines(collection, body.translationOf, created.id);
+					// `copyContentBylines` writes the source's primary
+					// pointer onto the new row; reflect it in-memory so the
+					// response includes it before hydrateBylines runs.
+					const source = await repo.findById(collection, body.translationOf);
+					if (source) created.primaryBylineId = source.primaryBylineId;
+				}
 			}
+
+			await hydrateBylines(trx, collection, created);
 
 			// Side-write SEO data if provided
 			if (body.seo && hasSeo) {
@@ -499,6 +764,18 @@ export async function handleContentCreate(
 			} else if (hasSeo) {
 				// Assign defaults in-memory — no DB round-trip needed
 				created.seo = { ...SEO_DEFAULTS };
+			}
+
+			// Attach taxonomy terms in the same transaction. The MCP tool
+			// (and the REST create body) previously accepted a `taxonomies`
+			// field on `content_create` without doing anything with it, so
+			// agents publishing a categorized/tagged entry had to make N
+			// follow-up REST calls per taxonomy. This resolves each slug in
+			// the entry's locale and pipes it through the same
+			// `setTermsForEntry` path the `.../terms/{taxonomy}` REST route
+			// uses, so the two entry points can't drift.
+			if (body.taxonomies) {
+				await assignTaxonomies(trx, collection, created.id, effectiveLocale, body.taxonomies);
 			}
 
 			return created;
@@ -577,8 +854,10 @@ export async function handleContentUpdate(
 		status?: string;
 		authorId?: string | null;
 		bylines?: ContentBylineInput[];
+		locale?: string;
 		_rev?: string;
 		seo?: ContentSeoInput;
+		taxonomies?: Record<string, string[]>;
 		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
@@ -604,7 +883,7 @@ export async function handleContentUpdate(
 		const repo = new ContentRepository(db);
 
 		// Resolve slug → ID if needed
-		const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+		const resolvedId = (await resolveId(repo, collection, id, body.locale)) ?? id;
 
 		// Wrap content + SEO writes in a transaction for atomicity.
 		// The _rev check is inside the transaction so the read-then-write
@@ -648,27 +927,17 @@ export async function handleContentUpdate(
 			});
 
 			if (body.bylines !== undefined) {
-				await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
-				updated.primaryBylineId = body.bylines[0]?.bylineId ?? null;
+				const credits = await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
+				// `setContentBylines` translates wire row ids to their
+				// `translation_group` before writing. Read the in-memory
+				// pointer from the persisted credit so the response shape
+				// matches the DB. See the matching block in handleContentCreate.
+				updated.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
 			// Create auto-redirect when slug changes
 			if (oldSlug && body.slug) {
-				const collectionRow = await trx
-					.selectFrom("_emdash_collections")
-					.select("url_pattern")
-					.where("slug", "=", collection)
-					.executeTakeFirst();
-
-				const redirectRepo = new RedirectRepository(trx);
-				await redirectRepo.createAutoRedirect(
-					collection,
-					oldSlug,
-					body.slug,
-					resolvedId,
-					collectionRow?.url_pattern ?? null,
-				);
-				invalidateRedirectCache();
+				await createSlugChangeRedirect(trx, collection, oldSlug, body.slug, resolvedId);
 			}
 
 			// Sync non-translatable fields to sibling locales in the same
@@ -694,6 +963,20 @@ export async function handleContentUpdate(
 			}
 
 			await hydrateBylines(trx, collection, updated);
+
+			// Replace taxonomy assignments in the same transaction. Uses the
+			// entry's own locale (post-update) to resolve slugs so an update
+			// that also changes locale still lands on the correct term
+			// variants. See handleContentCreate for rationale.
+			if (body.taxonomies) {
+				await assignTaxonomies(
+					trx,
+					collection,
+					resolvedId,
+					updated.locale ?? body.locale,
+					body.taxonomies,
+				);
+			}
 
 			return updated;
 		});
@@ -835,15 +1118,18 @@ export async function handleContentDelete(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ deleted: true }>> {
+): Promise<ApiResult<{ deleted: true; id: string }>> {
 	try {
-		const deleted = await withTransaction(db, async (trx) => {
+		const result = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.delete(collection, resolvedId);
+			return {
+				id: resolvedId,
+				deleted: await repo.delete(collection, resolvedId),
+			};
 		});
 
-		if (!deleted) {
+		if (!result.deleted) {
 			return {
 				success: false,
 				error: {
@@ -855,7 +1141,7 @@ export async function handleContentDelete(
 
 		return {
 			success: true,
-			data: { deleted: true },
+			data: { deleted: true, id: result.id },
 		};
 	} catch (error) {
 		console.error("Content delete error:", error);
@@ -876,15 +1162,15 @@ export async function handleContentRestore(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ restored: true }>> {
+): Promise<ApiResult<{ restored: true; item: ContentItem }>> {
 	try {
-		const restored = await withTransaction(db, async (trx) => {
+		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
 			return repo.restore(collection, resolvedId);
 		});
 
-		if (!restored) {
+		if (!item) {
 			return {
 				success: false,
 				error: {
@@ -896,7 +1182,7 @@ export async function handleContentRestore(
 
 		return {
 			success: true,
-			data: { restored: true },
+			data: { restored: true, item },
 		};
 	} catch (error) {
 		console.error("Content restore error:", error);
@@ -918,7 +1204,7 @@ export async function handleContentPermanentDelete(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ deleted: true }>> {
+): Promise<ApiResult<{ deleted: true; id: string }>> {
 	try {
 		const repo = new ContentRepository(db);
 		const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
@@ -955,7 +1241,7 @@ export async function handleContentPermanentDelete(
 
 		return {
 			success: true,
-			data: { deleted: true },
+			data: { deleted: true, id: resolvedId },
 		};
 	} catch (error) {
 		console.error("Content permanent delete error:", error);
@@ -1145,13 +1431,40 @@ export async function handleContentPublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-	options: { publishedAt?: string } = {},
+	options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId, options.publishedAt);
+
+			// Capture the pre-publish state. For revision-supporting collections a
+			// slug edit is staged as `_slug` in the draft revision and only lands
+			// on the live `slug` column here, inside `repo.publish()` — it never
+			// passes through handleContentUpdate, where slug-change auto-redirects
+			// are normally created.
+			const existing = await repo.findById(collection, resolvedId);
+
+			const published = await repo.publish(
+				collection,
+				resolvedId,
+				options.publishedAt,
+				options.requireScheduledDue,
+			);
+
+			// Leave a 301 behind when publishing changed the slug of an entry that
+			// was already published — its old URL was live and may be indexed or
+			// linked. A first publish is excluded: a draft's URL was never public.
+			if (
+				existing?.status === "published" &&
+				existing.slug &&
+				published.slug &&
+				existing.slug !== published.slug
+			) {
+				await createSlugChangeRedirect(trx, collection, existing.slug, published.slug, resolvedId);
+			}
+
+			return published;
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1162,6 +1475,17 @@ export async function handleContentPublish(
 			data: { item },
 		};
 	} catch (error) {
+		// The scheduled sweep gates publish on the row still being due; a row
+		// unscheduled in the meantime is a silent skip, not a failure.
+		if (error instanceof ScheduledNotDueError) {
+			return {
+				success: false,
+				error: {
+					code: "NOT_DUE",
+					message: error.message,
+				},
+			};
+		}
 		if (error instanceof EmDashValidationError) {
 			return {
 				success: false,
@@ -1500,4 +1824,58 @@ async function syncNonTranslatableFields(
 		WHERE translation_group = ${translationGroup}
 		AND id != ${updatedItemId}
 	`.execute(trx);
+}
+
+/**
+ * Resolve a `{ taxonomyName: [slug, ...] }` map to term IDs and replace the
+ * entry's assignments for each named taxonomy.
+ *
+ * Shared by handleContentCreate and handleContentUpdate so both MCP entry
+ * points behave identically. Slug resolution is scoped to `locale`; passing
+ * `undefined` lets `findBySlug` fall back to its default (lowest locale code)
+ * so callers on single-locale sites don't need to know the site's default.
+ *
+ * Throws EmDashValidationError on unknown slug or wrong shape; the calling
+ * handler translates that into a VALIDATION_ERROR response.
+ */
+async function assignTaxonomies(
+	trx: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	locale: string | undefined,
+	taxonomies: Record<string, string[]>,
+): Promise<void> {
+	const taxRepo = new TaxonomyRepository(trx);
+	let anyChange = false;
+
+	for (const [taxonomyName, slugs] of Object.entries(taxonomies)) {
+		if (!Array.isArray(slugs)) {
+			throw new EmDashValidationError(`taxonomies.${taxonomyName} must be an array of term slugs`);
+		}
+
+		const termIds: string[] = [];
+		for (const slug of slugs) {
+			if (typeof slug !== "string" || slug.length === 0) {
+				throw new EmDashValidationError(
+					`taxonomies.${taxonomyName} contains a non-string or empty slug`,
+				);
+			}
+			const term = await taxRepo.findBySlug(taxonomyName, slug, locale);
+			if (!term) {
+				throw new EmDashValidationError(
+					`Unknown taxonomy term: ${taxonomyName}='${slug}'${
+						locale ? ` (locale '${locale}')` : ""
+					}`,
+				);
+			}
+			termIds.push(term.id);
+		}
+
+		await taxRepo.setTermsForEntry(collection, entryId, taxonomyName, termIds);
+		anyChange = true;
+	}
+
+	// Match the REST route's behaviour: taxonomy term assignments changed,
+	// so invalidate the taxonomy object cache used during hydration.
+	if (anyChange) invalidateTermCache();
 }

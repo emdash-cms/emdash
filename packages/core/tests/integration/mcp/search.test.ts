@@ -325,6 +325,47 @@ describe("search", () => {
 		expect(extractJson<{ items: unknown[] }>(pubQuery).items.length).toBeGreaterThan(0);
 	});
 
+	it("paginates results via the cursor argument", async () => {
+		await setupSearchablePostCollection(db);
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+
+		for (let i = 0; i < 5; i++) {
+			const c = await harness.client.callTool({
+				name: "content_create",
+				arguments: {
+					collection: "post",
+					data: { title: `paginated item ${i}`, body: "common-cursor-text" },
+				},
+			});
+			await harness.client.callTool({
+				name: "content_publish",
+				arguments: {
+					collection: "post",
+					id: extractJson<{ item: { id: string } }>(c).item.id,
+				},
+			});
+		}
+
+		const firstPage = await harness.client.callTool({
+			name: "search",
+			arguments: { query: "common-cursor-text", limit: 2 },
+		});
+		const firstData = extractJson<{ items: Array<{ id: string }>; nextCursor?: string }>(firstPage);
+		expect(firstData.items).toHaveLength(2);
+		expect(firstData.nextCursor).toBeTruthy();
+
+		const secondPage = await harness.client.callTool({
+			name: "search",
+			arguments: { query: "common-cursor-text", limit: 2, cursor: firstData.nextCursor },
+		});
+		const secondData = extractJson<{ items: Array<{ id: string }> }>(secondPage);
+		expect(secondData.items).toHaveLength(2);
+		const firstIds = new Set(firstData.items.map((i) => i.id));
+		for (const item of secondData.items) {
+			expect(firstIds.has(item.id)).toBe(false);
+		}
+	});
+
 	it("any logged-in user (SUBSCRIBER) can search", async () => {
 		await setupSearchablePostCollection(db);
 		harness = await connectMcpHarness({ db, userId: SUBSCRIBER_ID, userRole: Role.SUBSCRIBER });

@@ -19,19 +19,22 @@ describe("ThemeToggle", () => {
 		document.documentElement.removeAttribute("data-theme");
 	});
 
+	// Kumo 2.x's <Button title="..."> wraps the button in a Tooltip popup
+	// rather than setting the native `title` attribute. The current theme is
+	// also exposed in `aria-label`, which is what these assertions read.
+
 	it("renders with system theme by default", async () => {
 		const screen = await render(<TestThemeToggle />);
 		const button = screen.getByRole("button");
 		await expect.element(button).toBeInTheDocument();
-		// System theme shows Monitor icon - check the title
-		await expect.element(button).toHaveAttribute("title", expect.stringContaining("System"));
+		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("System"));
 	});
 
 	it("cycles from system to light on click", async () => {
 		const screen = await render(<TestThemeToggle />);
 		const button = screen.getByRole("button");
 		await button.click();
-		await expect.element(button).toHaveAttribute("title", expect.stringContaining("Light"));
+		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("Light"));
 	});
 
 	it("cycles through system -> light -> dark -> system", async () => {
@@ -39,19 +42,19 @@ describe("ThemeToggle", () => {
 		const button = screen.getByRole("button");
 
 		// Start: system
-		await expect.element(button).toHaveAttribute("title", expect.stringContaining("System"));
+		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("System"));
 
 		// Click 1: light
 		await button.click();
-		await expect.element(button).toHaveAttribute("title", expect.stringContaining("Light"));
+		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("Light"));
 
 		// Click 2: dark
 		await button.click();
-		await expect.element(button).toHaveAttribute("title", expect.stringContaining("Dark"));
+		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("Dark"));
 
 		// Click 3: back to system
 		await button.click();
-		await expect.element(button).toHaveAttribute("title", expect.stringContaining("System"));
+		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("System"));
 	});
 
 	it("persists theme to localStorage", async () => {
@@ -64,6 +67,6 @@ describe("ThemeToggle", () => {
 	it("starts with light theme when defaultTheme is light", async () => {
 		const screen = await render(<TestThemeToggle defaultTheme="light" />);
 		const button = screen.getByRole("button");
-		await expect.element(button).toHaveAttribute("title", expect.stringContaining("Light"));
+		await expect.element(button).toHaveAttribute("aria-label", expect.stringContaining("Light"));
 	});
 });

@@ -9,7 +9,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import { validatePluginIdentifier } from "../../database/validate.js";
-import { pluginManifestSchema } from "../../plugins/manifest-schema.js";
+import { pluginManifestSchema, reconcileManifestAccess } from "../../plugins/manifest-schema.js";
 import { normalizeManifestRoute } from "../../plugins/manifest-schema.js";
 import {
 	createMarketplaceClient,
@@ -92,7 +92,7 @@ function getClient(
 	return createMarketplaceClient(marketplaceUrl, siteOrigin);
 }
 
-function diffCapabilities(
+export function diffCapabilities(
 	oldCaps: string[],
 	newCaps: string[],
 ): { added: string[]; removed: string[] } {
@@ -114,7 +114,7 @@ function diffCapabilities(
  * Diff route visibility between two manifests.
  * Returns routes that changed from private to public (newly exposed).
  */
-function diffRouteVisibility(
+export function diffRouteVisibility(
 	oldManifest: PluginManifest | undefined,
 	newManifest: PluginManifest,
 ): { newlyPublic: string[] } {
@@ -271,10 +271,7 @@ export async function loadBundleFromR2(
 		const parsed: unknown = JSON.parse(manifestText);
 		const result = pluginManifestSchema.safeParse(parsed);
 		if (!result.success) return null;
-		// Elements are validated as unknown[] by Zod; cast to PluginManifest
-		// for the Element[] type (Block Kit validation happens at render time).
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Zod types elements as unknown[]; Element type validated at render time
-		const manifest = result.data as unknown as PluginManifest;
+		const manifest = reconcileManifestAccess(result.data);
 
 		// Try to load admin code (optional)
 		let adminCode: string | undefined;
@@ -320,7 +317,18 @@ export async function handleMarketplaceInstall(
 	sandboxRunner: SandboxRunner | null,
 	marketplaceUrl: string | undefined,
 	pluginId: string,
-	opts?: { version?: string; configuredPluginIds?: Set<string>; siteOrigin?: string },
+	opts?: {
+		version?: string;
+		configuredPluginIds?: Set<string>;
+		siteOrigin?: string;
+		/**
+		 * When true, sandbox: false bypass mode is active. The sandbox runner
+		 * is the noop runner (isAvailable() === false) but the runtime will
+		 * load the marketplace plugin in-process via syncMarketplacePlugins().
+		 * Skip the SANDBOX_NOT_AVAILABLE gate so the install can proceed.
+		 */
+		sandboxBypassed?: boolean;
+	},
 ): Promise<ApiResult<MarketplaceInstallResult>> {
 	const client = getClient(marketplaceUrl, opts?.siteOrigin);
 	if (!client) {
@@ -343,7 +351,9 @@ export async function handleMarketplaceInstall(
 		};
 	}
 
-	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+	// Sandbox availability check: skip when sandbox: false bypass is active.
+	// The runtime's syncMarketplacePlugins() will load the plugin in-process.
+	if (!opts?.sandboxBypassed && (!sandboxRunner || !sandboxRunner.isAvailable())) {
 		return {
 			success: false,
 			error: {
@@ -524,6 +534,13 @@ export async function handleMarketplaceUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		/**
+		 * When true, sandbox: false bypass mode is active. The sandbox runner
+		 * is the noop runner (isAvailable() === false) but the runtime will
+		 * load the marketplace plugin in-process via syncMarketplacePlugins().
+		 * Skip the SANDBOX_NOT_AVAILABLE gate so the update can proceed.
+		 */
+		sandboxBypassed?: boolean;
 	},
 ): Promise<ApiResult<MarketplaceUpdateResult>> {
 	const client = getClient(marketplaceUrl);
@@ -539,7 +556,9 @@ export async function handleMarketplaceUpdate(
 			error: { code: "STORAGE_NOT_CONFIGURED", message: "Storage is required" },
 		};
 	}
-	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+	// Sandbox availability check: skip when sandbox: false bypass is active.
+	// The runtime's syncMarketplacePlugins() will load the plugin in-process.
+	if (!opts?.sandboxBypassed && (!sandboxRunner || !sandboxRunner.isAvailable())) {
 		return {
 			success: false,
 			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },

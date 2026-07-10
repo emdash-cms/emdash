@@ -584,6 +584,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 															datetime: t`Date & Time`,
 															select: t`Select`,
 															url: t`URL`,
+															image: t`Image`,
 														}}
 													/>
 												</div>

@@ -4,13 +4,13 @@ import { sql } from "kysely";
 export async function up(db: Kysely<unknown>): Promise<void> {
 	// Get all content tables
 	const tables = await db
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely migration runs against unknown schema
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely migration runs against unknown schema
 		.selectFrom("_emdash_collections" as never)
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely migration runs against unknown schema
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely migration runs against unknown schema
 		.select("slug" as never)
 		.execute();
 
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely execute returns unknown[]; narrowing to known shape
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely execute returns unknown[]; narrowing to known shape
 	for (const row of tables as Array<{ slug: string }>) {
 		const tableName = `ec_${row.slug}`;
 
@@ -41,13 +41,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 export async function down(db: Kysely<unknown>): Promise<void> {
 	const tables = await db
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely migration runs against unknown schema
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely migration runs against unknown schema
 		.selectFrom("_emdash_collections" as never)
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely migration runs against unknown schema
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely migration runs against unknown schema
 		.select("slug" as never)
 		.execute();
 
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely execute returns unknown[]; narrowing to known shape
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely execute returns unknown[]; narrowing to known shape
 	for (const row of tables as Array<{ slug: string }>) {
 		const tableName = `ec_${row.slug}`;
 

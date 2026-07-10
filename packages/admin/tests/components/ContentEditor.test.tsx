@@ -6,8 +6,27 @@ import {
 	type FieldDescriptor,
 	type ContentEditorProps,
 } from "../../src/components/ContentEditor";
-import type { ContentItem } from "../../src/lib/api";
+import { fetchBylines } from "../../src/lib/api";
+import type { BylineSummary, ContentItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
+
+function makeByline(overrides: Partial<BylineSummary> = {}): BylineSummary {
+	return {
+		id: "byline-1",
+		slug: "jane-smith",
+		displayName: "Jane Smith",
+		bio: null,
+		avatarMediaId: null,
+		websiteUrl: null,
+		userId: null,
+		isGuest: false,
+		createdAt: "2025-01-15T10:30:00Z",
+		updatedAt: "2025-01-15T10:30:00Z",
+		locale: "en",
+		translationGroup: null,
+		...overrides,
+	};
+}
 
 // Mock child components that have complex dependencies.
 // The mock simulates the real editor's behaviour of freezing initial content on mount:
@@ -85,6 +104,7 @@ vi.mock("../../src/lib/api", async () => {
 	return {
 		...actual,
 		getPreviewUrl: vi.fn().mockResolvedValue({ url: "https://example.com/preview" }),
+		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
 	};
 });
 
@@ -660,6 +680,73 @@ describe("ContentEditor", () => {
 			await expect.element(savedBtn).toBeDisabled();
 		});
 
+		// Strict per-locale hydration (migration 040) can return
+		// `item.bylines = []` even when junction rows exist at other
+		// locales (e.g. an FR post that inherited an EN-only byline via
+		// copyContentBylines). Sending `bylines: []` on every save would
+		// silently wipe the copied credit. The editor must omit `bylines`
+		// from the payload unless the user actually touched the editor.
+		it("omits bylines from save payload when the user did not touch the byline editor", async () => {
+			const onSave = vi.fn();
+			const item = makeItem({ data: { title: "Hello", body: "" } });
+			const screen = await renderEditor({ isNew: false, item, onSave });
+
+			const titleInput = screen.getByLabelText("Title");
+			await titleInput.fill("Changed");
+
+			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledTimes(1);
+			const payload = onSave.mock.calls[0]?.[0] as Record<string, unknown>;
+			expect(payload).not.toHaveProperty("bylines");
+		});
+
+		it("suppresses the locale empty-state CTA until the picker query resolves", async () => {
+			const item = makeItem({ data: { title: "Hello", body: "" }, locale: "fr-fr" });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				currentUser: { id: "u-1", role: 50 },
+				i18n: { defaultLocale: "en", locales: ["en", "fr-fr"] },
+				entryLocale: "fr-fr",
+				availableBylines: [],
+				availableBylinesLoaded: false,
+			});
+
+			await expect
+				.element(screen.getByText(/No bylines available/), { timeout: 100 })
+				.not.toBeInTheDocument();
+		});
+
+		it("shows the locale empty-state CTA once the picker query resolves empty", async () => {
+			const item = makeItem({ data: { title: "Hello", body: "" }, locale: "fr-fr" });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				currentUser: { id: "u-1", role: 50 },
+				i18n: { defaultLocale: "en", locales: ["en", "fr-fr"] },
+				entryLocale: "fr-fr",
+				availableBylines: [],
+				availableBylinesLoaded: true,
+			});
+
+			await expect.element(screen.getByText(/No bylines available/)).toBeInTheDocument();
+		});
+
+		it("includes bylines: [] in save payload for new entries even when untouched", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({ isNew: true, onSave });
+
+			const titleInput = screen.getByLabelText("Title");
+			await titleInput.fill("Brand new");
+
+			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ bylines: [] }));
+		});
+
 		it("keeps edited values after autosave completes without queuing another autosave", async () => {
 			vi.useFakeTimers();
 
@@ -1074,6 +1161,67 @@ describe("ContentEditor", () => {
 			const lastCall = onEditorReadyCalls.at(-1);
 			expect(lastCall?.mockId).not.toBeNull();
 			expect(nullCallIndex).toBeLessThan(onEditorReadyCalls.length - 1);
+		});
+	});
+
+	// ---------------------------------------------------------------------------
+	// Bug #1217: the byline picker was a plain Select over the first 100 bylines
+	// with no search, so bylines beyond the initial page were unreachable, and a
+	// credited byline outside that page failed to render at all. The picker now
+	// searches the server and resolves credited bylines from the saved entry.
+	// ---------------------------------------------------------------------------
+	describe("byline picker search (#1217)", () => {
+		it("searches the server and adds a byline from outside the initial list", async () => {
+			vi.mocked(fetchBylines).mockResolvedValue({
+				items: [makeByline({ id: "b-far", slug: "zoe-far", displayName: "Zoe Far" })],
+				nextCursor: null,
+			});
+
+			const item = makeItem({ data: { title: "Hello", body: "" } });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				currentUser: { id: "u-1", role: 50 },
+				// Empty initial list: the only way to reach "Zoe Far" is via search.
+				availableBylines: [],
+				availableBylinesLoaded: true,
+			});
+
+			const searchInput = screen.getByLabelText("Search bylines");
+			await searchInput.fill("Zoe");
+
+			// The debounced server search surfaces the result.
+			await expect.element(screen.getByText("Zoe Far")).toBeInTheDocument();
+			await vi.waitFor(() => {
+				expect(vi.mocked(fetchBylines)).toHaveBeenCalledWith(
+					expect.objectContaining({ search: "Zoe" }),
+				);
+			});
+
+			// Clicking the result credits the byline; it now renders with its
+			// Role label editor and leaves the results list.
+			await screen.getByRole("button", { name: /Zoe Far/ }).click();
+			await expect.element(screen.getByLabelText("Role label")).toBeInTheDocument();
+		});
+
+		it("renders a credited byline that is not in the initial picker list", async () => {
+			const credited = makeByline({ id: "b-100plus", slug: "ada", displayName: "Ada Lovelace" });
+			const item = makeItem({
+				data: { title: "Hello", body: "" },
+				bylines: [{ byline: credited, sortOrder: 0, roleLabel: "Author" }],
+			});
+
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				currentUser: { id: "u-1", role: 50 },
+				// Initial list does NOT include the credited byline (it would be
+				// past the old 100-row cap). It must still render from the entry.
+				availableBylines: [],
+				availableBylinesLoaded: true,
+			});
+
+			await expect.element(screen.getByText("Ada Lovelace")).toBeInTheDocument();
 		});
 	});
 });

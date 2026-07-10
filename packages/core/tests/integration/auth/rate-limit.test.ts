@@ -118,7 +118,7 @@ describe("getClientIp", () => {
 	/** Create a request with a fake `cf` object to simulate Cloudflare. */
 	function cfRequest(url: string, init?: RequestInit): Request {
 		const req = new Request(url, init);
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- test helper
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- test helper
 		(req as unknown as { cf: Record<string, unknown> }).cf = { country: "US" };
 		return req;
 	}
@@ -171,7 +171,7 @@ describe("getClientIp with trusted proxy headers", () => {
 
 	function cfRequest(url: string, init?: RequestInit): Request {
 		const req = new Request(url, init);
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- test helper
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- test helper
 		(req as unknown as { cf: Record<string, unknown> }).cf = { country: "US" };
 		return req;
 	}

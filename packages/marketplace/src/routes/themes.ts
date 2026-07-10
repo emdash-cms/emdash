@@ -74,9 +74,9 @@ themeRoutes.get("/themes", async (c) => {
 	const keyword = url.searchParams.get("keyword") ?? undefined;
 	const sortParam = url.searchParams.get("sort");
 	let sort: ThemeSortOption | undefined;
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- validated by VALID_THEME_SORTS.has()
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated by VALID_THEME_SORTS.has()
 	if (sortParam && VALID_THEME_SORTS.has(sortParam as ThemeSortOption)) {
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- validated by VALID_THEME_SORTS.has() on the line above
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated by VALID_THEME_SORTS.has() on the line above
 		sort = sortParam as ThemeSortOption;
 	}
 	const cursor = url.searchParams.get("cursor") ?? undefined;
@@ -373,7 +373,7 @@ themeRoutes.put("/themes/:id/images", async (c) => {
 function safeJsonParse<T>(value: string | null, fallback: T): T {
 	if (!value) return fallback;
 	try {
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- caller provides type parameter
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- caller provides type parameter
 		const parsed: T = JSON.parse(value);
 		return parsed;
 	} catch {

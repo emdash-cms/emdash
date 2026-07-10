@@ -28,7 +28,8 @@ const ANY_KEY_LINE_PATTERN = /^EMDASH_ENCRYPTION_KEY=.*$/m;
 
 /**
  * Write `EMDASH_ENCRYPTION_KEY=...` into a dotenv-style local-secrets file
- * (`.dev.vars` for Workers, `.env` for Node).
+ * (`.env` — read by Node and, in local dev, by Wrangler / the Cloudflare
+ * Vite plugin).
  *
  * Idempotent: if the entry exists with a populated value, leaves it alone.
  * An entry with an empty value (`EMDASH_ENCRYPTION_KEY=`, e.g. a placeholder

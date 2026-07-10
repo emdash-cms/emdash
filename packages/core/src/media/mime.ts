@@ -1,5 +1,5 @@
 export function normalizeMime(mime: string): string {
-	return mime.split(";")[0]!.trim().toLowerCase();
+	return mime.split(";")[0].trim().toLowerCase();
 }
 
 export function matchesMimeAllowlist(mime: string, allowList: readonly string[]): boolean {

@@ -26,6 +26,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { computeThumbnailSize } from "../media/thumbnail.js";
+import { InlineCodeBlockExtension } from "./inline-code-block.js";
 
 // ── Portable Text types ────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ interface PTTextBlock {
 	level?: number;
 	children: PTSpan[];
 	markDefs?: PTMarkDef[];
+	textAlign?: "left" | "center" | "right" | "justify";
 }
 
 type PTBlock = PTTextBlock | { _type: string; _key: string; [key: string]: unknown };
@@ -118,12 +120,15 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 		case "paragraph": {
 			const { children, markDefs } = convertInline(node.content || []);
 			if (children.length === 0) return null;
+			const ta = node.attrs?.textAlign;
+			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
 				_key: k(),
 				style: "normal",
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(textAlign ? { textAlign } : {}),
 			};
 		}
 		case "heading": {
@@ -139,12 +144,15 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 				6: "h6",
 			};
 			const headingStyle = headingStyles[level] ?? "h1";
+			const ta = node.attrs?.textAlign;
+			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
 				_key: k(),
 				style: headingStyle,
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(textAlign ? { textAlign } : {}),
 			};
 		}
 		case "bulletList":
@@ -182,8 +190,23 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 				language: attrStrOpt(node.attrs, "language"),
 			};
 		}
+		case "htmlBlock": {
+			const rawHtml = node.attrs?.html;
+			return {
+				_type: "htmlBlock",
+				_key: k(),
+				html: typeof rawHtml === "string" ? rawHtml : "",
+			};
+		}
 		case "image": {
 			const provider = attrStrOpt(node.attrs, "provider");
+			const blurhash = attrStrOpt(node.attrs, "blurhash");
+			const dominantColor = attrStrOpt(node.attrs, "dominantColor");
+			// Persist LQIP as first-class block fields (matching the image-field
+			// MediaValue path) rather than nesting in `asset.meta`, so read sites
+			// and normalize don't need a dual-shape fallback. `asset.meta` is left
+			// to carry only provider-specific data — it isn't reconstructed here,
+			// so non-LQIP meta keys are never silently dropped on editor round-trip.
 			return {
 				_type: "image",
 				_key: k(),
@@ -196,6 +219,8 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 				caption: attrStrOpt(node.attrs, "caption") ?? attrStrOpt(node.attrs, "title"),
 				width: attrNum(node.attrs, "width"),
 				height: attrNum(node.attrs, "height"),
+				...(blurhash ? { blurhash } : {}),
+				...(dominantColor ? { dominantColor } : {}),
 				displayWidth: attrNum(node.attrs, "displayWidth"),
 				displayHeight: attrNum(node.attrs, "displayHeight"),
 			};
@@ -352,7 +377,7 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 
 function convertPTBlock(block: PTBlock): JSONContent | null {
 	if (isPTTextBlock(block)) {
-		const { style = "normal", children, markDefs = [] } = block;
+		const { style = "normal", children, markDefs = [], textAlign } = block;
 		const pmContent = convertPTSpans(children, markDefs);
 
 		if (style === "blockquote") {
@@ -370,12 +395,13 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 			const level = parseInt(style.substring(1), 10);
 			return {
 				type: "heading",
-				attrs: { level },
+				attrs: { level, ...(textAlign ? { textAlign } : {}) },
 				content: pmContent.length > 0 ? pmContent : undefined,
 			};
 		}
 		return {
 			type: "paragraph",
+			attrs: textAlign ? { textAlign } : undefined,
 			content: pmContent.length > 0 ? pmContent : undefined,
 		};
 	}
@@ -390,18 +416,47 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	if (block._type === "break") {
 		return { type: "horizontalRule" };
 	}
+	if (block._type === "htmlBlock") {
+		const hb = block as PTBlock & { html?: string };
+		return {
+			type: "htmlBlock",
+			attrs: { html: hb.html || "" },
+		};
+	}
 	if (block._type === "image") {
 		const ib = block as PTBlock & {
-			asset?: { _ref?: string; url?: string; provider?: string };
+			asset?: {
+				_ref?: string;
+				url?: string;
+				provider?: string;
+				meta?: Record<string, unknown>;
+			};
 			url?: string;
 			alt?: string;
 			caption?: string;
 			width?: number;
 			height?: number;
+			/** LQIP — first-class field (legacy snapshots keep it in `asset.meta`). */
+			blurhash?: string;
+			dominantColor?: string;
 			displayWidth?: number;
 			displayHeight?: number;
 		};
 		const asset = ib.asset;
+		const meta = asset?.meta;
+		// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy.
+		const blurhash =
+			typeof ib.blurhash === "string"
+				? ib.blurhash
+				: typeof meta?.blurhash === "string"
+					? meta.blurhash
+					: null;
+		const dominantColor =
+			typeof ib.dominantColor === "string"
+				? ib.dominantColor
+				: typeof meta?.dominantColor === "string"
+					? meta.dominantColor
+					: null;
 		return {
 			type: "image",
 			attrs: {
@@ -413,6 +468,8 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 				provider: asset?.provider,
 				width: ib.width,
 				height: ib.height,
+				blurhash,
+				dominantColor,
 				displayWidth: ib.displayWidth,
 				displayHeight: ib.displayHeight,
 			},
@@ -731,6 +788,21 @@ const slashCommands: SlashCommandItem[] = [
 		},
 	},
 	{
+		id: "htmlBlock",
+		title: "HTML",
+		description: "Insert raw HTML",
+		icon: "< >",
+		aliases: ["html", "raw", "markup"],
+		command: ({ editor, range }) => {
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+				.run();
+		},
+	},
+	{
 		id: "divider",
 		title: "Divider",
 		description: "Insert a horizontal rule",
@@ -769,6 +841,44 @@ const initialSlashMenuState: SlashMenuState = {
 	clientRect: null,
 	range: null,
 };
+
+/**
+ * Minimal `htmlBlock` TipTap node for the inline (visual-editing) editor.
+ *
+ * Like PluginBlockNode below, this renders as a read-only placeholder so the
+ * block's data is preserved across edits in the visual editor. Full editing
+ * (textarea + preview) is only available in the admin editor.
+ */
+const HtmlBlockNode = Node.create({
+	name: "htmlBlock",
+	group: "block",
+	atom: true,
+	selectable: true,
+	draggable: true,
+
+	addAttributes() {
+		const noDom = { rendered: false, parseHTML: () => null };
+		return {
+			html: { default: "", ...noDom },
+		};
+	},
+
+	parseHTML() {
+		return [{ tag: 'div[data-emdash-html-block="true"]' }];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return [
+			"div",
+			mergeAttributes(HTMLAttributes, {
+				"data-emdash-html-block": "true",
+				class: "emdash-plugin-block-placeholder",
+				contenteditable: "false",
+			}),
+			"HTML block (edit in admin)",
+		];
+	},
+});
 
 /**
  * Minimal `pluginBlock` TipTap node for the inline (visual-editing) editor.
@@ -1068,6 +1178,8 @@ interface MediaItemData {
 	storageKey?: string;
 	width?: number;
 	height?: number;
+	blurhash?: string;
+	dominantColor?: string;
 	alt?: string;
 	provider?: string;
 	previewUrl?: string;
@@ -1137,7 +1249,7 @@ function InlineMediaPicker({
 				const r = await ecFetch(url);
 				const d = await r.json();
 				const raw = d.data.items ?? [];
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- API response items mapped to MediaItem shape
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- API response items mapped to MediaItem shape
 				const typedRaw = raw as Array<{
 					id: string;
 					filename?: string;
@@ -1147,6 +1259,8 @@ function InlineMediaPicker({
 					storageKey?: string;
 					width?: number;
 					height?: number;
+					blurhash?: string;
+					dominantColor?: string;
 					alt?: string;
 					meta?: Record<string, unknown>;
 				}>;
@@ -1162,6 +1276,8 @@ function InlineMediaPicker({
 						storageKey: item.storageKey,
 						width: item.width,
 						height: item.height,
+						blurhash: item.blurhash,
+						dominantColor: item.dominantColor,
 						alt: item.alt,
 						provider: activeProvider === "local" ? undefined : activeProvider,
 						previewUrl: item.previewUrl,
@@ -1242,6 +1358,8 @@ function InlineMediaPicker({
 					storageKey: raw.storageKey,
 					width: raw.width || dims.width,
 					height: raw.height || dims.height,
+					blurhash: raw.blurhash,
+					dominantColor: raw.dominantColor,
 					alt: raw.alt,
 				};
 			} else {
@@ -1262,6 +1380,8 @@ function InlineMediaPicker({
 					url: raw.previewUrl || "",
 					width: raw.width || dims.width,
 					height: raw.height || dims.height,
+					blurhash: raw.blurhash,
+					dominantColor: raw.dominantColor,
 					alt: raw.alt,
 					provider: activeProvider,
 					previewUrl: raw.previewUrl,
@@ -1765,7 +1885,10 @@ export function InlinePortableTextEditor({
 			StarterKit.configure({
 				heading: { levels: [1, 2, 3] },
 				dropcursor: { color: "#3b82f6", width: 2 },
+				// Replaced with InlineCodeBlockExtension below (adds language picker).
+				codeBlock: false,
 			}),
+			InlineCodeBlockExtension,
 			Image.extend({
 				addAttributes() {
 					return {
@@ -1774,6 +1897,8 @@ export function InlinePortableTextEditor({
 						provider: { default: null },
 						width: { default: null },
 						height: { default: null },
+						blurhash: { default: null },
+						dominantColor: { default: null },
 					};
 				},
 			}),
@@ -1797,6 +1922,7 @@ export function InlinePortableTextEditor({
 				mode: "all",
 			}),
 			Typography,
+			HtmlBlockNode,
 			PluginBlockNode,
 			slashCommandsExtension,
 		],
@@ -1843,6 +1969,8 @@ export function InlinePortableTextEditor({
 					mediaId: item.id,
 					width: item.width,
 					height: item.height,
+					blurhash: item.blurhash,
+					dominantColor: item.dominantColor,
 				})
 				.run();
 			setMediaPickerOpen(false);

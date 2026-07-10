@@ -655,7 +655,7 @@ describe("cloudflareDohResolver", () => {
 			const res = responses[type];
 			if (res.throws) throw res.throws;
 			return new Response(JSON.stringify(res.body ?? {}), { status: res.status ?? 200 });
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub
 		}) as unknown as typeof globalThis.fetch;
 	}
 

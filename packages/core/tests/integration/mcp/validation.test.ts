@@ -107,7 +107,7 @@ describe("MCP validation — required fields (bug #4)", () => {
 			name: "content_create",
 			arguments: {
 				collection: "post",
-				// eslint-disable-next-line typescript-eslint(no-explicit-any) -- intentionally bypass MCP type to hit runtime validation
+				// eslint-disable-next-line typescript/no-explicit-any -- intentionally bypass MCP type to hit runtime validation
 				data: { title: 42 } as any,
 			},
 		});

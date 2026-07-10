@@ -21,6 +21,6 @@ export const GET: APIRoute = async ({ locals }) => {
 	const denied = requirePerm(user, "schema:manage");
 	if (denied) return denied;
 
-	const result = await handleOrphanedTableList(emdash!.db);
+	const result = await handleOrphanedTableList(emdash.db);
 	return unwrapResult(result);
 };

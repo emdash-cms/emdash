@@ -49,7 +49,12 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			emdash.getSandboxRunner(),
 			emdash.config.marketplace,
 			id,
-			{ version: body.version, configuredPluginIds, siteOrigin },
+			{
+				version: body.version,
+				configuredPluginIds,
+				siteOrigin,
+				sandboxBypassed: emdash.isSandboxBypassed(),
+			},
 		);
 
 		if (!result.success) return unwrapResult(result);

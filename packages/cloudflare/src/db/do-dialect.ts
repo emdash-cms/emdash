@@ -106,13 +106,13 @@ class PreviewDOConnection implements DatabaseConnection {
 
 	async executeQuery<O>(compiledQuery: CompiledQuery): Promise<QueryResult<O>> {
 		const sqlText = compiledQuery.sql;
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- CompiledQuery.parameters is ReadonlyArray<unknown>, stub expects unknown[]
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- CompiledQuery.parameters is ReadonlyArray<unknown>, stub expects unknown[]
 		const params = compiledQuery.parameters as unknown[];
 
 		const result = await this.#stub.query(sqlText, params);
 
 		return {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely generic O is the caller's row type; we trust the DB returned matching rows
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely generic O is the caller's row type; we trust the DB returned matching rows
 			rows: result.rows as O[],
 			numAffectedRows: result.changes !== undefined ? BigInt(result.changes) : undefined,
 		};

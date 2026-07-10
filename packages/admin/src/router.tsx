@@ -23,7 +23,13 @@ import * as React from "react";
 
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
-import { ContentList, type ContentListSort } from "./components/ContentList";
+import {
+	ContentList,
+	EMPTY_DATE_FILTER,
+	type ContentDateFilter,
+	type ContentListSort,
+	type ContentStatusFilter,
+} from "./components/ContentList";
 import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
@@ -63,6 +69,7 @@ import {
 	parseApiResponse,
 	fetchManifest,
 	fetchContentList,
+	fetchContentAuthors,
 	fetchContent,
 	createContent,
 	updateContent,
@@ -70,7 +77,6 @@ import {
 	fetchTranslations,
 	fetchMediaList,
 	uploadMedia,
-	deleteMedia,
 	fetchCollections,
 	fetchCollection,
 	createCollection,
@@ -113,9 +119,11 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { runBulkAction } from "./lib/bulk";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
+import { BylineSchemaPage } from "./routes/byline-schema";
 import { BylinesPage } from "./routes/bylines";
 import { UsersPage } from "./routes/users";
 
@@ -134,9 +142,10 @@ function patchAutosaveQueries(
 			data?: Record<string, unknown>;
 			slug?: string;
 		};
+		locale?: string;
 	},
 ) {
-	const { collection, id, savedItem, payload } = params;
+	const { collection, id, savedItem, payload, locale } = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
@@ -161,7 +170,10 @@ function patchAutosaveQueries(
 		});
 	}
 
-	queryClient.setQueryData<ContentItem>(["content", collection, id], savedItem);
+	queryClient.setQueryData<ContentItem>(
+		locale ? ["content", collection, id, { locale }] : ["content", collection, id],
+		savedItem,
+	);
 }
 
 // Create a base root route without Shell for setup
@@ -307,9 +319,51 @@ function ContentListPage() {
 		direction: "desc",
 	});
 
+	// Server-side search term (debounced inside ContentList). Part of the query
+	// key so a new term restarts the cursor chain from a filtered first page.
+	const [searchTerm, setSearchTerm] = React.useState("");
+
+	// Filter state (#1288). All are part of the query key so changing any of
+	// them restarts the cursor chain from a filtered first page.
+	const [statusFilter, setStatusFilter] = React.useState<ContentStatusFilter>("all");
+	const [authorFilter, setAuthorFilter] = React.useState("");
+	const [dateFilter, setDateFilter] = React.useState<ContentDateFilter>(EMPTY_DATE_FILTER);
+
+	// The date inputs yield calendar dates; widen them to UTC day boundaries so
+	// the inclusive `dateTo` covers the whole day (timestamps are stored in UTC).
+	const dateApiParams = React.useMemo(() => {
+		const hasRange = !!dateFilter.from || !!dateFilter.to;
+		if (!hasRange) return undefined;
+		return {
+			dateField: dateFilter.field,
+			dateFrom: dateFilter.from ? `${dateFilter.from}T00:00:00.000Z` : undefined,
+			dateTo: dateFilter.to ? `${dateFilter.to}T23:59:59.999Z` : undefined,
+		};
+	}, [dateFilter]);
+
+	// Authors are collection-wide (the endpoint doesn't scope by locale), so the
+	// query key omits locale to avoid refetching/cache-fragmenting on locale
+	// switches, and the selection stays valid across locales.
+	const { data: authors } = useQuery({
+		queryKey: ["content", collection, "authors"],
+		queryFn: () => fetchContentAuthors(collection),
+		enabled: !!manifest,
+	});
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["content", collection, { locale: activeLocale, sort }],
+			queryKey: [
+				"content",
+				collection,
+				{
+					locale: activeLocale,
+					sort,
+					search: searchTerm,
+					status: statusFilter,
+					author: authorFilter,
+					date: dateApiParams,
+				},
+			],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
@@ -317,6 +371,10 @@ function ContentListPage() {
 					limit: 100,
 					orderBy: sort.field,
 					order: sort.direction,
+					search: searchTerm || undefined,
+					status: statusFilter === "all" ? undefined : statusFilter,
+					authorId: authorFilter || undefined,
+					...dateApiParams,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -387,6 +445,80 @@ function ContentListPage() {
 		},
 	});
 
+	// Bulk actions run the existing per-entry endpoints through a
+	// concurrency-limited queue (runBulkAction) — selection persists across
+	// pagination, so an unbounded fan-out could fire hundreds of parallel
+	// requests. Per-id failures are collected (not thrown) and returned to
+	// ContentList, which keeps the failed rows selected for a retry; the
+	// toasts surface the failure count and the list is refetched either way.
+	const bulkPublishMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) =>
+				publishContent(collection, id, { locale: activeLocale }),
+			);
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Published ${total} items`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to publish`,
+					description: t`${failedIds.length} of ${total} could not be published`,
+					type: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+		},
+	});
+
+	const bulkUnpublishMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) =>
+				unpublishContent(collection, id, { locale: activeLocale }),
+			);
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Moved ${total} items to draft`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to update`,
+					description: t`${failedIds.length} of ${total} could not be updated`,
+					type: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+		},
+	});
+
+	const bulkDeleteMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) => deleteContent(collection, id));
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Moved ${total} items to trash`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to delete`,
+					description: t`${failedIds.length} of ${total} could not be deleted`,
+					type: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+		},
+	});
+
 	const items = React.useMemo(() => {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
@@ -395,6 +527,11 @@ function ContentListPage() {
 	// because filters don't change within a fetch cycle. Fall back to the
 	// loaded count so old servers (pre-total) still render a denominator.
 	const total = data?.pages[0]?.total ?? items.length;
+
+	// Keep every hook above the early returns below — a render that takes a
+	// guard (e.g. `error`) must run the same number of hooks as a full render,
+	// or React throws #300 "Rendered fewer hooks than expected" (#1415).
+	const handleLoadMore = React.useCallback(() => void fetchNextPage(), [fetchNextPage]);
 
 	if (!manifest) {
 		return <LoadingScreen />;
@@ -428,7 +565,7 @@ function ContentListPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
 			hasMore={!!hasNextPage}
-			onLoadMore={React.useCallback(() => void fetchNextPage(), [fetchNextPage])}
+			onLoadMore={handleLoadMore}
 			trashedCount={trashedData?.items?.length || 0}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
@@ -441,6 +578,17 @@ function ContentListPage() {
 			sort={sort}
 			onSortChange={setSort}
 			total={total}
+			onSearchChange={setSearchTerm}
+			statusFilter={statusFilter}
+			onStatusFilterChange={setStatusFilter}
+			authors={authors}
+			authorFilter={authorFilter}
+			onAuthorFilterChange={setAuthorFilter}
+			dateFilter={dateFilter}
+			onDateFilterChange={setDateFilter}
+			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
 		/>
 	);
 }
@@ -467,31 +615,46 @@ function ContentNewPage() {
 		queryFn: fetchManifest,
 	});
 
+	// Locale the picker should scope to. URL `?locale=` wins; otherwise
+	// fall back to the configured defaultLocale. Single-locale installs
+	// resolve to `defaultLocale` too — the server treats that as "use the
+	// configured default" so behaviour matches pre-i18n in that case.
+	const pickerLocale = locale ?? manifest?.i18n?.defaultLocale;
+
+	// Send the resolved picker locale so the new entry's locale matches
+	// the locale the byline picker was scoped to.
 	const createMutation = useMutation({
 		mutationFn: (data: {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
-		}) => createContent(collection, { ...data, locale }),
+		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
+				search: { locale: result.locale },
 			});
 		},
 	});
 
 	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
-	const { data: bylinesData } = useQuery({
-		queryKey: ["bylines"],
-		queryFn: () => fetchBylines({ limit: 100 }),
+	// The picker is locale-pinned to the entry being created so editors
+	// only see bylines that will actually hydrate at this locale (per the
+	// strict per-locale model from migration 040). Locale is part of the
+	// query key so switching locales fetches a fresh slice rather than
+	// reusing a stale cache.
+	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
+		queryKey: ["bylines", "picker", pickerLocale ?? null],
+		queryFn: () => fetchBylines({ locale: pickerLocale, limit: 100 }),
+		enabled: !!manifest,
 	});
 
 	const createBylineMutation = useMutation({
 		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true }),
+			createByline({ ...input, isGuest: true, locale: pickerLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -532,10 +695,13 @@ function ContentNewPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			fields={collectionConfig.fields}
 			isNew
+			entryLocale={pickerLocale}
+			i18n={manifest?.i18n}
 			isSaving={createMutation.isPending}
 			onSave={handleSave}
 			pluginBlocks={pluginBlocks}
 			availableBylines={bylinesData?.items}
+			availableBylinesLoaded={bylinesLoaded}
 			selectedBylines={selectedBylines}
 			onBylinesChange={setSelectedBylines}
 			onQuickCreateByline={async (input) => {
@@ -558,6 +724,7 @@ const contentEditRoute = createRoute({
 	component: ContentEditPage,
 	validateSearch: (search) => ({
 		...(typeof search.field === "string" && { field: search.field }),
+		...(typeof search.locale === "string" && { locale: search.locale }),
 	}),
 });
 
@@ -582,10 +749,12 @@ function ContentEditPage() {
 	});
 
 	const i18n = manifest?.i18n;
+	const activeLocale = i18n ? (searchParams.locale ?? i18n.defaultLocale) : undefined;
 
 	const { data: rawItem, isLoading } = useQuery({
-		queryKey: ["content", collection, id],
-		queryFn: () => fetchContent(collection, id),
+		queryKey: ["content", collection, id, { locale: activeLocale }],
+		queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
+		enabled: !i18n || !!activeLocale,
 	});
 
 	React.useEffect(() => {
@@ -660,14 +829,23 @@ function ContentEditPage() {
 		staleTime: 5 * 60 * 1000,
 	});
 
-	const { data: bylinesData } = useQuery({
-		queryKey: ["bylines"],
-		queryFn: () => fetchBylines({ limit: 100 }),
+	// Picker is locale-pinned to the entry being edited. The credit
+	// hydration server-side is strict per locale (migration 040), so the
+	// picker must show only bylines that will actually render at this
+	// locale — otherwise the editor adds a credit that silently vanishes
+	// after autosave. Query disabled until `rawItem.locale` resolves so a
+	// transient `undefined` doesn't populate the cache with default-locale
+	// data.
+	const itemLocale = rawItem?.locale ?? undefined;
+	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
+		queryKey: ["bylines", "picker", itemLocale ?? null],
+		queryFn: () => fetchBylines({ locale: itemLocale, limit: 100 }),
+		enabled: !!itemLocale,
 	});
 
 	const createBylineMutation = useMutation({
 		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true }),
+			createByline({ ...input, isGuest: true, locale: itemLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -692,9 +870,16 @@ function ContentEditPage() {
 			bylines?: BylineCreditInput[];
 			skipRevision?: boolean;
 			seo?: ContentSeoInput;
-		}) => updateContent(collection, id, data),
+		}) => updateContent(collection, id, data, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			// Invalidate by (collection, id) prefix without the locale object: the
+			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
+			// i18n is off) while `rawItem.locale` is the DB default "en", so a
+			// locale-scoped invalidation key would not match and the item would never
+			// refetch — leaving the publish/save buttons stale until a hard refresh.
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id],
+			});
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
@@ -720,7 +905,13 @@ function ContentEditPage() {
 			data?: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
-		}) => updateContent(collection, id, { ...data, skipRevision: true }),
+		}) =>
+			updateContent(
+				collection,
+				id,
+				{ ...data, skipRevision: true },
+				{ locale: rawItem?.locale ?? activeLocale },
+			),
 		onSuccess: (savedItem, variables) => {
 			patchAutosaveQueries(queryClient, {
 				collection,
@@ -730,6 +921,7 @@ function ContentEditPage() {
 					data: variables.data,
 					slug: variables.slug,
 				},
+				locale: rawItem?.locale ?? activeLocale,
 			});
 			setLastAutosaveAt(new Date());
 			// Keep the cache fresh without refetching older server state back into the form
@@ -745,9 +937,11 @@ function ContentEditPage() {
 	});
 
 	const publishMutation = useMutation({
-		mutationFn: () => publishContent(collection, id),
+		mutationFn: () => publishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id],
+			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
@@ -761,9 +955,11 @@ function ContentEditPage() {
 	});
 
 	const unpublishMutation = useMutation({
-		mutationFn: () => unpublishContent(collection, id),
+		mutationFn: () => unpublishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id],
+			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
@@ -777,9 +973,11 @@ function ContentEditPage() {
 	});
 
 	const discardDraftMutation = useMutation({
-		mutationFn: () => discardDraft(collection, id),
+		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id],
+			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({
 				title: t`Changes discarded`,
@@ -796,9 +994,12 @@ function ContentEditPage() {
 	});
 
 	const scheduleMutation = useMutation({
-		mutationFn: (scheduledAt: string) => scheduleContent(collection, id, scheduledAt),
+		mutationFn: (scheduledAt: string) =>
+			scheduleContent(collection, id, scheduledAt, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id],
+			});
 			toastManager.add({
 				title: t`Scheduled`,
 				description: t`Content has been scheduled for publishing`,
@@ -814,9 +1015,12 @@ function ContentEditPage() {
 	});
 
 	const unscheduleMutation = useMutation({
-		mutationFn: () => unscheduleContent(collection, id),
+		mutationFn: () =>
+			unscheduleContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id],
+			});
 			toastManager.add({
 				title: t`Unscheduled`,
 				description: t`Content reverted to draft`,
@@ -846,6 +1050,7 @@ function ContentEditPage() {
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
+				search: { locale: result.locale },
 			});
 			toastManager.add({
 				title: t`Translation created`,
@@ -862,14 +1067,14 @@ function ContentEditPage() {
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: () => deleteContent(collection, id),
+		mutationFn: () => deleteContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
 			void navigate({
 				to: "/content/$collection",
 				params: { collection },
-				search: { locale: undefined },
+				search: { locale: activeLocale },
 			});
 		},
 		onError: (error) => {
@@ -953,6 +1158,7 @@ function ContentEditPage() {
 			hasSeo={collectionConfig.hasSeo}
 			onSeoChange={handleSeoChange}
 			availableBylines={bylinesData?.items}
+			availableBylinesLoaded={bylinesLoaded}
 			onQuickCreateByline={async (input) => {
 				const created = await createBylineMutation.mutateAsync(input);
 				return created;
@@ -976,13 +1182,20 @@ const mediaRoute = createRoute({
 function MediaPage() {
 	const queryClient = useQueryClient();
 
+	// Filename search + MIME type filter for the local library (server-side).
+	const [search, setSearch] = React.useState("");
+	const [mimeFilter, setMimeFilter] = React.useState<string | string[] | undefined>(undefined);
+	const mimeKey = Array.isArray(mimeFilter) ? mimeFilter.join(",") : (mimeFilter ?? "");
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["media"],
+			queryKey: ["media", { search, mime: mimeKey }],
 			queryFn: ({ pageParam }) =>
 				fetchMediaList({
-					cursor: pageParam as string | undefined,
+					cursor: pageParam,
 					limit: 100,
+					search: search || undefined,
+					mimeType: mimeFilter,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -990,13 +1203,6 @@ function MediaPage() {
 
 	const uploadMutation = useMutation({
 		mutationFn: (file: File) => uploadMedia(file),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["media"] });
-		},
-	});
-
-	const deleteMutation = useMutation({
-		mutationFn: (id: string) => deleteMedia(id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 		},
@@ -1017,7 +1223,8 @@ function MediaPage() {
 			hasMore={!!hasNextPage}
 			onLoadMore={() => void fetchNextPage()}
 			onUpload={(file) => uploadMutation.mutate(file)}
-			onDelete={(id) => deleteMutation.mutate(id)}
+			onLocalSearchChange={setSearch}
+			onLocalMimeFilterChange={setMimeFilter}
 		/>
 	);
 }
@@ -1446,10 +1653,34 @@ const usersRoute = createRoute({
 });
 
 // Bylines route
+//
+// `validateSearch` rejects empty-string locale (`?locale=`) — left as `""`
+// it would land in component state and silently drop the locale filter
+// from `fetchBylines`, fetching every locale's rows while the UI thinks
+// it's scoped to one.
+export function parseBylinesLocaleSearch(search: Record<string, unknown>): {
+	locale: string | undefined;
+} {
+	if (typeof search.locale === "string" && search.locale.length > 0) {
+		return { locale: search.locale };
+	}
+	return { locale: undefined };
+}
+
 const bylinesRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/bylines",
 	component: BylinesPage,
+	validateSearch: parseBylinesLocaleSearch,
+});
+
+// Byline schema management route (Discussion #1174, Phase 5).
+// `minRole: ROLE_ADMIN` is enforced both in the sidebar (entry hidden
+// for non-admins) and inside `BylineSchemaPage` (URL-direct navigation).
+const bylineSchemaRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/byline-schema",
+	component: BylineSchemaPage,
 });
 
 // Content Types routes
@@ -1723,6 +1954,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	taxonomyRoute,
 	usersRoute,
 	bylinesRoute,
+	bylineSchemaRoute,
 	widgetsRoute,
 	settingsRoute,
 	generalSettingsRoute,

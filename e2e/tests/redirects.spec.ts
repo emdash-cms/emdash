@@ -73,8 +73,10 @@ test.describe("Redirects", () => {
 			// Wait for the redirect to appear
 			await expect(page.locator("text=/edit-source").first()).toBeVisible();
 
-			// Click the edit button on that row (use .first() to avoid ancestor div ambiguity)
-			await page.locator('button[title="Edit redirect"]').first().click();
+			// Click the edit button on that row (use .first() to avoid ancestor div ambiguity).
+			// Kumo 2.x renders <Button title> as a Tooltip popup rather than a DOM
+			// title attribute; aria-label is on the button itself.
+			await page.locator('button[aria-label^="Edit redirect"]').first().click();
 
 			// Edit dialog should open
 			await expect(page.locator('[role="dialog"]')).toBeVisible();
@@ -110,8 +112,9 @@ test.describe("Redirects", () => {
 			// Wait for it to appear
 			await expect(page.locator("text=/to-delete").first()).toBeVisible();
 
-			// Click the delete button on that row (use .first() to avoid ancestor div ambiguity)
-			await page.locator('button[title="Delete redirect"]').first().click();
+			// Click the delete button on that row (use .first() to avoid ancestor div ambiguity).
+			// See note above re: Kumo 2.x Button title -> Tooltip.
+			await page.locator('button[aria-label^="Delete redirect"]').first().click();
 
 			// Confirm deletion in the ConfirmDialog
 			await expect(page.locator('[role="dialog"]')).toBeVisible();

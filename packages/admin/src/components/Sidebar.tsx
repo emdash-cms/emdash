@@ -1,4 +1,4 @@
-import { Sidebar as KumoSidebar, Tooltip, useSidebar } from "@cloudflare/kumo";
+import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	SquaresFour,
@@ -16,6 +16,22 @@ import {
 	Users,
 	Stack,
 	ArrowsLeftRight,
+	ChartBar,
+	ChartLine,
+	ClockCounterClockwise,
+	Medal,
+	Trophy,
+	Crop,
+	BookOpen,
+	Plug,
+	Code,
+	CalendarBlank,
+	Bell,
+	Folder,
+	Star,
+	Tag,
+	LinkSimple,
+	MagnifyingGlass,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -23,8 +39,7 @@ import * as React from "react";
 
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
-import { usePluginAdmins } from "../lib/plugin-context";
-import { cn } from "../lib/utils";
+import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
 import { BrandIcon } from "./Logo.js";
 
 // Re-export for Shell.tsx and Header.tsx
@@ -33,6 +48,37 @@ export { KumoSidebar as Sidebar, useSidebar };
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+
+/**
+ * Static invariants for nav entries that have AC-level visibility
+ * requirements (Phase 5 of Discussion #1174: "Admin sees the 'Byline
+ * Schema' entry; Editor does not").
+ *
+ * Exported as plain data so a unit test can assert the route + role
+ * pairing without mounting Kumo's Sidebar primitive — which portals
+ * its rendered content to `document.body` and applies collapse-state
+ * CSS (`display:none` on labels at narrow viewports), making
+ * full-DOM tests of role filtering brittle. The runtime `adminItems`
+ * array below references these constants directly so the test
+ * effectively guards the production list.
+ */
+export const BYLINE_SCHEMA_NAV_ITEM = {
+	to: "/byline-schema" as const,
+	minRole: ROLE_ADMIN,
+} as const;
+
+/**
+ * Filter a nav-items list by user role. Pure function — exported so
+ * tests can verify the role gate without rendering the sidebar. An
+ * item passes when it has no `minRole` (public) or the user is at
+ * least the required level.
+ */
+export function filterNavItemsByRole<T extends { minRole?: number }>(
+	items: T[],
+	userRole: number,
+): T[] {
+	return items.filter((item) => !item.minRole || userRole >= item.minRole);
+}
 
 export interface SidebarNavProps {
 	manifest: {
@@ -82,56 +128,143 @@ interface NavItem {
 }
 
 /**
- * Navigation item rendered as a TanStack Router <Link> inside kumo's
- * Sidebar.MenuItem. Styled to match kumo MenuButton appearance.
- * This approach guarantees client-side navigation works correctly.
+ * Static map of common plugin admin-page icon names to Phosphor components.
+ *
+ * Plugins declare `adminPages: [{ path, label, icon }]`, where `icon` is a
+ * lower/kebab name. This table covers the names used across the EmDash
+ * docs/templates (including lucide-style names like `settings`/`chart` that
+ * don't match Phosphor's own naming) plus common nav glyphs. These are
+ * statically imported, so the everyday case resolves *synchronously* and the
+ * handful of components ship in the main bundle — the full Phosphor set is
+ * never pulled in for them. Any name not listed here is resolved lazily
+ * (see `resolveNavIcon`), so there is no hard ceiling.
+ */
+const NAV_ICON_MAP: Record<string, React.ElementType> = {
+	// Documented in the plugin docs & "creating-plugins" skill
+	settings: Gear,
+	gear: Gear,
+	chart: ChartBar,
+	"chart-line": ChartLine,
+	dashboard: SquaresFour,
+	history: ClockCounterClockwise,
+	image: Image,
+	// Used by template / first-party plugins
+	award: Medal,
+	trophy: Trophy,
+	grid: GridFour,
+	crop: Crop,
+	// Common admin-nav glyphs
+	book: BookOpen,
+	plug: Plug,
+	code: Code,
+	file: FileText,
+	document: FileText,
+	users: Users,
+	database: Database,
+	list: List,
+	calendar: CalendarBlank,
+	bell: Bell,
+	folder: Folder,
+	star: Star,
+	tag: Tag,
+	link: LinkSimple,
+	search: MagnifyingGlass,
+	palette: Palette,
+	upload: Upload,
+};
+
+/** Word separators in icon names: kebab, snake, or whitespace. */
+const ICON_NAME_SEPARATOR = /[-_\s]+/;
+
+/**
+ * Convert a kebab/snake/space icon name to Phosphor's PascalCase component
+ * name (`chart-bar` → `ChartBar`). Exported for unit testing the pure mapping.
+ */
+export function toPhosphorIconName(name: string): string {
+	return name
+		.split(ICON_NAME_SEPARATOR)
+		.filter(Boolean)
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join("");
+}
+
+/**
+ * Cache of lazily-loaded icon components, keyed by Phosphor component name.
+ * `React.lazy` must return a stable identity across renders (a fresh lazy
+ * component on every render would remount and re-suspend), so memoize here.
+ */
+const lazyIconCache = new Map<string, React.ElementType>();
+
+/**
+ * Resolve a plugin page's `icon` name to a component.
+ *
+ * Resolution order:
+ *   1. No icon → `PuzzlePiece` (the common icon-less page never suspends).
+ *   2. A name in `NAV_ICON_MAP` → its statically-imported component (sync,
+ *      already in the main bundle — no extra chunk for everyday icons).
+ *   3. Anything else → the matching `@phosphor-icons/react` component, loaded
+ *      lazily from a code-split chunk the first time it's used. This gives
+ *      access to the entire Phosphor set without pulling it into the main
+ *      bundle, and only loads when a plugin uses an icon outside the map.
+ *      Names that don't exist in Phosphor fall back to `PuzzlePiece`.
+ *
+ * Case 3 returns a `React.lazy` component, so call sites must render the
+ * result inside a `<React.Suspense>` boundary (see `NavMenuLink`). Exported
+ * so a unit test can assert resolution without mounting the portal-heavy
+ * Kumo Sidebar.
+ */
+export function resolveNavIcon(name?: string): React.ElementType {
+	if (!name) {
+		return PuzzlePiece;
+	}
+	const mapped = NAV_ICON_MAP[name];
+	if (mapped) {
+		return mapped;
+	}
+	const componentName = toPhosphorIconName(name);
+	let icon = lazyIconCache.get(componentName);
+	if (!icon) {
+		icon = React.lazy(async () => {
+			const mod = (await import("@phosphor-icons/react")) as Record<string, unknown>;
+			const Icon = mod[componentName] as React.ComponentType<{ className?: string }> | undefined;
+			return { default: Icon ?? PuzzlePiece };
+		});
+		lazyIconCache.set(componentName, icon);
+	}
+	return icon;
+}
+
+/**
+ * Navigation item rendered with Kumo's native Sidebar.MenuButton. Kumo's
+ * LinkProvider maps the href to TanStack Router for client-side navigation.
  */
 function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	const { state } = useSidebar();
 	const Icon = item.icon;
-
-	const link = (
-		<Link
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- TanStack Router requires literal route types
-			to={item.to as "/"}
-			params={item.params}
-			aria-current={isActive ? "page" : undefined}
-			data-active={isActive || undefined}
-			data-sidebar="menu-button"
-			className={cn(
-				"emdash-nav-link group/menu-button flex w-full min-w-0 items-center gap-2.5 rounded-md no-underline outline-none cursor-pointer",
-				"min-h-[36px] px-3 py-1.5 text-[13px]",
-				"transition-all duration-200 ease-out",
-				isActive ? "bg-kumo-brand text-white" : "text-white/70 hover:text-white hover:bg-white/8",
-				"focus-visible:ring-2 focus-visible:ring-kumo-brand/50",
-			)}
-		>
-			<Icon
-				className={cn(
-					"emdash-nav-icon size-[18px] shrink-0 transition-colors duration-200",
-					isActive ? "text-white" : "text-white/60 group-hover/menu-button:text-white/90",
-				)}
-				aria-hidden="true"
-			/>
-			<span className="emdash-nav-label flex flex-1 items-center min-w-0 text-start overflow-hidden">
-				{item.label}
-				{item.badge != null && item.badge > 0 && (
-					<KumoSidebar.MenuBadge>{item.badge}</KumoSidebar.MenuBadge>
-				)}
-			</span>
-		</Link>
-	);
+	function IconComponent({ className }: { className?: string }) {
+		return <NavIcon icon={Icon} className={className} />;
+	}
 
 	return (
-		<KumoSidebar.MenuItem>
-			{state === "collapsed" ? (
-				<Tooltip content={item.label} side="right" asChild>
-					{link}
-				</Tooltip>
-			) : (
-				link
+		<KumoSidebar.MenuButton
+			href={resolveItemPath(item)}
+			active={isActive}
+			tooltip={state === "collapsed" ? item.label : undefined}
+			icon={IconComponent}
+		>
+			{item.label}
+			{item.badge != null && item.badge > 0 && (
+				<KumoSidebar.MenuBadge>{item.badge}</KumoSidebar.MenuBadge>
 			)}
-		</KumoSidebar.MenuItem>
+		</KumoSidebar.MenuButton>
+	);
+}
+
+function NavIcon({ icon: Icon, className }: { icon: React.ElementType; className?: string }) {
+	return (
+		<React.Suspense fallback={<PuzzlePiece className={className} aria-hidden="true" />}>
+			<Icon className={className} aria-hidden="true" />
+		</React.Suspense>
 	);
 }
 
@@ -211,6 +344,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	const adminItems: NavItem[] = [
 		{ to: "/content-types", label: t`Content Types`, icon: Database, minRole: ROLE_ADMIN },
+		{ ...BYLINE_SCHEMA_NAV_ITEM, label: t`Byline Schema`, icon: FileText },
 		{ to: "/users", label: t`Users`, icon: Users, minRole: ROLE_ADMIN },
 		{ to: "/plugins-manager", label: t`Plugins`, icon: PuzzlePiece, minRole: ROLE_ADMIN },
 	];
@@ -252,25 +386,26 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const pluginPages = pluginAdmins[pluginId]?.pages;
 			const isBlocksMode = config.adminMode === "blocks";
 			for (const page of config.adminPages) {
-				if (!isBlocksMode && !pluginPages?.[page.path]) continue;
+				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
 				const label =
 					page.label ||
 					pluginId
 						.split("-")
 						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
 						.join(" ");
-				pluginItems.push({ to: `/plugins/${pluginId}${page.path}`, label, icon: PuzzlePiece });
+				pluginItems.push({
+					to: `/plugins/${pluginId}${page.path}`,
+					label,
+					icon: resolveNavIcon(page.icon),
+				});
 			}
 		}
 	}
 
-	const filterByRole = (items: NavItem[]) =>
-		items.filter((item) => !item.minRole || userRole >= item.minRole);
-
-	const visibleContent = filterByRole(contentItems);
-	const visibleManage = filterByRole(manageItems);
-	const visibleAdmin = filterByRole(adminItems);
-	const visiblePlugins = filterByRole(pluginItems);
+	const visibleContent = filterNavItemsByRole(contentItems, userRole);
+	const visibleManage = filterNavItemsByRole(manageItems, userRole);
+	const visibleAdmin = filterNavItemsByRole(adminItems, userRole);
+	const visiblePlugins = filterNavItemsByRole(pluginItems, userRole);
 
 	function renderNavItems(items: NavItem[]) {
 		return items.map((item, index) => {
@@ -281,204 +416,76 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	}
 
 	return (
-		<>
-			{/* Injected styles — Tailwind 4 strips [data-sidebar] attribute selectors from CSS files.
-			    All sidebar-specific overrides go here to avoid conflicting with kumo's inline styles. */}
-			<style
-				dangerouslySetInnerHTML={{
-					__html: `
-			/* Classic dark chrome — override kumo tokens within the sidebar */
-			.emdash-sidebar {
-				--color-kumo-base: #1d2327;
-				--color-kumo-tint: rgba(255,255,255,0.1);
-				--color-kumo-line: rgba(255,255,255,0.08);
-				--color-kumo-brand: #2271b1;
-				--text-color-kumo-default: #fff;
-				--text-color-kumo-subtle: rgba(255,255,255,0.7);
-				--text-color-kumo-strong: #fff;
-				background-color: #1d2327 !important;
-				color: #fff !important;
-				border-color: rgba(255,255,255,0.08) !important;
-			}
-			/* Group labels — uppercase muted style */
-			.emdash-sidebar [data-sidebar="group-label"] {
-				color: rgba(255,255,255,0.45) !important;
-				font-size: 11px !important;
-				text-transform: uppercase;
-				letter-spacing: 0.06em;
-				font-weight: 600;
-				padding-left: 0.75rem;
-				padding-right: 0.75rem;
-			}
-			.emdash-sidebar [data-sidebar="group-label"] svg {
-				color: rgba(255,255,255,0.3);
-			}
-			.emdash-sidebar [data-sidebar="group-label"]:hover svg {
-				color: rgba(255,255,255,0.6);
-			}
-			/* Separators */
-			.emdash-sidebar [data-sidebar="separator"] {
-				border-color: rgba(255,255,255,0.06) !important;
-				margin: 0.5rem 0.75rem;
-			}
-			/* Header/footer borders */
-			.emdash-sidebar [data-sidebar="header"] {
-				border-bottom: 1px solid rgba(255,255,255,0.08);
-			}
-			.emdash-sidebar [data-sidebar="footer"] {
-				border-top: 1px solid rgba(255,255,255,0.08);
-			}
+		<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
+			<KumoSidebar.Header>
+				<Link
+					to="/"
+					className="flex w-full min-w-0 items-center gap-2 px-3 py-1 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
+				>
+					<BrandIcon
+						logoUrl={manifest.admin?.logo}
+						siteName={manifest.admin?.siteName}
+						className="size-5 shrink-0"
+						aria-hidden="true"
+					/>
+					<span className="font-semibold truncate group-data-[state=collapsed]/sidebar:hidden">
+						{manifest.admin?.siteName || "EmDash"}
+					</span>
+				</Link>
+			</KumoSidebar.Header>
 
-			/* Keep all nav icons visible when sidebar collapses to icon mode */
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="group-content"] {
-				grid-template-rows: 1fr !important;
-			}
-			/* Mobile drawer: kumo's Sheet has no data-state attribute, so group-content
-			   stays at grid-rows-[0fr] (hidden). Force it open in the mobile sidebar. */
-			.emdash-sidebar[data-mobile="true"] [data-sidebar="group-content"] {
-				grid-template-rows: 1fr !important;
-			}
-			/* Collapsed separators — thin centered line */
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="separator"] {
-				margin: 0.375rem 0.625rem;
-			}
-			/* Collapsed: tighten group spacing */
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="group"] {
-				gap: 0.125rem;
-			}
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="menu"] {
-				gap: 0.125rem;
-			}
-
-			/* Collapsed: nav links — center icon, hide text */
-			.emdash-sidebar[data-state="collapsed"] .emdash-nav-link {
-				justify-content: center;
-				padding: 0.5rem 0;
-				gap: 0;
-				min-height: 36px;
-			}
-			.emdash-sidebar[data-state="collapsed"] .emdash-nav-label {
-				display: none !important;
-			}
-			/* Collapsed: brand link */
-			.emdash-sidebar[data-state="collapsed"] .emdash-brand-link {
-				justify-content: center;
-				padding-left: 0;
-				padding-right: 0;
-			}
-			.emdash-sidebar[data-state="collapsed"] .emdash-brand-text {
-				display: none !important;
-			}
-
-			/* Mobile drawer slide animation from left (LTR) */
-			[data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
-			[data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
-				transform: translateX(-100%);
-			}
-
-			/* Mobile drawer slide animation from right (RTL) */
-			[dir="rtl"] [data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
-			[dir="rtl"] [data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
-				transform: translateX(100%);
-				--tw-translate-x: 100%;
-			}
-
-			/* RTL: Position drawer on right side */
-			[dir="rtl"] :has(> .emdash-sidebar[data-mobile="true"]) {
-				left: auto;
-				right: 0;
-			}
-		`,
-				}}
-			/>
-			<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
-				<KumoSidebar.Header>
-					<Link
-						to="/"
-						className="emdash-brand-link flex w-full min-w-0 items-center gap-2 px-3 py-1"
-					>
-						<BrandIcon
-							logoUrl={manifest.admin?.logo}
-							siteName={manifest.admin?.siteName}
-							className="size-5 shrink-0"
-							aria-hidden="true"
+			<KumoSidebar.Content>
+				{/* Dashboard — standalone */}
+				<KumoSidebar.Group className="mt-2 md:mt-1.5">
+					<KumoSidebar.Menu>
+						<NavMenuLink
+							item={{ to: "/", label: t`Dashboard`, icon: SquaresFour }}
+							isActive={isItemActive("/", currentPath)}
 						/>
-						<span className="emdash-brand-text font-semibold truncate">
-							{manifest.admin?.siteName || "EmDash"}
-						</span>
-					</Link>
-				</KumoSidebar.Header>
+					</KumoSidebar.Menu>
+				</KumoSidebar.Group>
 
-				<KumoSidebar.Content>
-					{/* Dashboard — standalone */}
+				{/* Content — collections + media */}
+				{visibleContent.length > 1 && (
 					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Content`}</KumoSidebar.GroupLabel>
 						<KumoSidebar.Menu>
-							<NavMenuLink
-								item={{ to: "/", label: t`Dashboard`, icon: SquaresFour }}
-								isActive={isItemActive("/", currentPath)}
-							/>
+							{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
 						</KumoSidebar.Menu>
 					</KumoSidebar.Group>
+				)}
 
-					<KumoSidebar.Separator />
+				{/* Manage — comments, menus, taxonomies, etc. */}
+				{visibleManage.length > 0 && (
+					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Manage`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
+					</KumoSidebar.Group>
+				)}
 
-					{/* Content — collections + media (collapsible) */}
-					{visibleContent.length > 1 && (
-						<KumoSidebar.Group collapsible defaultOpen>
-							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Content`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>
-									{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
-								</KumoSidebar.Menu>
-							</KumoSidebar.GroupContent>
-						</KumoSidebar.Group>
-					)}
+				{/* Admin — content types, users, plugins, import */}
+				{visibleAdmin.length > 0 && (
+					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Admin`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
+					</KumoSidebar.Group>
+				)}
 
-					<KumoSidebar.Separator />
+				{/* Plugin pages */}
+				{visiblePlugins.length > 0 && (
+					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Plugins`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
+					</KumoSidebar.Group>
+				)}
+			</KumoSidebar.Content>
 
-					{/* Manage — comments, menus, taxonomies, etc. (collapsible) */}
-					{visibleManage.length > 0 && (
-						<KumoSidebar.Group collapsible defaultOpen>
-							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Manage`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
-							</KumoSidebar.GroupContent>
-						</KumoSidebar.Group>
-					)}
-
-					<KumoSidebar.Separator />
-
-					{/* Admin — content types, users, plugins, import (collapsible) */}
-					{visibleAdmin.length > 0 && (
-						<KumoSidebar.Group collapsible defaultOpen>
-							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Admin`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
-							</KumoSidebar.GroupContent>
-						</KumoSidebar.Group>
-					)}
-
-					{/* Plugin pages (collapsible) */}
-					{visiblePlugins.length > 0 && (
-						<>
-							<KumoSidebar.Separator />
-							<KumoSidebar.Group collapsible defaultOpen>
-								<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Plugins`}</KumoSidebar.GroupLabel>
-								<KumoSidebar.GroupContent>
-									<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
-								</KumoSidebar.GroupContent>
-							</KumoSidebar.Group>
-						</>
-					)}
-				</KumoSidebar.Content>
-
-				<KumoSidebar.Footer>
-					<p className="emdash-nav-label px-3 py-2 text-[11px] text-white/30">
-						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-						{manifest.commit && ` (${manifest.commit})`}
-					</p>
-				</KumoSidebar.Footer>
-			</KumoSidebar>
-		</>
+			<KumoSidebar.Footer>
+				<p className="px-3 py-2 text-[11px] text-kumo-subtle group-data-[state=collapsed]/sidebar:hidden">
+					{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
+					{manifest.commit && ` (${manifest.commit})`}
+				</p>
+			</KumoSidebar.Footer>
+		</KumoSidebar>
 	);
 }

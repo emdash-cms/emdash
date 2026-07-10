@@ -32,8 +32,9 @@ import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-token
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
+import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
-import { buildEmDashCsp } from "./csp.js";
+import { buildEmDashCsp, getConfiguredStorageEndpoint } from "./csp.js";
 
 declare global {
 	namespace App {
@@ -119,6 +120,7 @@ const PUBLIC_API_EXACT = new Set([
 	// so unauthenticated callers only see published content. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
 	"/_emdash/api/search",
+	"/_emdash/api/search/suggest",
 ]);
 
 // Build merged public routes at module load from auth provider descriptors.
@@ -304,7 +306,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (!import.meta.env.DEV) {
 			response.headers.set(
 				"Content-Security-Policy",
-				buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+				buildEmDashCsp(
+					context.locals.emdash?.config.experimental?.registry,
+					getConfiguredStorageEndpoint(context.locals.emdash?.config.storage),
+				),
 			);
 		}
 		return response;
@@ -316,7 +321,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (!import.meta.env.DEV) {
 		response.headers.set(
 			"Content-Security-Policy",
-			buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+			buildEmDashCsp(
+				context.locals.emdash?.config.experimental?.registry,
+				getConfiguredStorageEndpoint(context.locals.emdash?.config.storage),
+			),
 		);
 	}
 
@@ -407,7 +415,7 @@ async function handlePluginRouteAuth(
 	try {
 		// Try session auth (sets locals.user if session exists)
 		const { session } = context;
-		const sessionUser = await session?.get("user");
+		const sessionUser = await resolveSessionUser(session);
 		if (sessionUser?.id && emdash?.db) {
 			const adapter = createKyselyAdapter(emdash.db);
 			const user = await adapter.getUserById(sessionUser.id);
@@ -435,7 +443,7 @@ async function handlePublicRouteAuth(
 	const { emdash } = locals;
 
 	try {
-		const sessionUser = await session?.get("user");
+		const sessionUser = await resolveSessionUser(session);
 		if (sessionUser?.id && emdash?.db) {
 			const adapter = createKyselyAdapter(emdash.db);
 			const user = await adapter.getUserById(sessionUser.id);
@@ -475,11 +483,11 @@ async function handleExternalAuth(
 		const authResult = await virtualAuthenticate(request, authMode.config);
 
 		// Get external auth config for auto-provision settings
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
 		const externalConfig = authMode.config as ExternalAuthConfig;
 
 		// Find or create user
-		const adapter = createKyselyAdapter(emdash!.db);
+		const adapter = createKyselyAdapter(emdash.db);
 		let user = await adapter.getUserByEmail(authResult.email);
 
 		if (!user) {
@@ -492,9 +500,9 @@ async function handleExternalAuth(
 			}
 
 			// Check if this is the first user (they become admin)
-			const userCount = await emdash!.db
+			const userCount = await emdash.db
 				.selectFrom("users")
-				.select(emdash!.db.fn.count("id").as("count"))
+				.select(emdash.db.fn.count("id").as("count"))
 				.executeTakeFirst();
 
 			const isFirstUser = Number(userCount?.count ?? 0) === 0;
@@ -512,7 +520,7 @@ async function handleExternalAuth(
 				updated_at: now,
 			};
 
-			await emdash!.db.insertInto("users").values(newUser).execute();
+			await emdash.db.insertInto("users").values(newUser).execute();
 
 			user = await adapter.getUserByEmail(authResult.email);
 
@@ -539,7 +547,7 @@ async function handleExternalAuth(
 
 			if (Object.keys(updates).length > 0) {
 				updates.updated_at = new Date().toISOString();
-				await emdash!.db.updateTable("users").set(updates).where("id", "=", user.id).execute();
+				await emdash.db.updateTable("users").set(updates).where("id", "=", user.id).execute();
 
 				user = {
 					...user,
@@ -650,7 +658,7 @@ async function handlePasskeyAuth(
 
 	try {
 		// Check session for user (session.get returns a Promise)
-		const sessionUser = await session?.get("user");
+		const sessionUser = await resolveSessionUser(session);
 
 		if (!sessionUser?.id) {
 			if (isApiRoute) {
@@ -665,7 +673,7 @@ async function handlePasskeyAuth(
 		}
 
 		// Get full user from database
-		const adapter = createKyselyAdapter(emdash!.db);
+		const adapter = createKyselyAdapter(emdash.db);
 		const user = await adapter.getUserById(sessionUser.id);
 
 		if (!user) {

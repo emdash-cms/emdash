@@ -1,14 +1,22 @@
 /**
- * Marketplace update check endpoint
+ * Plugin update check endpoint
  *
- * GET /_emdash/api/admin/plugins/updates - Check for marketplace plugin updates
+ * GET /_emdash/api/admin/plugins/updates - Check for available updates
+ * across every installed plugin source (marketplace + experimental
+ * registry). Items are returned in a single flat list; admins correlate
+ * items to plugins by `pluginId` and read `source` from the existing
+ * `/_emdash/api/admin/plugins` list (the pluginId prefix is not a
+ * reliable discriminator on its own).
+ *
+ * A failure in one source does NOT blank the other — a registry-side
+ * aggregator outage still returns marketplace updates and vice versa.
  */
 
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, unwrapResult } from "#api/error.js";
-import { handleMarketplaceUpdateCheck } from "#api/index.js";
+import { apiError } from "#api/error.js";
+import { handleMarketplaceUpdateCheck, handleRegistryUpdateCheck } from "#api/index.js";
 
 export const prerender = false;
 
@@ -22,7 +30,36 @@ export const GET: APIRoute = async ({ locals }) => {
 	const denied = requirePerm(user, "plugins:read");
 	if (denied) return denied;
 
-	const result = await handleMarketplaceUpdateCheck(emdash.db, emdash.config.marketplace);
+	// Run both checks in parallel. Catch each independently so one source's
+	// failure doesn't blank the other. Both throws and structured `success:
+	// false` returns are logged with the source name so a misconfigured
+	// registry doesn't disappear silently from telemetry.
+	const [marketplace, registry] = await Promise.all([
+		handleMarketplaceUpdateCheck(emdash.db, emdash.config.marketplace).catch((err) => {
+			console.warn("[plugins/updates] marketplace check threw:", err);
+			return null;
+		}),
+		handleRegistryUpdateCheck(emdash.db, emdash.config.experimental?.registry).catch((err) => {
+			console.warn("[plugins/updates] registry check threw:", err);
+			return null;
+		}),
+	]);
+	if (marketplace && !marketplace.success) {
+		console.warn(
+			`[plugins/updates] marketplace check failed: ${marketplace.error.code} ${marketplace.error.message}`,
+		);
+	}
+	if (registry && !registry.success) {
+		console.warn(
+			`[plugins/updates] registry check failed: ${registry.error.code} ${registry.error.message}`,
+		);
+	}
 
-	return unwrapResult(result);
+	const items: unknown[] = [];
+	if (marketplace?.success) items.push(...marketplace.data.items);
+	if (registry?.success) items.push(...registry.data.items);
+
+	// Match the rest of the admin API envelope (`{ data: ... }`) so the
+	// admin client's `parseApiResponse` unwraps `body.data`.
+	return Response.json({ data: { items } });
 };

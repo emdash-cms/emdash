@@ -1,5 +1,6 @@
 import type { ArbitraryTypedObject } from "@portabletext/types";
 
+import { getStringField } from "../types.js";
 import type { ContentfulEntry } from "../types.js";
 
 /** HTML is preserved verbatim — sanitization is the renderer's responsibility. */
@@ -7,6 +8,6 @@ export function transformEmbeddedHtml(entry: ContentfulEntry, key: string): Arbi
 	return {
 		_type: "htmlBlock",
 		_key: key,
-		html: (entry.fields.customHtml as string) ?? "",
+		html: getStringField(entry.fields, "customHtml") ?? "",
 	};
 }

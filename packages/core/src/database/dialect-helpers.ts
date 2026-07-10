@@ -69,15 +69,51 @@ export function currentTimestampValue(db: Kysely<any>): RawBuilder<string> {
 }
 
 /**
+ * Build WHERE clause for status filtering on a content table.
+ * When filtering for 'published' status, also include scheduled content
+ * whose scheduled_at time has passed (treating it as effectively published).
+ *
+ * Visibility is computed, not flipped by cron, so a literal
+ * `status = 'published'` comparison undercounts scheduled-and-due entries —
+ * every "publicly visible" filter must go through this helper.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function buildStatusCondition(
+	db: Kysely<any>,
+	status: string,
+	tablePrefix?: string,
+): ReturnType<typeof sql> {
+	const statusField = tablePrefix ? `${tablePrefix}.status` : "status";
+	const scheduledAtField = tablePrefix ? `${tablePrefix}.scheduled_at` : "scheduled_at";
+
+	if (status === "published") {
+		// Include both published content AND scheduled content past its publish time.
+		// scheduled_at is stored as text (ISO 8601). On Postgres, we must cast it
+		// to timestamptz for the comparison with CURRENT_TIMESTAMP to work.
+		const scheduledAtExpr = isPostgres(db)
+			? sql`${sql.ref(scheduledAtField)}::timestamptz`
+			: sql.ref(scheduledAtField);
+		const nowExpr = isPostgres(db)
+			? currentTimestampValue(db)
+			: sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+		return sql`(${sql.ref(statusField)} = 'published' OR (${sql.ref(statusField)} = 'scheduled' AND ${scheduledAtExpr} <= ${nowExpr}))`;
+	}
+
+	return sql`${sql.ref(statusField)} = ${status}`;
+}
+
+/**
  * Check if a table exists in the database.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export async function tableExists(db: Kysely<any>, tableName: string): Promise<boolean> {
 	if (isPostgres(db)) {
+		// Scope to the active schema (matches indexExists/columnExists below).
+		// Hardcoding 'public' breaks non-public-schema Postgres deployments.
 		const result = await sql<{ exists: boolean }>`
 			SELECT EXISTS(
 				SELECT 1 FROM information_schema.tables
-				WHERE table_schema = 'public' AND table_name = ${tableName}
+				WHERE table_schema = current_schema() AND table_name = ${tableName}
 			) as exists
 		`.execute(db);
 		return result.rows[0]?.exists === true;
@@ -146,9 +182,13 @@ export async function columnExists(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export async function listTablesLike(db: Kysely<any>, pattern: string): Promise<string[]> {
 	if (isPostgres(db)) {
+		// Scope to the connection's active schema rather than hardcoding
+		// 'public'. A Postgres deployment using a non-public schema (per-tenant
+		// or shared-cluster setups), or per-test schemas, otherwise sees tables
+		// from the wrong schema — or none at all. Mirrors migration 038.
 		const result = await sql<{ table_name: string }>`
 			SELECT table_name FROM information_schema.tables
-			WHERE table_schema = 'public' AND table_name LIKE ${pattern}
+			WHERE table_schema = current_schema() AND table_name LIKE ${pattern}
 		`.execute(db);
 		return result.rows.map((r) => r.table_name);
 	}

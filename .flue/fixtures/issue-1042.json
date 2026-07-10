@@ -1,0 +1,19 @@
+{
+	"author": {
+		"id": "MDQ6VXNlcjI1ODY1OTE=",
+		"is_bot": false,
+		"login": "takustaqu",
+		"name": "Harada \"Yayane\" Kiyohide"
+	},
+	"body": "### Description\n\nWhen the EmDash setup probe fails due to a transient D1 error (e.g., on cold start), **all requests** — including fully prerendered public pages like `/about` and `/privacy` — are redirected to `/_emdash/admin/setup`, regardless of the request path.\n\n- **What happened**: Navigating to a public page shows \"Redirecting from /about/ to /_emdash/admin/setup\" for ~2 seconds, then the browser is taken to the admin setup wizard.\n- **What I expected**: Public pages should render normally. The setup redirect should only occur for requests to `/_emdash/*` paths.\n\n\n### Steps to reproduce\n\n1. Deploy an Astro hybrid site (mix of prerendered + SSR pages) with EmDash to Cloudflare Workers.\n2. Configure a Cloudflare Zone Route (`example.com/*` → Worker) so all requests go through the Worker — a common production setup.\n3. Wait a few minutes for the Worker isolate to be evicted (triggering a cold start).\n4. Navigate to any public page (e.g., `/about`) in a browser.\n5. Observe: after ~2 seconds, the page redirects to `/_emdash/admin/setup`.\n\n**Quick verification via curl:**\n\n```bash\ncurl -sL https://example.com/about | head -5\n```\n\nReturns:\n\n```html\n<!doctype html>\n<title>Redirecting to: /_emdash/admin/setup</title>\n<meta http-equiv=\"refresh\" content=\"2;url=/_emdash/admin/setup\">\n```\n\n> **Note:** The response status is `200 OK`, not `302`. This means any middleware that inspects `response.status` to intercept setup redirects will not catch it.\n\n\n\n### Environment\n\n- emdash version: 0.12.0\n- Node.js version: 22.x\n- Runtime: Cloudflare Workers (`@astrojs/cloudflare` adapter)\n- Astro: 6.x (`output: \"hybrid\"`)\n- Database: Cloudflare D1 with Sessions API\n- OS: macOS (dev) / Cloudflare edge (production)\n\n\n### Logs / error output\n\n```shell\nFrom `wrangler tail` at the time of the incident:\n\n\nD1_ERROR: no such table: _emdash_migrations\n\n\n> **Note:** The `_emdash_migrations` table **does exist** in the database. This is a transient D1 Sessions API initialization error on cold start, not a genuine \"not set up\" state.\n\n**Problematic code** (`dist/astro/middleware.mjs`):\n\n\n} catch {\n  // ❌ Redirects ALL paths to setup — including public pages\n  return context.redirect(\"/_emdash/admin/setup\");\n}\n\n\n**Proposed fix:**\n\n\n-} catch {\n-  return context.redirect(\"/_emdash/admin/setup\");\n+} catch (probeError) {\n+  const probeMsg = probeError instanceof Error ? probeError.message : String(probeError);\n+  const isAdminRequest = context.request.url.includes(\"/_emdash\");\n+  if (isAdminRequest) {\n+    const isNotSetup =\n+      probeMsg.includes(\"no such table\") || probeMsg.includes(\"does not exist\");\n+    if (isNotSetup) {\n+      return context.redirect(\"/_emdash/admin/setup\");\n+    }\n+  }\n+  // Public pages or transient errors: treat as verified and continue\n+  console.error(\"[emdash] Setup probe failed (non-fatal for public path):\", probeMsg);\n+  setupVerified = true;\n }\n\n\nThis ensures:\n- Admin paths (`/_emdash/*`) still correctly detect an uninitialized database and show the setup wizard.\n- Public pages are **never** redirected to the setup wizard, even under transient D1 failures.\n```",
+	"labels": [
+		{
+			"id": "LA_kwDOR2vLLM8AAAACdovkaQ",
+			"name": "bug",
+			"description": "Something isn't working",
+			"color": "d73a4a"
+		}
+	],
+	"number": 1042,
+	"title": "Setup probe redirects public pages to `/_emdash/admin/setup` on D1 transient errors / cold starts"
+}

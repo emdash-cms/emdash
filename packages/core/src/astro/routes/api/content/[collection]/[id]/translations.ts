@@ -41,7 +41,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	if (result.success && !hasPermission(user, "content:read_drafts")) {
 		const data =
 			result.data && typeof result.data === "object"
-				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+				? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
 					(result.data as Record<string, unknown>)
 				: undefined;
 		const translations = Array.isArray(data?.translations) ? data.translations : [];

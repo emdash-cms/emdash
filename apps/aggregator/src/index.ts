@@ -271,19 +271,19 @@ export default {
 		// the queue name, which is a runtime tag the compiler can't see.
 		switch (batch.queue) {
 			case RECORDS_QUEUE_NAME:
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by queue name
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by queue name
 				await processBatch(batch as MessageBatch<RecordsJob>, env);
 				return;
 			case RECORDS_DLQ_NAME:
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by queue name
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by queue name
 				await drainDeadLetterBatch(batch as MessageBatch<RecordsJob>, env);
 				return;
 			case BACKFILL_QUEUE_NAME:
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by queue name
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by queue name
 				await processBackfillBatch(batch as MessageBatch<BackfillJob>, env);
 				return;
 			case BACKFILL_DLQ_NAME:
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by queue name
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by queue name
 				drainBackfillDeadLetterBatch(batch as MessageBatch<BackfillJob>, env);
 				return;
 			default:

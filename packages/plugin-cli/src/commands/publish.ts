@@ -29,12 +29,15 @@ import consola from "consola";
 import pc from "picocolors";
 
 import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
+import { redirectConsolaToStderr } from "../cli-output.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
 import { checkPublisher, PublisherCheckError, writePublisherBack } from "../manifest/publisher.js";
 import {
 	manifestToProfileInput,
 	normaliseManifest,
 	type NormalisedManifest,
+	resolveSections,
+	SectionError,
 } from "../manifest/translate.js";
 import { sha256Multihash } from "../multihash.js";
 import { resumeSession } from "../oauth.js";
@@ -43,7 +46,9 @@ import {
 	publishRelease,
 	type ProfileInput,
 	type PublishLogger,
+	type ReleaseArtifactsInput,
 } from "../publish/api.js";
+import { ArtifactUploadError, resolveReleaseArtifacts } from "../publish/upload-artifacts.js";
 
 /**
  * Hard cap on the gzipped tarball we'll buffer into memory. Sized for the
@@ -114,6 +119,11 @@ export const publishCommand = defineCommand({
 			description:
 				"Allow overwriting an existing release at <slug>:<version>. Default refuses, since FAIR treats version records as immutable and aggregators/labellers may flag any change as a takedown event.",
 			default: false,
+		},
+		"artifact-base-url": {
+			type: "string",
+			description:
+				"Base URL the CLI PUTs media artifacts (icon / screenshot / banner) to. Each file is uploaded to <base>/<slug>/<version>/<filename> and that URL is recorded in the release. The target must serve the bytes back unchanged with a stable content type. Required when the manifest declares any `release.artifacts`.",
 		},
 		json: {
 			type: "boolean",
@@ -302,6 +312,8 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		warn: (m) => consola.warn(m),
 	};
 
+	const artifacts = await resolveManifestArtifacts(args, manifestLoad, logger);
+
 	const result = await publishRelease({
 		publisher,
 		did: session.did,
@@ -310,6 +322,8 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		url: args.url,
 		profileInput,
 		repo: manifestLoad?.manifest.repo,
+		requires: manifestLoad?.manifest.requires,
+		artifacts,
 		allowOverwrite: args["allow-overwrite"],
 		logger,
 	});
@@ -340,7 +354,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	if (!result.profileCreated && result.ignoredProfileFields.length > 0) {
 		const fields = result.ignoredProfileFields.join(", ");
 		consola.warn(
-			`Ignored on subsequent publish (existing profile wins): ${fields}. Editing an existing profile isn't supported yet (#1032); update the record directly via your PDS for now.`,
+			`Ignored on subsequent publish (existing package record wins): ${fields}. To edit these on the existing package, run \`emdash-plugin update-package\` (dry-run prints the diff; pass \`--yes\` to apply).`,
 		);
 	}
 
@@ -368,6 +382,59 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		`The aggregator will pick this up from the firehose. To verify discovery once it's indexed:`,
 	);
 	console.log(`  ${pc.cyan(`emdash-plugin info ${session.handle ?? session.did} ${result.slug}`)}`);
+}
+
+/**
+ * Resolve the manifest's `release.artifacts` block into uploaded, embeddable
+ * records. Returns `undefined` when no manifest was loaded or it declared no
+ * artifacts. Throws `CliError` when artifacts are declared but the publisher
+ * didn't supply `--artifact-base-url`, or when resolution/upload fails.
+ */
+async function resolveManifestArtifacts(
+	args: PublishArgs,
+	manifestLoad: ManifestLoadOutcome | null,
+	logger: PublishLogger,
+): Promise<ReleaseArtifactsInput | undefined> {
+	const artifacts = manifestLoad?.manifest.artifacts;
+	if (!manifestLoad || !artifacts) return undefined;
+
+	const baseUrl = args["artifact-base-url"];
+	if (baseUrl === undefined || baseUrl.length === 0) {
+		throw new CliError(
+			"The manifest declares `release.artifacts` (icon / screenshot / banner) but no --artifact-base-url was given. Pass --artifact-base-url <url> so the CLI can upload the images and record where they're hosted.",
+			2,
+			"ARTIFACT_BASE_URL_REQUIRED",
+		);
+	}
+	let parsedBase: URL;
+	try {
+		parsedBase = new URL(baseUrl);
+	} catch {
+		throw new CliError(`--artifact-base-url is not a valid URL: ${baseUrl}`, 2, "INVALID_FLAG");
+	}
+	if (parsedBase.protocol !== "https:") {
+		throw new CliError(
+			`--artifact-base-url must use https; got ${parsedBase.protocol}. Host artifacts over TLS.`,
+			2,
+			"INVALID_FLAG",
+		);
+	}
+
+	try {
+		return await resolveReleaseArtifacts({
+			artifacts,
+			manifestDir: dirname(manifestLoad.path),
+			baseUrl,
+			slug: manifestLoad.manifest.slug,
+			version: manifestLoad.manifest.version,
+			logger,
+		});
+	} catch (error) {
+		if (error instanceof ArtifactUploadError) {
+			throw new CliError(error.message, 1, error.code);
+		}
+		throw error;
+	}
 }
 
 /**
@@ -434,6 +501,7 @@ type PublishArgs = {
 	manifest?: string;
 	"no-manifest"?: boolean;
 	"allow-overwrite"?: boolean;
+	"artifact-base-url"?: string;
 	json?: boolean;
 };
 
@@ -500,6 +568,14 @@ async function loadManifestBootstrap(
 				if (code === "VERSION_MISSING" || code === "VERSION_MISMATCH") {
 					throw new CliError(error.message, 1, String(code));
 				}
+			}
+			throw error;
+		}
+		try {
+			normalised.sections = await resolveSections(manifest.sections, dirname(resolvedPath));
+		} catch (error) {
+			if (error instanceof SectionError) {
+				throw new CliError(error.message, 1, error.code);
 			}
 			throw error;
 		}
@@ -576,37 +652,6 @@ async function readSiblingPackageVersion(manifestDir: string): Promise<string | 
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Reroute every consola log call to stderr. Used by `--json` mode so the
- * structured JSON object on stdout is the only thing a pipe consumer sees.
- *
- * Returns a restore function that puts the previous reporter set back. The
- * outer `run` calls it in a finally so a wrapper script that runs publish
- * in-process and then continues with other commands gets its consola back.
- *
- * We replace the global reporter (rather than constructing a separate
- * instance) so downstream helpers that import the default `consola`
- * singleton are also redirected.
- */
-function redirectConsolaToStderr(): () => void {
-	// `consola.options.reporters` is the public way to read the active set.
-	const previous = consola.options.reporters?.slice() ?? [];
-	consola.setReporters([
-		{
-			log(logObj) {
-				const level = logObj.type ?? "info";
-				const tag = logObj.tag ? `[${logObj.tag}] ` : "";
-				const args = logObj.args ?? [];
-				const message = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
-				process.stderr.write(`${level}: ${tag}${message}\n`);
-			},
-		},
-	]);
-	return () => {
-		consola.setReporters(previous);
-	};
-}
 
 /**
  * Validate the publish URL before any network access. Returns an error message

@@ -376,7 +376,7 @@ export async function importContent(
 				// `api/handlers/content.ts`). `HandlerResponse.data` is
 				// typed as `unknown` to avoid coupling the route surface to
 				// internal handler types, so we narrow here.
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler contract documented at handleContentCreate
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler contract documented at handleContentCreate
 				const createdItem = (createResult.data as { item: { id: string } } | undefined)?.item;
 
 				// Track translation group: the first imported post in a group

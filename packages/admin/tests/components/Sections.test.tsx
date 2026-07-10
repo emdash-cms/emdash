@@ -162,8 +162,10 @@ describe("Sections", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Call to Action")).toBeInTheDocument();
-		// Click delete on the user section
-		const deleteButton = screen.getByTitle("Delete");
+		// Click delete on the user section. Kumo 2.x wraps `<Button title>` as
+		// a Tooltip popup rather than a DOM `title` attribute, so we locate the
+		// button by its aria-label instead.
+		const deleteButton = screen.getByLabelText("Delete Call to Action");
 		await deleteButton.click();
 		await expect.element(screen.getByText("Delete Section?")).toBeInTheDocument();
 		await expect.element(screen.getByText(DELETE_SECTION_MSG_REGEX)).toBeInTheDocument();
@@ -186,7 +188,11 @@ describe("Sections", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Hero Section")).toBeInTheDocument();
-		const deleteButton = screen.getByTitle("Cannot delete theme sections");
+		// Kumo 2.x's `<Button title>` is rendered as a Tooltip popup, not a DOM
+		// `title`. Locate the button by aria-label and assert the disabled state
+		// directly; the "Cannot delete theme sections" copy is now in the
+		// hover Tooltip rather than a queryable attribute.
+		const deleteButton = screen.getByLabelText("Delete Hero Section");
 		await expect.element(deleteButton).toBeDisabled();
 	});
 

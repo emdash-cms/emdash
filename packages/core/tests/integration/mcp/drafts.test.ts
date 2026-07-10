@@ -220,7 +220,7 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 			// Read body the same way
 			const body =
 				item.data && typeof item.data === "object" && "body" in item.data
-					? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- shape narrowed by 'in' check
+					? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape narrowed by 'in' check
 						(item.data as { body?: unknown }).body
 					: (item as Record<string, unknown>).body;
 			expect(body).toBe("B1");

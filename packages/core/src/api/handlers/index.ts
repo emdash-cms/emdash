@@ -7,6 +7,8 @@
 // Content handlers
 export {
 	handleContentList,
+	handleContentAuthors,
+	type ContentAuthor,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,
@@ -58,6 +60,12 @@ export {
 	type MediaListResponse,
 	type MediaResponse,
 } from "./media.js";
+
+export {
+	handleMediaUsageRepair,
+	toMediaUsageRepairResponse,
+	type MediaUsageRepairResponse,
+} from "./media-usage.js";
 
 // Schema handlers
 export {
@@ -171,7 +179,15 @@ export {
 
 // Registry handlers (experimental)
 export {
+	assertEnvCompatible,
+	assertSafeArtifactUrl,
 	handleRegistryInstall,
+	handleRegistryUninstall,
+	handleRegistryUpdate,
+	handleRegistryUpdateCheck,
 	type RegistryInstallInput,
 	type RegistryInstallResult,
+	type RegistryUninstallResult,
+	type RegistryUpdateCheck,
+	type RegistryUpdateResult,
 } from "./registry.js";

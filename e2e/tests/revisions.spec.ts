@@ -286,9 +286,11 @@ test.describe("Revisions", () => {
 		const revisionItems = page.locator(".rounded-md.border.p-3");
 		await expect(revisionItems.first()).toBeVisible({ timeout: 10000 });
 
-		// Find the restore button on the older revision (not the "Current" one)
-		// The restore button uses ArrowCounterClockwise icon and title="Restore this version"
-		const restoreButton = page.locator('button[title="Restore this version"]').first();
+		// Find the restore button on the older revision (not the "Current" one).
+		// The restore button uses ArrowCounterClockwise icon. Kumo 2.x renders
+		// <Button title> as a Tooltip popup rather than a DOM title attribute,
+		// so we locate by aria-label instead.
+		const restoreButton = page.locator('button[aria-label="Restore this version"]').first();
 		await expect(restoreButton).toBeVisible({ timeout: 5000 });
 
 		// Click restore -- this opens a ConfirmDialog

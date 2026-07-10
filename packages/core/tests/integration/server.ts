@@ -16,8 +16,7 @@
  */
 
 import { execFile, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
@@ -36,6 +35,10 @@ const FIXTURE_DIR = resolve(import.meta.dirname, "fixture");
 // Borrow node_modules from demos/simple — it has all the deps we need
 // and is maintained by pnpm workspace resolution.
 const DONOR_NODE_MODULES = resolve(import.meta.dirname, "../../../../demos/simple/node_modules");
+// Parent dir for per-suite fixture copies. In-repo (not os.tmpdir()) so the
+// project root shares a real path tree with emdash's source — see
+// createTestServer's doc comment. Gitignored via tests/integration/.gitignore.
+const SERVERS_BASE = resolve(import.meta.dirname, ".servers");
 
 // ---------------------------------------------------------------------------
 // Types
@@ -145,9 +148,21 @@ async function waitForServer(url: string, timeoutMs: number): Promise<void> {
 /**
  * Create an Astro dev server for integration testing.
  *
- * Runs the fixture in-place to avoid Astro virtual module resolution
- * issues with symlinked temp dirs. Uses a temp directory only for the
- * database file — source files stay at their real paths.
+ * Each server runs from its own copied fixture root. Astro's "another dev
+ * server is already running" guard locks on the project root
+ * (`<root>/.astro/dev.json`), not the port, so suites that share one fixture
+ * dir collide when vitest runs them in parallel (#1604). A per-suite root keeps
+ * the lock isolated and parallelism intact.
+ *
+ * Two non-obvious constraints on that copy:
+ *   - Source files are copied (not symlinked) so the project root resolves to a
+ *     real path — symlinking the root broke Astro virtual module resolution.
+ *   - The copy lives inside the repo (next to this file), not in `os.tmpdir()`.
+ *     `emdash`'s `.astro` UI components (e.g. Comments.astro) resolve through
+ *     the symlinked `node_modules` back to their real path under `packages/core`.
+ *     With a root under `/tmp`, Astro mis-joins that real path onto the temp
+ *     root ("/tmp/.../home/.../Comments.astro") and SSR 500s with "No cached
+ *     compile metadata found". A root sharing the real path tree avoids it.
  */
 export async function createTestServer(options: TestServerOptions): Promise<TestServerContext> {
 	const { port, timeout = 90_000, seed = true } = options;
@@ -156,32 +171,34 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 	// --- 0. Ensure workspace is built ---
 	await ensureBuilt();
 
-	// --- 1. Run fixture in-place, temp dir only for DB ---
-	const workDir = FIXTURE_DIR;
-	const tempDataDir = mkdtempSync(join(tmpdir(), "emdash-integration-"));
-	const dbPath = join(tempDataDir, "test.db");
-	const uploadsDir = join(tempDataDir, "uploads");
+	// --- 1. Copy the fixture into a private per-suite root (in-repo, see above) ---
+	mkdirSync(SERVERS_BASE, { recursive: true });
+	const workDir = mkdtempSync(join(SERVERS_BASE, "srv-"));
+	// Real copy of the source fixture (everything but node_modules, which is
+	// large and provided via symlink below).
+	cpSync(FIXTURE_DIR, workDir, {
+		recursive: true,
+		filter: (src) => !src.split(/[\\/]/).includes("node_modules"),
+	});
+	const dbPath = join(workDir, "test.db");
+	const uploadsDir = join(workDir, "uploads");
 	mkdirSync(uploadsDir, { recursive: true });
 
-	// Ensure node_modules symlink exists in the fixture dir.
-	// Multiple test suites may race to create this — handle EEXIST gracefully.
-	// The symlink is intentionally never removed: it's shared across concurrent
-	// test suites and gitignored, so cleanup of one suite must not break others.
-	const fixtureNodeModules = join(FIXTURE_DIR, "node_modules");
-	if (!existsSync(fixtureNodeModules)) {
-		try {
-			symlinkSync(DONOR_NODE_MODULES, fixtureNodeModules);
-		} catch (err: unknown) {
-			if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
-		}
-	}
+	// Borrow the donor node_modules via symlink (resolution still hits real
+	// paths, which is why astro.config.mjs sets vite.server.fs.strict: false).
+	symlinkSync(DONOR_NODE_MODULES, join(workDir, "node_modules"));
 
 	// --- 2. Start dev server ---
-	const astroBin = join(fixtureNodeModules, ".bin", "astro");
+	const astroBin = join(workDir, "node_modules", ".bin", "astro");
 	const server = spawn(astroBin, ["dev", "--port", String(port)], {
 		cwd: workDir,
 		env: {
 			...process.env,
+			// Force foreground mode: `astro dev` otherwise detects coding-agent
+			// environments and re-spawns itself as a detached background process,
+			// which our SIGTERM cleanup can't reach (leaking the port). With this
+			// set, the spawned process *is* the server, matching CI behavior.
+			ASTRO_DEV_BACKGROUND: "1",
 			EMDASH_TEST_DB: `file:${dbPath}`,
 			EMDASH_TEST_UPLOADS: uploadsDir,
 			...options.env,
@@ -219,8 +236,9 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 			await new Promise((r) => setTimeout(r, 500));
 		}
 
-		// Remove temp data directory
-		rmSync(tempDataDir, { recursive: true, force: true });
+		// Remove the temp fixture root (source copy, DB, uploads, and the
+		// node_modules symlink — rmSync removes the link, not the target).
+		rmSync(workDir, { recursive: true, force: true });
 	}
 
 	try {

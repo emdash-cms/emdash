@@ -18,7 +18,7 @@ import type { ApiResult } from "../types.js";
 
 /** Parse a JSON string column into a typed value. */
 function parseJsonColumn<T>(value: string): T {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns unknown, callers provide the expected shape
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns unknown, callers provide the expected shape
 	return JSON.parse(value) as T;
 }
 

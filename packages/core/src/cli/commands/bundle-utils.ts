@@ -13,6 +13,7 @@ import { pipeline } from "node:stream/promises";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 
+import { capabilitiesToDeclaredAccess } from "../../plugins/types.js";
 import type {
 	PluginManifest,
 	ResolvedPlugin,
@@ -151,6 +152,7 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 	return {
 		id: plugin.id,
 		version: plugin.version,
+		declaredAccess: capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts),
 		capabilities: plugin.capabilities,
 		allowedHosts: plugin.allowedHosts,
 		storage: plugin.storage,

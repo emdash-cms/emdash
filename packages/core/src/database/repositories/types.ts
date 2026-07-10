@@ -1,3 +1,4 @@
+import type { CustomFieldValue } from "../../schema/types.js";
 import { encodeBase64, decodeBase64 } from "../../utils/base64.js";
 
 /**
@@ -58,11 +59,66 @@ export interface BylineSummary {
 	displayName: string;
 	bio: string | null;
 	avatarMediaId: string | null;
+	/**
+	 * The avatar media's storage key, folded in by a LEFT JOIN on the
+	 * `media` table during content byline hydration. Non-null only when the
+	 * byline has an avatar AND was loaded through the content-credit hydration
+	 * path (`getContentBylines` / `getContentBylinesMany`, i.e. the
+	 * `entry.data.bylines` populated by `getEmDashCollection` / `getEmDashEntry`).
+	 * The plain byline finders (`findById`, `findBySlug`, …) leave it null.
+	 *
+	 * Lets list pages build a direct storage URL for an author avatar without a
+	 * per-byline `MediaRepository.findById`, avoiding an N+1 when many distinct
+	 * authors appear on one page.
+	 *
+	 * Optional so adding it is a non-breaking change for existing code that
+	 * constructs a `BylineSummary` literal; the repositories always populate it
+	 * (to `null` when there's no avatar or no media join).
+	 */
+	avatarStorageKey?: string | null;
+	/** Avatar media alt text, from the same media join. Null when not joined. */
+	avatarAlt?: string | null;
+	/**
+	 * Avatar media blurhash (LQIP placeholder, migration 024), folded in by the
+	 * same media join as `avatarStorageKey`. Lets a renderer paint a blurred
+	 * placeholder while the full avatar loads, with no extra media lookup.
+	 * Null when the byline has no avatar, the media row has no blurhash, or the
+	 * byline was loaded through a finder that doesn't join media.
+	 */
+	avatarBlurhash?: string | null;
+	/**
+	 * Avatar media dominant colour (LQIP placeholder, migration 024), from the
+	 * same media join. Null under the same conditions as `avatarBlurhash`.
+	 */
+	avatarDominantColor?: string | null;
 	websiteUrl: string | null;
 	userId: string | null;
 	isGuest: boolean;
 	createdAt: string;
 	updatedAt: string;
+	/**
+	 * Locale this byline row is presented in. Added by migration 040.
+	 * `(slug, locale)` is unique; a single slug can repeat across locales.
+	 */
+	locale: string;
+	/**
+	 * Shared across translations of the same byline. Added by migration 040.
+	 * `_emdash_content_bylines.byline_id` and `ec_*.primary_byline_id` store
+	 * this value, so a credit spans every locale variant of a byline.
+	 * Nullable in storage for backwards compatibility; new rows always
+	 * populate it.
+	 */
+	translationGroup: string | null;
+	/**
+	 * Custom field values registered via the byline-fields schema (migration
+	 * 041, Discussion #1174). Optional in the TypeScript shape so existing
+	 * object-literal consumers (test fixtures, plugin renderers) stay
+	 * source-compatible; the runtime always returns `{}` when no fields are
+	 * registered. Translatable values reflect this row's locale; non-
+	 * translatable values are shared across every locale variant of the
+	 * byline's `translation_group`.
+	 */
+	customFields?: Record<string, CustomFieldValue>;
 }
 
 export interface ContentBylineCredit {
@@ -73,11 +129,45 @@ export interface ContentBylineCredit {
 	source?: "explicit" | "inferred";
 }
 
+/** A whitelisted timestamp column a content-list date range can filter on. */
+export type ContentDateField = "createdAt" | "updatedAt" | "publishedAt";
+
+/**
+ * Inclusive date-range filter for a single whitelisted timestamp column.
+ * Bounds are compared lexicographically against the stored ISO 8601 strings,
+ * which is correct because every timestamp is written via `toISOString()`.
+ * Callers wanting an inclusive upper bound should pass an end-of-day value
+ * (e.g. `2024-12-31T23:59:59.999Z`); the repository does not widen `to`.
+ */
+export interface ContentDateFilter {
+	field: ContentDateField;
+	from?: string;
+	to?: string;
+}
+
 export interface FindManyOptions {
 	where?: {
 		status?: string;
 		authorId?: string;
 		locale?: string;
+		/** Case-insensitive substring to match against `searchColumns`. */
+		q?: string;
+		/**
+		 * Columns the `q` substring filter is applied to (OR'd together).
+		 * Resolved by the handler from the collection's display fields so the
+		 * repository stays generic. Each name is validated as a SQL identifier.
+		 */
+		searchColumns?: string[];
+		/**
+		 * Serve `q` from the collection's FTS5 index (`_emdash_fts_<slug>`)
+		 * instead of an unindexable substring LIKE. Set by the handler only
+		 * when the collection has search enabled and the index exists
+		 * (SQLite only). The repository combines a token-prefix MATCH with
+		 * an index-served slug prefix so slug lookups keep working.
+		 */
+		useFts?: boolean;
+		/** Inclusive date range over a whitelisted timestamp column. */
+		dateFilter?: ContentDateFilter;
 	};
 	orderBy?: {
 		field: string;
@@ -185,5 +275,18 @@ export class EmDashValidationError extends Error {
 	) {
 		super(message);
 		this.name = "EmDashValidationError";
+	}
+}
+
+/**
+ * Thrown by `publish()` when called with `requireDue` for a row that is no
+ * longer due (its `scheduled_at` was cleared or pushed into the future between
+ * selection and publish — e.g. an editor unscheduled it). Lets the scheduled
+ * sweep skip the row silently rather than treating it as a publish failure.
+ */
+export class ScheduledNotDueError extends Error {
+	constructor(message = "Content is no longer scheduled to publish") {
+		super(message);
+		this.name = "ScheduledNotDueError";
 	}
 }

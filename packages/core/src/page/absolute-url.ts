@@ -44,7 +44,7 @@ const OTHER_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
  * exploitable, plus more pathological shapes like leading newlines that
  * could inject across header boundaries downstream.
  */
-// eslint-disable-next-line eslint(no-control-regex) -- intentional: rejecting control chars is the whole point of this regex
+// eslint-disable-next-line no-control-regex -- intentional: rejecting control chars is the whole point of this regex
 const WHITESPACE_OR_CONTROL_RE = /[\s\u0000-\u001f\u007f-\u009f]/;
 const TRAILING_SLASH_RE = /\/$/;
 

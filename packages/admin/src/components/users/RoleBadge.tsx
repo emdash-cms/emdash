@@ -1,9 +1,13 @@
+import { Badge } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
+import type { ComponentProps } from "react";
 
 import { cn } from "../../lib/utils";
 import { getRoleConfig } from "./roleDefinitions.js";
 
 export type { RoleLevelConfig } from "./roleDefinitions.js";
+
+type BadgeVariant = ComponentProps<typeof Badge>["variant"];
 
 export interface RoleBadgeProps {
 	role: number;
@@ -13,7 +17,19 @@ export interface RoleBadgeProps {
 }
 
 /**
- * Role badge component with semantic colors
+ * Maps a role's semantic color name to a Kumo Badge token variant, so
+ * light/dark theming comes from tokens rather than hard-coded palette classes.
+ */
+const ROLE_VARIANTS: Record<string, BadgeVariant> = {
+	gray: "neutral",
+	blue: "blue",
+	green: "green",
+	purple: "purple",
+	red: "red",
+};
+
+/**
+ * Role badge component built on Kumo Badge semantic variants.
  */
 export function RoleBadge({
 	role,
@@ -24,31 +40,20 @@ export function RoleBadge({
 	const { t } = useLingui();
 	const config = getRoleConfig(role);
 
-	const colorClasses: Record<string, string> = {
-		gray: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-		blue: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-		green: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-		purple: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-		red: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-	};
-
 	const sizeClasses = {
-		sm: "px-2 py-0.5 text-xs",
+		sm: "text-xs",
 		md: "px-2.5 py-1 text-sm",
 	};
 
 	return (
-		<span
-			className={cn(
-				"inline-flex items-center rounded-full font-medium",
-				sizeClasses[size],
-				colorClasses[config.color],
-				className,
-			)}
-			title={showDescription ? undefined : t(config.description)}
-		>
-			{t(config.label)}
-			{showDescription && <span className="ms-1 opacity-75">- {t(config.description)}</span>}
+		<span title={showDescription ? undefined : t(config.description)}>
+			<Badge
+				variant={ROLE_VARIANTS[config.color] ?? "neutral"}
+				className={cn(sizeClasses[size], className)}
+			>
+				{t(config.label)}
+				{showDescription && <span className="ms-1 opacity-75">- {t(config.description)}</span>}
+			</Badge>
 		</span>
 	);
 }

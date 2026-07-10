@@ -113,12 +113,12 @@ Requires a `wrangler.jsonc` with D1 and R2 bindings:
 Register plugins in `astro.config.mjs`:
 
 ```javascript
-import { auditLogPlugin } from "@emdash-cms/plugin-audit-log";
+import auditLog from "@emdash-cms/plugin-audit-log";
 
 emdash({
 	database: sqlite({ url: "file:./data.db" }),
 	storage: local({ directory: "./uploads", baseUrl: "/_emdash/api/media/file" }),
-	plugins: [auditLogPlugin()],
+	plugins: [auditLog],
 }),
 ```
 

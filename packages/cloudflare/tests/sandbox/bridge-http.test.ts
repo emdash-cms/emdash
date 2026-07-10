@@ -33,7 +33,7 @@ function mockFetchSequence(responses: Response[]): FetchImpl {
 		const next = queue.shift();
 		if (!next) throw new Error("fetch called more times than expected");
 		return next;
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- vi.fn's generic signature doesn't line up with Workers' fetch type; cast to the injectable contract
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- vi.fn's generic signature doesn't line up with Workers' fetch type; cast to the injectable contract
 	}) as unknown as FetchImpl;
 }
 
@@ -148,7 +148,7 @@ describe("sandboxHttpFetch — credential header stripping", () => {
 			},
 		);
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- vi.Mock type hygiene
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- vi.Mock type hygiene
 		const secondCall = (fetchImpl as unknown as { mock: { calls: unknown[][] } }).mock.calls[1];
 		const init = secondCall?.[1] as RequestInit | undefined;
 		const headers = new Headers(init?.headers);
@@ -173,7 +173,7 @@ describe("sandboxHttpFetch — credential header stripping", () => {
 			},
 		);
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- vi.Mock type hygiene
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- vi.Mock type hygiene
 		const secondCall = (fetchImpl as unknown as { mock: { calls: unknown[][] } }).mock.calls[1];
 		const init = secondCall?.[1] as RequestInit | undefined;
 		const headers = new Headers(init?.headers);
@@ -201,7 +201,7 @@ describe("sandboxHttpFetch — credential header stripping", () => {
 			},
 		);
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- vi.Mock type hygiene
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- vi.Mock type hygiene
 		const secondCall = (fetchImpl as unknown as { mock: { calls: unknown[][] } }).mock.calls[1];
 		const init = secondCall?.[1] as RequestInit | undefined;
 		const headers = new Headers(init?.headers);

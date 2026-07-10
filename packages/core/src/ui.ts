@@ -47,6 +47,11 @@ export {
 	EmDashImage as Image,
 	// Main component (wrapper with EmDash defaults)
 	PortableText,
+	// Block style override (paragraph/heading/blockquote — emits
+	// `has-text-align-*` class when the block carries `textAlign`).
+	// Shares the name with the `type Block` re-export above; the
+	// type and the component live in different namespaces.
+	Block,
 	// Comment components
 	Comments,
 	CommentForm,

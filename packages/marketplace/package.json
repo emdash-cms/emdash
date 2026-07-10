@@ -18,7 +18,7 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/better-sqlite3": "catalog:",
     "@types/node": "catalog:",
     "better-sqlite3": "catalog:",
     "typescript": "catalog:",

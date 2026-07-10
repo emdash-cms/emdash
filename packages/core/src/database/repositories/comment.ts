@@ -1,6 +1,7 @@
 import { sql, type ExpressionBuilder, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { invalidateCommentObjectCache } from "../../object-cache/index.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 
@@ -39,6 +40,8 @@ export interface PublicComment {
 	body: string;
 	createdAt: string;
 	replies?: PublicComment[];
+	/** Aggregate reaction counts (`{ like: 12 }`), attached when requested. */
+	reactions?: Record<string, number>;
 }
 
 export interface CreateCommentInput {
@@ -98,6 +101,8 @@ export class CommentRepository {
 				updated_at: now,
 			})
 			.execute();
+
+		invalidateCommentObjectCache();
 
 		const comment = await this.findById(id);
 		if (!comment) {
@@ -237,6 +242,7 @@ export class CommentRepository {
 			.where("id", "=", id)
 			.execute();
 
+		invalidateCommentObjectCache();
 		return this.findById(id);
 	}
 
@@ -254,6 +260,7 @@ export class CommentRepository {
 			.where("id", "in", ids)
 			.executeTakeFirst();
 
+		invalidateCommentObjectCache();
 		return Number(result.numUpdatedRows ?? 0);
 	}
 
@@ -266,6 +273,7 @@ export class CommentRepository {
 			.where("id", "=", id)
 			.executeTakeFirst();
 
+		invalidateCommentObjectCache();
 		return (result.numDeletedRows ?? 0) > 0;
 	}
 
@@ -280,6 +288,7 @@ export class CommentRepository {
 			.where("id", "in", ids)
 			.executeTakeFirst();
 
+		invalidateCommentObjectCache();
 		return Number(result.numDeletedRows ?? 0);
 	}
 
@@ -293,6 +302,7 @@ export class CommentRepository {
 			.where("content_id", "=", contentId)
 			.executeTakeFirst();
 
+		invalidateCommentObjectCache();
 		return Number(result.numDeletedRows ?? 0);
 	}
 

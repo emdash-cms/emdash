@@ -58,7 +58,7 @@ export class EmDashPreviewDB extends DurableObject {
 
 		const rows: Record<string, unknown>[] = [];
 		for (const row of cursor) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SqlStorageCursor yields record-like objects
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields record-like objects
 			rows.push(row as Record<string, unknown>);
 		}
 
@@ -141,7 +141,7 @@ export class EmDashPreviewDB extends DurableObject {
 				const gen = this.ctx.storage.sql
 					.exec("SELECT value FROM _emdash_do_meta WHERE key = 'snapshot_generated_at'")
 					.one();
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SqlStorageCursor yields loosely-typed rows
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields loosely-typed rows
 				return { generatedAt: String(gen.value as string | number) };
 			}
 		} catch (error) {
@@ -220,7 +220,7 @@ export class EmDashPreviewDB extends DurableObject {
 				),
 			];
 			for (const row of tables) {
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SqlStorageCursor yields loosely-typed rows
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields loosely-typed rows
 				const name = String(row.name as string);
 				if (!SAFE_IDENTIFIER.test(name)) {
 					// Skip tables with unsafe names rather than interpolating them
