@@ -31,6 +31,7 @@ import { infoCommand } from "./commands/info.js";
 import { initCommand } from "./commands/init.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
+import { policyCommand } from "./commands/policy.js";
 import { publishCommand } from "./commands/publish.js";
 import { searchCommand } from "./commands/search.js";
 import { switchCommand } from "./commands/switch.js";
@@ -56,6 +57,7 @@ const main = defineCommand({
 		dev: devCommand,
 		bundle: bundleCommand,
 		publish: publishCommand,
+		policy: policyCommand,
 		"update-package": updatePackageCommand,
 		validate: validateCommand,
 	},
