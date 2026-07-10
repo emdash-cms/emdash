@@ -1,0 +1,32 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.labeller.getCurrentAssessment",
+	"description": "Fetch effective assessment state for an exact release URI and CID. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"parameters": {
+				"type": "params",
+				"required": ["uri", "cid"],
+				"properties": {
+					"uri": { "type": "string", "format": "at-uri" },
+					"cid": { "type": "string", "format": "cid" },
+					"src": { "type": "string", "format": "did" }
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "ref",
+					"ref": "com.emdashcms.experimental.labeller.defs#currentAssessmentView"
+				}
+			},
+			"errors": [
+				{ "name": "InvalidRequest" },
+				{ "name": "NotFound" },
+				{ "name": "UnsupportedSource" },
+				{ "name": "RateLimitExceeded" }
+			]
+		}
+	}
+}

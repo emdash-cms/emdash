@@ -28,6 +28,12 @@ export * as AggregatorListReleases from "./generated/types/com/emdashcms/experim
 export * as AggregatorResolvePackage from "./generated/types/com/emdashcms/experimental/aggregator/resolvePackage.js";
 export * as AggregatorSearchPackages from "./generated/types/com/emdashcms/experimental/aggregator/searchPackages.js";
 
+export * as LabellerDefs from "./generated/types/com/emdashcms/experimental/labeller/defs.js";
+export * as LabellerGetAssessment from "./generated/types/com/emdashcms/experimental/labeller/getAssessment.js";
+export * as LabellerGetCurrentAssessment from "./generated/types/com/emdashcms/experimental/labeller/getCurrentAssessment.js";
+export * as LabellerGetPolicy from "./generated/types/com/emdashcms/experimental/labeller/getPolicy.js";
+export * as LabellerListAssessments from "./generated/types/com/emdashcms/experimental/labeller/listAssessments.js";
+
 export * as PackageProfile from "./generated/types/com/emdashcms/experimental/package/profile.js";
 export * as PackageRelease from "./generated/types/com/emdashcms/experimental/package/release.js";
 export * as PackageReleaseExtension from "./generated/types/com/emdashcms/experimental/package/releaseExtension.js";
@@ -52,6 +58,11 @@ export const NSID = {
 	aggregatorListReleases: "com.emdashcms.experimental.aggregator.listReleases",
 	aggregatorResolvePackage: "com.emdashcms.experimental.aggregator.resolvePackage",
 	aggregatorSearchPackages: "com.emdashcms.experimental.aggregator.searchPackages",
+	labellerDefs: "com.emdashcms.experimental.labeller.defs",
+	labellerGetAssessment: "com.emdashcms.experimental.labeller.getAssessment",
+	labellerGetCurrentAssessment: "com.emdashcms.experimental.labeller.getCurrentAssessment",
+	labellerGetPolicy: "com.emdashcms.experimental.labeller.getPolicy",
+	labellerListAssessments: "com.emdashcms.experimental.labeller.listAssessments",
 } as const;
 
 export type NSIDValue = (typeof NSID)[keyof typeof NSID];
@@ -84,6 +95,10 @@ export const QUERY_NSIDS = [
 	NSID.aggregatorListReleases,
 	NSID.aggregatorResolvePackage,
 	NSID.aggregatorSearchPackages,
+	NSID.labellerGetAssessment,
+	NSID.labellerGetCurrentAssessment,
+	NSID.labellerGetPolicy,
+	NSID.labellerListAssessments,
 ] as const;
 
 import type * as PackageProfileNs from "./generated/types/com/emdashcms/experimental/package/profile.js";
