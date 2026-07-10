@@ -206,7 +206,6 @@ function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): Settings
 		isNew: false,
 		isDirty: false,
 		isSaving: false,
-		saveCompletionToken: 0,
 		isLive: false,
 		hasPendingChanges: false,
 		liveViewUrl: null,
@@ -283,14 +282,15 @@ describe("SettingsActionBar", () => {
 		await expect.element(screen.getByRole("button", { name: /Save/ })).toBeInTheDocument();
 	});
 
-	it("folds in-flight autosave into the Save button", async () => {
+	it("keeps manual Save available while autosave reports progress", async () => {
 		const screen = await render(
 			<SettingsActionBar {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
 		);
-		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeEnabled();
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
 	});
 
-	it("can suppress its SaveButton live region when another mounted copy announces status", async () => {
+	it("can suppress its live region when another mounted copy announces status", async () => {
 		const screen = await render(
 			<SettingsActionBar {...makeBarProps({ announceSaveStatus: false })} />,
 		);

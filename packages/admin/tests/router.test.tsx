@@ -51,7 +51,6 @@ vi.mock("../src/components/ContentEditor", () => ({
 		isSaving,
 		isAutosaving,
 		isSaveFeedbackActive,
-		saveCompletionToken,
 		autosaveCompletionToken,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
@@ -61,7 +60,6 @@ vi.mock("../src/components/ContentEditor", () => ({
 		isSaving?: boolean;
 		isAutosaving?: boolean;
 		isSaveFeedbackActive?: boolean;
-		saveCompletionToken?: number;
 		autosaveCompletionToken?: number;
 	}) => (
 		<div data-testid="content-editor">
@@ -70,7 +68,6 @@ vi.mock("../src/components/ContentEditor", () => ({
 			<div data-testid="is-saving">{isSaveFeedbackActive ? "saving" : "idle"}</div>
 			<div data-testid="manual-save-blocked">{isSaving ? "blocked" : "ready"}</div>
 			<div data-testid="autosave-blocked">{isSaving || isAutosaving ? "blocked" : "ready"}</div>
-			<div data-testid="save-completion-token">{saveCompletionToken ?? 0}</div>
 			<div data-testid="autosave-completion-token">{autosaveCompletionToken ?? 0}</div>
 			<form
 				onSubmit={(e) => {
@@ -517,29 +514,6 @@ describe("ContentEditPage – autosave cache patching", () => {
 		});
 	});
 
-	it("advances save completion only for editor-content writes", async () => {
-		const { router, TestApp } = buildRouter();
-
-		await router.navigate({
-			to: "/content/$collection/$id",
-			params: { collection: "posts", id: "post_1" },
-		});
-
-		const screen = await render(<TestApp />);
-		await waitFor(() => {
-			expect(screen.getByTestId("save-completion-token").element().textContent).toBe("0");
-		});
-
-		await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
-		await new Promise((resolve) => setTimeout(resolve, 100));
-		expect(screen.getByTestId("save-completion-token").element().textContent).toBe("0");
-
-		await screen.getByRole("button", { name: "Save", exact: true }).click();
-		await waitFor(() => {
-			expect(screen.getByTestId("save-completion-token").element().textContent).toBe("1");
-		});
-	});
-
 	it("does not report auxiliary writes as saving; editor saves still do", async () => {
 		const { router, TestApp } = buildRouter();
 		await router.navigate({
@@ -683,7 +657,6 @@ describe("ContentEditPage – autosave cache patching", () => {
 			resolvers[0]?.();
 			await waitFor(() => {
 				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
-				expect(screen.getByTestId("save-completion-token").element().textContent).toBe("1");
 			});
 		} finally {
 			globalThis.fetch = fetchWithMocks;

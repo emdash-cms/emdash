@@ -864,6 +864,7 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({ isNew: false, item });
 			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
 			await expect.element(saveBtn).toBeDisabled();
+			expect(screen.getByRole("status").element().textContent).toBe("Saved");
 		});
 
 		// Strict per-locale hydration (migration 040) can return

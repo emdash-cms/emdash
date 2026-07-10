@@ -868,8 +868,6 @@ function ContentEditPage() {
 	// transient `undefined` doesn't populate the cache with default-locale
 	// data.
 	const itemLocale = rawItem?.locale ?? undefined;
-	const saveCompletionSequenceRef = React.useRef(0);
-	const [saveCompletion, setSaveCompletion] = React.useState({ entryId: "", token: 0 });
 	const autosaveCompletionSequenceRef = React.useRef(0);
 	const [autosaveCompletion, setAutosaveCompletion] = React.useState({ entryId: "", token: 0 });
 	const [editorSavePendingCounts, setEditorSavePendingCounts] = React.useState<
@@ -883,10 +881,6 @@ function ContentEditPage() {
 			else next.set(entryId, count);
 			return next;
 		});
-	}, []);
-	const recordSaveCompletion = React.useCallback((entryId: string) => {
-		saveCompletionSequenceRef.current += 1;
-		setSaveCompletion({ entryId, token: saveCompletionSequenceRef.current });
 	}, []);
 	const recordAutosaveCompletion = React.useCallback((entryId: string) => {
 		autosaveCompletionSequenceRef.current += 1;
@@ -960,7 +954,6 @@ function ContentEditPage() {
 			}
 		},
 		onSuccess: (_, variables) => {
-			if (variables.source === "editor") recordSaveCompletion(variables.targetId);
 			handleContentUpdateSuccess(variables.targetId);
 		},
 		onError: handleContentUpdateError,
@@ -981,7 +974,6 @@ function ContentEditPage() {
 				{ locale: targetLocale },
 			),
 		onSuccess: (savedItem, variables) => {
-			recordSaveCompletion(variables.targetId);
 			recordAutosaveCompletion(variables.targetId);
 			patchAutosaveQueries(queryClient, {
 				collection,
@@ -1261,7 +1253,6 @@ function ContentEditPage() {
 			fields={collectionConfig.fields}
 			isSaving={updateMutation.isPending}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
-			saveCompletionToken={saveCompletion.entryId === id ? saveCompletion.token : 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
 			isAutosaving={autosaveMutation.isPending}

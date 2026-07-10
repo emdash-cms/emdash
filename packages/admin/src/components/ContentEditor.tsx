@@ -52,6 +52,7 @@ import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.j
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { SaveButton, SaveStatus } from "./SaveButton.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -77,7 +78,6 @@ import {
 	type PluginBlockDef,
 	type BlockSidebarPanel,
 } from "./PortableTextEditor";
-import { SaveButton } from "./SaveButton";
 
 export interface FieldDescriptor {
 	id?: string;
@@ -116,8 +116,6 @@ export interface ContentEditorProps {
 	isSaving?: boolean;
 	/** Whether the current entry's editor save should drive visual feedback. */
 	isSaveFeedbackActive?: boolean;
-	/** Monotonic token advanced after a successful manual save or autosave. */
-	saveCompletionToken?: number;
 	onSave?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
@@ -204,7 +202,6 @@ export function ContentEditor({
 	entryLocale,
 	isSaving,
 	isSaveFeedbackActive,
-	saveCompletionToken,
 	onSave,
 	onAutosave,
 	isAutosaving,
@@ -672,14 +669,14 @@ export function ContentEditor({
 													onPreview={handlePreview}
 												/>
 											)}
-											<SaveButton
-												key={item?.id ?? "new"}
-												type="submit"
+											<SaveStatus
 												isDirty={isDirty}
 												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-												saveCompletionToken={saveCompletionToken}
-												saveScope={item?.id ?? "new"}
-												disableWhileSaving={false}
+											/>
+											<SaveButton
+												type="submit"
+												isDirty={isDirty}
+												isSaving={Boolean(saveFeedbackActive)}
 												disabled={isContentOperationPending}
 											/>
 											{liveViewUrl && (
@@ -723,14 +720,14 @@ export function ContentEditor({
 											onPreview={handlePreview}
 										/>
 									)}
-									<SaveButton
-										key={item?.id ?? "new"}
-										type="submit"
+									<SaveStatus
 										isDirty={isDirty}
 										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-										saveCompletionToken={saveCompletionToken}
-										saveScope={item?.id ?? "new"}
-										disableWhileSaving={false}
+									/>
+									<SaveButton
+										type="submit"
+										isDirty={isDirty}
+										isSaving={Boolean(saveFeedbackActive)}
 										disabled={isContentOperationPending}
 									/>
 									{liveViewUrl && (
@@ -815,8 +812,6 @@ export function ContentEditor({
 							isNew={isNew}
 							isDirty={isDirty}
 							isSaving={Boolean(saveFeedbackActive)}
-							saveCompletionToken={saveCompletionToken}
-							saveScope={item?.id ?? "new"}
 							isAutosaving={autosaveFeedbackActive}
 							saveDisabled={isContentOperationPending}
 							isLive={isLive}
@@ -827,7 +822,7 @@ export function ContentEditor({
 							onPreview={handlePreview}
 							onPublish={onPublish}
 							onUnpublish={onUnpublish}
-							announceSaveStatus
+							announceSaveStatus={!isDistractionFree}
 						/>
 					)}
 					<div

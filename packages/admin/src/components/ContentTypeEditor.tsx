@@ -36,7 +36,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { EditorHeader } from "./EditorHeader";
 import { FieldEditor } from "./FieldEditor";
 import { RouterLinkButton } from "./RouterLinkButton.js";
-import { SaveButton } from "./SaveButton";
+import { SaveButton, SaveStatus } from "./SaveButton";
 
 // Regex patterns for slug generation
 const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g;
@@ -341,13 +341,16 @@ export function ContentTypeEditor({
 				}
 				actions={
 					!isFromCode && !isNew ? (
-						<SaveButton
-							type="submit"
-							form="content-type-editor-form"
-							isDirty={!!hasChanges}
-							isSaving={!!isSaving}
-							disabled={!urlPatternValid}
-						/>
+						<>
+							<SaveStatus isDirty={!!hasChanges} isSaving={!!isSaving} />
+							<SaveButton
+								type="submit"
+								form="content-type-editor-form"
+								isDirty={!!hasChanges}
+								isSaving={!!isSaving}
+								disabled={!urlPatternValid}
+							/>
+						</>
 					) : null
 				}
 			>
@@ -551,15 +554,28 @@ export function ContentTypeEditor({
 							</div>
 						)}
 
-						{!isFromCode && (
-							<Button
-								type="submit"
-								disabled={!hasChanges || !urlPatternValid || isSaving}
-								className="w-full"
-							>
-								{isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`}
-							</Button>
-						)}
+						{!isFromCode &&
+							(isNew ? (
+								<Button
+									type="submit"
+									disabled={!hasChanges || !urlPatternValid}
+									loading={isSaving}
+									className="w-full justify-center"
+								>
+									{t`Create Content Type`}
+								</Button>
+							) : (
+								<div className="flex items-center gap-2">
+									<SaveStatus isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} />
+									<SaveButton
+										type="submit"
+										isDirty={!!hasChanges}
+										isSaving={!!isSaving}
+										disabled={!urlPatternValid}
+										className="flex-1 justify-center"
+									/>
+								</div>
+							))}
 					</form>
 				</div>
 

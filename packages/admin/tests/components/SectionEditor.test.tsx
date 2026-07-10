@@ -123,4 +123,15 @@ describe("SectionEditor", () => {
 		// The panel renders the image preview using the src we passed.
 		await expect.element(screen.getByRole("img", { name: "Logo" })).toBeInTheDocument();
 	});
+
+	it("keeps both clean save actions labeled Save with passive status", async () => {
+		const screen = await render(<SectionEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+		const saveButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
+		expect(saveButtons).toHaveLength(2);
+		for (const button of saveButtons) await expect.element(button).toBeDisabled();
+		const statuses = screen.container.querySelectorAll("[data-save-status-value]");
+		expect(Array.from(statuses, (status) => status.textContent)).toEqual(["Saved", "Saved"]);
+	});
 });
