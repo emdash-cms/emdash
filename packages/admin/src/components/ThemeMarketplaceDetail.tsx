@@ -79,7 +79,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 		return (
 			<div className="space-y-4">
 				<Link
-					to={"/themes/marketplace" as "/"}
+					to={"/themes/marketplace"}
 					className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 				>
 					<ArrowPrev className="h-4 w-4" />
@@ -103,7 +103,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 		<div className="space-y-6">
 			{/* Back link */}
 			<Link
-				to={"/themes/marketplace" as "/"}
+				to={"/themes/marketplace"}
 				className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 			>
 				<ArrowPrev className="h-4 w-4" />

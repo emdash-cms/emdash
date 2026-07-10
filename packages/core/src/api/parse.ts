@@ -104,7 +104,7 @@ function validate<T extends z.ZodType>(schema: T, data: unknown): ParseResult<z.
 	const result = schema.safeParse(data);
 
 	if (result.success) {
-		return result.data as z.infer<T>;
+		return result.data;
 	}
 
 	// Format Zod errors into a readable structure

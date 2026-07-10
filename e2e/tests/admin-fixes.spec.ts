@@ -331,8 +331,8 @@ test.describe("Autosave after perf optimizations", () => {
 		// Autosave should succeed (200)
 		expect(response.status()).toBe(200);
 
-		// The autosave indicator should show "Saved"
-		await expect(page.getByRole("status", { name: "Autosave status" })).toContainText("Saved", {
+		// SaveButton live region should settle on "Saved" after autosave completes
+		await expect(page.getByRole("status").filter({ hasText: "Saved" }).first()).toBeVisible({
 			timeout: 5000,
 		});
 

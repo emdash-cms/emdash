@@ -33,6 +33,8 @@ import { renderSiteIdentity } from "../page/site-identity.js";
 import { getPageRuntime } from "../page/index.js";
 import { getSiteSettings } from "../settings/index.js";
 import { absolutizeMediaUrl } from "../page/absolute-url.js";
+import { getHreflangAlternates } from "../seo/hreflang.js";
+import { isI18nEnabled } from "../i18n/config.js";
 
 interface Props {
 	page: PublicPageContext;
@@ -83,8 +85,32 @@ if (runtime) {
 		defaultOgImage,
 	);
 
+	// hreflang alternates for translated content entries (#1690). Only
+	// queried when i18n is enabled and this page renders a content entry;
+	// non-i18n sites skip this entirely. Contributions sit with the base
+	// layer, so plugins can override individual hreflang entries (dedup
+	// key is the hreflang value).
+	let hreflangContributions: PageMetadataContribution[] = [];
+	if (page.content && isI18nEnabled()) {
+		const siteUrl = page.siteUrl || siteSettings.url || new URL(page.url).origin;
+		const alternates = await getHreflangAlternates(page.content.collection, page.content.id, {
+			siteUrl,
+		});
+		hreflangContributions = alternates.map((a) => ({
+			kind: "link",
+			rel: "alternate",
+			href: a.href,
+			hreflang: a.hreflang,
+		}));
+	}
+
 	const siteContributions = generateSiteSeoContributions(siteSettings.seo);
-	const allContributions = [...pluginContributions, ...siteContributions, ...baseContributions];
+	const allContributions = [
+		...pluginContributions,
+		...siteContributions,
+		...baseContributions,
+		...hreflangContributions,
+	];
 	const resolved = resolvePageMetadata(allContributions);
 	jsonLdScripts = resolved.jsonld;
 	metadataHtml = renderPageMetadata(resolved, { includeJsonLd: false });

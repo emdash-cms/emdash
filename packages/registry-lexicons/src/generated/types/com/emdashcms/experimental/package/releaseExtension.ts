@@ -71,6 +71,12 @@ const _declaredAccessSchema = /*#__PURE__*/ v.object({
 		return /*#__PURE__*/ v.optional(pageAccessSchema);
 	},
 	/**
+	 * Access to taxonomy definitions and terms.
+	 */
+	get taxonomies() {
+		return /*#__PURE__*/ v.optional(taxonomiesAccessSchema);
+	},
+	/**
 	 * Access to site user records.
 	 */
 	get users() {
@@ -224,6 +230,26 @@ const _pageFragmentsConstraintsSchema = /*#__PURE__*/ v.object({
 		),
 	),
 });
+const _taxonomiesAccessSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#taxonomiesAccess",
+		),
+	),
+	/**
+	 * Plugin may read taxonomy definitions, their terms, and the terms assigned to content entries.
+	 */
+	get read() {
+		return /*#__PURE__*/ v.optional(taxonomiesReadConstraintsSchema);
+	},
+});
+const _taxonomiesReadConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#taxonomiesReadConstraints",
+		),
+	),
+});
 const _usersAccessSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
@@ -264,6 +290,9 @@ type networkRequestConstraints$schematype =
 type pageAccess$schematype = typeof _pageAccessSchema;
 type pageFragmentsConstraints$schematype =
 	typeof _pageFragmentsConstraintsSchema;
+type taxonomiesAccess$schematype = typeof _taxonomiesAccessSchema;
+type taxonomiesReadConstraints$schematype =
+	typeof _taxonomiesReadConstraintsSchema;
 type usersAccess$schematype = typeof _usersAccessSchema;
 type usersReadConstraints$schematype = typeof _usersReadConstraintsSchema;
 
@@ -283,6 +312,8 @@ export interface networkAccessSchema extends networkAccess$schematype {}
 export interface networkRequestConstraintsSchema extends networkRequestConstraints$schematype {}
 export interface pageAccessSchema extends pageAccess$schematype {}
 export interface pageFragmentsConstraintsSchema extends pageFragmentsConstraints$schematype {}
+export interface taxonomiesAccessSchema extends taxonomiesAccess$schematype {}
+export interface taxonomiesReadConstraintsSchema extends taxonomiesReadConstraints$schematype {}
 export interface usersAccessSchema extends usersAccess$schematype {}
 export interface usersReadConstraintsSchema extends usersReadConstraints$schematype {}
 
@@ -312,6 +343,10 @@ export const networkRequestConstraintsSchema =
 export const pageAccessSchema = _pageAccessSchema as pageAccessSchema;
 export const pageFragmentsConstraintsSchema =
 	_pageFragmentsConstraintsSchema as pageFragmentsConstraintsSchema;
+export const taxonomiesAccessSchema =
+	_taxonomiesAccessSchema as taxonomiesAccessSchema;
+export const taxonomiesReadConstraintsSchema =
+	_taxonomiesReadConstraintsSchema as taxonomiesReadConstraintsSchema;
 export const usersAccessSchema = _usersAccessSchema as usersAccessSchema;
 export const usersReadConstraintsSchema =
 	_usersReadConstraintsSchema as usersReadConstraintsSchema;
@@ -355,6 +390,12 @@ export interface NetworkRequestConstraints extends v.InferInput<
 export interface PageAccess extends v.InferInput<typeof pageAccessSchema> {}
 export interface PageFragmentsConstraints extends v.InferInput<
 	typeof pageFragmentsConstraintsSchema
+> {}
+export interface TaxonomiesAccess extends v.InferInput<
+	typeof taxonomiesAccessSchema
+> {}
+export interface TaxonomiesReadConstraints extends v.InferInput<
+	typeof taxonomiesReadConstraintsSchema
 > {}
 export interface UsersAccess extends v.InferInput<typeof usersAccessSchema> {}
 export interface UsersReadConstraints extends v.InferInput<

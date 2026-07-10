@@ -303,8 +303,7 @@ export function normaliseManifest(manifest: Manifest, packageVersion?: string): 
 		// Same story for storage: Zod returns Record<string, {...}>,
 		// PluginStorageConfig is the same shape with a tighter key
 		// constraint.
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- schema-enforced narrowing
-		storage: manifest.storage as PluginStorageConfig,
+		storage: manifest.storage,
 		admin: {
 			pages: manifest.admin?.pages ?? [],
 			widgets: manifest.admin?.widgets ?? [],

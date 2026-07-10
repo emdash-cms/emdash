@@ -123,4 +123,14 @@ describe("SectionEditor", () => {
 		// The panel renders the image preview using the src we passed.
 		await expect.element(screen.getByRole("img", { name: "Logo" })).toBeInTheDocument();
 	});
+
+	it("shows both clean save actions as Saved", async () => {
+		const screen = await render(<SectionEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+		const saveButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
+		expect(saveButtons).toHaveLength(2);
+		for (const button of saveButtons) await expect.element(button).toBeDisabled();
+		expect(screen.getByRole("status").element().textContent).toBe("Saved");
+	});
 });
