@@ -1,5 +1,7 @@
 # Gate 0: Label crypto interoperability
 
+Status: P-256 interoperability and key-lifecycle contract ratified on 2026-07-10.
+
 ## Decision
 
 Use P-256 (`secp256r1`) with `@atcute/cbor` 2.3.3 and `@atcute/crypto` 2.4.1. The production secret format is one unpadded base64url-encoded 32-byte P-256 private scalar. Decode it and pass the raw bytes to `P256PrivateKey.importRaw`. Publish the compressed public key as an ATProto P-256 multikey in the issuer DID document's exact `#atproto_label` verification method.
