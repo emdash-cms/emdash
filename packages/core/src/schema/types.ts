@@ -81,7 +81,7 @@ export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {
  * never a column on the content table. The `FIELD_TYPE_TO_COLUMN` entry above is
  * retained deliberately: it doubles as the `isFieldType` guard.
  */
-export const STORAGELESS_FIELD_TYPES: ReadonlySet<FieldType> = new Set(["reference"]);
+export const STORAGELESS_FIELD_TYPES: ReadonlySet<string> = new Set<FieldType>(["reference"]);
 
 /**
  * Features a collection can support

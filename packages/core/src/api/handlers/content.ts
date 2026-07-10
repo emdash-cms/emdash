@@ -33,7 +33,6 @@ import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { STORAGELESS_FIELD_TYPES } from "../../schema/types.js";
-import type { FieldType } from "../../schema/types.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
@@ -439,7 +438,7 @@ async function stripStoragelessDataKeys(
 		.where("collection_id", "=", collectionRow.id)
 		.execute();
 	const storageless = new Set(
-		fields.filter((f) => STORAGELESS_FIELD_TYPES.has(f.type as FieldType)).map((f) => f.slug),
+		fields.filter((f) => STORAGELESS_FIELD_TYPES.has(f.type)).map((f) => f.slug),
 	);
 	if (storageless.size === 0) return data;
 	const cleaned: Record<string, unknown> = {};
