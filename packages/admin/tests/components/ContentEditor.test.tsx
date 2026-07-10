@@ -1,5 +1,6 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import {
 	ContentEditor,
@@ -1081,6 +1082,66 @@ describe("ContentEditor", () => {
 			}
 		});
 
+		it("keeps nested dialogs above the settings sheet and dismisses only the dialog", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem(),
+					onDelete: vi.fn(),
+				});
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				await screen.getByRole("button", { name: "Move to Trash" }).click();
+				const dialog = screen.getByRole("dialog", { name: "Move to Trash?" });
+				await expect.element(dialog).toBeVisible();
+				expect(dialog.element().closest<HTMLElement>("[data-base-ui-portal]")?.style.zIndex).toBe(
+					"60",
+				);
+
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+				});
+
+				await userEvent.keyboard("{Escape}");
+				await expect.element(dialog).not.toBeInTheDocument();
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+				});
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps nested tooltips above the settings sheet below lg", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem(),
+					hasSeo: true,
+					onSeoChange: vi.fn(),
+				});
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				await userEvent.hover(
+					screen
+						.getByRole("button", { name: "Why is this important for search result titles?" })
+						.element(),
+				);
+
+				const tooltip = screen.getByText("Overrides the page title in search engine results");
+				await expect.element(tooltip).toBeVisible();
+				expect(tooltip.element().closest<HTMLElement>("[data-base-ui-portal]")?.style.zIndex).toBe(
+					"60",
+				);
+			} finally {
+				media.restore();
+			}
+		});
+
 		it("keeps live view and unpublish reachable below lg", async () => {
 			const media = installMatchMedia(true);
 			try {
@@ -1192,6 +1253,21 @@ describe("ContentEditor", () => {
 				form = document.querySelector("form");
 				expect(form?.classList.toString()).not.toContain("fixed");
 			});
+		});
+
+		it("keeps Live View available in distraction-free mode", async () => {
+			const item = makeItem({
+				status: "published",
+				liveRevisionId: "rev-1",
+				draftRevisionId: "rev-1",
+			});
+			const screen = await renderEditor({ isNew: false, item, supportsDrafts: true });
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+
+			// The settings panel stays mounted while hidden, so the overlay adds a
+			// second Live View link rather than replacing the panel's copy.
+			expect(screen.getByRole("link", { name: "Live View" }).all()).toHaveLength(2);
 		});
 
 		it("preserves settings panel state across a distraction-free round trip", async () => {

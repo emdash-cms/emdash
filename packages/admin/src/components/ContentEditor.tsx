@@ -733,6 +733,16 @@ export function ContentEditor({
 										disableWhileSaving={false}
 										disabled={isContentOperationPending}
 									/>
+									{liveViewUrl && (
+										<LinkButton
+											href={liveViewUrl}
+											external
+											variant="outline"
+											icon={<ArrowSquareOut />}
+										>
+											{t`Live View`}
+										</LinkButton>
+									)}
 									{!isNew && (
 										<>
 											{supportsDrafts && hasPendingChanges && onDiscardDraft && (
@@ -875,6 +885,7 @@ export function ContentEditor({
 				    Suspended in distraction-free mode: the nav is hidden there but
 				    Kumo's separate backdrop would still scrim the whole screen. */}
 				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
+				<MobileSidebarPortalGuard />
 			</Sidebar.Provider>
 		</form>
 	);
@@ -926,6 +937,71 @@ function MobileBlockSidebarSync({ active, suspended }: { active: boolean; suspen
 			setOpenMobile(true);
 		}
 	}, [active, isMobile, openMobile, setOpenMobile, suspended]);
+
+	return null;
+}
+
+/**
+ * Kumo closes its mobile sheet whenever focus leaves the sheet DOM. Keep it
+ * open when focus moves into a portaled control, and keep those overlays above
+ * the sheet's z-50 layer.
+ */
+function MobileSidebarPortalGuard() {
+	const { isMobile, openMobile, setOpenMobile } = useSidebar();
+
+	React.useEffect(() => {
+		if (!isMobile || !openMobile) return;
+		const nestedOverlaySelector =
+			'[role="dialog"], [role="listbox"], [role="menu"], .kumo-tooltip-popup';
+		const keepSheetOpen = () => queueMicrotask(() => setOpenMobile(true));
+		const promotePortal = (element: Element) => {
+			const overlay =
+				element.closest(nestedOverlaySelector) ?? element.querySelector(nestedOverlaySelector);
+			const portal = overlay?.closest<HTMLElement>("[data-base-ui-portal]");
+			if (!portal) return;
+			portal.style.position = "relative";
+			portal.style.zIndex = "60";
+		};
+
+		const handleFocusOut = (event: FocusEvent) => {
+			const source = event.target;
+			const destination = event.relatedTarget;
+			if (!(source instanceof Element) || !(destination instanceof Element)) return;
+
+			const sheet = source.closest('nav[data-sidebar="sidebar"][data-mobile="true"]');
+			if (!sheet || sheet.contains(destination)) return;
+			if (!destination.closest(nestedOverlaySelector)) return;
+
+			promotePortal(destination);
+			keepSheetOpen();
+		};
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== "Escape") return;
+			const target = event.target;
+			if (!(target instanceof Element) || !target.closest(nestedOverlaySelector)) return;
+			keepSheetOpen();
+		};
+
+		document.addEventListener("focusout", handleFocusOut, true);
+		document.addEventListener("keydown", handleKeyDown, true);
+		const portalObserver = new MutationObserver((records) => {
+			for (const record of records) {
+				for (const node of record.addedNodes) {
+					if (node instanceof Element) promotePortal(node);
+				}
+			}
+		});
+		portalObserver.observe(document.body, { childList: true, subtree: true });
+		document
+			.querySelectorAll<HTMLElement>("[data-base-ui-portal]")
+			.forEach((portal) => promotePortal(portal));
+		return () => {
+			document.removeEventListener("focusout", handleFocusOut, true);
+			document.removeEventListener("keydown", handleKeyDown, true);
+			portalObserver.disconnect();
+		};
+	}, [isMobile, openMobile, setOpenMobile]);
 
 	return null;
 }
