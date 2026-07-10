@@ -206,6 +206,7 @@ function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): Settings
 		isNew: false,
 		isDirty: false,
 		isSaving: false,
+		saveCompletionToken: 0,
 		isLive: false,
 		hasPendingChanges: false,
 		liveViewUrl: null,

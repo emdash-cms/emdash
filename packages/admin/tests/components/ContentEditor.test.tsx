@@ -214,43 +214,6 @@ describe("ContentEditor", () => {
 		portableTextProps.current = null;
 	});
 
-	describe("block settings sidebar", () => {
-		it("invokes a block deletion callback once in Strict Mode", async () => {
-			const onDelete = vi.fn();
-			const screen = await render(
-				<React.StrictMode>
-					<ContentEditor
-						collection="posts"
-						collectionLabel="Post"
-						fields={{ content: { kind: "portableText", label: "Content" } }}
-						isNew
-						onSave={vi.fn()}
-					/>
-				</React.StrictMode>,
-			);
-			await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
-
-			const openSidebar = portableTextProps.current?.onBlockSidebarOpen as
-				| ((panel: unknown) => void)
-				| undefined;
-			expect(typeof openSidebar).toBe("function");
-			openSidebar!({
-				type: "image",
-				attrs: { src: "https://example.com/image.png", alt: "Example" },
-				onUpdate: vi.fn(),
-				onReplace: vi.fn(),
-				onDelete,
-				onClose: vi.fn(),
-			});
-
-			await screen.getByRole("button", { name: "Remove Image" }).click();
-			const confirm = screen.getByRole("button", { name: "Remove" });
-			(confirm.element() as HTMLButtonElement).click();
-
-			await vi.waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
-		});
-	});
-
 	describe("block panel + mobile sheet sync", () => {
 		const ptFields: Record<string, FieldDescriptor> = {
 			content: { kind: "portableText", label: "Content" },

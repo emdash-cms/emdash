@@ -17,14 +17,19 @@ describe("SaveButton", () => {
 
 	it("can show saving feedback without blocking manual save", async () => {
 		const screen = await render(
-			<SaveButton isDirty={true} isSaving={true} disableWhileSaving={false} />,
+			<SaveButton
+				isDirty={true}
+				isSaving={true}
+				saveCompletionToken={0}
+				disableWhileSaving={false}
+			/>,
 		);
 		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeEnabled();
 	});
 
-	it("shows disabled 'Save' when clean and not saving", async () => {
+	it("preserves the shared resting 'Saved' state when transient feedback is not enabled", async () => {
 		const screen = await render(<SaveButton isDirty={false} isSaving={false} />);
-		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
 	});
 
 	it("has aria-busy when saving", async () => {
@@ -38,29 +43,33 @@ describe("SaveButton", () => {
 	});
 
 	it("has an aria-live status region", async () => {
-		const screen = await render(<SaveButton isDirty={true} isSaving={false} />);
+		const screen = await render(
+			<SaveButton isDirty={true} isSaving={false} saveCompletionToken={0} />,
+		);
 		const status = screen.container.querySelector('span[role="status"][aria-live="polite"]');
 		expect(status).not.toBeNull();
 	});
 
 	it("can suppress the aria-live status region", async () => {
 		const screen = await render(
-			<SaveButton isDirty={true} isSaving={false} announceStatus={false} />,
+			<SaveButton isDirty={true} isSaving={false} saveCompletionToken={0} announceStatus={false} />,
 		);
 		expect(screen.container.querySelector('span[role="status"][aria-live="polite"]')).toBeNull();
 	});
 
 	it("announces the transient saved pulse after saving completes", async () => {
-		const screen = await render(<SaveButton isDirty={true} isSaving={false} />);
+		const screen = await render(
+			<SaveButton isDirty={true} isSaving={false} saveCompletionToken={0} />,
+		);
 		const getStatus = () =>
 			screen.container.querySelector('span[role="status"][aria-live="polite"]')?.textContent ?? "";
 		const status = screen.container.querySelector('span[role="status"][aria-live="polite"]');
 		expect(status).not.toBeNull();
 
-		await screen.rerender(<SaveButton isDirty={true} isSaving={true} />);
+		await screen.rerender(<SaveButton isDirty={true} isSaving={true} saveCompletionToken={0} />);
 		await vi.waitFor(() => expect(getStatus()).toBe("Saving..."), { timeout: 500 });
 
-		await screen.rerender(<SaveButton isDirty={false} isSaving={false} />);
+		await screen.rerender(<SaveButton isDirty={false} isSaving={false} saveCompletionToken={1} />);
 		await vi.waitFor(() => expect(getStatus()).toBe("Saved"), { timeout: 600 });
 		const savedSlot = [...screen.container.querySelectorAll('span[aria-hidden="true"]')].find(
 			(element) => element.textContent?.trim() === "Saved",
@@ -71,11 +80,13 @@ describe("SaveButton", () => {
 	});
 
 	it("does not announce a save when edits are reverted", async () => {
-		const screen = await render(<SaveButton isDirty={true} isSaving={false} />);
+		const screen = await render(
+			<SaveButton isDirty={true} isSaving={false} saveCompletionToken={0} />,
+		);
 		const getStatus = () =>
 			screen.container.querySelector('span[role="status"][aria-live="polite"]')?.textContent ?? "";
 
-		await screen.rerender(<SaveButton isDirty={false} isSaving={false} />);
+		await screen.rerender(<SaveButton isDirty={false} isSaving={false} saveCompletionToken={0} />);
 
 		expect(getStatus()).toBe("");
 		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();

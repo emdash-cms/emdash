@@ -144,6 +144,7 @@ interface ContentUpdateChanges {
 interface ContentUpdateMutationInput {
 	targetId: string;
 	targetLocale?: string;
+	source: "editor" | "auxiliary";
 	changes: ContentUpdateChanges;
 }
 
@@ -871,6 +872,18 @@ function ContentEditPage() {
 	const [saveCompletion, setSaveCompletion] = React.useState({ entryId: "", token: 0 });
 	const autosaveCompletionSequenceRef = React.useRef(0);
 	const [autosaveCompletion, setAutosaveCompletion] = React.useState({ entryId: "", token: 0 });
+	const [editorSavePendingCounts, setEditorSavePendingCounts] = React.useState<
+		ReadonlyMap<string, number>
+	>(new Map());
+	const updateEditorSavePendingCount = React.useCallback((entryId: string, delta: 1 | -1) => {
+		setEditorSavePendingCounts((previous) => {
+			const next = new Map(previous);
+			const count = Math.max((next.get(entryId) ?? 0) + delta, 0);
+			if (count === 0) next.delete(entryId);
+			else next.set(entryId, count);
+			return next;
+		});
+	}, []);
 	const recordSaveCompletion = React.useCallback((entryId: string) => {
 		saveCompletionSequenceRef.current += 1;
 		setSaveCompletion({ entryId, token: saveCompletionSequenceRef.current });
@@ -905,7 +918,7 @@ function ContentEditPage() {
 	});
 
 	const handleContentUpdateSuccess = React.useCallback(
-		(savedItem: ContentItem, targetId: string) => {
+		(targetId: string) => {
 			// Invalidate by (collection, id) prefix without the locale object: the
 			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
 			// i18n is off) while `rawItem.locale` is the DB default "en", so a
@@ -919,13 +932,13 @@ function ContentEditPage() {
 				queryKey: ["revisions", collection, targetId],
 			});
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
-			if (savedItem.draftRevisionId) {
+			if (rawItem?.draftRevisionId) {
 				void queryClient.invalidateQueries({
-					queryKey: ["revision", savedItem.draftRevisionId],
+					queryKey: ["revision", rawItem.draftRevisionId],
 				});
 			}
 		},
-		[collection, queryClient],
+		[collection, queryClient, rawItem?.draftRevisionId],
 	);
 	const handleContentUpdateError = React.useCallback(
 		(error: unknown) => {
@@ -938,28 +951,24 @@ function ContentEditPage() {
 		[t, toastManager],
 	);
 
-	// Editor-content saves (Save button) get their own instance: `variables`
-	// tracks the latest mutate() call, so folding auxiliary writes in here
-	// would let one flip the Save control's saving state mid-save.
 	const updateMutation = useMutation({
 		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
 			updateContent(collection, targetId, changes, { locale: targetLocale }),
-		onSuccess: (savedItem, variables) => {
-			recordSaveCompletion(variables.targetId);
-			handleContentUpdateSuccess(savedItem, variables.targetId);
+		onMutate: (variables) => {
+			if (variables.source === "editor") {
+				updateEditorSavePendingCount(variables.targetId, 1);
+			}
+		},
+		onSuccess: (_, variables) => {
+			if (variables.source === "editor") recordSaveCompletion(variables.targetId);
+			handleContentUpdateSuccess(variables.targetId);
 		},
 		onError: handleContentUpdateError,
-	});
-
-	// Auxiliary writes (author, SEO): neither advance the completion token nor
-	// drive the Save control's saving state.
-	const auxiliaryUpdateMutation = useMutation({
-		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
-			updateContent(collection, targetId, changes, { locale: targetLocale }),
-		onSuccess: (savedItem, variables) => {
-			handleContentUpdateSuccess(savedItem, variables.targetId);
+		onSettled: (_, __, variables) => {
+			if (variables.source === "editor") {
+				updateEditorSavePendingCount(variables.targetId, -1);
+			}
 		},
-		onError: handleContentUpdateError,
 	});
 
 	// Autosave mutation - skips revision creation
@@ -1157,6 +1166,7 @@ function ContentEditPage() {
 			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
+				source: "editor",
 				changes: payload,
 			});
 		},
@@ -1175,24 +1185,26 @@ function ContentEditPage() {
 	);
 	const handleAuthorChange = React.useCallback(
 		(authorId: string | null) => {
-			auxiliaryUpdateMutation.mutate({
+			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
+				source: "auxiliary",
 				changes: { authorId },
 			});
 		},
-		[activeLocale, auxiliaryUpdateMutation.mutate, id, rawItem?.locale],
+		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
 	);
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
-			auxiliaryUpdateMutation.mutate({
+			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
+				source: "auxiliary",
 				changes: { seo },
 			});
 		},
-		[activeLocale, auxiliaryUpdateMutation.mutate, id, rawItem?.locale],
+		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
 	);
 
 	const handlePublish = React.useCallback(() => publishMutation.mutate(), [publishMutation.mutate]);
@@ -1247,11 +1259,15 @@ function ContentEditPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
 			fields={collectionConfig.fields}
-			isSaving={updateMutation.isPending && updateMutation.variables?.targetId === id}
+			isSaving={updateMutation.isPending}
+			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			saveCompletionToken={saveCompletion.entryId === id ? saveCompletion.token : 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
-			isAutosaving={autosaveMutation.isPending && autosaveMutation.variables?.targetId === id}
+			isAutosaving={autosaveMutation.isPending}
+			isAutosaveFeedbackActive={
+				autosaveMutation.isPending && autosaveMutation.variables?.targetId === id
+			}
 			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
 			onPublish={handlePublish}
 			onUnpublish={handleUnpublish}

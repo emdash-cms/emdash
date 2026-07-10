@@ -49,6 +49,8 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onAutosave,
 		onSeoChange,
 		isSaving,
+		isAutosaving,
+		isSaveFeedbackActive,
 		saveCompletionToken,
 		autosaveCompletionToken,
 	}: {
@@ -57,13 +59,17 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
 		onSeoChange?: (seo: { title: string }) => void;
 		isSaving?: boolean;
+		isAutosaving?: boolean;
+		isSaveFeedbackActive?: boolean;
 		saveCompletionToken?: number;
 		autosaveCompletionToken?: number;
 	}) => (
 		<div data-testid="content-editor">
 			<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
 			<div data-testid="mock-slug">{item?.slug ?? ""}</div>
-			<div data-testid="is-saving">{isSaving ? "saving" : "idle"}</div>
+			<div data-testid="is-saving">{isSaveFeedbackActive ? "saving" : "idle"}</div>
+			<div data-testid="manual-save-blocked">{isSaving ? "blocked" : "ready"}</div>
+			<div data-testid="autosave-blocked">{isSaving || isAutosaving ? "blocked" : "ready"}</div>
 			<div data-testid="save-completion-token">{saveCompletionToken ?? 0}</div>
 			<div data-testid="autosave-completion-token">{autosaveCompletionToken ?? 0}</div>
 			<form
@@ -72,10 +78,13 @@ vi.mock("../src/components/ContentEditor", () => ({
 					onSave?.({ data: { title: "Test Post" } });
 				}}
 			>
-				<button type="submit">Save</button>
+				<button type="submit" disabled={isSaving}>
+					Save
+				</button>
 			</form>
 			<button
 				type="button"
+				disabled={isSaving || isAutosaving}
 				onClick={() =>
 					onAutosave?.({
 						data: { title: "Autosaved Title" },
@@ -580,14 +589,21 @@ describe("ContentEditPage – autosave cache patching", () => {
 			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
 			await new Promise((resolve) => setTimeout(resolve, 50));
 			expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
+			expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("blocked");
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }))
+				.toBeDisabled();
 			resolvePut?.();
 			resolvePut = undefined;
-			await new Promise((resolve) => setTimeout(resolve, 50));
+			await waitFor(() => {
+				expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("ready");
+			});
 
 			// Editor save: the same mutation with source "editor" must report saving.
 			await screen.getByRole("button", { name: "Save", exact: true }).click();
 			await waitFor(() => {
 				expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+				expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("blocked");
 			});
 			resolvePut?.();
 			await waitFor(() => {
@@ -598,11 +614,7 @@ describe("ContentEditPage – autosave cache patching", () => {
 		}
 	});
 
-	it("keeps the editor save's saving state when an auxiliary write lands mid-flight", async () => {
-		// Regression: when both write kinds shared one mutation instance,
-		// `mutation.variables` rebound to the newest mutate() call, so an SEO
-		// flush dispatched during an editor save flipped isSaving false while
-		// the editor PUT was still on the wire (unblocking a duplicate save).
+	it("keeps editor save feedback visual without strengthening main's operation gating", async () => {
 		const { router, TestApp } = buildRouter();
 		await router.navigate({
 			to: "/content/$collection/$id",
@@ -657,7 +669,18 @@ describe("ContentEditPage – autosave cache patching", () => {
 			await new Promise((resolve) => setTimeout(resolve, 50));
 			expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
 
-			for (const resolve of resolvers) resolve();
+			// Main's shared mutation observer follows the latest auxiliary write.
+			// When it settles, operation gating becomes idle even though the older
+			// editor request is still running; feedback remains visual-only.
+			expect(resolvers).toHaveLength(2);
+			resolvers[1]?.();
+			await waitFor(() => {
+				expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("ready");
+			});
+			expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+			await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+
+			resolvers[0]?.();
 			await waitFor(() => {
 				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
 				expect(screen.getByTestId("save-completion-token").element().textContent).toBe("1");
@@ -719,9 +742,14 @@ describe("ContentEditPage – autosave cache patching", () => {
 			await waitFor(() => {
 				expect(screen.getByTestId("mock-title").element().textContent).toBe("Second Post");
 			});
+			expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("ready");
+			expect(screen.getByTestId("autosave-blocked").element().textContent).toBe("blocked");
+			await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
 
 			resolveFirstAutosave?.();
-			await new Promise((resolve) => setTimeout(resolve, 100));
+			await waitFor(() => {
+				expect(screen.getByTestId("autosave-blocked").element().textContent).toBe("ready");
+			});
 
 			expect(screen.getByTestId("autosave-completion-token").element().textContent).toBe("0");
 		} finally {

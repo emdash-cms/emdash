@@ -106,6 +106,8 @@ export interface SettingsActionBarProps {
 	saveScope?: string;
 	/** Autosave in flight — folded into the SaveButton's "Saving..." state. */
 	isAutosaving?: boolean;
+	/** Preserve operation blocking independently of the visual feedback state. */
+	saveDisabled?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	liveViewUrl?: string | null;
@@ -202,6 +204,7 @@ export function SettingsActionBar({
 	saveCompletionToken,
 	saveScope,
 	isAutosaving,
+	saveDisabled,
 	isLive,
 	hasPendingChanges,
 	liveViewUrl,
@@ -224,7 +227,8 @@ export function SettingsActionBar({
 				isSaving={isSaving || Boolean(isAutosaving)}
 				saveCompletionToken={saveCompletionToken}
 				saveScope={saveScope}
-				disableWhileSaving={isSaving}
+				disableWhileSaving={false}
+				disabled={saveDisabled}
 				announceStatus={announceSaveStatus}
 			/>
 			{liveViewUrl && (

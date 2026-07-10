@@ -112,7 +112,10 @@ export interface ContentEditorProps {
 	 * right locale on the Bylines manager.
 	 */
 	entryLocale?: string | null;
+	/** Whether any content update is pending. Preserves main's operation gating. */
 	isSaving?: boolean;
+	/** Whether the current entry's editor save should drive visual feedback. */
+	isSaveFeedbackActive?: boolean;
 	/** Monotonic token advanced after a successful manual save or autosave. */
 	saveCompletionToken?: number;
 	onSave?: (payload: {
@@ -128,6 +131,8 @@ export interface ContentEditorProps {
 	}) => void;
 	/** Whether autosave is in progress */
 	isAutosaving?: boolean;
+	/** Whether the current entry's autosave should drive visual feedback. */
+	isAutosaveFeedbackActive?: boolean;
 	/** Entry-scoped token advanced after a successful autosave. */
 	autosaveCompletionToken?: number;
 	onPublish?: () => void;
@@ -198,10 +203,12 @@ export function ContentEditor({
 	isNew,
 	entryLocale,
 	isSaving,
+	isSaveFeedbackActive,
 	saveCompletionToken,
 	onSave,
 	onAutosave,
 	isAutosaving,
+	isAutosaveFeedbackActive,
 	autosaveCompletionToken,
 	onPublish,
 	onUnpublish,
@@ -267,26 +274,22 @@ export function ContentEditor({
 	// the panel data. When non-null the sidebar shows the block panel instead of the
 	// default content settings sections.
 	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
-	const blockSidebarPanelRef = React.useRef<BlockSidebarPanel | null>(null);
 
 	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
-		blockSidebarPanelRef.current = panel;
 		setBlockSidebarPanel(panel);
 	}, []);
 
 	const handleBlockSidebarClose = React.useCallback(() => {
-		const panel = blockSidebarPanelRef.current;
-		blockSidebarPanelRef.current = null;
-		panel?.onClose();
-		setBlockSidebarPanel(null);
+		setBlockSidebarPanel((previous) => {
+			previous?.onClose();
+			return null;
+		});
 	}, []);
 
 	const handleBlockSidebarDelete = React.useCallback(() => {
-		const panel = blockSidebarPanelRef.current;
-		blockSidebarPanelRef.current = null;
-		panel?.onDelete();
+		blockSidebarPanel?.onDelete();
 		setBlockSidebarPanel(null);
-	}, []);
+	}, [blockSidebarPanel]);
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
@@ -398,6 +401,9 @@ export function ContentEditor({
 		[formData, slug, activeBylines],
 	);
 	const isDirty = isNew || currentData !== lastSavedData;
+	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
+	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
+	const isContentOperationPending = Boolean(isSaving);
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -670,10 +676,11 @@ export function ContentEditor({
 												key={item?.id ?? "new"}
 												type="submit"
 												isDirty={isDirty}
-												isSaving={isSaving || isAutosaving || false}
+												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
 												saveCompletionToken={saveCompletionToken}
 												saveScope={item?.id ?? "new"}
-												disableWhileSaving={Boolean(isSaving)}
+												disableWhileSaving={false}
+												disabled={isContentOperationPending}
 											/>
 											{liveViewUrl && (
 												<LinkButton
@@ -720,10 +727,11 @@ export function ContentEditor({
 										key={item?.id ?? "new"}
 										type="submit"
 										isDirty={isDirty}
-										isSaving={isSaving || isAutosaving || false}
+										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
 										saveCompletionToken={saveCompletionToken}
 										saveScope={item?.id ?? "new"}
-										disableWhileSaving={Boolean(isSaving)}
+										disableWhileSaving={false}
+										disabled={isContentOperationPending}
 									/>
 									{!isNew && (
 										<>
@@ -796,10 +804,11 @@ export function ContentEditor({
 						<SettingsActionBar
 							isNew={isNew}
 							isDirty={isDirty}
-							isSaving={isSaving || false}
+							isSaving={Boolean(saveFeedbackActive)}
 							saveCompletionToken={saveCompletionToken}
 							saveScope={item?.id ?? "new"}
-							isAutosaving={isAutosaving}
+							isAutosaving={autosaveFeedbackActive}
+							saveDisabled={isContentOperationPending}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
 							liveViewUrl={liveViewUrl}

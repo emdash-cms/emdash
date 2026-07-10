@@ -118,7 +118,36 @@ function getSlotStyle(
 /**
  * Button that reflects whether saving is currently in progress.
  */
-export function SaveButton({
+function LegacySaveButton({
+	isDirty,
+	isSaving,
+	className,
+	disabled,
+	saveCompletionToken: _saveCompletionToken,
+	saveScope: _saveScope,
+	announceStatus: _announceStatus,
+	disableWhileSaving: _disableWhileSaving,
+	...props
+}: SaveButtonProps) {
+	const { t } = useLingui();
+	const isSaved = !isDirty && !isSaving;
+
+	return (
+		<Button
+			className={cn("min-w-[100px] transition-all", className)}
+			disabled={disabled || isSaving || isSaved}
+			variant={isSaved ? "secondary" : "primary"}
+			icon={isSaving ? <Loader size="sm" /> : isSaved ? <Check /> : <FloppyDisk />}
+			aria-live="polite"
+			aria-busy={isSaving}
+			{...props}
+		>
+			{isSaving ? t`Saving...` : isSaved ? t`Saved` : t`Save`}
+		</Button>
+	);
+}
+
+function TransientSaveButton({
 	isDirty,
 	isSaving,
 	saveCompletionToken,
@@ -281,6 +310,14 @@ export function SaveButton({
 				</span>
 			)}
 		</>
+	);
+}
+
+export function SaveButton(props: SaveButtonProps) {
+	return props.saveCompletionToken === undefined ? (
+		<LegacySaveButton {...props} />
+	) : (
+		<TransientSaveButton {...props} />
 	);
 }
 
