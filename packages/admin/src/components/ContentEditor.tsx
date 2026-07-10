@@ -50,6 +50,7 @@ import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.j
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { BUILTIN_WIDGET_STARS, StarRatingField } from "./StarRatingField.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -1116,6 +1117,28 @@ function FieldRenderer({
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
 
 	const handleChange = React.useCallback((v: unknown) => onChange(name, v), [onChange, name]);
+
+	// Built-in widgets are referenced by a bare name (no "pluginId:" prefix).
+	// They override the default editor for their field kind without a plugin.
+	if (
+		field.widget === BUILTIN_WIDGET_STARS &&
+		(field.kind === "number" || field.kind === "integer")
+	) {
+		const widgetOptions =
+			field.options && !Array.isArray(field.options) ? field.options : undefined;
+		const max = typeof widgetOptions?.max === "number" ? widgetOptions.max : undefined;
+		return (
+			<StarRatingField
+				id={id}
+				label={label}
+				value={value}
+				onChange={handleChange}
+				max={max}
+				required={field.required}
+				minimal={minimal}
+			/>
+		);
+	}
 
 	// Check for plugin field widget override
 	if (field.widget) {
