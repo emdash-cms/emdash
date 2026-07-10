@@ -15,9 +15,6 @@ import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
-// Start padding per heading level. The list is bled 8px into the section
-// gutter (-mx-2 on the panel), so ps-2 puts level-1 text back on the 16px
-// content edge with breathing room inside the hover box; each level adds 16px.
 function getIndentClass(level: number) {
 	switch (level) {
 		case 1:
@@ -202,7 +199,6 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 					transitionProperty: "height",
 				})}
 			>
-				{/* pt-2 mirrors the Revisions accordion's gap between trigger and content */}
 				<div className="space-y-0.5 pt-2">
 					{headings.length === 0 ? (
 						<p className="text-sm text-kumo-subtle px-2 py-1">{t`No headings in document`}</p>

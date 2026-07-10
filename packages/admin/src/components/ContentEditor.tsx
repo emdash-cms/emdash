@@ -55,8 +55,7 @@ import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
-// Matches Header.tsx's h-[58px]. Kumo's mobile Sidebar is viewport-fixed,
-// so the settings sheet body needs to clear the sticky admin shell header.
+// Mirrors Header.tsx's h-[58px]; the fixed mobile sheet offsets its body by it.
 const ADMIN_HEADER_HEIGHT_PX = 58;
 
 function serializeEditorState(input: {
@@ -234,12 +233,9 @@ export function ContentEditor({
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
-	// Kumo Sidebar's `side` prop is physical, not logical: the settings panel
-	// sits opposite the nav sidebar (which the Shell flips the same way).
+	// Kumo Sidebar's `side` is physical, not logical.
 	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
-	// Mirrors the Sidebar's mobileBreakpoint (lg = 1024px). `contained` must
-	// flip with it: the desktop pane anchors inside the provider wrapper, but
-	// the mobile sheet needs viewport-fixed positioning.
+	// Mirrors the Sidebar's mobileBreakpoint; `contained` flips with it.
 	const [isBelowLg, setIsBelowLg] = React.useState(
 		() => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches,
 	);
@@ -597,12 +593,9 @@ export function ContentEditor({
 					: "flex h-full bg-kumo-base",
 			)}
 		>
-			{/* The Sidebar.Provider wraps the whole editor layout so the strip's
-			    Settings button (below lg) and the block-panel sync can reach the
-			    sidebar context. Desktop: contained offcanvas pane (a layout gap
-			    element keeps the editor column at the right width). Below lg
-			    (mobileBreakpoint) Kumo renders the panel as a slide-in sheet —
-			    inline in the DOM, not portaled, so form association holds. */}
+			{/* Wraps the whole layout so the strip's Settings button and the
+			    block-panel sync can reach the sidebar context. Below lg Kumo
+			    renders the panel as an inline (not portaled) sheet. */}
 			<Sidebar.Provider
 				contained={!isBelowLg}
 				defaultOpen
@@ -612,18 +605,12 @@ export function ContentEditor({
 				className={cn(!isDistractionFree && "h-full min-h-0")}
 				style={
 					{
-						// Wider pane on desktop; the mobile sheet stays at 20rem so it
-						// still fits small phone viewports.
 						"--sidebar-width": isBelowLg ? "20rem" : "23rem",
 					} as React.CSSProperties
 				}
 			>
-				{/* Editor column — scrolls independently of the settings panel */}
 				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
-					{/* Header. In distraction-free mode this becomes a hover-revealed
-			    overlay so the chrome stays out of the way while writing. In
-			    normal mode desktop actions live in the settings panel; the
-			    header keeps navigation, title, mobile actions, and focus. */}
+					{/* In distraction-free mode the header is a hover-revealed overlay. */}
 					<div
 						className={cn(
 							"flex flex-wrap items-center justify-between gap-y-2",
@@ -668,10 +655,7 @@ export function ContentEditor({
 						</div>
 						<div className="flex items-center gap-2">
 							{!isDistractionFree ? (
-								/* Normal mode: actions live in the settings panel's action
-							   bar; the strip keeps editor chrome, plus Save/autosave and
-							   the sheet trigger below lg where the panel is hidden
-							   behind the Settings sheet. */
+								// Below lg, actions move here from the (hidden) panel.
 								<>
 									{isBelowLg && (
 										<div className="flex flex-wrap items-center justify-end gap-2">
@@ -723,8 +707,7 @@ export function ContentEditor({
 									</Button>
 								</>
 							) : (
-								/* Distraction-free: the panel (and its action bar) is hidden,
-							   so this hover overlay is the only save/exit surface. */
+								// Distraction-free: this overlay is the only save/exit surface.
 								<>
 									{!isNew && supportsPreview && (
 										<PreviewButton
@@ -760,8 +743,6 @@ export function ContentEditor({
 						</div>
 					</div>
 
-					{/* Editor fields — no card chrome; fields sit directly on the page
-				    in a centered column (Notion style). */}
 					<div
 						className={cn(
 							isDistractionFree ? "max-w-4xl mx-auto pt-16" : "mx-auto max-w-3xl space-y-6",
@@ -805,16 +786,12 @@ export function ContentEditor({
 					</div>
 				</div>
 
-				{/* Settings panel — desktop pane / mobile sheet. Hidden (not
-			    unmounted) in distraction-free mode so panel-local state — an
-			    open scheduler, a typed date, a byline search — survives the
-			    round trip. `hidden` lands on the pane's own layout element
-			    (the desktop <aside> / mobile <nav>), so no layout gap remains. */}
+				{/* Hidden (not unmounted) in distraction-free mode so panel-local
+			    state survives the round trip; `hidden` on the pane's own layout
+			    element leaves no gap. */}
 				<Sidebar aria-label={t`Settings`} className={cn(isDistractionFree && "hidden")}>
-					{/* Desktop action bar absorbs the high-frequency props (isDirty,
-						    isSaving, isAutosaving) so they never reach the memoized
-						    panel body below. Below lg, the sticky editor header owns
-						    actions because the sheet starts under the admin shell header. */}
+					{/* The action bar absorbs the high-frequency props (isDirty,
+					    isSaving, isAutosaving) so they never reach the memoized panel. */}
 					{!isBelowLg && (
 						<SettingsActionBar
 							isNew={isNew}
@@ -885,12 +862,9 @@ export function ContentEditor({
 					</div>
 				</Sidebar>
 
-				{/* Below lg, opening a block detail panel must open the sheet —
-				    otherwise it renders into a closed drawer and nothing visibly
-				    happens. Suspended in distraction-free mode: the Sidebar's nav
-				    is hidden there but Kumo's mobile backdrop is a separate
-				    sibling that would paint a full-screen scrim over the writing
-				    surface if the sheet were allowed to open. */}
+				{/* Below lg, opening a block detail panel must open the sheet.
+				    Suspended in distraction-free mode: the nav is hidden there but
+				    Kumo's separate backdrop would still scrim the whole screen. */}
 				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
 			</Sidebar.Provider>
 		</form>

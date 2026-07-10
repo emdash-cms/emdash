@@ -215,8 +215,6 @@ export function SettingsActionBar({
 	const { t } = useLingui();
 
 	return (
-		// px-4 keeps the bar's button edges on the same 16px gutter as the
-		// section content below it
 		<div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3">
 			<SaveButton
 				key={saveScope}
@@ -356,14 +354,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const { t } = useLingui();
 	const navigate = useNavigate();
 
-	// Schedule datetime state — the scheduler UI is this panel's only consumer
 	const [scheduleDate, setScheduleDate] = React.useState<string>("");
 	const [showScheduler, setShowScheduler] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 
 	const handleScheduleSubmit = () => {
 		if (scheduleDate && onSchedule) {
-			// Convert local datetime to ISO string
 			const date = new Date(scheduleDate);
 			onSchedule(date.toISOString());
 			setShowScheduler(false);
@@ -372,7 +368,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	};
 
 	if (blockSidebarPanel) {
-		// Block sidebar panel – replaces default sections when a block requests it
+		// A block requesting the sidebar replaces the default sections.
 		return blockSidebarPanel.type === "image" ? (
 			<div className="p-4">
 				<ImageDetailPanel
@@ -391,15 +387,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		) : null;
 	}
 
-	// Default content settings sections – flat panel, hairline dividers.
-	// Section headings share the muted label style (see PANEL_HEADING);
-	// hierarchy comes from position and content weight, not heading size.
 	return (
-		// The Kumo Sidebar wrapper sets `whitespace-nowrap` (for its collapse
-		// animation), which inherits into the panel and stops long field
-		// descriptions from wrapping — overflowing the panel. Reset it here.
+		// The Kumo Sidebar wrapper sets `whitespace-nowrap` for its collapse
+		// animation, which would stop long field descriptions from wrapping.
 		<div className="flex flex-col whitespace-normal">
-			{/* Publish settings */}
 			<div className="p-4">
 				<Text bold as="h3" DANGEROUS_className="mb-4">
 					{t`Publish`}
@@ -509,7 +500,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				)}
 			</div>
 
-			{/* Ownership selector - shown only to editors and above */}
 			{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
 				<div className="p-4 border-t">
 					<Text bold as="h3" DANGEROUS_className="mb-4">
@@ -523,7 +513,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				</div>
 			)}
 
-			{/* Byline credits */}
 			{currentUser && currentUser.role >= ROLE_EDITOR && (
 				<div className="p-4 border-t">
 					<Text bold as="h3" DANGEROUS_className="mb-4">
@@ -545,7 +534,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				</div>
 			)}
 
-			{/* Translations sidebar - shown when i18n is enabled */}
 			{i18n && item && !isNew && (
 				<div className="p-4 border-t">
 					<TranslationsPanel
@@ -576,7 +564,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				/>
 			)}
 
-			{/* SEO panel - shown for collections with hasSeo enabled */}
 			{hasSeo && !isNew && onSeoChange && (
 				<div className="p-4 border-t">
 					<Text bold as="h3" DANGEROUS_className="mb-4">
@@ -590,21 +577,18 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				</div>
 			)}
 
-			{/* Document outline - shown when editing content with portableText */}
 			{portableTextEditor && (
 				<div className="p-4 border-t">
 					<DocumentOutline editor={portableTextEditor} />
 				</div>
 			)}
 
-			{/* Revision history - shown for existing items in collections that support it */}
 			{!isNew && item && supportsRevisions && (
 				<div className="p-4 border-t">
 					<RevisionHistory collection={collection} entryId={item.id} />
 				</div>
 			)}
 
-			{/* Destructive action at the very bottom of the panel */}
 			{!isNew && onDelete && (
 				<div className="border-t p-4">
 					<Dialog.Root disablePointerDismissal>

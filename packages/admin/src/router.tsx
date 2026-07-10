@@ -938,11 +938,9 @@ function ContentEditPage() {
 		[t, toastManager],
 	);
 
-	// Editor-content saves (Save button). Kept on its own mutation instance:
-	// `mutation.variables` always reflects the LATEST mutate() call, so mixing
-	// auxiliary writes into the same instance would let an author/SEO write
-	// dispatched mid-save flip the Save control out of its saving state while
-	// the editor PUT is still on the wire.
+	// Editor-content saves (Save button) get their own instance: `variables`
+	// tracks the latest mutate() call, so folding auxiliary writes in here
+	// would let one flip the Save control's saving state mid-save.
 	const updateMutation = useMutation({
 		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
 			updateContent(collection, targetId, changes, { locale: targetLocale }),
@@ -953,8 +951,8 @@ function ContentEditPage() {
 		onError: handleContentUpdateError,
 	});
 
-	// Auxiliary writes (author, SEO): same endpoint, but they neither advance
-	// the save-completion token nor drive the Save control's saving state.
+	// Auxiliary writes (author, SEO): neither advance the completion token nor
+	// drive the Save control's saving state.
 	const auxiliaryUpdateMutation = useMutation({
 		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
 			updateContent(collection, targetId, changes, { locale: targetLocale }),
@@ -1249,12 +1247,7 @@ function ContentEditPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
 			fields={collectionConfig.fields}
-			isSaving={
-				// updateMutation carries editor-content saves only; auxiliary
-				// writes (author, SEO) live on their own mutation instance so
-				// they can't puppet — or mid-flight cancel — the Save control.
-				updateMutation.isPending && updateMutation.variables?.targetId === id
-			}
+			isSaving={updateMutation.isPending && updateMutation.variables?.targetId === id}
 			saveCompletionToken={saveCompletion.entryId === id ? saveCompletion.token : 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}

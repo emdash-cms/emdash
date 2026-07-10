@@ -267,8 +267,6 @@ function TagInput({
 					className="w-full text-sm"
 				/>
 
-				{/* Suggestions dropdown. overflow-hidden clips the square hover state
-				    of the first/last suggestion to the dropdown's radius. */}
 				{isOpen && (suggestions.length > 0 || showCreateOption) && (
 					<div className="absolute top-full start-0 end-0 mt-1 overflow-hidden bg-kumo-overlay border rounded-lg shadow-lg z-10">
 						{suggestions.map((term) => (
@@ -485,8 +483,6 @@ function TaxonomySection({
 							type="button"
 							variant="ghost"
 							size="sm"
-							// -ms-2 cancels the ghost button's own start padding so its
-							// icon sits on the section's 16px text gutter
 							className="-ms-2"
 							onClick={() => setShowCategoryInput(true)}
 							icon={<Plus />}
