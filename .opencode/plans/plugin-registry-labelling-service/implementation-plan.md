@@ -42,21 +42,21 @@ The implementation is complete when:
 
 ### Workstream IDs
 
-| ID | Workstream | Primary output |
-| --- | --- | --- |
-| `W0` | Decisions and feasibility | Ratified contracts and proved platform assumptions |
-| `W1` | Shared protocol and policy | Lexicons, label crypto, policy schema, and moderation semantics |
-| `W2` | Service foundation and persistence | `apps/labeller`, D1 state, bindings, queues, and workflow skeleton |
-| `W3` | Label issuance and distribution | Typed signer, label history, query API, and replayable subscription |
-| `W4` | Aggregator label consumption | Verified subscription, current state, hydration, redaction, and cascades |
-| `W5` | Client eligibility enforcement | One moderation helper used by registry client, core, CLI, and admin |
-| `W6` | Discovery and assessment orchestration | Independent Jetstream ingest, verified subjects, run lifecycle, reconciliation |
-| `W7` | Artifact and deterministic analysis | Safe artifact acquisition, bundle checks, dependency/SBOM scanners |
-| `W8` | AI, image, and policy resolution | Versioned model pipeline, normalized findings, automated decisions |
-| `W9` | Operator authentication and console | Access-protected review UI and manual label actions |
-| `W10` | Transparency and notifications | Public assessment API, policy document, email, reconsideration flow |
-| `W11` | Operations and self-hosting | Deployment, secrets, observability, backups, rotation, runbooks |
-| `W12` | Conformance and security | Cross-component, adversarial, browser, and production-launch verification |
+| ID    | Workstream                             | Primary output                                                                 |
+| ----- | -------------------------------------- | ------------------------------------------------------------------------------ |
+| `W0`  | Decisions and feasibility              | Ratified contracts and proved platform assumptions                             |
+| `W1`  | Shared protocol and policy             | Lexicons, label crypto, policy schema, and moderation semantics                |
+| `W2`  | Service foundation and persistence     | `apps/labeller`, D1 state, bindings, queues, and workflow skeleton             |
+| `W3`  | Label issuance and distribution        | Typed signer, label history, query API, and replayable subscription            |
+| `W4`  | Aggregator label consumption           | Verified subscription, current state, hydration, redaction, and cascades       |
+| `W5`  | Client eligibility enforcement         | One moderation helper used by registry client, core, CLI, and admin            |
+| `W6`  | Discovery and assessment orchestration | Independent Jetstream ingest, verified subjects, run lifecycle, reconciliation |
+| `W7`  | Artifact and deterministic analysis    | Safe artifact acquisition, bundle checks, dependency/SBOM scanners             |
+| `W8`  | AI, image, and policy resolution       | Versioned model pipeline, normalized findings, automated decisions             |
+| `W9`  | Operator authentication and console    | Access-protected review UI and manual label actions                            |
+| `W10` | Transparency and notifications         | Public assessment API, policy document, email, reconsideration flow            |
+| `W11` | Operations and self-hosting            | Deployment, secrets, observability, backups, rotation, runbooks                |
+| `W12` | Conformance and security               | Cross-component, adversarial, browser, and production-launch verification      |
 
 ### High-Level Graph
 
@@ -772,11 +772,11 @@ Return:
 
 ```ts
 interface ReleaseModeration {
-  eligibility: "eligible" | "pending" | "error" | "blocked";
-  blockingLabels: Label[];
-  warningLabels: Label[];
-  assessment?: PublicAssessmentRef;
-  override?: PublicManualActionRef;
+	eligibility: "eligible" | "pending" | "error" | "blocked";
+	blockingLabels: Label[];
+	warningLabels: Label[];
+	assessment?: PublicAssessmentRef;
+	override?: PublicManualActionRef;
 }
 ```
 
@@ -1489,14 +1489,14 @@ Gate 6 passes and production positive-assessment enforcement may be enabled.
 
 After Gate 0:
 
-| Parallel lane | Can proceed | Must wait for |
-| --- | --- | --- |
-| Protocol | `W1.2` lexicons, `W1.4` crypto, `W1.6` headers | Ratified identifiers/vectors |
-| Service core | `W2.1` scaffold, migration drafting | Stable schema types for final migration |
-| Artifact security | `W7.1` ownership, `W7.2`/`W7.3` primitives | Mirror contract and shared-package decision |
-| Operations | Minimal staging signer bindings in `W3.1`, CI skeleton in `W2.1` | Full production hardening waits for final secrets/key format |
-| Aggregator | Subscription/hydration design and fixture tests | `W1` contracts; live connection waits for `W3` |
-| Client/UI | Static eligibility fixtures and UI states | Runtime integration waits for `W4`/`W10` |
+| Parallel lane     | Can proceed                                                      | Must wait for                                                |
+| ----------------- | ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| Protocol          | `W1.2` lexicons, `W1.4` crypto, `W1.6` headers                   | Ratified identifiers/vectors                                 |
+| Service core      | `W2.1` scaffold, migration drafting                              | Stable schema types for final migration                      |
+| Artifact security | `W7.1` ownership, `W7.2`/`W7.3` primitives                       | Mirror contract and shared-package decision                  |
+| Operations        | Minimal staging signer bindings in `W3.1`, CI skeleton in `W2.1` | Full production hardening waits for final secrets/key format |
+| Aggregator        | Subscription/hydration design and fixture tests                  | `W1` contracts; live connection waits for `W3`               |
+| Client/UI         | Static eligibility fixtures and UI states                        | Runtime integration waits for `W4`/`W10`                     |
 
 After Gate 2:
 
@@ -1537,22 +1537,22 @@ Each item should remain independently reviewable and leave production behavior s
 
 ## Cross-Workstream Ownership Boundaries
 
-| Concern | Owner | Consumers |
-| --- | --- | --- |
-| Label vocabulary/effects | `W1` | All workstreams |
-| DRISL signing/verification | `W1` | `W3`, `W4`, conformance |
-| D1 state transitions | `W2` | `W3`, `W6`, `W9`, `W10` |
-| Public label history/sequence | `W3` | `W4`, third parties |
-| Aggregator current label state | `W4` | `W5`, directory/admin |
-| Release eligibility semantics/evaluator | `W1` | `W4`, `W5`, core, CLI, admin |
-| Consumer eligibility adapters | `W5` | Core, CLI, admin |
-| Run lifecycle/supersession | `W6` | `W8`, `W9`, `W10` |
-| Artifact safety | `W7` | Labeller, installer, delegated release service |
-| Finding-to-label mapping | `W8` | `W3`, `W9`, transparency |
-| Human authorization/actions | `W9` | `W3`, audit, notifications |
-| Public explanation/contact | `W10` | Registry client/admin, publishers |
-| Production configuration/runbooks | `W11` | Operators, self-hosters |
-| Cross-component acceptance | `W12` | Gate 6 |
+| Concern                                 | Owner | Consumers                                      |
+| --------------------------------------- | ----- | ---------------------------------------------- |
+| Label vocabulary/effects                | `W1`  | All workstreams                                |
+| DRISL signing/verification              | `W1`  | `W3`, `W4`, conformance                        |
+| D1 state transitions                    | `W2`  | `W3`, `W6`, `W9`, `W10`                        |
+| Public label history/sequence           | `W3`  | `W4`, third parties                            |
+| Aggregator current label state          | `W4`  | `W5`, directory/admin                          |
+| Release eligibility semantics/evaluator | `W1`  | `W4`, `W5`, core, CLI, admin                   |
+| Consumer eligibility adapters           | `W5`  | Core, CLI, admin                               |
+| Run lifecycle/supersession              | `W6`  | `W8`, `W9`, `W10`                              |
+| Artifact safety                         | `W7`  | Labeller, installer, delegated release service |
+| Finding-to-label mapping                | `W8`  | `W3`, `W9`, transparency                       |
+| Human authorization/actions             | `W9`  | `W3`, audit, notifications                     |
+| Public explanation/contact              | `W10` | Registry client/admin, publishers              |
+| Production configuration/runbooks       | `W11` | Operators, self-hosters                        |
+| Cross-component acceptance              | `W12` | Gate 6                                         |
 
 If a change crosses an ownership boundary, the owning shared contract changes first and all consumers update in the same integration gate. Do not fix policy divergence with local string checks.
 

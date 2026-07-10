@@ -12,31 +12,31 @@ It does not amend RFC #694. The RFC establishes the registry and identifies a la
 
 The following decisions were made before drafting this spec.
 
-| Area | Decision |
-| --- | --- |
-| Launch role | Safety and quality labeller, with narrow takedown authority |
-| Assessment coverage | Assess every release, including verified and first-party publishers |
-| Automated inputs | Bundle code, manifest and metadata, images, dependencies/SBOM, and publisher history |
-| Automated authority | Deterministic critical findings, critical scanner matches, and a single AI critical finding may hard-block |
-| AI hard-block scope | Security and impersonation findings only; quality findings never hard-block |
-| Hard-block representation | Descriptive labels, not `!takedown` |
-| Official client policy | Require a positive assessment label; hard-block configured high-risk labels |
-| Manual scope | Review/override automated decisions and issue emergency takedowns |
-| Broad labels | Package and publisher labels require manual action |
-| Emergency takedown | Admin-only `!takedown` issuance and retraction |
-| Operator auth | Cloudflare Access |
-| Operator roles | Reviewer and admin |
-| Deployable shape | One Worker application for assessment, issuance, distribution, and console |
-| Discovery | Independent Jetstream consumer |
-| Artifact source | Verified aggregator mirror, with a declared-URL fallback |
-| AI | Workers AI through AI Gateway |
-| Public evidence | Public assessment summary; private detailed evidence |
-| Publisher notice | Package security contact, then publisher profile fallback; email plus an ATProto-visible notice where practical |
-| Appeals | Email/manual reconsideration, not a first-class appeals workflow in v1 |
-| Policy changes | Versioned in code and deployed through normal review |
-| Reassessment | New releases and relevant scanner-intelligence changes |
-| Assessment failure | Release remains in a temporary pending/unknown state and official clients block it |
-| Reports | Defer `com.atproto.moderation.createReport` and report triage in v1 |
+| Area                      | Decision                                                                                                        |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Launch role               | Safety and quality labeller, with narrow takedown authority                                                     |
+| Assessment coverage       | Assess every release, including verified and first-party publishers                                             |
+| Automated inputs          | Bundle code, manifest and metadata, images, dependencies/SBOM, and publisher history                            |
+| Automated authority       | Deterministic critical findings, critical scanner matches, and a single AI critical finding may hard-block      |
+| AI hard-block scope       | Security and impersonation findings only; quality findings never hard-block                                     |
+| Hard-block representation | Descriptive labels, not `!takedown`                                                                             |
+| Official client policy    | Require a positive assessment label; hard-block configured high-risk labels                                     |
+| Manual scope              | Review/override automated decisions and issue emergency takedowns                                               |
+| Broad labels              | Package and publisher labels require manual action                                                              |
+| Emergency takedown        | Admin-only `!takedown` issuance and retraction                                                                  |
+| Operator auth             | Cloudflare Access                                                                                               |
+| Operator roles            | Reviewer and admin                                                                                              |
+| Deployable shape          | One Worker application for assessment, issuance, distribution, and console                                      |
+| Discovery                 | Independent Jetstream consumer                                                                                  |
+| Artifact source           | Verified aggregator mirror, with a declared-URL fallback                                                        |
+| AI                        | Workers AI through AI Gateway                                                                                   |
+| Public evidence           | Public assessment summary; private detailed evidence                                                            |
+| Publisher notice          | Package security contact, then publisher profile fallback; email plus an ATProto-visible notice where practical |
+| Appeals                   | Email/manual reconsideration, not a first-class appeals workflow in v1                                          |
+| Policy changes            | Versioned in code and deployed through normal review                                                            |
+| Reassessment              | New releases and relevant scanner-intelligence changes                                                          |
+| Assessment failure        | Release remains in a temporary pending/unknown state and official clients block it                              |
+| Reports                   | Defer `com.atproto.moderation.createReport` and report triage in v1                                             |
 
 ## 2. Goals
 
@@ -111,18 +111,18 @@ flowchart LR
 
 ### 5.1 Components
 
-| Component | Responsibility |
-| --- | --- |
-| Discovery Durable Object | Maintains the outbound Jetstream subscription and persists the cursor |
-| Assessment Queue | Buffers and deduplicates immutable release assessment jobs |
-| Assessment Workflow | Fetches verified inputs, runs checks, stores evidence, and invokes policy |
-| Policy engine | Maps normalized findings to labels and client effects under a versioned policy |
-| Label issuer | Allocates sequence numbers, signs labels, stores history, and broadcasts them |
-| Subscriber Durable Object | Serves replayable `subscribeLabels` WebSocket connections using hibernation |
-| Query API | Implements standard `queryLabels` |
-| Public assessment API | Exposes case-specific summaries without private evidence |
-| Operator console | Provides queue, assessment detail, override, re-run, and emergency takedown actions |
-| Notification worker step | Sends publisher notices after externally visible decisions |
+| Component                 | Responsibility                                                                      |
+| ------------------------- | ----------------------------------------------------------------------------------- |
+| Discovery Durable Object  | Maintains the outbound Jetstream subscription and persists the cursor               |
+| Assessment Queue          | Buffers and deduplicates immutable release assessment jobs                          |
+| Assessment Workflow       | Fetches verified inputs, runs checks, stores evidence, and invokes policy           |
+| Policy engine             | Maps normalized findings to labels and client effects under a versioned policy      |
+| Label issuer              | Allocates sequence numbers, signs labels, stores history, and broadcasts them       |
+| Subscriber Durable Object | Serves replayable `subscribeLabels` WebSocket connections using hibernation         |
+| Query API                 | Implements standard `queryLabels`                                                   |
+| Public assessment API     | Exposes case-specific summaries without private evidence                            |
+| Operator console          | Provides queue, assessment detail, override, re-run, and emergency takedown actions |
+| Notification worker step  | Sends publisher notices after externally visible decisions                          |
 
 ### 5.2 Why one deployable
 
@@ -176,12 +176,12 @@ Label values use lowercase kebab case as recommended by the ATProto label specif
 
 ### 7.1 Eligibility labels
 
-| Label | Subject | Meaning | Official policy |
-| --- | --- | --- | --- |
-| `assessment-passed` | Release URI + CID | Required checks completed and either policy or an authorized manual override found no blocking condition | Eligible, subject to all other labels and install checks |
-| `assessment-overridden` | Release URI + CID | A reviewer/admin explicitly superseded the automated outcome for this exact release CID | Use the accompanying manual pass until explicitly retracted |
-| `assessment-pending` | Release URI + CID | Assessment is queued, running, retrying, or awaiting an artifact | Block temporarily |
-| `assessment-error` | Release URI + CID | Assessment could not complete after bounded retries | Block and surface operational failure |
+| Label                   | Subject           | Meaning                                                                                                  | Official policy                                             |
+| ----------------------- | ----------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `assessment-passed`     | Release URI + CID | Required checks completed and either policy or an authorized manual override found no blocking condition | Eligible, subject to all other labels and install checks    |
+| `assessment-overridden` | Release URI + CID | A reviewer/admin explicitly superseded the automated outcome for this exact release CID                  | Use the accompanying manual pass until explicitly retracted |
+| `assessment-pending`    | Release URI + CID | Assessment is queued, running, retrying, or awaiting an artifact                                         | Block temporarily                                           |
+| `assessment-error`      | Release URI + CID | Assessment could not complete after bounded retries                                                      | Block and surface operational failure                       |
 
 The official client requires an active `assessment-passed` label from an accepted labeller. Absence of that label means unknown, not safe.
 
@@ -197,17 +197,17 @@ A reviewer/admin may manually unblock a false positive by issuing negations for 
 
 ### 7.2 Blocking security labels
 
-| Label | Meaning | Automatic issuance |
-| --- | --- | --- |
-| `malware` | Code or payload intentionally compromises, persists, mines, destroys, or executes an unauthorized workload | Deterministic/scanner critical or AI critical |
-| `data-exfiltration` | Plugin intentionally sends protected site/user data outside its declared and expected purpose | Deterministic/scanner critical or AI critical |
-| `credential-harvesting` | Plugin solicits, captures, or transmits credentials deceptively | Deterministic/scanner critical or AI critical |
-| `supply-chain-compromise` | Artifact or dependency evidence indicates a known malicious or substituted component | Deterministic/scanner critical or AI critical |
-| `critical-vulnerability` | A scanner identifies a critical, applicable vulnerability under the policy's blocking rule | Critical scanner rule only unless AI identifies an independently blocking exploit path |
-| `artifact-integrity-failure` | Available artifact bytes do not match the checksum in the signed release | Deterministic critical |
-| `invalid-bundle` | The archive is malformed, unsafe, or missing required installable content | Deterministic critical |
-| `undeclared-access` | Bundle behavior or manifest inconsistency attempts access outside the signed declaration | Deterministic critical; AI may propose but not establish manifest inequality |
-| `impersonation` | Package or publisher materially impersonates another identity, product, or trusted project | Deterministic identity evidence or AI critical |
+| Label                        | Meaning                                                                                                    | Automatic issuance                                                                     |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `malware`                    | Code or payload intentionally compromises, persists, mines, destroys, or executes an unauthorized workload | Deterministic/scanner critical or AI critical                                          |
+| `data-exfiltration`          | Plugin intentionally sends protected site/user data outside its declared and expected purpose              | Deterministic/scanner critical or AI critical                                          |
+| `credential-harvesting`      | Plugin solicits, captures, or transmits credentials deceptively                                            | Deterministic/scanner critical or AI critical                                          |
+| `supply-chain-compromise`    | Artifact or dependency evidence indicates a known malicious or substituted component                       | Deterministic/scanner critical or AI critical                                          |
+| `critical-vulnerability`     | A scanner identifies a critical, applicable vulnerability under the policy's blocking rule                 | Critical scanner rule only unless AI identifies an independently blocking exploit path |
+| `artifact-integrity-failure` | Available artifact bytes do not match the checksum in the signed release                                   | Deterministic critical                                                                 |
+| `invalid-bundle`             | The archive is malformed, unsafe, or missing required installable content                                  | Deterministic critical                                                                 |
+| `undeclared-access`          | Bundle behavior or manifest inconsistency attempts access outside the signed declaration                   | Deterministic critical; AI may propose but not establish manifest inequality           |
+| `impersonation`              | Package or publisher materially impersonates another identity, product, or trusted project                 | Deterministic identity evidence or AI critical                                         |
 
 Official EmDash clients block these labels. Other consumers choose their own behavior.
 
@@ -215,25 +215,25 @@ The policy must distinguish a vulnerable dependency from an actually blocking cr
 
 ### 7.3 Warning labels
 
-| Label | Meaning | Official policy |
-| --- | --- | --- |
-| `suspicious-code` | Concerning behavior lacks enough evidence for a blocking security label | Warn before install |
-| `obfuscated-code` | Material code is intentionally difficult to inspect | Warn before install |
-| `privacy-risk` | Collection, tracking, or transmission creates a non-blocking privacy concern | Warn before install |
-| `misleading-metadata` | Description, screenshots, identity claims, or declared purpose materially differ from behavior | Warn and downrank |
-| `low-quality` | Release is placeholder, generated without substance, or lacks meaningful functionality | Warn and downrank |
-| `broken-release` | Bundle cannot perform its stated function despite passing structural registry validation | Warn and downrank |
+| Label                 | Meaning                                                                                        | Official policy     |
+| --------------------- | ---------------------------------------------------------------------------------------------- | ------------------- |
+| `suspicious-code`     | Concerning behavior lacks enough evidence for a blocking security label                        | Warn before install |
+| `obfuscated-code`     | Material code is intentionally difficult to inspect                                            | Warn before install |
+| `privacy-risk`        | Collection, tracking, or transmission creates a non-blocking privacy concern                   | Warn before install |
+| `misleading-metadata` | Description, screenshots, identity claims, or declared purpose materially differ from behavior | Warn and downrank   |
+| `low-quality`         | Release is placeholder, generated without substance, or lacks meaningful functionality         | Warn and downrank   |
+| `broken-release`      | Bundle cannot perform its stated function despite passing structural registry validation       | Warn and downrank   |
 
 Quality labels never prevent direct installation on their own. The official admin presents the reason and requires confirmation when warning labels are active.
 
 ### 7.4 Manual system labels
 
-| Label | Subject | Authority | Effect |
-| --- | --- | --- | --- |
-| `!takedown` | Release, package, or publisher | Admin only | Redact for consumers accepting this labeller with `redact` |
-| `security-yanked` | Release | Reviewer or admin | Block install/update; retain visible tombstone and explanation |
-| `publisher-compromised` | Publisher DID | Admin only | Block all publisher packages/releases until retracted |
-| `package-disputed` | Package URI | Reviewer or admin | Warn and prevent recommendation; direct install policy is configurable |
+| Label                   | Subject                        | Authority         | Effect                                                                 |
+| ----------------------- | ------------------------------ | ----------------- | ---------------------------------------------------------------------- |
+| `!takedown`             | Release, package, or publisher | Admin only        | Redact for consumers accepting this labeller with `redact`             |
+| `security-yanked`       | Release                        | Reviewer or admin | Block install/update; retain visible tombstone and explanation         |
+| `publisher-compromised` | Publisher DID                  | Admin only        | Block all publisher packages/releases until retracted                  |
+| `package-disputed`      | Package URI                    | Reviewer or admin | Warn and prevent recommendation; direct install policy is configurable |
 
 `security-yanked` replaces the colon-containing `security:yanked` placeholder currently present in parts of the aggregator and admin. Colon-structured values conflict with ATProto's recommended label syntax.
 
@@ -393,13 +393,13 @@ The model returns findings, not labels:
 
 ```ts
 interface ModelFinding {
-  category: AllowedFindingCategory;
-  severity: "critical" | "high" | "medium" | "low" | "info";
-  confidence: number;
-  title: string;
-  summary: string;
-  evidenceRefs: string[];
-  affectedFiles: string[];
+	category: AllowedFindingCategory;
+	severity: "critical" | "high" | "medium" | "low" | "info";
+	confidence: number;
+	title: string;
+	summary: string;
+	evidenceRefs: string[];
+	affectedFiles: string[];
 }
 ```
 
@@ -490,14 +490,14 @@ The purpose-built Kumo console is served by the labeller Worker under `/admin` a
 
 V1 pages:
 
-| Route | Purpose |
-| --- | --- |
-| `/admin` | Queue health, pending/error counts, recent blocking decisions, subscription health |
-| `/admin/assessments` | Filterable assessment list by state, label, publisher, package, model, and policy version |
-| `/admin/assessments/:id` | Public summary, private findings, evidence excerpts, model/scanner provenance, labels, and timeline |
-| `/admin/subjects/:encodedUri` | All assessments and active/historical labels for a release/package/publisher |
-| `/admin/audit-log` | Immutable operator and system action log |
-| `/admin/system` | Read-only policy/model versions, signing key ID, Jetstream cursor, subscriber health, queue/DLQ health |
+| Route                         | Purpose                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `/admin`                      | Queue health, pending/error counts, recent blocking decisions, subscription health                     |
+| `/admin/assessments`          | Filterable assessment list by state, label, publisher, package, model, and policy version              |
+| `/admin/assessments/:id`      | Public summary, private findings, evidence excerpts, model/scanner provenance, labels, and timeline    |
+| `/admin/subjects/:encodedUri` | All assessments and active/historical labels for a release/package/publisher                           |
+| `/admin/audit-log`            | Immutable operator and system action log                                                               |
+| `/admin/system`               | Read-only policy/model versions, signing key ID, Jetstream cursor, subscriber health, queue/DLQ health |
 
 All user-facing strings use Lingui and all layout uses RTL-safe logical classes. The console uses Kumo components rather than hand-rolled controls.
 
@@ -561,8 +561,8 @@ Role mapping is deployment configuration:
 
 ```json
 {
-  "admins": ["emdash-labeller-admins"],
-  "reviewers": ["emdash-labeller-reviewers"]
+	"admins": ["emdash-labeller-admins"],
+	"reviewers": ["emdash-labeller-reviewers"]
 }
 ```
 
@@ -609,25 +609,25 @@ com.emdashcms.experimental.labeller.getPolicy
 
 ```ts
 interface PublicAssessment {
-  id: string;
-  subject: { uri: string; cid: string };
-  artifact: { id: string; checksum: string };
-  state: "pending" | "passed" | "warned" | "blocked" | "error" | "superseded";
-  summary: string;
-  coverage: {
-    code: "complete" | "partial" | "unavailable";
-    metadata: "complete" | "partial" | "unavailable";
-    images: "complete" | "not-present" | "partial" | "unavailable";
-    dependencies: "complete" | "partial" | "unavailable";
-  };
-  labels: Array<{ val: string; active: boolean; issuedAt: string }>;
-  policyVersion: string;
-  model: { provider: "workers-ai"; modelId: string; promptVersion: string };
-  scannerVersions: Record<string, string>;
-  createdAt: string;
-  completedAt?: string;
-  supersedesAssessmentId?: string;
-  reconsiderationUrl: string;
+	id: string;
+	subject: { uri: string; cid: string };
+	artifact: { id: string; checksum: string };
+	state: "pending" | "passed" | "warned" | "blocked" | "error" | "superseded";
+	summary: string;
+	coverage: {
+		code: "complete" | "partial" | "unavailable";
+		metadata: "complete" | "partial" | "unavailable";
+		images: "complete" | "not-present" | "partial" | "unavailable";
+		dependencies: "complete" | "partial" | "unavailable";
+	};
+	labels: Array<{ val: string; active: boolean; issuedAt: string }>;
+	policyVersion: string;
+	model: { provider: "workers-ai"; modelId: string; promptVersion: string };
+	scannerVersions: Record<string, string>;
+	createdAt: string;
+	completedAt?: string;
+	supersedesAssessmentId?: string;
+	reconsiderationUrl: string;
 }
 ```
 
@@ -937,10 +937,10 @@ The registry client exposes one policy helper rather than making every UI or han
 
 ```ts
 interface ReleaseModeration {
-  eligibility: "eligible" | "pending" | "error" | "blocked";
-  blockingLabels: Label[];
-  warningLabels: Label[];
-  assessment?: PublicAssessmentRef;
+	eligibility: "eligible" | "pending" | "error" | "blocked";
+	blockingLabels: Label[];
+	warningLabels: Label[];
+	assessment?: PublicAssessmentRef;
 }
 ```
 
@@ -1058,28 +1058,28 @@ Retention values are policy constants versioned in code and may change after leg
 
 ### 20.1 Threats and mitigations
 
-| Threat | Mitigation |
-| --- | --- |
-| Prompt injection in source/metadata | Delimit untrusted input, strict system task, structured schema, category allowlist, evidence-reference validation |
-| Model false positive blocks legitimate release | Narrow blockable categories, fixture calibration, public explanation, immediate reviewer retraction, immutable audit trail |
-| Model false negative | Defense in depth: deterministic checks, scanners, sandbox enforcement, reports in future, reassessment on intelligence updates |
-| Malicious artifact attacks fetcher/extractor | Mirror preference, checksum verification, SSRF controls, streaming caps, safe archive parsing, time budgets |
-| Aggregator serves wrong artifact | Verify signed release record, CID, and artifact checksum independently |
-| Publisher mutates artifact URL bytes | Checksum binds accepted bytes; mismatch blocks assessment and installation |
-| Forged Jetstream event | Re-fetch and verify signed source record before assessment |
-| Forged label | DRISL signature verification against `#atproto_label` |
-| Signing-key exfiltration through assessor | Typed policy proposal boundary; key accessible only to issuer module; Secrets Store |
-| Access header spoofing | Verify Access JWT signature, issuer, audience, expiry; do not trust raw identity headers |
-| Reviewer account compromise | Role limits, required reasons, confirmation ceremony, alerts, immutable action log |
-| Admin incorrectly issues `!takedown` | Explicit high-friction confirmation, immediate alert, signed negation rollback |
-| Replay/out-of-order labels | Monotonic sequence for stream and latest-`cts` current-state projection |
-| Stale labels after CID update | Automated labels are CID-bound; clients check CID applicability |
-| Package/publisher overreach | Broad labels are manual only; subject-wide action shown explicitly |
-| Assessment absence mistaken for safety | Official clients require positive `assessment-passed` |
-| Labeller outage blocks ecosystem indefinitely | Clear pending/error state, alerts, retry/DLQ, site operators can choose a different trust policy/labeller |
-| Policy/model drift changes outcomes silently | Version all policy/model/prompt/scanner inputs; no automatic whole-catalog rewrite |
-| Dependency scanner noise | Applicability/blocking rule stricter than raw severity score |
-| Evidence leaks vulnerability details | Public/private split and redacted summaries |
+| Threat                                         | Mitigation                                                                                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Prompt injection in source/metadata            | Delimit untrusted input, strict system task, structured schema, category allowlist, evidence-reference validation              |
+| Model false positive blocks legitimate release | Narrow blockable categories, fixture calibration, public explanation, immediate reviewer retraction, immutable audit trail     |
+| Model false negative                           | Defense in depth: deterministic checks, scanners, sandbox enforcement, reports in future, reassessment on intelligence updates |
+| Malicious artifact attacks fetcher/extractor   | Mirror preference, checksum verification, SSRF controls, streaming caps, safe archive parsing, time budgets                    |
+| Aggregator serves wrong artifact               | Verify signed release record, CID, and artifact checksum independently                                                         |
+| Publisher mutates artifact URL bytes           | Checksum binds accepted bytes; mismatch blocks assessment and installation                                                     |
+| Forged Jetstream event                         | Re-fetch and verify signed source record before assessment                                                                     |
+| Forged label                                   | DRISL signature verification against `#atproto_label`                                                                          |
+| Signing-key exfiltration through assessor      | Typed policy proposal boundary; key accessible only to issuer module; Secrets Store                                            |
+| Access header spoofing                         | Verify Access JWT signature, issuer, audience, expiry; do not trust raw identity headers                                       |
+| Reviewer account compromise                    | Role limits, required reasons, confirmation ceremony, alerts, immutable action log                                             |
+| Admin incorrectly issues `!takedown`           | Explicit high-friction confirmation, immediate alert, signed negation rollback                                                 |
+| Replay/out-of-order labels                     | Monotonic sequence for stream and latest-`cts` current-state projection                                                        |
+| Stale labels after CID update                  | Automated labels are CID-bound; clients check CID applicability                                                                |
+| Package/publisher overreach                    | Broad labels are manual only; subject-wide action shown explicitly                                                             |
+| Assessment absence mistaken for safety         | Official clients require positive `assessment-passed`                                                                          |
+| Labeller outage blocks ecosystem indefinitely  | Clear pending/error state, alerts, retry/DLQ, site operators can choose a different trust policy/labeller                      |
+| Policy/model drift changes outcomes silently   | Version all policy/model/prompt/scanner inputs; no automatic whole-catalog rewrite                                             |
+| Dependency scanner noise                       | Applicability/blocking rule stricter than raw severity score                                                                   |
+| Evidence leaks vulnerability details           | Public/private split and redacted summaries                                                                                    |
 
 ### 20.2 Signing proposal validation
 
