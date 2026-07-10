@@ -1,6 +1,6 @@
 # Delegated Release Service Implementation Spec
 
-Status: design draft pending RFC record-shape ratification and Phase 0 feasibility results
+Status: design draft pending Phase 0 external validation
 
 Source: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870), Attested Automated Publishing
 
@@ -1040,15 +1040,16 @@ Run a second suite against real GitHub OIDC and a real supported PDS in a contro
 
 ## Delivery Plan
 
-### Phase 0: Feasibility spikes
+### Phase 0: RFC clarification and external validation
 
-- Prove create-only permission support on target PDSes.
-- Prove confidential `private_key_jwt` OAuth with persistent DPoP session restoration in workerd.
-- Prove distributed refresh locking under concurrent Worker requests.
-- Prove Sigstore/SLSA verification in workerd.
-- Resolve and prototype the aggregator historical-event source needed for policy-at-publication ordering. The prototype must recover two intermediate profile values changed before queue drain, not only their event metadata.
+- Record implementation acceptance criteria for the profile extension, repository anchor, release provenance, and escalation contracts already decided by RFC #1870.
+- Validate create-only permission support on target PDSes outside this repository.
+- Confirm atcute confidential-client persistence, refresh-lock, and key-rotation constraints through external research or a disposable reproduction.
+- Inspect a real GitHub provenance bundle and select the Workers-compatible Sigstore verifier plus exact field mapping.
+- Select an aggregator history source that can retain event-specific signed profile values; document the constraints for the later W10.1 implementation.
+- Use `emdash-plugin` as the v1 public command and update RFC examples accordingly.
 
-Exit criterion: no unresolved platform blocker. These are spikes, not production shortcuts.
+Exit criterion: implementation acceptance criteria accurately reflect RFC #1870 and external validation reveals no incompatible constraint. Gate 0 adds no repository harnesses, production code, test scripts, package dependencies, or CI wiring. If research changes an assumption, commit only the corresponding spec or plan update.
 
 ### Phase 1: Protocol and verification foundation
 
