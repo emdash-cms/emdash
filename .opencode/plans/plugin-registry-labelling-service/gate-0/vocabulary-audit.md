@@ -1,6 +1,6 @@
 # Gate 0 Vocabulary Cutover Audit
 
-Status: W0.3 audit complete; production preflight and policy ratification remain operator decisions.
+Status: W0.3 audit complete. Canonical `security-yanked`, no-new-legacy emission, collision-safe ingest identity, and conditional Branch A were ratified on 2026-07-10. The production preflight remains an operator action.
 
 Scope: tracked source, migrations, tests, documentation, generated contracts, and deployment configuration as of branch `feat/labeller-02-vocabulary-audit`. This audit is read-only. It does not establish production database state.
 
