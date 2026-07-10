@@ -475,9 +475,7 @@ export function Widgets() {
 			{blockSidebarPanel?.type === "image" && (
 				<ImageDetailPanel
 					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-					onUpdate={(attrs) =>
-						blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-					}
+					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 					onReplace={(attrs) =>
 						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
 					}
@@ -819,7 +817,7 @@ function WidgetEditor({
 					<Label className="text-sm font-medium mb-2 block">{t`Content`}</Label>
 					<PortableTextEditor
 						value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
-						onChange={(value) => setContent(value as unknown[])}
+						onChange={(value) => setContent(value)}
 						minimal
 						placeholder={t`Write widget content...`}
 						pluginBlocks={pluginBlocks}

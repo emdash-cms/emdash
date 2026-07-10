@@ -55,7 +55,7 @@ export class EnvCredentialStore implements CredentialStore {
 	readonly #createdAt = Date.now();
 
 	constructor(options: EnvCredentialStoreOptions = {}) {
-		this.#env = options.env ?? (process.env as Record<string, string | undefined>);
+		this.#env = options.env ?? process.env;
 	}
 
 	async current(): Promise<PublisherSession | null> {

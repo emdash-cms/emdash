@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
@@ -33,6 +34,7 @@ import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { STORAGELESS_FIELD_TYPES } from "../../schema/types.js";
+import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
@@ -449,6 +451,30 @@ async function stripStoragelessDataKeys(
 }
 
 /**
+ * Decide whether the content-list `q` filter can be served from the
+ * collection's FTS5 index instead of a full-scan substring LIKE (#1517).
+ *
+ * Requires SQLite (FTS5 is SQLite-only), search enabled on the collection,
+ * every non-slug display column present in the searchable-field set (or the
+ * index would miss matches the LIKE finds), and the index table actually
+ * existing.
+ */
+async function canUseFtsForListFilter(
+	db: Kysely<Database>,
+	collection: string,
+	searchColumns: string[],
+): Promise<boolean> {
+	if (!isSqlite(db)) return false;
+	const ftsManager = new FTSManager(db);
+	const config = await ftsManager.getSearchConfig(collection);
+	if (!config?.enabled) return false;
+	const searchable = new Set(await ftsManager.getSearchableFields(collection));
+	const covered = searchColumns.every((col) => col === "slug" || searchable.has(col));
+	if (!covered) return false;
+	return ftsManager.ftsTableExists(collection);
+}
+
+/**
  * Create a 301 auto-redirect from an entry's old URL to its new one after a
  * slug change, using the collection's URL pattern. Shared by
  * handleContentUpdate (direct slug edits) and handleContentPublish (slug edits
@@ -537,6 +563,7 @@ export async function handleContentList(
 		if (q) {
 			where.q = q;
 			where.searchColumns = await resolveSearchColumns(db, collection);
+			where.useFts = await canUseFtsForListFilter(db, collection, where.searchColumns);
 		}
 
 		const result = await repo.findMany(collection, {

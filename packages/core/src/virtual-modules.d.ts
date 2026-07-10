@@ -20,6 +20,7 @@ declare module "virtual:emdash/config" {
 		auth?: AuthDescriptor;
 		authProviders?: AuthProviderDescriptor[];
 		i18n?: I18nConfig | null;
+		toolbar?: "server" | "client" | false;
 	}
 
 	const config: VirtualConfig;

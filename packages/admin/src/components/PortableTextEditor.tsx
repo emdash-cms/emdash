@@ -2173,10 +2173,7 @@ export function PortableTextEditor({
 	const slashMenuStateRef = React.useRef(slashMenuState);
 	const setSlashMenuState: React.Dispatch<React.SetStateAction<SlashMenuState>> = React.useCallback(
 		(action) => {
-			const next =
-				typeof action === "function"
-					? (action as (prev: SlashMenuState) => SlashMenuState)(slashMenuStateRef.current)
-					: action;
+			const next = typeof action === "function" ? action(slashMenuStateRef.current) : action;
 			slashMenuStateRef.current = next;
 			setSlashMenuStateRaw(next);
 		},

@@ -247,6 +247,10 @@ export type {
 	MediaAccess,
 	HttpAccess,
 	LogAccess,
+	TaxonomyAccess,
+	TaxonomyDefInfo,
+	TaxonomyTermInfo,
+	TaxonomyReadOptions,
 	PluginHooks,
 	HookConfig,
 	HookName,
@@ -404,8 +408,8 @@ export type {
 } from "./settings/types.js";
 
 // SEO
-export { getSeoMeta, getContentSeo } from "./seo/index.js";
-export type { SeoMeta, SeoMetaOptions } from "./seo/index.js";
+export { getSeoMeta, getContentSeo, getHreflangAlternates } from "./seo/index.js";
+export type { SeoMeta, SeoMetaOptions, HreflangAlternate, HreflangOptions } from "./seo/index.js";
 
 // Public page contribution types
 export type {

@@ -367,6 +367,33 @@ emdash({
 
 Uploads that exceed the configured limit are rejected with a `413 Payload Too Large` response on the direct upload path, or a `400 Validation Error` on the signed-URL path.
 
+### `toolbar`
+
+**Optional.** Controls how the editor toolbar (the floating pill on public pages) is delivered. Defaults to `"server"`.
+
+| Value | Behavior |
+| ----- | -------- |
+| `"server"` (default) | The toolbar is injected server-side into every HTML response rendered for an authenticated editor. |
+| `"client"` | Public HTML is identical for every visitor. A tiny bootstrap script shows an "Edit" pill in browsers that have logged into the admin; clicking it verifies the session and reloads the page with an `_edit` query param, which is always rendered fresh (never cached) with the full toolbar. |
+| `false` | Never render the toolbar or the bootstrap script. |
+
+```js
+emdash({
+	toolbar: "client",
+})
+```
+
+Use `"client"` when your public HTML is served through a shared cache (Cloudflare Cache Everything / [Workers Cache](https://developers.cloudflare.com/workers/cache/), Fastly, Varnish, …). With server-side injection, an editor browsing the public site receives the cached anonymous variant — without the toolbar — whenever an anonymous visitor primed the cache first, so the toolbar appears and disappears with cache state. In client mode nothing session-specific is injected into shareable HTML, so the cache stays fully effective and the toolbar is reliable.
+
+Notes on `"client"` mode:
+
+- Logged-out visitors who open a shared `?_edit` URL are redirected to the canonical URL, so the param can't leak drafts or prime extra cache entries with page content.
+- The "logged in" signal is a non-secret `localStorage` flag set by the admin; the pill verifies the real session before entering the edit view.
+- The bootstrap is a small inline `<script>`. If your site sends a strict `Content-Security-Policy` without `'unsafe-inline'`, add a hash for it — the same applies to the server-injected toolbar.
+- EmDash injects nothing session-specific — but if your own templates branch on `Astro.locals.user` (e.g. an "Admin" nav link for logged-in users), that variance is still in your HTML and still fragments the cache.
+
+In every mode, the toolbar can be dismissed in the browser via its × button (per-browser, until the next time an editor opens the admin). Preview and edit-mode responses always render server-side with `Cache-Control: private, no-store`.
+
 ### `experimental`
 
 **Optional.** Opt-in features whose behaviour or wire format may change, or be removed, in a minor release. Each field is independently enabled.

@@ -239,7 +239,7 @@ export function findSourceExports(
 			typeof exportValue === "string"
 				? exportValue
 				: exportValue && typeof exportValue === "object" && "import" in exportValue
-					? typeof (exportValue as { import: unknown }).import === "string"
+					? typeof exportValue.import === "string"
 						? (exportValue as { import: string }).import
 						: null
 					: null;
