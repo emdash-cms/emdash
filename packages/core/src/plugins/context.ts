@@ -199,6 +199,23 @@ async function assertSeoEnabled(
 	return hasSeo;
 }
 
+/**
+ * Parse the `collections` JSON column into a string array (`[]` on anything
+ * else). Mirrors the guards in the Cloudflare/workerd bridges so an
+ * in-process plugin degrades on malformed data instead of crashing.
+ */
+function parseCollectionsColumn(value: string | null): string[] {
+	if (!value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return Array.isArray(parsed)
+			? parsed.filter((item): item is string => typeof item === "string")
+			: [];
+	} catch {
+		return [];
+	}
+}
+
 /** Map a repository `Taxonomy` row to the plugin-facing term shape. */
 function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
 	return {
@@ -313,7 +330,7 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
 				label: row.label,
 				labelSingular: row.label_singular,
 				hierarchical: row.hierarchical === 1,
-				collections: row.collections ? (JSON.parse(row.collections) as string[]) : [],
+				collections: parseCollectionsColumn(row.collections),
 				locale: row.locale,
 			}));
 		},
