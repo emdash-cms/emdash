@@ -8,11 +8,11 @@ Use P-256 (`secp256r1`) with `@atcute/cbor` 2.3.3 and `@atcute/crypto` 2.4.1. Th
 
 P-256 is selected over k256 because the atcute implementation uses the WebCrypto `P-256`/`SHA-256` implementation available in workerd. Signatures are low-S, 64-byte IEEE-P1363 values. Do not accept DER signatures. A startup check must derive the public multikey from the secret and require it to equal the DID/configured key before issuance starts.
 
-The high-level atcute `P256PrivateKey.sign(data)` and `P256PublicKey.verify(sig, data)` APIs perform SHA-256 as part of WebCrypto ECDSA. They therefore receive canonical CBOR bytes, not an already computed digest. The fixture records the intermediate SHA-256 digest required by the protocol; passing that digest to these APIs would hash twice.
+The high-level atcute `P256PrivateKey.sign(data)` and `P256PublicKey.verify(sig, data)` APIs perform SHA-256 as part of WebCrypto ECDSA. They therefore receive canonical CBOR bytes, not an already computed digest. Passing that digest to these APIs would hash twice.
 
 ## Signed shape
 
-The retained workerd harness reconstructs a label from this unsigned v1 allowlist only:
+The W0 spike reconstructed a label from this unsigned v1 allowlist only:
 
 `ver`, `src`, `uri`, `cid`, `val`, `neg`, `cts`, `exp`
 
@@ -28,27 +28,18 @@ Resolve the issuer DID document and normalize relative `#atproto_label` and full
 
 The independent implementation is Bluesky's `@atproto/crypto` 0.4.5 from <https://github.com/bluesky-social/atproto/tree/main/packages/crypto>, dual licensed MIT or Apache-2.0. It is independent of the Mary-ext atcute implementation and uses Noble Curves rather than WebCrypto for P-256.
 
-The committed fixture is reproducible from test-only private scalar `0x01`:
+The spike used test-only private scalar `0x01`:
 
 - `@atcute/cbor` produced the canonical payload bytes.
 - `@atproto/crypto` produced the deterministic `atprotoReferenceHex` signature; workerd/atcute verifies it.
-- Actual workerd `@atcute/crypto` produced `atcuteWebcryptoHex`; the retained Node test calls `@atproto/crypto.verifySignature` over it.
+- Actual workerd `@atcute/crypto` produced a signature that `@atproto/crypto.verifySignature` accepted.
 - Both implementations derived the same compressed public key and P-256 `did:key` multikey.
 
-The vector is test material, not a usable deployment key. Its canonical CBOR bytes, SHA-256 hash, two signatures, raw compressed public key, public multikey, and reproducible test private scalar are retained at `packages/atproto-test-utils/tests/fixtures/p256-label-v1.json` for W1.4. This Gate 0 plan document is explanatory only; retained tests and production code must not import or otherwise depend on files under `.opencode/plans`.
+The spike vector was test material, not a usable deployment key. It established the selected API/key contract but is not retained as a product test fixture because no EmDash signer/verifier exists yet. When W1.4 implements `signLabel` and `verifyLabel`, it must add fresh external vectors and cross-implementation tests alongside that implementation. This Gate 0 document is explanatory only; retained tests and production code must not import or otherwise depend on files under `.opencode/plans`.
 
-## Commands and results
+## Spike result
 
-Run from the repository root:
-
-```sh
-pnpm --filter @emdash-cms/atproto-test-utils exec vitest run tests/label-crypto-vector.test.ts
-pnpm --filter @emdash-cms/aggregator exec vitest run test/label-crypto-interop.test.ts
-```
-
-The first command is the retained Node generator/assertion. It reproduces the canonical CBOR bytes, SHA-256 hash, public key forms, and deterministic `@atproto/crypto` reference signature from the test scalar, then independently verifies the retained atcute workerd signature. No fixture boolean stands in for execution.
-
-The second command runs the selected atcute API in workerd. It proves local signing and verification, verifies the independently generated signature, and exercises all signer/key rejection boundaries. Both commands must pass whenever the vector changes.
+The feasibility spike ran both workerd atcute and independent `@atproto/crypto` verification. It confirmed canonical-CBOR input, P-256 compact signature interoperability, the field allowlist, scalar validation, normalized DID member IDs, signer/DID key equality, and rejection paths described below. The spike harness is intentionally not retained in the product test suite; W1.4 recreates equivalent coverage against EmDash's actual signer/verifier code.
 
 ## Rejections proved
 

@@ -163,7 +163,6 @@ Required before production implementation is treated as stable:
 - The aggregator mirror contract can supply artifact bytes and metadata required by the assessor.
 - Initial dependency/advisory sources and critical-applicability rules are selected.
 - The initial Workers AI model and structured-output path can process representative plugin inputs through AI Gateway.
-- Cloudflare Access JWT validation, configurable claim extraction, and human/service-token distinction are proved without assuming an organization-specific role schema.
 
 Gate owner: `W0`.
 
@@ -341,23 +340,9 @@ Output: versioned adapter choices and calibration baseline.
 
 Dependencies: policy fixtures from `W0.2`.
 
-### `W0.8` Prove Access JWT mechanics
-
-Create staging Access policies and verify:
-
-- JWT issuer, audience, signature, expiry, and not-before validation.
-- JWKS retrieval/cache/rotation behavior.
-- Configurable extraction of a role claim without assuming a Cloudflare organization-specific group or email shape.
-- Human and service-token identity distinction.
-- Missing claim, malformed token, and spoofed header behavior.
-
-Output: generic Access validation contract and JWT fixtures consumed by W9. Deployment configuration supplies the actual role mapping.
-
-Dependencies: none.
-
 ### W0 Completion
 
-Gate 0 passes. Failed crypto, identity, mirror, model, scanner, or Access assumptions change the spec before downstream production work continues.
+Gate 0 passes. Failed crypto, identity, mirror, model, or scanner assumptions change the spec before downstream production work continues.
 
 ## Workstream W1: Shared Protocol and Policy
 
