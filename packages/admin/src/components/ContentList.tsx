@@ -30,7 +30,7 @@ import * as React from "react";
 import type { ContentAuthor, ContentDateField, ContentItem, TrashedContentItem } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { contentUrl } from "../lib/url.js";
-import { cn } from "../lib/utils";
+import { cn, parseTimestamp } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
@@ -961,7 +961,7 @@ function ContentListItem({
 }: ContentListItemProps) {
 	const { t } = useLingui();
 	const title = getItemTitle(item);
-	const date = new Date(item.updatedAt || item.createdAt);
+	const date = parseTimestamp(item.updatedAt || item.createdAt);
 
 	return (
 		<tr className={cn("hover:bg-kumo-tint/25", selected && "bg-kumo-tint/40")}>
@@ -1080,7 +1080,7 @@ interface TrashedListItemProps {
 function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItemProps) {
 	const { t } = useLingui();
 	const title = getItemTitle(item);
-	const deletedDate = new Date(item.deletedAt);
+	const deletedDate = parseTimestamp(item.deletedAt);
 
 	return (
 		<tr className="hover:bg-kumo-tint/25">
