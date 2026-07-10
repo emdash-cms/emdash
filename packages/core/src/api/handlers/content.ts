@@ -37,6 +37,7 @@ import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
+import { setReferenceChildren } from "./relations.js";
 import { validateMediaFields } from "./validate-media-fields.js";
 
 /**
@@ -676,6 +677,8 @@ export async function handleContentCreate(
 		translationOf?: string;
 		seo?: ContentSeoInput;
 		taxonomies?: Record<string, string[]>;
+		/** Reference fields: relation translation_group → ordered child entry ids. */
+		references?: Record<string, string[]>;
 		createdAt?: string | null;
 		publishedAt?: string | null;
 	},
@@ -788,6 +791,27 @@ export async function handleContentCreate(
 				await assignTaxonomies(trx, collection, created.id, effectiveLocale, body.taxonomies);
 			}
 
+			// Attach reference edges in the same transaction: a relation or
+			// child id that fails to resolve throws with a structured
+			// `apiError`, aborting the whole save so no half-written entry
+			// (with taxonomies/bylines/SEO already committed) is left behind.
+			if (body.references) {
+				for (const [relationGroup, childIds] of Object.entries(body.references)) {
+					const set = await setReferenceChildren(
+						trx,
+						collection,
+						created.id,
+						relationGroup,
+						childIds,
+					);
+					if (!set.success) {
+						throw Object.assign(new Error(set.error.message), {
+							apiError: { code: set.error.code },
+						});
+					}
+				}
+			}
+
 			return created;
 		});
 
@@ -796,6 +820,14 @@ export async function handleContentCreate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		// Handle structured errors thrown from inside the transaction (e.g. a
+		// reference resolution failure from `setReferenceChildren`).
+		if (hasApiError(error)) {
+			return {
+				success: false,
+				error: { code: error.apiError.code, message: error.message },
+			};
+		}
 		if (isMissingTableError(error)) {
 			return {
 				success: false,
@@ -868,6 +900,8 @@ export async function handleContentUpdate(
 		_rev?: string;
 		seo?: ContentSeoInput;
 		taxonomies?: Record<string, string[]>;
+		/** Reference fields: relation translation_group → ordered child entry ids. */
+		references?: Record<string, string[]>;
 		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
@@ -987,6 +1021,26 @@ export async function handleContentUpdate(
 					updated.locale ?? body.locale,
 					body.taxonomies,
 				);
+			}
+
+			// Replace reference edges in the same transaction. See the matching
+			// block in handleContentCreate: a resolution failure throws with a
+			// structured `apiError`, aborting the whole update.
+			if (body.references) {
+				for (const [relationGroup, childIds] of Object.entries(body.references)) {
+					const set = await setReferenceChildren(
+						trx,
+						collection,
+						resolvedId,
+						relationGroup,
+						childIds,
+					);
+					if (!set.success) {
+						throw Object.assign(new Error(set.error.message), {
+							apiError: { code: set.error.code },
+						});
+					}
+				}
 			}
 
 			return updated;

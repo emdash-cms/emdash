@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 
 import { handleContentCreate } from "../../../src/api/handlers/content.js";
 import { setReferenceChildren } from "../../../src/api/handlers/relations.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RelationRepository } from "../../../src/database/repositories/relation.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { describeEachDialect, setupForDialect, teardownForDialect } from "../../utils/test-db.js";
@@ -104,6 +105,88 @@ describeEachDialect("setReferenceChildren", (dialect) => {
 			expect(pageAfterBad.items.map((i) => i.childGroup).toSorted()).toEqual(
 				[childA.data.item.id, childB.data.item.id].toSorted(),
 			);
+		} finally {
+			await teardownForDialect(ctx);
+		}
+	});
+});
+
+describeEachDialect("content create with a `references` key", (dialect) => {
+	let ctx: DialectTestContext;
+
+	it("writes reference edges atomically with the entry on create", async () => {
+		ctx = await setupForDialect(dialect);
+		try {
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
+			await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+
+			const relationRepo = new RelationRepository(ctx.db);
+			const relation = await relationRepo.create({
+				name: "related_posts",
+				parentCollection: "posts",
+				childCollection: "posts",
+				parentLabel: "Related posts",
+				childLabel: "Related to",
+			});
+
+			const childA = await handleContentCreate(ctx.db, "posts", { data: { title: "Child A" } });
+			const childB = await handleContentCreate(ctx.db, "posts", { data: { title: "Child B" } });
+			expect(childA.success).toBe(true);
+			expect(childB.success).toBe(true);
+			if (!childA.success || !childB.success) return;
+
+			const res = await handleContentCreate(ctx.db, "posts", {
+				data: { title: "Parent" },
+				references: {
+					[relation.translationGroup]: [childA.data.item.id, childB.data.item.id],
+				},
+			});
+			expect(res.success).toBe(true);
+			if (!res.success) return;
+
+			// Read back through the same edge read the REST endpoint uses —
+			// order must match the input array (sort_order is positional).
+			const page = await relationRepo.getChildrenPage(relation.translationGroup, res.data.item.id);
+			expect(page.items.map((i) => i.childGroup)).toEqual([
+				childA.data.item.id,
+				childB.data.item.id,
+			]);
+		} finally {
+			await teardownForDialect(ctx);
+		}
+	});
+
+	it("rejects the whole save when a reference child is invalid", async () => {
+		ctx = await setupForDialect(dialect);
+		try {
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
+			await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+
+			const relationRepo = new RelationRepository(ctx.db);
+			const relation = await relationRepo.create({
+				name: "related_posts",
+				parentCollection: "posts",
+				childCollection: "posts",
+				parentLabel: "Related posts",
+				childLabel: "Related to",
+			});
+
+			const contentRepo = new ContentRepository(ctx.db);
+			const countBefore = await contentRepo.count("posts");
+
+			const res = await handleContentCreate(ctx.db, "posts", {
+				data: { title: "Parent" },
+				references: { [relation.translationGroup]: ["does-not-exist"] },
+			});
+			expect(res.success).toBe(false);
+			if (!res.success) expect(res.error.code).toBe("NOT_FOUND");
+
+			// The entry must NOT be persisted — a bad reference aborts the whole
+			// transaction, not just the reference write, so no half-written entry.
+			const countAfter = await contentRepo.count("posts");
+			expect(countAfter).toBe(countBefore);
 		} finally {
 			await teardownForDialect(ctx);
 		}
