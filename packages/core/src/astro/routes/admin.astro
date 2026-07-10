@@ -42,15 +42,21 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 // which also brands wp-admin), and finally the bundled EmDash mark below.
 const emdash = Astro.locals.emdash;
 let siteFavicon: string | undefined;
+let siteFaviconType: string | undefined;
 if (!adminConfig?.favicon && emdash?.db) {
 	try {
 		const settings = await getSiteSettingsWithDb(emdash.db, emdash.storage ?? null);
 		siteFavicon = settings.favicon?.url ?? undefined;
+		siteFaviconType = settings.favicon?.contentType ?? undefined;
 	} catch {
 		// Settings unavailable (e.g. pre-setup) — fall back to the config/default.
 	}
 }
 const favicon = adminConfig?.favicon ?? siteFavicon;
+// The media-file URL has no extension, so browsers need the MIME type —
+// Chromium ignores SVG favicons without type="image/svg+xml". Only set for
+// Site Icons; build-time `admin.favicon` strings keep their current behavior.
+const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 ---
 
 <!doctype html>
@@ -61,7 +67,7 @@ const favicon = adminConfig?.favicon ?? siteFavicon;
 		<link rel="stylesheet" href={adminStylesUrl} />
 		<Font cssVariable="--font-emdash" />
 		{favicon ? (
-			<link rel="icon" href={favicon} />
+			<link rel="icon" href={favicon} type={faviconType} />
 		) : (
 			<link
 				rel="icon"

@@ -380,3 +380,56 @@ test.describe("Autosave after perf optimizations", () => {
 		expect(postData).toContain("ABCDEF");
 	});
 });
+
+// ==========================================================================
+// Admin favicon uses the configured Site Icon (#1477)
+// ==========================================================================
+
+test.describe("Admin favicon from Site Icon", () => {
+	test("admin shell links the Site Icon with its MIME type", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		await admin.devBypassAuth();
+		const baseUrl = serverInfo.baseUrl;
+		const headers = apiHeaders(serverInfo.token, baseUrl);
+
+		// Upload an SVG — the case that needs type="image/svg+xml" (Chromium
+		// ignores SVG favicons served from extension-less URLs without it).
+		const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect fill="red" width="1" height="1"/></svg>`;
+		const form = new FormData();
+		form.append("file", new File([svg], "e2e-site-icon.svg", { type: "image/svg+xml" }));
+		const uploadRes = await fetch(`${baseUrl}/_emdash/api/media`, {
+			method: "POST",
+			// No Content-Type header — fetch sets the multipart boundary itself
+			headers: {
+				Authorization: headers.Authorization,
+				"X-EmDash-Request": "1",
+				Origin: baseUrl,
+			},
+			body: form,
+		});
+		if (!uploadRes.ok) {
+			test.skip();
+			return;
+		}
+		const uploadData: any = await uploadRes.json();
+		const mediaId = uploadData.data?.item?.id;
+		expect(mediaId).toBeTruthy();
+
+		// Set it as the Site Icon
+		const settingsRes = await fetch(`${baseUrl}/_emdash/api/settings`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ favicon: { mediaId } }),
+		});
+		expect(settingsRes.ok).toBe(true);
+
+		// The admin shell should link the Site Icon and carry its MIME type
+		await page.goto(`${baseUrl}/_emdash/admin`);
+		const icon = page.locator('link[rel="icon"]');
+		await expect(icon).toHaveAttribute("href", /\/_emdash\/api\/media\/file\//);
+		await expect(icon).toHaveAttribute("type", "image/svg+xml");
+	});
+});
