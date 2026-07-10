@@ -31,6 +31,8 @@ import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { STORAGELESS_FIELD_TYPES } from "../../schema/types.js";
+import type { FieldType } from "../../schema/types.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
@@ -327,6 +329,39 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		if (fieldSlugs.has(candidate)) columns.push(candidate);
 	}
 	return columns;
+}
+
+/**
+ * Remove storage-less field keys (e.g. reference) from a content `data` payload
+ * before it reaches the column writer, which would otherwise throw "no such
+ * column". Defensive for direct API users; the admin sends references in the
+ * dedicated `references` key, not in `data`.
+ */
+async function stripStoragelessDataKeys(
+	db: Kysely<Database>,
+	collection: string,
+	data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	if (!collectionRow) return data;
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select(["slug", "type"])
+		.where("collection_id", "=", collectionRow.id)
+		.execute();
+	const storageless = new Set(
+		fields.filter((f) => STORAGELESS_FIELD_TYPES.has(f.type as FieldType)).map((f) => f.slug),
+	);
+	if (storageless.size === 0) return data;
+	const cleaned: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(data)) {
+		if (!storageless.has(k)) cleaned[k] = v;
+	}
+	return cleaned;
 }
 
 /**
@@ -659,6 +694,8 @@ export async function handleContentCreate(
 			};
 		}
 
+		body.data = await stripStoragelessDataKeys(db, collection, body.data);
+
 		const mimeCheck = await validateMediaFields(db, collection, body.data);
 		if (!mimeCheck.success) return mimeCheck;
 
@@ -849,6 +886,7 @@ export async function handleContentUpdate(
 		}
 
 		if (body.data) {
+			body.data = await stripStoragelessDataKeys(db, collection, body.data);
 			const mimeCheck = await validateMediaFields(db, collection, body.data);
 			if (!mimeCheck.success) return mimeCheck;
 		}
