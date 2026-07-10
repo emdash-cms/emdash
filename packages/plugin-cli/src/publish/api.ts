@@ -277,6 +277,7 @@ interface PackageProfileRecordShape {
 	description?: string;
 	keywords?: string[];
 	sections?: Record<string, string>;
+	extensions?: Record<string, unknown>;
 }
 
 /** An image artifact embedded in a release (`release.json#artifact`). */
@@ -709,11 +710,9 @@ async function getRecordOrNull(
  * update rather than overwriting an invalid record with a slightly-different
  * invalid record).
  *
- * Unknown / extra fields on the existing record are intentionally preserved
- * verbatim via the spread. If they violate the lexicon, the local
- * `validateLocally` pass before `applyWrites` will reject the candidate
- * with a `LEXICON_VALIDATION_FAILED` error rather than letting an invalid
- * record propagate to the registry.
+ * The canonical profile fields are re-emitted explicitly. A valid keyed
+ * `extensions` map is preserved verbatim; other unknown top-level fields
+ * remain excluded from the canonical update path.
  */
 function stampLastUpdated(existingValue: unknown): PackageProfileRecordShape | null {
 	if (!existingValue || typeof existingValue !== "object") return null;
@@ -745,6 +744,9 @@ function stampLastUpdated(existingValue: unknown): PackageProfileRecordShape | n
 	if (typeof v.description === "string") candidate.description = v.description;
 	if (Array.isArray(v.keywords)) candidate.keywords = v.keywords;
 	if (v.sections && typeof v.sections === "object") candidate.sections = v.sections;
+	if (v.extensions && typeof v.extensions === "object" && !Array.isArray(v.extensions)) {
+		candidate.extensions = v.extensions;
+	}
 	return candidate as unknown as PackageProfileRecordShape;
 }
 

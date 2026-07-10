@@ -224,10 +224,22 @@ describe("updatePackage", () => {
 			expect(pds.callsTo("com.atproto.repo.putRecord")).toHaveLength(0);
 		});
 
-		it("preserves unknown forward-compatible fields on the existing record", async () => {
+		it("preserves extensions and unknown forward-compatible fields on the existing record", async () => {
 			const pds = new MockPds({ did: TEST_DID });
+			const extensions = {
+				[NSID.packageProfileExtension]: {
+					$type: NSID.packageProfileExtension,
+					repository: "https://github.com/example/test-plugin",
+					releasePolicy: { requireProvenance: true },
+				},
+				"com.example.unknown.extension": {
+					$type: "com.example.unknown.extension",
+					value: { preserve: ["this", "exactly"] },
+				},
+			};
 			seedProfile(pds, {
 				sections: { description: "long-form text" },
+				extensions,
 				someFutureField: { nested: true },
 			});
 
@@ -242,6 +254,7 @@ describe("updatePackage", () => {
 			const stored = pds.records.get(`at://${TEST_DID}/${NSID.packageProfile}/${SLUG}`);
 			const value = stored!.value as Record<string, unknown>;
 			expect(value.sections).toEqual({ description: "long-form text" });
+			expect(value.extensions).toEqual(extensions);
 			expect(value.someFutureField).toEqual({ nested: true });
 		});
 	});
