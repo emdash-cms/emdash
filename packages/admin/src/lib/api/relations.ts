@@ -19,6 +19,8 @@ export interface EntryRef {
 	id: string;
 	slug: string | null;
 	collection: string;
+	/** Display label from the entry's title/name field; null when neither is set. */
+	title: string | null;
 	locale: string | null;
 	sortOrder?: number;
 }

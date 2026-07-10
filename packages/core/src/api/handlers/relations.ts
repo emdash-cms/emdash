@@ -223,10 +223,24 @@ export type EntryRef = {
 	id: string;
 	slug: string | null;
 	collection: string;
+	/**
+	 * Display label sourced from the entry's `title`, then `name`, field —
+	 * `null` when neither is set, leaving the client to fall back to slug/id.
+	 * A stopgap until declarative display fields land; mirrors the admin's own
+	 * title/name resolution.
+	 */
+	title: string | null;
 	/** The actual locale of the resolved variant — see `pickVariant`. */
 	locale: string | null;
 	sortOrder?: number;
 };
+
+/** Display title for a resolved entry: `title`, then `name`, else null. */
+function entryTitle(data: Record<string, unknown>): string | null {
+	if (typeof data.title === "string" && data.title.length > 0) return data.title;
+	if (typeof data.name === "string" && data.name.length > 0) return data.name;
+	return null;
+}
 
 /** Resolve a relation from an id OR its translation_group. */
 async function resolveRelation(
@@ -296,6 +310,7 @@ export async function resolveEntries(
 			id: entry.id,
 			slug: entry.slug,
 			collection,
+			title: entryTitle(entry.data),
 			locale: entry.locale,
 			sortOrder: edge.sortOrder,
 		});

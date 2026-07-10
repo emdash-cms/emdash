@@ -185,6 +185,34 @@ describeEachDialect("reference children handlers", (dialect) => {
 		expect(result.error.code).toBe("NOT_FOUND");
 	});
 
+	it("parents resolves by translation_group but not by relation name", async () => {
+		// The backlinks sidebar keys its fetch on the relation's translation_group
+		// (like the children flow), not its `name` — the resolver only accepts an
+		// id or a group, so a name-keyed read must 404.
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({ type: "post", slug: "p", data: { title: "P" } });
+		const child = await content.create({ type: "page", slug: "c", data: { title: "C" } });
+		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [child.id]);
+
+		const byGroup = await handleReferenceParentsGet(
+			ctx.db,
+			"page",
+			child.id,
+			rel.translationGroup,
+			{},
+			true,
+		);
+		expect(byGroup.success).toBe(true);
+		if (!byGroup.success) return;
+		expect(byGroup.data.parents.map((p) => p.slug)).toEqual(["p"]);
+
+		const byName = await handleReferenceParentsGet(ctx.db, "page", child.id, rel.name, {}, true);
+		expect(byName.success).toBe(false);
+		if (byName.success) return;
+		expect(byName.error.code).toBe("NOT_FOUND");
+	});
+
 	it("entry on the wrong side (child collection) is VALIDATION_ERROR", async () => {
 		const rel = await makeRelation();
 		const content = new ContentRepository(ctx.db);
@@ -222,6 +250,30 @@ describeEachDialect("reference children handlers", (dialect) => {
 		if (!result.success) return;
 		expect(result.data.parents.map((p) => p.slug)).toEqual(["p"]);
 		expect(result.data.parents.every((p) => p.collection === "post")).toBe(true);
+	});
+
+	it("resolved refs carry a display title from the entry's title field", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({
+			type: "post",
+			slug: "p",
+			data: { title: "Parent Title" },
+		});
+		const titled = await content.create({ type: "page", slug: "t", data: { title: "Titled" } });
+		// No title -> null, leaving the client to fall back to slug/id.
+		const untitled = await content.create({ type: "page", slug: "u", data: {} });
+		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [titled.id, untitled.id]);
+
+		const children = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, {}, true);
+		expect(children.success).toBe(true);
+		if (!children.success) return;
+		expect(children.data.children.map((c) => c.title)).toEqual(["Titled", null]);
+
+		const parents = await handleReferenceParentsGet(ctx.db, "page", titled.id, rel.id, {}, true);
+		expect(parents.success).toBe(true);
+		if (!parents.success) return;
+		expect(parents.data.parents.map((p) => p.title)).toEqual(["Parent Title"]);
 	});
 
 	it("parents rejects an entry on the parent side", async () => {

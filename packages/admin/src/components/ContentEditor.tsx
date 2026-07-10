@@ -104,8 +104,9 @@ export interface FieldDescriptor {
 }
 
 /**
- * A single staged reference row in the editor. `title` is populated by the
- * picker for freshly added rows; hydrated rows fall back to slug/id for display.
+ * A single staged reference row in the editor. `title` comes from the picker
+ * for freshly added rows and from the server's resolved refs for hydrated rows;
+ * it falls back to slug/id for display when the entry has no title/name.
  */
 export type ReferenceEntryRow = {
 	id: string;
@@ -133,6 +134,7 @@ function seedReferenceState(item?: ContentItem | null): Record<string, Reference
 		const rows: ReferenceEntryRow[] = page.children.map((c) => ({
 			id: c.id,
 			slug: c.slug,
+			title: c.title ?? undefined,
 			locale: c.locale,
 		}));
 		out[group] = { baseline: rows, current: rows, nextCursor: page.nextCursor, loading: false };
@@ -530,6 +532,7 @@ export function ContentEditor({
 				const rows: ReferenceEntryRow[] = res.children.map((c) => ({
 					id: c.id,
 					slug: c.slug,
+					title: c.title ?? undefined,
 					locale: c.locale,
 				}));
 				setReferenceState((prev) => {

@@ -276,6 +276,7 @@ export interface ContentItem {
 				id: string;
 				slug: string | null;
 				collection: string;
+				title: string | null;
 				locale: string | null;
 				sortOrder?: number;
 			}>;

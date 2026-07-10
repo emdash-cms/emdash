@@ -71,7 +71,9 @@ export function ReferencesSidebar({ collection, entryId, entryLocale }: Referenc
 		void (async () => {
 			for (const rel of applicableRelations) {
 				try {
-					const res = await fetchReferenceParents(collection, entryId, rel.name, {
+					// The edge endpoints resolve a relation by id or translation_group,
+					// never by `name` — passing the group mirrors the children flow.
+					const res = await fetchReferenceParents(collection, entryId, rel.translationGroup, {
 						limit: PAGE_SIZE,
 					});
 					if (cancelled) return;
@@ -109,7 +111,7 @@ export function ReferencesSidebar({ collection, entryId, entryLocale }: Referenc
 			});
 			if (!cursor) return;
 			try {
-				const res = await fetchReferenceParents(collection, entryId, rel.name, {
+				const res = await fetchReferenceParents(collection, entryId, rel.translationGroup, {
 					cursor,
 					limit: PAGE_SIZE,
 				});
@@ -163,7 +165,7 @@ export function ReferencesSidebar({ collection, entryId, entryLocale }: Referenc
 											search={{ locale: parent.locale ?? undefined }}
 											className="font-medium hover:text-kumo-brand"
 										>
-											{parent.slug ?? parent.id}
+											{parent.title || parent.slug || parent.id}
 										</Link>
 									</li>
 								))}
