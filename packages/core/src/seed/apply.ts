@@ -10,6 +10,8 @@ import type { Kysely } from "kysely";
 import mime from "mime/lite";
 import { ulid } from "ulidx";
 
+import { setReferenceChildren } from "../api/handlers/relations.js";
+import { createFieldRelation } from "../api/handlers/schema.js";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
@@ -23,11 +25,13 @@ import { getI18nConfig } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { SchemaRegistry } from "../schema/registry.js";
+import type { Field } from "../schema/types.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { setSiteSettings } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import type {
 	SeedFile,
+	SeedField,
 	SeedApplyOptions,
 	SeedApplyResult,
 	SeedTaxonomyTerm,
@@ -186,34 +190,9 @@ export async function applySeed(
 					// Update or create fields
 					for (const field of collection.fields) {
 						const existingField = await registry.getField(collection.slug, field.slug);
-						if (existingField) {
-							await registry.updateField(collection.slug, field.slug, {
-								label: field.label,
-								type: field.type,
-								required: field.required || false,
-								unique: field.unique || false,
-								searchable: field.searchable || false,
-								defaultValue: field.defaultValue,
-								validation: field.validation,
-								widget: field.widget,
-								options: field.options,
-							});
-							result.fields.updated++;
-						} else {
-							await registry.createField(collection.slug, {
-								slug: field.slug,
-								label: field.label,
-								type: field.type,
-								required: field.required || false,
-								unique: field.unique || false,
-								searchable: field.searchable || false,
-								defaultValue: field.defaultValue,
-								validation: field.validation,
-								widget: field.widget,
-								options: field.options,
-							});
-							result.fields.created++;
-						}
+						await upsertSeedField(db, collection.slug, field, existingField);
+						if (existingField) result.fields.updated++;
+						else result.fields.created++;
 					}
 					continue;
 				}
@@ -240,18 +219,7 @@ export async function applySeed(
 
 			// Create fields
 			for (const field of collection.fields) {
-				await registry.createField(collection.slug, {
-					slug: field.slug,
-					label: field.label,
-					type: field.type,
-					required: field.required || false,
-					unique: field.unique || false,
-					searchable: field.searchable || false,
-					defaultValue: field.defaultValue,
-					validation: field.validation,
-					widget: field.widget,
-					options: field.options,
-				});
+				await upsertSeedField(db, collection.slug, field, null);
 				result.fields.created++;
 			}
 		}
@@ -485,6 +453,13 @@ export async function applySeed(
 								mediaContext,
 								result,
 							);
+							// Reference fields are storage-less — route their resolved values to
+							// edges and keep them out of the column/revision data.
+							const { columnData, edges } = await splitReferenceFields(
+								db,
+								collectionSlug,
+								resolvedData,
+							);
 
 							// Update content + bylines + taxonomies atomically
 							const status = entry.status || "published";
@@ -497,7 +472,7 @@ export async function applySeed(
 
 									await trxContentRepo.update(collectionSlug, existing.id, {
 										status,
-										data: resolvedData,
+										data: columnData,
 									});
 									contentMutated = true;
 
@@ -510,6 +485,7 @@ export async function applySeed(
 										true,
 									);
 									await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+									await applyContentReferences(trx, collectionSlug, existing.id, edges);
 
 									// Seed is declarative — when status is "published", promote to a live
 									// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
@@ -522,7 +498,7 @@ export async function applySeed(
 										const draft = await trxRevisionRepo.create({
 											collection: collectionSlug,
 											entryId: existing.id,
-											data: resolvedData,
+											data: columnData,
 										});
 										await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
 										await trxContentRepo.publish(collectionSlug, existing.id);
@@ -547,6 +523,13 @@ export async function applySeed(
 
 					// Resolve $ref and $media in data
 					const resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
+					// Reference fields are storage-less — route their resolved values to
+					// edges and keep them out of the column/revision data.
+					const { columnData, edges } = await splitReferenceFields(
+						db,
+						collectionSlug,
+						resolvedData,
+					);
 
 					// Resolve translationOf: map from seed-local ID to real EmDash ID
 					let translationOf: string | undefined;
@@ -574,7 +557,7 @@ export async function applySeed(
 								type: collectionSlug,
 								slug: entry.slug,
 								status,
-								data: resolvedData,
+								data: columnData,
 								locale: entryLocale,
 								translationOf,
 								publishedAt: status === "published" ? new Date().toISOString() : null,
@@ -589,6 +572,7 @@ export async function applySeed(
 								seedBylineIdMap,
 							);
 							await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+							await applyContentReferences(trx, collectionSlug, item.id, edges);
 
 							// Seed is declarative — when status is "published", promote to a live
 							// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
@@ -981,6 +965,159 @@ async function applyContentBylines(
  * Apply taxonomy term assignments to a content entry.
  * In update mode, clears existing assignments before re-attaching.
  */
+/**
+ * Create or update a field from a seed.
+ *
+ * Reference fields are storage-less (migration 043): they persist no column,
+ * their edges live in `_emdash_content_references`, and each is backed by a
+ * relation definition. Seeds create fields through the registry (not the schema
+ * handler that owns the relation lifecycle), so this mirrors the handler — it
+ * creates the relation on first insert (field + relation in one transaction)
+ * and preserves the server-assigned `validation.relation`/`targetCollection` on
+ * re-apply, since a seed's field validation omits them and would otherwise
+ * orphan the relation. A reference field with no `targetCollection` cannot form
+ * a relation, so it is created as an inert storage-less field.
+ */
+async function upsertSeedField(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	field: SeedField,
+	existing: Field | null,
+): Promise<void> {
+	if (existing) {
+		const validation =
+			field.type === "reference" && existing.validation?.relation
+				? {
+						...field.validation,
+						relation: existing.validation.relation,
+						targetCollection: existing.validation.targetCollection,
+					}
+				: field.validation;
+		const registry = new SchemaRegistry(db);
+		await registry.updateField(collectionSlug, field.slug, {
+			label: field.label,
+			type: field.type,
+			required: field.required || false,
+			unique: field.unique || false,
+			searchable: field.searchable || false,
+			defaultValue: field.defaultValue,
+			validation,
+			widget: field.widget,
+			options: field.options,
+		});
+		return;
+	}
+
+	const input = {
+		slug: field.slug,
+		label: field.label,
+		type: field.type,
+		required: field.required || false,
+		unique: field.unique || false,
+		searchable: field.searchable || false,
+		defaultValue: field.defaultValue,
+		validation: field.validation,
+		widget: field.widget,
+		options: field.options,
+	};
+
+	const targetCollection =
+		field.type === "reference" && typeof field.validation?.targetCollection === "string"
+			? field.validation.targetCollection
+			: undefined;
+
+	if (targetCollection) {
+		await withTransaction(db, async (trx) => {
+			const relation = await createFieldRelation(
+				trx,
+				collectionSlug,
+				field.slug,
+				field.label,
+				targetCollection,
+			);
+			const registry = new SchemaRegistry(trx);
+			await registry.createField(collectionSlug, {
+				...input,
+				validation: { ...field.validation, relation: relation.translationGroup },
+			});
+		});
+		return;
+	}
+
+	const registry = new SchemaRegistry(db);
+	await registry.createField(collectionSlug, input);
+}
+
+/**
+ * Split resolved content `data` into the plain column data and the reference
+ * edge writes. Reference fields are storage-less, so a reference key left in
+ * `data` would hit the column writer (and `syncDataColumns` on publish) and
+ * throw "no such column". Their `$ref:`-resolved value — a child entry id or an
+ * array of them — is captured as an edge write instead, keyed by the field's
+ * relation group. A reference field with no relation drops its value (nothing
+ * can store it), matching the content handler's defensive strip.
+ */
+async function splitReferenceFields(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	data: Record<string, unknown>,
+): Promise<{
+	columnData: Record<string, unknown>;
+	edges: Array<{ relationGroup: string; childIds: string[] }>;
+}> {
+	const registry = new SchemaRegistry(db);
+	const collection = await registry.getCollectionWithFields(collectionSlug);
+	const referenceFields = new Map(
+		(collection?.fields ?? []).filter((f) => f.type === "reference").map((f) => [f.slug, f]),
+	);
+	if (referenceFields.size === 0) return { columnData: data, edges: [] };
+
+	const columnData: Record<string, unknown> = {};
+	const edges: Array<{ relationGroup: string; childIds: string[] }> = [];
+	for (const [key, value] of Object.entries(data)) {
+		const field = referenceFields.get(key);
+		if (!field) {
+			columnData[key] = value;
+			continue;
+		}
+		const relationGroup = field.validation?.relation;
+		if (!relationGroup) continue; // inert reference field — nothing to store
+		const childIds = (Array.isArray(value) ? value : [value]).filter(
+			(v): v is string => typeof v === "string" && v.length > 0,
+		);
+		edges.push({ relationGroup, childIds });
+	}
+	return { columnData, edges };
+}
+
+/**
+ * Write reference edges for a content entry, replacing any existing set per
+ * relation (so re-applying a seed is idempotent). Throws to abort the enclosing
+ * transaction if a child entry cannot be resolved — a half-written entry is
+ * worse than a failed apply.
+ */
+async function applyContentReferences(
+	trx: Kysely<Database>,
+	collectionSlug: string,
+	contentId: string,
+	edges: Array<{ relationGroup: string; childIds: string[] }>,
+): Promise<void> {
+	for (const { relationGroup, childIds } of edges) {
+		const result = await setReferenceChildren(
+			trx,
+			collectionSlug,
+			contentId,
+			relationGroup,
+			childIds,
+		);
+		if (!result.success) {
+			throw new Error(
+				`content.${collectionSlug}: failed to write references for "${contentId}": ${result.error.message}`,
+			);
+		}
+	}
+}
+
 async function applyContentTaxonomies(
 	db: Kysely<Database>,
 	collectionSlug: string,

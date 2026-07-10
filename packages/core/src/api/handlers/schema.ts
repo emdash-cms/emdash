@@ -38,7 +38,7 @@ function isUniqueViolation(error: unknown): boolean {
  * transaction so the relation and the field row it backs commit or roll
  * back together.
  */
-async function createFieldRelation(
+export async function createFieldRelation(
 	trx: Kysely<Database>,
 	collectionSlug: string,
 	fieldSlug: string,
