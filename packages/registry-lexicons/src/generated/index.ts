@@ -4,6 +4,11 @@ export * as ComEmdashcmsExperimentalAggregatorGetPackage from "./types/com/emdas
 export * as ComEmdashcmsExperimentalAggregatorListReleases from "./types/com/emdashcms/experimental/aggregator/listReleases.js";
 export * as ComEmdashcmsExperimentalAggregatorResolvePackage from "./types/com/emdashcms/experimental/aggregator/resolvePackage.js";
 export * as ComEmdashcmsExperimentalAggregatorSearchPackages from "./types/com/emdashcms/experimental/aggregator/searchPackages.js";
+export * as ComEmdashcmsExperimentalLabellerDefs from "./types/com/emdashcms/experimental/labeller/defs.js";
+export * as ComEmdashcmsExperimentalLabellerGetAssessment from "./types/com/emdashcms/experimental/labeller/getAssessment.js";
+export * as ComEmdashcmsExperimentalLabellerGetCurrentAssessment from "./types/com/emdashcms/experimental/labeller/getCurrentAssessment.js";
+export * as ComEmdashcmsExperimentalLabellerGetPolicy from "./types/com/emdashcms/experimental/labeller/getPolicy.js";
+export * as ComEmdashcmsExperimentalLabellerListAssessments from "./types/com/emdashcms/experimental/labeller/listAssessments.js";
 export * as ComEmdashcmsExperimentalPackageProfile from "./types/com/emdashcms/experimental/package/profile.js";
 export * as ComEmdashcmsExperimentalPackageRelease from "./types/com/emdashcms/experimental/package/release.js";
 export * as ComEmdashcmsExperimentalPackageReleaseExtension from "./types/com/emdashcms/experimental/package/releaseExtension.js";

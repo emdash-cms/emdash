@@ -1,0 +1,330 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.labeller.defs",
+	"description": "Shared public views for the experimental EmDash registry labeller. These views explain standard ATProto labels; label distribution remains com.atproto.label.*. EXPERIMENTAL.",
+	"defs": {
+		"assessmentSubject": {
+			"type": "object",
+			"required": ["uri", "cid"],
+			"properties": {
+				"uri": { "type": "string", "format": "at-uri" },
+				"cid": { "type": "string", "format": "cid" }
+			}
+		},
+		"manualActionSubject": {
+			"type": "object",
+			"required": ["uri"],
+			"properties": {
+				"uri": { "type": "string", "format": "uri" },
+				"cid": { "type": "string", "format": "cid" }
+			}
+		},
+		"labelSummary": {
+			"type": "object",
+			"required": ["val", "active", "issuedAt"],
+			"properties": {
+				"val": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"active": { "type": "boolean" },
+				"issuedAt": { "type": "string", "format": "datetime" },
+				"expiresAt": { "type": "string", "format": "datetime" }
+			}
+		},
+		"coverage": {
+			"type": "object",
+			"required": ["code", "metadata", "images", "dependencies"],
+			"properties": {
+				"code": { "type": "string", "knownValues": ["complete", "partial", "unavailable"] },
+				"metadata": { "type": "string", "knownValues": ["complete", "partial", "unavailable"] },
+				"images": {
+					"type": "string",
+					"knownValues": ["complete", "not-present", "partial", "unavailable"]
+				},
+				"dependencies": { "type": "string", "knownValues": ["complete", "partial", "unavailable"] }
+			}
+		},
+		"artifact": {
+			"type": "object",
+			"required": ["checksum"],
+			"properties": {
+				"id": { "type": "string", "maxLength": 256 },
+				"checksum": { "type": "string", "minLength": 1, "maxLength": 256 }
+			}
+		},
+		"model": {
+			"type": "object",
+			"required": ["provider", "modelId", "promptVersion"],
+			"properties": {
+				"provider": { "type": "string", "knownValues": ["workers-ai"] },
+				"modelId": { "type": "string", "minLength": 1, "maxLength": 256 },
+				"promptVersion": { "type": "string", "minLength": 1, "maxLength": 128 }
+			}
+		},
+		"scannerVersion": {
+			"type": "object",
+			"required": ["scanner", "version"],
+			"properties": {
+				"scanner": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"version": { "type": "string", "minLength": 1, "maxLength": 128 }
+			}
+		},
+		"publicAssessment": {
+			"type": "object",
+			"required": [
+				"id",
+				"src",
+				"subject",
+				"state",
+				"summary",
+				"coverage",
+				"labels",
+				"policyVersion",
+				"assessmentSchemaVersion",
+				"scannerVersions",
+				"createdAt",
+				"reconsiderationUrl"
+			],
+			"properties": {
+				"id": { "type": "string", "minLength": 1, "maxLength": 64 },
+				"src": { "type": "string", "format": "did" },
+				"subject": { "type": "ref", "ref": "#assessmentSubject" },
+				"artifact": { "type": "ref", "ref": "#artifact" },
+				"state": {
+					"type": "string",
+					"knownValues": ["pending", "passed", "warned", "blocked", "error", "superseded"]
+				},
+				"summary": { "type": "string", "minLength": 1, "maxLength": 4096 },
+				"coverage": { "type": "ref", "ref": "#coverage" },
+				"labels": {
+					"type": "array",
+					"maxLength": 64,
+					"items": { "type": "ref", "ref": "#labelSummary" }
+				},
+				"policyVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"assessmentSchemaVersion": { "type": "integer", "minimum": 1 },
+				"model": { "type": "ref", "ref": "#model" },
+				"scannerVersions": {
+					"type": "array",
+					"maxLength": 64,
+					"items": { "type": "ref", "ref": "#scannerVersion" }
+				},
+				"createdAt": { "type": "string", "format": "datetime" },
+				"completedAt": { "type": "string", "format": "datetime" },
+				"supersedesAssessmentId": { "type": "string", "minLength": 1, "maxLength": 64 },
+				"reconsiderationUrl": { "type": "string", "format": "uri", "maxLength": 2048 }
+			}
+		},
+		"publicManualAction": {
+			"type": "object",
+			"required": ["id", "src", "subject", "type", "summary", "labels", "createdAt"],
+			"properties": {
+				"id": { "type": "string", "minLength": 1, "maxLength": 64 },
+				"src": { "type": "string", "format": "did" },
+				"subject": { "type": "ref", "ref": "#manualActionSubject" },
+				"type": {
+					"type": "string",
+					"knownValues": ["override", "label-issue", "label-retraction", "emergency-takedown"]
+				},
+				"summary": { "type": "string", "minLength": 1, "maxLength": 4096 },
+				"labels": {
+					"type": "array",
+					"maxLength": 64,
+					"items": { "type": "ref", "ref": "#labelSummary" }
+				},
+				"createdAt": { "type": "string", "format": "datetime" }
+			}
+		},
+		"publisherSubject": {
+			"type": "object",
+			"required": ["kind"],
+			"properties": { "kind": { "type": "string", "knownValues": ["did"] } }
+		},
+		"supportedSubjects": {
+			"type": "object",
+			"required": ["publisher", "packageCollections", "releaseCollections"],
+			"properties": {
+				"publisher": { "type": "ref", "ref": "#publisherSubject" },
+				"packageCollections": {
+					"type": "array",
+					"maxLength": 32,
+					"items": { "type": "string", "format": "nsid" }
+				},
+				"releaseCollections": {
+					"type": "array",
+					"maxLength": 32,
+					"items": { "type": "string", "format": "nsid" }
+				}
+			}
+		},
+		"policyLabel": {
+			"type": "object",
+			"required": ["value", "category", "officialEffect", "subjectRules", "locales"],
+			"properties": {
+				"value": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"category": {
+					"type": "string",
+					"knownValues": ["eligibility", "automated-block", "warning", "manual-system"]
+				},
+				"officialEffect": {
+					"type": "string",
+					"knownValues": ["pass", "pending", "error", "block", "warn", "redact"]
+				},
+				"subjectRules": {
+					"type": "array",
+					"maxLength": 8,
+					"items": { "type": "ref", "ref": "#subjectRule" }
+				},
+				"locales": {
+					"type": "array",
+					"maxLength": 64,
+					"items": { "type": "ref", "ref": "#policyLocale" }
+				}
+			}
+		},
+		"subjectRule": {
+			"type": "object",
+			"required": ["subject", "cidRule", "issuanceModes"],
+			"properties": {
+				"subject": { "type": "string", "knownValues": ["release", "package", "publisher"] },
+				"cidRule": { "type": "string", "knownValues": ["required", "optional", "forbidden"] },
+				"issuanceModes": {
+					"type": "array",
+					"minLength": 1,
+					"maxLength": 3,
+					"items": { "type": "string", "knownValues": ["automated", "reviewer", "admin"] }
+				}
+			}
+		},
+		"policyLocale": {
+			"type": "object",
+			"required": ["lang", "name", "description"],
+			"properties": {
+				"lang": { "type": "string", "format": "language" },
+				"name": { "type": "string", "minLength": 1, "maxLength": 1024 },
+				"description": { "type": "string", "minLength": 1, "maxLength": 4096 }
+			}
+		},
+		"labelerPolicy": {
+			"type": "object",
+			"required": [
+				"schemaVersion",
+				"policyVersion",
+				"effectiveAt",
+				"labellerDid",
+				"assessmentSchemaVersion",
+				"supportedSubjects",
+				"reasonCodes",
+				"labels",
+				"overrideRule",
+				"precedence",
+				"publicApi",
+				"contact",
+				"transparency"
+			],
+			"properties": {
+				"schemaVersion": { "type": "integer", "minimum": 1, "maximum": 1 },
+				"policyVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"effectiveAt": { "type": "string", "format": "datetime" },
+				"labellerDid": { "type": "string", "format": "did" },
+				"assessmentSchemaVersion": { "type": "integer", "minimum": 1 },
+				"supportedSubjects": { "type": "ref", "ref": "#supportedSubjects" },
+				"reasonCodes": {
+					"type": "array",
+					"maxLength": 256,
+					"items": { "type": "ref", "ref": "#reasonCode" }
+				},
+				"labels": {
+					"type": "array",
+					"maxLength": 256,
+					"items": { "type": "ref", "ref": "#policyLabel" }
+				},
+				"overrideRule": { "type": "ref", "ref": "#overrideRule" },
+				"precedence": {
+					"type": "array",
+					"maxLength": 32,
+					"items": { "type": "string", "minLength": 1, "maxLength": 128 }
+				},
+				"publicApi": { "type": "ref", "ref": "#publicApi" },
+				"contact": { "type": "ref", "ref": "#contact" },
+				"transparency": { "type": "ref", "ref": "#transparency" }
+			}
+		},
+		"reasonCode": {
+			"type": "object",
+			"required": ["code", "description"],
+			"properties": {
+				"code": { "type": "string", "minLength": 1, "maxLength": 128 },
+				"description": { "type": "string", "minLength": 1, "maxLength": 4096 }
+			}
+		},
+		"overrideRule": {
+			"type": "object",
+			"required": [
+				"subject",
+				"cidRule",
+				"reviewerLabels",
+				"requireSameSource",
+				"requireAtomicIssuance"
+			],
+			"properties": {
+				"subject": { "type": "string", "knownValues": ["release"] },
+				"cidRule": { "type": "string", "knownValues": ["required"] },
+				"reviewerLabels": {
+					"type": "array",
+					"minLength": 1,
+					"maxLength": 8,
+					"items": { "type": "string", "minLength": 1, "maxLength": 128 }
+				},
+				"requireSameSource": { "type": "boolean" },
+				"requireAtomicIssuance": { "type": "boolean" }
+			}
+		},
+		"publicApi": {
+			"type": "object",
+			"required": [
+				"baseUrl",
+				"policyUrl",
+				"getAssessmentNsid",
+				"getCurrentAssessmentNsid",
+				"listAssessmentsNsid",
+				"getPolicyNsid"
+			],
+			"properties": {
+				"baseUrl": { "type": "string", "format": "uri", "maxLength": 2048 },
+				"policyUrl": { "type": "string", "format": "uri", "maxLength": 2048 },
+				"getAssessmentNsid": { "type": "string", "format": "nsid" },
+				"getCurrentAssessmentNsid": { "type": "string", "format": "nsid" },
+				"listAssessmentsNsid": { "type": "string", "format": "nsid" },
+				"getPolicyNsid": { "type": "string", "format": "nsid" }
+			}
+		},
+		"contact": {
+			"type": "object",
+			"required": ["reconsiderationUrl", "reconsiderationEmail"],
+			"properties": {
+				"reconsiderationUrl": { "type": "string", "format": "uri", "maxLength": 2048 },
+				"reconsiderationEmail": { "type": "string", "minLength": 1, "maxLength": 256 }
+			}
+		},
+		"transparency": {
+			"type": "object",
+			"required": ["modelOutputIsAdvisoryEvidence"],
+			"properties": { "modelOutputIsAdvisoryEvidence": { "type": "boolean" } }
+		},
+		"currentAssessmentView": {
+			"type": "object",
+			"required": ["src", "subject", "activeLabels"],
+			"properties": {
+				"src": { "type": "string", "format": "did" },
+				"subject": { "type": "ref", "ref": "#assessmentSubject" },
+				"current": { "type": "ref", "ref": "#publicAssessment" },
+				"pending": { "type": "ref", "ref": "#publicAssessment" },
+				"activeLabels": {
+					"type": "array",
+					"maxLength": 64,
+					"items": { "type": "ref", "ref": "com.atproto.label.defs#label" }
+				},
+				"override": { "type": "ref", "ref": "#publicManualAction" }
+			}
+		}
+	}
+}

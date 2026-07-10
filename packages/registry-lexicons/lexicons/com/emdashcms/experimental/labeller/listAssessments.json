@@ -1,0 +1,48 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.labeller.listAssessments",
+	"description": "Page through public assessments using bounded exact-subject and state filters. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"parameters": {
+				"type": "params",
+				"properties": {
+					"src": { "type": "string", "format": "did" },
+					"uri": { "type": "string", "format": "at-uri" },
+					"cid": { "type": "string", "format": "cid" },
+					"state": {
+						"type": "string",
+						"knownValues": ["pending", "passed", "warned", "blocked", "error", "superseded"]
+					},
+					"limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+					"cursor": { "type": "string", "maxLength": 1024 }
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "object",
+					"required": ["assessments"],
+					"properties": {
+						"assessments": {
+							"type": "array",
+							"maxLength": 100,
+							"items": {
+								"type": "ref",
+								"ref": "com.emdashcms.experimental.labeller.defs#publicAssessment"
+							}
+						},
+						"cursor": { "type": "string", "maxLength": 1024 }
+					}
+				}
+			},
+			"errors": [
+				{ "name": "InvalidRequest" },
+				{ "name": "InvalidCursor" },
+				{ "name": "UnsupportedSource" },
+				{ "name": "RateLimitExceeded" }
+			]
+		}
+	}
+}

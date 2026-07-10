@@ -1,0 +1,15 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.labeller.getPolicy",
+	"description": "Fetch the current machine-readable labeller policy document. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"output": {
+				"encoding": "application/json",
+				"schema": { "type": "ref", "ref": "com.emdashcms.experimental.labeller.defs#labelerPolicy" }
+			},
+			"errors": [{ "name": "RateLimitExceeded" }]
+		}
+	}
+}
