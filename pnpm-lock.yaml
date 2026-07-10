@@ -414,6 +414,9 @@ importers:
 
   apps/labeler:
     dependencies:
+      '@atcute/cbor':
+        specifier: 'catalog:'
+        version: 2.3.3(@atcute/cid@2.4.1)
       '@emdash-cms/registry-moderation':
         specifier: workspace:*
         version: link:../../packages/registry-moderation

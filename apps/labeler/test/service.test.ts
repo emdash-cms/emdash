@@ -1,3 +1,4 @@
+import { decodeFirst, fromBytes } from "@atcute/cbor";
 import {
 	createLabelSigner,
 	verifyLabel,
@@ -7,6 +8,7 @@ import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { issueManualLabel, type AllowedLabelProposal } from "../src/service.js";
+import { createLabelPublisher, type LabelPublisher } from "../src/subscribe-labels.js";
 
 interface TestEnv {
 	DB: D1Database;
@@ -79,7 +81,7 @@ async function foreignSigner() {
 	});
 }
 
-async function issue(uri: string, val?: AllowedLabelProposal["val"], neg = false) {
+async function issue(uri: string, val?: AllowedLabelProposal["val"], neg = false, publish = false) {
 	return issueManualLabel(
 		testEnv.DB,
 		config,
@@ -89,7 +91,46 @@ async function issue(uri: string, val?: AllowedLabelProposal["val"], neg = false
 			...proposal(uri, val),
 			...(neg ? { neg: true } : {}),
 		},
+		undefined,
+		publish ? createLabelPublisher(testEnv as unknown as Env) : undefined,
 	);
+}
+
+async function subscribe(cursor?: number): Promise<WebSocket> {
+	const response = await SELF.fetch(
+		`https://test/xrpc/com.atproto.label.subscribeLabels${cursor === undefined ? "" : `?cursor=${cursor}`}`,
+		{ headers: { upgrade: "websocket" } },
+	);
+	expect(response.status).toBe(101);
+	if (!response.webSocket) throw new Error("subscription did not upgrade to a WebSocket");
+	response.webSocket.accept();
+	return response.webSocket;
+}
+
+async function nextLabel(ws: WebSocket): Promise<{ seq: number; label: Record<string, unknown> }> {
+	const message = await nextMessage(ws);
+	const [header, payload] = decodeFirst(new Uint8Array(message)) as [
+		{ op: number; t: string },
+		Uint8Array,
+	];
+	expect(header).toEqual({ op: 1, t: "#labels" });
+	const event = decodeFirst(payload)[0] as { seq: number; labels: Record<string, unknown>[] };
+	const label = event.labels[0];
+	if (!label) throw new Error("labels event did not contain a label");
+	return { seq: event.seq, label };
+}
+
+async function nextMessage(ws: WebSocket): Promise<ArrayBuffer> {
+	return new Promise<ArrayBuffer>((resolve) => {
+		ws.addEventListener("message", (event) => resolve(event.data as ArrayBuffer), { once: true });
+	});
+}
+
+async function nextMessageWithin(ws: WebSocket, milliseconds: number): Promise<ArrayBuffer | null> {
+	return Promise.race([
+		nextMessage(ws),
+		new Promise<null>((resolve) => setTimeout(resolve, milliseconds, null)),
+	]);
 }
 
 describe("manual label issuance", () => {
@@ -145,6 +186,47 @@ describe("manual label issuance", () => {
 			.bind(originalAction.idempotencyKey)
 			.first<{ count: number }>();
 		expect(count?.count).toBe(1);
+	});
+
+	it("retries publishing a committed label through an idempotent request", async () => {
+		const labelSigner = await signer();
+		const originalAction = action("retry publish");
+		const input = proposal(releaseUri("retry-publish"));
+		const failedPublisher: LabelPublisher = {
+			async publish() {
+				throw new Error("subscription unavailable");
+			},
+		};
+		await expect(
+			issueManualLabel(
+				testEnv.DB,
+				config,
+				labelSigner,
+				originalAction,
+				input,
+				undefined,
+				failedPublisher,
+			),
+		).rejects.toThrow("subscription unavailable");
+
+		let published = 0;
+		const retryPublisher: LabelPublisher = {
+			async publish() {
+				published++;
+			},
+		};
+		await expect(
+			issueManualLabel(
+				testEnv.DB,
+				config,
+				labelSigner,
+				originalAction,
+				input,
+				undefined,
+				retryPublisher,
+			),
+		).resolves.toBeDefined();
+		expect(published).toBe(1);
 	});
 
 	it("records a later negation as a new signed history entry", async () => {
@@ -273,6 +355,124 @@ describe("manual label issuance", () => {
 		const unknown = await SELF.fetch("https://test/xrpc/com.example.unknown");
 		expect(unknown.status).toBe(404);
 		expect(await unknown.json()).toMatchObject({ error: "MethodNotSupported" });
+	});
+});
+
+describe("label subscriptions", () => {
+	it("replays retained history from cursor zero with ATProto event framing", async () => {
+		const issued = await issue(releaseUri("subscription-replay"));
+		const ws = await subscribe(0);
+		let event: { seq: number; label: Record<string, unknown> } | undefined;
+		for (;;) {
+			event = await nextLabel(ws);
+			if (event.seq === issued.sequence) break;
+		}
+		expect(event.label).toMatchObject({
+			src: LABELER_DID,
+			uri: issued.label.uri,
+			val: "security-yanked",
+		});
+		expect(fromBytes(event.label.sig as { $bytes: string })).toEqual(issued.label.sig);
+		ws.close();
+	});
+
+	it("resumes after a cursor and broadcasts newly committed labels", async () => {
+		const first = await issue(releaseUri("subscription-resume-a"));
+		const second = await issue(releaseUri("subscription-resume-b"));
+		const ws = await subscribe(first.sequence);
+		expect((await nextLabel(ws)).seq).toBe(second.sequence);
+		const liveEvent = nextLabel(ws);
+		const issued = await issue(releaseUri("subscription-resume-live"), undefined, false, true);
+		expect((await liveEvent).seq).toBe(issued.sequence);
+		ws.close();
+	});
+
+	it("does not lose a label at the replay and live handoff", async () => {
+		const before = await issue(releaseUri("subscription-race-before"));
+		const socket = subscribe(before.sequence);
+		const committed = issue(releaseUri("subscription-race-commit"), undefined, false, true);
+		const ws = await socket;
+		const event = await nextLabel(ws);
+		expect(event.seq).toBe((await committed).sequence);
+		ws.close();
+	});
+
+	it("does not duplicate a replayed label when its publish is delayed", async () => {
+		const before = await issue(releaseUri("subscription-duplicate-before"));
+		const delayed = await issue(releaseUri("subscription-duplicate"));
+		const ws = await subscribe(before.sequence);
+		expect((await nextLabel(ws)).seq).toBe(delayed.sequence);
+
+		const duplicate = nextMessageWithin(ws, 100);
+		await createLabelPublisher(testEnv as unknown as Env).publish(delayed);
+		expect(await duplicate).toBeNull();
+		ws.close();
+	});
+
+	it("delivers committed labels in sequence order when publication is delayed", async () => {
+		const ws = await subscribe();
+		const first = await issue(releaseUri("subscription-order-first"));
+		const next = nextLabel(ws);
+		const published = issue(releaseUri("subscription-order-second"), undefined, false, true);
+		expect((await next).seq).toBe(first.sequence);
+		const second = await published;
+		expect((await nextLabel(ws)).seq).toBe(second.sequence);
+
+		const duplicate = nextMessageWithin(ws, 100);
+		await createLabelPublisher(testEnv as unknown as Env).publish(first);
+		expect(await duplicate).toBeNull();
+		ws.close();
+	});
+
+	it("starts without replay when no cursor is supplied and supports reconnect cursors", async () => {
+		const ws = await subscribe();
+		const currentEvent = nextLabel(ws);
+		const issued = await issue(releaseUri("subscription-current"), undefined, false, true);
+		expect((await currentEvent).seq).toBe(issued.sequence);
+		ws.close();
+
+		const resumed = await subscribe(issued.sequence);
+		const nextEvent = nextLabel(resumed);
+		const next = await issue(releaseUri("subscription-reconnect"), undefined, false, true);
+		expect((await nextEvent).seq).toBe(next.sequence);
+		resumed.close();
+	});
+
+	it("broadcasts to more subscribers than the scheduler queue limit", async () => {
+		const sockets = await Promise.all(Array.from({ length: 101 }, () => subscribe()));
+		const events = sockets.map((socket) => nextLabel(socket));
+		const issued = await issue(releaseUri("subscription-fanout"), undefined, false, true);
+		expect(await Promise.all(events)).toEqual(
+			Array.from({ length: 101 }, () => expect.objectContaining({ seq: issued.sequence })),
+		);
+		for (const socket of sockets) socket.close();
+	});
+
+	it("returns XRPC errors for malformed subscription requests", async () => {
+		const noUpgrade = await SELF.fetch("https://test/xrpc/com.atproto.label.subscribeLabels");
+		expect(noUpgrade.status).toBe(426);
+		expect(await noUpgrade.json()).toMatchObject({ error: "InvalidRequest" });
+		const malformedCursor = await SELF.fetch(
+			"https://test/xrpc/com.atproto.label.subscribeLabels?cursor=-1",
+			{ headers: { upgrade: "websocket" } },
+		);
+		expect(malformedCursor.status).toBe(400);
+		expect(await malformedCursor.json()).toMatchObject({ error: "InvalidRequest" });
+		const wrongMethod = await SELF.fetch("https://test/xrpc/com.atproto.label.subscribeLabels", {
+			method: "POST",
+		});
+		expect(wrongMethod.status).toBe(405);
+		expect(await wrongMethod.json()).toMatchObject({ error: "MethodNotSupported" });
+	});
+
+	it("returns a FutureCursor stream error when the cursor is ahead of history", async () => {
+		const ws = await subscribe(Number.MAX_SAFE_INTEGER);
+		const message = await nextMessageWithin(ws, 100);
+		expect(message).not.toBeNull();
+		const [header, payload] = decodeFirst(new Uint8Array(message!)) as [{ op: number }, Uint8Array];
+		expect(header).toEqual({ op: -1 });
+		expect(decodeFirst(payload)[0]).toMatchObject({ error: "FutureCursor" });
+		ws.close();
 	});
 });
 
