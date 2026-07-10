@@ -365,6 +365,40 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 				} else break;
 			}
 			content.push(convertPTList(listBlocks, listType));
+		} else if (
+			isPTTextBlock(block) &&
+			block.style === "blockquote" &&
+			block.listItem === undefined
+		) {
+			// Group consecutive blockquote blocks into ONE blockquote node —
+			// PT is flat, so a multi-paragraph quote is stored as a run of
+			// blockquote-styled blocks. Mirrors the grouping in
+			// content/converters/portable-text-to-prosemirror.ts; without it
+			// merges revert on reload in the inline editor too (#1884).
+			const quoteBlocks: PTTextBlock[] = [];
+			while (i < blocks.length) {
+				const cur = blocks[i];
+				if (
+					!cur ||
+					!isPTTextBlock(cur) ||
+					cur.style !== "blockquote" ||
+					cur.listItem !== undefined
+				) {
+					break;
+				}
+				quoteBlocks.push(cur);
+				i++;
+			}
+			content.push({
+				type: "blockquote",
+				content: quoteBlocks.map((quoteBlock) => {
+					const pmContent = convertPTSpans(quoteBlock.children, quoteBlock.markDefs || []);
+					return {
+						type: "paragraph",
+						content: pmContent.length > 0 ? pmContent : undefined,
+					};
+				}),
+			});
 		} else {
 			const c = convertPTBlock(block);
 			if (c) content.push(c);
