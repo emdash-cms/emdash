@@ -118,7 +118,8 @@ test.describe("Content Types", () => {
 
 			const toggleLabel = admin.page.locator("label", { hasText: "Enable comments" });
 			const savedButton = () => admin.page.getByRole("button", { name: "Saved" }).first();
-			const saveButton = () => admin.page.getByRole("button", { name: "Save", exact: true }).first();
+			const saveButton = () =>
+				admin.page.getByRole("button", { name: "Save", exact: true }).first();
 
 			// On initial load there are no unsaved changes
 			await expect(savedButton()).toBeDisabled();
