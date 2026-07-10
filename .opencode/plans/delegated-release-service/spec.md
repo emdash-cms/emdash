@@ -8,20 +8,20 @@ This spec covers the complete feature: protocol records, shared verification, th
 
 ## Decisions
 
-| Area | Decision |
-| --- | --- |
-| Reference runtime | A standalone Cloudflare Workers app at `apps/release-service`, separate from the aggregator. |
-| Canonical state | D1. Use CAS state transitions, unique constraints, leases, and a transactional outbox. |
-| Durable Objects | Do not use one in v1. A per-publisher DO is a later optimization for OAuth refresh and PDS write serialization if D1 lease contention becomes material. |
-| Workload identity | GitHub Actions OIDC in v1 behind an issuer-neutral verifier interface. |
-| Management surface | A full web console for service-local configuration and audit. Signed package policy remains read-only in the service. |
-| Approver credentials | Multiple named passkeys per approver DID, individually revocable. |
-| Notifications | Email and signed webhooks, both behind adapters. |
-| API style | Versioned JSON HTTP API under `/v1`, not XRPC. Protocol records remain atproto lexicons. |
-| Provenance predicate | SLSA provenance v1 is the only understood predicate in v1. Other predicates are present-but-unverifiable and fail when provenance is supplied. |
-| Approval threshold | One valid approval from any currently listed, enrolled approver. Quorum is out of scope. |
-| Stage TTL | 24 hours by default, operator-configurable with a bounded range of 15 minutes to 7 days. |
-| Service tenancy | Multi-tenant by default. A v1 self-host deploys the same Worker app in its own Cloudflare account and can restrict allowed publisher DIDs. |
+| Area                 | Decision                                                                                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reference runtime    | A standalone Cloudflare Workers app at `apps/release-service`, separate from the aggregator.                                                            |
+| Canonical state      | D1. Use CAS state transitions, unique constraints, leases, and a transactional outbox.                                                                  |
+| Durable Objects      | Do not use one in v1. A per-publisher DO is a later optimization for OAuth refresh and PDS write serialization if D1 lease contention becomes material. |
+| Workload identity    | GitHub Actions OIDC in v1 behind an issuer-neutral verifier interface.                                                                                  |
+| Management surface   | A full web console for service-local configuration and audit. Signed package policy remains read-only in the service.                                   |
+| Approver credentials | Multiple named passkeys per approver DID, individually revocable.                                                                                       |
+| Notifications        | Email and signed webhooks, both behind adapters.                                                                                                        |
+| API style            | Versioned JSON HTTP API under `/v1`, not XRPC. Protocol records remain atproto lexicons.                                                                |
+| Provenance predicate | SLSA provenance v1 is the only understood predicate in v1. Other predicates are present-but-unverifiable and fail when provenance is supplied.          |
+| Approval threshold   | One valid approval from any currently listed, enrolled approver. Quorum is out of scope.                                                                |
+| Stage TTL            | 24 hours by default, operator-configurable with a bounded range of 15 minutes to 7 days.                                                                |
+| Service tenancy      | Multi-tenant by default. A v1 self-host deploys the same Worker app in its own Cloudflare account and can restrict allowed publisher DIDs.              |
 
 ## Non-Negotiable Security Invariants
 
@@ -294,10 +294,10 @@ Workers `fetch()` does not expose or pin the IP used for the actual connection, 
 Exports:
 
 ```ts
-computeMultihash(bytes, algorithm)
-decodeMultihash(value)
-verifyMultihash(bytes, expected)
-compareDigestBytes(left, right)
+computeMultihash(bytes, algorithm);
+decodeMultihash(value);
+verifyMultihash(bytes, expected);
+compareDigestBytes(left, right);
 ```
 
 The delegated path accepts multibase multihashes only. Legacy bare hexadecimal checksums may remain install-compatible for old records but are rejected for new delegated releases.
@@ -378,29 +378,29 @@ All IDs are ULIDs. Timestamps are UTC ISO strings. JSON columns contain canonica
 
 `publisher_accounts`
 
-| Column | Notes |
-| --- | --- |
-| `did` | Primary key. |
-| `handle` | Display cache only. |
-| `pds_url` | Resolved cache, never a permanent authority. |
-| `pds_resolved_at` | Cache timestamp. |
-| `created_at`, `updated_at` | Audit metadata. |
+| Column                     | Notes                                        |
+| -------------------------- | -------------------------------------------- |
+| `did`                      | Primary key.                                 |
+| `handle`                   | Display cache only.                          |
+| `pds_url`                  | Resolved cache, never a permanent authority. |
+| `pds_resolved_at`          | Cache timestamp.                             |
+| `created_at`, `updated_at` | Audit metadata.                              |
 
 `delegations`
 
-| Column | Notes |
-| --- | --- |
-| `id` | Primary key. |
-| `publisher_did` | Unique active delegation per DID and release NSID. |
-| `release_nsid` | Scope-bound collection. |
-| `encrypted_session` | atcute session state, refresh token, DPoP private key, and nonce data. |
-| `encryption_key_version` | Enables envelope-key rotation. |
-| `client_key_id` | Confidential client assertion key that created the session. |
-| `scope` | Must equal the expected exact scope. |
-| `status` | `active`, `refreshing`, `reauthorization_required`, `revoked`. |
-| `lease_owner`, `lease_expires_at` | Distributed refresh lock. |
-| `last_refreshed_at`, `refresh_before` | Proactive refresh schedule. |
-| `created_at`, `updated_at`, `revoked_at` | Lifecycle. |
+| Column                                   | Notes                                                                  |
+| ---------------------------------------- | ---------------------------------------------------------------------- |
+| `id`                                     | Primary key.                                                           |
+| `publisher_did`                          | Unique active delegation per DID and release NSID.                     |
+| `release_nsid`                           | Scope-bound collection.                                                |
+| `encrypted_session`                      | atcute session state, refresh token, DPoP private key, and nonce data. |
+| `encryption_key_version`                 | Enables envelope-key rotation.                                         |
+| `client_key_id`                          | Confidential client assertion key that created the session.            |
+| `scope`                                  | Must equal the expected exact scope.                                   |
+| `status`                                 | `active`, `refreshing`, `reauthorization_required`, `revoked`.         |
+| `lease_owner`, `lease_expires_at`        | Distributed refresh lock.                                              |
+| `last_refreshed_at`, `refresh_before`    | Proactive refresh schedule.                                            |
+| `created_at`, `updated_at`, `revoked_at` | Lifecycle.                                                             |
 
 `console_sessions` stores an opaque hashed browser session token, publisher DID, expiry, and CSRF secret. The atproto identity OAuth session is discarded after login; console authentication does not need durable PDS access.
 
@@ -410,21 +410,21 @@ All IDs are ULIDs. Timestamps are UTC ISO strings. JSON columns contain canonica
 
 `workload_policies`
 
-| Column | Notes |
-| --- | --- |
-| `id` | Primary key. |
-| `publisher_did`, `package_slug` | Unique package mapping. |
-| `provider` | `github-actions` in v1. |
-| `issuer` | Exact issuer URL. |
-| `audience` | Exact service audience. |
-| `repository_id`, `repository_owner_id` | Immutable GitHub identifiers, required. |
-| `repository` | Human-readable `owner/name`, checked in addition to IDs. |
-| `workflow_ref` | Exact reusable workflow or workflow file identity. |
-| `allowed_refs` | JSON list of exact refs or validated prefix patterns. |
-| `allowed_environments` | Optional JSON allowlist. |
-| `enabled` | Boolean. |
-| `version` | Increments on every edit and is captured by an intent. |
-| `created_by_did`, `created_at`, `updated_at` | Audit. |
+| Column                                       | Notes                                                    |
+| -------------------------------------------- | -------------------------------------------------------- |
+| `id`                                         | Primary key.                                             |
+| `publisher_did`, `package_slug`              | Unique package mapping.                                  |
+| `provider`                                   | `github-actions` in v1.                                  |
+| `issuer`                                     | Exact issuer URL.                                        |
+| `audience`                                   | Exact service audience.                                  |
+| `repository_id`, `repository_owner_id`       | Immutable GitHub identifiers, required.                  |
+| `repository`                                 | Human-readable `owner/name`, checked in addition to IDs. |
+| `workflow_ref`                               | Exact reusable workflow or workflow file identity.       |
+| `allowed_refs`                               | JSON list of exact refs or validated prefix patterns.    |
+| `allowed_environments`                       | Optional JSON allowlist.                                 |
+| `enabled`                                    | Boolean.                                                 |
+| `version`                                    | Increments on every edit and is captured by an intent.   |
+| `created_by_did`, `created_at`, `updated_at` | Audit.                                                   |
 
 Policies do not accept arbitrary JavaScript or expression languages. The console presents typed fields. A package may have multiple policies, for example release and prerelease workflows.
 
@@ -434,24 +434,24 @@ Policies do not accept arbitrary JavaScript or expression languages. The console
 
 `approver_identities`
 
-| Column | Notes |
-| --- | --- |
-| `did` | Primary key. |
-| `handle` | Display cache. |
-| `encrypted_email` | Optional private notification route. |
-| `email_verified_at` | Null until verified. |
-| `created_at`, `updated_at` | Lifecycle. |
+| Column                     | Notes                                |
+| -------------------------- | ------------------------------------ |
+| `did`                      | Primary key.                         |
+| `handle`                   | Display cache.                       |
+| `encrypted_email`          | Optional private notification route. |
+| `email_verified_at`        | Null until verified.                 |
+| `created_at`, `updated_at` | Lifecycle.                           |
 
 `approver_credentials`
 
-| Column | Notes |
-| --- | --- |
-| `credential_id` | Primary key, base64url credential ID. |
-| `approver_did` | Owner. |
-| `name` | User-provided authenticator label. |
-| `public_key`, `algorithm`, `counter`, `transports` | WebAuthn verification data. |
-| `device_type`, `backed_up` | Display and risk metadata. |
-| `created_at`, `last_used_at`, `revoked_at` | Lifecycle. |
+| Column                                             | Notes                                 |
+| -------------------------------------------------- | ------------------------------------- |
+| `credential_id`                                    | Primary key, base64url credential ID. |
+| `approver_did`                                     | Owner.                                |
+| `name`                                             | User-provided authenticator label.    |
+| `public_key`, `algorithm`, `counter`, `transports` | WebAuthn verification data.           |
+| `device_type`, `backed_up`                         | Display and risk metadata.            |
+| `created_at`, `last_used_at`, `revoked_at`         | Lifecycle.                            |
 
 `enrolment_invitations` stores a random-token hash, target DID, optional publisher/package context, expiry, consumed time, and inviter DID. Possession does not authorize enrolment; OAuth must return the same target DID.
 
@@ -461,35 +461,35 @@ Policies do not accept arbitrary JavaScript or expression languages. The console
 
 `release_targets` reserves immutable versions.
 
-| Column | Notes |
-| --- | --- |
-| `publisher_did`, `package_slug`, `version` | Composite primary key. |
-| `record_digest` | Canonical proposed release record hash. |
-| `intent_id` | Owning intent. |
-| `at_uri`, `cid` | Populated on publication. |
+| Column                                     | Notes                                   |
+| ------------------------------------------ | --------------------------------------- |
+| `publisher_did`, `package_slug`, `version` | Composite primary key.                  |
+| `record_digest`                            | Canonical proposed release record hash. |
+| `intent_id`                                | Owning intent.                          |
+| `at_uri`, `cid`                            | Populated on publication.               |
 
 `release_intents`
 
-| Column | Notes |
-| --- | --- |
-| `id` | Primary key. |
-| `publisher_did`, `package_slug`, `version`, `rkey` | Release identity. |
-| `idempotency_key` | Unique per workload policy. |
-| `record_json`, `record_digest` | Immutable canonical release draft. |
-| `approval_digest` | Hash of every fact displayed and authorized by a passkey approval. |
-| `artifact_digest` | Raw digest representation for provenance comparison. |
-| `workload_policy_id`, `workload_policy_version` | Policy used at submission. |
-| `workload_evidence` | Canonical verified claims, never the raw bearer token. |
-| `profile_cid`, `profile_policy_json`, `profile_policy_digest` | Submission snapshot. |
-| `baseline_release_uri`, `baseline_release_cid`, `baseline_access_json` | Escalation baseline. |
-| `access_diff_json`, `is_escalation` | Approval presentation and decision. |
-| `requires_approval` | Derived from signed profile policy plus escalation. |
-| `status`, `state_version` | CAS state machine. |
-| `expires_at` | Stage TTL. |
-| `lease_owner`, `lease_expires_at` | Queue consumer lease. |
-| `at_uri`, `release_cid` | Publication result. |
-| `failure_code`, `failure_detail` | Stable machine code plus safe detail. |
-| `created_at`, `updated_at`, `published_at` | Lifecycle. |
+| Column                                                                 | Notes                                                              |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `id`                                                                   | Primary key.                                                       |
+| `publisher_did`, `package_slug`, `version`, `rkey`                     | Release identity.                                                  |
+| `idempotency_key`                                                      | Unique per workload policy.                                        |
+| `record_json`, `record_digest`                                         | Immutable canonical release draft.                                 |
+| `approval_digest`                                                      | Hash of every fact displayed and authorized by a passkey approval. |
+| `artifact_digest`                                                      | Raw digest representation for provenance comparison.               |
+| `workload_policy_id`, `workload_policy_version`                        | Policy used at submission.                                         |
+| `workload_evidence`                                                    | Canonical verified claims, never the raw bearer token.             |
+| `profile_cid`, `profile_policy_json`, `profile_policy_digest`          | Submission snapshot.                                               |
+| `baseline_release_uri`, `baseline_release_cid`, `baseline_access_json` | Escalation baseline.                                               |
+| `access_diff_json`, `is_escalation`                                    | Approval presentation and decision.                                |
+| `requires_approval`                                                    | Derived from signed profile policy plus escalation.                |
+| `status`, `state_version`                                              | CAS state machine.                                                 |
+| `expires_at`                                                           | Stage TTL.                                                         |
+| `lease_owner`, `lease_expires_at`                                      | Queue consumer lease.                                              |
+| `at_uri`, `release_cid`                                                | Publication result.                                                |
+| `failure_code`, `failure_detail`                                       | Stable machine code plus safe detail.                              |
+| `created_at`, `updated_at`, `published_at`                             | Lifecycle.                                                         |
 
 The approval digest is not the release record digest. It is a domain-separated hash over canonical release record JSON, artifact and provenance references, derived declared access, normalized verified workload evidence, workload policy ID and version, profile CID and policy digest, baseline release CID and access, approver DID, and action. Recompute it when issuing and consuming a challenge. Any mismatch invalidates the challenge.
 
@@ -633,11 +633,11 @@ The exact `client_id`, redirects, scope declaration, and `jwks_uri` are deployme
 
 ### OAuth purposes
 
-| Purpose | Requested scope | Persistence |
-| --- | --- | --- |
-| Console login | `atproto` | Delete OAuth session after creating the service cookie. |
-| Approver identity proof | `atproto` | Delete immediately after matching the expected DID. |
-| Release delegation | `atproto repo:<release-nsid>?action=create` | Store encrypted until revoked. |
+| Purpose                 | Requested scope                             | Persistence                                             |
+| ----------------------- | ------------------------------------------- | ------------------------------------------------------- |
+| Console login           | `atproto`                                   | Delete OAuth session after creating the service cookie. |
+| Approver identity proof | `atproto`                                   | Delete immediately after matching the expected DID.     |
+| Release delegation      | `atproto repo:<release-nsid>?action=create` | Store encrypted until revoked.                          |
 
 Use separate logical atcute stores per purpose so sessions for the same DID cannot overwrite each other.
 

@@ -36,21 +36,21 @@ The implementation is complete when:
 
 ### Workstream IDs
 
-| ID | Workstream | Primary output |
-| --- | --- | --- |
-| `W0` | Decisions and feasibility | Ratified contracts and proved platform assumptions |
-| `W1` | Protocol and lexicons | Profile policy and release provenance records |
-| `W2` | Shared verification | One verification implementation for all consumers |
-| `W3` | OAuth, crypto, and passkeys | Secure identity, grant custody, and approval primitives |
-| `W4` | Workload identity | GitHub OIDC verification and typed workflow policies |
-| `W5` | Service persistence and orchestration | D1 state machine, queues, publication, reconciliation |
-| `W6` | Publisher and approver console | Full management and approval UI |
-| `W7` | Notifications | Email, signed webhooks, outbox delivery |
-| `W8` | CLI and GitHub Action | Author and CI clients |
-| `W9` | Installer enforcement | Independent install-time verification |
-| `W10` | Aggregator enforcement | Historical policy and discovery filtering |
-| `W11` | Operations and self-hosting | Production config, observability, abuse controls, runbooks |
-| `W12` | Conformance and security | Cross-component, browser, adversarial, and production tests |
+| ID    | Workstream                            | Primary output                                              |
+| ----- | ------------------------------------- | ----------------------------------------------------------- |
+| `W0`  | Decisions and feasibility             | Ratified contracts and proved platform assumptions          |
+| `W1`  | Protocol and lexicons                 | Profile policy and release provenance records               |
+| `W2`  | Shared verification                   | One verification implementation for all consumers           |
+| `W3`  | OAuth, crypto, and passkeys           | Secure identity, grant custody, and approval primitives     |
+| `W4`  | Workload identity                     | GitHub OIDC verification and typed workflow policies        |
+| `W5`  | Service persistence and orchestration | D1 state machine, queues, publication, reconciliation       |
+| `W6`  | Publisher and approver console        | Full management and approval UI                             |
+| `W7`  | Notifications                         | Email, signed webhooks, outbox delivery                     |
+| `W8`  | CLI and GitHub Action                 | Author and CI clients                                       |
+| `W9`  | Installer enforcement                 | Independent install-time verification                       |
+| `W10` | Aggregator enforcement                | Historical policy and discovery filtering                   |
+| `W11` | Operations and self-hosting           | Production config, observability, abuse controls, runbooks  |
+| `W12` | Conformance and security              | Cross-component, browser, adversarial, and production tests |
 
 ### High-Level Graph
 
@@ -978,40 +978,40 @@ No unresolved critical/high security findings, all conformance suites pass, and 
 
 The following sequence preserves parallelism while keeping each merge independently coherent. Items on the same row may proceed concurrently after their dependencies land.
 
-| Sequence | Merge unit | Depends on |
-| --- | --- | --- |
-| 1 | Gate 0 RFC decisions and CLI naming | None |
-| 2 | Create-only OAuth/PDS spike | Draft record NSID |
-| 3 | Confidential OAuth/workerd spike | None |
-| 4 | Sigstore/workerd spike | Draft provenance shape |
-| 5 | Aggregator historical-event prototype | None |
-| 6 | Profile and release lexicons plus generated types | Gate 0 record decisions |
-| 7 | Profile-extension preservation regression fix | Profile lexicon |
-| 8 | Create-only release publishing helper | Generated types, scope contract |
-| 9 | Shared package scaffold, checksum, fetch, and bundle validation | Gate 0 |
-| 10 | Declared-access canonical diff | Escalation decision, generated types |
-| 11 | Shared provenance and record verification | Sigstore spike, lexicons, safe fetch |
-| 12 | Passkey required-UV and challenge-context extension | Gate 0 |
-| 13 | Release-service scaffold and initial D1 migrations | Gate 0 |
-| 14 | Encryption, confidential metadata, and OAuth stores | OAuth spike, scaffold |
-| 15 | GitHub verifier and workload-policy repository | Scaffold |
-| 16 | Intent submission and validation worker | Shared verification, GitHub policy, D1 repositories |
-| 17 | Enrolment and multiple-passkey service flow | OAuth identity, passkey extension, D1 repositories |
-| 18 | Approval digest and approval/rejection lifecycle | Validation worker, passkey flow |
-| 19 | Publication, refresh coordination, and reconciliation | Create-only helper, approval lifecycle, OAuth store |
-| 20 | Outbox, Queues, cron, expiry, and recovery | Core lifecycle |
-| 21 | Versioned API client and CI endpoints | Core lifecycle/API |
-| 22 | Installer shared-verification migration and enforcement | Shared verification, lexicons |
-| 23 | Minimum aggregator policy status and filtering | Shared verification, lexicons |
-| 24 | Console foundation, delegation, policy, intent, passkey, approval, and audit pages | Stable service API and service flows |
-| 25 | Email, webhook, and delivery workers | Outbox lifecycle |
-| 26 | Notification console pages | Notification API and delivery workers |
-| 27 | CLI delegation, policy, enrolment, approval, and release commands | API client and service flows |
-| 28 | Official GitHub Action | CI API and GitHub verifier |
-| 29 | Event-specific aggregator ingest and policy history | Historical-event prototype |
-| 30 | Aggregator provenance pipeline, historical views, and cooldown | Policy history, notifications |
-| 31 | Operations, self-hosting, and conformance hardening | Feature-complete service |
-| 32 | Self-host conformance, production smoke, and launch gate | All prior launch dependencies |
+| Sequence | Merge unit                                                                         | Depends on                                          |
+| -------- | ---------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1        | Gate 0 RFC decisions and CLI naming                                                | None                                                |
+| 2        | Create-only OAuth/PDS spike                                                        | Draft record NSID                                   |
+| 3        | Confidential OAuth/workerd spike                                                   | None                                                |
+| 4        | Sigstore/workerd spike                                                             | Draft provenance shape                              |
+| 5        | Aggregator historical-event prototype                                              | None                                                |
+| 6        | Profile and release lexicons plus generated types                                  | Gate 0 record decisions                             |
+| 7        | Profile-extension preservation regression fix                                      | Profile lexicon                                     |
+| 8        | Create-only release publishing helper                                              | Generated types, scope contract                     |
+| 9        | Shared package scaffold, checksum, fetch, and bundle validation                    | Gate 0                                              |
+| 10       | Declared-access canonical diff                                                     | Escalation decision, generated types                |
+| 11       | Shared provenance and record verification                                          | Sigstore spike, lexicons, safe fetch                |
+| 12       | Passkey required-UV and challenge-context extension                                | Gate 0                                              |
+| 13       | Release-service scaffold and initial D1 migrations                                 | Gate 0                                              |
+| 14       | Encryption, confidential metadata, and OAuth stores                                | OAuth spike, scaffold                               |
+| 15       | GitHub verifier and workload-policy repository                                     | Scaffold                                            |
+| 16       | Intent submission and validation worker                                            | Shared verification, GitHub policy, D1 repositories |
+| 17       | Enrolment and multiple-passkey service flow                                        | OAuth identity, passkey extension, D1 repositories  |
+| 18       | Approval digest and approval/rejection lifecycle                                   | Validation worker, passkey flow                     |
+| 19       | Publication, refresh coordination, and reconciliation                              | Create-only helper, approval lifecycle, OAuth store |
+| 20       | Outbox, Queues, cron, expiry, and recovery                                         | Core lifecycle                                      |
+| 21       | Versioned API client and CI endpoints                                              | Core lifecycle/API                                  |
+| 22       | Installer shared-verification migration and enforcement                            | Shared verification, lexicons                       |
+| 23       | Minimum aggregator policy status and filtering                                     | Shared verification, lexicons                       |
+| 24       | Console foundation, delegation, policy, intent, passkey, approval, and audit pages | Stable service API and service flows                |
+| 25       | Email, webhook, and delivery workers                                               | Outbox lifecycle                                    |
+| 26       | Notification console pages                                                         | Notification API and delivery workers               |
+| 27       | CLI delegation, policy, enrolment, approval, and release commands                  | API client and service flows                        |
+| 28       | Official GitHub Action                                                             | CI API and GitHub verifier                          |
+| 29       | Event-specific aggregator ingest and policy history                                | Historical-event prototype                          |
+| 30       | Aggregator provenance pipeline, historical views, and cooldown                     | Policy history, notifications                       |
+| 31       | Operations, self-hosting, and conformance hardening                                | Feature-complete service                            |
+| 32       | Self-host conformance, production smoke, and launch gate                           | All prior launch dependencies                       |
 
 ## Parallelization Map
 
@@ -1037,16 +1037,16 @@ After Gate 2:
 
 ## Dependency Risks
 
-| Risk | Impacted work | Required response |
-| --- | --- | --- |
-| Supported PDS rejects create-only scope | `W3`, `W5`, `W8` | Change RFC/support matrix; never add broad fallback. |
-| Sigstore verifier cannot run in workerd | `W2`, `W5`, `W9`, `W10` | Resolve runtime compatibility or controlled cryptographic worker design before Gate 1. |
-| Historical profile values cannot be recovered | `W10`, production launch | Redesign history source or revise RFC downgrade guarantees before Gate 5. |
-| Profile extension shape changes after implementation | `W1`, all consumers | Block downstream schema work until ratification; regenerate fixtures together. |
-| D1 refresh lease proves unsafe under real atcute behavior | `W3`, `W5` | Introduce per-publisher DO coordinator behind `PublisherCoordinator`, keeping D1 canonical. |
-| Current CLI profile update strips extensions | `W1`, policy security | Land preservation regression fix with the lexicon, before policy can be set. |
-| GitHub attestation fields differ from RFC assumptions | `W0`, `W2`, `W4` | Ratify mapping from real bundle and update RFC fields before verifier implementation. |
-| Verifier Worker cannot enforce required egress policy | `W2`, `W7`, self-hosting | Require controlled egress proxy for deployments with private connectivity. |
+| Risk                                                      | Impacted work            | Required response                                                                           |
+| --------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------- |
+| Supported PDS rejects create-only scope                   | `W3`, `W5`, `W8`         | Change RFC/support matrix; never add broad fallback.                                        |
+| Sigstore verifier cannot run in workerd                   | `W2`, `W5`, `W9`, `W10`  | Resolve runtime compatibility or controlled cryptographic worker design before Gate 1.      |
+| Historical profile values cannot be recovered             | `W10`, production launch | Redesign history source or revise RFC downgrade guarantees before Gate 5.                   |
+| Profile extension shape changes after implementation      | `W1`, all consumers      | Block downstream schema work until ratification; regenerate fixtures together.              |
+| D1 refresh lease proves unsafe under real atcute behavior | `W3`, `W5`               | Introduce per-publisher DO coordinator behind `PublisherCoordinator`, keeping D1 canonical. |
+| Current CLI profile update strips extensions              | `W1`, policy security    | Land preservation regression fix with the lexicon, before policy can be set.                |
+| GitHub attestation fields differ from RFC assumptions     | `W0`, `W2`, `W4`         | Ratify mapping from real bundle and update RFC fields before verifier implementation.       |
+| Verifier Worker cannot enforce required egress policy     | `W2`, `W7`, self-hosting | Require controlled egress proxy for deployments with private connectivity.                  |
 
 ## Definition of Done for Every Work Item
 
