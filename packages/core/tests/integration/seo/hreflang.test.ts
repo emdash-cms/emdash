@@ -183,6 +183,34 @@ describe("getHreflangAlternates (#1690)", () => {
 		expect(await getHreflangAlternatesWithDb(db, "post", en.id)).toEqual([]);
 	});
 
+	it("returns empty for a relative site URL", async () => {
+		const { en } = await createPair();
+
+		expect(await getHreflangAlternatesWithDb(db, "post", en.id, { siteUrl: "/base" })).toEqual([]);
+	});
+
+	it("excludes noindex siblings, matching the sitemap filter", async () => {
+		const { en, fr } = await createPair();
+		await db
+			.insertInto("_emdash_seo")
+			.values({ collection: "post", content_id: fr.id, seo_no_index: 1 })
+			.execute();
+
+		const alternates = await getHreflangAlternatesWithDb(db, "post", en.id, { siteUrl: SITE });
+
+		expect(alternates.map((a) => a.hreflang)).toEqual(["en", "x-default"]);
+	});
+
+	it("returns empty when the entry itself is noindex", async () => {
+		const { en } = await createPair();
+		await db
+			.insertInto("_emdash_seo")
+			.values({ collection: "post", content_id: en.id, seo_no_index: 1 })
+			.execute();
+
+		expect(await getHreflangAlternatesWithDb(db, "post", en.id, { siteUrl: SITE })).toEqual([]);
+	});
+
 	it("returns empty for a missing entry", async () => {
 		expect(await getHreflangAlternatesWithDb(db, "post", "nope", { siteUrl: SITE })).toEqual([]);
 	});
