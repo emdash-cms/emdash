@@ -199,6 +199,33 @@ describe("ContentSettingsPanel", () => {
 		const lastSection = root?.lastElementChild;
 		expect(lastSection?.textContent).toContain("Move to Trash");
 	});
+
+	it("clears scheduler input when switching entries", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				key="item-1"
+				{...makePanelProps({ canSchedule: true, onSchedule: vi.fn() })}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Schedule for later" }).click();
+		await screen.getByLabelText("Schedule for").fill("2030-01-02T12:30");
+
+		await screen.rerender(
+			<ContentSettingsPanel
+				key="item-2"
+				{...makePanelProps({
+					item: makeItem({ id: "item-2", locale: "ar" }),
+					canSchedule: true,
+					onSchedule: vi.fn(),
+				})}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Schedule for later" }))
+			.toBeInTheDocument();
+	});
 });
 
 function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): SettingsActionBarProps {
@@ -286,7 +313,7 @@ describe("SettingsActionBar", () => {
 		const screen = await render(
 			<SettingsActionBar {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
 		);
-		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeEnabled();
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
 	});
 
 	it("can suppress its SaveButton live region when another mounted copy announces status", async () => {

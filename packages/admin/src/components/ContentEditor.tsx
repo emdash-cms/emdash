@@ -130,16 +130,24 @@ export interface ContentEditorProps {
 	isAutosaving?: boolean;
 	/** Entry-scoped token advanced after a successful autosave. */
 	autosaveCompletionToken?: number;
+	/** Entry-scoped token advanced after content is intentionally reset. */
+	contentResetCompletionToken?: number;
+	/** Authoritative item returned by the matching content reset. */
+	contentResetItem?: ContentItem | null;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	/** Callback to discard draft changes (revert to published version) */
-	onDiscardDraft?: () => void;
+	onDiscardDraft?: () => void | Promise<unknown>;
+	/** Restore a historical revision through the editor's write coordinator. */
+	onRestoreRevision?: (revisionId: string) => Promise<ContentItem>;
 	/** Callback to schedule for future publishing */
 	onSchedule?: (scheduledAt: string) => void;
 	/** Callback to cancel scheduling (revert to draft) */
 	onUnschedule?: () => void;
 	/** Whether scheduling is in progress */
 	isScheduling?: boolean;
+	/** Whether a publish/schedule/delete state transition is in progress. */
+	isTransitioning?: boolean;
 	/** Whether this collection supports drafts */
 	supportsDrafts?: boolean;
 	/** Whether this collection supports revisions */
@@ -203,12 +211,16 @@ export function ContentEditor({
 	onAutosave,
 	isAutosaving,
 	autosaveCompletionToken,
+	contentResetCompletionToken,
+	contentResetItem,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
+	onRestoreRevision,
 	onSchedule,
 	onUnschedule,
 	isScheduling,
+	isTransitioning,
 	supportsDrafts = false,
 	supportsRevisions = false,
 	supportsPreview = false,
@@ -308,6 +320,53 @@ export function ContentEditor({
 		}),
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
+	const pendingManualSaveStateRef = React.useRef<string | null>(null);
+	const lastSavedDataRef = React.useRef(lastSavedData);
+	lastSavedDataRef.current = lastSavedData;
+	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
+	const currentData = React.useMemo(
+		() =>
+			serializeEditorState({
+				data: formData,
+				slug,
+				bylines: activeBylines,
+			}),
+		[formData, slug, activeBylines],
+	);
+	const currentDataRef = React.useRef(currentData);
+	currentDataRef.current = currentData;
+	const currentItemScopeRef = React.useRef({ collection, id: item?.id ?? null });
+	currentItemScopeRef.current = { collection, id: item?.id ?? null };
+	const applyResetItem = React.useCallback((nextItem: ContentItem) => {
+		if (
+			nextItem.id !== currentItemScopeRef.current.id ||
+			nextItem.type !== currentItemScopeRef.current.collection
+		) {
+			return;
+		}
+
+		const nextBylines =
+			nextItem.bylines?.map((entry) => ({
+				bylineId: entry.byline.id,
+				roleLabel: entry.roleLabel,
+			})) ?? [];
+		const nextSavedData = serializeEditorState({
+			data: nextItem.data,
+			slug: nextItem.slug || "",
+			bylines: nextBylines,
+		});
+
+		setFormData(nextItem.data);
+		setSlug(nextItem.slug || "");
+		setSlugTouched(!!nextItem.slug);
+		setStatus(nextItem.status);
+		setInternalBylines(nextBylines);
+		lastSavedDataRef.current = nextSavedData;
+		setLastSavedData(nextSavedData);
+		pendingAutosaveStateRef.current = null;
+		pendingManualSaveStateRef.current = null;
+		setBylinesTouched(false);
+	}, []);
 
 	// Synchronously reset form state when the underlying item changes (e.g. a
 	// translation switch where TanStack Router keeps ContentEditor mounted but
@@ -332,47 +391,110 @@ export function ContentEditor({
 			item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
 			[];
 		setInternalBylines(nextBylines);
-		setLastSavedData(
-			serializeEditorState({
-				data: item.data,
-				slug: item.slug || "",
-				bylines: nextBylines,
-			}),
-		);
+		const nextSavedData = serializeEditorState({
+			data: item.data,
+			slug: item.slug || "",
+			bylines: nextBylines,
+		});
+		lastSavedDataRef.current = nextSavedData;
+		setLastSavedData(nextSavedData);
 		pendingAutosaveStateRef.current = null;
+		pendingManualSaveStateRef.current = null;
 		setBylinesTouched(false);
 	}
+
+	const latestAutosaveCompletionRef = React.useRef(autosaveCompletionToken ?? 0);
+	const latestSaveCompletionRef = React.useRef(saveCompletionToken ?? 0);
+	const latestContentResetCompletionRef = React.useRef(contentResetCompletionToken ?? 0);
+	const wasAutosavingRef = React.useRef(Boolean(isAutosaving));
+	const wasSavingRef = React.useRef(Boolean(isSaving));
+
+	React.useEffect(() => {
+		const nextAutosaveCompletion = autosaveCompletionToken ?? 0;
+		const autosaveSucceeded = nextAutosaveCompletion > latestAutosaveCompletionRef.current;
+
+		if (autosaveSucceeded) {
+			latestAutosaveCompletionRef.current = nextAutosaveCompletion;
+			const savedState = pendingAutosaveStateRef.current;
+			pendingAutosaveStateRef.current = null;
+			if (savedState) {
+				lastSavedDataRef.current = savedState;
+				setLastSavedData(savedState);
+			}
+		} else if (wasAutosavingRef.current && !isAutosaving) {
+			pendingAutosaveStateRef.current = null;
+		}
+		wasAutosavingRef.current = Boolean(isAutosaving);
+
+		const nextSaveCompletion = saveCompletionToken ?? 0;
+		const saveSucceeded = nextSaveCompletion > latestSaveCompletionRef.current;
+
+		// Autosaves advance both completion tokens. Only consume the manual
+		// snapshot when the save token advances on its own.
+		if (saveSucceeded && !autosaveSucceeded) {
+			latestSaveCompletionRef.current = nextSaveCompletion;
+			const savedState = pendingManualSaveStateRef.current;
+			pendingManualSaveStateRef.current = null;
+			if (savedState) {
+				lastSavedDataRef.current = savedState;
+				setLastSavedData(savedState);
+			}
+		} else if (wasSavingRef.current && !isSaving) {
+			pendingManualSaveStateRef.current = null;
+		}
+		if (saveSucceeded && autosaveSucceeded) {
+			latestSaveCompletionRef.current = nextSaveCompletion;
+		}
+		wasSavingRef.current = Boolean(isSaving);
+
+		const nextResetCompletion = contentResetCompletionToken ?? 0;
+		if (nextResetCompletion > latestContentResetCompletionRef.current) {
+			latestContentResetCompletionRef.current = nextResetCompletion;
+			if (contentResetItem) applyResetItem(contentResetItem);
+		}
+	}, [
+		applyResetItem,
+		autosaveCompletionToken,
+		contentResetCompletionToken,
+		contentResetItem,
+		isAutosaving,
+		isSaving,
+		saveCompletionToken,
+	]);
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
 	React.useEffect(() => {
 		if (item) {
+			const nextBylines =
+				item.bylines?.map((entry) => ({
+					bylineId: entry.byline.id,
+					roleLabel: entry.roleLabel,
+				})) ?? [];
+			const nextSavedData = serializeEditorState({
+				data: item.data,
+				slug: item.slug || "",
+				bylines: nextBylines,
+			});
+
+			if (currentDataRef.current !== lastSavedDataRef.current) {
+				setStatus(item.status);
+				return;
+			}
+
 			setFormData(item.data);
 			setSlug(item.slug || "");
 			setSlugTouched(!!item.slug);
 			setStatus(item.status);
-			setInternalBylines(
-				item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-					[],
-			);
-			setLastSavedData(
-				serializeEditorState({
-					data: item.data,
-					slug: item.slug || "",
-					bylines:
-						item.bylines?.map((entry) => ({
-							bylineId: entry.byline.id,
-							roleLabel: entry.roleLabel,
-						})) ?? [],
-				}),
-			);
+			setInternalBylines(nextBylines);
+			lastSavedDataRef.current = nextSavedData;
+			setLastSavedData(nextSavedData);
 			pendingAutosaveStateRef.current = null;
+			pendingManualSaveStateRef.current = null;
 			setBylinesTouched(false);
 		}
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
-
-	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
@@ -388,33 +510,18 @@ export function ContentEditor({
 	);
 
 	// Check if form has unsaved changes
-	const currentData = React.useMemo(
-		() =>
-			serializeEditorState({
-				data: formData,
-				slug,
-				bylines: activeBylines,
-			}),
-		[formData, slug, activeBylines],
-	);
 	const isDirty = isNew || currentData !== lastSavedData;
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
 	const autosaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+	const contentResettingRef = React.useRef(false);
+	const [isContentResetting, setIsContentResetting] = React.useState(false);
+	const isContentBusy = Boolean(isSaving || isAutosaving || isContentResetting || isTransitioning);
 	const formDataRef = React.useRef(formData);
 	formDataRef.current = formData;
 	const slugRef = React.useRef(slug);
 	slugRef.current = slug;
-
-	React.useEffect(() => {
-		if (!autosaveCompletionToken || !pendingAutosaveStateRef.current) {
-			return;
-		}
-
-		setLastSavedData(pendingAutosaveStateRef.current);
-		pendingAutosaveStateRef.current = null;
-	}, [autosaveCompletionToken]);
 
 	const hasInvalidUrls = React.useCallback(
 		(data: Record<string, unknown>) => {
@@ -428,10 +535,47 @@ export function ContentEditor({
 		},
 		[fields],
 	);
+	const runContentReset = React.useCallback(
+		async <T,>(operation: () => T | Promise<T>): Promise<T> => {
+			if (contentResettingRef.current) {
+				throw new Error(t`Another content reset is already in progress`);
+			}
+
+			contentResettingRef.current = true;
+			setIsContentResetting(true);
+			if (autosaveTimeoutRef.current) {
+				clearTimeout(autosaveTimeoutRef.current);
+				autosaveTimeoutRef.current = null;
+			}
+
+			try {
+				return await operation();
+			} finally {
+				contentResettingRef.current = false;
+				setIsContentResetting(false);
+			}
+		},
+		[t],
+	);
+	const handleDiscardDraft = React.useCallback(() => {
+		if (!onDiscardDraft) return;
+		void runContentReset(onDiscardDraft).catch(() => {
+			// The route mutation owns user-facing error reporting.
+		});
+	}, [onDiscardDraft, runContentReset]);
+	const handleRestoreRevision = React.useCallback(
+		(revisionId: string) => {
+			if (!onRestoreRevision) {
+				return Promise.reject(new Error(t`Revision restore is unavailable`));
+			}
+			return runContentReset(() => onRestoreRevision(revisionId));
+		},
+		[onRestoreRevision, runContentReset, t],
+	);
 
 	React.useEffect(() => {
 		// Don't autosave for new items (no ID yet) or if autosave isn't configured
-		if (isNew || !onAutosave || !item?.id) {
+		if (isNew || !onAutosave || !item?.id || isContentResetting) {
 			return;
 		}
 
@@ -447,6 +591,8 @@ export function ContentEditor({
 
 		// Schedule autosave
 		autosaveTimeoutRef.current = setTimeout(() => {
+			autosaveTimeoutRef.current = null;
+			if (contentResettingRef.current) return;
 			if (hasInvalidUrls(formDataRef.current)) return;
 			const payload: {
 				data: Record<string, unknown>;
@@ -478,6 +624,7 @@ export function ContentEditor({
 		isDirty,
 		isSaving,
 		isAutosaving,
+		isContentResetting,
 		activeBylines,
 		bylinesTouched,
 		hasInvalidUrls,
@@ -486,6 +633,7 @@ export function ContentEditor({
 	// Cancel pending autosave on manual save
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		if (isSaving || isAutosaving || contentResettingRef.current) return;
 		if (hasInvalidUrls(formData)) return;
 		// Cancel pending autosave
 		if (autosaveTimeoutRef.current) {
@@ -501,7 +649,10 @@ export function ContentEditor({
 			slug: slug || undefined,
 		};
 		if (isNew || bylinesTouched) payload.bylines = activeBylines;
-		onSave?.(payload);
+		if (onSave) {
+			pendingManualSaveStateRef.current = currentData;
+			onSave(payload);
+		}
 	};
 
 	// Preview URL state
@@ -670,10 +821,9 @@ export function ContentEditor({
 												key={item?.id ?? "new"}
 												type="submit"
 												isDirty={isDirty}
-												isSaving={isSaving || isAutosaving || false}
+												isSaving={isContentBusy}
 												saveCompletionToken={saveCompletionToken}
 												saveScope={item?.id ?? "new"}
-												disableWhileSaving={Boolean(isSaving)}
 											/>
 											{liveViewUrl && (
 												<LinkButton
@@ -691,6 +841,7 @@ export function ContentEditor({
 												hasPendingChanges={hasPendingChanges}
 												onPublish={onPublish}
 												onUnpublish={onUnpublish}
+												disabled={isContentBusy}
 											/>
 											<MobileSettingsButton />
 										</div>
@@ -720,21 +871,25 @@ export function ContentEditor({
 										key={item?.id ?? "new"}
 										type="submit"
 										isDirty={isDirty}
-										isSaving={isSaving || isAutosaving || false}
+										isSaving={isContentBusy}
 										saveCompletionToken={saveCompletionToken}
 										saveScope={item?.id ?? "new"}
-										disableWhileSaving={Boolean(isSaving)}
 									/>
 									{!isNew && (
 										<>
 											{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-												<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
+												<DiscardDraftDialog
+													onDiscard={handleDiscardDraft}
+													triggerVariant="outline"
+													disabled={isContentBusy}
+												/>
 											)}
 											<PublishActions
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
 												onPublish={onPublish}
 												onUnpublish={onUnpublish}
+												disabled={isContentBusy}
 											/>
 										</>
 									)}
@@ -796,7 +951,7 @@ export function ContentEditor({
 						<SettingsActionBar
 							isNew={isNew}
 							isDirty={isDirty}
-							isSaving={isSaving || false}
+							isSaving={isContentBusy}
 							saveCompletionToken={saveCompletionToken}
 							saveScope={item?.id ?? "new"}
 							isAutosaving={isAutosaving}
@@ -808,6 +963,7 @@ export function ContentEditor({
 							onPreview={handlePreview}
 							onPublish={onPublish}
 							onUnpublish={onUnpublish}
+							disableTransitions={isContentBusy}
 							announceSaveStatus
 						/>
 					)}
@@ -821,6 +977,7 @@ export function ContentEditor({
 							</div>
 						)}
 						<ContentSettingsPanel
+							key={item?.id ?? `new:${collection}`}
 							collection={collection}
 							item={item}
 							isNew={isNew}
@@ -837,7 +994,8 @@ export function ContentEditor({
 							onSchedule={onSchedule}
 							onUnschedule={onUnschedule}
 							isScheduling={isScheduling}
-							onDiscardDraft={onDiscardDraft}
+							onDiscardDraft={handleDiscardDraft}
+							isContentBusy={isContentBusy}
 							onDelete={onDelete}
 							isDeleting={isDeleting}
 							currentUser={currentUser}
@@ -855,6 +1013,8 @@ export function ContentEditor({
 							hasSeo={hasSeo}
 							onSeoChange={onSeoChange ? handleSeoChange : undefined}
 							portableTextEditor={portableTextEditor}
+							onRevisionRestored={applyResetItem}
+							onRestoreRevision={onRestoreRevision ? handleRestoreRevision : undefined}
 							blockSidebarPanel={blockSidebarPanel}
 							onBlockSidebarClose={handleBlockSidebarClose}
 							onBlockSidebarDelete={handleBlockSidebarDelete}

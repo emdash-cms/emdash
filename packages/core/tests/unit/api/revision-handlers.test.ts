@@ -6,6 +6,7 @@ import {
 	handleRevisionGet,
 	handleRevisionRestore,
 } from "../../../src/api/index.js";
+import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { Database } from "../../../src/database/types.js";
@@ -163,6 +164,40 @@ describe("Revision Handlers", () => {
 			expect(result.success).toBe(true);
 			expect(result.data?.item.data.title).toBe("Original");
 			expect(result.data?.item.data.content).toBe("Original content");
+		});
+
+		it("replaces an existing draft pointer and returns hydrated bylines", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const byline = await bylineRepo.create({
+				slug: "restore-author",
+				displayName: "Restore Author",
+			});
+			const content = await contentRepo.create({
+				...createPostFixture(),
+				data: { title: "Published" },
+			});
+			await bylineRepo.setContentBylines("post", content.id, [
+				{ bylineId: byline.id, roleLabel: "Writer" },
+			]);
+			const staleDraft = await revisionRepo.create({
+				collection: "post",
+				entryId: content.id,
+				data: { title: "Stale draft" },
+			});
+			await contentRepo.setDraftRevision("post", content.id, staleDraft.id);
+			const target = await revisionRepo.create({
+				collection: "post",
+				entryId: content.id,
+				data: { title: "Restored target" },
+			});
+
+			const result = await handleRevisionRestore(db, target.id, callerUserId);
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.draftRevisionId).not.toBe(staleDraft.id);
+			expect(result.data?.item.bylines?.[0]?.byline.id).toBe(byline.id);
+			const restoredDraft = await revisionRepo.findById(result.data!.item.draftRevisionId!);
+			expect(restoredDraft?.data.title).toBe("Restored target");
 		});
 
 		it("should create a new revision when restoring", async () => {

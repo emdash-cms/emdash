@@ -57,17 +57,26 @@ export function DiscardDraftDialog({
 	onDiscard,
 	triggerVariant = "ghost",
 	triggerSize,
+	disabled,
 }: {
 	onDiscard?: () => void;
 	triggerVariant?: "ghost" | "outline";
 	triggerSize?: "sm";
+	disabled?: boolean;
 }) {
 	const { t } = useLingui();
 	return (
 		<Dialog.Root>
 			<Dialog.Trigger
 				render={(p) => (
-					<Button {...p} type="button" variant={triggerVariant} size={triggerSize} icon={<X />}>
+					<Button
+						{...p}
+						type="button"
+						variant={triggerVariant}
+						size={triggerSize}
+						icon={<X />}
+						disabled={disabled}
+					>
 						{t`Discard changes`}
 					</Button>
 				)}
@@ -87,7 +96,7 @@ export function DiscardDraftDialog({
 					/>
 					<Dialog.Close
 						render={(p) => (
-							<Button {...p} variant="destructive" onClick={onDiscard}>
+							<Button {...p} variant="destructive" onClick={onDiscard} disabled={disabled}>
 								{t`Discard changes`}
 							</Button>
 						)}
@@ -106,6 +115,7 @@ export interface SettingsActionBarProps {
 	saveScope?: string;
 	/** Autosave in flight — folded into the SaveButton's "Saving..." state. */
 	isAutosaving?: boolean;
+	disableTransitions?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	liveViewUrl?: string | null;
@@ -152,6 +162,7 @@ export interface PublishActionsProps {
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	size?: "sm";
+	disabled?: boolean;
 }
 
 export function PublishActions({
@@ -161,26 +172,48 @@ export function PublishActions({
 	onPublish,
 	onUnpublish,
 	size,
+	disabled,
 }: PublishActionsProps) {
 	const { t } = useLingui();
 
 	if (isNew) return null;
 	if (!isLive) {
 		return (
-			<Button type="button" variant="secondary" size={size} onClick={onPublish} icon={<Upload />}>
+			<Button
+				type="button"
+				variant="secondary"
+				size={size}
+				onClick={onPublish}
+				icon={<Upload />}
+				disabled={disabled}
+			>
 				{t`Publish`}
 			</Button>
 		);
 	}
 	if (hasPendingChanges) {
 		return (
-			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
+			<Button
+				type="button"
+				variant="primary"
+				size={size}
+				onClick={onPublish}
+				icon={<Upload />}
+				disabled={disabled}
+			>
 				{t`Publish changes`}
 			</Button>
 		);
 	}
 	return (
-		<Button type="button" variant="outline" size={size} onClick={onUnpublish} icon={<EyeSlash />}>
+		<Button
+			type="button"
+			variant="outline"
+			size={size}
+			onClick={onUnpublish}
+			icon={<EyeSlash />}
+			disabled={disabled}
+		>
 			{t`Unpublish`}
 		</Button>
 	);
@@ -202,6 +235,7 @@ export function SettingsActionBar({
 	saveCompletionToken,
 	saveScope,
 	isAutosaving,
+	disableTransitions,
 	isLive,
 	hasPendingChanges,
 	liveViewUrl,
@@ -224,7 +258,6 @@ export function SettingsActionBar({
 				isSaving={isSaving || Boolean(isAutosaving)}
 				saveCompletionToken={saveCompletionToken}
 				saveScope={saveScope}
-				disableWhileSaving={isSaving}
 				announceStatus={announceSaveStatus}
 			/>
 			{liveViewUrl && (
@@ -253,6 +286,7 @@ export function SettingsActionBar({
 				onPublish={onPublish}
 				onUnpublish={onUnpublish}
 				size="sm"
+				disabled={disableTransitions}
 			/>
 		</div>
 	);
@@ -277,6 +311,7 @@ export interface ContentSettingsPanelProps {
 	onUnschedule?: () => void;
 	isScheduling?: boolean;
 	onDiscardDraft?: () => void;
+	isContentBusy?: boolean;
 	onDelete?: () => void;
 	isDeleting?: boolean;
 	currentUser?: CurrentUserInfo;
@@ -298,6 +333,8 @@ export interface ContentSettingsPanelProps {
 	onSeoChange?: (seo: ContentSeoInput) => void;
 	/** portableText editor for the document outline (null when none mounted) */
 	portableTextEditor: Editor | null;
+	onRevisionRestored?: (item: ContentItem) => void;
+	onRestoreRevision?: (revisionId: string) => Promise<ContentItem>;
 	/** When set, the panel shows the block's detail panel instead of settings */
 	blockSidebarPanel: BlockSidebarPanel | null;
 	onBlockSidebarClose: () => void;
@@ -330,6 +367,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onUnschedule,
 	isScheduling,
 	onDiscardDraft,
+	isContentBusy,
 	onDelete,
 	isDeleting,
 	currentUser,
@@ -347,6 +385,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	hasSeo,
 	onSeoChange,
 	portableTextEditor,
+	onRevisionRestored,
+	onRestoreRevision,
 	blockSidebarPanel,
 	onBlockSidebarClose,
 	onBlockSidebarDelete,
@@ -424,6 +464,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									onDiscard={onDiscardDraft}
 									triggerVariant="outline"
 									triggerSize="sm"
+									disabled={isContentBusy}
 								/>
 							</div>
 						)}
@@ -431,7 +472,13 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					{item?.scheduledAt && (
 						<div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
 							<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
-							<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={onUnschedule}
+								disabled={isContentBusy}
+							>
 								{t`Unschedule`}
 							</Button>
 						</div>
@@ -453,7 +500,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 											type="button"
 											size="sm"
 											onClick={handleScheduleSubmit}
-											disabled={!scheduleDate || isScheduling}
+											disabled={!scheduleDate || isScheduling || isContentBusy}
 											icon={isScheduling ? <Loader size="sm" /> : undefined}
 										>
 											{t`Schedule`}
@@ -478,6 +525,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									size="sm"
 									className="w-full"
 									onClick={() => setShowScheduler(true)}
+									disabled={isContentBusy}
 								>
 									{t`Schedule for later`}
 								</Button>
@@ -585,7 +633,13 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 			{!isNew && item && supportsRevisions && (
 				<div className="p-4 border-t">
-					<RevisionHistory collection={collection} entryId={item.id} />
+					<RevisionHistory
+						collection={collection}
+						entryId={item.id}
+						onRestored={onRevisionRestored}
+						onRestoreRevision={onRestoreRevision}
+						disabled={isContentBusy}
+					/>
 				</div>
 			)}
 
@@ -599,7 +653,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									type="button"
 									variant="outline"
 									className="w-full text-kumo-danger hover:text-kumo-danger"
-									disabled={isDeleting}
+									disabled={isDeleting || isContentBusy}
 									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
 								>
 									{t`Move to Trash`}

@@ -4,12 +4,14 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
 	handleContentCreate,
 	handleContentDuplicate,
+	handleContentDiscardDraft,
 	handleContentGet,
 	handleContentList,
 	handleContentPublish,
 	handleContentUpdate,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
@@ -257,6 +259,30 @@ describe("Content Handlers — auto-slug generation", () => {
 	});
 
 	describe("byline hydration and assignment", () => {
+		it("returns hydrated bylines after discarding a draft", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const byline = await bylineRepo.create({
+				slug: "discard-author",
+				displayName: "Discard Author",
+			});
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Discard draft" },
+				bylines: [{ bylineId: byline.id, roleLabel: "Writer" }],
+			});
+			const revision = await new RevisionRepository(db).create({
+				collection: "post",
+				entryId: created.data!.item.id,
+				data: { title: "Draft title" },
+			});
+			await new ContentRepository(db).setDraftRevision("post", created.data!.item.id, revision.id);
+
+			const discarded = await handleContentDiscardDraft(db, "post", created.data!.item.id);
+
+			expect(discarded.success).toBe(true);
+			expect(discarded.data?.item.bylines?.[0]?.byline.id).toBe(byline.id);
+			expect(discarded.data?.item.bylines?.[0]?.roleLabel).toBe("Writer");
+		});
+
 		it("should assign and return bylines on create", async () => {
 			const bylineRepo = new BylineRepository(db);
 			const byline = await bylineRepo.create({

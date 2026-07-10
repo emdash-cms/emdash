@@ -160,6 +160,17 @@ async function hydrateBylines(
 	item.byline = null;
 }
 
+/** Hydrate ancillary content data that is stored outside the content table. */
+export async function hydrateContentItem(
+	db: Kysely<Database>,
+	collection: string,
+	item: ContentItem,
+): Promise<void> {
+	const hasSeo = await collectionHasSeo(db, collection);
+	await hydrateSeo(db, collection, item, hasSeo);
+	await hydrateBylines(db, collection, item);
+}
+
 /**
  * Batch-hydrate bylines for multiple items using two bulk queries instead of N+1.
  *
@@ -553,10 +564,7 @@ export async function handleContentGet(
 			};
 		}
 
-		// Hydrate SEO data if the collection has SEO enabled
-		const hasSeo = await collectionHasSeo(db, collection);
-		await hydrateSeo(db, collection, item, hasSeo);
-		await hydrateBylines(db, collection, item);
+		await hydrateContentItem(db, collection, item);
 
 		return {
 			success: true,
@@ -599,9 +607,7 @@ export async function handleContentGetIncludingTrashed(
 		}
 
 		// Hydrate SEO data if the collection has SEO enabled
-		const hasSeo = await collectionHasSeo(db, collection);
-		await hydrateSeo(db, collection, item, hasSeo);
-		await hydrateBylines(db, collection, item);
+		await hydrateContentItem(db, collection, item);
 
 		return {
 			success: true,
@@ -1538,8 +1544,7 @@ export async function handleContentDiscardDraft(
 			return repo.discardDraft(collection, resolvedId);
 		});
 
-		const hasSeo = await collectionHasSeo(db, collection);
-		await hydrateSeo(db, collection, item, hasSeo);
+		await hydrateContentItem(db, collection, item);
 
 		return {
 			success: true,

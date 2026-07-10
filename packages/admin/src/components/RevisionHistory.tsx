@@ -5,7 +5,7 @@ import { ArrowCounterClockwise, CaretDown, Plus, Minus, PencilSimple } from "@ph
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchRevisions, restoreRevision, type Revision } from "../lib/api";
+import { fetchRevisions, restoreRevision, type ContentItem, type Revision } from "../lib/api";
 import { cn, formatRelativeTime } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -70,7 +70,10 @@ interface RevisionHistoryProps {
 	collection: string;
 	entryId: string;
 	/** Called when a revision is successfully restored */
-	onRestored?: () => void;
+	onRestored?: (item: ContentItem) => void;
+	/** Runs restore through the parent editor's content-operation queue. */
+	onRestoreRevision?: (revisionId: string) => Promise<ContentItem>;
+	disabled?: boolean;
 }
 
 /**
@@ -91,7 +94,13 @@ function formatFullDate(dateString: string): string {
  * RevisionHistory component - displays revision history for a content item
  * with ability to restore previous versions.
  */
-export function RevisionHistory({ collection, entryId, onRestored }: RevisionHistoryProps) {
+export function RevisionHistory({
+	collection,
+	entryId,
+	onRestored,
+	onRestoreRevision,
+	disabled,
+}: RevisionHistoryProps) {
 	const { t } = useLingui();
 	const [isExpanded, setIsExpanded] = React.useState(false);
 	const [selectedRevision, setSelectedRevision] = React.useState<Revision | null>(null);
@@ -106,8 +115,10 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 	});
 
 	const restoreMutation = useMutation({
-		mutationFn: (revisionId: string) => restoreRevision(revisionId),
-		onSuccess: () => {
+		mutationFn: (revisionId: string) =>
+			onRestoreRevision ? onRestoreRevision(revisionId) : restoreRevision(revisionId),
+		onSuccess: (item) => {
+			queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, entryId] }, item);
 			// Invalidate content and revisions queries
 			void queryClient.invalidateQueries({
 				queryKey: ["content", collection, entryId],
@@ -117,7 +128,7 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 			});
 			setSelectedRevision(null);
 			setRestoreTarget(null);
-			onRestored?.();
+			onRestored?.(item);
 			toastManager.add({
 				title: t`Revision restored`,
 				description: t`Content has been updated to the selected revision.`,
@@ -200,6 +211,7 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 										isRestoring={
 											restoreMutation.isPending && restoreMutation.variables === revision.id
 										}
+										isRestoreDisabled={Boolean(disabled)}
 										onRestore={() => handleRestore(revision)}
 										onSelect={() =>
 											setSelectedRevision(selectedRevision?.id === revision.id ? null : revision)
@@ -231,7 +243,7 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 				isPending={restoreMutation.isPending}
 				error={restoreMutation.error}
 				onConfirm={() => {
-					if (restoreTarget) restoreMutation.mutate(restoreTarget.id);
+					if (restoreTarget && !disabled) restoreMutation.mutate(restoreTarget.id);
 				}}
 			/>
 		</>
@@ -244,6 +256,7 @@ interface RevisionItemProps {
 	compareRevision?: Revision;
 	isLatest: boolean;
 	isRestoring: boolean;
+	isRestoreDisabled: boolean;
 	isSelected: boolean;
 	onRestore: () => void;
 	onSelect: () => void;
@@ -254,6 +267,7 @@ function RevisionItem({
 	compareRevision,
 	isLatest,
 	isRestoring,
+	isRestoreDisabled,
 	isSelected,
 	onRestore,
 	onSelect,
@@ -284,7 +298,7 @@ function RevisionItem({
 							e.stopPropagation();
 							onRestore();
 						}}
-						disabled={isRestoring}
+						disabled={isRestoring || isRestoreDisabled}
 						className="shrink-0"
 						title={t`Restore this version`}
 						aria-label={t`Restore this version`}
