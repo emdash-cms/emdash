@@ -117,7 +117,7 @@ jobs:
 
       - name: Run Review (${{ steps.model.outputs.alias }})
         if: steps.verify-pr.outputs.exists == 'true'
-        uses: ask-bonk/ask-bonk/github@19f4b9f34ed400c28b8cbed0ecd84bce931a38b7 # main as of 2026-04-24
+        uses: ask-bonk/ask-bonk/github@bfd92f4d0abb62d98558b35432534f7b9992f3eb # main as of 2026-04-24
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}

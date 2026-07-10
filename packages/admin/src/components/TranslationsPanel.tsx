@@ -4,7 +4,7 @@
  * taxonomy term edit so the admin shows one consistent affordance.
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Button, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -18,6 +18,8 @@ interface PanelTranslation {
 export interface TranslationsPanelProps {
 	/** Heading shown above the list (default: "Translations"). */
 	title?: string;
+	/** Extra classes for the heading, e.g. the content editor's muted panel label style. */
+	headingClassName?: string;
 	/** All configured locales. */
 	locales: string[];
 	/** Marked as "(default)" in the list. */
@@ -37,6 +39,7 @@ export interface TranslationsPanelProps {
 
 export function TranslationsPanel({
 	title,
+	headingClassName,
 	locales,
 	defaultLocale,
 	currentLocale,
@@ -53,7 +56,9 @@ export function TranslationsPanel({
 
 	return (
 		<div>
-			<h3 className="mb-4 font-semibold">{title ?? t`Translations`}</h3>
+			<Text bold as="h3" DANGEROUS_className={cn("mb-4", headingClassName)}>
+				{title ?? t`Translations`}
+			</Text>
 			<div className="space-y-2">
 				{locales.map((locale) => {
 					const translation = byLocale.get(locale);
@@ -62,7 +67,7 @@ export function TranslationsPanel({
 						<div
 							key={locale}
 							className={cn(
-								"flex items-center justify-between rounded-md px-3 py-2 text-sm",
+								"-mx-3 flex items-center justify-between rounded-md px-3 py-2 text-sm",
 								isCurrent
 									? "bg-kumo-brand/10 font-medium"
 									: translation

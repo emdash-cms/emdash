@@ -17,6 +17,9 @@ type ProviderName = "github" | "google";
 
 const VALID_PROVIDERS = new Set<string>(["github", "google"]);
 
+/** Invite tokens are base64url; clamp shape and length before persisting to state. */
+const INVITE_TOKEN_REGEX = /^[A-Za-z0-9_-]{1,256}$/;
+
 function isValidProvider(provider: string): provider is ProviderName {
 	return VALID_PROVIDERS.has(provider);
 }
@@ -97,8 +100,7 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 		// Access via locals.runtime for Cloudflare, or import.meta.env for Node
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- locals.runtime is injected by the Cloudflare adapter at runtime; not declared on App.Locals since the adapter is optional
 		const runtimeLocals = locals as unknown as { runtime?: { env?: Record<string, unknown> } };
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
-		const env = runtimeLocals.runtime?.env ?? (import.meta.env as Record<string, unknown>);
+		const env = runtimeLocals.runtime?.env ?? import.meta.env;
 		const providers = getOAuthConfig(env);
 
 		if (!providers[provider]) {
@@ -114,7 +116,16 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 
 		const stateStore = createOAuthStateStore(emdash.db);
 
-		const { url: authUrl } = await createAuthorizationUrl(config, provider, stateStore);
+		// When the flow starts from an invite link, carry the invite token so the
+		// callback can complete the invite for a matching, verified email. Validate
+		// its shape/length first: this endpoint is unauthenticated, so we avoid
+		// persisting arbitrary or oversized values into the short-lived state store.
+		const rawInvite = url.searchParams.get("invite");
+		const inviteToken = rawInvite && INVITE_TOKEN_REGEX.test(rawInvite) ? rawInvite : undefined;
+
+		const { url: authUrl } = await createAuthorizationUrl(config, provider, stateStore, {
+			inviteToken,
+		});
 
 		return redirect(authUrl);
 	} catch (error) {

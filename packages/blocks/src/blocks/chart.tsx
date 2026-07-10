@@ -1,5 +1,4 @@
 import { Chart, ChartPalette, TimeseriesChart } from "@cloudflare/kumo/components/chart";
-import type { EChartsOption } from "echarts";
 import { BarChart, LineChart, PieChart } from "echarts/charts";
 import {
 	AriaComponent,
@@ -135,12 +134,7 @@ function CustomChartBlock({ block, isDarkMode }: { block: ChartBlock; isDarkMode
 	}, [config.options]);
 
 	return (
-		<Chart
-			echarts={echarts}
-			isDarkMode={isDarkMode}
-			options={safeOptions as EChartsOption}
-			height={config.height}
-		/>
+		<Chart echarts={echarts} isDarkMode={isDarkMode} options={safeOptions} height={config.height} />
 	);
 }
 

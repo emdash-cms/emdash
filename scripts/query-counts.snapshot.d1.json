@@ -15,8 +15,8 @@
 	"GET /posts/building-for-the-long-term (warm)": 18,
 	"GET /rss.xml (cold)": 12,
 	"GET /rss.xml (warm)": 2,
-	"GET /search (cold)": 21,
-	"GET /search (warm)": 10,
+	"GET /search (cold)": 22,
+	"GET /search (warm)": 11,
 	"GET /tag/webdev (cold)": 22,
 	"GET /tag/webdev (warm)": 10
 }

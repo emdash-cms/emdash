@@ -2586,7 +2586,7 @@ export class EmDashRuntime {
 					...r.data,
 					item: { ...item, data: mergedData, liveData },
 				},
-			} as T;
+			};
 		} catch (error) {
 			// Non-fatal — fall back to the unhydrated response. Log so the
 			// failure isn't completely silent (the response will look stale
