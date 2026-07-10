@@ -34,6 +34,7 @@ The implementation is complete when:
 - No positive assessment requirement is enabled in production until first-party releases have been assessed and rollback is tested.
 - Incomplete integration remains unreachable by default. Feature flags may expose staging paths, but production clients must not depend on half-built label state.
 - Tests land with each workstream. Protocol, security, and failure tests are not deferred to the final gate.
+- `.opencode/plans` is ephemeral coordination material. Retained runtime code and tests must never import it; ratified contracts, fixtures, and vectors move into normal package/test directories before consumers use them.
 - The operator console uses Kumo, Lingui, and RTL-safe logical layout from its first UI change.
 - Existing unrelated worktree changes are left untouched.
 - Published-package changes receive changesets when their workstream lands.
@@ -226,6 +227,7 @@ Gate owners: `W9`, `W10`.
 - Signing-key rotation, compromised-key response, D1 restore, Jetstream cursor recovery, Queue/DLQ recovery, and notification recovery drills pass.
 - External security review has no unresolved critical or high findings.
 - Production smoke succeeds from release publication through assessment, label ingest, discovery, and clean-site install decision.
+- Every retained contract/fixture/vector lives under a normal package or test directory, no source/test imports `.opencode/plans`, and this planning folder is removed before the umbrella PR merges.
 
 Gate owners: `W11`, `W12`, with all preceding gates complete.
 
@@ -1600,6 +1602,7 @@ Exit: Gate 6 production smoke and sustained healthy operation.
 - [ ] Labeller lexicons and policy schema are published.
 - [ ] Shared crypto/header/moderation packages are the only implementations.
 - [ ] Legacy colon vocabulary is absent or bounded by an explicit migration.
+- [ ] Retained source/tests have no `.opencode/plans` dependency, all durable fixtures have moved to normal package/test paths, and the ephemeral planning folder is removed.
 
 ### Service
 
