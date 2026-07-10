@@ -374,6 +374,15 @@ async function createSlugChangeRedirect(
 		.where("slug", "=", collection)
 		.executeTakeFirst();
 
+	// Date tokens in the URL pattern resolve from the publish date, so the
+	// redirect URLs must be built with it — otherwise they'd keep literal
+	// `{year}`-style braces and never match a real request.
+	validateIdentifier(collection, "collection slug");
+	const entryRow = await sql<{ published_at: string | null }>`
+		SELECT published_at FROM ${sql.ref(`ec_${collection}`)} WHERE id = ${contentId}
+	`.execute(db);
+	const publishedAt = entryRow.rows[0]?.published_at ?? null;
+
 	const redirectRepo = new RedirectRepository(db);
 	await redirectRepo.createAutoRedirect(
 		collection,
@@ -381,6 +390,7 @@ async function createSlugChangeRedirect(
 		newSlug,
 		contentId,
 		collectionRow?.url_pattern ?? null,
+		publishedAt,
 	);
 	invalidateRedirectCache();
 }

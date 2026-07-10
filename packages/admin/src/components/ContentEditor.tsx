@@ -522,14 +522,14 @@ export function ContentEditor({
 				window.open(result.url, "_blank", "noopener,noreferrer");
 			} else {
 				window.open(
-					contentUrl(collection, slug || item.id, urlPattern, item.publishedAt ?? item.updatedAt),
+					contentUrl(collection, slug || item.id, urlPattern, item.publishedAt),
 					"_blank",
 					"noopener,noreferrer",
 				);
 			}
 		} catch {
 			window.open(
-				contentUrl(collection, slug || item?.id || "", urlPattern, item?.publishedAt ?? item?.updatedAt),
+				contentUrl(collection, slug || item?.id || "", urlPattern, item?.publishedAt),
 				"_blank",
 				"noopener,noreferrer",
 			);
@@ -561,7 +561,7 @@ export function ContentEditor({
 	const isLive = draftStatus === "published" || draftStatus === "published_with_changes";
 	const liveViewUrl =
 		isLive && item?.slug
-			? contentUrl(collection, item.slug, urlPattern, item.publishedAt ?? item.updatedAt)
+			? contentUrl(collection, item.slug, urlPattern, item.publishedAt)
 			: null;
 
 	// Scheduling — keyed off scheduledAt rather than status, since published

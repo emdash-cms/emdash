@@ -1002,12 +1002,7 @@ function ContentListItem({
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
 						<LinkButton
-							href={contentUrl(
-								collection,
-								item.slug,
-								urlPattern,
-								item.publishedAt ?? item.updatedAt,
-							)}
+							href={contentUrl(collection, item.slug, urlPattern, item.publishedAt)}
 							external
 							variant="ghost"
 							shape="square"

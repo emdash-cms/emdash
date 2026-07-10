@@ -386,6 +386,34 @@ describe("RedirectRepository", () => {
 			expect(redirect.type).toBe(301);
 		});
 
+		it("resolves date tokens from the publish date (#1526)", async () => {
+			const redirect = await repo.createAutoRedirect(
+				"posts",
+				"old-title",
+				"new-title",
+				"id1",
+				"/{year}/{month}/{day}/{slug}.html",
+				"2023-05-08T12:00:00.000Z",
+			);
+
+			expect(redirect.source).toBe("/2023/05/08/old-title.html");
+			expect(redirect.destination).toBe("/2023/05/08/new-title.html");
+		});
+
+		it("keeps date tokens literal without a publish date", async () => {
+			const redirect = await repo.createAutoRedirect(
+				"posts",
+				"old-title",
+				"new-title",
+				"id1",
+				"/{year}/{slug}",
+				null,
+			);
+
+			expect(redirect.source).toBe("/{year}/old-title");
+			expect(redirect.destination).toBe("/{year}/new-title");
+		});
+
 		it("uses fallback URL when no url pattern", async () => {
 			const redirect = await repo.createAutoRedirect("posts", "old-slug", "new-slug", "id1", null);
 

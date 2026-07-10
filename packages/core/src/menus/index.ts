@@ -13,7 +13,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
+import { interpolateUrlPattern, resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 import { requestCached } from "../request-cache.js";
@@ -284,18 +284,6 @@ async function resolveMenuItem(
 	};
 }
 
-const SLUG_PLACEHOLDER = /\{slug\}/g;
-const ID_PLACEHOLDER = /\{id\}/g;
-
-/**
- * Interpolate a URL pattern with entry data
- *
- * Replaces `{slug}` and `{id}` placeholders.
- */
-function interpolateUrlPattern(pattern: string, slug: string, id: string): string {
-	return pattern.replace(SLUG_PLACEHOLDER, slug).replace(ID_PLACEHOLDER, id);
-}
-
 /**
  * Resolve the URL for a content reference. `referenceGroup` is the content
  * row's translation_group; we look up the row in the requested locale
@@ -315,15 +303,15 @@ async function resolveContentUrl(
 		validateIdentifier(collection, "menu item collection");
 
 		// Try the requested locale first, then any locale (deterministic).
-		let result = await sql<{ id: string; slug: string }>`
-			SELECT id, slug FROM ${sql.ref(`ec_${collection}`)}
+		let result = await sql<{ id: string; slug: string; published_at: string | null }>`
+			SELECT id, slug, published_at FROM ${sql.ref(`ec_${collection}`)}
 			WHERE translation_group = ${referenceGroup} AND locale = ${locale}
 			LIMIT 1
 		`.execute(db);
 		let row = result.rows[0];
 		if (!row) {
-			result = await sql<{ id: string; slug: string }>`
-				SELECT id, slug FROM ${sql.ref(`ec_${collection}`)}
+			result = await sql<{ id: string; slug: string; published_at: string | null }>`
+				SELECT id, slug, published_at FROM ${sql.ref(`ec_${collection}`)}
 				WHERE translation_group = ${referenceGroup}
 				ORDER BY locale ASC LIMIT 1
 			`.execute(db);
@@ -333,17 +321,21 @@ async function resolveContentUrl(
 			// Legacy rows whose reference_id still points at an id directly
 			// (defensive — migration 036 normalised these, but a row inserted
 			// between migrations could predate the remap).
-			const legacy = await sql<{ id: string; slug: string }>`
-				SELECT id, slug FROM ${sql.ref(`ec_${collection}`)}
+			const legacy = await sql<{ id: string; slug: string; published_at: string | null }>`
+				SELECT id, slug, published_at FROM ${sql.ref(`ec_${collection}`)}
 				WHERE id = ${referenceGroup} LIMIT 1
 			`.execute(db);
 			row = legacy.rows[0];
 		}
 		if (!row) return null;
 
-		const pattern = urlPatterns.get(collection);
-		if (pattern) return interpolateUrlPattern(pattern, row.slug, row.id);
-		return `/${collection}/${row.slug}`;
+		return interpolateUrlPattern({
+			pattern: urlPatterns.get(collection) ?? null,
+			collection,
+			slug: row.slug,
+			id: row.id,
+			date: row.published_at,
+		});
 	} catch (error) {
 		console.error(`Failed to resolve content URL for ${collection}/${referenceGroup}:`, error);
 		return null;
