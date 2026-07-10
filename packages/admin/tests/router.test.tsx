@@ -48,10 +48,6 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onSave,
 		onAutosave,
 		onSeoChange,
-		onDiscardDraft,
-		onRestoreRevision,
-		onPublish,
-		onDelete,
 		isSaving,
 		saveCompletionToken,
 		autosaveCompletionToken,
@@ -60,10 +56,6 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
 		onSeoChange?: (seo: { title: string }) => void;
-		onDiscardDraft?: () => void;
-		onRestoreRevision?: (revisionId: string) => Promise<unknown>;
-		onPublish?: () => void;
-		onDelete?: () => void;
 		isSaving?: boolean;
 		saveCompletionToken?: number;
 		autosaveCompletionToken?: number;
@@ -95,18 +87,6 @@ vi.mock("../src/components/ContentEditor", () => ({
 			</button>
 			<button type="button" onClick={() => onSeoChange?.({ title: "Search title" })}>
 				Trigger SEO Sync
-			</button>
-			<button type="button" onClick={onDiscardDraft}>
-				Trigger Discard
-			</button>
-			<button type="button" onClick={() => void onRestoreRevision?.("rev-old")}>
-				Trigger Restore
-			</button>
-			<button type="button" onClick={onPublish}>
-				Trigger Publish
-			</button>
-			<button type="button" onClick={onDelete}>
-				Trigger Delete
 			</button>
 		</div>
 	),
@@ -677,164 +657,11 @@ describe("ContentEditPage – autosave cache patching", () => {
 			await new Promise((resolve) => setTimeout(resolve, 50));
 			expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
 
-			resolvers.shift()?.();
-			await waitFor(() => expect(resolvers).toHaveLength(1));
-			resolvers.shift()?.();
+			for (const resolve of resolvers) resolve();
 			await waitFor(() => {
 				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
 				expect(screen.getByTestId("save-completion-token").element().textContent).toBe("1");
 			});
-		} finally {
-			globalThis.fetch = fetchWithMocks;
-		}
-	});
-
-	it("serializes entry operations across editor remounts and state transitions", async () => {
-		mockFetch
-			.on("GET", "/_emdash/api/content/posts", {
-				data: { items: [], nextCursor: undefined },
-			})
-			.on("GET", "/_emdash/api/content/posts/trashed", { data: { items: [] } });
-		const { router, TestApp } = buildRouter();
-		await router.navigate({
-			to: "/content/$collection/$id",
-			params: { collection: "posts", id: "post_1" },
-		});
-		const screen = await render(<TestApp />);
-		await waitFor(() => {
-			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
-		});
-
-		const fetchWithMocks = globalThis.fetch;
-		const requestOrder: string[] = [];
-		let resolveSave: (() => void) | undefined;
-		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
-			const url =
-				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
-				requestOrder.push("save");
-				return new Promise<Response>((resolve) => {
-					resolveSave = () =>
-						resolve(
-							new Response(
-								JSON.stringify({
-									data: {
-										item: {
-											id: "post_1",
-											type: "posts",
-											slug: "published-slug",
-											status: "draft",
-											locale: "en",
-											data: { title: "Saved Title" },
-											updatedAt: "2025-01-02T00:00:00Z",
-											draftRevisionId: "rev_draft",
-										},
-									},
-								}),
-								{ status: 200, headers: { "Content-Type": "application/json" } },
-							),
-						);
-				});
-			}
-			if (init?.method === "POST" && url.includes("/content/posts/post_1/discard-draft")) {
-				requestOrder.push("discard");
-				return Promise.resolve(
-					new Response(
-						JSON.stringify({
-							data: {
-								item: {
-									id: "post_1",
-									type: "posts",
-									slug: "published-slug",
-									status: "published",
-									locale: "en",
-									data: { title: "Published Title" },
-									updatedAt: "2025-01-03T00:00:00Z",
-									draftRevisionId: null,
-								},
-							},
-						}),
-						{ status: 200, headers: { "Content-Type": "application/json" } },
-					),
-				);
-			}
-			if (init?.method === "POST" && url.includes("/revisions/rev-old/restore")) {
-				requestOrder.push("restore");
-				return Promise.resolve(
-					new Response(
-						JSON.stringify({
-							data: {
-								item: {
-									id: "post_1",
-									type: "posts",
-									slug: "restored-slug",
-									status: "published",
-									locale: "en",
-									data: { title: "Restored Title" },
-									updatedAt: "2025-01-04T00:00:00Z",
-									draftRevisionId: "rev-restored",
-								},
-							},
-						}),
-						{ status: 200, headers: { "Content-Type": "application/json" } },
-					),
-				);
-			}
-			if (init?.method === "POST" && url.includes("/content/posts/post_1/publish")) {
-				requestOrder.push("publish");
-				return Promise.resolve(
-					new Response(JSON.stringify({ data: { item: { id: "post_1", type: "posts" } } }), {
-						status: 200,
-						headers: { "Content-Type": "application/json" },
-					}),
-				);
-			}
-			return fetchWithMocks(input, init);
-		}) as typeof fetch;
-
-		try {
-			await screen.getByRole("button", { name: "Save", exact: true }).click();
-			await waitFor(() => expect(requestOrder).toEqual(["save"]));
-			await router.navigate({
-				to: "/content/$collection",
-				params: { collection: "posts" },
-			});
-			await router.navigate({
-				to: "/content/$collection/$id",
-				params: { collection: "posts", id: "post_1" },
-			});
-			await waitFor(() => {
-				expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
-			});
-
-			await screen.getByRole("button", { name: "Trigger Discard" }).click();
-			await new Promise((resolve) => setTimeout(resolve, 50));
-			expect(requestOrder).toEqual(["save"]);
-
-			resolveSave?.();
-			await waitFor(() => expect(requestOrder).toEqual(["save", "discard"]));
-
-			await screen.getByRole("button", { name: "Save", exact: true }).click();
-			await waitFor(() => expect(requestOrder).toEqual(["save", "discard", "save"]));
-			await screen.getByRole("button", { name: "Trigger Restore" }).click();
-			await new Promise((resolve) => setTimeout(resolve, 50));
-			expect(requestOrder).toEqual(["save", "discard", "save"]);
-
-			resolveSave?.();
-			await waitFor(() => expect(requestOrder).toEqual(["save", "discard", "save", "restore"]));
-
-			await screen.getByRole("button", { name: "Save", exact: true }).click();
-			await waitFor(() =>
-				expect(requestOrder).toEqual(["save", "discard", "save", "restore", "save"]),
-			);
-			await screen.getByRole("button", { name: "Trigger Publish" }).click();
-			await new Promise((resolve) => setTimeout(resolve, 50));
-			expect(requestOrder).toEqual(["save", "discard", "save", "restore", "save"]);
-
-			resolveSave?.();
-			await waitFor(() =>
-				expect(requestOrder).toEqual(["save", "discard", "save", "restore", "save", "publish"]),
-			);
 		} finally {
 			globalThis.fetch = fetchWithMocks;
 		}
@@ -897,140 +724,6 @@ describe("ContentEditPage – autosave cache patching", () => {
 			await new Promise((resolve) => setTimeout(resolve, 100));
 
 			expect(screen.getByTestId("autosave-completion-token").element().textContent).toBe("0");
-		} finally {
-			globalThis.fetch = fetchWithMocks;
-		}
-	});
-
-	it("does not redirect after a queued delete completes for a previous entry", async () => {
-		const { router, TestApp } = buildRouter();
-		await router.navigate({
-			to: "/content/$collection/$id",
-			params: { collection: "posts", id: "post_1" },
-		});
-		const screen = await render(<TestApp />);
-		await waitFor(() => {
-			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
-		});
-
-		const fetchWithMocks = globalThis.fetch;
-		let resolveSave: (() => void) | undefined;
-		let deleteStarted = false;
-		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
-			const url =
-				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
-				return new Promise<Response>((resolve) => {
-					resolveSave = () =>
-						resolve(
-							new Response(
-								JSON.stringify({
-									data: {
-										item: {
-											id: "post_1",
-											type: "posts",
-											data: { title: "Saved Title" },
-										},
-									},
-								}),
-								{ status: 200, headers: { "Content-Type": "application/json" } },
-							),
-						);
-				});
-			}
-			if (init?.method === "DELETE" && url.includes("/content/posts/post_1")) {
-				deleteStarted = true;
-				return Promise.resolve(new Response(null, { status: 204 }));
-			}
-			return fetchWithMocks(input, init);
-		}) as typeof fetch;
-
-		try {
-			await screen.getByRole("button", { name: "Save", exact: true }).click();
-			await waitFor(() => expect(resolveSave).toBeTypeOf("function"));
-			await screen.getByRole("button", { name: "Trigger Delete" }).click();
-
-			await router.navigate({
-				to: "/content/$collection/$id",
-				params: { collection: "posts", id: "post_2" },
-			});
-			await waitFor(() => {
-				expect(screen.getByTestId("mock-title").element().textContent).toBe("Second Post");
-			});
-
-			resolveSave?.();
-			await waitFor(() => expect(deleteStarted).toBe(true));
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
-			expect(router.state.location.pathname).toBe("/content/posts/post_2");
-		} finally {
-			globalThis.fetch = fetchWithMocks;
-		}
-	});
-
-	it("does not patch the current entry with a discard response from a previous entry", async () => {
-		const { router, queryClient, TestApp } = buildRouter();
-		await router.navigate({
-			to: "/content/$collection/$id",
-			params: { collection: "posts", id: "post_1" },
-		});
-		const screen = await render(<TestApp />);
-		await waitFor(() => {
-			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
-		});
-
-		const fetchWithMocks = globalThis.fetch;
-		let resolveDiscard: (() => void) | undefined;
-		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
-			const url =
-				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-			if (init?.method === "POST" && url.includes("/content/posts/post_1/discard-draft")) {
-				return new Promise<Response>((resolve) => {
-					resolveDiscard = () =>
-						resolve(
-							new Response(
-								JSON.stringify({
-									data: {
-										item: {
-											id: "post_1",
-											type: "posts",
-											slug: "published-slug",
-											status: "draft",
-											locale: "en",
-											data: { title: "Published Title" },
-											updatedAt: "2025-01-02T00:00:00Z",
-											draftRevisionId: null,
-										},
-									},
-								}),
-								{ status: 200, headers: { "Content-Type": "application/json" } },
-							),
-						);
-				});
-			}
-			return fetchWithMocks(input, init);
-		}) as typeof fetch;
-
-		try {
-			await screen.getByRole("button", { name: "Trigger Discard" }).click();
-			await router.navigate({
-				to: "/content/$collection/$id",
-				params: { collection: "posts", id: "post_2" },
-			});
-			await waitFor(() => {
-				expect(screen.getByTestId("mock-title").element().textContent).toBe("Second Post");
-			});
-
-			resolveDiscard?.();
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
-			const cachedPost2 = queryClient.getQueryData<{ id: string }>([
-				"content",
-				"posts",
-				"post_2",
-				{ locale: undefined },
-			]);
-			expect(cachedPost2?.id).toBe("post_2");
 		} finally {
 			globalThis.fetch = fetchWithMocks;
 		}

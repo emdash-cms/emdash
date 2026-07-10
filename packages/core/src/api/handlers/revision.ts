@@ -9,7 +9,6 @@ import { RevisionRepository, type Revision } from "../../database/repositories/r
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult, ContentResponse } from "../types.js";
-import { hydrateContentItem } from "./content.js";
 
 export interface RevisionListResponse {
 	items: Revision[];
@@ -120,28 +119,20 @@ export async function handleRevisionRestore(
 			const trxContentRepo = new ContentRepository(trx);
 			const trxRevisionRepo = new RevisionRepository(trx);
 
-			await trxContentRepo.update(revision.collection, revision.entryId, {
+			const updated = await trxContentRepo.update(revision.collection, revision.entryId, {
 				data: fieldData,
 				slug: typeof _slug === "string" ? _slug : undefined,
 			});
 
-			const restoredRevision = await trxRevisionRepo.create({
+			await trxRevisionRepo.create({
 				collection: revision.collection,
 				entryId: revision.entryId,
 				data: revision.data,
 				authorId: callerUserId,
 			});
-			await trxContentRepo.setDraftRevision(
-				revision.collection,
-				revision.entryId,
-				restoredRevision.id,
-			);
 
-			const restored = await trxContentRepo.findById(revision.collection, revision.entryId);
-			if (!restored) throw new Error("Content not found after revision restore");
-			return restored;
+			return updated;
 		});
-		await hydrateContentItem(db, revision.collection, item);
 
 		// Fire-and-forget: prune old revisions to prevent unbounded growth
 		const pruneRepo = new RevisionRepository(db);

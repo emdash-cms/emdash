@@ -103,7 +103,6 @@ import {
 	unpublishContent,
 	discardDraft,
 	fetchRevision,
-	restoreRevision,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
@@ -121,7 +120,6 @@ import {
 	type CommentStatus,
 } from "./lib/api/comments";
 import { runBulkAction } from "./lib/bulk";
-import { enqueueContentOperation } from "./lib/content-operation-queue";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
@@ -144,27 +142,15 @@ interface ContentUpdateChanges {
 }
 
 interface ContentUpdateMutationInput {
-	targetCollection: string;
 	targetId: string;
 	targetLocale?: string;
 	changes: ContentUpdateChanges;
 }
 
 interface AutosaveMutationInput {
-	targetCollection: string;
 	targetId: string;
 	targetLocale?: string;
 	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines">;
-}
-
-interface ContentOperationInput {
-	targetCollection: string;
-	targetId: string;
-	targetLocale?: string;
-}
-
-interface ScheduleContentMutationInput extends ContentOperationInput {
-	scheduledAt: string;
 }
 
 function patchAutosaveQueries(
@@ -882,55 +868,17 @@ function ContentEditPage() {
 	// data.
 	const itemLocale = rawItem?.locale ?? undefined;
 	const saveCompletionSequenceRef = React.useRef(0);
-	const [saveCompletion, setSaveCompletion] = React.useState({
-		collection: "",
-		entryId: "",
-		token: 0,
-	});
+	const [saveCompletion, setSaveCompletion] = React.useState({ entryId: "", token: 0 });
 	const autosaveCompletionSequenceRef = React.useRef(0);
-	const [autosaveCompletion, setAutosaveCompletion] = React.useState({
-		collection: "",
-		entryId: "",
-		token: 0,
-	});
-	const contentResetCompletionSequenceRef = React.useRef(0);
-	const [contentResetCompletion, setContentResetCompletion] = React.useState({
-		collection: "",
-		entryId: "",
-		token: 0,
-		item: null as ContentItem | null,
-	});
-	const recordSaveCompletion = React.useCallback((targetCollection: string, entryId: string) => {
+	const [autosaveCompletion, setAutosaveCompletion] = React.useState({ entryId: "", token: 0 });
+	const recordSaveCompletion = React.useCallback((entryId: string) => {
 		saveCompletionSequenceRef.current += 1;
-		setSaveCompletion({
-			collection: targetCollection,
-			entryId,
-			token: saveCompletionSequenceRef.current,
-		});
+		setSaveCompletion({ entryId, token: saveCompletionSequenceRef.current });
 	}, []);
-	const recordAutosaveCompletion = React.useCallback(
-		(targetCollection: string, entryId: string) => {
-			autosaveCompletionSequenceRef.current += 1;
-			setAutosaveCompletion({
-				collection: targetCollection,
-				entryId,
-				token: autosaveCompletionSequenceRef.current,
-			});
-		},
-		[],
-	);
-	const recordContentResetCompletion = React.useCallback(
-		(targetCollection: string, entryId: string, resetItem: ContentItem) => {
-			contentResetCompletionSequenceRef.current += 1;
-			setContentResetCompletion({
-				collection: targetCollection,
-				entryId,
-				token: contentResetCompletionSequenceRef.current,
-				item: resetItem,
-			});
-		},
-		[],
-	);
+	const recordAutosaveCompletion = React.useCallback((entryId: string) => {
+		autosaveCompletionSequenceRef.current += 1;
+		setAutosaveCompletion({ entryId, token: autosaveCompletionSequenceRef.current });
+	}, []);
 	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
 		queryKey: ["bylines", "picker", itemLocale ?? null],
 		queryFn: () => fetchBylines({ locale: itemLocale, limit: 100 }),
@@ -957,18 +905,18 @@ function ContentEditPage() {
 	});
 
 	const handleContentUpdateSuccess = React.useCallback(
-		(savedItem: ContentItem, targetCollection: string, targetId: string) => {
+		(savedItem: ContentItem, targetId: string) => {
 			// Invalidate by (collection, id) prefix without the locale object: the
 			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
 			// i18n is off) while `rawItem.locale` is the DB default "en", so a
 			// locale-scoped invalidation key would not match and the item would never
 			// refetch — leaving the publish/save buttons stale until a hard refresh.
 			void queryClient.invalidateQueries({
-				queryKey: ["content", targetCollection, targetId],
+				queryKey: ["content", collection, targetId],
 			});
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({
-				queryKey: ["revisions", targetCollection, targetId],
+				queryKey: ["revisions", collection, targetId],
 			});
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
 			if (savedItem.draftRevisionId) {
@@ -977,7 +925,7 @@ function ContentEditPage() {
 				});
 			}
 		},
-		[queryClient],
+		[collection, queryClient],
 	);
 	const handleContentUpdateError = React.useCallback(
 		(error: unknown) => {
@@ -994,18 +942,11 @@ function ContentEditPage() {
 	// tracks the latest mutate() call, so folding auxiliary writes in here
 	// would let one flip the Save control's saving state mid-save.
 	const updateMutation = useMutation({
-		mutationFn: ({
-			targetCollection,
-			targetId,
-			targetLocale,
-			changes,
-		}: ContentUpdateMutationInput) =>
-			enqueueContentOperation(targetCollection, targetId, () =>
-				updateContent(targetCollection, targetId, changes, { locale: targetLocale }),
-			),
+		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
+			updateContent(collection, targetId, changes, { locale: targetLocale }),
 		onSuccess: (savedItem, variables) => {
-			recordSaveCompletion(variables.targetCollection, variables.targetId);
-			handleContentUpdateSuccess(savedItem, variables.targetCollection, variables.targetId);
+			recordSaveCompletion(variables.targetId);
+			handleContentUpdateSuccess(savedItem, variables.targetId);
 		},
 		onError: handleContentUpdateError,
 	});
@@ -1013,37 +954,28 @@ function ContentEditPage() {
 	// Auxiliary writes (author, SEO): neither advance the completion token nor
 	// drive the Save control's saving state.
 	const auxiliaryUpdateMutation = useMutation({
-		mutationFn: ({
-			targetCollection,
-			targetId,
-			targetLocale,
-			changes,
-		}: ContentUpdateMutationInput) =>
-			enqueueContentOperation(targetCollection, targetId, () =>
-				updateContent(targetCollection, targetId, changes, { locale: targetLocale }),
-			),
+		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
+			updateContent(collection, targetId, changes, { locale: targetLocale }),
 		onSuccess: (savedItem, variables) => {
-			handleContentUpdateSuccess(savedItem, variables.targetCollection, variables.targetId);
+			handleContentUpdateSuccess(savedItem, variables.targetId);
 		},
 		onError: handleContentUpdateError,
 	});
 
 	// Autosave mutation - skips revision creation
 	const autosaveMutation = useMutation({
-		mutationFn: ({ targetCollection, targetId, targetLocale, changes }: AutosaveMutationInput) =>
-			enqueueContentOperation(targetCollection, targetId, () =>
-				updateContent(
-					targetCollection,
-					targetId,
-					{ ...changes, skipRevision: true },
-					{ locale: targetLocale },
-				),
+		mutationFn: ({ targetId, targetLocale, changes }: AutosaveMutationInput) =>
+			updateContent(
+				collection,
+				targetId,
+				{ ...changes, skipRevision: true },
+				{ locale: targetLocale },
 			),
 		onSuccess: (savedItem, variables) => {
-			recordSaveCompletion(variables.targetCollection, variables.targetId);
-			recordAutosaveCompletion(variables.targetCollection, variables.targetId);
+			recordSaveCompletion(variables.targetId);
+			recordAutosaveCompletion(variables.targetId);
 			patchAutosaveQueries(queryClient, {
-				collection: variables.targetCollection,
+				collection,
 				id: variables.targetId,
 				savedItem,
 				payload: {
@@ -1065,17 +997,12 @@ function ContentEditPage() {
 	});
 
 	const publishMutation = useMutation({
-		mutationFn: ({ targetCollection, targetId, targetLocale }: ContentOperationInput) =>
-			enqueueContentOperation(targetCollection, targetId, () =>
-				publishContent(targetCollection, targetId, { locale: targetLocale }),
-			),
-		onSuccess: (_, variables) => {
+		mutationFn: () => publishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
+		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", variables.targetCollection, variables.targetId],
+				queryKey: ["content", collection, id],
 			});
-			void queryClient.invalidateQueries({
-				queryKey: ["revisions", variables.targetCollection, variables.targetId],
-			});
+			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
 		onError: (error) => {
@@ -1088,17 +1015,12 @@ function ContentEditPage() {
 	});
 
 	const unpublishMutation = useMutation({
-		mutationFn: ({ targetCollection, targetId, targetLocale }: ContentOperationInput) =>
-			enqueueContentOperation(targetCollection, targetId, () =>
-				unpublishContent(targetCollection, targetId, { locale: targetLocale }),
-			),
-		onSuccess: (_, variables) => {
+		mutationFn: () => unpublishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
+		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", variables.targetCollection, variables.targetId],
+				queryKey: ["content", collection, id],
 			});
-			void queryClient.invalidateQueries({
-				queryKey: ["revisions", variables.targetCollection, variables.targetId],
-			});
+			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
 		onError: (error) => {
@@ -1111,22 +1033,12 @@ function ContentEditPage() {
 	});
 
 	const discardDraftMutation = useMutation({
-		mutationFn: ({ targetCollection, targetId, targetLocale }: ContentOperationInput) =>
-			enqueueContentOperation(targetCollection, targetId, () =>
-				discardDraft(targetCollection, targetId, { locale: targetLocale }),
-			),
-		onSuccess: (discardedItem, variables) => {
-			recordContentResetCompletion(variables.targetCollection, variables.targetId, discardedItem);
-			queryClient.setQueriesData<ContentItem>(
-				{ queryKey: ["content", variables.targetCollection, variables.targetId] },
-				discardedItem,
-			);
+		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
+		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", variables.targetCollection, variables.targetId],
+				queryKey: ["content", collection, id],
 			});
-			void queryClient.invalidateQueries({
-				queryKey: ["revisions", variables.targetCollection, variables.targetId],
-			});
+			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({
 				title: t`Changes discarded`,
 				description: t`Reverted to published version`,
@@ -1142,18 +1054,11 @@ function ContentEditPage() {
 	});
 
 	const scheduleMutation = useMutation({
-		mutationFn: ({
-			targetCollection,
-			targetId,
-			targetLocale,
-			scheduledAt,
-		}: ScheduleContentMutationInput) =>
-			enqueueContentOperation(targetCollection, targetId, () =>
-				scheduleContent(targetCollection, targetId, scheduledAt, { locale: targetLocale }),
-			),
-		onSuccess: (_, variables) => {
+		mutationFn: (scheduledAt: string) =>
+			scheduleContent(collection, id, scheduledAt, { locale: rawItem?.locale ?? activeLocale }),
+		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", variables.targetCollection, variables.targetId],
+				queryKey: ["content", collection, id],
 			});
 			toastManager.add({
 				title: t`Scheduled`,
@@ -1170,13 +1075,11 @@ function ContentEditPage() {
 	});
 
 	const unscheduleMutation = useMutation({
-		mutationFn: ({ targetCollection, targetId, targetLocale }: ContentOperationInput) =>
-			enqueueContentOperation(targetCollection, targetId, () =>
-				unscheduleContent(targetCollection, targetId, { locale: targetLocale }),
-			),
-		onSuccess: (_, variables) => {
+		mutationFn: () =>
+			unscheduleContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
+		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", variables.targetCollection, variables.targetId],
+				queryKey: ["content", collection, id],
 			});
 			toastManager.add({
 				title: t`Unscheduled`,
@@ -1224,20 +1127,14 @@ function ContentEditPage() {
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: ({ targetCollection, targetId, targetLocale }: ContentOperationInput) =>
-			enqueueContentOperation(targetCollection, targetId, () =>
-				deleteContent(targetCollection, targetId, { locale: targetLocale }),
-			),
-		onSuccess: (_, variables) => {
-			void queryClient.invalidateQueries({ queryKey: ["content", variables.targetCollection] });
-			void queryClient.invalidateQueries({
-				queryKey: ["content", variables.targetCollection, "trash"],
-			});
-			if (variables.targetCollection !== collection || variables.targetId !== id) return;
+		mutationFn: () => deleteContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
 			void navigate({
 				to: "/content/$collection",
-				params: { collection: variables.targetCollection },
-				search: { locale: variables.targetLocale },
+				params: { collection },
+				search: { locale: activeLocale },
 			});
 		},
 		onError: (error) => {
@@ -1258,92 +1155,64 @@ function ContentEditPage() {
 	const handleSave = React.useCallback(
 		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
 			updateMutation.mutate({
-				targetCollection: collection,
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				changes: payload,
 			});
 		},
-		[activeLocale, collection, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
 	);
 
 	const handleAutosave = React.useCallback(
 		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
 			autosaveMutation.mutate({
-				targetCollection: collection,
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				changes: payload,
 			});
 		},
-		[activeLocale, autosaveMutation.mutate, collection, id, rawItem?.locale],
+		[activeLocale, autosaveMutation.mutate, id, rawItem?.locale],
 	);
 	const handleAuthorChange = React.useCallback(
 		(authorId: string | null) => {
 			auxiliaryUpdateMutation.mutate({
-				targetCollection: collection,
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				changes: { authorId },
 			});
 		},
-		[activeLocale, auxiliaryUpdateMutation.mutate, collection, id, rawItem?.locale],
+		[activeLocale, auxiliaryUpdateMutation.mutate, id, rawItem?.locale],
 	);
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
 			auxiliaryUpdateMutation.mutate({
-				targetCollection: collection,
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				changes: { seo },
 			});
 		},
-		[activeLocale, auxiliaryUpdateMutation.mutate, collection, id, rawItem?.locale],
+		[activeLocale, auxiliaryUpdateMutation.mutate, id, rawItem?.locale],
 	);
 
-	const currentOperationTarget = React.useMemo<ContentOperationInput>(
-		() => ({
-			targetCollection: collection,
-			targetId: id,
-			targetLocale: rawItem?.locale ?? activeLocale,
-		}),
-		[activeLocale, collection, id, rawItem?.locale],
-	);
-	const handlePublish = React.useCallback(
-		() => publishMutation.mutate(currentOperationTarget),
-		[currentOperationTarget, publishMutation.mutate],
-	);
+	const handlePublish = React.useCallback(() => publishMutation.mutate(), [publishMutation.mutate]);
 	const handleUnpublish = React.useCallback(
-		() => unpublishMutation.mutate(currentOperationTarget),
-		[currentOperationTarget, unpublishMutation.mutate],
+		() => unpublishMutation.mutate(),
+		[unpublishMutation.mutate],
 	);
-	const handleDiscardDraft = React.useCallback(() => {
-		return discardDraftMutation
-			.mutateAsync({
-				targetCollection: collection,
-				targetId: id,
-				targetLocale: rawItem?.locale ?? activeLocale,
-			})
-			.then(() => undefined);
-	}, [activeLocale, collection, discardDraftMutation.mutateAsync, id, rawItem?.locale]);
-	const handleRestoreRevision = React.useCallback(
-		(revisionId: string) =>
-			enqueueContentOperation(collection, id, () => restoreRevision(revisionId)),
-		[collection, enqueueContentOperation, id],
+	const handleDiscardDraft = React.useCallback(
+		() => discardDraftMutation.mutate(),
+		[discardDraftMutation.mutate],
 	);
 	const handleSchedule = React.useCallback(
-		(scheduledAt: string) => scheduleMutation.mutate({ ...currentOperationTarget, scheduledAt }),
-		[currentOperationTarget, scheduleMutation.mutate],
+		(scheduledAt: string) => scheduleMutation.mutate(scheduledAt),
+		[scheduleMutation.mutate],
 	);
 	const handleUnschedule = React.useCallback(
-		() => unscheduleMutation.mutate(currentOperationTarget),
-		[currentOperationTarget, unscheduleMutation.mutate],
+		() => unscheduleMutation.mutate(),
+		[unscheduleMutation.mutate],
 	);
-	const handleDelete = React.useCallback(
-		() => deleteMutation.mutate(currentOperationTarget),
-		[currentOperationTarget, deleteMutation.mutate],
-	);
+	const handleDelete = React.useCallback(() => deleteMutation.mutate(), [deleteMutation.mutate]);
 	const handleTranslate = React.useCallback(
 		(locale: string) => translateMutation.mutate(locale),
 		[translateMutation.mutate],
@@ -1374,80 +1243,24 @@ function ContentEditPage() {
 
 	return (
 		<ContentEditor
-			key={`${collection}:${id}`}
 			collection={collection}
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
 			fields={collectionConfig.fields}
-			isSaving={
-				updateMutation.isPending &&
-				updateMutation.variables?.targetCollection === collection &&
-				updateMutation.variables.targetId === id
-			}
-			saveCompletionToken={
-				saveCompletion.collection === collection && saveCompletion.entryId === id
-					? saveCompletion.token
-					: 0
-			}
+			isSaving={updateMutation.isPending && updateMutation.variables?.targetId === id}
+			saveCompletionToken={saveCompletion.entryId === id ? saveCompletion.token : 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
-			isAutosaving={
-				autosaveMutation.isPending &&
-				autosaveMutation.variables?.targetCollection === collection &&
-				autosaveMutation.variables.targetId === id
-			}
-			autosaveCompletionToken={
-				autosaveCompletion.collection === collection && autosaveCompletion.entryId === id
-					? autosaveCompletion.token
-					: 0
-			}
-			contentResetCompletionToken={
-				contentResetCompletion.collection === collection && contentResetCompletion.entryId === id
-					? contentResetCompletion.token
-					: 0
-			}
-			contentResetItem={
-				contentResetCompletion.collection === collection && contentResetCompletion.entryId === id
-					? contentResetCompletion.item
-					: null
-			}
+			isAutosaving={autosaveMutation.isPending && autosaveMutation.variables?.targetId === id}
+			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
 			onPublish={handlePublish}
 			onUnpublish={handleUnpublish}
 			onDiscardDraft={handleDiscardDraft}
-			onRestoreRevision={handleRestoreRevision}
 			onSchedule={handleSchedule}
 			onUnschedule={handleUnschedule}
-			isScheduling={
-				(scheduleMutation.isPending &&
-					scheduleMutation.variables?.targetCollection === collection &&
-					scheduleMutation.variables.targetId === id) ||
-				(unscheduleMutation.isPending &&
-					unscheduleMutation.variables?.targetCollection === collection &&
-					unscheduleMutation.variables.targetId === id)
-			}
-			isTransitioning={
-				(publishMutation.isPending &&
-					publishMutation.variables?.targetCollection === collection &&
-					publishMutation.variables.targetId === id) ||
-				(unpublishMutation.isPending &&
-					unpublishMutation.variables?.targetCollection === collection &&
-					unpublishMutation.variables.targetId === id) ||
-				(scheduleMutation.isPending &&
-					scheduleMutation.variables?.targetCollection === collection &&
-					scheduleMutation.variables.targetId === id) ||
-				(unscheduleMutation.isPending &&
-					unscheduleMutation.variables?.targetCollection === collection &&
-					unscheduleMutation.variables.targetId === id) ||
-				(deleteMutation.isPending &&
-					deleteMutation.variables?.targetCollection === collection &&
-					deleteMutation.variables.targetId === id)
-			}
+			isScheduling={scheduleMutation.isPending}
 			onDelete={handleDelete}
-			isDeleting={
-				deleteMutation.isPending &&
-				deleteMutation.variables?.targetCollection === collection &&
-				deleteMutation.variables.targetId === id
-			}
+			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
