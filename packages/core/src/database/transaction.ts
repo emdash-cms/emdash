@@ -29,6 +29,19 @@ export async function withTransaction<DB, T>(
 	db: Kysely<DB>,
 	fn: (trx: Kysely<DB> | Transaction<DB>) => Promise<T>,
 ): Promise<T> {
+	// Nested call: `db` is already a transaction. Kysely rejects calling
+	// `.transaction()` on a `Transaction` outright (a hard error, not the
+	// "transactions are not supported" message the probe below expects), so a
+	// naive nested `withTransaction(trx, ...)` call would always throw on any
+	// dialect that supports real transactions. Running `fn` directly against
+	// the existing transaction makes the nested work part of the enclosing
+	// one — exactly what nested callers (e.g. a handler composing two
+	// repositories that each self-wrap in `withTransaction`) want: the whole
+	// chain commits or rolls back together.
+	if (db.isTransaction) {
+		return fn(db);
+	}
+
 	// Fast path: we already know transactions work
 	if (transactionsSupported === true) {
 		return db.transaction().execute(fn);
