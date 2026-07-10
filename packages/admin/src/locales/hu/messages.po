@@ -22,7 +22,7 @@ msgid " - Linked"
 msgstr " - összekapcsolva"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:72
-#: packages/admin/src/components/TranslationsPanel.tsx:76
+#: packages/admin/src/components/TranslationsPanel.tsx:81
 msgid " (default)"
 msgstr " (alapértelmezett)"
 
@@ -89,7 +89,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1346
+#: packages/admin/src/router.tsx:1463
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# hozzászólás frissítve} other {# hozzászólás frissítve}}"
 
@@ -172,7 +172,7 @@ msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr ""
 
 #. placeholder {0}: fields.length
-#: packages/admin/src/components/ContentTypeEditor.tsx:574
+#: packages/admin/src/components/ContentTypeEditor.tsx:585
 msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {mező} other {mező}}"
 
@@ -246,17 +246,17 @@ msgid "{0} items will be imported"
 msgstr "{0} elem importálva lesz"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:511
+#: packages/admin/src/router.tsx:533
 msgid "{0} of {total} could not be deleted"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:467
+#: packages/admin/src/router.tsx:489
 msgid "{0} of {total} could not be published"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:490
+#: packages/admin/src/router.tsx:512
 msgid "{0} of {total} could not be updated"
 msgstr ""
 
@@ -272,13 +272,13 @@ msgstr "{0} előnézet"
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
-#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="text-2xl font-bold truncate"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && ( <Button type="submit" disabled={!hasChanges || !urlPatternValid || isSaving} className="w-full" > {isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`} </Button> )} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
-#: packages/admin/src/components/ContentTypeEditor.tsx:572
+#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="text-2xl font-bold truncate"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
+#: packages/admin/src/components/ContentTypeEditor.tsx:583
 msgid "{0} system + {1} custom {2}"
 msgstr "{0} rendszermező + {1} egyéni {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:345
+#: packages/admin/src/components/TaxonomySidebar.tsx:347
 msgid "{0} updated"
 msgstr "{0} frissítve"
 
@@ -296,7 +296,7 @@ msgid "{0}{1}"
 msgstr "{0}{1}"
 
 #. placeholder {0}: draft.description.length
-#: packages/admin/src/components/SeoPanel.tsx:173
+#: packages/admin/src/components/SeoPanel.tsx:195
 msgid "{0}/160 characters"
 msgstr "{0}/160 karakter"
 
@@ -305,7 +305,7 @@ msgstr "{0}/160 karakter"
 msgid "{base} to: {0}"
 msgstr "{base} ide: {0}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:337
+#: packages/admin/src/components/RevisionHistory.tsx:345
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# változás a következő verzióból} other {# változás a következő verzióból}}"
 
@@ -401,11 +401,11 @@ msgstr ""
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:349
+#: packages/admin/src/components/RevisionHistory.tsx:357
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
 msgstr "{unchangedCount, plural, one {# változatlan elrejtése} other {# változatlan elrejtése}}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:350
+#: packages/admin/src/components/RevisionHistory.tsx:358
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {# változatlan megjelenítése} other {# változatlan megjelenítése}}"
 
@@ -553,7 +553,7 @@ msgstr "Meghívás elfogadása"
 msgid "Access denied"
 msgstr "Hozzáférés megtagadva"
 
-#: packages/admin/src/router.tsx:1366
+#: packages/admin/src/router.tsx:1483
 msgid "Access Denied"
 msgstr "Hozzáférés megtagadva"
 
@@ -597,9 +597,9 @@ msgid "Active"
 msgstr "Aktív"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentEditor.tsx:1913
+#: packages/admin/src/components/ContentSettingsPanel.tsx:801
 #: packages/admin/src/components/MenuEditor.tsx:441
-#: packages/admin/src/components/TaxonomySidebar.tsx:476
+#: packages/admin/src/components/TaxonomySidebar.tsx:478
 msgid "Add"
 msgstr "Hozzáadás"
 
@@ -611,7 +611,7 @@ msgstr "Hozzáadás"
 msgid "Add {0}"
 msgstr "{0} hozzáadása"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:263
+#: packages/admin/src/components/TaxonomySidebar.tsx:266
 msgid "Add {label}"
 msgstr "{label} hozzáadása"
 
@@ -651,7 +651,7 @@ msgstr "Egyéni link hozzáadása"
 msgid "Add Domain"
 msgstr "Domain hozzáadása"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:580
+#: packages/admin/src/components/ContentTypeEditor.tsx:591
 #: packages/admin/src/components/FieldEditor.tsx:342
 #: packages/admin/src/components/FieldEditor.tsx:660
 msgid "Add Field"
@@ -665,11 +665,11 @@ msgstr "Mezők hozzáadása"
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
 msgstr "Adj hozzá mezőket, például \"Beosztás\" vagy \"Elérhetőség\", hogy bővítsd a szerzői leírásokat."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:602
+#: packages/admin/src/components/ContentTypeEditor.tsx:613
 msgid "Add fields to define the structure of your content"
 msgstr "Adj hozzá mezőket a tartalom szerkezetének meghatározásához"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:605
+#: packages/admin/src/components/ContentTypeEditor.tsx:616
 msgid "Add First Field"
 msgstr "Első mező hozzáadása"
 
@@ -702,11 +702,11 @@ msgid "Add New"
 msgstr "Új hozzáadása"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:486
+#: packages/admin/src/components/TaxonomySidebar.tsx:490
 msgid "Add new {0}"
 msgstr "Új {0} hozzáadása"
 
-#: packages/admin/src/components/SeoPanel.tsx:197
+#: packages/admin/src/components/SeoPanel.tsx:227
 msgid "Add noindex meta tag"
 msgstr "noindex meta tag hozzáadása"
 
@@ -734,7 +734,7 @@ msgstr "SEO metaadatmezők hozzáadása (cím, leírás, kép), és felvétel az
 msgid "Add Sub-Field"
 msgstr "Almező hozzáadása"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:262
+#: packages/admin/src/components/TaxonomySidebar.tsx:265
 msgid "Add tags..."
 msgstr "Címkék hozzáadása..."
 
@@ -904,25 +904,25 @@ msgstr "Másik lehetőségként exportálhatsz WordPressből (Eszközök → Exp
 #: packages/admin/src/components/settings/SecuritySettings.tsx:71
 #: packages/admin/src/components/settings/SeoSettings.tsx:45
 #: packages/admin/src/components/settings/SocialSettings.tsx:43
-#: packages/admin/src/components/TaxonomySidebar.tsx:350
+#: packages/admin/src/components/TaxonomySidebar.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:399
-#: packages/admin/src/router.tsx:414
-#: packages/admin/src/router.tsx:428
-#: packages/admin/src/router.tsx:442
-#: packages/admin/src/router.tsx:895
-#: packages/admin/src/router.tsx:933
-#: packages/admin/src/router.tsx:951
-#: packages/admin/src/router.tsx:969
-#: packages/admin/src/router.tsx:990
-#: packages/admin/src/router.tsx:1011
-#: packages/admin/src/router.tsx:1032
-#: packages/admin/src/router.tsx:1063
-#: packages/admin/src/router.tsx:1083
-#: packages/admin/src/router.tsx:1311
-#: packages/admin/src/router.tsx:1327
-#: packages/admin/src/router.tsx:1352
-#: packages/admin/src/router.tsx:1834
+#: packages/admin/src/router.tsx:421
+#: packages/admin/src/router.tsx:436
+#: packages/admin/src/router.tsx:450
+#: packages/admin/src/router.tsx:464
+#: packages/admin/src/router.tsx:941
+#: packages/admin/src/router.tsx:994
+#: packages/admin/src/router.tsx:1012
+#: packages/admin/src/router.tsx:1030
+#: packages/admin/src/router.tsx:1051
+#: packages/admin/src/router.tsx:1072
+#: packages/admin/src/router.tsx:1093
+#: packages/admin/src/router.tsx:1124
+#: packages/admin/src/router.tsx:1144
+#: packages/admin/src/router.tsx:1428
+#: packages/admin/src/router.tsx:1444
+#: packages/admin/src/router.tsx:1469
+#: packages/admin/src/router.tsx:1951
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1019,7 +1019,7 @@ msgid "Are you sure you want to delete \"{0}\"? This will also delete all conten
 msgstr "Biztosan törlöd ezt: \"{0}\"? Ez a gyűjtemény összes tartalmát is törli."
 
 #. placeholder {0}: deleteFieldTarget.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:658
+#: packages/admin/src/components/ContentTypeEditor.tsx:669
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr "Biztosan törlöd a(z) \"{0}\" mezőt?"
 
@@ -1069,6 +1069,7 @@ msgstr "A hitelesítés megszakadt vagy időtúllépés történt. Próbáld új
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:287
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1014
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1118,13 +1119,9 @@ msgstr "Hitelesített felhasználók automatikus jóváhagyása"
 msgid "Auto-generated from name (you can edit)"
 msgstr "A névből automatikusan generálva (szerkeszthető)"
 
-#: packages/admin/src/router.tsx:932
+#: packages/admin/src/router.tsx:993
 msgid "Autosave failed"
 msgstr "Az automatikus mentés sikertelen"
-
-#: packages/admin/src/components/ContentEditor.tsx:644
-msgid "Autosave status"
-msgstr "Automatikus mentés állapota"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:661
 msgid "Available media"
@@ -1150,7 +1147,7 @@ msgstr "Avatár"
 msgid "Back"
 msgstr "Vissza"
 
-#: packages/admin/src/components/ContentEditor.tsx:613
+#: packages/admin/src/components/ContentEditor.tsx:634
 msgid "Back to {collectionLabel} list"
 msgstr "Vissza a(z) {collectionLabel} listához"
 
@@ -1175,8 +1172,8 @@ msgstr "Vissza a piactérre"
 msgid "Back to plugins"
 msgstr "Vissza a pluginekhez"
 
-#: packages/admin/src/components/SectionEditor.tsx:73
-#: packages/admin/src/components/SectionEditor.tsx:174
+#: packages/admin/src/components/SectionEditor.tsx:72
+#: packages/admin/src/components/SectionEditor.tsx:173
 msgid "Back to sections"
 msgstr "Vissza a szakaszokhoz"
 
@@ -1220,7 +1217,7 @@ msgstr "Félkövér"
 msgid "Boolean"
 msgstr "Logikai érték"
 
-#: packages/admin/src/components/SeoPanel.tsx:174
+#: packages/admin/src/components/SeoPanel.tsx:184
 msgid "Brief summary shown below the title in search results"
 msgstr "A keresési találatokban a cím alatt megjelenő rövid összefoglaló"
 
@@ -1260,7 +1257,7 @@ msgstr "Szerző sémája"
 msgid "Byline Schema"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:991
+#: packages/admin/src/components/ContentSettingsPanel.tsx:513
 #: packages/admin/src/components/Sidebar.tsx:342
 #: packages/admin/src/routes/bylines.tsx:376
 msgid "Bylines"
@@ -1297,15 +1294,15 @@ msgstr "Tartalmat tekinthet meg"
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:163
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentEditor.tsx:706
-#: packages/admin/src/components/ContentEditor.tsx:905
-#: packages/admin/src/components/ContentEditor.tsx:957
-#: packages/admin/src/components/ContentEditor.tsx:2027
-#: packages/admin/src/components/ContentEditor.tsx:2080
 #: packages/admin/src/components/ContentList.tsx:455
 #: packages/admin/src/components/ContentList.tsx:1052
 #: packages/admin/src/components/ContentList.tsx:1123
 #: packages/admin/src/components/ContentPickerModal.tsx:248
+#: packages/admin/src/components/ContentSettingsPanel.tsx:84
+#: packages/admin/src/components/ContentSettingsPanel.tsx:464
+#: packages/admin/src/components/ContentSettingsPanel.tsx:612
+#: packages/admin/src/components/ContentSettingsPanel.tsx:918
+#: packages/admin/src/components/ContentSettingsPanel.tsx:971
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:193
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:194
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
@@ -1353,7 +1350,8 @@ msgstr "A téma szakaszai nem törölhetők"
 msgid "Cannot determine MIME type from URL. Use a URL ending in a recognized image extension (e.g. .jpg, .png, .webp)."
 msgstr "Nem állapítható meg a MIME-típus az URL-ből. Olyan URL-t használj, amely ismert képkiterjesztésre végződik (pl. .jpg, .png, .webp)."
 
-#: packages/admin/src/components/SeoPanel.tsx:186
+#: packages/admin/src/components/SeoPanel.tsx:212
+#: packages/admin/src/components/SeoPanel.tsx:216
 msgid "Canonical URL"
 msgstr "Kanonikus URL"
 
@@ -1394,11 +1392,11 @@ msgstr "Közép"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:1697
+#: packages/admin/src/components/ContentEditor.tsx:1647
 #: packages/admin/src/components/FieldEditor.tsx:402
 #: packages/admin/src/components/ImageFieldRenderer.tsx:122
 #: packages/admin/src/components/ImageFieldRenderer.tsx:151
-#: packages/admin/src/components/SeoImageField.tsx:47
+#: packages/admin/src/components/SeoImageField.tsx:53
 msgid "Change"
 msgstr "Módosítás"
 
@@ -1425,7 +1423,7 @@ msgstr "Logó módosítása"
 msgid "Changelog"
 msgstr "Változásnapló"
 
-#: packages/admin/src/router.tsx:983
+#: packages/admin/src/router.tsx:1044
 msgid "Changes discarded"
 msgstr "Módosítások elvetve"
 
@@ -1560,6 +1558,10 @@ msgstr "Hozzászólások lezárása ennyi nap után"
 msgid "Close panel"
 msgstr "Panel bezárása"
 
+#: packages/admin/src/components/ContentEditor.tsx:1019
+msgid "Close settings"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeList.tsx:242
 #: packages/admin/src/components/PortableTextEditor.tsx:2732
 #: packages/admin/src/components/Redirects.tsx:469
@@ -1600,7 +1602,7 @@ msgstr "Gyűjtemények"
 msgid "Collections created:"
 msgstr "Létrehozott gyűjtemények:"
 
-#: packages/admin/src/components/SectionEditor.tsx:271
+#: packages/admin/src/components/SectionEditor.tsx:275
 msgid "Comma-separated keywords for search."
 msgstr "Vesszővel elválasztott keresési kulcsszavak."
 
@@ -1667,7 +1669,7 @@ msgstr "Kapcsolódva: {0}"
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:2208
-#: packages/admin/src/components/SectionEditor.tsx:194
+#: packages/admin/src/components/SectionEditor.tsx:193
 #: packages/admin/src/components/Sidebar.tsx:451
 #: packages/admin/src/components/Widgets.tsx:817
 msgid "Content"
@@ -1686,11 +1688,11 @@ msgstr "Tartalmi hibák ({0})"
 msgid "Content found:"
 msgstr "Talált tartalom:"
 
-#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:1066
 msgid "Content has been scheduled for publishing"
 msgstr "A tartalom publikálása ütemezve"
 
-#: packages/admin/src/components/RevisionHistory.tsx:131
+#: packages/admin/src/components/RevisionHistory.tsx:123
 msgid "Content has been updated to the selected revision."
 msgstr "A tartalom frissült a kiválasztott verzióra."
 
@@ -1698,7 +1700,7 @@ msgstr "A tartalom frissült a kiválasztott verzióra."
 msgid "Content ID:"
 msgstr "Tartalom ID:"
 
-#: packages/admin/src/router.tsx:946
+#: packages/admin/src/router.tsx:1007
 msgid "Content is now live"
 msgstr "A tartalom élesítve"
 
@@ -1710,15 +1712,15 @@ msgstr "tartalmi elemek"
 msgid "Content Read"
 msgstr "Tartalom olvasása"
 
-#: packages/admin/src/router.tsx:964
+#: packages/admin/src/router.tsx:1025
 msgid "Content removed from public view"
 msgstr "A tartalom eltávolítva a nyilvános nézetből"
 
-#: packages/admin/src/router.tsx:1026
+#: packages/admin/src/router.tsx:1087
 msgid "Content reverted to draft"
 msgstr "A tartalom visszaállítva vázlatra"
 
-#: packages/admin/src/components/RevisionHistory.tsx:296
+#: packages/admin/src/components/RevisionHistory.tsx:304
 msgid "Content snapshot:"
 msgstr "Tartalom-pillanatkép:"
 
@@ -1818,7 +1820,7 @@ msgstr "Nem sikerült betölteni az egyéni mezőket."
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "Nem sikerült \"{draft}\" értéket MIME-típushoz rendelni. Add meg közvetlenül a MIME-típust."
 
-#: packages/admin/src/components/ContentEditor.tsx:1919
+#: packages/admin/src/components/ContentSettingsPanel.tsx:807
 msgid "Couldn't search bylines. Please try again."
 msgstr "Nem sikerült keresni a szerzők között. Próbáld újra."
 
@@ -1831,7 +1833,7 @@ msgstr "Nem sikerült ellenőrizni, hány érték hivatkozik erre: \"{0}\". A t�
 msgid "Count"
 msgstr "Darab"
 
-#: packages/admin/src/components/ContentEditor.tsx:2051
+#: packages/admin/src/components/ContentSettingsPanel.tsx:942
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/Sections.tsx:212
@@ -1841,7 +1843,7 @@ msgstr "Darab"
 msgid "Create"
 msgstr "Létrehozás"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:290
+#: packages/admin/src/components/TaxonomySidebar.tsx:292
 msgid "Create \"{trimmedInput}\""
 msgstr "\"{trimmedInput}\" létrehozása"
 
@@ -1867,12 +1869,12 @@ msgstr "Fiók létrehozása"
 msgid "Create an account"
 msgstr "Fiók létrehozása"
 
-#: packages/admin/src/components/ContentEditor.tsx:1999
+#: packages/admin/src/components/ContentSettingsPanel.tsx:890
 #: packages/admin/src/routes/bylines.tsx:477
 msgid "Create byline"
 msgstr "Szerző létrehozása"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:558
+#: packages/admin/src/components/ContentTypeEditor.tsx:560
 msgid "Create Content Type"
 msgstr "Tartalomtípus létrehozása"
 
@@ -1986,6 +1988,7 @@ msgid "Create, update, delete content"
 msgstr "Tartalom létrehozása, frissítése, törlése"
 
 #: packages/admin/src/components/ContentList.tsx:736
+#: packages/admin/src/components/ContentSettingsPanel.tsx:486
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "Létrehozva"
@@ -2003,7 +2006,7 @@ msgid "Created {0}"
 msgstr "{0} létrehozva"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1057
+#: packages/admin/src/router.tsx:1118
 msgid "Created {0} translation"
 msgstr "{0} fordítás létrehozva"
 
@@ -2011,22 +2014,17 @@ msgstr "{0} fordítás létrehozva"
 msgid "Created At"
 msgstr "Létrehozva"
 
-#. placeholder {0}: new Date(item.createdAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:925
-msgid "Created: {0}"
-msgstr "Létrehozva: {0}"
-
 #: packages/admin/src/components/WordPressImport.tsx:887
 msgid "Creating collections and fields..."
 msgstr "Gyűjtemények és mezők létrehozása..."
 
-#: packages/admin/src/components/ContentEditor.tsx:2051
+#: packages/admin/src/components/ContentSettingsPanel.tsx:942
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:448
 #: packages/admin/src/components/TaxonomyManager.tsx:689
-#: packages/admin/src/components/TaxonomySidebar.tsx:290
+#: packages/admin/src/components/TaxonomySidebar.tsx:292
 msgid "Creating..."
 msgstr "Létrehozás..."
 
@@ -2034,11 +2032,11 @@ msgstr "Létrehozás..."
 msgid "CSS"
 msgstr "CSS"
 
-#: packages/admin/src/components/TranslationsPanel.tsx:78
+#: packages/admin/src/components/TranslationsPanel.tsx:83
 msgid "current"
 msgstr "jelenlegi"
 
-#: packages/admin/src/components/RevisionHistory.tsx:264
+#: packages/admin/src/components/RevisionHistory.tsx:272
 msgid "Current"
 msgstr "Jelenlegi"
 
@@ -2046,7 +2044,7 @@ msgstr "Jelenlegi"
 msgid "Custom"
 msgstr "Egyéni"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:612
+#: packages/admin/src/components/ContentTypeEditor.tsx:623
 msgid "Custom Fields"
 msgstr "Egyéni mezők"
 
@@ -2054,7 +2052,7 @@ msgstr "Egyéni mezők"
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "Egyéni robots.txt tartalom. Hagyd üresen az alapértelmezett használatához."
 
-#: packages/admin/src/components/SectionEditor.tsx:184
+#: packages/admin/src/components/SectionEditor.tsx:183
 msgid "Custom Section"
 msgstr "Egyéni szakasz"
 
@@ -2143,7 +2141,7 @@ msgstr "Kódban definiálva"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:267
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
-#: packages/admin/src/components/ContentTypeEditor.tsx:661
+#: packages/admin/src/components/ContentTypeEditor.tsx:672
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/editor/BlockMenu.tsx:301
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
@@ -2181,7 +2179,7 @@ msgid "Delete {0}"
 msgstr "{0} törlése"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:738
+#: packages/admin/src/components/ContentTypeEditor.tsx:749
 msgid "Delete {0} field"
 msgstr "{0} mező törlése"
 
@@ -2224,7 +2222,7 @@ msgstr "Törlöd a tartalomtípust?"
 msgid "Delete embed"
 msgstr "Beágyazás törlése"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:655
+#: packages/admin/src/components/ContentTypeEditor.tsx:666
 msgid "Delete Field?"
 msgstr "Törlöd a mezőt?"
 
@@ -2298,7 +2296,7 @@ msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other 
 msgstr "\"{0}\" törlése az összes szerzői leírásból eltávolítja a hozzá tartozó {1, plural, one {# tárolt értéket} other {# tárolt értéket}} is. Ez nem vonható vissza."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
-#: packages/admin/src/components/ContentTypeEditor.tsx:662
+#: packages/admin/src/components/ContentTypeEditor.tsx:673
 #: packages/admin/src/components/ContentTypeList.tsx:149
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:454
@@ -2346,13 +2344,13 @@ msgstr "Kép leírása..."
 msgid "Describe this image for accessibility"
 msgstr "Kép leírása akadálymentességhez"
 
-#: packages/admin/src/components/SectionEditor.tsx:260
+#: packages/admin/src/components/SectionEditor.tsx:264
 msgid "Describe what this section is for..."
 msgstr "Írd le, mire való ez a szakasz..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:413
 #: packages/admin/src/components/RegistryPluginDetail.tsx:790
-#: packages/admin/src/components/SectionEditor.tsx:257
+#: packages/admin/src/components/SectionEditor.tsx:261
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:373
 msgid "Description"
@@ -2446,8 +2444,8 @@ msgstr "Letiltás..."
 msgid "Discard"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:691
-#: packages/admin/src/components/ContentEditor.tsx:713
+#: packages/admin/src/components/ContentSettingsPanel.tsx:71
+#: packages/admin/src/components/ContentSettingsPanel.tsx:91
 msgid "Discard changes"
 msgstr "Módosítások elvetése"
 
@@ -2455,7 +2453,7 @@ msgstr "Módosítások elvetése"
 msgid "Discard changes?"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:697
+#: packages/admin/src/components/ContentSettingsPanel.tsx:76
 msgid "Discard draft changes?"
 msgstr "Elveted a vázlat módosításait?"
 
@@ -2472,8 +2470,8 @@ msgstr "Bezárás"
 msgid "Display a navigation menu"
 msgstr "Navigációs menü megjelenítése"
 
-#: packages/admin/src/components/ContentEditor.tsx:2002
-#: packages/admin/src/components/ContentEditor.tsx:2064
+#: packages/admin/src/components/ContentSettingsPanel.tsx:893
+#: packages/admin/src/components/ContentSettingsPanel.tsx:955
 #: packages/admin/src/routes/bylines.tsx:482
 msgid "Display name"
 msgstr "Megjelenített név"
@@ -2492,7 +2490,7 @@ msgstr "Megjelenítési méret"
 msgid "Displayed below the image as a visible caption."
 msgstr "A kép alatt látható képaláírásként jelenik meg."
 
-#: packages/admin/src/components/ContentEditor.tsx:667
+#: packages/admin/src/components/ContentEditor.tsx:704
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Zavarásmentes mód (⌘⇧\\)"
 
@@ -2534,7 +2532,7 @@ msgstr "Nincs még fiókod? <0>Regisztráció</0>"
 msgid "Done"
 msgstr "Kész"
 
-#: packages/admin/src/components/ContentEditor.tsx:1945
+#: packages/admin/src/components/ContentSettingsPanel.tsx:836
 msgid "Down"
 msgstr "Le"
 
@@ -2550,9 +2548,9 @@ msgstr "Letöltés"
 msgid "draft"
 msgstr "vázlat"
 
-#: packages/admin/src/components/ContentEditor.tsx:856
 #: packages/admin/src/components/ContentList.tsx:730
 #: packages/admin/src/components/ContentPickerModal.tsx:212
+#: packages/admin/src/components/ContentSettingsPanel.tsx:406
 #: packages/admin/src/components/Dashboard.tsx:346
 msgid "Draft"
 msgstr "Vázlat"
@@ -2584,7 +2582,7 @@ msgstr "Húzd az átrendezéshez"
 
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
-#: packages/admin/src/components/ContentTypeEditor.tsx:705
+#: packages/admin/src/components/ContentTypeEditor.tsx:716
 #: packages/admin/src/components/Widgets.tsx:720
 msgid "Drag to reorder {0}"
 msgstr "Húzd az átrendezéshez: {0}"
@@ -2633,13 +2631,13 @@ msgstr "pl. CI/CD Pipeline"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "pl. MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentEditor.tsx:1954
+#: packages/admin/src/components/ContentSettingsPanel.tsx:845
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
 #: packages/admin/src/components/MenuList.tsx:231
 #: packages/admin/src/components/Sections.tsx:392
-#: packages/admin/src/components/TranslationsPanel.tsx:88
+#: packages/admin/src/components/TranslationsPanel.tsx:93
 msgid "Edit"
 msgstr "Szerkesztés"
 
@@ -2657,11 +2655,11 @@ msgid "Edit {0}"
 msgstr "{0} szerkesztése"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:730
+#: packages/admin/src/components/ContentTypeEditor.tsx:741
 msgid "Edit {0} field"
 msgstr "{0} mező szerkesztése"
 
-#: packages/admin/src/components/ContentEditor.tsx:630
+#: packages/admin/src/components/ContentEditor.tsx:651
 msgid "Edit {collectionLabel}"
 msgstr "{collectionLabel} szerkesztése"
 
@@ -2669,7 +2667,7 @@ msgstr "{collectionLabel} szerkesztése"
 msgid "Edit {title}"
 msgstr "{title} szerkesztése"
 
-#: packages/admin/src/components/ContentEditor.tsx:2061
+#: packages/admin/src/components/ContentSettingsPanel.tsx:952
 msgid "Edit byline"
 msgstr "Szerző szerkesztése"
 
@@ -2824,7 +2822,7 @@ msgid "Enabled"
 msgstr "Engedélyezve"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1227
+#: packages/admin/src/components/ContentEditor.tsx:1177
 msgid "Enter {0}..."
 msgstr "{0} megadása..."
 
@@ -2833,7 +2831,7 @@ msgstr "{0} megadása..."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Adj meg egy URL-t (https://…) vagy relatív útvonalat (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1475
+#: packages/admin/src/components/ContentEditor.tsx:1425
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Adj meg érvényes URL-t (pl. https://example.com)"
 
@@ -2841,7 +2839,7 @@ msgstr "Adj meg érvényes URL-t (pl. https://example.com)"
 msgid "Enter credentials manually"
 msgstr "Hitelesítő adatok megadása kézzel"
 
-#: packages/admin/src/components/ContentEditor.tsx:666
+#: packages/admin/src/components/ContentEditor.tsx:703
 msgid "Enter distraction-free mode"
 msgstr "Belépés zavarásmentes módba"
 
@@ -2853,7 +2851,7 @@ msgstr "E-mail megadása"
 msgid "Enter HTML..."
 msgstr "HTML megadása..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1249
+#: packages/admin/src/components/ContentEditor.tsx:1199
 msgid "Enter markdown content..."
 msgstr "Markdown tartalom megadása..."
 
@@ -2887,7 +2885,7 @@ msgstr "Add meg a WordPress weboldal URL-jét"
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:687
-#: packages/admin/src/router.tsx:2016
+#: packages/admin/src/router.tsx:2133
 msgid "Error"
 msgstr "Hiba"
 
@@ -2899,7 +2897,7 @@ msgstr "Hiba a widget hozzáadásakor"
 msgid "Error reordering widgets"
 msgstr "Hiba a widgetek átrendezésekor"
 
-#: packages/admin/src/components/SectionEditor.tsx:52
+#: packages/admin/src/components/SectionEditor.tsx:51
 msgid "Error saving section"
 msgstr "Hiba a szakasz mentésekor"
 
@@ -2915,7 +2913,7 @@ msgstr "A plugin minden közzétett kiadását visszavonták, vagy nem sikerült
 msgid "Exists"
 msgstr "Létezik"
 
-#: packages/admin/src/components/ContentEditor.tsx:624
+#: packages/admin/src/components/ContentEditor.tsx:645
 msgid "Exit distraction-free mode"
 msgstr "Kilépés a zavarásmentes módból"
 
@@ -2988,7 +2986,7 @@ msgstr "Nem sikerült megerősíteni a feltöltést"
 msgid "Failed to create admin"
 msgstr "Nem sikerült admint létrehozni"
 
-#: packages/admin/src/components/ContentEditor.tsx:2045
+#: packages/admin/src/components/ContentSettingsPanel.tsx:936
 msgid "Failed to create byline"
 msgstr "Nem sikerült a szerzőt létrehozni"
 
@@ -3008,18 +3006,18 @@ msgstr "Nem sikerült szakaszt létrehozni"
 msgid "Failed to create some collections"
 msgstr "Nem sikerült néhány gyűjteményt létrehozni"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:493
+#: packages/admin/src/components/TaxonomySidebar.tsx:497
 msgid "Failed to create term"
 msgstr "Nem sikerült kifejezést létrehozni"
 
-#: packages/admin/src/router.tsx:1062
+#: packages/admin/src/router.tsx:1123
 msgid "Failed to create translation"
 msgstr "Nem sikerült fordítást létrehozni"
 
-#: packages/admin/src/router.tsx:398
-#: packages/admin/src/router.tsx:427
-#: packages/admin/src/router.tsx:510
-#: packages/admin/src/router.tsx:1082
+#: packages/admin/src/router.tsx:420
+#: packages/admin/src/router.tsx:449
+#: packages/admin/src/router.tsx:532
+#: packages/admin/src/router.tsx:1143
 msgid "Failed to delete"
 msgstr "Nem sikerült törölni"
 
@@ -3040,7 +3038,7 @@ msgid "Failed to delete collection"
 msgstr "Nem sikerült gyűjteményt törölni"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1326
+#: packages/admin/src/router.tsx:1443
 msgid "Failed to delete comment"
 msgstr "Nem sikerült hozzászólást törölni"
 
@@ -3106,7 +3104,7 @@ msgstr "Nem sikerült keresést letiltani"
 msgid "Failed to disable user"
 msgstr "Nem sikerült felhasználót letiltani"
 
-#: packages/admin/src/router.tsx:989
+#: packages/admin/src/router.tsx:1050
 msgid "Failed to discard changes"
 msgstr "Nem sikerült módosításokat elvetni"
 
@@ -3114,7 +3112,7 @@ msgstr "Nem sikerült módosításokat elvetni"
 msgid "Failed to dismiss welcome"
 msgstr "Nem sikerült üdvözlést bezárni"
 
-#: packages/admin/src/router.tsx:441
+#: packages/admin/src/router.tsx:463
 msgid "Failed to duplicate"
 msgstr "Nem sikerült duplikálni"
 
@@ -3152,7 +3150,7 @@ msgstr "Nem sikerült vezérlőpult statisztikáit lekérni"
 msgid "Failed to fetch email settings"
 msgstr "Nem sikerült e-mail beállításokat lekérni"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:90
+#: packages/admin/src/components/TaxonomySidebar.tsx:93
 msgid "Failed to fetch entry terms"
 msgstr "Nem sikerült bejegyzés kifejezéseit lekérni"
 
@@ -3206,15 +3204,15 @@ msgstr "Nem sikerült beállításokat lekérni"
 msgid "Failed to fetch setup status"
 msgstr "Nem sikerült beállítási állapotot lekérni"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:71
+#: packages/admin/src/components/TaxonomySidebar.tsx:74
 msgid "Failed to fetch terms"
 msgstr "Nem sikerült kifejezéseket lekérni"
 
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:819
-#: packages/admin/src/router.tsx:1257
+#: packages/admin/src/router.tsx:850
+#: packages/admin/src/router.tsx:1374
 msgid "Failed to fetch user"
 msgstr "Nem sikerült felhasználót lekérni"
 
@@ -3256,7 +3254,7 @@ msgstr "Nem sikerült plugint telepíteni"
 msgid "Failed to list byline fields"
 msgstr "Nem sikerült a szerző mezőit listázni"
 
-#: packages/admin/src/router.tsx:258
+#: packages/admin/src/router.tsx:280
 msgid "Failed to load admin"
 msgstr "Nem sikerült admint betölteni"
 
@@ -3294,7 +3292,7 @@ msgstr "Nem sikerült betölteni a plugineket: {0}"
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "Nem sikerült betölteni a plugineket. Lehet, hogy a regiszteraggregátor nem érhető el."
 
-#: packages/admin/src/components/RevisionHistory.tsx:180
+#: packages/admin/src/components/RevisionHistory.tsx:188
 msgid "Failed to load revisions"
 msgstr "Nem sikerült verziókat betölteni"
 
@@ -3315,7 +3313,7 @@ msgstr "Nem sikerült betölteni a felhasználókat: {0}"
 msgid "Failed to load widget"
 msgstr "Nem sikerült betölteni a widgetet"
 
-#: packages/admin/src/router.tsx:1351
+#: packages/admin/src/router.tsx:1468
 msgid "Failed to perform bulk action"
 msgstr "Nem sikerült tömeges műveletet végrehajtani"
 
@@ -3327,8 +3325,8 @@ msgstr "Nem sikerült tartalmat véglegesen törölni"
 msgid "Failed to prepare import"
 msgstr "Nem sikerült importot előkészíteni"
 
-#: packages/admin/src/router.tsx:466
-#: packages/admin/src/router.tsx:950
+#: packages/admin/src/router.tsx:488
+#: packages/admin/src/router.tsx:1011
 msgid "Failed to publish"
 msgstr "Nem sikerült publikálni"
 
@@ -3362,7 +3360,7 @@ msgstr "Nem sikerült átrendezni a mezőket"
 msgid "Failed to reorder widgets"
 msgstr "Nem sikerült átrendezni a widgeteket"
 
-#: packages/admin/src/router.tsx:413
+#: packages/admin/src/router.tsx:435
 msgid "Failed to restore"
 msgstr "A visszaállítás nem sikerült"
 
@@ -3383,8 +3381,8 @@ msgstr "Az API tokent nem sikerült visszavonni"
 msgid "Failed to rewrite URLs"
 msgstr "URL-ek átírása nem sikerült"
 
-#: packages/admin/src/router.tsx:894
-#: packages/admin/src/router.tsx:1833
+#: packages/admin/src/router.tsx:940
+#: packages/admin/src/router.tsx:1950
 msgid "Failed to save"
 msgstr "Nem sikerült a mentés"
 
@@ -3398,7 +3396,7 @@ msgstr "Nem sikerült a mezők mentése"
 msgid "Failed to save settings"
 msgstr "Nem sikerült a beállítások mentése"
 
-#: packages/admin/src/router.tsx:1010
+#: packages/admin/src/router.tsx:1071
 msgid "Failed to schedule"
 msgstr "Az ütemezés nem sikerült"
 
@@ -3420,7 +3418,7 @@ msgstr "Nem sikerült teszt e-mailt küldeni"
 msgid "Failed to send verification email"
 msgstr "Nem sikerült ellenőrző e-mailt küldeni"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:113
+#: packages/admin/src/components/TaxonomySidebar.tsx:116
 msgid "Failed to set entry terms"
 msgstr "Nem sikerült bejegyzés kifejezéseit beállítani"
 
@@ -3429,24 +3427,24 @@ msgstr "Nem sikerült bejegyzés kifejezéseit beállítani"
 msgid "Failed to uninstall plugin"
 msgstr "Nem sikerült a plugin eltávolítása"
 
-#: packages/admin/src/router.tsx:968
+#: packages/admin/src/router.tsx:1029
 msgid "Failed to unpublish"
 msgstr "Nem sikerült a közzététel visszavonása"
 
-#: packages/admin/src/router.tsx:1031
+#: packages/admin/src/router.tsx:1092
 msgid "Failed to unschedule"
 msgstr "Nem sikerült az ütemezés törlése"
 
-#: packages/admin/src/router.tsx:489
+#: packages/admin/src/router.tsx:511
 msgid "Failed to update"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:349
+#: packages/admin/src/components/TaxonomySidebar.tsx:351
 msgid "Failed to update {0}"
 msgstr "Nem sikerült frissíteni: {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2095
+#: packages/admin/src/components/ContentSettingsPanel.tsx:986
 msgid "Failed to update byline"
 msgstr "Nem sikerült a szerzőt frissíteni"
 
@@ -3475,7 +3473,7 @@ msgstr "Nem sikerült a szakasz frissítése"
 msgid "Failed to update settings"
 msgstr "Nem sikerült frissíteni a beállításokat"
 
-#: packages/admin/src/router.tsx:1310
+#: packages/admin/src/router.tsx:1427
 msgid "Failed to update status"
 msgstr "Nem sikerült frissíteni az állapotot"
 
@@ -3553,7 +3551,7 @@ msgstr "A mezőtípus létrehozás után nem módosítható."
 msgid "Field updated"
 msgstr "Mező frissítve"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:570
+#: packages/admin/src/components/ContentTypeEditor.tsx:581
 msgid "Fields"
 msgstr "Mezők"
 
@@ -3685,7 +3683,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2036
+#: packages/admin/src/router.tsx:2153
 msgid "Go to Dashboard"
 msgstr "Ugrás a vezérlőpultra"
 
@@ -3740,11 +3738,12 @@ msgstr "Magasság"
 msgid "Hero Banner"
 msgstr "Hero banner"
 
-#: packages/admin/src/components/SectionEditor.tsx:269
+#: packages/admin/src/components/SectionEditor.tsx:273
 msgid "hero, banner, cta"
 msgstr "hero, banner, cta"
 
-#: packages/admin/src/components/SeoPanel.tsx:196
+#: packages/admin/src/components/SeoPanel.tsx:230
+#: packages/admin/src/components/SeoPanel.tsx:233
 msgid "Hide from search engines"
 msgstr "Elrejtés a keresők elől"
 
@@ -3837,7 +3836,7 @@ msgstr "Képbeállítások"
 msgid "Image Settings"
 msgstr "Képbeállítások"
 
-#: packages/admin/src/components/SeoImageField.tsx:75
+#: packages/admin/src/components/SeoImageField.tsx:43
 msgid "Image shown when this page is shared on social media"
 msgstr "A közösségi médiás megosztáskor megjelenő kép"
 
@@ -4084,7 +4083,7 @@ msgstr "Egész szám"
 msgid "Invalid invite link"
 msgstr "Érvénytelen meghívólink"
 
-#: packages/admin/src/components/ContentEditor.tsx:1544
+#: packages/admin/src/components/ContentEditor.tsx:1494
 msgid "Invalid JSON"
 msgstr "Érvénytelen JSON"
 
@@ -4170,12 +4169,12 @@ msgstr "JSX"
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1924
+#: packages/admin/src/components/ContentSettingsPanel.tsx:812
 msgid "Keep typing to narrow down more bylines."
 msgstr "Gépelj tovább a szerzők szűréséhez."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:293
-#: packages/admin/src/components/SectionEditor.tsx:266
+#: packages/admin/src/components/SectionEditor.tsx:270
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:189
 msgid "Keywords"
 msgstr "Kulcsszavak"
@@ -4311,7 +4310,9 @@ msgstr "Linkek"
 msgid "List view"
 msgstr "Listanézet"
 
-#: packages/admin/src/components/ContentEditor.tsx:745
+#: packages/admin/src/components/ContentEditor.tsx:685
+#: packages/admin/src/components/ContentEditor.tsx:732
+#: packages/admin/src/components/ContentSettingsPanel.tsx:234
 msgid "Live View"
 msgstr "Élő nézet"
 
@@ -4343,7 +4344,7 @@ msgstr "Gyűjtemények betöltése..."
 msgid "Loading comments..."
 msgstr "Hozzászólások betöltése..."
 
-#: packages/admin/src/router.tsx:2005
+#: packages/admin/src/router.tsx:2122
 msgid "Loading configuration..."
 msgstr "Konfiguráció betöltése..."
 
@@ -4432,7 +4433,7 @@ msgstr "Méretarány zárolása"
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "Zárolva, mert ehhez a mezőhöz tárolt értékek tartoznak. A módosításhoz töröld az értékeket (vagy a mezőt)."
 
-#: packages/admin/src/components/Header.tsx:107
+#: packages/admin/src/components/Header.tsx:109
 msgid "Log out"
 msgstr "Kijelentkezés"
 
@@ -4486,7 +4487,7 @@ msgstr "Kezelés"
 msgid "Manage {0} for {1}"
 msgstr "{0} kezelése ehhez: {1}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1887
+#: packages/admin/src/components/ContentSettingsPanel.tsx:774
 msgid "Manage bylines in {entryLocale}"
 msgstr "Szerzői sorok kezelése ezen a nyelven: {entryLocale}"
 
@@ -4681,7 +4682,8 @@ msgstr "Menük ({0})"
 msgid "Menus Manage"
 msgstr "Menük kezelése"
 
-#: packages/admin/src/components/SeoPanel.tsx:170
+#: packages/admin/src/components/SeoPanel.tsx:188
+#: packages/admin/src/components/SeoPanel.tsx:192
 msgid "Meta Description"
 msgstr "Meta leírás"
 
@@ -4759,16 +4761,16 @@ msgstr "Mozgatás le"
 msgid "Move to trash"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:942
-#: packages/admin/src/components/ContentEditor.tsx:964
 #: packages/admin/src/components/ContentList.tsx:466
 #: packages/admin/src/components/ContentList.tsx:1059
+#: packages/admin/src/components/ContentSettingsPanel.tsx:599
+#: packages/admin/src/components/ContentSettingsPanel.tsx:619
 msgid "Move to Trash"
 msgstr "Áthelyezés a kukába"
 
-#: packages/admin/src/components/ContentEditor.tsx:948
 #: packages/admin/src/components/ContentList.tsx:444
 #: packages/admin/src/components/ContentList.tsx:1044
+#: packages/admin/src/components/ContentSettingsPanel.tsx:604
 msgid "Move to Trash?"
 msgstr "Áthelyezés a kukába?"
 
@@ -4776,11 +4778,11 @@ msgstr "Áthelyezés a kukába?"
 msgid "Move up"
 msgstr "Mozgatás fel"
 
-#: packages/admin/src/router.tsx:486
+#: packages/admin/src/router.tsx:508
 msgid "Moved {total} items to draft"
 msgstr ""
 
-#: packages/admin/src/router.tsx:507
+#: packages/admin/src/router.tsx:529
 msgid "Moved {total} items to trash"
 msgstr ""
 
@@ -4829,7 +4831,7 @@ msgstr "Navigáció"
 msgid "Never"
 msgstr "Soha"
 
-#: packages/admin/src/router.tsx:1057
+#: packages/admin/src/router.tsx:1118
 msgid "new"
 msgstr "új"
 
@@ -4842,11 +4844,11 @@ msgid "NEW"
 msgstr "ÚJ"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:464
+#: packages/admin/src/components/TaxonomySidebar.tsx:466
 msgid "New {0}"
 msgstr "Új {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:630
+#: packages/admin/src/components/ContentEditor.tsx:651
 msgid "New {collectionLabel}"
 msgstr "Új {collectionLabel}"
 
@@ -4927,7 +4929,7 @@ msgid "No (shared across translations)"
 msgstr "Nem (közös a fordítások között)"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:434
+#: packages/admin/src/components/TaxonomySidebar.tsx:436
 msgid "No {0} available."
 msgstr "Nincs elérhető {0}."
 
@@ -4962,7 +4964,7 @@ msgstr "Még nincs jóváhagyott hozzászólás."
 msgid "No byline fields yet."
 msgstr "Még nincsenek szerzői sor mezők."
 
-#: packages/admin/src/components/ContentEditor.tsx:1879
+#: packages/admin/src/components/ContentSettingsPanel.tsx:766
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "Nincs elérhető szerző ezen a nyelven: {entryLocale}. Hozz létre egy változatot a Szerzők oldalon, mielőtt hozzárendelnéd ehhez a bejegyzéshez."
 
@@ -4970,7 +4972,7 @@ msgstr "Nincs elérhető szerző ezen a nyelven: {entryLocale}. Hozz létre egy 
 msgid "No bylines found"
 msgstr "Nem találhatók szerzők"
 
-#: packages/admin/src/components/ContentEditor.tsx:1986
+#: packages/admin/src/components/ContentSettingsPanel.tsx:877
 msgid "No bylines selected."
 msgstr "Nincs kiválasztott szerző."
 
@@ -5002,7 +5004,7 @@ msgstr "Nincs tartalom ebben a gyűjteményben"
 msgid "No content types yet."
 msgstr "Még nincsenek tartalomtípusok."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:601
+#: packages/admin/src/components/ContentTypeEditor.tsx:612
 msgid "No custom fields yet"
 msgstr "Még nincsenek egyedi mezők"
 
@@ -5030,11 +5032,11 @@ msgstr "Nem találhatók EmDash-felhasználók"
 msgid "No expiry"
 msgstr "Nincs lejárat"
 
-#: packages/admin/src/components/RevisionHistory.tsx:327
+#: packages/admin/src/components/RevisionHistory.tsx:335
 msgid "No fields to compare"
 msgstr "Nincsenek összehasonlítható mezők"
 
-#: packages/admin/src/components/editor/DocumentOutline.tsx:189
+#: packages/admin/src/components/editor/DocumentOutline.tsx:204
 msgid "No headings in document"
 msgstr "Nincsenek címsorok a dokumentumban"
 
@@ -5063,7 +5065,7 @@ msgstr "Nincs szerzőhöz kapcsolt felhasználó"
 msgid "No matches"
 msgstr "Nincs találat"
 
-#: packages/admin/src/components/ContentEditor.tsx:1921
+#: packages/admin/src/components/ContentSettingsPanel.tsx:809
 msgid "No matching bylines."
 msgstr "Nincs megfelelő szerző."
 
@@ -5174,7 +5176,7 @@ msgstr "Nincs találat erre: \"{debouncedQuery}\". Próbálj másik keresőkifej
 msgid "No results found"
 msgstr "Nem található találat"
 
-#: packages/admin/src/components/RevisionHistory.tsx:183
+#: packages/admin/src/components/RevisionHistory.tsx:191
 msgid "No revisions yet"
 msgstr "Még nincsenek verziók"
 
@@ -5243,7 +5245,7 @@ msgstr "Számozott lista"
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
 msgstr ""
 
-#: packages/admin/src/components/SeoImageField.tsx:41
+#: packages/admin/src/components/SeoImageField.tsx:46
 msgid "OG Image"
 msgstr "OG Image"
 
@@ -5352,15 +5354,15 @@ msgstr "Sorrend mentve"
 msgid "Original:"
 msgstr "Eredeti:"
 
-#: packages/admin/src/components/editor/DocumentOutline.tsx:181
+#: packages/admin/src/components/editor/DocumentOutline.tsx:182
 msgid "Outline"
 msgstr "Dokumentum struktúra"
 
-#: packages/admin/src/components/SeoPanel.tsx:160
+#: packages/admin/src/components/SeoPanel.tsx:164
 msgid "Overrides the page title in search engine results"
 msgstr "Felülírja az oldal címét a keresési találatokban"
 
-#: packages/admin/src/components/ContentEditor.tsx:979
+#: packages/admin/src/components/ContentSettingsPanel.tsx:500
 msgid "Ownership"
 msgstr "Tulajdonjog"
 
@@ -5368,7 +5370,7 @@ msgstr "Tulajdonjog"
 msgid "Package"
 msgstr "Csomag"
 
-#: packages/admin/src/router.tsx:2031
+#: packages/admin/src/router.tsx:2148
 msgid "Page Not Found"
 msgstr "Az oldal nem található"
 
@@ -5492,7 +5494,7 @@ msgstr "függőben"
 msgid "Pending"
 msgstr "Függőben"
 
-#: packages/admin/src/components/ContentEditor.tsx:854
+#: packages/admin/src/components/ContentSettingsPanel.tsx:405
 msgid "Pending changes"
 msgstr "Függőben lévő módosítások"
 
@@ -5621,7 +5623,7 @@ msgstr "Plugin widgethiba"
 msgid "Plugins"
 msgstr "Pluginek"
 
-#: packages/admin/src/components/SeoPanel.tsx:187
+#: packages/admin/src/components/SeoPanel.tsx:208
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "A keresőmotorokat az oldal eredeti verziójára irányítja, ha az oldal egy másik URL-ről duplikált"
 
@@ -5659,7 +5661,7 @@ msgstr "WordPress-fájlok letöltésének előkészítése..."
 msgid "Preparing..."
 msgstr "Előkészítés..."
 
-#: packages/admin/src/components/ContentEditor.tsx:680
+#: packages/admin/src/components/ContentSettingsPanel.tsx:143
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaLibrary.tsx:585
 msgid "Preview"
@@ -5669,7 +5671,7 @@ msgstr "Előnézet"
 msgid "Preview content before publishing"
 msgstr "Tartalom előnézete publikálás előtt"
 
-#: packages/admin/src/components/ContentEditor.tsx:680
+#: packages/admin/src/components/ContentSettingsPanel.tsx:143
 msgid "Preview draft"
 msgstr "Vázlat előnézete"
 
@@ -5698,13 +5700,13 @@ msgstr ""
 msgid "Provider:"
 msgstr "Szolgáltató:"
 
-#: packages/admin/src/components/ContentEditor.tsx:735
-#: packages/admin/src/components/ContentEditor.tsx:839
 #: packages/admin/src/components/ContentList.tsx:415
+#: packages/admin/src/components/ContentSettingsPanel.tsx:171
+#: packages/admin/src/components/ContentSettingsPanel.tsx:390
 msgid "Publish"
 msgstr "Publikálás"
 
-#: packages/admin/src/components/ContentEditor.tsx:725
+#: packages/admin/src/components/ContentSettingsPanel.tsx:178
 msgid "Publish changes"
 msgstr "Módosítások publikálása"
 
@@ -5712,13 +5714,13 @@ msgstr "Módosítások publikálása"
 msgid "published"
 msgstr "publikálva"
 
-#: packages/admin/src/components/ContentEditor.tsx:852
 #: packages/admin/src/components/ContentList.tsx:729
 #: packages/admin/src/components/ContentList.tsx:738
 #: packages/admin/src/components/ContentPickerModal.tsx:209
+#: packages/admin/src/components/ContentSettingsPanel.tsx:404
 #: packages/admin/src/components/Dashboard.tsx:245
 #: packages/admin/src/components/Dashboard.tsx:345
-#: packages/admin/src/router.tsx:946
+#: packages/admin/src/router.tsx:1007
 msgid "Published"
 msgstr "Publikálva"
 
@@ -5727,7 +5729,7 @@ msgstr "Publikálva"
 msgid "Published {0}"
 msgstr "Publikálva: {0}"
 
-#: packages/admin/src/router.tsx:463
+#: packages/admin/src/router.tsx:485
 msgid "Published {total} items"
 msgstr ""
 
@@ -5743,7 +5745,7 @@ msgstr "Publikálta"
 msgid "Python"
 msgstr "Python"
 
-#: packages/admin/src/components/ContentEditor.tsx:1994
+#: packages/admin/src/components/ContentSettingsPanel.tsx:885
 msgid "Quick create byline"
 msgstr "Szerző gyors létrehozása"
 
@@ -5879,7 +5881,7 @@ msgstr "A kiadás túl új a telepítéshez"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:1963
+#: packages/admin/src/components/ContentSettingsPanel.tsx:854
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/PortableTextEditor.tsx:3193
 #: packages/admin/src/components/settings/GeneralSettings.tsx:194
@@ -5893,7 +5895,7 @@ msgstr "Eltávolítás"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:186
-#: packages/admin/src/components/TaxonomySidebar.tsx:243
+#: packages/admin/src/components/TaxonomySidebar.tsx:246
 msgid "Remove {0}"
 msgstr "{0} eltávolítása"
 
@@ -5901,7 +5903,7 @@ msgstr "{0} eltávolítása"
 msgid "Remove {entry}"
 msgstr "{entry} eltávolítása"
 
-#: packages/admin/src/components/ContentEditor.tsx:1705
+#: packages/admin/src/components/ContentEditor.tsx:1655
 msgid "Remove {label}"
 msgstr "{label} eltávolítása"
 
@@ -5915,7 +5917,7 @@ msgstr "Eltávolítod a domaint?"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:130
 #: packages/admin/src/components/ImageFieldRenderer.tsx:159
-#: packages/admin/src/components/SeoImageField.tsx:55
+#: packages/admin/src/components/SeoImageField.tsx:61
 msgid "Remove image"
 msgstr "Kép eltávolítása"
 
@@ -6004,7 +6006,7 @@ msgid "Request failed"
 msgstr "A kérés sikertelen"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
-#: packages/admin/src/components/ContentTypeEditor.tsx:719
+#: packages/admin/src/components/ContentTypeEditor.tsx:730
 #: packages/admin/src/components/FieldEditor.tsx:437
 #: packages/admin/src/components/FieldEditor.tsx:593
 #: packages/admin/src/routes/byline-schema.tsx:246
@@ -6038,7 +6040,7 @@ msgstr "Újraküldés {resendCooldown} mp múlva"
 msgid "Reset to original"
 msgstr "Visszaállítás az eredetire"
 
-#: packages/admin/src/components/RevisionHistory.tsx:220
+#: packages/admin/src/components/RevisionHistory.tsx:228
 msgid "Restore"
 msgstr "Visszaállítás"
 
@@ -6046,32 +6048,32 @@ msgstr "Visszaállítás"
 msgid "Restore {title}"
 msgstr "{title} visszaállítása"
 
-#: packages/admin/src/components/RevisionHistory.tsx:136
+#: packages/admin/src/components/RevisionHistory.tsx:128
 msgid "Restore failed"
 msgstr "A visszaállítás sikertelen"
 
-#: packages/admin/src/components/RevisionHistory.tsx:214
+#: packages/admin/src/components/RevisionHistory.tsx:222
 msgid "Restore Revision?"
 msgstr "Visszaállítod ezt a verziót?"
 
-#: packages/admin/src/components/RevisionHistory.tsx:281
-#: packages/admin/src/components/RevisionHistory.tsx:282
+#: packages/admin/src/components/RevisionHistory.tsx:289
+#: packages/admin/src/components/RevisionHistory.tsx:290
 msgid "Restore this version"
 msgstr "Verzió visszaállítása"
 
 #. placeholder {0}: formatFullDate(restoreTarget.createdAt)
-#: packages/admin/src/components/RevisionHistory.tsx:217
+#: packages/admin/src/components/RevisionHistory.tsx:225
 msgid "Restore this version from {0}? This will update the current content to this revision's data."
 msgstr "Visszaállítod ezt a verziót innen: {0}? Ez a jelenlegi tartalmat erre a verzióra frissíti."
 
-#: packages/admin/src/components/RevisionHistory.tsx:221
+#: packages/admin/src/components/RevisionHistory.tsx:229
 msgid "Restoring..."
 msgstr "Visszaállítás..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:2019
+#: packages/admin/src/router.tsx:2136
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Újrapróbálkozás"
@@ -6080,7 +6082,7 @@ msgstr "Újrapróbálkozás"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Bármely tartalomba beszúrható újrahasznosítható tartalomblokkok"
 
-#: packages/admin/src/router.tsx:984
+#: packages/admin/src/router.tsx:1045
 msgid "Reverted to published version"
 msgstr "Visszaállítva a publikált verzióra"
 
@@ -6092,12 +6094,12 @@ msgstr "Áttekintés"
 msgid "Review New Permissions"
 msgstr "Új engedélyek áttekintése"
 
-#: packages/admin/src/components/RevisionHistory.tsx:130
+#: packages/admin/src/components/RevisionHistory.tsx:122
 msgid "Revision restored"
 msgstr "Verzió visszaállítva"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
-#: packages/admin/src/components/RevisionHistory.tsx:161
+#: packages/admin/src/components/RevisionHistory.tsx:158
 msgid "Revisions"
 msgstr "Verziók"
 
@@ -6145,7 +6147,7 @@ msgstr "Szerepkör"
 msgid "Role {role}"
 msgstr "Szerepkör: {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1968
+#: packages/admin/src/components/ContentSettingsPanel.tsx:859
 msgid "Role label"
 msgstr "Szerepkörcímke"
 
@@ -6164,7 +6166,7 @@ msgstr "Rust"
 msgid "Same window"
 msgstr "Azonos ablak"
 
-#: packages/admin/src/components/ContentEditor.tsx:2101
+#: packages/admin/src/components/ContentSettingsPanel.tsx:992
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
@@ -6172,7 +6174,7 @@ msgstr "Azonos ablak"
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:190
-#: packages/admin/src/components/SaveButton.tsx:42
+#: packages/admin/src/components/SaveButton.tsx:32
 #: packages/admin/src/components/Widgets.tsx:892
 #: packages/admin/src/routes/bylines.tsx:580
 msgid "Save"
@@ -6190,7 +6192,6 @@ msgstr "Alternatív szöveg mentése"
 msgid "Save changes"
 msgstr "Módosítások mentése"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:558
 #: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Save Changes"
 msgstr "Módosítások mentése"
@@ -6218,8 +6219,7 @@ msgstr "Beállítások mentése"
 msgid "Save Social Links"
 msgstr "Közösségi linkek mentése"
 
-#: packages/admin/src/components/ContentEditor.tsx:655
-#: packages/admin/src/components/SaveButton.tsx:42
+#: packages/admin/src/components/SaveButton.tsx:34
 msgid "Saved"
 msgstr "Mentve"
 
@@ -6228,14 +6228,12 @@ msgstr "Mentve"
 msgid "Saved \"{0}\"."
 msgstr "\"{0}\" mentve."
 
-#: packages/admin/src/components/ContentEditor.tsx:650
-#: packages/admin/src/components/ContentEditor.tsx:2101
-#: packages/admin/src/components/ContentTypeEditor.tsx:558
+#: packages/admin/src/components/ContentSettingsPanel.tsx:992
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:187
-#: packages/admin/src/components/SaveButton.tsx:42
+#: packages/admin/src/components/SaveButton.tsx:33
 #: packages/admin/src/components/settings/GeneralSettings.tsx:120
 #: packages/admin/src/components/settings/GeneralSettings.tsx:298
 #: packages/admin/src/components/settings/SeoSettings.tsx:111
@@ -6262,15 +6260,15 @@ msgstr "SBOM"
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:894
+#: packages/admin/src/components/ContentSettingsPanel.tsx:453
 msgid "Schedule"
 msgstr "Ütemezés"
 
-#: packages/admin/src/components/ContentEditor.tsx:880
+#: packages/admin/src/components/ContentSettingsPanel.tsx:439
 msgid "Schedule for"
 msgstr "Ütemezés ekkorra"
 
-#: packages/admin/src/components/ContentEditor.tsx:917
+#: packages/admin/src/components/ContentSettingsPanel.tsx:476
 msgid "Schedule for later"
 msgstr "Ütemezés későbbre"
 
@@ -6278,15 +6276,15 @@ msgstr "Ütemezés későbbre"
 msgid "scheduled"
 msgstr "ütemezve"
 
-#: packages/admin/src/components/ContentEditor.tsx:857
 #: packages/admin/src/components/ContentList.tsx:731
+#: packages/admin/src/components/ContentSettingsPanel.tsx:407
 #: packages/admin/src/components/Dashboard.tsx:347
-#: packages/admin/src/router.tsx:1004
+#: packages/admin/src/router.tsx:1065
 msgid "Scheduled"
 msgstr "Ütemezve"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentEditor.tsx:867
+#: packages/admin/src/components/ContentSettingsPanel.tsx:427
 msgid "Scheduled for: {0}"
 msgstr "Ütemezve ekkorra: {0}"
 
@@ -6371,12 +6369,12 @@ msgstr "Keresés fájlnév alapján..."
 msgid "Search by name or email..."
 msgstr "Keresés név vagy e-mail alapján..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1896
+#: packages/admin/src/components/ContentSettingsPanel.tsx:783
 #: packages/admin/src/routes/bylines.tsx:402
 msgid "Search bylines"
 msgstr "Szerzők keresése"
 
-#: packages/admin/src/components/ContentEditor.tsx:1895
+#: packages/admin/src/components/ContentSettingsPanel.tsx:782
 msgid "Search bylines to add..."
 msgstr "Szerző keresése..."
 
@@ -6445,12 +6443,12 @@ msgstr "Felhasználók keresése"
 msgid "Search..."
 msgstr "Keresés..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:721
+#: packages/admin/src/components/ContentTypeEditor.tsx:732
 #: packages/admin/src/components/FieldEditor.tsx:452
 msgid "Searchable"
 msgstr "Kereshető"
 
-#: packages/admin/src/components/ContentEditor.tsx:1899
+#: packages/admin/src/components/ContentSettingsPanel.tsx:787
 msgid "Searching..."
 msgstr "Keresés..."
 
@@ -6458,7 +6456,7 @@ msgstr "Keresés..."
 msgid "Section"
 msgstr "Szakasz"
 
-#: packages/admin/src/components/SectionEditor.tsx:82
+#: packages/admin/src/components/SectionEditor.tsx:81
 msgid "Section \"{slug}\" could not be found."
 msgstr "A szakasz nem található: \"{slug}\"."
 
@@ -6470,19 +6468,15 @@ msgstr "Szakasz létrehozva"
 msgid "Section deleted"
 msgstr "Szakasz törölve"
 
-#: packages/admin/src/components/SectionEditor.tsx:231
+#: packages/admin/src/components/SectionEditor.tsx:235
 msgid "Section Details"
 msgstr "Szakasz részletei"
 
-#: packages/admin/src/components/SectionEditor.tsx:78
+#: packages/admin/src/components/SectionEditor.tsx:77
 msgid "Section Not Found"
 msgstr "A szakasz nem található"
 
-#: packages/admin/src/components/SectionEditor.tsx:44
-msgid "Section saved"
-msgstr "Szakasz mentve"
-
-#: packages/admin/src/components/SectionEditor.tsx:237
+#: packages/admin/src/components/SectionEditor.tsx:241
 msgid "Section title"
 msgstr "Szakasz címe"
 
@@ -6540,7 +6534,7 @@ msgid "Security error. Make sure you're on a secure connection."
 msgstr "Biztonsági hiba. Ellenőrizd, hogy biztonságos kapcsolaton vagy-e."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:243
-#: packages/admin/src/components/Header.tsx:91
+#: packages/admin/src/components/Header.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:95
 msgid "Security Settings"
 msgstr "Biztonsági beállítások"
@@ -6552,8 +6546,8 @@ msgid "Select"
 msgstr "Kiválasztás"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:1717
-#: packages/admin/src/components/ContentEditor.tsx:1733
+#: packages/admin/src/components/ContentEditor.tsx:1667
+#: packages/admin/src/components/ContentEditor.tsx:1683
 #: packages/admin/src/components/ImageFieldRenderer.tsx:187
 msgid "Select {label}"
 msgstr "{label} kiválasztása"
@@ -6596,7 +6590,7 @@ msgstr "Alapértelmezett közösségi kép kiválasztása"
 msgid "Select Favicon"
 msgstr "Favicon kiválasztása"
 
-#: packages/admin/src/components/ContentEditor.tsx:1721
+#: packages/admin/src/components/ContentEditor.tsx:1671
 msgid "Select file"
 msgstr "Fájl kiválasztása"
 
@@ -6624,11 +6618,11 @@ msgstr "Logó kiválasztása"
 msgid "Select media"
 msgstr "Média kiválasztása"
 
-#: packages/admin/src/components/SeoImageField.tsx:70
+#: packages/admin/src/components/SeoImageField.tsx:76
 msgid "Select OG image"
 msgstr "OG kép kiválasztása"
 
-#: packages/admin/src/components/SeoImageField.tsx:82
+#: packages/admin/src/components/SeoImageField.tsx:85
 msgid "Select OG Image"
 msgstr "OG kép kiválasztása"
 
@@ -6688,7 +6682,7 @@ msgstr "Teszt e-mail küldése"
 msgid "Sending..."
 msgstr "Küldés..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1044
+#: packages/admin/src/components/ContentSettingsPanel.tsx:564
 #: packages/admin/src/components/ContentTypeEditor.tsx:472
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
@@ -6707,7 +6701,8 @@ msgstr "SEO beállítások (Yoast)"
 msgid "SEO settings saved"
 msgstr "SEO beállítások mentve"
 
-#: packages/admin/src/components/SeoPanel.tsx:159
+#: packages/admin/src/components/SeoPanel.tsx:168
+#: packages/admin/src/components/SeoPanel.tsx:172
 msgid "SEO Title"
 msgstr "SEO cím"
 
@@ -6742,8 +6737,10 @@ msgid "Setting up..."
 msgstr "Beállítás..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
+#: packages/admin/src/components/ContentEditor.tsx:799
+#: packages/admin/src/components/ContentEditor.tsx:1005
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
-#: packages/admin/src/components/Header.tsx:99
+#: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:379
@@ -6898,15 +6895,15 @@ msgid "Skipped"
 msgstr "Kihagyva"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentEditor.tsx:842
-#: packages/admin/src/components/ContentEditor.tsx:2010
-#: packages/admin/src/components/ContentEditor.tsx:2072
+#: packages/admin/src/components/ContentSettingsPanel.tsx:394
+#: packages/admin/src/components/ContentSettingsPanel.tsx:901
+#: packages/admin/src/components/ContentSettingsPanel.tsx:963
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:402
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:228
 #: packages/admin/src/components/FieldEditor.tsx:418
-#: packages/admin/src/components/SectionEditor.tsx:242
+#: packages/admin/src/components/SectionEditor.tsx:246
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/byline-schema.tsx:237
@@ -6967,7 +6964,7 @@ msgstr "Témák rendezése"
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:214
 #: packages/admin/src/components/PluginManager.tsx:497
 #: packages/admin/src/components/Redirects.tsx:466
-#: packages/admin/src/components/SectionEditor.tsx:277
+#: packages/admin/src/components/SectionEditor.tsx:281
 msgid "Source"
 msgstr "Forrás"
 
@@ -7001,8 +6998,8 @@ msgstr "SQL"
 msgid "Start Import"
 msgstr "Import indítása"
 
-#: packages/admin/src/components/ContentEditor.tsx:848
 #: packages/admin/src/components/ContentList.tsx:511
+#: packages/admin/src/components/ContentSettingsPanel.tsx:401
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:471
 #: packages/admin/src/components/users/UserList.tsx:104
@@ -7059,7 +7056,7 @@ msgstr "Szinkronizálva"
 msgid "Synced passkey"
 msgstr "Szinkronizált passkey"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:766
+#: packages/admin/src/components/ContentTypeEditor.tsx:777
 msgid "System"
 msgstr "Rendszer"
 
@@ -7067,7 +7064,7 @@ msgstr "Rendszer"
 msgid "System ({resolvedLabel})"
 msgstr "Rendszer ({resolvedLabel})"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:588
+#: packages/admin/src/components/ContentTypeEditor.tsx:599
 msgid "System Fields"
 msgstr "Rendszermezők"
 
@@ -7098,7 +7095,7 @@ msgstr "Cél"
 msgid "Target locale"
 msgstr "Célnyelv"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:537
+#: packages/admin/src/components/TaxonomySidebar.tsx:543
 msgid "Taxonomies"
 msgstr "Taxonómiák"
 
@@ -7179,7 +7176,7 @@ msgstr "A menü törölve lett."
 msgid "The name of your site, used in the header and metadata"
 msgstr "A weboldal neve, amely a fejlécben és a metaadatokban jelenik meg"
 
-#: packages/admin/src/router.tsx:2033
+#: packages/admin/src/router.tsx:2150
 msgid "The page you're looking for doesn't exist."
 msgstr "A keresett oldal nem létezik."
 
@@ -7208,7 +7205,7 @@ msgid "Theme"
 msgstr "Téma"
 
 #. placeholder {0}: section.themeId
-#: packages/admin/src/components/SectionEditor.tsx:290
+#: packages/admin/src/components/SectionEditor.tsx:294
 msgid "Theme ID: {0}"
 msgstr "Téma ID: {0}"
 
@@ -7216,7 +7213,7 @@ msgstr "Téma ID: {0}"
 msgid "Theme not found"
 msgstr "A téma nem található"
 
-#: packages/admin/src/components/SectionEditor.tsx:184
+#: packages/admin/src/components/SectionEditor.tsx:183
 msgid "Theme Section"
 msgstr "Témaszakasz"
 
@@ -7245,12 +7242,12 @@ msgstr ""
 msgid "This field does not accept {sniffedMime} files."
 msgstr "Ez a mező nem fogad {sniffedMime} fájlokat."
 
-#: packages/admin/src/components/ContentEditor.tsx:1736
+#: packages/admin/src/components/ContentEditor.tsx:1686
 #: packages/admin/src/components/ImageFieldRenderer.tsx:191
 msgid "This field is required"
 msgstr "Ez a mező kötelező"
 
-#: packages/admin/src/components/SectionEditor.tsx:284
+#: packages/admin/src/components/SectionEditor.tsx:288
 msgid "This is a custom section."
 msgstr "Ez egy egyéni szakasz."
 
@@ -7290,11 +7287,11 @@ msgstr "Ehhez a kiadáshoz újabb környezet szükséges, mint amin a weboldal j
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "Ez eltávolítja a szerzői profilt. A tartalom szerzői linkjei megszűnnek, és az elsődleges szerzői megjelölések törlődnek."
 
-#: packages/admin/src/components/SectionEditor.tsx:281
+#: packages/admin/src/components/SectionEditor.tsx:285
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
 msgstr "Ezt a szakaszt a téma biztosítja. A szerkesztés egy egyéni másolatot hoz létre, amely felülírja az eredetit."
 
-#: packages/admin/src/components/SectionEditor.tsx:286
+#: packages/admin/src/components/SectionEditor.tsx:290
 msgid "This section was imported from another system."
 msgstr "Ez a szakasz egy másik rendszerből lett importálva."
 
@@ -7310,7 +7307,7 @@ msgstr "Ez törli a widgetterületet és az összes widgetjét. A művelet nem v
 msgid "This will grant CLI access with your permissions."
 msgstr "Ez CLI-hozzáférést ad a te engedélyeiddel."
 
-#: packages/admin/src/components/ContentEditor.tsx:951
+#: packages/admin/src/components/ContentSettingsPanel.tsx:606
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Ez az elemet a kukába helyezi. Később visszaállíthatod a kukából."
 
@@ -7332,7 +7329,7 @@ msgstr "Ez véglegesen törli ezt a hozzászólást. A művelet nem vonható vis
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Ez eltávolítja a plugint és a csomagját a weboldalről."
 
-#: packages/admin/src/components/ContentEditor.tsx:700
+#: packages/admin/src/components/ContentSettingsPanel.tsx:78
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Ez visszaállítja a publikált verziót. A vázlat módosításai elvesznek."
 
@@ -7350,7 +7347,7 @@ msgstr "Dátumok megjelenítéséhez használt időzóna (pl. Europe/Budapest)"
 
 #: packages/admin/src/components/ContentList.tsx:505
 #: packages/admin/src/components/ContentList.tsx:643
-#: packages/admin/src/components/SectionEditor.tsx:234
+#: packages/admin/src/components/SectionEditor.tsx:238
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:809
 msgid "Title"
@@ -7422,7 +7419,7 @@ msgstr "Fordítható"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:83
 #: packages/admin/src/components/TaxonomyManager.tsx:194
-#: packages/admin/src/components/TranslationsPanel.tsx:99
+#: packages/admin/src/components/TranslationsPanel.tsx:104
 msgid "Translate"
 msgstr "Fordítás"
 
@@ -7437,17 +7434,17 @@ msgid "Translate {0}"
 msgstr "{0} fordítása"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:194
-#: packages/admin/src/components/TranslationsPanel.tsx:99
+#: packages/admin/src/components/TranslationsPanel.tsx:104
 msgid "Translating..."
 msgstr "Fordítás..."
 
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/router.tsx:1056
+#: packages/admin/src/router.tsx:1117
 msgid "Translation created"
 msgstr "Fordítás létrehozva"
 
-#: packages/admin/src/components/TranslationsPanel.tsx:56
+#: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Fordítások"
 
@@ -7555,8 +7552,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "A piactér nem érhető el"
 
-#: packages/admin/src/components/ContentEditor.tsx:2115
-#: packages/admin/src/components/ContentEditor.tsx:2130
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1006
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1023
 msgid "Unassigned"
 msgstr "Nincs hozzárendelve"
 
@@ -7587,7 +7584,7 @@ msgstr "Eltávolítás megerősítése"
 msgid "Uninstalling..."
 msgstr "Eltávolítás..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:720
+#: packages/admin/src/components/ContentTypeEditor.tsx:731
 #: packages/admin/src/components/FieldEditor.tsx:442
 msgid "Unique"
 msgstr "Egyedi"
@@ -7616,11 +7613,11 @@ msgstr "Méretarány feloldása"
 msgid "Unnamed passkey"
 msgstr "Névtelen passkey"
 
-#: packages/admin/src/components/ContentEditor.tsx:729
+#: packages/admin/src/components/ContentSettingsPanel.tsx:184
 msgid "Unpublish"
 msgstr "Publikálás visszavonása"
 
-#: packages/admin/src/router.tsx:964
+#: packages/admin/src/router.tsx:1025
 msgid "Unpublished"
 msgstr "Nincs publikálva"
 
@@ -7628,11 +7625,11 @@ msgstr "Nincs publikálva"
 msgid "Unregistered Content Tables Found"
 msgstr "Nem regisztrált tartalomtáblák találhatók"
 
-#: packages/admin/src/components/ContentEditor.tsx:869
+#: packages/admin/src/components/ContentSettingsPanel.tsx:429
 msgid "Unschedule"
 msgstr "Ütemezés törlése"
 
-#: packages/admin/src/router.tsx:1025
+#: packages/admin/src/router.tsx:1086
 msgid "Unscheduled"
 msgstr "Nincs ütemezve"
 
@@ -7645,7 +7642,7 @@ msgstr "Nem támogatott widgetelemtípus: {0}"
 msgid "Untitled"
 msgstr "Cím nélküli"
 
-#: packages/admin/src/components/ContentEditor.tsx:1639
+#: packages/admin/src/components/ContentEditor.tsx:1589
 msgid "Untitled file"
 msgstr "Cím nélküli fájl"
 
@@ -7658,7 +7655,7 @@ msgstr "Cím nélküli widget"
 msgid "Unverified publisher"
 msgstr "Nem ellenőrzött kiadó"
 
-#: packages/admin/src/components/ContentEditor.tsx:1942
+#: packages/admin/src/components/ContentSettingsPanel.tsx:833
 msgid "Up"
 msgstr "Fel"
 
@@ -7694,6 +7691,7 @@ msgid "Update to v{0}"
 msgstr "Frissítés erre: v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:737
+#: packages/admin/src/components/ContentSettingsPanel.tsx:490
 #: packages/admin/src/components/RegistryPluginDetail.tsx:488
 msgid "Updated"
 msgstr "Frissítve"
@@ -7701,11 +7699,6 @@ msgstr "Frissítve"
 #: packages/admin/src/components/ContentTypeEditor.tsx:129
 msgid "Updated At"
 msgstr "Frissítve"
-
-#. placeholder {0}: new Date(item.updatedAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:926
-msgid "Updated: {0}"
-msgstr "Frissítve: {0}"
 
 #: packages/admin/src/components/WordPressImport.tsx:946
 msgid "Updating content URLs..."
@@ -7857,7 +7850,7 @@ msgstr "Tartalék Open Graph képként használatos, ha az oldalhoz nincs kép m
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Azonosítóként használatos. Csak kisbetűk, számok és aláhúzások."
 
-#: packages/admin/src/components/ContentEditor.tsx:1326
+#: packages/admin/src/components/ContentEditor.tsx:1276
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "A bejegyzés fő vizuális elemeként használatos a listanézetekben és a bejegyzés tetején"
 
@@ -7869,14 +7862,14 @@ msgstr "Képernyőolvasók használják, illetve akkor jelenik meg, ha a kép ne
 msgid "Used in URLs and API endpoints"
 msgstr "URL-ekben és API-végpontokban használatos"
 
-#: packages/admin/src/components/SectionEditor.tsx:252
+#: packages/admin/src/components/SectionEditor.tsx:256
 #: packages/admin/src/components/Sections.tsx:196
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "A szakasz azonosítására használatos. Csak kisbetűk, számok és kötőjelek."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:223
 #: packages/admin/src/components/Header.tsx:43
-#: packages/admin/src/components/Header.tsx:81
+#: packages/admin/src/components/Header.tsx:83
 #: packages/admin/src/components/users/UserList.tsx:98
 msgid "User"
 msgstr "Felhasználó"
@@ -7979,7 +7972,7 @@ msgstr "Nézetmód"
 msgid "View published {title}"
 msgstr "Publikált {title} megtekintése"
 
-#: packages/admin/src/components/Header.tsx:57
+#: packages/admin/src/components/Header.tsx:59
 msgid "View Site"
 msgstr "Weboldal megtekintése"
 
@@ -8085,6 +8078,26 @@ msgstr "Egész szám"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:121
 msgid "Why can't this be changed?"
+msgstr ""
+
+#: packages/admin/src/components/SeoPanel.tsx:209
+msgid "Why is this important for duplicate pages?"
+msgstr ""
+
+#: packages/admin/src/components/SeoPanel.tsx:185
+msgid "Why is this important for search result summaries?"
+msgstr ""
+
+#: packages/admin/src/components/SeoPanel.tsx:165
+msgid "Why is this important for search result titles?"
+msgstr ""
+
+#: packages/admin/src/components/SeoPanel.tsx:228
+msgid "Why is this important for search visibility?"
+msgstr ""
+
+#: packages/admin/src/components/SeoImageField.tsx:44
+msgid "Why is this important for social sharing?"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:123
@@ -8223,7 +8236,7 @@ msgstr "Teljes hozzáférésed van a weboldal kezeléséhez, beleértve a felhas
 msgid "You need admin permissions to manage byline schema."
 msgstr "A szerzői sor sémájának kezeléséhez admin jogosultság szükséges."
 
-#: packages/admin/src/router.tsx:1367
+#: packages/admin/src/router.tsx:1484
 msgid "You need Editor permissions to moderate comments."
 msgstr "A hozzászólások moderálásához szerkesztői jogosultság szükséges."
 
