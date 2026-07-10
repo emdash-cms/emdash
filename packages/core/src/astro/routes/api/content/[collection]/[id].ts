@@ -28,7 +28,9 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
-	const result = await emdash.handleContentGet(collection, id, locale);
+	const result = await emdash.handleContentGet(collection, id, locale, {
+		includeDrafts: hasPermission(user, "content:read_drafts"),
+	});
 
 	// Hide non-published items from users without content:read_drafts. Return
 	// 404 (not 403) so subscribers can't enumerate draft IDs by status code.

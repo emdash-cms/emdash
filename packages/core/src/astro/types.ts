@@ -247,6 +247,7 @@ export interface EmDashHandlers {
 		collection: string,
 		id: string,
 		locale?: string,
+		referenceOptions?: { includeDrafts: boolean },
 	) => Promise<
 		HandlerResponse<{
 			item: {

@@ -10,6 +10,7 @@ import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
@@ -37,7 +38,7 @@ import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
-import { setReferenceChildren } from "./relations.js";
+import { resolveEntries, setReferenceChildren } from "./relations.js";
 import { validateMediaFields } from "./validate-media-fields.js";
 
 /**
@@ -163,6 +164,89 @@ async function hydrateBylines(
 
 	item.bylines = [];
 	item.byline = null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+/**
+ * Hydrate the first page of each reference field's children onto a single
+ * content item.
+ *
+ * Opt-in only: callers must have already decided `includeDrafts` (draft
+ * visibility is enforced by the caller, not this helper) because a resolved
+ * child can carry a draft/scheduled entry's id and slug. See
+ * `handleContentGet`'s `referenceOptions` param — the REST GET route is the
+ * only caller that currently opts in.
+ *
+ * Reference fields are storage-less (edges live only in
+ * `_emdash_content_references`); a field missing `validation.relation` or
+ * `validation.targetCollection` is a legacy field and contributes nothing.
+ */
+async function hydrateReferences(
+	db: Kysely<Database>,
+	collection: string,
+	item: ContentItem,
+	includeDrafts: boolean,
+): Promise<void> {
+	if (!item.translationGroup) return;
+
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	if (!collectionRow) return;
+
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select("validation")
+		.where("collection_id", "=", collectionRow.id)
+		.where("type", "=", "reference")
+		.execute();
+
+	const references: NonNullable<ContentItem["references"]> = {};
+	if (fields.length === 0) {
+		item.references = references;
+		return;
+	}
+
+	const repo = new RelationRepository(db);
+	const content = new ContentRepository(db);
+
+	for (const field of fields) {
+		let validation: Record<string, unknown> = {};
+		if (field.validation) {
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(field.validation);
+			} catch {
+				continue;
+			}
+			if (isRecord(parsed)) validation = parsed;
+		}
+		const relationGroup = typeof validation.relation === "string" ? validation.relation : undefined;
+		const childCollection =
+			typeof validation.targetCollection === "string" ? validation.targetCollection : undefined;
+		if (!relationGroup || !childCollection) continue; // legacy field: no edges to hydrate
+
+		const edges = await repo.getChildrenPage(relationGroup, item.translationGroup);
+		const children = await resolveEntries(
+			content,
+			childCollection,
+			edges.items,
+			(e) => e.childGroup,
+			item.locale,
+			includeDrafts,
+		);
+		references[relationGroup] = {
+			children,
+			...(edges.nextCursor ? { nextCursor: edges.nextCursor } : {}),
+		};
+	}
+
+	item.references = references;
 }
 
 /**
@@ -576,6 +660,7 @@ export async function handleContentGet(
 	collection: string,
 	id: string,
 	locale?: string,
+	referenceOptions?: { includeDrafts: boolean },
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
@@ -595,6 +680,12 @@ export async function handleContentGet(
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeo(db, collection, item, hasSeo);
 		await hydrateBylines(db, collection, item);
+		// Opt-in: hydration is skipped entirely unless the caller passes
+		// `referenceOptions`, since it can leak draft child ids/slugs — see
+		// `hydrateReferences`'s doc comment.
+		if (referenceOptions) {
+			await hydrateReferences(db, collection, item, referenceOptions.includeDrafts);
+		}
 
 		return {
 			success: true,

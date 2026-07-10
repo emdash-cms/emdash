@@ -263,7 +263,7 @@ function pickVariant(items: ContentItem[], locale: string | null): ContentItem |
  * is restricted to published entries so a draft/scheduled entry referenced by an
  * edge is skipped exactly like a dangling one, never leaking its id/slug/locale.
  */
-async function resolveEntries(
+export async function resolveEntries(
 	content: ContentRepository,
 	collection: string,
 	edges: ContentReference[],
