@@ -1,3 +1,8 @@
+import { encode } from "@atcute/cbor";
+import { fromString as cidFromString, toString as cidToString } from "@atcute/cid";
+import { P256PrivateKey, P256PublicKey, parsePublicMultikey } from "@atcute/crypto";
+import { fromBase64Url, toBase64Url } from "@atcute/multibase";
+
 export type ModerationLabelValue =
 	| "assessment-error"
 	| "assessment-overridden"
@@ -35,6 +40,62 @@ export interface ModerationLabel {
 	exp?: string;
 }
 
+/** An ATProto label before its detached P-256 signature is added. */
+export interface UnsignedLabel {
+	ver: 1;
+	src: string;
+	uri: string;
+	val: string;
+	cts: string;
+	cid?: string;
+	neg?: boolean;
+	exp?: string;
+}
+
+/** An ATProto label v1 with its compact P-256 signature. */
+export interface SignedLabel extends UnsignedLabel {
+	sig: Uint8Array;
+}
+
+const verifiedModerationLabel = Symbol("verifiedModerationLabel");
+
+/** A label whose signature and source DID key have been verified by this package. */
+export type VerifiedModerationLabel = ModerationLabel & {
+	readonly [verifiedModerationLabel]: true;
+};
+
+export interface CreateLabelSignerInput {
+	issuerDid: string;
+	/** A canonical, unpadded base64url encoding of the 32-byte P-256 scalar. */
+	privateKey: string;
+	resolveDid: LabelDidResolver;
+}
+
+export interface LabelSigner {
+	readonly issuerDid: string;
+	sign(label: Omit<UnsignedLabel, "src">): Promise<SignedLabel>;
+}
+
+export interface DidVerificationMethod {
+	id: string;
+	type: string;
+	controller: string;
+	publicKeyMultibase: string;
+}
+
+export interface LabelDidDocument {
+	id: string;
+	verificationMethod?: readonly DidVerificationMethod[];
+}
+
+/** Resolves the DID document used exclusively for a label signature check. */
+export type LabelDidResolver = (did: string) => Promise<LabelDidDocument>;
+
+export interface LabelVerificationInput {
+	label: SignedLabel;
+	resolveDid: LabelDidResolver;
+}
+
 export interface AcceptedLabelerPolicy {
 	did: string;
 	redact: boolean;
@@ -56,7 +117,15 @@ export interface EvaluateReleaseModerationInput {
 	acceptedLabelers: AcceptedLabelerPolicy[];
 	context: ReleaseSubjectContext;
 	evaluatedAt: Date | string;
-	labels: ModerationLabel[];
+	labels: VerifiedModerationLabel[];
+}
+
+export interface VerifyAndEvaluateReleaseModerationInput extends Omit<
+	EvaluateReleaseModerationInput,
+	"labels"
+> {
+	labels: SignedLabel[];
+	resolveDid: LabelDidResolver;
 }
 
 export type ReleaseEligibility = "eligible" | "pending" | "error" | "blocked";
@@ -116,6 +185,14 @@ interface LabelReduction {
 }
 
 const RFC3339 = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/;
+const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*$/;
+const P256_ORDER = BigInt("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551");
+const LABEL_FIELDS = new Set(["ver", "src", "uri", "cid", "val", "neg", "cts", "exp"]);
+const SIGNED_LABEL_FIELDS = new Set([...LABEL_FIELDS, "sig"]);
+const PRINTABLE_LABEL_VALUE = /^[^\p{Cc}]{1,128}$/u;
+const BASE64URL = /^[A-Za-z0-9_-]+$/;
+const ATPROTO_URI =
+	/^at:\/\/(?:did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*|[A-Za-z0-9.-]+)\/[A-Za-z0-9.-]+(?:\/[A-Za-z0-9._~:%-]+)?$/;
 
 function daysFromCivil(year: bigint, month: bigint, day: bigint): bigint {
 	const adjustedYear = year - (month <= 2n ? 1n : 0n);
@@ -195,6 +272,216 @@ function compareInstants(left: ParsedInstant, right: ParsedInstant): number {
 		if (leftDigit !== rightDigit) return leftDigit < rightDigit ? -1 : 1;
 	}
 	return 0;
+}
+
+function scalarToBigInt(bytes: Uint8Array): bigint {
+	let value = 0n;
+	for (const byte of bytes) value = (value << 8n) | BigInt(byte);
+	return value;
+}
+
+function utf8Length(value: string): number {
+	let length = 0;
+	for (let index = 0; index < value.length; index++) {
+		const codeUnit = value.charCodeAt(index);
+		if (codeUnit <= 0x7f) length++;
+		else if (codeUnit <= 0x7ff) length += 2;
+		else if (
+			codeUnit >= 0xd800 &&
+			codeUnit <= 0xdbff &&
+			value.charCodeAt(index + 1) >= 0xdc00 &&
+			value.charCodeAt(index + 1) <= 0xdfff
+		) {
+			length += 4;
+			index++;
+		} else length += 3;
+	}
+	return length;
+}
+
+function validateDid(value: unknown, field: string): asserts value is string {
+	if (typeof value !== "string" || !DID.test(value))
+		throw new TypeError(`${field} must be a valid DID`);
+}
+
+function validateCid(value: unknown): asserts value is string {
+	if (typeof value !== "string") throw new TypeError("label.cid must be a valid CID");
+	try {
+		const cid = cidFromString(value);
+		if (cidToString(cid) !== value) throw new TypeError("label.cid must be a valid CID");
+	} catch {
+		throw new TypeError("label.cid must be a valid CID");
+	}
+}
+
+function validateLabelValue(value: unknown): asserts value is string {
+	if (
+		typeof value !== "string" ||
+		value.length === 0 ||
+		!PRINTABLE_LABEL_VALUE.test(value) ||
+		utf8Length(value) > 128
+	) {
+		throw new TypeError(
+			"label.val must be a non-empty printable string of at most 128 UTF-8 bytes",
+		);
+	}
+}
+
+function validateLabelUri(value: unknown): asserts value is string {
+	if (typeof value !== "string" || value.length === 0)
+		throw new TypeError("label.uri must be a URI");
+	if (DID.test(value)) return;
+	if (!ATPROTO_URI.test(value)) throw new TypeError("label.uri must be an at:// URI or DID");
+}
+
+function getField(value: object, field: string): unknown {
+	return Object.getOwnPropertyDescriptor(value, field)?.value;
+}
+
+function validateLabelObject(value: unknown, signed: true): SignedLabel;
+function validateLabelObject(value: unknown, signed: false): UnsignedLabel;
+function validateLabelObject(value: unknown, signed: boolean): SignedLabel | UnsignedLabel {
+	if (typeof value !== "object" || value === null || Array.isArray(value))
+		throw new TypeError("label must be an object");
+	const fields = signed ? SIGNED_LABEL_FIELDS : LABEL_FIELDS;
+	for (const field of Object.keys(value)) {
+		if (!fields.has(field)) throw new TypeError(`label contains unsupported field: ${field}`);
+	}
+	if (getField(value, "ver") !== 1) throw new TypeError("label.ver must be 1");
+	const src = getField(value, "src");
+	const uri = getField(value, "uri");
+	const val = getField(value, "val");
+	const cts = getField(value, "cts");
+	const cid = getField(value, "cid");
+	const neg = getField(value, "neg");
+	const exp = getField(value, "exp");
+	validateDid(src, "label.src");
+	validateLabelUri(uri);
+	validateLabelValue(val);
+	if (typeof cts !== "string") throw new TypeError("label.cts must be a valid RFC 3339 timestamp");
+	parseInstant(cts, "label.cts");
+	if (exp !== undefined) {
+		if (typeof exp !== "string")
+			throw new TypeError("label.exp must be a valid RFC 3339 timestamp");
+		parseInstant(exp, "label.exp");
+	}
+	if (cid !== undefined) validateCid(cid);
+	if (neg !== undefined && typeof neg !== "boolean")
+		throw new TypeError("label.neg must be a boolean");
+	const sig = getField(value, "sig");
+
+	const canonical = {
+		ver: 1 as const,
+		src,
+		uri,
+		...(cid === undefined ? {} : { cid }),
+		val,
+		...(neg === true ? { neg: true } : {}),
+		cts,
+		...(exp === undefined ? {} : { exp }),
+	};
+	if (!signed) return canonical;
+	if (!(sig instanceof Uint8Array) || sig.length !== 64)
+		throw new TypeError("label.sig must be a 64-byte compact P-256 signature");
+	return { ...canonical, sig };
+}
+
+function canonicalLabelBytes(label: UnsignedLabel): Uint8Array {
+	return encode(validateLabelObject(label, false));
+}
+
+function importPrivateScalar(value: string): Promise<P256PrivateKey> {
+	if (!BASE64URL.test(value))
+		throw new TypeError("privateKey must be canonical unpadded base64url");
+	let bytes: Uint8Array;
+	try {
+		bytes = fromBase64Url(value);
+	} catch {
+		throw new TypeError("privateKey must be canonical unpadded base64url");
+	}
+	if (bytes.length !== 32 || toBase64Url(bytes) !== value) {
+		throw new TypeError("privateKey must be canonical unpadded base64url for exactly 32 bytes");
+	}
+	const scalar = scalarToBigInt(bytes);
+	if (scalar === 0n || scalar >= P256_ORDER)
+		throw new TypeError("privateKey must be in the P-256 scalar range");
+	return P256PrivateKey.importRaw(bytes);
+}
+
+function normalizedMethodId(documentId: string, methodId: string): string {
+	if (methodId.startsWith("#")) return `${documentId}${methodId}`;
+	return methodId;
+}
+
+async function resolveLabelPublicKey(
+	did: string,
+	resolveDid: LabelDidResolver,
+): Promise<P256PublicKey> {
+	const document = await resolveDid(did);
+	validateDid(document.id, "DID document id");
+	if (document.id !== did) throw new TypeError("DID document id does not match label source");
+	const methods = document.verificationMethod ?? [];
+	const ids = new Set<string>();
+	let signingMethod: DidVerificationMethod | undefined;
+	for (const method of methods) {
+		const id = normalizedMethodId(document.id, method.id);
+		if (ids.has(id)) throw new TypeError("DID document has duplicate verification method ids");
+		ids.add(id);
+		if (id === `${did}#atproto_label`) signingMethod = { ...method, id };
+	}
+	if (!signingMethod) throw new TypeError("DID document has no #atproto_label verification method");
+	if (signingMethod.type !== "Multikey" || signingMethod.controller !== did) {
+		throw new TypeError("#atproto_label verification method must be a controller-owned Multikey");
+	}
+	let parsed: ReturnType<typeof parsePublicMultikey>;
+	try {
+		parsed = parsePublicMultikey(signingMethod.publicKeyMultibase);
+	} catch {
+		throw new TypeError("#atproto_label verification method has an invalid Multikey");
+	}
+	if (
+		parsed.type !== "p256" ||
+		parsed.publicKeyBytes.length !== 33 ||
+		![2, 3].includes(parsed.publicKeyBytes[0]!)
+	) {
+		throw new TypeError("#atproto_label verification method must contain a compressed P-256 key");
+	}
+	const key = await P256PublicKey.importRaw(parsed.publicKeyBytes);
+	if ((await key.exportPublicKey("multikey")) !== signingMethod.publicKeyMultibase) {
+		throw new TypeError("#atproto_label verification method uses a non-canonical P-256 Multikey");
+	}
+	return key;
+}
+
+/** Creates a signer whose scalar is bound to the issuer DID's exact `#atproto_label` key. */
+export async function createLabelSigner(input: CreateLabelSignerInput): Promise<LabelSigner> {
+	validateDid(input.issuerDid, "issuerDid");
+	const key = await importPrivateScalar(input.privateKey);
+	const resolved = await resolveLabelPublicKey(input.issuerDid, input.resolveDid);
+	if ((await key.exportPublicKey("multikey")) !== (await resolved.exportPublicKey("multikey"))) {
+		throw new TypeError(
+			"privateKey does not match the issuer DID #atproto_label verification method",
+		);
+	}
+	return {
+		issuerDid: input.issuerDid,
+		async sign(label) {
+			const unsigned = validateLabelObject({ ...label, src: input.issuerDid }, false);
+			return { ...unsigned, sig: await key.sign(canonicalLabelBytes(unsigned)) };
+		},
+	};
+}
+
+/** Verifies a signed label against the source DID's exact `#atproto_label` P-256 key. */
+export async function verifyLabel(input: LabelVerificationInput): Promise<VerifiedModerationLabel> {
+	const label = validateLabelObject(input.label, true);
+	const key = await resolveLabelPublicKey(label.src, input.resolveDid);
+	const { sig, ...verified } = label;
+	if (!(await key.verify(sig, canonicalLabelBytes(verified))))
+		throw new TypeError("label signature is invalid");
+	const verifiedLabel: VerifiedModerationLabel = { ...verified, [verifiedModerationLabel]: true };
+	Object.defineProperty(verifiedLabel, verifiedModerationLabel, { enumerable: false });
+	return verifiedLabel;
 }
 
 function streamKey(label: ModerationLabel): string {
@@ -299,6 +586,15 @@ function orderedValues(labels: ModerationLabel[]): string[] {
 export function evaluateReleaseModeration(
 	input: EvaluateReleaseModerationInput,
 ): ReleaseModeration {
+	for (const label of input.labels) {
+		if (
+			typeof label !== "object" ||
+			label === null ||
+			Object.getOwnPropertyDescriptor(label, verifiedModerationLabel)?.value !== true
+		) {
+			throw new TypeError("labels must be verified by verifyLabel before moderation evaluation");
+		}
+	}
 	const policies = new Map<string, AcceptedLabelerPolicy>();
 	for (const policy of input.acceptedLabelers) {
 		const existing = policies.get(policy.did);
@@ -392,4 +688,14 @@ export function evaluateReleaseModeration(
 			(label) => label.val === "!takedown" && policies.get(label.src)?.redact === true,
 		),
 	};
+}
+
+/** Verifies labels before evaluating their moderation effect for one release. */
+export async function verifyAndEvaluateReleaseModeration(
+	input: VerifyAndEvaluateReleaseModerationInput,
+): Promise<ReleaseModeration> {
+	const labels = await Promise.all(
+		input.labels.map((label) => verifyLabel({ label, resolveDid: input.resolveDid })),
+	);
+	return evaluateReleaseModeration({ ...input, labels });
 }

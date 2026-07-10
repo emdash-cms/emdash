@@ -1,8 +1,15 @@
 import { readFileSync } from "node:fs";
 
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { evaluateReleaseModeration, type ModerationLabel } from "../src/index.js";
+import {
+	createLabelSigner,
+	evaluateReleaseModeration,
+	verifyLabel,
+	type LabelDidDocument,
+	type ModerationLabel,
+	type VerifiedModerationLabel,
+} from "../src/index.js";
 
 const source = "did:example:trusted";
 const otherSource = "did:example:other";
@@ -25,16 +32,69 @@ function label(
 	};
 }
 
+let verifiedBrand: symbol;
+
+beforeAll(async () => {
+	const resolveDid = async (): Promise<LabelDidDocument> => ({
+		id: source,
+		verificationMethod: [
+			{
+				id: "#atproto_label",
+				type: "Multikey",
+				controller: source,
+				publicKeyMultibase: "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
+			},
+		],
+	});
+	const signer = await createLabelSigner({
+		issuerDid: source,
+		privateKey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE",
+		resolveDid,
+	});
+	const verifiedLabel = await verifyLabel({
+		label: await signer.sign({
+			ver: 1,
+			uri: context.release.uri,
+			cid: "bafkreif4oaymum54i5qefbwoblrt5zasfjhpyhyvacpseqtehi3queew5m",
+			val: "assessment-passed",
+			cts: "2026-07-10T12:00:00.000Z",
+		}),
+		resolveDid,
+	});
+	const brand = Reflect.ownKeys(verifiedLabel).find(
+		(key): key is symbol => typeof key === "symbol",
+	);
+	if (!brand) throw new Error("verified label is missing its runtime brand");
+	verifiedBrand = brand;
+});
+
+// Evaluator policy tests use a brand recovered from a real verified label.
+function verified(rawLabel: ModerationLabel): VerifiedModerationLabel {
+	Object.defineProperty(rawLabel, verifiedBrand, { value: true });
+	return rawLabel as unknown as VerifiedModerationLabel;
+}
+
 function evaluate(labels: ModerationLabel[], redact = false) {
 	return evaluateReleaseModeration({
 		acceptedLabelers: [{ did: source, redact }],
 		context,
 		evaluatedAt: "2026-07-10T13:00:00.000Z",
-		labels,
+		labels: labels.map(verified),
 	});
 }
 
 describe("release moderation", () => {
+	it("rejects a raw label forged with a TypeScript cast", () => {
+		expect(() =>
+			evaluateReleaseModeration({
+				acceptedLabelers: [{ did: source, redact: false }],
+				context,
+				evaluatedAt: "2026-07-10T13:00:00.000Z",
+				labels: [label({ val: "assessment-passed" }) as unknown as VerifiedModerationLabel],
+			}),
+		).toThrow("must be verified");
+	});
+
 	it("accepts an exact-CID assessment pass", () => {
 		expect(evaluate([label({ val: "assessment-passed" })])).toMatchObject({
 			eligibility: "eligible",
@@ -173,7 +233,9 @@ describe("release moderation", () => {
 				acceptedLabelers,
 				context,
 				evaluatedAt: "2026-07-10T13:00:00.000Z",
-				labels: [label({ val: "assessment-passed" }), label({ val: value, src: otherSource })],
+				labels: [label({ val: "assessment-passed" }), label({ val: value, src: otherSource })].map(
+					verified,
+				),
 			});
 			expect(result.eligibility).toBe(
 				value === "assessment-error"
@@ -233,7 +295,7 @@ describe("release moderation", () => {
 			],
 			context,
 			evaluatedAt: "2026-07-10T13:00:00.000Z",
-			labels: [label({ val: "!takedown", cid: undefined })],
+			labels: [label({ val: "!takedown", cid: undefined })].map(verified),
 		});
 		expect(result).toMatchObject({ eligibility: "blocked", redacted: true });
 	});
@@ -334,21 +396,23 @@ describe("ratified moderation corpus", () => {
 					release: { uri: subject.releaseUri!, cid: subject.releaseCid! },
 				},
 				evaluatedAt: corpus.evaluatedAt,
-				labels: labels.map((fixtureLabel) => ({
-					ver: 1,
-					src: corpus.sources[fixtureLabel.src]!,
-					uri:
-						fixtureLabel.subject === "publisher"
-							? subject.publisherDid!
-							: fixtureLabel.subject === "package"
-								? subject.packageUri!
-								: subject.releaseUri!,
-					cid: fixtureLabel.cid,
-					val: fixtureLabel.val,
-					cts: fixtureLabel.cts,
-					neg: fixtureLabel.neg,
-					exp: fixtureLabel.exp,
-				})),
+				labels: labels.map((fixtureLabel) =>
+					verified({
+						ver: 1,
+						src: corpus.sources[fixtureLabel.src]!,
+						uri:
+							fixtureLabel.subject === "publisher"
+								? subject.publisherDid!
+								: fixtureLabel.subject === "package"
+									? subject.packageUri!
+									: subject.releaseUri!,
+						cid: fixtureLabel.cid,
+						val: fixtureLabel.val,
+						cts: fixtureLabel.cts,
+						neg: fixtureLabel.neg,
+						exp: fixtureLabel.exp,
+					}),
+				),
 			});
 			expect(result).toMatchObject({
 				eligibility: fixtureCase.expected.eligibility,
