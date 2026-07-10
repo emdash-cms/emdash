@@ -628,6 +628,7 @@ function ContentNewPage() {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
@@ -685,6 +686,7 @@ function ContentNewPage() {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => {
 		createMutation.mutate(payload);
 	};
@@ -870,6 +872,7 @@ function ContentEditPage() {
 			bylines?: BylineCreditInput[];
 			skipRevision?: boolean;
 			seo?: ContentSeoInput;
+			references?: Record<string, string[]>;
 		}) => updateContent(collection, id, data, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
 			// Invalidate by (collection, id) prefix without the locale object: the
@@ -905,6 +908,7 @@ function ContentEditPage() {
 			data?: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		}) =>
 			updateContent(
 				collection,
@@ -1106,6 +1110,7 @@ function ContentEditPage() {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => {
 		updateMutation.mutate(payload);
 	};
@@ -1114,6 +1119,7 @@ function ContentEditPage() {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => {
 		autosaveMutation.mutate(payload);
 	};

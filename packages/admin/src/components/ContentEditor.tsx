@@ -22,6 +22,9 @@ import {
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowSquareOut,
+	CaretUp,
+	CaretDown,
+	Plus,
 } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -36,7 +39,7 @@ import type {
 	UserListItem,
 	TranslationSummary,
 } from "../lib/api";
-import { fetchBylines, getPreviewUrl, getDraftStatus } from "../lib/api";
+import { fetchBylines, fetchReferenceChildren, getPreviewUrl, getDraftStatus } from "../lib/api";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
@@ -48,6 +51,7 @@ import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+import { ReferencePickerModal, type ReferencePickerRow } from "./ReferencePickerModal.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -98,6 +102,73 @@ export interface FieldDescriptor {
 	validation?: Record<string, unknown>;
 }
 
+/**
+ * A single staged reference row in the editor. `title` is populated by the
+ * picker for freshly added rows; hydrated rows fall back to slug/id for display.
+ */
+export type ReferenceEntryRow = {
+	id: string;
+	slug: string | null;
+	title?: string;
+	locale?: string | null;
+};
+
+type ReferenceGroupState = {
+	/** The last-saved id order — the diff baseline for dirty tracking. */
+	baseline: ReferenceEntryRow[];
+	/** The user's current staged selection. */
+	current: ReferenceEntryRow[];
+	/** Set while more pages of the hydrated set remain to be loaded. */
+	nextCursor?: string;
+	loading: boolean;
+};
+
+/** Seed reference state from a hydrated item (first page per relation group). */
+function seedReferenceState(item?: ContentItem | null): Record<string, ReferenceGroupState> {
+	const out: Record<string, ReferenceGroupState> = {};
+	const refs = item?.references;
+	if (!refs) return out;
+	for (const [group, page] of Object.entries(refs)) {
+		const rows: ReferenceEntryRow[] = page.children.map((c) => ({
+			id: c.id,
+			slug: c.slug,
+			locale: c.locale,
+		}));
+		out[group] = { baseline: rows, current: rows, nextCursor: page.nextCursor, loading: false };
+	}
+	return out;
+}
+
+/** Order-sensitive id comparison of two reference-row lists. */
+function sameReferenceIds(a: ReferenceEntryRow[], b: ReferenceEntryRow[]): boolean {
+	if (a.length !== b.length) return false;
+	for (let i = 0; i < a.length; i++) {
+		if (a[i]?.id !== b[i]?.id) return false;
+	}
+	return true;
+}
+
+/**
+ * Build the `references` save payload from staged state. Only groups whose id
+ * list has changed are included: the server replaces edges for every group it
+ * receives, so sending an untouched (and possibly not-yet-fully-loaded) group
+ * would risk overwriting it with a partial list. Untouched groups are omitted
+ * and left as-is on the server.
+ */
+function buildReferencesPayload(
+	state: Record<string, ReferenceGroupState>,
+): Record<string, string[]> | undefined {
+	const out: Record<string, string[]> = {};
+	let any = false;
+	for (const [group, s] of Object.entries(state)) {
+		if (!sameReferenceIds(s.baseline, s.current)) {
+			out[group] = s.current.map((r) => r.id);
+			any = true;
+		}
+	}
+	return any ? out : undefined;
+}
+
 /** Simplified user info for current user context */
 export interface CurrentUserInfo {
 	id: string;
@@ -122,12 +193,14 @@ export interface ContentEditorProps {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => void;
 	/** Callback for autosave (debounced, skips revision creation) */
 	onAutosave?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => void;
 	/** Whether autosave is in progress */
 	isAutosaving?: boolean;
@@ -256,6 +329,24 @@ export function ContentEditor({
 	// would wipe them.
 	const [bylinesTouched, setBylinesTouched] = React.useState(false);
 
+	// Staged reference-field selections, keyed by relation translation group.
+	// Seeded from the hydrated first page (Task 7); the picker fills titles for
+	// newly added rows. Edges save inside the content payload — never via edge
+	// POSTs.
+	const [referenceState, setReferenceState] = React.useState<Record<string, ReferenceGroupState>>(
+		() => seedReferenceState(item),
+	);
+	// Mirror in a ref so save/autosave/load-more callbacks read fresh state
+	// without re-subscribing.
+	const referenceStateRef = React.useRef(referenceState);
+	referenceStateRef.current = referenceState;
+	// Snapshot of the reference groups sent in the in-flight autosave, applied
+	// as the new baseline when the autosave resolves (mirrors the data path's
+	// pendingAutosaveStateRef, since autosave patches the cache without a refetch).
+	const pendingAutosaveReferencesRef = React.useRef<Record<string, ReferenceEntryRow[]> | null>(
+		null,
+	);
+
 	// Track portableText editor for document outline. Only the "content"
 	// field wires its editor into this slot (see onEditorReady below).
 	const [portableTextEditor, setPortableTextEditor] = React.useState<Editor | null>(null);
@@ -328,6 +419,8 @@ export function ContentEditor({
 			}),
 		);
 		pendingAutosaveStateRef.current = null;
+		pendingAutosaveReferencesRef.current = null;
+		setReferenceState(seedReferenceState(item));
 		setBylinesTouched(false);
 	}
 
@@ -357,8 +450,17 @@ export function ContentEditor({
 			);
 			pendingAutosaveStateRef.current = null;
 			setBylinesTouched(false);
+			// Re-seed references only when the item carries hydrated references.
+			// Autosave patches the content cache with a server item that has no
+			// `references` key (hydration is opt-in on the editor GET route only) —
+			// re-seeding from that would wipe the staged rows. The autosave baseline
+			// reset instead runs off `lastAutosaveAt` below.
+			if (item.references) {
+				setReferenceState(seedReferenceState(item));
+				pendingAutosaveReferencesRef.current = null;
+			}
 		}
-	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
+	}, [item?.updatedAt, itemDataString, item?.slug, item?.status, item?.references]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 
@@ -385,7 +487,78 @@ export function ContentEditor({
 			}),
 		[formData, slug, activeBylines],
 	);
-	const isDirty = isNew || currentData !== lastSavedData;
+	// References live outside `serializeEditorState` — they carry their own
+	// baseline/current diff (order-sensitive id lists).
+	const referencesDirty = React.useMemo(
+		() => Object.values(referenceState).some((s) => !sameReferenceIds(s.baseline, s.current)),
+		[referenceState],
+	);
+	const isDirty = isNew || currentData !== lastSavedData || referencesDirty;
+
+	// Replace a relation group's staged current selection (add/remove/reorder).
+	// Upserts the group so a field with no hydrated rows can take its first pick.
+	const handleReferenceCurrentChange = React.useCallback(
+		(group: string, rows: ReferenceEntryRow[]) => {
+			setReferenceState((prev) => {
+				const existing = prev[group];
+				return {
+					...prev,
+					[group]: existing
+						? { ...existing, current: rows }
+						: { baseline: [], current: rows, loading: false },
+				};
+			});
+		},
+		[],
+	);
+
+	// Page the rest of a relation's hydrated set. The full set must be loaded
+	// before reorder/remove so a save never emits a partial (truncating) list.
+	const handleLoadMoreReferences = React.useCallback(
+		async (group: string) => {
+			if (!item?.id) return;
+			const st = referenceStateRef.current[group];
+			if (!st || !st.nextCursor || st.loading) return;
+			const cursor = st.nextCursor;
+			setReferenceState((prev) => {
+				const cur = prev[group];
+				return cur ? { ...prev, [group]: { ...cur, loading: true } } : prev;
+			});
+			try {
+				const res = await fetchReferenceChildren(collection, item.id, group, { cursor });
+				const rows: ReferenceEntryRow[] = res.children.map((c) => ({
+					id: c.id,
+					slug: c.slug,
+					locale: c.locale,
+				}));
+				setReferenceState((prev) => {
+					const cur = prev[group];
+					if (!cur) return prev;
+					// Loading appends to the baseline. If the user hasn't diverged yet
+					// (current === baseline), mirror the append into current too so the
+					// newly loaded rows appear without registering as an edit.
+					const unedited = sameReferenceIds(cur.baseline, cur.current);
+					const seen = new Set(cur.baseline.map((r) => r.id));
+					const nextBaseline = [...cur.baseline, ...rows.filter((r) => !seen.has(r.id))];
+					return {
+						...prev,
+						[group]: {
+							baseline: nextBaseline,
+							current: unedited ? nextBaseline : cur.current,
+							nextCursor: res.nextCursor,
+							loading: false,
+						},
+					};
+				});
+			} catch {
+				setReferenceState((prev) => {
+					const cur = prev[group];
+					return cur ? { ...prev, [group]: { ...cur, loading: false } } : prev;
+				});
+			}
+		},
+		[collection, item?.id],
+	);
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -396,12 +569,31 @@ export function ContentEditor({
 	slugRef.current = slug;
 
 	React.useEffect(() => {
-		if (!lastAutosaveAt || !pendingAutosaveStateRef.current) {
+		if (!lastAutosaveAt) {
 			return;
 		}
 
-		setLastSavedData(pendingAutosaveStateRef.current);
-		pendingAutosaveStateRef.current = null;
+		if (pendingAutosaveStateRef.current) {
+			setLastSavedData(pendingAutosaveStateRef.current);
+			pendingAutosaveStateRef.current = null;
+		}
+
+		// Mark the reference groups that autosave just persisted as saved by
+		// advancing their baseline to the sent snapshot. Editing further before
+		// the autosave resolved leaves `current` ahead of this baseline, so the
+		// group stays dirty and re-autosaves.
+		if (pendingAutosaveReferencesRef.current) {
+			const snapshot = pendingAutosaveReferencesRef.current;
+			pendingAutosaveReferencesRef.current = null;
+			setReferenceState((prev) => {
+				const next = { ...prev };
+				for (const [group, rows] of Object.entries(snapshot)) {
+					const cur = next[group];
+					if (cur) next[group] = { ...cur, baseline: rows };
+				}
+				return next;
+			});
+		}
 	}, [lastAutosaveAt]);
 
 	const hasInvalidUrls = React.useCallback(
@@ -440,11 +632,22 @@ export function ContentEditor({
 				data: Record<string, unknown>;
 				slug?: string;
 				bylines?: BylineCreditInput[];
+				references?: Record<string, string[]>;
 			} = {
 				data: formDataRef.current,
 				slug: slugRef.current || undefined,
 			};
 			if (bylinesTouched) payload.bylines = activeBylines;
+			const references = buildReferencesPayload(referenceStateRef.current);
+			if (references) {
+				payload.references = references;
+				// Remember what we sent so the baseline can advance on resolve.
+				const snapshot: Record<string, ReferenceEntryRow[]> = {};
+				for (const group of Object.keys(references)) {
+					snapshot[group] = referenceStateRef.current[group]?.current ?? [];
+				}
+				pendingAutosaveReferencesRef.current = snapshot;
+			}
 			pendingAutosaveStateRef.current = serializeEditorState({
 				data: payload.data,
 				slug: payload.slug || "",
@@ -469,6 +672,7 @@ export function ContentEditor({
 		activeBylines,
 		bylinesTouched,
 		hasInvalidUrls,
+		referenceState,
 	]);
 
 	// Cancel pending autosave on manual save
@@ -484,11 +688,14 @@ export function ContentEditor({
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		} = {
 			data: formData,
 			slug: slug || undefined,
 		};
 		if (isNew || bylinesTouched) payload.bylines = activeBylines;
+		const references = buildReferencesPayload(referenceStateRef.current);
+		if (references) payload.references = references;
 		onSave?.(payload);
 	};
 
@@ -795,6 +1002,10 @@ export function ContentEditor({
 											field.kind === "portableText" ? handleBlockSidebarClose : undefined
 										}
 										manifest={manifest}
+										referenceState={referenceState}
+										onReferenceChange={handleReferenceCurrentChange}
+										onLoadMoreReferences={handleLoadMoreReferences}
+										entryLocale={item?.locale ?? entryLocale ?? null}
 									/>
 								);
 								return fieldEl;
@@ -1092,6 +1303,14 @@ interface FieldRendererProps {
 	onBlockSidebarClose?: () => void;
 	/** Admin manifest for resolving sandboxed field widget elements */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
+	/** Staged reference selections for all relation groups (reference fields). */
+	referenceState?: Record<string, ReferenceGroupState>;
+	/** Replace a relation group's staged current selection. */
+	onReferenceChange?: (group: string, rows: ReferenceEntryRow[]) => void;
+	/** Page the rest of a relation's hydrated set. */
+	onLoadMoreReferences?: (group: string) => void;
+	/** The entry's locale, for the reference row cross-locale hint. */
+	entryLocale?: string | null;
 }
 
 /**
@@ -1108,6 +1327,10 @@ function FieldRenderer({
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 	manifest,
+	referenceState,
+	onReferenceChange,
+	onLoadMoreReferences,
+	entryLocale,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -1388,6 +1611,40 @@ function FieldRenderer({
 			);
 		}
 
+		case "reference": {
+			const relationGroup =
+				typeof field.validation?.relation === "string" ? field.validation.relation : undefined;
+			const targetCollection =
+				typeof field.validation?.targetCollection === "string"
+					? field.validation.targetCollection
+					: undefined;
+			const multiple = field.validation?.multiple !== false;
+			if (!relationGroup || !targetCollection) {
+				return (
+					<div>
+						<span className={cn("text-sm font-medium leading-none text-kumo-default", labelClass)}>
+							{label}
+						</span>
+						<p className="mt-2 text-sm text-kumo-subtle">
+							{t`This reference field isn't fully configured.`}
+						</p>
+					</div>
+				);
+			}
+			return (
+				<ReferenceFieldRenderer
+					label={label}
+					labelClass={labelClass}
+					targetCollection={targetCollection}
+					multiple={multiple}
+					state={referenceState?.[relationGroup]}
+					entryLocale={entryLocale ?? null}
+					onChange={(rows) => onReferenceChange?.(relationGroup, rows)}
+					onLoadMore={() => onLoadMoreReferences?.(relationGroup)}
+				/>
+			);
+		}
+
 		case "json": {
 			const jsonString =
 				typeof value === "string" ? value : value != null ? JSON.stringify(value, null, 2) : "";
@@ -1428,6 +1685,181 @@ function FieldRenderer({
 				/>
 			);
 	}
+}
+
+/** Display label for a staged reference row: title, then slug, then id. */
+function referenceRowLabel(row: ReferenceEntryRow): string {
+	return row.title || row.slug || row.id;
+}
+
+/**
+ * Reference field editor. Renders the staged selections with remove/reorder
+ * controls and a picker to add more. All mutations flow through `onChange`
+ * into the parent's `referenceState`; nothing is persisted until the content
+ * entry saves (edges ride in the `references` payload key).
+ */
+function ReferenceFieldRenderer({
+	label,
+	labelClass,
+	targetCollection,
+	multiple,
+	state,
+	entryLocale,
+	onChange,
+	onLoadMore,
+}: {
+	label: string;
+	labelClass?: string;
+	targetCollection: string;
+	multiple: boolean;
+	state?: ReferenceGroupState;
+	entryLocale: string | null;
+	onChange: (rows: ReferenceEntryRow[]) => void;
+	onLoadMore: () => void;
+}) {
+	const { t } = useLingui();
+	const [pickerOpen, setPickerOpen] = React.useState(false);
+
+	const rows = state?.current ?? [];
+	const nextCursor = state?.nextCursor;
+	const loading = state?.loading ?? false;
+	// Reorder/remove are gated until the full hydrated set is loaded, so a save
+	// can never emit a truncated list that would delete the unloaded tail.
+	const fullyLoaded = !nextCursor && !loading;
+
+	// Auto-page the remaining hydrated set so the field is edit-ready. Chains:
+	// each load advances `nextCursor`, re-firing until the set is exhausted.
+	React.useEffect(() => {
+		if (nextCursor && !loading) onLoadMore();
+	}, [nextCursor, loading, onLoadMore]);
+
+	const selectedIds = React.useMemo(() => new Set(rows.map((r) => r.id)), [rows]);
+
+	const move = (index: number, delta: number) => {
+		const target = index + delta;
+		if (target < 0 || target >= rows.length) return;
+		const next = [...rows];
+		const [moved] = next.splice(index, 1);
+		if (moved) next.splice(target, 0, moved);
+		onChange(next);
+	};
+
+	const remove = (index: number) => {
+		onChange(rows.filter((_, i) => i !== index));
+	};
+
+	const handleConfirm = (picked: ReferencePickerRow[]) => {
+		const additions: ReferenceEntryRow[] = picked.map((p) => ({
+			id: p.id,
+			slug: p.slug,
+			title: p.title,
+		}));
+		if (multiple) {
+			const existing = new Set(rows.map((r) => r.id));
+			onChange([...rows, ...additions.filter((a) => !existing.has(a.id))]);
+		} else {
+			// Single-value: the picked entry replaces the current selection.
+			onChange(additions.slice(0, 1));
+		}
+	};
+
+	return (
+		<div>
+			<span className={cn("text-sm font-medium leading-none text-kumo-default", labelClass)}>
+				{label}
+			</span>
+			<div className="mt-2 space-y-2">
+				{rows.length === 0 ? (
+					<p className="text-sm text-kumo-subtle">{t`No references selected.`}</p>
+				) : (
+					<ul className="space-y-2">
+						{rows.map((row, index) => {
+							const crossLocale = !!row.locale && !!entryLocale && row.locale !== entryLocale;
+							return (
+								<li
+									key={row.id}
+									className="flex items-center gap-2 rounded-md border bg-kumo-base px-3 py-2"
+								>
+									<div className="min-w-0 flex-1">
+										<div className="truncate text-sm font-medium">{referenceRowLabel(row)}</div>
+										{(row.slug || crossLocale) && (
+											<div className="flex items-center gap-2 text-xs text-kumo-subtle">
+												{row.slug && <span className="truncate">{row.slug}</span>}
+												{crossLocale && <Badge>{row.locale}</Badge>}
+											</div>
+										)}
+									</div>
+									{multiple && (
+										<div className="flex items-center gap-1">
+											<Button
+												type="button"
+												variant="ghost"
+												shape="square"
+												size="sm"
+												disabled={index === 0 || !fullyLoaded}
+												onClick={() => move(index, -1)}
+												aria-label={t`Move ${referenceRowLabel(row)} up`}
+											>
+												<CaretUp className="h-4 w-4" />
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												shape="square"
+												size="sm"
+												disabled={index === rows.length - 1 || !fullyLoaded}
+												onClick={() => move(index, 1)}
+												aria-label={t`Move ${referenceRowLabel(row)} down`}
+											>
+												<CaretDown className="h-4 w-4" />
+											</Button>
+										</div>
+									)}
+									<Button
+										type="button"
+										variant="ghost"
+										shape="square"
+										size="sm"
+										disabled={!fullyLoaded}
+										onClick={() => remove(index)}
+										aria-label={t`Remove ${referenceRowLabel(row)}`}
+									>
+										<Trash className="h-4 w-4 text-kumo-danger" />
+									</Button>
+								</li>
+							);
+						})}
+					</ul>
+				)}
+
+				{!fullyLoaded && (
+					<div className="flex items-center gap-2 text-sm text-kumo-subtle">
+						<Loader size="sm" /> {t`Loading references...`}
+					</div>
+				)}
+
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					icon={<Plus />}
+					disabled={!fullyLoaded}
+					onClick={() => setPickerOpen(true)}
+				>
+					{multiple ? t`Add reference` : rows.length > 0 ? t`Replace reference` : t`Add reference`}
+				</Button>
+			</div>
+
+			<ReferencePickerModal
+				open={pickerOpen}
+				onOpenChange={setPickerOpen}
+				collection={targetCollection}
+				multiple={multiple}
+				selectedIds={selectedIds}
+				onConfirm={handleConfirm}
+			/>
+		</div>
+	);
 }
 
 const URL_PROTOCOL_PATTERN = /^https?:\/\//;
