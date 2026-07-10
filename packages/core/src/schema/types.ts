@@ -76,6 +76,14 @@ export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {
 };
 
 /**
+ * Field types that persist no `ec_*` column — their values live elsewhere.
+ * `reference` stores edges in `_emdash_content_references` (see migration 043),
+ * never a column on the content table. The `FIELD_TYPE_TO_COLUMN` entry above is
+ * retained deliberately: it doubles as the `isFieldType` guard.
+ */
+export const STORAGELESS_FIELD_TYPES: ReadonlySet<FieldType> = new Set(["reference"]);
+
+/**
  * Features a collection can support
  */
 export type CollectionSupport =
@@ -142,6 +150,12 @@ export interface FieldValidation {
 	minItems?: number; // For repeater fields
 	maxItems?: number; // For repeater fields
 	allowedMimeTypes?: string[];
+	/** Reference fields: the relation's translation_group (edge endpoints resolve it). */
+	relation?: string;
+	/** Reference fields: child collection slug (denormalized, immutable on the relation). */
+	targetCollection?: string;
+	/** Reference fields: allow selecting more than one entry (UI constraint). */
+	multiple?: boolean;
 }
 
 /**

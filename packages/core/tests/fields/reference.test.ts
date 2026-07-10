@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { reference } from "../../src/fields/reference.js";
+import { STORAGELESS_FIELD_TYPES, FIELD_TYPE_TO_COLUMN } from "../../src/schema/types.js";
 
 describe("reference field", () => {
 	it("should create field definition", () => {
@@ -36,5 +37,14 @@ describe("reference field", () => {
 
 		// Optional should accept undefined
 		expect(() => optional.schema.parse(undefined)).not.toThrow();
+	});
+});
+
+describe("storage-less field types", () => {
+	it("marks reference as storage-less but keeps its column-type guard entry", () => {
+		expect(STORAGELESS_FIELD_TYPES.has("reference")).toBe(true);
+		expect(STORAGELESS_FIELD_TYPES.has("string")).toBe(false);
+		// The map still contains reference so isFieldType() keeps recognizing it.
+		expect(FIELD_TYPE_TO_COLUMN.reference).toBe("TEXT");
 	});
 });
