@@ -826,11 +826,15 @@ Signing follows the ATProto label specification exactly:
 
 1. Construct only the allowed v1 label fields, excluding `sig` and `$type`.
 2. Encode with deterministic DRISL CBOR.
-3. SHA-256 the canonical bytes.
-4. Sign the raw hash using the private key corresponding to `#atproto_label`.
+3. At the protocol level, SHA-256 the canonical bytes and sign that digest.
+4. With the selected high-level `@atcute/crypto` API, pass the canonical CBOR bytes directly to `P256PrivateKey.sign`, and pass those same bytes to `P256PublicKey.verify`. WebCrypto ECDSA performs the protocol SHA-256 operation internally. Never pass the precomputed digest to either high-level API, because that hashes the digest again and produces a non-interoperable signature.
 5. Store signature bytes and signing key ID.
 
 No generic object-signing helper accepts arbitrary fields. The issuer takes a typed internal proposal and reconstructs the complete label object itself.
+
+The issuer normalizes verification method IDs before selection: relative `#atproto_label` and fully qualified `${issuerDid}#atproto_label` identify the same logical method, and either form is valid alone. Exactly one logical label key must exist; duplicates across either or both forms are invalid regardless of order. The method must have `type: "Multikey"`, `controller` equal to the issuer DID, and a `publicKeyMultibase` using the P-256 multikey codec. At startup, the public multikey derived from the configured private scalar must exactly equal the resolved method's `publicKeyMultibase`; a structurally valid different P-256 key is a fatal mismatch. Missing, duplicate, differently controlled, legacy-typed, or non-P-256 methods are invalid. The issuer and subscribers never fall back to `#atproto` or another DID key.
+
+The private secret is an unpadded, canonically encoded base64url 32-byte P-256 scalar. Decoding rejects non-base64url characters, padding, non-canonical encodings, lengths other than 32 bytes, zero, and values greater than or equal to the P-256 group order.
 
 The private key is stored in Cloudflare Secrets Store. A plain Worker secret is acceptable only for initial local/staging deployment, not production launch.
 
