@@ -36,6 +36,7 @@
 		"@emdash-cms/plugin-types": "workspace:*",
 		"@emdash-cms/registry-client": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
+		"@emdash-cms/registry-verification": "workspace:*",
 		"@oslojs/crypto": "catalog:",
 		"chokidar": "catalog:",
 		"citty": "^0.1.6",

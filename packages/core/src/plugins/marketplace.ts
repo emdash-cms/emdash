@@ -6,15 +6,16 @@
  * not a runtime dependency — bundles are copied to site-local R2 at install time.
  */
 
-import { createGzipDecoder, unpackTar } from "modern-tar";
+import {
+	validatePluginBundle,
+	type ValidatePluginBundleOptions,
+} from "@emdash-cms/registry-verification";
 
-import { pluginManifestSchema, reconcileManifestAccess } from "./manifest-schema.js";
 import type { PluginManifest } from "./types.js";
 
 // ── Module-level regex patterns ───────────────────────────────────
 
 const TRAILING_SLASHES = /\/+$/;
-const LEADING_DOT_SLASH = /^\.\//;
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -290,7 +291,7 @@ class MarketplaceClientImpl implements MarketplaceClient {
 
 		const tarballBytes = new Uint8Array(await response.arrayBuffer());
 		try {
-			return await extractBundle(tarballBytes);
+			return await extractBundle(tarballBytes, { expectedSlug: id, expectedVersion: version });
 		} catch (err) {
 			if (err instanceof MarketplaceError) throw err;
 			throw new MarketplaceError(
@@ -374,7 +375,6 @@ class MarketplaceClientImpl implements MarketplaceClient {
  * - backend.js
  * - admin.js (optional)
  *
- * We use a minimal tar parser since we only need to read a few small files.
  */
 /**
  * Exported so the experimental registry install handler can reuse the
@@ -382,127 +382,19 @@ class MarketplaceClientImpl implements MarketplaceClient {
  * function predates the marketplace-vs-registry split and is generic
  * over plugin bundle tarballs regardless of distribution channel.
  */
-// Aligns with RFC 0001 §"Bundle size limits" (256 KiB decompressed,
-// 20 files). Matches `MAX_BUNDLE_SIZE` in cli/commands/bundle-utils.ts
-// (the publish-side cap). We don't import that constant to keep this
-// runtime module independent of the CLI; the two values are
-// load-bearing identical and must stay in sync.
-//
-// Tar adds per-file headers (~512 bytes each) plus directory entries,
-// so the entry count cap is set comfortably above RFC's 20-file limit.
-// Going over either is a strong signal the bundle isn't a legitimate
-// sandboxed plugin.
-const MAX_DECOMPRESSED_BUNDLE_BYTES = 256 * 1024;
-const MAX_BUNDLE_TAR_ENTRIES = 32;
-
-export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBundle> {
-	// Decompress fully into memory first, then parse the tar.
-	// Passing a pipeThrough() stream directly to unpackTar causes a backpressure
-	// deadlock in workerd: the tar decoder's body-stream pull() needs more
-	// decompressed data, but the upstream pipe is stalled waiting for the
-	// decoder's writable side to drain — a circular dependency.
-	const decompressedStream = new ReadableStream<Uint8Array>({
-		start(controller) {
-			controller.enqueue(tarballBytes);
-			controller.close();
-		},
-	}).pipeThrough(createGzipDecoder());
-
-	// Collect decompressed bytes with a hard cap. A gzip-bomb -- a small
-	// tarball that decompresses to gigabytes -- otherwise exhausts
-	// worker / Node memory before we know to reject it. The cap matches
-	// RFC 0001's publish-time bundle size limit (MAX_DECOMPRESSED_BUNDLE_BYTES);
-	// anything past that isn't a legitimate sandboxed plugin.
-	const reader = decompressedStream.getReader();
-	const chunks: Uint8Array[] = [];
-	let total = 0;
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		if (!value) continue;
-		total += value.byteLength;
-		if (total > MAX_DECOMPRESSED_BUNDLE_BYTES) {
-			try {
-				await reader.cancel();
-			} catch {
-				// nothing to do
-			}
-			throw new MarketplaceError(
-				`Bundle decompressed size exceeds limit (${MAX_DECOMPRESSED_BUNDLE_BYTES} bytes)`,
-				undefined,
-				"INVALID_BUNDLE",
-			);
-		}
-		chunks.push(value);
-	}
-	const decompressedBytes = new Uint8Array(total);
-	{
-		let offset = 0;
-		for (const chunk of chunks) {
-			decompressedBytes.set(chunk, offset);
-			offset += chunk.byteLength;
-		}
-	}
-
-	const decompressed = new ReadableStream<Uint8Array>({
-		start(controller) {
-			controller.enqueue(decompressedBytes);
-			controller.close();
-		},
-	});
-
-	const entries = await unpackTar(decompressed);
-	if (entries.length > MAX_BUNDLE_TAR_ENTRIES) {
-		throw new MarketplaceError(
-			`Bundle has too many tar entries (${entries.length} > ${MAX_BUNDLE_TAR_ENTRIES})`,
-			undefined,
-			"INVALID_BUNDLE",
-		);
-	}
-
-	const decoder = new TextDecoder();
-	const files = new Map<string, string>();
-	for (const entry of entries) {
-		if (entry.data && entry.header.type === "file") {
-			// Strip leading ./ prefix that tar tools commonly add
-			const name = entry.header.name.replace(LEADING_DOT_SLASH, "");
-			files.set(name, decoder.decode(entry.data));
-		}
-	}
-
-	const manifestJson = files.get("manifest.json");
-	const backendCode = files.get("backend.js");
-
-	if (!manifestJson) {
-		throw new MarketplaceError(
-			"Invalid bundle: missing manifest.json",
-			undefined,
-			"INVALID_BUNDLE",
-		);
-	}
-	if (!backendCode) {
-		throw new MarketplaceError("Invalid bundle: missing backend.js", undefined, "INVALID_BUNDLE");
-	}
-
-	let manifest: PluginManifest;
-	try {
-		const parsed: unknown = JSON.parse(manifestJson);
-		const result = pluginManifestSchema.safeParse(parsed);
-		if (!result.success) {
-			throw new MarketplaceError(
-				"Invalid bundle: manifest.json failed validation",
-				undefined,
-				"INVALID_BUNDLE",
-			);
-		}
-		manifest = reconcileManifestAccess(result.data);
-	} catch (err) {
-		if (err instanceof MarketplaceError) throw err;
-		throw new MarketplaceError(
-			"Invalid bundle: malformed manifest.json",
-			undefined,
-			"INVALID_BUNDLE",
-		);
+export async function extractBundle(
+	tarballBytes: Uint8Array,
+	options: ValidatePluginBundleOptions = {},
+): Promise<PluginBundle> {
+	const result = await validatePluginBundle(tarballBytes, options);
+	if (!result.success) {
+		const code =
+			result.error.code === "BUNDLE_ID_MISMATCH"
+				? "MANIFEST_MISMATCH"
+				: result.error.code === "BUNDLE_VERSION_MISMATCH"
+					? "MANIFEST_VERSION_MISMATCH"
+					: "INVALID_BUNDLE";
+		throw new MarketplaceError(result.error.message, undefined, code);
 	}
 
 	// Compute SHA-256 checksum of the tarball for verification
@@ -512,9 +404,12 @@ export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBun
 	const checksum = Array.from(hashArray, (b) => b.toString(16).padStart(2, "0")).join("");
 
 	return {
-		manifest,
-		backendCode,
-		adminCode: files.get("admin.js"),
+		// Canonical validation uses the shared wire type. Its schema restricts
+		// hooks to the narrower set represented by core's runtime type.
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- canonical schema validation narrows the wire manifest
+		manifest: result.value.manifest as unknown as PluginManifest,
+		backendCode: new TextDecoder().decode(result.value.backend),
+		adminCode: result.value.admin ? new TextDecoder().decode(result.value.admin) : undefined,
 		checksum,
 	};
 }
