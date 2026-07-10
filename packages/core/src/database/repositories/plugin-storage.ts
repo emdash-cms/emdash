@@ -302,7 +302,8 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		}
 
 		const result = await query.executeTakeFirst();
-		return result?.count ?? 0;
+		// Number() because the pg driver returns COUNT(*) (bigint) as a string.
+		return Number(result?.count ?? 0);
 	}
 }
 
