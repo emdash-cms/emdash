@@ -59,6 +59,7 @@ export { default as StrikeThrough } from "./marks/StrikeThrough.astro";
 export { default as Link } from "./marks/Link.astro";
 
 import BlockComponent from "./Block.astro";
+import BlockquoteGroupComponent from "./BlockquoteGroup.astro";
 import BreakComponent from "./Break.astro";
 import ButtonComponent from "./Button.astro";
 import ButtonsComponent from "./Buttons.astro";
@@ -88,6 +89,7 @@ import TableComponent from "./Table.astro";
 export const emdashComponents = {
 	block: BlockComponent,
 	type: {
+		blockquoteGroup: BlockquoteGroupComponent,
 		image: ImageComponent,
 		code: CodeComponent,
 		embed: EmbedComponent,
