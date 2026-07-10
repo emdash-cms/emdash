@@ -204,7 +204,10 @@ For collections with `supports: ["seo"]`, editors can set an SEO title, meta des
 ---
 import { getEmDashEntry, getSeoMeta } from "emdash";
 
-const { entry } = await getEmDashEntry("posts", Astro.params.slug);
+const { entry, error } = await getEmDashEntry("posts", Astro.params.slug);
+if (error) {
+  return new Response("Server error", { status: 500 });
+}
 if (!entry) return Astro.redirect("/404");
 
 const seo = getSeoMeta(entry, {
