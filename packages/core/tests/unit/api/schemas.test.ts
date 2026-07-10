@@ -60,6 +60,19 @@ describe("contentCreateBody schema", () => {
 		const result = contentCreateBody.parse({ data: { title: "Hi" }, publishedAt: null });
 		expect(result.publishedAt).toBeNull();
 	});
+
+	it("preserves references when provided", () => {
+		const result = contentCreateBody.parse({
+			data: {},
+			references: { grp_x: ["a", "b"] },
+		});
+		expect(result.references).toEqual({ grp_x: ["a", "b"] });
+	});
+
+	it("accepts omitted references", () => {
+		const result = contentCreateBody.parse({ data: {} });
+		expect(result.references).toBeUndefined();
+	});
 });
 
 describe("contentUpdateBody schema", () => {
@@ -118,6 +131,19 @@ describe("contentUpdateBody schema", () => {
 			createdAt: "2019-03-15T10:30:00.000Z",
 		} as Parameters<typeof contentUpdateBody.parse>[0]);
 		expect("createdAt" in result).toBe(false);
+	});
+
+	it("preserves references when provided", () => {
+		const result = contentUpdateBody.parse({
+			data: { title: "Hi" },
+			references: { grp_x: ["a", "b"] },
+		});
+		expect(result.references).toEqual({ grp_x: ["a", "b"] });
+	});
+
+	it("accepts omitted references", () => {
+		const result = contentUpdateBody.parse({ data: { title: "Hi" } });
+		expect(result.references).toBeUndefined();
 	});
 });
 

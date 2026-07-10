@@ -63,6 +63,10 @@ export const contentCreateBody = z
 			description:
 				"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }, resolved in the entry's locale.",
 		}),
+		references: z.record(z.string(), z.array(z.string())).optional().meta({
+			description:
+				"Reference selections as { relationTranslationGroup: [childEntryId, ...] }, in display order. Written as content-reference edges in the same transaction as the entry.",
+		}),
 		publishedAt: contentDateOverride,
 		createdAt: contentDateOverride,
 	})
@@ -84,6 +88,10 @@ export const contentUpdateBody = z
 		taxonomies: z.record(z.string(), z.array(z.string())).optional().meta({
 			description:
 				"Replace taxonomy assignments as { taxonomyName: [termSlug, ...] }. Only named taxonomies are touched; pass an empty array to clear a taxonomy.",
+		}),
+		references: z.record(z.string(), z.array(z.string())).optional().meta({
+			description:
+				"Reference selections as { relationTranslationGroup: [childEntryId, ...] }, in display order. Written as content-reference edges in the same transaction as the entry.",
 		}),
 		publishedAt: contentDateOverride,
 	})
