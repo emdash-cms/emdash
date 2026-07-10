@@ -15,7 +15,7 @@ export { Settings } from "./Settings";
 export { PortableTextEditor, type PortableTextEditorProps } from "./PortableTextEditor";
 
 // Buttons
-export { SaveButton, SaveStatus, type SaveButtonProps, type SaveStatusProps } from "./SaveButton";
+export { SaveButton, type SaveButtonProps } from "./SaveButton";
 
 // Layout primitives shared by editor pages
 export { EditorHeader, type EditorHeaderProps } from "./EditorHeader";

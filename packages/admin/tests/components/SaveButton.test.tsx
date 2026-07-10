@@ -1,7 +1,7 @@
 import * as React from "react";
 import { describe, it, expect } from "vitest";
 
-import { SaveButton, SaveStatus } from "../../src/components/SaveButton";
+import { SaveButton } from "../../src/components/SaveButton";
 import { render } from "../utils/render.tsx";
 
 describe("SaveButton", () => {
@@ -10,16 +10,19 @@ describe("SaveButton", () => {
 		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 	});
 
-	it("keeps the Save label while showing manual-save progress", async () => {
+	it("transitions to Saving while save progress is active", async () => {
 		const screen = await render(<SaveButton isDirty={true} isSaving={true} />);
-		const button = screen.getByRole("button", { name: "Save" });
+		const button = screen.getByRole("button", { name: "Saving..." });
 		await expect.element(button).toBeDisabled();
 		await expect.element(button).toHaveAttribute("aria-busy", "true");
+		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
 	});
 
-	it("keeps the clean action labeled Save", async () => {
+	it("transitions to Saved when clean", async () => {
 		const screen = await render(<SaveButton isDirty={false} isSaving={false} />);
-		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+		const button = screen.getByRole("button", { name: "Saved" });
+		await expect.element(button).toBeDisabled();
+		expect(screen.getByRole("status").element().textContent).toBe("Saved");
 	});
 
 	it("has aria-busy when saving", async () => {
@@ -32,43 +35,47 @@ describe("SaveButton", () => {
 		await expect.element(screen.getByRole("button")).toHaveAttribute("aria-busy", "false");
 	});
 
-	it("shows a passive saving status", async () => {
-		const screen = await render(<SaveStatus isDirty={true} isSaving={true} />);
-		const status = screen.getByRole("status");
-		expect(status.element().textContent).toBe("Saving...");
-		await expect.element(status).toHaveAttribute("aria-live", "polite");
+	it("can render without a second live region", async () => {
+		const screen = await render(<SaveButton isDirty={false} isSaving={false} announce={false} />);
+		await expect.element(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
+		expect(screen.container.querySelector('span[role="status"][aria-live="polite"]')).toBeNull();
 	});
 
-	it("shows a persistent passive Saved status while clean", async () => {
-		const screen = await render(<SaveStatus isDirty={false} isSaving={false} />);
-		expect(screen.getByRole("status").element().textContent).toBe("Saved");
-	});
+	it("keeps one fixed-width button across Save, Saving, and Saved states", async () => {
+		const screen = await render(<SaveButton isDirty={true} isSaving={false} />);
+		const getLabelWidth = () =>
+			screen.container
+				.querySelector<HTMLElement>("[data-save-button-labels]")!
+				.getBoundingClientRect().width;
+		const dirtyWidth = getLabelWidth();
 
-	it("clears the passive status while dirty", async () => {
-		const screen = await render(<SaveStatus isDirty={true} isSaving={false} />);
-		expect(screen.getByRole("status").element().textContent).toBe("");
-	});
-
-	it("can render visible status without a second live region", async () => {
-		const screen = await render(<SaveStatus isDirty={false} isSaving={false} announce={false} />);
-		expect(screen.container.querySelector("[data-save-status-value]")?.textContent).toBe("Saved");
-		expect(screen.container.querySelector('[role="status"]')).toBeNull();
-	});
-
-	it("reserves a stable width across dirty, saving, and saved states", async () => {
-		const screen = await render(<SaveStatus isDirty={true} isSaving={false} />);
-		const slot = screen.container.querySelector<HTMLElement>("[data-save-status-slot]");
-		expect(slot).not.toBeNull();
-		const dirtyWidth = slot!.getBoundingClientRect().width;
-
-		await screen.rerender(<SaveStatus isDirty={true} isSaving={true} />);
-		const savingWidth = slot!.getBoundingClientRect().width;
-		await screen.rerender(<SaveStatus isDirty={false} isSaving={false} />);
-		const savedWidth = slot!.getBoundingClientRect().width;
+		await screen.rerender(<SaveButton isDirty={true} isSaving={true} />);
+		const savingWidth = getLabelWidth();
+		await screen.rerender(<SaveButton isDirty={false} isSaving={false} />);
+		const savedWidth = getLabelWidth();
 
 		expect(dirtyWidth).toBeGreaterThan(0);
 		expect(savingWidth).toBeCloseTo(dirtyWidth);
 		expect(savedWidth).toBeCloseTo(dirtyWidth);
+	});
+
+	it("runs the exit, content swap, and enter sequence", async () => {
+		const screen = await render(<SaveButton isDirty={true} isSaving={false} />);
+		const states = screen.container.querySelectorAll("[data-save-button-state]");
+		expect(states).toHaveLength(3);
+		const visibleState = () =>
+			screen.container.querySelector<HTMLElement>("[data-save-button-visible-state]")!;
+		expect(visibleState()).toHaveAttribute("data-save-button-visible-state", "save");
+
+		await screen.rerender(<SaveButton isDirty={true} isSaving={true} />);
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+		await expect.element(visibleState()).toHaveClass("is-exit");
+		expect(visibleState()).toHaveAttribute("data-save-button-visible-state", "save");
+
+		await new Promise((resolve) => window.setTimeout(resolve, 200));
+		expect(visibleState()).toHaveAttribute("data-save-button-visible-state", "saving");
+		expect(visibleState()).not.toHaveClass("is-exit");
+		expect(visibleState()).not.toHaveClass("is-enter-start");
 	});
 
 	it("respects external disabled prop", async () => {

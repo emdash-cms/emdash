@@ -52,7 +52,7 @@ import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.j
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
-import { SaveButton, SaveStatus } from "./SaveButton.js";
+import { SaveButton } from "./SaveButton.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -669,14 +669,10 @@ export function ContentEditor({
 													onPreview={handlePreview}
 												/>
 											)}
-											<SaveStatus
-												isDirty={isDirty}
-												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-											/>
 											<SaveButton
 												type="submit"
 												isDirty={isDirty}
-												isSaving={Boolean(saveFeedbackActive)}
+												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
 												disabled={isContentOperationPending}
 											/>
 											{liveViewUrl && (
@@ -720,14 +716,10 @@ export function ContentEditor({
 											onPreview={handlePreview}
 										/>
 									)}
-									<SaveStatus
-										isDirty={isDirty}
-										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-									/>
 									<SaveButton
 										type="submit"
 										isDirty={isDirty}
-										isSaving={Boolean(saveFeedbackActive)}
+										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
 										disabled={isContentOperationPending}
 									/>
 									{liveViewUrl && (

@@ -17,7 +17,7 @@ import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPane
 import { EditorHeader } from "./EditorHeader";
 import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
 import { RouterLinkButton } from "./RouterLinkButton.js";
-import { SaveButton, SaveStatus } from "./SaveButton";
+import { SaveButton } from "./SaveButton";
 
 export function SectionEditor() {
 	const { t } = useLingui();
@@ -177,10 +177,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 					/>
 				}
 				actions={
-					<>
-						<SaveStatus isSaving={isSaving} isDirty={isDirty} />
-						<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
-					</>
+					<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
 				}
 			>
 				<h1 className="text-2xl font-bold truncate">{section.title}</h1>
@@ -208,8 +205,12 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 					    it naturally when they finish editing, without needing to
 					    scroll past the entire sidebar. */}
 					<div className="flex items-center justify-end gap-2">
-						<SaveStatus isSaving={isSaving} isDirty={isDirty} announce={false} />
-						<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
+						<SaveButton
+							isSaving={isSaving}
+							isDirty={isDirty}
+							announce={false}
+							onClick={handleSave}
+						/>
 					</div>
 				</div>
 

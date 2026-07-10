@@ -862,7 +862,7 @@ describe("ContentEditor", () => {
 		it("SaveButton is disabled for existing item with no changes", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item });
-			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
+			const saveBtn = screen.getByRole("button", { name: "Saved" }).first();
 			await expect.element(saveBtn).toBeDisabled();
 			expect(screen.getByRole("status").element().textContent).toBe("Saved");
 		});

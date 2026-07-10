@@ -159,7 +159,7 @@ describe("ContentTypeEditor", () => {
 		const collection = makeCollection();
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
-		const saveButton = screen.getByRole("button", { name: "Save", exact: true }).last();
+		const saveButton = screen.getByRole("button", { name: "Saved", exact: true }).last();
 		await expect.element(saveButton).toBeDisabled();
 	});
 
@@ -403,7 +403,7 @@ describe("ContentTypeEditor", () => {
 		);
 
 		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
-		for (const button of screen.getByRole("button", { name: "Save", exact: true }).all()) {
+		for (const button of screen.getByRole("button", { name: "Saving...", exact: true }).all()) {
 			await expect.element(button).toBeDisabled();
 		}
 	});
@@ -414,15 +414,14 @@ describe("ContentTypeEditor", () => {
 		const collection = makeCollection();
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
-		// Both actions stay labeled Save while passive status communicates
-		// that the current state is saved. This keeps saving reachable from the
-		// sticky header and at the end of the form.
+		// Both actions communicate their saved state directly. Saving remains
+		// reachable from the sticky header and at the end of the form.
 		await expect
-			.element(screen.getByRole("button", { name: "Save", exact: true }).first())
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).first())
 			.toBeInTheDocument();
 		expect(screen.getByRole("status").element().textContent).toBe("Saved");
 		await expect
-			.element(screen.getByRole("button", { name: "Save", exact: true }).last())
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).last())
 			.toBeInTheDocument();
 	});
 
@@ -430,9 +429,9 @@ describe("ContentTypeEditor", () => {
 		const collection = makeCollection({ label: "Posts" });
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
-		// Initially clean -> passive "Saved" + disabled "Save"
+		// Initially clean -> disabled "Saved"
 		await expect
-			.element(screen.getByRole("button", { name: "Save", exact: true }).first())
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).first())
 			.toBeDisabled();
 		expect(screen.getByRole("status").element().textContent).toBe("Saved");
 

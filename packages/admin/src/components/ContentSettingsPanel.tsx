@@ -34,7 +34,7 @@ import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { RevisionHistory } from "./RevisionHistory";
 import { RouterLinkButton } from "./RouterLinkButton.js";
-import { SaveButton, SaveStatus } from "./SaveButton";
+import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
 import { TaxonomySidebar } from "./TaxonomySidebar";
 import { TranslationsPanel } from "./TranslationsPanel.js";
@@ -102,7 +102,7 @@ export interface SettingsActionBarProps {
 	isNew?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
-	/** Autosave in flight — reported by the passive save status. */
+	/** Autosave in flight — reported by the save button's busy state. */
 	isAutosaving?: boolean;
 	/** Preserve operation blocking independently of the visual feedback state. */
 	saveDisabled?: boolean;
@@ -215,16 +215,12 @@ export function SettingsActionBar({
 
 	return (
 		<div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3">
-			<SaveStatus
-				isDirty={isDirty}
-				isSaving={isSaving || Boolean(isAutosaving)}
-				announce={announceSaveStatus}
-			/>
 			<SaveButton
 				type="submit"
 				size="sm"
 				isDirty={isDirty}
-				isSaving={isSaving}
+				isSaving={isSaving || Boolean(isAutosaving)}
+				announce={announceSaveStatus}
 				disabled={saveDisabled}
 			/>
 			{liveViewUrl && (

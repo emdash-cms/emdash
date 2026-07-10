@@ -282,11 +282,11 @@ describe("SettingsActionBar", () => {
 		await expect.element(screen.getByRole("button", { name: /Save/ })).toBeInTheDocument();
 	});
 
-	it("keeps manual Save available while autosave reports progress", async () => {
+	it("shows autosave progress in the Save button", async () => {
 		const screen = await render(
 			<SettingsActionBar {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
 		);
-		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
 		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
 	});
 
