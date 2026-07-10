@@ -1,0 +1,432 @@
+{
+	"schemaVersion": 1,
+	"policyVersion": "2026-07-10.experimental.2",
+	"effectiveAt": "2026-07-10T00:00:00Z",
+	"labellerDid": "did:web:labels.emdashcms.com",
+	"assessmentSchemaVersion": 1,
+	"supportedSubjects": {
+		"publisher": { "kind": "did" },
+		"packageCollections": ["com.emdashcms.experimental.package.profile"],
+		"releaseCollections": ["com.emdashcms.experimental.package.release"]
+	},
+	"reasonCodes": [
+		{
+			"code": "eligible-assessment-pass",
+			"description": "At least one accepted source has an active pass for the exact release CID."
+		},
+		{
+			"code": "eligible-manual-override",
+			"description": "At least one accepted source has an active exact-CID reviewer override pair."
+		},
+		{
+			"code": "missing-assessment-pass",
+			"description": "No accepted source has an active exact-CID pass or override."
+		},
+		{
+			"code": "assessment-pending",
+			"description": "An accepted source has an unsuppressed pending assessment."
+		},
+		{
+			"code": "assessment-error",
+			"description": "An accepted source has an unsuppressed assessment error."
+		},
+		{
+			"code": "label-state-collision",
+			"description": "An accepted source emitted non-identical latest events with the same parsed creation instant."
+		},
+		{
+			"code": "automated-block",
+			"description": "An accepted source has an applicable unsuppressed automated security label."
+		},
+		{
+			"code": "manual-block",
+			"description": "An accepted source has an applicable manual release, package, or publisher block."
+		},
+		{
+			"code": "warning-labels",
+			"description": "The release is eligible but has applicable warning labels."
+		},
+		{
+			"code": "unaccepted-labels-ignored",
+			"description": "Labels from sources outside the accepted set were ignored."
+		}
+	],
+	"labels": [
+		{
+			"value": "assessment-passed",
+			"category": "eligibility",
+			"officialEffect": "pass",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Assessment passed",
+					"description": "Required assessment completed without an active blocking condition, or a reviewer supplied the pass half of an override pair."
+				}
+			]
+		},
+		{
+			"value": "assessment-overridden",
+			"category": "eligibility",
+			"officialEffect": "pass",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["reviewer"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Assessment overridden",
+					"description": "A reviewer superseded the automated outcome for this exact release CID."
+				}
+			]
+		},
+		{
+			"value": "assessment-pending",
+			"category": "eligibility",
+			"officialEffect": "pending",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Assessment pending",
+					"description": "Required assessment work has not completed."
+				}
+			]
+		},
+		{
+			"value": "assessment-error",
+			"category": "eligibility",
+			"officialEffect": "error",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Assessment error",
+					"description": "Required assessment work failed after bounded retries."
+				}
+			]
+		},
+		{
+			"value": "malware",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Malware",
+					"description": "The release contains intentionally harmful code or payloads."
+				}
+			]
+		},
+		{
+			"value": "data-exfiltration",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Data exfiltration",
+					"description": "The release intentionally transmits protected data outside its declared purpose."
+				}
+			]
+		},
+		{
+			"value": "credential-harvesting",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Credential harvesting",
+					"description": "The release deceptively captures or transmits credentials."
+				}
+			]
+		},
+		{
+			"value": "supply-chain-compromise",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Supply-chain compromise",
+					"description": "Artifact or dependency evidence indicates a malicious or substituted component."
+				}
+			]
+		},
+		{
+			"value": "critical-vulnerability",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Critical vulnerability",
+					"description": "An applicable critical vulnerability meets the policy's blocking rule."
+				}
+			]
+		},
+		{
+			"value": "artifact-integrity-failure",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Artifact integrity failure",
+					"description": "Artifact bytes do not match the checksum in the signed release."
+				}
+			]
+		},
+		{
+			"value": "invalid-bundle",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Invalid bundle",
+					"description": "The installable archive is malformed, unsafe, or incomplete."
+				}
+			]
+		},
+		{
+			"value": "undeclared-access",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Undeclared access",
+					"description": "Bundle behavior or its manifest attempts access outside the signed declaration."
+				}
+			]
+		},
+		{
+			"value": "impersonation",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Impersonation",
+					"description": "The release materially impersonates another identity, project, or product."
+				}
+			]
+		},
+		{
+			"value": "suspicious-code",
+			"category": "warning",
+			"officialEffect": "warn",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Suspicious code",
+					"description": "Concerning behavior lacks enough evidence for a blocking security label."
+				}
+			]
+		},
+		{
+			"value": "obfuscated-code",
+			"category": "warning",
+			"officialEffect": "warn",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Obfuscated code",
+					"description": "Material code is intentionally difficult to inspect."
+				}
+			]
+		},
+		{
+			"value": "privacy-risk",
+			"category": "warning",
+			"officialEffect": "warn",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Privacy risk",
+					"description": "The release creates a non-blocking privacy concern."
+				}
+			]
+		},
+		{
+			"value": "misleading-metadata",
+			"category": "warning",
+			"officialEffect": "warn",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Misleading metadata",
+					"description": "Release metadata or screenshots materially differ from identity claims or behavior."
+				}
+			]
+		},
+		{
+			"value": "low-quality",
+			"category": "warning",
+			"officialEffect": "warn",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Low quality",
+					"description": "The release lacks meaningful functionality or substance."
+				}
+			]
+		},
+		{
+			"value": "broken-release",
+			"category": "warning",
+			"officialEffect": "warn",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Broken release",
+					"description": "The structurally valid bundle cannot perform its stated function."
+				}
+			]
+		},
+		{
+			"value": "!takedown",
+			"category": "manual-system",
+			"officialEffect": "redact",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "forbidden", "issuanceModes": ["admin"] },
+				{ "subject": "package", "cidRule": "forbidden", "issuanceModes": ["admin"] },
+				{ "subject": "publisher", "cidRule": "forbidden", "issuanceModes": ["admin"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Taken down",
+					"description": "An administrator issued an emergency takedown action."
+				}
+			]
+		},
+		{
+			"value": "security-yanked",
+			"category": "manual-system",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "forbidden", "issuanceModes": ["reviewer"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Security yanked",
+					"description": "A reviewer withdrew this release for security reasons."
+				}
+			]
+		},
+		{
+			"value": "publisher-compromised",
+			"category": "manual-system",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "publisher", "cidRule": "forbidden", "issuanceModes": ["admin"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Publisher compromised",
+					"description": "The publisher identity is believed to be compromised."
+				}
+			]
+		},
+		{
+			"value": "package-disputed",
+			"category": "manual-system",
+			"officialEffect": "warn",
+			"subjectRules": [
+				{ "subject": "package", "cidRule": "optional", "issuanceModes": ["reviewer"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Package disputed",
+					"description": "The package has an unresolved ownership or policy dispute."
+				}
+			]
+		}
+	],
+	"overrideRule": {
+		"subject": "release",
+		"cidRule": "required",
+		"reviewerLabels": ["assessment-passed", "assessment-overridden"],
+		"requireSameSource": true,
+		"requireAtomicIssuance": true
+	},
+	"precedence": [
+		"manual-block",
+		"label-state-collision",
+		"assessment-error",
+		"assessment-pending",
+		"automated-block",
+		"missing-assessment-pass",
+		"eligible"
+	],
+	"publicApi": {
+		"baseUrl": "https://labels.emdashcms.com/xrpc/",
+		"policyUrl": "https://labels.emdashcms.com/.well-known/emdash-labeler-policy.json",
+		"getAssessmentNsid": "com.emdashcms.experimental.labeller.getAssessment",
+		"getCurrentAssessmentNsid": "com.emdashcms.experimental.labeller.getCurrentAssessment",
+		"listAssessmentsNsid": "com.emdashcms.experimental.labeller.listAssessments",
+		"getPolicyNsid": "com.emdashcms.experimental.labeller.getPolicy"
+	},
+	"contact": {
+		"reconsiderationUrl": "https://emdashcms.com/plugin-moderation/reconsideration",
+		"reconsiderationEmail": "plugin-moderation@emdashcms.com"
+	},
+	"transparency": { "modelOutputIsAdvisoryEvidence": true }
+}
