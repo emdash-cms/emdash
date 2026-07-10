@@ -1,6 +1,6 @@
 # Gate 0 Contract Ratification Proposal
 
-Status: revised proposal for `W0.1` and `W0.2`. This is not a production Lexicon or protocol implementation. `W1.2` and `W1.5` remain blocked until the ratification points below are approved.
+Status: ratified contracts for `W0.1` and `W0.2` as of 2026-07-10. This is not a production Lexicon or protocol implementation.
 
 Companions: [implementation spec](../spec.md), [implementation plan](../implementation-plan.md), [moderation policy fixture](./fixtures/moderation-policy.json), and [moderation cases](./fixtures/moderation-cases.json).
 
@@ -328,7 +328,7 @@ interface ReleaseModeration {
 - `suppressedLabels`: same-source automated state/block values hidden by a valid override but retained for display.
 - Label references in fixtures are ordered by source alias, subject, then value. Reasons follow aggregate precedence and are deduplicated.
 
-## Decisions Requiring Matt's Ratification
+## Ratified Decisions
 
 1. Approve the five proposed NSIDs and no v1 decision-notice record.
 2. Approve `asmt_<ULID>` public assessment IDs.
@@ -350,4 +350,4 @@ interface ReleaseModeration {
 18. Approve manual release/package/publisher blocks taking precedence over overrides.
 19. Approve `stateLabels` as the result field for pending/error labels, separate from `blockingLabels`.
 
-No existing spec, plan, or production Lexicon was changed. `W1.2` and `W1.5` must not proceed from this proposal until the policy document and fixtures are ratified together.
+No existing spec, plan, or production Lexicon was changed. The policy document and fixtures were ratified together on 2026-07-10; `W1.2` and `W1.5` may treat them as frozen once this PR merges into the integration branch.
