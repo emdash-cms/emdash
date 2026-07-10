@@ -33,7 +33,7 @@ The committed fixture is reproducible from test-only private scalar `0x01`:
 - Actual workerd `@atcute/crypto` produced `atcuteWebcryptoHex`; the retained Node test calls `@atproto/crypto.verifySignature` over it.
 - Both implementations derived the same compressed public key and P-256 `did:key` multikey.
 
-The vector is test material, not a usable deployment key. Its canonical CBOR bytes, SHA-256 hash, two signatures, raw compressed public key, public multikey, and reproducible test private scalar are in `fixtures/crypto/p256-label-v1.json` for W1.4.
+The vector is test material, not a usable deployment key. Its canonical CBOR bytes, SHA-256 hash, two signatures, raw compressed public key, public multikey, and reproducible test private scalar are retained at `packages/atproto-test-utils/tests/fixtures/p256-label-v1.json` for W1.4. This Gate 0 plan document is explanatory only; retained tests and production code must not import or otherwise depend on files under `.opencode/plans`.
 
 ## Commands and results
 

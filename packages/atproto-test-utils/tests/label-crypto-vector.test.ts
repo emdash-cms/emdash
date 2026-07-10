@@ -5,7 +5,7 @@ import { fromBase64Url } from "@atcute/multibase";
 import { P256Keypair, verifySignature } from "@atproto/crypto";
 import { describe, expect, it } from "vitest";
 
-import vector from "../../../.opencode/plans/plugin-registry-labelling-service/gate-0/fixtures/crypto/p256-label-v1.json" with { type: "json" };
+import vector from "./fixtures/p256-label-v1.json" with { type: "json" };
 
 function fromHex(value: string): Uint8Array {
 	return Uint8Array.from(value.match(/.{2}/g) ?? [], (byte) => Number.parseInt(byte, 16));

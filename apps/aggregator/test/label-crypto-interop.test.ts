@@ -4,7 +4,7 @@ import { isCid, isDatetime, isDid, isGenericUri } from "@atcute/lexicons/syntax"
 import { fromBase64Url, toBase64Url } from "@atcute/multibase";
 import { describe, expect, it } from "vitest";
 
-import vector from "../../../.opencode/plans/plugin-registry-labelling-service/gate-0/fixtures/crypto/p256-label-v1.json" with { type: "json" };
+import vector from "../../../packages/atproto-test-utils/tests/fixtures/p256-label-v1.json" with { type: "json" };
 
 const ALLOWED_UNSIGNED_V1_FIELDS = new Set([
 	"ver",
