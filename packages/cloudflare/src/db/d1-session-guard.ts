@@ -87,8 +87,9 @@ export interface D1SessionGuard {
 }
 
 /**
- * Create a guard. One instance per isolate (module singleton in d1.ts);
- * tests create their own with a short timeout.
+ * Create a guard. One instance per isolate (stored on globalThis behind
+ * a Symbol.for key in d1.ts, since Vite may duplicate this module across
+ * SSR chunks); tests create their own with a short timeout.
  */
 export function createD1SessionGuard(timeoutMs: number = SESSION_HANG_TIMEOUT_MS): D1SessionGuard {
 	let health: SessionHealth = "unknown";
