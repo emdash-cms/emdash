@@ -2250,10 +2250,15 @@ export class EmDashRuntime {
 							label: v.charAt(0).toUpperCase() + v.slice(1),
 						}));
 					}
-					// Include full validation for repeater fields (subFields, minItems, maxItems)
-					// and for file/image fields (allowedMimeTypes).
+					// Include full validation for repeater fields (subFields, minItems, maxItems),
+					// file/image fields (allowedMimeTypes), and reference fields (relation,
+					// targetCollection, multiple) so the admin's reference picker widget
+					// knows which collection(s) to relate to.
 					if (
-						(field.type === "repeater" || field.type === "file" || field.type === "image") &&
+						(field.type === "repeater" ||
+							field.type === "file" ||
+							field.type === "image" ||
+							field.type === "reference") &&
 						field.validation
 					) {
 						entry.validation = { ...field.validation };
