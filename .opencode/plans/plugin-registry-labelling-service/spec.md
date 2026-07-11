@@ -145,11 +145,8 @@ Its DID document must include:
 
 - `#atproto_label`, the public key used to verify labels.
 - `#atproto_labeler`, an `AtprotoLabeler` service pointing to `https://labels.emdashcms.com`.
-- An ATProto repository/PDS service if the service publishes a standard labeler declaration record.
 
-The service may publish an `app.bsky.labeler.service/self` declaration for compatibility with existing ATProto tooling and localized label definitions. Its `subjectTypes`, `subjectCollections`, and `reasonTypes` fields describe report scope in the Bluesky application model; they do not constrain which labels this service may issue. Subject restrictions are enforced by the issuer and documented in the EmDash policy document.
-
-Because v1 does not accept standard moderation reports, the declaration must not advertise report handling. Phase 0 must verify whether a minimal declaration can omit all report-scope fields without misleading existing clients. If not, v1 publishes no `app.bsky` declaration and uses the base label service plus the EmDash policy document. A call to `com.atproto.moderation.createReport` returns `NotSupported`; it is never silently accepted into an unmonitored queue.
+V1 does not publish an `app.bsky.labeler.service/self` declaration. That record is application-specific and its subject and reason fields describe accepted moderation reports, which this service does not support. Labeler discovery uses the base ATProto DID service, while label definitions, localized descriptions, subject restrictions, and contact details are published in the EmDash policy document. A call to `com.atproto.moderation.createReport` returns `NotSupported`; it is never silently accepted into an unmonitored queue.
 
 The versioned, machine-readable policy document is available at:
 
@@ -1371,9 +1368,8 @@ The v1 labelling service is complete when:
 These are implementation-specific decisions that should be settled before Phase 0 closes, not product questions requiring another broad design round.
 
 1. Exact stable/experimental NSIDs for labeller public APIs and any decision-notice record.
-2. Whether the labeler publishes `app.bsky.labeler.service/self` from a small hosted repository or exposes only the base label service plus EmDash policy document.
-3. Initial Workers AI model ID and the measured calibration threshold used to assign model severity/confidence.
-4. Initial dependency scanner/advisory sources and the exact critical applicability rule.
-5. Production Secrets Store key format and operational key-generation ceremony.
-6. Email delivery provider and monitored reconsideration address.
-7. Final retention values after legal/privacy review.
+2. Initial Workers AI model ID and the measured calibration threshold used to assign model severity/confidence.
+3. Initial dependency scanner/advisory sources and the exact critical applicability rule.
+4. Production Secrets Store key format and operational key-generation ceremony.
+5. Email delivery provider and monitored reconsideration address.
+6. Final retention values after legal/privacy review.

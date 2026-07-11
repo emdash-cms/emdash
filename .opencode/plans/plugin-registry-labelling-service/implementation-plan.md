@@ -299,12 +299,9 @@ Dependencies: signing-key format draft.
 
 ### `W0.5` Decide identity and declaration hosting
 
-Prove one of:
+Decision: v1 uses the base `#atproto_labeler` service plus the EmDash policy document without an `app.bsky.labeler.service/self` declaration. The declaration is application-specific and its report-scope metadata would misrepresent a service that rejects standard moderation reports. Clients obtain localized label definitions from the versioned policy document.
 
-- `did:web` document plus a small PDS-hosted `app.bsky.labeler.service/self` record that does not imply unsupported report handling.
-- Base `#atproto_labeler` service plus EmDash policy document without an `app.bsky` declaration.
-
-Verify how clients obtain localized label definitions in either path.
+The labeler deployment owns the static DID document and policy endpoint. W3.1 publishes the DID fixture with `#atproto_label` and `#atproto_labeler`; the ratified moderation-policy fixture is the policy source of truth.
 
 Output: DID document fixture, declaration/policy fixture, and deployment ownership.
 

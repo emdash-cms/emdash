@@ -1,6 +1,12 @@
 import type { LabelSigner, SignedLabel } from "@emdash-cms/registry-moderation";
 
 import type { LabelerConfig } from "./config.js";
+import {
+	getSigningStatusIfInitialized,
+	recordSigningAlert,
+	validateKeyVersion,
+	verifyLabelForSigningStatus,
+} from "./signing-rotation.js";
 import type { LabelPublisher } from "./subscribe-labels.js";
 
 const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*$/;
@@ -33,6 +39,7 @@ export interface IssuedLabel {
 	label: SignedLabel;
 	sequence: number;
 	signingKeyId: string;
+	signingKeyVersion: string;
 }
 
 interface StoredLabelRow {
@@ -51,6 +58,8 @@ interface StoredLabelRow {
 	exp: string | null;
 	sig: ArrayBuffer;
 	signing_key_id: string;
+	signing_key_version: string;
+	publication_pending: number;
 }
 
 export async function issueManualLabel(
@@ -64,17 +73,48 @@ export async function issueManualLabel(
 ): Promise<IssuedLabel> {
 	if (signer.issuerDid !== config.labelerDid)
 		throw new TypeError("signer issuer does not match the configured labeler DID");
+	validateKeyVersion(config.signingKeyVersion);
 	validateAction(action);
 	validateProposal(proposal);
 
 	const existing = await getIssuedLabel(db, action.idempotencyKey);
 	if (existing) {
+		const status = await getSigningStatusIfInitialized(db);
+		if (status && existing.signing_key_version !== status.activeKeyVersion) {
+			await recordSigningAlert(db, "IDEMPOTENT_RETRY_STALE_SIGNATURE", {
+				activeKeyVersion: status.activeKeyVersion,
+				targetKeyVersion: existing.signing_key_version,
+				rotationId: status.rotationId,
+			});
+			throw new Error("label signature must be refreshed before replay");
+		}
 		const result = assertMatches(existing, signer, action, proposal);
-		await publisher?.publish(result);
+		if (publisher) {
+			await claimPublication(db, existing, status);
+			await publisher.publish(result);
+			if (!publisher.managesPublicationState) await markPublicationAccepted(db, result);
+		}
 		return result;
 	}
+	const signingStatus = await getSigningStatusIfInitialized(db);
+	if (signingStatus?.phase === "paused") {
+		await recordSigningAlert(db, "ISSUANCE_PAUSED", {
+			activeKeyVersion: signingStatus.activeKeyVersion,
+			targetKeyVersion: config.signingKeyVersion,
+			rotationId: signingStatus.rotationId,
+		});
+		throw new Error("label issuance is paused");
+	}
+	if (signingStatus && signingStatus.activeKeyVersion !== config.signingKeyVersion) {
+		await recordSigningAlert(db, "STALE_SIGNING_KEY", {
+			activeKeyVersion: signingStatus.activeKeyVersion,
+			targetKeyVersion: config.signingKeyVersion,
+			rotationId: signingStatus.rotationId,
+		});
+		throw new Error("label signing key version is stale");
+	}
 
-	const label = await signer.sign({
+	const unsignedLabel = {
 		ver: 1,
 		uri: proposal.uri,
 		...(proposal.cid === undefined ? {} : { cid: proposal.cid }),
@@ -82,25 +122,68 @@ export async function issueManualLabel(
 		...(proposal.neg === true ? { neg: true } : {}),
 		cts: now.toISOString(),
 		...(proposal.exp === undefined ? {} : { exp: proposal.exp }),
-	});
+	} as const;
+	const returned = await signer.sign(unsignedLabel);
+	const label: SignedLabel = { ...unsignedLabel, src: signer.issuerDid, sig: returned.sig };
+	if (signingStatus) {
+		try {
+			await verifyLabelForSigningStatus(
+				signingStatus,
+				{ signer, keyVersion: config.signingKeyVersion },
+				label,
+			);
+		} catch {
+			await recordSigningAlert(db, "SIGNING_KEY_MISMATCH", {
+				activeKeyVersion: signingStatus.activeKeyVersion,
+				targetKeyVersion: config.signingKeyVersion,
+				rotationId: signingStatus.rotationId,
+				severity: "error",
+			});
+			throw new Error("label signer does not match the active public key");
+		}
+	}
 	const signingKeyId = `${signer.issuerDid}#atproto_label`;
+	const isPrebootstrap = signingStatus === null;
+	const storedKeyVersion = isPrebootstrap ? "legacy" : config.signingKeyVersion;
 
 	await db.batch([
 		db
 			.prepare(
 				`INSERT INTO issuance_actions (actor, type, reason, idempotency_key, created_at)
-				 VALUES (?, ?, ?, ?, ?)
+				 SELECT ?, ?, ?, ?, ?
+				 WHERE (? = 1 AND NOT EXISTS (SELECT 1 FROM signing_state))
+				 OR (? = 0 AND EXISTS (
+					SELECT 1 FROM signing_state
+					WHERE id = 1 AND phase = 'active' AND active_key_version = ?
+				 ))
 				 ON CONFLICT(idempotency_key) DO NOTHING`,
 			)
-			.bind(action.actor, action.type, action.reason, action.idempotencyKey, now.toISOString()),
+			.bind(
+				action.actor,
+				action.type,
+				action.reason,
+				action.idempotencyKey,
+				now.toISOString(),
+				isPrebootstrap ? 1 : 0,
+				isPrebootstrap ? 1 : 0,
+				config.signingKeyVersion,
+			),
 		db
 			.prepare(
 				`INSERT INTO issued_labels
-				 (action_id, ver, src, uri, cid, val, neg, cts, exp, sig, signing_key_id)
-				 SELECT id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-				 FROM issuance_actions
-				 WHERE idempotency_key = ?
-				 AND NOT EXISTS (SELECT 1 FROM issued_labels WHERE action_id = issuance_actions.id)`,
+				 (action_id, ver, src, uri, cid, val, neg, cts, exp, sig, signing_key_id,
+				  signing_key_version, publication_pending)
+				 SELECT a.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+				 FROM issuance_actions a
+				 WHERE a.idempotency_key = ?
+				 AND (
+					(? = 1 AND NOT EXISTS (SELECT 1 FROM signing_state))
+					OR (? = 0 AND EXISTS (
+						SELECT 1 FROM signing_state
+						WHERE id = 1 AND phase = 'active' AND active_key_version = ?
+					))
+				 )
+				 AND NOT EXISTS (SELECT 1 FROM issued_labels WHERE action_id = a.id)`,
 			)
 			.bind(
 				label.ver,
@@ -113,17 +196,89 @@ export async function issueManualLabel(
 				label.exp ?? null,
 				label.sig,
 				signingKeyId,
+				storedKeyVersion,
+				publisher ? 1 : 0,
 				action.idempotencyKey,
+				isPrebootstrap ? 1 : 0,
+				isPrebootstrap ? 1 : 0,
+				config.signingKeyVersion,
 			),
 	]);
 
 	const issued = await getIssuedLabel(db, action.idempotencyKey);
-	if (!issued) throw new Error("label issuance did not persist");
+	if (!issued) {
+		const status = await getSigningStatusIfInitialized(db);
+		if (!status) throw new Error("label issuance did not persist");
+		if (!signingStatus) {
+			await recordSigningAlert(db, "SIGNING_STATE_CHANGED", {
+				activeKeyVersion: status.activeKeyVersion,
+				targetKeyVersion: config.signingKeyVersion,
+				rotationId: status.rotationId,
+			});
+			throw new Error("signing state changed; retry label issuance");
+		}
+		if (status.phase === "paused") {
+			await recordSigningAlert(db, "ISSUANCE_PAUSED", {
+				activeKeyVersion: status.activeKeyVersion,
+				targetKeyVersion: config.signingKeyVersion,
+				rotationId: status.rotationId,
+			});
+			throw new Error("label issuance is paused");
+		}
+		await recordSigningAlert(db, "STALE_SIGNING_KEY", {
+			activeKeyVersion: status.activeKeyVersion,
+			targetKeyVersion: config.signingKeyVersion,
+			rotationId: status.rotationId,
+		});
+		throw new Error("label signing key version is stale");
+	}
 	const result = assertMatches(issued, signer, action, proposal);
 	// The D1 batch commits before this notification; replay covers subscribers
 	// which connect before the singleton processes the post-commit broadcast.
-	await publisher?.publish(result);
+	if (publisher) {
+		await publisher.publish(result);
+		if (!publisher.managesPublicationState) await markPublicationAccepted(db, result);
+	}
 	return result;
+}
+
+async function markPublicationAccepted(db: D1Database, issued: IssuedLabel): Promise<void> {
+	await db
+		.prepare(
+			`UPDATE issued_labels SET publication_pending = 0
+			 WHERE sequence = ? AND signing_key_version = ? AND publication_pending = 1`,
+		)
+		.bind(issued.sequence, issued.signingKeyVersion)
+		.run();
+}
+
+async function claimPublication(
+	db: D1Database,
+	stored: StoredLabelRow,
+	status: Awaited<ReturnType<typeof getSigningStatusIfInitialized>>,
+): Promise<void> {
+	if (stored.publication_pending === 1) return;
+	const result = await db
+		.prepare(
+			`UPDATE issued_labels SET publication_pending = 1
+			 WHERE sequence = ? AND signing_key_version = ? AND publication_pending = 0
+			 AND (
+				NOT EXISTS (SELECT 1 FROM signing_state)
+				OR EXISTS (
+					SELECT 1 FROM signing_state WHERE id = 1 AND phase = 'active'
+					AND active_key_version = ?
+				)
+			 )`,
+		)
+		.bind(stored.sequence, stored.signing_key_version, stored.signing_key_version)
+		.run();
+	if (result.meta.changes === 1) return;
+	await recordSigningAlert(db, "PUBLICATION_BARRIER_CLOSED", {
+		activeKeyVersion: status?.activeKeyVersion,
+		targetKeyVersion: stored.signing_key_version,
+		rotationId: status?.rotationId,
+	});
+	throw new Error("label publication is paused for signing-key rotation");
 }
 
 async function getIssuedLabel(
@@ -133,7 +288,8 @@ async function getIssuedLabel(
 	return db
 		.prepare(
 			`SELECT a.actor, a.type, a.reason, a.idempotency_key, l.sequence, l.ver, l.src, l.uri,
-			 l.cid, l.val, l.neg, l.cts, l.exp, l.sig, l.signing_key_id
+			 l.cid, l.val, l.neg, l.cts, l.exp, l.sig, l.signing_key_id,
+			 l.signing_key_version, l.publication_pending
 			 FROM issuance_actions a
 			 JOIN issued_labels l ON l.action_id = a.id
 			 WHERE a.idempotency_key = ?`,
@@ -153,7 +309,6 @@ function assertMatches(
 		stored.type !== action.type ||
 		stored.reason !== action.reason ||
 		stored.src !== signer.issuerDid ||
-		stored.signing_key_id !== `${signer.issuerDid}#atproto_label` ||
 		stored.uri !== proposal.uri ||
 		stored.cid !== (proposal.cid ?? null) ||
 		stored.val !== proposal.val ||
@@ -177,6 +332,7 @@ function assertMatches(
 		},
 		sequence: stored.sequence,
 		signingKeyId: stored.signing_key_id,
+		signingKeyVersion: stored.signing_key_version,
 	};
 }
 

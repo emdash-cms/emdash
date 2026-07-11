@@ -16,6 +16,7 @@
 	},
 	"dependencies": {
 		"@atcute/cbor": "catalog:",
+		"@atcute/crypto": "catalog:",
 		"@emdash-cms/registry-moderation": "workspace:*"
 	},
 	"devDependencies": {

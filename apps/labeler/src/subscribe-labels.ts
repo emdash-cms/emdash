@@ -39,12 +39,14 @@ interface QueueItem {
 }
 
 export interface LabelPublisher {
+	managesPublicationState?: boolean;
 	publish(issued: IssuedLabel): Promise<void>;
 }
 
 export function createLabelPublisher(env: Env): LabelPublisher {
 	const subscription = env.LABEL_SUBSCRIPTION.getByName(LABEL_SUBSCRIPTION_DO_NAME);
 	return {
+		managesPublicationState: true,
 		async publish(issued) {
 			const response = await subscription.fetch("https://labeler.internal/notify", {
 				method: "POST",
@@ -82,7 +84,13 @@ export class LabelSubscriptionDO extends DurableObject {
 			const sequence = notificationSequence(await request.json<unknown>());
 			if (sequence === null) return new Response(null, { status: 400 });
 			if (!(await this.labelAt(sequence))) return new Response(null, { status: 404 });
-			this.broadcastThrough(sequence);
+			await this.broadcastThrough(sequence);
+			await this.env.DB.prepare(
+				"UPDATE issued_labels SET publication_pending = 0 WHERE sequence = ?",
+			)
+				.bind(sequence)
+				.run();
+			if (this.pendingSockets().length > 0) this.scheduleDelivery();
 			return new Response(null, { status: 204 });
 		}
 
@@ -116,14 +124,42 @@ export class LabelSubscriptionDO extends DurableObject {
 		return row?.sequence ?? 0;
 	}
 
-	private broadcastThrough(sequence: number): void {
+	private async broadcastThrough(sequence: number): Promise<void> {
 		for (const socket of this.ctx.getWebSockets()) {
 			const state = this.state(socket);
 			if (sequence <= state.targetSequence) continue;
 			state.targetSequence = sequence;
 			this.setState(socket, state);
 		}
-		this.scheduleDelivery();
+		await this.deliverThrough(sequence);
+	}
+
+	private async deliverThrough(through: number): Promise<void> {
+		for (;;) {
+			const sockets = this.ctx.getWebSockets().filter((socket) => {
+				if (socket.readyState !== WebSocket.OPEN) return false;
+				const state = this.state(socket);
+				return state.lastSent < Math.min(state.targetSequence, through);
+			});
+			if (sockets.length === 0) return;
+			for (const socket of sockets) {
+				const state = this.state(socket);
+				const target = Math.min(state.targetSequence, through);
+				const labels = await this.labelsAfter(state.lastSent, target);
+				if (labels.length === 0) {
+					socket.close(1011, "failed to deliver label events");
+					continue;
+				}
+				for (const event of labels) {
+					if (!this.send(socket, event)) break;
+				}
+				const updated = this.state(socket);
+				if (updated.lastSent >= updated.targetSequence && updated.replaying) {
+					updated.replaying = false;
+					this.setState(socket, updated);
+				}
+			}
+		}
 	}
 
 	private scheduleDelivery(): void {

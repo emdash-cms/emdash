@@ -3,11 +3,21 @@ import {
 	createLabelSigner,
 	verifyLabel,
 	type LabelDidDocument,
+	type LabelSigner,
 } from "@emdash-cms/registry-moderation";
 import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { queryLabels } from "../src/query-labels.js";
 import { issueManualLabel, type AllowedLabelProposal } from "../src/service.js";
+import {
+	activateRoutineKeyRotation,
+	abortRoutineKeyRotation,
+	beginRoutineKeyRotation,
+	getSigningStatus,
+	initializeSigningState,
+	listSigningAlerts,
+} from "../src/signing-rotation.js";
 import { createLabelPublisher, type LabelPublisher } from "../src/subscribe-labels.js";
 
 interface TestEnv {
@@ -20,8 +30,11 @@ const LABELER_DID = "did:example:labeler";
 const PUBLISHER_DID = "did:plc:publisher000000000000000000";
 const PRIVATE_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE";
 const MULTIKEY = "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
+const ROTATED_PRIVATE_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAI";
+const ROTATED_MULTIKEY = "zDnaer52RTwabaBeMkKYYwZmEFqPabLW78cRK62iovMUQhFif";
 const CID = "bafkreif4oaymum54i5qefbwoblrt5zasfjhpyhyvacpseqtehi3queew5m";
-const config = { labelerDid: LABELER_DID };
+const LEGACY_URI = releaseUri("pre-rotation-bootstrap");
+const config = { labelerDid: LABELER_DID, signingKeyVersion: "v1" };
 let actionNumber = 0;
 
 beforeAll(async () => {
@@ -81,6 +94,33 @@ async function foreignSigner() {
 	});
 }
 
+async function rotatedSigner() {
+	return createLabelSigner({
+		issuerDid: LABELER_DID,
+		privateKey: ROTATED_PRIVATE_KEY,
+		resolveDid: async () => ({
+			...document(),
+			verificationMethod: [
+				{
+					id: "#atproto_label",
+					type: "Multikey",
+					controller: LABELER_DID,
+					publicKeyMultibase: ROTATED_MULTIKEY,
+				},
+			],
+		}),
+	});
+}
+
+function substitutingSigner(base: LabelSigner, uri: string): LabelSigner {
+	return {
+		issuerDid: base.issuerDid,
+		sign(label) {
+			return base.sign({ ...label, uri });
+		},
+	};
+}
+
 async function issue(uri: string, val?: AllowedLabelProposal["val"], neg = false, publish = false) {
 	return issueManualLabel(
 		testEnv.DB,
@@ -109,6 +149,10 @@ async function subscribe(cursor?: number): Promise<WebSocket> {
 
 async function nextLabel(ws: WebSocket): Promise<{ seq: number; label: Record<string, unknown> }> {
 	const message = await nextMessage(ws);
+	return decodeLabelMessage(message);
+}
+
+function decodeLabelMessage(message: ArrayBuffer): { seq: number; label: Record<string, unknown> } {
 	const [header, payload] = decodeFirst(new Uint8Array(message)) as [
 		{ op: number; t: string },
 		Uint8Array,
@@ -118,6 +162,22 @@ async function nextLabel(ws: WebSocket): Promise<{ seq: number; label: Record<st
 	const label = event.labels[0];
 	if (!label) throw new Error("labels event did not contain a label");
 	return { seq: event.seq, label };
+}
+
+async function nextLabels(
+	ws: WebSocket,
+	count: number,
+): Promise<Array<{ seq: number; label: Record<string, unknown> }>> {
+	return new Promise((resolve) => {
+		const labels: Array<{ seq: number; label: Record<string, unknown> }> = [];
+		const listener = (event: MessageEvent) => {
+			labels.push(decodeLabelMessage(event.data as ArrayBuffer));
+			if (labels.length !== count) return;
+			ws.removeEventListener("message", listener);
+			resolve(labels);
+		};
+		ws.addEventListener("message", listener);
+	});
 }
 
 async function nextMessage(ws: WebSocket): Promise<ArrayBuffer> {
@@ -132,6 +192,30 @@ async function nextMessageWithin(ws: WebSocket, milliseconds: number): Promise<A
 		new Promise<null>((resolve) => setTimeout(resolve, milliseconds, null)),
 	]);
 }
+
+describe("signing-state bootstrap", () => {
+	it("preserves legacy issuance and queries until rotation state is initialized", async () => {
+		const issued = await issueManualLabel(
+			testEnv.DB,
+			config,
+			await signer(),
+			action("pre-bootstrap issuance"),
+			proposal(LEGACY_URI),
+		);
+		expect(issued.signingKeyVersion).toBe("legacy");
+		const response = await SELF.fetch(
+			`https://test/xrpc/com.atproto.label.queryLabels?uriPatterns=${encodeURIComponent(LEGACY_URI)}`,
+		);
+		expect(response.status).toBe(200);
+		expect(((await response.json()) as { labels: unknown[] }).labels).toHaveLength(1);
+
+		await initializeSigningState(testEnv.DB, {
+			issuerDid: LABELER_DID,
+			keyVersion: config.signingKeyVersion,
+			publicKeyMultibase: MULTIKEY,
+		});
+	});
+});
 
 describe("manual label issuance", () => {
 	it("issues a signed label that the public query returns without a secret", async () => {
@@ -286,6 +370,18 @@ describe("manual label issuance", () => {
 		).rejects.toThrow("configured labeler DID");
 	});
 
+	it("rejects a valid-key signer that substitutes the authorized payload", async () => {
+		await expect(
+			issueManualLabel(
+				testEnv.DB,
+				config,
+				substitutingSigner(await signer(), releaseUri("substituted")),
+				action("payload substitution"),
+				proposal(releaseUri("authorized")),
+			),
+		).rejects.toThrow("does not match the active public key");
+	});
+
 	it("allows only signature metadata rotation after sequence allocation", async () => {
 		const issued = await issue(releaseUri("key-rotation"));
 		await expect(
@@ -358,6 +454,36 @@ describe("manual label issuance", () => {
 	});
 });
 
+describe("moderation reports", () => {
+	it("rejects createReport as unsupported without persisting the report", async () => {
+		const before = await testEnv.DB.batch([
+			testEnv.DB.prepare("SELECT COUNT(*) AS count FROM issuance_actions"),
+			testEnv.DB.prepare("SELECT COUNT(*) AS count FROM issued_labels"),
+			testEnv.DB.prepare("SELECT COUNT(*) AS count FROM signing_events"),
+		]);
+		const response = await SELF.fetch("https://test/xrpc/com.atproto.moderation.createReport", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				reasonType: "com.atproto.moderation.defs#reasonOther",
+				subject: { did: PUBLISHER_DID },
+			}),
+		});
+
+		expect(response.status).toBe(501);
+		expect(await response.json()).toEqual({
+			error: "NotSupported",
+			message: "This labeler does not accept moderation reports",
+		});
+		const after = await testEnv.DB.batch([
+			testEnv.DB.prepare("SELECT COUNT(*) AS count FROM issuance_actions"),
+			testEnv.DB.prepare("SELECT COUNT(*) AS count FROM issued_labels"),
+			testEnv.DB.prepare("SELECT COUNT(*) AS count FROM signing_events"),
+		]);
+		expect(after.map((result) => result.results)).toEqual(before.map((result) => result.results));
+	});
+});
+
 describe("label subscriptions", () => {
 	it("replays retained history from cursor zero with ATProto event framing", async () => {
 		const issued = await issue(releaseUri("subscription-replay"));
@@ -412,11 +538,10 @@ describe("label subscriptions", () => {
 	it("delivers committed labels in sequence order when publication is delayed", async () => {
 		const ws = await subscribe();
 		const first = await issue(releaseUri("subscription-order-first"));
-		const next = nextLabel(ws);
+		const events = nextLabels(ws, 2);
 		const published = issue(releaseUri("subscription-order-second"), undefined, false, true);
-		expect((await next).seq).toBe(first.sequence);
 		const second = await published;
-		expect((await nextLabel(ws)).seq).toBe(second.sequence);
+		expect((await events).map((event) => event.seq)).toEqual([first.sequence, second.sequence]);
 
 		const duplicate = nextMessageWithin(ws, 100);
 		await createLabelPublisher(testEnv as unknown as Env).publish(first);
@@ -473,6 +598,329 @@ describe("label subscriptions", () => {
 		expect(header).toEqual({ op: -1 });
 		expect(decodeFirst(payload)[0]).toMatchObject({ error: "FutureCursor" });
 		ws.close();
+	});
+});
+
+describe("routine signing-key rotation", () => {
+	it("pauses before sequence allocation, activates by CAS, and lazily re-signs history", async () => {
+		const historicalAction = action("rotation history");
+		const historicalProposal = proposal(releaseUri("rotation-history"));
+		const historical = await issueManualLabel(
+			testEnv.DB,
+			config,
+			await signer(),
+			historicalAction,
+			historicalProposal,
+		);
+		const publishStarted = Promise.withResolvers<void>();
+		const releasePublication = Promise.withResolvers<void>();
+		const delayedIssue = issueManualLabel(
+			testEnv.DB,
+			config,
+			await signer(),
+			action("delayed pre-rotation publication"),
+			proposal(releaseUri("rotation-delayed-publication")),
+			undefined,
+			{
+				async publish() {
+					publishStarted.resolve();
+					await releasePublication.promise;
+				},
+			},
+		);
+		await publishStarted.promise;
+		const sequenceBeforePause = await testEnv.DB.prepare(
+			"SELECT next_sequence FROM label_sequence WHERE name = 'issued_labels'",
+		).first<{ next_sequence: number }>();
+		const actionCountBeforePause = await testEnv.DB.prepare(
+			"SELECT COUNT(*) AS count FROM issuance_actions",
+		).first<{ count: number }>();
+
+		await expect(
+			beginRoutineKeyRotation(testEnv.DB, {
+				rotationId: "invalid-rotation",
+				expectedActiveKeyVersion: "v1",
+				nextKeyVersion: "invalid-key",
+				nextPublicKeyMultibase: "zDna1",
+			}),
+		).rejects.toThrow("canonical P-256 Multikey");
+		expect(await getSigningStatus(testEnv.DB)).toMatchObject({ phase: "active" });
+
+		await beginRoutineKeyRotation(testEnv.DB, {
+			rotationId: "rotation-v2",
+			expectedActiveKeyVersion: "v1",
+			nextKeyVersion: "v2",
+			nextPublicKeyMultibase: ROTATED_MULTIKEY,
+		});
+		await expect(
+			issueManualLabel(testEnv.DB, config, await signer(), historicalAction, historicalProposal),
+		).resolves.toEqual(historical);
+		await expect(issue(releaseUri("rotation-paused"))).rejects.toThrow("issuance is paused");
+		expect(
+			await testEnv.DB.prepare(
+				"SELECT next_sequence FROM label_sequence WHERE name = 'issued_labels'",
+			).first<{ next_sequence: number }>(),
+		).toEqual(sequenceBeforePause);
+		expect(
+			await testEnv.DB.prepare("SELECT COUNT(*) AS count FROM issuance_actions").first<{
+				count: number;
+			}>(),
+		).toEqual(actionCountBeforePause);
+
+		const nextSigner = await rotatedSigner();
+		await expect(
+			activateRoutineKeyRotation(testEnv.DB, {
+				rotationId: "rotation-v2",
+				keyVersion: "v2",
+				publicKeyMultibase: ROTATED_MULTIKEY,
+				signer: await signer(),
+			}),
+		).rejects.toThrow("does not match the pending public key");
+		await expect(
+			activateRoutineKeyRotation(testEnv.DB, {
+				rotationId: "rotation-v2",
+				keyVersion: "v2",
+				publicKeyMultibase: ROTATED_MULTIKEY,
+				signer: nextSigner,
+			}),
+		).rejects.toThrow("lost its compare-and-swap");
+		expect(await getSigningStatus(testEnv.DB)).toMatchObject({
+			phase: "paused",
+			activeKeyVersion: "v1",
+		});
+		releasePublication.resolve();
+		await delayedIssue;
+		await activateRoutineKeyRotation(testEnv.DB, {
+			rotationId: "rotation-v2",
+			keyVersion: "v2",
+			publicKeyMultibase: ROTATED_MULTIKEY,
+			signer: nextSigner,
+		});
+		await expect(
+			issueManualLabel(
+				testEnv.DB,
+				{ ...config, signingKeyVersion: "v2" },
+				nextSigner,
+				historicalAction,
+				historicalProposal,
+			),
+		).rejects.toThrow("must be refreshed before replay");
+		await expect(issue(releaseUri("rotation-stale-worker"))).rejects.toThrow(
+			"signing key version is stale",
+		);
+		await expect(
+			issueManualLabel(
+				testEnv.DB,
+				{ ...config, signingKeyVersion: "v2" },
+				await signer(),
+				action("wrong key declared current"),
+				proposal(releaseUri("rotation-wrong-key")),
+			),
+		).rejects.toThrow("does not match the active public key");
+		const current = await issueManualLabel(
+			testEnv.DB,
+			{ ...config, signingKeyVersion: "v2" },
+			nextSigner,
+			action("post-rotation issue"),
+			proposal(releaseUri("rotation-current")),
+		);
+		expect(current.signingKeyVersion).toBe("v2");
+		const sequenceBeforeResigning = await testEnv.DB.prepare(
+			"SELECT next_sequence FROM label_sequence WHERE name = 'issued_labels'",
+		).first<{ next_sequence: number }>();
+		const liveSubscriber = await subscribe();
+		const queryRequest = () =>
+			new Request(
+				`https://test/xrpc/com.atproto.label.queryLabels?uriPatterns=${encodeURIComponent(historical.label.uri)}`,
+			);
+		const signingRuntime = {
+			signer: nextSigner,
+			keyVersion: "v2",
+			publicKeyMultibase: ROTATED_MULTIKEY,
+		};
+		const substitutedResign = await queryLabels(testEnv.DB, queryRequest(), {
+			...signingRuntime,
+			signer: substitutingSigner(nextSigner, releaseUri("resign-substituted")),
+		});
+		expect(substitutedResign.status).toBe(503);
+		const invalidResign = await queryLabels(testEnv.DB, queryRequest(), {
+			...signingRuntime,
+			signer: await signer(),
+		});
+		expect(invalidResign.status).toBe(503);
+		const [response, concurrentResponse] = await Promise.all([
+			queryLabels(testEnv.DB, queryRequest(), signingRuntime),
+			queryLabels(testEnv.DB, queryRequest(), signingRuntime),
+		]);
+		expect(response.status).toBe(200);
+		expect(concurrentResponse.status).toBe(200);
+		const body = (await response.json()) as {
+			labels: Array<{
+				ver: 1;
+				src: string;
+				uri: string;
+				val: string;
+				cts: string;
+				sig: { $bytes: string };
+			}>;
+		};
+		const resigned = body.labels[0]!;
+		expect(resigned.cts).toBe(historical.label.cts);
+		await expect(
+			verifyLabel({
+				label: { ...resigned, sig: fromBase64(resigned.sig.$bytes) },
+				resolveDid: async () => ({
+					...document(),
+					verificationMethod: [
+						{
+							id: "#atproto_label",
+							type: "Multikey",
+							controller: LABELER_DID,
+							publicKeyMultibase: ROTATED_MULTIKEY,
+						},
+					],
+				}),
+			}),
+		).resolves.toMatchObject({ cts: historical.label.cts, uri: historical.label.uri });
+		expect(await nextMessageWithin(liveSubscriber, 100)).toBeNull();
+		liveSubscriber.close();
+		const persisted = await testEnv.DB.prepare(
+			"SELECT sequence, signing_key_version FROM issued_labels WHERE sequence = ?",
+		)
+			.bind(historical.sequence)
+			.first<{ sequence: number; signing_key_version: string }>();
+		expect(persisted).toEqual({ sequence: historical.sequence, signing_key_version: "v2" });
+		expect(
+			await testEnv.DB.prepare(
+				"SELECT next_sequence FROM label_sequence WHERE name = 'issued_labels'",
+			).first<{ next_sequence: number }>(),
+		).toEqual(sequenceBeforeResigning);
+		expect(
+			await testEnv.DB.prepare(
+				"SELECT COUNT(*) AS count FROM label_signature_history WHERE label_sequence = ?",
+			)
+				.bind(historical.sequence)
+				.first<{ count: number }>(),
+		).toEqual({ count: 1 });
+		let replayed: Awaited<ReturnType<typeof issueManualLabel>> | undefined;
+		const replayPublisher: LabelPublisher = {
+			async publish(label) {
+				replayed = label;
+			},
+		};
+		const replay = await issueManualLabel(
+			testEnv.DB,
+			{ ...config, signingKeyVersion: "v2" },
+			nextSigner,
+			historicalAction,
+			historicalProposal,
+			undefined,
+			replayPublisher,
+		);
+		expect(replay.signingKeyVersion).toBe("v2");
+		expect(replayed?.label.sig).toEqual(replay.label.sig);
+		await queryLabels(testEnv.DB, queryRequest(), signingRuntime);
+		expect(
+			await testEnv.DB.prepare(
+				"SELECT COUNT(*) AS count FROM label_signature_history WHERE label_sequence = ?",
+			)
+				.bind(historical.sequence)
+				.first<{ count: number }>(),
+		).toEqual({ count: 1 });
+
+		expect(await getSigningStatus(testEnv.DB)).toMatchObject({
+			phase: "active",
+			activeKeyVersion: "v2",
+			rotationId: "rotation-v2",
+		});
+		expect(await listSigningAlerts(testEnv.DB)).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ code: "ISSUANCE_PAUSED" }),
+				expect.objectContaining({ code: "STALE_SIGNING_KEY" }),
+				expect.objectContaining({ code: "ROTATION_SIGNER_MISMATCH" }),
+			]),
+		);
+
+		await expect(
+			beginRoutineKeyRotation(testEnv.DB, {
+				rotationId: "rotation-reuse-v1",
+				expectedActiveKeyVersion: "v2",
+				nextKeyVersion: "v1",
+				nextPublicKeyMultibase: MULTIKEY,
+			}),
+		).rejects.toThrow("could not acquire the active key");
+		expect(await getSigningStatus(testEnv.DB)).toMatchObject({
+			phase: "active",
+			activeKeyVersion: "v2",
+		});
+
+		await beginRoutineKeyRotation(testEnv.DB, {
+			rotationId: "rotation-abort-v3",
+			expectedActiveKeyVersion: "v2",
+			nextKeyVersion: "v3",
+			nextPublicKeyMultibase: ROTATED_MULTIKEY,
+		});
+		await abortRoutineKeyRotation(testEnv.DB, {
+			rotationId: "rotation-abort-v3",
+			expectedPendingKeyVersion: "v3",
+		});
+		expect(await getSigningStatus(testEnv.DB)).toMatchObject({
+			phase: "active",
+			activeKeyVersion: "v2",
+		});
+
+		const legacyRequest = () =>
+			new Request(
+				`https://test/xrpc/com.atproto.label.queryLabels?uriPatterns=${encodeURIComponent(LEGACY_URI)}`,
+			);
+		expect((await queryLabels(testEnv.DB, legacyRequest())).status).toBe(503);
+		expect((await queryLabels(testEnv.DB, legacyRequest())).status).toBe(503);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT COUNT(*) AS count FROM signing_events
+				 WHERE event_type = 'alert' AND code = 'RESIGN_CONFIGURATION_MISMATCH'`,
+			).first<{ count: number }>(),
+		).toEqual({ count: 1 });
+
+		for (let index = 0; index < 4; index++) {
+			const beforeRace = await getSigningStatus(testEnv.DB);
+			const keyVersion = `race-v${index}`;
+			const rotationId = `rotation-race-${index}`;
+			await beginRoutineKeyRotation(testEnv.DB, {
+				rotationId,
+				expectedActiveKeyVersion: beforeRace.activeKeyVersion,
+				nextKeyVersion: keyVersion,
+				nextPublicKeyMultibase: ROTATED_MULTIKEY,
+			});
+			const activation = () =>
+				activateRoutineKeyRotation(testEnv.DB, {
+					rotationId,
+					keyVersion,
+					publicKeyMultibase: ROTATED_MULTIKEY,
+					signer: nextSigner,
+				});
+			const abort = () =>
+				abortRoutineKeyRotation(testEnv.DB, {
+					rotationId,
+					expectedPendingKeyVersion: keyVersion,
+				});
+			const outcomes = await Promise.allSettled(
+				index % 2 === 0 ? [activation(), abort()] : [abort(), activation()],
+			);
+			expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+			const afterRace = await getSigningStatus(testEnv.DB);
+			const activeRegistryKey = await testEnv.DB.prepare(
+				"SELECT key_version FROM signing_key_versions WHERE status = 'active'",
+			).first<{ key_version: string }>();
+			expect(activeRegistryKey?.key_version).toBe(afterRace.activeKeyVersion);
+			const transitions = await testEnv.DB.prepare(
+				`SELECT COUNT(*) AS count FROM signing_events
+				 WHERE rotation_id = ? AND code IN ('ROTATION_ACTIVATED', 'ROTATION_ABORTED')`,
+			)
+				.bind(rotationId)
+				.first<{ count: number }>();
+			expect(transitions?.count).toBe(1);
+		}
 	});
 });
 

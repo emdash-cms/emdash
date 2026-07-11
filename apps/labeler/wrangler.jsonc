@@ -28,6 +28,7 @@
 	],
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",
+		"LABEL_SIGNING_KEY_VERSION": "v1",
 	},
 	"observability": { "enabled": true },
 }
