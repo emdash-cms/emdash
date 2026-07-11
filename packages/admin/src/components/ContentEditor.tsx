@@ -560,9 +560,7 @@ export function ContentEditor({
 	const hasPendingChanges = draftStatus === "published_with_changes";
 	const isLive = draftStatus === "published" || draftStatus === "published_with_changes";
 	const liveViewUrl =
-		isLive && item?.slug
-			? contentUrl(collection, item.slug, urlPattern, item.publishedAt)
-			: null;
+		isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern, item.publishedAt) : null;
 
 	// Scheduling — keyed off scheduledAt rather than status, since published
 	// posts can now have a pending schedule without changing status.
