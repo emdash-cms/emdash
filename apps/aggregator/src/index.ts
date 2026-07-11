@@ -20,6 +20,8 @@ import { isDid } from "@atcute/lexicons/syntax";
 import { drainBackfillDeadLetterBatch, processBackfillBatch } from "./backfill-consumer.js";
 import { discoverDids, enqueueBackfillJobs } from "./backfill.js";
 import type { BackfillJob, RecordsJob } from "./env.js";
+import type { LabelIngestJob } from "./label-ingest-types.js";
+import { drainLabelsDeadLetterBatch, processLabelsBatch } from "./labels-consumer.js";
 import { drainDeadLetterBatch, processBatch } from "./records-consumer.js";
 import { RECORDS_DO_NAME } from "./records-do.js";
 import { handleXrpc } from "./routes/xrpc/router.js";
@@ -29,7 +31,10 @@ const RECORDS_QUEUE_NAME = "emdash-aggregator-records";
 const RECORDS_DLQ_NAME = "emdash-aggregator-records-dlq";
 const BACKFILL_QUEUE_NAME = "emdash-aggregator-backfill";
 const BACKFILL_DLQ_NAME = "emdash-aggregator-backfill-dlq";
+const LABELS_QUEUE_NAME = "emdash-aggregator-labels";
+const LABELS_DLQ_NAME = "emdash-aggregator-labels-dlq";
 
+export { LabelIngestDO } from "./label-ingest-do.js";
 export { RecordsJetstreamDO } from "./records-do.js";
 
 /**
@@ -286,6 +291,14 @@ export default {
 				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by queue name
 				drainBackfillDeadLetterBatch(batch as MessageBatch<BackfillJob>, env);
 				return;
+			case LABELS_QUEUE_NAME:
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by queue name
+				await processLabelsBatch(batch as MessageBatch<LabelIngestJob>, env);
+				return;
+			case LABELS_DLQ_NAME:
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by queue name
+				await drainLabelsDeadLetterBatch(batch as MessageBatch<LabelIngestJob>, env);
+				return;
 			default:
 				console.error("[aggregator] unknown queue, acking batch", { queue: batch.queue });
 				for (const m of batch.messages) m.ack();
@@ -302,8 +315,37 @@ export default {
 		const id = env.RECORDS_DO.idFromName(RECORDS_DO_NAME);
 		const stub = env.RECORDS_DO.get(id);
 		ctx.waitUntil(stub.fetch("https://do.internal/liveness"));
+
+		// Same liveness pump for every configured labeler's ingest DO. One
+		// instance per DID (`getByName`); `trusted` gates enforcement
+		// elsewhere, so every configured labeler gets a subscription
+		// regardless of that flag.
+		ctx.waitUntil(wakeLabelIngestDOs(env));
 	},
 };
+
+async function wakeLabelIngestDOs(env: Env): Promise<void> {
+	try {
+		const rows = await env.DB.prepare(`SELECT did FROM labelers`).all<{ did: string }>();
+		for (const row of rows.results ?? []) {
+			const stub = env.LABEL_INGEST_DO.getByName(row.did);
+			// Fire-and-forget per labeler — one slow/unreachable DO shouldn't
+			// block waking the others.
+			void stub
+				.fetch(`https://do.internal/wake?did=${encodeURIComponent(row.did)}`)
+				.catch((err: unknown) => {
+					console.error("[aggregator] label ingest DO wake failed", {
+						did: row.did,
+						error: err instanceof Error ? err.message : String(err),
+					});
+				});
+		}
+	} catch (err) {
+		console.error("[aggregator] label ingest DO wake pump failed", {
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+}
 
 type BackfillRequestParsed = { mode: "explicit"; dids: string[] } | { mode: "discover" };
 

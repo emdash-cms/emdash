@@ -35,6 +35,13 @@
 				"binding": "BACKFILL_QUEUE",
 				"queue": "emdash-aggregator-backfill",
 			},
+			{
+				// Verified signed labels, one per labeler-stream frame
+				// element. Producer is LabelIngestDO; consumed by
+				// labels-consumer.ts into the labels/label_state tables.
+				"binding": "LABELS_QUEUE",
+				"queue": "emdash-aggregator-labels",
+			},
 		],
 		"consumers": [
 			{
@@ -86,6 +93,26 @@
 				"max_batch_timeout": 30,
 				"max_retries": 3,
 			},
+			{
+				// The digest primary key and cts-ordered projection upsert
+				// make same-batch message order irrelevant, so this mirrors
+				// the records queue's steady-state tuning.
+				"queue": "emdash-aggregator-labels",
+				"max_batch_size": 25,
+				"max_batch_timeout": 5,
+				"max_retries": 5,
+				"dead_letter_queue": "emdash-aggregator-labels-dlq",
+			},
+			{
+				// Drains the labels DLQ. Same posture as the records DLQ:
+				// log + write a `dead_letters` row, then ack. No DLQ-of-DLQ;
+				// workerd drops the message if the D1 write also fails after
+				// max_retries.
+				"queue": "emdash-aggregator-labels-dlq",
+				"max_batch_size": 25,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+			},
 		],
 	},
 	"durable_objects": {
@@ -94,12 +121,20 @@
 				"name": "RECORDS_DO",
 				"class_name": "RecordsJetstreamDO",
 			},
+			{
+				"name": "LABEL_INGEST_DO",
+				"class_name": "LabelIngestDO",
+			},
 		],
 	},
 	"migrations": [
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["RecordsJetstreamDO"],
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["LabelIngestDO"],
 		},
 	],
 	"triggers": {
