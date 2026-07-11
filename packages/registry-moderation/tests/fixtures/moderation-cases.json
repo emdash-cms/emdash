@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 2,
-	"policyFixture": "./moderation-policy.json",
+	"policyFixture": "../../../../apps/labeler/fixtures/moderation-policy.json",
 	"evaluatedAt": "2026-07-10T12:00:00Z",
 	"fixtureEncoding": {
 		"sourceAliases": "Each label src is a key in sources; expand it to that DID before evaluation.",

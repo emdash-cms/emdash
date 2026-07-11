@@ -33,7 +33,7 @@ interface LabelRow {
 export async function queryLabels(
 	db: D1Database,
 	request: Request,
-	signing?: VersionedLabelSigner,
+	signing?: VersionedLabelSigner | (() => Promise<VersionedLabelSigner>),
 ): Promise<Response> {
 	if (request.method !== "GET") {
 		return xrpcError("MethodNotSupported", "queryLabels only supports GET", 405, { allow: "GET" });
@@ -103,13 +103,19 @@ export async function queryLabels(
 async function resignStaleLabels(
 	db: D1Database,
 	labels: LabelRow[],
-	signing?: VersionedLabelSigner,
+	signingInput?: VersionedLabelSigner | (() => Promise<VersionedLabelSigner>),
 ): Promise<LabelRow[]> {
 	if (labels.length === 0) return labels;
 	const status = await getSigningStatusIfInitialized(db);
 	if (!status) return labels;
 	const stale = labels.filter((label) => label.signing_key_version !== status.activeKeyVersion);
 	if (stale.length === 0) return labels;
+	const signing =
+		status.phase !== "active"
+			? undefined
+			: typeof signingInput === "function"
+				? await signingInput()
+				: signingInput;
 	if (
 		status.phase !== "active" ||
 		!signing ||
