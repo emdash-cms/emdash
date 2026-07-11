@@ -309,6 +309,10 @@ test.describe("Inline Editor", () => {
 		await page.keyboard.press("End");
 		await page.keyboard.type(" Repro1582");
 
+		// waitForRequest, not waitForResponse: the keepalive PUT outlives the
+		// page, and Playwright never delivers response events for a page that
+		// has navigated away — waiting for the response times out even when
+		// the save succeeds.
 		const savePromise = page.waitForRequest(
 			(req) => req.url().includes("/api/content/posts/") && req.method() === "PUT",
 			{ timeout: 10000 },
@@ -320,7 +324,16 @@ test.describe("Inline Editor", () => {
 		// The pagehide flush must fire a keepalive PUT…
 		await savePromise;
 
-		// …and the edit must survive a fresh load of the post.
+		// …and the server must persist it. Poll the rendered page instead of
+		// reloading immediately: on slow runners the PUT may still be in
+		// flight when the request event fires.
+		await expect
+			.poll(async () => (await page.request.get(POST_WITH_IMAGE_PATH)).text(), {
+				timeout: 10000,
+			})
+			.toContain("Repro1582");
+
+		// The edit must survive a fresh load of the post.
 		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
 		const reloadedEditor = page.locator(".emdash-inline-editor");
 		await expect(reloadedEditor).toBeVisible({ timeout: 15000 });

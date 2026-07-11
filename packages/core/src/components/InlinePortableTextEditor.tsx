@@ -1915,7 +1915,7 @@ export function InlinePortableTextEditor({
 	// doesn't reliably fire React blur, and a plain fetch started during
 	// unload is cancelled by the navigation — edits were silently lost
 	// (#1582). `keepalive` lets the PUT outlive the page.
-	// ponytail: keepalive caps the body at 64KB — a very long document
+	// Caveat: keepalive caps the body at 64KB — a very long document
 	// can still be lost on unload. Upgrade path: debounced autosave
 	// while typing (like the admin editor) so unload flushes are rare.
 	React.useEffect(() => {
