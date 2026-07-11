@@ -539,7 +539,7 @@ The service can prove publisher and approver DIDs, hold only the exact writer gr
 
 Define `WorkloadIssuer`, `VerifiedWorkload`, policy matcher, and stable failure codes without GitHub-specific types leaking into intent orchestration.
 
-Dependencies: none.
+Dependencies: `W5.1`.
 
 Merge boundary: land with `W4.2` so the abstraction is proved by its first production adapter.
 
@@ -1052,8 +1052,8 @@ Completed work is recorded in the implementation baseline instead of remaining i
 | 1        | `W2.6` + `W2.7` record verification and direct-PDS reads     | Completed W1/W2 contracts                 |
 | 2        | `W1.6` + `W1.7` exact scope and create-only publishing       | `W0.3`                                    |
 | 3        | `W3.6` required-UV and typed challenge primitives            | None                                      |
-| 4        | `W4.1` + `W4.2` issuer contract and GitHub verifier          | None                                      |
-| 5        | `W5.1` service scaffold and `W5.8` API foundation            | None; sensitive routes remain unreachable |
+| 4        | `W5.1` service scaffold and `W5.8` API foundation            | None; sensitive routes remain unreachable |
+| 5        | `W4.1` + `W4.2` issuer contract and GitHub verifier          | `W5.1`                                    |
 | 6        | `W5.1a` dedicated verifier Worker                            | `W2.2`, `W5.1`                            |
 | 7        | `W3.1` encryption                                            | None                                      |
 | 8        | `W3.2` + `W3.3` confidential OAuth and `W5.2a` custody slice | Gate 0A, `W1.6`, `W3.1`, `W5.1`           |
@@ -1067,7 +1067,7 @@ Later work continues as vertical merge units: passkey storage with ceremonies, a
 
 Before Gate 0A:
 
-- `W2.6` + `W2.7`, `W3.1`, `W3.6`, `W4.1` + `W4.2`, `W5.1`, and then `W5.1a` may proceed independently.
+- `W2.6` + `W2.7`, `W3.1`, `W3.6`, and `W5.1` may proceed independently. `W4.1` + `W4.2` and `W5.1a` begin after `W5.1` establishes their app and binding boundaries.
 - `W0.3`, `W0.4`, and `W0.6` external research may proceed concurrently and commit only conclusions to this branch.
 - Durable OAuth custody and publication remain unreachable.
 
@@ -1125,7 +1125,7 @@ Start these independently, with at most three implementation branches active at 
 2. `W0.3` and `W0.4`: complete service-feasibility research and record Gate 0A conclusions directly on this branch.
 3. `W0.6`: select historical aggregator input and record Gate 0B constraints independently.
 4. `W3.6`: required-UV passkey primitives.
-5. `W4.1` + `W4.2`: issuer-neutral workload identity and GitHub verification.
-6. `W5.1` + `W5.8`, then `W5.1a`: unreachable service/API foundations and the isolated verifier Worker.
+5. `W5.1` + `W5.8`: unreachable service and API foundations.
+6. After `W5.1`, `W4.1` + `W4.2` and `W5.1a`: workload verification and the isolated verifier Worker.
 
 Do not implement durable OAuth custody or PDS publication until Gate 0A passes. Do not implement historical policy association or cooldown claims until Gate 0B passes. Shared verification, passkey primitives, workload verification, and unreachable service scaffolding do not wait for either gate.
