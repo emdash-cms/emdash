@@ -14,6 +14,7 @@ export {
 	MAX_BUNDLE_TAR_ENTRY_COUNT,
 } from "./bundle-limits.js";
 export { validatePluginBundle } from "./bundle.js";
+export { GitHubProvenanceVerifier } from "./provenance.js";
 export type { DecodedMultihash, MultihashAlgorithm } from "./checksum.js";
 export type {
 	FetchImplementation,
@@ -23,3 +24,9 @@ export type {
 } from "./fetch.js";
 export type { VerificationError, VerificationErrorCode, VerificationResult } from "./errors.js";
 export type { ValidatePluginBundleOptions, ValidatedPluginBundle } from "./bundle.js";
+export type {
+	ProvenanceVerificationInput,
+	ProvenanceVerifier,
+	ReleaseProvenance,
+	VerifiedProvenance,
+} from "./provenance.js";
