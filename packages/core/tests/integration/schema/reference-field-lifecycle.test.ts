@@ -114,6 +114,30 @@ describeEachDialect("reference field lifecycle", (dialect) => {
 		}
 	});
 
+	it("rejects creating a reference field whose target collection does not exist", async () => {
+		ctx = await setupForDialect(dialect);
+		try {
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
+
+			const res = await handleSchemaFieldCreate(ctx.db, "posts", {
+				slug: "related",
+				label: "Related",
+				type: "reference",
+				validation: { targetCollection: "ghosts", multiple: true },
+			});
+
+			expect(res.success).toBe(false);
+			if (!res.success) expect(res.error.code).toBe("COLLECTION_NOT_FOUND");
+
+			// The transaction rolls back, so neither the field nor its relation persists.
+			const field = await registry.getField("posts", "related");
+			expect(field).toBeNull();
+		} finally {
+			await teardownForDialect(ctx);
+		}
+	});
+
 	it("PATCHes the relation's childLabel when the field's label is updated", async () => {
 		ctx = await setupForDialect(dialect);
 		try {

@@ -1006,7 +1006,6 @@ export function ContentEditor({
 										referenceState={referenceState}
 										onReferenceChange={handleReferenceCurrentChange}
 										onLoadMoreReferences={handleLoadMoreReferences}
-										entryLocale={item?.locale ?? entryLocale ?? null}
 									/>
 								);
 								return fieldEl;
@@ -1268,8 +1267,6 @@ interface FieldRendererProps {
 	onReferenceChange?: (group: string, rows: ReferenceEntryRow[]) => void;
 	/** Page the rest of a relation's hydrated set. */
 	onLoadMoreReferences?: (group: string) => void;
-	/** The entry's locale, for the reference row cross-locale hint. */
-	entryLocale?: string | null;
 }
 
 /**
@@ -1289,7 +1286,6 @@ function FieldRenderer({
 	referenceState,
 	onReferenceChange,
 	onLoadMoreReferences,
-	entryLocale,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -1597,7 +1593,6 @@ function FieldRenderer({
 					targetCollection={targetCollection}
 					multiple={multiple}
 					state={referenceState?.[relationGroup]}
-					entryLocale={entryLocale ?? null}
 					onChange={(rows) => onReferenceChange?.(relationGroup, rows)}
 					onLoadMore={() => onLoadMoreReferences?.(relationGroup)}
 				/>
@@ -1663,7 +1658,6 @@ function ReferenceFieldRenderer({
 	targetCollection,
 	multiple,
 	state,
-	entryLocale,
 	onChange,
 	onLoadMore,
 }: {
@@ -1672,7 +1666,6 @@ function ReferenceFieldRenderer({
 	targetCollection: string;
 	multiple: boolean;
 	state?: ReferenceGroupState;
-	entryLocale: string | null;
 	onChange: (rows: ReferenceEntryRow[]) => void;
 	onLoadMore: () => void;
 }) {
@@ -1736,7 +1729,6 @@ function ReferenceFieldRenderer({
 				) : (
 					<ul className="space-y-2">
 						{rows.map((row, index) => {
-							const crossLocale = !!row.locale && !!entryLocale && row.locale !== entryLocale;
 							return (
 								<li
 									key={row.id}
@@ -1751,10 +1743,9 @@ function ReferenceFieldRenderer({
 										<div className="truncate text-sm font-medium group-hover:underline">
 											{referenceRowLabel(row)}
 										</div>
-										{(row.slug || crossLocale) && (
+										{row.slug && (
 											<div className="flex items-center gap-2 text-xs text-kumo-subtle">
-												{row.slug && <span className="truncate">{row.slug}</span>}
-												{crossLocale && <Badge>{row.locale}</Badge>}
+												<span className="truncate">{row.slug}</span>
 											</div>
 										)}
 									</Link>

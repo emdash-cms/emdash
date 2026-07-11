@@ -12,7 +12,7 @@
  * nobody references stay out of the way rather than showing an empty state.
  */
 
-import { Badge, Button, Loader, Text } from "@cloudflare/kumo";
+import { Button, Loader, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowSquareOut } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -202,8 +202,6 @@ export function ReferencesSidebar({
 							<h4 className="text-sm font-medium text-kumo-subtle">{heading}</h4>
 							<ul className="space-y-2">
 								{state.items.map((parent) => {
-									const crossLocale =
-										!!parent.locale && !!entryLocale && parent.locale !== entryLocale;
 									const label = parent.title || parent.slug || parent.id;
 									return (
 										<li
@@ -219,10 +217,9 @@ export function ReferencesSidebar({
 												<div className="truncate text-sm font-medium group-hover:underline">
 													{label}
 												</div>
-												{(parent.slug || crossLocale) && (
+												{parent.slug && (
 													<div className="flex items-center gap-2 text-xs text-kumo-subtle">
-														{parent.slug && <span className="truncate">{parent.slug}</span>}
-														{crossLocale && <Badge>{parent.locale}</Badge>}
+														<span className="truncate">{parent.slug}</span>
 													</div>
 												)}
 											</Link>

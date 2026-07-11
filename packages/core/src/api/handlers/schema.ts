@@ -53,6 +53,13 @@ export async function createFieldRelation(
 		throw new SchemaError(`Collection "${collectionSlug}" not found`, "COLLECTION_NOT_FOUND");
 	}
 
+	if (!(await registry.getCollection(targetCollection))) {
+		throw new SchemaError(
+			`Target collection "${targetCollection}" not found`,
+			"COLLECTION_NOT_FOUND",
+		);
+	}
+
 	const baseName = `${collectionSlug}_${fieldSlug}`.slice(0, 63);
 	for (let attempt = 0; attempt < RELATION_NAME_MAX_ATTEMPTS; attempt++) {
 		const suffix = attempt === 0 ? "" : `_${attempt + 1}`;
