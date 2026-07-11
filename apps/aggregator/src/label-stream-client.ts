@@ -29,6 +29,11 @@ import { decodeFirst } from "@atcute/cbor";
 import { isPlainObject } from "./utils.js";
 
 const MAX_LABELS_PER_FRAME = 200;
+/** Cap on decoded frames buffered ahead of the consumer. The labeler bounds
+ * its own outbound buffer, but that says nothing about our inbound side: a
+ * fast replay against a consumer stalled on verification or queue sends
+ * would otherwise grow the buffer without limit. */
+const MAX_BUFFERED_FRAMES = 256;
 
 export interface LabelStreamEvent {
 	seq: number;
@@ -169,6 +174,17 @@ function createHandle(opts: LabelStreamSubscribeOptions): LabelStreamHandle {
 			return;
 		}
 		queue.push(entry);
+		if (queue.length > MAX_BUFFERED_FRAMES) {
+			// Fail closed like every other unrecoverable stream condition. The
+			// dropped frames were never cursor-persisted, so the reconnect
+			// replays them from the labeler's retained history.
+			queue.length = 0;
+			queue.push({
+				kind: "error",
+				error: new Error("subscribeLabels inbound buffer overflow: consumer too slow"),
+			});
+			socket?.close();
+		}
 	};
 
 	const finish = (): void => {
