@@ -471,3 +471,18 @@ export {
 	reconcileManifestAccess,
 } from "./manifest-schema.js";
 export type { ValidatedPluginManifest } from "./manifest-schema.js";
+export {
+	canonicalizeDeclaredAccess,
+	declaredAccessDigestInput,
+	declaredAccessEqual,
+	diffDeclaredAccess,
+	isDeclaredAccessEscalation,
+} from "./declared-access.js";
+export type {
+	AccessChange,
+	AccessChangeKind,
+	AccessDiff,
+	CanonicalAccessConstraints,
+	CanonicalDeclaredAccess,
+	CanonicalJsonValue,
+} from "./declared-access.js";
