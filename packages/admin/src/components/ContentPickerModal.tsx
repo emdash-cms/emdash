@@ -34,6 +34,8 @@ export interface PickedContentEntry {
 	id: string;
 	slug: string | null;
 	title: string;
+	/** Locale of the picked variant, so links/badges keep locale context before hydration. */
+	locale?: string;
 }
 
 interface ContentPickerModalProps {
@@ -52,6 +54,14 @@ interface ContentPickerModalProps {
 	onConfirm: (rows: PickedContentEntry[]) => void;
 	/** Optional dialog title override. */
 	title?: string;
+	/**
+	 * The editing entry's locale (reference fields). When set, translations of the
+	 * same entry collapse to one row, preferring this locale and falling back to
+	 * another when the entry has no variant here — mirroring how the reference
+	 * list resolves edges (`resolveEntries`/`pickVariant`). Edges are keyed by
+	 * translation group, so a cross-locale target is still a valid pick.
+	 */
+	locale?: string;
 }
 
 function getItemTitle(item: { data: Record<string, unknown>; slug: string | null; id: string }) {
@@ -75,6 +85,7 @@ export function ContentPickerModal({
 	selectedIds = EMPTY_SELECTED,
 	onConfirm,
 	title,
+	locale,
 }: ContentPickerModalProps) {
 	const { t } = useLingui();
 	const locked = !!collection;
@@ -123,7 +134,30 @@ export function ContentPickerModal({
 		enabled: open && !!activeCollection,
 	});
 
-	const items = React.useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
+	const items = React.useMemo(() => {
+		const flat = data?.pages.flatMap((page) => page.items) ?? [];
+		if (!locale) return flat;
+		// Reference fields link by translation group, so translations of the same
+		// entry are the same target. Collapse them to one row, preferring the
+		// editor locale and falling back to the lowest locale code (deterministic),
+		// mirroring `pickVariant` in the reference-list resolver.
+		const byGroup = new Map<string, ContentItem>();
+		const order: string[] = [];
+		for (const item of flat) {
+			const key = item.translationGroup ?? item.id;
+			const existing = byGroup.get(key);
+			if (!existing) {
+				byGroup.set(key, item);
+				order.push(key);
+			} else if (
+				existing.locale !== locale &&
+				(item.locale === locale || item.locale < existing.locale)
+			) {
+				byGroup.set(key, item);
+			}
+		}
+		return order.map((key) => byGroup.get(key)!);
+	}, [data, locale]);
 
 	const togglePicked = (item: ContentItem) => {
 		setPicked((prev) => {
@@ -136,6 +170,7 @@ export function ContentPickerModal({
 					id: item.id,
 					slug: item.slug,
 					title: getItemTitle(item),
+					locale: item.locale,
 				};
 			}
 			return next;
@@ -144,7 +179,13 @@ export function ContentPickerModal({
 
 	const handleSingleChoose = (item: ContentItem) => {
 		onConfirm([
-			{ collection: activeCollection, id: item.id, slug: item.slug, title: getItemTitle(item) },
+			{
+				collection: activeCollection,
+				id: item.id,
+				slug: item.slug,
+				title: getItemTitle(item),
+				locale: item.locale,
+			},
 		]);
 		onOpenChange(false);
 	};

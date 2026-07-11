@@ -1006,6 +1006,7 @@ export function ContentEditor({
 										referenceState={referenceState}
 										onReferenceChange={handleReferenceCurrentChange}
 										onLoadMoreReferences={handleLoadMoreReferences}
+										entryLocale={entryLocale}
 									/>
 								);
 								return fieldEl;
@@ -1267,6 +1268,8 @@ interface FieldRendererProps {
 	onReferenceChange?: (group: string, rows: ReferenceEntryRow[]) => void;
 	/** Page the rest of a relation's hydrated set. */
 	onLoadMoreReferences?: (group: string) => void;
+	/** Locale of the editing entry; threaded to reference pickers. */
+	entryLocale?: string | null;
 }
 
 /**
@@ -1286,6 +1289,7 @@ function FieldRenderer({
 	referenceState,
 	onReferenceChange,
 	onLoadMoreReferences,
+	entryLocale,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -1595,6 +1599,7 @@ function FieldRenderer({
 					state={referenceState?.[relationGroup]}
 					onChange={(rows) => onReferenceChange?.(relationGroup, rows)}
 					onLoadMore={() => onLoadMoreReferences?.(relationGroup)}
+					entryLocale={entryLocale}
 				/>
 			);
 		}
@@ -1660,6 +1665,7 @@ function ReferenceFieldRenderer({
 	state,
 	onChange,
 	onLoadMore,
+	entryLocale,
 }: {
 	label: string;
 	labelClass?: string;
@@ -1668,6 +1674,8 @@ function ReferenceFieldRenderer({
 	state?: ReferenceGroupState;
 	onChange: (rows: ReferenceEntryRow[]) => void;
 	onLoadMore: () => void;
+	/** Locale of the editing entry; scopes the picker to one variant per target. */
+	entryLocale?: string | null;
 }) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
@@ -1708,6 +1716,7 @@ function ReferenceFieldRenderer({
 			id: p.id,
 			slug: p.slug,
 			title: p.title,
+			locale: p.locale,
 		}));
 		if (multiple) {
 			const existing = new Set(rows.map((r) => r.id));
@@ -1828,6 +1837,7 @@ function ReferenceFieldRenderer({
 				multiple={multiple}
 				selectedIds={selectedIds}
 				onConfirm={handleConfirm}
+				locale={entryLocale ?? undefined}
 			/>
 		</div>
 	);

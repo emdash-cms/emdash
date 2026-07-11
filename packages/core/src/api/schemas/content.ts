@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { bylineSummarySchema, bylineCreditSchema, contentBylineInputSchema } from "./bylines.js";
 import { cursorPaginationQuery, httpUrl, localeCode } from "./common.js";
+import { referenceChildrenResponseSchema } from "./relations.js";
 
 // ---------------------------------------------------------------------------
 // Content: Input schemas
@@ -177,6 +178,10 @@ export const contentItemSchema = z
 		locale: z.string().nullable(),
 		translationGroup: z.string().nullable(),
 		seo: contentSeoSchema.optional(),
+		// First page of resolved children per reference field, keyed by the field's
+		// relation group. Only present when the editor GET path opts into hydration
+		// (`referenceOptions`); omitted otherwise, so it's optional here.
+		references: z.record(z.string(), referenceChildrenResponseSchema).optional(),
 	})
 	.meta({ id: "ContentItem" });
 
