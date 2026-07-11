@@ -1,4 +1,4 @@
-import { encode } from "@atcute/cbor";
+import { encode, toBytes } from "@atcute/cbor";
 import { fromString as cidFromString, toString as cidToString } from "@atcute/cid";
 import { P256PrivateKey, P256PublicKey, parsePublicMultikey } from "@atcute/crypto";
 import { fromBase64Url, toBase64Url } from "@atcute/multibase";
@@ -94,6 +94,14 @@ export type LabelDidResolver = (did: string) => Promise<LabelDidDocument>;
 export interface LabelVerificationInput {
 	label: SignedLabel;
 	resolveDid: LabelDidResolver;
+}
+
+/** Indicates that a valid, correctly sourced label failed cryptographic verification. */
+export class InvalidLabelSignatureError extends TypeError {
+	constructor(message: string) {
+		super(message);
+		this.name = "InvalidLabelSignatureError";
+	}
 }
 
 export interface AcceptedLabelerPolicy {
@@ -383,11 +391,26 @@ function validateLabelObject(value: unknown, signed: boolean): SignedLabel | Uns
 	if (!signed) return canonical;
 	if (!(sig instanceof Uint8Array) || sig.length !== 64)
 		throw new TypeError("label.sig must be a 64-byte compact P-256 signature");
-	return { ...canonical, sig };
+	return { ...canonical, sig: Uint8Array.from(sig) };
 }
 
 function canonicalLabelBytes(label: UnsignedLabel): Uint8Array {
 	return encode(validateLabelObject(label, false));
+}
+
+/** Parses and canonically reconstructs an unknown signed ATProto label v1 value. */
+export function parseSignedLabel(value: unknown): SignedLabel {
+	return validateLabelObject(value, true);
+}
+
+/**
+ * Encodes a complete signed label as deterministic canonical CBOR for digest
+ * or identity use after successful verification. Encoding alone does not
+ * authenticate a label.
+ */
+export function encodeSignedLabel(label: SignedLabel): Uint8Array {
+	const { sig, ...unsigned } = parseSignedLabel(label);
+	return encode({ ...unsigned, sig: toBytes(sig) });
 }
 
 function importPrivateScalar(value: string): Promise<P256PrivateKey> {
@@ -472,16 +495,29 @@ export async function createLabelSigner(input: CreateLabelSignerInput): Promise<
 	};
 }
 
-/** Verifies a signed label against the source DID's exact `#atproto_label` P-256 key. */
-export async function verifyLabel(input: LabelVerificationInput): Promise<VerifiedModerationLabel> {
-	const label = validateLabelObject(input.label, true);
-	const key = await resolveLabelPublicKey(label.src, input.resolveDid);
+/** Verifies a signed label against an expected source and resolved P-256 public key. */
+export async function verifyLabelWithPublicKey(input: {
+	label: SignedLabel;
+	expectedSource: string;
+	publicKey: P256PublicKey;
+}): Promise<VerifiedModerationLabel> {
+	validateDid(input.expectedSource, "expectedSource");
+	const label = parseSignedLabel(input.label);
+	if (label.src !== input.expectedSource)
+		throw new TypeError("label.src does not match expectedSource");
 	const { sig, ...verified } = label;
-	if (!(await key.verify(sig, canonicalLabelBytes(verified))))
-		throw new TypeError("label signature is invalid");
+	if (!(await input.publicKey.verify(sig, canonicalLabelBytes(verified))))
+		throw new InvalidLabelSignatureError("label signature is invalid");
 	const verifiedLabel: VerifiedModerationLabel = { ...verified, [verifiedModerationLabel]: true };
 	Object.defineProperty(verifiedLabel, verifiedModerationLabel, { enumerable: false });
 	return verifiedLabel;
+}
+
+/** Verifies a signed label against the source DID's exact `#atproto_label` P-256 key. */
+export async function verifyLabel(input: LabelVerificationInput): Promise<VerifiedModerationLabel> {
+	const label = parseSignedLabel(input.label);
+	const publicKey = await resolveLabelPublicKey(label.src, input.resolveDid);
+	return verifyLabelWithPublicKey({ label, expectedSource: label.src, publicKey });
 }
 
 function streamKey(label: ModerationLabel): string {
