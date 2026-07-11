@@ -11,6 +11,7 @@ import { toSignedEntity, toTrustMaterial, Verifier } from "@sigstore/verify";
 import { compareDigestBytes, verifyMultihash } from "./checksum.js";
 import { verificationError } from "./errors.js";
 import type { VerificationResult } from "./errors.js";
+import { canonicalizeRepositoryUrl } from "./repository.js";
 import trustedRootJson from "./trust-roots/sigstore-public-good-v1.json";
 
 const STATEMENT_TYPE = "https://in-toto.io/Statement/v1";
@@ -22,7 +23,6 @@ const DSSE_PAYLOAD_TYPE = "application/vnd.in-toto+json";
 const FULCIO_OID_PREFIX = "1.3.6.1.4.1.57264.1.";
 const GIT_COMMIT_RE = /^[0-9a-f]{40}$/;
 const GITHUB_WORKFLOW_PATH_RE = /^\.github\/workflows\/.+\.ya?ml$/;
-const TRAILING_SLASHES_RE = /\/+$/;
 const DECIMAL_RE = /^[1-9][0-9]*$/;
 const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const HEX_RE = /^[0-9a-f]+$/;
@@ -175,14 +175,14 @@ function validateStatement(
 	}
 	validateArtifactSubject(statement.subject, input.artifactDigest);
 
-	const profileRepository = canonicaliseRepository(input.profileRepository);
-	const referenceRepository = canonicaliseRepository(input.reference.sourceRepository);
+	const profileRepository = requireRepository(input.profileRepository);
+	const referenceRepository = requireRepository(input.reference.sourceRepository);
 	const buildDefinition = requireObject(statement.predicate.buildDefinition);
 	if (requireString(buildDefinition.buildType) !== GITHUB_WORKFLOW_BUILD_TYPE) {
 		throw new Error("Unsupported SLSA build type");
 	}
 	const workflow = requireObject(requireObject(buildDefinition.externalParameters).workflow);
-	const attestedRepository = canonicaliseRepository(requireString(workflow.repository));
+	const attestedRepository = requireRepository(requireString(workflow.repository));
 	if (attestedRepository !== referenceRepository || referenceRepository !== profileRepository) {
 		throw new Error("Repository identity mismatch");
 	}
@@ -263,7 +263,7 @@ function validateSignerIdentity(
 	const issuer = readRequiredOid(oids, 8);
 	const buildSignerUri = readRequiredOid(oids, 9);
 	const buildSignerDigest = readRequiredOid(oids, 10);
-	const sourceRepository = canonicaliseRepository(readRequiredOid(oids, 12));
+	const sourceRepository = requireRepository(readRequiredOid(oids, 12));
 	const sourceDigest = readRequiredOid(oids, 13);
 	const sourceRef = readRequiredOid(oids, 14);
 	const repositoryId = readRequiredOid(oids, 15);
@@ -324,24 +324,10 @@ function decodeDerUtf8String(value: Uint8Array): string {
 	return decoder.decode(value.subarray(offset));
 }
 
-function canonicaliseRepository(value: string): string {
-	const url = new URL(value);
-	if (
-		url.protocol !== "https:" ||
-		url.username ||
-		url.password ||
-		url.search ||
-		url.hash ||
-		url.port
-	) {
-		throw new Error("Invalid repository URL");
-	}
-	let path = url.pathname;
-	if (path !== "/") {
-		path = path.replace(TRAILING_SLASHES_RE, "");
-		if (path === "") path = "/";
-	}
-	return `https://${url.hostname.toLowerCase()}${path}`;
+function requireRepository(value: string): string {
+	const repository = canonicalizeRepositoryUrl(value);
+	if (!repository) throw new Error("Invalid repository URL");
+	return repository;
 }
 
 function requireHttpsUrl(value: string): string {

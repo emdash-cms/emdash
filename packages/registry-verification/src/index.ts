@@ -15,6 +15,8 @@ export {
 } from "./bundle-limits.js";
 export { validatePluginBundle } from "./bundle.js";
 export { GitHubProvenanceVerifier } from "./provenance.js";
+export { canonicalizeRepositoryUrl } from "./repository.js";
+export { verifyPackageReleaseRecords } from "./records.js";
 export type { DecodedMultihash, MultihashAlgorithm } from "./checksum.js";
 export type {
 	FetchImplementation,
@@ -30,3 +32,13 @@ export type {
 	ReleaseProvenance,
 	VerifiedProvenance,
 } from "./provenance.js";
+export type {
+	NormalizedReleasePolicy,
+	ProvenanceEvidence,
+	ProvenanceStatus,
+	RecordVerificationCode,
+	RecordVerificationInput,
+	RecordVerificationReason,
+	RecordVerificationReport,
+	VerifiedRecordContext,
+} from "./records.js";
