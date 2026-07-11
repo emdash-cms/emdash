@@ -446,6 +446,12 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/admin/plugins/updates.ts"),
 	});
 
+	// Core update notice (Discussion #1889)
+	injectRoute({
+		pattern: "/_emdash/api/admin/core-update",
+		entrypoint: resolveRoute("api/admin/core-update.ts"),
+	});
+
 	// Exclusive hooks admin routes
 	injectRoute({
 		pattern: "/_emdash/api/admin/hooks/exclusive",

@@ -20,6 +20,7 @@ import { fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
 import { formatRelativeTime } from "../lib/utils";
 import { ArrowNext } from "./ArrowIcons";
+import { CoreUpdateBanner } from "./CoreUpdateBanner";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
 
@@ -50,6 +51,8 @@ export function Dashboard({ manifest }: DashboardProps) {
 				<h1 className="text-3xl font-bold">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />
 			</div>
+
+			<CoreUpdateBanner />
 
 			{isError && <DashboardDataError />}
 

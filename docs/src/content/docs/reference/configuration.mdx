@@ -367,6 +367,22 @@ emdash({
 
 Uploads that exceed the configured limit are rejected with a `413 Payload Too Large` response on the direct upload path, or a `400 Validation Error` on the signed-URL path.
 
+### `updateCheck`
+
+**Optional.** Controls the core update notice in the admin dashboard. Defaults to `true`.
+
+When enabled, EmDash checks the public npm registry for the latest published `emdash` version — at most once per day, deferred after the response so it never slows down a request — and shows a dismissible banner in the admin dashboard when a newer version is available. Dismissing the banner hides it for that version; it reappears when the next version ships.
+
+The check is a plain GET to `https://registry.npmjs.org/emdash/latest` and carries no site data. Deployments without outbound internet access simply never show the banner. Set to `false` to disable the check entirely:
+
+```js
+emdash({
+	updateCheck: false,
+})
+```
+
+The banner is informational only — updating EmDash means bumping the `emdash` package in your project and redeploying, which the admin can't (and shouldn't) trigger.
+
 ### `toolbar`
 
 **Optional.** Controls how the editor toolbar (the floating pill on public pages) is delivered. Defaults to `"server"`.

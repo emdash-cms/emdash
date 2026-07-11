@@ -354,6 +354,23 @@ export interface EmDashConfig {
 	marketplace?: string;
 
 	/**
+	 * Core update notice in the admin dashboard.
+	 *
+	 * When enabled (the default), EmDash checks the public npm registry
+	 * (`registry.npmjs.org`) at most once per day for the latest published
+	 * `emdash` version and shows a dismissible banner in the admin
+	 * dashboard when a newer version is available. The check is deferred
+	 * after the response and carries no site data — it's a plain GET to
+	 * the public registry. Sites without outbound internet simply never
+	 * see the banner.
+	 *
+	 * Set to `false` to disable the check entirely.
+	 *
+	 * @default true
+	 */
+	updateCheck?: boolean;
+
+	/**
 	 * Experimental features.
 	 *
 	 * These options are not yet stable. Shape, defaults, and behavior may
