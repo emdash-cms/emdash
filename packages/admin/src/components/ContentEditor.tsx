@@ -1006,7 +1006,9 @@ export function ContentEditor({
 										referenceState={referenceState}
 										onReferenceChange={handleReferenceCurrentChange}
 										onLoadMoreReferences={handleLoadMoreReferences}
-										entryLocale={entryLocale}
+										// Existing entries carry their locale on `item`; new entries only
+										// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
+										entryLocale={item?.locale ?? entryLocale}
 									/>
 								);
 								return fieldEl;
