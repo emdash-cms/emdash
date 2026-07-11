@@ -143,6 +143,31 @@ export function buildImageRemotePatterns(
 }
 
 /**
+ * Build the config subset baked into `virtual:emdash/config` and exposed
+ * at runtime as `locals.emdash.config`. A config option that runtime code
+ * reads (routes, middleware) MUST be listed here — an option only on
+ * `EmDashConfig` is invisible at runtime and silently ignored.
+ *
+ * @internal Exported for unit testing.
+ */
+export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<string, unknown> {
+	return {
+		database: resolvedConfig.database,
+		storage: resolvedConfig.storage,
+		auth: resolvedConfig.auth,
+		authProviders: resolvedConfig.authProviders,
+		marketplace: resolvedConfig.marketplace,
+		experimental: resolvedConfig.experimental,
+		siteUrl: resolvedConfig.siteUrl,
+		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
+		maxUploadSize: resolvedConfig.maxUploadSize,
+		admin: resolvedConfig.admin,
+		toolbar: resolvedConfig.toolbar,
+		updateCheck: resolvedConfig.updateCheck,
+	};
+}
+
+/**
  * Stock image endpoints EmDash may safely replace with its storage-backed
  * wrapper. Our wrapper delegates non-EmDash images to the platform's transform
  * endpoint, so we only override endpoints whose transform we can delegate to.
@@ -339,19 +364,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 
 	// Serialize config for virtual module (database/storage/auth - plugins handled separately)
 	// i18n is populated in astro:config:setup from astroConfig.i18n
-	const serializableConfig: Record<string, unknown> = {
-		database: resolvedConfig.database,
-		storage: resolvedConfig.storage,
-		auth: resolvedConfig.auth,
-		authProviders: resolvedConfig.authProviders,
-		marketplace: resolvedConfig.marketplace,
-		experimental: resolvedConfig.experimental,
-		siteUrl: resolvedConfig.siteUrl,
-		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
-		maxUploadSize: resolvedConfig.maxUploadSize,
-		admin: resolvedConfig.admin,
-		toolbar: resolvedConfig.toolbar,
-	};
+	const serializableConfig = buildSerializableConfig(resolvedConfig);
 
 	// Determine auth mode for route injection
 	// Check if auth is an AuthDescriptor (has entrypoint) indicating external auth
