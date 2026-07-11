@@ -157,6 +157,28 @@ describe("PluginSettings", () => {
 		expect("secretKey" in values).toBe(false);
 	});
 
+	it("sends null (not empty string) for a cleared field so it reverts to the default", async () => {
+		const screen = await render(
+			<Wrapper>
+				<PluginSettings pluginId="emdash-forms" />
+			</Wrapper>,
+		);
+
+		const siteKey = screen.getByLabelText("Turnstile Site Key");
+		await expect.element(siteKey).toBeInTheDocument();
+		await siteKey.fill("");
+
+		await screen.getByRole("button", { name: "Save Settings" }).first().click();
+
+		await vi.waitFor(() => {
+			expect(mockUpdatePluginSettings).toHaveBeenCalledTimes(1);
+		});
+		const [, values] = mockUpdatePluginSettings.mock.calls[0]!;
+		// Storing "" would shadow the schema default forever; null deletes
+		// the stored value server-side so the default applies again.
+		expect(values.siteKey).toBeNull();
+	});
+
 	it("sends null for a cleared secret", async () => {
 		const screen = await render(
 			<Wrapper>

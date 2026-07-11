@@ -95,11 +95,13 @@ export function PluginSettings({ pluginId }: PluginSettingsProps) {
 				continue;
 			}
 			const value = values[key];
-			// null means "not set" — don't write it back, so schema
-			// defaults keep applying.
-			if (value !== null && value !== undefined) {
-				updates[key] = value;
-			}
+			// An emptied field reverts to the schema default: send null so
+			// the server deletes the stored value. Sending "" would persist
+			// an empty string and shadow the default; skipping the key would
+			// leave the old stored value in place. Never-set fields also send
+			// null — deleting a missing key is a no-op.
+			const cleared = value === null || value === undefined || value === "";
+			updates[key] = cleared ? null : value;
 		}
 		saveMutation.mutate(updates);
 	};
