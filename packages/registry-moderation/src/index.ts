@@ -190,6 +190,15 @@ const RELEASE_VALUES = new Set<string>([
 	...WARNINGS,
 ]);
 
+/** Values that hard-block at package or publisher scope; search excludes subjects carrying them. */
+export const PACKAGE_SCOPE_BLOCK_VALUES: readonly string[] = ["!takedown", "publisher-compromised"];
+/** Values that make an individual release ineligible under official policy. */
+export const RELEASE_BLOCK_VALUES: readonly string[] = [
+	...AUTOMATED_BLOCKS,
+	"security-yanked",
+	"!takedown",
+];
+
 interface ParsedInstant {
 	seconds: bigint;
 	fraction: string;

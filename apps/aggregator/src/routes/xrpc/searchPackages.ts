@@ -36,6 +36,7 @@ const MAX_LIMIT = 100;
 export async function searchPackages(
 	env: Env,
 	params: AggregatorSearchPackages.$params,
+	_request: Request,
 ): Promise<Response> {
 	const limit = clampLimit(params.limit);
 	let offset: number;

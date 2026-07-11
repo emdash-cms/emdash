@@ -25,6 +25,7 @@ import { type ReleaseRow, releaseColumns, releaseView } from "./views.js";
 export async function getLatestRelease(
 	env: Env,
 	params: AggregatorGetLatestRelease.$params,
+	_request: Request,
 ): Promise<Response> {
 	const session = env.DB.withSession("first-primary");
 

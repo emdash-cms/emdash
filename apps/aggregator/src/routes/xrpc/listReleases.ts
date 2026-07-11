@@ -22,6 +22,7 @@ const MAX_LIMIT = 100;
 export async function listReleases(
 	env: Env,
 	params: AggregatorListReleases.$params,
+	_request: Request,
 ): Promise<Response> {
 	const limit = clampLimit(params.limit);
 	const session = env.DB.withSession("first-primary");

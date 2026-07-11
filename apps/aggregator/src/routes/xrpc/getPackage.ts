@@ -17,6 +17,7 @@ import { type PackageRow, packageColumns, packageView } from "./views.js";
 export async function getPackage(
 	env: Env,
 	params: AggregatorGetPackage.$params,
+	_request: Request,
 ): Promise<Response> {
 	// `first-primary` because the same row could become subject to a takedown
 	// label between two reads; once the labeler (Slice 2) writes, the next

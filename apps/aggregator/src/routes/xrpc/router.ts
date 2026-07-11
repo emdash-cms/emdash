@@ -21,7 +21,7 @@
  *     (immutable bytes).
  */
 
-import { XRPCRouter } from "@atcute/xrpc-server";
+import { XRPCError, XRPCRouter } from "@atcute/xrpc-server";
 import {
 	AggregatorGetLatestRelease,
 	AggregatorGetPackage,
@@ -33,6 +33,7 @@ import {
 import { getLatestRelease } from "./getLatestRelease.js";
 import { getPackage } from "./getPackage.js";
 import { listReleases } from "./listReleases.js";
+import { resolveRequestLabelerPolicy } from "./request-policy.js";
 import { resolvePackage } from "./resolvePackage.js";
 import { searchPackages } from "./searchPackages.js";
 import { syncGetRecord } from "./sync-get-record.js";
@@ -51,15 +52,16 @@ const SYNC_GET_RECORD_PATH = "/xrpc/com.atproto.sync.getRecord";
  * `*` is correct here because nothing in our responses depends on the
  * caller's origin or credentials -- there are no cookies, no auth, no
  * per-origin policy. We allow `atproto-accept-labelers` and
- * `content-type` as request headers (the only two clients send), echo
- * back the labelers header for symmetry with atproto's labeler-aware
- * clients, and cap preflight cache at 24h.
+ * `content-type` as request headers (the only two clients send), expose
+ * the response headers a labeler-aware client needs to read
+ * (`atproto-content-labelers`, `content-language`), and cap preflight
+ * cache at 24h.
  */
 const CORS_HEADERS: Record<string, string> = {
 	"access-control-allow-origin": "*",
 	"access-control-allow-methods": "GET, POST, OPTIONS",
 	"access-control-allow-headers": "content-type, atproto-accept-labelers",
-	"access-control-expose-headers": "atproto-accept-labelers, content-language",
+	"access-control-expose-headers": "atproto-content-labelers, content-language",
 	"access-control-max-age": "86400",
 };
 
@@ -97,6 +99,24 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 		});
 	}
 
+	// Resolve the accepted-labelers policy once, before dispatch, so every
+	// handler sees the same policy the response's `atproto-content-labelers`
+	// header reports below. A malformed header 400s in the same envelope
+	// shape the router itself produces for InvalidRequest; any other failure
+	// (e.g. a D1 error) propagates so the caller 500s instead of the request
+	// silently falling open to an empty policy.
+	let policy: Awaited<ReturnType<typeof resolveRequestLabelerPolicy>>;
+	try {
+		policy = await resolveRequestLabelerPolicy(env, request);
+	} catch (err) {
+		if (!(err instanceof XRPCError)) throw err;
+		const errorResponse = err.toResponse();
+		const headers = new Headers(errorResponse.headers);
+		headers.set("cache-control", NO_STORE);
+		applyCorsHeaders(headers);
+		return new Response(errorResponse.body, { status: errorResponse.status, headers });
+	}
+
 	const router = getRouter(env);
 	const response = await router.fetch(request);
 	// Override Cache-Control unconditionally on aggregator endpoints — the
@@ -109,6 +129,9 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 	const headers = new Headers(response.headers);
 	headers.set("cache-control", NO_STORE);
 	applyCorsHeaders(headers);
+	if (policy.contentLabelersHeader !== "") {
+		headers.set("atproto-content-labelers", policy.contentLabelersHeader);
+	}
 	return new Response(response.body, {
 		status: response.status,
 		statusText: response.statusText,
@@ -134,19 +157,19 @@ function getRouter(env: Env): XRPCRouter {
 function createRouter(env: Env): XRPCRouter {
 	const router = new XRPCRouter();
 	router.addQuery(AggregatorGetPackage.mainSchema, {
-		handler: ({ params }) => getPackage(env, params),
+		handler: ({ params, request }) => getPackage(env, params, request),
 	});
 	router.addQuery(AggregatorListReleases.mainSchema, {
-		handler: ({ params }) => listReleases(env, params),
+		handler: ({ params, request }) => listReleases(env, params, request),
 	});
 	router.addQuery(AggregatorGetLatestRelease.mainSchema, {
-		handler: ({ params }) => getLatestRelease(env, params),
+		handler: ({ params, request }) => getLatestRelease(env, params, request),
 	});
 	router.addQuery(AggregatorSearchPackages.mainSchema, {
-		handler: ({ params }) => searchPackages(env, params),
+		handler: ({ params, request }) => searchPackages(env, params, request),
 	});
 	router.addQuery(AggregatorResolvePackage.mainSchema, {
-		handler: ({ params }) => resolvePackage(env, params),
+		handler: ({ params, request }) => resolvePackage(env, params, request),
 	});
 	return router;
 }

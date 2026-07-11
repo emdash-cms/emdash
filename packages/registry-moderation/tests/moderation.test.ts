@@ -6,6 +6,8 @@ import {
 	createLabelSigner,
 	evaluateReleaseModeration,
 	verifyLabel,
+	PACKAGE_SCOPE_BLOCK_VALUES,
+	RELEASE_BLOCK_VALUES,
 	type LabelDidDocument,
 	type ModerationLabel,
 	type VerifiedModerationLabel,
@@ -336,6 +338,29 @@ describe("release moderation", () => {
 		expect(() =>
 			evaluate([label({ val: "assessment-passed", cts: "0000-01-01T00:00:00+01:00" })]),
 		).toThrow(TypeError);
+	});
+});
+
+describe("exported hard-block value sets", () => {
+	it("blocks every RELEASE_BLOCK_VALUES value on the exact release", () => {
+		for (const value of RELEASE_BLOCK_VALUES) {
+			const result = evaluate([label({ val: "assessment-passed" }), label({ val: value })]);
+			expect(result.eligibility, `${value} should block the release`).toBe("blocked");
+		}
+	});
+
+	it("blocks every PACKAGE_SCOPE_BLOCK_VALUES value on the publisher DID", () => {
+		for (const value of PACKAGE_SCOPE_BLOCK_VALUES) {
+			const publisherLabel = label({ val: value, uri: context.publisherDid, cid: undefined });
+			const result = evaluate([label({ val: "assessment-passed" }), publisherLabel]);
+			expect(result.eligibility, `${value} should block via the publisher DID`).toBe("blocked");
+		}
+	});
+
+	it("blocks a package-URI !takedown", () => {
+		const packageTakedown = label({ val: "!takedown", uri: context.package.uri, cid: undefined });
+		const result = evaluate([label({ val: "assessment-passed" }), packageTakedown]);
+		expect(result.eligibility).toBe("blocked");
 	});
 });
 

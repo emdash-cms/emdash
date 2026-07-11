@@ -50,6 +50,7 @@ function getHandleResolver(): CompositeHandleResolver {
 export async function resolvePackage(
 	env: Env,
 	params: AggregatorResolvePackage.$params,
+	_request: Request,
 ): Promise<Response> {
 	let did: string;
 	try {
