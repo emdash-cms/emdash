@@ -8,6 +8,15 @@
 -- different label landing at coordinates the ingestor already used. `cts`/`exp`
 -- gain epoch-millisecond columns because RFC 3339 strings compare incorrectly
 -- across timezone offsets in SQL.
+-- Guard: refuse to run against a deployment that has label rows. The
+-- reference deployment was preflight-confirmed empty, but a self-hosted
+-- aggregator may not be. The CHECK is unsatisfiable, so the INSERTs only
+-- succeed when their SELECTs return no rows.
+CREATE TABLE _label_migration_guard (never INTEGER CHECK (never IS NULL AND never IS NOT NULL));
+INSERT INTO _label_migration_guard SELECT 1 FROM labels LIMIT 1;
+INSERT INTO _label_migration_guard SELECT 1 FROM label_state LIMIT 1;
+DROP TABLE _label_migration_guard;
+
 DROP TABLE labels;
 DROP TABLE label_state;
 

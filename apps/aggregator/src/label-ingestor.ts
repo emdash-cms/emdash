@@ -243,8 +243,11 @@ export class LabelIngestor {
 				if (verificationClosed) {
 					// Fail closed: nothing from this frame is enqueued, the
 					// cursor doesn't move, and the connection ends here (the
-					// `finally` below closes `sub`). The run loop's backoff
-					// counter picks this up as a failed attempt.
+					// `finally` below closes `sub`). Earlier frames in this
+					// connection don't count as progress — otherwise a stream
+					// alternating good and unverifiable frames would reset the
+					// backoff counter every connection and never escalate.
+					this.madeProgress = false;
 					break;
 				}
 

@@ -327,19 +327,22 @@ export default {
 async function wakeLabelIngestDOs(env: Env): Promise<void> {
 	try {
 		const rows = await env.DB.prepare(`SELECT did FROM labelers`).all<{ did: string }>();
-		for (const row of rows.results ?? []) {
-			const stub = env.LABEL_INGEST_DO.getByName(row.did);
-			// Fire-and-forget per labeler — one slow/unreachable DO shouldn't
-			// block waking the others.
-			void stub
-				.fetch(`https://do.internal/wake?did=${encodeURIComponent(row.did)}`)
-				.catch((err: unknown) => {
-					console.error("[aggregator] label ingest DO wake failed", {
-						did: row.did,
-						error: err instanceof Error ? err.message : String(err),
-					});
-				});
-		}
+		// Awaited collectively so waitUntil keeps the invocation alive until
+		// every wake lands; the per-fetch catch keeps one unreachable DO from
+		// failing the rest.
+		await Promise.all(
+			(rows.results ?? []).map((row) =>
+				env.LABEL_INGEST_DO.getByName(row.did)
+					.fetch(`https://do.internal/wake?did=${encodeURIComponent(row.did)}`)
+					.then(() => undefined)
+					.catch((err: unknown) => {
+						console.error("[aggregator] label ingest DO wake failed", {
+							did: row.did,
+							error: err instanceof Error ? err.message : String(err),
+						});
+					}),
+			),
+		);
 	} catch (err) {
 		console.error("[aggregator] label ingest DO wake pump failed", {
 			error: err instanceof Error ? err.message : String(err),

@@ -218,13 +218,8 @@ function createHandle(opts: LabelStreamSubscribeOptions): LabelStreamHandle {
 				throw new Error(`subscribeLabels upgrade failed with status ${response.status}`);
 			}
 			socket = response.webSocket;
-			socket.accept();
-			if (ended) {
-				// close() won the race against the upgrade: without this the
-				// accepted socket would stay open with nobody reading it.
-				socket.close();
-				return;
-			}
+			// Listeners attach before accept() so a frame or close arriving
+			// immediately after the upgrade can't slip past unhandled.
 			socket.addEventListener("message", (event: MessageEvent) => {
 				if (!(event.data instanceof ArrayBuffer)) {
 					deliver({
@@ -244,6 +239,13 @@ function createHandle(opts: LabelStreamSubscribeOptions): LabelStreamHandle {
 			socket.addEventListener("close", () => {
 				finish();
 			});
+			socket.accept();
+			if (ended) {
+				// close() won the race against the upgrade: without this the
+				// accepted socket would stay open with nobody reading it.
+				socket.close();
+				return;
+			}
 		} catch (err) {
 			deliver({ kind: "error", error: err });
 			finish();

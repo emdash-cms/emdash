@@ -549,6 +549,41 @@ describe("LabelIngestor", () => {
 		await runPromise;
 	});
 
+	it("counts a failure when a connection ends on a verification failure after earlier progress", async () => {
+		const key = await makeKey();
+		const wrongKey = await makeKey();
+		const client = new FakeLabelStreamClient();
+		const queue = new InMemoryQueue();
+		const ingestor = new LabelIngestor({
+			did: LABELER_DID,
+			client,
+			queue,
+			cursorStore: new MapCursorStore(),
+			resolver: new FakeLabelResolver(key.identity),
+			backoff: TIGHT_BACKOFF,
+			sleep: () => Promise.resolve(),
+		});
+		const runPromise = ingestor.run();
+
+		const good = await key.signer.sign(labelInput("at://did:example:pub/x/1"));
+		client.emit({ seq: 1, labels: [good] });
+		await waitFor(() => queue.jobs.length === 1, "good frame enqueued");
+
+		// Same connection: a frame that cannot verify. The good frame must not
+		// count as progress that resets the backoff counter.
+		const bad = await wrongKey.signer.sign(labelInput("at://did:example:pub/x/2"));
+		client.emit({ seq: 2, labels: [bad] });
+		await waitFor(
+			() => ingestor.consecutiveFailures >= 1,
+			"failure counted despite earlier progress",
+		);
+		expect(queue.jobs).toHaveLength(1);
+		expect(ingestor.currentCursor).toBe(1);
+
+		ingestor.stop();
+		await runPromise;
+	});
+
 	it("persists the cursor only after every send in the frame resolves", async () => {
 		const key = await makeKey();
 		const client = new FakeLabelStreamClient();

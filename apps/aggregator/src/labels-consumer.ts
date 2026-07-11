@@ -179,6 +179,20 @@ async function processLabelMessage(
 	const digest = await digestSignedLabel(label);
 	const ctsEpochMs = Date.parse(label.cts);
 	const expEpochMs = label.exp === undefined ? null : Date.parse(label.exp);
+	if (Number.isNaN(ctsEpochMs) || (expEpochMs !== null && Number.isNaN(expEpochMs))) {
+		// parseSignedLabel validates both datetimes, so this shouldn't fire —
+		// but a NaN committed into the epoch columns would silently invert
+		// every projection and enforcement comparison. Fail closed instead.
+		await writeDeadLetter(
+			deps.db,
+			job,
+			"LABEL_INVALID",
+			`cts/exp did not parse to an instant (cts=${label.cts}, exp=${label.exp ?? "absent"})`,
+			now(),
+		);
+		controller.ack();
+		return;
+	}
 
 	try {
 		await deps.db.batch([
