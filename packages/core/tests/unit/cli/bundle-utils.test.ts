@@ -22,6 +22,7 @@ import {
 	findNodeBuiltinImports,
 	findBuildOutput,
 	findSourceExports,
+	toFileImportSpecifier,
 } from "../../../src/cli/commands/bundle-utils.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
@@ -274,6 +275,16 @@ describe("findBuildOutput", () => {
 
 	it("returns undefined when no match", async () => {
 		expect(await findBuildOutput(tempDir, "index")).toBeUndefined();
+	});
+});
+
+describe("toFileImportSpecifier", () => {
+	it("returns a file URL for an absolute build artifact path", () => {
+		const artifactPath = join(tmpdir(), "emdash-plugin", "index.mjs");
+		const specifier = toFileImportSpecifier(artifactPath);
+
+		expect(new URL(specifier).protocol).toBe("file:");
+		expect(specifier).not.toBe(artifactPath);
 	});
 });
 
