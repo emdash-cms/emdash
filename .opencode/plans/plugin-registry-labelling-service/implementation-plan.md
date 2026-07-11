@@ -929,15 +929,9 @@ Coordinate this work with the delegated release service plan's proposed `package
 
 ### `W7.1` Establish shared verification ownership
 
-Decide whether to:
+Decision (2026-07-11): the delegated release service work owns `packages/registry-verification`, already built on its integration branch (checksum, safe fetch, canonical bundle validation, Sigstore provenance, workerd tests) and covering the required shared surface. `W7.2`/`W7.3` extend that package after it reaches main with the labeler's additions: mirror-first acquisition, the SSRF-hardened declared-URL fallback, and mirror-miss/transient/permanent-mismatch classification. If sequencing inverts and W7 starts first, graduate the package from that branch to main in a standalone PR; do not cherry-pick across integration branches or build a competing implementation.
 
-- Land the common `packages/registry-verification` foundation first.
-- Extend it if already landed.
-- Extract only the minimum shared primitives in a precursor PR used by both plans.
-
-Required shared surface: checksum, safe fetch, tar validation, manifest parsing, and declared-access canonicalization.
-
-Dependencies: `W0.6`.
+Dependencies: `W0.6`, `packages/registry-verification` on main.
 
 ### `W7.2` Implement verified artifact acquisition
 
