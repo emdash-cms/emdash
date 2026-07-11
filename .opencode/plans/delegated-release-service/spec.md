@@ -1,6 +1,6 @@
 # Delegated Release Service Implementation Spec
 
-Status: design draft pending Phase 0 external validation
+Status: implementation in progress; create-only PDS, OAuth custody, and aggregator-history validation remain open
 
 Source: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870), Attested Automated Publishing
 
@@ -22,6 +22,17 @@ This spec covers the complete feature: protocol records, shared verification, th
 | Approval threshold   | One valid approval from any currently listed, enrolled approver. Quorum is out of scope.                                                                |
 | Stage TTL            | 24 hours by default, operator-configurable with a bounded range of 15 minutes to 7 days.                                                                |
 | Service tenancy      | Multi-tenant by default. A v1 self-host deploys the same Worker app in its own Cloudflare account and can restrict allowed publisher DIDs.              |
+
+## Implementation Baseline
+
+The integration branch has implemented the RFC-derived profile and release contracts, extension-preserving profile writes, the local profile-policy command, and the shared verification foundations through production public Sigstore provenance verification. See implementation PRs #1915, #1918, #1920, #1925, #1929, #1932, #1937, #1943, and #1951.
+
+The remaining external validation is split by impact:
+
+- Service feasibility: prove exact create-only scope on supported PDS implementations and confidential OAuth custody/refresh behavior in workerd. This blocks durable delegation and publication, not shared verification.
+- History feasibility: select an event source that preserves verifiable intermediate profile values. This blocks historical aggregator enforcement and production launch, not the service or installer.
+
+The next protocol/verification closure is two coherent merge units: exact scope plus create-only publishing (`W1.6` + `W1.7`), and direct-PDS reads plus structured record/policy verification (`W2.6` + `W2.7`).
 
 ## Non-Negotiable Security Invariants
 
@@ -185,6 +196,14 @@ apps/release-service/
   vitest.config.ts
   wrangler.jsonc
 
+apps/release-verifier/
+  src/
+    index.ts
+  test/
+  package.json
+  vitest.config.ts
+  wrangler.jsonc
+
 packages/registry-verification/
   src/
     access.ts
@@ -287,7 +306,7 @@ Update every existing profile writer at the same time. In particular, `packages/
 
 Artifact and provenance hosts are untrusted. The same restrictions apply to webhook registration probes and redirects.
 
-Workers `fetch()` does not expose or pin the IP used for the actual connection, so DNS pre-resolution cannot eliminate rebinding TOCTOU. The hosted deployment performs untrusted fetches in a dedicated verifier Worker with no service bindings, VPC connectivity, credentials, or private origin access. If a deployment exposes private network connectivity, it must route these requests through an egress proxy that resolves, validates, and pins the destination. The threat model and self-hosting docs state this residual explicitly.
+Workers `fetch()` does not expose or pin the IP used for the actual connection, so DNS pre-resolution cannot eliminate rebinding TOCTOU. The hosted deployment performs untrusted fetches in `apps/release-verifier`, a dedicated Worker reached through a narrow release-service binding, with no public route, outbound service bindings, D1, Queues, service secrets, VPC connectivity, credentials, or private origin access. If a deployment exposes private network connectivity, it must route these requests through an egress proxy that resolves, validates, and pins the destination. The threat model and self-hosting docs state this residual explicitly.
 
 ### Checksum handling
 
@@ -366,9 +385,7 @@ The GitHub/Sigstore implementation verifies:
 
 The implementation must not do partial verification. Unknown predicates and unsupported bundle formats produce `PROVENANCE_UNVERIFIABLE`, never "absent".
 
-An early spike must prove that the selected Sigstore verifier bundles and runs in workerd. If the upstream package depends on unsupported Node APIs, this blocks the hosted service phase; do not replace cryptographic verification with an external trust API.
-
-That spike must use an actual bundle from `actions/attest-build-provenance` and document the exact mapping for repository ID, workflow ref, commit SHA, ref, certificate identity, SLSA `builder.id`, and the RFC's `builderId`. Implementation must follow the observed bundle schema rather than assuming the workflow ref is always stored in `builder.id`.
+W0.5 proved public Sigstore verification in workerd with a real `actions/attest-build-provenance` bundle and documented the exact repository, workflow, commit, certificate, SLSA builder, and RFC `builderId` mapping. W2.5 then landed production verification with a vendored trust root, real fixture, packed-output workerd coverage, and a version-pinned `@sigstore/core` key-aware algorithm patch. The implementation fails closed and does not delegate cryptographic verification to an external trust API.
 
 ## Service Data Model
 
@@ -1042,20 +1059,20 @@ Run a second suite against real GitHub OIDC and a real supported PDS in a contro
 
 ### Phase 0: RFC clarification and external validation
 
-- Record implementation acceptance criteria for the profile extension, repository anchor, release provenance, and escalation contracts already decided by RFC #1870.
-- Validate create-only permission support on target PDSes outside this repository.
-- Confirm atcute confidential-client persistence, refresh-lock, and key-rotation constraints through external research or a disposable reproduction.
-- Inspect a real GitHub provenance bundle and select the Workers-compatible Sigstore verifier plus exact field mapping.
-- Select an aggregator history source that can retain event-specific signed profile values; document the constraints for the later W10.1 implementation.
-- Use `emdash-plugin` as the v1 public command and update RFC examples accordingly.
+- Complete: record implementation acceptance criteria for the profile extension, repository anchor, release provenance, and escalation contracts already decided by RFC #1870.
+- Pending Gate 0A: validate create-only permission support on target PDSes outside this repository.
+- Pending Gate 0A: confirm atcute confidential-client persistence, refresh-lock, and key-rotation constraints through external research or a disposable reproduction.
+- Complete: inspect a real GitHub provenance bundle and land the Workers-compatible Sigstore verifier plus exact field mapping.
+- Pending Gate 0B: select an aggregator history source that can retain event-specific signed profile values and document `W10.1` constraints.
+- Complete: use `emdash-plugin` as the v1 public command.
 
-Exit criterion: implementation acceptance criteria accurately reflect RFC #1870 and external validation reveals no incompatible constraint. Gate 0 adds no repository harnesses, production code, test scripts, package dependencies, or CI wiring. If research changes an assumption, commit only the corresponding spec or plan update.
+Exit criteria are independent. Gate 0A passes when create-only PDS and confidential OAuth validation reveal no incompatible service constraint. Gate 0B passes when historical ingest has a viable source and trust model. External validation adds no repository harnesses, production code, test scripts, package dependencies, or CI wiring; commit conclusions directly to the integration branch.
 
 ### Phase 1: Protocol and verification foundation
 
-- Land profile and release lexicon additions.
-- Land `@emdash-cms/registry-verification`.
-- Land declared-access canonical diff.
+- Complete: land profile and release lexicon additions.
+- In progress: complete `@emdash-cms/registry-verification` with direct-PDS record/policy verification.
+- Complete: land declared-access canonical diff.
 - Extend passkey primitives with required UV and bound challenge context.
 - Extract create-only release record construction into `registry-client`.
 - Switch existing installer integrity checks to shared verification where behavior is equivalent.
@@ -1129,8 +1146,5 @@ Phase 4 is a production launch gate for the default public service and registry,
 ## Implementation Blockers to Resolve First
 
 1. Confirm the exact permission NSID and create-only scope against deployed PDS implementations.
-2. Select and prove a Workers-compatible Sigstore verifier.
-3. Decide the authoritative historical event source for aggregator policy ordering.
-4. Ratify the package-profile repository field and extension shape.
-5. Ratify the baseline definition and declared-access escalation rules in this spec.
-6. Settle the public CLI spelling before adding new command documentation.
+2. Confirm confidential OAuth persistence, refresh locking, and key-rotation behavior under workerd.
+3. Decide the authoritative historical event source and trust model for aggregator policy ordering.

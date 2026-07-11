@@ -1,6 +1,6 @@
 # W0.5 Sigstore verification in workerd
 
-This is a Gate 0 decision record. Fixture acquisition, dependencies, and test harnesses remain external until W2.5.
+This is the completed W0.5 decision record. W2.5 production implementation landed in #1951.
 
 ## Proven facts
 
@@ -40,11 +40,10 @@ Node documents `crypto.verify` algorithm selection at `https://nodejs.org/api/cr
 
 Predicate fields are signed but workflow-controlled. Production policy must safely decode the modern DER UTF8String Fulcio extensions and require predicate agreement. RFC `builderId` is not SLSA `builder.id`.
 
-## W2.5 requirements
+## W2.5 resolution
 
-- Gate 1 is blocked until the algorithm-selection gap has a production-safe implementation and review. Prefer an upstream fix in `@sigstore/core` or `@sigstore/verify`. If no release is available, use a narrowly reviewed, lockfile-pinned `pnpm patch` or a small adapter/fork scoped to Sigstore verification. Do not monkeypatch `node:crypto` process-wide.
-- Derive the algorithm from validated key type and curve: P-256 -> SHA-256, P-384 -> SHA-384, P-521 -> SHA-512, and Ed25519 -> `null`/`undefined` according to the Node API. Reject unsupported, deprecated, contradictory, or ambiguous key details. Regression-test every supported key algorithm in both Node and workerd, including DSSE, SET, and checkpoint paths.
-- `@sigstore/verify@4.1.0` and `@sigstore/bundle@5.0.0` declare Node `^22.22.2 || ^24.15.0 || >=26.0.0`. Verify repository CI and every deployment runtime against that constraint before adopting them.
-- Vendor reviewed, versioned trust roots. Refresh them explicitly, inspect key and validity-window changes, retain historical CAs/logs/TSAs needed for signatures made during their validity periods, and perform no runtime trust-API fetch.
-- Implement the complete `ProvenanceVerifier` contract: bundle checksum and format, trust chain, required transparency evidence, exact identity, supported statement/predicate versions, artifact digest, certificate/predicate agreement, profile repository agreement, and derived RFC fields. Verification has one complete success or fails as unverifiable; there is no partial success, and failed supplied provenance is never treated as absent.
-- This spike proves only public Sigstore/Fulcio/Rekor. GitHub-private Fulcio/TSA remains unproved and requires a real W2.5 fixture and trust-domain test if supported. Without that evidence, support remains limited to public Sigstore.
+- #1951 resolves the algorithm-selection gap with a narrowly scoped, lockfile-pinned `@sigstore/core@4.0.1` patch. The published package bundles the patched behavior; packed-output tests run in workerd so consumers do not depend on workspace patch application.
+- Verification derives algorithms from validated key details and rejects unsupported or contradictory keys. Node and workerd exercise the same contract, including DSSE, SET, checkpoint, identity, predicate, and artifact bindings.
+- The package vendors a reviewed public trust root and performs no runtime trust-API fetch. Trust-root refresh remains an explicit reviewed maintenance operation.
+- `ProvenanceVerifier` implements all-or-nothing bundle checksum, trust, transparency, identity, predicate, artifact, repository, and builder agreement. Failed supplied provenance is never treated as absent.
+- Support remains limited to public Sigstore/Fulcio/Rekor. GitHub-private Fulcio/TSA requires a separate real fixture and trust-domain test before support can be claimed.
