@@ -28,7 +28,9 @@
 	],
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",
+		"LABELER_SERVICE_URL": "https://labels.emdashcms.com",
 		"LABEL_SIGNING_KEY_VERSION": "v1",
+		"LABEL_SIGNING_PUBLIC_KEY": "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
 	},
 	"observability": { "enabled": true },
 }

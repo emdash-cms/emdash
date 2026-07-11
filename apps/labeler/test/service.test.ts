@@ -8,6 +8,7 @@ import {
 import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { getLabelerIdentityConfig } from "../src/config.js";
 import { queryLabels } from "../src/query-labels.js";
 import { issueManualLabel, type AllowedLabelProposal } from "../src/service.js";
 import {
@@ -18,6 +19,7 @@ import {
 	initializeSigningState,
 	listSigningAlerts,
 } from "../src/signing-rotation.js";
+import { createRuntimeSigner } from "../src/signing-runtime.js";
 import { createLabelPublisher, type LabelPublisher } from "../src/subscribe-labels.js";
 
 interface TestEnv {
@@ -26,7 +28,8 @@ interface TestEnv {
 }
 
 const testEnv = env as unknown as TestEnv;
-const LABELER_DID = "did:example:labeler";
+const LABELER_DID = "did:web:labels.emdashcms.com";
+const LABELER_SERVICE_URL = "https://labels.emdashcms.com";
 const PUBLISHER_DID = "did:plc:publisher000000000000000000";
 const PRIVATE_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE";
 const MULTIKEY = "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
@@ -39,6 +42,121 @@ let actionNumber = 0;
 
 beforeAll(async () => {
 	await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);
+});
+
+describe("service identity", () => {
+	it("publishes the label signing key and labeler service", async () => {
+		const response = await SELF.fetch("https://test/.well-known/did.json");
+		expect(response.status).toBe(200);
+		expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+		expect(await response.json()).toEqual({
+			"@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/multikey/v1"],
+			id: LABELER_DID,
+			verificationMethod: [
+				{
+					id: `${LABELER_DID}#atproto_label`,
+					type: "Multikey",
+					controller: LABELER_DID,
+					publicKeyMultibase: MULTIKEY,
+				},
+			],
+			service: [
+				{
+					id: `${LABELER_DID}#atproto_labeler`,
+					type: "AtprotoLabeler",
+					serviceEndpoint: LABELER_SERVICE_URL,
+				},
+			],
+		});
+	});
+
+	it("publishes the canonical versioned moderation policy", async () => {
+		const response = await SELF.fetch("https://test/.well-known/emdash-labeler-policy.json");
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-type")).toContain("application/json");
+		expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+		expect(response.headers.get("etag")).toMatch(/^"[a-f0-9]{64}"$/);
+		expect(await response.json()).toMatchObject({
+			schemaVersion: 1,
+			policyVersion: "2026-07-10.experimental.2",
+			labelerDid: LABELER_DID,
+			assessmentSchemaVersion: 1,
+		});
+		const etag = response.headers.get("etag")!;
+		for (const ifNoneMatch of [etag, `W/${etag}`, `"other", W/${etag}`, "*"]) {
+			const cached = await SELF.fetch("https://test/.well-known/emdash-labeler-policy.json", {
+				headers: { "if-none-match": ifNoneMatch },
+			});
+			expect(cached.status).toBe(304);
+		}
+	});
+
+	it("rejects identity, origin, and public-key configurations that cannot be published", async () => {
+		const bindings = {
+			LABELER_DID,
+			LABELER_SERVICE_URL,
+			LABEL_SIGNING_KEY_VERSION: "v1",
+			LABEL_SIGNING_PUBLIC_KEY: MULTIKEY,
+		};
+		await expect(
+			getLabelerIdentityConfig({ ...bindings, LABELER_DID: "did:plc:labeler" }),
+		).rejects.toThrow("host-level did:web");
+		await expect(
+			getLabelerIdentityConfig({ ...bindings, LABELER_DID: `${LABELER_DID}:path` }),
+		).rejects.toThrow("host-level did:web");
+		await expect(
+			getLabelerIdentityConfig({ ...bindings, LABELER_DID: "did:web:other.example" }),
+		).rejects.toThrow("must match");
+		await expect(
+			getLabelerIdentityConfig({
+				...bindings,
+				LABELER_SERVICE_URL: `${LABELER_SERVICE_URL}:8443`,
+			}),
+		).rejects.toThrow("must match");
+		await expect(
+			getLabelerIdentityConfig({ ...bindings, LABEL_SIGNING_PUBLIC_KEY: "zDna1" }),
+		).rejects.toThrow("canonical P-256 Multikey");
+	});
+
+	it("builds a versioned signer only when the secret matches the published key", async () => {
+		let reads = 0;
+		const runtime = await createRuntimeSigner(
+			{
+				labelerDid: LABELER_DID,
+				serviceUrl: LABELER_SERVICE_URL,
+				signingKeyVersion: "v1",
+				signingPublicKeyMultibase: MULTIKEY,
+			},
+			{
+				async get() {
+					reads++;
+					return PRIVATE_KEY;
+				},
+			},
+		);
+		expect(reads).toBe(1);
+		expect(runtime).toMatchObject({
+			keyVersion: "v1",
+			publicKeyMultibase: MULTIKEY,
+			signer: { issuerDid: LABELER_DID },
+		});
+
+		await expect(
+			createRuntimeSigner(
+				{
+					labelerDid: LABELER_DID,
+					serviceUrl: LABELER_SERVICE_URL,
+					signingKeyVersion: "v1",
+					signingPublicKeyMultibase: MULTIKEY,
+				},
+				{
+					async get() {
+						return ROTATED_PRIVATE_KEY;
+					},
+				},
+			),
+		).rejects.toThrow("does not match");
+	});
 });
 
 function releaseUri(name: string): string {
@@ -246,6 +364,19 @@ describe("manual label issuance", () => {
 			}),
 		).resolves.toMatchObject({ src: LABELER_DID, uri, val: "security-yanked" });
 		expect(issued.signingKeyId).toBe(`${LABELER_DID}#atproto_label`);
+		let signerReads = 0;
+		const currentResponse = await queryLabels(
+			testEnv.DB,
+			new Request(
+				`https://test/xrpc/com.atproto.label.queryLabels?uriPatterns=${encodeURIComponent(uri)}`,
+			),
+			async () => {
+				signerReads++;
+				throw new Error("signer should remain lazy");
+			},
+		);
+		expect(currentResponse.status).toBe(200);
+		expect(signerReads).toBe(0);
 	});
 
 	it("allocates monotonically increasing sequences", async () => {
@@ -749,7 +880,7 @@ describe("routine signing-key rotation", () => {
 		});
 		expect(invalidResign.status).toBe(503);
 		const [response, concurrentResponse] = await Promise.all([
-			queryLabels(testEnv.DB, queryRequest(), signingRuntime),
+			SELF.fetch(queryRequest()),
 			queryLabels(testEnv.DB, queryRequest(), signingRuntime),
 		]);
 		expect(response.status).toBe(200);

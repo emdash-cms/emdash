@@ -1,5 +1,7 @@
-import { getLabelerConfig } from "./config.js";
+import { getLabelerIdentityConfig } from "./config.js";
+import { didDocumentResponse, policyDocumentResponse } from "./identity.js";
 import { queryLabels } from "./query-labels.js";
+import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
 import { LABEL_SUBSCRIPTION_DO_NAME } from "./subscribe-labels.js";
 import { xrpcError } from "./xrpc.js";
 
@@ -8,20 +10,28 @@ export { LabelSubscriptionDO } from "./subscribe-labels.js";
 const QUERY_LABELS_PATH = "/xrpc/com.atproto.label.queryLabels";
 const SUBSCRIBE_LABELS_PATH = "/xrpc/com.atproto.label.subscribeLabels";
 const CREATE_REPORT_PATH = "/xrpc/com.atproto.moderation.createReport";
+const DID_DOCUMENT_PATH = "/.well-known/did.json";
+const POLICY_DOCUMENT_PATH = "/.well-known/emdash-labeler-policy.json";
 const SUBSCRIBE_CURSOR = /^(?:0|[1-9]\d*)$/;
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const pathname = new URL(request.url).pathname;
-		if (pathname.startsWith("/xrpc/")) {
-			// Require the deployment identity even though this first public route
-			// is read-only, so issuance cannot be configured against another DID.
-			try {
-				getLabelerConfig(env);
-			} catch {
+		let config;
+		try {
+			config = await getLabelerIdentityConfig(env);
+		} catch {
+			if (pathname.startsWith("/xrpc/"))
 				return xrpcError("InternalServerError", "labeler is not configured", 500);
-			}
-			if (pathname === QUERY_LABELS_PATH) return queryLabels(env.DB, request);
+			return new Response("emdash-labeler is not configured", { status: 500 });
+		}
+		if (pathname === DID_DOCUMENT_PATH) return didDocumentResponse(request, config);
+		if (pathname === POLICY_DOCUMENT_PATH) return policyDocumentResponse(request, config);
+		if (pathname.startsWith("/xrpc/")) {
+			if (pathname === QUERY_LABELS_PATH)
+				return queryLabels(env.DB, request, () =>
+					createRuntimeSigner(config, getRuntimeSigningSecret(env)),
+				);
 			if (pathname === SUBSCRIBE_LABELS_PATH) return subscribeLabels(env, request);
 			if (pathname === CREATE_REPORT_PATH) return rejectModerationReport(request);
 			return xrpcError("MethodNotSupported", "XRPC method not found", 404);
