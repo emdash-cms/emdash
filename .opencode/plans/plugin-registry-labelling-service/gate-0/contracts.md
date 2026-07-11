@@ -2,7 +2,13 @@
 
 Status: ratified contracts for `W0.1` and `W0.2` as of 2026-07-10. This is not a production Lexicon or protocol implementation.
 
-Companions: [implementation spec](../spec.md), [implementation plan](../implementation-plan.md), [moderation policy fixture](./fixtures/moderation-policy.json), and [moderation cases](./fixtures/moderation-cases.json).
+Companions: [implementation spec](../spec.md), [implementation plan](../implementation-plan.md), [moderation policy fixture](../../../../apps/labeler/fixtures/moderation-policy.json), and [moderation cases](../../../../packages/registry-moderation/tests/fixtures/moderation-cases.json).
+
+## Amendments
+
+- 2026-07-10 (#1926): the unshipped surface was standardized on US `labeler` spelling. The ratified public NSIDs are `com.emdashcms.experimental.labeler.*`; identifiers in this document were updated to match.
+- 2026-07-10 (#1917): the implemented evaluator added `applicableLabels: ModerationLabel[]` to `ReleaseModeration` for consumer display.
+- The ratified fixtures moved from this folder into product paths: `apps/labeler/fixtures/moderation-policy.json` and `packages/registry-moderation/tests/fixtures/moderation-cases.json`.
 
 ## Scope
 
@@ -13,17 +19,17 @@ Subjects use the current experimental registry identifiers:
 - Package: `com.emdashcms.experimental.package.profile`
 - Release: `com.emdashcms.experimental.package.release`
 - Publisher: a DID, optionally described by `com.emdashcms.experimental.publisher.profile`
-- Reference labeller: `did:web:labels.emdashcms.com`
+- Reference labeler: `did:web:labels.emdashcms.com`
 
 ## Proposed Public Identifiers
 
 | NSID                                                       | Kind        | Purpose                                                                    |
 | ---------------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
-| `com.emdashcms.experimental.labeller.defs`                 | definitions | Shared public assessment, policy, coverage, label, and manual-action views |
-| `com.emdashcms.experimental.labeller.getAssessment`        | query       | Fetch one immutable historical assessment by public ID                     |
-| `com.emdashcms.experimental.labeller.getCurrentAssessment` | query       | Fetch effective assessment state for an exact release URI and CID          |
-| `com.emdashcms.experimental.labeller.listAssessments`      | query       | Page through public assessments using bounded filters                      |
-| `com.emdashcms.experimental.labeller.getPolicy`            | query       | Fetch the current machine-readable policy document                         |
+| `com.emdashcms.experimental.labeler.defs`                 | definitions | Shared public assessment, policy, coverage, label, and manual-action views |
+| `com.emdashcms.experimental.labeler.getAssessment`        | query       | Fetch one immutable historical assessment by public ID                     |
+| `com.emdashcms.experimental.labeler.getCurrentAssessment` | query       | Fetch effective assessment state for an exact release URI and CID          |
+| `com.emdashcms.experimental.labeler.listAssessments`      | query       | Page through public assessments using bounded filters                      |
+| `com.emdashcms.experimental.labeler.getPolicy`            | query       | Fetch the current machine-readable policy document                         |
 
 The service also implements `com.atproto.label.queryLabels` and `com.atproto.label.subscribeLabels` without redefining them.
 
@@ -39,7 +45,7 @@ The permanent discovery URL is:
 https://labels.emdashcms.com/.well-known/emdash-labeler-policy.json
 ```
 
-It returns the same policy object as `com.emdashcms.experimental.labeller.getPolicy`, with `Content-Type: application/json`. Responses use a representation-derived ETag and may be publicly cached for at most five minutes. The policy document is informational; stale policy data never changes whether a signed label is current.
+It returns the same policy object as `com.emdashcms.experimental.labeler.getPolicy`, with `Content-Type: application/json`. Responses use a representation-derived ETag and may be publicly cached for at most five minutes. The policy document is informational; stale policy data never changes whether a signed label is current.
 
 ## Shared Public Shapes
 
@@ -106,14 +112,14 @@ This is a public summary, not the private operator reason or evidence record.
 
 ### Policy document
 
-`fixtures/moderation-policy.json` is the canonical example. Its Lexicon-expressible shape is:
+`apps/labeler/fixtures/moderation-policy.json` is the canonical example. Its Lexicon-expressible shape is:
 
 ```ts
 interface LabelerPolicyDocument {
 	schemaVersion: 1;
 	policyVersion: string;
 	effectiveAt: string;
-	labellerDid: string;
+	labelerDid: string;
 	assessmentSchemaVersion: number;
 	supportedSubjects: {
 		publisher: { kind: "did" };
@@ -173,7 +179,7 @@ Errors: `InvalidRequest`, `NotFound`, `RateLimitExceeded`.
 | ----- | -------- | --------------------------- | ----------------------------------------------- |
 | `uri` | yes      | exact `at-uri`, no wildcard | Release record URI                              |
 | `cid` | yes      | CID                         | Exact release record version being evaluated    |
-| `src` | no       | DID                         | Labeller source; defaults to the endpoint's DID |
+| `src` | no       | DID                         | Labeler source; defaults to the endpoint's DID |
 
 ```ts
 interface CurrentAssessmentView {
@@ -226,7 +232,7 @@ Error: `RateLimitExceeded`.
 | --------------------- | ----------- | ----------------------------------------------------------------------- |
 | `InvalidRequest`      | 400         | Lexicon or cross-field validation failed                                |
 | `InvalidCursor`       | 400         | Cursor is malformed, unsupported, or bound to different filters         |
-| `UnsupportedSource`   | 400         | `src` differs from this deployment's labeller DID                       |
+| `UnsupportedSource`   | 400         | `src` differs from this deployment's labeler DID                       |
 | `NotFound`            | 404         | Requested public assessment or exact subject is unavailable             |
 | `RateLimitExceeded`   | 429         | Public rate limit exceeded; response should include `Retry-After`       |
 | `InternalServerError` | 500         | Generic XRPC error for an unhandled server failure, not method-declared |
@@ -235,11 +241,11 @@ Error: `RateLimitExceeded`.
 
 ## Moderation Evaluation Contract
 
-`fixtures/moderation-cases.json` is executable input for `W1.5`.
+`packages/registry-moderation/tests/fixtures/moderation-cases.json` is executable input for `W1.5`.
 
 ### Inputs and accepted sources
 
-The evaluator receives a parsed evaluation instant, exact publisher/package/release subjects and current CIDs, accepted labeller DIDs with `redact` flags, and label history. Missing `atproto-accept-labelers` is resolved to deployment defaults before evaluation; explicitly empty means no accepted sources and therefore no qualifying positive assessment.
+The evaluator receives a parsed evaluation instant, exact publisher/package/release subjects and current CIDs, accepted labeler DIDs with `redact` flags, and label history. Missing `atproto-accept-labelers` is resolved to deployment defaults before evaluation; explicitly empty means no accepted sources and therefore no qualifying positive assessment.
 
 Unaccepted sources are ignored. Every accepted source is reduced and evaluated independently. A source's valid override suppresses only that source's automated states. It never suppresses another accepted source's pending, error, automated block, warning, or manual action.
 
@@ -318,6 +324,7 @@ interface ReleaseModeration {
 	stateLabels: string[];
 	warningLabels: string[];
 	suppressedLabels: string[];
+	applicableLabels: ModerationLabel[];
 	redacted: boolean;
 }
 ```
@@ -326,6 +333,7 @@ interface ReleaseModeration {
 - `stateLabels`: active, applicable `assessment-pending` and `assessment-error` values. They never appear in `blockingLabels`.
 - `warningLabels`: active, applicable warning values.
 - `suppressedLabels`: same-source automated state/block values hidden by a valid override but retained for display.
+- `applicableLabels`: the full active, applicable label objects across accepted sources, for consumer display.
 - Label references in fixtures are ordered by source alias, subject, then value. Reasons follow aggregate precedence and are deduplicated.
 
 ## Ratified Decisions

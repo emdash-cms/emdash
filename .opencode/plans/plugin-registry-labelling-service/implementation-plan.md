@@ -11,8 +11,8 @@ This plan turns the plugin registry labelling-service spec into independently de
 The implementation is complete when:
 
 1. Every valid new registry release is independently observed and receives a CID-bound assessment state.
-2. The EmDash labeller issues standard DRISL-signed labels through public `queryLabels` and replayable `subscribeLabels` endpoints.
-3. A fresh aggregator verifies, ingests, hydrates, and enforces labels from configured labellers.
+2. The EmDash labeler issues standard DRISL-signed labels through public `queryLabels` and replayable `subscribeLabels` endpoints.
+3. A fresh aggregator verifies, ingests, hydrates, and enforces labels from configured labelers.
 4. Official clients require an active positive assessment and consistently block pending, errored, yanked, taken-down, or high-risk releases.
 5. Deterministic validation, dependency intelligence, code/metadata AI, image analysis, and publisher-history context run under one versioned policy.
 6. AI can hard-block only critical security or impersonation findings; quality findings warn or downrank.
@@ -26,7 +26,7 @@ The implementation is complete when:
 
 - The [spec](./spec.md) is the source of truth for policy and behavior. This plan may sequence work but must not weaken its invariants.
 - Label vocabulary, subject/CID rules, and official-client effects are frozen before production labels are issued.
-- Standard label serialization/signature logic and consumer policy logic have one shared implementation each. Do not duplicate them across the labeller, aggregator, registry client, core handlers, and admin.
+- Standard label serialization/signature logic and consumer policy logic have one shared implementation each. Do not duplicate them across the labeler, aggregator, registry client, core handlers, and admin.
 - Every asynchronous producer/consumer is idempotent before it is connected to a real Queue, Workflow, Durable Object, or Jetstream source.
 - A Jetstream event is discovery only. No public label, including `assessment-pending`, is signed before source-record verification.
 - Model output is normalized evidence. It never calls signing primitives or selects arbitrary label values.
@@ -47,7 +47,7 @@ The implementation is complete when:
 | ----- | -------------------------------------- | ------------------------------------------------------------------------------ |
 | `W0`  | Decisions and feasibility              | Ratified contracts and proved platform assumptions                             |
 | `W1`  | Shared protocol and policy             | Lexicons, label crypto, policy schema, and moderation semantics                |
-| `W2`  | Service foundation and persistence     | `apps/labeller`, D1 state, bindings, queues, and workflow skeleton             |
+| `W2`  | Service foundation and persistence     | `apps/labeler`, D1 state, bindings, queues, and workflow skeleton             |
 | `W3`  | Label issuance and distribution        | Typed signer, label history, query API, and replayable subscription            |
 | `W4`  | Aggregator label consumption           | Verified subscription, current state, hydration, redaction, and cascades       |
 | `W5`  | Client eligibility enforcement         | One moderation helper used by registry client, core, CLI, and admin            |
@@ -146,7 +146,7 @@ W2 service foundation
 -> W12 production drill
 ```
 
-`W4` can begin against signed fixtures before the hosted labeller is deployed. `W7` can build shared artifact primitives in parallel with `W2` after Gate 0. `W9` can build read-only assessment views after the state/API contracts freeze, but mutation UI waits for `W3` and `W5`.
+`W4` can begin against signed fixtures before the hosted labeler is deployed. `W7` can build shared artifact primitives in parallel with `W2` after Gate 0. `W9` can build read-only assessment views after the state/API contracts freeze, but mutation UI waits for `W3` and `W5`.
 
 ## Integration Gates
 
@@ -154,7 +154,7 @@ W2 service foundation
 
 Required before production implementation is treated as stable:
 
-- Experimental labeller NSIDs and public API shapes are ratified.
+- Experimental labeler NSIDs and public API shapes are ratified.
 - Label vocabulary, subject/CID rules, blocking matrix, and override precedence are represented as executable policy fixtures.
 - The `security:yanked` to `security-yanked` production preflight is complete.
 - The labeler-declaration strategy is decided: minimal `app.bsky.labeler.service/self` or base label service plus EmDash policy document.
@@ -168,7 +168,7 @@ Gate owner: `W0`.
 
 ### Gate 1: Shared Contract Foundation
 
-- Labeller lexicons generate and round-trip through checked-in types.
+- Labeler lexicons generate and round-trip through checked-in types.
 - Shared policy fixtures produce identical outcomes in Node and workerd.
 - DRISL sign/verify vectors pass in the shared package.
 - Every current registry consumer recognizes `security-yanked` and the complete blocking vocabulary.
@@ -238,7 +238,7 @@ This workstream converts the remaining ratification points into executable decis
 
 Decide:
 
-- Experimental labeller query/procedure NSIDs.
+- Experimental labeler query/procedure NSIDs.
 - Whether a decision-notice repository record ships in v1.
 - Stable path for `/.well-known/emdash-labeler-policy.json`.
 - Public assessment ID format and current-assessment lookup parameters.
@@ -259,7 +259,7 @@ Encode table-driven fixtures for:
 - CID-bound versus URI-wide applicability.
 - Manual override behavior.
 - Negation and expiration.
-- Accepted-labeller and `redact` policy.
+- Accepted-labeler and `redact` policy.
 
 Output: machine-readable fixture set with expected `eligible | pending | error | blocked` outcomes.
 
@@ -361,9 +361,9 @@ If `W0.3` finds persisted legacy values, add the bounded compatibility read and 
 
 Dependencies: `W0.2`, `W0.3`.
 
-### `W1.2` Add labeller lexicons
+### `W1.2` Add labeler lexicons
 
-Under `packages/registry-lexicons/lexicons/com/emdashcms/experimental/labeller/`, define:
+Under `packages/registry-lexicons/lexicons/com/emdashcms/experimental/labeler/`, define:
 
 - Assessment/public finding definitions.
 - `getAssessment`.
@@ -448,7 +448,7 @@ Gate 1 passes. The signer, aggregator, registry client, core handlers, CLI, and 
 
 ## Workstream W2: Service Foundation and Persistence
 
-### `W2.1` Scaffold `apps/labeller`
+### `W2.1` Scaffold `apps/labeler`
 
 Follow `apps/aggregator` deployment conventions:
 
@@ -463,7 +463,7 @@ Follow `apps/aggregator` deployment conventions:
 - Static assets for the later console.
 - Real workerd/D1 Vitest configuration.
 
-Add root/CI scripts so `apps/labeller` build, typecheck, tests, and migrations are not skipped by package-only filters.
+Add root/CI scripts so `apps/labeler` build, typecheck, tests, and migrations are not skipped by package-only filters.
 
 Dependencies: Gate 0, `W1.3` package shape.
 
@@ -634,19 +634,19 @@ Dependencies: `W0.5`, XRPC router from `W3.4`.
 
 ### W3 Completion
 
-The labeller passes Gate 2's signer/query/subscription checks independently of automated assessment.
+The labeler passes Gate 2's signer/query/subscription checks independently of automated assessment.
 
 ## Workstream W4: Aggregator Label Consumption
 
-### `W4.1` Implement labeller configuration and DID resolution
+### `W4.1` Implement labeler configuration and DID resolution
 
-Use the existing `labellers` table for bounded trusted/discoverable sources. Resolve endpoint/key, cache with expiry, refresh periodically, and retry once on signature failure.
+Use the existing `labelers` table for bounded trusted/discoverable sources. Resolve endpoint/key, cache with expiry, refresh periodically, and retry once on signature failure.
 
 Dependencies: `W1.4`, `W3.1` fixtures.
 
 ### `W4.2` Implement outbound subscription Durable Object
 
-One DO per configured labeller:
+One DO per configured labeler:
 
 - Connect to `subscribeLabels`.
 - Resume from `ingest_state` cursor.
@@ -659,6 +659,8 @@ One DO per configured labeller:
 Dependencies: `W4.1`, `W3.6` or protocol fixtures.
 
 ### `W4.3` Implement Labels Queue consumer
+
+Before the first ingest write, add the forward aggregator migration from the `W0.3` audit: replace the `labels` history identity `(src, uri, val, cts)` with a collision-safe event identity (signed-label digest plus unique verified `(src, source_sequence, frame_index)` coordinates), with deterministic duplicate, multi-label-frame, and same-`cts` conflict handling.
 
 In a D1 transaction:
 
@@ -716,7 +718,7 @@ Dependencies: `W1.5` shared evaluator, `W4.5`.
 
 ### `W4.7` Add replay and reconciliation
 
-- Rebuild one labeller from cursor `0` into an empty projection.
+- Rebuild one labeler from cursor `0` into an empty projection.
 - Compare local sequence/high-water state with subscription progress.
 - Re-resolve signing keys on cron.
 - Emit component metrics/events for lag and verification failure; `W11.3` turns them into deployment dashboards and alerts.
@@ -725,7 +727,7 @@ Dependencies: `W4.3`.
 
 ### W4 Completion
 
-The aggregator consumes any conforming configured labeller and produces deterministic hydrated/filtering behavior from the shared policy.
+The aggregator consumes any conforming configured labeler and produces deterministic hydrated/filtering behavior from the shared policy.
 
 ## Workstream W5: Client Eligibility Enforcement
 
@@ -733,7 +735,7 @@ The aggregator consumes any conforming configured labeller and produces determin
 
 Re-export or wrap `W1.5` from `packages/registry-client` without reimplementing policy. The shared evaluator accepts:
 
-- Accepted labeller policy.
+- Accepted labeler policy.
 - Publisher labels.
 - Package labels and current package CID.
 - Release labels and current release CID.
@@ -744,10 +746,13 @@ Return:
 ```ts
 interface ReleaseModeration {
 	eligibility: "eligible" | "pending" | "error" | "blocked";
-	blockingLabels: Label[];
-	warningLabels: Label[];
-	assessment?: PublicAssessmentRef;
-	override?: PublicManualActionRef;
+	reasonCodes: string[];
+	blockingLabels: string[];
+	stateLabels: string[];
+	warningLabels: string[];
+	suppressedLabels: string[];
+	applicableLabels: ModerationLabel[];
+	redacted: boolean;
 }
 ```
 
@@ -760,7 +765,7 @@ Dependencies: `W1.5`.
 - Interpret `atproto-content-labelers`.
 - Preserve source/CID/expiry needed by the evaluator.
 - Fetch `getCurrentAssessment` on demand.
-- Allow per-request accepted-labeller overrides if needed.
+- Allow per-request accepted-labeler overrides if needed.
 - Keep signature verification available through a full-label fetch path.
 
 Dependencies: `W1.3`, `W4.4`, `W5.1`.
@@ -794,13 +799,13 @@ Update registry browse/detail/install surfaces to show:
 
 - Eligibility state.
 - Localized label definitions.
-- Issuing labeller.
+- Issuing labeler.
 - Public summary/coverage.
 - Automated versus manual override.
 - Warning confirmation.
 - Block/reconsideration details.
 
-Include accepted-labeller config in every React Query key.
+Include accepted-labeler config in every React Query key.
 
 Dependencies: `W5.2`, `W10.2` public API contract; static fixtures may unblock UI earlier.
 
@@ -1088,7 +1093,7 @@ Gate 4 passes. A complete automated run can propose and issue the expected label
 - Distinguish human and service-token identities.
 - Reject spoofed raw identity headers.
 
-Dependencies: `W0.8`, `W2.1`.
+Dependencies: `W2.1`.
 
 ### `W9.2` Implement mutation protections
 
@@ -1169,7 +1174,7 @@ Operators can handle the expected low-volume queue without direct database edits
 
 Serve the versioned policy document with:
 
-- Labeller DID.
+- Labeler DID.
 - Policy/schema versions.
 - Supported subjects.
 - Localized label definitions.
@@ -1266,7 +1271,7 @@ Dependencies: `W0` platform choices, `W2.1`.
 
 ### `W11.2` Add CI and deployment safety
 
-- Build/typecheck/test `apps/labeller` explicitly.
+- Build/typecheck/test `apps/labeler` explicitly.
 - Run real workerd/D1 migrations in CI.
 - Validate generated lexicons/types are current.
 - Block deploy on missing required bindings/secrets/policy version.
@@ -1330,7 +1335,7 @@ Document:
 - DID/key/domain setup.
 - Policy/model/scanner configuration boundaries.
 - How a third-party aggregator subscribes and verifies.
-- How clients choose accepted labellers.
+- How clients choose accepted labelers.
 - Which defaults are EmDash policy rather than protocol rules.
 
 Dependencies: public contracts stable through Gate 5.
@@ -1485,9 +1490,9 @@ Each item should remain independently reviewable and leave production behavior s
 
 1. Gate 0 fixtures and decision records.
 2. Vocabulary cutover, shared policy fixture corpus, and the single shared moderation evaluator.
-3. Labeller lexicons/generated types.
+3. Labeler lexicons/generated types.
 4. Shared label crypto and header parsing.
-5. `apps/labeller` scaffold, migrations, repositories, and CI coverage.
+5. `apps/labeler` scaffold, migrations, repositories, and CI coverage.
 6. Typed signer, `queryLabels`, and signing vectors.
 7. Subscriber DO and `subscribeLabels`.
 8. Aggregator subscription, verification, and current-state projection.
@@ -1518,7 +1523,7 @@ Each item should remain independently reviewable and leave production behavior s
 | Release eligibility semantics/evaluator | `W1`  | `W4`, `W5`, core, CLI, admin                   |
 | Consumer eligibility adapters           | `W5`  | Core, CLI, admin                               |
 | Run lifecycle/supersession              | `W6`  | `W8`, `W9`, `W10`                              |
-| Artifact safety                         | `W7`  | Labeller, installer, delegated release service |
+| Artifact safety                         | `W7`  | Labeler, installer, delegated release service |
 | Finding-to-label mapping                | `W8`  | `W3`, `W9`, transparency                       |
 | Human authorization/actions             | `W9`  | `W3`, audit, notifications                     |
 | Public explanation/contact              | `W10` | Registry client/admin, publishers              |
@@ -1568,7 +1573,7 @@ Exit: Gate 6 production smoke and sustained healthy operation.
 ### Contracts
 
 - [ ] Stable policy/vocabulary fixtures are ratified.
-- [ ] Labeller lexicons and policy schema are published.
+- [ ] Labeler lexicons and policy schema are published.
 - [ ] Shared crypto/header/moderation packages are the only implementations.
 - [ ] Legacy colon vocabulary is absent or bounded by an explicit migration.
 - [ ] Retained source/tests have no `.opencode/plans` dependency, all durable fixtures have moved to normal package/test paths, and the ephemeral planning folder is removed.

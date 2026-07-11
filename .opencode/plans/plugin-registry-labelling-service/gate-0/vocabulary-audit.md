@@ -35,7 +35,7 @@ No current runtime, migration, test, generated type, or public documentation occ
 | Location                                                                                          | Reference                  | Current behavior or gap                                                                                                                                                         |
 | ------------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `apps/aggregator/migrations/0001_init.sql:191`                                                    | Schema comment             | `val` can store `!takedown`; no issuer or ingest path exists.                                                                                                                   |
-| `apps/aggregator/src/routes/xrpc/searchPackages.ts:153-162`                                       | `ENFORCEMENT_FILTER_SQL`   | Filters only a package-profile URI, only when `trusted = 1`, and regardless of the request's accepted labellers or `redact` flag.                                               |
+| `apps/aggregator/src/routes/xrpc/searchPackages.ts:153-162`                                       | `ENFORCEMENT_FILTER_SQL`   | Filters only a package-profile URI, only when `trusted = 1`, and regardless of the request's accepted labelers or `redact` flag.                                               |
 | `packages/registry-lexicons/lexicons/com/emdashcms/experimental/aggregator/searchPackages.json:8` | Query description          | Describes takedown filtering but does not encode accepted-source or redaction semantics.                                                                                        |
 | `packages/registry-client/src/discovery/index.ts:101-114`                                         | `acceptLabelers` docs      | Forwards an opaque header and documents `;redact`; it neither parses the header nor interprets the response policy.                                                             |
 | `apps/aggregator/src/routes/xrpc/router.ts:43-64`                                                 | CORS contract              | Allows `atproto-accept-labelers`, but incorrectly exposes that request header instead of `atproto-content-labelers`. The handler never parses either accepted DIDs or `redact`. |
@@ -76,7 +76,7 @@ There are two unrelated mechanisms that current code partially conflates:
 - `label_state` projects one latest row per `(src, uri, val)` and retains that row's `cid`, `neg`, `exp`, and trust bit.
 - The schema comment defines active as `neg = 0` and unexpired. The only runtime query using this rule is package search.
 - `trusted` is copied onto each row. It can record ingestion provenance or the deployment-default trust snapshot at receipt time, but it must never decide request applicability. Request evaluation uses the current parsed accepted-DID policy, so a trust configuration change takes effect without rewriting history.
-- No tracked source contains `INSERT`, `UPDATE`, or `UPSERT` statements for `labels`, `label_state`, or `labellers`. No seed or deployment data populates them.
+- No tracked source contains `INSERT`, `UPDATE`, or `UPSERT` statements for `labels`, `label_state`, or `labelers`. No seed or deployment data populates them.
 
 Before any label ingest, add a forward migration to give each history event collision-safe identity. Preferred shape: a stable digest of the exact verified signed-label bytes as the primary/idempotency key, plus unique `(src, source_sequence, frame_index)` coordinates for subscription ingest. `subscribeLabels` sequence identifies a frame, and one frame may carry multiple labels, so `(src, source_sequence)` alone is not unique. A different event-coordinate primary key is acceptable only if every ingest and replay path proves the same per-label identity. Do not use `cts` as event identity. Projection ordering uses verified `(source_sequence, frame_index)` after `cts`; a replay lacking those coordinates must retain both same-`cts` events and quarantine an ambiguous state transition rather than silently choose by insertion order or digest.
 
@@ -107,20 +107,20 @@ The future shared evaluator must define an applicable active label as one whose 
 | `listReleases`     | `listReleases.ts:22-104` selects every non-tombstoned release and calls `releaseView`.                          | No moderation filter, tombstone, hydration, or explanation.                                                                                            |
 | `getLatestRelease` | `getLatestRelease.ts:25-66` trusts `packages.latest_version`, then falls back to highest non-tombstoned semver. | "Eligible" currently means only non-tombstoned. Positive assessment and every blocking label are ignored.                                              |
 | View mapping       | `views.ts:120-163`                                                                                              | Package and release labels are always empty arrays.                                                                                                    |
-| Request boundary   | `router.ts:43-117`                                                                                              | The accepted-labeller header is allowed but not parsed; no `atproto-content-labelers` response is produced.                                            |
+| Request boundary   | `router.ts:43-117`                                                                                              | The accepted-labeler header is allowed but not parsed; no `atproto-content-labelers` response is produced.                                            |
 
 ### Registry client trace
 
 `DiscoveryClient` forwards `acceptLabelers` on every request and validates response envelopes. It does not:
 
-- Parse accepted labellers or the aggregator's actual content-labeller response.
+- Parse accepted labelers or the aggregator's actual content-labeler response.
 - Filter active state.
 - Evaluate publisher, package, and release subjects together.
 - Require `assessment-passed`.
 - Classify pending, error, blocking, warning, manual override, or redacted states.
 - Verify hydrated label signatures.
 
-Its `listReleases` and `getLatestRelease` comments promise yank-aware behavior that the aggregator does not implement. CLI `search` and `info` construct the client without accepted-labeller configuration (`packages/plugin-cli/src/commands/search.ts:48-58`, `info.ts:45-56`); `info` prints raw labels (`info.ts:98-102`) without explaining effect or active state.
+Its `listReleases` and `getLatestRelease` comments promise yank-aware behavior that the aggregator does not implement. CLI `search` and `info` construct the client without accepted-labeler configuration (`packages/plugin-cli/src/commands/search.ts:48-58`, `info.ts:45-56`); `info` prints raw labels (`info.ts:98-102`) without explaining effect or active state.
 
 ### Core install, update, and update-check trace
 
@@ -145,11 +145,11 @@ The shared evaluation must run after exact release selection and again immediate
 
 W0.2 owns executable fixtures and is authoritative if it differs from this audit. The spec currently requires the following evaluation shape:
 
-1. Require an applicable active `assessment-passed` from an accepted labeller. Its absence is `pending`/unknown and blocks.
+1. Require an applicable active `assessment-passed` from an accepted labeler. Its absence is `pending`/unknown and blocks.
 2. `assessment-pending` blocks temporarily. `assessment-error` blocks and explains an operational failure.
 3. Block active automated security labels: `malware`, `data-exfiltration`, `credential-harvesting`, `supply-chain-compromise`, `critical-vulnerability`, `artifact-integrity-failure`, `invalid-bundle`, `undeclared-access`, and `impersonation`.
 4. Block active manual `security-yanked` on a release.
-5. Redact and block `!takedown` according to accepted-labeller `redact` policy. `!suspend` must follow the standard redaction contract where supported.
+5. Redact and block `!takedown` according to accepted-labeler `redact` policy. `!suspend` must follow the standard redaction contract where supported.
 6. Block `publisher-compromised` across all packages and releases from the publisher.
 7. Apply package and publisher labels at evaluation time without copying them onto release rows. `package-disputed` warns and prevents recommendation; direct-install blocking remains a ratification point.
 8. Warning values (`suspicious-code`, `obfuscated-code`, `privacy-risk`, `misleading-metadata`, `low-quality`, `broken-release`) do not block alone, but official admin installation requires explicit warning consent.
@@ -169,8 +169,8 @@ Evidence against application-created label rows:
 
 - The only label tables are the initial migration's dormant infrastructure.
 - `views.ts:15-18` and `searchPackages.ts:12-15,148-152` explicitly say label hydration/ingest has not landed and the table is empty in the current slice.
-- Exhaustive tracked searches found no writer for `labels`, `label_state`, or `labellers` and no seed data containing any moderation value.
-- There is no configured labeller subscription, label queue, or labeler DID in current deployment configuration.
+- Exhaustive tracked searches found no writer for `labels`, `label_state`, or `labelers` and no seed data containing any moderation value.
+- There is no configured labeler subscription, label queue, or labeler DID in current deployment configuration.
 
 Evidence limitations:
 
@@ -182,7 +182,7 @@ Conclusion: persisted production label rows are unlikely, and application-produc
 
 ## Safe Production Preflight
 
-Run the following read-only SQL against each production/staging aggregator D1 database before W1.1 deploys. Do not run it against the labeller database. It returns counts first, followed by the matching rows without signature bytes.
+Run the following read-only SQL against each production/staging aggregator D1 database before W1.1 deploys. Do not run it against the labeler database. It returns counts first, followed by the matching rows without signature bytes.
 
 ```sql
 SELECT
@@ -388,8 +388,8 @@ The current versions below are evidence from tracked manifests, not claims about
 | `A1` reference aggregator                        | First deployed compatibility-floor commit: `TBD`              | New class.                                                                                                                                                                           | Verify before write; collision-safe history; current accepted-DID evaluation; canonical+legacy dual-read; application-validated subject/expiry; publisher/package/release expansion; block/redact search, package, resolve, list, latest, explicit-version, and media/artifact resolution consistently. For clients without typed tombstone support, omit blocked releases rather than returning an installable-looking view. | Yes for acquisition paths.                                                                    |
 | `S0` already-installed EmDash/core/admin         | `emdash@0.28.1`, `@emdash-cms/admin@0.28.1`, client `0.3.2`   | Embeds its registry-client and raw legacy checks at build/install time. Updating npm packages or the reference Worker does not upgrade it. No complete installed-release alert path. | Either upgrade the installation to `S1` or require it to use an `A1` reference endpoint that fail-closes every latest/explicit/artifact path. Publish the minimum supported EmDash version.                                                                                                                                                                                                                                   | Acquisition can be safe through `A1`; installed-plugin alert/disable coverage remains absent. |
 | `S1` policy-aware EmDash/core/admin              | First compatible EmDash/admin/client releases: `TBD`          | New class.                                                                                                                                                                           | Shared evaluator immediately before install/update artifact fetch, explicit-version parity, update-check/installed-release alerts, policy-keyed admin queries, and blocked/redacted artifact proxy.                                                                                                                                                                                                                           | Yes.                                                                                          |
-| `C0` installed CLI/registry-client               | `@emdash-cms/plugin-cli@0.6.0`, registry client `0.3.2`       | No accepted-labeller option in current search/info commands; displays unclassified raw labels; no install/update command.                                                            | Upgrade to `C1` for accurate moderation display.                                                                                                                                                                                                                                                                                                                                                                              | No install bypass exists, but output is not trustworthy as policy explanation.                |
-| `C1` policy-aware CLI/client                     | First compatible CLI/client releases: `TBD`                   | New class.                                                                                                                                                                           | Current accepted-DID policy, typed moderation result, canonical+bounded-legacy handling, and content-labeller reporting.                                                                                                                                                                                                                                                                                                      | Yes for its supported read-only paths.                                                        |
+| `C0` installed CLI/registry-client               | `@emdash-cms/plugin-cli@0.6.0`, registry client `0.3.2`       | No accepted-labeler option in current search/info commands; displays unclassified raw labels; no install/update command.                                                            | Upgrade to `C1` for accurate moderation display.                                                                                                                                                                                                                                                                                                                                                                              | No install bypass exists, but output is not trustworthy as policy explanation.                |
+| `C1` policy-aware CLI/client                     | First compatible CLI/client releases: `TBD`                   | New class.                                                                                                                                                                           | Current accepted-DID policy, typed moderation result, canonical+bounded-legacy handling, and content-labeler reporting.                                                                                                                                                                                                                                                                                                      | Yes for its supported read-only paths.                                                        |
 | Third-party/self-hosted old aggregator or client | Deployment-specific; no repository-controlled version floor   | Version and rollout are outside the reference deployment's control.                                                                                                                  | Operator attestation of `A1`/`S1` equivalent behavior or explicit exclusion from the supported compatibility set.                                                                                                                                                                                                                                                                                                             | Unknown until attested.                                                                       |
 
 Safe rollout and rollback protections:
@@ -437,7 +437,7 @@ The removal procedure passes every raw `exp` through the same strict application
 
 ### W4: aggregator policy and hydration
 
-- `apps/aggregator/src/routes/xrpc/router.ts`: parse accepted labellers once, set/CORS-expose `atproto-content-labelers`, and preserve missing versus empty policy.
+- `apps/aggregator/src/routes/xrpc/router.ts`: parse accepted labelers once, set/CORS-expose `atproto-content-labelers`, and preserve missing versus empty policy.
 - Add label ingest/projection code that validates payload shape and source, verifies signatures before any history/projection write, and preserves exact `src`, `uri`, `cid`, `val`, `neg`, `cts`, `exp`, signed bytes/digest, verified source sequence, and frame index.
 - Treat persisted `trusted` only as receipt-time ingestion/default-policy metadata. Every request resolves current accepted DIDs independently; changing deployment trust must immediately affect old rows without rewriting them.
 - Add one application-layer ATProto subject validator used by preflight migration and runtime policy. It must fully validate DID grammar, AT URI segmentation/collection, and record-key grammar, byte length, and reserved `.`/`..`; SQL candidates confer no validity.
@@ -446,7 +446,7 @@ The removal procedure passes every raw `exp` through the same strict application
 - `apps/aggregator/src/routes/xrpc/views.ts`: replace unconditional empty arrays with batched publisher/package/release hydration.
 - `searchPackages.ts`, `getPackage.ts`, `resolvePackage.ts`, `listReleases.ts`, and `getLatestRelease.ts`: use shared subject expansion and evaluation. Search/redaction, direct tombstones, and latest eligible release must agree.
 - `apps/aggregator/test/read-api.test.ts`: clear label tables between tests and add source, active/negated/expired, URI-wide/CID-bound, subject-cascade, redaction, and latest-selection coverage.
-- Add request-header/CORS contract tests for absent, empty, malformed, repeated, unavailable, and `redact` accepted-labeller forms.
+- Add request-header/CORS contract tests for absent, empty, malformed, repeated, unavailable, and `redact` accepted-labeler forms.
 - Add workerd/D1 ingest security tests for invalid signatures, wrong DID/key, malformed/extra-field payloads, routine key rotation, one DID/key refresh on first verification failure, persistent failure after refresh, and unverifiable replay. Every rejection must prove zero history rows, zero projection writes, and no durable cursor advancement.
 - Add collision/replay tests proving every label in one multi-label subscription frame receives distinct `(src, source_sequence, frame_index)` coordinates, exact redelivery deduplicates by digest, distinct valid same-`cts` labels both survive history, verified frame coordinates resolve projection order, and coordinate-less ambiguous replay is quarantined rather than overwritten.
 
@@ -457,11 +457,11 @@ The removal procedure passes every raw `exp` through the same strict application
 - `handleRegistryInstall`, `handleRegistryUpdate`, and `handleRegistryUpdateCheck` must share evaluation over publisher, package, and exact release subjects. Explicit-version paths must not bypass it.
 - `packages/core/src/astro/routes/api/admin/plugins/registry/artifact.ts` must fail closed for redacted/blocked exact releases so media retrieval cannot bypass direct-read policy.
 - Add focused core handler tests for every eligibility outcome and prove rejection occurs before artifact fetch.
-- `packages/admin/src/components/RegistryBrowse.tsx`: add accepted-labeller policy to the query key and render typed eligibility, not raw `verified`.
-- `RegistryPluginDetail.tsx`: add accepted-labeller policy to the package query key; consume typed eligibility, warnings, issuer, summary, override, and reconsideration state.
+- `packages/admin/src/components/RegistryBrowse.tsx`: add accepted-labeler policy to the query key and render typed eligibility, not raw `verified`.
+- `RegistryPluginDetail.tsx`: add accepted-labeler policy to the package query key; consume typed eligibility, warnings, issuer, summary, override, and reconsideration state.
 - `packages/admin/tests/components/RegistryPluginDetail.test.tsx`: replace raw-yank assumptions with policy fixtures; add negation/expiry/CID/warning/override tests. Add browse tests.
 - `packages/admin/src/lib/api/registry.ts`: expose localized server error mapping for pending, error, blocked, redacted, and warning-consent outcomes.
-- `packages/plugin-cli/src/commands/search.ts` and `info.ts`: use configured official accepted-labeller policy and display the shared moderation result rather than unclassified raw labels.
+- `packages/plugin-cli/src/commands/search.ts` and `info.ts`: use configured official accepted-labeler policy and display the shared moderation result rather than unclassified raw labels.
 - `docs/src/content/docs/plugins/registry.mdx`, `registry-client.mdx`, and `reference/configuration.mdx`: document canonical vocabulary, positive-assessment requirement, warning behavior, and actual accepted/content-labeler semantics after implementation.
 - Add installed-release refresh/alert coverage for canonical yank, takedown, and newly blocking labels.
 
@@ -480,7 +480,7 @@ The removal procedure passes every raw `exp` through the same strict application
 | Eligibility       | Missing pass, passed, pending, error, every blocking security label, canonical yank, takedown, publisher compromise, warning-only, unknown label.                                              |
 | Overrides         | Exact-CID automated-block override, newer assessment while override remains active, override retraction, inability to bypass manual release/package/publisher blocks.                          |
 | Aggregator reads  | Search, package, resolve, release list, latest release, direct blocked tombstone, all-blocked package, cache `private, no-store`.                                                              |
-| Registry client   | Envelope preservation, content-labeller response, shared evaluator parity, signed full-label retrieval, malformed label fail-closed behavior.                                                  |
+| Registry client   | Envelope preservation, content-labeler response, shared evaluator parity, signed full-label retrieval, malformed label fail-closed behavior.                                                  |
 | Core              | Latest and explicit install, latest and explicit update, update check, no artifact request before eligibility, stable localized error codes.                                                   |
 | Admin             | Browse/detail query-key isolation, pending/error/block/warn UI, warning consent, issuer display, reconsideration, installed alert, Arabic RTL.                                                 |
 | Compatibility     | Zero-row no-alias path; active/negated/expired legacy rows; `A0/A1`, `S0/S1`, and `C0/C1`; latest/explicit/artifact paths; canonical overlap before negation; rollback floor; alias removal.   |

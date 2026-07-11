@@ -73,7 +73,7 @@ The feasibility spike ran both workerd atcute and independent `@atproto/crypto` 
 2. Replace or remove the compromised `#atproto_label` key in the DID document, publish an incident notice through the policy endpoint, establish the last trusted sequence/time where possible, and deploy a fresh key only after its DID publication is observable.
 3. Preserve compromised signatures and their key-version mapping for forensics, but never treat them as currently valid merely because they once verified.
 4. Reissue the current effective label set with new signed events. Do not rewrite compromised history into an apparently continuous trusted history.
-5. Declare a safe replay cursor when one can be established. Otherwise require subscribers to clear derived state for this labeller and replay the retained stream from cursor `0` after trustworthy history/current-state recovery is available.
+5. Declare a safe replay cursor when one can be established. Otherwise require subscribers to clear derived state for this labeler and replay the retained stream from cursor `0` after trustworthy history/current-state recovery is available.
 6. Subscribers re-resolve the DID on signature failure, reject labels that still fail, and alert rather than falling back to `#atproto` or any other DID key.
 
 W3.7 owns implementing this state machine and key-version persistence. W11.4 owns the operator runbook, ceremony/custody details, external DID verification, monitoring, and subscriber communications.

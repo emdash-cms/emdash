@@ -4,9 +4,9 @@ Companion: [Implementation plan](./implementation-plan.md)
 
 Status: draft implementation spec for the follow-on trust and moderation work described by RFC #694.
 
-This document specifies the EmDash-operated reference labeller for the decentralized plugin registry. It covers automated release assessment, signed ATProto labels, operator actions, the public explanation API, aggregator and client integration, and the small operator console.
+This document specifies the EmDash-operated reference labeler for the decentralized plugin registry. It covers automated release assessment, signed ATProto labels, operator actions, the public explanation API, aggregator and client integration, and the small operator console.
 
-It does not amend RFC #694. The RFC establishes the registry and identifies a labeller as the trust and moderation layer; this document defines that service in enough detail to implement and review it.
+It does not amend RFC #694. The RFC establishes the registry and identifies a labeler as the trust and moderation layer; this document defines that service in enough detail to implement and review it.
 
 ## 1. Decisions
 
@@ -14,7 +14,7 @@ The following decisions were made before drafting this spec.
 
 | Area                      | Decision                                                                                                        |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Launch role               | Safety and quality labeller, with narrow takedown authority                                                     |
+| Launch role               | Safety and quality labeler, with narrow takedown authority                                                     |
 | Assessment coverage       | Assess every release, including verified and first-party publishers                                             |
 | Automated inputs          | Bundle code, manifest and metadata, images, dependencies/SBOM, and publisher history                            |
 | Automated authority       | Deterministic critical findings, critical scanner matches, and a single AI critical finding may hard-block      |
@@ -46,13 +46,13 @@ The following decisions were made before drafting this spec.
 4. Automate the common path at the expected initial volume of a handful of releases per day.
 5. Give operators enough interface to understand a decision, override it, re-run an assessment, or issue an emergency takedown.
 6. Give publishers a useful public explanation and a direct notification when a release is blocked or warned.
-7. Preserve the distinction between publication and reach: publishers control their records; labellers publish opinions; consumers choose policy.
+7. Preserve the distinction between publication and reach: publishers control their records; labelers publish opinions; consumers choose policy.
 8. Keep policy, model, scanner, and operator decisions auditable and reproducible.
 
 ## 3. Non-goals
 
 - Preventing a publisher from writing a release record to their own repository.
-- Acting as the only valid labeller for the ecosystem.
+- Acting as the only valid labeler for the ecosystem.
 - Replacing install-time provenance, checksum, manifest consistency, or sandbox enforcement.
 - Guaranteeing that an AI assessment proves code is safe.
 - Accepting user reports through `com.atproto.moderation.createReport` in v1.
@@ -62,7 +62,7 @@ The following decisions were made before drafting this spec.
 - Ratings, reviews, install counts, popularity ranking, or recommendation scoring.
 - General ATProto social-content moderation.
 - Native npm plugin assessment. V1 covers sandboxed registry releases only.
-- Multi-tenant hosted labelling. One deployment represents one labeller DID.
+- Multi-tenant hosted labelling. One deployment represents one labeler DID.
 
 ## 4. Trust Model
 
@@ -70,18 +70,18 @@ There are four distinct authorities. The implementation must not collapse them.
 
 1. **Publisher repository:** authoritative for package and release records.
 2. **Artifact checksum in the signed release:** authoritative for the bytes the publisher released.
-3. **Labeller:** authoritative only for labels issued by its DID.
+3. **Labeler:** authoritative only for labels issued by its DID.
 4. **Consumer policy:** authoritative for whether a label warns, hides, blocks, or is ignored.
 
-The official EmDash deployment trusts `did:web:labels.emdashcms.com` by default. Other aggregators and clients may ignore it, consume it without enforcing it, or combine it with other labellers.
+The official EmDash deployment trusts `did:web:labels.emdashcms.com` by default. Other aggregators and clients may ignore it, consume it without enforcing it, or combine it with other labelers.
 
 An automated hard block is therefore not deletion and is not a network takedown. It is a signed descriptive claim, such as `malware`, which the official EmDash policy treats as ineligible for installation.
 
-`!takedown` is stronger. It requests protocol-level redaction when the labeller is accepted with the `redact` flag. V1 reserves it for an admin's emergency manual action.
+`!takedown` is stronger. It requests protocol-level redaction when the labeler is accepted with the `redact` flag. V1 reserves it for an admin's emergency manual action.
 
 ## 5. Architecture
 
-The reference service is a single Cloudflare Worker application in `apps/labeller`. It contains separate internal capabilities even though they deploy together.
+The reference service is a single Cloudflare Worker application in `apps/labeler`. It contains separate internal capabilities even though they deploy together.
 
 ```mermaid
 flowchart LR
@@ -96,7 +96,7 @@ flowchart LR
   DET --> PE[Versioned policy engine]
   DEP --> PE
   AI --> PE
-  PE --> D1[(Labeller D1)]
+  PE --> D1[(Labeler D1)]
   PE --> ISSUER[Label issuer]
   UI[Access-protected operator console] --> D1
   UI --> ISSUER
@@ -156,7 +156,7 @@ GET /.well-known/emdash-labeler-policy.json
 
 It includes:
 
-- Labeller DID.
+- Labeler DID.
 - Policy version and effective timestamp.
 - Supported subject collections.
 - Label definitions and default official-client effects.
@@ -180,7 +180,7 @@ Label values use lowercase kebab case as recommended by the ATProto label specif
 | `assessment-pending`    | Release URI + CID | Assessment is queued, running, retrying, or awaiting an artifact                                         | Block temporarily                                           |
 | `assessment-error`      | Release URI + CID | Assessment could not complete after bounded retries                                                      | Block and surface operational failure                       |
 
-The official client requires an active `assessment-passed` label from an accepted labeller. Absence of that label means unknown, not safe.
+The official client requires an active `assessment-passed` label from an accepted labeler. Absence of that label means unknown, not safe.
 
 `assessment-pending` improves UX but is not the security gate. If the pending label is delayed, missing, expired, or retracted incorrectly, the missing positive label still blocks.
 
@@ -227,14 +227,14 @@ Quality labels never prevent direct installation on their own. The official admi
 
 | Label                   | Subject                        | Authority         | Effect                                                                 |
 | ----------------------- | ------------------------------ | ----------------- | ---------------------------------------------------------------------- |
-| `!takedown`             | Release, package, or publisher | Admin only        | Redact for consumers accepting this labeller with `redact`             |
+| `!takedown`             | Release, package, or publisher | Admin only        | Redact for consumers accepting this labeler with `redact`             |
 | `security-yanked`       | Release                        | Reviewer or admin | Block install/update; retain visible tombstone and explanation         |
 | `publisher-compromised` | Publisher DID                  | Admin only        | Block all publisher packages/releases until retracted                  |
 | `package-disputed`      | Package URI                    | Reviewer or admin | Warn and prevent recommendation; direct install policy is configurable |
 
 `security-yanked` replaces the colon-containing `security:yanked` placeholder currently present in parts of the aggregator and admin. Colon-structured values conflict with ATProto's recommended label syntax.
 
-The vocabulary cutover is required before the labeller issues production labels. Aggregator SQL, registry-client helpers, admin rendering, and install/update handlers must use `security-yanked` and the complete blocking-label set. A production preflight checks for persisted legacy `security:yanked` labels. If any exist, consumers temporarily recognize both values while operators reissue/negate them; otherwise no compatibility path is added.
+The vocabulary cutover is required before the labeler issues production labels. Aggregator SQL, registry-client helpers, admin rendering, and install/update handlers must use `security-yanked` and the complete blocking-label set. A production preflight checks for persisted legacy `security:yanked` labels. If any exist, consumers temporarily recognize both values while operators reissue/negate them; otherwise no compatibility path is added.
 
 ### 7.5 Severity is assessment data
 
@@ -319,7 +319,7 @@ The workflow obtains:
 5. Bundle from the publisher-declared URL only if the mirror is unavailable.
 6. Images referenced by the package/release where needed.
 7. SBOM from the release record or bundle, if present.
-8. Relevant publisher history already observed by the labeller.
+8. Relevant publisher history already observed by the labeler.
 
 Every artifact source is checksum-verified against the signed release before extraction. The mirror is a transport optimization, not a trust root.
 
@@ -350,7 +350,7 @@ Run deterministic checks before any AI call:
 - Metadata URL and identity consistency.
 - Image dimensions/types and archive policy.
 
-A registry-invalid release may already have been rejected by the aggregator. The labeller still stores the observation if independently discovered, but only issues labels for a resolvable, valid subject. Invalid/unresolvable records go to operational dead letters rather than creating unverifiable public labels.
+A registry-invalid release may already have been rejected by the aggregator. The labeler still stores the observation if independently discovered, but only issues labels for a resolvable, valid subject. Invalid/unresolvable records go to operational dead letters rather than creating unverifiable public labels.
 
 Permanent failures after the source record is verified are findings, not operational errors. Checksum mismatch maps to `artifact-integrity-failure`; malformed/unsafe/missing bundle content maps to `invalid-bundle`; manifest declaration mismatch maps to `undeclared-access`. Transient mirror/network/model/scanner unavailability retries and may become `assessment-error`.
 
@@ -456,7 +456,7 @@ Resolution order:
 10. Store the public summary and private evidence.
 11. Notify the publisher for newly issued/retracted blocking or warning labels.
 
-An assessment may pass and warn at the same time. `assessment-passed` means no hard-blocking condition, not "the labeller found nothing concerning."
+An assessment may pass and warn at the same time. `assessment-passed` means no hard-blocking condition, not "the labeler found nothing concerning."
 
 ## 10. Reassessment and Supersession
 
@@ -477,13 +477,13 @@ When a new assessment supersedes an old assessment for the same URI + CID:
 
 Manual overrides remain in force across automated reassessment until an operator explicitly removes them. Automation cannot negate action-backed `assessment-passed`/`assessment-overridden` labels or undo a human `!takedown`, `security-yanked`, package label, or publisher label.
 
-Exactly one completed automated assessment is current for each `(labeller DID, release URI, release CID)`. Starting a newer run does not move that pointer, but its active `assessment-pending` label temporarily makes the release ineligible even if the prior run passed, unless `assessment-overridden` remains active. When the newer run completes, label changes and the current-assessment pointer update in the same transaction. A stale/cancelled run never becomes current. A manual pass is a separate active override layered over the current automated assessment, not a fabricated automated assessment row.
+Exactly one completed automated assessment is current for each `(labeler DID, release URI, release CID)`. Starting a newer run does not move that pointer, but its active `assessment-pending` label temporarily makes the release ineligible even if the prior run passed, unless `assessment-overridden` remains active. When the newer run completes, label changes and the current-assessment pointer update in the same transaction. A stale/cancelled run never becomes current. A manual pass is a separate active override layered over the current automated assessment, not a fabricated automated assessment row.
 
 ## 11. Manual Operator Workflow
 
 ### 11.1 Console pages
 
-The purpose-built Kumo console is served by the labeller Worker under `/admin` and protected by Cloudflare Access.
+The purpose-built Kumo console is served by the labeler Worker under `/admin` and protected by Cloudflare Access.
 
 V1 pages:
 
@@ -558,8 +558,8 @@ Role mapping is deployment configuration:
 
 ```json
 {
-	"admins": ["emdash-labeller-admins"],
-	"reviewers": ["emdash-labeller-reviewers"]
+	"admins": ["emdash-labeler-admins"],
+	"reviewers": ["emdash-labeler-reviewers"]
 }
 ```
 
@@ -596,10 +596,10 @@ The public API supplies the case-specific context labels cannot carry.
 Proposed experimental XRPC endpoints:
 
 ```text
-com.emdashcms.experimental.labeller.getAssessment
-com.emdashcms.experimental.labeller.getCurrentAssessment
-com.emdashcms.experimental.labeller.listAssessments
-com.emdashcms.experimental.labeller.getPolicy
+com.emdashcms.experimental.labeler.getAssessment
+com.emdashcms.experimental.labeler.getCurrentAssessment
+com.emdashcms.experimental.labeler.listAssessments
+com.emdashcms.experimental.labeler.getPolicy
 ```
 
 `getAssessment` accepts `id` and returns:
@@ -607,8 +607,9 @@ com.emdashcms.experimental.labeller.getPolicy
 ```ts
 interface PublicAssessment {
 	id: string;
+	src: string;
 	subject: { uri: string; cid: string };
-	artifact: { id: string; checksum: string };
+	artifact?: { id?: string; checksum: string };
 	state: "pending" | "passed" | "warned" | "blocked" | "error" | "superseded";
 	summary: string;
 	coverage: {
@@ -617,10 +618,11 @@ interface PublicAssessment {
 		images: "complete" | "not-present" | "partial" | "unavailable";
 		dependencies: "complete" | "partial" | "unavailable";
 	};
-	labels: Array<{ val: string; active: boolean; issuedAt: string }>;
+	labels: Array<{ val: string; active: boolean; issuedAt: string; expiresAt?: string }>;
 	policyVersion: string;
-	model: { provider: "workers-ai"; modelId: string; promptVersion: string };
-	scannerVersions: Record<string, string>;
+	assessmentSchemaVersion: number;
+	model?: { provider: "workers-ai"; modelId: string; promptVersion: string };
+	scannerVersions: Array<{ scanner: string; version: string }>;
 	createdAt: string;
 	completedAt?: string;
 	supersedesAssessmentId?: string;
@@ -658,7 +660,7 @@ There is no generic "sign arbitrary label object" endpoint.
 
 ## 14. Storage Model
 
-The labeller uses an independent D1 database.
+The labeler uses an independent D1 database.
 
 ### 14.1 Subjects and assessments
 
@@ -746,7 +748,7 @@ CREATE TABLE evidence_objects (
 );
 ```
 
-Large private evidence lives encrypted at rest in R2; D1 stores references and hashes. Raw bundles need not be retained by the labeller when the aggregator mirror is durable. Selected evidence required to explain a decision is retained according to the policy below.
+Large private evidence lives encrypted at rest in R2; D1 stores references and hashes. Raw bundles need not be retained by the labeler when the aggregator mirror is durable. Selected evidence required to explain a decision is retained according to the policy below.
 
 ### 14.3 Issued labels
 
@@ -870,14 +872,14 @@ Key compromise is different from routine rotation. The incident procedure must:
 
 ## 16. Aggregator Integration
 
-The existing aggregator schema already has `labels`, `label_state`, `labellers`, and `ingest_state`, but no working subscription or hydration path.
+The existing aggregator schema already has `labels`, `label_state`, `labelers`, and `ingest_state`, but no working subscription or hydration path.
 
 ### 16.1 Ingest
 
-For each configured labeller:
+For each configured labeler:
 
 1. Resolve `#atproto_labeler` and `#atproto_label` from its DID document.
-2. Maintain an outbound `subscribeLabels` connection in a per-labeller Durable Object.
+2. Maintain an outbound `subscribeLabels` connection in a per-labeler Durable Object.
 3. Resume from the persisted cursor.
 4. Verify each signature, refreshing the DID document once on failure.
 5. Enqueue verified labels.
@@ -891,7 +893,7 @@ Negated and expired labels remain in history but are not hydrated as active labe
 The aggregator parses `atproto-accept-labelers` once at the request boundary and passes a typed policy to every handler.
 
 - Missing header: apply deployment defaults.
-- Empty header: hydrate/enforce no labellers.
+- Empty header: hydrate/enforce no labelers.
 - Invalid syntax: return a client error.
 - Repeated DIDs: merge flags.
 - Unknown/unavailable DID: omit it from `atproto-content-labelers`.
@@ -905,7 +907,7 @@ The current router's response-header contract must be corrected as part of label
 
 Hydrate labels in batches for all package/release URIs in a response. Do not query once per item.
 
-The package and release views include active labels from requested/accepted sources. The aggregator may omit signatures in hydrated views as allowed by the label spec; clients can retrieve full signed labels from the labeller.
+The package and release views include active labels from requested/accepted sources. The aggregator may omit signatures in hydrated views as allowed by the label spec; clients can retrieve full signed labels from the labeler.
 
 ### 16.4 Eligibility and filtering
 
@@ -939,13 +941,19 @@ The registry client exposes one policy helper rather than making every UI or han
 ```ts
 interface ReleaseModeration {
 	eligibility: "eligible" | "pending" | "error" | "blocked";
-	blockingLabels: Label[];
-	warningLabels: Label[];
-	assessment?: PublicAssessmentRef;
+	reasonCodes: string[];
+	blockingLabels: string[];
+	stateLabels: string[];
+	warningLabels: string[];
+	suppressedLabels: string[];
+	applicableLabels: ModerationLabel[];
+	redacted: boolean;
 }
 ```
 
-The helper takes release labels, package labels, publisher labels, accepted-labeller policy, and the current package/release CIDs. It is the only supported server-side eligibility decision path. Both install and update handlers call it immediately before artifact download; they must not retain an independent `security-yanked` string check.
+This is the shape shipped by `packages/registry-moderation` (`evaluateReleaseModeration`). Label fields carry values, not label objects; `applicableLabels` carries the full applicable label set for display. Assessment context is fetched separately through `getCurrentAssessment`, not returned by the evaluator.
+
+The helper takes release labels, package labels, publisher labels, accepted-labeler policy, and the current package/release CIDs. It is the only supported server-side eligibility decision path. Both install and update handlers call it immediately before artifact download; they must not retain an independent `security-yanked` string check.
 
 Official behavior:
 
@@ -955,7 +963,7 @@ Official behavior:
 - No active `assessment-passed`: do not recommend or install.
 - Active blocking label: do not install.
 - Warning labels only: show a warning and require explicit confirmation.
-- `!takedown`: redact according to accepted labeller flags; no install override.
+- `!takedown`: redact according to accepted labeler flags; no install override.
 - `security-yanked`: block fresh installs and updates; alert sites with the installed version.
 - Package/publisher blocking label: apply to all releases.
 
@@ -964,15 +972,15 @@ The server-side install/update handler repeats the eligibility check immediately
 The admin displays:
 
 - Label name and localized definition.
-- Issuing labeller.
+- Issuing labeler.
 - Public assessment summary and coverage.
 - Policy/model version.
 - Whether the decision is automated or manually overridden.
 - Reconsideration contact for blocked publishers.
 
-Query/cache keys must include accepted labeller configuration. A policy change must not leave stale search/detail data in React Query caches.
+Query/cache keys must include accepted labeler configuration. A policy change must not leave stale search/detail data in React Query caches.
 
-Pinned CLI installs may offer a deliberate override for warning labels, but never for missing assessment, blocking labels, or `!takedown` under the official policy unless a site operator explicitly changes trusted-labeller policy at deployment level.
+Pinned CLI installs may offer a deliberate override for warning labels, but never for missing assessment, blocking labels, or `!takedown` under the official policy unless a site operator explicitly changes trusted-labeler policy at deployment level.
 
 ## 18. Publisher Notifications and Reconsideration
 
@@ -1003,7 +1011,7 @@ Email includes subject, label, public summary, public assessment URL, effect in 
 
 ### 18.3 ATProto-visible notice
 
-There is no generic guaranteed ATProto inbox for arbitrary plugin publishers. V1 should publish an EmDash notification/decision record in the labeller's repository referencing the subject and public assessment, if a small interoperable record shape is justified. Publishers and tools may subscribe to those records.
+There is no generic guaranteed ATProto inbox for arbitrary plugin publishers. V1 should publish an EmDash notification/decision record in the labeler's repository referencing the subject and public assessment, if a small interoperable record shape is justified. Publishers and tools may subscribe to those records.
 
 This is supplementary. Email is the active notification channel. The spec must not claim that publishing a record guarantees delivery.
 
@@ -1077,7 +1085,7 @@ Retention values are policy constants versioned in code and may change after leg
 | Stale labels after CID update                  | Automated labels are CID-bound; clients check CID applicability                                                                |
 | Package/publisher overreach                    | Broad labels are manual only; subject-wide action shown explicitly                                                             |
 | Assessment absence mistaken for safety         | Official clients require positive `assessment-passed`                                                                          |
-| Labeller outage blocks ecosystem indefinitely  | Clear pending/error state, alerts, retry/DLQ, site operators can choose a different trust policy/labeller                      |
+| Labeler outage blocks ecosystem indefinitely  | Clear pending/error state, alerts, retry/DLQ, site operators can choose a different trust policy/labeler                      |
 | Policy/model drift changes outcomes silently   | Version all policy/model/prompt/scanner inputs; no automatic whole-catalog rewrite                                             |
 | Dependency scanner noise                       | Applicability/blocking rule stricter than raw severity score                                                                   |
 | Evidence leaks vulnerability details           | Public/private split and redacted summaries                                                                                    |
@@ -1122,12 +1130,12 @@ At a handful of releases per day, correctness and debuggability matter more than
 
 A scheduled reconciliation job:
 
-- Compares recently observed aggregator releases with labeller subjects.
+- Compares recently observed aggregator releases with labeler subjects.
 - Finds releases lacking any assessment state.
 - Finds pending assessments older than the target.
 - Validates that each completed effective assessment has the expected current labels.
 - Verifies subscriber high-water sequence against D1.
-- Re-resolves the labeller DID document and signing key publication.
+- Re-resolves the labeler DID document and signing key publication.
 
 The independent Jetstream consumer remains the primary discovery path. Reconciliation may use the aggregator as a completeness cross-check without making it the authority for source records.
 
@@ -1281,13 +1289,13 @@ Tests cannot call a nondeterministic live model in normal CI. CI validates parse
 - Ratify label vocabulary, subject rules, and official-client effects.
 - Cut current aggregator/admin/core constants and SQL from `security:yanked` to `security-yanked`, with a production preflight for persisted legacy labels.
 - Define the complete blocking-label set and the single registry-client moderation helper contract.
-- Add experimental labeller lexicons and policy schema.
+- Add experimental labeler lexicons and policy schema.
 - Publish signing/verification test vectors.
 - Decide the standard labeler declaration/PDS hosting detail.
 
 ### Phase 1: Issuer and distribution
 
-- Create `apps/labeller` Worker, D1, DID document, signing key, query endpoint, and Subscriber DO.
+- Create `apps/labeler` Worker, D1, DID document, signing key, query endpoint, and Subscriber DO.
 - Implement typed internal issuance, negation, sequence allocation, key IDs, and audit actions.
 - Add a minimal admin-only CLI/API for test issuance before the console.
 - Implement aggregator subscription, signature verification, label state, subject expansion, and RFC-8941 request-header parsing.
@@ -1341,13 +1349,13 @@ The v1 labelling service is complete when:
 - AI critical findings can hard-block only security/impersonation categories.
 - Quality findings remain warning/downranking signals.
 - Labels are spec-compliant, signed, queryable, replayable, negatable, and verified by the aggregator.
-- The aggregator correctly parses accepted labellers, hydrates labels, handles redaction, and selects eligible latest releases.
+- The aggregator correctly parses accepted labelers, hydrates labels, handles redaction, and selects eligible latest releases.
 - Reviewers can inspect and override assessments; admins can issue emergency takedowns.
 - Cloudflare Access JWTs are verified in the Worker and roles are enforced server-side.
 - Public assessment summaries explain decisions without exposing private evidence.
 - Publishers receive notices through security/profile contacts and have a documented reconsideration route.
 - Signing-key rotation, subscriber replay, model outage, artifact failure, and disaster recovery have been exercised.
-- A third-party fresh aggregator can consume the public labeller without private EmDash infrastructure.
+- A third-party fresh aggregator can consume the public labeler without private EmDash infrastructure.
 
 ## 27. Deferred Follow-ups
 
@@ -1355,7 +1363,7 @@ The v1 labelling service is complete when:
 - Authenticated publisher appeals with status tracking.
 - Two-person approval or expiring emergency holds for high-risk manual actions.
 - Automated package/publisher escalation for repeated offenses.
-- Additional independent/community labellers and site-level trust-policy UI.
+- Additional independent/community labelers and site-level trust-policy UI.
 - Publisher self-requested security yanks through authenticated repository records.
 - Formal ATProto notification record if the ecosystem converges on one.
 - Automated whole-catalog reassessment on major policy/model versions.
@@ -1367,7 +1375,7 @@ The v1 labelling service is complete when:
 
 These are implementation-specific decisions that should be settled before Phase 0 closes, not product questions requiring another broad design round.
 
-1. Exact stable/experimental NSIDs for labeller public APIs and any decision-notice record.
+1. Exact stable/experimental NSIDs for labeler public APIs and any decision-notice record.
 2. Initial Workers AI model ID and the measured calibration threshold used to assign model severity/confidence.
 3. Initial dependency scanner/advisory sources and the exact critical applicability rule.
 4. Production Secrets Store key format and operational key-generation ceremony.
