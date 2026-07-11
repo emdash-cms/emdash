@@ -3,7 +3,7 @@ import { verifyLabel, type LabelSigner, type SignedLabel } from "@emdash-cms/reg
 
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const P256_MULTIKEY = /^zDna[1-9A-HJ-NP-Za-km-z]+$/;
-const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*$/;
+const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 
 interface SigningStateRow {
 	issuer_did: string;

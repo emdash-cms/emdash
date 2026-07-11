@@ -489,6 +489,46 @@ describe("manual label issuance", () => {
 		).rejects.toThrow("release record");
 	});
 
+	it("preserves registry-record DID captures", async () => {
+		await expect(
+			issue(
+				"at://did:example::leading-empty/com.emdashcms.experimental.package.profile/empty-leading-segment",
+				"package-disputed",
+			),
+		).resolves.toBeDefined();
+		await expect(
+			issue(
+				"at://did:example:doubled::segment/com.emdashcms.experimental.package.release/demo:1.0.0",
+				"security-yanked",
+			),
+		).resolves.toBeDefined();
+		await expect(
+			issueManualLabel(
+				testEnv.DB,
+				config,
+				await signer(),
+				action("collection captured as DID suffix"),
+				proposal(
+					"at://did:example:publisher:com.emdashcms.experimental.package.release/demo:1.0.0",
+				),
+			),
+		).rejects.toThrow("release record");
+	});
+
+	it("rejects long invalid registry-record authorities without ambiguous matching", async () => {
+		await expect(
+			issueManualLabel(
+				testEnv.DB,
+				config,
+				await signer(),
+				action("invalid long registry authority"),
+				proposal(
+					`at://did:example:${"%:".repeat(100_000)}!/com.emdashcms.experimental.package.release/demo`,
+				),
+			),
+		).rejects.toThrow("release record");
+	});
+
 	it("rejects a signer that is not bound to the configured labeler DID", async () => {
 		await expect(
 			issueManualLabel(

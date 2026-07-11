@@ -1,6 +1,6 @@
 import { P256PublicKey, parsePublicMultikey } from "@atcute/crypto";
 
-const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*$/;
+const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const KEY_VERSION = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const DID_WEB_HOST = /^did:web:([^:]+)$/;
 
