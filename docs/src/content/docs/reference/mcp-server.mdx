@@ -63,7 +63,8 @@ In addition to scopes, some tools require a minimum RBAC role. Both must be sati
 | Menus manage | Editor (40) |
 | Settings read | Editor (40) |
 | Settings manage | Admin (50) |
-| Media upload (`media_create`) | Author (30) |
+| Media upload (`media_upload`) | Contributor (20) |
+| Media register (`media_create`) | Author (30) |
 
 See the [Authentication guide](/guides/authentication#user-roles) for role definitions.
 
@@ -79,7 +80,7 @@ Responses follow the [JSON-RPC 2.0](https://www.jsonrpc.org/specification) forma
 
 ## Tools
 
-The server exposes 45 tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
+The server exposes 46 tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
 
 ### Content Tools
 
@@ -378,12 +379,32 @@ List uploaded media files with optional MIME type filtering and pagination.
 
 **Scope:** `media:read` | **Read-only:** Yes
 
+#### `media_upload`
+
+Upload a media file from base64-encoded data or an external URL and register it in the media library. Returns the media item with `id`, `storageKey`, and `url` -- ready to reference from content fields (e.g. `featured_image`) via `content_create` / `content_update`.
+
+Uploads are deduplicated by content hash: re-uploading identical bytes returns the existing item with `deduplicated: true`. Image uploads are enriched automatically with dimensions, a blurhash placeholder, and the dominant color.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filename` | `string` | Yes | Filename including extension (e.g. `cover.png`) |
+| `base64` | `string` | One of `base64` / `url` | Base64-encoded file contents |
+| `url` | `string` | One of `base64` / `url` | Public http(s) URL to fetch the file from |
+| `contentType` | `string` | With `base64` | MIME type (e.g. `image/png`). With `url` it defaults to the response's `Content-Type` header. |
+| `alt` | `string` | No | Alt text for accessibility |
+
+<Aside>
+	URL fetches are SSRF-guarded: the URL must resolve to a public host, and redirects are re-validated. Uploads are subject to the global MIME allowlist (images, video, audio, PDF) and the configured maximum upload size.
+</Aside>
+
+**Scope:** `media:write` | **Minimum role:** Contributor
+
 #### `media_create`
 
 Register a media file that has already been uploaded to storage. The caller is responsible for placing the file at `storageKey` (typically using a signed upload URL from the admin UI or a separate API). This tool persists the metadata record so the file is discoverable via `media_list` / `media_get` and can be referenced by content.
 
 <Aside>
-	The MCP transport is not appropriate for binary uploads. Use the signed-upload flow to put the bytes in storage, then call `media_create` to register the record.
+	To upload the file itself, use `media_upload` (base64 data or a public URL) instead.
 </Aside>
 
 | Parameter | Type | Required | Description |
