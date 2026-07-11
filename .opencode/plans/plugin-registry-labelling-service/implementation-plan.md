@@ -1219,6 +1219,8 @@ Dependencies: registry profile/package reads.
 
 ### `W10.5` Implement notification outbox and email adapter
 
+Delivery uses Cloudflare Email Sending through the Workers `send_email` binding; the sending domain is onboarded on the emdashcms.com zone (`wrangler email sending enable`). No provider API keys. Messages include both `html` and `text` bodies.
+
 Notify on block, warning, override, retraction, prolonged error, and emergency takedown. Include public summary/effect/reconsideration URL without private details. Delivery retries independently and never rolls back a label.
 
 Dependencies: `W2.3`, `W10.3`, `W10.4`.
@@ -1264,7 +1266,7 @@ Extend the minimal staging signer environment from `W3.1` into complete staging/
 - Workers AI/AI Gateway.
 - Secrets Store.
 - Access application/audience.
-- Email adapter secrets.
+- Email sending (`send_email`) binding and onboarded sending domain.
 - Cron triggers.
 
 Generate Worker types; do not hand-maintain `Env`.

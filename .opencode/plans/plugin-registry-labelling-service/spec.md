@@ -1378,7 +1378,7 @@ These are implementation-specific decisions that should be settled before Phase 
 1. Initial Workers AI model ID and the measured calibration threshold used to assign model severity/confidence.
 2. Initial dependency scanner/advisory sources and the exact critical applicability rule.
 3. The production key-generation ceremony, performed by the maintainer before launch. The scalar format is ratified in the Gate 0 crypto contract; the offline copy lives in the maintainer's Keeper vault.
-4. Email delivery provider and monitored reconsideration address.
+4. The monitored reconsideration address. Email delivery is decided: Cloudflare Email Sending through the Workers `send_email` binding, sending from an onboarded emdashcms.com address.
 5. Final retention values after legal/privacy review.
 
 The public NSIDs and the no-decision-notice decision were ratified in the Gate 0 contracts.
