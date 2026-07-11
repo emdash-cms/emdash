@@ -25,6 +25,7 @@ import {
 	Plus,
 	Trash,
 } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -46,6 +47,7 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
+import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
 	ContentSettingsPanel,
 	DiscardDraftDialog,
@@ -55,7 +57,6 @@ import {
 } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
-import { ReferencePickerModal, type ReferencePickerRow } from "./ReferencePickerModal.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton.js";
@@ -1701,7 +1702,7 @@ function ReferenceFieldRenderer({
 		onChange(rows.filter((_, i) => i !== index));
 	};
 
-	const handleConfirm = (picked: ReferencePickerRow[]) => {
+	const handleConfirm = (picked: PickedContentEntry[]) => {
 		const additions: ReferenceEntryRow[] = picked.map((p) => ({
 			id: p.id,
 			slug: p.slug,
@@ -1733,15 +1734,33 @@ function ReferenceFieldRenderer({
 									key={row.id}
 									className="flex items-center gap-2 rounded-md border bg-kumo-base px-3 py-2"
 								>
-									<div className="min-w-0 flex-1">
-										<div className="truncate text-sm font-medium">{referenceRowLabel(row)}</div>
+									<Link
+										to="/content/$collection/$id"
+										params={{ collection: targetCollection, id: row.id }}
+										search={{ locale: row.locale ?? undefined }}
+										className="group min-w-0 flex-1"
+									>
+										<div className="truncate text-sm font-medium group-hover:underline">
+											{referenceRowLabel(row)}
+										</div>
 										{(row.slug || crossLocale) && (
 											<div className="flex items-center gap-2 text-xs text-kumo-subtle">
 												{row.slug && <span className="truncate">{row.slug}</span>}
 												{crossLocale && <Badge>{row.locale}</Badge>}
 											</div>
 										)}
-									</div>
+									</Link>
+									<RouterLinkButton
+										to="/content/$collection/$id"
+										params={{ collection: targetCollection, id: row.id }}
+										search={{ locale: row.locale ?? undefined }}
+										target="_blank"
+										variant="ghost"
+										shape="square"
+										size="sm"
+										icon={<ArrowSquareOut className="h-4 w-4" />}
+										aria-label={t`Open ${referenceRowLabel(row)} in a new tab`}
+									/>
 									{multiple && (
 										<div className="flex items-center gap-1">
 											<Button
@@ -1803,7 +1822,7 @@ function ReferenceFieldRenderer({
 				</Button>
 			</div>
 
-			<ReferencePickerModal
+			<ContentPickerModal
 				open={pickerOpen}
 				onOpenChange={setPickerOpen}
 				collection={targetCollection}

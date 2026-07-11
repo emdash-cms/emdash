@@ -559,15 +559,16 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				/>
 			)}
 
-			{/* Referenced by — read-only backlinks for existing entries */}
+			{/* Referenced by — read-only backlinks for existing entries. Renders
+			    nothing (no chrome) when the entry has no backlinks, so it owns its
+			    own section padding/border rather than being wrapped. */}
 			{item && !isNew && (
-				<div className="p-4 border-t">
-					<ReferencesSidebar
-						collection={collection}
-						entryId={item.id}
-						entryLocale={item.locale ?? entryLocale}
-					/>
-				</div>
+				<ReferencesSidebar
+					className="p-4 border-t"
+					collection={collection}
+					entryId={item.id}
+					entryLocale={item.locale ?? entryLocale}
+				/>
 			)}
 
 			{hasSeo && !isNew && onSeoChange && (

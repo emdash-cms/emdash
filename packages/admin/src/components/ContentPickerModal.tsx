@@ -1,14 +1,26 @@
 /**
  * Content Picker Modal
  *
- * A modal for browsing and selecting content items to add to menus.
- * Uses cursor pagination to allow browsing beyond the initial page.
+ * A modal for browsing and selecting content entries. Serves two callers:
+ *
+ * - **Menus** browse across collections (a collection dropdown is shown) and
+ *   pick a single entry.
+ * - **Reference fields** lock to a single target collection (dropdown hidden),
+ *   and either pick one entry or stage several (`multiple`), disabling entries
+ *   already linked (`selectedIds`).
+ *
+ * Search is served by the content list's `q` filter, which uses the
+ * collection's FTS5 index when available (LIKE fallback otherwise) — the same
+ * search the admin content list uses. Results are cursor-paginated through
+ * `useInfiniteQuery` so pages accumulate in the query cache; nothing is
+ * mirrored into local state, so reopening the modal shows the cached results
+ * immediately rather than an empty list.
  */
 
-import { Button, Dialog, Input, Loader, Select } from "@cloudflare/kumo";
+import { Button, Checkbox, Dialog, Input, Loader, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchCollections, fetchContentList, getDraftStatus } from "../lib/api";
@@ -16,10 +28,30 @@ import type { ContentItem } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks";
 import { cn } from "../lib/utils";
 
+/** A chosen content entry, carrying its collection and a display title. */
+export interface PickedContentEntry {
+	collection: string;
+	id: string;
+	slug: string | null;
+	title: string;
+}
+
 interface ContentPickerModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onSelect: (item: { collection: string; id: string; title: string }) => void;
+	/**
+	 * Lock the picker to a single collection and hide the dropdown (reference
+	 * fields). When omitted, a collection dropdown is shown (menus).
+	 */
+	collection?: string;
+	/** Allow staging several entries before confirming. Defaults to single-select. */
+	multiple?: boolean;
+	/** Ids already linked in the target field — rendered checked and disabled. */
+	selectedIds?: ReadonlySet<string>;
+	/** Emit the chosen entries. Single-select emits a one-element array. */
+	onConfirm: (rows: PickedContentEntry[]) => void;
+	/** Optional dialog title override. */
+	title?: string;
 }
 
 function getItemTitle(item: { data: Record<string, unknown>; slug: string | null; id: string }) {
@@ -33,88 +65,104 @@ function getItemTitle(item: { data: Record<string, unknown>; slug: string | null
 	);
 }
 
-export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPickerModalProps) {
+const EMPTY_SELECTED: ReadonlySet<string> = new Set<string>();
+
+export function ContentPickerModal({
+	open,
+	onOpenChange,
+	collection,
+	multiple = false,
+	selectedIds = EMPTY_SELECTED,
+	onConfirm,
+	title,
+}: ContentPickerModalProps) {
 	const { t } = useLingui();
+	const locked = !!collection;
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
-	const [selectedCollection, setSelectedCollection] = React.useState<string>("");
-	const [allItems, setAllItems] = React.useState<ContentItem[]>([]);
-	const [nextCursor, setNextCursor] = React.useState<string | undefined>();
-	const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+	const [dropdownCollection, setDropdownCollection] = React.useState<string>("");
+	// Staged picks (multiple mode) — keyed by id so we retain title/slug.
+	const [picked, setPicked] = React.useState<Record<string, PickedContentEntry>>({});
 
 	const { data: collections = [] } = useQuery({
 		queryKey: ["collections"],
 		queryFn: fetchCollections,
-		enabled: open,
+		enabled: open && !locked,
 	});
 
-	// Default to first collection when collections load
+	// Default the dropdown to the first collection once collections load.
 	React.useEffect(() => {
-		if (collections.length > 0 && !selectedCollection) {
-			setSelectedCollection(collections[0]!.slug);
+		if (!locked && collections.length > 0 && !dropdownCollection) {
+			setDropdownCollection(collections[0]!.slug);
 		}
-	}, [collections, selectedCollection]);
+	}, [locked, collections, dropdownCollection]);
 
-	const { data: contentResult, isLoading: contentLoading } = useQuery({
-		queryKey: ["content-picker", selectedCollection, { limit: 50 }],
-		queryFn: () => fetchContentList(selectedCollection, { limit: 50 }),
-		enabled: open && !!selectedCollection,
-	});
+	const activeCollection = collection ?? dropdownCollection;
 
-	// Sync initial page into accumulated items
-	React.useEffect(() => {
-		if (contentResult) {
-			setAllItems(contentResult.items);
-			setNextCursor(contentResult.nextCursor);
-		}
-	}, [contentResult]);
-
-	const handleLoadMore = async () => {
-		if (!nextCursor || isLoadingMore) return;
-		setIsLoadingMore(true);
-		try {
-			const result = await fetchContentList(selectedCollection, {
-				limit: 50,
-				cursor: nextCursor,
-			});
-			setAllItems((prev) => [...prev, ...result.items]);
-			setNextCursor(result.nextCursor);
-		} finally {
-			setIsLoadingMore(false);
-		}
-	};
-
-	const filteredItems = React.useMemo(() => {
-		if (!debouncedSearch) return allItems;
-		const query = debouncedSearch.toLowerCase();
-		return allItems.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [allItems, debouncedSearch]);
-
-	// Reset state when modal opens or collection changes
+	// Reset transient UI state when the modal opens. Result pages come from the
+	// query cache (below), so there is nothing to re-fetch or re-sync here.
 	React.useEffect(() => {
 		if (open) {
 			setSearchQuery("");
-			setSelectedCollection("");
-			setAllItems([]);
-			setNextCursor(undefined);
+			setPicked({});
+			if (!locked) setDropdownCollection("");
 		}
-	}, [open]);
+	}, [open, locked]);
 
-	const handleSelect = (item: ContentItem) => {
-		onSelect({
-			collection: selectedCollection,
-			id: item.id,
-			title: getItemTitle(item),
+	const trimmedSearch = debouncedSearch.trim();
+	const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+		queryKey: ["content-picker", activeCollection, trimmedSearch],
+		queryFn: ({ pageParam }) =>
+			fetchContentList(activeCollection, {
+				limit: 50,
+				cursor: pageParam,
+				search: trimmedSearch || undefined,
+			}),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor,
+		enabled: open && !!activeCollection,
+	});
+
+	const items = React.useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
+
+	const togglePicked = (item: ContentItem) => {
+		setPicked((prev) => {
+			const next = { ...prev };
+			if (next[item.id]) {
+				delete next[item.id];
+			} else {
+				next[item.id] = {
+					collection: activeCollection,
+					id: item.id,
+					slug: item.slug,
+					title: getItemTitle(item),
+				};
+			}
+			return next;
 		});
+	};
+
+	const handleSingleChoose = (item: ContentItem) => {
+		onConfirm([
+			{ collection: activeCollection, id: item.id, slug: item.slug, title: getItemTitle(item) },
+		]);
 		onOpenChange(false);
 	};
+
+	const handleConfirmMultiple = () => {
+		onConfirm(Object.values(picked));
+		onOpenChange(false);
+	};
+
+	const pickedCount = Object.keys(picked).length;
+	const dialogTitle = title ?? (multiple ? t`Add references` : t`Select content`);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
 			<Dialog className="p-6 max-w-2xl h-[80vh] flex flex-col" size="lg">
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{t`Select Content`}
+						{dialogTitle}
 					</Dialog.Title>
 					<Dialog.Close
 						aria-label={t`Close`}
@@ -133,7 +181,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 					/>
 				</div>
 
-				{/* Search and collection filter */}
+				{/* Search and (unlocked) collection filter */}
 				<div className="flex items-center gap-4 py-4 border-b">
 					<div className="relative flex-1">
 						<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
@@ -145,27 +193,28 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 							autoFocus
 						/>
 					</div>
-					<Select
-						value={selectedCollection}
-						onValueChange={(v) => {
-							setSelectedCollection(v ?? "");
-							setAllItems([]);
-							setNextCursor(undefined);
-						}}
-						items={Object.fromEntries(collections.map((col) => [col.slug, col.label]))}
-						aria-label={t`Collection`}
-					/>
+					{!locked && (
+						<Select
+							value={dropdownCollection}
+							onValueChange={(v) => {
+								setDropdownCollection(v ?? "");
+								setPicked({});
+							}}
+							items={Object.fromEntries(collections.map((col) => [col.slug, col.label]))}
+							aria-label={t`Collection`}
+						/>
+					)}
 				</div>
 
 				{/* Content list */}
 				<div className="flex-1 overflow-y-auto py-4">
-					{contentLoading ? (
+					{isLoading ? (
 						<div className="flex items-center justify-center h-32">
 							<div className="text-kumo-subtle">{t`Loading content...`}</div>
 						</div>
-					) : filteredItems.length === 0 ? (
+					) : items.length === 0 ? (
 						<div className="flex flex-col items-center justify-center h-32 text-center">
-							{searchQuery ? (
+							{trimmedSearch ? (
 								<>
 									<MagnifyingGlass className="h-8 w-8 text-kumo-subtle mb-2" />
 									<p className="text-kumo-subtle">{t`No content found`}</p>
@@ -180,55 +229,91 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 						</div>
 					) : (
 						<div className="space-y-1">
-							{filteredItems.map((item) => {
+							{items.map((item) => {
 								const status = getDraftStatus(item);
+								const alreadyLinked = selectedIds.has(item.id);
+								const isPicked = alreadyLinked || !!picked[item.id];
+								const statusDot = (
+									<span
+										className={cn(
+											"inline-block h-2 w-2 rounded-full",
+											status === "published"
+												? "bg-kumo-success"
+												: status === "published_with_changes"
+													? "bg-kumo-warning"
+													: "bg-kumo-fill",
+										)}
+									/>
+								);
+								const statusLabel =
+									status === "published"
+										? t`Published`
+										: status === "published_with_changes"
+											? t`Modified`
+											: t`Draft`;
+								const meta = (
+									<div className="text-sm text-kumo-subtle flex items-center gap-2">
+										{statusDot}
+										{statusLabel}
+										{item.slug && (
+											<>
+												<span className="text-kumo-subtle/50">/</span>
+												<span>{item.slug}</span>
+											</>
+										)}
+									</div>
+								);
+
+								if (multiple) {
+									return (
+										<label
+											key={item.id}
+											className={cn(
+												"flex items-start gap-3 rounded-md px-3 py-2 transition-colors",
+												alreadyLinked ? "opacity-60" : "cursor-pointer hover:bg-kumo-tint/50",
+											)}
+										>
+											<Checkbox
+												checked={isPicked}
+												disabled={alreadyLinked}
+												onCheckedChange={() => togglePicked(item)}
+												aria-label={getItemTitle(item)}
+											/>
+											<div className="min-w-0">
+												<div className="font-medium">{getItemTitle(item)}</div>
+												{meta}
+											</div>
+										</label>
+									);
+								}
+
 								return (
 									<button
 										key={item.id}
 										type="button"
-										onClick={() => handleSelect(item)}
+										disabled={alreadyLinked}
+										onClick={() => handleSingleChoose(item)}
 										className={cn(
 											"w-full text-start rounded-md px-3 py-2 transition-colors",
-											"hover:bg-kumo-tint/50",
-											"focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2",
+											alreadyLinked
+												? "opacity-60"
+												: "hover:bg-kumo-tint/50 focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2",
 										)}
 									>
 										<div className="font-medium">{getItemTitle(item)}</div>
-										<div className="text-sm text-kumo-subtle flex items-center gap-2">
-											<span
-												className={cn(
-													"inline-block h-2 w-2 rounded-full",
-													status === "published"
-														? "bg-kumo-success"
-														: status === "published_with_changes"
-															? "bg-kumo-warning"
-															: "bg-kumo-fill",
-												)}
-											/>
-											{status === "published"
-												? t`Published`
-												: status === "published_with_changes"
-													? t`Modified`
-													: t`Draft`}
-											{item.slug && (
-												<>
-													<span className="text-kumo-subtle/50">/</span>
-													<span>{item.slug}</span>
-												</>
-											)}
-										</div>
+										{meta}
 									</button>
 								);
 							})}
-							{nextCursor && !searchQuery && (
+							{hasNextPage && (
 								<div className="pt-2 text-center">
 									<Button
 										variant="outline"
 										size="sm"
-										onClick={handleLoadMore}
-										disabled={isLoadingMore}
+										onClick={() => void fetchNextPage()}
+										disabled={isFetchingNextPage}
 									>
-										{isLoadingMore ? (
+										{isFetchingNextPage ? (
 											<>
 												<Loader size="sm" /> {t`Loading...`}
 											</>
@@ -247,6 +332,11 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 					<Button variant="outline" onClick={() => onOpenChange(false)}>
 						{t`Cancel`}
 					</Button>
+					{multiple && (
+						<Button onClick={handleConfirmMultiple} disabled={pickedCount === 0}>
+							{t`Add selected`}
+						</Button>
+					)}
 				</div>
 			</Dialog>
 		</Dialog.Root>

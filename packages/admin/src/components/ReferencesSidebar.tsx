@@ -12,18 +12,22 @@
  * nobody references stay out of the way rather than showing an empty state.
  */
 
-import { Button, Loader } from "@cloudflare/kumo";
+import { Badge, Button, Loader, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
+import { ArrowSquareOut } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { fetchCollections } from "../lib/api";
 import {
 	type EntryRef,
 	type RelationDef,
 	fetchReferenceParents,
 	fetchRelations,
 } from "../lib/api/relations.js";
+import { cn } from "../lib/utils.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 interface ReferencesSidebarProps {
 	collection: string;
@@ -31,6 +35,10 @@ interface ReferencesSidebarProps {
 	/** Locale of the entry being edited. Scopes the relation definitions read so
 	 * labels localize to the entry's translation. */
 	entryLocale?: string;
+	/** Applied to the root element. The panel renders nothing (no chrome) when
+	 * there are no backlinks, so the caller passes section padding/border here
+	 * rather than wrapping — an empty wrapper would leave a stray gap. */
+	className?: string;
 }
 
 interface ParentsState {
@@ -41,7 +49,12 @@ interface ParentsState {
 
 const PAGE_SIZE = 50;
 
-export function ReferencesSidebar({ collection, entryId, entryLocale }: ReferencesSidebarProps) {
+export function ReferencesSidebar({
+	collection,
+	entryId,
+	entryLocale,
+	className,
+}: ReferencesSidebarProps) {
 	const { t } = useLingui();
 	const relationsQuery = useQuery({
 		queryKey: ["relations", entryLocale ?? null],
@@ -50,6 +63,19 @@ export function ReferencesSidebar({ collection, entryId, entryLocale }: Referenc
 		// latency before we hide the panel, which is the desired outcome.
 		retry: false,
 	});
+
+	// Group headings use the parent collection's plural label. The relation only
+	// carries `parentLabel` (the singular field label), so map slugs to their
+	// plural display name; the query is shared with the rest of the admin.
+	const collectionsQuery = useQuery({
+		queryKey: ["collections"],
+		queryFn: fetchCollections,
+	});
+	const pluralLabelBySlug = React.useMemo(() => {
+		const map = new Map<string, string>();
+		for (const c of collectionsQuery.data ?? []) map.set(c.slug, c.label);
+		return map;
+	}, [collectionsQuery.data]);
 
 	const applicableRelations = React.useMemo(
 		() => (relationsQuery.data ?? []).filter((r) => r.childCollection === collection),
@@ -145,30 +171,60 @@ export function ReferencesSidebar({ collection, entryId, entryLocale }: Referenc
 	const populatedRels = applicableRelations.filter(isPopulated);
 
 	return (
-		<div className="space-y-4">
-			<h3 className="font-semibold">{t`Referenced by`}</h3>
+		<div className={cn("space-y-4", className)}>
+			<Text bold as="h3">
+				{t`Referenced by`}
+			</Text>
 			<div className="space-y-4">
 				{populatedRels.map((rel) => {
 					const state = parentsByRel[rel.id];
 					// `state` is guarded by `isPopulated` above, but the TS narrowing
 					// across the .filter callback doesn't carry through.
 					if (!state) return null;
+					const heading = pluralLabelBySlug.get(rel.parentCollection) ?? rel.parentLabel;
 					return (
 						<div key={rel.id} className="space-y-2">
-							<h4 className="text-sm font-medium text-kumo-subtle">{rel.parentLabel}</h4>
-							<ul className="space-y-1">
-								{state.items.map((parent) => (
-									<li key={parent.id}>
-										<Link
-											to="/content/$collection/$id"
-											params={{ collection: parent.collection, id: parent.id }}
-											search={{ locale: parent.locale ?? undefined }}
-											className="font-medium hover:text-kumo-brand"
+							<h4 className="text-sm font-medium text-kumo-subtle">{heading}</h4>
+							<ul className="space-y-2">
+								{state.items.map((parent) => {
+									const crossLocale =
+										!!parent.locale && !!entryLocale && parent.locale !== entryLocale;
+									const label = parent.title || parent.slug || parent.id;
+									return (
+										<li
+											key={parent.id}
+											className="flex items-center gap-2 rounded-md border bg-kumo-base px-3 py-2"
 										>
-											{parent.title || parent.slug || parent.id}
-										</Link>
-									</li>
-								))}
+											<Link
+												to="/content/$collection/$id"
+												params={{ collection: parent.collection, id: parent.id }}
+												search={{ locale: parent.locale ?? undefined }}
+												className="group min-w-0 flex-1"
+											>
+												<div className="truncate text-sm font-medium group-hover:underline">
+													{label}
+												</div>
+												{(parent.slug || crossLocale) && (
+													<div className="flex items-center gap-2 text-xs text-kumo-subtle">
+														{parent.slug && <span className="truncate">{parent.slug}</span>}
+														{crossLocale && <Badge>{parent.locale}</Badge>}
+													</div>
+												)}
+											</Link>
+											<RouterLinkButton
+												to="/content/$collection/$id"
+												params={{ collection: parent.collection, id: parent.id }}
+												search={{ locale: parent.locale ?? undefined }}
+												target="_blank"
+												variant="ghost"
+												shape="square"
+												size="sm"
+												icon={<ArrowSquareOut className="h-4 w-4" />}
+												aria-label={t`Open ${label} in a new tab`}
+											/>
+										</li>
+									);
+								})}
 							</ul>
 							{state.nextCursor && (
 								<div className="pt-1">
