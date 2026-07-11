@@ -106,6 +106,10 @@ function parseCache(value: unknown): CoreUpdateCache | null {
 	if (!("latest" in value) || !("checkedAt" in value)) return null;
 	const { latest, checkedAt } = value;
 	if (typeof latest !== "string" || typeof checkedAt !== "string") return null;
+	// An unparsable checkedAt would make the staleness math NaN (never
+	// stale), freezing a corrupt cache forever — treat it as no cache so
+	// the next request schedules a refresh that overwrites it.
+	if (Number.isNaN(Date.parse(checkedAt))) return null;
 	return { latest, checkedAt };
 }
 

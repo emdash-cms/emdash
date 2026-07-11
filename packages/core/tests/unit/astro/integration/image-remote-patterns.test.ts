@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	buildImageRemotePatterns,
+	buildSerializableConfig,
 	resolveImageEndpoint,
 } from "../../../../src/astro/integration/index.js";
 
@@ -116,5 +117,23 @@ describe("resolveImageEndpoint", () => {
 		});
 		expect(result.entrypoint).toBeUndefined();
 		expect(result.warn).toMatch(/custom image\.endpoint/);
+	});
+});
+
+describe("buildSerializableConfig", () => {
+	it("carries runtime-read options into virtual:emdash/config", () => {
+		// Options that routes/middleware read via `locals.emdash.config` are
+		// only visible at runtime if they survive serialization. An option
+		// added to EmDashConfig but not serialized is silently ignored —
+		// exactly what happened to `updateCheck` (PR #1939 review).
+		const serialized = buildSerializableConfig({
+			siteUrl: "https://example.com",
+			marketplace: "https://marketplace.example.com",
+			updateCheck: false,
+		});
+
+		expect(serialized.siteUrl).toBe("https://example.com");
+		expect(serialized.marketplace).toBe("https://marketplace.example.com");
+		expect(serialized.updateCheck).toBe(false);
 	});
 });

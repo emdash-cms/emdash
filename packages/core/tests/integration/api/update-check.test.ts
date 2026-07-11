@@ -82,6 +82,23 @@ describe("handleCoreUpdateStatus", () => {
 		expect(result.data.updateAvailable).toBe(false);
 	});
 
+	it("treats an unparsable checkedAt as no cache (so a refresh can overwrite it)", async () => {
+		// With a garbage date the staleness math would be NaN >= interval
+		// (false) — the cache would never refresh. It must parse as absent.
+		await new OptionsRepository(db).set(CORE_UPDATE_OPTION, {
+			latest: "0.24.0",
+			checkedAt: "not-a-date",
+		});
+
+		const result = await handleCoreUpdateStatus(db);
+
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		expect(result.data.latest).toBeNull();
+		expect(result.data.checkedAt).toBeNull();
+		expect(result.data.updateAvailable).toBe(false);
+	});
+
 	it("reports nothing when the check is disabled, even with a cache", async () => {
 		await new OptionsRepository(db).set(CORE_UPDATE_OPTION, {
 			latest: "0.24.0",
