@@ -9,9 +9,9 @@ import {
 } from "./signing-rotation.js";
 import type { LabelPublisher } from "./subscribe-labels.js";
 
-const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*$/;
+const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const REGISTRY_RECORD =
-	/^at:\/\/(did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*)\/(com\.emdashcms\.experimental\.package\.(?:profile|release))\/([A-Za-z0-9._~:%-]+)$/;
+	/^at:\/\/(did:[a-z0-9]+:[A-Za-z0-9._:%-]+)\/(com\.emdashcms\.experimental\.package\.(?:profile|release))\/([A-Za-z0-9._~:%-]+)$/;
 
 export type ManualLabelValue =
 	| "!takedown"

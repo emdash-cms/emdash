@@ -117,6 +117,39 @@ describe("ATProto label v1 crypto", () => {
 		);
 	});
 
+	it("preserves DID and ATProto URI grammar without ambiguous colon matching", async () => {
+		const boundSigner = await signer();
+		for (const uri of [
+			"did:plc:abc123",
+			"did:web:example.com",
+			"did:example::leading-empty",
+			"did:example:doubled::segment",
+			"did:example:trailing:",
+			"at://did:example::leading-empty/com.example.collection/record",
+			"at://did:example:doubled::segment/com.example.collection/record:1",
+			"at://example.com/com.example.collection/record:1",
+			"at://example.com/com.example.collection",
+		]) {
+			await expect(boundSigner.sign({ ...signingLabel(), uri })).resolves.toMatchObject({ uri });
+		}
+
+		for (const uri of [
+			"did:example:",
+			"did:Example:value",
+			"did:example-method:value",
+			"did:example:value/path",
+			"did:example:value?query",
+			"at://did:example:/com.example.collection/record",
+			"at://example.com//record",
+			"at://example.com/com.example.collection/",
+			`at://did:example:${"%:".repeat(100_000)}!/com.example.collection/record`,
+		]) {
+			await expect(boundSigner.sign({ ...signingLabel(), uri })).rejects.toThrow(
+				"label.uri must be an at:// URI or DID",
+			);
+		}
+	});
+
 	it("rejects non-canonical, zero, and out-of-range private scalar forms", async () => {
 		for (const privateKey of [
 			fixture.privateKey + "=",

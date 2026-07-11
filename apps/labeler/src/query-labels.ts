@@ -8,7 +8,7 @@ import {
 } from "./signing-rotation.js";
 import { xrpcError } from "./xrpc.js";
 
-const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*$/;
+const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const DIGITS = /^\d+$/;
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const DEFAULT_LIMIT = 50;

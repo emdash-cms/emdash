@@ -185,14 +185,14 @@ interface LabelReduction {
 }
 
 const RFC3339 = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/;
-const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*$/;
+const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const P256_ORDER = BigInt("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551");
 const LABEL_FIELDS = new Set(["ver", "src", "uri", "cid", "val", "neg", "cts", "exp"]);
 const SIGNED_LABEL_FIELDS = new Set([...LABEL_FIELDS, "sig"]);
 const PRINTABLE_LABEL_VALUE = /^[^\p{Cc}]{1,128}$/u;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
 const ATPROTO_URI =
-	/^at:\/\/(?:did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*|[A-Za-z0-9.-]+)\/[A-Za-z0-9.-]+(?:\/[A-Za-z0-9._~:%-]+)?$/;
+	/^at:\/\/(?:did:[a-z0-9]+:[A-Za-z0-9._:%-]+|[A-Za-z0-9.-]+)\/[A-Za-z0-9.-]+(?:\/[A-Za-z0-9._~:%-]+)?$/;
 
 function daysFromCivil(year: bigint, month: bigint, day: bigint): bigint {
 	const adjustedYear = year - (month <= 2n ? 1n : 0n);
