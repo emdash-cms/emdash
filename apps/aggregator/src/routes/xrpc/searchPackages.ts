@@ -154,10 +154,10 @@ const ENFORCEMENT_FILTER_SQL = `
 	AND NOT EXISTS (
 		SELECT 1 FROM label_state ls
 		WHERE ls.uri = 'at://' || p.did || '/${NSID.packageProfile}/' || p.slug
-		  AND ls.val IN ('!takedown', 'security:yanked')
+		  AND ls.val IN ('!takedown', 'security-yanked')
 		  AND ls.trusted = 1
 		  AND ls.neg = 0
-		  AND (ls.exp IS NULL OR ls.exp > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+		  AND (ls.exp_epoch_ms IS NULL OR ls.exp_epoch_ms > CAST(strftime('%s', 'now') AS INTEGER) * 1000)
 	)
 `;
 

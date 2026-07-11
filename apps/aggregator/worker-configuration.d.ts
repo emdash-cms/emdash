@@ -4,16 +4,18 @@
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./src/index");
-		durableNamespaces: "RecordsJetstreamDO";
+		durableNamespaces: "RecordsJetstreamDO" | "LabelIngestDO";
 	}
 	interface Env {
 		DB: D1Database;
 		RECORDS_QUEUE: Queue;
 		BACKFILL_QUEUE: Queue;
+		LABELS_QUEUE: Queue;
 		JETSTREAM_URL: "wss://jetstream2.us-east.bsky.network/subscribe";
 		RELAY_URL: "https://bsky.network";
 		ADMIN_TOKEN: string;
 		RECORDS_DO: DurableObjectNamespace<import("./src/index").RecordsJetstreamDO>;
+		LABEL_INGEST_DO: DurableObjectNamespace<import("./src/index").LabelIngestDO>;
 	}
 }
 interface Env extends Cloudflare.Env {}

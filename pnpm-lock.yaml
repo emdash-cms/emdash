@@ -386,6 +386,9 @@ importers:
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../../packages/registry-lexicons
+      '@emdash-cms/registry-moderation':
+        specifier: workspace:*
+        version: link:../../packages/registry-moderation
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'

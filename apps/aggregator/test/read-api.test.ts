@@ -37,6 +37,7 @@ beforeEach(async () => {
 	await testEnv.DB.prepare("DELETE FROM packages").run();
 	await testEnv.DB.prepare("DELETE FROM publishers").run();
 	await testEnv.DB.prepare("DELETE FROM publisher_verifications").run();
+	await testEnv.DB.prepare("DELETE FROM label_state").run();
 });
 
 interface SeedPackageOpts {
@@ -136,6 +137,49 @@ function defaultVersionSort(version: string): string {
 	const [major = "0", minor = "0", patch = "0"] = version.split(".");
 	const pad = (s: string) => s.padStart(10, "0");
 	return `${pad(major)}.${pad(minor)}.${pad(patch)}.~`;
+}
+
+function packageUri(slug: string, did: string = DID_A): string {
+	return `at://${did}/${NSID.packageProfile}/${slug}`;
+}
+
+async function seedLabelState(opts: {
+	uri: string;
+	val: string;
+	trusted?: boolean;
+	neg?: boolean;
+	exp?: string;
+}): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO label_state
+		   (src, uri, val, cid, neg, cts, cts_epoch_ms, exp, exp_epoch_ms,
+		    digest, source_sequence, frame_index, trusted)
+		 VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	)
+		.bind(
+			"did:web:labels.example",
+			opts.uri,
+			opts.val,
+			opts.neg ? 1 : 0,
+			NOW.toISOString(),
+			NOW.getTime(),
+			opts.exp ?? null,
+			opts.exp === undefined ? null : Date.parse(opts.exp),
+			`digest-${opts.uri}-${opts.val}`,
+			1,
+			0,
+			opts.trusted === false ? 0 : 1,
+		)
+		.run();
+}
+
+/** An expiry that is an hour in the past as an instant, rendered with a
+ * +14:00 offset so its raw string compares lexically AFTER the current UTC
+ * timestamp — the case that text comparison gets wrong. */
+function offsetExpiredExp(): string {
+	const instant = Date.now() - 60 * 60 * 1000;
+	const local = new Date(instant + 14 * 60 * 60 * 1000);
+	return local.toISOString().replace(/\.\d{3}Z$/, "+14:00");
 }
 
 describe("getPackage", () => {
@@ -358,6 +402,38 @@ describe("searchPackages", () => {
 			.map((p) => p.slug)
 			.filter((s) => secondBody.packages.some((p) => p.slug === s));
 		expect(overlap).toEqual([]);
+	});
+
+	it("hides a package with an active trusted security-yanked label", async () => {
+		await seedPackage({ slug: "risky" });
+		await seedPackage({ slug: "safe" });
+		await seedLabelState({ uri: packageUri("risky"), val: "security-yanked" });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages.map((p) => p.slug)).toEqual(["safe"]);
+	});
+
+	it("does not hide a package whose takedown expired, even when the raw exp string compares lexically after now", async () => {
+		await seedPackage({ slug: "recovered" });
+		await seedLabelState({
+			uri: packageUri("recovered"),
+			val: "!takedown",
+			exp: offsetExpiredExp(),
+		});
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages.map((p) => p.slug)).toEqual(["recovered"]);
+	});
+
+	it("ignores blocking labels from untrusted sources", async () => {
+		await seedPackage({ slug: "demo" });
+		await seedLabelState({ uri: packageUri("demo"), val: "!takedown", trusted: false });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages.map((p) => p.slug)).toEqual(["demo"]);
 	});
 
 	it("doesn't blow up on FTS-unsafe query chars (defensive quoting)", async () => {
