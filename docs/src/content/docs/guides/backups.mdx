@@ -57,12 +57,10 @@ Archives are stored under the `backups/` prefix in your bucket as `emdash-backup
 	through EmDash (or scope your public domain to the media prefix).
 </Aside>
 
-<Aside type="note">
-	Automatic backups piggyback on the scheduled maintenance tick (the same mechanism that powers
-	scheduled publishing). On Cloudflare this is the Worker's cron trigger; on Node it's the built-in
-	scheduler. If your deployment has no cron trigger configured, use **Back up now** or the download
-	button instead.
-</Aside>
+Automatic backups piggyback on the scheduled maintenance tick (the same mechanism that powers
+scheduled publishing) — on Cloudflare this is the Worker's cron trigger, on Node the built-in
+scheduler. If your deployment has no cron trigger configured, use **Back up now** or the download
+button instead.
 
 ## Point-in-time restore with D1 Time Travel
 
