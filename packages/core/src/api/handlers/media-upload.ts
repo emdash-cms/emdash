@@ -20,7 +20,7 @@ import { SsrfError, ssrfSafeFetch } from "../../security/ssrf.js";
 import type { Storage } from "../../storage/types.js";
 import { decodeBase64Bytes } from "../../utils/base64.js";
 import { computeContentHash } from "../../utils/hash.js";
-import { DEFAULT_MAX_UPLOAD_SIZE, formatFileSize } from "../schemas/media.js";
+import { CONTENT_TYPE_RE, DEFAULT_MAX_UPLOAD_SIZE, formatFileSize } from "../schemas/media.js";
 import type { ApiResult } from "../types.js";
 import { GLOBAL_UPLOAD_ALLOWLIST } from "./media-allowlist.js";
 
@@ -149,6 +149,15 @@ export async function handleMediaUpload(
 	const acquired = await acquireBytes(input, rawMax);
 	if ("success" in acquired) return acquired;
 	const { bytes } = acquired;
+
+	// Validate the raw MIME string before normalize/allowlist: normalizeMime
+	// only strips parameters and matchesMimeAllowlist only checks startsWith,
+	// so without this a crafted value like "image/png\r\nX-Evil: 1" would
+	// reach the storage backend's ContentType header and be echoed by the
+	// media file serving route.
+	if (!CONTENT_TYPE_RE.test(acquired.mimeType)) {
+		return fail("VALIDATION_ERROR", "Invalid content type");
+	}
 	const mimeType = normalizeMime(acquired.mimeType);
 
 	if (!matchesMimeAllowlist(mimeType, GLOBAL_UPLOAD_ALLOWLIST)) {

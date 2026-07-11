@@ -17,6 +17,7 @@ import { z } from "zod";
 import {
 	bylineCreateBody,
 	bylineUpdateBody,
+	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
 } from "#api/schemas.js";
@@ -1853,12 +1854,14 @@ export function createMcpServer(): McpServer {
 					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
 				url: z
 					.string()
+					.url()
 					.optional()
 					.describe(
 						"Public http(s) URL to fetch the file from. Provide exactly one of base64 / url.",
 					),
 				contentType: z
 					.string()
+					.regex(CONTENT_TYPE_RE, "Invalid content type")
 					.optional()
 					.describe(
 						"MIME type (e.g. 'image/png'). Required with base64; with url it " +

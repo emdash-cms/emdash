@@ -46,7 +46,7 @@ export function formatFileSize(bytes: number): string {
 
 // Matches a full MIME type (type/subtype) with an optional semicolon-delimited
 // parameter section. Forbids CR/LF to prevent header injection.
-const CONTENT_TYPE_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]+(\s*;[^\r\n]*)?$/i;
+export const CONTENT_TYPE_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]+(\s*;[^\r\n]*)?$/i;
 
 export function mediaUploadUrlBody(maxSize: number) {
 	if (!Number.isFinite(maxSize) || maxSize <= 0) {

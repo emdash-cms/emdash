@@ -141,6 +141,39 @@ describe("handleMediaUpload (#620)", () => {
 		if (!result.success) expect(result.error.code).toBe("VALIDATION_ERROR");
 	});
 
+	it("rejects malformed MIME strings that would pass the prefix allowlist", async () => {
+		// "image/png\r\nX-Evil: 1" starts with "image/" but must never reach
+		// the storage ContentType header or the file-serving response.
+		const crafted = await handleMediaUpload(db, storage, {
+			filename: "x.png",
+			base64: PNG_BASE64,
+			contentType: "image/png\r\nX-Evil: 1",
+		});
+		expect(crafted.success).toBe(false);
+		if (!crafted.success) expect(crafted.error.code).toBe("VALIDATION_ERROR");
+		expect(storage.uploads.size).toBe(0);
+	});
+
+	it("rejects a malformed Content-Type header from a remote host", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => {
+				const response = new Response(PNG_BYTES);
+				// Response normalizes header values, so inject the raw string
+				vi.spyOn(response.headers, "get").mockReturnValue("image/png\r\nX-Evil: 1");
+				return response;
+			}),
+		);
+
+		const result = await handleMediaUpload(db, storage, {
+			filename: "remote.png",
+			url: "https://example.com/remote.png",
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) expect(result.error.code).toBe("VALIDATION_ERROR");
+		expect(storage.uploads.size).toBe(0);
+	});
+
 	it("rejects MIME types outside the global allowlist", async () => {
 		const result = await handleMediaUpload(db, storage, {
 			filename: "evil.exe",
