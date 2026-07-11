@@ -7,6 +7,7 @@ export { LabelSubscriptionDO } from "./subscribe-labels.js";
 
 const QUERY_LABELS_PATH = "/xrpc/com.atproto.label.queryLabels";
 const SUBSCRIBE_LABELS_PATH = "/xrpc/com.atproto.label.subscribeLabels";
+const CREATE_REPORT_PATH = "/xrpc/com.atproto.moderation.createReport";
 const SUBSCRIBE_CURSOR = /^(?:0|[1-9]\d*)$/;
 
 export default {
@@ -22,11 +23,20 @@ export default {
 			}
 			if (pathname === QUERY_LABELS_PATH) return queryLabels(env.DB, request);
 			if (pathname === SUBSCRIBE_LABELS_PATH) return subscribeLabels(env, request);
+			if (pathname === CREATE_REPORT_PATH) return rejectModerationReport(request);
 			return xrpcError("MethodNotSupported", "XRPC method not found", 404);
 		}
 		return new Response("emdash-labeler: not found", { status: 404 });
 	},
 };
+
+function rejectModerationReport(request: Request): Response {
+	if (request.method !== "POST")
+		return xrpcError("MethodNotSupported", "createReport only supports POST", 405, {
+			allow: "POST",
+		});
+	return xrpcError("NotSupported", "This labeler does not accept moderation reports", 501);
+}
 
 async function subscribeLabels(env: Env, request: Request): Promise<Response> {
 	if (request.method !== "GET")

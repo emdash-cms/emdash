@@ -1,3 +1,11 @@
+import type { SignedLabel } from "@emdash-cms/registry-moderation";
+
+import {
+	getSigningStatusIfInitialized,
+	recordSigningAlert,
+	type VersionedLabelSigner,
+	verifyLabelForSigningStatus,
+} from "./signing-rotation.js";
 import { xrpcError } from "./xrpc.js";
 
 const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+(?:[:][A-Za-z0-9._:%-]+)*$/;
@@ -7,6 +15,7 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 250;
 
 interface LabelRow {
+	id: number;
 	sequence: number;
 	ver: number;
 	src: string;
@@ -17,9 +26,15 @@ interface LabelRow {
 	cts: string;
 	exp: string | null;
 	sig: ArrayBuffer;
+	signing_key_id: string;
+	signing_key_version: string;
 }
 
-export async function queryLabels(db: D1Database, request: Request): Promise<Response> {
+export async function queryLabels(
+	db: D1Database,
+	request: Request,
+	signing?: VersionedLabelSigner,
+): Promise<Response> {
 	if (request.method !== "GET") {
 		return xrpcError("MethodNotSupported", "queryLabels only supports GET", 405, { allow: "GET" });
 	}
@@ -53,7 +68,8 @@ export async function queryLabels(db: D1Database, request: Request): Promise<Res
 	values.push(...sources, cursor ?? 0, limit + 1);
 	const rows = await db
 		.prepare(
-			`SELECT sequence, ver, src, uri, cid, val, neg, cts, exp, sig
+			`SELECT id, sequence, ver, src, uri, cid, val, neg, cts, exp, sig,
+			 signing_key_id, signing_key_version
 			 FROM issued_labels
 			 WHERE (${patternClauses.join(" OR ")})${sourceClause} AND sequence > ?
 			 ORDER BY sequence ASC LIMIT ?`,
@@ -61,7 +77,12 @@ export async function queryLabels(db: D1Database, request: Request): Promise<Res
 		.bind(...values)
 		.all<LabelRow>();
 	const labels = rows.results ?? [];
-	const page = labels.slice(0, limit);
+	let page = labels.slice(0, limit);
+	try {
+		page = await resignStaleLabels(db, page, signing);
+	} catch {
+		return xrpcError("InternalServerError", "label signing is temporarily unavailable", 503);
+	}
 	const last = page.at(-1);
 	return Response.json({
 		labels: page.map((label) => ({
@@ -77,6 +98,129 @@ export async function queryLabels(db: D1Database, request: Request): Promise<Res
 		})),
 		...(labels.length > limit && last ? { cursor: `${last.sequence}` } : {}),
 	});
+}
+
+async function resignStaleLabels(
+	db: D1Database,
+	labels: LabelRow[],
+	signing?: VersionedLabelSigner,
+): Promise<LabelRow[]> {
+	if (labels.length === 0) return labels;
+	const status = await getSigningStatusIfInitialized(db);
+	if (!status) return labels;
+	const stale = labels.filter((label) => label.signing_key_version !== status.activeKeyVersion);
+	if (stale.length === 0) return labels;
+	if (
+		status.phase !== "active" ||
+		!signing ||
+		signing.signer.issuerDid !== status.issuerDid ||
+		signing.keyVersion !== status.activeKeyVersion ||
+		signing.publicKeyMultibase !== status.activePublicKeyMultibase
+	) {
+		await recordSigningAlert(db, "RESIGN_CONFIGURATION_MISMATCH", {
+			activeKeyVersion: status.activeKeyVersion,
+			targetKeyVersion: signing?.keyVersion,
+			rotationId: status.rotationId,
+			severity: "error",
+		});
+		throw new Error("current signing key is unavailable");
+	}
+
+	for (const row of stale) {
+		let signed: SignedLabel;
+		try {
+			const expected = unsignedLabel(row);
+			const returned = await signing.signer.sign(expected);
+			signed = { ...expected, src: row.src, sig: returned.sig };
+			await verifyLabelForSigningStatus(status, signing, signed);
+		} catch {
+			await recordSigningAlert(db, "RESIGN_SIGN_FAILED", {
+				activeKeyVersion: status.activeKeyVersion,
+				targetKeyVersion: signing.keyVersion,
+				rotationId: status.rotationId,
+				severity: "error",
+			});
+			throw new Error("historical label re-signing failed");
+		}
+		const results = await db.batch([
+			db
+				.prepare(
+					`INSERT INTO label_signature_history
+					 (label_id, label_sequence, sig, signing_key_id, signing_key_version, replaced_at)
+					 SELECT id, sequence, sig, signing_key_id, signing_key_version, ?
+					 FROM issued_labels WHERE id = ? AND signing_key_version = ?
+					 ON CONFLICT(label_id, signing_key_version) DO NOTHING`,
+				)
+				.bind(new Date().toISOString(), row.id, row.signing_key_version),
+			db
+				.prepare(
+					`UPDATE issued_labels SET sig = ?, signing_key_id = ?, signing_key_version = ?
+					 WHERE id = ? AND signing_key_version = ?
+					 AND EXISTS (
+						SELECT 1 FROM signing_state WHERE id = 1 AND phase = 'active'
+						AND active_key_version = ? AND active_public_multikey = ?
+					 )`,
+				)
+				.bind(
+					signed.sig,
+					`${signed.src}#atproto_label`,
+					signing.keyVersion,
+					row.id,
+					row.signing_key_version,
+					signing.keyVersion,
+					signing.publicKeyMultibase,
+				),
+		]);
+		if (results[1]?.meta.changes !== 1) {
+			const current = await getLabelRow(db, row.id);
+			if (current?.signing_key_version === signing.keyVersion) {
+				Object.assign(row, current);
+				continue;
+			}
+			await recordSigningAlert(db, "RESIGN_STATE_CHANGED", {
+				activeKeyVersion: status.activeKeyVersion,
+				targetKeyVersion: signing.keyVersion,
+				rotationId: status.rotationId,
+				severity: "error",
+			});
+			throw new Error("signing state changed while re-signing labels");
+		}
+		row.sig = Uint8Array.from(signed.sig).buffer;
+		row.signing_key_id = `${signed.src}#atproto_label`;
+		row.signing_key_version = signing.keyVersion;
+	}
+	const after = await getSigningStatusIfInitialized(db);
+	if (
+		!after ||
+		after.phase !== "active" ||
+		after.issuerDid !== signing.signer.issuerDid ||
+		after.activeKeyVersion !== signing.keyVersion ||
+		after.activePublicKeyMultibase !== signing.publicKeyMultibase
+	)
+		throw new Error("signing state changed while re-signing labels");
+	return labels;
+}
+
+async function getLabelRow(db: D1Database, id: number): Promise<LabelRow | null> {
+	return db
+		.prepare(
+			`SELECT id, sequence, ver, src, uri, cid, val, neg, cts, exp, sig,
+			 signing_key_id, signing_key_version FROM issued_labels WHERE id = ?`,
+		)
+		.bind(id)
+		.first<LabelRow>();
+}
+
+function unsignedLabel(row: LabelRow): Omit<SignedLabel, "src" | "sig"> {
+	return {
+		ver: 1,
+		uri: row.uri,
+		...(row.cid === null ? {} : { cid: row.cid }),
+		val: row.val,
+		...(row.neg === 1 ? { neg: true } : {}),
+		cts: row.cts,
+		...(row.exp === null ? {} : { exp: row.exp }),
+	};
 }
 
 function parseUriPattern(value: string): string | null {
