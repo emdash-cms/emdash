@@ -79,7 +79,9 @@ export {
 	sendMagicLink,
 	verifyMagicLink,
 	MagicLinkError,
+	buildMagicLinkEmail,
 	type MagicLinkConfig,
+	type MagicLinkEmailStrings,
 } from "./magic-link/index.js";
 
 // Invite
@@ -88,10 +90,12 @@ export {
 	createInviteToken,
 	validateInvite,
 	completeInvite,
+	buildInviteEmail,
 	InviteError,
 	escapeHtml,
 	type InviteConfig,
 	type InviteTokenResult,
+	type InviteEmailStrings,
 	type EmailSendFn,
 } from "./invite.js";
 

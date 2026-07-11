@@ -11,11 +11,34 @@ const TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 /** Function that sends an email (matches the EmailPipeline.send signature) */
 export type EmailSendFn = (message: EmailMessage) => Promise<void>;
 
+/**
+ * Localized copy for the sign-in (magic link / recovery) email (#915).
+ *
+ * Final display strings, interpolated by the caller — same contract as
+ * `InviteEmailStrings` in invite.ts. English fallback when omitted.
+ */
+export interface MagicLinkEmailStrings {
+	/** Subject line, e.g. `Sign in to Acme` */
+	subject: string;
+	/** Plain-text instruction above the raw link, e.g. `Click this link to sign in to Acme:` */
+	textLinkInstruction: string;
+	/** HTML instruction above the button */
+	htmlInstruction: string;
+	/** Button label */
+	buttonLabel: string;
+	/** Expiry note, e.g. `This link expires in 15 minutes.` */
+	expiryNote: string;
+	/** Unsolicited-email note, e.g. `If you didn't request this, you can safely ignore this email.` */
+	ignoreNote: string;
+}
+
 export interface MagicLinkConfig {
 	baseUrl: string;
 	siteName: string;
 	/** Optional email sender. When omitted, magic links cannot be sent. */
 	email?: EmailSendFn;
+	/** Optional localized email copy. English when omitted. */
+	emailStrings?: MagicLinkEmailStrings;
 }
 
 /**
@@ -67,11 +90,43 @@ export async function sendMagicLink(
 	url.searchParams.set("token", token);
 
 	// Send email
-	const safeName = escapeHtml(config.siteName);
-	await config.email({
-		to: user.email,
-		subject: `Sign in to ${config.siteName}`,
-		text: `Click this link to sign in to ${config.siteName}:\n\n${url.toString()}\n\nThis link expires in 15 minutes.\n\nIf you didn't request this, you can safely ignore this email.`,
+	const message = buildMagicLinkEmail(
+		url.toString(),
+		user.email,
+		config.siteName,
+		config.emailStrings,
+	);
+	await config.email(message);
+}
+
+/** English fallback copy for the sign-in email. */
+function defaultMagicLinkEmailStrings(siteName: string): MagicLinkEmailStrings {
+	return {
+		subject: `Sign in to ${siteName}`,
+		textLinkInstruction: `Click this link to sign in to ${siteName}:`,
+		htmlInstruction: "Click the button below to sign in:",
+		buttonLabel: "Sign in",
+		expiryNote: "This link expires in 15 minutes.",
+		ignoreNote: "If you didn't request this, you can safely ignore this email.",
+	};
+}
+
+/**
+ * Build the sign-in (magic link / recovery) email message.
+ *
+ * Exported for tests; localized copy is injected via `strings` (#915).
+ */
+export function buildMagicLinkEmail(
+	linkUrl: string,
+	email: string,
+	siteName: string,
+	strings?: MagicLinkEmailStrings,
+): EmailMessage {
+	const s = strings ?? defaultMagicLinkEmailStrings(siteName);
+	return {
+		to: email,
+		subject: s.subject,
+		text: `${s.textLinkInstruction}\n\n${linkUrl}\n\n${s.expiryNote}\n\n${s.ignoreNote}`,
 		html: `
 <!DOCTYPE html>
 <html>
@@ -80,16 +135,16 @@ export async function sendMagicLink(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <h1 style="font-size: 24px; margin-bottom: 20px;">Sign in to ${safeName}</h1>
-  <p>Click the button below to sign in:</p>
+  <h1 style="font-size: 24px; margin-bottom: 20px;">${escapeHtml(s.subject)}</h1>
+  <p>${escapeHtml(s.htmlInstruction)}</p>
   <p style="margin: 30px 0;">
-    <a href="${url.toString()}" style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Sign in</a>
+    <a href="${linkUrl}" style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">${escapeHtml(s.buttonLabel)}</a>
   </p>
-  <p style="color: #666; font-size: 14px;">This link expires in 15 minutes.</p>
-  <p style="color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
+  <p style="color: #666; font-size: 14px;">${escapeHtml(s.expiryNote)}</p>
+  <p style="color: #666; font-size: 14px;">${escapeHtml(s.ignoreNote)}</p>
 </body>
 </html>`,
-	});
+	};
 }
 
 /**

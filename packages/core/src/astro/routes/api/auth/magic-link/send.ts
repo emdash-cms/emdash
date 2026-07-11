@@ -11,9 +11,11 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
+import { getMagicLinkEmailStrings } from "@emdash-cms/admin/locales";
 import { sendMagicLink, type MagicLinkConfig } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
+import { getEmailLocale } from "#api/email-locale.js";
 import { apiError, apiSuccess } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { magicLinkSendBody } from "#api/schemas.js";
@@ -66,6 +68,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			baseUrl,
 			siteName,
 			email: (message) => emdash.email!.send(message, "system"),
+			// Localized copy following the site locale (#915)
+			emailStrings: await getMagicLinkEmailStrings(
+				await getEmailLocale(emdash.db, request),
+				siteName,
+			),
 		};
 
 		// Send magic link (silently fails if user doesn't exist)

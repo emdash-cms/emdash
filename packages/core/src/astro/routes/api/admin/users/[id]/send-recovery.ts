@@ -6,10 +6,12 @@
  * Admin-initiated account recovery — sends a recovery magic link to the user's email.
  */
 
+import { getMagicLinkEmailStrings } from "@emdash-cms/admin/locales";
 import { Role, sendMagicLink, type MagicLinkConfig } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { APIRoute } from "astro";
 
+import { getEmailLocale } from "#api/email-locale.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { OptionsRepository } from "#db/repositories/options.js";
@@ -60,6 +62,11 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
 			baseUrl,
 			siteName,
 			email: (message) => emdash.email!.send(message, "system"),
+			// Localized copy following the site locale (#915)
+			emailStrings: await getMagicLinkEmailStrings(
+				await getEmailLocale(emdash.db, request),
+				siteName,
+			),
 		};
 
 		// Send recovery link
