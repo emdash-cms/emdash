@@ -167,7 +167,7 @@ export function ImageFieldRenderer({
 				<Button
 					type="button"
 					variant="outline"
-					className="mt-2 w-full h-32 border-dashed"
+					className="mt-2 w-full h-32 justify-center border-dashed"
 					onClick={() => setPickerOpen(true)}
 				>
 					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
