@@ -546,6 +546,8 @@ The service can persist and recover every lifecycle state without model/scanner 
 
 ### `W3.1` Provision service identity and key material
 
+Staging and production both use real custom domains on the emdashcms.com zone from the start; no workers.dev DID identity. Production key generation is a maintainer action performed later: the maintainer generates the scalar and keeps the offline copy in Keeper. Code work uses a disposable staging key until then and must not block on the production ceremony.
+
 - Add the minimal staging custom-domain, D1, Secrets Store, and static DID/policy bindings required to exercise the signer. Full production environment hardening remains in `W11.1`.
 - Deploy staging `did:web` document.
 - Publish `#atproto_label` and `#atproto_labeler` entries.
@@ -1291,7 +1293,7 @@ Dependencies: component metrics from `W2` through `W10`.
 ### `W11.4` Write key-management runbooks
 
 - Begin from the ratified `W0.4` key-lifecycle contract and the implemented `W3.7` behavior.
-- Initial generation and custody.
+- Initial generation and custody: the offline copy of the production scalar lives in the maintainer's Keeper vault.
 - Routine rotation.
 - Compromise response.
 - Issuance pause/resume.

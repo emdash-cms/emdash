@@ -1375,9 +1375,10 @@ The v1 labelling service is complete when:
 
 These are implementation-specific decisions that should be settled before Phase 0 closes, not product questions requiring another broad design round.
 
-1. Exact stable/experimental NSIDs for labeler public APIs and any decision-notice record.
-2. Initial Workers AI model ID and the measured calibration threshold used to assign model severity/confidence.
-3. Initial dependency scanner/advisory sources and the exact critical applicability rule.
-4. Production Secrets Store key format and operational key-generation ceremony.
-5. Email delivery provider and monitored reconsideration address.
-6. Final retention values after legal/privacy review.
+1. Initial Workers AI model ID and the measured calibration threshold used to assign model severity/confidence.
+2. Initial dependency scanner/advisory sources and the exact critical applicability rule.
+3. The production key-generation ceremony, performed by the maintainer before launch. The scalar format is ratified in the Gate 0 crypto contract; the offline copy lives in the maintainer's Keeper vault.
+4. Email delivery provider and monitored reconsideration address.
+5. Final retention values after legal/privacy review.
+
+The public NSIDs and the no-decision-notice decision were ratified in the Gate 0 contracts.
