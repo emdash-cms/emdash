@@ -3,6 +3,14 @@ import { fromString as cidFromString, toString as cidToString } from "@atcute/ci
 import { P256PrivateKey, P256PublicKey, parsePublicMultikey } from "@atcute/crypto";
 import { fromBase64Url, toBase64Url } from "@atcute/multibase";
 
+import { DID } from "./did.js";
+
+export {
+	InvalidAcceptLabelersHeaderError,
+	parseAcceptLabelersHeader,
+	serializeContentLabelersHeader,
+} from "./labeler-headers.js";
+
 export type ModerationLabelValue =
 	| "assessment-error"
 	| "assessment-overridden"
@@ -193,7 +201,6 @@ interface LabelReduction {
 }
 
 const RFC3339 = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/;
-const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const P256_ORDER = BigInt("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551");
 const LABEL_FIELDS = new Set(["ver", "src", "uri", "cid", "val", "neg", "cts", "exp"]);
 const SIGNED_LABEL_FIELDS = new Set([...LABEL_FIELDS, "sig"]);
