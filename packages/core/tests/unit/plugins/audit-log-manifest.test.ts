@@ -12,6 +12,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { HookPipeline } from "../../../src/plugins/hooks.js";
@@ -78,9 +79,7 @@ describe("audit-log manifest capabilities (#1263)", () => {
 			for (const name of hookNames) {
 				expect(registered, `hook "${name}" was skipped`).toContain(name);
 			}
-			const skips = warn.mock.calls.filter(([msg]) =>
-				String(msg).includes("without"),
-			);
+			const skips = warn.mock.calls.filter(([msg]) => String(msg).includes("without"));
 			expect(skips).toEqual([]);
 		} finally {
 			warn.mockRestore();
