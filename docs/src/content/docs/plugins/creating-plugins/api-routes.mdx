@@ -325,6 +325,44 @@ function SettingsPage() {
 }
 ```
 
+## Calling routes from queue and scheduled handlers
+
+Platform-event handlers (a Cloudflare Queue consumer, a custom `scheduled()` handler) have no HTTP request and therefore no `locals.emdash`. Use `withEmDashRuntime()` from `emdash/middleware` to get the runtime directly and invoke a plugin route without a request:
+
+```typescript title="src/worker.ts"
+import { withEmDashRuntime } from "emdash/middleware";
+
+export default {
+	// ... fetch/scheduled from @emdash-cms/cloudflare/worker
+
+	async queue(batch: MessageBatch) {
+		await withEmDashRuntime(async (runtime) => {
+			for (const message of batch.messages) {
+				const result = await runtime.handlePluginApiRoute(
+					"my-plugin",
+					"POST",
+					"/finishJob",
+					new Request("https://internal/", {
+						method: "POST",
+						body: JSON.stringify(message.body),
+					}),
+				);
+				if (result.success) message.ack();
+				else message.retry();
+			}
+		});
+	},
+};
+```
+
+This resolves the same cached runtime that request handlers use, so plugin storage, hooks, and media access all behave exactly as they do during a request. On connection-backed database adapters (e.g. Postgres over Hyperdrive) the callback runs under an event-scoped connection that is committed and closed when it returns.
+
+<Aside type="caution">
+	`withEmDashRuntime()` is server-only and fully trusted — the callback gets the raw runtime with
+	no auth or CSRF checks, the same trust level as plugin cron. Validate any external input (queue
+	message bodies included) before passing it to a plugin route.
+</Aside>
+
 ## Calling routes externally
 
 Public routes are callable directly:
