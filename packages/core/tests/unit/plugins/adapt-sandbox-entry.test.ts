@@ -366,6 +366,43 @@ describe("adaptSandboxEntry", () => {
 			expect(pluginCtx).not.toHaveProperty("requestMeta");
 		});
 
+		it("passes the authenticated caller into routeCtx.user, not pluginCtx (#812)", async () => {
+			const standardHandler = vi.fn().mockResolvedValue({ ok: true });
+
+			const def: SandboxedPlugin = {
+				routes: {
+					whoami: { handler: standardHandler },
+				},
+			};
+			const result = adaptSandboxEntry(def, createDescriptor());
+
+			const caller = {
+				id: "u1",
+				email: "a@b.c",
+				name: "A",
+				role: 2,
+				createdAt: "2026-01-01T00:00:00.000Z",
+			};
+			const mockCtx = {
+				input: {},
+				request: new Request("http://localhost/test"),
+				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				user: caller,
+				plugin: { id: "test-plugin", version: "1.0.0" },
+				kv: {} as any,
+				storage: {} as any,
+				log: {} as any,
+				site: { name: "", url: "", locale: "en" },
+				url: (p: string) => p,
+			};
+
+			await result.routes.whoami.handler(mockCtx as any);
+
+			const [routeCtx, pluginCtx] = standardHandler.mock.calls[0];
+			expect(routeCtx.user).toEqual(caller);
+			expect(pluginCtx).not.toHaveProperty("user");
+		});
+
 		it("preserves public flag on routes", () => {
 			const def: SandboxedPlugin = {
 				routes: {

@@ -53,6 +53,7 @@ import type {
 	PageFragmentContribution,
 	PortableTextBlockConfig,
 	FieldWidgetConfig,
+	UserInfo,
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
@@ -174,7 +175,12 @@ import {
 } from "./plugins/hooks.js";
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
-import { PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
+import {
+	PluginRouteRegistry,
+	toRouteCallerInfo,
+	type RouteCallerInput,
+	type RouteMeta,
+} from "./plugins/routes.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
@@ -3314,13 +3320,24 @@ export class EmDashRuntime {
 		return null;
 	}
 
-	async handlePluginApiRoute(pluginId: string, _method: string, path: string, request: Request) {
+	async handlePluginApiRoute(
+		pluginId: string,
+		_method: string,
+		path: string,
+		request: Request,
+		user?: RouteCallerInput | null,
+	) {
 		if (!this.isPluginEnabled(pluginId)) {
 			return {
 				success: false,
 				error: { code: "NOT_FOUND", message: `Plugin not enabled: ${pluginId}` },
 			};
 		}
+
+		// Authenticated caller for `ctx.user`. Undefined for public routes
+		// (the catch-all only forwards the caller after private-route auth)
+		// and for machine tokens with no bound user (#812).
+		const caller = user ? toRouteCallerInfo(user) : undefined;
 
 		// Check trusted (configured) plugins first — this must match the
 		// resolution order in getPluginRouteMeta to avoid auth/execution mismatches.
@@ -3343,13 +3360,13 @@ export class EmDashRuntime {
 				// No body or not JSON
 			}
 
-			return routeRegistry.invoke(pluginId, routeKey, { request, body });
+			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
 		}
 
 		// Check sandboxed (marketplace) plugins second
 		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
 		if (sandboxedPlugin) {
-			return this.handleSandboxedRoute(sandboxedPlugin, path, request);
+			return this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
 		}
 
 		return {
@@ -3604,6 +3621,7 @@ export class EmDashRuntime {
 		plugin: SandboxedPluginInstance,
 		path: string,
 		request: Request,
+		user?: UserInfo,
 	): Promise<{
 		success: boolean;
 		data?: unknown;
@@ -3626,6 +3644,7 @@ export class EmDashRuntime {
 				method: request.method,
 				headers,
 				meta,
+				user,
 			});
 			return { success: true, data: result };
 		} catch (error) {

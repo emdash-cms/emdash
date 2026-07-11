@@ -10,7 +10,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
-import type { PluginManifest, RequestMeta } from "../types.js";
+import type { PluginManifest, RequestMeta, UserInfo } from "../types.js";
 
 /**
  * Resource limits for sandboxed plugins.
@@ -133,6 +133,11 @@ export interface SerializedRequest {
 	headers: Record<string, string>;
 	/** Normalized request metadata extracted before RPC serialization */
 	meta: RequestMeta;
+	/**
+	 * Authenticated caller for private routes, resolved by the host before
+	 * dispatch. Undefined for public routes and unbound machine tokens (#812).
+	 */
+	user?: UserInfo;
 }
 
 /**

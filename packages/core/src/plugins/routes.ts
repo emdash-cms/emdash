@@ -10,7 +10,7 @@
 
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
-import type { ResolvedPlugin, RouteContext, PluginRoute } from "./types.js";
+import type { ResolvedPlugin, RouteContext, PluginRoute, UserInfo } from "./types.js";
 
 /**
  * Body-reading methods on `Request`. EmDash parses the request body once before
@@ -71,6 +71,34 @@ export interface RouteResult<T = unknown> {
 }
 
 /**
+ * Host-side user shape accepted when dispatching a plugin route. Structurally
+ * matches `User` from `@emdash-cms/auth` so hosts can pass `locals.user`
+ * directly without the plugin layer depending on the auth package.
+ */
+export interface RouteCallerInput {
+	id: string;
+	email: string;
+	name: string | null;
+	role: number;
+	createdAt: Date | string;
+}
+
+/**
+ * Convert the host's authenticated user into the read-only `UserInfo` shape
+ * exposed to plugins as `ctx.user`. Strips sensitive/irrelevant fields and
+ * keeps the value structured-clone-safe for sandboxed plugins.
+ */
+export function toRouteCallerInfo(user: RouteCallerInput): UserInfo {
+	return {
+		id: user.id,
+		email: user.email,
+		name: user.name,
+		role: user.role,
+		createdAt: typeof user.createdAt === "string" ? user.createdAt : user.createdAt.toISOString(),
+	};
+}
+
+/**
  * Route invocation options
  */
 export interface InvokeRouteOptions {
@@ -78,6 +106,11 @@ export interface InvokeRouteOptions {
 	request: Request;
 	/** Request body (already parsed) */
 	body?: unknown;
+	/**
+	 * Authenticated caller resolved by the host, exposed to the handler as
+	 * `ctx.user`. Undefined for public routes and unbound machine tokens.
+	 */
+	user?: UserInfo;
 }
 
 /**
@@ -141,6 +174,7 @@ export class PluginRouteHandler {
 			// (#1293). Metadata extraction uses the original request (headers only).
 			request: guardConsumedRequestBody(options.request),
 			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
+			user: options.user,
 		};
 
 		// Execute handler

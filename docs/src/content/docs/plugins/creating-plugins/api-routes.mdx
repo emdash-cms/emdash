@@ -95,6 +95,29 @@ routes: {
 	Public routes skip authentication, scope, and CSRF entirely. Anyone on the internet can call them. Use `public: true` only for endpoints that need to accept external traffic — webhooks, public-facing search endpoints — and validate the input carefully.
 </Aside>
 
+### The authenticated caller
+
+On private routes, `routeCtx.user` is the authenticated user making the request — resolved and authorized by EmDash before your handler runs, so you can trust it for per-user logic (per-user API keys, OAuth connections, plugin-managed preferences):
+
+```typescript
+routes: {
+	"connect/start": {
+		handler: async (routeCtx, ctx) => {
+			// Never read the acting user from the request body — any authenticated
+			// session could impersonate another user that way. Use routeCtx.user.
+			const caller = routeCtx.user;
+			if (!caller) throw new Error("No caller bound");
+			await ctx.kv.set(`user:${caller.id}:connection`, { startedAt: Date.now() });
+			return { userId: caller.id };
+		},
+	},
+},
+```
+
+`routeCtx.user` is `undefined` on public routes (they skip auth, so no caller is bound — even when the visitor happens to have an admin session) and for token-authed requests where the token isn't bound to a user (machine tokens). The shape matches the `UserInfo` returned by `ctx.users`: `{ id, email, name, role, createdAt }` — no sensitive fields.
+
+Note that caller identity is separate from the `users:read` capability: `routeCtx.user` tells you **who is calling** and is always available on private routes, while `ctx.users` is a user-directory **lookup** that requires the capability.
+
 ## Input validation
 
 `input` accepts a Zod schema. The dispatcher parses the request body (POST/PUT/PATCH) or query string (GET/DELETE), validates it, and passes the typed result to your handler as `routeCtx.input`. Invalid input returns a 400 before your handler runs.
@@ -359,6 +382,15 @@ interface SandboxedRouteContext {
 	input: unknown; // narrow with the `input` Zod schema at the route level
 	request: SandboxedRequest;
 	requestMeta?: unknown;
+	user?: UserInfo; // authenticated caller on private routes; undefined on public routes
+}
+
+interface UserInfo {
+	id: string;
+	email: string;
+	name: string | null;
+	role: number;
+	createdAt: string;
 }
 
 interface PluginContext {

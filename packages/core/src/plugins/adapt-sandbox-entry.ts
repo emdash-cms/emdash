@@ -220,8 +220,9 @@ export function adaptSandboxEntry(
 						input: ctx.input,
 						request: requestShape,
 						requestMeta: ctx.requestMeta,
+						user: ctx.user,
 					};
-					const { input: _, request: __, requestMeta: ___, ...pluginCtx } = ctx;
+					const { input: _, request: __, requestMeta: ___, user: ____, ...pluginCtx } = ctx;
 					return handler(routeCtx, pluginCtx);
 				},
 			};
