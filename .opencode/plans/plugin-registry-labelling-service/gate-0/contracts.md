@@ -23,8 +23,8 @@ Subjects use the current experimental registry identifiers:
 
 ## Proposed Public Identifiers
 
-| NSID                                                       | Kind        | Purpose                                                                    |
-| ---------------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| NSID                                                      | Kind        | Purpose                                                                    |
+| --------------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
 | `com.emdashcms.experimental.labeler.defs`                 | definitions | Shared public assessment, policy, coverage, label, and manual-action views |
 | `com.emdashcms.experimental.labeler.getAssessment`        | query       | Fetch one immutable historical assessment by public ID                     |
 | `com.emdashcms.experimental.labeler.getCurrentAssessment` | query       | Fetch effective assessment state for an exact release URI and CID          |
@@ -175,10 +175,10 @@ Errors: `InvalidRequest`, `NotFound`, `RateLimitExceeded`.
 
 ### `getCurrentAssessment`
 
-| Name  | Required | Constraint                  | Meaning                                         |
-| ----- | -------- | --------------------------- | ----------------------------------------------- |
-| `uri` | yes      | exact `at-uri`, no wildcard | Release record URI                              |
-| `cid` | yes      | CID                         | Exact release record version being evaluated    |
+| Name  | Required | Constraint                  | Meaning                                        |
+| ----- | -------- | --------------------------- | ---------------------------------------------- |
+| `uri` | yes      | exact `at-uri`, no wildcard | Release record URI                             |
+| `cid` | yes      | CID                         | Exact release record version being evaluated   |
 | `src` | no       | DID                         | Labeler source; defaults to the endpoint's DID |
 
 ```ts
@@ -232,7 +232,7 @@ Error: `RateLimitExceeded`.
 | --------------------- | ----------- | ----------------------------------------------------------------------- |
 | `InvalidRequest`      | 400         | Lexicon or cross-field validation failed                                |
 | `InvalidCursor`       | 400         | Cursor is malformed, unsupported, or bound to different filters         |
-| `UnsupportedSource`   | 400         | `src` differs from this deployment's labeler DID                       |
+| `UnsupportedSource`   | 400         | `src` differs from this deployment's labeler DID                        |
 | `NotFound`            | 404         | Requested public assessment or exact subject is unavailable             |
 | `RateLimitExceeded`   | 429         | Public rate limit exceeded; response should include `Retry-After`       |
 | `InternalServerError` | 500         | Generic XRPC error for an unhandled server failure, not method-declared |

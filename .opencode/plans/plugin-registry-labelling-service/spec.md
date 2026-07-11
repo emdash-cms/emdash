@@ -14,7 +14,7 @@ The following decisions were made before drafting this spec.
 
 | Area                      | Decision                                                                                                        |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Launch role               | Safety and quality labeler, with narrow takedown authority                                                     |
+| Launch role               | Safety and quality labeler, with narrow takedown authority                                                      |
 | Assessment coverage       | Assess every release, including verified and first-party publishers                                             |
 | Automated inputs          | Bundle code, manifest and metadata, images, dependencies/SBOM, and publisher history                            |
 | Automated authority       | Deterministic critical findings, critical scanner matches, and a single AI critical finding may hard-block      |
@@ -227,7 +227,7 @@ Quality labels never prevent direct installation on their own. The official admi
 
 | Label                   | Subject                        | Authority         | Effect                                                                 |
 | ----------------------- | ------------------------------ | ----------------- | ---------------------------------------------------------------------- |
-| `!takedown`             | Release, package, or publisher | Admin only        | Redact for consumers accepting this labeler with `redact`             |
+| `!takedown`             | Release, package, or publisher | Admin only        | Redact for consumers accepting this labeler with `redact`              |
 | `security-yanked`       | Release                        | Reviewer or admin | Block install/update; retain visible tombstone and explanation         |
 | `publisher-compromised` | Publisher DID                  | Admin only        | Block all publisher packages/releases until retracted                  |
 | `package-disputed`      | Package URI                    | Reviewer or admin | Warn and prevent recommendation; direct install policy is configurable |
@@ -1085,7 +1085,7 @@ Retention values are policy constants versioned in code and may change after leg
 | Stale labels after CID update                  | Automated labels are CID-bound; clients check CID applicability                                                                |
 | Package/publisher overreach                    | Broad labels are manual only; subject-wide action shown explicitly                                                             |
 | Assessment absence mistaken for safety         | Official clients require positive `assessment-passed`                                                                          |
-| Labeler outage blocks ecosystem indefinitely  | Clear pending/error state, alerts, retry/DLQ, site operators can choose a different trust policy/labeler                      |
+| Labeler outage blocks ecosystem indefinitely   | Clear pending/error state, alerts, retry/DLQ, site operators can choose a different trust policy/labeler                       |
 | Policy/model drift changes outcomes silently   | Version all policy/model/prompt/scanner inputs; no automatic whole-catalog rewrite                                             |
 | Dependency scanner noise                       | Applicability/blocking rule stricter than raw severity score                                                                   |
 | Evidence leaks vulnerability details           | Public/private split and redacted summaries                                                                                    |

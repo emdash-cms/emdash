@@ -47,7 +47,7 @@ The implementation is complete when:
 | ----- | -------------------------------------- | ------------------------------------------------------------------------------ |
 | `W0`  | Decisions and feasibility              | Ratified contracts and proved platform assumptions                             |
 | `W1`  | Shared protocol and policy             | Lexicons, label crypto, policy schema, and moderation semantics                |
-| `W2`  | Service foundation and persistence     | `apps/labeler`, D1 state, bindings, queues, and workflow skeleton             |
+| `W2`  | Service foundation and persistence     | `apps/labeler`, D1 state, bindings, queues, and workflow skeleton              |
 | `W3`  | Label issuance and distribution        | Typed signer, label history, query API, and replayable subscription            |
 | `W4`  | Aggregator label consumption           | Verified subscription, current state, hydration, redaction, and cascades       |
 | `W5`  | Client eligibility enforcement         | One moderation helper used by registry client, core, CLI, and admin            |
@@ -1511,22 +1511,22 @@ Each item should remain independently reviewable and leave production behavior s
 
 ## Cross-Workstream Ownership Boundaries
 
-| Concern                                 | Owner | Consumers                                      |
-| --------------------------------------- | ----- | ---------------------------------------------- |
-| Label vocabulary/effects                | `W1`  | All workstreams                                |
-| DRISL signing/verification              | `W1`  | `W3`, `W4`, conformance                        |
-| D1 state transitions                    | `W2`  | `W3`, `W6`, `W9`, `W10`                        |
-| Public label history/sequence           | `W3`  | `W4`, third parties                            |
-| Aggregator current label state          | `W4`  | `W5`, directory/admin                          |
-| Release eligibility semantics/evaluator | `W1`  | `W4`, `W5`, core, CLI, admin                   |
-| Consumer eligibility adapters           | `W5`  | Core, CLI, admin                               |
-| Run lifecycle/supersession              | `W6`  | `W8`, `W9`, `W10`                              |
+| Concern                                 | Owner | Consumers                                     |
+| --------------------------------------- | ----- | --------------------------------------------- |
+| Label vocabulary/effects                | `W1`  | All workstreams                               |
+| DRISL signing/verification              | `W1`  | `W3`, `W4`, conformance                       |
+| D1 state transitions                    | `W2`  | `W3`, `W6`, `W9`, `W10`                       |
+| Public label history/sequence           | `W3`  | `W4`, third parties                           |
+| Aggregator current label state          | `W4`  | `W5`, directory/admin                         |
+| Release eligibility semantics/evaluator | `W1`  | `W4`, `W5`, core, CLI, admin                  |
+| Consumer eligibility adapters           | `W5`  | Core, CLI, admin                              |
+| Run lifecycle/supersession              | `W6`  | `W8`, `W9`, `W10`                             |
 | Artifact safety                         | `W7`  | Labeler, installer, delegated release service |
-| Finding-to-label mapping                | `W8`  | `W3`, `W9`, transparency                       |
-| Human authorization/actions             | `W9`  | `W3`, audit, notifications                     |
-| Public explanation/contact              | `W10` | Registry client/admin, publishers              |
-| Production configuration/runbooks       | `W11` | Operators, self-hosters                        |
-| Cross-component acceptance              | `W12` | Gate 6                                         |
+| Finding-to-label mapping                | `W8`  | `W3`, `W9`, transparency                      |
+| Human authorization/actions             | `W9`  | `W3`, audit, notifications                    |
+| Public explanation/contact              | `W10` | Registry client/admin, publishers             |
+| Production configuration/runbooks       | `W11` | Operators, self-hosters                       |
+| Cross-component acceptance              | `W12` | Gate 6                                        |
 
 If a change crosses an ownership boundary, the owning shared contract changes first and all consumers update in the same integration gate. Do not fix policy divergence with local string checks.
 
