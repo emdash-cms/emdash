@@ -545,7 +545,7 @@ msgstr "接受并安装"
 msgid "Accept & Update"
 msgstr "接受并更新"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:206
+#: packages/admin/src/components/InviteAcceptPage.tsx:238
 msgid "Accept Invite"
 msgstr "接受邀请"
 
@@ -566,7 +566,7 @@ msgstr "访问您的媒体库"
 msgid "Account"
 msgstr "账户"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:121
+#: packages/admin/src/components/InviteAcceptPage.tsx:153
 msgid "Account already exists"
 msgstr "账户已存在"
 
@@ -934,7 +934,7 @@ msgstr "发生错误"
 msgid "An unexpected error occurred."
 msgstr "发生意外错误。"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:217
+#: packages/admin/src/components/InviteAcceptPage.tsx:249
 msgid "An unknown error occurred"
 msgstr "发生了未知错误。"
 
@@ -1155,7 +1155,7 @@ msgstr "返回到 {collectionLabel} 列表"
 msgid "Back to Content Types"
 msgstr "返回内容类型"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:139
+#: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
 #: packages/admin/src/components/LoginPage.tsx:311
@@ -1860,7 +1860,7 @@ msgstr "创建新的 {0}"
 msgid "Create a numbered list"
 msgstr "创建有序列表"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:81
+#: packages/admin/src/components/InviteAcceptPage.tsx:83
 #: packages/admin/src/components/SignupPage.tsx:220
 msgid "Create Account"
 msgstr "创建账户"
@@ -1965,7 +1965,7 @@ msgstr "创建第一个内容"
 msgid "Create your first reusable content section to get started."
 msgstr "创建您的第一个可重用内容区块以开始使用。"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:72
+#: packages/admin/src/components/InviteAcceptPage.tsx:74
 #: packages/admin/src/components/SignupPage.tsx:211
 msgid "Create your passkey"
 msgstr "创建您的通行密钥"
@@ -2732,7 +2732,7 @@ msgstr ""
 msgid "em1.…"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:59
+#: packages/admin/src/components/InviteAcceptPage.tsx:61
 #: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/SignupPage.tsx:197
 #: packages/admin/src/components/users/UserDetail.tsx:154
@@ -4079,7 +4079,7 @@ msgstr "正在安装..."
 msgid "Integer"
 msgstr "整数"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:119
+#: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
 msgstr "无效的邀请链接"
 
@@ -4091,11 +4091,11 @@ msgstr "无效的 JSON"
 msgid "Invalid link"
 msgstr "链接无效"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:207
+#: packages/admin/src/components/InviteAcceptPage.tsx:239
 msgid "Invite Error"
 msgstr "邀请错误"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:117
+#: packages/admin/src/components/InviteAcceptPage.tsx:149
 msgid "Invite expired"
 msgstr "邀请已过期"
 
@@ -5044,7 +5044,7 @@ msgstr "文档中无标题"
 msgid "No installable releases"
 msgstr "无可安装的版本"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:159
+#: packages/admin/src/components/InviteAcceptPage.tsx:191
 msgid "No invite token provided"
 msgstr "未提供邀请令牌"
 
@@ -5332,6 +5332,7 @@ msgstr "或点击浏览。接受从 WordPress 导出的 .xml 文件。"
 msgid "or connect by URL"
 msgstr ""
 
+#: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:261
 #: packages/admin/src/components/SetupWizard.tsx:310
 msgid "Or continue with"
@@ -5439,7 +5440,7 @@ msgstr "通行密钥 ({0})"
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "通行密钥是一种安全的无密码登录方式。您可以为不同设备注册多个通行密钥。"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:74
+#: packages/admin/src/components/InviteAcceptPage.tsx:76
 #: packages/admin/src/components/SignupPage.tsx:213
 msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 msgstr "通行密钥是一种安全的无密码登录方式，使用设备的生物识别、PIN 码或安全密钥登录。"
@@ -5528,7 +5529,7 @@ msgstr "普通"
 msgid "Plain text"
 msgstr "纯文本"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:133
+#: packages/admin/src/components/InviteAcceptPage.tsx:165
 msgid "Please ask your administrator to send a new invite."
 msgstr "请让您的管理员发送新的邀请。"
 
@@ -6798,7 +6799,7 @@ msgstr "登录"
 msgid "Sign In"
 msgstr "登录"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:129
+#: packages/admin/src/components/InviteAcceptPage.tsx:161
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
 msgstr "改为登录"
@@ -6945,7 +6946,7 @@ msgstr "社交资料"
 msgid "Some content types cannot be imported"
 msgstr "某些内容类型无法导入"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:122
+#: packages/admin/src/components/InviteAcceptPage.tsx:154
 #: packages/admin/src/components/SignupPage.tsx:262
 msgid "Something went wrong"
 msgstr "出现问题"
@@ -7928,7 +7929,7 @@ msgstr "已验证发布者。标签者（{verifiedLabeller}）已确认此发布
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
 msgstr "已验证发布者。标签者已确认此发布者的身份。"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:194
+#: packages/admin/src/components/InviteAcceptPage.tsx:226
 msgid "Verifying your invite..."
 msgstr "正在验证您的邀请..."
 
@@ -8250,7 +8251,7 @@ msgid "You won't be able to use this passkey to sign in anymore. This action can
 msgstr "您将无法再使用此通行密钥登录。此操作无法撤销。"
 
 #. placeholder {0}: inviteData.roleName
-#: packages/admin/src/components/InviteAcceptPage.tsx:52
+#: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You'll be joining as <0>{0}</0>"
 msgstr "您将以 <0>{0}</0> 身份加入"
 
@@ -8270,7 +8271,7 @@ msgstr "您将注册为"
 msgid "You're signed in via Cloudflare Access"
 msgstr "您已通过 Cloudflare Access 登录"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:50
+#: packages/admin/src/components/InviteAcceptPage.tsx:52
 msgid "You've been invited!"
 msgstr "您已被邀请！"
 
@@ -8326,7 +8327,7 @@ msgstr ""
 msgid "Your Name"
 msgstr "您的姓名"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:62
+#: packages/admin/src/components/InviteAcceptPage.tsx:64
 #: packages/admin/src/components/SignupPage.tsx:201
 msgid "Your name (optional)"
 msgstr "您的姓名（可选）"

@@ -110,6 +110,7 @@ export {
 	createAuthorizationUrl,
 	handleOAuthCallback,
 	findOrCreateOAuthUser,
+	acceptInviteViaOAuth,
 	OAuthError,
 	github,
 	google,

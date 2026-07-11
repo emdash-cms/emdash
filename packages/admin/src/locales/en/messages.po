@@ -545,7 +545,7 @@ msgstr "Accept & Install"
 msgid "Accept & Update"
 msgstr "Accept & Update"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:206
+#: packages/admin/src/components/InviteAcceptPage.tsx:238
 msgid "Accept Invite"
 msgstr "Accept Invite"
 
@@ -566,7 +566,7 @@ msgstr "Access your media library"
 msgid "Account"
 msgstr "Account"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:121
+#: packages/admin/src/components/InviteAcceptPage.tsx:153
 msgid "Account already exists"
 msgstr "Account already exists"
 
@@ -934,7 +934,7 @@ msgstr "An error occurred"
 msgid "An unexpected error occurred."
 msgstr "An unexpected error occurred."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:217
+#: packages/admin/src/components/InviteAcceptPage.tsx:249
 msgid "An unknown error occurred"
 msgstr "An unknown error occurred"
 
@@ -1155,7 +1155,7 @@ msgstr "Back to {collectionLabel} list"
 msgid "Back to Content Types"
 msgstr "Back to Content Types"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:139
+#: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
 #: packages/admin/src/components/LoginPage.tsx:311
@@ -1860,7 +1860,7 @@ msgstr "Create a new {0}"
 msgid "Create a numbered list"
 msgstr "Create a numbered list"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:81
+#: packages/admin/src/components/InviteAcceptPage.tsx:83
 #: packages/admin/src/components/SignupPage.tsx:220
 msgid "Create Account"
 msgstr "Create Account"
@@ -1965,7 +1965,7 @@ msgstr "Create your first one"
 msgid "Create your first reusable content section to get started."
 msgstr "Create your first reusable content section to get started."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:72
+#: packages/admin/src/components/InviteAcceptPage.tsx:74
 #: packages/admin/src/components/SignupPage.tsx:211
 msgid "Create your passkey"
 msgstr "Create your passkey"
@@ -2732,7 +2732,7 @@ msgstr ""
 msgid "em1.…"
 msgstr "em1.…"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:59
+#: packages/admin/src/components/InviteAcceptPage.tsx:61
 #: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/SignupPage.tsx:197
 #: packages/admin/src/components/users/UserDetail.tsx:154
@@ -4079,7 +4079,7 @@ msgstr "Installing..."
 msgid "Integer"
 msgstr "Integer"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:119
+#: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
 msgstr "Invalid invite link"
 
@@ -4091,11 +4091,11 @@ msgstr "Invalid JSON"
 msgid "Invalid link"
 msgstr "Invalid link"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:207
+#: packages/admin/src/components/InviteAcceptPage.tsx:239
 msgid "Invite Error"
 msgstr "Invite Error"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:117
+#: packages/admin/src/components/InviteAcceptPage.tsx:149
 msgid "Invite expired"
 msgstr "Invite expired"
 
@@ -5044,7 +5044,7 @@ msgstr "No headings in document"
 msgid "No installable releases"
 msgstr "No installable releases"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:159
+#: packages/admin/src/components/InviteAcceptPage.tsx:191
 msgid "No invite token provided"
 msgstr "No invite token provided"
 
@@ -5332,6 +5332,7 @@ msgstr "Or click to browse. Accepts .xml files exported from WordPress."
 msgid "or connect by URL"
 msgstr "or connect by URL"
 
+#: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:261
 #: packages/admin/src/components/SetupWizard.tsx:310
 msgid "Or continue with"
@@ -5439,7 +5440,7 @@ msgstr "Passkeys ({0})"
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:74
+#: packages/admin/src/components/InviteAcceptPage.tsx:76
 #: packages/admin/src/components/SignupPage.tsx:213
 msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 msgstr "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
@@ -5528,7 +5529,7 @@ msgstr "Plain"
 msgid "Plain text"
 msgstr "Plain text"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:133
+#: packages/admin/src/components/InviteAcceptPage.tsx:165
 msgid "Please ask your administrator to send a new invite."
 msgstr "Please ask your administrator to send a new invite."
 
@@ -6798,7 +6799,7 @@ msgstr "Sign in"
 msgid "Sign In"
 msgstr "Sign In"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:129
+#: packages/admin/src/components/InviteAcceptPage.tsx:161
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
 msgstr "Sign in instead"
@@ -6945,7 +6946,7 @@ msgstr "Social Profiles"
 msgid "Some content types cannot be imported"
 msgstr "Some content types cannot be imported"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:122
+#: packages/admin/src/components/InviteAcceptPage.tsx:154
 #: packages/admin/src/components/SignupPage.tsx:262
 msgid "Something went wrong"
 msgstr "Something went wrong"
@@ -7928,7 +7929,7 @@ msgstr "Verified publisher. A labeller ({verifiedLabeller}) has confirmed this p
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
 msgstr "Verified publisher. A labeller has confirmed this publisher's identity."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:194
+#: packages/admin/src/components/InviteAcceptPage.tsx:226
 msgid "Verifying your invite..."
 msgstr "Verifying your invite..."
 
@@ -8250,7 +8251,7 @@ msgid "You won't be able to use this passkey to sign in anymore. This action can
 msgstr "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
 
 #. placeholder {0}: inviteData.roleName
-#: packages/admin/src/components/InviteAcceptPage.tsx:52
+#: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You'll be joining as <0>{0}</0>"
 msgstr "You'll be joining as <0>{0}</0>"
 
@@ -8270,7 +8271,7 @@ msgstr "You'll be signing up as"
 msgid "You're signed in via Cloudflare Access"
 msgstr "You're signed in via Cloudflare Access"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:50
+#: packages/admin/src/components/InviteAcceptPage.tsx:52
 msgid "You've been invited!"
 msgstr "You've been invited!"
 
@@ -8326,7 +8327,7 @@ msgstr "Your media library is empty"
 msgid "Your Name"
 msgstr "Your Name"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:62
+#: packages/admin/src/components/InviteAcceptPage.tsx:64
 #: packages/admin/src/components/SignupPage.tsx:201
 msgid "Your name (optional)"
 msgstr "Your name (optional)"

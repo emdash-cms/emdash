@@ -545,7 +545,7 @@ msgstr "Akzeptieren & Installieren"
 msgid "Accept & Update"
 msgstr "Akzeptieren & Aktualisieren"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:206
+#: packages/admin/src/components/InviteAcceptPage.tsx:238
 msgid "Accept Invite"
 msgstr "Einladung annehmen"
 
@@ -566,7 +566,7 @@ msgstr "Auf Medienbibliothek zugreifen"
 msgid "Account"
 msgstr "Benutzerkonto"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:121
+#: packages/admin/src/components/InviteAcceptPage.tsx:153
 msgid "Account already exists"
 msgstr "Konto existiert bereits"
 
@@ -934,7 +934,7 @@ msgstr "Ein Fehler ist aufgetreten"
 msgid "An unexpected error occurred."
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:217
+#: packages/admin/src/components/InviteAcceptPage.tsx:249
 msgid "An unknown error occurred"
 msgstr "Ein unbekannter Fehler ist aufgetreten"
 
@@ -1155,7 +1155,7 @@ msgstr "Zurück zur Kollektion ({collectionLabel})"
 msgid "Back to Content Types"
 msgstr "Zurück zu Inhaltstypen"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:139
+#: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
 #: packages/admin/src/components/LoginPage.tsx:311
@@ -1860,7 +1860,7 @@ msgstr "{0} erstellen"
 msgid "Create a numbered list"
 msgstr "Eine nummerierte Liste einfügen"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:81
+#: packages/admin/src/components/InviteAcceptPage.tsx:83
 #: packages/admin/src/components/SignupPage.tsx:220
 msgid "Create Account"
 msgstr "Benutzerkonto erstellen"
@@ -1965,7 +1965,7 @@ msgstr "Erstelle einen ersten Inhalt."
 msgid "Create your first reusable content section to get started."
 msgstr "Erstelle deinen ersten benutzerdefinierten Inhaltsabschnitt, um zu beginnen."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:72
+#: packages/admin/src/components/InviteAcceptPage.tsx:74
 #: packages/admin/src/components/SignupPage.tsx:211
 msgid "Create your passkey"
 msgstr "Erstelle deinen Passkey"
@@ -2729,7 +2729,7 @@ msgstr ""
 msgid "em1.…"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:59
+#: packages/admin/src/components/InviteAcceptPage.tsx:61
 #: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/SignupPage.tsx:197
 #: packages/admin/src/components/users/UserDetail.tsx:154
@@ -4076,7 +4076,7 @@ msgstr "Installieren..."
 msgid "Integer"
 msgstr "Zahl"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:119
+#: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
 msgstr "Ungültiger Einladungslink"
 
@@ -4088,11 +4088,11 @@ msgstr "Ungültiges JSON"
 msgid "Invalid link"
 msgstr "Ungültiger Link"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:207
+#: packages/admin/src/components/InviteAcceptPage.tsx:239
 msgid "Invite Error"
 msgstr "Einladungsfehler"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:117
+#: packages/admin/src/components/InviteAcceptPage.tsx:149
 msgid "Invite expired"
 msgstr "Einladung abgelaufen"
 
@@ -5041,7 +5041,7 @@ msgstr "Keine Überschriften im Dokument"
 msgid "No installable releases"
 msgstr "Keine installierbaren Versionen"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:159
+#: packages/admin/src/components/InviteAcceptPage.tsx:191
 msgid "No invite token provided"
 msgstr "Kein Einladungs-Token angegeben"
 
@@ -5329,6 +5329,7 @@ msgstr "Oder wähle per Klick eine Datei aus. Unterstützt .xml-Dateien aus eine
 msgid "or connect by URL"
 msgstr ""
 
+#: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:261
 #: packages/admin/src/components/SetupWizard.tsx:310
 msgid "Or continue with"
@@ -5436,7 +5437,7 @@ msgstr "Passkeys ({0})"
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Passkeys sind eine sichere, passwortlose Methode, sich bei deinem Benutzerkonto anzumelden. Du kannst mehrere Passkeys für verschiedene Geräte registrieren."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:74
+#: packages/admin/src/components/InviteAcceptPage.tsx:76
 #: packages/admin/src/components/SignupPage.tsx:213
 msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 msgstr "Passkeys sind eine sichere, passwortlose Methode, sich mithilfe der biometrischen Daten, der PIN oder des Sicherheitsschlüssels deines Geräts anzumelden."
@@ -5525,7 +5526,7 @@ msgstr "Einfaches"
 msgid "Plain text"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:133
+#: packages/admin/src/components/InviteAcceptPage.tsx:165
 msgid "Please ask your administrator to send a new invite."
 msgstr "Bitte deinen Administrator, dir eine neue Einladung zu senden."
 
@@ -6795,7 +6796,7 @@ msgstr "Anmelden"
 msgid "Sign In"
 msgstr "Anmelden"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:129
+#: packages/admin/src/components/InviteAcceptPage.tsx:161
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
 msgstr "Stattdessen anmelden"
@@ -6942,7 +6943,7 @@ msgstr "Profile in sozialen Netzwerken"
 msgid "Some content types cannot be imported"
 msgstr "Einige Inhaltstypen können nicht importiert werden"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:122
+#: packages/admin/src/components/InviteAcceptPage.tsx:154
 #: packages/admin/src/components/SignupPage.tsx:262
 msgid "Something went wrong"
 msgstr "Etwas ist schiefgelaufen"
@@ -7925,7 +7926,7 @@ msgstr ""
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:194
+#: packages/admin/src/components/InviteAcceptPage.tsx:226
 msgid "Verifying your invite..."
 msgstr "Verifiziere deine Einladung..."
 
@@ -8247,7 +8248,7 @@ msgid "You won't be able to use this passkey to sign in anymore. This action can
 msgstr "Du kannst diesen Passkey nicht mehr nutzen, um dich anzumelden. Dieser Vorgang kann nicht rückgängig gemacht werden."
 
 #. placeholder {0}: inviteData.roleName
-#: packages/admin/src/components/InviteAcceptPage.tsx:52
+#: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You'll be joining as <0>{0}</0>"
 msgstr "Du trittst als <0>{0}</0> bei"
 
@@ -8267,7 +8268,7 @@ msgstr "Du wirst dich registrieren als"
 msgid "You're signed in via Cloudflare Access"
 msgstr "Du bist über Cloudflare Access angemeldet"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:50
+#: packages/admin/src/components/InviteAcceptPage.tsx:52
 msgid "You've been invited!"
 msgstr "Du wurdest eingeladen!"
 
@@ -8323,7 +8324,7 @@ msgstr ""
 msgid "Your Name"
 msgstr "Dein Name"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:62
+#: packages/admin/src/components/InviteAcceptPage.tsx:64
 #: packages/admin/src/components/SignupPage.tsx:201
 msgid "Your name (optional)"
 msgstr "Dein Name (optional)"

@@ -545,7 +545,7 @@ msgstr "Elfogadás és telepítés"
 msgid "Accept & Update"
 msgstr "Elfogadás és frissítés"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:206
+#: packages/admin/src/components/InviteAcceptPage.tsx:238
 msgid "Accept Invite"
 msgstr "Meghívás elfogadása"
 
@@ -566,7 +566,7 @@ msgstr "Médiatár elérése"
 msgid "Account"
 msgstr "Fiók"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:121
+#: packages/admin/src/components/InviteAcceptPage.tsx:153
 msgid "Account already exists"
 msgstr "A fiók már létezik"
 
@@ -934,7 +934,7 @@ msgstr "Hiba történt"
 msgid "An unexpected error occurred."
 msgstr "Váratlan hiba történt."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:217
+#: packages/admin/src/components/InviteAcceptPage.tsx:249
 msgid "An unknown error occurred"
 msgstr "Ismeretlen hiba történt"
 
@@ -1155,7 +1155,7 @@ msgstr "Vissza a(z) {collectionLabel} listához"
 msgid "Back to Content Types"
 msgstr "Vissza a tartalomtípusokhoz"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:139
+#: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
 #: packages/admin/src/components/LoginPage.tsx:311
@@ -1860,7 +1860,7 @@ msgstr "Új {0} létrehozása"
 msgid "Create a numbered list"
 msgstr "Számozott lista létrehozása"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:81
+#: packages/admin/src/components/InviteAcceptPage.tsx:83
 #: packages/admin/src/components/SignupPage.tsx:220
 msgid "Create Account"
 msgstr "Fiók létrehozása"
@@ -1965,7 +1965,7 @@ msgstr "Hozd létre az elsőt"
 msgid "Create your first reusable content section to get started."
 msgstr "Hozd létre az első újrahasznosítható tartalomszakaszt a kezdéshez."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:72
+#: packages/admin/src/components/InviteAcceptPage.tsx:74
 #: packages/admin/src/components/SignupPage.tsx:211
 msgid "Create your passkey"
 msgstr "Passkey létrehozása"
@@ -2732,7 +2732,7 @@ msgstr ""
 msgid "em1.…"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:59
+#: packages/admin/src/components/InviteAcceptPage.tsx:61
 #: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/SignupPage.tsx:197
 #: packages/admin/src/components/users/UserDetail.tsx:154
@@ -4079,7 +4079,7 @@ msgstr "Telepítés..."
 msgid "Integer"
 msgstr "Egész szám"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:119
+#: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
 msgstr "Érvénytelen meghívólink"
 
@@ -4091,11 +4091,11 @@ msgstr "Érvénytelen JSON"
 msgid "Invalid link"
 msgstr "Érvénytelen link"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:207
+#: packages/admin/src/components/InviteAcceptPage.tsx:239
 msgid "Invite Error"
 msgstr "Meghívási hiba"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:117
+#: packages/admin/src/components/InviteAcceptPage.tsx:149
 msgid "Invite expired"
 msgstr "A meghívó lejárt"
 
@@ -5044,7 +5044,7 @@ msgstr "Nincsenek címsorok a dokumentumban"
 msgid "No installable releases"
 msgstr "Nincs telepíthető kiadás"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:159
+#: packages/admin/src/components/InviteAcceptPage.tsx:191
 msgid "No invite token provided"
 msgstr "Nincs megadva meghívótoken"
 
@@ -5332,6 +5332,7 @@ msgstr "Vagy kattints a tallózáshoz. WordPressből exportált .xml fájlokat f
 msgid "or connect by URL"
 msgstr ""
 
+#: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:261
 #: packages/admin/src/components/SetupWizard.tsx:310
 msgid "Or continue with"
@@ -5439,7 +5440,7 @@ msgstr "Passkeyek ({0})"
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "A passkey biztonságos, jelszó nélküli bejelentkezési mód. Több passkeyt is regisztrálhatsz különböző eszközökhöz."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:74
+#: packages/admin/src/components/InviteAcceptPage.tsx:76
 #: packages/admin/src/components/SignupPage.tsx:213
 msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 msgstr "A passkey biztonságos, jelszó nélküli bejelentkezési mód az eszköz biometrikus azonosításával, PIN-kódjával vagy biztonsági kulcsával."
@@ -5528,7 +5529,7 @@ msgstr "Egyszerű"
 msgid "Plain text"
 msgstr "Egyszerű szöveg"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:133
+#: packages/admin/src/components/InviteAcceptPage.tsx:165
 msgid "Please ask your administrator to send a new invite."
 msgstr "Kérd meg az adminisztrátort, hogy küldjön új meghívót."
 
@@ -6798,7 +6799,7 @@ msgstr "Bejelentkezés"
 msgid "Sign In"
 msgstr "Bejelentkezés"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:129
+#: packages/admin/src/components/InviteAcceptPage.tsx:161
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
 msgstr "Inkább bejelentkezés"
@@ -6945,7 +6946,7 @@ msgstr "Közösségi profilok"
 msgid "Some content types cannot be imported"
 msgstr "Egyes tartalomtípusok nem importálhatók"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:122
+#: packages/admin/src/components/InviteAcceptPage.tsx:154
 #: packages/admin/src/components/SignupPage.tsx:262
 msgid "Something went wrong"
 msgstr "Valami hiba történt"
@@ -7928,7 +7929,7 @@ msgstr "Ellenőrzött kiadó. Egy címkéző ({verifiedLabeller}) megerősített
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
 msgstr "Ellenőrzött kiadó. Egy címkéző megerősítette a kiadó személyazonosságát."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:194
+#: packages/admin/src/components/InviteAcceptPage.tsx:226
 msgid "Verifying your invite..."
 msgstr "Meghívó ellenőrzése..."
 
@@ -8250,7 +8251,7 @@ msgid "You won't be able to use this passkey to sign in anymore. This action can
 msgstr "Többé nem fogod tudni ezt a passkeyt bejelentkezéshez használni. A művelet nem vonható vissza."
 
 #. placeholder {0}: inviteData.roleName
-#: packages/admin/src/components/InviteAcceptPage.tsx:52
+#: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You'll be joining as <0>{0}</0>"
 msgstr "Ezzel a szereppel fogsz csatlakozni: <0>{0}</0>"
 
@@ -8270,7 +8271,7 @@ msgstr "Ezzel a szereppel regisztrálsz:"
 msgid "You're signed in via Cloudflare Access"
 msgstr "Cloudflare Accessen keresztül vagy bejelentkezve"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:50
+#: packages/admin/src/components/InviteAcceptPage.tsx:52
 msgid "You've been invited!"
 msgstr "Meghívást kaptál!"
 
@@ -8326,7 +8327,7 @@ msgstr ""
 msgid "Your Name"
 msgstr "Neved"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:62
+#: packages/admin/src/components/InviteAcceptPage.tsx:64
 #: packages/admin/src/components/SignupPage.tsx:201
 msgid "Your name (optional)"
 msgstr "Neved (opcionális)"

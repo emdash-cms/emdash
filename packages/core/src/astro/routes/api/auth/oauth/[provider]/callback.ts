@@ -216,6 +216,16 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 				case "signup_not_allowed":
 					message = "Self-signup is not allowed for your email. Please contact an administrator.";
 					break;
+				case "invite_invalid":
+					message = "This invite link is invalid or has expired. Please ask for a new one.";
+					break;
+				case "invite_email_mismatch":
+					message = "This invite was sent to a different email address than your account.";
+					break;
+				case "invite_email_unverified":
+					message =
+						"Your account's email is not verified by the provider. Please verify it and try again.";
+					break;
 				case "user_not_found":
 					message = "Your account was not found. It may have been deleted.";
 					break;

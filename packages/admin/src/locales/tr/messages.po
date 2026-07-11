@@ -545,7 +545,7 @@ msgstr "Kabul Et ve Yükle"
 msgid "Accept & Update"
 msgstr "Kabul Et ve Güncelle"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:206
+#: packages/admin/src/components/InviteAcceptPage.tsx:238
 msgid "Accept Invite"
 msgstr "Daveti Kabul Et"
 
@@ -566,7 +566,7 @@ msgstr "Medya kitaplığınıza erişin"
 msgid "Account"
 msgstr "Hesap"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:121
+#: packages/admin/src/components/InviteAcceptPage.tsx:153
 msgid "Account already exists"
 msgstr "Hesap zaten mevcut"
 
@@ -934,7 +934,7 @@ msgstr "Bir hata oluştu"
 msgid "An unexpected error occurred."
 msgstr "Beklenmeyen bir hata oluştu."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:217
+#: packages/admin/src/components/InviteAcceptPage.tsx:249
 msgid "An unknown error occurred"
 msgstr "Bilinmeyen bir hata oluştu"
 
@@ -1155,7 +1155,7 @@ msgstr "{collectionLabel} listesine geri dön"
 msgid "Back to Content Types"
 msgstr "İçerik Türlerine Geri Dön"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:139
+#: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
 #: packages/admin/src/components/LoginPage.tsx:311
@@ -1860,7 +1860,7 @@ msgstr "Yeni bir {0} oluşturun"
 msgid "Create a numbered list"
 msgstr "Numaralandırılmış bir liste oluşturun"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:81
+#: packages/admin/src/components/InviteAcceptPage.tsx:83
 #: packages/admin/src/components/SignupPage.tsx:220
 msgid "Create Account"
 msgstr "Hesap Oluştur"
@@ -1965,7 +1965,7 @@ msgstr "İlkini oluştur"
 msgid "Create your first reusable content section to get started."
 msgstr "Başlamak için ilk yeniden kullanılabilir içerik bölümünüzü oluşturun."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:72
+#: packages/admin/src/components/InviteAcceptPage.tsx:74
 #: packages/admin/src/components/SignupPage.tsx:211
 msgid "Create your passkey"
 msgstr "Geçiş anahtarınızı oluşturun"
@@ -2732,7 +2732,7 @@ msgstr ""
 msgid "em1.…"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:59
+#: packages/admin/src/components/InviteAcceptPage.tsx:61
 #: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/SignupPage.tsx:197
 #: packages/admin/src/components/users/UserDetail.tsx:154
@@ -4079,7 +4079,7 @@ msgstr "Yükleniyor..."
 msgid "Integer"
 msgstr "Tamsayı"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:119
+#: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
 msgstr "Geçersiz davet bağlantısı"
 
@@ -4091,11 +4091,11 @@ msgstr "Geçersiz JSON"
 msgid "Invalid link"
 msgstr "Geçersiz bağlantı"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:207
+#: packages/admin/src/components/InviteAcceptPage.tsx:239
 msgid "Invite Error"
 msgstr "Davet Hatası"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:117
+#: packages/admin/src/components/InviteAcceptPage.tsx:149
 msgid "Invite expired"
 msgstr "Davetin süresi doldu"
 
@@ -5044,7 +5044,7 @@ msgstr "Belgede başlık yok"
 msgid "No installable releases"
 msgstr "Yüklenebilir sürüm yok"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:159
+#: packages/admin/src/components/InviteAcceptPage.tsx:191
 msgid "No invite token provided"
 msgstr "Davet belirteci sağlanmadı"
 
@@ -5332,6 +5332,7 @@ msgstr "Veya göz atmak için tıklayın. WordPress'ten dışa aktarılan.xml do
 msgid "or connect by URL"
 msgstr ""
 
+#: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:261
 #: packages/admin/src/components/SetupWizard.tsx:310
 msgid "Or continue with"
@@ -5439,7 +5440,7 @@ msgstr "Geçiş anahtarları ({0})"
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Geçiş anahtarları, hesabınızda oturum açmanın güvenli ve parolasız bir yoludur. Farklı cihazlar için birden fazla geçiş anahtarı kaydedebilirsiniz."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:74
+#: packages/admin/src/components/InviteAcceptPage.tsx:76
 #: packages/admin/src/components/SignupPage.tsx:213
 msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 msgstr "Geçiş anahtarları, cihazınızın biyometrisini, PIN'ini veya güvenlik anahtarını kullanarak oturum açmanın güvenli, parolasız bir yoludur."
@@ -5528,7 +5529,7 @@ msgstr "Düz"
 msgid "Plain text"
 msgstr "Düz metin"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:133
+#: packages/admin/src/components/InviteAcceptPage.tsx:165
 msgid "Please ask your administrator to send a new invite."
 msgstr "Lütfen yöneticinizden yeni bir davet göndermesini isteyin."
 
@@ -6798,7 +6799,7 @@ msgstr "Oturum aç"
 msgid "Sign In"
 msgstr "Oturum aç"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:129
+#: packages/admin/src/components/InviteAcceptPage.tsx:161
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
 msgstr "Bunun yerine oturum açın"
@@ -6945,7 +6946,7 @@ msgstr "Sosyal Profiller"
 msgid "Some content types cannot be imported"
 msgstr "Bazı içerik türleri içe aktarılamaz"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:122
+#: packages/admin/src/components/InviteAcceptPage.tsx:154
 #: packages/admin/src/components/SignupPage.tsx:262
 msgid "Something went wrong"
 msgstr "Bir şeyler ters gitti"
@@ -7928,7 +7929,7 @@ msgstr "Doğrulanmış yayıncı. Bir etiketleyici ({verifiedLabeller}) bu yayı
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
 msgstr "Doğrulanmış yayıncı. Bir etiketleyici bu yayıncının kimliğini doğruladı."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:194
+#: packages/admin/src/components/InviteAcceptPage.tsx:226
 msgid "Verifying your invite..."
 msgstr "Davetiniz doğrulanıyor..."
 
@@ -8250,7 +8251,7 @@ msgid "You won't be able to use this passkey to sign in anymore. This action can
 msgstr "Bu geçiş anahtarını artık oturum açmak için kullanamayacaksınız. Bu işlem geri alınamaz."
 
 #. placeholder {0}: inviteData.roleName
-#: packages/admin/src/components/InviteAcceptPage.tsx:52
+#: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You'll be joining as <0>{0}</0>"
 msgstr "<0>{0}</0> olarak katılacaksınız"
 
@@ -8270,7 +8271,7 @@ msgstr "Şu şekilde kaydolacaksınız:"
 msgid "You're signed in via Cloudflare Access"
 msgstr "Cloudflare Erişimi aracılığıyla oturum açtınız"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:50
+#: packages/admin/src/components/InviteAcceptPage.tsx:52
 msgid "You've been invited!"
 msgstr "Davet edildiniz!"
 
@@ -8326,7 +8327,7 @@ msgstr ""
 msgid "Your Name"
 msgstr "Adınız"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:62
+#: packages/admin/src/components/InviteAcceptPage.tsx:64
 #: packages/admin/src/components/SignupPage.tsx:201
 msgid "Your name (optional)"
 msgstr "Adınız (isteğe bağlı)"
