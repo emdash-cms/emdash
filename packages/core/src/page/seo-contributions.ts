@@ -2,16 +2,19 @@
  * Generate base SEO metadata contributions from PublicPageContext.
  *
  * EmDashHead.astro composes the final contribution list as
- * `[...plugin, ...site, ...base]` and feeds it to `resolvePageMetadata()`,
- * which is first-wins. That ordering means plugin contributions override
- * site-level ones override base ones for any given key — base values are
- * the fallback, not the source of truth.
+ * `[...plugin, ...site, ...panel, ...base]` and feeds it to
+ * `resolvePageMetadata()`, which is first-wins. That ordering means plugin
+ * contributions override site-level ones override SEO-panel values override
+ * base ones for any given key — base values are the fallback, not the
+ * source of truth.
  *
  * This replaces the per-template SEO.astro components, eliminating
  * the class of XSS bugs where templates hand-rolled JSON-LD serialization.
  */
 
+import type { ContentSeo } from "../database/repositories/types.js";
 import type { PageMetadataContribution, PublicPageContext } from "../plugins/types.js";
+import { buildSeoImageUrl, resolveSeoCanonicalUrl } from "../seo/media-url.js";
 import type { SeoSettings } from "../settings/types.js";
 import { buildBlogPostingJsonLd, buildWebSiteJsonLd } from "./jsonld.js";
 
@@ -142,6 +145,67 @@ export function generateBaseSeoContributions(
 		if (webSite) {
 			contributions.push({ kind: "jsonld", id: "primary", graph: webSite });
 		}
+	}
+
+	return contributions;
+}
+
+/**
+ * Generate metadata contributions from a content entry's SEO panel data (#1518).
+ *
+ * `EmDashHead` fetches the entry's `_emdash_seo` row when the page context
+ * references a content entry and inserts these contributions between the
+ * plugin and base layers: editor-set panel values override whatever the
+ * template passed into the page context (via first-wins dedup), while
+ * plugins can still override everything.
+ *
+ * The `<title>` element itself stays the template's responsibility —
+ * head components can't replace it — so `seo.title` is emitted for
+ * `og:title` / `twitter:title` only. Templates that want the panel title
+ * in `<title>` keep using `getSeoMeta()`.
+ *
+ * Returns an empty array when no panel field is set, so pages without
+ * SEO data are unaffected.
+ */
+export function generateSeoPanelContributions(
+	seo: ContentSeo,
+	options: { siteUrl?: string | null } = {},
+): PageMetadataContribution[] {
+	const contributions: PageMetadataContribution[] = [];
+	const siteUrl = options.siteUrl ?? undefined;
+
+	if (seo.title) {
+		contributions.push({ kind: "property", property: "og:title", content: seo.title });
+		contributions.push({ kind: "meta", name: "twitter:title", content: seo.title });
+	}
+
+	if (seo.description) {
+		contributions.push({ kind: "meta", name: "description", content: seo.description });
+		contributions.push({
+			kind: "property",
+			property: "og:description",
+			content: seo.description,
+		});
+		contributions.push({ kind: "meta", name: "twitter:description", content: seo.description });
+	}
+
+	if (seo.image) {
+		const image = buildSeoImageUrl(seo.image, siteUrl);
+		contributions.push({ kind: "property", property: "og:image", content: image });
+		contributions.push({ kind: "meta", name: "twitter:image", content: image });
+		// The base layer only picks the large-image card when it has an image
+		// of its own; with a panel image the large card must win too.
+		contributions.push({ kind: "meta", name: "twitter:card", content: "summary_large_image" });
+	}
+
+	if (seo.canonical) {
+		const canonical = resolveSeoCanonicalUrl(seo.canonical, siteUrl);
+		contributions.push({ kind: "link", rel: "canonical", href: canonical });
+		contributions.push({ kind: "property", property: "og:url", content: canonical });
+	}
+
+	if (seo.noIndex) {
+		contributions.push({ kind: "meta", name: "robots", content: "noindex, nofollow" });
 	}
 
 	return contributions;
