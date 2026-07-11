@@ -29,7 +29,7 @@ const RELATION_NAME_MAX_ATTEMPTS = 5;
  * fingerprint used in the relations API handler. */
 function isUniqueViolation(error: unknown): boolean {
 	const message = error instanceof Error ? error.message.toLowerCase() : "";
-	return message.includes("unique") || message.includes("duplicate");
+	return message.includes("unique constraint failed") || message.includes("duplicate key");
 }
 
 /**
@@ -496,9 +496,12 @@ export async function handleSchemaFieldUpdate(
 
 				if (input.label !== undefined && input.label !== existing.label) {
 					const relations = new RelationRepository(trx);
+					// Update every translation in the group so the relation's localized
+					// labels stay in sync, not just the first sibling.
 					const siblings = await relations.findTranslations(relationGroup);
-					const target = siblings[0];
-					if (target) await relations.update(target.id, { childLabel: input.label });
+					for (const sibling of siblings) {
+						await relations.update(sibling.id, { childLabel: input.label });
+					}
 				}
 
 				return updated;

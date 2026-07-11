@@ -1,6 +1,10 @@
 import { expect, it } from "vitest";
 
-import { handleContentCreate, handleContentGet } from "../../../src/api/handlers/content.js";
+import {
+	handleContentCreate,
+	handleContentDuplicate,
+	handleContentGet,
+} from "../../../src/api/handlers/content.js";
 import { setReferenceChildren } from "../../../src/api/handlers/relations.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RelationRepository } from "../../../src/database/repositories/relation.js";
@@ -326,6 +330,66 @@ describeEachDialect("handleContentGet reference hydration (opt-in)", (dialect) =
 			if (got.success) {
 				expect(got.data.item.references).toBeUndefined();
 			}
+		} finally {
+			await teardownForDialect(ctx);
+		}
+	});
+});
+
+describeEachDialect("handleContentDuplicate copies reference edges", (dialect) => {
+	let ctx: DialectTestContext;
+
+	it("carries the original's outgoing references onto the duplicate", async () => {
+		ctx = await setupForDialect(dialect);
+		try {
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
+			await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+
+			const relationRepo = new RelationRepository(ctx.db);
+			const relation = await relationRepo.create({
+				name: "related_posts",
+				parentCollection: "posts",
+				childCollection: "posts",
+				parentLabel: "Related posts",
+				childLabel: "Related to",
+			});
+
+			const parent = await handleContentCreate(ctx.db, "posts", { data: { title: "Parent" } });
+			const childA = await handleContentCreate(ctx.db, "posts", { data: { title: "Child A" } });
+			const childB = await handleContentCreate(ctx.db, "posts", { data: { title: "Child B" } });
+			expect(parent.success && childA.success && childB.success).toBe(true);
+			if (!parent.success || !childA.success || !childB.success) return;
+
+			const set = await setReferenceChildren(
+				ctx.db,
+				"posts",
+				parent.data.item.id,
+				relation.translationGroup,
+				[childA.data.item.id, childB.data.item.id],
+			);
+			expect(set.success).toBe(true);
+
+			const dup = await handleContentDuplicate(ctx.db, "posts", parent.data.item.id);
+			expect(dup.success).toBe(true);
+			if (!dup.success) return;
+
+			// The duplicate is a distinct entry (new translation_group) but must carry
+			// the same outgoing reference edges, in order.
+			const content = new ContentRepository(ctx.db);
+			const dupItem = await content.findById("posts", dup.data.item.id);
+			expect(dupItem?.translationGroup).toBeTruthy();
+			expect(dupItem?.translationGroup).not.toBe(parent.data.item.id);
+			if (!dupItem?.translationGroup) return;
+
+			const page = await relationRepo.getChildrenPage(
+				relation.translationGroup,
+				dupItem.translationGroup,
+			);
+			expect(page.items.map((i) => i.childGroup)).toEqual([
+				childA.data.item.id,
+				childB.data.item.id,
+			]);
 		} finally {
 			await teardownForDialect(ctx);
 		}

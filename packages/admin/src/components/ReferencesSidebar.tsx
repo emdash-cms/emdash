@@ -56,9 +56,14 @@ export function ReferencesSidebar({
 	className,
 }: ReferencesSidebarProps) {
 	const { t } = useLingui();
+	// Fetch every relation definition (no locale scope). The reference-field
+	// lifecycle creates a relation row only in the default locale, so scoping the
+	// read to a non-default `entryLocale` would return no defs and wrongly hide the
+	// panel; instead we dedupe by translation group below, preferring the
+	// entry-locale translation when one exists.
 	const relationsQuery = useQuery({
-		queryKey: ["relations", entryLocale ?? null],
-		queryFn: () => fetchRelations(entryLocale),
+		queryKey: ["relations"],
+		queryFn: () => fetchRelations(),
 		// A 403 means the viewer genuinely lacks `schema:read`; retrying just adds
 		// latency before we hide the panel, which is the desired outcome.
 		retry: false,
@@ -77,10 +82,20 @@ export function ReferencesSidebar({
 		return map;
 	}, [collectionsQuery.data]);
 
-	const applicableRelations = React.useMemo(
-		() => (relationsQuery.data ?? []).filter((r) => r.childCollection === collection),
-		[relationsQuery.data, collection],
-	);
+	// One relation per translation group whose child side is this collection.
+	// Prefer the entry-locale translation for localized labels; fall back to any
+	// sibling (currently the default-locale row) so backlinks still surface.
+	const applicableRelations = React.useMemo(() => {
+		const byGroup = new Map<string, RelationDef>();
+		for (const r of relationsQuery.data ?? []) {
+			if (r.childCollection !== collection) continue;
+			const existing = byGroup.get(r.translationGroup);
+			if (!existing || (entryLocale && r.locale === entryLocale)) {
+				byGroup.set(r.translationGroup, r);
+			}
+		}
+		return [...byGroup.values()];
+	}, [relationsQuery.data, collection, entryLocale]);
 
 	// Per-relation parents pagination, keyed by relation id. First pages are
 	// loaded on demand (effect below) once the relations list resolves; manual

@@ -145,6 +145,53 @@ describeEachDialect("reference field lifecycle", (dialect) => {
 		}
 	});
 
+	it("updates childLabel on every translation in the group, not just the first", async () => {
+		ctx = await setupForDialect(dialect);
+		try {
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
+
+			const created = await handleSchemaFieldCreate(ctx.db, "posts", {
+				slug: "related",
+				label: "Related",
+				type: "reference",
+				validation: { targetCollection: "posts", multiple: true },
+			});
+			expect(created.success).toBe(true);
+			if (!created.success) return;
+			const relationGroup = created.data.item.validation?.relation;
+			expect(relationGroup).toBeTruthy();
+			if (!relationGroup) return;
+
+			// Add a second-locale translation of the relation def so the group has
+			// more than one sibling to keep in sync.
+			const relRepo = new RelationRepository(ctx.db);
+			const base = (await relRepo.findTranslations(relationGroup))[0];
+			expect(base).toBeTruthy();
+			if (!base) return;
+			await relRepo.create({
+				name: base.name,
+				translationOf: base.id,
+				locale: "fr",
+				parentLabel: base.parentLabel,
+				childLabel: base.childLabel,
+			});
+
+			const updated = await handleSchemaFieldUpdate(ctx.db, "posts", "related", {
+				label: "Related posts",
+			});
+			expect(updated.success).toBe(true);
+
+			const siblings = await relRepo.findTranslations(relationGroup);
+			expect(siblings.length).toBe(2);
+			for (const sibling of siblings) {
+				expect(sibling.childLabel).toBe("Related posts");
+			}
+		} finally {
+			await teardownForDialect(ctx);
+		}
+	});
+
 	it("preserves relation and targetCollection when validation is explicitly null", async () => {
 		ctx = await setupForDialect(dialect);
 		try {

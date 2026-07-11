@@ -463,6 +463,39 @@ export class RelationRepository {
 	}
 
 	/**
+	 * Copy every outgoing edge of `fromParentGroup` onto `toParentGroup`,
+	 * preserving relation, child, and sort order. Used when duplicating a content
+	 * entry so the copy carries the same reference selections (edges are
+	 * storage-less, keyed by translation_group, so they don't ride along in the
+	 * row's `data`). Only the parent side is copied — backlinks pointing at the
+	 * original are intentionally left alone. Idempotent per edge via onConflict.
+	 */
+	async copyParentEdges(fromParentGroup: string, toParentGroup: string): Promise<void> {
+		const rows = await this.db
+			.selectFrom("_emdash_content_references")
+			.selectAll()
+			.where("parent_group", "=", fromParentGroup)
+			.execute();
+		if (rows.length === 0) return;
+
+		const now = new Date().toISOString();
+		await this.db
+			.insertInto("_emdash_content_references")
+			.values(
+				rows.map((row) => ({
+					id: ulid(),
+					relation_group: row.relation_group,
+					parent_group: toParentGroup,
+					child_group: row.child_group,
+					sort_order: row.sort_order,
+					created_at: now,
+				})),
+			)
+			.onConflict((oc) => oc.doNothing())
+			.execute();
+	}
+
+	/**
 	 * Backlink traversal, paginated: one page of the parents that reference a
 	 * child for a relation, ordered by `id`. Unlike a parent's children, a
 	 * child's backlinks are *unbounded* — one popular entry can be referenced by

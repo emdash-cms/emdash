@@ -1241,7 +1241,18 @@ export async function handleContentDuplicate(
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const original = await repo.findById(collection, resolvedId);
 			const dup = await repo.duplicate(collection, resolvedId, authorId);
+
+			// Reference edges are storage-less (keyed by translation_group, not in
+			// `data`), so they don't ride along in the row copy — carry the original's
+			// outgoing references onto the duplicate explicitly.
+			if (original?.translationGroup && dup.translationGroup) {
+				await new RelationRepository(trx).copyParentEdges(
+					original.translationGroup,
+					dup.translationGroup,
+				);
+			}
 
 			const existingBylines = await bylineRepo.getContentBylines(collection, resolvedId);
 			if (existingBylines.length > 0) {

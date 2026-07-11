@@ -120,6 +120,9 @@ type ReferenceGroupState = {
 	/** Set while more pages of the hydrated set remain to be loaded. */
 	nextCursor?: string;
 	loading: boolean;
+	/** Set when a page load failed. Stops auto-paging so a failing request never
+	 * retries in a tight loop; cleared when the state is reseeded for a new entry. */
+	error?: boolean;
 };
 
 /** Seed reference state from a hydrated item (first page per relation group). */
@@ -574,7 +577,9 @@ export function ContentEditor({
 			} catch {
 				setReferenceState((prev) => {
 					const cur = prev[group];
-					return cur ? { ...prev, [group]: { ...cur, loading: false } } : prev;
+					// Flag the failure so the auto-page effect stops retrying — clearing
+					// only `loading` would leave `nextCursor` set and spin the request.
+					return cur ? { ...prev, [group]: { ...cur, loading: false, error: true } } : prev;
 				});
 			}
 		},
@@ -1677,15 +1682,18 @@ function ReferenceFieldRenderer({
 	const rows = state?.current ?? [];
 	const nextCursor = state?.nextCursor;
 	const loading = state?.loading ?? false;
+	const loadError = state?.error ?? false;
 	// Reorder/remove are gated until the full hydrated set is loaded, so a save
 	// can never emit a truncated list that would delete the unloaded tail.
 	const fullyLoaded = !nextCursor && !loading;
 
 	// Auto-page the remaining hydrated set so the field is edit-ready. Chains:
-	// each load advances `nextCursor`, re-firing until the set is exhausted.
+	// each load advances `nextCursor`, re-firing until the set is exhausted. A
+	// failed page sets `error`, which halts the chain so a throwing request never
+	// retries in a tight loop; reseeding for a new entry clears it.
 	React.useEffect(() => {
-		if (nextCursor && !loading) onLoadMore();
-	}, [nextCursor, loading, onLoadMore]);
+		if (nextCursor && !loading && !loadError) onLoadMore();
+	}, [nextCursor, loading, loadError, onLoadMore]);
 
 	const selectedIds = React.useMemo(() => new Set(rows.map((r) => r.id)), [rows]);
 
