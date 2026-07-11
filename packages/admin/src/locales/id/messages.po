@@ -89,7 +89,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1463
+#: packages/admin/src/router.tsx:1464
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0} komentar diperbarui"
 
@@ -246,17 +246,17 @@ msgid "{0} items will be imported"
 msgstr "{0} item akan diimpor"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:533
+#: packages/admin/src/router.tsx:534
 msgid "{0} of {total} could not be deleted"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:489
+#: packages/admin/src/router.tsx:490
 msgid "{0} of {total} could not be published"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:512
+#: packages/admin/src/router.tsx:513
 msgid "{0} of {total} could not be updated"
 msgstr ""
 
@@ -553,7 +553,7 @@ msgstr "Terima Undangan"
 msgid "Access denied"
 msgstr "Akses ditolak"
 
-#: packages/admin/src/router.tsx:1483
+#: packages/admin/src/router.tsx:1484
 msgid "Access Denied"
 msgstr "Akses Ditolak"
 
@@ -846,7 +846,7 @@ msgstr "Semua status"
 msgid "All types"
 msgstr "Semua tipe"
 
-#: packages/admin/src/components/Settings.tsx:99
+#: packages/admin/src/components/Settings.tsx:100
 msgid "Allow users from specific domains to sign up"
 msgstr "Izinkan pengguna dari domain tertentu untuk mendaftar"
 
@@ -898,6 +898,8 @@ msgstr "Alternatifnya, ekspor dari WordPress (Alat → Ekspor) dan unggah fileny
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:95
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
+#: packages/admin/src/components/settings/BackupSettings.tsx:85
+#: packages/admin/src/components/settings/BackupSettings.tsx:105
 #: packages/admin/src/components/settings/EmailSettings.tsx:51
 #: packages/admin/src/components/settings/GeneralSettings.tsx:51
 #: packages/admin/src/components/settings/SecuritySettings.tsx:54
@@ -906,23 +908,23 @@ msgstr "Alternatifnya, ekspor dari WordPress (Alat → Ekspor) dan unggah fileny
 #: packages/admin/src/components/settings/SocialSettings.tsx:43
 #: packages/admin/src/components/TaxonomySidebar.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:421
-#: packages/admin/src/router.tsx:436
-#: packages/admin/src/router.tsx:450
-#: packages/admin/src/router.tsx:464
-#: packages/admin/src/router.tsx:941
-#: packages/admin/src/router.tsx:994
-#: packages/admin/src/router.tsx:1012
-#: packages/admin/src/router.tsx:1030
-#: packages/admin/src/router.tsx:1051
-#: packages/admin/src/router.tsx:1072
-#: packages/admin/src/router.tsx:1093
-#: packages/admin/src/router.tsx:1124
-#: packages/admin/src/router.tsx:1144
-#: packages/admin/src/router.tsx:1428
-#: packages/admin/src/router.tsx:1444
-#: packages/admin/src/router.tsx:1469
-#: packages/admin/src/router.tsx:1951
+#: packages/admin/src/router.tsx:422
+#: packages/admin/src/router.tsx:437
+#: packages/admin/src/router.tsx:451
+#: packages/admin/src/router.tsx:465
+#: packages/admin/src/router.tsx:942
+#: packages/admin/src/router.tsx:995
+#: packages/admin/src/router.tsx:1013
+#: packages/admin/src/router.tsx:1031
+#: packages/admin/src/router.tsx:1052
+#: packages/admin/src/router.tsx:1073
+#: packages/admin/src/router.tsx:1094
+#: packages/admin/src/router.tsx:1125
+#: packages/admin/src/router.tsx:1145
+#: packages/admin/src/router.tsx:1429
+#: packages/admin/src/router.tsx:1445
+#: packages/admin/src/router.tsx:1470
+#: packages/admin/src/router.tsx:1959
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -950,7 +952,7 @@ msgstr "Menganalisis situs WordPress..."
 msgid "Any media type allowed (subject to global limits)."
 msgstr "Semua tipe media diizinkan (tunduk pada batasan global)."
 
-#: packages/admin/src/components/Settings.tsx:109
+#: packages/admin/src/components/Settings.tsx:110
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:183
 msgid "API Tokens"
 msgstr "Token API"
@@ -1119,7 +1121,15 @@ msgstr "Setujui otomatis pengguna terautentikasi"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Dibuat otomatis dari nama (dapat diedit)"
 
-#: packages/admin/src/router.tsx:993
+#: packages/admin/src/components/settings/BackupSettings.tsx:167
+msgid "Automatic Backups"
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:207
+msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
+msgstr ""
+
+#: packages/admin/src/router.tsx:994
 msgid "Autosave failed"
 msgstr "Penyimpanan otomatis gagal"
 
@@ -1185,6 +1195,33 @@ msgstr "Kembali ke pengaturan"
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:110
 msgid "Back to Themes"
 msgstr "Kembali ke Tema"
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:199
+msgid "Back up now"
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:199
+msgid "Backing up..."
+msgstr ""
+
+#. placeholder {0}: archive.name
+#: packages/admin/src/components/settings/BackupSettings.tsx:97
+msgid "Backup created: {0}"
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:80
+msgid "Backup settings saved"
+msgstr ""
+
+#: packages/admin/src/components/Settings.tsx:122
+#: packages/admin/src/components/settings/BackupSettings.tsx:133
+#: packages/admin/src/components/settings/BackupSettings.tsx:148
+msgid "Backups"
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:182
+msgid "Backups to keep"
+msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:29
 msgid "Bash"
@@ -1423,7 +1460,7 @@ msgstr "Ubah Logo"
 msgid "Changelog"
 msgstr "Riwayat perubahan"
 
-#: packages/admin/src/router.tsx:1044
+#: packages/admin/src/router.tsx:1045
 msgid "Changes discarded"
 msgstr "Perubahan dibatalkan"
 
@@ -1462,7 +1499,7 @@ msgstr "Memeriksa berapa banyak nilai tersimpan yang merujuk ke \"{0}\"..."
 msgid "Choose how to sign in"
 msgstr "Pilih cara masuk"
 
-#: packages/admin/src/components/Settings.tsx:130
+#: packages/admin/src/components/Settings.tsx:137
 msgid "Choose your preferred admin language"
 msgstr "Pilih bahasa admin pilihan Anda"
 
@@ -1688,7 +1725,7 @@ msgstr "Kesalahan Konten ({0})"
 msgid "Content found:"
 msgstr "Konten ditemukan:"
 
-#: packages/admin/src/router.tsx:1066
+#: packages/admin/src/router.tsx:1067
 msgid "Content has been scheduled for publishing"
 msgstr "Konten telah dijadwalkan untuk diterbitkan"
 
@@ -1700,7 +1737,7 @@ msgstr "Konten telah diperbarui ke revisi yang dipilih."
 msgid "Content ID:"
 msgstr "ID Konten:"
 
-#: packages/admin/src/router.tsx:1007
+#: packages/admin/src/router.tsx:1008
 msgid "Content is now live"
 msgstr "Konten sekarang tayang"
 
@@ -1712,11 +1749,11 @@ msgstr "item konten"
 msgid "Content Read"
 msgstr "Baca Konten"
 
-#: packages/admin/src/router.tsx:1025
+#: packages/admin/src/router.tsx:1026
 msgid "Content removed from public view"
 msgstr "Konten dihapus dari tampilan publik"
 
-#: packages/admin/src/router.tsx:1087
+#: packages/admin/src/router.tsx:1088
 msgid "Content reverted to draft"
 msgstr "Konten dikembalikan ke draf"
 
@@ -1903,7 +1940,7 @@ msgstr "Buat di WordPress: Pengguna → Profil → Kata Sandi Aplikasi"
 msgid "Create Passkey"
 msgstr "Buat Passkey"
 
-#: packages/admin/src/components/Settings.tsx:110
+#: packages/admin/src/components/Settings.tsx:111
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:185
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Buat token akses pribadi untuk akses API terprogram"
@@ -2006,7 +2043,7 @@ msgid "Created {0}"
 msgstr "Dibuat {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1118
+#: packages/admin/src/router.tsx:1119
 msgid "Created {0} translation"
 msgstr "{0} terjemahan dibuat"
 
@@ -2058,6 +2095,10 @@ msgstr "Bagian Kustom"
 
 #: packages/admin/src/components/WordPressImport.tsx:1147
 msgid "Custom Taxonomies"
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:176
+msgid "Daily automatic backups"
 msgstr ""
 
 #: packages/admin/src/components/ThemeToggle.tsx:22
@@ -2153,6 +2194,7 @@ msgstr "Ditetapkan dalam kode"
 #: packages/admin/src/components/Redirects.tsx:582
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
+#: packages/admin/src/components/settings/BackupSettings.tsx:284
 #: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:634
 #: packages/admin/src/routes/byline-schema.tsx:378
@@ -2166,12 +2208,13 @@ msgstr "Hapus"
 msgid "Delete \"{0}\"? This cannot be undone."
 msgstr "Hapus \"{0}\"? Ini tidak dapat dibatalkan."
 
+#. placeholder {0}: archive.name
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#. placeholder {0}: field.label
 #: packages/admin/src/components/ContentTypeList.tsx:227
 #: packages/admin/src/components/Sections.tsx:408
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:252
+#: packages/admin/src/components/settings/BackupSettings.tsx:245
 #: packages/admin/src/components/TaxonomyManager.tsx:97
 #: packages/admin/src/components/Widgets.tsx:735
 #: packages/admin/src/routes/byline-schema.tsx:458
@@ -2197,6 +2240,10 @@ msgstr "Hapus area widget {0}"
 #: packages/admin/src/components/TaxonomyManager.tsx:882
 msgid "Delete {0}?"
 msgstr "Hapus {0}?"
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:282
+msgid "Delete backup?"
+msgstr ""
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
@@ -2303,6 +2350,7 @@ msgstr "Menghapus \"{0}\" juga akan menghapus {1, plural, one {# nilai tersimpan
 #: packages/admin/src/components/MenuList.tsx:256
 #: packages/admin/src/components/Redirects.tsx:583
 #: packages/admin/src/components/Sections.tsx:309
+#: packages/admin/src/components/settings/BackupSettings.tsx:285
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:635
 #: packages/admin/src/routes/bylines.tsx:626
@@ -2536,6 +2584,27 @@ msgstr "Selesai"
 msgid "Down"
 msgstr "Turun"
 
+#. placeholder {0}: archive.name
+#: packages/admin/src/components/settings/BackupSettings.tsx:238
+msgid "Download {0}"
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:158
+msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:160
+msgid "Download backup"
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:155
+msgid "Download Backup"
+msgstr ""
+
+#: packages/admin/src/components/Settings.tsx:123
+msgid "Download backups and schedule automatic backups to storage"
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginDetail.tsx:479
 msgid "Download SBOM"
 msgstr "Unduh SBOM"
@@ -2733,7 +2802,7 @@ msgid "em1.…"
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:61
-#: packages/admin/src/components/Settings.tsx:115
+#: packages/admin/src/components/Settings.tsx:116
 #: packages/admin/src/components/SignupPage.tsx:197
 #: packages/admin/src/components/users/UserDetail.tsx:154
 msgid "Email"
@@ -2885,7 +2954,7 @@ msgstr "Masukkan URL situs WordPress Anda"
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:687
-#: packages/admin/src/router.tsx:2133
+#: packages/admin/src/router.tsx:2142
 msgid "Error"
 msgstr "Kesalahan"
 
@@ -2986,6 +3055,11 @@ msgstr "Gagal mengonfirmasi unggahan"
 msgid "Failed to create admin"
 msgstr "Gagal membuat admin"
 
+#: packages/admin/src/components/settings/BackupSettings.tsx:104
+#: packages/admin/src/lib/api/backups.ts:51
+msgid "Failed to create backup"
+msgstr ""
+
 #: packages/admin/src/components/ContentSettingsPanel.tsx:936
 msgid "Failed to create byline"
 msgstr "Gagal membuat kredit penulis"
@@ -3010,20 +3084,24 @@ msgstr "Gagal membuat beberapa koleksi"
 msgid "Failed to create term"
 msgstr "Gagal membuat istilah"
 
-#: packages/admin/src/router.tsx:1123
+#: packages/admin/src/router.tsx:1124
 msgid "Failed to create translation"
 msgstr "Gagal membuat terjemahan"
 
-#: packages/admin/src/router.tsx:420
-#: packages/admin/src/router.tsx:449
-#: packages/admin/src/router.tsx:532
-#: packages/admin/src/router.tsx:1143
+#: packages/admin/src/router.tsx:421
+#: packages/admin/src/router.tsx:450
+#: packages/admin/src/router.tsx:533
+#: packages/admin/src/router.tsx:1144
 msgid "Failed to delete"
 msgstr "Gagal menghapus"
 
 #: packages/admin/src/lib/api/users.ts:345
 msgid "Failed to delete allowed domain"
 msgstr "Gagal menghapus domain yang diizinkan"
+
+#: packages/admin/src/lib/api/backups.ts:58
+msgid "Failed to delete backup"
+msgstr ""
 
 #: packages/admin/src/lib/api/bylines.ts:143
 msgid "Failed to delete byline"
@@ -3038,7 +3116,7 @@ msgid "Failed to delete collection"
 msgstr "Gagal menghapus koleksi"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1443
+#: packages/admin/src/router.tsx:1444
 msgid "Failed to delete comment"
 msgstr "Gagal menghapus komentar"
 
@@ -3104,7 +3182,7 @@ msgstr "Gagal menonaktifkan pencarian"
 msgid "Failed to disable user"
 msgstr "Gagal menonaktifkan pengguna"
 
-#: packages/admin/src/router.tsx:1050
+#: packages/admin/src/router.tsx:1051
 msgid "Failed to discard changes"
 msgstr "Gagal membatalkan perubahan"
 
@@ -3112,7 +3190,7 @@ msgstr "Gagal membatalkan perubahan"
 msgid "Failed to dismiss welcome"
 msgstr "Gagal menutup sambutan"
 
-#: packages/admin/src/router.tsx:463
+#: packages/admin/src/router.tsx:464
 msgid "Failed to duplicate"
 msgstr "Gagal menduplikasi"
 
@@ -3136,6 +3214,10 @@ msgstr "Gagal menjalankan impor"
 #: packages/admin/src/lib/api/client.ts:227
 msgid "Failed to fetch auth mode"
 msgstr "Gagal mengambil mode autentikasi"
+
+#: packages/admin/src/lib/api/backups.ts:37
+msgid "Failed to fetch backup settings"
+msgstr ""
 
 #: packages/admin/src/lib/api/schema.ts:170
 #: packages/admin/src/lib/api/schema.ts:174
@@ -3211,8 +3293,8 @@ msgstr "Gagal mengambil istilah"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:850
-#: packages/admin/src/router.tsx:1374
+#: packages/admin/src/router.tsx:851
+#: packages/admin/src/router.tsx:1375
 msgid "Failed to fetch user"
 msgstr "Gagal mengambil pengguna"
 
@@ -3254,13 +3336,17 @@ msgstr "Gagal memasang plugin"
 msgid "Failed to list byline fields"
 msgstr "Gagal memuat daftar bidang byline"
 
-#: packages/admin/src/router.tsx:280
+#: packages/admin/src/router.tsx:281
 msgid "Failed to load admin"
 msgstr "Gagal memuat admin"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:192
 msgid "Failed to load allowed domains"
 msgstr "Gagal memuat domain yang diizinkan"
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:135
+msgid "Failed to load backup settings"
+msgstr ""
 
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:366
@@ -3313,7 +3399,7 @@ msgstr "Gagal memuat pengguna: {0}"
 msgid "Failed to load widget"
 msgstr "Gagal memuat widget"
 
-#: packages/admin/src/router.tsx:1468
+#: packages/admin/src/router.tsx:1469
 msgid "Failed to perform bulk action"
 msgstr "Gagal menjalankan aksi massal"
 
@@ -3325,8 +3411,8 @@ msgstr "Gagal menghapus konten secara permanen"
 msgid "Failed to prepare import"
 msgstr "Gagal menyiapkan impor"
 
-#: packages/admin/src/router.tsx:488
-#: packages/admin/src/router.tsx:1011
+#: packages/admin/src/router.tsx:489
+#: packages/admin/src/router.tsx:1012
 msgid "Failed to publish"
 msgstr "Gagal menerbitkan"
 
@@ -3360,7 +3446,7 @@ msgstr "Gagal mengurutkan bidang"
 msgid "Failed to reorder widgets"
 msgstr "Gagal mengurutkan widget"
 
-#: packages/admin/src/router.tsx:435
+#: packages/admin/src/router.tsx:436
 msgid "Failed to restore"
 msgstr "Gagal memulihkan"
 
@@ -3381,10 +3467,14 @@ msgstr "Gagal mencabut token API"
 msgid "Failed to rewrite URLs"
 msgstr "Gagal menulis ulang URL"
 
-#: packages/admin/src/router.tsx:940
-#: packages/admin/src/router.tsx:1950
+#: packages/admin/src/router.tsx:941
+#: packages/admin/src/router.tsx:1958
 msgid "Failed to save"
 msgstr "Gagal menyimpan"
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:84
+msgid "Failed to save backup settings"
+msgstr ""
 
 #: packages/admin/src/routes/byline-schema.tsx:122
 msgid "Failed to save field"
@@ -3396,7 +3486,7 @@ msgstr "Gagal menyimpan bidang"
 msgid "Failed to save settings"
 msgstr "Gagal menyimpan pengaturan"
 
-#: packages/admin/src/router.tsx:1071
+#: packages/admin/src/router.tsx:1072
 msgid "Failed to schedule"
 msgstr "Gagal menjadwalkan"
 
@@ -3427,15 +3517,15 @@ msgstr "Gagal mengatur istilah entri"
 msgid "Failed to uninstall plugin"
 msgstr "Gagal mencopot plugin"
 
-#: packages/admin/src/router.tsx:1029
+#: packages/admin/src/router.tsx:1030
 msgid "Failed to unpublish"
 msgstr "Gagal membatalkan penerbitan"
 
-#: packages/admin/src/router.tsx:1092
+#: packages/admin/src/router.tsx:1093
 msgid "Failed to unschedule"
 msgstr "Gagal membatalkan penjadwalan"
 
-#: packages/admin/src/router.tsx:511
+#: packages/admin/src/router.tsx:512
 msgid "Failed to update"
 msgstr ""
 
@@ -3443,6 +3533,10 @@ msgstr ""
 #: packages/admin/src/components/TaxonomySidebar.tsx:351
 msgid "Failed to update {0}"
 msgstr "Gagal memperbarui {0}"
+
+#: packages/admin/src/lib/api/backups.ts:46
+msgid "Failed to update backup settings"
+msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:986
 msgid "Failed to update byline"
@@ -3473,7 +3567,7 @@ msgstr "Gagal memperbarui bagian"
 msgid "Failed to update settings"
 msgstr "Gagal memperbarui pengaturan"
 
-#: packages/admin/src/router.tsx:1427
+#: packages/admin/src/router.tsx:1428
 msgid "Failed to update status"
 msgstr "Gagal memperbarui status"
 
@@ -3653,7 +3747,7 @@ msgstr "Akses penuh"
 msgid "Full admin access"
 msgstr "Akses admin penuh"
 
-#: packages/admin/src/components/Settings.tsx:69
+#: packages/admin/src/components/Settings.tsx:70
 msgid "General"
 msgstr "Umum"
 
@@ -3683,7 +3777,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2153
+#: packages/admin/src/router.tsx:2162
 msgid "Go to Dashboard"
 msgstr "Buka Dasbor"
 
@@ -4205,8 +4299,8 @@ msgstr "Label (Tunggal)"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:162
 #: packages/admin/src/components/LoginPage.tsx:345
-#: packages/admin/src/components/Settings.tsx:129
-#: packages/admin/src/components/Settings.tsx:134
+#: packages/admin/src/components/Settings.tsx:136
+#: packages/admin/src/components/Settings.tsx:141
 msgid "Language"
 msgstr "Bahasa"
 
@@ -4244,6 +4338,10 @@ msgstr "Terakhir digunakan"
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "Terakhir digunakan {0}"
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:274
+msgid "Learn more"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:339
 msgid "Leave blank to use a discoverable passkey."
@@ -4344,7 +4442,7 @@ msgstr "Memuat koleksi..."
 msgid "Loading comments..."
 msgstr "Memuat komentar..."
 
-#: packages/admin/src/router.tsx:2122
+#: packages/admin/src/router.tsx:2131
 msgid "Loading configuration..."
 msgstr "Memuat konfigurasi..."
 
@@ -4507,7 +4605,7 @@ msgstr "Kelola menu navigasi untuk situs Anda"
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Kelola pengalihan URL dan lihat kesalahan 404."
 
-#: packages/admin/src/components/Settings.tsx:93
+#: packages/admin/src/components/Settings.tsx:94
 msgid "Manage your passkeys and authentication"
 msgstr "Kelola passkey dan autentikasi Anda"
 
@@ -4778,11 +4876,11 @@ msgstr "Pindahkan ke Tempat Sampah?"
 msgid "Move up"
 msgstr "Naikkan"
 
-#: packages/admin/src/router.tsx:508
+#: packages/admin/src/router.tsx:509
 msgid "Moved {total} items to draft"
 msgstr ""
 
-#: packages/admin/src/router.tsx:529
+#: packages/admin/src/router.tsx:530
 msgid "Moved {total} items to trash"
 msgstr ""
 
@@ -4831,7 +4929,7 @@ msgstr "Navigasi"
 msgid "Never"
 msgstr "Tidak Pernah"
 
-#: packages/admin/src/router.tsx:1118
+#: packages/admin/src/router.tsx:1119
 msgid "new"
 msgstr "baru"
 
@@ -5371,7 +5469,7 @@ msgstr "Kepemilikan"
 msgid "Package"
 msgstr "Paket"
 
-#: packages/admin/src/router.tsx:2148
+#: packages/admin/src/router.tsx:2157
 msgid "Page Not Found"
 msgstr "Halaman Tidak Ditemukan"
 
@@ -5624,6 +5722,10 @@ msgstr "Kesalahan widget plugin"
 msgid "Plugins"
 msgstr "Plugin"
 
+#: packages/admin/src/components/settings/BackupSettings.tsx:264
+msgid "Point-in-Time Restore"
+msgstr ""
+
 #: packages/admin/src/components/SeoPanel.tsx:208
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "Arahkan mesin pencari ke versi asli halaman ini, jika diduplikasi dari URL lain"
@@ -5721,7 +5823,7 @@ msgstr "dipublikasikan"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:404
 #: packages/admin/src/components/Dashboard.tsx:245
 #: packages/admin/src/components/Dashboard.tsx:345
-#: packages/admin/src/router.tsx:1007
+#: packages/admin/src/router.tsx:1008
 msgid "Published"
 msgstr "Dipublikasikan"
 
@@ -5730,7 +5832,7 @@ msgstr "Dipublikasikan"
 msgid "Published {0}"
 msgstr "Dipublikasikan {0}"
 
-#: packages/admin/src/router.tsx:485
+#: packages/admin/src/router.tsx:486
 msgid "Published {total} items"
 msgstr ""
 
@@ -6074,7 +6176,7 @@ msgstr "Memulihkan..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:2136
+#: packages/admin/src/router.tsx:2145
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Coba Lagi"
@@ -6083,7 +6185,7 @@ msgstr "Coba Lagi"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Blok konten yang dapat digunakan kembali yang dapat Anda sisipkan ke konten apa pun"
 
-#: packages/admin/src/router.tsx:1045
+#: packages/admin/src/router.tsx:1046
 msgid "Reverted to published version"
 msgstr "Dikembalikan ke versi terbit"
 
@@ -6176,6 +6278,7 @@ msgstr "Jendela sama"
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:32
+#: packages/admin/src/components/settings/BackupSettings.tsx:192
 #: packages/admin/src/components/Widgets.tsx:892
 #: packages/admin/src/routes/bylines.tsx:580
 msgid "Save"
@@ -6235,6 +6338,7 @@ msgstr "\"{0}\" disimpan."
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/SaveButton.tsx:33
+#: packages/admin/src/components/settings/BackupSettings.tsx:192
 #: packages/admin/src/components/settings/GeneralSettings.tsx:120
 #: packages/admin/src/components/settings/GeneralSettings.tsx:298
 #: packages/admin/src/components/settings/SeoSettings.tsx:111
@@ -6280,7 +6384,7 @@ msgstr "terjadwal"
 #: packages/admin/src/components/ContentList.tsx:731
 #: packages/admin/src/components/ContentSettingsPanel.tsx:407
 #: packages/admin/src/components/Dashboard.tsx:347
-#: packages/admin/src/router.tsx:1065
+#: packages/admin/src/router.tsx:1066
 msgid "Scheduled"
 msgstr "Terjadwal"
 
@@ -6395,7 +6499,7 @@ msgstr "Cari konten..."
 msgid "Search Engine Optimization"
 msgstr "Optimisasi Mesin Pencari"
 
-#: packages/admin/src/components/Settings.tsx:82
+#: packages/admin/src/components/Settings.tsx:83
 msgid "Search engine optimization and verification"
 msgstr "Optimisasi dan verifikasi mesin pencari"
 
@@ -6497,7 +6601,7 @@ msgid "Secure your account"
 msgstr "Amankan akun Anda"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:794
-#: packages/admin/src/components/Settings.tsx:92
+#: packages/admin/src/components/Settings.tsx:93
 msgid "Security"
 msgstr "Keamanan"
 
@@ -6641,7 +6745,7 @@ msgstr "Pilih..."
 msgid "Selected:"
 msgstr "Terpilih:"
 
-#: packages/admin/src/components/Settings.tsx:98
+#: packages/admin/src/components/Settings.tsx:99
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:152
 msgid "Self-Signup Domains"
 msgstr "Domain Pendaftaran Mandiri"
@@ -6685,7 +6789,7 @@ msgstr "Mengirim..."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:564
 #: packages/admin/src/components/ContentTypeEditor.tsx:472
-#: packages/admin/src/components/Settings.tsx:81
+#: packages/admin/src/components/Settings.tsx:82
 msgid "SEO"
 msgstr "SEO"
 
@@ -6743,7 +6847,7 @@ msgstr "Mengatur..."
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:437
-#: packages/admin/src/components/Settings.tsx:62
+#: packages/admin/src/components/Settings.tsx:63
 #: packages/admin/src/components/Sidebar.tsx:379
 #: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
@@ -6853,7 +6957,7 @@ msgstr "Identitas Situs"
 msgid "site identity applied (title, tagline, logo)"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:70
+#: packages/admin/src/components/Settings.tsx:71
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Identitas situs, logo, favicon, dan preferensi bacaan"
 
@@ -6878,6 +6982,10 @@ msgstr "Judul situs wajib diisi"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:145
 msgid "Site URL"
 msgstr "URL Situs"
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:267
+msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
+msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:588
 msgid "Size"
@@ -6924,7 +7032,7 @@ msgstr "Slug tidak dapat diubah setelah bidang dibuat."
 msgid "Small section heading"
 msgstr "Judul bagian kecil"
 
-#: packages/admin/src/components/Settings.tsx:75
+#: packages/admin/src/components/Settings.tsx:76
 #: packages/admin/src/components/settings/SocialSettings.tsx:70
 #: packages/admin/src/components/settings/SocialSettings.tsx:95
 msgid "Social Links"
@@ -6934,7 +7042,7 @@ msgstr "Tautan Sosial"
 msgid "Social links saved"
 msgstr "Tautan sosial disimpan"
 
-#: packages/admin/src/components/Settings.tsx:76
+#: packages/admin/src/components/Settings.tsx:77
 msgid "Social media profile links"
 msgstr "Tautan profil media sosial"
 
@@ -7013,6 +7121,14 @@ msgstr "Kode status"
 
 #: packages/admin/src/components/Dashboard.tsx:357
 msgid "Status: {status}"
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:173
+msgid "Store a daily backup in your site's storage bucket. Old backups are removed automatically."
+msgstr ""
+
+#: packages/admin/src/components/settings/BackupSettings.tsx:218
+msgid "Stored Backups"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
@@ -7177,7 +7293,7 @@ msgstr "Menu telah dihapus."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Nama situs Anda, digunakan di header dan metadata"
 
-#: packages/admin/src/router.tsx:2150
+#: packages/admin/src/router.tsx:2159
 msgid "The page you're looking for doesn't exist."
 msgstr "Halaman yang Anda cari tidak ada."
 
@@ -7267,6 +7383,11 @@ msgstr "Proses ini mungkin memerlukan waktu untuk ekspor berukuran besar."
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:269
 msgid "This passkey is already registered on this device."
 msgstr "Passkey ini sudah terdaftar di perangkat ini."
+
+#. placeholder {0}: archiveToDelete?.name ?? ""
+#: packages/admin/src/components/settings/BackupSettings.tsx:283
+msgid "This permanently deletes {0} from storage."
+msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:276
 msgid "This plugin requires no special permissions."
@@ -7441,7 +7562,7 @@ msgstr "Menerjemahkan..."
 
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/router.tsx:1117
+#: packages/admin/src/router.tsx:1118
 msgid "Translation created"
 msgstr "Terjemahan dibuat"
 
@@ -7618,7 +7739,7 @@ msgstr "Passkey tanpa nama"
 msgid "Unpublish"
 msgstr "Batal Publikasikan"
 
-#: packages/admin/src/router.tsx:1025
+#: packages/admin/src/router.tsx:1026
 msgid "Unpublished"
 msgstr "Tidak diterbitkan"
 
@@ -7630,7 +7751,7 @@ msgstr "Tabel Konten Tidak Terdaftar Ditemukan"
 msgid "Unschedule"
 msgstr "Batal Jadwalkan"
 
-#: packages/admin/src/router.tsx:1086
+#: packages/admin/src/router.tsx:1087
 msgid "Unscheduled"
 msgstr "Tidak dijadwalkan"
 
@@ -7957,7 +8078,7 @@ msgstr "Versi {0}"
 msgid "Video"
 msgstr "Video"
 
-#: packages/admin/src/components/Settings.tsx:116
+#: packages/admin/src/components/Settings.tsx:117
 msgid "View email provider status and send test emails"
 msgstr "Lihat status penyedia email dan kirim email uji"
 
@@ -8237,7 +8358,7 @@ msgstr "Anda memiliki akses penuh untuk mengelola situs ini, termasuk pengguna, 
 msgid "You need admin permissions to manage byline schema."
 msgstr "Anda memerlukan izin admin untuk mengelola skema byline."
 
-#: packages/admin/src/router.tsx:1484
+#: packages/admin/src/router.tsx:1485
 msgid "You need Editor permissions to moderate comments."
 msgstr "Anda memerlukan izin Editor untuk memoderasi komentar."
 

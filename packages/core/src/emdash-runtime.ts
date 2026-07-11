@@ -121,6 +121,7 @@ function isValidMetadataContribution(c: unknown): c is PageMetadataContribution 
 }
 
 import { after } from "./after.js";
+import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
 import { runSystemCleanup } from "./cleanup.js";
 import {
@@ -655,6 +656,9 @@ export class EmDashRuntime {
 		} catch (error) {
 			console.error("[cleanup] System cleanup failed:", error);
 		}
+
+		// Never throws; no-op unless scheduled backups are enabled and due.
+		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
 
 		return { published };
 	}
@@ -1541,6 +1545,8 @@ export class EmDashRuntime {
 							// by runSystemCleanup. This catches unexpected errors.
 							console.error("[cleanup] System cleanup failed:", error);
 						}
+						// Never throws; no-op unless scheduled backups are enabled and due.
+						await maybeRunScheduledBackup(db, storage ?? undefined);
 					});
 
 					// Add cron reschedule callback (merges with existing factory options)

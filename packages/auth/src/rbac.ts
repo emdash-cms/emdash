@@ -86,6 +86,9 @@ export const Permissions = {
 	// Import
 	"import:execute": Role.ADMIN,
 
+	// Backups (full content export — admin-only, same tier as settings:manage)
+	"backups:manage": Role.ADMIN,
+
 	// Search
 	"search:read": Role.SUBSCRIBER,
 	"search:manage": Role.ADMIN,

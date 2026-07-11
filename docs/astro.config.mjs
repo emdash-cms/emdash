@@ -78,6 +78,7 @@ export default defineConfig({
 						{ label: "AI Tools", slug: "guides/ai-tools" },
 						{ label: "x402 Payments", slug: "guides/x402-payments" },
 						{ label: "Preview Mode", slug: "guides/preview" },
+						{ label: "Backups", slug: "guides/backups" },
 						{
 							label: "Internationalization (i18n)",
 							slug: "guides/internationalization",
