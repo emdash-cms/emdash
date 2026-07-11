@@ -60,6 +60,10 @@ export interface VerifiedRegistration {
 	transports: AuthenticatorTransport[];
 }
 
+export type VerifiedRegistrationWithContext<Context> = VerifiedRegistration & {
+	challengeContext: Context;
+};
+
 // ============================================================================
 // Authentication (Using an existing passkey)
 // ============================================================================
@@ -94,6 +98,10 @@ export interface VerifiedAuthentication {
 	newCounter: number;
 }
 
+export type VerifiedAuthenticationWithContext<Context> = VerifiedAuthentication & {
+	challengeContext: Context;
+};
+
 // ============================================================================
 // Challenge storage
 // ============================================================================
@@ -104,10 +112,17 @@ export interface ChallengeStore {
 	delete(challenge: string): Promise<void>;
 }
 
+/** A store that removes and returns a challenge in one atomic operation. */
+export interface AtomicChallengeStore extends ChallengeStore {
+	consume(challenge: string): Promise<ChallengeData | null>;
+}
+
 export interface ChallengeData {
 	type: "registration" | "authentication";
 	userId?: string; // For registration, the user being registered
 	expiresAt: number;
+	/** Canonical output from `encodeChallengeContext`. */
+	context?: string;
 }
 
 // ============================================================================
@@ -124,4 +139,6 @@ export interface PasskeyConfig {
 	 * sharing `rpId` (e.g. apex + preview subdomain).
 	 */
 	origins: string[];
+	/** Defaults to `preferred` for backwards compatibility. */
+	userVerification?: "discouraged" | "preferred" | "required";
 }

@@ -5,7 +5,7 @@ import { encodeBase64urlNoPadding } from "@oslojs/encoding";
 import { parseAttestationObject, coseAlgorithmRS256, COSEKeyType } from "@oslojs/webauthn";
 import { describe, expect, it, vi } from "vitest";
 
-import { verifyRegistrationResponse } from "./register.js";
+import { generateRegistrationOptions, verifyRegistrationResponse } from "./register.js";
 import type { ChallengeStore, PasskeyConfig } from "./types.js";
 
 /**
@@ -47,6 +47,65 @@ vi.mock("@oslojs/webauthn", async (importOriginal) => {
 });
 
 describe("verifyRegistrationResponse", () => {
+	it.each(["preferred", "required", "discouraged"] as const)(
+		"wires %s user verification into registration options",
+		async (userVerification) => {
+			const options = await generateRegistrationOptions(
+				{ ...config, userVerification },
+				{ id: "user_1", email: "user@example.com", name: "User" },
+				[],
+				makeChallengeStore(),
+			);
+
+			expect(options.authenticatorSelection?.userVerification).toBe(userVerification);
+		},
+	);
+
+	it("defaults registration options to preferred user verification", async () => {
+		const options = await generateRegistrationOptions(
+			config,
+			{ id: "user_1", email: "user@example.com", name: "User" },
+			[],
+			makeChallengeStore(),
+		);
+
+		expect(options.authenticatorSelection?.userVerification).toBe("preferred");
+	});
+
+	it("rejects registration without UV when user verification is required", async () => {
+		const challenge = encodeBase64urlNoPadding(new TextEncoder().encode("test-challenge"));
+		const clientDataJSON = Buffer.from(
+			JSON.stringify({
+				type: "webauthn.create",
+				challenge,
+				origin: "https://example.com",
+			}),
+		);
+		vi.mocked(parseAttestationObject).mockReturnValueOnce({
+			authenticatorData: {
+				verifyRelyingPartyIdHash: () => true,
+				userPresent: true,
+				userVerified: false,
+			},
+			attestationStatement: { format: "none" },
+		} as any);
+
+		await expect(
+			verifyRegistrationResponse(
+				{ ...config, userVerification: "required" },
+				{
+					id: "test-credential",
+					rawId: "test-credential",
+					type: "public-key",
+					response: {
+						clientDataJSON: base64url(clientDataJSON),
+						attestationObject: "AA",
+					},
+				},
+				makeChallengeStore(),
+			),
+		).rejects.toThrow("User verification not verified");
+	});
 	it("rejects an origin not in the accepted list", async () => {
 		const challenge = encodeBase64urlNoPadding(new TextEncoder().encode("test-challenge"));
 		const clientDataJSON = Buffer.from(
@@ -118,7 +177,7 @@ describe("verifyRegistrationResponse", () => {
 		} as any);
 
 		const result = await verifyRegistrationResponse(
-			config,
+			{ ...config, userVerification: "required" },
 			{
 				id: "test-credential",
 				rawId: "test-credential",

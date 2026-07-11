@@ -21,12 +21,21 @@ import {
 
 import { generateToken } from "../tokens.js";
 import type { Credential, NewCredential, AuthAdapter, User, DeviceType } from "../types.js";
+import {
+	createContextBoundChallenge,
+	decodeChallengeContext,
+	encodeChallengeContext,
+	verifyContextBoundChallenge,
+} from "./challenge-context.js";
+import type { ChallengeContextBinding, ChallengeContextCodec } from "./challenge-context.js";
 import type {
 	RegistrationOptions,
 	RegistrationResponse,
 	VerifiedRegistration,
 	ChallengeStore,
 	PasskeyConfig,
+	AtomicChallengeStore,
+	VerifiedRegistrationWithContext,
 } from "./types.js";
 
 const CHALLENGE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -36,19 +45,27 @@ export type { PasskeyConfig };
 /**
  * Generate registration options for creating a new passkey
  */
-export async function generateRegistrationOptions(
+export async function generateRegistrationOptions<Type extends string, Context>(
 	config: PasskeyConfig,
 	user: Pick<User, "id" | "email" | "name">,
 	existingCredentials: Credential[],
 	challengeStore: ChallengeStore,
+	challengeContext?: ChallengeContextBinding<Type, Context>,
 ): Promise<RegistrationOptions> {
-	const challenge = generateToken();
+	const serializedContext = challengeContext
+		? encodeChallengeContext(challengeContext.codec, challengeContext.value)
+		: undefined;
+	const nonce = generateToken();
+	const challenge = serializedContext
+		? createContextBoundChallenge(nonce, serializedContext)
+		: nonce;
 
 	// Store challenge for verification
 	await challengeStore.set(challenge, {
 		type: "registration",
 		userId: user.id,
 		expiresAt: Date.now() + CHALLENGE_TTL,
+		...(serializedContext ? { context: serializedContext } : {}),
 	});
 
 	// Encode user ID as base64url
@@ -74,7 +91,7 @@ export async function generateRegistrationOptions(
 		attestation: "none", // We don't need attestation for our use case
 		authenticatorSelection: {
 			residentKey: "preferred", // Allow discoverable credentials
-			userVerification: "preferred",
+			userVerification: config.userVerification ?? "preferred",
 		},
 		excludeCredentials: existingCredentials.map((cred) => ({
 			type: "public-key" as const,
@@ -87,11 +104,23 @@ export async function generateRegistrationOptions(
 /**
  * Verify a registration response and extract credential data
  */
-export async function verifyRegistrationResponse(
+export function verifyRegistrationResponse<Type extends string, Context>(
+	config: PasskeyConfig,
+	response: RegistrationResponse,
+	challengeStore: AtomicChallengeStore,
+	challengeContext: ChallengeContextCodec<Type, Context>,
+): Promise<VerifiedRegistrationWithContext<Context>>;
+export function verifyRegistrationResponse(
 	config: PasskeyConfig,
 	response: RegistrationResponse,
 	challengeStore: ChallengeStore,
-): Promise<VerifiedRegistration> {
+): Promise<VerifiedRegistration>;
+export async function verifyRegistrationResponse<Type extends string, Context>(
+	config: PasskeyConfig,
+	response: RegistrationResponse,
+	challengeStore: ChallengeStore,
+	challengeContext?: ChallengeContextCodec<Type, Context>,
+): Promise<VerifiedRegistration | VerifiedRegistrationWithContext<Context>> {
 	// Decode the response
 	const clientDataJSON = decodeBase64urlIgnorePadding(response.response.clientDataJSON);
 	const attestationObject = decodeBase64urlIgnorePadding(response.response.attestationObject);
@@ -106,7 +135,13 @@ export async function verifyRegistrationResponse(
 
 	// Verify challenge - convert Uint8Array back to base64url string (no padding, matching stored format)
 	const challengeString = encodeBase64urlNoPadding(clientData.challenge);
-	const challengeData = await challengeStore.get(challengeString);
+	if (challengeContext && !("consume" in challengeStore)) {
+		throw new Error("Typed challenge context requires an atomic challenge store");
+	}
+	const atomicStore = challengeStore as Partial<AtomicChallengeStore>;
+	const challengeData = atomicStore.consume
+		? await atomicStore.consume(challengeString)
+		: await challengeStore.get(challengeString);
 	if (!challengeData) {
 		throw new Error("Challenge not found or expired");
 	}
@@ -114,12 +149,25 @@ export async function verifyRegistrationResponse(
 		throw new Error("Invalid challenge type");
 	}
 	if (challengeData.expiresAt < Date.now()) {
-		await challengeStore.delete(challengeString);
+		if (!atomicStore.consume) await challengeStore.delete(challengeString);
 		throw new Error("Challenge expired");
 	}
 
 	// Delete challenge (single-use)
-	await challengeStore.delete(challengeString);
+	if (!atomicStore.consume) await challengeStore.delete(challengeString);
+	let contextResult: { present: false } | { present: true; value: Context } = {
+		present: false,
+	};
+	if (challengeData.context !== undefined) {
+		if (!challengeContext) throw new Error("Challenge context decoder required");
+		verifyContextBoundChallenge(challengeString, challengeData.context);
+		contextResult = {
+			present: true,
+			value: decodeChallengeContext(challengeData.context, challengeContext),
+		};
+	} else if (challengeContext) {
+		throw new Error("Challenge context not found");
+	}
 
 	// Verify origin against the accepted list
 	if (!config.origins.includes(clientData.origin)) {
@@ -145,6 +193,9 @@ export async function verifyRegistrationResponse(
 	// Verify flags
 	if (!authenticatorData.userPresent) {
 		throw new Error("User presence not verified");
+	}
+	if (config.userVerification === "required" && !authenticatorData.userVerified) {
+		throw new Error("User verification not verified");
 	}
 
 	// Extract credential data
@@ -192,7 +243,7 @@ export async function verifyRegistrationResponse(
 	const deviceType: DeviceType = "singleDevice";
 	const backedUp = false;
 
-	return {
+	const verified: VerifiedRegistration = {
 		credentialId: response.id,
 		publicKey: encodedPublicKey,
 		algorithm,
@@ -201,6 +252,7 @@ export async function verifyRegistrationResponse(
 		backedUp,
 		transports: response.response.transports ?? [],
 	};
+	return !contextResult.present ? verified : { ...verified, challengeContext: contextResult.value };
 }
 
 /**
