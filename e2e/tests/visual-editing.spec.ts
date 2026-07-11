@@ -297,6 +297,36 @@ test.describe("Inline Editor", () => {
 		await expect(picker).toBeHidden({ timeout: 3000 });
 	});
 
+	test("flushes unsaved edits when navigating away (#1582)", async ({ page }) => {
+		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
+
+		const editor = page.locator(".emdash-inline-editor");
+		await expect(editor).toBeVisible({ timeout: 15000 });
+
+		// Type into the editor and do NOT blur — the only save trigger
+		// used to be the blur handler, so browser-back lost the edit.
+		await editor.locator("p").last().click();
+		await page.keyboard.press("End");
+		await page.keyboard.type(" Repro1582");
+
+		const savePromise = page.waitForRequest(
+			(req) => req.url().includes("/api/content/posts/") && req.method() === "PUT",
+			{ timeout: 10000 },
+		);
+
+		// Browser back: no React blur fires, only pagehide.
+		await page.goBack();
+
+		// The pagehide flush must fire a keepalive PUT…
+		await savePromise;
+
+		// …and the edit must survive a fresh load of the post.
+		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
+		const reloadedEditor = page.locator(".emdash-inline-editor");
+		await expect(reloadedEditor).toBeVisible({ timeout: 15000 });
+		await expect(reloadedEditor.locator("text=Repro1582")).toBeVisible();
+	});
+
 	test("media picker can be closed with X button", async ({ page }) => {
 		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
 
