@@ -69,6 +69,7 @@ const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
 function toPosixPath(p: string): string {
 	return p.replace(/\\/g, "/");
 }
+
 /**
  * Vite plugin that compiles Lingui macros in admin source files.
  * Only active in dev mode when the admin package is aliased to source for HMR.
