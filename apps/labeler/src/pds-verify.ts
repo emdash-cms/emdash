@@ -193,7 +193,17 @@ async function fetchCar(
 		await reader.cancel().catch(() => {
 			/* swallow — we already have a primary error to surface */
 		});
-		throw err;
+		// A read error after headers (socket drop, stream abort) is transient —
+		// re-wrap it so the consumer retries rather than dead-lettering it as an
+		// unexpected failure. Our own PdsVerificationErrors (e.g. too-large)
+		// carry their own classification and pass through.
+		if (err instanceof PdsVerificationError) throw err;
+		throw new PdsVerificationError(
+			"PDS_NETWORK_ERROR",
+			`PDS stream failed mid-download: ${err instanceof Error ? err.message : String(err)}`,
+			undefined,
+			err,
+		);
 	} finally {
 		reader.releaseLock();
 	}

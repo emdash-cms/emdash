@@ -264,6 +264,33 @@ describe("AssessmentOrchestrator: permanent deterministic failure", () => {
 			.first<{ neg: number }>();
 		expect(label?.neg).toBe(0);
 	});
+
+	it("issues every distinct blocking label when a run has multiple critical findings", async () => {
+		const run = await pendingRun({ name: "multi-block", cidValue: await cid("multi-block") });
+		const stages: OrchestratorStages = {
+			...stubStages,
+			deterministic: () =>
+				Promise.resolve([
+					finding({ category: "malware", severity: "critical" }),
+					finding({ category: "supply-chain-compromise", severity: "critical" }),
+				]),
+		};
+		const orchestrator = await buildOrchestrator(stages);
+
+		const result = await orchestrator.runAssessment(run.id);
+
+		expect(result.state).toBe("blocked");
+		const vals = await testEnv.DB.prepare(
+			`SELECT val FROM issued_labels WHERE uri = ? AND cid = ? AND neg = 0 ORDER BY val`,
+		)
+			.bind(run.uri, run.cid)
+			.all<{ val: string }>();
+		const blockVals = (vals.results ?? [])
+			.map((r) => r.val)
+			.filter((v) => !v.startsWith("assessment-"));
+		expect(blockVals).toContain("malware");
+		expect(blockVals).toContain("supply-chain-compromise");
+	});
 });
 
 describe("AssessmentOrchestrator: transient exhaustion", () => {

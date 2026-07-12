@@ -387,7 +387,11 @@ describe("processDiscoveryMessage: delete", () => {
 
 		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
 		const msg = new FakeMessage();
-		await processDiscoveryMessage(deleteJob, msg, deps);
+		// The record is confirmed gone at the PDS.
+		await processDiscoveryMessage(deleteJob, msg, {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
 
 		expect(msg.acked).toBe(1);
 		const subject = await testEnv.DB.prepare(
@@ -401,12 +405,58 @@ describe("processDiscoveryMessage: delete", () => {
 		expect(after?.state).toBe("cancelled");
 	});
 
-	it("dead-letters nothing on delete, even for an unknown uri", async () => {
+	it("dead-letters a forged/premature delete whose record still resolves, suppressing nothing", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+		const runKey = await runKeyFor(job);
+
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const msg = new FakeMessage();
+		// The record still resolves at the PDS — the delete is forged/premature.
+		await processDiscoveryMessage(deleteJob, msg, {
+			...deps,
+			confirmDeleted: () => Promise.resolve(false),
+		});
+
+		expect(msg.acked).toBe(1);
+		const dl = await testEnv.DB.prepare(`SELECT reason FROM dead_letters WHERE rkey = ?`)
+			.bind(job.rkey)
+			.first<{ reason: string }>();
+		expect(dl?.reason).toBe("DELETE_RECORD_PRESENT");
+		// Subject not tombstoned, run not cancelled.
+		const subject = await testEnv.DB.prepare(`SELECT deleted_at FROM subjects WHERE uri = ?`)
+			.bind(uriFor(job))
+			.first<{ deleted_at: string | null }>();
+		expect(subject?.deleted_at).toBeNull();
+		const after = await getAssessmentByRunKey(testEnv.DB, runKey);
+		expect(after?.state).toBe("pending");
+	});
+
+	it("retries a delete whose absence check fails transiently", async () => {
 		const job = await jobFor({ rkey: rkey(), operation: "delete", cid: "" });
 		const deps = await buildDeps();
 		const msg = new FakeMessage();
 
-		await processDiscoveryMessage(job, msg, deps);
+		await processDiscoveryMessage(job, msg, {
+			...deps,
+			confirmDeleted: () =>
+				Promise.reject(new PdsVerificationError("PDS_NETWORK_ERROR", "directory blip")),
+		});
+
+		expect(msg.retried).toBe(1);
+		expect(msg.acked).toBe(0);
+	});
+
+	it("dead-letters nothing when a confirmed delete targets an unknown uri", async () => {
+		const job = await jobFor({ rkey: rkey(), operation: "delete", cid: "" });
+		const deps = await buildDeps();
+		const msg = new FakeMessage();
+
+		await processDiscoveryMessage(job, msg, {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
 
 		expect(msg.acked).toBe(1);
 		const dl = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM dead_letters WHERE rkey = ?`)

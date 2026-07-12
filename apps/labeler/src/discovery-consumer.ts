@@ -18,8 +18,9 @@
  *     mismatch): `dead_letters` row, ack. Never retry.
  *   - Unexpected programming errors: log loud, dead-letter, ack — never
  *     crash the worker or block the queue.
- *   - Delete events: tombstone the subject and cancel non-terminal runs;
- *     dead-letter nothing (there's no verification step to fail).
+ *   - Delete events: confirm the record is genuinely absent at the PDS
+ *     before tombstoning the subject and cancelling non-terminal runs; a
+ *     still-resolving record is a forged/premature delete and dead-letters.
  */
 
 import {
@@ -54,6 +55,7 @@ import {
 } from "./pds-verify.js";
 import { MODERATION_POLICY } from "./policy.js";
 import {
+	confirmRecordAbsent,
 	type DidDocumentResolverLike,
 	fetchAndVerifyExactRecord,
 	RecordVerificationError,
@@ -92,6 +94,13 @@ export interface DiscoveryConsumerDeps {
 		didDocumentResolver: DidDocumentResolverLike;
 		fetch?: typeof fetch;
 	}) => Promise<VerifiedPdsRecord>;
+	/** Override for the delete-path absence check; defaults to
+	 * `confirmRecordAbsent`. Returns `true` when the record is verifiably gone. */
+	confirmDeleted?: (opts: {
+		uri: string;
+		didDocumentResolver: DidDocumentResolverLike;
+		fetch?: typeof fetch;
+	}) => Promise<boolean>;
 }
 
 /** Subset of `cloudflare:workers` `Message` we use; defining inline so tests
@@ -114,6 +123,7 @@ export type DiscoveryDeadLetterReason =
 	| "RESPONSE_TOO_LARGE"
 	| "INVALID_PROOF"
 	| "PDS_HTTP_ERROR"
+	| "DELETE_RECORD_PRESENT"
 	| RecordVerificationFailureReason
 	| "UNEXPECTED_ERROR";
 
@@ -182,9 +192,38 @@ export async function processDiscoveryMessage(
 
 	if (job.operation === "delete") {
 		try {
+			// A delete suppresses assessment work (tombstone + cancel runs), so it
+			// gets the same distrust as a create: confirm the record is genuinely
+			// gone at the PDS before acting. A still-present record means a forged
+			// or premature delete — dead-letter it, suppress nothing.
+			const confirmAbsent = deps.confirmDeleted ?? confirmRecordAbsent;
+			const absent = await confirmAbsent({
+				uri,
+				didDocumentResolver: deps.didDocumentResolver,
+				...(deps.fetch ? { fetch: deps.fetch } : {}),
+			});
+			if (!absent) {
+				await writeDeadLetter(
+					deps.db,
+					job,
+					"DELETE_RECORD_PRESENT",
+					"record still resolves",
+					now(),
+				);
+				controller.ack();
+				return;
+			}
 			await applyDiscoveryDelete(deps.db, uri, now());
 			controller.ack();
 		} catch (err) {
+			if (err instanceof PdsVerificationError && isTransient(err.reason, err.status)) {
+				controller.retry();
+				return;
+			}
+			if (err instanceof RecordVerificationError && err.transient) {
+				controller.retry();
+				return;
+			}
 			console.error("[labeler] discovery delete failed", {
 				did: job.did,
 				collection: job.collection,

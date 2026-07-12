@@ -88,15 +88,17 @@ export function resolvePolicyOutcome(
 	policy: ModerationPolicy,
 ): PolicyOutcome {
 	const blockCategories = automatedBlockCategories(policy);
-	const blocking = findings.find(
-		(f) => f.severity === "critical" && blockCategories.has(f.category),
-	);
-	if (blocking) {
+	const blockingVals = [
+		...new Set(
+			findings
+				.filter((f) => f.severity === "critical" && blockCategories.has(f.category))
+				.map((f) => f.category),
+		),
+	];
+	if (blockingVals.length > 0) {
 		return {
 			toState: "blocked",
-			labels: [
-				{ val: blocking.category, findingCategory: blocking.category, severity: "critical" },
-			],
+			labels: blockingVals.map((val) => ({ val, findingCategory: val, severity: "critical" })),
 		};
 	}
 	const warningVals = [
@@ -298,6 +300,7 @@ export class AssessmentOrchestrator {
 		// Spec §9.9 point 8 / §10: negate prior active automated labels this
 		// outcome no longer supports.
 		const priorActive = await getNegatableAutomatedLabels(this.db, {
+			src: this.config.labelerDid,
 			uri: assessment.uri,
 			cid: assessment.cid,
 		});

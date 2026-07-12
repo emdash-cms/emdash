@@ -23,7 +23,11 @@ import {
 import { type DidDocument, getAtprotoVerificationMaterial, getPdsEndpoint } from "@atcute/identity";
 import { type Did, isDid } from "@atcute/lexicons/syntax";
 
-import { fetchAndVerifyRecord, type VerifiedPdsRecord } from "./pds-verify.js";
+import {
+	fetchAndVerifyRecord,
+	PdsVerificationError,
+	type VerifiedPdsRecord,
+} from "./pds-verify.js";
 
 export interface DidDocumentResolverLike {
 	resolve(did: Did): Promise<DidDocument>;
@@ -91,6 +95,38 @@ export interface FetchAndVerifyExactRecordOptions {
 export async function fetchAndVerifyExactRecord(
 	opts: FetchAndVerifyExactRecordOptions,
 ): Promise<VerifiedPdsRecord> {
+	const verified = await fetchAndVerifyLatestRecord(opts);
+	if (verified.cid !== opts.cid) {
+		throw new RecordVerificationError(
+			"RECORD_CID_MISMATCH",
+			`PDS served CID ${verified.cid} for ${opts.uri}, expected ${opts.cid}`,
+		);
+	}
+	return verified;
+}
+
+/**
+ * Confirms a record is genuinely absent at the publisher's PDS — the
+ * verification a delete event needs before it may suppress assessment work.
+ * Returns `true` only on a verified `RECORD_NOT_FOUND`; `false` when the
+ * record still resolves (a forged or premature delete). Transient failures
+ * propagate for the caller to retry.
+ */
+export async function confirmRecordAbsent(
+	opts: Omit<FetchAndVerifyExactRecordOptions, "cid">,
+): Promise<boolean> {
+	try {
+		await fetchAndVerifyLatestRecord(opts);
+		return false;
+	} catch (err) {
+		if (err instanceof PdsVerificationError && err.reason === "RECORD_NOT_FOUND") return true;
+		throw err;
+	}
+}
+
+async function fetchAndVerifyLatestRecord(
+	opts: Omit<FetchAndVerifyExactRecordOptions, "cid">,
+): Promise<VerifiedPdsRecord> {
 	const { did, collection, rkey } = parseAtUri(opts.uri);
 	if (!isDid(did)) throw new RecordVerificationError("INVALID_URI", `not a valid DID: ${did}`);
 
@@ -135,7 +171,7 @@ export async function fetchAndVerifyExactRecord(
 
 	// Propagates PdsVerificationError untouched — the consumer classifies
 	// transient vs permanent via `isTransient`.
-	const verified = await fetchAndVerifyRecord({
+	return fetchAndVerifyRecord({
 		pds,
 		did,
 		collection,
@@ -145,14 +181,6 @@ export async function fetchAndVerifyExactRecord(
 		...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
 		...(opts.maxResponseBytes !== undefined ? { maxResponseBytes: opts.maxResponseBytes } : {}),
 	});
-
-	if (verified.cid !== opts.cid) {
-		throw new RecordVerificationError(
-			"RECORD_CID_MISMATCH",
-			`PDS served CID ${verified.cid} for ${opts.uri}, expected ${opts.cid}`,
-		);
-	}
-	return verified;
 }
 
 async function materialiseSigningKey(publicKeyMultibase: string): Promise<PublicKey> {
