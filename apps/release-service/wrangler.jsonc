@@ -1,0 +1,63 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-release-service",
+	"main": "./src/index.ts",
+	// Pinned to the newest workerd date supported by the workspace's
+	// workers-vitest runtime. Request handling still uses Web Platform APIs.
+	"compatibility_date": "2026-05-14",
+	"compatibility_flags": ["nodejs_compat"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-release-service",
+			"migrations_dir": "./migrations",
+		},
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "RELEASE_QUEUE",
+				"queue": "emdash-release-service-releases",
+			},
+			{
+				"binding": "NOTIFICATION_QUEUE",
+				"queue": "emdash-release-service-notifications",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "emdash-release-service-releases",
+				"max_batch_size": 10,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+				"dead_letter_queue": "emdash-release-service-releases-dlq",
+			},
+			{
+				"queue": "emdash-release-service-notifications",
+				"max_batch_size": 10,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+				"dead_letter_queue": "emdash-release-service-notifications-dlq",
+			},
+		],
+	},
+	"triggers": {
+		"crons": ["*/5 * * * *"],
+	},
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./public",
+		"run_worker_first": true,
+	},
+	"vars": {
+		// Intentionally unusable defaults. Every deployment must choose its
+		// public/trusted origins and publisher tenancy policy explicitly.
+		"PUBLIC_ORIGIN": "",
+		"ALLOWED_ORIGINS": "[]",
+		"ALLOWED_PUBLISHERS": "{\"mode\":\"allowlist\",\"dids\":[]}",
+		"DEPLOYMENT_POLICY": "",
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

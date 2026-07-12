@@ -1,0 +1,25 @@
+{
+	"name": "@emdash-cms/release-service",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Cloudflare Worker for delegated EmDash registry releases.",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"deploy": "vite build && wrangler deploy",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"types": "wrangler types"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "catalog:",
+		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@types/node": "catalog:",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"vitest": "catalog:",
+		"wrangler": "catalog:"
+	}
+}
