@@ -25,17 +25,27 @@ vi.mock("@tanstack/react-router", async () => {
 const mockGetRegistryPackage = vi.fn();
 const mockResolveRegistryPackage = vi.fn();
 const mockListRegistryReleases = vi.fn();
+// Vitest's browser mode can't `vi.spyOn` a real ESM module namespace ("Module
+// namespace is not configurable in ESM"), so overriding `evaluateReleaseViews`
+// per-test goes through this mock-prefixed wrapper instead, same as the other
+// network-facing exports below. Falls through to the real implementation by
+// default (set once the factory resolves `actual`) so most tests exercise
+// genuine label evaluation.
+const mockEvaluateReleaseViews = vi.fn();
 
 vi.mock("../../src/lib/api/registry", async () => {
 	const actual = await vi.importActual<typeof import("../../src/lib/api/registry")>(
 		"../../src/lib/api/registry",
 	);
+	mockEvaluateReleaseViews.mockImplementation(actual.evaluateReleaseViews);
 	return {
 		...actual,
 		getRegistryPackage: (...a: unknown[]) => mockGetRegistryPackage(...a),
 		resolveRegistryPackage: (...a: unknown[]) => mockResolveRegistryPackage(...a),
 		listRegistryReleases: (...a: unknown[]) => mockListRegistryReleases(...a),
 		resolveDidToHandle: vi.fn(async () => ({ status: "ok", handle: "acme.dev" })),
+		evaluateReleaseViews: (...a: Parameters<typeof actual.evaluateReleaseViews>) =>
+			mockEvaluateReleaseViews(...a),
 	};
 });
 
@@ -57,14 +67,30 @@ const { RegistryPluginDetail } = await import("../../src/components/RegistryPlug
 
 const CONFIG: RegistryClientConfig = { aggregatorUrl: "https://aggregator.test" };
 
+/** A raw (unsigned) ATProto label, as the aggregator hydrates onto a package/release view. */
+interface RawLabel {
+	ver?: number;
+	src: string;
+	uri: string;
+	val: string;
+	cts?: string;
+	cid?: string;
+}
+
 interface PkgOverrides {
 	sections?: Record<string, unknown>;
 	lastUpdated?: string;
-	labels?: { val?: string; src?: string }[];
+	labels?: { val?: string; src?: string }[] | RawLabel[];
+	uri?: string;
+	cid?: string;
 }
+
+const PACKAGE_URI = "at://did:plc:acme/com.emdashcms.experimental.package.profile/myplugin";
 
 function makePackage(overrides: PkgOverrides = {}): RegistryPackageView {
 	return {
+		uri: overrides.uri ?? PACKAGE_URI,
+		cid: overrides.cid ?? "bafypkgcid",
 		did: "did:plc:acme",
 		handle: "acme.dev",
 		slug: "myplugin",
@@ -86,19 +112,41 @@ function makePackage(overrides: PkgOverrides = {}): RegistryPackageView {
 interface ReleaseOverrides {
 	sbom?: { format?: string; url?: string; checksum?: string };
 	extensions?: Record<string, unknown>;
+	version?: string;
+	uri?: string;
+	cid?: string;
+	labels?: RawLabel[];
+}
+
+function releaseUriFor(version: string): string {
+	return `at://did:plc:acme/com.emdashcms.experimental.package.release/myplugin:${version}`;
 }
 
 function makeRelease(overrides: ReleaseOverrides = {}): RegistryReleaseView {
+	const version = overrides.version ?? "1.2.3";
 	return {
-		version: "1.2.3",
+		uri: overrides.uri ?? releaseUriFor(version),
+		cid: overrides.cid ?? "bafyrelcid",
+		version,
 		indexedAt: "2025-03-01T00:00:00Z",
-		labels: [],
+		labels: overrides.labels ?? [],
 		release: {
 			sbom: overrides.sbom,
 			extensions: overrides.extensions,
 		},
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fixture cast to the validated view shape
 	} as any;
+}
+
+/** A well-formed `security-yanked` label applying release-wide (no `cid` -- forbidden by policy). */
+function securityYankedLabel(version: string, src = "did:plc:labeler"): RawLabel {
+	return {
+		ver: 1,
+		src,
+		uri: releaseUriFor(version),
+		val: "security-yanked",
+		cts: "2025-01-01T00:00:00Z",
+	};
 }
 
 const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
@@ -110,10 +158,35 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 	return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
-function setup(pkg: RegistryPackageView, releases: RegistryReleaseView[]) {
-	mockGetRegistryPackage.mockResolvedValue(pkg);
-	mockResolveRegistryPackage.mockResolvedValue(pkg);
-	mockListRegistryReleases.mockResolvedValue({ releases });
+function setup(
+	pkg: RegistryPackageView,
+	releases: RegistryReleaseView[],
+	headers: { packageContentLabelers?: string; releasesContentLabelers?: string } = {},
+) {
+	mockGetRegistryPackage.mockResolvedValue({
+		...pkg,
+		contentLabelers: headers.packageContentLabelers,
+	});
+	mockResolveRegistryPackage.mockResolvedValue({
+		...pkg,
+		contentLabelers: headers.packageContentLabelers,
+	});
+	mockListRegistryReleases.mockResolvedValue({
+		releases,
+		contentLabelers: headers.releasesContentLabelers,
+	});
+}
+
+/** A `publisher-compromised` label on the publisher DID (rides on the package
+ * response, applies package-wide). */
+function publisherCompromisedLabel(src = "did:plc:labeler"): RawLabel {
+	return {
+		ver: 1,
+		src,
+		uri: "did:plc:acme",
+		val: "publisher-compromised",
+		cts: "2025-01-01T00:00:00Z",
+	};
 }
 
 describe("RegistryPluginDetail sections", () => {
@@ -272,5 +345,246 @@ describe("RegistryPluginDetail lastUpdated + verified tooltip", () => {
 		const trigger = screen.getByRole("button", { name: /Verified publisher/ });
 		await expect.element(trigger).toBeInTheDocument();
 		await expect.element(trigger).toHaveAccessibleName(/did:plc:labeler/);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Moderation
+// ---------------------------------------------------------------------------
+
+function makeModeration(
+	overrides: Partial<import("../../src/lib/api/registry").ReleaseModeration> = {},
+): import("../../src/lib/api/registry").ReleaseModeration {
+	return {
+		eligibility: "eligible",
+		reasonCodes: [],
+		blockingLabels: [],
+		stateLabels: [],
+		warningLabels: [],
+		suppressedLabels: [],
+		applicableLabels: [],
+		redacted: false,
+		...overrides,
+	};
+}
+
+describe("RegistryPluginDetail moderation", () => {
+	// `vi.clearAllMocks()` only, not `resetAllMocks`/`restoreAllMocks` --
+	// those would also wipe `mockEvaluateReleaseViews`'s base implementation
+	// (the real `evaluateReleaseViews`, set once when the mock factory
+	// resolves), breaking every test after the first that doesn't call
+	// `mockImplementationOnce` itself.
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("renders an error panel, disables Install, and annotates the blocked option", async () => {
+		setup(makePackage(), [makeRelease(), makeRelease({ version: "1.2.2" })]);
+		mockEvaluateReleaseViews
+			.mockImplementationOnce(() =>
+				makeModeration({
+					eligibility: "blocked",
+					reasonCodes: ["automated-block"],
+					blockingLabels: ["malware"],
+					applicableLabels: [
+						{
+							ver: 1,
+							src: "did:plc:labeler",
+							uri: releaseUriFor("1.2.3"),
+							val: "malware",
+							cts: "2025-01-01T00:00:00Z",
+						},
+					],
+				}),
+			)
+			.mockImplementationOnce(() => makeModeration({ reasonCodes: ["eligible-assessment-pass"] }));
+
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("This release is blocked")).toBeInTheDocument();
+		await expect.element(screen.getByText("Malware")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: /Issued by labeler did:plc:labeler/ }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+
+		screen.getByRole("combobox", { name: "Version" }).element().click();
+		const blockedOption = screen.getByRole("option", { name: /1\.2\.3/ });
+		await expect.element(blockedOption).toBeInTheDocument();
+		expect(blockedOption.element().textContent).toContain("blocked");
+		const cleanOption = screen.getByRole("option", { name: /1\.2\.2/ });
+		await expect.element(cleanOption).toBeInTheDocument();
+		expect(cleanOption.element().textContent).not.toContain("blocked");
+	});
+
+	it("renders a warning panel, keeps Install enabled, and lists the warning in the consent dialog", async () => {
+		setup(makePackage(), [makeRelease()]);
+		mockEvaluateReleaseViews.mockImplementationOnce(() =>
+			makeModeration({
+				reasonCodes: ["eligible-assessment-pass", "warning-labels"],
+				warningLabels: ["suspicious-code"],
+				applicableLabels: [
+					{
+						ver: 1,
+						src: "did:plc:labeler",
+						uri: releaseUriFor("1.2.3"),
+						val: "suspicious-code",
+						cts: "2025-01-01T00:00:00Z",
+					},
+				],
+			}),
+		);
+
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await expect
+			.element(screen.getByText("This release has moderation warnings"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Suspicious code")).toBeInTheDocument();
+		const installButton = screen.getByRole("button", { name: "Install" });
+		await expect.element(installButton).toBeInTheDocument();
+		await expect.element(installButton).not.toBeDisabled();
+
+		installButton.element().click();
+		await expect.element(screen.getByRole("dialog")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Moderation warnings", { exact: true }))
+			.toBeInTheDocument();
+		// Two occurrences: the page's own warning banner (still rendered behind
+		// the modal) plus the consent dialog's warnings section.
+		await expect.element(screen.getByText("Suspicious code").nth(1)).toBeInTheDocument();
+		await expect.element(screen.getByText(/Issued by did:plc:labeler/).nth(0)).toBeInTheDocument();
+	});
+
+	it("renders no moderation panel and keeps Install enabled for a clean release", async () => {
+		setup(makePackage(), [makeRelease()]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		expect(screen.getByText("This release is blocked").query()).toBeNull();
+		expect(screen.getByText("This release has moderation warnings").query()).toBeNull();
+		await expect.element(screen.getByRole("button", { name: "Install" })).not.toBeDisabled();
+	});
+
+	it("falls back to the raw value for a label this admin build doesn't have display text for", async () => {
+		setup(makePackage(), [makeRelease()]);
+		mockEvaluateReleaseViews.mockImplementationOnce(() =>
+			makeModeration({
+				eligibility: "blocked",
+				reasonCodes: ["manual-block"],
+				blockingLabels: ["some-future-block-value"],
+				applicableLabels: [
+					{
+						ver: 1,
+						src: "did:plc:labeler",
+						uri: releaseUriFor("1.2.3"),
+						val: "some-future-block-value",
+						cts: "2025-01-01T00:00:00Z",
+					},
+				],
+			}),
+		);
+
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("This release is blocked")).toBeInTheDocument();
+		await expect.element(screen.getByText("some-future-block-value")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+	});
+
+	it("keeps a security-yanked release visible in the picker but blocks it (regression vs the old silent filter)", async () => {
+		// Real evaluation pipeline end to end -- no `evaluateReleaseViews` mock
+		// override -- to prove the deleted `isYanked` colon-value filter isn't
+		// silently hiding this release from the picker anymore.
+		const configWithLabeler: RegistryClientConfig = {
+			aggregatorUrl: "https://aggregator.test",
+			acceptLabelers: "did:plc:labeler",
+		};
+		setup(makePackage(), [
+			makeRelease({ version: "2.0.0", labels: [securityYankedLabel("2.0.0")] }),
+			makeRelease({ version: "1.0.0" }),
+		]);
+
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={configWithLabeler} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("This release is blocked")).toBeInTheDocument();
+		await expect.element(screen.getByText("Security yanked")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+
+		screen.getByRole("combobox", { name: "Version" }).element().click();
+		const yankedOption = screen.getByRole("option", { name: /2\.0\.0/ });
+		await expect.element(yankedOption).toBeInTheDocument();
+		expect(yankedOption.element().textContent).toContain("blocked");
+		const otherOption = screen.getByRole("option", { name: /1\.0\.0/ });
+		await expect.element(otherOption).toBeInTheDocument();
+		expect(otherOption.element().textContent).not.toContain("blocked");
+	});
+
+	it("honors a labeler named only by the response header, not the configured policy", async () => {
+		// config accepts no labelers; the aggregator reports it applied one via
+		// the releases response's `atproto-content-labelers` header. The
+		// header-precedence path must honor it. Real evaluation pipeline.
+		const configNoLabelers: RegistryClientConfig = {
+			aggregatorUrl: "https://aggregator.test",
+			acceptLabelers: "",
+		};
+		setup(
+			makePackage(),
+			[makeRelease({ version: "2.0.0", labels: [securityYankedLabel("2.0.0")] })],
+			{ releasesContentLabelers: "did:plc:labeler" },
+		);
+
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={configNoLabelers} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("This release is blocked")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+	});
+
+	it("surfaces a package-scope block whose labeler only the package response reported", async () => {
+		// publisher-compromised rides on the package response; its labeler is in
+		// the package header but NOT the releases header. Evaluating package
+		// labels against only the releases policy would filter it out — the
+		// unioned policy must still surface the block. Real pipeline.
+		const configNoLabelers: RegistryClientConfig = {
+			aggregatorUrl: "https://aggregator.test",
+			acceptLabelers: "",
+		};
+		setup(
+			makePackage({ labels: [publisherCompromisedLabel()] }),
+			[makeRelease({ version: "2.0.0" })],
+			{ packageContentLabelers: "did:plc:labeler", releasesContentLabelers: "" },
+		);
+
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={configNoLabelers} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("This release is blocked")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
 	});
 });

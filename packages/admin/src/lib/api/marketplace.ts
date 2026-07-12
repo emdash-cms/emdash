@@ -87,6 +87,21 @@ export interface PluginUpdateInfo {
 	installed: string;
 	latest: string;
 	hasCapabilityChanges: boolean;
+	/**
+	 * Moderation state of the latest release, present only for registry-sourced
+	 * plugins. Additive field on `RegistryUpdateCheck` (packages/core's registry
+	 * handler) -- absent for marketplace-sourced plugins and for registry
+	 * plugins whose moderation couldn't be evaluated.
+	 *
+	 * Never key a "blocked" indicator off `eligibility` -- with no accepted
+	 * labeler having passed a release, `eligibility` reads "blocked" even for a
+	 * clean plugin. Use `blockingLabels.length > 0` instead.
+	 */
+	moderation?: {
+		eligibility: "eligible" | "pending" | "error" | "blocked";
+		blockingLabels: string[];
+		warningLabels: string[];
+	};
 }
 
 /** Install request body */
