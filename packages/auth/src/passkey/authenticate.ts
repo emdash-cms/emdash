@@ -29,12 +29,21 @@ import {
 
 import { generateToken } from "../tokens.js";
 import type { Credential, AuthAdapter, User } from "../types.js";
+import {
+	createContextBoundChallenge,
+	decodeChallengeContext,
+	encodeChallengeContext,
+	verifyContextBoundChallenge,
+} from "./challenge-context.js";
+import type { ChallengeContextBinding, ChallengeContextCodec } from "./challenge-context.js";
 import type {
 	AuthenticationOptions,
 	AuthenticationResponse,
 	VerifiedAuthentication,
 	ChallengeStore,
 	PasskeyConfig,
+	AtomicChallengeStore,
+	VerifiedAuthenticationWithContext,
 } from "./types.js";
 
 const CHALLENGE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -49,6 +58,7 @@ export type PasskeyAuthenticationErrorCode =
 	| "invalid_origin"
 	| "invalid_rp_id_hash"
 	| "user_presence_not_verified"
+	| "user_verification_not_verified"
 	| "invalid_signature_counter"
 	| "invalid_signature"
 	| "unsupported_algorithm"
@@ -100,24 +110,32 @@ function decodeAssertionSignature(signature: Uint8Array) {
 /**
  * Generate authentication options for signing in with a passkey
  */
-export async function generateAuthenticationOptions(
+export async function generateAuthenticationOptions<Type extends string, Context>(
 	config: PasskeyConfig,
 	credentials: Credential[],
 	challengeStore: ChallengeStore,
+	challengeContext?: ChallengeContextBinding<Type, Context>,
 ): Promise<AuthenticationOptions> {
-	const challenge = generateToken();
+	const serializedContext = challengeContext
+		? encodeChallengeContext(challengeContext.codec, challengeContext.value)
+		: undefined;
+	const nonce = generateToken();
+	const challenge = serializedContext
+		? createContextBoundChallenge(nonce, serializedContext)
+		: nonce;
 
 	// Store challenge for verification
 	await challengeStore.set(challenge, {
 		type: "authentication",
 		expiresAt: Date.now() + CHALLENGE_TTL,
+		...(serializedContext ? { context: serializedContext } : {}),
 	});
 
 	return {
 		challenge,
 		rpId: config.rpId,
 		timeout: 60000,
-		userVerification: "preferred",
+		userVerification: config.userVerification ?? "preferred",
 		allowCredentials:
 			credentials.length > 0
 				? credentials.map((cred) => ({
@@ -132,12 +150,26 @@ export async function generateAuthenticationOptions(
 /**
  * Verify an authentication response
  */
-export async function verifyAuthenticationResponse(
+export function verifyAuthenticationResponse<Type extends string, Context>(
+	config: PasskeyConfig,
+	response: AuthenticationResponse,
+	credential: Credential,
+	challengeStore: AtomicChallengeStore,
+	challengeContext: ChallengeContextCodec<Type, Context>,
+): Promise<VerifiedAuthenticationWithContext<Context>>;
+export function verifyAuthenticationResponse(
 	config: PasskeyConfig,
 	response: AuthenticationResponse,
 	credential: Credential,
 	challengeStore: ChallengeStore,
-): Promise<VerifiedAuthentication> {
+): Promise<VerifiedAuthentication>;
+export async function verifyAuthenticationResponse<Type extends string, Context>(
+	config: PasskeyConfig,
+	response: AuthenticationResponse,
+	credential: Credential,
+	challengeStore: ChallengeStore,
+	challengeContext?: ChallengeContextCodec<Type, Context>,
+): Promise<VerifiedAuthentication | VerifiedAuthenticationWithContext<Context>> {
 	const { clientDataJSON, authenticatorData, signature, clientData } =
 		decodeAuthenticationResponse(response);
 
@@ -148,7 +180,17 @@ export async function verifyAuthenticationResponse(
 
 	// Verify challenge - convert Uint8Array back to base64url string (no padding, matching stored format)
 	const challengeString = encodeBase64urlNoPadding(clientData.challenge);
-	const challengeData = await challengeStore.get(challengeString);
+	const consume = "consume" in challengeStore ? challengeStore.consume : undefined;
+	const consumesAtomically = typeof consume === "function";
+	if (challengeContext && !consumesAtomically) {
+		throw new PasskeyAuthenticationError(
+			"invalid_response",
+			"Typed challenge context requires an atomic challenge store",
+		);
+	}
+	const challengeData = consumesAtomically
+		? await consume.call(challengeStore, challengeString)
+		: await challengeStore.get(challengeString);
 	if (!challengeData) {
 		throw new PasskeyAuthenticationError("challenge_not_found", "Challenge not found or expired");
 	}
@@ -156,12 +198,30 @@ export async function verifyAuthenticationResponse(
 		throw new PasskeyAuthenticationError("invalid_challenge_type", "Invalid challenge type");
 	}
 	if (challengeData.expiresAt < Date.now()) {
-		await challengeStore.delete(challengeString);
+		if (!consumesAtomically) await challengeStore.delete(challengeString);
 		throw new PasskeyAuthenticationError("challenge_expired", "Challenge expired");
 	}
 
 	// Delete challenge (single-use)
-	await challengeStore.delete(challengeString);
+	if (!consumesAtomically) await challengeStore.delete(challengeString);
+	let contextResult: { present: false } | { present: true; value: Context } = {
+		present: false,
+	};
+	if (challengeData.context !== undefined) {
+		if (!challengeContext) {
+			throw new PasskeyAuthenticationError(
+				"invalid_response",
+				"Challenge context decoder required",
+			);
+		}
+		verifyContextBoundChallenge(challengeString, challengeData.context);
+		contextResult = {
+			present: true,
+			value: decodeChallengeContext(challengeData.context, challengeContext),
+		};
+	} else if (challengeContext) {
+		throw new PasskeyAuthenticationError("invalid_response", "Challenge context not found");
+	}
 
 	// Verify origin against the accepted list
 	if (!config.origins.includes(clientData.origin)) {
@@ -184,6 +244,12 @@ export async function verifyAuthenticationResponse(
 		throw new PasskeyAuthenticationError(
 			"user_presence_not_verified",
 			"User presence not verified",
+		);
+	}
+	if (config.userVerification === "required" && !authData.userVerified) {
+		throw new PasskeyAuthenticationError(
+			"user_verification_not_verified",
+			"User verification not verified",
 		);
 	}
 
@@ -233,10 +299,11 @@ export async function verifyAuthenticationResponse(
 		throw new PasskeyAuthenticationError("invalid_signature", "Invalid signature");
 	}
 
-	return {
+	const verified: VerifiedAuthentication = {
 		credentialId: response.id,
 		newCounter: authData.signatureCounter,
 	};
+	return !contextResult.present ? verified : { ...verified, challengeContext: contextResult.value };
 }
 
 /**
