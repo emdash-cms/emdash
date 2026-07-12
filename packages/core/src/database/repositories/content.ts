@@ -930,9 +930,7 @@ export class ContentRepository {
 			.where("author_id" as never, "is not", null)
 			.execute();
 
-		return rows
-			.map((row) => (row as { author_id: string | null }).author_id)
-			.filter((id): id is string => id !== null);
+		return rows.map((row) => row.author_id).filter((id): id is string => id !== null);
 	}
 
 	// get overall statistics for a content type in a single query

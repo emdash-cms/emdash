@@ -7,25 +7,24 @@
  * - Highlights the current section based on cursor position
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Button, Collapsible, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { CaretDown, List } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
-import { CaretNext } from "../ArrowIcons.js";
 
 function getIndentClass(level: number) {
 	switch (level) {
 		case 1:
-			return "ps-0";
+			return "ps-2";
 		case 2:
-			return "ps-4";
+			return "ps-6";
 		case 3:
-			return "ps-8";
+			return "ps-10";
 		default:
-			return "ps-0";
+			return "ps-2";
 	}
 }
 
@@ -169,22 +168,38 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 	};
 
 	return (
-		<div className={cn("space-y-2", className)}>
-			<Button
-				variant="ghost"
-				size="sm"
-				className="w-full justify-between px-2 h-8"
-				onClick={() => setIsExpanded(!isExpanded)}
+		<Collapsible.Root className={className} open={isExpanded} onOpenChange={setIsExpanded}>
+			<Collapsible.Trigger
+				render={
+					<Button
+						variant="ghost"
+						className="relative justify-between"
+						style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
+					/>
+				}
 			>
-				<span className="flex items-center gap-2">
-					<List className="h-4 w-4" />
-					<span className="font-semibold">{t`Outline`}</span>
-				</span>
-				{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
-			</Button>
+				<Text bold as="span">
+					{t`Outline`}
+				</Text>
+				<CaretDown
+					className={cn(
+						"h-4 w-4 text-kumo-subtle transition-transform duration-150 ease-out motion-reduce:transition-none",
+						isExpanded && "rotate-180",
+					)}
+				/>
+			</Collapsible.Trigger>
 
-			{isExpanded && (
-				<div className="space-y-0.5">
+			<Collapsible.Panel
+				className="-mx-2 overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+				style={({ transitionStatus }) => ({
+					height:
+						transitionStatus === "starting" || transitionStatus === "ending"
+							? 0
+							: "var(--collapsible-panel-height)",
+					transitionProperty: "height",
+				})}
+			>
+				<div className="space-y-0.5 pt-2">
 					{headings.length === 0 ? (
 						<p className="text-sm text-kumo-subtle px-2 py-1">{t`No headings in document`}</p>
 					) : (
@@ -196,7 +211,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 									type="button"
 									onClick={() => handleHeadingClick(heading)}
 									className={cn(
-										"w-full text-start px-2 py-1 text-sm rounded transition-colors",
+										"w-full text-start px-2 py-1 text-sm rounded-md transition-colors",
 										"hover:bg-kumo-tint/50 cursor-pointer",
 										"truncate",
 										getIndentClass(heading.level),
@@ -211,7 +226,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 						})
 					)}
 				</div>
-			)}
-		</div>
+			</Collapsible.Panel>
+		</Collapsible.Root>
 	);
 }

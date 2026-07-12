@@ -199,7 +199,7 @@ function normalizeDeclaredAccess(value: DeclaredAccess): CanonicalObject {
  * sorted keys and canonical host sets. Non-JSON runtime values throw TypeError.
  */
 export function canonicalizeDeclaredAccess(value: DeclaredAccess): CanonicalDeclaredAccess {
-	return normalizeDeclaredAccess(value) as CanonicalDeclaredAccess;
+	return normalizeDeclaredAccess(value);
 }
 
 function canonicalString(value: DeclaredAccess): string {

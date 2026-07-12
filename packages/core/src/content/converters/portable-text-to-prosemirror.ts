@@ -60,6 +60,37 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 			}
 
 			content.push(convertList(listBlocks, listType));
+		} else if (isTextBlock(block) && block.style === "blockquote") {
+			// Collect a blockquote "run": Portable Text is flat, so a
+			// multi-paragraph quote is stored as consecutive blocks with
+			// style "blockquote" (that's what the Gutenberg importer emits
+			// and what prosemirrorToPortableText serializes back to).
+			// Without this grouping each paragraph became its own quote
+			// node, and editor merges reverted on reload (#1884).
+			const quoteBlocks: PortableTextTextBlock[] = [];
+			while (i < blocks.length) {
+				const current = blocks[i];
+				if (
+					!isTextBlock(current) ||
+					current.style !== "blockquote" ||
+					current.listItem !== undefined
+				) {
+					break;
+				}
+				quoteBlocks.push(current);
+				i++;
+			}
+
+			content.push({
+				type: "blockquote",
+				content: quoteBlocks.map((quoteBlock) => {
+					const paragraph = convertSpans(quoteBlock.children, quoteBlock.markDefs || []);
+					return {
+						type: "paragraph",
+						content: paragraph.length > 0 ? paragraph : undefined,
+					};
+				}),
+			});
 		} else {
 			const converted = convertBlock(block);
 			if (converted) {
@@ -386,7 +417,7 @@ function convertMarks(
 						// Unknown mark def type - preserve attrs
 						pmMarks.push({
 							type: markDef._type,
-							attrs: markDef as Record<string, unknown>,
+							attrs: markDef,
 						});
 					}
 				}

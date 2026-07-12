@@ -17,6 +17,7 @@ import { Font } from "astro:assets";
 export const prerender = false;
 
 import { resolveLocale, loadMessages, getLocaleDir } from "@emdash-cms/admin/locales";
+import { getSiteSettingsWithDb } from "#settings/index.js";
 
 const resolvedLocale = resolveLocale(Astro.request);
 const resolvedDir = getLocaleDir(resolvedLocale);
@@ -33,6 +34,29 @@ const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmD
 // via cookie/Accept-Language). API routes already send `private, no-store`
 // (API_CACHE_HEADERS); this closes the same gap for the admin HTML.
 Astro.response.headers.set("Cache-Control", "private, no-store");
+
+// Favicon precedence: an explicit build-time `admin.favicon` is admin-specific
+// and always wins — in that case the settings read is skipped entirely.
+// Otherwise fall back to the Site Icon configured in Settings → General, so
+// the admin shell is branded like the public site (WordPress-style Site Icon,
+// which also brands wp-admin), and finally the bundled EmDash mark below.
+const emdash = Astro.locals.emdash;
+let siteFavicon: string | undefined;
+let siteFaviconType: string | undefined;
+if (!adminConfig?.favicon && emdash?.db) {
+	try {
+		const settings = await getSiteSettingsWithDb(emdash.db, emdash.storage ?? null);
+		siteFavicon = settings.favicon?.url ?? undefined;
+		siteFaviconType = settings.favicon?.contentType ?? undefined;
+	} catch {
+		// Settings unavailable (e.g. pre-setup) — fall back to the config/default.
+	}
+}
+const favicon = adminConfig?.favicon ?? siteFavicon;
+// The media-file URL has no extension, so browsers need the MIME type —
+// Chromium ignores SVG favicons without type="image/svg+xml". Only set for
+// Site Icons; build-time `admin.favicon` strings keep their current behavior.
+const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 ---
 
 <!doctype html>
@@ -42,8 +66,8 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="stylesheet" href={adminStylesUrl} />
 		<Font cssVariable="--font-emdash" />
-		{adminConfig?.favicon ? (
-			<link rel="icon" href={adminConfig.favicon} />
+		{favicon ? (
+			<link rel="icon" href={favicon} type={faviconType} />
 		) : (
 			<link
 				rel="icon"

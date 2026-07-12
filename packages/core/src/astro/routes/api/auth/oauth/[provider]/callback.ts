@@ -118,8 +118,7 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 		// Get OAuth providers from environment
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- locals.runtime is injected by the Cloudflare adapter at runtime; not declared on App.Locals since the adapter is optional
 		const runtimeLocals = locals as unknown as { runtime?: { env?: Record<string, unknown> } };
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- import.meta.env is typed as ImportMetaEnv but we need Record<string, unknown> for getOAuthConfig
-		const env = runtimeLocals.runtime?.env ?? (import.meta.env as Record<string, unknown>);
+		const env = runtimeLocals.runtime?.env ?? import.meta.env;
 		const providers = getOAuthConfig(env);
 
 		if (!providers[provider]) {
@@ -216,6 +215,16 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 					break;
 				case "signup_not_allowed":
 					message = "Self-signup is not allowed for your email. Please contact an administrator.";
+					break;
+				case "invite_invalid":
+					message = "This invite link is invalid or has expired. Please ask for a new one.";
+					break;
+				case "invite_email_mismatch":
+					message = "This invite was sent to a different email address than your account.";
+					break;
+				case "invite_email_unverified":
+					message =
+						"Your account's email is not verified by the provider. Please verify it and try again.";
 					break;
 				case "user_not_found":
 					message = "Your account was not found. It may have been deleted.";

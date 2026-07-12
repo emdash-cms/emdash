@@ -28,7 +28,7 @@ export function providerItemToMediaItem(
 		createdAt: new Date().toISOString(),
 		provider: providerId,
 		meta: item.meta,
-	} as MediaItem & { provider: string; meta?: Record<string, unknown> };
+	};
 }
 
 /** Root-absolute path prefix for locally stored media served by EmDash. */

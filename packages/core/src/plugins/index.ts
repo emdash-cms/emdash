@@ -118,6 +118,10 @@ export type {
 	MediaItem,
 	ContentListOptions,
 	MediaListOptions,
+	TaxonomyAccess,
+	TaxonomyDefInfo,
+	TaxonomyTermInfo,
+	TaxonomyReadOptions,
 
 	// Hook types
 	PluginHooks,

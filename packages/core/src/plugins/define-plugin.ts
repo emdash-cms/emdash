@@ -142,6 +142,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"network:request:unrestricted",
 		"content:read",
 		"content:write",
+		"taxonomies:read",
 		"media:read",
 		"media:write",
 		"users:read",
