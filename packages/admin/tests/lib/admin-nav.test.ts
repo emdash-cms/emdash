@@ -342,7 +342,14 @@ describe("buildAdminNavModel config application", () => {
 			},
 		};
 		const model = buildAdminNavModel(manifest, { userRole: ROLE_ADMIN });
-		expect(groupIds(model)).toEqual(["dashboard", "manage", "mystery", "content", "admin", "plugins"]);
+		expect(groupIds(model)).toEqual([
+			"dashboard",
+			"manage",
+			"mystery",
+			"content",
+			"admin",
+			"plugins",
+		]);
 		const manage = model.groups.find((group) => group.id === "manage");
 		// Still a MessageDescriptor (translatable), not frozen site data.
 		expect(typeof manage?.label).toBe("object");

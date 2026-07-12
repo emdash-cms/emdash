@@ -12,18 +12,30 @@
  * can't be hidden (lockout prevention), so they show no hide control.
  */
 
-import { Badge, Button, Dialog, Input, Select, Switch, useKumoToastManager } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Dialog,
+	Input,
+	Select,
+	Switch,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowDown, ArrowUp, Eye, EyeSlash, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
+import {
+	ArrowDown,
+	ArrowUp,
+	Eye,
+	EyeSlash,
+	PencilSimple,
+	Plus,
+	Trash,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import {
-	buildAdminNavModel,
-	type AdminNavItem,
-	type AdminNavModel,
-} from "../../lib/admin-nav";
+import { buildAdminNavModel, type AdminNavItem, type AdminNavModel } from "../../lib/admin-nav";
 import {
 	addOrganizerGroup,
 	buildItemDefaultGroups,
@@ -193,7 +205,8 @@ export function NavigationSettings() {
 	const [groupToDelete, setGroupToDelete] = React.useState<OrganizerGroup | null>(null);
 	const [resetOpen, setResetOpen] = React.useState(false);
 
-	const dirty = draft !== null && initialDraft !== null && !organizerDraftsEqual(draft, initialDraft);
+	const dirty =
+		draft !== null && initialDraft !== null && !organizerDraftsEqual(draft, initialDraft);
 
 	const saveMutation = useMutation({
 		mutationFn: (current: OrganizerDraft) =>
@@ -222,7 +235,11 @@ export function NavigationSettings() {
 			await queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			setDraft(null);
 			setInitialDraft(null);
-			toastManager.add({ title: t`Navigation reset to defaults`, variant: "success", timeout: 4000 });
+			toastManager.add({
+				title: t`Navigation reset to defaults`,
+				variant: "success",
+				timeout: 4000,
+			});
 		},
 	});
 
@@ -336,7 +353,8 @@ export function NavigationSettings() {
 									checked={group.collapsedByDefault}
 									onCheckedChange={(checked) =>
 										setDraft(
-											(prev) => prev && setOrganizerGroupCollapsedByDefault(prev, group.id, checked),
+											(prev) =>
+												prev && setOrganizerGroupCollapsedByDefault(prev, group.id, checked),
 										)
 									}
 								/>
