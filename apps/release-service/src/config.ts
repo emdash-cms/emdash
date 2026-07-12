@@ -1,5 +1,14 @@
+import { createEnvelopeEncryption, type EnvelopeEncryption } from "./crypto/encryption.js";
+
 export type ConfigurationBindings = Record<
-	keyof Pick<Env, "PUBLIC_ORIGIN" | "ALLOWED_ORIGINS" | "ALLOWED_PUBLISHERS" | "DEPLOYMENT_POLICY">,
+	keyof Pick<
+		Env,
+		| "PUBLIC_ORIGIN"
+		| "ALLOWED_ORIGINS"
+		| "ALLOWED_PUBLISHERS"
+		| "DEPLOYMENT_POLICY"
+		| "ENCRYPTION_KEYRING"
+	>,
 	string
 >;
 
@@ -22,6 +31,7 @@ export interface ServiceConfiguration {
 	publicOrigin: string;
 	allowedOrigins: ReadonlySet<string>;
 	deploymentPolicy: DeploymentPolicy;
+	encryption: EnvelopeEncryption;
 	isPublisherAllowed(did: string): boolean;
 }
 
@@ -104,11 +114,18 @@ export function loadConfiguration(bindings: ConfigurationBindings): ServiceConfi
 	if (!deploymentPolicy) {
 		issues.push("DEPLOYMENT_POLICY_INVALID");
 	}
+	let encryption: EnvelopeEncryption | null = null;
+	try {
+		encryption = createEnvelopeEncryption(bindings.ENCRYPTION_KEYRING);
+	} catch {
+		issues.push("ENCRYPTION_KEYRING_INVALID");
+	}
 	if (
 		!publicOrigin ||
 		!allowedOrigins ||
 		!publisherPolicy ||
 		!deploymentPolicy ||
+		!encryption ||
 		issues.length > 0
 	) {
 		throw new ConfigurationError(issues);
@@ -117,6 +134,7 @@ export function loadConfiguration(bindings: ConfigurationBindings): ServiceConfi
 		publicOrigin,
 		allowedOrigins,
 		deploymentPolicy,
+		encryption,
 		isPublisherAllowed: (did) => publisherPolicy.mode === "all" || publisherPolicy.dids.has(did),
 	};
 }

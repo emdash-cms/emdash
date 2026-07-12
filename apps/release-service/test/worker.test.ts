@@ -44,6 +44,8 @@ describe("release-service worker", () => {
 			ALLOWED_ORIGINS: "[]",
 			ALLOWED_PUBLISHERS: '{"mode":"all"}',
 			DEPLOYMENT_POLICY: "hosted",
+			ENCRYPTION_KEYRING:
+				'{"current":1,"keys":[{"version":1,"key":"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"}]}',
 		} satisfies ConfigurationBindings;
 		const response = await handleRequest(new Request("https://test/health"), bindings);
 		expect(response.status).toBe(503);

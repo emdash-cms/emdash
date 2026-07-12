@@ -20,6 +20,8 @@ const BINDINGS = {
 	ALLOWED_ORIGINS: '["https://release.example.com","https://console.example.com"]',
 	ALLOWED_PUBLISHERS: '{"mode":"allowlist","dids":["did:plc:publisher"]}',
 	DEPLOYMENT_POLICY: "hosted",
+	ENCRYPTION_KEYRING:
+		'{"current":1,"keys":[{"version":1,"key":"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"}]}',
 } satisfies ConfigurationBindings;
 
 const config = loadConfiguration(BINDINGS);
@@ -55,6 +57,7 @@ describe("configuration", () => {
 		expect(config.allowedOrigins.has("https://console.example.com")).toBe(true);
 		expect(config.isPublisherAllowed("did:plc:publisher")).toBe(true);
 		expect(config.isPublisherAllowed("did:plc:other")).toBe(false);
+		expect(config.encryption.currentKeyVersion).toBe(1);
 	});
 
 	it.each([
@@ -64,6 +67,7 @@ describe("configuration", () => {
 		{ ...BINDINGS, ALLOWED_ORIGINS: '["https://other.example.com"]' },
 		{ ...BINDINGS, ALLOWED_PUBLISHERS: '{"mode":"allowlist","dids":["not-a-did"]}' },
 		{ ...BINDINGS, DEPLOYMENT_POLICY: "preview" },
+		{ ...BINDINGS, ENCRYPTION_KEYRING: "not-json" },
 	])("fails closed for invalid deployment configuration", (bindings) => {
 		expect(() => loadConfiguration(bindings)).toThrowError("Invalid release-service configuration");
 	});
