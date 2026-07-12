@@ -6,6 +6,8 @@ import type { Element } from "@emdash-cms/blocks";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
+import type { AdminNavigationConfig } from "../admin-nav";
+
 export const API_BASE = "/_emdash/api";
 
 /**

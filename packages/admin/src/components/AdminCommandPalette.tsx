@@ -9,37 +9,22 @@ import { CommandPalette } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	SquaresFour,
-	FileText,
-	Image,
-	Gear,
-	PuzzlePiece,
-	Upload,
-	Database,
-	List,
-	GridFour,
-	Users,
-	Stack,
-	MagnifyingGlass,
-} from "@phosphor-icons/react";
+import { FileText, Gear, MagnifyingGlass, PuzzlePiece } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { apiFetch, type AdminManifest } from "../lib/api/client.js";
+import {
+	buildAdminNavModel,
+	filterNavItemsByRole,
+	flattenAdminNavModel,
+	ROLE_ADMIN,
+	type AdminNavManifestInput,
+} from "../lib/admin-nav";
+import { apiFetch } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
-
-/** Subset of manifest fields used by the palette (matches `Shell` props shape). */
-type CommandPaletteManifest = {
-	collections: Record<string, { label: string; labelSingular?: string }>;
-	plugins: AdminManifest["plugins"];
-};
-
-// Role levels (matching @emdash-cms/auth)
-const ROLE_ADMIN = 50;
-const ROLE_EDITOR = 40;
+import { usePluginAdmins, type PluginAdmins } from "../lib/plugin-context";
 
 // Regex for replacing route params like $collection with actual values
 const ROUTE_PARAM_REGEX = /\$(\w+)/g;
@@ -109,7 +94,7 @@ interface ResultItem {
 }
 
 interface AdminCommandPaletteProps {
-	manifest: CommandPaletteManifest;
+	manifest: AdminNavManifestInput;
 }
 
 async function searchContent(query: string): Promise<SearchResponse> {
@@ -124,155 +109,45 @@ async function searchContent(query: string): Promise<SearchResponse> {
 	return body.data;
 }
 
-function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavItem[] {
-	const items: NavItem[] = [
-		{
-			id: "dashboard",
-			title: msg`Dashboard`,
-			to: "/",
-			icon: SquaresFour,
-			keywords: ["home", "overview"],
-		},
-	];
+/**
+ * Build palette navigation entries from the shared nav model — the same
+ * source the sidebar renders, so the two can't diverge (custom taxonomies,
+ * plugin pages, site nav config all flow through automatically).
+ *
+ * Items hidden from the sidebar stay searchable here: the palette is the
+ * recovery path for hidden destinations. Role gating happens inside the
+ * model; palette-only deep links are appended after.
+ *
+ * Exported for unit tests (Kumo's CommandPalette portals to document.body,
+ * making DOM assertions brittle — same rationale as the sidebar's pure
+ * exports).
+ */
+export function buildNavItems(
+	manifest: AdminNavManifestInput,
+	userRole: number,
+	pluginAdmins: PluginAdmins,
+): NavItem[] {
+	const model = buildAdminNavModel(manifest, { userRole, pluginAdmins });
+	const items: NavItem[] = flattenAdminNavModel(model).map((item) => ({
+		id: item.id,
+		title: item.label,
+		to: item.to,
+		params: item.params,
+		icon: item.icon,
+		keywords: item.keywords,
+	}));
 
-	// Add collection links
-	for (const [name, config] of Object.entries(manifest.collections)) {
-		items.push({
-			id: `collection-${name}`,
-			title: config.label,
-			to: "/content/$collection",
-			params: { collection: name },
-			icon: FileText,
-			keywords: ["content", name],
-		});
-	}
+	// Palette-only deep link — a settings sub-page, not a sidebar destination.
+	items.push({
+		id: "core:settings-security",
+		title: msg`Security Settings`,
+		to: "/settings/security",
+		icon: Gear,
+		minRole: ROLE_ADMIN,
+		keywords: ["passkeys", "authentication"],
+	});
 
-	// Add core admin links
-	items.push(
-		{
-			id: "media",
-			title: msg`Media Library`,
-			to: "/media",
-			icon: Image,
-			keywords: ["images", "files", "uploads"],
-		},
-		{
-			id: "menus",
-			title: msg`Menus`,
-			to: "/menus",
-			icon: List,
-			minRole: ROLE_EDITOR,
-			keywords: ["navigation"],
-		},
-		{
-			id: "widgets",
-			title: msg`Widgets`,
-			to: "/widgets",
-			icon: GridFour,
-			minRole: ROLE_EDITOR,
-			keywords: ["sidebar", "footer"],
-		},
-		{
-			id: "sections",
-			title: msg`Sections`,
-			to: "/sections",
-			icon: Stack,
-			minRole: ROLE_EDITOR,
-			keywords: ["page builder", "blocks"],
-		},
-		{
-			id: "content-types",
-			title: msg`Content Types`,
-			to: "/content-types",
-			icon: Database,
-			minRole: ROLE_ADMIN,
-			keywords: ["schema", "collections"],
-		},
-		{
-			id: "categories",
-			title: msg`Categories`,
-			to: "/taxonomies/$taxonomy",
-			params: { taxonomy: "category" },
-			icon: FileText,
-			minRole: ROLE_EDITOR,
-			keywords: ["taxonomy"],
-		},
-		{
-			id: "tags",
-			title: msg`Tags`,
-			to: "/taxonomies/$taxonomy",
-			params: { taxonomy: "tag" },
-			icon: FileText,
-			minRole: ROLE_EDITOR,
-			keywords: ["taxonomy"],
-		},
-		{
-			id: "users",
-			title: msg`Users`,
-			to: "/users",
-			icon: Users,
-			minRole: ROLE_ADMIN,
-			keywords: ["accounts", "team"],
-		},
-		{
-			id: "plugins",
-			title: msg`Plugins`,
-			to: "/plugins-manager",
-			icon: PuzzlePiece,
-			minRole: ROLE_ADMIN,
-			keywords: ["extensions", "add-ons"],
-		},
-		{
-			id: "import",
-			title: msg`Import`,
-			to: "/import/wordpress",
-			icon: Upload,
-			minRole: ROLE_ADMIN,
-			keywords: ["wordpress", "migrate"],
-		},
-		{
-			id: "settings",
-			title: msg`Settings`,
-			to: "/settings",
-			icon: Gear,
-			minRole: ROLE_ADMIN,
-			keywords: ["configuration", "preferences"],
-		},
-		{
-			id: "security",
-			title: msg`Security Settings`,
-			to: "/settings/security",
-			icon: Gear,
-			minRole: ROLE_ADMIN,
-			keywords: ["passkeys", "authentication"],
-		},
-	);
-
-	// Add plugin pages
-	for (const [pluginId, config] of Object.entries(manifest.plugins)) {
-		if (config.enabled === false) continue;
-		if (config.adminPages && config.adminPages.length > 0) {
-			for (const page of config.adminPages) {
-				const label =
-					page.label ||
-					pluginId
-						.split("-")
-						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-						.join(" ");
-
-				items.push({
-					id: `plugin-${pluginId}-${page.path}`,
-					title: label,
-					to: `/plugins/${pluginId}${page.path}`,
-					icon: PuzzlePiece,
-					keywords: ["plugin", pluginId],
-				});
-			}
-		}
-	}
-
-	// Filter by role
-	return items.filter((item) => !item.minRole || userRole >= item.minRole);
+	return filterNavItemsByRole(items, userRole);
 }
 
 function filterNavItems(
@@ -295,6 +170,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const [open, setOpen] = React.useState(false);
 	const [query, setQuery] = React.useState("");
 	const navigate = useNavigate();
+	const pluginAdmins = usePluginAdmins();
 
 	// Debounce the search query to avoid flickering on every keystroke
 	const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
@@ -316,7 +192,10 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const isPendingSearch = isWaitingForDebounce || isSearching;
 
 	// Build navigation items
-	const allNavItems = React.useMemo(() => buildNavItems(manifest, userRole), [manifest, userRole]);
+	const allNavItems = React.useMemo(
+		() => buildNavItems(manifest, userRole, pluginAdmins),
+		[manifest, userRole, pluginAdmins],
+	);
 
 	// Filter nav items based on query
 	const filteredNavItems = React.useMemo(
@@ -338,7 +217,13 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 					title: typeof item.title === "string" ? item.title : t(item.title),
 					to: item.to,
 					params: item.params,
-					icon: <item.icon className="h-4 w-4" />,
+					// Icons outside the static map are React.lazy — keep the
+					// palette from suspending while a chunk loads.
+					icon: (
+						<React.Suspense fallback={<PuzzlePiece className="h-4 w-4" />}>
+							<item.icon className="h-4 w-4" />
+						</React.Suspense>
+					),
 				})),
 			});
 		}

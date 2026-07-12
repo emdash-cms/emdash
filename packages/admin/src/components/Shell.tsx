@@ -1,6 +1,7 @@
 import { useMatches } from "@tanstack/react-router";
 import * as React from "react";
 
+import type { AdminNavManifestInput } from "../lib/admin-nav";
 import { useCurrentUser } from "../lib/api/current-user";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
@@ -21,20 +22,18 @@ declare module "@tanstack/react-router" {
 
 export interface ShellProps {
 	children: React.ReactNode;
-	manifest: {
-		collections: Record<string, { label: string }>;
-		plugins: Record<
-			string,
-			{
-				package?: string;
-				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
-			}
-		>;
-		taxonomies: Array<{
-			name: string;
-			label: string;
-		}>;
+	/**
+	 * Admin manifest (structural subset read by the sidebar and command
+	 * palette — both build from the shared nav model in lib/admin-nav.ts).
+	 */
+	manifest: AdminNavManifestInput & {
 		version?: string;
+		commit?: string;
+		admin?: {
+			logo?: string;
+			siteName?: string;
+			favicon?: string;
+		};
 	};
 }
 

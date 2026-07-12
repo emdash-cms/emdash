@@ -182,7 +182,8 @@ export function resolveNavIcon(name?: string): React.ElementType {
 	let icon = lazyIconCache.get(componentName);
 	if (!icon) {
 		icon = React.lazy(async () => {
-			const mod = (await import("@phosphor-icons/react")) as Record<string, unknown>;
+			const mod: Record<string, unknown> = await import("@phosphor-icons/react");
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Phosphor's by-name module map is untyped; unknown names fall back below
 			const Icon = mod[componentName] as React.ComponentType<{ className?: string }> | undefined;
 			return { default: Icon ?? PuzzlePiece };
 		});
@@ -654,7 +655,10 @@ export function buildAdminNavModel(
 	}
 
 	const hiddenItems: AdminNavItem[] = [];
-	const placedByGroup = new Map<string, Array<{ item: AdminNavItem; sortKey: number; defaultIndex: number }>>();
+	const placedByGroup = new Map<
+		string,
+		Array<{ item: AdminNavItem; sortKey: number; defaultIndex: number }>
+	>();
 
 	for (const placed of visibleItems) {
 		const { defaultGroupId, defaultIndex, ...item } = placed;
@@ -682,7 +686,7 @@ export function buildAdminNavModel(
 	}
 
 	const groups: AdminNavGroup[] = [];
-	const sortedDefs = [...groupDefs.values()].sort(
+	const sortedDefs = [...groupDefs.values()].toSorted(
 		(a, b) => a.order - b.order || compareStrings(a.id, b.id),
 	);
 	for (const def of sortedDefs) {
@@ -741,6 +745,7 @@ export function parseNavCollapseState(raw: string | null): NavCollapseState {
 	try {
 		const parsed: unknown = JSON.parse(raw);
 		if (typeof parsed !== "object" || parsed === null) return empty;
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- values are re-validated field-by-field below
 		const record = parsed as Record<string, unknown>;
 		return {
 			collapsedGroupIds: isStringArray(record.collapsedGroupIds) ? record.collapsedGroupIds : [],
