@@ -162,7 +162,7 @@ Required before production implementation is treated as stable:
 - DRISL labels signed in workerd verify in an independent ATProto implementation, and vice versa.
 - The aggregator mirror contract can supply artifact bytes and metadata required by the assessor.
 - Initial dependency/advisory sources and critical-applicability rules are selected.
-- The initial Workers AI model and structured-output path can process representative plugin inputs through AI Gateway.
+- The initial Workers AI model and structured-output path can process representative plugin inputs through the Workers AI binding (`env.AI`).
 
 Gate owner: `W0`.
 
@@ -325,7 +325,7 @@ Dependencies: none.
 
 Evaluate representative fixtures through:
 
-- Candidate Workers AI model via AI Gateway with strict JSON output.
+- Candidate Workers AI model via the Workers AI binding (`env.AI`) with strict JSON output.
 - Initial vulnerability/advisory sources.
 - Malware/hash/signature source.
 - SBOM parser/generator candidates.
@@ -459,7 +459,7 @@ Follow `apps/aggregator` deployment conventions:
 - Workflows binding.
 - Durable Object migrations.
 - R2 evidence binding.
-- Workers AI binding with AI Gateway config.
+- Workers AI binding (`AI`), no AI Gateway.
 - Static assets for the later console.
 - Real workerd/D1 Vitest configuration.
 
@@ -1014,13 +1014,13 @@ Dependencies: `W1.5`, `W2.5`.
 
 ### `W8.2` Implement code/metadata AI adapter
 
-- Invoke the selected Workers AI model through AI Gateway.
-- Disable decision caching.
+- Invoke the selected Workers AI model through the Workers AI binding (`env.AI`), not AI Gateway.
+- Never cache moderation inference.
 - Attach assessment/policy/model metadata without secrets.
 - Delimit all plugin-controlled text as untrusted input.
 - Use strict structured output.
 - Select bounded source using deterministic entrypoint/import analysis.
-- Store model/prompt hashes and Gateway request ID.
+- Store model/prompt hashes and an internal per-call inference request ID.
 - Treat model/parse/transport failures as retryable operational failures.
 
 Dependencies: `W0.7`, `W7.3`, `W8.1`.
@@ -1195,7 +1195,7 @@ Dependencies: `W1.3`, `W2.3`, `W6.5`.
 
 ### `W10.3` Implement public/private serializers
 
-Explicitly exclude source excerpts, raw prompts/responses, contacts, Gateway payloads, operator notes, and dangerous exploit detail. Add compile-time types and snapshot tests proving no private fields leak.
+Explicitly exclude source excerpts, raw prompts/responses, contacts, raw inference payloads, operator notes, and dangerous exploit detail. Add compile-time types and snapshot tests proving no private fields leak.
 
 Dependencies: `W2.5`, `W10.2`.
 
@@ -1257,7 +1257,7 @@ Extend the minimal staging signer environment from `W3.1` into complete staging/
 - Queues/DLQs.
 - Workflow.
 - Durable Objects and migrations.
-- Workers AI/AI Gateway.
+- Workers AI (`AI` binding).
 - Secrets Store.
 - Access application/audience.
 - Email sending (`send_email`) binding and onboarded sending domain.
@@ -1306,7 +1306,7 @@ Dependencies: `W3.7`.
 - Restore validation.
 - Retention deletion with active-block exceptions.
 - Contact-data minimization.
-- AI Gateway retention configuration.
+- Inference log minimization (metadata only, no raw payloads retained).
 
 Dependencies: `W2.5`.
 

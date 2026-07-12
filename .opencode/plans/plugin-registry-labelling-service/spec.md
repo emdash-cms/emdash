@@ -29,7 +29,7 @@ The following decisions were made before drafting this spec.
 | Deployable shape          | One Worker application for assessment, issuance, distribution, and console                                      |
 | Discovery                 | Independent Jetstream consumer                                                                                  |
 | Artifact source           | Verified aggregator mirror, with a declared-URL fallback                                                        |
-| AI                        | Workers AI through AI Gateway                                                                                   |
+| AI                        | Workers AI (`AI` runtime binding)                                                                               |
 | Public evidence           | Public assessment summary; private detailed evidence                                                            |
 | Publisher notice          | Package security contact, then publisher profile fallback; email plus an ATProto-visible notice where practical |
 | Appeals                   | Email/manual reconsideration, not a first-class appeals workflow in v1                                          |
@@ -92,7 +92,7 @@ flowchart LR
   SRC[Publisher artifact URL fallback] --> WF
   WF --> DET[Deterministic checks]
   WF --> DEP[Dependency and SBOM scanners]
-  WF --> AI[Workers AI via AI Gateway]
+  WF --> AI[Workers AI binding]
   DET --> PE[Versioned policy engine]
   DEP --> PE
   AI --> PE
@@ -373,7 +373,7 @@ Scanner-intelligence updates enqueue only releases whose dependency/hash index i
 
 ### 9.6 Code and metadata AI assessment
 
-Workers AI is invoked through AI Gateway with caching disabled for moderation decisions. Gateway request IDs are retained with private evidence.
+Workers AI is invoked directly through the runtime `AI` binding (`env.AI`), not AI Gateway; moderation inference is never cached. An internal inference request ID generated per call is retained with private evidence for correlation.
 
 The model receives bounded, explicitly delimited inputs:
 
@@ -636,7 +636,7 @@ Public output excludes:
 - Full model prompts/responses.
 - Operator-only notes.
 - Publisher contact data.
-- Gateway logs/tokens/request payloads.
+- Raw inference request/response payloads and tokens.
 - Exploit details that would increase harm before remediation.
 
 Standard label objects cannot carry an assessment ID, so clients do not infer one from timestamps. `getCurrentAssessment` accepts exact `uri`, `cid`, and optional `src`, then reads the materialized current pointer and returns the current completed automated assessment, any newer pending run, active public labels, and any active manual override. Manual labels/actions have public action summaries and no fabricated assessment association. `getAssessment(id)` remains the immutable historical lookup.
@@ -1059,7 +1059,7 @@ Initial policy:
 - Evidence supporting an active block/takedown: retain while active plus 365 days.
 - Raw fetched bundles: do not retain after assessment unless quarantined as incident evidence.
 - Contact addresses: store only for delivery duration; retain a keyed hash for deduplication/audit.
-- AI Gateway logs: configure a retention period consistent with private evidence policy and disable provider training where applicable.
+- Inference logs: the `AI` binding runs in-account with no third-party gateway log surface; retain only assessment/policy/model metadata (never raw payloads), consistent with private evidence policy.
 
 Retention values are policy constants versioned in code and may change after legal/privacy review.
 
@@ -1180,7 +1180,7 @@ Alert on:
 - Queue/DLQ growth.
 - Reconciliation finds an unassessed release.
 
-AI Gateway metadata should include assessment ID, policy version, stage, and model route, but not publisher contact or secrets.
+Inference logging should include assessment ID, policy version, stage, and model route, but not publisher contact or secrets.
 
 ## 23. Policy and Model Change Process
 
@@ -1318,7 +1318,7 @@ This phase may initially use deterministic test assessments. It freezes the safe
 - Add verified mirror artifact fetch and safe fallback.
 - Port/harden deterministic, code, metadata, and image audit inputs.
 - Add SBOM/dependency scanning.
-- Add Workers AI through AI Gateway and versioned policy resolution.
+- Add Workers AI through the `AI` binding (`env.AI`) and versioned policy resolution.
 - Port and extend the fixture corpus.
 
 ### Phase 4: Operator product
