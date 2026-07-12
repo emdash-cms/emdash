@@ -19,6 +19,7 @@ import type {
 	ResolvedPlugin,
 	HookName,
 	ManifestHookEntry,
+	ManifestRouteEntry,
 } from "../../plugins/types.js";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -157,7 +158,15 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		allowedHosts: plugin.allowedHosts,
 		storage: plugin.storage,
 		hooks,
-		routes: Object.keys(plugin.routes),
+		// Emit structured entries when a route carries metadata the host needs
+		// for auth/caching decisions (public, cacheControl); plain names otherwise.
+		routes: Object.entries(plugin.routes).map(([name, route]) => {
+			if (!route.public && !route.cacheControl) return name;
+			const entry: ManifestRouteEntry = { name };
+			if (route.public) entry.public = true;
+			if (route.cacheControl) entry.cacheControl = route.cacheControl;
+			return entry;
+		}),
 		admin: {
 			// Omit entry (it's a module specifier for the host, not relevant in bundles)
 			settingsSchema: plugin.admin.settingsSchema,

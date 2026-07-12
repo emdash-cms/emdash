@@ -62,6 +62,21 @@ export interface RouteMeta {
 }
 
 /**
+ * Build RouteMeta from a route's `public`/`cacheControl` flags. Single source
+ * of truth for the "cacheControl is only ever exposed on public routes"
+ * invariant — used for trusted routes and manifest-declared sandboxed routes.
+ */
+export function buildRouteMeta(route: { public?: boolean; cacheControl?: string }): RouteMeta {
+	const meta: RouteMeta = { public: route.public === true };
+	// Private responses are per-user and must never become cacheable, even if
+	// a route sets both flags.
+	if (meta.public && typeof route.cacheControl === "string" && route.cacheControl.length > 0) {
+		meta.cacheControl = route.cacheControl;
+	}
+	return meta;
+}
+
+/**
  * Result from a route invocation
  */
 export interface RouteResult<T = unknown> {
@@ -204,13 +219,7 @@ export class PluginRouteHandler {
 	getRouteMeta(name: string): RouteMeta | null {
 		const route: PluginRoute | undefined = this.plugin.routes[name];
 		if (!route) return null;
-		const meta: RouteMeta = { public: route.public === true };
-		// Expose cacheControl only for public routes: private responses are
-		// per-user and must never become cacheable, even if a route sets both.
-		if (meta.public && typeof route.cacheControl === "string" && route.cacheControl.length > 0) {
-			meta.cacheControl = route.cacheControl;
-		}
-		return meta;
+		return buildRouteMeta(route);
 	}
 }
 

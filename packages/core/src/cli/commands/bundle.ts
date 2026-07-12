@@ -300,6 +300,7 @@ export const bundleCommand = defineCommand({
 											(resolvedPlugin.routes as Record<string, unknown>)[name] = {
 												handler: routeObj.handler,
 												public: routeObj.public,
+												cacheControl: routeObj.cacheControl,
 											};
 										}
 									}

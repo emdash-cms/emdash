@@ -97,7 +97,7 @@ routes: {
 
 ### Caching public responses
 
-API responses default to `Cache-Control: private, no-store`. For public routes that serve the same data to everyone — a product catalog, a public search index — that means every page view pays a full round-trip to the origin. Public routes can opt in to CDN/browser caching with `cacheControl` (native format only):
+API responses default to `Cache-Control: private, no-store`. For public routes that serve the same data to everyone — a product catalog, a public search index — that means every page view pays a full round-trip to the origin. Public routes can opt in to CDN/browser caching with `cacheControl`:
 
 ```typescript
 routes: {
