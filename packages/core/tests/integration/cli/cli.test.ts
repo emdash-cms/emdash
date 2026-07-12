@@ -331,6 +331,14 @@ describe("CLI Integration", () => {
 			expect(result.indexedSourceCount).toBeGreaterThanOrEqual(0);
 		});
 
+		it("repairs media usage for all collections", async () => {
+			const result = await cliJson<MediaUsageRepairResponse>("media", "repair-usage", "--all");
+
+			expect(result.status).toBe("complete");
+			expect(result.collections.map(({ collection }) => collection)).toEqual(["pages", "posts"]);
+			expect(result.collections.every(({ status }) => status === "complete")).toBe(true);
+		});
+
 		it("uploads, lists, gets, and deletes media", async () => {
 			// Create a temp file to upload
 			const { writeFileSync } = await import("node:fs");

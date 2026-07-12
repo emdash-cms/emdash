@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { formatRepairUsageSummary } from "../../../src/cli/commands/media.js";
 import type {
 	MediaUsageRepairResponse,
 	MediaUsageRepairStatus,
@@ -93,6 +94,23 @@ describe("CLI media usage repair contract", () => {
 		expect(requests).toEqual([]);
 	});
 
+	it("rejects repeated collection scopes combined with all before calling the client", async () => {
+		const result = await runCli(
+			"media",
+			"repair-usage",
+			"--collection",
+			"posts",
+			"--collection",
+			"pages",
+			"--all",
+		);
+
+		expect(result.code).toBe(1);
+		expect(result.stdout).toBe("");
+		expect(result.stderr).toContain("Specify exactly one of --collection or --all");
+		expect(requests).toEqual([]);
+	});
+
 	it("maps collection scope flags to the media repair client request", async () => {
 		const result = await runCli("media", "repair-usage", "--collection", "posts");
 
@@ -121,6 +139,31 @@ describe("CLI media usage repair contract", () => {
 		});
 	});
 
+	it("uses EMDASH_URL when --url is omitted", async () => {
+		const result = await runCliWithEnv(
+			[
+				CLI_BIN,
+				"media",
+				"repair-usage",
+				"--collection",
+				"posts",
+				"--token",
+				"test-token",
+				"--json",
+			],
+			{ EMDASH_URL: baseUrl },
+		);
+
+		expect(result.code).toBe(0);
+		expect(JSON.parse(result.stdout)).toEqual(response);
+		expect(requests).toHaveLength(1);
+		expect(requests[0]).toMatchObject({
+			method: "POST",
+			url: REQUEST_PATH,
+			body: { scope: "collection", collection: "posts" },
+		});
+	});
+
 	it.each([
 		["complete", 0],
 		["partial", 0],
@@ -139,14 +182,55 @@ describe("CLI media usage repair contract", () => {
 		},
 	);
 
-	async function runCli(...args: string[]): Promise<CliResult> {
-		const child = spawn(
-			"node",
-			[CLI_BIN, ...args, "--url", baseUrl, "--token", "test-token", "--json"],
-			{
-				stdio: ["ignore", "pipe", "pipe"],
-			},
+	it("formats all-content repair as all content even with one collection", () => {
+		const summary = formatRepairUsageSummary(repairResponse("complete"), { scope: "all" });
+
+		expect(summary).toEqual({
+			level: "success",
+			message:
+				"Media usage repair complete for all content (1 collection) (indexed 2, failed 0, skipped 0, deleted 0).",
+		});
+	});
+
+	it("formats stale repair with race explanation", () => {
+		const summary = formatRepairUsageSummary(repairResponse("stale"), {
+			scope: "collection",
+			collection: "posts",
+		});
+
+		expect(summary.level).toBe("warn");
+		expect(summary.message).toContain(
+			"because another writer, repair, or stale marker won the race",
 		);
+		expect(summary.message).toContain("posts: stale, CONTENT_USAGE_REPAIR_CONFLICT");
+	});
+
+	it.each([
+		["partial", "some sources or collections need attention", "INVALID_REPEATER_VALIDATION"],
+		["failed", "Media usage repair failed", "COLLECTION_NOT_FOUND"],
+	] as const)("formats %s repair with warning and error details", (status, warning, errorCode) => {
+		const summary = formatRepairUsageSummary(repairResponse(status), {
+			scope: "collection",
+			collection: "posts",
+		});
+
+		expect(summary.level).toBe("warn");
+		expect(summary.message).toContain(warning);
+		expect(summary.message).toContain(`posts: ${status}, ${errorCode}`);
+	});
+
+	async function runCli(...args: string[]): Promise<CliResult> {
+		return runCliWithEnv([CLI_BIN, ...args, "--url", baseUrl, "--token", "test-token", "--json"]);
+	}
+
+	async function runCliWithEnv(
+		args: string[],
+		env: Record<string, string> = {},
+	): Promise<CliResult> {
+		const child = spawn("node", args, {
+			env: { ...process.env, ...env },
+			stdio: ["ignore", "pipe", "pipe"],
+		});
 		let stdout = "";
 		let stderr = "";
 		const timeout = setTimeout(() => child.kill("SIGKILL"), 15_000);

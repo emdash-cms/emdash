@@ -388,6 +388,27 @@ npx emdash media get 01MEDIA123
 npx emdash media delete 01MEDIA123
 ```
 
+#### `media repair-usage`
+
+Repair content media usage indexes for one collection or for every content collection. Use this after imports or direct database writes when usage coverage is stale or untrusted.
+
+```bash
+npx emdash media repair-usage --collection posts
+npx emdash media repair-usage --all
+npx emdash media repair-usage --all --json
+```
+
+| Option         | Alias | Description                    |
+| -------------- | ----- | ------------------------------ |
+| `--collection` | `-c`  | Repair one content collection  |
+| `--all`        |       | Repair every content collection |
+
+Pass exactly one of `--collection` or `--all`. Remote repair requires an Admin user and an auth token with the `admin` scope.
+
+All-content repair runs synchronously and can be slow or expensive on large sites. Prefer `--collection` when you only need to repair one collection.
+
+Structured `complete`, `partial`, and `stale` repair results exit `0`; structured `failed` results exit `1`. Automation and cron jobs should use `--json` and parse `status`, `failedSourceCount`, `skippedSourceCount`, and per-collection summaries instead of treating exit `0` as complete coverage.
+
 ### `emdash search`
 
 Full-text search across content.

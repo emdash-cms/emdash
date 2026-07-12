@@ -10,7 +10,7 @@ import { basename } from "node:path";
 import { defineCommand } from "citty";
 import { consola } from "consola";
 
-import type { MediaUsageRepairResponse } from "../../client/index.js";
+import type { MediaUsageRepairInput, MediaUsageRepairResponse } from "../../client/index.js";
 import { connectionArgs, createClientFromArgs } from "../client-factory.js";
 import { configureOutputMode, output } from "../output.js";
 
@@ -161,7 +161,8 @@ const deleteCommand = defineCommand({
 const repairUsageCommand = defineCommand({
 	meta: {
 		name: "repair-usage",
-		description: "Repair content media usage indexes",
+		description:
+			"Repair content media usage indexes. partial/stale exit 0; automation should use --json and parse status.",
 	},
 	args: {
 		...connectionArgs,
@@ -178,9 +179,10 @@ const repairUsageCommand = defineCommand({
 	async run({ args }) {
 		configureOutputMode(args);
 
+		const hasCollectionArg = args.collection !== undefined;
 		const hasCollection = typeof args.collection === "string";
 		const hasAll = args.all === true;
-		if (hasCollection === hasAll) {
+		if ((hasCollectionArg && !hasCollection) || hasCollection === hasAll) {
 			consola.error(repairScopeError);
 			process.exit(1);
 		}
@@ -188,14 +190,15 @@ const repairUsageCommand = defineCommand({
 		const client = createClientFromArgs(args);
 
 		try {
-			const result = await client.mediaRepairUsage(
-				hasCollection ? { scope: "collection", collection: args.collection } : { scope: "all" },
-			);
+			const repairInput: MediaUsageRepairInput = hasCollection
+				? { scope: "collection", collection: args.collection }
+				: { scope: "all" };
+			const result = await client.mediaRepairUsage(repairInput);
 
 			if (args.json || !process.stdout.isTTY) {
 				output(result, args);
 			} else {
-				printRepairUsageSummary(result);
+				printRepairUsageSummary(result, repairInput);
 			}
 
 			if (result.status === "failed") {
@@ -211,16 +214,26 @@ const repairUsageCommand = defineCommand({
 	},
 });
 
-function printRepairUsageSummary(result: MediaUsageRepairResponse): void {
+type RepairUsageSummary = {
+	level: "success" | "warn";
+	message: string;
+};
+
+export function formatRepairUsageSummary(
+	result: MediaUsageRepairResponse,
+	input: MediaUsageRepairInput,
+): RepairUsageSummary {
 	const counts = `indexed ${result.indexedSourceCount}, failed ${result.failedSourceCount}, skipped ${result.skippedSourceCount}, deleted ${result.deletedSourceCount}`;
 	const scope =
-		result.collections.length === 1 && result.collections[0]
-			? `collection ${result.collections[0].collection}`
-			: `${result.collections.length} collections`;
+		input.scope === "collection"
+			? `collection ${input.collection}`
+			: `all content (${formatCollectionCount(result.collections.length)})`;
 
 	if (result.status === "complete") {
-		consola.success(`Media usage repair complete for ${scope} (${counts}).`);
-		return;
+		return {
+			level: "success",
+			message: `Media usage repair complete for ${scope} (${counts}).`,
+		};
 	}
 
 	const details = result.collections
@@ -233,20 +246,39 @@ function printRepairUsageSummary(result: MediaUsageRepairResponse): void {
 	const suffix = details ? ` ${details}.` : "";
 
 	if (result.status === "stale") {
-		consola.warn(
-			`Media usage repair is stale for ${scope}; trustworthy complete coverage was not established. Rerun when writes are quiet (${counts}).${suffix}`,
-		);
-		return;
+		return {
+			level: "warn",
+			message: `Media usage repair is stale for ${scope}; trustworthy complete coverage was not established because another writer, repair, or stale marker won the race. Rerun when writes are quiet (${counts}).${suffix}`,
+		};
 	}
 
 	if (result.status === "partial") {
-		consola.warn(
-			`Media usage repair is partial for ${scope}; some sources or collections need attention (${counts}).${suffix}`,
-		);
-		return;
+		return {
+			level: "warn",
+			message: `Media usage repair is partial for ${scope}; some sources or collections need attention (${counts}).${suffix}`,
+		};
 	}
 
-	consola.warn(`Media usage repair failed for ${scope} (${counts}).${suffix}`);
+	return {
+		level: "warn",
+		message: `Media usage repair failed for ${scope} (${counts}).${suffix}`,
+	};
+}
+
+function printRepairUsageSummary(
+	result: MediaUsageRepairResponse,
+	input: MediaUsageRepairInput,
+): void {
+	const summary = formatRepairUsageSummary(result, input);
+	if (summary.level === "success") {
+		consola.success(summary.message);
+	} else {
+		consola.warn(summary.message);
+	}
+}
+
+function formatCollectionCount(count: number): string {
+	return `${count} collection${count === 1 ? "" : "s"}`;
 }
 
 export const mediaCommand = defineCommand({
