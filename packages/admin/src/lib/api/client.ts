@@ -65,6 +65,8 @@ export interface AdminManifest {
 			supports: string[];
 			hasSeo: boolean;
 			urlPattern?: string;
+			/** Icon name from the collection record, for sidebar rendering. */
+			icon?: string;
 			fields: Record<
 				string,
 				{
@@ -157,6 +159,12 @@ export interface AdminManifest {
 		hierarchical: boolean;
 		collections: string[];
 	}>;
+	/**
+	 * Site-wide sidebar navigation config (custom groups, ordering, hidden
+	 * items), normalized server-side. Absent when unset or invalid — the
+	 * admin renders default navigation.
+	 */
+	adminNavigation?: AdminNavigationConfig;
 	/**
 	 * Marketplace registry URL. Present when `marketplace` is configured
 	 * in the EmDash integration. Enables marketplace features in the UI.
