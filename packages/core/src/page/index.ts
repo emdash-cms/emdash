@@ -25,8 +25,8 @@ export type { ResolvedPageMetadata } from "./metadata.js";
 export { resolveFragments, renderFragments } from "./fragments.js";
 
 export {
+	applySeoPanelToPageContext,
 	generateBaseSeoContributions,
-	generateSeoPanelContributions,
 	generateSiteSeoContributions,
 } from "./seo-contributions.js";
 export { cleanJsonLd, buildBlogPostingJsonLd, buildWebSiteJsonLd } from "./jsonld.js";

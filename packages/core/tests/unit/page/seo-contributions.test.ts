@@ -13,11 +13,13 @@
 import { describe, it, expect } from "vitest";
 
 import type { ContentSeo } from "../../../src/database/repositories/types.js";
-import { resolvePageMetadata } from "../../../src/page/metadata.js";
+import { buildBlogPostingJsonLd } from "../../../src/page/jsonld.js";
 import {
-	generateSeoPanelContributions,
+	applySeoPanelToPageContext,
+	generateBaseSeoContributions,
 	generateSiteSeoContributions,
 } from "../../../src/page/seo-contributions.js";
+import type { PublicPageContext } from "../../../src/plugins/types.js";
 
 describe("generateSiteSeoContributions", () => {
 	it("returns empty array when no settings provided", () => {
@@ -93,14 +95,16 @@ describe("generateSiteSeoContributions", () => {
 });
 
 /**
- * generateSeoPanelContributions() — #1518.
+ * applySeoPanelToPageContext() — #1518.
  *
  * Bug context: values set in the admin SEO panel were silently ignored
  * unless the template manually wired getSeoMeta(). EmDashHead now fetches
- * the panel row for content pages and inserts these contributions between
- * the plugin and base layers, so editor-set values apply by default.
+ * the panel row for content pages and overlays it onto the page context
+ * before base contributions and JSON-LD are generated, so editor-set
+ * values apply by default and structured data stays consistent with the
+ * head tags.
  */
-describe("generateSeoPanelContributions (#1518)", () => {
+describe("applySeoPanelToPageContext (#1518)", () => {
 	const emptySeo: ContentSeo = {
 		title: null,
 		description: null,
@@ -109,102 +113,149 @@ describe("generateSeoPanelContributions (#1518)", () => {
 		noIndex: false,
 	};
 
-	it("returns empty array when no panel field is set", () => {
-		expect(generateSeoPanelContributions(emptySeo)).toEqual([]);
+	function createPage(overrides: Partial<PublicPageContext> = {}): PublicPageContext {
+		return {
+			url: "https://example.com/posts/hello",
+			path: "/posts/hello",
+			locale: null,
+			kind: "content",
+			pageType: "article",
+			title: "Template Title | My Site",
+			pageTitle: "Template Title",
+			description: "Template description",
+			canonical: "https://example.com/posts/hello",
+			image: "https://example.com/template-og.png",
+			siteName: "My Site",
+			...overrides,
+		};
+	}
+
+	it("leaves the page context unchanged when no panel field is set", () => {
+		const page = createPage();
+		const result = applySeoPanelToPageContext(page, emptySeo);
+
+		expect(generateBaseSeoContributions(result)).toEqual(generateBaseSeoContributions(page));
 	});
 
-	it("emits og:title and twitter:title for a panel title", () => {
-		const result = generateSeoPanelContributions({ ...emptySeo, title: "Panel Title" });
+	it("panel title reaches og:title and twitter:title via seo.ogTitle", () => {
+		const result = applySeoPanelToPageContext(createPage(), { ...emptySeo, title: "Panel Title" });
 
-		expect(result).toContainEqual({
+		const contributions = generateBaseSeoContributions(result);
+		expect(contributions).toContainEqual({
 			kind: "property",
 			property: "og:title",
 			content: "Panel Title",
 		});
-		expect(result).toContainEqual({
+		expect(contributions).toContainEqual({
 			kind: "meta",
 			name: "twitter:title",
 			content: "Panel Title",
 		});
 	});
 
-	it("emits description, og:description, and twitter:description", () => {
-		const result = generateSeoPanelContributions({ ...emptySeo, description: "Panel desc" });
+	it("panel description overrides the template description everywhere", () => {
+		const result = applySeoPanelToPageContext(createPage(), {
+			...emptySeo,
+			description: "Panel desc",
+		});
 
-		expect(result).toContainEqual({ kind: "meta", name: "description", content: "Panel desc" });
-		expect(result).toContainEqual({
+		const contributions = generateBaseSeoContributions(result);
+		expect(contributions).toContainEqual({
+			kind: "meta",
+			name: "description",
+			content: "Panel desc",
+		});
+		expect(contributions).toContainEqual({
 			kind: "property",
 			property: "og:description",
 			content: "Panel desc",
 		});
-		expect(result).toContainEqual({
+		expect(contributions).toContainEqual({
 			kind: "meta",
 			name: "twitter:description",
 			content: "Panel desc",
 		});
 	});
 
-	it("resolves a bare media id image against siteUrl and upgrades the twitter card", () => {
-		const result = generateSeoPanelContributions(
+	it("resolves a bare media id image against siteUrl and wins the og/twitter image", () => {
+		const result = applySeoPanelToPageContext(
+			createPage(),
 			{ ...emptySeo, image: "01KSMEDIA" },
 			{ siteUrl: "https://example.com/" },
 		);
 
 		const expected = "https://example.com/_emdash/api/media/file/01KSMEDIA";
-		expect(result).toContainEqual({ kind: "property", property: "og:image", content: expected });
-		expect(result).toContainEqual({ kind: "meta", name: "twitter:image", content: expected });
-		expect(result).toContainEqual({
+		const contributions = generateBaseSeoContributions(result);
+		expect(contributions).toContainEqual({
+			kind: "property",
+			property: "og:image",
+			content: expected,
+		});
+		expect(contributions).toContainEqual({
+			kind: "meta",
+			name: "twitter:image",
+			content: expected,
+		});
+		expect(contributions).toContainEqual({
 			kind: "meta",
 			name: "twitter:card",
 			content: "summary_large_image",
 		});
 	});
 
-	it("emits canonical link and og:url, absolutized against siteUrl", () => {
-		const result = generateSeoPanelContributions(
+	it("absolutizes a relative panel canonical for the link tag and og:url", () => {
+		const result = applySeoPanelToPageContext(
+			createPage(),
 			{ ...emptySeo, canonical: "/posts/other-post" },
 			{ siteUrl: "https://example.com" },
 		);
 
 		const expected = "https://example.com/posts/other-post";
-		expect(result).toContainEqual({ kind: "link", rel: "canonical", href: expected });
-		expect(result).toContainEqual({ kind: "property", property: "og:url", content: expected });
+		const contributions = generateBaseSeoContributions(result);
+		expect(contributions).toContainEqual({ kind: "link", rel: "canonical", href: expected });
+		expect(contributions).toContainEqual({
+			kind: "property",
+			property: "og:url",
+			content: expected,
+		});
 	});
 
-	it("passes an absolute canonical through unchanged", () => {
-		const result = generateSeoPanelContributions(
+	it("passes an absolute panel canonical through unchanged", () => {
+		const result = applySeoPanelToPageContext(
+			createPage(),
 			{ ...emptySeo, canonical: "https://other.example/page" },
 			{ siteUrl: "https://example.com" },
 		);
 
-		expect(result).toContainEqual({
-			kind: "link",
-			rel: "canonical",
-			href: "https://other.example/page",
-		});
+		expect(result.canonical).toBe("https://other.example/page");
 	});
 
-	it("emits a robots noindex meta when noIndex is set", () => {
-		const result = generateSeoPanelContributions({ ...emptySeo, noIndex: true });
+	it("panel noindex emits robots but a template robots value survives without it", () => {
+		const withNoindex = applySeoPanelToPageContext(createPage(), { ...emptySeo, noIndex: true });
+		expect(generateBaseSeoContributions(withNoindex)).toContainEqual({
+			kind: "meta",
+			name: "robots",
+			content: "noindex, nofollow",
+		});
 
-		expect(result).toEqual([{ kind: "meta", name: "robots", content: "noindex, nofollow" }]);
+		const templateRobots = applySeoPanelToPageContext(
+			createPage({ seo: { robots: "noindex" } }),
+			emptySeo,
+		);
+		expect(templateRobots.seo?.robots).toBe("noindex");
 	});
 
-	it("wins over base contributions but loses to plugins under first-wins dedup", () => {
-		const plugin = [{ kind: "meta", name: "description", content: "from plugin" } as const];
-		const panel = generateSeoPanelContributions({
-			...emptySeo,
-			description: "from panel",
-			title: "from panel",
+	it("keeps JSON-LD consistent with the head tags (panel image and canonical)", () => {
+		const result = applySeoPanelToPageContext(
+			createPage({ articleMeta: { publishedTime: "2026-04-03T12:00:00.000Z" } }),
+			{ ...emptySeo, title: "Panel Title", image: "01KSMEDIA", canonical: "/posts/other-post" },
+			{ siteUrl: "https://example.com" },
+		);
+
+		const graph = buildBlogPostingJsonLd(result);
+		expect(graph).toMatchObject({
+			headline: "Panel Title",
+			image: "https://example.com/_emdash/api/media/file/01KSMEDIA",
 		});
-		const base = [
-			{ kind: "meta", name: "description", content: "from template" } as const,
-			{ kind: "property", property: "og:title", content: "from template" } as const,
-		];
-
-		const resolved = resolvePageMetadata([...plugin, ...panel, ...base]);
-
-		expect(resolved.meta).toContainEqual({ name: "description", content: "from plugin" });
-		expect(resolved.properties).toContainEqual({ property: "og:title", content: "from panel" });
 	});
 });

@@ -2,11 +2,13 @@
  * Generate base SEO metadata contributions from PublicPageContext.
  *
  * EmDashHead.astro composes the final contribution list as
- * `[...plugin, ...site, ...panel, ...base]` and feeds it to
- * `resolvePageMetadata()`, which is first-wins. That ordering means plugin
- * contributions override site-level ones override SEO-panel values override
- * base ones for any given key — base values are the fallback, not the
- * source of truth.
+ * `[...plugin, ...site, ...base]` and feeds it to `resolvePageMetadata()`,
+ * which is first-wins. That ordering means plugin contributions override
+ * site-level ones override base ones for any given key — base values are
+ * the fallback, not the source of truth. For content pages, the entry's
+ * SEO panel values are overlaid onto the page context before the base
+ * contributions (and JSON-LD) are generated, so editor-set values
+ * override the template-provided fields.
  *
  * This replaces the per-template SEO.astro components, eliminating
  * the class of XSS bugs where templates hand-rolled JSON-LD serialization.
@@ -151,64 +153,45 @@ export function generateBaseSeoContributions(
 }
 
 /**
- * Generate metadata contributions from a content entry's SEO panel data (#1518).
+ * Overlay a content entry's SEO panel data onto the page context (#1518).
  *
  * `EmDashHead` fetches the entry's `_emdash_seo` row when the page context
- * references a content entry and inserts these contributions between the
- * plugin and base layers: editor-set panel values override whatever the
- * template passed into the page context (via first-wins dedup), while
- * plugins can still override everything.
+ * references a content entry and applies this overlay before anything
+ * consumes the context: editor-set panel values override whatever the
+ * template passed in, and because the overlaid context feeds plugin hooks,
+ * the base contributions, and the JSON-LD builders alike, structured data
+ * and head tags always agree. Plugins still override the rendered output
+ * via first-wins dedup.
  *
  * The `<title>` element itself stays the template's responsibility —
- * head components can't replace it — so `seo.title` is emitted for
- * `og:title` / `twitter:title` only. Templates that want the panel title
- * in `<title>` keep using `getSeoMeta()`.
+ * head components can't replace it — so `seo.title` feeds
+ * `og:title` / `twitter:title` / the JSON-LD headline only. Templates that
+ * want the panel title in `<title>` keep using `getSeoMeta()`.
  *
- * Returns an empty array when no panel field is set, so pages without
- * SEO data are unaffected.
+ * Unset panel fields fall back to the template-provided values, so pages
+ * without SEO data are unaffected.
  */
-export function generateSeoPanelContributions(
+export function applySeoPanelToPageContext(
+	page: PublicPageContext,
 	seo: ContentSeo,
 	options: { siteUrl?: string | null } = {},
-): PageMetadataContribution[] {
-	const contributions: PageMetadataContribution[] = [];
+): PublicPageContext {
 	const siteUrl = options.siteUrl ?? undefined;
+	const image = seo.image ? buildSeoImageUrl(seo.image, siteUrl) : null;
+	const canonical = seo.canonical ? resolveSeoCanonicalUrl(seo.canonical, siteUrl) : null;
 
-	if (seo.title) {
-		contributions.push({ kind: "property", property: "og:title", content: seo.title });
-		contributions.push({ kind: "meta", name: "twitter:title", content: seo.title });
-	}
-
-	if (seo.description) {
-		contributions.push({ kind: "meta", name: "description", content: seo.description });
-		contributions.push({
-			kind: "property",
-			property: "og:description",
-			content: seo.description,
-		});
-		contributions.push({ kind: "meta", name: "twitter:description", content: seo.description });
-	}
-
-	if (seo.image) {
-		const image = buildSeoImageUrl(seo.image, siteUrl);
-		contributions.push({ kind: "property", property: "og:image", content: image });
-		contributions.push({ kind: "meta", name: "twitter:image", content: image });
-		// The base layer only picks the large-image card when it has an image
-		// of its own; with a panel image the large card must win too.
-		contributions.push({ kind: "meta", name: "twitter:card", content: "summary_large_image" });
-	}
-
-	if (seo.canonical) {
-		const canonical = resolveSeoCanonicalUrl(seo.canonical, siteUrl);
-		contributions.push({ kind: "link", rel: "canonical", href: canonical });
-		contributions.push({ kind: "property", property: "og:url", content: canonical });
-	}
-
-	if (seo.noIndex) {
-		contributions.push({ kind: "meta", name: "robots", content: "noindex, nofollow" });
-	}
-
-	return contributions;
+	return {
+		...page,
+		description: seo.description || page.description,
+		canonical: canonical || page.canonical,
+		seo: {
+			...page.seo,
+			ogTitle: seo.title || page.seo?.ogTitle,
+			ogDescription: seo.description || page.seo?.ogDescription,
+			ogImage: image || page.seo?.ogImage,
+			robots: seo.noIndex ? "noindex, nofollow" : page.seo?.robots,
+		},
+	};
 }
 
 /**
