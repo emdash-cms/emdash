@@ -18,11 +18,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useLingui } from "@lingui/react/macro";
-import { X, Plus, Trash, DotsSixVertical, ImageSquare } from "@phosphor-icons/react";
+import { X, Plus, Trash, DotsSixVertical, ImageSquare, CaretDown } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
 import { cn } from "../../lib/utils";
+import { CaretNext } from "../ArrowIcons.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { galleryImageUrl, type GalleryAttributes, type GalleryImage } from "./GalleryNode";
 
@@ -221,6 +222,7 @@ function SortableGalleryRow({
 }: SortableGalleryRowProps) {
 	const { t } = useLingui();
 	const [showReplacePicker, setShowReplacePicker] = React.useState(false);
+	const [expanded, setExpanded] = React.useState(false);
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: image._key,
 	});
@@ -230,21 +232,33 @@ function SortableGalleryRow({
 		transition,
 	};
 
+	const hasOriginalSize = typeof image.width === "number" && typeof image.height === "number";
+
 	return (
 		<div
 			ref={setNodeRef}
 			style={style}
 			className={cn(
-				"border rounded-lg bg-kumo-base p-2 space-y-2",
+				"border rounded-lg bg-kumo-base",
 				isDragging && "opacity-50 ring-2 ring-kumo-brand",
 			)}
 		>
-			<div className="flex items-center gap-2">
+			{/* Header — click to expand per-image settings */}
+			<div
+				className="flex items-center gap-2 px-2 py-2 cursor-pointer"
+				onClick={() => setExpanded((prev) => !prev)}
+			>
 				<DotsSixVertical
 					className="h-4 w-4 text-kumo-subtle cursor-grab shrink-0"
 					{...attributes}
 					{...listeners}
+					onClick={(e: React.MouseEvent) => e.stopPropagation()}
 				/>
+				{expanded ? (
+					<CaretDown className="h-3.5 w-3.5 text-kumo-subtle shrink-0" />
+				) : (
+					<CaretNext className="h-3.5 w-3.5 text-kumo-subtle shrink-0" />
+				)}
 				<img
 					src={galleryImageUrl(image)}
 					alt={image.alt || ""}
@@ -252,29 +266,68 @@ function SortableGalleryRow({
 					draggable={false}
 				/>
 				<span className="text-xs text-kumo-subtle flex-1 truncate">
-					{image.alt || image.asset._ref || t`Untitled image`}
+					{image.alt || image.caption || image.asset._ref || t`Untitled image`}
 				</span>
 				<Button
 					type="button"
 					variant="ghost"
 					shape="square"
 					className="h-8 w-8"
-					onClick={() => setShowReplacePicker(true)}
-					aria-label={t`Replace image ${index + 1}`}
-				>
-					<ImageSquare className="h-3.5 w-3.5" />
-				</Button>
-				<Button
-					type="button"
-					variant="ghost"
-					shape="square"
-					className="h-8 w-8"
-					onClick={onRemove}
+					onClick={(e) => {
+						e.stopPropagation();
+						onRemove();
+					}}
 					aria-label={t`Remove image ${index + 1}`}
 				>
 					<Trash className="h-3.5 w-3.5 text-kumo-danger" />
 				</Button>
 			</div>
+
+			{/* Expanded per-image settings — mirrors the single-image panel */}
+			{expanded && (
+				<div className="px-2 pb-2 space-y-3 border-t pt-2">
+					<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center relative group">
+						<img
+							src={galleryImageUrl(image)}
+							alt={image.alt || ""}
+							className="max-h-full max-w-full object-contain"
+							draggable={false}
+						/>
+						<div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								icon={<ImageSquare />}
+								onClick={() => setShowReplacePicker(true)}
+							>
+								{t`Replace image`}
+							</Button>
+						</div>
+					</div>
+					{hasOriginalSize && (
+						<div className="flex items-center gap-2 text-sm">
+							<span className="text-kumo-subtle">{t`Original:`}</span>
+							<span>
+								{image.width} × {image.height}
+							</span>
+						</div>
+					)}
+					<Input
+						label={t`Alt text`}
+						value={image.alt ?? ""}
+						onChange={(e) => onChange({ alt: e.target.value })}
+						placeholder={t`Describe the image...`}
+					/>
+					<Input
+						label={t`Caption`}
+						value={image.caption ?? ""}
+						onChange={(e) => onChange({ caption: e.target.value || undefined })}
+						placeholder={t`Optional caption`}
+					/>
+				</div>
+			)}
+
 			<MediaPickerModal
 				open={showReplacePicker}
 				onOpenChange={setShowReplacePicker}
@@ -284,18 +337,6 @@ function SortableGalleryRow({
 				}}
 				mimeTypeFilters={["image/"]}
 				title={t`Replace image`}
-			/>
-			<Input
-				label={t`Alt text`}
-				value={image.alt ?? ""}
-				onChange={(e) => onChange({ alt: e.target.value })}
-				placeholder={t`Describe the image...`}
-			/>
-			<Input
-				label={t`Caption`}
-				value={image.caption ?? ""}
-				onChange={(e) => onChange({ caption: e.target.value || undefined })}
-				placeholder={t`Optional caption`}
 			/>
 		</div>
 	);
