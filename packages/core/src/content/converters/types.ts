@@ -82,11 +82,17 @@ export interface PortableTextGalleryImage {
 		_type?: "reference";
 		_ref: string;
 		url?: string;
+		/** Provider ID for external media (e.g., "cloudflare-images") */
+		provider?: string;
 	};
 	alt?: string;
 	caption?: string;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 }
 
 /**

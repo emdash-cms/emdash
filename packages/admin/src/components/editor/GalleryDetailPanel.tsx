@@ -17,6 +17,7 @@ import { X, Plus, Trash, ImageSquare } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
+import { metaString } from "../../lib/media-utils";
 import { cn } from "../../lib/utils";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { galleryImageUrl, type GalleryAttributes, type GalleryImage } from "./GalleryNode";
@@ -39,10 +40,20 @@ export function mediaItemToGalleryImage(item: MediaItem): GalleryImage {
 	return {
 		_type: "image",
 		_key: generateKey(),
-		asset: { _type: "reference", _ref: item.id, url: item.url },
+		asset: {
+			_type: "reference",
+			_ref: item.id,
+			url: item.url,
+			provider: item.provider && item.provider !== "local" ? item.provider : undefined,
+		},
 		alt: item.alt || "",
 		width: item.width,
 		height: item.height,
+		// Cache LQIP alongside dimensions so the gallery renders a placeholder
+		// without a runtime lookup. Fall back to `meta` for providers that
+		// stash it there — mirrors ImageFieldRenderer's handleSelect.
+		blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
+		dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 	};
 }
 
@@ -59,12 +70,12 @@ export function GalleryDetailPanel({
 	// sensor immediately claiming the pointer and starting drag tracking.
 	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
-	// `selectedImageKey` is transient UI state passed in via `attributes` when
-	// the gallery node view opens the sidebar for a specific image (e.g.
-	// clicking an image in the canvas grid) — it is never persisted to node
-	// attrs.
+	// `selectedImageKey` and `nodeKey` are transient UI state passed in via
+	// `attributes` when the gallery node view opens the sidebar (e.g. clicking
+	// an image in the canvas grid) — neither is ever persisted to node attrs.
 	const selectedImageKey = (attributes as GalleryAttributes & { selectedImageKey?: string })
 		.selectedImageKey;
+	const nodeKey = (attributes as GalleryAttributes & { nodeKey?: string }).nodeKey;
 	const [selectedKey, setSelectedKey] = React.useState<string | null>(selectedImageKey ?? null);
 
 	// The panel component instance is reused (not remounted) while the
@@ -85,12 +96,16 @@ export function GalleryDetailPanel({
 		columns: attributes.columns,
 	});
 
-	// A new `attributes` identity means the sidebar was (re)opened — possibly
-	// for a DIFFERENT gallery node. Resync or edits would write this panel's
-	// stale images into the other node.
+	// Resync local state only when `nodeKey` changes — i.e. the sidebar switched
+	// to a DIFFERENT gallery node (or opened for the first time). `attributes`
+	// is a snapshot taken when the sidebar opened; a parent re-render can give
+	// it a new object identity without the underlying node changing (e.g. a
+	// parent re-wrapping attrs), and resyncing on identity alone would clobber
+	// in-progress local edits with that stale snapshot.
 	React.useEffect(() => {
 		setGallery({ images: attributes.images ?? [], columns: attributes.columns });
-	}, [attributes]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on nodeKey by design; see comment above
+	}, [nodeKey]);
 	const images = gallery.images;
 	const columns = gallery.columns ?? 3;
 	const selectedImage = selectedKey
@@ -124,10 +139,17 @@ export function GalleryDetailPanel({
 				image._key === key
 					? {
 							...image,
-							asset: { _type: "reference", _ref: item.id, url: item.url },
+							asset: {
+								_type: "reference",
+								_ref: item.id,
+								url: item.url,
+								provider: item.provider && item.provider !== "local" ? item.provider : undefined,
+							},
 							alt: item.alt || "",
 							width: item.width,
 							height: item.height,
+							blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
+							dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 						}
 					: image,
 			),

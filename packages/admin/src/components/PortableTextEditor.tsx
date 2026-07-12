@@ -199,12 +199,15 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 				_type: "reference",
 				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
 				...(attrStr(assetRecord.url) ? { url: attrStr(assetRecord.url) } : {}),
+				...(attrStr(assetRecord.provider) ? { provider: attrStr(assetRecord.provider) } : {}),
 			},
 		};
 		if (attrStr(record.alt)) image.alt = attrStr(record.alt);
 		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
 		if (typeof record.width === "number") image.width = record.width;
 		if (typeof record.height === "number") image.height = record.height;
+		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
+		if (attrStr(record.dominantColor)) image.dominantColor = attrStr(record.dominantColor);
 		images.push(image);
 	}
 	return images;

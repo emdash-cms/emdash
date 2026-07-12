@@ -21,11 +21,21 @@ import { cn } from "../../lib/utils";
 export interface GalleryImage {
 	_type: "image";
 	_key: string;
-	asset: { _type?: "reference"; _ref: string; url?: string };
+	asset: {
+		_type?: "reference";
+		_ref: string;
+		url?: string;
+		/** Provider ID for external media (e.g., "cloudflare-images") */
+		provider?: string;
+	};
 	alt?: string;
 	caption?: string;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 }
 
 export interface GalleryAttributes {
@@ -38,10 +48,11 @@ export interface GallerySidebarPanel {
 	type: "gallery";
 	/**
 	 * `selectedImageKey` is transient UI state (which image's settings card
-	 * is open) — it must never be written into node attrs via
-	 * `updateAttributes`.
+	 * is open) and `nodeKey` identifies which gallery node this panel
+	 * instance belongs to (from `getPos()`) — both must never be written
+	 * into node attrs via `updateAttributes`.
 	 */
-	attrs: GalleryAttributes & { selectedImageKey?: string };
+	attrs: GalleryAttributes & { selectedImageKey?: string; nodeKey?: string };
 	onUpdate: (attrs: Partial<GalleryAttributes>) => void;
 	onReplace: (attrs: GalleryAttributes) => void;
 	onDelete: () => void;
@@ -63,7 +74,14 @@ export function galleryImageUrl(image: GalleryImage): string {
 	return "";
 }
 
-function GalleryNodeView({ node, updateAttributes, selected, deleteNode, editor }: NodeViewProps) {
+function GalleryNodeView({
+	node,
+	updateAttributes,
+	selected,
+	deleteNode,
+	editor,
+	getPos,
+}: NodeViewProps) {
 	const { t } = useLingui();
 	const sidebarOpenRef = React.useRef(false);
 
@@ -82,7 +100,11 @@ function GalleryNodeView({ node, updateAttributes, selected, deleteNode, editor 
 			sidebarOpenRef.current = true;
 			onOpen({
 				type: "gallery",
-				attrs: { ...getAttrs(), selectedImageKey },
+				// `nodeKey` is transient UI state identifying which gallery node this
+				// panel instance is for — used by GalleryDetailPanel to key its resync
+				// effect on node identity rather than attrs object identity. Never
+				// written to node attrs via `updateAttributes`.
+				attrs: { ...getAttrs(), selectedImageKey, nodeKey: String(getPos?.() ?? "") },
 				onUpdate: (attrs) => updateAttributes(attrs),
 				onReplace: (attrs) => updateAttributes(attrs),
 				onDelete: () => deleteNode(),
@@ -126,15 +148,18 @@ function GalleryNodeView({ node, updateAttributes, selected, deleteNode, editor 
 			)}
 		>
 			{images.length === 0 ? (
-				<button
+				<Button
 					type="button"
-					className="w-full rounded-lg border-2 border-dashed p-8 flex flex-col items-center gap-2 text-kumo-subtle hover:border-kumo-brand transition-colors"
+					variant="outline"
+					className="mt-2 w-full h-32 justify-center border-dashed"
 					onMouseDown={(e) => e.preventDefault()}
 					onClick={() => openSidebar()}
 				>
-					<Images className="h-8 w-8" />
-					<span className="text-sm">{t`Empty gallery — open settings to add images`}</span>
-				</button>
+					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
+						<Images className="h-8 w-8" />
+						<span className="text-sm">{t`Empty gallery — open settings to add images`}</span>
+					</div>
+				</Button>
 			) : (
 				<div
 					className="grid gap-2 rounded-lg"

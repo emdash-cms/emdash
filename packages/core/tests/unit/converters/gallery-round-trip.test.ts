@@ -160,6 +160,35 @@ describe("gallery block round-trip (core converters)", () => {
 		});
 	});
 
+	it("preserves provider, blurhash, and dominantColor through PT → PM → PT", () => {
+		const withMeta: PortableTextGalleryBlock = {
+			_type: "gallery",
+			_key: "gal005",
+			images: [
+				{
+					_type: "image",
+					_key: "img005",
+					asset: { _type: "reference", _ref: "media-c", provider: "cloudflare-images" },
+					alt: "Provider image",
+					blurhash: "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+					dominantColor: "#a3b1c2",
+				},
+			],
+		};
+
+		const pm = portableTextToProsemirror([withMeta]);
+		const node = pm.content[0];
+		expect(node.attrs?.images).toHaveLength(1);
+
+		const pt = prosemirrorToPortableText(pm);
+		const restored = pt[0] as PortableTextGalleryBlock;
+		expect(restored.images[0]).toMatchObject({
+			asset: { _ref: "media-c", provider: "cloudflare-images" },
+			blurhash: "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+			dominantColor: "#a3b1c2",
+		});
+	});
+
 	it("preserves galleries among other block types", () => {
 		const blocks = [
 			{

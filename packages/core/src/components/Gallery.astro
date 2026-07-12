@@ -18,11 +18,17 @@ export interface Props {
 			asset: {
 				_ref: string;
 				url?: string;
+				/** Provider ID for external media (e.g., "cloudflare-images") */
+				provider?: string;
 			};
 			alt?: string;
 			caption?: string;
 			width?: number;
 			height?: number;
+			/** LQIP blurhash placeholder (images only) */
+			blurhash?: string;
+			/** LQIP dominant-color placeholder, as a CSS color (images only) */
+			dominantColor?: string;
 		}>;
 		columns?: number;
 	};
@@ -45,8 +51,11 @@ if (!images.length) {
 				id: image.asset._ref,
 			});
 			const hasSize = image.width && image.height;
+			const lqipStyle = image.dominantColor
+				? `background-color: ${image.dominantColor}`
+				: undefined;
 			return (
-				<figure class="emdash-gallery-item">
+				<figure class="emdash-gallery-item" style={lqipStyle}>
 					{hasSize ? (
 						<AstroImage
 							src={src}

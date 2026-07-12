@@ -37,12 +37,18 @@ export function sanitizeGalleryImages(
 				_type: "reference",
 				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
 				...(typeof assetRecord.url === "string" && assetRecord.url ? { url: assetRecord.url } : {}),
+				...(typeof assetRecord.provider === "string" && assetRecord.provider
+					? { provider: assetRecord.provider }
+					: {}),
 			},
 		};
 		if (typeof record.alt === "string" && record.alt) image.alt = record.alt;
 		if (typeof record.caption === "string" && record.caption) image.caption = record.caption;
 		if (typeof record.width === "number") image.width = record.width;
 		if (typeof record.height === "number") image.height = record.height;
+		if (typeof record.blurhash === "string" && record.blurhash) image.blurhash = record.blurhash;
+		if (typeof record.dominantColor === "string" && record.dominantColor)
+			image.dominantColor = record.dominantColor;
 
 		images.push(image);
 	}
