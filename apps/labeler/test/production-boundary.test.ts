@@ -33,11 +33,11 @@ const PRODUCTION_ENTRY_POINTS: Record<string, string> = {
 	"reconciliation.ts": reconciliationSource,
 };
 
-// Matches an actual import specifier (`from "./assessment-orchestrator.js"`
-// or a dynamic `import(...)`), not prose mentioning the module by name in a
-// doc comment.
+// Matches an actual import specifier — `from "...orchestrator..."`, a dynamic
+// `import(...)`, or a bare side-effect `import "...orchestrator..."` — not
+// prose mentioning the module by name in a doc comment.
 const IMPORTS_ORCHESTRATOR =
-	/(?:from\s+["'][^"']*assessment-orchestrator[^"']*["']|import\(\s*["'][^"']*assessment-orchestrator)/;
+	/(?:from\s+["'][^"']*assessment-orchestrator[^"']*["']|import\(\s*["'][^"']*assessment-orchestrator|import\s+["'][^"']*assessment-orchestrator)/;
 
 describe("production boundary: AssessmentOrchestrator is test-only", () => {
 	for (const [name, source] of Object.entries(PRODUCTION_ENTRY_POINTS)) {

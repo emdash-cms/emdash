@@ -31,17 +31,23 @@ export interface DidDocumentResolverLike {
 
 export type RecordVerificationFailureReason =
 	| "INVALID_URI"
+	| "DID_RESOLUTION_UNAVAILABLE"
 	| "DID_RESOLUTION_FAILED"
 	| "RECORD_CID_MISMATCH";
 
 export class RecordVerificationError extends Error {
 	override readonly name = "RecordVerificationError";
+	/** True for retryable failures (directory/network unavailability). A
+	 * permanent shape — malformed URI, an incomplete DID document, or a CID
+	 * mismatch — is false and dead-letters. */
+	readonly transient: boolean;
 	constructor(
 		readonly reason: RecordVerificationFailureReason,
 		message: string,
 		override readonly cause?: unknown,
 	) {
 		super(message);
+		this.transient = reason === "DID_RESOLUTION_UNAVAILABLE";
 	}
 }
 
@@ -92,9 +98,13 @@ export async function fetchAndVerifyExactRecord(
 	try {
 		doc = await opts.didDocumentResolver.resolve(did);
 	} catch (err) {
+		// A thrown resolution is the directory being unreachable/erroring (or a
+		// not-yet-propagated DID at publish time). Retry rather than permanently
+		// drop the release on a transient blip; a genuine not-found just exhausts
+		// retries and dead-letters, the same end state.
 		throw new RecordVerificationError(
-			"DID_RESOLUTION_FAILED",
-			`failed to resolve DID document for ${did}: ${err instanceof Error ? err.message : String(err)}`,
+			"DID_RESOLUTION_UNAVAILABLE",
+			`could not resolve DID document for ${did}: ${err instanceof Error ? err.message : String(err)}`,
 			err,
 		);
 	}

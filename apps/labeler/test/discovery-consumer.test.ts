@@ -317,6 +317,30 @@ describe("processDiscoveryMessage: verification failures", () => {
 		expect(dl?.reason).toBe("RECORD_CID_MISMATCH");
 	});
 
+	it("transient DID resolution failure retries, no dead letter", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		const msg = new FakeMessage();
+
+		await processDiscoveryMessage(job, msg, {
+			...deps,
+			verify: () =>
+				Promise.reject(
+					new RecordVerificationError(
+						"DID_RESOLUTION_UNAVAILABLE",
+						`could not resolve DID document for ${job.did}`,
+					),
+				),
+		});
+
+		expect(msg.retried).toBe(1);
+		expect(msg.acked).toBe(0);
+		const dl = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM dead_letters WHERE rkey = ?`)
+			.bind(job.rkey)
+			.first<{ n: number }>();
+		expect(dl?.n).toBe(0);
+	});
+
 	it("transient verify failure (PDS_NETWORK_ERROR) retries, no dead letter", async () => {
 		const job = await jobFor({ rkey: rkey() });
 		const deps = await buildDeps();

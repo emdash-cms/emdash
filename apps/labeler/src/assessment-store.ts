@@ -376,15 +376,17 @@ export async function getNegatableAutomatedLabels(
 ): Promise<NegatableAutomatedLabel[]> {
 	const rows = await db
 		.prepare(
+			// The inner MAX reflects the TRUE stream head across all issuers, so a
+			// val whose latest event was a manual action is never returned — only
+			// a val whose current active event is an automated non-negation is a
+			// candidate for automated negation (§10).
 			`SELECT l.val
 			 FROM issued_labels l
 			 JOIN issuance_actions a ON a.id = l.action_id
 			 WHERE l.uri = ? AND l.cid = ? AND a.type = 'automated-assessment' AND l.neg = 0
 			 AND l.sequence = (
 				SELECT MAX(l2.sequence) FROM issued_labels l2
-				JOIN issuance_actions a2 ON a2.id = l2.action_id
 				WHERE l2.uri = l.uri AND l2.cid = l.cid AND l2.val = l.val
-				AND a2.type = 'automated-assessment'
 			 )`,
 		)
 		.bind(input.uri, input.cid)

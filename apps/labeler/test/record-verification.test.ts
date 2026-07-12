@@ -84,7 +84,7 @@ describe("parseAtUri", () => {
 });
 
 describe("fetchAndVerifyExactRecord: DID resolution", () => {
-	it("wraps a DID document resolver rejection as DID_RESOLUTION_FAILED", async () => {
+	it("marks a DID document resolver rejection as transient (retryable)", async () => {
 		const resolver = new StubResolver(new Error("PLC directory unreachable"));
 		await expect(
 			fetchAndVerifyExactRecord({
@@ -92,10 +92,14 @@ describe("fetchAndVerifyExactRecord: DID resolution", () => {
 				cid: "bafkreiplaceholder00000000000000000000000000000000000000000",
 				didDocumentResolver: resolver,
 			}),
-		).rejects.toMatchObject({ name: "RecordVerificationError", reason: "DID_RESOLUTION_FAILED" });
+		).rejects.toMatchObject({
+			name: "RecordVerificationError",
+			reason: "DID_RESOLUTION_UNAVAILABLE",
+			transient: true,
+		});
 	});
 
-	it("DID_RESOLUTION_FAILED when the document has no atproto PDS service entry", async () => {
+	it("DID_RESOLUTION_FAILED (permanent) when the document has no atproto PDS service entry", async () => {
 		const resolver = new StubResolver(docWithoutPds());
 		await expect(
 			fetchAndVerifyExactRecord({
@@ -103,7 +107,11 @@ describe("fetchAndVerifyExactRecord: DID resolution", () => {
 				cid: "bafkreiplaceholder00000000000000000000000000000000000000000",
 				didDocumentResolver: resolver,
 			}),
-		).rejects.toMatchObject({ name: "RecordVerificationError", reason: "DID_RESOLUTION_FAILED" });
+		).rejects.toMatchObject({
+			name: "RecordVerificationError",
+			reason: "DID_RESOLUTION_FAILED",
+			transient: false,
+		});
 	});
 
 	it("DID_RESOLUTION_FAILED when the document has no #atproto verification method", async () => {

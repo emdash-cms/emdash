@@ -179,10 +179,19 @@ export class AssessmentOrchestrator {
 			}
 		}
 
-		// Decision (spec §10): re-read subject currency immediately before
-		// finalizing, under the same lock the finalization batch commits
-		// with. A deleted or CID-superseded subject finalizes as `stale` —
-		// no labels, pointer untouched.
+		// Re-read subject currency immediately before finalizing: a deleted or
+		// CID-superseded subject finalizes as `stale` — no labels, pointer
+		// untouched.
+		//
+		// This read narrows but does NOT close the window: `finalize` signs each
+		// label (an async round-trip) between here and `db.batch`, so a delete or
+		// a cancel landing in that window still commits labels — the finalization
+		// CAS guards its own row, but the issuance statements carry no
+		// assessment-state guard. Closing it requires either the per-subject
+		// workflow lock the spec mandates (§14.1) or an in-batch state guard on
+		// every issuance statement. That belongs with wiring the orchestrator to
+		// production in W7/W8; today the production-boundary test guarantees no
+		// production path reaches this method.
 		const current = await isSubjectCurrent(this.db, { uri: assessment.uri, cid: assessment.cid });
 		if (!current) {
 			return transitionAssessmentState(this.db, { id: runId, from: "running", to: "stale", now });

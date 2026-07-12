@@ -220,6 +220,10 @@ export async function processDiscoveryMessage(
 			return;
 		}
 		if (err instanceof RecordVerificationError) {
+			if (err.transient) {
+				controller.retry();
+				return;
+			}
 			await writeDeadLetter(deps.db, job, err.reason, err.message, now());
 			controller.ack();
 			return;
