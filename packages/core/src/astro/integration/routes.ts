@@ -239,6 +239,11 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/admin/media-usage/repair.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/admin/navigation",
+		entrypoint: resolveRoute("api/admin/navigation.ts"),
+	});
+
 	// Import API routes
 	injectRoute({
 		pattern: "/_emdash/api/import/probe",

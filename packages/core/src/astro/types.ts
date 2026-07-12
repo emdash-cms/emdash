@@ -8,6 +8,8 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { AdminNavigationConfigV1 } from "../api/schemas/admin-navigation.js";
+
 // Re-export core types
 export type {
 	ContentItem,
@@ -29,6 +31,8 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	/** Icon name from the collection record (`_emdash_collections.icon`), for sidebar rendering. */
+	icon?: string;
 	fields: Record<
 		string,
 		{
@@ -147,6 +151,12 @@ export interface EmDashManifest {
 		hierarchical: boolean;
 		collections: string[];
 	}>;
+	/**
+	 * Site-wide sidebar navigation config (custom groups, ordering, hidden
+	 * items), normalized from the `admin:navigation` option. Absent when
+	 * unset or invalid — the admin renders default navigation.
+	 */
+	adminNavigation?: AdminNavigationConfigV1;
 	/**
 	 * Whether the plugin marketplace is configured.
 	 * When true, the admin UI can show marketplace browse/install features.

@@ -123,6 +123,11 @@ function isValidMetadataContribution(c: unknown): c is PageMetadataContribution 
 import { after } from "./after.js";
 import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
+import {
+	ADMIN_NAVIGATION_OPTION_KEY,
+	normalizeAdminNavigationConfig,
+	type AdminNavigationConfigV1,
+} from "./api/schemas/admin-navigation.js";
 import { runSystemCleanup } from "./cleanup.js";
 import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
@@ -2273,6 +2278,7 @@ export class EmDashRuntime {
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					icon: collection.icon,
 					fields,
 				};
 			}
@@ -2410,11 +2416,30 @@ export class EmDashRuntime {
 			console.debug("EmDash: Could not load taxonomy definitions:", error);
 		}
 
-		// Build manifest hash
+		// Sidebar navigation config (site IA). Invalid or unreadable config
+		// degrades to default navigation client-side rather than failing the
+		// manifest.
+		let adminNavigation: AdminNavigationConfigV1 | undefined;
+		try {
+			const optionsRepo = new OptionsRepository(this.db);
+			const stored = await optionsRepo.get(ADMIN_NAVIGATION_OPTION_KEY);
+			if (stored !== null) {
+				adminNavigation = normalizeAdminNavigationConfig(stored);
+				if (!adminNavigation) {
+					console.debug("EmDash: Ignoring invalid admin navigation config option");
+				}
+			}
+		} catch (error) {
+			console.debug("EmDash: Could not load admin navigation config:", error);
+		}
+
+		// Build manifest hash. Includes the nav config so organizer saves
+		// change the hash and the admin SPA refetches.
 		const manifestHash = await hashString(
 			JSON.stringify(manifestCollections) +
 				JSON.stringify(manifestPlugins) +
-				JSON.stringify(manifestTaxonomies),
+				JSON.stringify(manifestTaxonomies) +
+				(adminNavigation ? JSON.stringify(adminNavigation) : ""),
 		);
 
 		// Determine auth mode
@@ -2442,6 +2467,7 @@ export class EmDashRuntime {
 			collections: manifestCollections,
 			plugins: manifestPlugins,
 			taxonomies: manifestTaxonomies,
+			adminNavigation,
 			authMode: authModeValue,
 			i18n,
 			marketplace: !!this.config.marketplace,
