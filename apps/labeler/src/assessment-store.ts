@@ -5,6 +5,7 @@ import {
 	AssessmentTransitionConflictError,
 	CURRENT_POINTER_STATES,
 	isLegalTransition,
+	TERMINAL_STATES,
 	type AssessmentState,
 } from "./assessment-lifecycle.js";
 
@@ -68,14 +69,27 @@ export interface CreateSubjectInput {
 	now?: Date;
 }
 
-/** Idempotent: verification may observe the same (uri, cid) more than once. */
+/**
+ * Idempotent: verification may observe the same (uri, cid) more than once.
+ * A verified re-observation reactivates a tombstoned row (the create path
+ * only reaches here after the PDS confirms the record exists, so clearing
+ * `deleted_at` is correct — it closes the delete-then-recreate race and
+ * handles a genuine republish of the same rkey+cid).
+ */
 export async function createSubject(db: D1Database, input: CreateSubjectInput): Promise<void> {
 	const now = input.now ?? new Date();
 	await db
 		.prepare(
 			`INSERT INTO subjects (uri, cid, did, collection, rkey, observed_at, observed_at_epoch_ms)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)
-			 ON CONFLICT(uri, cid) DO NOTHING`,
+			 ON CONFLICT(uri, cid) DO UPDATE SET
+			   did = excluded.did,
+			   collection = excluded.collection,
+			   rkey = excluded.rkey,
+			   observed_at = excluded.observed_at,
+			   observed_at_epoch_ms = excluded.observed_at_epoch_ms,
+			   deleted_at = NULL,
+			   deleted_at_epoch_ms = NULL`,
 		)
 		.bind(
 			input.uri,
@@ -101,6 +115,57 @@ export async function deleteSubject(
 		)
 		.bind(now.toISOString(), now.getTime(), input.uri, input.cid)
 		.run();
+}
+
+/**
+ * Tombstones every non-deleted subject row for a URI, regardless of CID. A
+ * Jetstream delete event names (did, collection, rkey) — the URI — but not
+ * which CID revision is gone, so every observed CID at that URI is now
+ * unreachable at the source.
+ */
+export async function deleteSubjectsByUri(
+	db: D1Database,
+	input: { uri: string; now?: Date },
+): Promise<void> {
+	const now = input.now ?? new Date();
+	await db
+		.prepare(
+			`UPDATE subjects SET deleted_at = ?, deleted_at_epoch_ms = ?
+			 WHERE uri = ? AND deleted_at IS NULL`,
+		)
+		.bind(now.toISOString(), now.getTime(), input.uri)
+		.run();
+}
+
+/**
+ * A subject is current when its row isn't tombstoned and no later-observed,
+ * non-deleted subject at the same URI carries a different CID. Used
+ * immediately before finalization (spec §10): a deleted or superseded
+ * subject finalizes as `stale` rather than issuing new labels.
+ */
+export async function isSubjectCurrent(
+	db: D1Database,
+	input: { uri: string; cid: string },
+): Promise<boolean> {
+	const row = await db
+		.prepare(`SELECT deleted_at, observed_at_epoch_ms FROM subjects WHERE uri = ? AND cid = ?`)
+		.bind(input.uri, input.cid)
+		.first<{ deleted_at: string | null; observed_at_epoch_ms: number }>();
+	if (!row || row.deleted_at !== null) return false;
+	// Deterministic tie-break on equal observed_at_epoch_ms: a same-instant
+	// sibling with a greater CID is treated as newer, so exactly one subject
+	// at a URI is ever "current" even when two are observed in the same
+	// millisecond.
+	const newer = await db
+		.prepare(
+			`SELECT 1 FROM subjects
+			 WHERE uri = ? AND cid != ? AND deleted_at IS NULL
+			   AND (observed_at_epoch_ms > ? OR (observed_at_epoch_ms = ? AND cid > ?))
+			 LIMIT 1`,
+		)
+		.bind(input.uri, input.cid, row.observed_at_epoch_ms, row.observed_at_epoch_ms, input.cid)
+		.first();
+	return !newer;
 }
 
 export interface CreateAssessmentRunInput {
@@ -197,6 +262,30 @@ export async function getAssessmentByRunKey(
 	return row ? rowToAssessment(row) : null;
 }
 
+/**
+ * Non-terminal runs for a URI, regardless of CID. Used when a delete event
+ * arrives: any run still in flight for a now-deleted subject is cancelled
+ * (spec §9.1: "A running assessment may finish for forensic purposes but
+ * must not issue a new positive label for a deleted subject" — v1 cancels
+ * outright rather than letting it run to a forensic-only completion).
+ */
+export async function listNonTerminalAssessmentsForUri(
+	db: D1Database,
+	uri: string,
+): Promise<Assessment[]> {
+	const rows = await db
+		.prepare(
+			`SELECT id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
+			 policy_version, model_id, prompt_hash, scanner_versions_json, public_summary, coverage_json,
+			 supersedes_assessment_id, started_at, completed_at, created_at
+			 FROM assessments
+			 WHERE uri = ? AND state NOT IN (${Array.from(TERMINAL_STATES, () => "?").join(", ")})`,
+		)
+		.bind(uri, ...TERMINAL_STATES)
+		.all<AssessmentRow>();
+	return (rows.results ?? []).map(rowToAssessment);
+}
+
 export interface TransitionAssessmentInput {
 	id: string;
 	from: AssessmentState;
@@ -278,6 +367,50 @@ export async function getCurrentAssessment(
 				updatedAt: row.updated_at,
 			}
 		: null;
+}
+
+export interface NegatableAutomatedLabel {
+	val: string;
+}
+
+/**
+ * Prior automated-assessment labels still active (not yet negated) for a
+ * (uri, cid), per label value. A superseding run negates whichever of these
+ * it no longer supports (spec §10) — but a manually-issued label (reviewer
+ * or admin action, `issuance_actions.type = 'manual-label'`) is never a
+ * candidate here, so automation can never negate it (spec §10: "Automation
+ * cannot negate action-backed assessment-passed/assessment-overridden
+ * labels or undo a human !takedown, security-yanked, package label, or
+ * publisher label").
+ *
+ * "Active" means the most recent automated-assessment issuance for that
+ * value, ordered by `issued_labels.sequence`, is a positive (non-negated)
+ * one — a value whose latest automated event is already a negation isn't
+ * returned, since there's nothing left to negate.
+ */
+export async function getNegatableAutomatedLabels(
+	db: D1Database,
+	input: { src: string; uri: string; cid: string },
+): Promise<NegatableAutomatedLabel[]> {
+	const rows = await db
+		.prepare(
+			// Scoped to this labeler's own `src`: a labeler only negates labels it
+			// issued (ATProto streams are per-issuer). The inner MAX reflects the
+			// TRUE stream head within that src, so a val whose latest event was a
+			// manual action is never returned — only a val whose current active
+			// event is an automated non-negation is a candidate (§10).
+			`SELECT l.val
+			 FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE l.src = ? AND l.uri = ? AND l.cid = ? AND a.type = 'automated-assessment' AND l.neg = 0
+			 AND l.sequence = (
+				SELECT MAX(l2.sequence) FROM issued_labels l2
+				WHERE l2.src = l.src AND l2.uri = l.uri AND l2.cid = l.cid AND l2.val = l.val
+			 )`,
+		)
+		.bind(input.src, input.uri, input.cid)
+		.all<{ val: string }>();
+	return (rows.results ?? []).map((row) => ({ val: row.val }));
 }
 
 export interface FinalizationInput {

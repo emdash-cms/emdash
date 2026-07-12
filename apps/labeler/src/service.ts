@@ -16,6 +16,16 @@ const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const REGISTRY_RECORD =
 	/^at:\/\/(did:[a-z0-9]+:[A-Za-z0-9._:%-]+)\/(com\.emdashcms\.experimental\.package\.(?:profile|release))\/([A-Za-z0-9._~:%-]+)$/;
 
+/**
+ * Issuance could not proceed because the signing state is transiently
+ * unavailable (paused or mid-rotation), not because the request is invalid.
+ * Callers should retry rather than dead-letter — otherwise a discovery
+ * event arriving during a key rotation permanently loses its label.
+ */
+export class LabelIssuanceUnavailableError extends Error {
+	override readonly name = "LabelIssuanceUnavailableError";
+}
+
 export type ManualLabelValue =
 	| "!takedown"
 	| "package-disputed"
@@ -120,7 +130,7 @@ export async function buildIssuanceStatements(
 			targetKeyVersion: config.signingKeyVersion,
 			rotationId: signingStatus.rotationId,
 		});
-		throw new Error("label issuance is paused");
+		throw new LabelIssuanceUnavailableError("label issuance is paused");
 	}
 	if (signingStatus && signingStatus.activeKeyVersion !== config.signingKeyVersion) {
 		await recordSigningAlert(db, "STALE_SIGNING_KEY", {
@@ -128,7 +138,7 @@ export async function buildIssuanceStatements(
 			targetKeyVersion: config.signingKeyVersion,
 			rotationId: signingStatus.rotationId,
 		});
-		throw new Error("label signing key version is stale");
+		throw new LabelIssuanceUnavailableError("label signing key version is stale");
 	}
 
 	if (action.type === "automated-assessment" && proposal.neg === true) {
@@ -270,14 +280,14 @@ export async function buildIssuanceStatements(
 					await assertAutomatedNegationAllowed(db, signer.issuerDid, proposal);
 				}
 				const status = await getSigningStatusIfInitialized(db);
-				if (!status) throw new Error("label issuance did not persist");
+				if (!status) throw new LabelIssuanceUnavailableError("label issuance did not persist");
 				if (!signingStatus) {
 					await recordSigningAlert(db, "SIGNING_STATE_CHANGED", {
 						activeKeyVersion: status.activeKeyVersion,
 						targetKeyVersion: config.signingKeyVersion,
 						rotationId: status.rotationId,
 					});
-					throw new Error("signing state changed; retry label issuance");
+					throw new LabelIssuanceUnavailableError("signing state changed; retry label issuance");
 				}
 				if (status.phase === "paused") {
 					await recordSigningAlert(db, "ISSUANCE_PAUSED", {
@@ -285,14 +295,14 @@ export async function buildIssuanceStatements(
 						targetKeyVersion: config.signingKeyVersion,
 						rotationId: status.rotationId,
 					});
-					throw new Error("label issuance is paused");
+					throw new LabelIssuanceUnavailableError("label issuance is paused");
 				}
 				await recordSigningAlert(db, "STALE_SIGNING_KEY", {
 					activeKeyVersion: status.activeKeyVersion,
 					targetKeyVersion: config.signingKeyVersion,
 					rotationId: status.rotationId,
 				});
-				throw new Error("label signing key version is stale");
+				throw new LabelIssuanceUnavailableError("label signing key version is stale");
 			}
 			return assertMatches(issued, signer, action, proposal);
 		},
@@ -317,7 +327,7 @@ async function issueLabel(
 				targetKeyVersion: existing.signing_key_version,
 				rotationId: status.rotationId,
 			});
-			throw new Error("label signature must be refreshed before replay");
+			throw new LabelIssuanceUnavailableError("label signature must be refreshed before replay");
 		}
 		const result = assertMatches(existing, signer, action, proposal);
 		if (publisher) {

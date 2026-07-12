@@ -15,6 +15,7 @@ import {
 	deleteSubject,
 	getAssessment,
 	getCurrentAssessment,
+	isSubjectCurrent,
 	recordEvidenceObject,
 	recordFinding,
 	transitionAssessmentState,
@@ -144,6 +145,47 @@ describe("migration schema", () => {
 				.bind(subject.uri, subject.cid)
 				.run(),
 		).rejects.toThrow();
+	});
+});
+
+describe("subjects", () => {
+	it("reactivates a tombstoned subject on a verified re-observation", async () => {
+		const subject = release();
+		const seed = {
+			uri: subject.uri,
+			cid: subject.cid,
+			did: PUBLISHER_DID,
+			collection: "com.emdashcms.experimental.package.release",
+			rkey: subject.uri.split("/").at(-1)!,
+		};
+		await createSubject(testEnv.DB, seed);
+		await deleteSubject(testEnv.DB, { uri: subject.uri, cid: subject.cid });
+		expect(await isSubjectCurrent(testEnv.DB, subject)).toBe(false);
+
+		// A verified re-observation (create path only reaches here after PDS
+		// verification) clears the tombstone.
+		await createSubject(testEnv.DB, seed);
+		expect(await isSubjectCurrent(testEnv.DB, subject)).toBe(true);
+	});
+
+	it("treats exactly one same-instant sibling as current (deterministic tie-break)", async () => {
+		const uri = release().uri;
+		const now = new Date("2026-07-11T00:00:00.000Z");
+		const base = {
+			uri,
+			did: PUBLISHER_DID,
+			collection: "com.emdashcms.experimental.package.release",
+			rkey: uri.split("/").at(-1)!,
+			now,
+		};
+		const cidLow = "bafyreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+		const cidHigh = "bafyreizzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz";
+		await createSubject(testEnv.DB, { ...base, cid: cidLow });
+		await createSubject(testEnv.DB, { ...base, cid: cidHigh });
+
+		// Same observed_at_epoch_ms: the greater CID wins, so exactly one is current.
+		expect(await isSubjectCurrent(testEnv.DB, { uri, cid: cidHigh })).toBe(true);
+		expect(await isSubjectCurrent(testEnv.DB, { uri, cid: cidLow })).toBe(false);
 	});
 });
 

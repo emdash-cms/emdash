@@ -17,12 +17,20 @@
 	"dependencies": {
 		"@atcute/cbor": "catalog:",
 		"@atcute/crypto": "catalog:",
+		"@atcute/identity": "catalog:",
+		"@atcute/identity-resolver": "catalog:",
+		"@atcute/jetstream": "catalog:",
+		"@atcute/lexicons": "catalog:",
+		"@atcute/repo": "catalog:",
+		"@emdash-cms/registry-lexicons": "workspace:*",
 		"@emdash-cms/registry-moderation": "workspace:*",
 		"ulidx": "^2.4.1"
 	},
 	"devDependencies": {
+		"@atcute/cid": "catalog:",
 		"@cloudflare/vite-plugin": "catalog:",
 		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@emdash-cms/atproto-test-utils": "workspace:*",
 		"@types/node": "catalog:",
 		"typescript": "catalog:",
 		"vite": "catalog:",
