@@ -57,6 +57,9 @@ export class AssessmentTransitionConflictError extends Error {
 	}
 }
 
+/** Public assessment id: `asmt_` + a Crockford-base32 ULID. */
+export const ASSESSMENT_ID = /^asmt_[0-9A-HJKMNP-TV-Z]{26}$/;
+
 export function initialTriggerId(cid: string): string {
 	return `initial:${cid}`;
 }

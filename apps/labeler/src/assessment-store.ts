@@ -1,13 +1,13 @@
 import { ulid } from "ulidx";
 
 import {
+	ASSESSMENT_ID,
 	AssessmentTransitionConflictError,
 	CURRENT_POINTER_STATES,
 	isLegalTransition,
 	type AssessmentState,
 } from "./assessment-lifecycle.js";
 
-const ASSESSMENT_ID = /^asmt_[0-9A-HJKMNP-TV-Z]{26}$/;
 const DECISION_OUTCOME_STATES: ReadonlySet<AssessmentState> = new Set([
 	"passed",
 	"warned",

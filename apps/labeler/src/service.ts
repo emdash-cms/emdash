@@ -1,5 +1,6 @@
 import type { LabelSigner, SignedLabel } from "@emdash-cms/registry-moderation";
 
+import { ASSESSMENT_ID } from "./assessment-lifecycle.js";
 import type { LabelerConfig } from "./config.js";
 import type { FindingSeverity } from "./evidence.js";
 import { getLabelDefinition } from "./policy.js";
@@ -14,7 +15,6 @@ import type { LabelPublisher } from "./subscribe-labels.js";
 const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const REGISTRY_RECORD =
 	/^at:\/\/(did:[a-z0-9]+:[A-Za-z0-9._:%-]+)\/(com\.emdashcms\.experimental\.package\.(?:profile|release))\/([A-Za-z0-9._~:%-]+)$/;
-const ASSESSMENT_ID = /^asmt_[0-9A-HJKMNP-TV-Z]{26}$/;
 
 export type ManualLabelValue =
 	| "!takedown"
@@ -167,17 +167,38 @@ export async function buildIssuanceStatements(
 	const isPrebootstrap = signingStatus === null;
 	const storedKeyVersion = isPrebootstrap ? "legacy" : config.signingKeyVersion;
 	const assessmentId = action.type === "automated-assessment" ? action.assessmentId : null;
+	// The §10 negation guard also runs as an in-batch condition on this
+	// action insert: the pre-check above is a fast, friendly fail, but only a
+	// condition inside the atomic batch closes the read-then-write race with a
+	// concurrent manual issuance. Gating the action insert (not the label
+	// insert) means a lost race leaves no orphan action — the label insert
+	// selects from an action that was never written.
+	const isAutomatedNegation = action.type === "automated-assessment" && proposal.neg === true;
 
 	const statements: D1PreparedStatement[] = [
 		db
 			.prepare(
 				`INSERT INTO issuance_actions (actor, type, reason, idempotency_key, assessment_id, created_at)
 				 SELECT ?, ?, ?, ?, ?, ?
-				 WHERE (? = 1 AND NOT EXISTS (SELECT 1 FROM signing_state))
-				 OR (? = 0 AND EXISTS (
-					SELECT 1 FROM signing_state
-					WHERE id = 1 AND phase = 'active' AND active_key_version = ?
-				 ))
+				 WHERE (
+					(? = 1 AND NOT EXISTS (SELECT 1 FROM signing_state))
+					OR (? = 0 AND EXISTS (
+						SELECT 1 FROM signing_state
+						WHERE id = 1 AND phase = 'active' AND active_key_version = ?
+					))
+				 )
+				 AND (
+					? = 0
+					OR NOT EXISTS (
+						SELECT 1 FROM issued_labels l2
+						JOIN issuance_actions a2 ON a2.id = l2.action_id
+						WHERE l2.src = ? AND l2.uri = ? AND l2.val = ?
+						  AND l2.sequence = (
+							SELECT MAX(sequence) FROM issued_labels WHERE src = ? AND uri = ? AND val = ?
+						  )
+						  AND l2.neg = 0 AND a2.type <> 'automated-assessment'
+					)
+				 )
 				 ON CONFLICT(idempotency_key) DO NOTHING`,
 			)
 			.bind(
@@ -190,6 +211,13 @@ export async function buildIssuanceStatements(
 				isPrebootstrap ? 1 : 0,
 				isPrebootstrap ? 1 : 0,
 				config.signingKeyVersion,
+				isAutomatedNegation ? 1 : 0,
+				signer.issuerDid,
+				proposal.uri,
+				proposal.val,
+				signer.issuerDid,
+				proposal.uri,
+				proposal.val,
 			),
 		db
 			.prepare(
@@ -537,8 +565,10 @@ function validateAutomatedProposal(proposal: AutomatedLabelProposal): void {
 		throw new TypeError("automated labels must target a release record");
 	if (proposal.cid === undefined)
 		throw new TypeError("automated labels must include a release CID");
-	const rule = definition.subjectRules.find((candidate) => candidate.subject === "release");
-	if (!rule || !rule.issuanceModes.includes("automated"))
+	const canAutomateRelease = definition.subjectRules.some(
+		(candidate) => candidate.subject === "release" && candidate.issuanceModes.includes("automated"),
+	);
+	if (!canAutomateRelease)
 		throw new TypeError(`${proposal.val} cannot be issued through the automated path`);
 	if (proposal.neg === true) return;
 	if (definition.category === "automated-block") {

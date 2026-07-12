@@ -109,6 +109,14 @@ function parseLabelDefinition(entry: unknown, index: number): LabelDefinition {
 	const subjectRules = entry.subjectRules.map((rule, ruleIndex) =>
 		parseSubjectRule(rule, index, ruleIndex),
 	);
+	const subjects = new Set<string>();
+	for (const rule of subjectRules) {
+		if (subjects.has(rule.subject))
+			throw new TypeError(
+				`moderation policy labels[${index}].subjectRules has a duplicate subject: ${rule.subject}`,
+			);
+		subjects.add(rule.subject);
+	}
 
 	return { value, category, officialEffect, subjectRules };
 }

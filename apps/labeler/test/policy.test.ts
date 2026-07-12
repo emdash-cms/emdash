@@ -90,4 +90,24 @@ describe("strict policy parsing", () => {
 			"duplicates value",
 		);
 	});
+
+	it("throws on duplicate subject rules within one label", () => {
+		const base = { policyVersion: "v1", labelerDid: "did:web:example" };
+		expect(() =>
+			parseModerationPolicy({
+				...base,
+				labels: [
+					{
+						value: "x",
+						category: "warning",
+						officialEffect: "warn",
+						subjectRules: [
+							{ subject: "release", cidRule: "required", issuanceModes: ["reviewer"] },
+							{ subject: "release", cidRule: "required", issuanceModes: ["automated"] },
+						],
+					},
+				],
+			}),
+		).toThrow("duplicate subject");
+	});
 });

@@ -269,6 +269,58 @@ describe("automated proposal validation", () => {
 		expect(await countLabels(uri, "assessment-passed")).toBe(1);
 	});
 
+	it("closes the negation race in-batch: a manual label committed after the pre-check still blocks", async () => {
+		const uri = releaseUri();
+		const id = await assessmentId();
+		const idempotencyKey = `race-neg-${Math.random()}`;
+		// Build the negation statements while the stream is empty, so the
+		// pre-check passes — the exact TOCTOU window the in-batch guard closes.
+		const built = await buildIssuanceStatements(
+			testEnv.DB,
+			config,
+			await signer(),
+			action({ assessmentId: id, idempotencyKey }),
+			{ uri, cid: CID, val: "assessment-passed", neg: true },
+			new Date(),
+			false,
+		);
+		// The racing manual issuance lands between build and batch execution.
+		await testEnv.DB.prepare(
+			`INSERT INTO issuance_actions (actor, type, reason, idempotency_key, created_at)
+			 VALUES (?, 'manual-label', 'reviewer override', ?, ?)`,
+		)
+			.bind(LABELER_DID, `manual-seed-${Math.random()}`, new Date().toISOString())
+			.run();
+		const actionRow = await testEnv.DB.prepare(
+			`SELECT id FROM issuance_actions ORDER BY id DESC LIMIT 1`,
+		).first<{ id: number }>();
+		await testEnv.DB.prepare(
+			`INSERT INTO issued_labels (action_id, ver, src, uri, cid, val, neg, cts, sig, signing_key_id)
+			 VALUES (?, 1, ?, ?, ?, 'assessment-passed', 0, ?, X'00', ?)`,
+		)
+			.bind(
+				actionRow!.id,
+				LABELER_DID,
+				uri,
+				CID,
+				new Date().toISOString(),
+				`${LABELER_DID}#atproto_label`,
+			)
+			.run();
+
+		await testEnv.DB.batch(built.statements);
+
+		// The in-batch guard suppressed the action insert, so nothing negated
+		// the manual label and no orphan action was written.
+		expect(await countLabels(uri, "assessment-passed")).toBe(1);
+		const orphan = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issuance_actions WHERE idempotency_key = ?`,
+		)
+			.bind(idempotencyKey)
+			.first<{ n: number }>();
+		expect(orphan?.n).toBe(0);
+	});
+
 	it("rejects a blocking value from a non-critical severity", async () => {
 		const uri = releaseUri();
 		const id = await assessmentId();
