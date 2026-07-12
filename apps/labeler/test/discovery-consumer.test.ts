@@ -448,6 +448,25 @@ describe("processDiscoveryMessage: delete", () => {
 		expect(msg.acked).toBe(0);
 	});
 
+	it("dead-letters a delete whose absence check fails permanently, not retry", async () => {
+		const job = await jobFor({ rkey: rkey(), operation: "delete", cid: "" });
+		const deps = await buildDeps();
+		const msg = new FakeMessage();
+
+		await processDiscoveryMessage(job, msg, {
+			...deps,
+			confirmDeleted: () =>
+				Promise.reject(new RecordVerificationError("DID_RESOLUTION_FAILED", "no PDS entry")),
+		});
+
+		expect(msg.acked).toBe(1);
+		expect(msg.retried).toBe(0);
+		const dl = await testEnv.DB.prepare(`SELECT reason FROM dead_letters WHERE rkey = ?`)
+			.bind(job.rkey)
+			.first<{ reason: string }>();
+		expect(dl?.reason).toBe("DID_RESOLUTION_FAILED");
+	});
+
 	it("dead-letters nothing when a confirmed delete targets an unknown uri", async () => {
 		const job = await jobFor({ rkey: rkey(), operation: "delete", cid: "" });
 		const deps = await buildDeps();

@@ -216,21 +216,7 @@ export async function processDiscoveryMessage(
 			await applyDiscoveryDelete(deps.db, uri, now());
 			controller.ack();
 		} catch (err) {
-			if (err instanceof PdsVerificationError && isTransient(err.reason, err.status)) {
-				controller.retry();
-				return;
-			}
-			if (err instanceof RecordVerificationError && err.transient) {
-				controller.retry();
-				return;
-			}
-			console.error("[labeler] discovery delete failed", {
-				did: job.did,
-				collection: job.collection,
-				rkey: job.rkey,
-				error: err instanceof Error ? err.message : String(err),
-			});
-			controller.retry();
+			await classifyDiscoveryError(err, job, deps, controller, now());
 		}
 		return;
 	}
@@ -239,49 +225,65 @@ export async function processDiscoveryMessage(
 		await verifyAndCreateRun(uri, job, deps, now());
 		controller.ack();
 	} catch (err) {
-		if (err instanceof PdsVerificationError) {
-			if (isTransient(err.reason, err.status)) {
-				controller.retry();
-				return;
-			}
-			let mapped: DiscoveryDeadLetterReason;
-			try {
-				mapped = mapPdsReason(err.reason);
-			} catch (mapErr) {
-				console.error("[labeler] mapPdsReason failed; falling back", {
-					reason: err.reason,
-					error: mapErr instanceof Error ? mapErr.message : String(mapErr),
-				});
-				mapped = "UNEXPECTED_ERROR";
-			}
-			await writeDeadLetter(deps.db, job, mapped, err.message, now());
-			controller.ack();
-			return;
-		}
-		if (err instanceof RecordVerificationError) {
-			if (err.transient) {
-				controller.retry();
-				return;
-			}
-			await writeDeadLetter(deps.db, job, err.reason, err.message, now());
-			controller.ack();
-			return;
-		}
-		console.error("[labeler] unexpected discovery consumer error", {
-			did: job.did,
-			collection: job.collection,
-			rkey: job.rkey,
-			error: err instanceof Error ? (err.stack ?? err.message) : String(err),
-		});
-		await writeDeadLetter(
-			deps.db,
-			job,
-			"UNEXPECTED_ERROR",
-			err instanceof Error ? err.message : String(err),
-			now(),
-		);
-		controller.ack();
+		await classifyDiscoveryError(err, job, deps, controller, now());
 	}
+}
+
+/**
+ * One classification for both the create and delete paths so they can't
+ * diverge (spec §9.1): a transient failure retries; a permanent
+ * verification failure dead-letters and acks; anything unexpected is logged,
+ * dead-lettered, and acked rather than blocking the queue.
+ */
+async function classifyDiscoveryError(
+	err: unknown,
+	job: DiscoveryJob,
+	deps: DiscoveryConsumerDeps,
+	controller: MessageController,
+	now: Date,
+): Promise<void> {
+	if (err instanceof PdsVerificationError) {
+		if (isTransient(err.reason, err.status)) {
+			controller.retry();
+			return;
+		}
+		let mapped: DiscoveryDeadLetterReason;
+		try {
+			mapped = mapPdsReason(err.reason);
+		} catch (mapErr) {
+			console.error("[labeler] mapPdsReason failed; falling back", {
+				reason: err.reason,
+				error: mapErr instanceof Error ? mapErr.message : String(mapErr),
+			});
+			mapped = "UNEXPECTED_ERROR";
+		}
+		await writeDeadLetter(deps.db, job, mapped, err.message, now);
+		controller.ack();
+		return;
+	}
+	if (err instanceof RecordVerificationError) {
+		if (err.transient) {
+			controller.retry();
+			return;
+		}
+		await writeDeadLetter(deps.db, job, err.reason, err.message, now);
+		controller.ack();
+		return;
+	}
+	console.error("[labeler] unexpected discovery consumer error", {
+		did: job.did,
+		collection: job.collection,
+		rkey: job.rkey,
+		error: err instanceof Error ? (err.stack ?? err.message) : String(err),
+	});
+	await writeDeadLetter(
+		deps.db,
+		job,
+		"UNEXPECTED_ERROR",
+		err instanceof Error ? err.message : String(err),
+		now,
+	);
+	controller.ack();
 }
 
 async function verifyAndCreateRun(
