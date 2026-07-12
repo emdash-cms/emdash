@@ -196,6 +196,7 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 			_type: "image",
 			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
 			asset: {
+				_type: "reference",
 				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
 				...(attrStr(assetRecord.url) ? { url: attrStr(assetRecord.url) } : {}),
 			},

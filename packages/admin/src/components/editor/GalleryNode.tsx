@@ -21,7 +21,7 @@ import { cn } from "../../lib/utils";
 export interface GalleryImage {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string };
+	asset: { _type?: "reference"; _ref: string; url?: string };
 	alt?: string;
 	caption?: string;
 	width?: number;
@@ -36,7 +36,12 @@ export interface GalleryAttributes {
 /** Panel descriptor passed to the block sidebar (see BlockSidebarPanel). */
 export interface GallerySidebarPanel {
 	type: "gallery";
-	attrs: GalleryAttributes;
+	/**
+	 * `selectedImageKey` is transient UI state (which image's settings card
+	 * is open) — it must never be written into node attrs via
+	 * `updateAttributes`.
+	 */
+	attrs: GalleryAttributes & { selectedImageKey?: string };
 	onUpdate: (attrs: Partial<GalleryAttributes>) => void;
 	onReplace: (attrs: GalleryAttributes) => void;
 	onDelete: () => void;
@@ -70,14 +75,14 @@ function GalleryNodeView({ node, updateAttributes, selected, deleteNode, editor 
 		columns: typeof node.attrs.columns === "number" ? node.attrs.columns : undefined,
 	});
 
-	const openSidebar = () => {
+	const openSidebar = (selectedImageKey?: string) => {
 		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).gallery;
 		const onOpen = storage?.onOpenBlockSidebar as ((panel: GallerySidebarPanel) => void) | null;
 		if (onOpen) {
 			sidebarOpenRef.current = true;
 			onOpen({
 				type: "gallery",
-				attrs: getAttrs(),
+				attrs: { ...getAttrs(), selectedImageKey },
 				onUpdate: (attrs) => updateAttributes(attrs),
 				onReplace: (attrs) => updateAttributes(attrs),
 				onDelete: () => deleteNode(),
@@ -125,7 +130,7 @@ function GalleryNodeView({ node, updateAttributes, selected, deleteNode, editor 
 					type="button"
 					className="w-full rounded-lg border-2 border-dashed p-8 flex flex-col items-center gap-2 text-kumo-subtle hover:border-kumo-brand transition-colors"
 					onMouseDown={(e) => e.preventDefault()}
-					onClick={openSidebar}
+					onClick={() => openSidebar()}
 				>
 					<Images className="h-8 w-8" />
 					<span className="text-sm">{t`Empty gallery — open settings to add images`}</span>
@@ -135,14 +140,25 @@ function GalleryNodeView({ node, updateAttributes, selected, deleteNode, editor 
 					className="grid gap-2 rounded-lg"
 					style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, 1fr)` }}
 				>
-					{images.map((image) => (
+					{images.map((image, index) => (
 						<figure key={image._key} className="m-0">
-							<img
-								src={galleryImageUrl(image)}
-								alt={image.alt || ""}
-								className="w-full aspect-square object-cover rounded-md border"
-								draggable={false}
-							/>
+							<button
+								type="button"
+								className="block w-full cursor-pointer"
+								onMouseDown={(e) => e.preventDefault()}
+								onClick={(e) => {
+									e.stopPropagation();
+									openSidebar(image._key);
+								}}
+								aria-label={t`Edit image ${index + 1}`}
+							>
+								<img
+									src={galleryImageUrl(image)}
+									alt={image.alt || ""}
+									className="w-full aspect-square object-cover rounded-md border"
+									draggable={false}
+								/>
+							</button>
 							{image.caption && (
 								<figcaption className="text-xs text-kumo-subtle mt-1 text-center truncate">
 									{image.caption}

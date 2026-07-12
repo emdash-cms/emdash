@@ -39,7 +39,7 @@ export function mediaItemToGalleryImage(item: MediaItem): GalleryImage {
 	return {
 		_type: "image",
 		_key: generateKey(),
-		asset: { _ref: item.id, url: item.url },
+		asset: { _type: "reference", _ref: item.id, url: item.url },
 		alt: item.alt || "",
 		width: item.width,
 		height: item.height,
@@ -55,7 +55,22 @@ export function GalleryDetailPanel({
 }: GalleryDetailPanelProps) {
 	const { t } = useLingui();
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
-	const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
+	// `selectedImageKey` is transient UI state passed in via `attributes` when
+	// the gallery node view opens the sidebar for a specific image (e.g.
+	// clicking an image in the canvas grid) — it is never persisted to node
+	// attrs.
+	const selectedImageKey = (attributes as GalleryAttributes & { selectedImageKey?: string })
+		.selectedImageKey;
+	const [selectedKey, setSelectedKey] = React.useState<string | null>(selectedImageKey ?? null);
+
+	// The panel component instance is reused (not remounted) while the
+	// sidebar stays open, so clicking a different image in the canvas grid
+	// must update the selection even though `selectedKey` state already exists.
+	React.useEffect(() => {
+		if (selectedImageKey != null) {
+			setSelectedKey(selectedImageKey);
+		}
+	}, [selectedImageKey]);
 
 	// `attributes` is a snapshot taken when the sidebar opened; it does not
 	// refresh after onUpdate. Local state is the live source of truth while
@@ -65,6 +80,13 @@ export function GalleryDetailPanel({
 		images: attributes.images ?? [],
 		columns: attributes.columns,
 	});
+
+	// A new `attributes` identity means the sidebar was (re)opened — possibly
+	// for a DIFFERENT gallery node. Resync or edits would write this panel's
+	// stale images into the other node.
+	React.useEffect(() => {
+		setGallery({ images: attributes.images ?? [], columns: attributes.columns });
+	}, [attributes]);
 	const images = gallery.images;
 	const columns = gallery.columns ?? 3;
 	const selectedImage = selectedKey
@@ -98,7 +120,7 @@ export function GalleryDetailPanel({
 				image._key === key
 					? {
 							...image,
-							asset: { _ref: item.id, url: item.url },
+							asset: { _type: "reference", _ref: item.id, url: item.url },
 							alt: item.alt || "",
 							width: item.width,
 							height: item.height,

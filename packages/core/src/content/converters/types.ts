@@ -78,6 +78,8 @@ export interface PortableTextGalleryImage {
 	_type: "image";
 	_key: string;
 	asset: {
+		/** Present on WordPress-imported galleries; always emitted on round-trip */
+		_type?: "reference";
 		_ref: string;
 		url?: string;
 	};

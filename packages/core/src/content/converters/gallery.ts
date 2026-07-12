@@ -34,6 +34,7 @@ export function sanitizeGalleryImages(
 						? generateKey()
 						: "",
 			asset: {
+				_type: "reference",
 				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
 				...(typeof assetRecord.url === "string" && assetRecord.url ? { url: assetRecord.url } : {}),
 			},

@@ -104,6 +104,62 @@ describe("gallery block round-trip (core converters)", () => {
 		expect(pm.content[0].type).toBe("paragraph");
 	});
 
+	it("round-trips a WordPress-imported gallery without loss", () => {
+		// Exact shape emitted by @emdash-cms/gutenberg-to-portable-text `gallery`
+		// transformer after the import media pass (asset._type "reference",
+		// rewritten _ref/url, per-image caption, no width/height, columns attr).
+		const imported = {
+			_type: "gallery",
+			_key: "wpgal1",
+			images: [
+				{
+					_type: "image",
+					_key: "wpimg1",
+					asset: {
+						_type: "reference",
+						_ref: "/_emdash/api/media/file/01ABC.jpg",
+						url: "/_emdash/api/media/file/01ABC.jpg",
+					},
+					alt: "Beach",
+					caption: "Summer 2019",
+				},
+				{
+					_type: "image",
+					_key: "wpimg2",
+					asset: { _type: "reference", _ref: "42", url: "https://old-site.com/photo.jpg" },
+					alt: undefined,
+					caption: undefined,
+				},
+			],
+			columns: 3,
+		};
+
+		const pm = portableTextToProsemirror([imported as never]);
+		expect(pm.content[0].type).toBe("gallery");
+
+		const pt = prosemirrorToPortableText(pm);
+		const restored = pt[0] as PortableTextGalleryBlock;
+
+		expect(restored._type).toBe("gallery");
+		expect(restored.columns).toBe(3);
+		expect(restored.images).toHaveLength(2);
+		expect(restored.images[0]).toMatchObject({
+			_type: "image",
+			asset: {
+				_type: "reference",
+				_ref: "/_emdash/api/media/file/01ABC.jpg",
+				url: "/_emdash/api/media/file/01ABC.jpg",
+			},
+			alt: "Beach",
+			caption: "Summer 2019",
+		});
+		expect(restored.images[1].asset).toEqual({
+			_type: "reference",
+			_ref: "42",
+			url: "https://old-site.com/photo.jpg",
+		});
+	});
+
 	it("preserves galleries among other block types", () => {
 		const blocks = [
 			{
