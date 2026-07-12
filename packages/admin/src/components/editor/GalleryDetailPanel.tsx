@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useLingui } from "@lingui/react/macro";
-import { X, Plus, Trash, DotsSixVertical } from "@phosphor-icons/react";
+import { X, Plus, Trash, DotsSixVertical, ImageSquare } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
@@ -61,20 +61,50 @@ export function GalleryDetailPanel({
 	const { t } = useLingui();
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
 
-	const images = attributes.images ?? [];
-	const columns = attributes.columns ?? 3;
+	// `attributes` is a snapshot taken when the sidebar opened; it does not
+	// refresh after onUpdate. Local state is the live source of truth while
+	// the panel is open so sequential edits (caption, then reorder) compose
+	// instead of the later edit clobbering the earlier one.
+	const [gallery, setGallery] = React.useState<GalleryAttributes>({
+		images: attributes.images ?? [],
+		columns: attributes.columns,
+	});
+	const images = gallery.images;
+	const columns = gallery.columns ?? 3;
+
+	const apply = (patch: Partial<GalleryAttributes>) => {
+		setGallery((prev) => ({ ...prev, ...patch }));
+		onUpdate(patch);
+	};
 
 	const handleAdd = (items: MediaItem[]) => {
-		onUpdate({ images: [...images, ...items.map(mediaItemToGalleryImage)] });
+		apply({ images: [...images, ...items.map(mediaItemToGalleryImage)] });
 	};
 
 	const handleRemove = (key: string) => {
-		onUpdate({ images: images.filter((image) => image._key !== key) });
+		apply({ images: images.filter((image) => image._key !== key) });
 	};
 
 	const handleImageChange = (key: string, patch: Partial<GalleryImage>) => {
-		onUpdate({
+		apply({
 			images: images.map((image) => (image._key === key ? { ...image, ...patch } : image)),
+		});
+	};
+
+	const handleReplace = (key: string, item: MediaItem) => {
+		// Keep the slot (key, caption) — swap the asset and its intrinsic data
+		apply({
+			images: images.map((image) =>
+				image._key === key
+					? {
+							...image,
+							asset: { _ref: item.id, url: item.url },
+							alt: item.alt || "",
+							width: item.width,
+							height: item.height,
+						}
+					: image,
+			),
 		});
 	};
 
@@ -84,7 +114,7 @@ export function GalleryDetailPanel({
 		const oldIndex = images.findIndex((image) => image._key === active.id);
 		const newIndex = images.findIndex((image) => image._key === over.id);
 		if (oldIndex === -1 || newIndex === -1) return;
-		onUpdate({ images: arrayMove(images, oldIndex, newIndex) });
+		apply({ images: arrayMove(images, oldIndex, newIndex) });
 	};
 
 	const body = (
@@ -106,7 +136,7 @@ export function GalleryDetailPanel({
 			<Select
 				label={t`Columns`}
 				value={String(columns)}
-				onValueChange={(v) => onUpdate({ columns: v ? parseInt(v, 10) : undefined })}
+				onValueChange={(v) => apply({ columns: v ? parseInt(v, 10) : undefined })}
 				items={{ "1": "1", "2": "2", "3": "3", "4": "4", "5": "5", "6": "6" }}
 			/>
 
@@ -138,6 +168,7 @@ export function GalleryDetailPanel({
 									image={image}
 									index={index}
 									onChange={(patch) => handleImageChange(image._key, patch)}
+									onReplace={(item) => handleReplace(image._key, item)}
 									onRemove={() => handleRemove(image._key)}
 								/>
 							))}
@@ -177,11 +208,13 @@ interface SortableGalleryRowProps {
 	image: GalleryImage;
 	index: number;
 	onChange: (patch: Partial<GalleryImage>) => void;
+	onReplace: (item: MediaItem) => void;
 	onRemove: () => void;
 }
 
-function SortableGalleryRow({ image, index, onChange, onRemove }: SortableGalleryRowProps) {
+function SortableGalleryRow({ image, index, onChange, onReplace, onRemove }: SortableGalleryRowProps) {
 	const { t } = useLingui();
+	const [showReplacePicker, setShowReplacePicker] = React.useState(false);
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: image._key,
 	});
@@ -220,12 +253,32 @@ function SortableGalleryRow({ image, index, onChange, onRemove }: SortableGaller
 					variant="ghost"
 					shape="square"
 					className="h-8 w-8"
+					onClick={() => setShowReplacePicker(true)}
+					aria-label={t`Replace image ${index + 1}`}
+				>
+					<ImageSquare className="h-3.5 w-3.5" />
+				</Button>
+				<Button
+					type="button"
+					variant="ghost"
+					shape="square"
+					className="h-8 w-8"
 					onClick={onRemove}
 					aria-label={t`Remove image ${index + 1}`}
 				>
 					<Trash className="h-3.5 w-3.5 text-kumo-danger" />
 				</Button>
 			</div>
+			<MediaPickerModal
+				open={showReplacePicker}
+				onOpenChange={setShowReplacePicker}
+				onSelect={(item) => {
+					onReplace(item);
+					setShowReplacePicker(false);
+				}}
+				mimeTypeFilters={["image/"]}
+				title={t`Replace image`}
+			/>
 			<Input
 				label={t`Alt text`}
 				value={image.alt ?? ""}
