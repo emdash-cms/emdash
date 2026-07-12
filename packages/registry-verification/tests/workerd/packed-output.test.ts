@@ -1,9 +1,14 @@
 import { expect, it } from "vitest";
 
+import { validatePluginBundle } from "../../dist/bundle.js";
 import { computeMultihash, GitHubProvenanceVerifier } from "../../dist/index.js";
 import bundleFixture from "../../fixtures/provenance/sigstore-core-4.0.1-slsa.bundle.json";
 
 const encoder = new TextEncoder();
+
+it("exposes bundle validation without loading the Node verifier bundle", () => {
+	expect(validatePluginBundle).toBeTypeOf("function");
+});
 
 it("executes the published verifier bundle in workerd", async () => {
 	const document = encoder.encode(JSON.stringify(bundleFixture));

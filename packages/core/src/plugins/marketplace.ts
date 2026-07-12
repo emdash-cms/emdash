@@ -9,7 +9,7 @@
 import {
 	validatePluginBundle,
 	type ValidatePluginBundleOptions,
-} from "@emdash-cms/registry-verification";
+} from "@emdash-cms/registry-verification/bundle";
 
 import type { PluginManifest } from "./types.js";
 
