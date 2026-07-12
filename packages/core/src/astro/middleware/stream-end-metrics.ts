@@ -82,9 +82,11 @@ export function wrapBodyForStreamMetrics(response: Response): Response {
 				cacheHits: metrics.cacheHits,
 				cacheMisses: metrics.cacheMisses,
 			};
-			console.log(`${STREAM_END_PREFIX} ${JSON.stringify(snapshot)}`);
 			// Emit the full per-query log now that streaming is complete.
 			if (recorder) flushRecorder(recorder);
+			// Keep this marker after the query lines so consumers can use it as
+			// an integrity fence for the complete request recording.
+			console.log(`${STREAM_END_PREFIX} ${JSON.stringify(snapshot)}`);
 		},
 	});
 

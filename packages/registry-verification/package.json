@@ -8,6 +8,10 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./bundle": {
+			"types": "./dist/bundle.d.ts",
+			"default": "./dist/bundle.js"
 		}
 	},
 	"files": [

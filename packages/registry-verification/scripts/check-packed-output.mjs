@@ -27,6 +27,16 @@ try {
 	const extracted = join(temporaryDirectory, "extracted");
 	await pipeline(createReadStream(filename), createGunzip(), unpackTar(extracted));
 	const publishedOutput = await readFile(join(extracted, "package", "dist", "index.js"), "utf8");
+	const publishedBundleOutput = await readFile(
+		join(extracted, "package", "dist", "bundle.js"),
+		"utf8",
+	);
+	if (
+		publishedBundleOutput.includes("createRequire") ||
+		publishedBundleOutput.includes("@sigstore")
+	) {
+		throw new Error("Packed bundle-validation entry includes Node or Sigstore verifier code");
+	}
 
 	if (
 		/from ["']@sigstore\//.test(publishedOutput) ||
