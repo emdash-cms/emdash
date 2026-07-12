@@ -3342,14 +3342,19 @@ export class EmDashRuntime {
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
+			// Buffer the body as text so routes with `rawBody: true` can see the
+			// exact bytes (webhook signature verification); parse JSON from the
+			// same buffer for `ctx.input`.
 			let body: unknown = undefined;
+			let rawBody: string | undefined;
 			try {
-				body = await request.json();
+				rawBody = await request.text();
+				if (rawBody) body = JSON.parse(rawBody);
 			} catch {
-				// No body or not JSON
+				// No body or not JSON — rawBody (when read) is still passed through
 			}
 
-			return routeRegistry.invoke(pluginId, routeKey, { request, body });
+			return routeRegistry.invoke(pluginId, routeKey, { request, body, rawBody });
 		}
 
 		// Check sandboxed (marketplace) plugins second

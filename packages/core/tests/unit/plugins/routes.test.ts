@@ -334,6 +334,88 @@ describe("PluginRouteHandler", () => {
 			expect(result.data).toEqual({ hasEmail: true, hasSend: true });
 		});
 
+		it("exposes ctx.rawBody on routes that opt in with rawBody: true", async () => {
+			// Signature verification needs the exact raw bytes: whitespace and key
+			// order must survive, which a re-serialized ctx.input can't guarantee.
+			const raw = `{"b":2,  "a":1}`;
+			let seen: { rawBody?: string; input?: unknown } = {};
+			const plugin = createTestPlugin({
+				routes: {
+					webhook: {
+						rawBody: true,
+						handler: async (ctx) => {
+							seen = { rawBody: ctx.rawBody, input: ctx.input };
+							return null;
+						},
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("webhook", {
+				request: new Request("http://test.com", { method: "POST", body: raw }),
+				body: JSON.parse(raw),
+				rawBody: raw,
+			});
+
+			expect(result.success).toBe(true);
+			expect(seen.rawBody).toBe(raw);
+			expect(seen.input).toEqual({ a: 1, b: 2 });
+		});
+
+		it("keeps ctx.rawBody undefined on routes without the rawBody flag", async () => {
+			let seenRawBody: string | undefined = "sentinel";
+			const plugin = createTestPlugin({
+				routes: {
+					normal: {
+						handler: async (ctx) => {
+							seenRawBody = ctx.rawBody;
+							return null;
+						},
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("normal", {
+				request: new Request("http://test.com", { method: "POST", body: "{}" }),
+				body: {},
+				rawBody: "{}",
+			});
+
+			expect(result.success).toBe(true);
+			expect(seenRawBody).toBeUndefined();
+		});
+
+		it("delivers non-JSON bodies to rawBody routes even though input is undefined", async () => {
+			// Form-encoded webhook deliveries parse to undefined today and are
+			// lost; with rawBody: true the handler can parse them itself.
+			const raw = "event=order.paid&id=42";
+			let seen: { rawBody?: string; input?: unknown } = {};
+			const plugin = createTestPlugin({
+				routes: {
+					webhook: {
+						rawBody: true,
+						handler: async (ctx) => {
+							seen = { rawBody: ctx.rawBody, input: ctx.input };
+							return null;
+						},
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("webhook", {
+				request: new Request("http://test.com", { method: "POST", body: raw }),
+				body: undefined,
+				rawBody: raw,
+			});
+
+			expect(result.success).toBe(true);
+			expect(seen.rawBody).toBe(raw);
+			expect(seen.input).toBeUndefined();
+		});
+
 		it("surfaces an actionable error when a handler reads the consumed request body (#1293)", async () => {
 			// EmDash parses the body once and exposes it as ctx.input; the same
 			// Request is then handed to the handler with its stream already spent.

@@ -38,7 +38,8 @@ function guardConsumedRequestBody(request: Request): Request {
 					throw new Error(
 						`[emdash] ctx.request.${prop}() is not available inside a plugin route handler: ` +
 							`EmDash has already parsed the request body and exposes it as ctx.input. ` +
-							`Read ctx.input instead of ctx.request.${prop}().`,
+							`Read ctx.input instead of ctx.request.${prop}() — or set rawBody: true ` +
+							`on the route and read ctx.rawBody if you need the unparsed body.`,
 					);
 				};
 			}
@@ -78,6 +79,8 @@ export interface InvokeRouteOptions {
 	request: Request;
 	/** Request body (already parsed) */
 	body?: unknown;
+	/** Unparsed request body; forwarded to the handler only for routes with `rawBody: true` */
+	rawBody?: string;
 }
 
 /**
@@ -141,6 +144,8 @@ export class PluginRouteHandler {
 			// (#1293). Metadata extraction uses the original request (headers only).
 			request: guardConsumedRequestBody(options.request),
 			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
+			// Only routes that opt in see the raw body (signature verification).
+			rawBody: route.rawBody === true ? options.rawBody : undefined,
 		};
 
 		// Execute handler
