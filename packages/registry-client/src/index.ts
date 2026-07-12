@@ -41,7 +41,12 @@ export {
 	defaultCredentialStore,
 } from "./credentials/index.js";
 
-export { type PublishingClientFromHandlerOptions, PublishingClient } from "./publishing/index.js";
+export {
+	type CreateDelegatedReleaseOptions,
+	type PublishingClientFromHandlerOptions,
+	PublishingClient,
+	createDelegatedRelease,
+} from "./publishing/index.js";
 
 export { type DiscoveryClientOptions, DiscoveryClient } from "./discovery/index.js";
 
