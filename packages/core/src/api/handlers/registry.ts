@@ -8,9 +8,11 @@
  *      aggregator's `resolvePackage` XRPC.
  *   2. Look up the requested release (or the policy-filtered latest one)
  *      via `getLatestRelease` / `listReleases`.
- *   3. Reject the install if the aggregator surfaces a `security:yanked`
- *      hard-enforcement label or the release is below the configured
- *      minimum release age.
+ *   3. Reject the install if `assertReleaseEligible` finds the release
+ *      blocked by the full moderation evaluator (release/package/publisher
+ *      label cascade, CID-bound labels, negation and expiry -- see
+ *      `@emdash-cms/registry-client`'s `evaluateReleaseViews`) or the
+ *      release is below the configured minimum release age.
  *   4. Fetch the bundle artifact, walking aggregator mirrors first and
  *      falling back to the publisher-declared URL.
  *   5. Verify the artifact's multibase checksum against the signed
@@ -40,8 +42,17 @@
 
 import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
+import type {
+	ValidatedPackageView,
+	ValidatedReleaseView,
+} from "@emdash-cms/registry-client/discovery";
 import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import {
+	evaluateReleaseViews,
+	resolveAcceptedPolicy,
+} from "@emdash-cms/registry-client/moderation";
+import type { ReleaseEligibility } from "@emdash-cms/registry-client/moderation";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
@@ -590,6 +601,75 @@ export function assertEnvCompatible(
 	};
 }
 
+/**
+ * The shape of an eligibility rejection returned in the install/update
+ * `RELEASE_YANKED` / `RELEASE_BLOCKED` / `REGISTRY_POLICY_INVALID` error.
+ */
+interface ReleaseEligibilityError {
+	code: "RELEASE_YANKED" | "RELEASE_BLOCKED" | "REGISTRY_POLICY_INVALID";
+	message: string;
+	details?: { eligibility: ReleaseEligibility; reasonCodes: string[]; blockingLabels: string[] };
+}
+
+/**
+ * Gate a release against the shared moderation evaluator (release, package,
+ * and publisher label cascade; CID-bound labels; negation and expiry -- see
+ * `evaluateReleaseViews`). Blocks only on a manual/automated block or a
+ * redact-flagged takedown. An eligibility of `"blocked"` driven solely by
+ * `missing-assessment-pass` (no accepted labeler has passed this release) is
+ * NOT a block here -- that positive-assessment gate isn't shipped yet, and
+ * would require labels verified through `verifyLabel`, not this
+ * aggregator-hydrated path.
+ *
+ * Returns `null` when the release is not blocked, or a structured error to
+ * return directly from the handler.
+ */
+function assertReleaseEligible(input: {
+	packageView: ValidatedPackageView;
+	releaseView: ValidatedReleaseView;
+	publisherDid: string;
+	configuredAcceptLabelers: string | undefined;
+	contentLabelersHeader: string | undefined;
+}): ReleaseEligibilityError | null {
+	let accepted: ReturnType<typeof resolveAcceptedPolicy>;
+	try {
+		accepted = resolveAcceptedPolicy({
+			configuredAcceptLabelers: input.configuredAcceptLabelers,
+			contentLabelersHeader: input.contentLabelersHeader,
+		});
+	} catch (err) {
+		return {
+			code: "REGISTRY_POLICY_INVALID",
+			message: err instanceof Error ? err.message : "Invalid registry.acceptLabelers configuration",
+		};
+	}
+
+	const moderation = evaluateReleaseViews({
+		packageView: input.packageView,
+		releaseView: input.releaseView,
+		publisherDid: input.publisherDid,
+		accepted,
+	});
+
+	const blocked =
+		(moderation.eligibility === "blocked" && moderation.blockingLabels.length > 0) ||
+		moderation.redacted;
+	if (!blocked) return null;
+
+	const yanked = moderation.blockingLabels.includes("security-yanked");
+	return {
+		code: yanked ? "RELEASE_YANKED" : "RELEASE_BLOCKED",
+		message: yanked
+			? "This release has been withdrawn (security-yanked label)."
+			: "This release is blocked by registry moderation labels.",
+		details: {
+			eligibility: moderation.eligibility,
+			reasonCodes: moderation.reasonCodes,
+			blockingLabels: moderation.blockingLabels,
+		},
+	};
+}
+
 // ── Install ────────────────────────────────────────────────────────
 
 export async function handleRegistryInstall(
@@ -660,10 +740,17 @@ export async function handleRegistryInstall(
 	// deadline. Defends against a slow-loris aggregator stalling the
 	// install before the artifact phase begins.
 	const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
+	// Captures the aggregator's `atproto-content-labelers` response header --
+	// the labeler policy it actually applied -- for `assertReleaseEligible`
+	// below. Precedence over the configured value: see `resolveAcceptedPolicy`.
+	let contentLabelersHeader: string | undefined;
 	const discovery = new DiscoveryClient({
 		aggregatorUrl: registryConfig.aggregatorUrl,
 		acceptLabelers: registryConfig.acceptLabelers,
 		fetch: timedFetch(aggregatorDeadline),
+		onResponseMeta: (meta) => {
+			contentLabelersHeader = meta.contentLabelers ?? contentLabelersHeader;
+		},
 	});
 
 	// Basic shape check on the DID. The browser is expected to send a
@@ -788,24 +875,17 @@ export async function handleRegistryInstall(
 
 		const version = releaseView.version;
 
-		// Step 3: takedown label check (hard-enforced via aggregator's
-		// `atproto-accept-labelers` filtering, but we belt-and-suspenders
-		// the package-level labels too).
-		const yanked = (packageView.labels ?? []).some(
-			(l: { val?: string }) => l.val === "security:yanked",
-		);
-		const releaseYanked = (releaseView.labels ?? []).some(
-			(l: { val?: string }) => l.val === "security:yanked",
-		);
-		if (yanked || releaseYanked) {
-			return {
-				success: false,
-				error: {
-					code: "RELEASE_YANKED",
-					message: "This release has been withdrawn (security:yanked label).",
-				},
-			};
-		}
+		// Step 3: moderation eligibility (hard-enforced via aggregator's
+		// `atproto-accept-labelers` filtering, but we belt-and-suspenders the
+		// full release/package/publisher label cascade here too).
+		const eligibilityError = assertReleaseEligible({
+			packageView,
+			releaseView,
+			publisherDid,
+			configuredAcceptLabelers: registryConfig.acceptLabelers,
+			contentLabelersHeader,
+		});
+		if (eligibilityError) return { success: false, error: eligibilityError };
 
 		// Step 3b: environment compatibility. The signed release record may
 		// carry a `requires` block (`env:emdash`, `env:astro`, ...). Refuse
@@ -1380,10 +1460,14 @@ export async function handleRegistryUpdate(
 
 		const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
 		const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
+		let contentLabelersHeader: string | undefined;
 		const discovery = new DiscoveryClient({
 			aggregatorUrl: registryConfig.aggregatorUrl,
 			acceptLabelers: registryConfig.acceptLabelers,
 			fetch: timedFetch(aggregatorDeadline),
+			onResponseMeta: (meta) => {
+				contentLabelersHeader = meta.contentLabelers ?? contentLabelersHeader;
+			},
 		});
 
 		// Resolve target release. Explicit version → paginate listReleases;
@@ -1459,16 +1543,27 @@ export async function handleRegistryUpdate(
 			};
 		}
 
-		// Yanked label check (mirrors install).
-		const releaseYanked = (releaseView.labels ?? []).some(
-			(l: { val?: string }) => l.val === "security:yanked",
-		);
-		if (releaseYanked) {
+		// Moderation eligibility (mirrors install). Update previously checked
+		// only the release's own labels; fetching the package view here adds
+		// the package/publisher cascade that release-only check was missing.
+		const packageView = await discovery.getPackage({ did: publisherDid, slug });
+		if (packageView.did !== publisherDid || packageView.slug !== slug) {
 			return {
 				success: false,
-				error: { code: "YANKED", message: "Release has been yanked by a trusted labeler" },
+				error: {
+					code: "AGGREGATOR_IDENTITY_MISMATCH",
+					message: "Aggregator returned a package view for a different publisher or slug.",
+				},
 			};
 		}
+		const eligibilityError = assertReleaseEligible({
+			packageView,
+			releaseView,
+			publisherDid,
+			configuredAcceptLabelers: registryConfig.acceptLabelers,
+			contentLabelersHeader,
+		});
+		if (eligibilityError) return { success: false, error: eligibilityError };
 
 		// Environment compatibility gate. An ungated update could otherwise
 		// land a version whose `requires` the host doesn't satisfy. Same
@@ -1678,6 +1773,38 @@ export interface RegistryUpdateCheck {
 	 */
 	hasCapabilityChanges: boolean;
 	hasRouteVisibilityChanges: boolean;
+	/**
+	 * Moderation state of the latest release, evaluated from the labels that
+	 * ride on the same `getLatestRelease` response the version comparison
+	 * already needed -- no extra aggregator call. Release-scope only: the
+	 * package/publisher label cascade needs a separate `getPackage` fetch per
+	 * plugin, which this bulk check intentionally doesn't make. `undefined`
+	 * when moderation couldn't be evaluated for this entry.
+	 */
+	moderation?: {
+		eligibility: ReleaseEligibility;
+		blockingLabels: string[];
+		warningLabels: string[];
+	};
+}
+
+/**
+ * Package view stub for evaluating an update-check entry's release-scope
+ * moderation without the extra `getPackage` round trip a bulk check can't
+ * afford. `uri`/`cid` never match a real label (labels always carry a real
+ * `at://` URI or DID), so the package/publisher cascade is inert here by
+ * construction rather than by omission of input.
+ */
+function releaseOnlyPackageViewStub(publisherDid: Did, slug: string): ValidatedPackageView {
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- `uri`/`cid` are branded FormattedStringSchema types; this stub is never validated as a real record, only compared against label uris that can never equal these placeholders
+	return {
+		uri: "",
+		cid: "",
+		did: publisherDid,
+		slug,
+		indexedAt: new Date(0).toISOString(),
+		profile: null,
+	} as unknown as ValidatedPackageView;
 }
 
 /**
@@ -1706,26 +1833,73 @@ export async function handleRegistryUpdateCheck(
 			return { success: true, data: { items: [] } };
 		}
 
+		// Validate the configured acceptLabelers once, up front. A malformed
+		// value would otherwise throw identically on every loop iteration,
+		// silently blanking the moderation field for every plugin one at a
+		// time instead of surfacing a single clear config error.
+		try {
+			resolveAcceptedPolicy({ configuredAcceptLabelers: registryConfig.acceptLabelers });
+		} catch (err) {
+			return {
+				success: false,
+				error: {
+					code: "REGISTRY_POLICY_INVALID",
+					message:
+						err instanceof Error ? err.message : "Invalid registry.acceptLabelers configuration",
+				},
+			};
+		}
+
 		const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
 		const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
+		let contentLabelersHeader: string | undefined;
 		const discovery = new DiscoveryClient({
 			aggregatorUrl: registryConfig.aggregatorUrl,
 			acceptLabelers: registryConfig.acceptLabelers,
 			fetch: timedFetch(aggregatorDeadline),
+			onResponseMeta: (meta) => {
+				contentLabelersHeader = meta.contentLabelers ?? contentLabelersHeader;
+			},
 		});
 
 		const items: RegistryUpdateCheck[] = [];
 		for (const plugin of registryPlugins) {
 			if (!plugin.registryPublisherDid || !plugin.registrySlug) continue;
 			try {
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- DID string was validated by the install handler
+				const publisherDid = plugin.registryPublisherDid as Did;
 				const releaseView = await discovery.getLatestRelease({
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- DID string was validated by the install handler
-					did: plugin.registryPublisherDid as Did,
+					did: publisherDid,
 					package: plugin.registrySlug,
 				});
 				const latest = releaseView.version;
 				if (!latest) continue;
 				const installed = plugin.version;
+
+				let moderation: RegistryUpdateCheck["moderation"];
+				try {
+					const accepted = resolveAcceptedPolicy({
+						configuredAcceptLabelers: registryConfig.acceptLabelers,
+						contentLabelersHeader,
+					});
+					const result = evaluateReleaseViews({
+						packageView: releaseOnlyPackageViewStub(publisherDid, plugin.registrySlug),
+						releaseView,
+						publisherDid,
+						accepted,
+					});
+					moderation = {
+						eligibility: result.eligibility,
+						blockingLabels: result.blockingLabels,
+						warningLabels: result.warningLabels,
+					};
+				} catch (moderationErr) {
+					console.warn(
+						`[registry-update-check] Failed to evaluate moderation for ${plugin.pluginId}:`,
+						moderationErr,
+					);
+				}
+
 				items.push({
 					pluginId: plugin.pluginId,
 					installed,
@@ -1733,6 +1907,7 @@ export async function handleRegistryUpdateCheck(
 					hasUpdate: latest !== installed,
 					hasCapabilityChanges: false,
 					hasRouteVisibilityChanges: false,
+					moderation,
 				});
 			} catch (err) {
 				// Skip plugins that can't be checked. Don't fail the whole

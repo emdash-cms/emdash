@@ -4,12 +4,13 @@
  * Free-text search the aggregator. Read-only; no auth required.
  */
 
-import { DiscoveryClient } from "@emdash-cms/registry-client";
+import { DiscoveryClient, resolveAcceptedPolicy } from "@emdash-cms/registry-client";
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import pc from "picocolors";
 
 import { resolveAggregatorUrl } from "../config.js";
+import { evaluatePackageModeration, isModerationBlocked } from "../moderation.js";
 
 export const searchCommand = defineCommand({
 	meta: {
@@ -49,7 +50,16 @@ export const searchCommand = defineCommand({
 		const aggregatorUrl = resolveAggregatorUrl(args["registry-url"]);
 		const limit = clamp(parseInt(args.limit, 10) || 25, 1, 100);
 
-		const client = new DiscoveryClient({ aggregatorUrl });
+		// No configured `acceptLabelers` here (the CLI has no persisted
+		// registry config) -- the accepted policy comes from the aggregator's
+		// response header, once a response arrives.
+		let contentLabelersHeader: string | undefined;
+		const client = new DiscoveryClient({
+			aggregatorUrl,
+			onResponseMeta: (meta) => {
+				contentLabelersHeader = meta.contentLabelers ?? contentLabelersHeader;
+			},
+		});
 		const result = await client.searchPackages({
 			q: args.query,
 			...(args.capability ? { capability: args.capability } : {}),
@@ -67,13 +77,23 @@ export const searchCommand = defineCommand({
 			return;
 		}
 
+		const accepted = resolveAcceptedPolicy({ contentLabelersHeader });
+
 		console.log();
 		for (const pkg of result.packages) {
 			// `pkg.profile` is lexicon-validated by DiscoveryClient (or null).
 			const profile = pkg.profile;
-			console.log(`${pc.bold(profile?.name ?? pkg.slug)} ${pc.dim(`(${pkg.slug})`)}`);
+			const moderation = evaluatePackageModeration(pkg, accepted);
+			const blocked = isModerationBlocked(moderation);
+			const nameLine = `${pc.bold(profile?.name ?? pkg.slug)} ${pc.dim(`(${pkg.slug})`)}`;
+			console.log(blocked ? `${nameLine} ${pc.red("[blocked]")}` : nameLine);
 			if (profile?.description) console.log(`  ${profile.description}`);
 			console.log(`  ${pc.dim(pkg.uri)}`);
+			if (blocked) {
+				console.log(
+					`  ${pc.red(`blocked: ${moderation.blockingLabels.join(", ") || "redacted"}`)}`,
+				);
+			}
 			console.log();
 		}
 

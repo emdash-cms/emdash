@@ -90,6 +90,17 @@ describe("handleRegistryUpdate env gate", () => {
 		getLatestRelease.mockReset();
 		listReleases.mockReset();
 		getPackage.mockReset();
+		// The moderation eligibility gate (which runs before the env gate)
+		// fetches the package view too. No labels -> not blocked, so it's a
+		// no-op for these env-gate assertions.
+		getPackage.mockResolvedValue({
+			uri: `at://${PUBLISHER}/com.emdashcms.experimental.package.profile/${SLUG}`,
+			cid: "bafyreigallerystubcidnotreallyacidjustaplaceholderstring1234",
+			did: PUBLISHER,
+			slug: SLUG,
+			indexedAt: "2026-01-01T00:00:00.000Z",
+			profile: null,
+		});
 		fetchSpy = vi.fn(() => {
 			throw new Error("artifact fetch must not run when the env gate rejects");
 		});
