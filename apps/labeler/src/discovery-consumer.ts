@@ -61,7 +61,7 @@ import {
 	RecordVerificationError,
 	type RecordVerificationFailureReason,
 } from "./record-verification.js";
-import { issueAutomatedAssessmentLabel } from "./service.js";
+import { issueAutomatedAssessmentLabel, LabelIssuanceUnavailableError } from "./service.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
 
 /**
@@ -243,6 +243,11 @@ async function classifyDiscoveryError(
 	controller: MessageController,
 	now: Date,
 ): Promise<void> {
+	if (err instanceof LabelIssuanceUnavailableError) {
+		// Signing paused or mid-rotation — retry so the label isn't lost.
+		controller.retry();
+		return;
+	}
 	if (err instanceof PdsVerificationError) {
 		if (isTransient(err.reason, err.status)) {
 			controller.retry();

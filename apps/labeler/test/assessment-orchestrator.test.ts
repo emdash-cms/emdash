@@ -318,6 +318,39 @@ describe("AssessmentOrchestrator: transient exhaustion", () => {
 			.first<{ neg: number }>();
 		expect(pendingNeg?.neg).toBe(1);
 	});
+
+	it("a second error run for the same subject leaves assessment-error active, not self-negated", async () => {
+		const cidValue = await cid("double-error");
+		const flaky: OrchestratorStages = {
+			...stubStages,
+			codeAi: () => Promise.reject(new StageTransientError("model unavailable")),
+		};
+		const first = await pendingRun({ name: "double-error", cidValue });
+		expect(
+			(await (await buildOrchestrator(flaky, { maxStageRetries: 1 })).runAssessment(first.id))
+				.state,
+		).toBe("error");
+
+		const second = await pendingRun({
+			name: "double-error",
+			cidValue,
+			triggerId: operatorTriggerId("rerun-1"),
+		});
+		expect(
+			(await (await buildOrchestrator(flaky, { maxStageRetries: 1 })).runAssessment(second.id))
+				.state,
+		).toBe("error");
+
+		// The second error run must not negate the assessment-error it (and the
+		// first run) issued: the current stream head stays active.
+		const head = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-error'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(first.uri, cidValue)
+			.first<{ neg: number }>();
+		expect(head?.neg).toBe(0);
+	});
 });
 
 describe("AssessmentOrchestrator: deleted or superseded subject", () => {
