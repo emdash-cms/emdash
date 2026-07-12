@@ -23,6 +23,7 @@ import {
 	getCurrentAssessment,
 	transitionAssessmentState,
 } from "../src/assessment-store.js";
+import { FindingValidationError } from "../src/findings.js";
 import { MODERATION_POLICY } from "../src/policy.js";
 import { issueManualLabel } from "../src/service.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
@@ -148,7 +149,7 @@ async function buildOrchestrator(
 
 function finding(overrides: Partial<StageFinding> & { category: string }): StageFinding {
 	return {
-		source: "test-stage",
+		source: "deterministic",
 		severity: "medium",
 		title: "test finding",
 		publicSummary: "test finding",
@@ -420,6 +421,51 @@ describe("AssessmentOrchestrator: deleted or superseded subject", () => {
 		const result = await orchestrator.runAssessment(run.id);
 
 		expect(result.state).toBe("stale");
+	});
+});
+
+describe("AssessmentOrchestrator: invalid findings", () => {
+	it("aborts the run, leaving it running, when a stage returns a finding outside the allowed category set", async () => {
+		const run = await pendingRun({
+			name: "invalid-category",
+			cidValue: await cid("invalid-category"),
+		});
+		const stages: OrchestratorStages = {
+			...stubStages,
+			deterministic: () =>
+				Promise.resolve([finding({ category: "not-a-real-label", severity: "critical" })]),
+		};
+		const orchestrator = await buildOrchestrator(stages);
+
+		await expect(orchestrator.runAssessment(run.id)).rejects.toThrow(FindingValidationError);
+
+		const assessment = await getAssessment(testEnv.DB, run.id);
+		expect(assessment?.state).toBe("running");
+		expect(assessment?.completedAt).toBeNull();
+	});
+
+	it("aborts the run when a finding cites an evidence reference this run never recorded", async () => {
+		const run = await pendingRun({
+			name: "unresolved-evidence",
+			cidValue: await cid("unresolved-evidence"),
+		});
+		const stages: OrchestratorStages = {
+			...stubStages,
+			deterministic: () =>
+				Promise.resolve([
+					finding({
+						category: "obfuscated-code",
+						severity: "medium",
+						evidenceRefs: ["evid_never_recorded"],
+					}),
+				]),
+		};
+		const orchestrator = await buildOrchestrator(stages);
+
+		await expect(orchestrator.runAssessment(run.id)).rejects.toThrow(FindingValidationError);
+
+		const assessment = await getAssessment(testEnv.DB, run.id);
+		expect(assessment?.state).toBe("running");
 	});
 });
 

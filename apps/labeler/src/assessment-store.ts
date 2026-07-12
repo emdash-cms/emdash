@@ -541,6 +541,18 @@ export async function recordFinding(db: D1Database, input: RecordFindingInput): 
 	return id;
 }
 
+/** Evidence object ids recorded for a run, for validating a finding's `evidenceRefs`. */
+export async function listEvidenceObjectIds(
+	db: D1Database,
+	assessmentId: string,
+): Promise<ReadonlySet<string>> {
+	const rows = await db
+		.prepare(`SELECT id FROM evidence_objects WHERE assessment_id = ?`)
+		.bind(assessmentId)
+		.all<{ id: string }>();
+	return new Set((rows.results ?? []).map((row) => row.id));
+}
+
 export interface RecordEvidenceObjectInput {
 	assessmentId: string;
 	kind: string;

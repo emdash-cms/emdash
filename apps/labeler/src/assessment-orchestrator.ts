@@ -20,11 +20,13 @@ import {
 	getAssessment,
 	getNegatableAutomatedLabels,
 	isSubjectCurrent,
+	listEvidenceObjectIds,
 	transitionAssessmentState,
 	type Assessment,
 } from "./assessment-store.js";
 import type { LabelerConfig } from "./config.js";
 import type { FindingSeverity } from "./evidence.js";
+import { allowedFindingCategories, validateFindings, type NormalizedFinding } from "./findings.js";
 import { automatedBlockCategories, type ModerationPolicy } from "./policy.js";
 import {
 	buildIssuanceStatements,
@@ -32,18 +34,12 @@ import {
 	type AutomatedLabelProposal,
 } from "./service.js";
 
-export interface StageFinding {
-	source: string;
-	/** A label value from the policy vocabulary (matches
-	 * `AutomatedLabelProposal.findingCategory` / warning label values). */
-	category: string;
-	severity: FindingSeverity;
-	confidence?: number;
-	title: string;
-	publicSummary: string;
-	privateDetail: string;
-	evidenceRefs: readonly string[];
-}
+/**
+ * A stage's finding is the canonical normalized contract (`findings.ts`).
+ * `category` is a label value from the policy vocabulary (matches
+ * `AutomatedLabelProposal.findingCategory` / warning label values).
+ */
+export type StageFinding = NormalizedFinding;
 
 /** Thrown by a stage adapter for a retryable infrastructure failure
  * (network, model/scanner unavailability). Anything else a stage throws is
@@ -181,6 +177,19 @@ export class AssessmentOrchestrator {
 			}
 		}
 
+		// validateFindings throws on a malformed finding; uncaught, it aborts the
+		// run (assessment stays `running`, like any non-transient stage error).
+		// Resolution and persistence below read validatedFindings, never the raw
+		// stage output.
+		let validatedFindings: NormalizedFinding[] = [];
+		if (!transientExhausted) {
+			const resolvableEvidenceIds = await listEvidenceObjectIds(this.db, assessment.id);
+			validatedFindings = validateFindings(findings, {
+				allowedCategories: allowedFindingCategories(this.policy),
+				resolvableEvidenceIds,
+			});
+		}
+
 		// Re-read subject currency immediately before finalizing: a deleted or
 		// CID-superseded subject finalizes as `stale` — no labels, pointer
 		// untouched.
@@ -199,7 +208,9 @@ export class AssessmentOrchestrator {
 			return transitionAssessmentState(this.db, { id: runId, from: "running", to: "stale", now });
 		}
 
-		const outcome = transientExhausted ? null : resolvePolicyOutcome(findings, this.policy);
+		const outcome = transientExhausted
+			? null
+			: resolvePolicyOutcome(validatedFindings, this.policy);
 		return this.finalize(assessment, outcome, now);
 	}
 

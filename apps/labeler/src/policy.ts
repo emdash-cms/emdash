@@ -59,6 +59,20 @@ export function automatedBlockCategories(policy: ModerationPolicy): ReadonlySet<
 	return categories;
 }
 
+/**
+ * Warning finding categories: the label vocabulary this policy treats as
+ * non-blocking concerns. A finding must cite one of these to justify a
+ * warning label. Together with `automatedBlockCategories`, this forms the
+ * full set of label values a finding's `category` may cite (spec §9.6).
+ */
+export function warningCategories(policy: ModerationPolicy): ReadonlySet<string> {
+	const categories = new Set<string>();
+	for (const label of policy.labels) {
+		if (label.category === "warning") categories.add(label.value);
+	}
+	return categories;
+}
+
 export function parseModerationPolicy(value: unknown): ModerationPolicy {
 	if (!isRecord(value)) throw new TypeError("moderation policy must be an object");
 	if (typeof value.policyVersion !== "string" || value.policyVersion.length === 0)
