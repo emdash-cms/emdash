@@ -158,10 +158,35 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 	return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
-function setup(pkg: RegistryPackageView, releases: RegistryReleaseView[]) {
-	mockGetRegistryPackage.mockResolvedValue(pkg);
-	mockResolveRegistryPackage.mockResolvedValue(pkg);
-	mockListRegistryReleases.mockResolvedValue({ releases });
+function setup(
+	pkg: RegistryPackageView,
+	releases: RegistryReleaseView[],
+	headers: { packageContentLabelers?: string; releasesContentLabelers?: string } = {},
+) {
+	mockGetRegistryPackage.mockResolvedValue({
+		...pkg,
+		contentLabelers: headers.packageContentLabelers,
+	});
+	mockResolveRegistryPackage.mockResolvedValue({
+		...pkg,
+		contentLabelers: headers.packageContentLabelers,
+	});
+	mockListRegistryReleases.mockResolvedValue({
+		releases,
+		contentLabelers: headers.releasesContentLabelers,
+	});
+}
+
+/** A `publisher-compromised` label on the publisher DID (rides on the package
+ * response, applies package-wide). */
+function publisherCompromisedLabel(src = "did:plc:labeler"): RawLabel {
+	return {
+		ver: 1,
+		src,
+		uri: "did:plc:acme",
+		val: "publisher-compromised",
+		cts: "2025-01-01T00:00:00Z",
+	};
 }
 
 describe("RegistryPluginDetail sections", () => {
@@ -512,5 +537,54 @@ describe("RegistryPluginDetail moderation", () => {
 		const otherOption = screen.getByRole("option", { name: /1\.0\.0/ });
 		await expect.element(otherOption).toBeInTheDocument();
 		expect(otherOption.element().textContent).not.toContain("blocked");
+	});
+
+	it("honors a labeler named only by the response header, not the configured policy", async () => {
+		// config accepts no labelers; the aggregator reports it applied one via
+		// the releases response's `atproto-content-labelers` header. The
+		// header-precedence path must honor it. Real evaluation pipeline.
+		const configNoLabelers: RegistryClientConfig = {
+			aggregatorUrl: "https://aggregator.test",
+			acceptLabelers: "",
+		};
+		setup(
+			makePackage(),
+			[makeRelease({ version: "2.0.0", labels: [securityYankedLabel("2.0.0")] })],
+			{ releasesContentLabelers: "did:plc:labeler" },
+		);
+
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={configNoLabelers} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("This release is blocked")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+	});
+
+	it("surfaces a package-scope block whose labeler only the package response reported", async () => {
+		// publisher-compromised rides on the package response; its labeler is in
+		// the package header but NOT the releases header. Evaluating package
+		// labels against only the releases policy would filter it out — the
+		// unioned policy must still surface the block. Real pipeline.
+		const configNoLabelers: RegistryClientConfig = {
+			aggregatorUrl: "https://aggregator.test",
+			acceptLabelers: "",
+		};
+		setup(
+			makePackage({ labels: [publisherCompromisedLabel()] }),
+			[makeRelease({ version: "2.0.0" })],
+			{ packageContentLabelers: "did:plc:labeler", releasesContentLabelers: "" },
+		);
+
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={configNoLabelers} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("This release is blocked")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
 	});
 });

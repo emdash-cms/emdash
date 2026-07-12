@@ -57,6 +57,25 @@ export type { HostEnv };
 export { evaluateReleaseViews, isModerationBlocking, resolveAcceptedPolicy };
 export type { AcceptedLabelerPolicy, ReleaseModeration };
 
+/**
+ * Union of two accepted-labeler policies, deduped by DID with `redact` OR-ed.
+ * Used when package-scope and release-scope labels arrive on separate
+ * responses (each with its own `atproto-content-labelers` header): a labeler
+ * either response honored is honored for the combined evaluation, so a
+ * package/publisher block filtered out of one response's policy is still
+ * surfaced. A union only adds label sources; it can never drop a real block.
+ */
+export function unionAcceptedPolicies(
+	a: AcceptedLabelerPolicy[],
+	b: AcceptedLabelerPolicy[],
+): AcceptedLabelerPolicy[] {
+	const byDid = new Map<string, boolean>();
+	for (const policy of [...a, ...b]) {
+		byDid.set(policy.did, (byDid.get(policy.did) ?? false) || policy.redact);
+	}
+	return Array.from(byDid, ([did, redact]) => ({ did, redact }));
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

@@ -42,6 +42,7 @@ import {
 	presentSections,
 	releasePassesPolicy,
 	resolveAcceptedPolicy,
+	unionAcceptedPolicies,
 	resolveRegistryPackage,
 	sbomDownloadHref,
 	type ReleaseModeration,
@@ -150,17 +151,26 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const hasFilteredAllReleases = (releasesData?.releases.length ?? 0) > 0 && releases.length === 0;
 
 	// Moderation, evaluated per release against the accepted policy that
-	// actually produced the `releasesData` response (its
-	// `atproto-content-labelers` header), not just the site's statically
-	// configured `acceptLabelers` -- the aggregator reports what it actually
-	// applied for this specific request.
+	// actually produced each response's labels -- the aggregator reports what
+	// it applied per request via `atproto-content-labelers`, and package-scope
+	// labels ride on the package response while release-scope labels ride on
+	// the releases response. Both header-derived policies are unioned (a
+	// labeler either response honored is honored here) so a package/publisher
+	// block filtered out of the releases policy is still surfaced; a union can
+	// only add applicable labels' sources, never drop a real block.
 	const acceptedForReleases = React.useMemo(
 		() =>
-			resolveAcceptedPolicy({
-				configuredAcceptLabelers: config.acceptLabelers,
-				contentLabelersHeader: releasesData?.contentLabelers,
-			}),
-		[config.acceptLabelers, releasesData?.contentLabelers],
+			unionAcceptedPolicies(
+				resolveAcceptedPolicy({
+					configuredAcceptLabelers: config.acceptLabelers,
+					contentLabelersHeader: pkg?.contentLabelers,
+				}),
+				resolveAcceptedPolicy({
+					configuredAcceptLabelers: config.acceptLabelers,
+					contentLabelersHeader: releasesData?.contentLabelers,
+				}),
+			),
+		[config.acceptLabelers, pkg?.contentLabelers, releasesData?.contentLabelers],
 	);
 	const moderationByVersion = React.useMemo(() => {
 		const map = new Map<string, ReleaseModeration>();
