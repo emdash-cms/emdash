@@ -651,9 +651,13 @@ function assertReleaseEligible(input: {
 		accepted,
 	});
 
-	const blocked =
-		(moderation.eligibility === "blocked" && moderation.blockingLabels.length > 0) ||
-		moderation.redacted;
+	// Keyed off blockingLabels/redacted, never eligibility: the evaluator
+	// ranks pending/error above automated blocks, so a malware label with a
+	// co-present assessment-pending yields eligibility "pending" while
+	// blockingLabels still carries the block. Empty blockingLabels covers
+	// missing-assessment-pass and pure pending/error, which must not block
+	// until the positive-assessment gate ships.
+	const blocked = moderation.blockingLabels.length > 0 || moderation.redacted;
 	if (!blocked) return null;
 
 	const yanked = moderation.blockingLabels.includes("security-yanked");
@@ -1780,6 +1784,11 @@ export interface RegistryUpdateCheck {
 	 * package/publisher label cascade needs a separate `getPackage` fetch per
 	 * plugin, which this bulk check intentionally doesn't make. `undefined`
 	 * when moderation couldn't be evaluated for this entry.
+	 *
+	 * Consumers must key any blocked indicator off
+	 * `blockingLabels.length > 0`, never `eligibility` — with no accepted
+	 * labeler having passed a release, `eligibility` is "blocked" via
+	 * missing-assessment-pass even for a clean plugin.
 	 */
 	moderation?: {
 		eligibility: ReleaseEligibility;

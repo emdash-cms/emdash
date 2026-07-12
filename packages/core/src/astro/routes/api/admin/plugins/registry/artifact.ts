@@ -378,9 +378,9 @@ async function resolveArtifactUrl(
 		contentLabelersHeader,
 	});
 	const moderation = evaluateReleaseViews({ packageView, releaseView, publisherDid, accepted });
-	const blocked =
-		(moderation.eligibility === "blocked" && moderation.blockingLabels.length > 0) ||
-		moderation.redacted;
+	// Never keyed off eligibility: a co-present assessment-pending/error label
+	// re-ranks eligibility while blockingLabels still carries the block.
+	const blocked = moderation.blockingLabels.length > 0 || moderation.redacted;
 
 	return { url, blocked };
 }

@@ -237,6 +237,28 @@ describe("registry moderation eligibility gate", () => {
 			expect(errored.error?.code).not.toBe("RELEASE_BLOCKED");
 		});
 
+		it("blocks a malware label even when a co-present pending or error label re-ranks eligibility", async () => {
+			getPackage.mockResolvedValue(packageView());
+
+			getLatestRelease.mockResolvedValue(
+				releaseView([label({ val: "malware" }), label({ val: "assessment-pending" })]),
+			);
+			const pending = await handleRegistryInstall(db, stubStorage, stubSandbox, CONFIG, {
+				did: PUBLISHER,
+				slug: SLUG,
+			});
+			expect(pending.error?.code).toBe("RELEASE_BLOCKED");
+
+			getLatestRelease.mockResolvedValue(
+				releaseView([label({ val: "malware" }), label({ val: "assessment-error" })]),
+			);
+			const errored = await handleRegistryInstall(db, stubStorage, stubSandbox, CONFIG, {
+				did: PUBLISHER,
+				slug: SLUG,
+			});
+			expect(errored.error?.code).toBe("RELEASE_BLOCKED");
+		});
+
 		it("does not block when no acceptLabelers policy is configured (no client-side enforcement)", async () => {
 			getPackage.mockResolvedValue(packageView());
 			getLatestRelease.mockResolvedValue(releaseView([label({ val: "malware" })]));
