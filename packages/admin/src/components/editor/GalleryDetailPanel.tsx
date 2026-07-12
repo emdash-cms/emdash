@@ -8,7 +8,7 @@
  */
 
 import { Button, Input, Label, Select } from "@cloudflare/kumo";
-import { DndContext, closestCenter } from "@dnd-kit/core";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -54,6 +54,10 @@ export function GalleryDetailPanel({
 	inline = false,
 }: GalleryDetailPanelProps) {
 	const { t } = useLingui();
+	// A distance-based activation constraint lets a plain pointerdown+pointerup
+	// (a click) pass through to the thumbnail button's onClick instead of the
+	// sensor immediately claiming the pointer and starting drag tracking.
+	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
 	// `selectedImageKey` is transient UI state passed in via `attributes` when
 	// the gallery node view opens the sidebar for a specific image (e.g.
@@ -178,7 +182,7 @@ export function GalleryDetailPanel({
 			{images.length === 0 ? (
 				<p className="text-sm text-kumo-subtle text-center py-4">{t`No images in this gallery yet.`}</p>
 			) : (
-				<DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+				<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
 					<SortableContext items={images.map((image) => image._key)} strategy={rectSortingStrategy}>
 						<div className="grid grid-cols-3 gap-2">
 							{images.map((image, index) => (
