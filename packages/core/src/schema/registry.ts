@@ -653,6 +653,24 @@ export class SchemaRegistry {
 					"FIELD_TYPE_COLUMN_CHANGE",
 				);
 			}
+
+			// A same-column-type change can still break the displayField/dateField
+			// type invariants (#1133). Read the collection only when a type change
+			// is actually requested, so the common path pays nothing.
+			const collection = await this.getCollection(collectionSlug);
+			if (collection?.displayField === fieldSlug && !DISPLAY_FIELD_TYPES.has(input.type)) {
+				throw new SchemaError(
+					`displayField "${fieldSlug}" must stay a text field, not "${input.type}"`,
+					"INVALID_DISPLAY_FIELD",
+				);
+			}
+			if (collection?.dateField === fieldSlug && input.type !== "datetime") {
+				throw new SchemaError(
+					`dateField "${fieldSlug}" must stay a datetime field, not "${input.type}"`,
+					"INVALID_DATE_FIELD",
+				);
+			}
+
 			nextType = input.type;
 			nextColumnType = newColumnType;
 		}

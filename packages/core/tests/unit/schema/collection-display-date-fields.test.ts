@@ -115,4 +115,20 @@ describe("collection displayField/dateField (#1133)", () => {
 		const afterName = await registry.getCollection("employees");
 		expect(afterName?.displayField).toBeUndefined();
 	});
+
+	it("rejects changing a dateField's type away from datetime", async () => {
+		await registry.updateCollection("employees", { dateField: "pub_date" });
+		// datetime and string both map to a TEXT column, so the column-type guard
+		// alone wouldn't catch this — the displayField/dateField invariant must.
+		await expect(
+			registry.updateField("employees", "pub_date", { type: "string" }),
+		).rejects.toBeInstanceOf(SchemaError);
+	});
+
+	it("rejects changing a displayField's type to a non-text field", async () => {
+		await registry.updateCollection("employees", { displayField: "name" });
+		await expect(registry.updateField("employees", "name", { type: "url" })).rejects.toBeInstanceOf(
+			SchemaError,
+		);
+	});
 });
