@@ -269,6 +269,42 @@ describe("authenticateWithPasskey", () => {
 		expect(initial.challengeStore.delete).not.toHaveBeenCalled();
 	});
 
+	it.each([
+		["undefined", undefined],
+		["non-callable", "not-a-function"],
+	] as const)("rejects a typed-context store with %s consume", async (_label, consume) => {
+		const initial = createValidAssertion({ userVerified: true });
+		const generated = await generateAuthenticationOptions(
+			{ ...config, userVerification: "required" },
+			[initial.credential],
+			initial.challengeStore,
+			bindChallengeContext(approvalContext, { intentId: "intent_1" }),
+		);
+		const { credential: validCredential, response } = createValidAssertion({
+			userVerified: true,
+			challenge: generated.challenge,
+		});
+		const malformedStore = {
+			...initial.challengeStore,
+			consume,
+		} as unknown as AtomicChallengeStore;
+
+		await expect(
+			verifyAuthenticationResponse(
+				{ ...config, userVerification: "required" },
+				response,
+				validCredential,
+				malformedStore,
+				approvalContext,
+			),
+		).rejects.toMatchObject({
+			code: "invalid_response",
+			message: "Typed challenge context requires an atomic challenge store",
+		});
+		expect(initial.challengeStore.get).not.toHaveBeenCalled();
+		expect(initial.challengeStore.delete).not.toHaveBeenCalled();
+	});
+
 	it("rejects stored context that does not match the signed challenge", async () => {
 		const initial = createValidAssertion({ userVerified: true });
 		const generated = await generateAuthenticationOptions(

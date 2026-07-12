@@ -180,15 +180,16 @@ export async function verifyAuthenticationResponse<Type extends string, Context>
 
 	// Verify challenge - convert Uint8Array back to base64url string (no padding, matching stored format)
 	const challengeString = encodeBase64urlNoPadding(clientData.challenge);
-	if (challengeContext && !("consume" in challengeStore)) {
+	const consume = "consume" in challengeStore ? challengeStore.consume : undefined;
+	const consumesAtomically = typeof consume === "function";
+	if (challengeContext && !consumesAtomically) {
 		throw new PasskeyAuthenticationError(
 			"invalid_response",
 			"Typed challenge context requires an atomic challenge store",
 		);
 	}
-	const atomicStore = challengeStore as Partial<AtomicChallengeStore>;
-	const challengeData = atomicStore.consume
-		? await atomicStore.consume(challengeString)
+	const challengeData = consumesAtomically
+		? await consume.call(challengeStore, challengeString)
 		: await challengeStore.get(challengeString);
 	if (!challengeData) {
 		throw new PasskeyAuthenticationError("challenge_not_found", "Challenge not found or expired");
@@ -197,12 +198,12 @@ export async function verifyAuthenticationResponse<Type extends string, Context>
 		throw new PasskeyAuthenticationError("invalid_challenge_type", "Invalid challenge type");
 	}
 	if (challengeData.expiresAt < Date.now()) {
-		if (!atomicStore.consume) await challengeStore.delete(challengeString);
+		if (!consumesAtomically) await challengeStore.delete(challengeString);
 		throw new PasskeyAuthenticationError("challenge_expired", "Challenge expired");
 	}
 
 	// Delete challenge (single-use)
-	if (!atomicStore.consume) await challengeStore.delete(challengeString);
+	if (!consumesAtomically) await challengeStore.delete(challengeString);
 	let contextResult: { present: false } | { present: true; value: Context } = {
 		present: false,
 	};

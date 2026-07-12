@@ -5,8 +5,9 @@ import { encodeBase64urlNoPadding } from "@oslojs/encoding";
 import { parseAttestationObject, coseAlgorithmRS256, COSEKeyType } from "@oslojs/webauthn";
 import { describe, expect, it, vi } from "vitest";
 
+import { bindChallengeContext, defineChallengeContext } from "./challenge-context.js";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "./register.js";
-import type { ChallengeStore, PasskeyConfig } from "./types.js";
+import type { AtomicChallengeStore, ChallengeStore, PasskeyConfig } from "./types.js";
 
 /**
  * Locks in origin-check parity with `authenticate.ts`. The two functions
@@ -21,6 +22,8 @@ const config: PasskeyConfig = {
 	rpId: "example.com",
 	origins: ["https://example.com"],
 };
+
+const enrolmentContext = defineChallengeContext("passkey-enrolment", 1, (value) => value);
 
 function base64url(bytes: Uint8Array): string {
 	return Buffer.from(bytes).toString("base64url");
@@ -70,6 +73,50 @@ describe("verifyRegistrationResponse", () => {
 		);
 
 		expect(options.authenticatorSelection?.userVerification).toBe("preferred");
+	});
+
+	it.each([
+		["undefined", undefined],
+		["non-callable", "not-a-function"],
+	] as const)("rejects a typed-context store with %s consume", async (_label, consume) => {
+		const challengeStore = makeChallengeStore();
+		const options = await generateRegistrationOptions(
+			config,
+			{ id: "user_1", email: "user@example.com", name: "User" },
+			[],
+			challengeStore,
+			bindChallengeContext(enrolmentContext, { approverDid: "did:plc:approver" }),
+		);
+		const clientDataJSON = Buffer.from(
+			JSON.stringify({
+				type: "webauthn.create",
+				challenge: options.challenge,
+				origin: "https://example.com",
+			}),
+		);
+		const malformedStore = {
+			...challengeStore,
+			consume,
+		} as unknown as AtomicChallengeStore;
+
+		await expect(
+			verifyRegistrationResponse(
+				config,
+				{
+					id: "test-credential",
+					rawId: "test-credential",
+					type: "public-key",
+					response: {
+						clientDataJSON: base64url(clientDataJSON),
+						attestationObject: "AA",
+					},
+				},
+				malformedStore,
+				enrolmentContext,
+			),
+		).rejects.toThrow("Typed challenge context requires an atomic challenge store");
+		expect(challengeStore.get).not.toHaveBeenCalled();
+		expect(challengeStore.delete).not.toHaveBeenCalled();
 	});
 
 	it("rejects registration without UV when user verification is required", async () => {

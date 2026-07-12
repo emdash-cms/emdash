@@ -135,12 +135,13 @@ export async function verifyRegistrationResponse<Type extends string, Context>(
 
 	// Verify challenge - convert Uint8Array back to base64url string (no padding, matching stored format)
 	const challengeString = encodeBase64urlNoPadding(clientData.challenge);
-	if (challengeContext && !("consume" in challengeStore)) {
+	const consume = "consume" in challengeStore ? challengeStore.consume : undefined;
+	const consumesAtomically = typeof consume === "function";
+	if (challengeContext && !consumesAtomically) {
 		throw new Error("Typed challenge context requires an atomic challenge store");
 	}
-	const atomicStore = challengeStore as Partial<AtomicChallengeStore>;
-	const challengeData = atomicStore.consume
-		? await atomicStore.consume(challengeString)
+	const challengeData = consumesAtomically
+		? await consume.call(challengeStore, challengeString)
 		: await challengeStore.get(challengeString);
 	if (!challengeData) {
 		throw new Error("Challenge not found or expired");
@@ -149,12 +150,12 @@ export async function verifyRegistrationResponse<Type extends string, Context>(
 		throw new Error("Invalid challenge type");
 	}
 	if (challengeData.expiresAt < Date.now()) {
-		if (!atomicStore.consume) await challengeStore.delete(challengeString);
+		if (!consumesAtomically) await challengeStore.delete(challengeString);
 		throw new Error("Challenge expired");
 	}
 
 	// Delete challenge (single-use)
-	if (!atomicStore.consume) await challengeStore.delete(challengeString);
+	if (!consumesAtomically) await challengeStore.delete(challengeString);
 	let contextResult: { present: false } | { present: true; value: Context } = {
 		present: false,
 	};
