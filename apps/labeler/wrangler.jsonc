@@ -40,6 +40,9 @@
 			"bucket_name": "emdash-labeler-evidence",
 		},
 	],
+	"ai": {
+		"binding": "AI",
+	},
 	"queues": {
 		"producers": [
 			{
