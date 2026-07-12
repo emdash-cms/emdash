@@ -35,9 +35,7 @@ export function sanitizeGalleryImages(
 						: "",
 			asset: {
 				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
-				...(typeof assetRecord.url === "string" && assetRecord.url
-					? { url: assetRecord.url }
-					: {}),
+				...(typeof assetRecord.url === "string" && assetRecord.url ? { url: assetRecord.url } : {}),
 			},
 		};
 		if (typeof record.alt === "string" && record.alt) image.alt = record.alt;

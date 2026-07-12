@@ -212,7 +212,13 @@ interface SortableGalleryRowProps {
 	onRemove: () => void;
 }
 
-function SortableGalleryRow({ image, index, onChange, onReplace, onRemove }: SortableGalleryRowProps) {
+function SortableGalleryRow({
+	image,
+	index,
+	onChange,
+	onReplace,
+	onRemove,
+}: SortableGalleryRowProps) {
 	const { t } = useLingui();
 	const [showReplacePicker, setShowReplacePicker] = React.useState(false);
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({

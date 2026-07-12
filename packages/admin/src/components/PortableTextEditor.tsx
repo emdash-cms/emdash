@@ -95,9 +95,9 @@ import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
-import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
+import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import {

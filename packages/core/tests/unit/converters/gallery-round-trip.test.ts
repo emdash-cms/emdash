@@ -85,11 +85,7 @@ describe("gallery block round-trip (core converters)", () => {
 		const dirty = {
 			_type: "gallery",
 			_key: "gal003",
-			images: [
-				null,
-				"junk",
-				{ _type: "image", _key: "ok1", asset: { _ref: "media-b" } },
-			],
+			images: [null, "junk", { _type: "image", _key: "ok1", asset: { _ref: "media-b" } }],
 		};
 
 		const pm = portableTextToProsemirror([dirty as never]);
