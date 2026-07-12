@@ -69,14 +69,27 @@ export interface CreateSubjectInput {
 	now?: Date;
 }
 
-/** Idempotent: verification may observe the same (uri, cid) more than once. */
+/**
+ * Idempotent: verification may observe the same (uri, cid) more than once.
+ * A verified re-observation reactivates a tombstoned row (the create path
+ * only reaches here after the PDS confirms the record exists, so clearing
+ * `deleted_at` is correct — it closes the delete-then-recreate race and
+ * handles a genuine republish of the same rkey+cid).
+ */
 export async function createSubject(db: D1Database, input: CreateSubjectInput): Promise<void> {
 	const now = input.now ?? new Date();
 	await db
 		.prepare(
 			`INSERT INTO subjects (uri, cid, did, collection, rkey, observed_at, observed_at_epoch_ms)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)
-			 ON CONFLICT(uri, cid) DO NOTHING`,
+			 ON CONFLICT(uri, cid) DO UPDATE SET
+			   did = excluded.did,
+			   collection = excluded.collection,
+			   rkey = excluded.rkey,
+			   observed_at = excluded.observed_at,
+			   observed_at_epoch_ms = excluded.observed_at_epoch_ms,
+			   deleted_at = NULL,
+			   deleted_at_epoch_ms = NULL`,
 		)
 		.bind(
 			input.uri,
@@ -139,13 +152,18 @@ export async function isSubjectCurrent(
 		.bind(input.uri, input.cid)
 		.first<{ deleted_at: string | null; observed_at_epoch_ms: number }>();
 	if (!row || row.deleted_at !== null) return false;
+	// Deterministic tie-break on equal observed_at_epoch_ms: a same-instant
+	// sibling with a greater CID is treated as newer, so exactly one subject
+	// at a URI is ever "current" even when two are observed in the same
+	// millisecond.
 	const newer = await db
 		.prepare(
 			`SELECT 1 FROM subjects
-			 WHERE uri = ? AND cid != ? AND deleted_at IS NULL AND observed_at_epoch_ms > ?
+			 WHERE uri = ? AND cid != ? AND deleted_at IS NULL
+			   AND (observed_at_epoch_ms > ? OR (observed_at_epoch_ms = ? AND cid > ?))
 			 LIMIT 1`,
 		)
-		.bind(input.uri, input.cid, row.observed_at_epoch_ms)
+		.bind(input.uri, input.cid, row.observed_at_epoch_ms, row.observed_at_epoch_ms, input.cid)
 		.first();
 	return !newer;
 }
