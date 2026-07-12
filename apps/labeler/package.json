@@ -17,7 +17,8 @@
 	"dependencies": {
 		"@atcute/cbor": "catalog:",
 		"@atcute/crypto": "catalog:",
-		"@emdash-cms/registry-moderation": "workspace:*"
+		"@emdash-cms/registry-moderation": "workspace:*",
+		"ulidx": "^2.4.1"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",

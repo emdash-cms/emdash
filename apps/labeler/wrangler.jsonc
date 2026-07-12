@@ -26,11 +26,25 @@
 			"new_sqlite_classes": ["LabelSubscriptionDO"],
 		},
 	],
+	"r2_buckets": [
+		{
+			"binding": "EVIDENCE",
+			"bucket_name": "emdash-labeler-evidence",
+		},
+	],
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",
 		"LABELER_SERVICE_URL": "https://labels.emdashcms.com",
 		"LABEL_SIGNING_KEY_VERSION": "v1",
 		"LABEL_SIGNING_PUBLIC_KEY": "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
+	},
+	// Required secret, declared in config so `wrangler types` generates the
+	// typed binding and `wrangler deploy` validates the secret is set on the
+	// target Worker before publishing. Set in production with
+	// `wrangler secret put LABEL_SIGNING_PRIVATE_KEY`; tests bind a stub via
+	// miniflare in vitest.config.ts.
+	"secrets": {
+		"required": ["LABEL_SIGNING_PRIVATE_KEY"],
 	},
 	"observability": { "enabled": true },
 }
