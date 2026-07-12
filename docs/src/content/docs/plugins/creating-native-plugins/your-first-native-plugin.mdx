@@ -153,7 +153,7 @@ Key details of this configuration:
 
 ## Raw request bodies (webhook signatures)
 
-The dispatcher parses the request body before your handler runs and exposes it as `ctx.input`; the body stream is consumed, so `ctx.request.text()` is unavailable. That's fine for normal routes — but webhook providers (Stripe, GitHub, Svix, …) sign the _exact raw bytes_ of the delivery, and an HMAC computed over a re-serialized `ctx.input` will never match.
+The dispatcher parses the request body before your handler runs and exposes it as `ctx.input`; the body stream is consumed, so `ctx.request.text()` is unavailable. That's fine for normal routes — but webhook providers (Stripe, GitHub, Svix, …) sign the payload _exactly as delivered_, and an HMAC computed over a re-serialized `ctx.input` will never match (whitespace and key order don't survive a parse/stringify round-trip).
 
 Routes that need the unparsed body opt in with `rawBody: true`:
 
@@ -172,7 +172,7 @@ routes: {
 },
 ```
 
-`ctx.rawBody` is the body exactly as received. `ctx.input` still works as usual (parsed from the same buffer). Non-JSON payloads — e.g. form-encoded webhook deliveries — arrive with `ctx.input` undefined but `ctx.rawBody` intact, so the handler can parse them itself. The flag is native-format only; sandboxed plugins receive requests across a serialization boundary and don't support it yet.
+`ctx.rawBody` is the delivered body as a UTF-8 decoded string — webhook payloads are UTF-8 text in practice, so signature libraries that accept a string (or `new TextEncoder().encode(ctx.rawBody)`) work directly; binary bodies are not preserved byte-exactly. `ctx.input` still works as usual (parsed from the same buffer). Non-JSON payloads — e.g. form-encoded webhook deliveries — arrive with `ctx.input` undefined but `ctx.rawBody` intact, so the handler can parse them itself. The flag is native-format only; sandboxed plugins receive requests across a serialization boundary and don't support it yet.
 
 ## Plugin id rules
 

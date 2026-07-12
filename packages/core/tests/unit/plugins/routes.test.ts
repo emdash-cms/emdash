@@ -335,8 +335,9 @@ describe("PluginRouteHandler", () => {
 		});
 
 		it("exposes ctx.rawBody on routes that opt in with rawBody: true", async () => {
-			// Signature verification needs the exact raw bytes: whitespace and key
-			// order must survive, which a re-serialized ctx.input can't guarantee.
+			// Signature verification needs the payload exactly as delivered:
+			// whitespace and key order must survive, which a re-serialized
+			// ctx.input can't guarantee.
 			const raw = `{"b":2,  "a":1}`;
 			let seen: { rawBody?: string; input?: unknown } = {};
 			const plugin = createTestPlugin({

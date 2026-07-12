@@ -3343,8 +3343,9 @@ export class EmDashRuntime {
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
 			// Buffer the body as text so routes with `rawBody: true` can see the
-			// exact bytes (webhook signature verification); parse JSON from the
-			// same buffer for `ctx.input`.
+			// payload exactly as delivered — as a UTF-8 decoded string, which is
+			// what webhook signature verification needs in practice; parse JSON
+			// from the same buffer for `ctx.input`.
 			let body: unknown = undefined;
 			let rawBody: string | undefined;
 			try {

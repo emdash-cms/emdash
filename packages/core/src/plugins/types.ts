@@ -1161,9 +1161,12 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 	/** Normalized request metadata (IP, user agent, geo) */
 	requestMeta: RequestMeta;
 	/**
-	 * The unparsed request body, exactly as received. Only populated when the
-	 * route sets `rawBody: true` — needed to verify webhook signatures, which
-	 * are HMACs over the raw bytes (a re-serialized `ctx.input` never matches).
+	 * The unparsed request body as a UTF-8 decoded string. Only populated when
+	 * the route sets `rawBody: true` — needed to verify webhook signatures,
+	 * which are computed over the delivered payload (a re-serialized
+	 * `ctx.input` never matches, since whitespace and key order don't survive
+	 * a parse/stringify round-trip). Webhook payloads are UTF-8 text in
+	 * practice; binary bodies are not preserved byte-exactly.
 	 */
 	rawBody?: string;
 }
