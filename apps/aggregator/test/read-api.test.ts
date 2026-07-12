@@ -26,6 +26,13 @@ const DID_A = "did:plc:read000000000000000000aa";
 const DID_B = "did:plc:read000000000000000000bb";
 const NOW = new Date("2026-05-10T12:00:00.000Z");
 
+/** Default-policy labeler: seeded `trusted = 1` so the missing-header
+ * default (`SELECT did FROM labelers WHERE trusted = 1`) picks it up. */
+const LABELER_DID = "did:web:labels.example";
+/** Configured but untrusted — absent from the default policy, but
+ * available (and echoed) when a request explicitly names it. */
+const UNTRUSTED_LABELER_DID = "did:web:untrusted-labels.example";
+
 beforeAll(async () => {
 	await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);
 });
@@ -38,6 +45,7 @@ beforeEach(async () => {
 	await testEnv.DB.prepare("DELETE FROM publishers").run();
 	await testEnv.DB.prepare("DELETE FROM publisher_verifications").run();
 	await testEnv.DB.prepare("DELETE FROM label_state").run();
+	await testEnv.DB.prepare("DELETE FROM labelers").run();
 });
 
 interface SeedPackageOpts {
@@ -143,32 +151,59 @@ function packageUri(slug: string, did: string = DID_A): string {
 	return `at://${did}/${NSID.packageProfile}/${slug}`;
 }
 
+function releaseUri(pkg: string, version: string, did: string = DID_A): string {
+	return `at://${did}/${NSID.packageRelease}/${pkg}:${version}`;
+}
+
+/** Seeds a `labelers` row so a DID is "available" per W4.4's resolution:
+ * `trusted = 1` rows feed the missing-header default set; any row (trusted
+ * or not) makes a DID acceptable when explicitly requested. */
+async function seedLabeler(did: string, trusted: boolean): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO labelers (did, endpoint, signing_key, signing_key_id, trusted, added_at, last_resolved_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+	)
+		.bind(
+			did,
+			"https://labeler.example",
+			"unused-in-tests",
+			`${did}#atproto_label`,
+			trusted ? 1 : 0,
+			NOW.toISOString(),
+			NOW.toISOString(),
+		)
+		.run();
+}
+
 async function seedLabelState(opts: {
 	uri: string;
 	val: string;
-	trusted?: boolean;
+	src?: string;
+	cid?: string | null;
 	neg?: boolean;
 	exp?: string;
 }): Promise<void> {
+	const src = opts.src ?? LABELER_DID;
 	await testEnv.DB.prepare(
 		`INSERT INTO label_state
 		   (src, uri, val, cid, neg, cts, cts_epoch_ms, exp, exp_epoch_ms,
 		    digest, source_sequence, frame_index, trusted)
-		 VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
-			"did:web:labels.example",
+			src,
 			opts.uri,
 			opts.val,
+			opts.cid ?? null,
 			opts.neg ? 1 : 0,
 			NOW.toISOString(),
 			NOW.getTime(),
 			opts.exp ?? null,
 			opts.exp === undefined ? null : Date.parse(opts.exp),
-			`digest-${opts.uri}-${opts.val}`,
+			`digest-${src}-${opts.uri}-${opts.val}`,
 			1,
 			0,
-			opts.trusted === false ? 0 : 1,
+			1,
 		)
 		.run();
 }
@@ -238,6 +273,128 @@ describe("getPackage", () => {
 		);
 		const body = (await res.json()) as Record<string, unknown>;
 		expect(body).not.toHaveProperty("latestVersion");
+	});
+
+	it("404s (redacted) when a default-accepted source's !takedown is active", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		await seedLabelState({ uri: packageUri("demo"), val: "!takedown" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toBe("NotFound");
+	});
+
+	it("redacts even when the takedown sits beyond the 64-label wire cap", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		for (let i = 0; i < 64; i++) {
+			await seedLabelState({ uri: packageUri("demo"), val: `note-${i}` });
+		}
+		await seedLabelState({ uri: packageUri("demo"), val: "!takedown" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("caps wire labels at 64 without affecting the response status", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		for (let i = 0; i < 70; i++) {
+			await seedLabelState({ uri: packageUri("demo"), val: `note-${i}` });
+		}
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { labels: unknown[] };
+		expect(body.labels).toHaveLength(64);
+	});
+
+	it("returns 200 with the label present when the same takedown comes from a non-redact accepted source", async () => {
+		await seedLabeler(UNTRUSTED_LABELER_DID, false);
+		await seedPackage({ slug: "demo" });
+		await seedLabelState({ uri: packageUri("demo"), val: "!takedown", src: UNTRUSTED_LABELER_DID });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+			{ headers: { "atproto-accept-labelers": UNTRUSTED_LABELER_DID } },
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { labels: Array<{ src: string; val: string }> };
+		expect(body.labels).toContainEqual(
+			expect.objectContaining({ src: UNTRUSTED_LABELER_DID, val: "!takedown" }),
+		);
+	});
+
+	it("hydrates publisher-DID labels alongside package-URI labels", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		await seedLabelState({ uri: DID_A, val: "low-quality" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { labels: Array<{ src: string; uri: string; val: string }> };
+		expect(body.labels).toContainEqual(
+			expect.objectContaining({ src: LABELER_DID, uri: DID_A, val: "low-quality" }),
+		);
+	});
+
+	it("only hydrates unexpired, non-negated labels", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		await seedLabelState({ uri: packageUri("demo"), val: "low-quality" });
+		await seedLabelState({
+			uri: packageUri("demo"),
+			val: "broken-release",
+			exp: new Date(NOW.getTime() - 60_000).toISOString(),
+		});
+		await seedLabelState({ uri: packageUri("demo"), val: "obfuscated-code", neg: true });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { labels: Array<{ val: string }> };
+		expect(body.labels.map((l) => l.val)).toEqual(["low-quality"]);
+	});
+
+	it("sets atproto-content-labelers when the request used the default policy", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(res.headers.get("atproto-content-labelers")).toBe(`${LABELER_DID};redact`);
+	});
+
+	it("hydrated labels carry only the label spec's optional fields (no sig, no neg)", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		await seedLabelState({ uri: packageUri("demo"), val: "low-quality", cid: null });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		const body = (await res.json()) as { labels: Array<Record<string, unknown>> };
+		expect(body.labels).toHaveLength(1);
+		const label = body.labels[0]!;
+		expect(label).toMatchObject({ src: LABELER_DID, uri: packageUri("demo"), val: "low-quality" });
+		expect(label).toHaveProperty("cts");
+		expect(label).not.toHaveProperty("cid");
+		expect(label).not.toHaveProperty("exp");
+		expect(label).not.toHaveProperty("sig");
+		expect(label).not.toHaveProperty("neg");
+		expect(label).not.toHaveProperty("ver");
 	});
 });
 
@@ -309,6 +466,88 @@ describe("listReleases", () => {
 		);
 		expect(res.status).toBe(400);
 	});
+
+	it("omits a release redacted by a default-accepted source's !takedown", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		await seedRelease({ version: "1.0.0" });
+		await seedRelease({ version: "2.0.0" });
+		await seedLabelState({ uri: releaseUri("demo", "2.0.0"), val: "!takedown" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorListReleases}?did=${DID_A}&package=demo`,
+		);
+		const body = (await res.json()) as { releases: Array<{ version: string }> };
+		expect(body.releases.map((r) => r.version)).toEqual(["1.0.0"]);
+	});
+
+	it("returns a blocked-but-not-redacted release with its labels intact", async () => {
+		await seedLabeler(UNTRUSTED_LABELER_DID, false);
+		await seedPackage({ slug: "demo" });
+		await seedRelease({ version: "1.0.0" });
+		await seedLabelState({
+			uri: releaseUri("demo", "1.0.0"),
+			val: "malware",
+			src: UNTRUSTED_LABELER_DID,
+		});
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorListReleases}?did=${DID_A}&package=demo`,
+			{ headers: { "atproto-accept-labelers": UNTRUSTED_LABELER_DID } },
+		);
+		const body = (await res.json()) as {
+			releases: Array<{ version: string; labels: Array<{ val: string }> }>;
+		};
+		expect(body.releases.map((r) => r.version)).toEqual(["1.0.0"]);
+		expect(body.releases[0]!.labels).toContainEqual(
+			expect.objectContaining({ src: UNTRUSTED_LABELER_DID, val: "malware" }),
+		);
+	});
+
+	it("404s when the parent package carries a redacted takedown, matching getPackage", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		await seedRelease({ version: "1.0.0" });
+		await seedRelease({ version: "2.0.0" });
+		await seedLabelState({ uri: packageUri("demo"), val: "!takedown" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorListReleases}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toBe("NotFound");
+	});
+
+	it("pages correctly when a page has redacted omissions", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		await seedRelease({ version: "1.1.0" });
+		await seedRelease({ version: "1.2.0" });
+		await seedRelease({ version: "1.3.0" });
+		await seedRelease({ version: "1.4.0" });
+		// Redact the last item of what would otherwise be the first raw page
+		// ([1.4.0, 1.3.0] at limit=2) — the cursor must still derive from
+		// 1.3.0 (the last row actually fetched), not 1.4.0 (the last row
+		// that survived the redaction filter).
+		await seedLabelState({ uri: releaseUri("demo", "1.3.0"), val: "!takedown" });
+
+		const first = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorListReleases}?did=${DID_A}&package=demo&limit=2`,
+		);
+		const firstBody = (await first.json()) as {
+			releases: Array<{ version: string }>;
+			cursor: string;
+		};
+		expect(firstBody.releases.map((r) => r.version)).toEqual(["1.4.0"]);
+		expect(firstBody.cursor).toBeTruthy();
+
+		const second = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorListReleases}?did=${DID_A}&package=demo&limit=2&cursor=${encodeURIComponent(firstBody.cursor)}`,
+		);
+		const secondBody = (await second.json()) as { releases: Array<{ version: string }> };
+		expect(secondBody.releases.map((r) => r.version)).toEqual(["1.2.0", "1.1.0"]);
+	});
 });
 
 describe("getLatestRelease", () => {
@@ -359,6 +598,82 @@ describe("getLatestRelease", () => {
 		);
 		expect(res.status).toBe(404);
 	});
+
+	it("skips a hard-blocked highest release in favour of the next-best one", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "2.0.0" });
+		await seedRelease({ version: "1.0.0" });
+		await seedRelease({ version: "2.0.0" });
+		await seedLabelState({ uri: releaseUri("demo", "2.0.0"), val: "malware" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body["version"]).toBe("1.0.0");
+	});
+
+	it("returns 404 when every release is hard-blocked", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0" });
+		await seedLabelState({ uri: releaseUri("demo", "1.0.0"), val: "malware" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("respects packages.latest_version via the fast path when the accepted policy is empty, even with block labels elsewhere", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0" });
+		await seedRelease({ version: "2.0.0" });
+		// A hard-block label exists, and would exclude 2.0.0 under the
+		// authoritative path — but the empty explicit header disables
+		// enforcement entirely, so this should never be consulted.
+		await seedLabelState({ uri: releaseUri("demo", "2.0.0"), val: "malware" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+			{ headers: { "atproto-accept-labelers": "" } },
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body["version"]).toBe("1.0.0");
+	});
+
+	it("returns 404 on a package-cascade block even when the release itself carries no label", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0" });
+		await seedLabelState({ uri: packageUri("demo"), val: "!takedown" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("ignores a release-scope label whose CID no longer matches the current release", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: "bafcurrent" });
+		await seedLabelState({
+			uri: releaseUri("demo", "1.0.0"),
+			val: "malware",
+			cid: "bafstale",
+		});
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body["version"]).toBe("1.0.0");
+	});
 });
 
 describe("searchPackages", () => {
@@ -404,10 +719,11 @@ describe("searchPackages", () => {
 		expect(overlap).toEqual([]);
 	});
 
-	it("hides a package with an active trusted security-yanked label", async () => {
+	it("hides a package with an active default-accepted !takedown label", async () => {
+		await seedLabeler(LABELER_DID, true);
 		await seedPackage({ slug: "risky" });
 		await seedPackage({ slug: "safe" });
-		await seedLabelState({ uri: packageUri("risky"), val: "security-yanked" });
+		await seedLabelState({ uri: packageUri("risky"), val: "!takedown" });
 
 		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`);
 		const body = (await res.json()) as { packages: Array<{ slug: string }> };
@@ -415,6 +731,7 @@ describe("searchPackages", () => {
 	});
 
 	it("does not hide a package whose takedown expired, even when the raw exp string compares lexically after now", async () => {
+		await seedLabeler(LABELER_DID, true);
 		await seedPackage({ slug: "recovered" });
 		await seedLabelState({
 			uri: packageUri("recovered"),
@@ -427,13 +744,77 @@ describe("searchPackages", () => {
 		expect(body.packages.map((p) => p.slug)).toEqual(["recovered"]);
 	});
 
-	it("ignores blocking labels from untrusted sources", async () => {
+	it("ignores blocking labels from a source outside the accepted policy", async () => {
+		// Configured but untrusted — the missing-header default only picks up
+		// `trusted = 1` labelers, so this source's label doesn't enforce.
+		await seedLabeler(LABELER_DID, false);
 		await seedPackage({ slug: "demo" });
-		await seedLabelState({ uri: packageUri("demo"), val: "!takedown", trusted: false });
+		await seedLabelState({ uri: packageUri("demo"), val: "!takedown" });
 
 		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`);
 		const body = (await res.json()) as { packages: Array<{ slug: string }> };
 		expect(body.packages.map((p) => p.slug)).toEqual(["demo"]);
+	});
+
+	it("enforces a takedown from an explicitly accepted untrusted source", async () => {
+		await seedLabeler(UNTRUSTED_LABELER_DID, false);
+		await seedPackage({ slug: "demo" });
+		await seedLabelState({
+			uri: packageUri("demo"),
+			val: "!takedown",
+			src: UNTRUSTED_LABELER_DID,
+		});
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`, {
+			headers: { "atproto-accept-labelers": UNTRUSTED_LABELER_DID },
+		});
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages.map((p) => p.slug)).toEqual([]);
+	});
+
+	it("disables enforcement and skips hydration with an explicit empty header", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		await seedLabelState({ uri: packageUri("demo"), val: "!takedown" });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`, {
+			headers: { "atproto-accept-labelers": "" },
+		});
+		const body = (await res.json()) as { packages: Array<{ slug: string; labels: unknown[] }> };
+		expect(body.packages.map((p) => p.slug)).toEqual(["demo"]);
+		expect(body.packages[0]!.labels).toEqual([]);
+	});
+
+	it("does not hide a package whose label is CID-bound to a stale CID", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", cid: "bafcurrent" });
+		await seedLabelState({ uri: packageUri("demo"), val: "!takedown", cid: "bafstale" });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages.map((p) => p.slug)).toEqual(["demo"]);
+	});
+
+	it("hides every package under a publisher DID with an active takedown", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ did: DID_A, slug: "a1" });
+		await seedPackage({ did: DID_A, slug: "a2" });
+		await seedPackage({ did: DID_B, slug: "b1" });
+		await seedLabelState({ uri: DID_A, val: "!takedown" });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages.map((p) => p.slug)).toEqual(["b1"]);
+	});
+
+	it("hides a package with an active publisher-compromised label", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo" });
+		await seedLabelState({ uri: packageUri("demo"), val: "publisher-compromised" });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages.map((p) => p.slug)).toEqual([]);
 	});
 
 	it("doesn't blow up on FTS-unsafe query chars (defensive quoting)", async () => {

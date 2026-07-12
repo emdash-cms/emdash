@@ -21,6 +21,7 @@
 import { type AggregatorDefs, NSID } from "@emdash-cms/registry-lexicons";
 
 import { isPlainObject, parseSignatureMetadataCid } from "../../utils.js";
+import { LABELS_MAX_LENGTH, type LabelView } from "./label-enforcement.js";
 
 /** Subset of columns from `packages` we read for `packageView`. Selecting
  * exactly these columns keeps the SQL query auditable and cheap. */
@@ -107,6 +108,46 @@ export function releaseColumns(prefix = ""): string {
 	return RELEASE_VIEW_COLUMN_NAMES.map((c) => `${prefix}${c}`).join(", ");
 }
 
+/** AT URI of a package's profile record — the `packageView.uri` and the
+ * hydration subject handlers hydrate labels for before calling
+ * `packageView`. Single source of truth so the two never drift. No return
+ * type annotation, and `as const` on the template literal: together these
+ * keep the inferred type as a template-literal pattern rather than
+ * widening to plain `string`, which `packageView.uri`'s `ResourceUri`
+ * type needs. */
+export function packageUri(row: Pick<PackageRow, "did" | "slug">) {
+	return `at://${row.did}/${NSID.packageProfile}/${row.slug}` as const;
+}
+
+/** AT URI of a release record — the `releaseView.uri` and the hydration
+ * subject handlers hydrate labels for before calling `releaseView`. */
+export function releaseUri(row: Pick<ReleaseRow, "did" | "rkey">) {
+	return `at://${row.did}/${NSID.packageRelease}/${row.rkey}` as const;
+}
+
+/** Caps a combined labels array at the lexicon's maxLength. A view's
+ * labels are the union of multiple hydrated subjects (e.g. a release's own
+ * URI plus its parent package and publisher DID). Hydration returns
+ * untruncated per-subject sets so redaction decisions see every label;
+ * this boundary cap trims only the final view array. */
+function capLabels(labels: LabelView[], uri: string): LabelView[] {
+	if (labels.length <= LABELS_MAX_LENGTH) return labels;
+	console.warn("[aggregator] view labels truncated to maxLength", {
+		uri,
+		count: labels.length,
+		cap: LABELS_MAX_LENGTH,
+	});
+	return labels.slice(0, LABELS_MAX_LENGTH);
+}
+
+/** `LabelView.src` is `string`; the lexicon's `Label.src` is a branded DID
+ * template type. Safe to assert — `src` is a labeler DID validated at
+ * ingest time, same trust boundary as the `did` cast below. */
+function toLexiconLabels(labels: LabelView[]): AggregatorDefs.PackageView["labels"] {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion
+	return labels as AggregatorDefs.PackageView["labels"];
+}
+
 /**
  * Map a `packages` row to the lexicon's `packageView`. The synthesized
  * `profile` field reconstructs the package.profile record JSON from the
@@ -116,9 +157,13 @@ export function releaseColumns(prefix = ""): string {
  * `indexedAt` falls back to `verified_at` for any historical row that
  * predates migration 0002 (`indexed_at` is nullable at the schema level —
  * see migration comment).
+ *
+ * `labels` are hydrated by the caller (package URI + publisher DID
+ * subjects) and passed in; defaulting to `[]` covers the accepted-policy-
+ * empty case where there's nothing to hydrate.
  */
-export function packageView(row: PackageRow): AggregatorDefs.PackageView {
-	const uri = `at://${row.did}/${NSID.packageProfile}/${row.slug}` as const;
+export function packageView(row: PackageRow, labels: LabelView[] = []): AggregatorDefs.PackageView {
+	const uri = packageUri(row);
 	const cid = parseSignatureMetadataCid(row.signature_metadata) ?? "";
 	// `mirrors` is on releaseView, not packageView — packages aren't
 	// mirrored, releases are. Don't add it here even though they share the
@@ -131,7 +176,7 @@ export function packageView(row: PackageRow): AggregatorDefs.PackageView {
 		slug: row.slug,
 		profile: synthesizePackageProfile(row, uri),
 		indexedAt: row.indexed_at ?? row.verified_at,
-		labels: [],
+		labels: toLexiconLabels(capLabels(labels, uri)),
 	};
 	if (row.latest_version !== null) {
 		view.latestVersion = row.latest_version;
@@ -145,9 +190,12 @@ export function packageView(row: PackageRow): AggregatorDefs.PackageView {
  * normalised columns. `mirrors: []` is intentional — the artifact mirror
  * worker (Slice 3) is what populates real mirror URLs; until then the
  * field is the empty contract.
+ *
+ * `labels` are hydrated by the caller (release URI + package URI +
+ * publisher DID subjects, carrying cascade context) and passed in.
  */
-export function releaseView(row: ReleaseRow): AggregatorDefs.ReleaseView {
-	const uri = `at://${row.did}/${NSID.packageRelease}/${row.rkey}` as const;
+export function releaseView(row: ReleaseRow, labels: LabelView[] = []): AggregatorDefs.ReleaseView {
+	const uri = releaseUri(row);
 	const cid = parseSignatureMetadataCid(row.signature_metadata) ?? "";
 	return {
 		uri,
@@ -159,7 +207,7 @@ export function releaseView(row: ReleaseRow): AggregatorDefs.ReleaseView {
 		release: synthesizePackageRelease(row),
 		mirrors: [],
 		indexedAt: row.indexed_at ?? row.verified_at,
-		labels: [],
+		labels: toLexiconLabels(capLabels(labels, uri)),
 	};
 }
 
