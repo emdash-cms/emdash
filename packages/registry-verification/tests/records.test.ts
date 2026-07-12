@@ -23,7 +23,41 @@ const provenance: ReleaseProvenance = {
 	sourceRepository: repository,
 	builderId: `${repository}/.github/workflows/release.yml@refs/heads/main`,
 };
-const artifactDigest = Uint8Array.of(1, 2, 3);
+const artifactChecksum = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
+const artifactDigest = Uint8Array.of(
+	44,
+	242,
+	77,
+	186,
+	95,
+	176,
+	163,
+	14,
+	38,
+	232,
+	59,
+	42,
+	197,
+	185,
+	226,
+	158,
+	27,
+	22,
+	30,
+	92,
+	31,
+	167,
+	66,
+	94,
+	115,
+	4,
+	51,
+	98,
+	147,
+	139,
+	152,
+	36,
+);
 const provenanceDocument = Uint8Array.of(4, 5, 6);
 
 describe("verifyPackageReleaseRecords", () => {
@@ -74,6 +108,18 @@ describe("verifyPackageReleaseRecords", () => {
 		const release = cloneRelease();
 		release.version = "01.2.3";
 		expect(await verify({ release, version: "01.2.3", rkey: "gallery:01.2.3" })).toMatchObject({
+			success: false,
+			code: "RELEASE_VERSION_INVALID",
+		});
+	});
+
+	it("rejects semver that cannot participate in baseline comparison", async () => {
+		const unsafeVersion = "9007199254740992.0.0";
+		const release = cloneRelease();
+		release.version = unsafeVersion;
+		expect(
+			await verify({ release, version: unsafeVersion, rkey: `gallery:${unsafeVersion}` }),
+		).toMatchObject({
 			success: false,
 			code: "RELEASE_VERSION_INVALID",
 		});
@@ -147,6 +193,30 @@ describe("verifyPackageReleaseRecords", () => {
 			artifactDigest,
 			profileRepository: repository,
 		});
+	});
+
+	it("binds provenance evidence to the signed package artifact checksum", async () => {
+		const verifier = verifierReturning({
+			success: true,
+			value: {
+				predicateType: "https://slsa.dev/provenance/v1",
+				artifactDigest,
+				sourceRepository: repository,
+				builderId: provenance.builderId,
+			},
+		});
+
+		expect(
+			await verify({
+				release: withProvenance(),
+				provenance: {
+					document: provenanceDocument,
+					artifactDigest: Uint8Array.of(1, 2, 3),
+					verifier,
+				},
+			}),
+		).toMatchObject({ success: false, code: "CHECKSUM_MISMATCH" });
+		expect(verifier.verify).not.toHaveBeenCalled();
 	});
 
 	it.each([
@@ -226,6 +296,7 @@ function cloneRelease() {
 
 function withProvenance() {
 	const release = cloneRelease();
+	release.artifacts.package.checksum = artifactChecksum;
 	release.extensions["com.emdashcms.experimental.package.releaseExtension"].provenance = provenance;
 	return release;
 }

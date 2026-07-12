@@ -1,3 +1,5 @@
+import { encode } from "@atcute/cbor";
+import * as CID from "@atcute/cid";
 import type { PackageRelease } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it, vi } from "vitest";
 
@@ -11,8 +13,8 @@ import {
 
 const did = "did:plc:publisher";
 const pds = "https://pds.example.com";
-const profileCid = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe";
-const releaseCid = "bafyreifb6f5m2qvxrgxe3zpl6mu3r2m4zqas7m4wwdmy3p5l5bqv6zqjii";
+const profileCid = await recordCid(profileFixture);
+const releaseCid = await recordCid(releaseFixture);
 
 describe("DirectPdsClient", () => {
 	it("reads and validates a profile directly from the configured PDS", async () => {
@@ -59,6 +61,31 @@ describe("DirectPdsClient", () => {
 		});
 	});
 
+	it("rejects malformed record CIDs", async () => {
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			fetch: routeFetch(() => profileResponse(profileFixture, "not-a-cid")),
+		});
+
+		await expect(client.getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "RECORD_CID_INVALID",
+		});
+	});
+
+	it("rejects profile values that do not match their claimed CID", async () => {
+		const value = { ...structuredClone(profileFixture), name: "Tampered Gallery" };
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			fetch: routeFetch(() => profileResponse(value, profileCid)),
+		});
+
+		await expect(client.getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "RECORD_CID_MISMATCH",
+		});
+	});
+
 	it("reads one release and enforces its package, version, and rkey", async () => {
 		const client = new DirectPdsClient({
 			did,
@@ -82,13 +109,31 @@ describe("DirectPdsClient", () => {
 		});
 	});
 
+	it("rejects a single release value that does not match its claimed CID", async () => {
+		const value = structuredClone(releaseFixture);
+		value.artifacts.package.url = "https://github.com/example/gallery/releases/tampered.tar.gz";
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			fetch: routeFetch(() => releaseResponse(value, releaseCid)),
+		});
+
+		await expect(client.getPackageRelease("gallery", "1.2.3")).rejects.toMatchObject({
+			code: "RECORD_CID_MISMATCH",
+		});
+	});
+
 	it("enumerates bounded pages and selects the highest-semver baseline regardless of order", async () => {
+		const [oneTwo, prerelease, oneTen, two, zeroNine] = await Promise.all([
+			releaseRecord("1.2.0"),
+			releaseRecord("2.0.0-rc.1"),
+			releaseRecord("1.10.0"),
+			releaseRecord("2.0.0"),
+			releaseRecord("0.9.0"),
+		]);
 		const pages = new Map<string | null, unknown>([
-			[null, listResponse([releaseRecord("1.2.0"), releaseRecord("2.0.0-rc.1")], "next-page")],
-			[
-				"next-page",
-				listResponse([releaseRecord("1.10.0"), releaseRecord("2.0.0"), releaseRecord("0.9.0")]),
-			],
+			[null, listResponse([oneTwo, prerelease], "next-page")],
+			["next-page", listResponse([oneTen, two, zeroNine])],
 		]);
 		const client = new DirectPdsClient({
 			did,
@@ -126,17 +171,70 @@ describe("DirectPdsClient", () => {
 	});
 
 	it("rejects truncation instead of selecting from an incomplete enumeration", async () => {
+		const record = await releaseRecord("1.0.0");
 		const client = new DirectPdsClient({
 			did,
 			pds,
-			fetch: routeFetch(() => jsonResponse(listResponse([releaseRecord("1.0.0")], "more"))),
+			fetch: routeFetch(() => jsonResponse(listResponse([record], "more"))),
 		});
 		await expect(
 			client.listPackageReleases("gallery", { maxRecords: 1, pageSize: 1 }),
 		).rejects.toMatchObject({ code: "ENUMERATION_TRUNCATED" });
 	});
 
-	it("bounds cursor-only pages and rejects repeated cursors", async () => {
+	it("accepts legal short pages until enumeration completes", async () => {
+		const [one, two, three] = await Promise.all([
+			releaseRecord("1.0.0"),
+			releaseRecord("2.0.0"),
+			releaseRecord("3.0.0"),
+		]);
+		const pages = new Map<string | null, unknown>([
+			[null, listResponse([one], "second")],
+			["second", listResponse([two], "third")],
+			["third", listResponse([three])],
+		]);
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			fetch: routeFetch((url) => jsonResponse(pages.get(url.searchParams.get("cursor")))),
+		});
+
+		await expect(
+			client.listPackageReleases("gallery", { maxRecords: 3, pageSize: 3 }),
+		).resolves.toHaveLength(3);
+	});
+
+	it("accepts an exact-boundary enumeration without a continuation cursor", async () => {
+		const records = await Promise.all([releaseRecord("1.0.0"), releaseRecord("2.0.0")]);
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			fetch: routeFetch(() => jsonResponse(listResponse(records))),
+		});
+
+		await expect(
+			client.listPackageReleases("gallery", { maxRecords: 2, pageSize: 2 }),
+		).resolves.toHaveLength(2);
+	});
+
+	it("rejects a PDS response that exceeds the remaining record bound", async () => {
+		const records = await Promise.all([
+			releaseRecord("1.0.0"),
+			releaseRecord("2.0.0"),
+			releaseRecord("3.0.0"),
+		]);
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			fetch: routeFetch(() => jsonResponse(listResponse(records))),
+		});
+
+		await expect(
+			client.listPackageReleases("gallery", { maxRecords: 2, pageSize: 2 }),
+		).rejects.toMatchObject({ code: "ENUMERATION_TRUNCATED" });
+	});
+
+	it("rejects a continuation cursor that makes no record progress", async () => {
 		const client = new DirectPdsClient({
 			did,
 			pds,
@@ -144,11 +242,25 @@ describe("DirectPdsClient", () => {
 		});
 		await expect(
 			client.listPackageReleases("gallery", { maxRecords: 10, pageSize: 5 }),
+		).rejects.toMatchObject({ code: "ENUMERATION_TRUNCATED" });
+	});
+
+	it("rejects repeated cursors even when each page contains records", async () => {
+		let page = 0;
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			fetch: routeFetch(async () =>
+				jsonResponse(listResponse([await releaseRecord(`${++page}.0.0`)], "same")),
+			),
+		});
+		await expect(
+			client.listPackageReleases("gallery", { maxRecords: 10, pageSize: 5 }),
 		).rejects.toMatchObject({ code: "ENUMERATION_CURSOR_REPEATED" });
 	});
 
 	it("rejects duplicate rkeys and malformed target records as ambiguous", async () => {
-		const duplicate = releaseRecord("1.0.0");
+		const duplicate = await releaseRecord("1.0.0");
 		const client = new DirectPdsClient({
 			did,
 			pds,
@@ -158,7 +270,7 @@ describe("DirectPdsClient", () => {
 			code: "RELEASE_ENUMERATION_AMBIGUOUS",
 		});
 
-		const malformed = releaseRecord("1.0.0");
+		const malformed = await releaseRecord("1.0.0");
 		malformed.value = { ...malformed.value, version: "not-semver" };
 		const malformedClient = new DirectPdsClient({
 			did,
@@ -169,13 +281,115 @@ describe("DirectPdsClient", () => {
 			DirectPdsReadError,
 		);
 	});
+
+	it("rejects an enumerated release value that does not match its claimed CID", async () => {
+		const record = await releaseRecord("1.0.0");
+		record.value.artifacts.package.url =
+			"https://github.com/example/gallery/releases/tampered.tar.gz";
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			fetch: routeFetch(() => jsonResponse(listResponse([record]))),
+		});
+
+		await expect(client.listPackageReleases("gallery")).rejects.toMatchObject({
+			code: "RECORD_CID_MISMATCH",
+		});
+	});
+
+	it("rejects oversized declared and streamed response bodies", async () => {
+		const declaredClient = new DirectPdsClient({
+			did,
+			pds,
+			maxResponseBytes: 10,
+			fetch: routeFetch(
+				() =>
+					new Response("{}", {
+						headers: { "content-length": "11", "content-type": "application/json" },
+					}),
+			),
+		});
+		await expect(declaredClient.getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "PDS_RESPONSE_TOO_LARGE",
+		});
+
+		const streamedClient = new DirectPdsClient({
+			did,
+			pds,
+			maxResponseBytes: 3,
+			fetch: routeFetch(() => streamedResponse([Uint8Array.of(1, 2), Uint8Array.of(3, 4)])),
+		});
+		await expect(streamedClient.getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "PDS_RESPONSE_TOO_LARGE",
+		});
+	});
+
+	it("times out a stalled direct-PDS request", async () => {
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			requestTimeoutMs: 10,
+			fetch: vi.fn(() => new Promise<Response>(() => undefined)) as typeof fetch,
+		});
+
+		await expect(client.getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "PDS_REQUEST_TIMEOUT",
+		});
+	});
+
+	it("times out a stalled direct-PDS response body", async () => {
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			requestTimeoutMs: 10,
+			fetch: routeFetch(() => stalledResponse()),
+		});
+
+		await expect(client.getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "PDS_REQUEST_TIMEOUT",
+		});
+	});
+
+	it("composes an external abort signal without starting a pre-aborted request", async () => {
+		const controller = new AbortController();
+		controller.abort();
+		const fetch = routeFetch(() => profileResponse());
+		const client = new DirectPdsClient({ did, pds, signal: controller.signal, fetch });
+
+		await expect(client.getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "PDS_REQUEST_ABORTED",
+		});
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	it("accepts valid responses within explicit request bounds", async () => {
+		const client = new DirectPdsClient({
+			did,
+			pds,
+			requestTimeoutMs: 1_000,
+			maxResponseBytes: 100_000,
+			fetch: routeFetch(() => profileResponse()),
+		});
+
+		await expect(client.getPackageProfile("gallery")).resolves.toMatchObject({ cid: profileCid });
+	});
+
+	it.each([
+		{ requestTimeoutMs: 0 },
+		{ requestTimeoutMs: Number.POSITIVE_INFINITY },
+		{ requestTimeoutMs: 2_147_483_648 },
+		{ maxResponseBytes: 0 },
+		{ maxResponseBytes: 1.5 },
+	])("rejects invalid request limits: %o", (options) => {
+		expect(() => new DirectPdsClient({ did, pds, ...options })).toThrow(RangeError);
+	});
 });
 
-function routeFetch(respond: (url: URL) => Response) {
+function routeFetch(respond: (url: URL) => Response | Promise<Response>) {
 	return vi.fn(async (input: string | URL | Request) => {
 		const url = new URL(input instanceof Request ? input.url : String(input));
 		if (url.origin !== pds) throw new Error(`Unexpected non-PDS request: ${url}`);
-		return respond(url);
+		return await respond(url);
 	}) as unknown as ReturnType<typeof vi.fn> & typeof fetch;
 }
 
@@ -186,18 +400,18 @@ function jsonResponse(body: unknown): Response {
 	});
 }
 
-function profileResponse(value: unknown = profileFixture): Response {
+async function profileResponse(value: unknown = profileFixture, cid?: string): Promise<Response> {
 	return jsonResponse({
 		uri: `at://${did}/com.emdashcms.experimental.package.profile/gallery`,
-		cid: profileCid,
+		cid: cid ?? (await recordCid(value)),
 		value,
 	});
 }
 
-function releaseResponse(value: unknown): Response {
+async function releaseResponse(value: unknown, cid?: string): Promise<Response> {
 	return jsonResponse({
 		uri: `at://${did}/com.emdashcms.experimental.package.release/gallery:1.2.3`,
-		cid: releaseCid,
+		cid: cid ?? (await recordCid(value)),
 		value,
 	});
 }
@@ -206,18 +420,43 @@ function listResponse(records: unknown[], cursor?: string) {
 	return { records, ...(cursor ? { cursor } : {}) };
 }
 
-function releaseRecord(version: string) {
+async function releaseRecord(version: string) {
+	const value = { ...structuredClone(releaseFixture), version };
 	return {
 		uri: `at://${did}/com.emdashcms.experimental.package.release/gallery:${version}`,
-		cid: releaseCid,
-		value: { ...structuredClone(releaseFixture), version },
+		cid: await recordCid(value),
+		value,
 	};
 }
 
 function typedRelease(version: string) {
 	return {
-		...releaseRecord(version),
+		uri: `at://${did}/com.emdashcms.experimental.package.release/gallery:${version}`,
+		cid: releaseCid,
 		rkey: `gallery:${version}`,
 		value: { ...structuredClone(releaseFixture), version } as PackageRelease.Main,
 	};
+}
+
+async function recordCid(value: unknown): Promise<string> {
+	return CID.toString(await CID.create(CID.CODEC_DCBOR, encode(value)));
+}
+
+function streamedResponse(chunks: Uint8Array[]): Response {
+	return new Response(
+		new ReadableStream<Uint8Array>({
+			pull(controller) {
+				const chunk = chunks.shift();
+				if (chunk) controller.enqueue(chunk);
+				else controller.close();
+			},
+		}),
+		{ headers: { "content-type": "application/json" } },
+	);
+}
+
+function stalledResponse(): Response {
+	return new Response(new ReadableStream<Uint8Array>({ start() {} }), {
+		headers: { "content-type": "application/json" },
+	});
 }

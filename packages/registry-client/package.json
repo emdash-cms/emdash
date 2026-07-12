@@ -43,6 +43,8 @@
 	},
 	"dependencies": {
 		"@atcute/atproto": "catalog:",
+		"@atcute/cbor": "catalog:",
+		"@atcute/cid": "catalog:",
 		"@atcute/client": "catalog:",
 		"@atcute/lexicons": "catalog:",
 		"@emdash-cms/registry-lexicons": "workspace:*"

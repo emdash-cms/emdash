@@ -21,6 +21,8 @@ export default defineConfig({
 	inlineOnly: false,
 	external: [
 		"@atcute/atproto",
+		"@atcute/cbor",
+		"@atcute/cid",
 		"@atcute/client",
 		"@atcute/lexicons",
 		"@atcute/lexicons/syntax",

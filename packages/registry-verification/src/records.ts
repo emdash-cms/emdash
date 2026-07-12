@@ -12,6 +12,7 @@ import {
 	PackageReleaseExtension,
 } from "@emdash-cms/registry-lexicons";
 
+import { compareDigestBytes, decodeMultihash } from "./checksum.js";
 import type { VerificationErrorCode } from "./errors.js";
 import { GitHubProvenanceVerifier } from "./provenance.js";
 import type { ProvenanceVerifier, VerifiedProvenance } from "./provenance.js";
@@ -147,7 +148,7 @@ export async function verifyPackageReleaseRecords(
 			"The release package does not match the requested package.",
 		);
 	}
-	if (!isPluginVersion(release.version)) {
+	if (!isComparablePluginVersion(release.version)) {
 		return failed("RELEASE_VERSION_INVALID", "The release version is not canonical semver.");
 	}
 	if (release.version !== input.version) {
@@ -221,6 +222,17 @@ export async function verifyPackageReleaseRecords(
 			"failed",
 		);
 	}
+	const artifactChecksum = decodeMultihash(release.artifacts.package.checksum);
+	if (!artifactChecksum.success) {
+		return failed(artifactChecksum.error.code, artifactChecksum.error.message, "failed");
+	}
+	if (!compareDigestBytes(input.provenance.artifactDigest, artifactChecksum.value.digest)) {
+		return failed(
+			"CHECKSUM_MISMATCH",
+			"The artifact digest does not match the signed package checksum.",
+			"failed",
+		);
+	}
 	const verifier = input.provenance.verifier ?? new GitHubProvenanceVerifier();
 	let provenanceResult: Awaited<ReturnType<ProvenanceVerifier["verify"]>>;
 	try {
@@ -277,6 +289,13 @@ function normalizePolicy(
 
 function isConfirmation(value: string): value is NormalizedReleasePolicy["confirmation"] {
 	return value === "always" || value === "escalation-only";
+}
+
+function isComparablePluginVersion(value: string): boolean {
+	if (!isPluginVersion(value)) return false;
+	const prereleaseSeparator = value.indexOf("-");
+	const core = value.slice(0, prereleaseSeparator === -1 ? undefined : prereleaseSeparator);
+	return core.split(".").every((component) => Number.isSafeInteger(Number(component)));
 }
 
 function failed(

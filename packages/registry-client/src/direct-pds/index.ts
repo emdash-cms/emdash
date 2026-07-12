@@ -1,5 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/no-empty-named-blocks, eslint-plugin-import/no-empty-named-blocks, eslint-plugin-unicorn/require-module-specifiers, import/no-empty-named-blocks, unicorn/require-module-specifiers
 import type {} from "@atcute/atproto";
+import { encode } from "@atcute/cbor";
+import * as CID from "@atcute/cid";
 import { Client, ok, simpleFetchHandler } from "@atcute/client";
 import { parseCanonicalResourceUri } from "@atcute/lexicons";
 import { safeParse } from "@atcute/lexicons/validations";
@@ -11,12 +13,22 @@ import type { Did } from "../credentials/types.js";
 
 export const DEFAULT_DIRECT_PDS_MAX_RECORDS = 1_000;
 export const DEFAULT_DIRECT_PDS_PAGE_SIZE = 100;
+export const DEFAULT_DIRECT_PDS_REQUEST_TIMEOUT_MS = 10_000;
+export const DEFAULT_DIRECT_PDS_MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+const DIGITS_RE = /^\d+$/;
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 export type DirectPdsReadErrorCode =
 	| "ENUMERATION_CURSOR_REPEATED"
 	| "ENUMERATION_TRUNCATED"
+	| "PDS_REQUEST_ABORTED"
+	| "PDS_REQUEST_FAILED"
+	| "PDS_REQUEST_TIMEOUT"
+	| "PDS_RESPONSE_TOO_LARGE"
 	| "PROFILE_IDENTITY_MISMATCH"
 	| "PROFILE_LEXICON_INVALID"
+	| "RECORD_CID_INVALID"
+	| "RECORD_CID_MISMATCH"
 	| "RECORD_CID_MISSING"
 	| "RELEASE_ENUMERATION_AMBIGUOUS"
 	| "RELEASE_IDENTITY_MISMATCH"
@@ -37,6 +49,9 @@ export interface DirectPdsClientOptions {
 	did: Did;
 	pds: string;
 	fetch?: typeof fetch;
+	requestTimeoutMs?: number;
+	maxResponseBytes?: number;
+	signal?: AbortSignal;
 }
 
 export interface DirectPdsProfileRecord {
@@ -66,12 +81,23 @@ export class DirectPdsClient {
 
 	constructor(options: DirectPdsClientOptions) {
 		validatePdsOrigin(options.pds);
+		const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_DIRECT_PDS_REQUEST_TIMEOUT_MS;
+		const maxResponseBytes = options.maxResponseBytes ?? DEFAULT_DIRECT_PDS_MAX_RESPONSE_BYTES;
+		validatePositiveSafeInteger(requestTimeoutMs, "requestTimeoutMs");
+		if (requestTimeoutMs > MAX_TIMEOUT_MS) {
+			throw new RangeError(`requestTimeoutMs must not exceed ${MAX_TIMEOUT_MS}`);
+		}
+		validatePositiveSafeInteger(maxResponseBytes, "maxResponseBytes");
 		this.did = options.did;
 		this.pds = options.pds;
 		this.#client = new Client({
 			handler: simpleFetchHandler({
 				service: options.pds,
-				fetch: options.fetch ?? globalThis.fetch,
+				fetch: createBoundedFetch(options.fetch ?? globalThis.fetch, {
+					requestTimeoutMs,
+					maxResponseBytes,
+					signal: options.signal,
+				}),
 			}),
 		});
 	}
@@ -103,8 +129,8 @@ export class DirectPdsClient {
 				"The signed profile does not match its authoritative record identity.",
 			);
 		}
-		if (!data.cid) throw missingCid();
-		return { uri: data.uri, cid: data.cid, rkey: identity.rkey, value: parsed.value };
+		const cid = await verifyRecordCid(data.cid, parsed.value);
+		return { uri: data.uri, cid, rkey: identity.rkey, value: parsed.value };
 	}
 
 	async getPackageRelease(packageSlug: string, version: string): Promise<DirectPdsReleaseRecord> {
@@ -115,7 +141,7 @@ export class DirectPdsClient {
 				params: { repo: this.did, collection: NSID.packageRelease, rkey },
 			}),
 		);
-		return validateReleaseRecord(data, this.did, packageSlug, rkey);
+		return await validateReleaseRecord(data, this.did, packageSlug, rkey);
 	}
 
 	async listPackageReleases(
@@ -137,9 +163,8 @@ export class DirectPdsClient {
 		const seenRkeys = new Set<string>();
 		let enumerated = 0;
 		let cursor: string | undefined;
-		const maxPages = Math.ceil(maxRecords / pageSize) + 1;
 
-		for (let page = 0; page < maxPages; page += 1) {
+		while (true) {
 			const data = await ok(
 				this.#client.get("com.atproto.repo.listRecords", {
 					params: {
@@ -174,11 +199,11 @@ export class DirectPdsClient {
 					);
 				}
 				seenRkeys.add(identity.rkey);
-				releases.push(validateReleaseRecord(record, this.did, packageSlug, identity.rkey));
+				releases.push(await validateReleaseRecord(record, this.did, packageSlug, identity.rkey));
 			}
 
 			if (!data.cursor) return releases;
-			if (enumerated >= maxRecords || page === maxPages - 1) {
+			if (data.records.length === 0 || enumerated >= maxRecords) {
 				throw new DirectPdsReadError(
 					"ENUMERATION_TRUNCATED",
 					"Release enumeration exceeded its configured bound.",
@@ -193,11 +218,6 @@ export class DirectPdsClient {
 			seenCursors.add(data.cursor);
 			cursor = data.cursor;
 		}
-
-		throw new DirectPdsReadError(
-			"ENUMERATION_TRUNCATED",
-			"Release enumeration exceeded its page bound.",
-		);
 	}
 }
 
@@ -243,12 +263,12 @@ export function selectSemverBaseline(
 	return baseline;
 }
 
-function validateReleaseRecord(
+async function validateReleaseRecord(
 	record: { uri: string; cid?: string; value: unknown },
 	did: string,
 	packageSlug: string,
 	expectedRkey: string,
-): DirectPdsReleaseRecord {
+): Promise<DirectPdsReleaseRecord> {
 	const identity = parseIdentity(record.uri, did, NSID.packageRelease);
 	if (!identity || identity.rkey !== expectedRkey) {
 		throw new DirectPdsReadError(
@@ -273,8 +293,8 @@ function validateReleaseRecord(
 			"The signed release does not match its package, version, and record key.",
 		);
 	}
-	if (!record.cid) throw missingCid();
-	return { uri: record.uri, cid: record.cid, rkey: identity.rkey, value: parsed.value };
+	const cid = await verifyRecordCid(record.cid, parsed.value);
+	return { uri: record.uri, cid, rkey: identity.rkey, value: parsed.value };
 }
 
 function parseIdentity(uri: string, did: string, collection: string): { rkey: string } | null {
@@ -315,6 +335,179 @@ function validatePdsOrigin(value: string): void {
 	) {
 		throw new TypeError("pds must be an HTTPS origin");
 	}
+}
+
+async function verifyRecordCid(cid: string | undefined, value: unknown): Promise<string> {
+	if (!cid) throw missingCid();
+	let claimed: CID.Cid;
+	try {
+		claimed = CID.fromString(cid);
+		if (claimed.codec !== CID.CODEC_DCBOR || CID.toString(claimed) !== cid) throw new Error();
+	} catch {
+		throw new DirectPdsReadError("RECORD_CID_INVALID", "The PDS returned an invalid record CID.");
+	}
+	let computed: CID.Cid;
+	try {
+		computed = await CID.create(CID.CODEC_DCBOR, encode(value));
+	} catch {
+		throw new DirectPdsReadError(
+			"RECORD_CID_MISMATCH",
+			"The PDS record value does not match its claimed CID.",
+		);
+	}
+	if (!CID.equals(claimed, computed)) {
+		throw new DirectPdsReadError(
+			"RECORD_CID_MISMATCH",
+			"The PDS record value does not match its claimed CID.",
+		);
+	}
+	return cid;
+}
+
+interface BoundedFetchOptions {
+	requestTimeoutMs: number;
+	maxResponseBytes: number;
+	signal?: AbortSignal;
+}
+
+function createBoundedFetch(fetchImplementation: typeof fetch, options: BoundedFetchOptions) {
+	return async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {
+		const controller = new AbortController();
+		let timedOut = false;
+		const cleanupSignals = forwardAbortSignals(
+			[options.signal, init.signal].filter((signal): signal is AbortSignal => signal !== undefined),
+			controller,
+		);
+		const timeout = setTimeout(() => {
+			timedOut = true;
+			controller.abort();
+		}, options.requestTimeoutMs);
+
+		try {
+			if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+			const response = await withAbortSignal(
+				Promise.resolve().then(() =>
+					fetchImplementation(input, { ...init, signal: controller.signal }),
+				),
+				controller.signal,
+			);
+			const contentLength = response.headers.get("content-length");
+			if (contentLength !== null) {
+				const declaredLength = Number(contentLength);
+				if (
+					!DIGITS_RE.test(contentLength) ||
+					!Number.isSafeInteger(declaredLength) ||
+					declaredLength > options.maxResponseBytes
+				) {
+					void response.body?.cancel().catch(() => undefined);
+					throw responseTooLarge();
+				}
+			}
+			const body = await readBoundedBody(
+				response.body,
+				options.maxResponseBytes,
+				controller.signal,
+			);
+			return new Response(body.length === 0 ? null : body, {
+				status: response.status,
+				statusText: response.statusText,
+				headers: response.headers,
+			});
+		} catch (error) {
+			if (error instanceof DirectPdsReadError) throw error;
+			if (timedOut) {
+				throw new DirectPdsReadError("PDS_REQUEST_TIMEOUT", "The direct PDS request timed out.");
+			}
+			if (controller.signal.aborted) {
+				throw new DirectPdsReadError("PDS_REQUEST_ABORTED", "The direct PDS request was aborted.");
+			}
+			throw new DirectPdsReadError("PDS_REQUEST_FAILED", "The direct PDS request failed.");
+		} finally {
+			clearTimeout(timeout);
+			cleanupSignals();
+		}
+	};
+}
+
+async function readBoundedBody(
+	body: ReadableStream<Uint8Array> | null,
+	maximumBytes: number,
+	signal: AbortSignal,
+): Promise<Uint8Array> {
+	if (body === null) return new Uint8Array();
+	const reader = body.getReader();
+	const chunks: Uint8Array[] = [];
+	let length = 0;
+	let completed = false;
+	try {
+		for (;;) {
+			const chunk = await withAbortSignal(reader.read(), signal);
+			if (chunk.done) {
+				completed = true;
+				break;
+			}
+			length += chunk.value.length;
+			if (length > maximumBytes) throw responseTooLarge();
+			chunks.push(chunk.value);
+		}
+	} finally {
+		if (!completed) void reader.cancel().catch(() => undefined);
+		reader.releaseLock();
+	}
+	const bytes = new Uint8Array(length);
+	let offset = 0;
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset);
+		offset += chunk.length;
+	}
+	return bytes;
+}
+
+function withAbortSignal<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const abort = () => reject(new DOMException("Aborted", "AbortError"));
+		if (signal.aborted) {
+			abort();
+		} else {
+			signal.addEventListener("abort", abort, { once: true });
+		}
+		void operation.then(
+			(value) => {
+				signal.removeEventListener("abort", abort);
+				resolve(value);
+				return undefined;
+			},
+			(error: unknown) => {
+				signal.removeEventListener("abort", abort);
+				reject(error);
+				return undefined;
+			},
+		);
+	});
+}
+
+function forwardAbortSignals(signals: AbortSignal[], controller: AbortController): () => void {
+	const abort = () => controller.abort();
+	for (const signal of signals) {
+		if (signal.aborted) controller.abort();
+		else signal.addEventListener("abort", abort, { once: true });
+	}
+	return () => {
+		for (const signal of signals) signal.removeEventListener("abort", abort);
+	};
+}
+
+function validatePositiveSafeInteger(value: number, name: string): void {
+	if (!Number.isSafeInteger(value) || value < 1) {
+		throw new RangeError(`${name} must be a positive safe integer`);
+	}
+}
+
+function responseTooLarge(): DirectPdsReadError {
+	return new DirectPdsReadError(
+		"PDS_RESPONSE_TOO_LARGE",
+		"The direct PDS response exceeded its byte limit.",
+	);
 }
 
 function missingCid(): DirectPdsReadError {
