@@ -325,6 +325,20 @@ export class AssessmentOrchestrator {
 		// flips, but the state CAS below is not, so a flip after this point
 		// could commit the terminal state without its labels. Deferred to the
 		// same W7/W8 production wiring as the delete race above.
+		//
+		// Three related concurrency gaps in this method are owned by that same
+		// W7/W8 workflow lock (§14.1), which serialises finalization per subject
+		// and makes them all unreachable — the production-boundary test proves
+		// nothing wires this method live until then:
+		//   - a stale (CID-superseded) run returns without negating its own
+		//     assessment-pending, so a superseded subject keeps advertising an
+		//     in-progress assessment;
+		//   - the finalization CAS result below is not checked, so if a
+		//     concurrent cancel moved the run out of `running`, the CAS no-ops
+		//     while the label inserts commit and this returns a run that never
+		//     exited `running`;
+		//   - `transitionAssessmentState` here and in the stale branch can throw
+		//     `AssessmentTransitionConflictError` under a racing delete.
 		const stillCurrent = await isSubjectCurrent(this.db, {
 			uri: assessment.uri,
 			cid: assessment.cid,
