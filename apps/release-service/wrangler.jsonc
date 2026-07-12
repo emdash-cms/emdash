@@ -44,6 +44,12 @@
 	"triggers": {
 		"crons": ["*/5 * * * *"],
 	},
+	"services": [
+		{
+			"binding": "RELEASE_VERIFIER",
+			"service": "emdash-release-verifier",
+		},
+	],
 	"assets": {
 		"binding": "ASSETS",
 		"directory": "./public",

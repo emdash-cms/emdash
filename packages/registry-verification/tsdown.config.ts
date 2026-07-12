@@ -2,7 +2,7 @@ import { defineConfig } from "tsdown";
 
 export default defineConfig([
 	{
-		entry: ["src/bundle.ts"],
+		entry: ["src/bundle.ts", "src/fetch-entry.ts"],
 		format: ["esm"],
 		outExtensions: () => ({ js: ".js" }),
 		dts: true,

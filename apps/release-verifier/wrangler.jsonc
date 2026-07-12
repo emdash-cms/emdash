@@ -1,0 +1,14 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-release-verifier",
+	"main": "./src/index.ts",
+	// Pinned to the newest workerd date supported by the workspace's
+	// workers-vitest runtime.
+	"compatibility_date": "2026-05-14",
+	"compatibility_flags": ["nodejs_compat"],
+	"workers_dev": false,
+	"preview_urls": false,
+	"observability": {
+		"enabled": true,
+	},
+}

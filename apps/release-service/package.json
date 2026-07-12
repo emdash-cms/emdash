@@ -11,7 +11,7 @@
 		"deploy": "vite build && wrangler deploy",
 		"typecheck": "tsgo --noEmit",
 		"test": "vitest run && vitest run --config vitest.node.config.ts",
-		"types": "wrangler types"
+		"types": "wrangler types -c wrangler.jsonc -c ../release-verifier/wrangler.jsonc"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
@@ -23,6 +23,7 @@
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
+		"@emdash-cms/registry-verification": "workspace:*",
 		"jose": "^6.1.3"
 	}
 }

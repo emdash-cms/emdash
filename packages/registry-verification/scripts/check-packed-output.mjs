@@ -31,11 +31,17 @@ try {
 		join(extracted, "package", "dist", "bundle.js"),
 		"utf8",
 	);
+	const publishedFetchOutput = await readFile(
+		join(extracted, "package", "dist", "fetch-entry.js"),
+		"utf8",
+	);
 	if (
 		publishedBundleOutput.includes("createRequire") ||
-		publishedBundleOutput.includes("@sigstore")
+		publishedBundleOutput.includes("@sigstore") ||
+		publishedFetchOutput.includes("createRequire") ||
+		publishedFetchOutput.includes("@sigstore")
 	) {
-		throw new Error("Packed bundle-validation entry includes Node or Sigstore verifier code");
+		throw new Error("Packed Worker-safe entry includes Node or Sigstore verifier code");
 	}
 
 	if (

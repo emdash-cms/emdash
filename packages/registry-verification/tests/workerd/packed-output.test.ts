@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 
 import { validatePluginBundle } from "../../dist/bundle.js";
+import { fetchVerifiedResource, VERIFICATION_ERROR_CODES } from "../../dist/fetch-entry.js";
 import { computeMultihash, GitHubProvenanceVerifier } from "../../dist/index.js";
 import bundleFixture from "../../fixtures/provenance/sigstore-core-4.0.1-slsa.bundle.json";
 
@@ -8,6 +9,15 @@ const encoder = new TextEncoder();
 
 it("exposes bundle validation without loading the Node verifier bundle", () => {
 	expect(validatePluginBundle).toBeTypeOf("function");
+});
+
+it("executes the published safe-fetch entry in workerd", async () => {
+	const result = await fetchVerifiedResource("https://artifact.example.test/plugin.tgz", {
+		fetch: async () => new Response(encoder.encode("artifact")),
+		resolveHostname: async () => ["203.0.113.5"],
+	});
+	expect(result).toMatchObject({ success: true, value: { status: 200 } });
+	expect(VERIFICATION_ERROR_CODES).toContain("FETCH_FAILED");
 });
 
 it("executes the published verifier bundle in workerd", async () => {
