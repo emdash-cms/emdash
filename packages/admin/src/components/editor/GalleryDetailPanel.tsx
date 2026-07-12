@@ -10,20 +10,14 @@
 import { Button, Input, Label, Select } from "@cloudflare/kumo";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
-import {
-	SortableContext,
-	verticalListSortingStrategy,
-	useSortable,
-	arrayMove,
-} from "@dnd-kit/sortable";
+import { SortableContext, rectSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useLingui } from "@lingui/react/macro";
-import { X, Plus, Trash, DotsSixVertical, ImageSquare, CaretDown } from "@phosphor-icons/react";
+import { X, Plus, Trash, ImageSquare } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
 import { cn } from "../../lib/utils";
-import { CaretNext } from "../ArrowIcons.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { galleryImageUrl, type GalleryAttributes, type GalleryImage } from "./GalleryNode";
 
@@ -61,6 +55,7 @@ export function GalleryDetailPanel({
 }: GalleryDetailPanelProps) {
 	const { t } = useLingui();
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
+	const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
 
 	// `attributes` is a snapshot taken when the sidebar opened; it does not
 	// refresh after onUpdate. Local state is the live source of truth while
@@ -72,6 +67,9 @@ export function GalleryDetailPanel({
 	});
 	const images = gallery.images;
 	const columns = gallery.columns ?? 3;
+	const selectedImage = selectedKey
+		? (images.find((image) => image._key === selectedKey) ?? null)
+		: null;
 
 	const apply = (patch: Partial<GalleryAttributes>) => {
 		setGallery((prev) => ({ ...prev, ...patch }));
@@ -84,6 +82,7 @@ export function GalleryDetailPanel({
 
 	const handleRemove = (key: string) => {
 		apply({ images: images.filter((image) => image._key !== key) });
+		setSelectedKey((prev) => (prev === key ? null : prev));
 	};
 
 	const handleImageChange = (key: string, patch: Partial<GalleryImage>) => {
@@ -158,24 +157,32 @@ export function GalleryDetailPanel({
 				<p className="text-sm text-kumo-subtle text-center py-4">{t`No images in this gallery yet.`}</p>
 			) : (
 				<DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-					<SortableContext
-						items={images.map((image) => image._key)}
-						strategy={verticalListSortingStrategy}
-					>
-						<div className="space-y-2">
+					<SortableContext items={images.map((image) => image._key)} strategy={rectSortingStrategy}>
+						<div className="grid grid-cols-3 gap-2">
 							{images.map((image, index) => (
-								<SortableGalleryRow
+								<SortableGalleryThumb
 									key={image._key}
 									image={image}
 									index={index}
-									onChange={(patch) => handleImageChange(image._key, patch)}
-									onReplace={(item) => handleReplace(image._key, item)}
+									selected={selectedKey === image._key}
+									onSelect={() =>
+										setSelectedKey((prev) => (prev === image._key ? null : image._key))
+									}
 									onRemove={() => handleRemove(image._key)}
 								/>
 							))}
 						</div>
 					</SortableContext>
 				</DndContext>
+			)}
+
+			{selectedImage && (
+				<GalleryImageSettings
+					key={selectedImage._key}
+					image={selectedImage}
+					onChange={(patch) => handleImageChange(selectedImage._key, patch)}
+					onReplace={(item) => handleReplace(selectedImage._key, item)}
+				/>
 			)}
 
 			<Button type="button" variant="destructive" className="w-full" onClick={onDelete}>
@@ -205,25 +212,23 @@ export function GalleryDetailPanel({
 	);
 }
 
-interface SortableGalleryRowProps {
+interface SortableGalleryThumbProps {
 	image: GalleryImage;
 	index: number;
-	onChange: (patch: Partial<GalleryImage>) => void;
-	onReplace: (item: MediaItem) => void;
+	selected: boolean;
+	onSelect: () => void;
 	onRemove: () => void;
 }
 
-function SortableGalleryRow({
+function SortableGalleryThumb({
 	image,
 	index,
-	onChange,
-	onReplace,
+	selected,
+	onSelect,
 	onRemove,
-}: SortableGalleryRowProps) {
+}: SortableGalleryThumbProps) {
 	const { t } = useLingui();
-	const [showReplacePicker, setShowReplacePicker] = React.useState(false);
-	const [expanded, setExpanded] = React.useState(false);
-	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+	const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
 		id: image._key,
 	});
 
@@ -232,101 +237,102 @@ function SortableGalleryRow({
 		transition,
 	};
 
-	const hasOriginalSize = typeof image.width === "number" && typeof image.height === "number";
-
 	return (
-		<div
-			ref={setNodeRef}
-			style={style}
-			className={cn(
-				"border rounded-lg bg-kumo-base",
-				isDragging && "opacity-50 ring-2 ring-kumo-brand",
-			)}
-		>
-			{/* Header — click to expand per-image settings */}
-			<div
-				className="flex items-center gap-2 px-2 py-2 cursor-pointer"
-				onClick={() => setExpanded((prev) => !prev)}
-			>
-				<DotsSixVertical
-					className="h-4 w-4 text-kumo-subtle cursor-grab shrink-0"
-					{...attributes}
-					{...listeners}
-					onClick={(e: React.MouseEvent) => e.stopPropagation()}
-				/>
-				{expanded ? (
-					<CaretDown className="h-3.5 w-3.5 text-kumo-subtle shrink-0" />
-				) : (
-					<CaretNext className="h-3.5 w-3.5 text-kumo-subtle shrink-0" />
+		<div ref={setNodeRef} style={style} className="relative group">
+			<button
+				type="button"
+				className={cn(
+					"aspect-square w-full rounded-md border overflow-hidden",
+					selected && "ring-2 ring-kumo-brand",
 				)}
+				onClick={onSelect}
+				{...attributes}
+				{...listeners}
+			>
 				<img
 					src={galleryImageUrl(image)}
 					alt={image.alt || ""}
-					className="h-10 w-10 shrink-0 rounded-md border object-cover"
+					className="object-cover w-full h-full"
 					draggable={false}
 				/>
-				<span className="text-xs text-kumo-subtle flex-1 truncate">
-					{image.alt || image.caption || image.asset._ref || t`Untitled image`}
-				</span>
-				<Button
-					type="button"
-					variant="ghost"
-					shape="square"
-					className="h-8 w-8"
-					onClick={(e) => {
-						e.stopPropagation();
-						onRemove();
-					}}
-					aria-label={t`Remove image ${index + 1}`}
-				>
-					<Trash className="h-3.5 w-3.5 text-kumo-danger" />
-				</Button>
-			</div>
+			</button>
+			<Button
+				type="button"
+				variant="destructive"
+				shape="square"
+				className="absolute top-1 end-1 h-6 w-6 opacity-0 group-hover:opacity-100 focus:opacity-100"
+				onClick={(e) => {
+					e.stopPropagation();
+					onRemove();
+				}}
+				onPointerDown={(e) => e.stopPropagation()}
+				aria-label={t`Remove image ${index + 1}`}
+			>
+				<Trash className="h-3 w-3" />
+			</Button>
+			<span
+				className="absolute bottom-1 start-1 text-[10px] bg-black/60 text-white rounded px-1"
+				aria-hidden
+			>
+				{index + 1}
+			</span>
+		</div>
+	);
+}
 
-			{/* Expanded per-image settings — mirrors the single-image panel */}
-			{expanded && (
-				<div className="px-2 pb-2 space-y-3 border-t pt-2">
-					<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center relative group">
-						<img
-							src={galleryImageUrl(image)}
-							alt={image.alt || ""}
-							className="max-h-full max-w-full object-contain"
-							draggable={false}
-						/>
-						<div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								icon={<ImageSquare />}
-								onClick={() => setShowReplacePicker(true)}
-							>
-								{t`Replace image`}
-							</Button>
-						</div>
-					</div>
-					{hasOriginalSize && (
-						<div className="flex items-center gap-2 text-sm">
-							<span className="text-kumo-subtle">{t`Original:`}</span>
-							<span>
-								{image.width} × {image.height}
-							</span>
-						</div>
-					)}
-					<Input
-						label={t`Alt text`}
-						value={image.alt ?? ""}
-						onChange={(e) => onChange({ alt: e.target.value })}
-						placeholder={t`Describe the image...`}
-					/>
-					<Input
-						label={t`Caption`}
-						value={image.caption ?? ""}
-						onChange={(e) => onChange({ caption: e.target.value || undefined })}
-						placeholder={t`Optional caption`}
-					/>
+interface GalleryImageSettingsProps {
+	image: GalleryImage;
+	onChange: (patch: Partial<GalleryImage>) => void;
+	onReplace: (item: MediaItem) => void;
+}
+
+function GalleryImageSettings({ image, onChange, onReplace }: GalleryImageSettingsProps) {
+	const { t } = useLingui();
+	const [showReplacePicker, setShowReplacePicker] = React.useState(false);
+
+	const hasOriginalSize = typeof image.width === "number" && typeof image.height === "number";
+
+	return (
+		<div className="border rounded-lg p-3 space-y-3">
+			<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center relative group">
+				<img
+					src={galleryImageUrl(image)}
+					alt={image.alt || ""}
+					className="max-h-full max-w-full object-contain"
+					draggable={false}
+				/>
+				<div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						icon={<ImageSquare />}
+						onClick={() => setShowReplacePicker(true)}
+					>
+						{t`Replace image`}
+					</Button>
+				</div>
+			</div>
+			{hasOriginalSize && (
+				<div className="flex items-center gap-2 text-sm">
+					<span className="text-kumo-subtle">{t`Original:`}</span>
+					<span>
+						{image.width} × {image.height}
+					</span>
 				</div>
 			)}
+			<Input
+				label={t`Alt text`}
+				value={image.alt ?? ""}
+				onChange={(e) => onChange({ alt: e.target.value })}
+				placeholder={t`Describe the image...`}
+			/>
+			<Input
+				label={t`Caption`}
+				value={image.caption ?? ""}
+				onChange={(e) => onChange({ caption: e.target.value || undefined })}
+				placeholder={t`Optional caption`}
+			/>
 
 			<MediaPickerModal
 				open={showReplacePicker}
