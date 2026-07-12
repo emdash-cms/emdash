@@ -1,3 +1,5 @@
+import type { FindingSource, FindingSourceMetadata } from "./findings.js";
+
 export type FindingSeverity = "critical" | "high" | "medium" | "low" | "info";
 
 /**
@@ -28,6 +30,11 @@ export interface PrivateFindingRecord {
 	publicSummary: string;
 	privateDetail: string;
 	evidenceRefs: readonly string[];
+	source?: FindingSource;
+	confidence?: number;
+	affectedFiles?: readonly string[];
+	affectedImages?: readonly string[];
+	sourceMetadata?: FindingSourceMetadata;
 }
 
 export interface PublicFindingPayload {
