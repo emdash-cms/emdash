@@ -29,7 +29,7 @@ The following decisions were made before drafting this spec.
 | Deployable shape          | One Worker application for assessment, issuance, distribution, and console                                      |
 | Discovery                 | Independent Jetstream consumer                                                                                  |
 | Artifact source           | Verified aggregator mirror, with a declared-URL fallback                                                        |
-| AI                        | Workers AI (`AI` runtime binding), `@cf/moonshotai/kimi-k2.7-code`                                               |
+| AI                        | Workers AI (`AI` runtime binding), `@cf/moonshotai/kimi-k2.7-code`                                              |
 | Public evidence           | Public assessment summary; private detailed evidence                                                            |
 | Publisher notice          | Package security contact, then publisher profile fallback; email plus an ATProto-visible notice where practical |
 | Appeals                   | Email/manual reconsideration, not a first-class appeals workflow in v1                                          |
@@ -192,17 +192,17 @@ A reviewer/admin may manually unblock a false positive by issuing negations for 
 
 ### 7.2 Blocking security labels
 
-| Label                        | Meaning                                                                                                    | Automatic issuance                                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `malware`                    | Code or payload intentionally compromises, persists, mines, destroys, or executes an unauthorized workload | Deterministic critical or AI critical                                                  |
-| `data-exfiltration`          | Plugin intentionally sends protected site/user data outside its declared and expected purpose              | Deterministic critical or AI critical                                                  |
-| `credential-harvesting`      | Plugin solicits, captures, or transmits credentials deceptively                                            | Deterministic critical or AI critical                                                  |
-| `supply-chain-compromise`    | Bundled code evidence indicates a known malicious or substituted component inlined at build time           | AI critical                                                                             |
-| `critical-vulnerability`     | AI identifies a critical, applicable vulnerability in the bundled code under the policy's blocking rule    | AI critical only; v1 has no dependency/vulnerability scanner                            |
-| `artifact-integrity-failure` | Available artifact bytes do not match the checksum in the signed release                                   | Deterministic critical                                                                 |
-| `invalid-bundle`             | The archive is malformed, unsafe, or missing required installable content                                  | Deterministic critical                                                                 |
-| `undeclared-access`          | Bundle behavior or manifest inconsistency attempts access outside the signed declaration                   | Deterministic critical; AI may propose but not establish manifest inequality           |
-| `impersonation`              | Package or publisher materially impersonates another identity, product, or trusted project                 | Deterministic identity evidence or AI critical                                         |
+| Label                        | Meaning                                                                                                    | Automatic issuance                                                           |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `malware`                    | Code or payload intentionally compromises, persists, mines, destroys, or executes an unauthorized workload | Deterministic critical or AI critical                                        |
+| `data-exfiltration`          | Plugin intentionally sends protected site/user data outside its declared and expected purpose              | Deterministic critical or AI critical                                        |
+| `credential-harvesting`      | Plugin solicits, captures, or transmits credentials deceptively                                            | Deterministic critical or AI critical                                        |
+| `supply-chain-compromise`    | Bundled code evidence indicates a known malicious or substituted component inlined at build time           | AI critical                                                                  |
+| `critical-vulnerability`     | AI identifies a critical, applicable vulnerability in the bundled code under the policy's blocking rule    | AI critical only; v1 has no dependency/vulnerability scanner                 |
+| `artifact-integrity-failure` | Available artifact bytes do not match the checksum in the signed release                                   | Deterministic critical                                                       |
+| `invalid-bundle`             | The archive is malformed, unsafe, or missing required installable content                                  | Deterministic critical                                                       |
+| `undeclared-access`          | Bundle behavior or manifest inconsistency attempts access outside the signed declaration                   | Deterministic critical; AI may propose but not establish manifest inequality |
+| `impersonation`              | Package or publisher materially impersonates another identity, product, or trusted project                 | Deterministic identity evidence or AI critical                               |
 
 Official EmDash clients block these labels. Other consumers choose their own behavior.
 
@@ -1058,27 +1058,27 @@ Retention values are policy constants versioned in code and may change after leg
 
 ### 20.1 Threats and mitigations
 
-| Threat                                         | Mitigation                                                                                                                     |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Prompt injection in source/metadata            | Delimit untrusted input, strict system task, structured schema, category allowlist, evidence-reference validation              |
-| Model false positive blocks legitimate release | Narrow blockable categories, fixture calibration, public explanation, immediate reviewer retraction, immutable audit trail     |
+| Threat                                         | Mitigation                                                                                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Prompt injection in source/metadata            | Delimit untrusted input, strict system task, structured schema, category allowlist, evidence-reference validation                          |
+| Model false positive blocks legitimate release | Narrow blockable categories, fixture calibration, public explanation, immediate reviewer retraction, immutable audit trail                 |
 | Model false negative                           | Defense in depth: deterministic checks, capability analysis, sandbox enforcement, reports in future, reassessment on model/policy revision |
-| Malicious artifact attacks fetcher/extractor   | Mirror preference, checksum verification, SSRF controls, streaming caps, safe archive parsing, time budgets                    |
-| Aggregator serves wrong artifact               | Verify signed release record, CID, and artifact checksum independently                                                         |
-| Publisher mutates artifact URL bytes           | Checksum binds accepted bytes; mismatch blocks assessment and installation                                                     |
-| Forged Jetstream event                         | Re-fetch and verify signed source record before assessment                                                                     |
-| Forged label                                   | DRISL signature verification against `#atproto_label`                                                                          |
-| Signing-key exfiltration through assessor      | Typed policy proposal boundary; key accessible only to issuer module; Secrets Store                                            |
-| Access header spoofing                         | Verify Access JWT signature, issuer, audience, expiry; do not trust raw identity headers                                       |
-| Reviewer account compromise                    | Role limits, required reasons, confirmation ceremony, alerts, immutable action log                                             |
-| Admin incorrectly issues `!takedown`           | Explicit high-friction confirmation, immediate alert, signed negation rollback                                                 |
-| Replay/out-of-order labels                     | Monotonic sequence for stream and latest-`cts` current-state projection                                                        |
-| Stale labels after CID update                  | Automated labels are CID-bound; clients check CID applicability                                                                |
-| Package/publisher overreach                    | Broad labels are manual only; subject-wide action shown explicitly                                                             |
-| Assessment absence mistaken for safety         | Official clients require positive `assessment-passed`                                                                          |
-| Labeler outage blocks ecosystem indefinitely   | Clear pending/error state, alerts, retry/DLQ, site operators can choose a different trust policy/labeler                       |
-| Policy/model drift changes outcomes silently   | Version all policy/model/prompt inputs; no automatic whole-catalog rewrite                                                     |
-| Evidence leaks vulnerability details           | Public/private split and redacted summaries                                                                                    |
+| Malicious artifact attacks fetcher/extractor   | Mirror preference, checksum verification, SSRF controls, streaming caps, safe archive parsing, time budgets                                |
+| Aggregator serves wrong artifact               | Verify signed release record, CID, and artifact checksum independently                                                                     |
+| Publisher mutates artifact URL bytes           | Checksum binds accepted bytes; mismatch blocks assessment and installation                                                                 |
+| Forged Jetstream event                         | Re-fetch and verify signed source record before assessment                                                                                 |
+| Forged label                                   | DRISL signature verification against `#atproto_label`                                                                                      |
+| Signing-key exfiltration through assessor      | Typed policy proposal boundary; key accessible only to issuer module; Secrets Store                                                        |
+| Access header spoofing                         | Verify Access JWT signature, issuer, audience, expiry; do not trust raw identity headers                                                   |
+| Reviewer account compromise                    | Role limits, required reasons, confirmation ceremony, alerts, immutable action log                                                         |
+| Admin incorrectly issues `!takedown`           | Explicit high-friction confirmation, immediate alert, signed negation rollback                                                             |
+| Replay/out-of-order labels                     | Monotonic sequence for stream and latest-`cts` current-state projection                                                                    |
+| Stale labels after CID update                  | Automated labels are CID-bound; clients check CID applicability                                                                            |
+| Package/publisher overreach                    | Broad labels are manual only; subject-wide action shown explicitly                                                                         |
+| Assessment absence mistaken for safety         | Official clients require positive `assessment-passed`                                                                                      |
+| Labeler outage blocks ecosystem indefinitely   | Clear pending/error state, alerts, retry/DLQ, site operators can choose a different trust policy/labeler                                   |
+| Policy/model drift changes outcomes silently   | Version all policy/model/prompt inputs; no automatic whole-catalog rewrite                                                                 |
+| Evidence leaks vulnerability details           | Public/private split and redacted summaries                                                                                                |
 
 ### 20.2 Signing proposal validation
 

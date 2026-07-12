@@ -52,7 +52,7 @@ The implementation is complete when:
 | `W4`  | Aggregator label consumption           | Verified subscription, current state, hydration, redaction, and cascades       |
 | `W5`  | Client eligibility enforcement         | One moderation helper used by registry client, core, CLI, and admin            |
 | `W6`  | Discovery and assessment orchestration | Independent Jetstream ingest, verified subjects, run lifecycle, reconciliation |
-| `W7`  | Artifact and deterministic analysis    | Safe artifact acquisition, bundle checks, capability analysis                 |
+| `W7`  | Artifact and deterministic analysis    | Safe artifact acquisition, bundle checks, capability analysis                  |
 | `W8`  | AI, image, and policy resolution       | Versioned model pipeline, normalized findings, automated decisions             |
 | `W9`  | Operator authentication and console    | Access-protected review UI and manual label actions                            |
 | `W10` | Transparency and notifications         | Public assessment API, policy document, email, reconsideration flow            |
