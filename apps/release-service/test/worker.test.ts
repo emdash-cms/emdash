@@ -1,9 +1,9 @@
 import { SELF, env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ConfigurationBindings } from "../src/config.js";
 import { failInactiveSchedule, handleRequest, retryUnsupportedQueue } from "../src/index.js";
-import { ROUTES } from "../src/routes.js";
+import { ROUTES, type RouteDefinition } from "../src/routes.js";
 
 const BLOCKED_PATHS = [
 	"/v1/release-intents",
@@ -64,6 +64,43 @@ describe("release-service worker", () => {
 
 	it("registers only the health route", () => {
 		expect(ROUTES.map(({ method, path }) => `${method} ${path}`)).toEqual(["GET /health"]);
+	});
+
+	it("catches async route failures without leaking them to clients", async () => {
+		const internalMessage = "database password leaked";
+		const failingRoute: RouteDefinition = {
+			method: "GET",
+			path: "/__test/async-rejection",
+			operationId: "testAsyncRejection",
+			summary: "Test async rejection",
+			successStatus: 200,
+			successDataSchema: { type: "object" },
+			async handler() {
+				await Promise.resolve();
+				throw new Error(internalMessage);
+			},
+		};
+		const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+		try {
+			const response = await handleRequest(
+				new Request("https://release.example.invalid/__test/async-rejection", {
+					headers: { "x-request-id": "async-failure-1" },
+				}),
+				env,
+				[failingRoute],
+			);
+			expect(response.status).toBe(500);
+			expect(response.headers.get("x-request-id")).toBe("async-failure-1");
+			const body = await response.json();
+			expect(body).toEqual({
+				error: { code: "INTERNAL_ERROR", message: "Internal server error" },
+				requestId: "async-failure-1",
+			});
+			expect(JSON.stringify(body)).not.toContain(internalMessage);
+			expect(errorLog).toHaveBeenCalledWith(expect.stringContaining(internalMessage));
+		} finally {
+			errorLog.mockRestore();
+		}
 	});
 
 	it.each(BLOCKED_PATHS)("does not expose %s", async (path) => {

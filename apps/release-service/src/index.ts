@@ -3,6 +3,7 @@ import { getRequestId } from "./api/request-id.js";
 import { apiFailure } from "./api/response.js";
 import { ConfigurationError, loadConfiguration, type ConfigurationBindings } from "./config.js";
 import { ROUTES } from "./routes.js";
+import type { RouteDefinition } from "./routes.js";
 
 const UNSUPPORTED_QUEUE_RETRY_SECONDS = 300;
 
@@ -15,16 +16,17 @@ export interface RetryableQueueBatch {
 export async function handleRequest(
 	request: Request,
 	bindings: ConfigurationBindings,
+	routes: readonly RouteDefinition[] = ROUTES,
 ): Promise<Response> {
 	const requestId = getRequestId(request);
 	try {
 		loadConfiguration(bindings);
 		const url = new URL(request.url);
-		const route = ROUTES.find(
+		const route = routes.find(
 			(candidate) => candidate.path === url.pathname && candidate.method === request.method,
 		);
-		if (route) return route.handler(request, requestId);
-		if (ROUTES.some((candidate) => candidate.path === url.pathname)) {
+		if (route) return await route.handler(request, requestId);
+		if (routes.some((candidate) => candidate.path === url.pathname)) {
 			return apiFailure(new ApiError("METHOD_NOT_ALLOWED", 405, "Method not allowed"), requestId);
 		}
 		return apiFailure(new ApiError("NOT_FOUND", 404, "Not found"), requestId);
@@ -36,7 +38,13 @@ export async function handleRequest(
 				requestId,
 			);
 		}
-		console.error(JSON.stringify({ event: "request_error", requestId }));
+		console.error(
+			JSON.stringify({
+				event: "request_error",
+				requestId,
+				error: error instanceof Error ? (error.stack ?? error.message) : String(error),
+			}),
+		);
 		return apiFailure(error, requestId);
 	}
 }
