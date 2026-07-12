@@ -274,6 +274,113 @@ describe("registry artifact proxy", () => {
 		expect(res.status).toBe(404);
 	});
 
+	// ── moderation gate ─────────────────────────────────────────────────
+
+	const LABELER = "did:plc:labeler-a";
+	const PACKAGE_URI = "at://did:plc:abc123/com.emdashcms.experimental.package.profile/myplugin";
+	const PACKAGE_CID = "bafyreiclpjmh2e5ug4oufdmfnz4r4a6o2lrfu5hzgopzjlb3u2v5il5z4a";
+	const RELEASE_URI =
+		"at://did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:1.0.0";
+	const RELEASE_CID = "bafyreig5l2zfc7l5m4zq3r6v4s2wqkd3j7yq5x7x6n2j4h5r3p6s7t2w4e";
+
+	function moderationLabel(overrides: Record<string, unknown> = {}) {
+		return {
+			ver: 1,
+			src: LABELER,
+			uri: RELEASE_URI,
+			cid: RELEASE_CID,
+			cts: "2026-07-10T12:00:00.000Z",
+			...overrides,
+		};
+	}
+
+	it("returns 404 when the release is blocked by a moderation label, without fetching the image", async () => {
+		getPackage.mockResolvedValueOnce({
+			uri: PACKAGE_URI,
+			cid: PACKAGE_CID,
+			did: "did:plc:abc123",
+			slug: "myplugin",
+			indexedAt: "2026-07-01T00:00:00.000Z",
+			profile: {},
+			labels: [],
+		});
+		getLatestRelease.mockResolvedValueOnce({
+			did: "did:plc:abc123",
+			package: "myplugin",
+			version: mockReleaseVersion,
+			uri: RELEASE_URI,
+			cid: RELEASE_CID,
+			labels: [moderationLabel({ val: "malware" })],
+			release: { version: mockReleaseVersion, artifacts: mockArtifacts },
+		});
+		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+		const res = await GET(
+			makeContext(DEFAULT_PARAMS, adminUser, {
+				aggregatorUrl: AGGREGATOR_URL,
+				acceptLabelers: LABELER,
+			}),
+		);
+		expect(res.status).toBe(404);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it("returns 404 for a redact-flagged takedown label", async () => {
+		getPackage.mockResolvedValueOnce({
+			uri: PACKAGE_URI,
+			cid: PACKAGE_CID,
+			did: "did:plc:abc123",
+			slug: "myplugin",
+			indexedAt: "2026-07-01T00:00:00.000Z",
+			profile: {},
+			labels: [],
+		});
+		getLatestRelease.mockResolvedValueOnce({
+			did: "did:plc:abc123",
+			package: "myplugin",
+			version: mockReleaseVersion,
+			uri: RELEASE_URI,
+			cid: RELEASE_CID,
+			labels: [moderationLabel({ val: "!takedown", cid: undefined })],
+			release: { version: mockReleaseVersion, artifacts: mockArtifacts },
+		});
+		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+		const res = await GET(
+			makeContext(DEFAULT_PARAMS, adminUser, {
+				aggregatorUrl: AGGREGATOR_URL,
+				acceptLabelers: `${LABELER};redact`,
+			}),
+		);
+		expect(res.status).toBe(404);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it("does not block when no acceptLabelers policy is configured (no client-side enforcement)", async () => {
+		getPackage.mockResolvedValueOnce({
+			uri: PACKAGE_URI,
+			cid: PACKAGE_CID,
+			did: "did:plc:abc123",
+			slug: "myplugin",
+			indexedAt: "2026-07-01T00:00:00.000Z",
+			profile: {},
+			labels: [],
+		});
+		getLatestRelease.mockResolvedValueOnce({
+			did: "did:plc:abc123",
+			package: "myplugin",
+			version: mockReleaseVersion,
+			uri: RELEASE_URI,
+			cid: RELEASE_CID,
+			labels: [moderationLabel({ val: "malware" })],
+			release: { version: mockReleaseVersion, artifacts: mockArtifacts },
+		});
+		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+		const res = await GET(makeContext(DEFAULT_PARAMS, adminUser, AGGREGATOR_URL));
+		expect(res.status).toBe(200);
+	});
+
 	// ── content-type allowlist ─────────────────────────────────────────
 
 	it("allows AVIF", async () => {

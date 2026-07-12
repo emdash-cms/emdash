@@ -144,6 +144,13 @@ export interface VerifyAndEvaluateReleaseModerationInput extends Omit<
 	resolveDid: LabelDidResolver;
 }
 
+export interface EvaluateHydratedReleaseModerationInput extends Omit<
+	EvaluateReleaseModerationInput,
+	"labels"
+> {
+	labels: ModerationLabel[];
+}
+
 export type ReleaseEligibility = "eligible" | "pending" | "error" | "blocked";
 
 export interface ReleaseModeration {
@@ -419,6 +426,11 @@ export function parseSignedLabel(value: unknown): SignedLabel {
 	return validateLabelObject(value, true);
 }
 
+/** Parses and canonically reconstructs an unknown unsigned ATProto label v1 value. */
+export function parseModerationLabel(value: unknown): ModerationLabel {
+	return validateLabelObject(value, false);
+}
+
 /**
  * Encodes a complete signed label as deterministic canonical CBOR for digest
  * or identity use after successful verification. Encoding alone does not
@@ -634,19 +646,21 @@ function orderedValues(labels: ModerationLabel[]): string[] {
 	return values.toSorted();
 }
 
-/** Evaluates accepted, current label state for one exact package release. */
-export function evaluateReleaseModeration(
-	input: EvaluateReleaseModerationInput,
+interface EvaluateReleaseModerationCoreInput extends Omit<
+	EvaluateReleaseModerationInput,
+	"labels"
+> {
+	labels: ModerationLabel[];
+}
+
+/**
+ * Shared reduction/evaluation body for both the branded (`verifyLabel`) and
+ * hydrated entry points. Callers must validate `input.labels` -- by runtime
+ * brand or by structural parse -- before calling this.
+ */
+function evaluateReleaseModerationCore(
+	input: EvaluateReleaseModerationCoreInput,
 ): ReleaseModeration {
-	for (const label of input.labels) {
-		if (
-			typeof label !== "object" ||
-			label === null ||
-			Object.getOwnPropertyDescriptor(label, verifiedModerationLabel)?.value !== true
-		) {
-			throw new TypeError("labels must be verified by verifyLabel before moderation evaluation");
-		}
-	}
 	const policies = new Map<string, AcceptedLabelerPolicy>();
 	for (const policy of input.acceptedLabelers) {
 		const existing = policies.get(policy.did);
@@ -740,6 +754,52 @@ export function evaluateReleaseModeration(
 			(label) => label.val === "!takedown" && policies.get(label.src)?.redact === true,
 		),
 	};
+}
+
+/** Evaluates accepted, current label state for one exact package release. */
+export function evaluateReleaseModeration(
+	input: EvaluateReleaseModerationInput,
+): ReleaseModeration {
+	for (const label of input.labels) {
+		if (
+			typeof label !== "object" ||
+			label === null ||
+			Object.getOwnPropertyDescriptor(label, verifiedModerationLabel)?.value !== true
+		) {
+			throw new TypeError("labels must be verified by verifyLabel before moderation evaluation");
+		}
+	}
+	return evaluateReleaseModerationCore(input);
+}
+
+/**
+ * Evaluates release moderation from unsigned labels an aggregator response has already
+ * hydrated, trusting the aggregator for the content itself but not for label authenticity.
+ * MUST NOT be used to satisfy a positive-assessment requirement -- that gate requires labels
+ * verified through `verifyLabel`.
+ */
+export function evaluateHydratedReleaseModeration(
+	input: EvaluateHydratedReleaseModerationInput,
+): ReleaseModeration {
+	const labels = input.labels.map((label) => parseModerationLabel(label));
+	return evaluateReleaseModerationCore({ ...input, labels });
+}
+
+/**
+ * The single install/serve blocking predicate for enforcement consumers
+ * during the pre-positive-assessment phase. Blocks on an applicable
+ * blocking label, a redact-flagged takedown, or a label-state collision
+ * (the ratified fail-closed state: an ambiguous block/negation stream must
+ * not resolve open). Deliberately NOT keyed on `eligibility`, which ranks
+ * pending/error above blocks and reports missing-assessment-pass as
+ * "blocked".
+ */
+export function isModerationBlocking(moderation: ReleaseModeration): boolean {
+	return (
+		moderation.blockingLabels.length > 0 ||
+		moderation.redacted ||
+		moderation.reasonCodes.includes("label-state-collision")
+	);
 }
 
 /** Verifies labels before evaluating their moderation effect for one release. */

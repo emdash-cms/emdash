@@ -22,6 +22,11 @@
  */
 
 import type { Did } from "@atcute/lexicons";
+import {
+	evaluateReleaseViews,
+	isModerationBlocking,
+	resolveAcceptedPolicy,
+} from "@emdash-cms/registry-client/moderation";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -202,7 +207,10 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		if (resolved === null) {
 			return apiError("ARTIFACT_NOT_FOUND", "Artifact not found", 404);
 		}
-		declaredUrl = resolved;
+		if (resolved.blocked) {
+			return apiError("RELEASE_BLOCKED", "Release is blocked by registry moderation", 404);
+		}
+		declaredUrl = resolved.url;
 	} catch {
 		return apiError("ARTIFACT_RESOLVE_FAILED", "Failed to resolve artifact", 502);
 	}
@@ -290,10 +298,18 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	}
 };
 
+/** Result of resolving an artifact's declared URL: the URL plus whether its release is moderation-blocked. */
+interface ResolvedArtifact {
+	url: string;
+	blocked: boolean;
+}
+
 /**
  * Resolve the declared artifact URL for `(did, slug, version, kind, index)`
- * from the aggregator's release record. Mirrors the install handler's release
- * lookup. Returns `null` when the package/release/artifact isn't found.
+ * from the aggregator's release record, and gate it through the same
+ * moderation evaluator the install/update handlers use. Mirrors the install
+ * handler's release lookup. Returns `null` when the package/release/artifact
+ * isn't found.
  *
  * Self-contained to this route: the install/update handlers are intentionally
  * left untouched, so a small amount of resolution-pattern duplication is
@@ -306,20 +322,26 @@ async function resolveArtifactUrl(
 	version: string | undefined,
 	kind: string,
 	index: number,
-): Promise<string | null> {
+): Promise<ResolvedArtifact | null> {
 	// Lazy-load the discovery client so the `@atcute/client` dependency only
 	// loads when the registry path is exercised.
 	const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
 
 	const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
+	let contentLabelersHeader: string | undefined;
 	const discovery = new DiscoveryClient({
 		aggregatorUrl: registryConfig.aggregatorUrl,
 		acceptLabelers: registryConfig.acceptLabelers,
 		fetch: timedFetch(aggregatorDeadline),
+		onResponseMeta: (meta) => {
+			contentLabelersHeader = meta.contentLabelers ?? contentLabelersHeader;
+		},
 	});
 
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- DID shape validated by the route before this call
 	const publisherDid = did as Did;
+
+	const packageView = await discovery.getPackage({ did: publisherDid, slug });
 
 	const releaseView = await (async () => {
 		if (!version) {
@@ -349,7 +371,15 @@ async function resolveArtifactUrl(
 
 	if (!releaseView?.release) return null;
 
-	return resolveDeclaredUrl(releaseView.release.artifacts, kind, index);
+	const url = resolveDeclaredUrl(releaseView.release.artifacts, kind, index);
+	if (url === null) return null;
+
+	const accepted = resolveAcceptedPolicy({
+		configuredAcceptLabelers: registryConfig.acceptLabelers,
+		contentLabelersHeader,
+	});
+	const moderation = evaluateReleaseViews({ packageView, releaseView, publisherDid, accepted });
+	return { url, blocked: isModerationBlocking(moderation) };
 }
 
 /**

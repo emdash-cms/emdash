@@ -7,9 +7,12 @@
  * browser, the EmDash admin UI.
  *
  * No authentication is required for discovery: the aggregator is a public
- * read-only index. Hard-enforcement labels (`!takedown`, `security:yanked`) are
- * applied server-side based on the request's `atproto-accept-labelers` header,
- * which the aggregator client may set per-request.
+ * read-only index. Hard-enforcement labels (`!takedown`, `security-yanked`)
+ * are filtered server-side based on the request's `atproto-accept-labelers`
+ * header, which the aggregator client may set per-request. Callers evaluate
+ * the full typed moderation state of the results themselves, via
+ * `./moderation`'s `evaluateReleaseViews` over the labels each response
+ * hydrates onto its package/release views.
  */
 
 import { Client, ok, simpleFetchHandler } from "@atcute/client";
@@ -119,6 +122,16 @@ export interface DiscoveryClientOptions {
 	 * route through a specific transport.
 	 */
 	fetch?: typeof fetch;
+
+	/**
+	 * Optional callback invoked with response metadata after every request.
+	 * Currently carries the `atproto-content-labelers` response header, which
+	 * reports the labeler policy the aggregator actually applied -- callers
+	 * without a configured `acceptLabelers` use this to derive the effective
+	 * accepted policy for moderation evaluation (see `resolveAcceptedPolicy`
+	 * in `./moderation`).
+	 */
+	onResponseMeta?: (meta: { contentLabelers?: string }) => void;
 }
 
 /**
@@ -170,15 +183,22 @@ export class DiscoveryClient {
 		// *overwrite* any value the caller might have supplied: this is the
 		// aggregator's policy, not a per-request setting, and letting
 		// downstream code substitute its own labelers would defeat the
-		// point of the wrapper.
+		// point of the wrapper. The same wrapper reports the response's
+		// `atproto-content-labelers` header to `onResponseMeta` when given.
 		const acceptLabelers = this.acceptLabelers;
-		const handler: typeof baseHandler = acceptLabelers
-			? async (pathname, init) => {
-					const headers = new Headers(init.headers);
-					headers.set("atproto-accept-labelers", acceptLabelers);
-					return baseHandler(pathname, { ...init, headers });
-				}
-			: baseHandler;
+		const onResponseMeta = options.onResponseMeta;
+		const handler: typeof baseHandler =
+			acceptLabelers || onResponseMeta
+				? async (pathname, init) => {
+						const headers = new Headers(init.headers);
+						if (acceptLabelers) headers.set("atproto-accept-labelers", acceptLabelers);
+						const response = await baseHandler(pathname, { ...init, headers });
+						onResponseMeta?.({
+							contentLabelers: response.headers.get("atproto-content-labelers") ?? undefined,
+						});
+						return response;
+					}
+				: baseHandler;
 
 		this.#client = new Client({ handler });
 	}

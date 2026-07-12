@@ -1,7 +1,7 @@
 /**
  * @emdash-cms/registry-client
  *
- * Atproto-aware client for the EmDash plugin registry. Three layers:
+ * Atproto-aware client for the EmDash plugin registry. Four layers:
  *
  *   - **Credentials** (`./credentials`): persisting the publisher's atproto
  *     session between CLI invocations. Three implementations: filesystem,
@@ -12,6 +12,10 @@
  *   - **Discovery** (`./discovery`): read-only XRPC client over an aggregator.
  *     No authentication. Used by both the CLI (`emdash-plugin search` /
  *     `emdash-plugin info`) and the EmDash admin UI's install flow.
+ *   - **Moderation** (`./moderation`): evaluates the label state a discovery
+ *     response hydrates onto its package/release views into a typed
+ *     `ReleaseModeration`, via `@emdash-cms/registry-moderation`'s hydrated
+ *     (structurally validated, not cryptographically verified) entry point.
  *
  * The two halves are deliberately decoupled so consumers that only need
  * discovery (most notably the admin UI) don't have to pull in the publishing
@@ -44,6 +48,22 @@ export {
 export { type PublishingClientFromHandlerOptions, PublishingClient } from "./publishing/index.js";
 
 export { type DiscoveryClientOptions, DiscoveryClient } from "./discovery/index.js";
+
+export {
+	type AcceptedLabelerPolicy,
+	type EvaluateReleaseViewsInput,
+	type ReleaseEligibility,
+	type ReleaseModeration,
+	type ResolveAcceptedPolicyInput,
+	evaluateHydratedReleaseModeration,
+	evaluateReleaseViews,
+	isModerationBlocking,
+	parseAcceptLabelersHeader,
+	resolveAcceptedPolicy,
+	InvalidAcceptLabelersHeaderError,
+	PACKAGE_SCOPE_BLOCK_VALUES,
+	RELEASE_BLOCK_VALUES,
+} from "./moderation.js";
 
 export {
 	type EnvMismatch,

@@ -24,6 +24,10 @@
 		"./env": {
 			"types": "./dist/env/index.d.ts",
 			"default": "./dist/env/index.js"
+		},
+		"./moderation": {
+			"types": "./dist/moderation.d.ts",
+			"default": "./dist/moderation.js"
 		}
 	},
 	"files": [
@@ -41,7 +45,8 @@
 		"@atcute/atproto": "catalog:",
 		"@atcute/client": "catalog:",
 		"@atcute/lexicons": "catalog:",
-		"@emdash-cms/registry-lexicons": "workspace:*"
+		"@emdash-cms/registry-lexicons": "workspace:*",
+		"@emdash-cms/registry-moderation": "workspace:*"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",

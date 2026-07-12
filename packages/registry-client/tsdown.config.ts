@@ -6,6 +6,7 @@ export default defineConfig({
 		"src/credentials/index.ts",
 		"src/discovery/index.ts",
 		"src/env/index.ts",
+		"src/moderation.ts",
 		"src/publishing/index.ts",
 	],
 	format: ["esm"],
@@ -24,5 +25,6 @@ export default defineConfig({
 		"@atcute/lexicons",
 		"@atcute/lexicons/syntax",
 		"@emdash-cms/registry-lexicons",
+		"@emdash-cms/registry-moderation",
 	],
 });

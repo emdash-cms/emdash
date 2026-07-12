@@ -9,6 +9,7 @@ Companions: [implementation spec](../spec.md), [implementation plan](../implemen
 - 2026-07-10 (#1926): the unshipped surface was standardized on US `labeler` spelling. The ratified public NSIDs are `com.emdashcms.experimental.labeler.*`; identifiers in this document were updated to match.
 - 2026-07-10 (#1917): the implemented evaluator added `applicableLabels: ModerationLabel[]` to `ReleaseModeration` for consumer display.
 - The ratified fixtures moved from this folder into product paths: `apps/labeler/fixtures/moderation-policy.json` and `packages/registry-moderation/tests/fixtures/moderation-cases.json`.
+- 2026-07-12 (W5 enforcement PR): the corpus's `oldPackageCid` value (`...moixb`, two occurrences in `eligible-package-mismatched-cid-label-ignored`) was not a decodable CID — a latent defect in the originally ratified corpus, inert until the hydrated evaluation path added structural CID validation. Corrected to a verified round-tripping CID (`...moixe`); the case's expected outcome is unchanged.
 
 ## Scope
 
