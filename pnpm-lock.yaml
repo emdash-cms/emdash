@@ -438,6 +438,9 @@ importers:
       '@atcute/repo':
         specifier: 'catalog:'
         version: 1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)
+      '@atcute/xrpc-server':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../../packages/registry-lexicons

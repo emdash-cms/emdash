@@ -22,6 +22,7 @@
 		"@atcute/jetstream": "catalog:",
 		"@atcute/lexicons": "catalog:",
 		"@atcute/repo": "catalog:",
+		"@atcute/xrpc-server": "catalog:",
 		"@emdash-cms/registry-lexicons": "workspace:*",
 		"@emdash-cms/registry-moderation": "workspace:*",
 		"ulidx": "^2.4.1"

@@ -57,9 +57,6 @@ const _coverageSchema = /*#__PURE__*/ v.object({
 	code: /*#__PURE__*/ v.string<
 		"complete" | "partial" | "unavailable" | (string & {})
 	>(),
-	dependencies: /*#__PURE__*/ v.string<
-		"complete" | "partial" | "unavailable" | (string & {})
-	>(),
 	images: /*#__PURE__*/ v.string<
 		"complete" | "not-present" | "partial" | "unavailable" | (string & {})
 	>(),
@@ -377,15 +374,6 @@ const _publicAssessmentSchema = /*#__PURE__*/ v.object({
 		/*#__PURE__*/ v.genericUriString(),
 		[/*#__PURE__*/ v.stringLength(0, 2048)],
 	),
-	/**
-	 * @maxLength 64
-	 */
-	get scannerVersions() {
-		return /*#__PURE__*/ v.constrain(
-			/*#__PURE__*/ v.array(scannerVersionSchema),
-			[/*#__PURE__*/ v.arrayLength(0, 64)],
-		);
-	},
 	src: /*#__PURE__*/ v.didString(),
 	state: /*#__PURE__*/ v.string<
 		| "blocked"
@@ -487,27 +475,6 @@ const _reasonCodeSchema = /*#__PURE__*/ v.object({
 		/*#__PURE__*/ v.stringLength(1, 4096),
 	]),
 });
-const _scannerVersionSchema = /*#__PURE__*/ v.object({
-	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal(
-			"com.emdashcms.experimental.labeler.defs#scannerVersion",
-		),
-	),
-	/**
-	 * @minLength 1
-	 * @maxLength 128
-	 */
-	scanner: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
-		/*#__PURE__*/ v.stringLength(1, 128),
-	]),
-	/**
-	 * @minLength 1
-	 * @maxLength 128
-	 */
-	version: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
-		/*#__PURE__*/ v.stringLength(1, 128),
-	]),
-});
 const _subjectRuleSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
@@ -583,7 +550,6 @@ type publicAssessment$schematype = typeof _publicAssessmentSchema;
 type publicManualAction$schematype = typeof _publicManualActionSchema;
 type publisherSubject$schematype = typeof _publisherSubjectSchema;
 type reasonCode$schematype = typeof _reasonCodeSchema;
-type scannerVersion$schematype = typeof _scannerVersionSchema;
 type subjectRule$schematype = typeof _subjectRuleSchema;
 type supportedSubjects$schematype = typeof _supportedSubjectsSchema;
 type transparency$schematype = typeof _transparencySchema;
@@ -605,7 +571,6 @@ export interface publicAssessmentSchema extends publicAssessment$schematype {}
 export interface publicManualActionSchema extends publicManualAction$schematype {}
 export interface publisherSubjectSchema extends publisherSubject$schematype {}
 export interface reasonCodeSchema extends reasonCode$schematype {}
-export interface scannerVersionSchema extends scannerVersion$schematype {}
 export interface subjectRuleSchema extends subjectRule$schematype {}
 export interface supportedSubjectsSchema extends supportedSubjects$schematype {}
 export interface transparencySchema extends transparency$schematype {}
@@ -633,8 +598,6 @@ export const publicManualActionSchema =
 export const publisherSubjectSchema =
 	_publisherSubjectSchema as publisherSubjectSchema;
 export const reasonCodeSchema = _reasonCodeSchema as reasonCodeSchema;
-export const scannerVersionSchema =
-	_scannerVersionSchema as scannerVersionSchema;
 export const subjectRuleSchema = _subjectRuleSchema as subjectRuleSchema;
 export const supportedSubjectsSchema =
 	_supportedSubjectsSchema as supportedSubjectsSchema;
@@ -671,9 +634,6 @@ export interface PublisherSubject extends v.InferInput<
 	typeof publisherSubjectSchema
 > {}
 export interface ReasonCode extends v.InferInput<typeof reasonCodeSchema> {}
-export interface ScannerVersion extends v.InferInput<
-	typeof scannerVersionSchema
-> {}
 export interface SubjectRule extends v.InferInput<typeof subjectRuleSchema> {}
 export interface SupportedSubjects extends v.InferInput<
 	typeof supportedSubjectsSchema

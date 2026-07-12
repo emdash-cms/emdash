@@ -7,6 +7,7 @@ import { queryLabels } from "./query-labels.js";
 import { reconcileAssessments } from "./reconciliation.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
 import { LABEL_SUBSCRIPTION_DO_NAME } from "./subscribe-labels.js";
+import { handleAssessmentXrpc } from "./xrpc-router.js";
 import { xrpcError } from "./xrpc.js";
 
 export { LabelerDiscoveryDO } from "./discovery-do.js";
@@ -41,7 +42,7 @@ export default {
 				);
 			if (pathname === SUBSCRIBE_LABELS_PATH) return subscribeLabels(env, request);
 			if (pathname === CREATE_REPORT_PATH) return rejectModerationReport(request);
-			return xrpcError("MethodNotSupported", "XRPC method not found", 404);
+			return handleAssessmentXrpc(env, request, config);
 		}
 		return new Response("emdash-labeler: not found", { status: 404 });
 	},

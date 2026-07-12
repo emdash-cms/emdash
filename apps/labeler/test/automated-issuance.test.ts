@@ -91,7 +91,6 @@ async function assessmentId(): Promise<string> {
 		trigger: "initial",
 		triggerId: initialTriggerId(CID),
 		policyVersion: "v1",
-		scannerVersionsJson: "[]",
 		coverageJson: "{}",
 	});
 	return assessment.id;

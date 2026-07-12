@@ -7,6 +7,7 @@ import {
 	isLegalTransition,
 	TERMINAL_STATES,
 	type AssessmentState,
+	type PublicAssessmentState,
 } from "./assessment-lifecycle.js";
 
 const DECISION_OUTCOME_STATES: ReadonlySet<AssessmentState> = new Set([
@@ -29,7 +30,6 @@ export interface Assessment {
 	policyVersion: string;
 	modelId: string | null;
 	promptHash: string | null;
-	scannerVersionsJson: string;
 	publicSummary: string | null;
 	coverageJson: string;
 	supersedesAssessmentId: string | null;
@@ -51,7 +51,6 @@ interface AssessmentRow {
 	policy_version: string;
 	model_id: string | null;
 	prompt_hash: string | null;
-	scanner_versions_json: string;
 	public_summary: string | null;
 	coverage_json: string;
 	supersedes_assessment_id: string | null;
@@ -179,7 +178,6 @@ export interface CreateAssessmentRunInput {
 	policyVersion: string;
 	modelId?: string;
 	promptHash?: string;
-	scannerVersionsJson: string;
 	coverageJson: string;
 	now?: Date;
 }
@@ -203,9 +201,9 @@ export async function createAssessmentRun(
 		.prepare(
 			`INSERT INTO assessments
 			 (id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
-			  policy_version, model_id, prompt_hash, scanner_versions_json, coverage_json,
+			  policy_version, model_id, prompt_hash, coverage_json,
 			  created_at, created_at_epoch_ms)
-			 SELECT ?, ?, ?, ?, ?, ?, 'observed', ?, ?, ?, ?, ?, ?, ?, ?, ?
+			 SELECT ?, ?, ?, ?, ?, ?, 'observed', ?, ?, ?, ?, ?, ?, ?, ?
 			 WHERE NOT EXISTS (SELECT 1 FROM assessments WHERE run_key = ?)`,
 		)
 		.bind(
@@ -220,7 +218,6 @@ export async function createAssessmentRun(
 			input.policyVersion,
 			input.modelId ?? null,
 			input.promptHash ?? null,
-			input.scannerVersionsJson,
 			input.coverageJson,
 			now.toISOString(),
 			now.getTime(),
@@ -237,7 +234,7 @@ export async function getAssessment(db: D1Database, id: string): Promise<Assessm
 	const row = await db
 		.prepare(
 			`SELECT id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
-			 policy_version, model_id, prompt_hash, scanner_versions_json, public_summary, coverage_json,
+			 policy_version, model_id, prompt_hash, public_summary, coverage_json,
 			 supersedes_assessment_id, started_at, completed_at, created_at
 			 FROM assessments WHERE id = ?`,
 		)
@@ -253,7 +250,7 @@ export async function getAssessmentByRunKey(
 	const row = await db
 		.prepare(
 			`SELECT id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
-			 policy_version, model_id, prompt_hash, scanner_versions_json, public_summary, coverage_json,
+			 policy_version, model_id, prompt_hash, public_summary, coverage_json,
 			 supersedes_assessment_id, started_at, completed_at, created_at
 			 FROM assessments WHERE run_key = ?`,
 		)
@@ -276,7 +273,7 @@ export async function listNonTerminalAssessmentsForUri(
 	const rows = await db
 		.prepare(
 			`SELECT id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
-			 policy_version, model_id, prompt_hash, scanner_versions_json, public_summary, coverage_json,
+			 policy_version, model_id, prompt_hash, public_summary, coverage_json,
 			 supersedes_assessment_id, started_at, completed_at, created_at
 			 FROM assessments
 			 WHERE uri = ? AND state NOT IN (${Array.from(TERMINAL_STATES, () => "?").join(", ")})`,
@@ -577,6 +574,290 @@ export async function recordEvidenceObject(
 	return id;
 }
 
+/** A newer completed run whose `supersedes_assessment_id` names `assessmentId`
+ * and currently owns the subject's pointer. This is the back-pointer +
+ * pointer-ownership rule (spec §480/§718) — a row is never superseded merely
+ * for not being the current pointer. */
+export async function isSuperseded(db: D1Database, assessmentId: string): Promise<boolean> {
+	const row = await db
+		.prepare(
+			`SELECT 1 FROM assessments a
+			 JOIN current_assessments c ON c.assessment_id = a.id
+			 WHERE a.supersedes_assessment_id = ?
+			 LIMIT 1`,
+		)
+		.bind(assessmentId)
+		.first();
+	return row !== null;
+}
+
+export interface ListAssessmentsFilters {
+	uri?: string;
+	cid?: string;
+	state?: PublicAssessmentState;
+}
+
+export interface AssessmentKeyset {
+	createdAt: string;
+	id: string;
+}
+
+export interface ListedAssessment extends Assessment {
+	isSuperseded: boolean;
+}
+
+const SUPERSEDED_EXISTS_SQL = `EXISTS (
+	SELECT 1 FROM assessments b
+	JOIN current_assessments c ON c.assessment_id = b.id
+	WHERE b.supersedes_assessment_id = a.id
+)`;
+
+const DECISION_PUBLIC_STATES: ReadonlySet<PublicAssessmentState> = new Set([
+	"passed",
+	"warned",
+	"blocked",
+	"error",
+]);
+
+const STORED_STATES_BY_PUBLIC_STATE: Readonly<
+	Record<Exclude<PublicAssessmentState, "superseded">, readonly AssessmentState[]>
+> = {
+	pending: ["pending", "running"],
+	passed: ["passed"],
+	warned: ["warned"],
+	blocked: ["blocked"],
+	error: ["error"],
+};
+
+/** Keeps `IN (?, ?, …)` clauses well within D1's bound-parameter limit. */
+const LABEL_QUERY_BATCH_SIZE = 90;
+
+/**
+ * Public listing page, newest first, exclusive keyset on
+ * `(created_at_epoch_ms, id)`. `isSuperseded` is computed inline via the same
+ * correlated subquery as `isSuperseded` above rather than a follow-up query
+ * per row — every row in a page needs it, not just one.
+ */
+export async function getAssessmentsPage(
+	db: D1Database,
+	filters: ListAssessmentsFilters,
+	keyset: AssessmentKeyset | null,
+	limit: number,
+): Promise<ListedAssessment[]> {
+	const conditions = [`a.state NOT IN ('observed', 'verifying', 'stale', 'cancelled')`];
+	const bindings: (string | number)[] = [];
+
+	if (filters.state === "superseded") {
+		conditions.push(`a.state IN ('passed', 'warned', 'blocked', 'error')`);
+		conditions.push(SUPERSEDED_EXISTS_SQL);
+	} else if (filters.state !== undefined) {
+		const stored = STORED_STATES_BY_PUBLIC_STATE[filters.state];
+		conditions.push(`a.state IN (${stored.map(() => "?").join(", ")})`);
+		bindings.push(...stored);
+		if (DECISION_PUBLIC_STATES.has(filters.state)) conditions.push(`NOT ${SUPERSEDED_EXISTS_SQL}`);
+	}
+	if (filters.uri !== undefined) {
+		conditions.push(`a.uri = ?`);
+		bindings.push(filters.uri);
+	}
+	if (filters.cid !== undefined) {
+		conditions.push(`a.cid = ?`);
+		bindings.push(filters.cid);
+	}
+	if (keyset !== null) {
+		const epochMs = Date.parse(keyset.createdAt);
+		conditions.push(`(a.created_at_epoch_ms < ? OR (a.created_at_epoch_ms = ? AND a.id < ?))`);
+		bindings.push(epochMs, epochMs, keyset.id);
+	}
+	// Fetch limit+1 so the caller can detect a next page without a trailing
+	// COUNT query — the caller is responsible for slicing back to `limit`.
+	bindings.push(limit + 1);
+
+	const rows = await db
+		.prepare(
+			`SELECT a.id, a.run_key, a.uri, a.cid, a.artifact_id, a.artifact_checksum, a.state,
+			 a.trigger, a.trigger_id, a.policy_version, a.model_id, a.prompt_hash,
+			 a.public_summary, a.coverage_json, a.supersedes_assessment_id,
+			 a.started_at, a.completed_at, a.created_at,
+			 ${SUPERSEDED_EXISTS_SQL} AS is_superseded
+			 FROM assessments a
+			 WHERE ${conditions.join(" AND ")}
+			 ORDER BY a.created_at_epoch_ms DESC, a.id DESC
+			 LIMIT ?`,
+		)
+		.bind(...bindings)
+		.all<AssessmentRow & { is_superseded: number }>();
+	return (rows.results ?? []).map((row) => ({
+		...rowToAssessment(row),
+		isSuperseded: row.is_superseded === 1,
+	}));
+}
+
+export interface AssessmentLabelOp {
+	val: string;
+	cts: string;
+	exp: string | null;
+	sequence: number;
+}
+
+/** Positive label ops issued by one assessment (D5) — joined off
+ * `issuance_actions.assessment_id`, excluding negations (a `neg=true` op is a
+ * retraction, not a label to display). */
+export async function getLabelsForAssessment(
+	db: D1Database,
+	assessmentId: string,
+): Promise<AssessmentLabelOp[]> {
+	const rows = await db
+		.prepare(
+			`SELECT l.val, l.cts, l.exp, l.sequence
+			 FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ? AND l.neg = 0
+			 ORDER BY l.sequence ASC`,
+		)
+		.bind(assessmentId)
+		.all<AssessmentLabelOp>();
+	return rows.results ?? [];
+}
+
+/** Batched form of {@link getLabelsForAssessment} for a page of assessments
+ * (D5) — one query per {@link LABEL_QUERY_BATCH_SIZE}-sized chunk of ids
+ * instead of one query per row, so a list page's label lookups stay
+ * independent of page size. */
+export async function getLabelsForAssessments(
+	db: D1Database,
+	assessmentIds: readonly string[],
+): Promise<Map<string, AssessmentLabelOp[]>> {
+	const byAssessment = new Map<string, AssessmentLabelOp[]>();
+	for (let offset = 0; offset < assessmentIds.length; offset += LABEL_QUERY_BATCH_SIZE) {
+		const chunk = assessmentIds.slice(offset, offset + LABEL_QUERY_BATCH_SIZE);
+		const rows = await db
+			.prepare(
+				`SELECT a.assessment_id, l.val, l.cts, l.exp, l.sequence
+				 FROM issued_labels l
+				 JOIN issuance_actions a ON a.id = l.action_id
+				 WHERE a.assessment_id IN (${chunk.map(() => "?").join(", ")}) AND l.neg = 0
+				 ORDER BY l.sequence ASC`,
+			)
+			.bind(...chunk)
+			.all<AssessmentLabelOp & { assessment_id: string }>();
+		for (const row of rows.results ?? []) {
+			const op: AssessmentLabelOp = {
+				val: row.val,
+				cts: row.cts,
+				exp: row.exp,
+				sequence: row.sequence,
+			};
+			const ops = byAssessment.get(row.assessment_id);
+			if (ops) ops.push(op);
+			else byAssessment.set(row.assessment_id, [op]);
+		}
+	}
+	return byAssessment;
+}
+
+export interface LabelStreamWinner {
+	val: string;
+	cid: string | null;
+	cts: string;
+	exp: string | null;
+	sequence: number;
+	active: boolean;
+}
+
+/**
+ * Latest event per `val` in the `(src, uri)` stream across all CIDs — the
+ * highest-`sequence` `issued_labels` row for that `val`, regardless of its
+ * own `cid`. `sequence` is a strictly monotonic counter assigned at insert
+ * time (migration 0002's trigger), independent of `cts`, so ordering by it
+ * is also the correct cts-collision tiebreak.
+ *
+ * CID applicability is applied to the winner, not before reduction: a
+ * winner is `active` only when it is non-negated, unexpired, and either
+ * URI-wide (`cid` NULL) or bound to the queried `cid` — matching the
+ * aggregator's canonical `label_state` reduction (`PRIMARY KEY (src, uri,
+ * val)`, CID excluded from the key) and its `hydrateLabels` post-reduction
+ * applicability check. A newer CID-bound event therefore retracts an older
+ * URI-wide event for the same `val`, and a CID-mismatched event still wins
+ * the reduction (reporting `active: false`) rather than being invisible to
+ * it. Shared by both `labels[].active` (per-assessment) and `activeLabels`
+ * (getCurrentAssessment) so the two never diverge.
+ */
+export async function getActiveLabelState(
+	db: D1Database,
+	input: { src: string; uri: string; cid: string; now?: Date },
+): Promise<Map<string, LabelStreamWinner>> {
+	const now = input.now ?? new Date();
+	const rows = await db
+		.prepare(
+			`SELECT val, neg, cid, cts, exp, sequence
+			 FROM issued_labels
+			 WHERE src = ? AND uri = ?
+			 ORDER BY sequence ASC`,
+		)
+		.bind(input.src, input.uri)
+		.all<{
+			val: string;
+			neg: number;
+			cid: string | null;
+			cts: string;
+			exp: string | null;
+			sequence: number;
+		}>();
+	const winners = new Map<string, LabelStreamWinner>();
+	for (const row of rows.results ?? []) {
+		const applicable = row.cid === null || row.cid === input.cid;
+		const active =
+			row.neg === 0 && applicable && (row.exp === null || Date.parse(row.exp) > now.getTime());
+		winners.set(row.val, {
+			val: row.val,
+			cid: row.cid,
+			cts: row.cts,
+			exp: row.exp,
+			sequence: row.sequence,
+			active,
+		});
+	}
+	return winners;
+}
+
+/** The newest in-flight run (`pending` or `running`) for a subject — the
+ * `pending` field of `getCurrentAssessment`'s view, when it isn't the run
+ * that already owns the current pointer (a decision-outcome state, so the
+ * two state sets never overlap). */
+export async function getLatestPendingAssessment(
+	db: D1Database,
+	input: { uri: string; cid: string },
+): Promise<Assessment | null> {
+	const row = await db
+		.prepare(
+			`SELECT id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
+			 policy_version, model_id, prompt_hash, public_summary, coverage_json,
+			 supersedes_assessment_id, started_at, completed_at, created_at
+			 FROM assessments
+			 WHERE uri = ? AND cid = ? AND state IN ('pending', 'running')
+			 ORDER BY created_at_epoch_ms DESC, id DESC
+			 LIMIT 1`,
+		)
+		.bind(input.uri, input.cid)
+		.first<AssessmentRow>();
+	return row ? rowToAssessment(row) : null;
+}
+
+/** Whether verification ever recorded this (uri, cid) subject, regardless of
+ * subsequent deletion — used to distinguish "never seen" (NotFound) from "seen
+ * but has no current/pending run or active label" (an empty-but-200 view). */
+export async function subjectWasObserved(
+	db: D1Database,
+	input: { uri: string; cid: string },
+): Promise<boolean> {
+	const row = await db
+		.prepare(`SELECT 1 FROM subjects WHERE uri = ? AND cid = ? LIMIT 1`)
+		.bind(input.uri, input.cid)
+		.first();
+	return row !== null;
+}
+
 function rowToAssessment(row: AssessmentRow): Assessment {
 	return {
 		id: row.id,
@@ -591,7 +872,6 @@ function rowToAssessment(row: AssessmentRow): Assessment {
 		policyVersion: row.policy_version,
 		modelId: row.model_id,
 		promptHash: row.prompt_hash,
-		scannerVersionsJson: row.scanner_versions_json,
 		publicSummary: row.public_summary,
 		coverageJson: row.coverage_json,
 		supersedesAssessmentId: row.supersedes_assessment_id,

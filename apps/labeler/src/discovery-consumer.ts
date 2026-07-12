@@ -337,7 +337,6 @@ async function verifyAndCreateRun(
 		policyVersion: MODERATION_POLICY.policyVersion,
 		modelId: DISCOVERY_MODEL_ID,
 		promptHash: DISCOVERY_PROMPT_HASH,
-		scannerVersionsJson: "[]",
 		coverageJson: "{}",
 		now,
 	});
