@@ -213,7 +213,8 @@ export async function processDiscoveryMessage(
 				controller.ack();
 				return;
 			}
-			await applyDiscoveryDelete(deps.db, uri, now());
+			const cancelled = await applyDiscoveryDelete(deps.db, uri, now());
+			await negatePendingForDeletedRuns(deps, cancelled, now());
 			controller.ack();
 		} catch (err) {
 			await classifyDiscoveryError(err, job, deps, controller, now());
@@ -388,9 +389,13 @@ async function transitionOrObserve(
 	}
 }
 
-async function applyDiscoveryDelete(db: D1Database, uri: string, now: Date): Promise<void> {
+/** Tombstones the subject, cancels non-terminal runs, and returns the runs
+ * that had already reached `pending` (so they carry an active
+ * `assessment-pending` label the caller must negate). */
+async function applyDiscoveryDelete(db: D1Database, uri: string, now: Date): Promise<Assessment[]> {
 	await deleteSubjectsByUri(db, { uri, now });
 	const runs = await listNonTerminalAssessmentsForUri(db, uri);
+	const hadPending: Assessment[] = [];
 	for (const run of runs) {
 		if (
 			run.state !== "observed" &&
@@ -399,6 +404,7 @@ async function applyDiscoveryDelete(db: D1Database, uri: string, now: Date): Pro
 			run.state !== "running"
 		)
 			continue;
+		if (run.state === "pending" || run.state === "running") hadPending.push(run);
 		try {
 			await transitionAssessmentState(db, { id: run.id, from: run.state, to: "cancelled", now });
 		} catch (err) {
@@ -407,6 +413,37 @@ async function applyDiscoveryDelete(db: D1Database, uri: string, now: Date): Pro
 			// already satisfied.
 			if (!(err instanceof AssessmentTransitionConflictError)) throw err;
 		}
+	}
+	return hadPending;
+}
+
+/**
+ * Negates the `assessment-pending` label each cancelled run issued, so a
+ * deleted release stops advertising an in-progress assessment. Uses the
+ * run's own assessment id and a deterministic idempotency key, so a
+ * redelivered delete converges. Idempotent and best-effort per run: a run
+ * whose pending is already negated (finalized) no-ops.
+ */
+async function negatePendingForDeletedRuns(
+	deps: DiscoveryConsumerDeps,
+	runs: Assessment[],
+	now: Date,
+): Promise<void> {
+	for (const run of runs) {
+		await issueAutomatedAssessmentLabel(
+			deps.db,
+			deps.config,
+			deps.signer,
+			{
+				actor: deps.config.labelerDid,
+				type: "automated-assessment",
+				assessmentId: run.id,
+				reason: "subject deleted",
+				idempotencyKey: automatedIdempotencyKey(run.runKey, "assessment-pending", true),
+			},
+			{ uri: run.uri, cid: run.cid, val: "assessment-pending", neg: true },
+			now,
+		);
 	}
 }
 

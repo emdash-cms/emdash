@@ -403,6 +403,16 @@ describe("processDiscoveryMessage: delete", () => {
 
 		const after = await getAssessmentByRunKey(testEnv.DB, runKey);
 		expect(after?.state).toBe("cancelled");
+
+		// The pending label the run issued is negated, so a deleted release
+		// stops advertising an in-progress assessment.
+		const pending = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels
+			 WHERE uri = ? AND val = 'assessment-pending' ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uriFor(job))
+			.first<{ neg: number }>();
+		expect(pending?.neg).toBe(1);
 	});
 
 	it("dead-letters a forged/premature delete whose record still resolves, suppressing nothing", async () => {

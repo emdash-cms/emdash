@@ -304,7 +304,11 @@ export class AssessmentOrchestrator {
 			uri: assessment.uri,
 			cid: assessment.cid,
 		});
+		// Keep this run's own positive labels — including the assessment-error it
+		// just issued — so the negation pass below doesn't retract a label this
+		// same outcome is issuing.
 		const keep = new Set(positiveLabels.map((l) => l.val));
+		if (toState === "error") keep.add("assessment-error");
 		for (const prior of priorActive) {
 			if (prior.val === "assessment-pending" || keep.has(prior.val)) continue;
 			await issue(prior.val, true);
