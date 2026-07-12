@@ -10,6 +10,19 @@ export type AssessmentState =
 	| "stale"
 	| "cancelled";
 
+/** The public assessment API's state vocabulary (contracts `publicAssessment`).
+ * Narrower than `AssessmentState`: pre-decision internal states collapse to
+ * `pending`, `stale`/`cancelled`/`observed`/`verifying` are not public at
+ * all, and a completed state can present as `superseded` — see
+ * `derivePublicState` in public-assessment.ts. */
+export type PublicAssessmentState =
+	| "pending"
+	| "passed"
+	| "warned"
+	| "blocked"
+	| "error"
+	| "superseded";
+
 /** States a completed finalization can move `current_assessments` toward (spec §10). */
 export const CURRENT_POINTER_STATES: ReadonlySet<AssessmentState> = new Set([
 	"passed",

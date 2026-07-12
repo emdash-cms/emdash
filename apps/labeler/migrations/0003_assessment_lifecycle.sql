@@ -42,7 +42,6 @@ CREATE TABLE assessments (
 	policy_version TEXT NOT NULL,
 	model_id TEXT,
 	prompt_hash TEXT,
-	scanner_versions_json TEXT NOT NULL,
 	public_summary TEXT,
 	coverage_json TEXT NOT NULL,
 	supersedes_assessment_id TEXT REFERENCES assessments(id),

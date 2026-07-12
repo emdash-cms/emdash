@@ -31,15 +31,14 @@
 		},
 		"coverage": {
 			"type": "object",
-			"required": ["code", "metadata", "images", "dependencies"],
+			"required": ["code", "metadata", "images"],
 			"properties": {
 				"code": { "type": "string", "knownValues": ["complete", "partial", "unavailable"] },
 				"metadata": { "type": "string", "knownValues": ["complete", "partial", "unavailable"] },
 				"images": {
 					"type": "string",
 					"knownValues": ["complete", "not-present", "partial", "unavailable"]
-				},
-				"dependencies": { "type": "string", "knownValues": ["complete", "partial", "unavailable"] }
+				}
 			}
 		},
 		"artifact": {
@@ -59,14 +58,6 @@
 				"promptVersion": { "type": "string", "minLength": 1, "maxLength": 128 }
 			}
 		},
-		"scannerVersion": {
-			"type": "object",
-			"required": ["scanner", "version"],
-			"properties": {
-				"scanner": { "type": "string", "minLength": 1, "maxLength": 128 },
-				"version": { "type": "string", "minLength": 1, "maxLength": 128 }
-			}
-		},
 		"publicAssessment": {
 			"type": "object",
 			"required": [
@@ -79,7 +70,6 @@
 				"labels",
 				"policyVersion",
 				"assessmentSchemaVersion",
-				"scannerVersions",
 				"createdAt",
 				"reconsiderationUrl"
 			],
@@ -102,11 +92,6 @@
 				"policyVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
 				"assessmentSchemaVersion": { "type": "integer", "minimum": 1 },
 				"model": { "type": "ref", "ref": "#model" },
-				"scannerVersions": {
-					"type": "array",
-					"maxLength": 64,
-					"items": { "type": "ref", "ref": "#scannerVersion" }
-				},
 				"createdAt": { "type": "string", "format": "datetime" },
 				"completedAt": { "type": "string", "format": "datetime" },
 				"supersedesAssessmentId": { "type": "string", "minLength": 1, "maxLength": 64 },

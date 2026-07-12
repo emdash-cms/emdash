@@ -60,7 +60,6 @@ async function runAt(target: { uri: string; cid: string }, now: Date): Promise<s
 		trigger: "initial",
 		triggerId: initialTriggerId(target.cid),
 		policyVersion: "v1",
-		scannerVersionsJson: "[]",
 		coverageJson: "{}",
 		now,
 	});

@@ -14,10 +14,14 @@ import {
 	createSubject,
 	deleteSubject,
 	getAssessment,
+	getAssessmentsPage,
 	getCurrentAssessment,
+	getLatestPendingAssessment,
 	isSubjectCurrent,
+	isSuperseded,
 	recordEvidenceObject,
 	recordFinding,
+	subjectWasObserved,
 	transitionAssessmentState,
 } from "../src/assessment-store.js";
 
@@ -80,7 +84,6 @@ async function runningAssessment(
 		trigger: trigger.startsWith("operator:") ? "operator" : "initial",
 		triggerId: trigger,
 		policyVersion: "2026-07-10.experimental.2",
-		scannerVersionsJson: "[]",
 		coverageJson: "{}",
 	});
 	await transitionAssessmentState(testEnv.DB, {
@@ -138,9 +141,9 @@ describe("migration schema", () => {
 			testEnv.DB.prepare(
 				`INSERT INTO assessments
 				 (id, run_key, uri, cid, state, trigger, trigger_id, policy_version,
-				  scanner_versions_json, coverage_json, created_at, created_at_epoch_ms)
+				  coverage_json, created_at, created_at_epoch_ms)
 				 VALUES ('asmt_00000000000000000000000000', 'garbage-run-key', ?, ?, 'not-a-state',
-				 'initial', 'initial:x', 'v1', '[]', '{}', '2026-01-01T00:00:00.000Z', 0)`,
+				 'initial', 'initial:x', 'v1', '{}', '2026-01-01T00:00:00.000Z', 0)`,
 			)
 				.bind(subject.uri, subject.cid)
 				.run(),
@@ -208,7 +211,6 @@ describe("assessment lifecycle", () => {
 			trigger: "initial",
 			triggerId: initialTriggerId(subject.cid),
 			policyVersion: "2026-07-10.experimental.2",
-			scannerVersionsJson: "[]",
 			coverageJson: "{}",
 		});
 		expect(created).toBe(true);
@@ -299,7 +301,6 @@ describe("assessment lifecycle", () => {
 			trigger: "initial",
 			triggerId: initialTriggerId(observed.cid),
 			policyVersion: "v1",
-			scannerVersionsJson: "[]",
 			coverageJson: "{}",
 		});
 		const cancelled = await transitionAssessmentState(testEnv.DB, {
@@ -326,7 +327,6 @@ describe("assessment lifecycle", () => {
 			trigger: "initial",
 			triggerId: initialTriggerId(subject.cid),
 			policyVersion: "v1",
-			scannerVersionsJson: "[]",
 			coverageJson: "{}",
 		};
 		const runKey = await computeRunKey({
@@ -537,7 +537,6 @@ describe("supersession", () => {
 				trigger: "operator",
 				triggerId,
 				policyVersion: "v1",
-				scannerVersionsJson: "[]",
 				coverageJson: "{}",
 				now: createdAt,
 			});
@@ -606,7 +605,6 @@ describe("supersession", () => {
 			trigger: "operator",
 			triggerId: operatorTriggerId("operator-action-1"),
 			policyVersion: "v2",
-			scannerVersionsJson: "[]",
 			coverageJson: "{}",
 		});
 
@@ -689,5 +687,256 @@ describe("automated idempotency key", () => {
 		const negative = automatedIdempotencyKey(runKey, "malware", true);
 		expect(positive).not.toBe(negative);
 		expect(automatedIdempotencyKey(runKey, "malware", false)).toBe(positive);
+	});
+});
+
+let decisionCounter = 0;
+
+/**
+ * Creates a run and immediately finalizes it to a decision-outcome state —
+ * the inline create/transition/finalize sequence mirrors the "does not
+ * regress the pointer" test's local `runningRun` helper above, extended
+ * with `toState`/`supersedesAssessmentId`. A distinct trigger per call is
+ * required even for the same subject: reusing the default trigger would
+ * collide with an existing run's idempotent run key instead of starting a
+ * second one. `createdAt` sets `created_at` directly so ordering
+ * assertions aren't at the mercy of real-clock resolution.
+ */
+async function decisionRun(
+	subject: { uri: string; cid: string },
+	toState: "passed" | "warned" | "blocked" | "error",
+	options: { supersedesAssessmentId?: string; createdAt?: Date } = {},
+): Promise<string> {
+	const triggerId = operatorTriggerId(`decision-${decisionCounter++}`);
+	const runKey = await computeRunKey({
+		uri: subject.uri,
+		cid: subject.cid,
+		policyVersion: "v1",
+		modelId: "m",
+		promptHash: "p",
+		scannerSetVersion: "v1",
+		triggerId,
+	});
+	const { assessment } = await createAssessmentRun(testEnv.DB, {
+		runKey,
+		uri: subject.uri,
+		cid: subject.cid,
+		trigger: "operator",
+		triggerId,
+		policyVersion: "v1",
+		coverageJson: "{}",
+		now: options.createdAt,
+	});
+	for (const [from, to] of [
+		["observed", "verifying"],
+		["verifying", "pending"],
+		["pending", "running"],
+	] as const) {
+		await transitionAssessmentState(testEnv.DB, { id: assessment.id, from, to });
+	}
+	await testEnv.DB.batch(
+		buildFinalizationStatements(testEnv.DB, {
+			assessmentId: assessment.id,
+			fromState: "running",
+			toState,
+			src: LABELER_DID,
+			uri: subject.uri,
+			cid: subject.cid,
+			supersedesAssessmentId: options.supersedesAssessmentId,
+		}).statements,
+	);
+	return assessment.id;
+}
+
+describe("isSuperseded", () => {
+	it("is true only for a row a newer pointer-owning run names via supersedesAssessmentId", async () => {
+		const subject = await observedSubject();
+		const first = await decisionRun(subject, "passed");
+		const second = await decisionRun(subject, "blocked", { supersedesAssessmentId: first });
+		expect(await isSuperseded(testEnv.DB, first)).toBe(true);
+		expect(await isSuperseded(testEnv.DB, second)).toBe(false);
+	});
+
+	it("is false for a non-current row that no successor names (regression against over-eager superseded)", async () => {
+		const subject = await observedSubject();
+		const older = await decisionRun(subject, "passed");
+		const newer = await decisionRun(subject, "passed");
+		// `newer` owns the pointer (it was created and finalized after `older`);
+		// `older` is non-current but was never named via supersedesAssessmentId.
+		const pointer = await getCurrentAssessment(testEnv.DB, {
+			src: LABELER_DID,
+			uri: subject.uri,
+			cid: subject.cid,
+		});
+		expect(pointer?.assessmentId).toBe(newer);
+		expect(await isSuperseded(testEnv.DB, older)).toBe(false);
+	});
+});
+
+describe("getAssessmentsPage", () => {
+	it("orders newest first and pages disjointly to reassemble the full set", async () => {
+		const subject = await observedSubject();
+		const ids: string[] = [];
+		for (let index = 0; index < 5; index++) {
+			ids.push(
+				await decisionRun(subject, "passed", {
+					createdAt: new Date(2026, 6, 10, 0, 0, index),
+				}),
+			);
+		}
+		const filters = { uri: subject.uri, cid: subject.cid };
+		const limit = 2;
+
+		// `getAssessmentsPage` fetches limit+1 so a caller can detect a next
+		// page without a trailing COUNT query — mirrors how the router itself
+		// slices and derives the next keyset.
+		async function page(keyset: { createdAt: string; id: string } | null) {
+			const rows = await getAssessmentsPage(testEnv.DB, filters, keyset, limit);
+			const hasMore = rows.length > limit;
+			const items = hasMore ? rows.slice(0, limit) : rows;
+			const last = items.at(-1)!;
+			return { items, next: hasMore ? { createdAt: last.createdAt, id: last.id } : null };
+		}
+
+		const first = await page(null);
+		expect(first.items).toHaveLength(2);
+		expect(first.next).not.toBeNull();
+		const second = await page(first.next);
+		expect(second.items).toHaveLength(2);
+		expect(second.next).not.toBeNull();
+		const third = await page(second.next);
+		expect(third.items).toHaveLength(1);
+		expect(third.next).toBeNull();
+
+		const reassembled = [...first.items, ...second.items, ...third.items].map((row) => row.id);
+		expect(reassembled).toEqual(ids.toReversed());
+	});
+
+	it("excludes non-public stored states from every page", async () => {
+		const subject = await observedSubject();
+		await observedSubject(); // an `observed` row for a different subject
+		const { assessment } = await runningAssessment(subject);
+		await transitionAssessmentState(testEnv.DB, {
+			id: assessment.id,
+			from: "running",
+			to: "stale",
+		});
+		const page = await getAssessmentsPage(testEnv.DB, {}, null, 100);
+		expect(page.map((row) => row.state)).not.toContain("stale");
+		expect(page.map((row) => row.state)).not.toContain("observed");
+	});
+
+	it("maps the pending state filter to stored pending and running rows", async () => {
+		const subject = await observedSubject();
+		const { assessment: runningOne } = await runningAssessment(subject);
+		const pendingSubject = await observedSubject();
+		const runKey = await computeRunKey({
+			uri: pendingSubject.uri,
+			cid: pendingSubject.cid,
+			policyVersion: "v1",
+			modelId: "m",
+			promptHash: "p",
+			scannerSetVersion: "v1",
+			triggerId: initialTriggerId(pendingSubject.cid),
+		});
+		const { assessment: created } = await createAssessmentRun(testEnv.DB, {
+			runKey,
+			uri: pendingSubject.uri,
+			cid: pendingSubject.cid,
+			trigger: "initial",
+			triggerId: initialTriggerId(pendingSubject.cid),
+			policyVersion: "v1",
+			coverageJson: "{}",
+		});
+		const verifying = await transitionAssessmentState(testEnv.DB, {
+			id: created.id,
+			from: "observed",
+			to: "verifying",
+		});
+		const pending = await transitionAssessmentState(testEnv.DB, {
+			id: verifying.id,
+			from: "verifying",
+			to: "pending",
+		});
+
+		const page = await getAssessmentsPage(testEnv.DB, { state: "pending" }, null, 100);
+		const ids = page.map((row) => row.id);
+		expect(ids).toContain(runningOne.id);
+		expect(ids).toContain(pending.id);
+	});
+
+	it("excludes superseded rows from a single decision-state filter and returns only them for 'superseded'", async () => {
+		const subject = await observedSubject();
+		const first = await decisionRun(subject, "passed");
+		const second = await decisionRun(subject, "blocked", { supersedesAssessmentId: first });
+		const filters = { uri: subject.uri, cid: subject.cid };
+
+		const passedPage = await getAssessmentsPage(
+			testEnv.DB,
+			{ ...filters, state: "passed" },
+			null,
+			100,
+		);
+		expect(passedPage.map((row) => row.id)).not.toContain(first);
+
+		const supersededPage = await getAssessmentsPage(
+			testEnv.DB,
+			{ ...filters, state: "superseded" },
+			null,
+			100,
+		);
+		expect(supersededPage.map((row) => row.id)).toEqual([first]);
+		expect(supersededPage[0]?.isSuperseded).toBe(true);
+		expect(supersededPage.map((row) => row.id)).not.toContain(second);
+	});
+
+	it("filters by exact uri and cid", async () => {
+		const subject = await observedSubject();
+		const other = await observedSubject();
+		const matching = await decisionRun(subject, "passed");
+		await decisionRun(other, "passed");
+
+		const page = await getAssessmentsPage(
+			testEnv.DB,
+			{ uri: subject.uri, cid: subject.cid },
+			null,
+			100,
+		);
+		expect(page.map((row) => row.id)).toEqual([matching]);
+	});
+});
+
+describe("getLatestPendingAssessment", () => {
+	it("returns the newest running or pending run for a subject, or null when none exists", async () => {
+		const subject = await observedSubject();
+		expect(await getLatestPendingAssessment(testEnv.DB, subject)).toBeNull();
+		const { assessment } = await runningAssessment(subject);
+		const latest = await getLatestPendingAssessment(testEnv.DB, subject);
+		expect(latest?.id).toBe(assessment.id);
+	});
+
+	it("never returns a decision-outcome run", async () => {
+		const subject = await observedSubject();
+		await decisionRun(subject, "passed");
+		expect(await getLatestPendingAssessment(testEnv.DB, subject)).toBeNull();
+	});
+});
+
+describe("subjectWasObserved", () => {
+	it("is true once verification has recorded the subject and false for an unknown one", async () => {
+		const subject = await observedSubject();
+		expect(await subjectWasObserved(testEnv.DB, subject)).toBe(true);
+		expect(
+			await subjectWasObserved(testEnv.DB, {
+				uri: subject.uri,
+				cid: "bafkreiunknowncidxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			}),
+		).toBe(false);
+	});
+
+	it("stays true after the subject is soft-deleted", async () => {
+		const subject = await observedSubject();
+		await deleteSubject(testEnv.DB, { uri: subject.uri, cid: subject.cid });
+		expect(await subjectWasObserved(testEnv.DB, subject)).toBe(true);
 	});
 });

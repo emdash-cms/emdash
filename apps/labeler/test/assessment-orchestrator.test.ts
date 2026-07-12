@@ -114,7 +114,6 @@ async function pendingRun(opts: {
 		trigger: triggerId.startsWith("operator:") ? "operator" : "initial",
 		triggerId,
 		policyVersion: MODERATION_POLICY.policyVersion,
-		scannerVersionsJson: "[]",
 		coverageJson: "{}",
 	});
 	await transitionAssessmentState(testEnv.DB, {
@@ -454,7 +453,6 @@ describe("AssessmentOrchestrator: supersession negation provenance (decision 6)"
 			trigger: "initial",
 			triggerId: initialTriggerId(cidValue),
 			policyVersion: MODERATION_POLICY.policyVersion,
-			scannerVersionsJson: "[]",
 			coverageJson: "{}",
 		});
 		await transitionAssessmentState(testEnv.DB, {
@@ -505,7 +503,6 @@ describe("AssessmentOrchestrator: supersession negation provenance (decision 6)"
 			trigger: "operator",
 			triggerId: operatorTriggerId("op-rerun-1"),
 			policyVersion: MODERATION_POLICY.policyVersion,
-			scannerVersionsJson: "[]",
 			coverageJson: "{}",
 		});
 		await transitionAssessmentState(testEnv.DB, {
