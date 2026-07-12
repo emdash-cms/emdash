@@ -319,6 +319,10 @@ describe("automated proposal validation", () => {
 			.bind(idempotencyKey)
 			.first<{ n: number }>();
 		expect(orphan?.n).toBe(0);
+
+		// postCommit must surface the §10 policy violation, not a misleading
+		// signing-state error, when the guard suppressed the insert.
+		await expect(built.postCommit()).rejects.toThrow("cannot negate the manually-issued label");
 	});
 
 	it("rejects a blocking value from a non-critical severity", async () => {

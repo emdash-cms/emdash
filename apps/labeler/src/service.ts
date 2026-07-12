@@ -261,6 +261,14 @@ export async function buildIssuanceStatements(
 		postCommit: async () => {
 			const issued = await getIssuedLabel(db, action.idempotencyKey);
 			if (!issued) {
+				if (isAutomatedNegation) {
+					// The in-batch §10 guard suppresses the insert when a manual
+					// label was committed after the pre-check. Re-run the guard so
+					// the caller sees the policy violation, not a misleading
+					// signing-state alert. If no manual label is present, this is a
+					// no-op and we fall through to signing diagnosis.
+					await assertAutomatedNegationAllowed(db, signer.issuerDid, proposal);
+				}
 				const status = await getSigningStatusIfInitialized(db);
 				if (!status) throw new Error("label issuance did not persist");
 				if (!signingStatus) {
