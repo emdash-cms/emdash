@@ -70,7 +70,6 @@ interface PublicAssessment {
 		code: "complete" | "partial" | "unavailable";
 		metadata: "complete" | "partial" | "unavailable";
 		images: "complete" | "not-present" | "partial" | "unavailable";
-		dependencies: "complete" | "partial" | "unavailable";
 	};
 	labels: Array<{
 		val: string;
@@ -85,7 +84,6 @@ interface PublicAssessment {
 		modelId: string;
 		promptVersion: string;
 	};
-	scannerVersions: Array<{ scanner: string; version: string }>;
 	createdAt: string;
 	completedAt?: string;
 	supersedesAssessmentId?: string;
@@ -93,7 +91,7 @@ interface PublicAssessment {
 }
 ```
 
-`artifact` and `model` are absent when unavailable. `scannerVersions` is sorted by `scanner` and contains at most one entry per scanner. `state: "superseded"` is derived only when a newer completed assessment names this assessment and owns the current pointer.
+`artifact` and `model` are absent when unavailable. `state: "superseded"` is derived only when a newer completed assessment names this assessment and owns the current pointer.
 
 ### `publicManualAction`
 

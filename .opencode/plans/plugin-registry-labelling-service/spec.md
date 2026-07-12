@@ -605,21 +605,17 @@ interface PublicAssessment {
 		code: "complete" | "partial" | "unavailable";
 		metadata: "complete" | "partial" | "unavailable";
 		images: "complete" | "not-present" | "partial" | "unavailable";
-		dependencies: "complete" | "partial" | "unavailable";
 	};
 	labels: Array<{ val: string; active: boolean; issuedAt: string; expiresAt?: string }>;
 	policyVersion: string;
 	assessmentSchemaVersion: number;
 	model?: { provider: "workers-ai"; modelId: string; promptVersion: string };
-	scannerVersions: Array<{ scanner: string; version: string }>;
 	createdAt: string;
 	completedAt?: string;
 	supersedesAssessmentId?: string;
 	reconsiderationUrl: string;
 }
 ```
-
-`scannerVersions` and `coverage.dependencies` are retained in the frozen output shape for contract stability. v1 performs no dependency or third-party-scanner analysis, so `scannerVersions` is always empty and `coverage.dependencies` is always `unavailable`.
 
 Public output excludes:
 
@@ -680,7 +676,6 @@ CREATE TABLE assessments (
   policy_version TEXT NOT NULL,
   model_id TEXT,
   prompt_hash TEXT,
-  scanner_versions_json TEXT NOT NULL,
   public_summary TEXT,
   coverage_json TEXT NOT NULL,
   supersedes_assessment_id TEXT,
