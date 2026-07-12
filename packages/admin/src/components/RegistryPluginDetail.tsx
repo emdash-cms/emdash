@@ -17,8 +17,9 @@ import { Badge, Button, LinkButton, Select, Tabs, Tooltip } from "@cloudflare/ku
 import type { TabsItem } from "@cloudflare/kumo";
 import { declaredAccessToCapabilities, type DeclaredAccess } from "@emdash-cms/plugin-types";
 import { checkEnvCompatibility } from "@emdash-cms/registry-client/env";
+import { i18n } from "@lingui/core";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { ShieldCheck, ShieldWarning, Warning } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1075,8 +1076,15 @@ function LicenseBadge({ license }: { license: string }) {
 }
 
 function formatHoldback(seconds: number): string {
-	if (seconds <= 0) return "0s";
-	if (seconds < 60 * 60) return `${Math.round(seconds / 60)} min`;
-	if (seconds < 24 * 60 * 60) return `${Math.round(seconds / 60 / 60)} h`;
-	return `${Math.round(seconds / 60 / 60 / 24)} d`;
+	if (seconds <= 0) return i18n._(msg`0 seconds`);
+	if (seconds < 60 * 60) {
+		const minutes = Math.round(seconds / 60);
+		return i18n._(plural(minutes, { one: "# minute", other: "# minutes" }));
+	}
+	if (seconds < 24 * 60 * 60) {
+		const hours = Math.round(seconds / 60 / 60);
+		return i18n._(plural(hours, { one: "# hour", other: "# hours" }));
+	}
+	const days = Math.round(seconds / 60 / 60 / 24);
+	return i18n._(plural(days, { one: "# day", other: "# days" }));
 }
