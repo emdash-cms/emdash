@@ -43,6 +43,29 @@ const DATE_FILTER_COLUMNS: Record<ContentDateField, "created_at" | "updated_at" 
 	};
 
 /**
+ * Built-in sort fields → their physical columns. A closed set that blocks
+ * sorting by arbitrary columns; per-collection fields (#1133) are allowed
+ * separately via `mapOrderField`'s `sortableExtras`.
+ */
+const ORDER_FIELD_COLUMNS: Record<string, string> = {
+	createdAt: "created_at",
+	updatedAt: "updated_at",
+	publishedAt: "published_at",
+	scheduledAt: "scheduled_at",
+	deletedAt: "deleted_at",
+	title: "title",
+	name: "name",
+	slug: "slug",
+	status: "status",
+	locale: "locale",
+};
+
+/** True when `field` maps to a system column and needs no per-collection resolution. */
+export function isSystemOrderField(field: string): boolean {
+	return field in ORDER_FIELD_COLUMNS;
+}
+
+/**
  * System columns that exist in every ec_* table
  */
 const SYSTEM_COLUMNS = new Set([
@@ -501,7 +524,7 @@ export class ContentRepository {
 		// Determine ordering
 		const orderField = options.orderBy?.field || "createdAt";
 		const orderDirection = options.orderBy?.direction || "desc";
-		const dbField = this.mapOrderField(orderField);
+		const dbField = this.mapOrderField(orderField, options.sortableExtras);
 
 		// Validate order direction to prevent injection
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -1600,24 +1623,20 @@ export class ContentRepository {
 	 * Map order field names to database columns.
 	 * Only allows known fields to prevent column enumeration via crafted orderBy values.
 	 */
-	private mapOrderField(field: string): string {
-		const mapping: Record<string, string> = {
-			createdAt: "created_at",
-			updatedAt: "updated_at",
-			publishedAt: "published_at",
-			scheduledAt: "scheduled_at",
-			deletedAt: "deleted_at",
-			title: "title",
-			name: "name",
-			slug: "slug",
-			status: "status",
-			locale: "locale",
-		};
+	private mapOrderField(field: string, sortableExtras: readonly string[] = []): string {
+		const mapped = ORDER_FIELD_COLUMNS[field];
+		if (mapped) return mapped;
 
-		const mapped = mapping[field];
-		if (!mapped) {
-			throw new EmDashValidationError(`Invalid order field: ${field}`);
+		// A collection's configured displayField/dateField (#1133) are allowed as
+		// sort columns. The caller passes the collection's *actual* values (resolved
+		// server-side, never client-supplied), so this stays a closed set per
+		// request and doesn't reopen the column-enumeration hole. The slug is a
+		// validated identifier that maps directly to the column.
+		if (sortableExtras.includes(field)) {
+			validateIdentifier(field, "order field");
+			return field;
 		}
-		return mapped;
+
+		throw new EmDashValidationError(`Invalid order field: ${field}`);
 	}
 }

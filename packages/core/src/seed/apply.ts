@@ -30,12 +30,28 @@ import type {
 	SeedFile,
 	SeedApplyOptions,
 	SeedApplyResult,
+	SeedCollection,
 	SeedTaxonomyTerm,
 	SeedMenuItem,
 	SeedWidget,
 	SeedMediaReference,
 	SeedBylineAvatar,
 } from "./types.js";
+
+/**
+ * Set a collection's `displayField`/`dateField`: a separate write run after the
+ * fields exist, so `updateCollection` can validate them. No-op when neither is set.
+ */
+async function applyDisplayDateFields(
+	registry: SchemaRegistry,
+	collection: SeedCollection,
+): Promise<void> {
+	if (collection.displayField === undefined && collection.dateField === undefined) return;
+	await registry.updateCollection(collection.slug, {
+		displayField: collection.displayField,
+		dateField: collection.dateField,
+	});
+}
 
 const FILE_EXTENSION_PATTERN = /\.([a-z0-9]+)(?:\?|$)/i;
 import { validateSeed } from "./validate.js";
@@ -215,6 +231,9 @@ export async function applySeed(
 							result.fields.created++;
 						}
 					}
+
+					// Second write: display/date fields, now that fields exist.
+					await applyDisplayDateFields(registry, collection);
 					continue;
 				}
 
@@ -254,6 +273,8 @@ export async function applySeed(
 				});
 				result.fields.created++;
 			}
+
+			await applyDisplayDateFields(registry, collection);
 		}
 	}
 

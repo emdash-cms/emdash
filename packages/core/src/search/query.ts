@@ -146,6 +146,7 @@ export async function searchWithDb(
 	// Search each collection and merge results
 	const allResults: SearchResult[] = [];
 	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
+	const displayFields = await getDisplayFieldMap(db, collections);
 
 	for (const collection of collections) {
 		const config = await ftsManager.getSearchConfig(collection);
@@ -164,6 +165,7 @@ export async function searchWithDb(
 			},
 			config.weights,
 			titleColumns.has(collection),
+			displayFields.get(collection),
 		);
 
 		allResults.push(...collectionResults);
@@ -213,6 +215,8 @@ export async function searchCollection(
 	const limit = options.limit ?? 20;
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 
+	const displayField = (await getDisplayFieldMap(db, [collection])).get(collection);
+
 	// Over-fetch the [offset, offset + limit) window plus one row to detect a
 	// further page, then slice. Keeps the FTS SQL (LIMIT-only) unchanged and
 	// the cursor contract identical to the cross-collection path.
@@ -222,6 +226,8 @@ export async function searchCollection(
 		query,
 		{ status: options.status, locale: options.locale, limit: offset + limit + 1 },
 		config.weights,
+		undefined,
+		displayField,
 	);
 
 	const items = fetched.slice(offset, offset + limit);
@@ -241,6 +247,7 @@ async function searchSingleCollection(
 	options: CollectionSearchOptions,
 	weights?: Record<string, number>,
 	hasTitle?: boolean,
+	displayField?: string,
 ): Promise<SearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
@@ -271,8 +278,17 @@ async function searchSingleCollection(
 	// errors with "no such column: c.title" (#1178). Multi-collection callers
 	// precompute this in bulk and pass it in; single-collection callers fall
 	// back to the per-collection check.
-	const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
-	const titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
+	// A configured displayField (#1133) drives the result title so search shows
+	// the same value as the content list. It's a validated existing field, so
+	// the column exists; otherwise fall back to the optional `title` column.
+	let titleExpr;
+	if (displayField) {
+		validateIdentifier(displayField, "display field");
+		titleExpr = sql`c.${sql.ref(displayField)}`;
+	} else {
+		const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
+		titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
+	}
 
 	// Build weight string for bm25 if weights provided
 	// Format: bm25(table, weight1, weight2, ...)
@@ -501,6 +517,28 @@ export async function getSearchStats(db: Kysely<Database>): Promise<SearchStats>
 	}
 
 	return stats;
+}
+
+/**
+ * Map each collection to its configured `displayField` (#1133), so search
+ * results show the same title as the content list. One query for all
+ * collections in the search set; collections without a displayField are omitted.
+ */
+async function getDisplayFieldMap(
+	db: Kysely<Database>,
+	collections: string[],
+): Promise<Map<string, string>> {
+	const map = new Map<string, string>();
+	if (collections.length === 0) return map;
+	const rows = await db
+		.selectFrom("_emdash_collections")
+		.select(["slug", "display_field"])
+		.where("slug", "in", collections)
+		.execute();
+	for (const row of rows) {
+		if (row.display_field) map.set(row.slug, row.display_field);
+	}
+	return map;
 }
 
 /**

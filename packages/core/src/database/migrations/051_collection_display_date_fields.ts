@@ -1,0 +1,32 @@
+import type { Kysely } from "kysely";
+import { sql } from "kysely";
+
+/**
+ * Migration: configurable display and date fields for collections
+ *
+ * Adds `display_field` and `date_field` columns to `_emdash_collections` so a
+ * collection can override which field powers the Title column and which field
+ * powers the Date column in the admin content list. Both are nullable — NULL
+ * preserves the current defaults (title-style display, last-updated date).
+ */
+export async function up(db: Kysely<unknown>): Promise<void> {
+	await sql`
+		ALTER TABLE _emdash_collections
+		ADD COLUMN display_field TEXT
+	`.execute(db);
+	await sql`
+		ALTER TABLE _emdash_collections
+		ADD COLUMN date_field TEXT
+	`.execute(db);
+}
+
+export async function down(db: Kysely<unknown>): Promise<void> {
+	await sql`
+		ALTER TABLE _emdash_collections
+		DROP COLUMN date_field
+	`.execute(db);
+	await sql`
+		ALTER TABLE _emdash_collections
+		DROP COLUMN display_field
+	`.execute(db);
+}
