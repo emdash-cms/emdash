@@ -46,9 +46,19 @@
 // pattern, hence the disable.
 // eslint-disable-next-line @typescript-eslint/no-empty-named-blocks, eslint-plugin-import/no-empty-named-blocks, eslint-plugin-unicorn/require-module-specifiers, import/no-empty-named-blocks, unicorn/require-module-specifiers
 import type {} from "@atcute/atproto";
+import { encode } from "@atcute/cbor";
+import * as CID from "@atcute/cid";
 import { Client, type FetchHandler, type FetchHandlerObject, ok } from "@atcute/client";
 import type { Nsid } from "@atcute/lexicons";
-import type { RegistryRecordCollection, RegistryRecords } from "@emdash-cms/registry-lexicons";
+import { isDid } from "@atcute/lexicons/syntax";
+import { safeParse } from "@atcute/lexicons/validations";
+import {
+	getDelegatedReleasePermission,
+	PackageRelease,
+	type RegistryRecordCollection,
+	type RegistryRecords,
+} from "@emdash-cms/registry-lexicons";
+import valid from "semver/functions/valid.js";
 
 import type { Did } from "../credentials/types.js";
 
@@ -110,6 +120,80 @@ export interface ApplyWritesResult {
 		| { op: "update"; uri: string; cid: string }
 		| { op: "delete" }
 	>;
+}
+
+export interface CreateDelegatedReleaseOptions {
+	/** Authenticated atproto handler carrying the exact create-only grant. */
+	handler: FetchHandler | FetchHandlerObject;
+	/** Publisher DID whose repository receives the release. */
+	did: Did;
+	/** Locally verified package release record. */
+	release: PackageRelease.Main;
+}
+
+const PACKAGE_SLUG_RE = /^[a-z][a-z0-9_-]{0,63}$/;
+
+/**
+ * Publish one immutable package release through the delegated create-only path.
+ *
+ * The API intentionally exposes no collection, rkey, update, delete, overwrite,
+ * profile-write, or server-validation options.
+ */
+export async function createDelegatedRelease(
+	options: CreateDelegatedReleaseOptions,
+): Promise<{ uri: string; cid: string }> {
+	const { did, handler, release } = options;
+	let snapshot: PackageRelease.Main;
+	try {
+		snapshot = structuredClone(release);
+	} catch {
+		throw new TypeError("Invalid delegated release record");
+	}
+	const parsed = safeParse(PackageRelease.mainSchema, snapshot);
+	if (!parsed.ok) throw new TypeError("Invalid delegated release record");
+
+	const { package: packageSlug, version } = parsed.value;
+	if (!PACKAGE_SLUG_RE.test(packageSlug) || version.includes("+") || valid(version) !== version) {
+		throw new TypeError("Invalid delegated release identity");
+	}
+	if (!isDid(did)) throw new TypeError("Invalid delegated release publisher DID");
+
+	const { collection } = getDelegatedReleasePermission();
+	const rkey = `${packageSlug}:${version}`;
+	const expectedUri = `at://${did}/${collection}/${rkey}`;
+	const expectedCid = await CID.create(CID.CODEC_DCBOR, encode(parsed.value));
+	const client = new Client({ handler });
+	const data = await ok(
+		client.post("com.atproto.repo.createRecord", {
+			input: {
+				repo: did,
+				collection,
+				rkey,
+				record: parsed.value,
+				// Experimental lexicons are not installed on every supported PDS.
+				validate: false,
+			},
+		}),
+	);
+
+	if (data.uri !== expectedUri) {
+		throw new Error("The PDS returned an invalid delegated release identity");
+	}
+
+	let claimedCid: CID.Cid;
+	try {
+		claimedCid = CID.fromString(data.cid);
+		if (claimedCid.codec !== CID.CODEC_DCBOR || CID.toString(claimedCid) !== data.cid) {
+			throw new Error();
+		}
+	} catch {
+		throw new Error("The PDS returned an invalid delegated release CID");
+	}
+	if (!CID.equals(claimedCid, expectedCid)) {
+		throw new Error("The PDS returned a mismatched delegated release CID");
+	}
+
+	return { uri: data.uri, cid: data.cid };
 }
 
 /**
