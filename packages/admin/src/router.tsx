@@ -52,6 +52,7 @@ import { Settings } from "./components/Settings";
 import { AllowedDomainsSettings } from "./components/settings/AllowedDomainsSettings";
 import { ApiTokenSettings } from "./components/settings/ApiTokenSettings";
 import { BackupSettings } from "./components/settings/BackupSettings";
+import { NavigationSettings } from "./components/settings/NavigationSettings";
 import { EmailSettings } from "./components/settings/EmailSettings";
 import { GeneralSettings } from "./components/settings/GeneralSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
@@ -1561,6 +1562,13 @@ const backupSettingsRoute = createRoute({
 	component: BackupSettings,
 });
 
+// Navigation (sidebar organizer) settings route
+const navigationSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/navigation",
+	component: NavigationSettings,
+});
+
 // General settings route
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -2090,6 +2098,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	apiTokenSettingsRoute,
 	emailSettingsRoute,
 	backupSettingsRoute,
+	navigationSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);

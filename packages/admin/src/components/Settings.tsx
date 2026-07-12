@@ -10,6 +10,7 @@ import {
 	Key,
 	Envelope,
 	DownloadSimple,
+	SidebarSimple,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -81,6 +82,12 @@ export function Settings() {
 					icon={<MagnifyingGlass className="h-5 w-5" />}
 					title={t`SEO`}
 					description={t`Search engine optimization and verification`}
+				/>
+				<SettingsLink
+					to="/settings/navigation"
+					icon={<SidebarSimple className="h-5 w-5" />}
+					title={t`Navigation`}
+					description={t`Organize the admin sidebar: groups, order, and hidden items`}
 				/>
 			</div>
 

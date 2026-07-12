@@ -301,6 +301,62 @@ describe("buildAdminNavModel config application", () => {
 		const model = buildAdminNavModel(manifest, { userRole: ROLE_ADMIN });
 		expect(groupIds(model)).not.toContain("empty_group");
 	});
+
+	it("keeps empty groups for the organizer when includeEmptyGroups is set", () => {
+		const manifest: AdminNavManifestInput = {
+			...baseManifest(),
+			adminNavigation: {
+				version: 1,
+				groups: [{ id: "empty_group", label: "Empty", order: 150 }],
+				items: [],
+			},
+		};
+		const editor = buildAdminNavModel(manifest, {
+			userRole: ROLE_EDITOR,
+			includeEmptyGroups: true,
+		});
+		// The admin group is empty for editors but still emitted; the
+		// dashboard block never appears empty.
+		expect(groupIds(editor)).toEqual([
+			"dashboard",
+			"content",
+			"empty_group",
+			"manage",
+			"admin",
+			"plugins",
+		]);
+		expect(editor.groups.find((group) => group.id === "admin")?.items).toEqual([]);
+	});
+
+	it("keeps default labels for label-less config groups (reorder-only override)", () => {
+		const manifest: AdminNavManifestInput = {
+			...baseManifest(),
+			adminNavigation: {
+				version: 1,
+				groups: [
+					{ id: "manage", order: 100 },
+					{ id: "content", order: 200 },
+					{ id: "mystery", order: 150 },
+				],
+				items: [{ id: "collection:posts", groupId: "mystery" }],
+			},
+		};
+		const model = buildAdminNavModel(manifest, { userRole: ROLE_ADMIN });
+		expect(groupIds(model)).toEqual(["dashboard", "manage", "mystery", "content", "admin", "plugins"]);
+		const manage = model.groups.find((group) => group.id === "manage");
+		// Still a MessageDescriptor (translatable), not frozen site data.
+		expect(typeof manage?.label).toBe("object");
+		// A label-less custom group falls back to its id.
+		expect(model.groups.find((group) => group.id === "mystery")?.label).toBe("mystery");
+	});
+
+	it("exposes each item's default group for organizer round-trips", () => {
+		const model = buildAdminNavModel(baseManifest(), { userRole: ROLE_ADMIN });
+		const byId = new Map(flattenAdminNavModel(model).map((item) => [item.id, item]));
+		expect(byId.get("collection:posts")?.defaultGroupId).toBe("content");
+		expect(byId.get("taxonomy:tag")?.defaultGroupId).toBe("manage");
+		expect(byId.get("core:settings")?.defaultGroupId).toBe("admin");
+	});
 });
 
 describe("flattenAdminNavModel", () => {

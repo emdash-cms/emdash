@@ -196,7 +196,11 @@ export function resolveNavIcon(name?: string): React.ElementType {
 
 export interface AdminNavigationGroupConfig {
 	id: string;
-	label: string;
+	/**
+	 * Display label (site data, rendered as-is). Optional so a default group
+	 * can be reordered without freezing its translated label.
+	 */
+	label?: string;
 	order: number;
 	collapsedByDefault?: boolean;
 }
@@ -233,6 +237,8 @@ export interface AdminNavItem {
 	hideable: boolean;
 	/** Search keywords for the command palette. */
 	keywords: string[];
+	/** The group this item belongs to when no config places it elsewhere. */
+	defaultGroupId: string;
 }
 
 export interface AdminNavGroup {
@@ -277,6 +283,12 @@ export interface BuildAdminNavModelOptions {
 	 * their page component resolves (same rule the sidebar always applied).
 	 */
 	pluginAdmins?: PluginAdmins;
+	/**
+	 * Keep groups with no items in the output (the sidebar drops them; the
+	 * navigation organizer needs every group as a move target). The
+	 * dashboard block is never emitted empty.
+	 */
+	includeEmptyGroups?: boolean;
 }
 
 // ── Defaults ────────────────────────────────────────────────────
@@ -311,7 +323,6 @@ export const NON_HIDEABLE_NAV_ITEM_IDS: ReadonlySet<string> = new Set([
 ]);
 
 interface PlacedNavItem extends AdminNavItem {
-	defaultGroupId: string;
 	defaultIndex: number;
 }
 
@@ -641,9 +652,13 @@ export function buildAdminNavModel(
 		});
 	}
 	for (const group of config?.groups ?? []) {
+		// A config group without a label keeps the default group's translated
+		// label (reorder-only override); a label-less custom group falls back
+		// to its id.
+		const existing = groupDefs.get(group.id);
 		groupDefs.set(group.id, {
 			id: group.id,
-			label: group.label,
+			label: group.label ?? existing?.label ?? group.id,
 			order: group.order,
 			collapsedByDefault: group.collapsedByDefault ?? false,
 		});
@@ -661,7 +676,7 @@ export function buildAdminNavModel(
 	>();
 
 	for (const placed of visibleItems) {
-		const { defaultGroupId, defaultIndex, ...item } = placed;
+		const { defaultIndex, ...item } = placed;
 		const itemConfig = itemConfigById.get(item.id);
 
 		if (itemConfig?.hidden && item.hideable) {
@@ -674,7 +689,7 @@ export function buildAdminNavModel(
 		const groupId =
 			itemConfig?.groupId && groupDefs.has(itemConfig.groupId)
 				? itemConfig.groupId
-				: defaultGroupId;
+				: item.defaultGroupId;
 		const sortKey = itemConfig?.order ?? UNCONFIGURED_ITEM_ORDER_BASE + defaultIndex;
 
 		let bucket = placedByGroup.get(groupId);
@@ -690,8 +705,12 @@ export function buildAdminNavModel(
 		(a, b) => a.order - b.order || compareStrings(a.id, b.id),
 	);
 	for (const def of sortedDefs) {
-		const bucket = placedByGroup.get(def.id);
-		if (!bucket || bucket.length === 0) continue;
+		const bucket = placedByGroup.get(def.id) ?? [];
+		if (bucket.length === 0) {
+			// Empty groups don't render in the sidebar, but the organizer
+			// needs them all as move targets (dashboard stays untouchable).
+			if (!opts.includeEmptyGroups || def.id === DASHBOARD_GROUP_ID) continue;
+		}
 		bucket.sort(
 			(a, b) =>
 				a.sortKey - b.sortKey ||

@@ -107,7 +107,12 @@ export const adminNavigationGroupSchema = z
 		id: z
 			.string()
 			.regex(GROUP_ID_PATTERN, "Group id must be lowercase alphanumeric with dashes/underscores"),
-		label: z.string().trim().min(1).max(80),
+		/**
+		 * Display label (site data, rendered as-is). Optional so a default
+		 * group (content/manage/admin/plugins) can be reordered without
+		 * freezing its translated label — omitted label keeps the default.
+		 */
+		label: z.string().trim().min(1).max(80).optional(),
 		order: z.number().int().min(0),
 		collapsedByDefault: z.boolean().optional(),
 	})

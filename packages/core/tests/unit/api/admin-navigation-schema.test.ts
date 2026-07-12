@@ -165,6 +165,22 @@ describe("normalizeAdminNavigationConfig", () => {
 		expect(normalized?.groups[0]?.label).toBe("Editorial");
 	});
 
+	it("accepts groups without a label (reordered defaults keep translated labels)", () => {
+		const config = {
+			version: 1,
+			groups: [
+				{ id: "manage", order: 0 },
+				{ id: "content", order: 1 },
+			],
+			items: [],
+		};
+		const normalized = normalizeAdminNavigationConfig(config);
+		expect(normalized?.groups).toEqual([
+			{ id: "manage", order: 0 },
+			{ id: "content", order: 1 },
+		]);
+	});
+
 	it("is idempotent and order-insensitive (stable normal form)", () => {
 		const once = normalizeAdminNavigationConfig(validConfig());
 		expect(once).toBeDefined();
