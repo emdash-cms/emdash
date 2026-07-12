@@ -334,7 +334,7 @@ function ContentListPage() {
 
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
-	
+
 	// Controlled sort state — passed to the list, and included in the query
 	// key so changing direction invalidates the current cursor chain.
 	// Default sorts by the collection's dateField (#1133), else last-updated.
