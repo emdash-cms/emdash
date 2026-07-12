@@ -253,4 +253,80 @@ describe("CapabilityConsentDialog", () => {
 		const dialog = screen.getByRole("dialog");
 		await expect.element(dialog).toBeInTheDocument();
 	});
+
+	// -----------------------------------------------------------------------
+	// Moderation warnings
+	// -----------------------------------------------------------------------
+
+	const suspiciousCodeWarning = {
+		value: "suspicious-code",
+		name: "Suspicious code",
+		description: "Concerning behavior lacks enough evidence for a blocking security label.",
+		issuerDid: "did:plc:labeler",
+	};
+
+	it("shows the dialog with only the warnings section when there are no capabilities", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Test"
+				capabilities={[]}
+				moderationWarnings={[suspiciousCodeWarning]}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+
+		await expect.element(screen.getByRole("dialog")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Moderation warnings", { exact: true }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Suspicious code")).toBeInTheDocument();
+		await expect.element(screen.getByText("Issued by did:plc:labeler")).toBeInTheDocument();
+	});
+
+	it("shows both the warnings section and the capabilities list together", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Test"
+				capabilities={["read:content"]}
+				moderationWarnings={[suspiciousCodeWarning]}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByText("Moderation warnings", { exact: true }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Suspicious code")).toBeInTheDocument();
+		await expect.element(screen.getByText("Read your content")).toBeInTheDocument();
+	});
+
+	it("proceeds via onConfirm with warnings present", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Test"
+				capabilities={["read:content"]}
+				moderationWarnings={[suspiciousCodeWarning]}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+
+		await screen.getByText("Accept & Install").click();
+		expect(onConfirm).toHaveBeenCalledOnce();
+	});
+
+	it("renders no warnings section when moderationWarnings is empty", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Test"
+				capabilities={["read:content"]}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+
+		expect(screen.getByText("Moderation warnings", { exact: true }).query()).toBeNull();
+	});
 });

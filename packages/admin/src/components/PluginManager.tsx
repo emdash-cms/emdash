@@ -6,7 +6,7 @@
  * update/uninstall for marketplace-installed plugins.
  */
 
-import { Badge, Button, Checkbox, Switch, Toast } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, Switch, Toast, Tooltip } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -41,6 +41,7 @@ import {
 } from "../lib/api/marketplace.js";
 import {
 	RegistryUpdateEscalationError,
+	describeRegistryModerationError,
 	uninstallRegistryPlugin,
 	updateRegistryPlugin,
 	type RegistryUpdateOpts,
@@ -242,6 +243,13 @@ function PluginCard({
 	const isMarketplace = plugin.source === "marketplace";
 	const isRegistry = plugin.source === "registry";
 	const hasUpdate = !!updateInfo && updateInfo.installed !== updateInfo.latest;
+	// Never key off `updateInfo.moderation.eligibility` -- with no accepted
+	// labeler having passed a release, `eligibility` reads "blocked" even for
+	// a clean plugin. See the field's origin JSDoc on `RegistryUpdateCheck`
+	// in packages/core's registry handler.
+	const moderationBlockingLabels = updateInfo?.moderation?.blockingLabels ?? [];
+	const moderationWarningLabels = updateInfo?.moderation?.warningLabels ?? [];
+	const isUpdateModerationBlocked = moderationBlockingLabels.length > 0;
 
 	const updateMutation = useMutation({
 		mutationFn: (opts: RegistryUpdateOpts) =>
@@ -353,10 +361,16 @@ function PluginCard({
 							<span className="text-xs text-kumo-subtle">v{plugin.version}</span>
 							{!plugin.enabled && <Badge variant="secondary">{t`Disabled`}</Badge>}
 							{isMarketplace && <Badge variant="secondary">{t`Marketplace`}</Badge>}
-							{hasUpdate && (
+							{hasUpdate && isUpdateModerationBlocked && (
+								<Badge variant="error">{t`Update blocked`}</Badge>
+							)}
+							{hasUpdate && !isUpdateModerationBlocked && (
 								<Badge variant="outline" className="border-kumo-brand text-kumo-brand">
 									{t`v${updateInfo.latest} available`}
 								</Badge>
+							)}
+							{hasUpdate && !isUpdateModerationBlocked && moderationWarningLabels.length > 0 && (
+								<Badge variant="warning">{t`Update has warnings`}</Badge>
 							)}
 						</div>
 
@@ -407,7 +421,19 @@ function PluginCard({
 
 					{/* Actions */}
 					<div className="flex items-center gap-2">
-						{hasUpdate && (
+						{hasUpdate && isUpdateModerationBlocked && (
+							<Tooltip
+								content={t`A moderation label blocks this update. Review the plugin's registry listing for details.`}
+								render={
+									<span>
+										<Button variant="outline" size="sm" disabled>
+											{t`Update to v${updateInfo.latest}`}
+										</Button>
+									</span>
+								}
+							/>
+						)}
+						{hasUpdate && !isUpdateModerationBlocked && (
 							<Button
 								variant="outline"
 								size="sm"
@@ -564,7 +590,8 @@ function PluginCard({
 					error={
 						updateMutation.error instanceof RegistryUpdateEscalationError
 							? null
-							: getMutationError(updateMutation.error)
+							: (describeRegistryModerationError(updateMutation.error) ??
+								getMutationError(updateMutation.error))
 					}
 					onConfirm={handleUpdateConfirm}
 					onCancel={() => {

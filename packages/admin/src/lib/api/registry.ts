@@ -17,6 +17,11 @@
  * `@atcute/client` into the admin bundle when the registry path is
  * actually exercised. Sites with no `experimental.registry` config never
  * pay the cost (verified at ~2 KB gzip when it does load).
+ *
+ * Moderation and env-compat helpers import from `@emdash-cms/registry-client`'s
+ * `/moderation` and `/env` subpaths, not its package root -- the root entry
+ * re-exports the CLI's publishing/credentials surface too, which pulls in
+ * Node-only modules (`node:fs/promises`) that don't exist in the browser.
  */
 
 import type { Did, Handle } from "@atcute/lexicons";
@@ -28,7 +33,15 @@ import type {
 } from "@emdash-cms/registry-client/discovery";
 import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import {
+	evaluateReleaseViews,
+	isModerationBlocking,
+	resolveAcceptedPolicy,
+	type AcceptedLabelerPolicy,
+	type ReleaseModeration,
+} from "@emdash-cms/registry-client/moderation";
 import { i18n } from "@lingui/core";
+import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
 import {
@@ -41,6 +54,8 @@ import {
 
 export type { Did, Handle };
 export type { HostEnv };
+export { evaluateReleaseViews, isModerationBlocking, resolveAcceptedPolicy };
+export type { AcceptedLabelerPolicy, ReleaseModeration };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,6 +92,167 @@ export interface RegistrySearchOpts {
 	limit?: number;
 }
 
+// ---------------------------------------------------------------------------
+// Moderation
+// ---------------------------------------------------------------------------
+
+/**
+ * Evaluates a package's package/publisher-scope moderation state without a
+ * specific release in view. Browse cards render every package from one
+ * `searchPackages` response, before any release has been fetched, so there is
+ * no `ValidatedReleaseView` to evaluate against yet.
+ *
+ * Mirrors `@emdash-cms/plugin-cli`'s `evaluatePackageModeration`: the stub
+ * release's `uri`/`cid` can never match a real label's `uri`/`cid`, so
+ * release-scope automated blocks and warnings are excluded by construction,
+ * not by omission.
+ */
+export function evaluatePackageModeration(
+	packageView: RegistryPackageView,
+	accepted: AcceptedLabelerPolicy[],
+): ReleaseModeration {
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- stub is never a real record, only compared against label uris that can never equal these placeholders
+	const releaseStub = {
+		uri: "",
+		cid: "",
+		did: packageView.did,
+		package: packageView.slug,
+		version: "",
+		indexedAt: packageView.indexedAt,
+		release: null,
+	} as unknown as RegistryReleaseView;
+
+	return evaluateReleaseViews({
+		packageView,
+		releaseView: releaseStub,
+		publisherDid: packageView.did,
+		accepted,
+	});
+}
+
+/**
+ * Hardcoded display text for the moderation label vocabulary, following the
+ * `CAPABILITY_LABELS` precedent in `marketplace.ts`. Sourced from
+ * `apps/labeler/fixtures/moderation-policy.json`'s label list and
+ * `@emdash-cms/registry-moderation`'s `ModerationLabelValue` union.
+ *
+ * Unknown values (a labeler-issued value this map hasn't been updated for
+ * yet) are data, not an error -- `describeModerationLabel` falls back to the
+ * raw value rather than throwing or hiding the label.
+ */
+export const MODERATION_LABEL_TEXT: Record<
+	string,
+	{ name: MessageDescriptor; description: MessageDescriptor }
+> = {
+	"assessment-passed": {
+		name: msg`Assessment passed`,
+		description: msg`This release passed its required moderation assessment.`,
+	},
+	"assessment-overridden": {
+		name: msg`Assessment overridden`,
+		description: msg`A reviewer manually approved this release, superseding the automated outcome.`,
+	},
+	"assessment-pending": {
+		name: msg`Assessment pending`,
+		description: msg`This release's moderation assessment hasn't completed yet.`,
+	},
+	"assessment-error": {
+		name: msg`Assessment error`,
+		description: msg`This release's moderation assessment failed to complete.`,
+	},
+	malware: {
+		name: msg`Malware`,
+		description: msg`The release contains code intentionally designed to cause harm.`,
+	},
+	"data-exfiltration": {
+		name: msg`Data exfiltration`,
+		description: msg`The release sends protected data somewhere it shouldn't.`,
+	},
+	"credential-harvesting": {
+		name: msg`Credential harvesting`,
+		description: msg`The release captures or transmits credentials deceptively.`,
+	},
+	"supply-chain-compromise": {
+		name: msg`Supply-chain compromise`,
+		description: msg`Evidence suggests a dependency or build artifact was tampered with.`,
+	},
+	"critical-vulnerability": {
+		name: msg`Critical vulnerability`,
+		description: msg`A critical security vulnerability was found in this release.`,
+	},
+	"artifact-integrity-failure": {
+		name: msg`Artifact integrity failure`,
+		description: msg`The downloaded bundle doesn't match the checksum in the signed release.`,
+	},
+	"invalid-bundle": {
+		name: msg`Invalid bundle`,
+		description: msg`The installable bundle is malformed, unsafe, or incomplete.`,
+	},
+	"undeclared-access": {
+		name: msg`Undeclared access`,
+		description: msg`The bundle behaves outside of what its declared permissions cover.`,
+	},
+	impersonation: {
+		name: msg`Impersonation`,
+		description: msg`This release impersonates another identity, project, or product.`,
+	},
+	"suspicious-code": {
+		name: msg`Suspicious code`,
+		description: msg`The code shows concerning patterns, though evidence is inconclusive.`,
+	},
+	"obfuscated-code": {
+		name: msg`Obfuscated code`,
+		description: msg`Material parts of the code are intentionally difficult to inspect.`,
+	},
+	"privacy-risk": {
+		name: msg`Privacy risk`,
+		description: msg`The release creates a privacy concern that isn't blocking.`,
+	},
+	"misleading-metadata": {
+		name: msg`Misleading metadata`,
+		description: msg`The listing's metadata or screenshots don't match its actual behavior.`,
+	},
+	"low-quality": {
+		name: msg`Low quality`,
+		description: msg`The release doesn't provide meaningful functionality.`,
+	},
+	"broken-release": {
+		name: msg`Broken release`,
+		description: msg`The bundle is structurally valid but doesn't work as described.`,
+	},
+	"package-disputed": {
+		name: msg`Package disputed`,
+		description: msg`This package has an unresolved ownership or policy dispute.`,
+	},
+	"security-yanked": {
+		name: msg`Security yanked`,
+		description: msg`A reviewer withdrew this release for security reasons.`,
+	},
+	"publisher-compromised": {
+		name: msg`Publisher compromised`,
+		description: msg`This publisher's identity is believed to be compromised.`,
+	},
+	"!takedown": {
+		name: msg`Taken down`,
+		description: msg`An administrator issued an emergency takedown action.`,
+	},
+};
+
+/**
+ * Resolves a moderation label value to its localized display text. Falls
+ * back to the raw value (with no description) for a value this map doesn't
+ * cover -- an unrecognised label is data the UI still must render, not an
+ * error to hide or throw on.
+ */
+export function describeModerationLabel(value: string): {
+	name: string;
+	description: string | null;
+} {
+	const entry = MODERATION_LABEL_TEXT[value];
+	if (!entry) return { name: value, description: null };
+	return { name: i18n._(entry.name), description: i18n._(entry.description) };
+}
+
 export interface RegistryInstallRequest {
 	did: string;
 	slug: string;
@@ -96,81 +272,54 @@ export interface RegistryInstallResult {
 // Discovery client (lazy)
 // ---------------------------------------------------------------------------
 
-interface WrappedDiscoveryClient {
-	searchPackages: (opts: RegistrySearchOpts) => Promise<RegistrySearchResult>;
-	resolvePackage: (handle: string, slug: string) => Promise<RegistryPackageView>;
-	getPackage: (did: string, slug: string) => Promise<RegistryPackageView>;
-	getLatestRelease: (did: string, slug: string) => Promise<RegistryReleaseView>;
-	listReleases: (
-		did: string,
-		slug: string,
-		opts?: { cursor?: string; limit?: number },
-	) => Promise<ValidatedListReleases>;
+/**
+ * A discovery result paired with the `atproto-content-labelers` header the
+ * aggregator sent back for THIS specific response. Moderation evaluation
+ * must use this header (via `resolveAcceptedPolicy`), not just the site's
+ * statically configured `acceptLabelers` -- the aggregator reports what it
+ * actually applied, which can differ per-request.
+ */
+type WithContentLabelers<T> = T & { contentLabelers?: string };
+
+let cachedDiscoveryModule: typeof import("@emdash-cms/registry-client/discovery") | null = null;
+
+async function loadDiscoveryModule(): Promise<
+	typeof import("@emdash-cms/registry-client/discovery")
+> {
+	cachedDiscoveryModule ??= await import("@emdash-cms/registry-client/discovery");
+	return cachedDiscoveryModule;
 }
 
-let cachedDiscovery: {
-	config: RegistryClientConfig;
-	client: WrappedDiscoveryClient;
-} | null = null;
-
-async function getDiscoveryClient(config: RegistryClientConfig): Promise<WrappedDiscoveryClient> {
-	if (
-		cachedDiscovery &&
-		cachedDiscovery.config.aggregatorUrl === config.aggregatorUrl &&
-		cachedDiscovery.config.acceptLabelers === config.acceptLabelers
-	) {
-		return cachedDiscovery.client;
-	}
-
-	const mod = await import("@emdash-cms/registry-client/discovery");
-	const DiscoveryClient = mod.DiscoveryClient;
+/**
+ * Runs one discovery call against a fresh `DiscoveryClient` instance and
+ * pairs its result with the response's `atproto-content-labelers` header.
+ *
+ * A fresh client is constructed per call (cheap -- it only binds a fetch
+ * wrapper) rather than reused from a shared instance: `onResponseMeta` is
+ * fixed at construction, so sharing one client across concurrent calls would
+ * require correlating which invocation a given response belongs to. A
+ * per-call client sidesteps that entirely -- the `contentLabelers` closure
+ * variable can only ever be written by the one request this call made.
+ */
+async function callDiscovery<T>(
+	config: RegistryClientConfig,
+	fn: (
+		client: InstanceType<
+			(typeof import("@emdash-cms/registry-client/discovery"))["DiscoveryClient"]
+		>,
+	) => Promise<T>,
+): Promise<WithContentLabelers<T>> {
+	const { DiscoveryClient } = await loadDiscoveryModule();
+	let contentLabelers: string | undefined;
 	const discovery = new DiscoveryClient({
 		aggregatorUrl: config.aggregatorUrl,
 		acceptLabelers: config.acceptLabelers,
+		onResponseMeta: (meta) => {
+			contentLabelers = meta.contentLabelers;
+		},
 	});
-
-	const wrapped: WrappedDiscoveryClient = {
-		async searchPackages(opts: RegistrySearchOpts) {
-			return discovery.searchPackages({
-				q: opts.q,
-				cursor: opts.cursor,
-				limit: opts.limit,
-			});
-		},
-		async resolvePackage(handle: string, slug: string) {
-			return discovery.resolvePackage({
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did/handle shape validated by aggregator
-				handle: handle as Handle,
-				slug,
-			});
-		},
-		async getPackage(did: string, slug: string) {
-			return discovery.getPackage({
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
-				did: did as Did,
-				slug,
-			});
-		},
-		async getLatestRelease(did: string, slug: string) {
-			return discovery.getLatestRelease({
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
-				did: did as Did,
-				package: slug,
-			});
-		},
-		async listReleases(did: string, slug: string, opts?: { cursor?: string; limit?: number }) {
-			return discovery.listReleases({
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
-				did: did as Did,
-				package: slug,
-				cursor: opts?.cursor,
-				limit: opts?.limit,
-			});
-		},
-	};
-
-	cachedDiscovery = { config, client: wrapped };
-	return wrapped;
+	const data = await fn(discovery);
+	return { ...data, contentLabelers };
 }
 
 // ---------------------------------------------------------------------------
@@ -360,36 +509,52 @@ export function sbomDownloadHref(value: unknown): string | null {
 export async function searchRegistryPackages(
 	config: RegistryClientConfig,
 	opts: RegistrySearchOpts,
-): Promise<RegistrySearchResult> {
-	const client = await getDiscoveryClient(config);
-	return client.searchPackages(opts);
+): Promise<WithContentLabelers<RegistrySearchResult>> {
+	return callDiscovery(config, (discovery) =>
+		discovery.searchPackages({ q: opts.q, cursor: opts.cursor, limit: opts.limit }),
+	);
 }
 
 export async function resolveRegistryPackage(
 	config: RegistryClientConfig,
 	handle: string,
 	slug: string,
-): Promise<RegistryPackageView> {
-	const client = await getDiscoveryClient(config);
-	return client.resolvePackage(handle, slug);
+): Promise<WithContentLabelers<RegistryPackageView>> {
+	return callDiscovery(config, (discovery) =>
+		discovery.resolvePackage({
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did/handle shape validated by aggregator
+			handle: handle as Handle,
+			slug,
+		}),
+	);
 }
 
 export async function getRegistryPackage(
 	config: RegistryClientConfig,
 	did: string,
 	slug: string,
-): Promise<RegistryPackageView> {
-	const client = await getDiscoveryClient(config);
-	return client.getPackage(did, slug);
+): Promise<WithContentLabelers<RegistryPackageView>> {
+	return callDiscovery(config, (discovery) =>
+		discovery.getPackage({
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
+			did: did as Did,
+			slug,
+		}),
+	);
 }
 
 export async function getLatestRegistryRelease(
 	config: RegistryClientConfig,
 	did: string,
 	slug: string,
-): Promise<RegistryReleaseView> {
-	const client = await getDiscoveryClient(config);
-	return client.getLatestRelease(did, slug);
+): Promise<WithContentLabelers<RegistryReleaseView>> {
+	return callDiscovery(config, (discovery) =>
+		discovery.getLatestRelease({
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
+			did: did as Did,
+			package: slug,
+		}),
+	);
 }
 
 export async function listRegistryReleases(
@@ -397,9 +562,16 @@ export async function listRegistryReleases(
 	did: string,
 	slug: string,
 	opts?: { cursor?: string; limit?: number },
-): Promise<ValidatedListReleases> {
-	const client = await getDiscoveryClient(config);
-	return client.listReleases(did, slug, opts);
+): Promise<WithContentLabelers<ValidatedListReleases>> {
+	return callDiscovery(config, (discovery) =>
+		discovery.listReleases({
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
+			did: did as Did,
+			package: slug,
+			cursor: opts?.cursor,
+			limit: opts?.limit,
+		}),
+	);
 }
 
 /**
@@ -672,14 +844,82 @@ export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {
 const INSTALL_ENDPOINT = `${API_BASE}/admin/plugins/registry/install`;
 
 /**
+ * Server-side moderation block raised by the install or update endpoint when
+ * the target release is blocked (`RELEASE_BLOCKED`) or has been withdrawn
+ * (`RELEASE_YANKED`). Carries the reason codes and blocking label values so
+ * the caller can render a localized headline and label list instead of the
+ * raw server message.
+ */
+export class RegistryModerationBlockError extends Error {
+	readonly code: "RELEASE_BLOCKED" | "RELEASE_YANKED";
+	readonly reasonCodes: string[];
+	readonly blockingLabels: string[];
+	constructor(
+		code: "RELEASE_BLOCKED" | "RELEASE_YANKED",
+		message: string,
+		details: { reasonCodes: string[]; blockingLabels: string[] },
+	) {
+		super(message);
+		this.name = "RegistryModerationBlockError";
+		this.code = code;
+		this.reasonCodes = details.reasonCodes;
+		this.blockingLabels = details.blockingLabels;
+	}
+}
+
+function parseModerationBlock(body: unknown): RegistryModerationBlockError | null {
+	if (!body || typeof body !== "object" || !("error" in body)) return null;
+	const error = body.error;
+	if (!error || typeof error !== "object" || !("code" in error)) return null;
+	const code = error.code;
+	if (code !== "RELEASE_BLOCKED" && code !== "RELEASE_YANKED") return null;
+	const details =
+		"details" in error && error.details && typeof error.details === "object" ? error.details : {};
+	const reasonCodes = normaliseStringArray(
+		"reasonCodes" in details ? details.reasonCodes : undefined,
+	);
+	const blockingLabels = normaliseStringArray(
+		"blockingLabels" in details ? details.blockingLabels : undefined,
+	);
+	const message =
+		"message" in error && typeof error.message === "string"
+			? error.message
+			: i18n._(msg`This release is blocked`);
+	return new RegistryModerationBlockError(code, message, { reasonCodes, blockingLabels });
+}
+
+function normaliseStringArray(value: unknown): string[] {
+	return Array.isArray(value) ? value.filter((s): s is string => typeof s === "string") : [];
+}
+
+/**
+ * Resolves a mutation error into a localized, multi-line moderation message
+ * when it's a `RegistryModerationBlockError`; `null` otherwise, so callers
+ * fall back to their generic error text (`getMutationError`) for every other
+ * error shape, unknown codes included.
+ */
+export function describeRegistryModerationError(error: unknown): string | null {
+	if (!(error instanceof RegistryModerationBlockError)) return null;
+	const headline =
+		error.code === "RELEASE_YANKED"
+			? i18n._(msg`This release was withdrawn and can't be installed.`)
+			: i18n._(msg`This release is blocked and can't be installed.`);
+	const labelNames = error.blockingLabels.map((value) => describeModerationLabel(value).name);
+	return labelNames.length > 0 ? `${headline}\n${labelNames.join(", ")}` : headline;
+}
+
+/**
  * Install a plugin from the registry.
  *
  * Posts to the EmDash server, which re-resolves the same `(handle,
  * slug)` against the aggregator, re-verifies the bundle's checksum
  * against the signed release record, and writes the install. Surfaces
- * structured error codes (`RELEASE_YANKED`, `CHECKSUM_MISMATCH`,
- * `DECLARED_ACCESS_DRIFT`, etc.) that callers map to localized
- * messages.
+ * structured error codes (`RELEASE_YANKED`, `RELEASE_BLOCKED`,
+ * `CHECKSUM_MISMATCH`, `DECLARED_ACCESS_DRIFT`, etc.); `RELEASE_BLOCKED` /
+ * `RELEASE_YANKED` responses parse into `RegistryModerationBlockError` so
+ * callers can render the localized headline via
+ * `describeRegistryModerationError`. Unknown codes keep the raw server
+ * message via the generic fallback.
  */
 export async function installRegistryPlugin(
 	body: RegistryInstallRequest,
@@ -689,7 +929,15 @@ export async function installRegistryPlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body),
 	});
-	return parseApiResponse<RegistryInstallResult>(response, i18n._(msg`Failed to install plugin`));
+	if (response.ok) return parseApiResponse<RegistryInstallResult>(response);
+
+	const body_: unknown = await response
+		.clone()
+		.json()
+		.catch(() => undefined);
+	const moderationBlock = parseModerationBlock(body_);
+	if (moderationBlock) throw moderationBlock;
+	return throwResponseError(response, i18n._(msg`Failed to install plugin`));
 }
 
 // ---------------------------------------------------------------------------
@@ -760,6 +1008,8 @@ export async function updateRegistryPlugin(
 		.catch(() => undefined);
 	const escalation = parseEscalation(body);
 	if (escalation) throw escalation;
+	const moderationBlock = parseModerationBlock(body);
+	if (moderationBlock) throw moderationBlock;
 	await throwResponseError(response, i18n._(msg`Failed to update plugin`));
 }
 

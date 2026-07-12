@@ -13,13 +13,17 @@
 
 import { Badge, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, PuzzlePiece, ShieldCheck } from "@phosphor-icons/react";
+import { MagnifyingGlass, PuzzlePiece, ShieldCheck, Warning } from "@phosphor-icons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
+	evaluatePackageModeration,
+	isModerationBlocking,
+	resolveAcceptedPolicy,
 	searchRegistryPackages,
+	type AcceptedLabelerPolicy,
 	type RegistryClientConfig,
 	type RegistryPackageView,
 } from "../lib/api/registry.js";
@@ -50,7 +54,7 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 
 	const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
 		useInfiniteQuery({
-			queryKey: ["registry", "search", config.aggregatorUrl, debouncedQuery],
+			queryKey: ["registry", "search", config.aggregatorUrl, config.acceptLabelers, debouncedQuery],
 			queryFn: ({ pageParam }) =>
 				searchRegistryPackages(config, {
 					q: debouncedQuery || undefined,
@@ -61,7 +65,18 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 			getNextPageParam: (lastPage) => lastPage.cursor,
 		});
 
-	const packages = data?.pages.flatMap((p) => p.packages);
+	// Each page carries the `atproto-content-labelers` header the aggregator
+	// applied to THAT response, so every package in a page is evaluated
+	// against the accepted policy that actually produced it.
+	const packages = data?.pages.flatMap((page) =>
+		page.packages.map((pkg) => ({
+			pkg,
+			accepted: resolveAcceptedPolicy({
+				configuredAcceptLabelers: config.acceptLabelers,
+				contentLabelersHeader: page.contentLabelers,
+			}),
+		})),
+	);
 
 	return (
 		<div className="space-y-6">
@@ -121,10 +136,11 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 			{/* Grid */}
 			{packages && packages.length > 0 ? (
 				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-					{packages.map((pkg) => (
+					{packages.map(({ pkg, accepted }) => (
 						<RegistryPackageCard
 							key={pkg.uri}
 							pkg={pkg}
+							accepted={accepted}
 							installed={installedRegistryUris.has(pkg.uri)}
 						/>
 					))}
@@ -150,10 +166,12 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 
 interface RegistryPackageCardProps {
 	pkg: RegistryPackageView;
+	/** Accepted labeler policy resolved from the search response that returned `pkg`. */
+	accepted: AcceptedLabelerPolicy[];
 	installed: boolean;
 }
 
-function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
+function RegistryPackageCard({ pkg, accepted, installed }: RegistryPackageCardProps) {
 	const { t } = useLingui();
 	const handleResult = usePublisherHandle(pkg.did, pkg.handle);
 	// Always link by handle when we have one (cleaner URL), DID
@@ -166,6 +184,10 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 	const description = pkg.profile?.description;
 	const license = pkg.profile?.license;
 	const verified = (pkg.labels ?? []).some((l: { val?: string }) => l.val === "verified");
+	// Package/publisher-scope moderation only -- no release is in view yet on
+	// a browse card. `verified` above is unrelated: that shield is out of
+	// moderation scope pending its own ratification.
+	const blocked = isModerationBlocking(evaluatePackageModeration(pkg, accepted));
 
 	return (
 		<Link
@@ -193,9 +215,17 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 						<p className="mt-2 line-clamp-2 text-sm text-kumo-default">{description}</p>
 					) : null}
 					{license ? <p className="mt-2 text-xs text-kumo-subtle">{license}</p> : null}
-					{installed ? (
-						<div className="mt-3">
-							<Badge variant="success">{t`Installed`}</Badge>
+					{installed || blocked ? (
+						<div className="mt-3 flex flex-wrap items-center gap-2">
+							{installed ? <Badge variant="success">{t`Installed`}</Badge> : null}
+							{blocked ? (
+								<Badge variant="error">
+									<span className="flex items-center gap-1">
+										<Warning className="h-3 w-3" aria-hidden />
+										{t`Blocked`}
+									</span>
+								</Badge>
+							) : null}
 						</div>
 					) : null}
 				</div>
