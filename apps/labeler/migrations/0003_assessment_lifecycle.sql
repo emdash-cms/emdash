@@ -105,6 +105,11 @@ ALTER TABLE issuance_actions ADD COLUMN assessment_id TEXT REFERENCES assessment
 CREATE INDEX idx_issuance_actions_assessment ON issuance_actions(assessment_id)
 	WHERE assessment_id IS NOT NULL;
 
+-- Covers the §10 automated-negation guard's per-stream head lookup
+-- (latest label for a given src+uri+val), which runs on every automated
+-- negation and would otherwise filter many rows as a subject's stream grows.
+CREATE INDEX idx_issued_labels_stream ON issued_labels(src, uri, val, sequence);
+
 -- Schema-only prep for PR B's Jetstream discovery consumer; shape matches
 -- apps/aggregator/migrations/0001_init.sql's dead_letters/ingest_state.
 CREATE TABLE dead_letters (
