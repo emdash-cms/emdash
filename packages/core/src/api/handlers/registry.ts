@@ -50,6 +50,7 @@ import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/re
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import {
 	evaluateReleaseViews,
+	isModerationBlocking,
 	resolveAcceptedPolicy,
 } from "@emdash-cms/registry-client/moderation";
 import type { ReleaseEligibility } from "@emdash-cms/registry-client/moderation";
@@ -614,8 +615,9 @@ interface ReleaseEligibilityError {
 /**
  * Gate a release against the shared moderation evaluator (release, package,
  * and publisher label cascade; CID-bound labels; negation and expiry -- see
- * `evaluateReleaseViews`). Blocks only on a manual/automated block or a
- * redact-flagged takedown. An eligibility of `"blocked"` driven solely by
+ * `evaluateReleaseViews`). Blocks per `isModerationBlocking`: an applicable
+ * blocking label, a redact-flagged takedown, or a fail-closed label-state
+ * collision. An eligibility of `"blocked"` driven solely by
  * `missing-assessment-pass` (no accepted labeler has passed this release) is
  * NOT a block here -- that positive-assessment gate isn't shipped yet, and
  * would require labels verified through `verifyLabel`, not this
@@ -651,14 +653,7 @@ function assertReleaseEligible(input: {
 		accepted,
 	});
 
-	// Keyed off blockingLabels/redacted, never eligibility: the evaluator
-	// ranks pending/error above automated blocks, so a malware label with a
-	// co-present assessment-pending yields eligibility "pending" while
-	// blockingLabels still carries the block. Empty blockingLabels covers
-	// missing-assessment-pass and pure pending/error, which must not block
-	// until the positive-assessment gate ships.
-	const blocked = moderation.blockingLabels.length > 0 || moderation.redacted;
-	if (!blocked) return null;
+	if (!isModerationBlocking(moderation)) return null;
 
 	const yanked = moderation.blockingLabels.includes("security-yanked");
 	return {
@@ -1800,9 +1795,9 @@ export interface RegistryUpdateCheck {
 /**
  * Package view stub for evaluating an update-check entry's release-scope
  * moderation without the extra `getPackage` round trip a bulk check can't
- * afford. `uri`/`cid` never match a real label (labels always carry a real
- * `at://` URI or DID), so the package/publisher cascade is inert here by
- * construction rather than by omission of input.
+ * afford. The empty `uri`/`cid` never match a real label, so only the
+ * package-scope cascade is excluded; publisher-scope labels riding on the
+ * release response still evaluate through the real `publisherDid`.
  */
 function releaseOnlyPackageViewStub(publisherDid: Did, slug: string): ValidatedPackageView {
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- `uri`/`cid` are branded FormattedStringSchema types; this stub is never validated as a real record, only compared against label uris that can never equal these placeholders

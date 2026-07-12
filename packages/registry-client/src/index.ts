@@ -57,6 +57,7 @@ export {
 	type ResolveAcceptedPolicyInput,
 	evaluateHydratedReleaseModeration,
 	evaluateReleaseViews,
+	isModerationBlocking,
 	parseAcceptLabelersHeader,
 	resolveAcceptedPolicy,
 	InvalidAcceptLabelersHeaderError,

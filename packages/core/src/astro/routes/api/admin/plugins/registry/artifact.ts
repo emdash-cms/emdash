@@ -24,6 +24,7 @@
 import type { Did } from "@atcute/lexicons";
 import {
 	evaluateReleaseViews,
+	isModerationBlocking,
 	resolveAcceptedPolicy,
 } from "@emdash-cms/registry-client/moderation";
 import type { APIRoute } from "astro";
@@ -378,11 +379,7 @@ async function resolveArtifactUrl(
 		contentLabelersHeader,
 	});
 	const moderation = evaluateReleaseViews({ packageView, releaseView, publisherDid, accepted });
-	// Never keyed off eligibility: a co-present assessment-pending/error label
-	// re-ranks eligibility while blockingLabels still carries the block.
-	const blocked = moderation.blockingLabels.length > 0 || moderation.redacted;
-
-	return { url, blocked };
+	return { url, blocked: isModerationBlocking(moderation) };
 }
 
 /**

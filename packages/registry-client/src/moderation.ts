@@ -9,6 +9,7 @@
 
 import {
 	evaluateHydratedReleaseModeration,
+	isModerationBlocking,
 	parseAcceptLabelersHeader,
 	parseModerationLabel,
 	InvalidAcceptLabelersHeaderError,
@@ -25,6 +26,7 @@ import type { ValidatedPackageView, ValidatedReleaseView } from "./discovery/ind
 
 export {
 	evaluateHydratedReleaseModeration,
+	isModerationBlocking,
 	parseAcceptLabelersHeader,
 	InvalidAcceptLabelersHeaderError,
 	PACKAGE_SCOPE_BLOCK_VALUES,

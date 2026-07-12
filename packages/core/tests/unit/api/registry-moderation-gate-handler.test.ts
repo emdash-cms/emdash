@@ -259,6 +259,20 @@ describe("registry moderation eligibility gate", () => {
 			expect(errored.error?.code).toBe("RELEASE_BLOCKED");
 		});
 
+		it("fails closed when a block label collides with a same-cts negation", async () => {
+			getPackage.mockResolvedValue(packageView());
+			getLatestRelease.mockResolvedValue(
+				releaseView([label({ val: "malware" }), label({ val: "malware", neg: true })]),
+			);
+
+			const result = await handleRegistryInstall(db, stubStorage, stubSandbox, CONFIG, {
+				did: PUBLISHER,
+				slug: SLUG,
+			});
+
+			expect(result.error?.code).toBe("RELEASE_BLOCKED");
+		});
+
 		it("does not block when no acceptLabelers policy is configured (no client-side enforcement)", async () => {
 			getPackage.mockResolvedValue(packageView());
 			getLatestRelease.mockResolvedValue(releaseView([label({ val: "malware" })]));

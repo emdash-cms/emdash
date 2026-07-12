@@ -9,6 +9,7 @@
 
 import {
 	evaluateReleaseViews,
+	isModerationBlocking,
 	type AcceptedLabelerPolicy,
 	type ReleaseModeration,
 } from "@emdash-cms/registry-client";
@@ -48,12 +49,9 @@ export function evaluatePackageModeration(
 	});
 }
 
-/** Whether a moderation result should be surfaced as blocking to the user.
- * Keyed off blockingLabels/redacted, never eligibility — a co-present
- * assessment-pending/error label re-ranks eligibility while blockingLabels
- * still carries the block. */
+/** Whether a moderation result should be surfaced as blocking to the user. */
 export function isModerationBlocked(moderation: ReleaseModeration): boolean {
-	return moderation.blockingLabels.length > 0 || moderation.redacted;
+	return isModerationBlocking(moderation);
 }
 
 /**

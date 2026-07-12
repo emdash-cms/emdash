@@ -785,6 +785,23 @@ export function evaluateHydratedReleaseModeration(
 	return evaluateReleaseModerationCore({ ...input, labels });
 }
 
+/**
+ * The single install/serve blocking predicate for enforcement consumers
+ * during the pre-positive-assessment phase. Blocks on an applicable
+ * blocking label, a redact-flagged takedown, or a label-state collision
+ * (the ratified fail-closed state: an ambiguous block/negation stream must
+ * not resolve open). Deliberately NOT keyed on `eligibility`, which ranks
+ * pending/error above blocks and reports missing-assessment-pass as
+ * "blocked".
+ */
+export function isModerationBlocking(moderation: ReleaseModeration): boolean {
+	return (
+		moderation.blockingLabels.length > 0 ||
+		moderation.redacted ||
+		moderation.reasonCodes.includes("label-state-collision")
+	);
+}
+
 /** Verifies labels before evaluating their moderation effect for one release. */
 export async function verifyAndEvaluateReleaseModeration(
 	input: VerifyAndEvaluateReleaseModerationInput,

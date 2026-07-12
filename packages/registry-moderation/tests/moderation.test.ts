@@ -6,6 +6,7 @@ import {
 	createLabelSigner,
 	evaluateHydratedReleaseModeration,
 	evaluateReleaseModeration,
+	isModerationBlocking,
 	verifyLabel,
 	PACKAGE_SCOPE_BLOCK_VALUES,
 	RELEASE_BLOCK_VALUES,
@@ -340,6 +341,39 @@ describe("release moderation", () => {
 		expect(() =>
 			evaluate([label({ val: "assessment-passed", cts: "0000-01-01T00:00:00+01:00" })]),
 		).toThrow(TypeError);
+	});
+});
+
+describe("isModerationBlocking", () => {
+	it("blocks on an applicable blocking label regardless of eligibility ranking", () => {
+		const result = evaluate([
+			label({ val: "malware", cid: "release-cid" }),
+			label({ val: "assessment-pending", cid: "release-cid" }),
+		]);
+		expect(result.eligibility).toBe("pending");
+		expect(isModerationBlocking(result)).toBe(true);
+	});
+
+	it("fails closed on a label-state collision", () => {
+		const result = evaluate([
+			label({ val: "malware", cid: "release-cid" }),
+			label({ val: "malware", cid: "release-cid", neg: true }),
+		]);
+		expect(result.reasonCodes).toContain("label-state-collision");
+		expect(result.blockingLabels).toEqual([]);
+		expect(isModerationBlocking(result)).toBe(true);
+	});
+
+	it("does not block missing-assessment-pass or pure pending/error states", () => {
+		const missingPass = evaluate([]);
+		expect(missingPass.eligibility).toBe("blocked");
+		expect(isModerationBlocking(missingPass)).toBe(false);
+
+		const pending = evaluate([label({ val: "assessment-pending", cid: "release-cid" })]);
+		expect(isModerationBlocking(pending)).toBe(false);
+
+		const errored = evaluate([label({ val: "assessment-error", cid: "release-cid" })]);
+		expect(isModerationBlocking(errored)).toBe(false);
 	});
 });
 
