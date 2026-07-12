@@ -18,12 +18,20 @@
 				"name": "LABEL_SUBSCRIPTION",
 				"class_name": "LabelSubscriptionDO",
 			},
+			{
+				"name": "LABELER_DISCOVERY_DO",
+				"class_name": "LabelerDiscoveryDO",
+			},
 		],
 	},
 	"migrations": [
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["LabelSubscriptionDO"],
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["LabelerDiscoveryDO"],
 		},
 	],
 	"r2_buckets": [
@@ -32,11 +40,45 @@
 			"bucket_name": "emdash-labeler-evidence",
 		},
 	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "DISCOVERY_QUEUE",
+				"queue": "emdash-labeler-discovery",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "emdash-labeler-discovery",
+				"max_batch_size": 25,
+				"max_batch_timeout": 5,
+				"max_retries": 5,
+				"dead_letter_queue": "emdash-labeler-discovery-dlq",
+			},
+			{
+				// Drains the discovery DLQ: logs + writes a `dead_letters` row,
+				// then acks. Same posture as the aggregator's records DLQ
+				// (see apps/aggregator/wrangler.jsonc).
+				"queue": "emdash-labeler-discovery-dlq",
+				"max_batch_size": 25,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+			},
+		],
+	},
+	"triggers": {
+		// Liveness ping for the discovery DO (same rationale as the
+		// aggregator's records DO: it holds an outbound Jetstream WebSocket
+		// and can be evicted mid-backoff during an outage) and the
+		// reconciliation pass (plan W6.8).
+		"crons": ["*/5 * * * *"],
+	},
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",
 		"LABELER_SERVICE_URL": "https://labels.emdashcms.com",
 		"LABEL_SIGNING_KEY_VERSION": "v1",
 		"LABEL_SIGNING_PUBLIC_KEY": "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
+		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
 	},
 	// Required secret, declared in config so `wrangler types` generates the
 	// typed binding and `wrangler deploy` validates the secret is set on the

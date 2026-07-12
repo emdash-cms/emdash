@@ -5,6 +5,7 @@ import {
 	AssessmentTransitionConflictError,
 	CURRENT_POINTER_STATES,
 	isLegalTransition,
+	TERMINAL_STATES,
 	type AssessmentState,
 } from "./assessment-lifecycle.js";
 
@@ -103,6 +104,52 @@ export async function deleteSubject(
 		.run();
 }
 
+/**
+ * Tombstones every non-deleted subject row for a URI, regardless of CID. A
+ * Jetstream delete event names (did, collection, rkey) — the URI — but not
+ * which CID revision is gone, so every observed CID at that URI is now
+ * unreachable at the source.
+ */
+export async function deleteSubjectsByUri(
+	db: D1Database,
+	input: { uri: string; now?: Date },
+): Promise<void> {
+	const now = input.now ?? new Date();
+	await db
+		.prepare(
+			`UPDATE subjects SET deleted_at = ?, deleted_at_epoch_ms = ?
+			 WHERE uri = ? AND deleted_at IS NULL`,
+		)
+		.bind(now.toISOString(), now.getTime(), input.uri)
+		.run();
+}
+
+/**
+ * A subject is current when its row isn't tombstoned and no later-observed,
+ * non-deleted subject at the same URI carries a different CID. Used
+ * immediately before finalization (spec §10): a deleted or superseded
+ * subject finalizes as `stale` rather than issuing new labels.
+ */
+export async function isSubjectCurrent(
+	db: D1Database,
+	input: { uri: string; cid: string },
+): Promise<boolean> {
+	const row = await db
+		.prepare(`SELECT deleted_at, observed_at_epoch_ms FROM subjects WHERE uri = ? AND cid = ?`)
+		.bind(input.uri, input.cid)
+		.first<{ deleted_at: string | null; observed_at_epoch_ms: number }>();
+	if (!row || row.deleted_at !== null) return false;
+	const newer = await db
+		.prepare(
+			`SELECT 1 FROM subjects
+			 WHERE uri = ? AND cid != ? AND deleted_at IS NULL AND observed_at_epoch_ms > ?
+			 LIMIT 1`,
+		)
+		.bind(input.uri, input.cid, row.observed_at_epoch_ms)
+		.first();
+	return !newer;
+}
+
 export interface CreateAssessmentRunInput {
 	runKey: string;
 	uri: string;
@@ -197,6 +244,30 @@ export async function getAssessmentByRunKey(
 	return row ? rowToAssessment(row) : null;
 }
 
+/**
+ * Non-terminal runs for a URI, regardless of CID. Used when a delete event
+ * arrives: any run still in flight for a now-deleted subject is cancelled
+ * (spec §9.1: "A running assessment may finish for forensic purposes but
+ * must not issue a new positive label for a deleted subject" — v1 cancels
+ * outright rather than letting it run to a forensic-only completion).
+ */
+export async function listNonTerminalAssessmentsForUri(
+	db: D1Database,
+	uri: string,
+): Promise<Assessment[]> {
+	const rows = await db
+		.prepare(
+			`SELECT id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
+			 policy_version, model_id, prompt_hash, scanner_versions_json, public_summary, coverage_json,
+			 supersedes_assessment_id, started_at, completed_at, created_at
+			 FROM assessments
+			 WHERE uri = ? AND state NOT IN (${Array.from(TERMINAL_STATES, () => "?").join(", ")})`,
+		)
+		.bind(uri, ...TERMINAL_STATES)
+		.all<AssessmentRow>();
+	return (rows.results ?? []).map(rowToAssessment);
+}
+
 export interface TransitionAssessmentInput {
 	id: string;
 	from: AssessmentState;
@@ -278,6 +349,47 @@ export async function getCurrentAssessment(
 				updatedAt: row.updated_at,
 			}
 		: null;
+}
+
+export interface NegatableAutomatedLabel {
+	val: string;
+}
+
+/**
+ * Prior automated-assessment labels still active (not yet negated) for a
+ * (uri, cid), per label value. A superseding run negates whichever of these
+ * it no longer supports (spec §10) — but a manually-issued label (reviewer
+ * or admin action, `issuance_actions.type = 'manual-label'`) is never a
+ * candidate here, so automation can never negate it (spec §10: "Automation
+ * cannot negate action-backed assessment-passed/assessment-overridden
+ * labels or undo a human !takedown, security-yanked, package label, or
+ * publisher label").
+ *
+ * "Active" means the most recent automated-assessment issuance for that
+ * value, ordered by `issued_labels.sequence`, is a positive (non-negated)
+ * one — a value whose latest automated event is already a negation isn't
+ * returned, since there's nothing left to negate.
+ */
+export async function getNegatableAutomatedLabels(
+	db: D1Database,
+	input: { uri: string; cid: string },
+): Promise<NegatableAutomatedLabel[]> {
+	const rows = await db
+		.prepare(
+			`SELECT l.val
+			 FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE l.uri = ? AND l.cid = ? AND a.type = 'automated-assessment' AND l.neg = 0
+			 AND l.sequence = (
+				SELECT MAX(l2.sequence) FROM issued_labels l2
+				JOIN issuance_actions a2 ON a2.id = l2.action_id
+				WHERE l2.uri = l.uri AND l2.cid = l.cid AND l2.val = l.val
+				AND a2.type = 'automated-assessment'
+			 )`,
+		)
+		.bind(input.uri, input.cid)
+		.all<{ val: string }>();
+	return (rows.results ?? []).map((row) => ({ val: row.val }));
 }
 
 export interface FinalizationInput {

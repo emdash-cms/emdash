@@ -423,6 +423,24 @@ importers:
       '@atcute/crypto':
         specifier: 'catalog:'
         version: 2.4.1
+      '@atcute/identity':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/identity-resolver':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/jetstream':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/lexicons@2.0.0)(react@19.2.4)(typescript@6.0.3)
+      '@atcute/lexicons':
+        specifier: 'catalog:'
+        version: 2.0.0
+      '@atcute/repo':
+        specifier: 'catalog:'
+        version: 1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)
+      '@emdash-cms/registry-lexicons':
+        specifier: workspace:*
+        version: link:../../packages/registry-lexicons
       '@emdash-cms/registry-moderation':
         specifier: workspace:*
         version: link:../../packages/registry-moderation
@@ -430,12 +448,18 @@ importers:
         specifier: ^2.4.1
         version: 2.4.1
     devDependencies:
+      '@atcute/cid':
+        specifier: 'catalog:'
+        version: 2.4.1
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
         version: 1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(workerd@1.20260611.1)(wrangler@4.100.0)
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
         version: 0.16.3(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+      '@emdash-cms/atproto-test-utils':
+        specifier: workspace:*
+        version: link:../../packages/atproto-test-utils
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13
