@@ -48,6 +48,7 @@ import {
 	Quotes,
 	Link as LinkIcon,
 	Image as ImageIcon,
+	Images,
 	ArrowUUpLeft,
 	ArrowUUpRight,
 	TextAlignLeft,
@@ -95,6 +96,8 @@ import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
+import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
+import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import {
@@ -173,6 +176,37 @@ type PortableTextBlock =
 // Generate unique key
 function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
+}
+
+/**
+ * Normalize an untrusted gallery `images` value into well-formed entries.
+ * Mirrors `sanitizeGalleryImages` in core's content/converters (duplicated
+ * like the converters themselves — see note above).
+ */
+function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[] {
+	if (!Array.isArray(value)) return [];
+	const images: GalleryImage[] = [];
+	for (const entry of value as unknown[]) {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
+		const record = entry as Record<string, unknown>;
+		const asset = record.asset;
+		if (typeof asset !== "object" || asset === null) continue;
+		const assetRecord = asset as Record<string, unknown>;
+		const image: GalleryImage = {
+			_type: "image",
+			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
+			asset: {
+				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
+				...(attrStr(assetRecord.url) ? { url: attrStr(assetRecord.url) } : {}),
+			},
+		};
+		if (attrStr(record.alt)) image.alt = attrStr(record.alt);
+		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
+		if (typeof record.width === "number") image.width = record.width;
+		if (typeof record.height === "number") image.height = record.height;
+		images.push(image);
+	}
+	return images;
 }
 
 // Helpers for safely extracting typed values from ProseMirror attrs (Record<string, any>)
@@ -343,6 +377,16 @@ function convertPMNode(node: {
 				_key: generateKey(),
 				style: "lineBreak",
 			};
+
+		case "gallery": {
+			const columns = node.attrs?.columns;
+			return {
+				_type: "gallery",
+				_key: generateKey(),
+				images: sanitizeGalleryImages(node.attrs?.images, true),
+				...(typeof columns === "number" ? { columns } : {}),
+			};
+		}
 
 		case "table": {
 			const tableKey = generateKey();
@@ -711,6 +755,31 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 
 		case "break":
 			return { type: "horizontalRule" };
+
+		case "gallery": {
+			const galleryBlock = block as { _type: "gallery"; _key: string; [key: string]: unknown };
+			// A gallery without an images array is malformed — keep the visible
+			// placeholder rather than silently rendering an empty grid.
+			if (!Array.isArray(galleryBlock.images)) {
+				return {
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: `[Unknown block type: ${block._type}]`,
+							marks: [{ type: "code" }],
+						},
+					],
+				};
+			}
+			return {
+				type: "gallery",
+				attrs: {
+					images: sanitizeGalleryImages(galleryBlock.images),
+					columns: typeof galleryBlock.columns === "number" ? galleryBlock.columns : undefined,
+				},
+			};
+		}
 
 		case "htmlBlock": {
 			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
@@ -2130,6 +2199,9 @@ export function PortableTextEditor({
 	// Media picker state (for image insertion)
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 
+	// Multi-select media picker state (for gallery insertion)
+	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
+
 	// Plugin block insertion/editing state
 	const [pluginBlockModal, setPluginBlockModal] = React.useState<PluginBlockDef | null>(null);
 	const [pluginBlockInitialValues, setPluginBlockInitialValues] = React.useState<
@@ -2195,6 +2267,20 @@ export function PortableTextEditor({
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setMediaPickerOpen(true);
+			},
+		});
+
+		// Add gallery command
+		cmds.push({
+			id: "gallery",
+			title: msg`Gallery`,
+			description: msg`Insert an image gallery`,
+			icon: Images,
+			aliases: ["gal", "photos", "grid"],
+			category: msg`Media`,
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).run();
+				setGalleryPickerOpen(true);
 			},
 		});
 
@@ -2291,6 +2377,7 @@ export function PortableTextEditor({
 			}),
 			CodeBlockExtension,
 			HtmlBlockExtension,
+			GalleryExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
@@ -2413,17 +2500,24 @@ export function PortableTextEditor({
 
 	React.useEffect(() => {
 		if (!editor) return;
-		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
-		if (!storage) return;
-		storage.onOpenBlockSidebar = (panel: BlockSidebarPanel) => {
-			onBlockSidebarOpenRef.current?.(panel);
-		};
-		storage.onCloseBlockSidebar = () => {
-			onBlockSidebarCloseRef.current?.();
-		};
+		const editorStorage = editor.storage as unknown as Record<string, Record<string, unknown>>;
+		// Both node types share the same sidebar plumbing
+		const storages = [editorStorage.image, editorStorage.gallery].filter(
+			(storage): storage is Record<string, unknown> => storage !== undefined,
+		);
+		for (const storage of storages) {
+			storage.onOpenBlockSidebar = (panel: BlockSidebarPanel) => {
+				onBlockSidebarOpenRef.current?.(panel);
+			};
+			storage.onCloseBlockSidebar = () => {
+				onBlockSidebarCloseRef.current?.();
+			};
+		}
 		return () => {
-			storage.onOpenBlockSidebar = null;
-			storage.onCloseBlockSidebar = null;
+			for (const storage of storages) {
+				storage.onOpenBlockSidebar = null;
+				storage.onCloseBlockSidebar = null;
+			}
 		};
 	}, [editor]);
 
@@ -2449,6 +2543,21 @@ export function PortableTextEditor({
 					.run();
 			}
 			setMediaPickerOpen(false);
+		},
+		[editor],
+	);
+
+	// Handle gallery insertion from the multi-select media picker
+	const handleGallerySelect = React.useCallback(
+		(items: MediaItem[]) => {
+			if (editor && items.length > 0) {
+				editor
+					.chain()
+					.focus()
+					.setGallery({ images: items.map(mediaItemToGalleryImage), columns: 3 })
+					.run();
+			}
+			setGalleryPickerOpen(false);
 		},
 		[editor],
 	);
@@ -2578,6 +2687,17 @@ export function PortableTextEditor({
 				onSelect={handleImageSelect}
 				mimeTypeFilter="image/"
 				title={t`Select Image`}
+			/>
+
+			{/* Multi-select media picker for gallery insertion */}
+			<MediaPickerModal
+				open={galleryPickerOpen}
+				onOpenChange={setGalleryPickerOpen}
+				multiple
+				onSelect={() => {}}
+				onSelectMany={handleGallerySelect}
+				mimeTypeFilter="image/"
+				title={t`Select Gallery Images`}
 			/>
 
 			{/* Plugin block insertion/editing modal */}
@@ -2871,6 +2991,7 @@ function EditorToolbar({
 }) {
 	const { t } = useLingui();
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
+	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
 	const toolbarRef = React.useRef<HTMLDivElement>(null);
@@ -2951,6 +3072,19 @@ function EditorToolbar({
 					blurhash: item.blurhash,
 					dominantColor: item.dominantColor,
 				})
+				.run();
+		},
+		[editor],
+	);
+
+	const handleGallerySelect = React.useCallback(
+		(items: MediaItem[]) => {
+			setGalleryPickerOpen(false);
+			if (items.length === 0) return;
+			editor
+				.chain()
+				.focus()
+				.setGallery({ images: items.map(mediaItemToGalleryImage), columns: 3 })
 				.run();
 		},
 		[editor],
@@ -3205,6 +3339,9 @@ function EditorToolbar({
 				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title={t`Insert Image`}>
 					<ImageIcon className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
+				<ToolbarButton onClick={() => setGalleryPickerOpen(true)} title={t`Insert Gallery`}>
+					<Images className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
 				<ToolbarButton
 					onClick={() =>
 						editor
@@ -3265,6 +3402,17 @@ function EditorToolbar({
 				onSelect={handleImageSelect}
 				mimeTypeFilter="image/"
 				title={t`Select Image`}
+			/>
+
+			{/* Multi-select media picker for gallery insertion */}
+			<MediaPickerModal
+				open={galleryPickerOpen}
+				onOpenChange={setGalleryPickerOpen}
+				multiple
+				onSelect={() => {}}
+				onSelectMany={handleGallerySelect}
+				mimeTypeFilter="image/"
+				title={t`Select Gallery Images`}
 			/>
 		</div>
 	);

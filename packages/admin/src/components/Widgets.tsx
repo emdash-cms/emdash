@@ -58,6 +58,8 @@ import { getPluginBlocks } from "../lib/pluginBlocks";
 import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import {
 	PortableTextEditor,
@@ -479,6 +481,17 @@ export function Widgets() {
 					onReplace={(attrs) =>
 						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
 					}
+					onDelete={() => {
+						blockSidebarPanel.onDelete();
+						setBlockSidebarPanel(null);
+					}}
+					onClose={handleBlockSidebarClose}
+				/>
+			)}
+			{blockSidebarPanel?.type === "gallery" && (
+				<GalleryDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
+					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 					onDelete={() => {
 						blockSidebarPanel.onDelete();
 						setBlockSidebarPanel(null);
