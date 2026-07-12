@@ -1,4 +1,5 @@
 import { apiSuccess } from "./api/response.js";
+import type { ServiceConfiguration } from "./config.js";
 
 export type RouteMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -9,7 +10,11 @@ export interface RouteDefinition {
 	summary: string;
 	successStatus: number;
 	successDataSchema: Readonly<Record<string, unknown>>;
-	handler(request: Request, requestId: string): Response | Promise<Response>;
+	handler(
+		request: Request,
+		requestId: string,
+		configuration: ServiceConfiguration,
+	): Response | Promise<Response>;
 }
 
 export const ROUTES = Object.freeze([

@@ -10,7 +10,7 @@
 		"preview": "vite preview",
 		"deploy": "vite build && wrangler deploy",
 		"typecheck": "tsgo --noEmit",
-		"test": "vitest run",
+		"test": "vitest run && vitest run --config vitest.node.config.ts",
 		"types": "wrangler types"
 	},
 	"devDependencies": {

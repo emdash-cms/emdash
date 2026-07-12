@@ -57,6 +57,9 @@
 		"ALLOWED_PUBLISHERS": "{\"mode\":\"allowlist\",\"dids\":[]}",
 		"DEPLOYMENT_POLICY": "",
 	},
+	"secrets": {
+		"required": ["ENCRYPTION_KEYRING"],
+	},
 	"observability": {
 		"enabled": true,
 	},

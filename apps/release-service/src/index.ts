@@ -20,12 +20,12 @@ export async function handleRequest(
 ): Promise<Response> {
 	const requestId = getRequestId(request);
 	try {
-		loadConfiguration(bindings);
+		const configuration = loadConfiguration(bindings);
 		const url = new URL(request.url);
 		const route = routes.find(
 			(candidate) => candidate.path === url.pathname && candidate.method === request.method,
 		);
-		if (route) return await route.handler(request, requestId);
+		if (route) return await route.handler(request, requestId, configuration);
 		if (routes.some((candidate) => candidate.path === url.pathname)) {
 			return apiFailure(new ApiError("METHOD_NOT_ALLOWED", 405, "Method not allowed"), requestId);
 		}
