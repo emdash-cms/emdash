@@ -30,10 +30,21 @@ function getString(data: Record<string, unknown>, key: string): string | undefin
 			const publishedAt = getString(post.data, "publishedAt");
 			const featuredImage = getString(post.data, "featured_image");
 			const title = getString(post.data, "title");
-			const href = buildLiveSearchResultUrl(
-				{ collection: "posts", id: post.id, slug: getString(post.data, "slug") },
-				urlTemplate ? { posts: urlTemplate } : {},
-			);
+			// Without a template, keep the widget's long-standing default:
+			// `post.id` is the loader's slug (or `locale/slug` with i18n
+			// prefixing), so the locale prefix is preserved. With a template,
+			// use the same token semantics as LiveSearch's routeMap — `:id`
+			// is the content ULID (`data.id`), `:slug` the bare slug.
+			const href = urlTemplate
+				? buildLiveSearchResultUrl(
+						{
+							collection: "posts",
+							id: getString(post.data, "id") ?? post.id,
+							slug: getString(post.data, "slug") ?? post.id,
+						},
+						{ posts: urlTemplate },
+					)
+				: `/posts/${post.id}`;
 			return (
 				<li>
 					{showThumbnails && featuredImage && (
