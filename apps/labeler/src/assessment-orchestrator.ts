@@ -307,6 +307,24 @@ export class AssessmentOrchestrator {
 			await issue(prior.val, true);
 		}
 
+		// Final currency re-check with no signing between it and the commit, so
+		// the delete/cancel window is two adjacent D1 ops rather than spanning
+		// every label's signing round-trip above. Full closure still needs the
+		// workflow lock (see the re-check before this method); this shrinks the
+		// exposure in the interim.
+		const stillCurrent = await isSubjectCurrent(this.db, {
+			uri: assessment.uri,
+			cid: assessment.cid,
+		});
+		if (!stillCurrent) {
+			return transitionAssessmentState(this.db, {
+				id: assessment.id,
+				from: "running",
+				to: "stale",
+				now,
+			});
+		}
+
 		await this.db.batch(statements);
 		for (const postCommit of postCommits) await postCommit();
 

@@ -317,6 +317,31 @@ describe("AssessmentOrchestrator: deleted or superseded subject", () => {
 		expect(pointer).toBeNull();
 	});
 
+	it("finalizes stale when the subject is deleted mid-run, after the first currency check", async () => {
+		const run = await pendingRun({
+			name: "deleted-mid-run",
+			cidValue: await cid("deleted-mid-run"),
+		});
+		// A stage deletes the subject during the run — after runAssessment's
+		// entry currency check passed, before finalize's re-check.
+		const stages: OrchestratorStages = {
+			...stubStages,
+			deterministic: async () => {
+				await deleteSubject(testEnv.DB, { uri: run.uri, cid: run.cid });
+				return [];
+			},
+		};
+		const orchestrator = await buildOrchestrator(stages);
+
+		const result = await orchestrator.runAssessment(run.id);
+
+		expect(result.state).toBe("stale");
+		const labels = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ?`)
+			.bind(run.uri)
+			.first<{ n: number }>();
+		expect(labels?.n).toBe(0);
+	});
+
 	it("finalizes stale when a newer CID has superseded this run's subject", async () => {
 		const name = "superseded-cid";
 		const cidV1 = await cid(`${name}-v1`);
