@@ -554,6 +554,15 @@ export function ContentEditor({
 		setSlugTouched(true);
 	}, []);
 
+	// Normalize on blur rather than on every keystroke -- slugify() strips
+	// trailing hyphens, so live normalization would eat the separator the
+	// user just typed (e.g. "My " -> "my" -> next keystroke appends with no
+	// word break). Auto-generated slugs (title -> slug above) don't have
+	// this problem since the title field is a separate, already-complete input.
+	const handleSlugBlur = React.useCallback(() => {
+		setSlug((current) => slugify(current));
+	}, []);
+
 	const isPublished = status === "published";
 
 	// Draft revision status (only meaningful when supportsDrafts is on)
@@ -844,6 +853,7 @@ export function ContentEditor({
 							entryLocale={entryLocale}
 							slug={slug}
 							onSlugChange={handleSlugChange}
+							onSlugBlur={handleSlugBlur}
 							status={status}
 							supportsDrafts={supportsDrafts}
 							isLive={isLive}
