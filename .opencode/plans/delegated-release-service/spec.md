@@ -1,6 +1,6 @@
 # Delegated Release Service Implementation Spec
 
-Status: implementation in progress; create-only PDS and aggregator-history validation remain open
+Status: implementation in progress; deployed-PDS validation is deferred to production conformance, and aggregator-history validation remains open
 
 Source: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870), Attested Automated Publishing
 
@@ -29,7 +29,7 @@ The integration branch has implemented the RFC-derived profile and release contr
 
 The remaining external validation is split by impact:
 
-- Service feasibility: confidential OAuth custody is compatible with workerd; exact create-only scope still requires validation on supported PDS implementations. This blocks durable delegation and publication, not shared verification.
+- Service feasibility: confidential OAuth custody is compatible with workerd. Deployed-PDS compatibility is a conformance and production-smoke requirement, not a pre-implementation gate; the service still has no broad-scope fallback.
 - History feasibility: select an event source that preserves verifiable intermediate profile values. This blocks historical aggregator enforcement and production launch, not the service or installer.
 
 The next protocol/verification closure is two coherent merge units: exact scope plus create-only publishing (`W1.6` + `W1.7`), and direct-PDS reads plus structured record/policy verification (`W2.6` + `W2.7`).
@@ -1065,20 +1065,20 @@ Against a test PDS and fake GitHub issuer:
 5. Ingest it in the aggregator.
 6. Install it from a clean EmDash site with independent provenance verification.
 
-Run a second suite against real GitHub OIDC and a real supported PDS in a controlled repository before production launch.
+Run a second suite against real GitHub OIDC, a Bluesky-hosted PDS, and at least one supported alternative PDS in a controlled repository before production launch. For each PDS, verify successful release creation and rejection of release update/delete, profile create/update, and unrelated collection writes, plus revocation and client-key removal behavior.
 
 ## Delivery Plan
 
 ### Phase 0: RFC clarification and external validation
 
 - Complete: record implementation acceptance criteria for the profile extension, repository anchor, release provenance, and escalation contracts already decided by RFC #1870.
-- Pending Gate 0A: validate create-only permission support on target PDSes outside this repository.
+- Deferred to conformance and production smoke: validate create-only permission support on every supported deployed PDS without broad fallback.
 - Complete: confirmed `@atcute/oauth-node-client@2.0.1` confidential-client persistence, DPoP nonce retry, D1 lock requirements, and client-key rotation behavior in workerd.
 - Complete: inspect a real GitHub provenance bundle and land the Workers-compatible Sigstore verifier plus exact field mapping.
 - Pending Gate 0B: select an aggregator history source that can retain event-specific signed profile values and document `W10.1` constraints.
 - Complete: use `emdash-plugin` as the v1 public command.
 
-Exit criteria are independent. Gate 0A passes when create-only PDS and confidential OAuth validation reveal no incompatible service constraint. Gate 0B passes when historical ingest has a viable source and trust model. External validation adds no repository harnesses, production code, test scripts, package dependencies, or CI wiring; commit conclusions directly to the integration branch.
+OAuth custody feasibility is complete. Gate 0B passes when historical ingest has a viable source and trust model. External history validation adds no repository harnesses, production code, test scripts, package dependencies, or CI wiring; commit conclusions directly to the integration branch.
 
 ### Phase 1: Protocol and verification foundation
 
@@ -1157,6 +1157,4 @@ Phase 4 is a production launch gate for the default public service and registry,
 
 ## Implementation Blockers to Resolve First
 
-1. Confirm the exact permission NSID and create-only scope against deployed PDS implementations.
-2. Confirm confidential OAuth persistence, refresh locking, and key-rotation behavior under workerd.
-3. Decide the authoritative historical event source and trust model for aggregator policy ordering.
+1. Decide the authoritative historical event source and trust model for aggregator policy ordering.

@@ -2,7 +2,7 @@
 
 Companion: [Implementation spec](./spec.md)
 
-Status: implementation in progress; create-only PDS and history feasibility validation remain open
+Status: implementation in progress; deployed-PDS validation is deferred to `W12.7`, and history feasibility validation remains open
 
 This plan turns the delegated release service spec into independently deliverable workstreams. It defines ownership boundaries, dependencies, integration gates, and completion criteria. It intentionally contains no time estimates.
 
@@ -10,7 +10,7 @@ This plan turns the delegated release service spec into independently deliverabl
 
 | Stage   | Deliverable                                                                  | Repository change allowed                                         |
 | ------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Gate 0A | Service feasibility: create-only PDS support and confidential OAuth custody  | Spec and plan updates only                                        |
+| Gate 0A | Complete: confidential OAuth custody feasibility                             | Spec and plan updates only                                        |
 | Gate 0B | History feasibility: event-specific, verifiable aggregator input             | Spec and plan updates only                                        |
 | Gate 1  | Experimental lexicons, generated types, and one shared verification contract | Production contract code and tests                                |
 | Gate 2  | Secure delegated release service vertical slice                              | Service, client, and installer code and tests                     |
@@ -18,7 +18,7 @@ This plan turns the delegated release service spec into independently deliverabl
 | Gate 4  | Hosted beta product and operational readiness                                | Console, notifications, tooling, operations, and conformance code |
 | Gate 5  | Accurate historical policy enforcement and production launch evidence        | Aggregator history implementation and production verification     |
 
-Gates 0A and 0B are deliberately not implementation stages. RFC #1870 is the product and protocol decision; these gates record only implementation clarifications and external validation. Gate 0A blocks service custody and publication work. Gate 0B blocks historical aggregator enforcement and production launch, but does not block shared verification, installer work, or the service. Do not reopen RFC decisions unless the text is ambiguous, contradicts an existing constraint, or an external result makes it impossible. Do not add repository test harnesses, prototype services, package dependencies, root scripts, or CI wiring for these gates. Commit concise conclusions directly to the integration branch.
+Gates 0A and 0B are deliberately not implementation stages. RFC #1870 is the product and protocol decision; these gates record only implementation clarifications and external validation. Gate 0A is complete. Deployed-PDS compatibility remains required by conformance and production smoke but does not block implementation. Gate 0B blocks historical aggregator enforcement and production launch, but does not block shared verification, installer work, or the service. Do not reopen RFC decisions unless the text is ambiguous, contradicts an existing constraint, or an external result makes it impossible. Do not add repository test harnesses, prototype services, package dependencies, root scripts, or CI wiring for these gates. Commit concise conclusions directly to the integration branch.
 
 ## Implementation Baseline
 
@@ -37,7 +37,7 @@ The integration branch includes these completed merge units:
 | `W2.5`                     | #1951    | Production public Sigstore provenance verification landed.             |
 | `W0.4`                     | Direct   | Confidential OAuth custody and refresh are compatible with workerd.    |
 
-`W0.3` and `W0.6` remain external-validation work. The next shared-verification merge unit is combined `W2.6` and `W2.7`; `W1.6` and `W1.7` land together after `W0.3` establishes the exact supported scope contract.
+`W0.6` remains external-validation work. Deployed-PDS compatibility from `W0.3` moves to conformance and production smoke. The next shared-verification merge unit is combined `W2.6` and `W2.7`; `W1.6` and `W1.7` land together to establish the exact supported scope contract.
 
 ## Outcomes
 
@@ -136,24 +136,24 @@ flowchart TD
 ### Critical Path
 
 ```text
-Service path: W0A -> W1 -> W2 -> W5 -> W9 -> W12
+Service path: W1 -> W2 -> W5 -> W9 -> W12
 Launch-history path: W0B -> W10 -> W12
 ```
 
-`W2`, `W3.1`, `W3.6`, and `W4` do not depend on every external-validation result. OAuth custody and publication depend on Gate 0A; historical aggregator work depends on Gate 0B. `W6`, `W7`, and most of `W8` begin once the service API and lifecycle contracts are frozen, without waiting for aggregator history work.
+Historical aggregator work depends on Gate 0B. Service, installer, and most API/UI work proceed independently once their code dependencies are satisfied.
 
 ## Integration Gates
 
-### Gate 0A: Service Feasibility
+### Gate 0A: OAuth Custody Feasibility
 
-Required before durable delegation, session refresh, or PDS publication is treated as production work:
+Complete:
 
-- Create-only repo scope works on each supported PDS without broad fallback.
 - Confidential OAuth sessions can be restored and refreshed safely in workerd.
+- Persistence, refresh locking, nonce handling, and client-key rotation constraints are recorded in `W0.4`.
 
 Gate owner: `W0`.
 
-Gate 0A evidence is a supported-PDS matrix and an OAuth custody decision in the tracked spec/plan and, where useful, a link to an external reproduction or upstream issue. It is not a repository test suite.
+Deployed-PDS create-only compatibility is validated by the conformance suite and production smoke before support is claimed. Failure removes that PDS from the support matrix or changes the RFC; it never adds a broad-scope fallback.
 
 ### Gate 0B: Historical Ingest Feasibility
 
@@ -248,7 +248,7 @@ Output: an implementation acceptance table consumed directly by `W2.4` tests. Do
 
 Dependencies: none.
 
-### `W0.3` Prove create-only PDS support
+### `W0.3` Validate deployed-PDS create-only support
 
 Validate externally, against the candidate PDS implementations:
 
@@ -260,7 +260,7 @@ Validate externally, against the candidate PDS implementations:
 
 Targets: Bluesky-hosted PDS and at least one alternative implementation intended for support.
 
-Output: a supported-PDS compatibility matrix and any required RFC/spec correction. Commit only the resulting spec/plan update; keep disposable clients and accounts outside this repository.
+Output: a supported-PDS compatibility matrix and any required RFC/spec correction. This validation now runs with `W12.7` conformance and production smoke rather than blocking implementation. Keep disposable clients and accounts outside this repository.
 
 Dependencies: `W0.1` draft NSID.
 
@@ -318,7 +318,7 @@ Dependencies: none.
 
 ### W0 Completion
 
-The RFC-derived work (`W0.1`, `W0.2`, `W0.5`, and `W0.7`) and OAuth custody validation (`W0.4`) are complete. Gate 0A now depends only on `W0.3` finding compatible create-only support. Gate 0B passes independently when `W0.6` selects a viable historical event source. An incompatible result changes only the affected RFC guarantee or downstream architecture before that work proceeds.
+The RFC-derived work (`W0.1`, `W0.2`, `W0.5`, and `W0.7`) and OAuth custody validation (`W0.4`) are complete, so Gate 0A is complete. `W0.3` is deferred to `W12.7`. Gate 0B passes independently when `W0.6` selects a viable historical event source. An incompatible deployed-PDS result changes the support matrix or affected RFC guarantee before support is claimed or production launches.
 
 ## Workstream W1: Protocol and Lexicons
 
@@ -385,7 +385,7 @@ Dependencies: `W1.3`, `W1.4`.
 - Document that stable NSID migration requires reauthorization.
 - Add a typed helper that returns the active release collection and scope string.
 
-Dependencies: `W0.3`, `W1.3`.
+Dependencies: `W1.3`.
 
 Merge boundary: land with `W1.7` so the exact scope contract is proved by the only API allowed to exercise it.
 
@@ -582,7 +582,7 @@ A verified token maps to exactly one normalized workload identity and either one
 
 Create `apps/release-service` using the aggregator's Cloudflare Vite and workers-vitest patterns. Add D1, Queues, DLQs, cron, static assets, generated Worker types, health route, and fail-closed configuration validation.
 
-Dependencies: none. Durable OAuth and publication routes remain unreachable until Gate 0A passes.
+Dependencies: none.
 
 ### `W5.1a` Dedicated verifier Worker
 
@@ -1042,13 +1042,13 @@ Dependencies: Gates 2 and 3.
 
 ### `W12.7` Self-host and production smoke
 
-First provision a fresh Workers/D1 self-host from `W11.6` and run the same delegated-release conformance suite used for the hosted service. Then use a controlled GitHub repository, real OIDC, supported PDS, hosted service, production aggregator, and disposable EmDash site. Verify rollback disables new submissions without invalidating published records or losing staged audit data.
+First provision a fresh Workers/D1 self-host from `W11.6` and run the same delegated-release conformance suite used for the hosted service. Complete the `W0.3` compatibility matrix against every PDS implementation for which support will be claimed, with a Bluesky-hosted PDS and at least one supported alternative as the minimum set: authorize the exact create-only scope, create a release, reject release update/delete, reject profile create/update and unrelated collection writes, and verify revocation and client-key removal before and after access-token expiry. Then use a controlled GitHub repository, real OIDC, the hosted service, production aggregator, and a disposable EmDash site. Verify rollback disables new submissions without invalidating published records or losing staged audit data.
 
-Dependencies: `W11.6`, Gate 0A, and Gates 1 through 4; final hosted production run after Gate 0B and Gate 5 implementation.
+Dependencies: `W11.6` and Gates 1 through 4; completes `W0.3`; final hosted production run after Gate 0B and the Gate 5 `W10` implementation prerequisites.
 
 ### W12 Completion
 
-No unresolved critical/high security findings, all conformance suites pass, and the production smoke satisfies Gate 5.
+No unresolved critical/high security findings, the `W0.3` compatibility matrix passes for every claimed-supported PDS with at least the required two-PDS minimum, all conformance suites pass, and the production smoke completes Gate 5.
 
 ## Recommended Merge Sequence
 
@@ -1057,13 +1057,13 @@ Completed work is recorded in the implementation baseline instead of remaining i
 | Sequence | Merge unit                                                   | Depends on                                |
 | -------- | ------------------------------------------------------------ | ----------------------------------------- |
 | 1        | `W2.6` + `W2.7` record verification and direct-PDS reads     | Completed W1/W2 contracts                 |
-| 2        | `W1.6` + `W1.7` exact scope and create-only publishing       | `W0.3`                                    |
+| 2        | `W1.6` + `W1.7` exact scope and create-only publishing       | Completed W1 contracts                    |
 | 3        | `W3.6` required-UV and typed challenge primitives            | None                                      |
 | 4        | `W5.1` service scaffold and `W5.8` API foundation            | None; sensitive routes remain unreachable |
 | 5        | `W4.1` + `W4.2` issuer contract and GitHub verifier          | `W5.1`                                    |
 | 6        | `W5.1a` dedicated verifier Worker                            | `W2.2`, `W5.1`                            |
 | 7        | `W3.1` encryption                                            | None                                      |
-| 8        | `W3.2` + `W3.3` confidential OAuth and `W5.2a` custody slice | Gate 0A, `W1.6`, `W3.1`, `W5.1`           |
+| 8        | `W3.2` + `W3.3` confidential OAuth and `W5.2a` custody slice | `W1.6`, `W3.1`, `W5.1`                    |
 | 9        | `W4.3` workload policy and `W5.2b` repository slice          | `W4.1`, `W5.1`                            |
 | 10       | `W5.2d` + `W5.3` + `W5.7a` unreachable submission pipeline   | `W4.2`, `W4.3`, API foundation            |
 | 11       | `W5.4` validation consumer, routes remain unreachable        | `W2.6`, `W2.7`, `W5.1a`, `W5.3`, `W5.7a`  |
@@ -1072,16 +1072,12 @@ Later work continues as vertical merge units: passkey storage with ceremonies, a
 
 ## Parallelization Map
 
-Before Gate 0A:
+Current parallel work:
 
 - `W2.6` + `W2.7`, `W3.1`, `W3.6`, and `W5.1` may proceed independently. `W4.1` + `W4.2` and `W5.1a` begin after `W5.1` establishes their app and binding boundaries.
-- `W0.3`, `W0.4`, and `W0.6` external research may proceed concurrently and commit only conclusions to this branch.
-- Durable OAuth custody and publication remain unreachable.
-
-After Gate 0A:
-
 - `W1.6` + `W1.7` and `W3.2` + `W3.3` close the exact delegation boundary.
 - `W4.3`, then `W5.2d` + `W5.3` + `W5.7a`, establish the unreachable submission pipeline. `W5.4` adds validation while routes remain unreachable until publication lands in `W5.6`.
+- `W0.6` external research may proceed concurrently and commit only conclusions to this branch.
 
 After Gate 0B:
 
@@ -1129,10 +1125,10 @@ After Gate 2:
 Start these independently, with at most three implementation branches active at once:
 
 1. `W2.6` + `W2.7`: structured record/policy verification over authoritative direct-PDS reads.
-2. `W0.3`: complete create-only PDS validation and record the final Gate 0A conclusion directly on this branch.
+2. `W1.6` + `W1.7`: implement the typed exact scope and narrow create-only publishing helper.
 3. `W0.6`: select historical aggregator input and record Gate 0B constraints independently.
 4. `W3.6`: required-UV passkey primitives.
 5. `W5.1` + `W5.8`: unreachable service and API foundations.
 6. After `W5.1`, `W4.1` + `W4.2` and `W5.1a`: workload verification and the isolated verifier Worker.
 
-Do not implement durable OAuth custody or PDS publication until Gate 0A passes. Do not implement historical policy association or cooldown claims until Gate 0B passes. Shared verification, passkey primitives, workload verification, and unreachable service scaffolding do not wait for either gate.
+Do not implement historical policy association or cooldown claims until Gate 0B passes. Deployed-PDS compatibility remains mandatory in `W12.7` before claiming support or launching production.
