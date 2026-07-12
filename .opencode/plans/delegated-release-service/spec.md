@@ -1,6 +1,6 @@
 # Delegated Release Service Implementation Spec
 
-Status: implementation in progress; create-only PDS, OAuth custody, and aggregator-history validation remain open
+Status: implementation in progress; create-only PDS and aggregator-history validation remain open
 
 Source: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870), Attested Automated Publishing
 
@@ -29,7 +29,7 @@ The integration branch has implemented the RFC-derived profile and release contr
 
 The remaining external validation is split by impact:
 
-- Service feasibility: prove exact create-only scope on supported PDS implementations and confidential OAuth custody/refresh behavior in workerd. This blocks durable delegation and publication, not shared verification.
+- Service feasibility: confidential OAuth custody is compatible with workerd; exact create-only scope still requires validation on supported PDS implementations. This blocks durable delegation and publication, not shared verification.
 - History feasibility: select an event source that preserves verifiable intermediate profile values. This blocks historical aggregator enforcement and production launch, not the service or installer.
 
 The next protocol/verification closure is two coherent merge units: exact scope plus create-only publishing (`W1.6` + `W1.7`), and direct-PDS reads plus structured record/policy verification (`W2.6` + `W2.7`).
@@ -405,23 +405,23 @@ All IDs are ULIDs. Timestamps are UTC ISO strings. JSON columns contain canonica
 
 `delegations`
 
-| Column                                   | Notes                                                                  |
-| ---------------------------------------- | ---------------------------------------------------------------------- |
-| `id`                                     | Primary key.                                                           |
-| `publisher_did`                          | Unique active delegation per DID and release NSID.                     |
-| `release_nsid`                           | Scope-bound collection.                                                |
-| `encrypted_session`                      | atcute session state, refresh token, DPoP private key, and nonce data. |
-| `encryption_key_version`                 | Enables envelope-key rotation.                                         |
-| `client_key_id`                          | Confidential client assertion key that created the session.            |
-| `scope`                                  | Must equal the expected exact scope.                                   |
-| `status`                                 | `active`, `refreshing`, `reauthorization_required`, `revoked`.         |
-| `lease_owner`, `lease_expires_at`        | Distributed refresh lock.                                              |
-| `last_refreshed_at`, `refresh_before`    | Proactive refresh schedule.                                            |
-| `created_at`, `updated_at`, `revoked_at` | Lifecycle.                                                             |
+| Column                                   | Notes                                                                      |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| `id`                                     | Primary key.                                                               |
+| `publisher_did`                          | Unique active delegation per DID and release NSID.                         |
+| `release_nsid`                           | Scope-bound collection.                                                    |
+| `encrypted_session`                      | atcute token set, authentication method, and per-session DPoP private key. |
+| `encryption_key_version`                 | Enables envelope-key rotation.                                             |
+| `client_key_id`                          | Confidential client assertion key that created the session.                |
+| `scope`                                  | Must equal the expected exact scope.                                       |
+| `status`                                 | `active`, `refreshing`, `reauthorization_required`, `revoked`.             |
+| `lease_owner`, `lease_expires_at`        | Distributed refresh lock.                                                  |
+| `last_refreshed_at`, `refresh_before`    | Proactive refresh schedule.                                                |
+| `created_at`, `updated_at`, `revoked_at` | Lifecycle.                                                                 |
 
 `console_sessions` stores an opaque hashed browser session token, publisher DID, expiry, and CSRF secret. The atproto identity OAuth session is discarded after login; console authentication does not need durable PDS access.
 
-`oauth_transactions` stores hashed state, PKCE material, purpose, expected DID, encrypted temporary state, redirect target, and expiry. Purposes are `console_login`, `release_delegation`, and `approver_identity`.
+`oauth_transactions` stores hashed state, PKCE material, purpose, expected DID, client assertion key ID, encrypted temporary state, redirect target, and expiry. Purposes are `console_login`, `release_delegation`, and `approver_identity`.
 
 ### Workload policy
 
@@ -658,11 +658,23 @@ The exact `client_id`, redirects, scope declaration, and `jwks_uri` are deployme
 
 Use separate logical atcute stores per purpose so sessions for the same DID cannot overwrite each other.
 
+### OAuth client compatibility
+
+`@atcute/oauth-node-client@2.0.1` is compatible with confidential-client custody in workerd. Its persisted `StoredSession` contains the token set, negotiated authentication method including the client assertion key ID, and per-session DPoP private key. Authorization state is a separate short-lived store. DPoP nonces are cached separately by origin; this cache may remain isolate-local because atcute's replayable token requests retry one recognized nonce challenge. Metadata caches may also remain isolate-local.
+
+The package's in-memory request coalescing does not coordinate Worker isolates. Supply `requestLock` backed by the delegation's D1 lease, and hold that lease across session load, refresh, and persistence.
+
+The package restores authorization state and sessions with their recorded client assertion key IDs. If a private key is absent, it throws a generic error and does not invalidate a session itself. Before callback, restore, or refresh, the service checks the recorded key ID against the configured private keyset and rejects unavailable-key state as requiring reauthorization.
+
 ### Session refresh
 
-Refresh tokens are rotating and replay-sensitive. Before restoring or refreshing a writer session, acquire a D1 lease on its delegation row. The lease owner must still match when persisting rotated state. Refresh proactively well before expiry and add jitter. A scheduled sweep refreshes idle sessions so a three-month refresh-token lifetime cannot lapse unnoticed.
+Refresh tokens are rotating and replay-sensitive. Before any restore that may refresh a writer session, atomically change `active` to `refreshing` and record a unique D1 lease owner. This durable marker poisons the persisted refresh-token generation before network I/O. Hold or renew the lease across session load, refresh, and persistence, and require the unexpired lease owner to match when atomically storing the rotated session and returning to `active`.
 
-Store the confidential client key ID used at initial authorization. Routine rotation publishes old and new public keys together, uses new keys for new grants, and retains old private keys until their sessions are reauthorized or revoked.
+Never steal an expired lease from a `refreshing` row to retry its old session. A stale `refreshing` row, lost lease, or failed post-refresh persistence has an ambiguous single-use token outcome and transitions only to `reauthorization_required`. The package attempts to revoke a newly issued token after a store failure, but this is best effort and does not make the old token safe to retry.
+
+Refresh proactively well before expiry and add jitter. A scheduled sweep refreshes idle sessions so a three-month refresh-token lifetime cannot lapse unnoticed.
+
+Store the confidential client key ID used at initial authorization. Routine rotation publishes old and new public keys together, waits for JWKS cache propagation before ordering the new key first for new grants, and retains each old private key until its active sessions are reauthorized or revoked and every authorization transaction that may reference it has expired.
 
 ## GitHub Actions OIDC
 
@@ -1061,7 +1073,7 @@ Run a second suite against real GitHub OIDC and a real supported PDS in a contro
 
 - Complete: record implementation acceptance criteria for the profile extension, repository anchor, release provenance, and escalation contracts already decided by RFC #1870.
 - Pending Gate 0A: validate create-only permission support on target PDSes outside this repository.
-- Pending Gate 0A: confirm atcute confidential-client persistence, refresh-lock, and key-rotation constraints through external research or a disposable reproduction.
+- Complete: confirmed `@atcute/oauth-node-client@2.0.1` confidential-client persistence, DPoP nonce retry, D1 lock requirements, and client-key rotation behavior in workerd.
 - Complete: inspect a real GitHub provenance bundle and land the Workers-compatible Sigstore verifier plus exact field mapping.
 - Pending Gate 0B: select an aggregator history source that can retain event-specific signed profile values and document `W10.1` constraints.
 - Complete: use `emdash-plugin` as the v1 public command.

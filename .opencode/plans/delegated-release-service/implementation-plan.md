@@ -2,7 +2,7 @@
 
 Companion: [Implementation spec](./spec.md)
 
-Status: implementation in progress; service and history feasibility validation remain open
+Status: implementation in progress; create-only PDS and history feasibility validation remain open
 
 This plan turns the delegated release service spec into independently deliverable workstreams. It defines ownership boundaries, dependencies, integration gates, and completion criteria. It intentionally contains no time estimates.
 
@@ -35,8 +35,9 @@ The integration branch includes these completed merge units:
 | `W2.4`                     | #1937    | Declared-access canonicalization and escalation landed.                |
 | `W0.5`                     | #1943    | Public Sigstore verification feasibility in workerd proved.            |
 | `W2.5`                     | #1951    | Production public Sigstore provenance verification landed.             |
+| `W0.4`                     | Direct   | Confidential OAuth custody and refresh are compatible with workerd.    |
 
-`W0.3`, `W0.4`, and `W0.6` remain external-validation work. The next shared-verification merge unit is combined `W2.6` and `W2.7`; `W1.6` and `W1.7` land together after `W0.3` establishes the exact supported scope contract.
+`W0.3` and `W0.6` remain external-validation work. The next shared-verification merge unit is combined `W2.6` and `W2.7`; `W1.6` and `W1.7` land together after `W0.3` establishes the exact supported scope contract.
 
 ## Outcomes
 
@@ -276,6 +277,12 @@ Research the real `@atcute/oauth-node-client` behavior needed by the future serv
 
 Output: exact persisted session requirements, lock expectations, key-rotation constraints, and any incompatible upstream behavior. Commit only a concise spec/plan update when the result changes the design.
 
+Result: complete against `@atcute/oauth-node-client@2.0.1`. Private-key JWT, public JWKS derivation, separate assertion and DPoP keys, and nonce retry run in workerd. Persist `StoredSession` (`tokenSet`, `authMethod`, and `dpopKey`) and short-lived authorization state in D1. DPoP nonce and metadata caches may remain isolate-local; atcute's replayable token requests retry one recognized nonce challenge after a cache miss.
+
+Supply a D1-lease-backed `requestLock` because the package's in-memory coalescing is isolate-local. Before network I/O, atomically move the delegation from `active` to `refreshing` with a unique lease owner. Hold or renew that lease through load, refresh, and persistence. A stale `refreshing` row, lost lease, or post-refresh persistence failure transitions only to `reauthorization_required`; it never retries or leases the old token generation again.
+
+Retain every client assertion private key referenced by an active session or unexpired authorization transaction. The package records the `kid`, but a missing key raises a generic error without deleting a session. Publish the new public key and wait for cache propagation before selecting it for new grants. The service checks the recorded key ID before callback, restore, and refresh, and transitions unavailable-key state to reauthorization before removing an old key.
+
 Dependencies: none.
 
 ### `W0.5` Prove Sigstore verification in workerd
@@ -311,7 +318,7 @@ Dependencies: none.
 
 ### W0 Completion
 
-The RFC-derived work (`W0.1`, `W0.2`, `W0.5`, and `W0.7`) is complete. Gate 0A passes when `W0.3` and `W0.4` reveal no incompatible service constraint. Gate 0B passes independently when `W0.6` selects a viable historical event source. An incompatible result changes only the affected RFC guarantee or downstream architecture before that work proceeds.
+The RFC-derived work (`W0.1`, `W0.2`, `W0.5`, and `W0.7`) and OAuth custody validation (`W0.4`) are complete. Gate 0A now depends only on `W0.3` finding compatible create-only support. Gate 0B passes independently when `W0.6` selects a viable historical event source. An incompatible result changes only the affected RFC guarantee or downstream architecture before that work proceeds.
 
 ## Workstream W1: Protocol and Lexicons
 
@@ -1122,7 +1129,7 @@ After Gate 2:
 Start these independently, with at most three implementation branches active at once:
 
 1. `W2.6` + `W2.7`: structured record/policy verification over authoritative direct-PDS reads.
-2. `W0.3` and `W0.4`: complete service-feasibility research and record Gate 0A conclusions directly on this branch.
+2. `W0.3`: complete create-only PDS validation and record the final Gate 0A conclusion directly on this branch.
 3. `W0.6`: select historical aggregator input and record Gate 0B constraints independently.
 4. `W3.6`: required-UV passkey primitives.
 5. `W5.1` + `W5.8`: unreachable service and API foundations.
