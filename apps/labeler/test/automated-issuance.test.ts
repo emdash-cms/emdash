@@ -193,6 +193,39 @@ describe("automated proposal validation", () => {
 		);
 	});
 
+	it("still enforces the release-record and CID checks for a negation", async () => {
+		const id = await assessmentId();
+		// A negation skips only the finding-category/severity checks — the
+		// release-record and mandatory-CID requirements apply unconditionally.
+		await expect(
+			issueAutomatedAssessmentLabel(
+				testEnv.DB,
+				config,
+				await signer(),
+				action({ assessmentId: id }),
+				{
+					uri: PUBLISHER_DID,
+					cid: CID,
+					val: "malware",
+					neg: true,
+				},
+			),
+		).rejects.toThrow("must target a release record");
+		await expect(
+			issueAutomatedAssessmentLabel(
+				testEnv.DB,
+				config,
+				await signer(),
+				action({ assessmentId: id }),
+				{
+					uri: releaseUri(),
+					val: "malware",
+					neg: true,
+				},
+			),
+		).rejects.toThrow("must include a release CID");
+	});
+
 	it("rejects a publisher-scoped value because automated labels are release-only", async () => {
 		const id = await assessmentId();
 		await expect(issue(PUBLISHER_DID, id, { val: "publisher-compromised" })).rejects.toThrow(
