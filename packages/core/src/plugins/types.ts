@@ -1173,6 +1173,13 @@ export interface PluginRoute<TInput = unknown> {
 	 * Public routes skip session/token auth and CSRF checks.
 	 */
 	public?: boolean;
+	/**
+	 * `Cache-Control` header value for successful GET responses, e.g.
+	 * `"public, max-age=60, stale-while-revalidate=300"`. Only honored on
+	 * routes that are also `public: true` — authenticated responses always
+	 * keep the default `private, no-store`. Errors are never cached.
+	 */
+	cacheControl?: string;
 	/** Route handler */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
 }

@@ -95,6 +95,22 @@ routes: {
 	Public routes skip authentication, scope, and CSRF entirely. Anyone on the internet can call them. Use `public: true` only for endpoints that need to accept external traffic — webhooks, public-facing search endpoints — and validate the input carefully.
 </Aside>
 
+### Caching public responses
+
+API responses default to `Cache-Control: private, no-store`. For public routes that serve the same data to everyone — a product catalog, a public search index — that means every page view pays a full round-trip to the origin. Public routes can opt in to CDN/browser caching with `cacheControl` (native format only):
+
+```typescript
+routes: {
+	catalog: {
+		public: true,
+		cacheControl: "public, max-age=60, stale-while-revalidate=300",
+		handler: async (ctx) => listProducts(ctx),
+	},
+},
+```
+
+The header is applied only to **successful GET responses of public routes**. Errors are never cached, other methods keep the default, and setting `cacheControl` on a private route has no effect — authenticated responses always stay `private, no-store`.
+
 ## Input validation
 
 `input` accepts a Zod schema. The dispatcher parses the request body (POST/PUT/PATCH) or query string (GET/DELETE), validates it, and passes the typed result to your handler as `routeCtx.input`. Invalid input returns a 400 before your handler runs.

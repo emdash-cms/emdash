@@ -54,6 +54,11 @@ function guardConsumedRequestBody(request: Request): Request {
  */
 export interface RouteMeta {
 	public: boolean;
+	/**
+	 * Cache-Control value for successful GET responses. Only ever set for
+	 * public routes — authenticated responses must stay `private, no-store`.
+	 */
+	cacheControl?: string;
 }
 
 /**
@@ -199,7 +204,13 @@ export class PluginRouteHandler {
 	getRouteMeta(name: string): RouteMeta | null {
 		const route: PluginRoute | undefined = this.plugin.routes[name];
 		if (!route) return null;
-		return { public: route.public === true };
+		const meta: RouteMeta = { public: route.public === true };
+		// Expose cacheControl only for public routes: private responses are
+		// per-user and must never become cacheable, even if a route sets both.
+		if (meta.public && typeof route.cacheControl === "string" && route.cacheControl.length > 0) {
+			meta.cacheControl = route.cacheControl;
+		}
+		return meta;
 	}
 }
 
