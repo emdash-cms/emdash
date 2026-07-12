@@ -383,7 +383,14 @@ describe("finalization", () => {
 			uri: subject.uri,
 			cid: subject.cid,
 		});
-		const failing = testEnv.DB.prepare("INSERT INTO table_that_does_not_exist (x) VALUES (1)");
+		// A runtime constraint violation (duplicate subject PK), not a missing
+		// table: this proves the batch begins, applies the earlier statements,
+		// then rolls them back — a build-time failure would prove nothing about
+		// prior-statement rollback.
+		const failing = testEnv.DB.prepare(
+			`INSERT INTO subjects (uri, cid, did, collection, rkey, observed_at, observed_at_epoch_ms)
+			 VALUES (?, ?, 'did:web:x', 'c', 'r', ?, ?)`,
+		).bind(subject.uri, subject.cid, new Date().toISOString(), Date.now());
 		await expect(testEnv.DB.batch([...statements, failing])).rejects.toThrow();
 		const untouched = await getAssessment(testEnv.DB, assessment.id);
 		expect(untouched?.state).toBe("running");
@@ -465,6 +472,66 @@ describe("supersession", () => {
 		expect(completedSecond?.supersedesAssessmentId).toBe(first.assessment.id);
 		const completedFirst = await getAssessment(testEnv.DB, first.assessment.id);
 		expect(completedFirst?.state).toBe("passed");
+	});
+
+	it("does not regress the pointer when an older run finalizes after a newer one", async () => {
+		const subject = await observedSubject();
+
+		async function runningRun(triggerSuffix: string, createdAt: Date) {
+			const triggerId = operatorTriggerId(triggerSuffix);
+			const runKey = await computeRunKey({
+				uri: subject.uri,
+				cid: subject.cid,
+				policyVersion: "v1",
+				modelId: "m",
+				promptHash: "p",
+				scannerSetVersion: "v1",
+				triggerId,
+			});
+			const { assessment } = await createAssessmentRun(testEnv.DB, {
+				runKey,
+				uri: subject.uri,
+				cid: subject.cid,
+				trigger: "operator",
+				triggerId,
+				policyVersion: "v1",
+				scannerVersionsJson: "[]",
+				coverageJson: "{}",
+				now: createdAt,
+			});
+			for (const [from, to] of [
+				["observed", "verifying"],
+				["verifying", "pending"],
+				["pending", "running"],
+			] as const) {
+				await transitionAssessmentState(testEnv.DB, { id: assessment.id, from, to });
+			}
+			return assessment.id;
+		}
+
+		const olderId = await runningRun("older", new Date("2026-07-10T00:00:00.000Z"));
+		const newerId = await runningRun("newer", new Date("2026-07-11T00:00:00.000Z"));
+
+		const finalize = (id: string) =>
+			buildFinalizationStatements(testEnv.DB, {
+				assessmentId: id,
+				fromState: "running",
+				toState: "passed",
+				src: LABELER_DID,
+				uri: subject.uri,
+				cid: subject.cid,
+			}).statements;
+
+		// Newer run wins the pointer, then the older run finalizes last.
+		await testEnv.DB.batch(finalize(newerId));
+		await testEnv.DB.batch(finalize(olderId));
+
+		const pointer = await getCurrentAssessment(testEnv.DB, {
+			src: LABELER_DID,
+			uri: subject.uri,
+			cid: subject.cid,
+		});
+		expect(pointer?.assessmentId).toBe(newerId);
 	});
 
 	it("a pending newer run never moves the current pointer", async () => {

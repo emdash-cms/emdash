@@ -97,6 +97,15 @@ async function assessmentId(): Promise<string> {
 	return assessment.id;
 }
 
+async function countLabels(uri: string, val: string): Promise<number> {
+	const row = await testEnv.DB.prepare(
+		`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND val = ?`,
+	)
+		.bind(uri, val)
+		.first<{ n: number }>();
+	return row?.n ?? 0;
+}
+
 function action(
 	overrides: Partial<AutomatedIssuanceAction> & { assessmentId: string },
 ): AutomatedIssuanceAction {
@@ -208,7 +217,7 @@ describe("automated proposal validation", () => {
 		).rejects.toThrow("must target a release record");
 	});
 
-	it("rejects a missing CID for a label that requires one", async () => {
+	it("rejects a missing CID on the automated path unconditionally", async () => {
 		const uri = releaseUri();
 		const id = await assessmentId();
 		await expect(
@@ -222,7 +231,42 @@ describe("automated proposal validation", () => {
 					val: "assessment-passed",
 				},
 			),
-		).rejects.toThrow("requires a CID");
+		).rejects.toThrow("must include a release CID");
+	});
+
+	it("refuses to negate a manually-issued label (§10)", async () => {
+		const uri = releaseUri();
+		const id = await assessmentId();
+		// A reviewer-issued assessment-passed (manual action type) — reviewer
+		// override flows land in W9, so seed the exact stream state the guard
+		// defends against directly.
+		await testEnv.DB.prepare(
+			`INSERT INTO issuance_actions (actor, type, reason, idempotency_key, created_at)
+			 VALUES (?, 'manual-label', 'reviewer override', ?, ?)`,
+		)
+			.bind(LABELER_DID, `manual-seed-${Math.random()}`, new Date().toISOString())
+			.run();
+		const actionRow = await testEnv.DB.prepare(
+			`SELECT id FROM issuance_actions ORDER BY id DESC LIMIT 1`,
+		).first<{ id: number }>();
+		await testEnv.DB.prepare(
+			`INSERT INTO issued_labels (action_id, ver, src, uri, cid, val, neg, cts, sig, signing_key_id)
+			 VALUES (?, 1, ?, ?, ?, 'assessment-passed', 0, ?, X'00', ?)`,
+		)
+			.bind(
+				actionRow!.id,
+				LABELER_DID,
+				uri,
+				CID,
+				new Date().toISOString(),
+				`${LABELER_DID}#atproto_label`,
+			)
+			.run();
+
+		await expect(issue(uri, id, { val: "assessment-passed", neg: true })).rejects.toThrow(
+			"cannot negate the manually-issued label",
+		);
+		expect(await countLabels(uri, "assessment-passed")).toBe(1);
 	});
 
 	it("rejects a blocking value from a non-critical severity", async () => {

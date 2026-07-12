@@ -131,6 +131,10 @@ export async function buildIssuanceStatements(
 		throw new Error("label signing key version is stale");
 	}
 
+	if (action.type === "automated-assessment" && proposal.neg === true) {
+		await assertAutomatedNegationAllowed(db, signer.issuerDid, proposal);
+	}
+
 	const unsignedLabel = {
 		ver: 1,
 		uri: proposal.uri,
@@ -381,6 +385,37 @@ async function claimPublication(
 	throw new Error("label publication is paused for signing-key rotation");
 }
 
+/**
+ * §10: automation must never retract an action-backed manual label. If the
+ * currently-active label for this `(src, uri, val)` stream was issued by a
+ * manual action (reviewer/admin), an automated negation is refused here —
+ * defense in depth independent of whatever candidate set an orchestrator
+ * computes. "Currently active" is the highest-sequence event in the stream;
+ * a negation only reaches this guard when that event is a live positive.
+ */
+async function assertAutomatedNegationAllowed(
+	db: D1Database,
+	src: string,
+	proposal: AutomatedLabelProposal,
+): Promise<void> {
+	const latest = await db
+		.prepare(
+			`SELECT a.type, l.neg
+			 FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE l.src = ? AND l.uri = ? AND l.val = ?
+			 ORDER BY l.sequence DESC
+			 LIMIT 1`,
+		)
+		.bind(src, proposal.uri, proposal.val)
+		.first<{ type: string; neg: number }>();
+	if (latest && latest.neg === 0 && latest.type !== "automated-assessment") {
+		throw new TypeError(
+			`automation cannot negate the manually-issued label ${proposal.val} on ${proposal.uri}`,
+		);
+	}
+}
+
 async function getIssuedLabel(
 	db: D1Database,
 	idempotencyKey: string,
@@ -485,11 +520,14 @@ function validateAutomatedAction(action: AutomatedIssuanceAction): void {
 }
 
 /**
- * Validation is driven entirely from the ratified policy fixture's
- * `subjectRules`/`issuanceModes`/`category` (per label value) so the issuer
- * and the policy document cannot drift apart. `assessment-overridden` and
- * reviewer manual-pass flows are rejected here simply because the fixture
- * never lists "automated" among their issuance modes — no special case.
+ * Value legality (which labels the automated path may issue, and their
+ * category/finding rules) is driven from the ratified policy fixture's
+ * `subjectRules`/`issuanceModes`/`category` so the issuer and the policy
+ * document cannot drift. The release-record subject and mandatory CID are
+ * asserted directly per §20.2's absolutes ("automated actions target release
+ * records only and include CID"), independent of any per-label policy rule.
+ * `assessment-overridden` and reviewer manual-pass flows are rejected simply
+ * because the fixture never lists "automated" among their issuance modes.
  */
 function validateAutomatedProposal(proposal: AutomatedLabelProposal): void {
 	const definition = getLabelDefinition(proposal.val);
@@ -497,13 +535,11 @@ function validateAutomatedProposal(proposal: AutomatedLabelProposal): void {
 	const record = REGISTRY_RECORD.exec(proposal.uri);
 	if (!record || !record[2]!.endsWith(".release"))
 		throw new TypeError("automated labels must target a release record");
+	if (proposal.cid === undefined)
+		throw new TypeError("automated labels must include a release CID");
 	const rule = definition.subjectRules.find((candidate) => candidate.subject === "release");
 	if (!rule || !rule.issuanceModes.includes("automated"))
 		throw new TypeError(`${proposal.val} cannot be issued through the automated path`);
-	if (rule.cidRule === "required" && proposal.cid === undefined)
-		throw new TypeError(`${proposal.val} requires a CID`);
-	if (rule.cidRule === "forbidden" && proposal.cid !== undefined)
-		throw new TypeError(`${proposal.val} must not include a CID`);
 	if (proposal.neg === true) return;
 	if (definition.category === "automated-block") {
 		if (proposal.findingCategory === undefined)
