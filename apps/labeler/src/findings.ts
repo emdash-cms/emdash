@@ -270,7 +270,7 @@ function requireStringArray(value: unknown, field: string): readonly string[] {
 				`${field} entries must be at most ${MAX_ARRAY_ENTRY_LENGTH} characters`,
 			);
 	}
-	return value;
+	return [...value];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

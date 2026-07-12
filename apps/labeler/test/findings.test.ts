@@ -172,6 +172,14 @@ describe("validateFinding", () => {
 		expect(ok.affectedFiles).toEqual(["src/index.ts"]);
 	});
 
+	it("decouples validated arrays from the caller's input array", () => {
+		const opts = { allowedCategories: ALLOWED_CATEGORIES, resolvableEvidenceIds: NO_EVIDENCE };
+		const affectedFiles = ["src/index.ts"];
+		const finding = validateFinding(baseFinding({ affectedFiles }), opts);
+		affectedFiles.push("src/mutated.ts");
+		expect(finding.affectedFiles).toEqual(["src/index.ts"]);
+	});
+
 	it("validates a typed sourceMetadata shape", () => {
 		const withTool = validateFinding(
 			baseFinding({ sourceMetadata: { kind: "tool", tool: "semgrep", version: "1.2.3" } }),
