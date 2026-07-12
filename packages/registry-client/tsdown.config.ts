@@ -5,6 +5,7 @@ export default defineConfig({
 		"src/index.ts",
 		"src/credentials/index.ts",
 		"src/discovery/index.ts",
+		"src/direct-pds/index.ts",
 		"src/env/index.ts",
 		"src/publishing/index.ts",
 	],
@@ -20,6 +21,8 @@ export default defineConfig({
 	inlineOnly: false,
 	external: [
 		"@atcute/atproto",
+		"@atcute/cbor",
+		"@atcute/cid",
 		"@atcute/client",
 		"@atcute/lexicons",
 		"@atcute/lexicons/syntax",

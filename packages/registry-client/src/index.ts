@@ -46,6 +46,19 @@ export { type PublishingClientFromHandlerOptions, PublishingClient } from "./pub
 export { type DiscoveryClientOptions, DiscoveryClient } from "./discovery/index.js";
 
 export {
+	type DirectPdsClientOptions,
+	type DirectPdsEnumerationOptions,
+	type DirectPdsProfileRecord,
+	type DirectPdsReadErrorCode,
+	type DirectPdsReleaseRecord,
+	DEFAULT_DIRECT_PDS_MAX_RECORDS,
+	DEFAULT_DIRECT_PDS_PAGE_SIZE,
+	DirectPdsClient,
+	DirectPdsReadError,
+	selectSemverBaseline,
+} from "./direct-pds/index.js";
+
+export {
 	type EnvMismatch,
 	type HostEnv,
 	type SkippedEnvConstraint,

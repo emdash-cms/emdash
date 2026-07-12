@@ -21,6 +21,10 @@
 			"types": "./dist/discovery/index.d.ts",
 			"default": "./dist/discovery/index.js"
 		},
+		"./direct-pds": {
+			"types": "./dist/direct-pds/index.d.ts",
+			"default": "./dist/direct-pds/index.js"
+		},
 		"./env": {
 			"types": "./dist/env/index.d.ts",
 			"default": "./dist/env/index.js"
@@ -39,6 +43,8 @@
 	},
 	"dependencies": {
 		"@atcute/atproto": "catalog:",
+		"@atcute/cbor": "catalog:",
+		"@atcute/cid": "catalog:",
 		"@atcute/client": "catalog:",
 		"@atcute/lexicons": "catalog:",
 		"@emdash-cms/registry-lexicons": "workspace:*"
