@@ -146,7 +146,6 @@ export async function searchWithDb(
 	// Search each collection and merge results
 	const allResults: SearchResult[] = [];
 	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
-	const displayFields = await getDisplayFieldMap(db, collections);
 
 	for (const collection of collections) {
 		const config = await ftsManager.getSearchConfig(collection);
@@ -165,7 +164,7 @@ export async function searchWithDb(
 			},
 			config.weights,
 			titleColumns.has(collection),
-			displayFields.get(collection),
+			config.displayField,
 		);
 
 		allResults.push(...collectionResults);
@@ -215,8 +214,6 @@ export async function searchCollection(
 	const limit = options.limit ?? 20;
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 
-	const displayField = (await getDisplayFieldMap(db, [collection])).get(collection);
-
 	// Over-fetch the [offset, offset + limit) window plus one row to detect a
 	// further page, then slice. Keeps the FTS SQL (LIMIT-only) unchanged and
 	// the cursor contract identical to the cross-collection path.
@@ -227,7 +224,7 @@ export async function searchCollection(
 		{ status: options.status, locale: options.locale, limit: offset + limit + 1 },
 		config.weights,
 		undefined,
-		displayField,
+		config.displayField,
 	);
 
 	const items = fetched.slice(offset, offset + limit);
@@ -517,28 +514,6 @@ export async function getSearchStats(db: Kysely<Database>): Promise<SearchStats>
 	}
 
 	return stats;
-}
-
-/**
- * Map each collection to its configured `displayField` (#1133), so search
- * results show the same title as the content list. One query for all
- * collections in the search set; collections without a displayField are omitted.
- */
-async function getDisplayFieldMap(
-	db: Kysely<Database>,
-	collections: string[],
-): Promise<Map<string, string>> {
-	const map = new Map<string, string>();
-	if (collections.length === 0) return map;
-	const rows = await db
-		.selectFrom("_emdash_collections")
-		.select(["slug", "display_field"])
-		.where("slug", "in", collections)
-		.execute();
-	for (const row of rows) {
-		if (row.display_field) map.set(row.slug, row.display_field);
-	}
-	return map;
 }
 
 /**

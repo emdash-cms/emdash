@@ -40,6 +40,9 @@ const WORD_BOUNDARY_PATTERN = /\b\w/g;
 /** Valid column types for runtime validation */
 const COLUMN_TYPES: ReadonlySet<string> = new Set(["TEXT", "REAL", "INTEGER", "JSON"]);
 
+/** Field types usable as a `displayField` (#1133) — plain text that reads well as a title. */
+const DISPLAY_FIELD_TYPES: ReadonlySet<string> = new Set(["string", "text", "slug"]);
+
 /** Valid collection source prefixes/values */
 const VALID_SOURCES: ReadonlySet<string> = new Set(["manual", "discovered", "seed"]);
 
@@ -205,7 +208,7 @@ export class SchemaRegistry {
 
 	/**
 	 * Validate `displayField`/`dateField` against the collection's fields:
-	 * `displayField` must be a real field; `dateField` must be a `datetime` field.
+	 * `displayField` must be a text-like field; `dateField` must be a `datetime` field.
 	 * Only truthy values are checked (undefined = unchanged, null/"" = cleared).
 	 */
 	private async validateDisplayDateFields(
@@ -224,11 +227,20 @@ export class SchemaRegistry {
 			.execute();
 		const typeBySlug = new Map(rows.map((row) => [row.slug, row.type]));
 
-		if (input.displayField && !typeBySlug.has(input.displayField)) {
-			throw new SchemaError(
-				`displayField "${input.displayField}" is not a field on "${collectionSlug}"`,
-				"INVALID_DISPLAY_FIELD",
-			);
+		if (input.displayField) {
+			const type = typeBySlug.get(input.displayField);
+			if (type === undefined) {
+				throw new SchemaError(
+					`displayField "${input.displayField}" is not a field on "${collectionSlug}"`,
+					"INVALID_DISPLAY_FIELD",
+				);
+			}
+			if (!DISPLAY_FIELD_TYPES.has(type)) {
+				throw new SchemaError(
+					`displayField "${input.displayField}" must be a text field (got "${type}")`,
+					"INVALID_DISPLAY_FIELD",
+				);
+			}
 		}
 
 		if (input.dateField) {
@@ -783,6 +795,13 @@ export class SchemaRegistry {
 			);
 		}
 
+		// If this field powers the collection's displayField/dateField (#1133),
+		// clear that reference in the same transaction — otherwise the metadata
+		// would point at a dropped column and later crash the content list sort.
+		const collection = await this.getCollection(collectionSlug);
+		const clearDisplay = collection?.displayField === fieldSlug;
+		const clearDate = collection?.dateField === fieldSlug;
+
 		let schemaMutated = false;
 		try {
 			await withTransaction(this.db, async (trx) => {
@@ -793,6 +812,18 @@ export class SchemaRegistry {
 				// before we attempt the ALTER TABLE DROP COLUMN below.
 				await trx.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
 				schemaMutated = true;
+
+				if (clearDisplay || clearDate) {
+					await trx
+						.updateTable("_emdash_collections")
+						.set({
+							...(clearDisplay ? { display_field: null } : {}),
+							...(clearDate ? { date_field: null } : {}),
+							updated_at: new Date().toISOString(),
+						})
+						.where("slug", "=", collectionSlug)
+						.execute();
+				}
 
 				// If the deleted field was searchable, sync FTS state (removes old triggers)
 				if (field.searchable) {

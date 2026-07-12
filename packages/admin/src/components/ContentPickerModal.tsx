@@ -89,7 +89,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 		return allItems.filter((item) =>
 			getEntryTitle(item, displayField).toLowerCase().includes(query),
 		);
-	}, [allItems, debouncedSearch]);
+	}, [allItems, debouncedSearch, displayField]);
 
 	// Reset state when modal opens or collection changes
 	React.useEffect(() => {

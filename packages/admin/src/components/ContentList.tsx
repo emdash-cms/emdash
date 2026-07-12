@@ -233,7 +233,7 @@ export function ContentList({
 		if (serverSearch || !searchQuery) return items;
 		const query = searchQuery.toLowerCase();
 		return items.filter((item) => getEntryTitle(item, displayField).toLowerCase().includes(query));
-	}, [items, searchQuery, serverSearch]);
+	}, [items, searchQuery, serverSearch, displayField]);
 
 	// The query the current `items` reflect: server-side filtering lags behind
 	// typing by the debounce, so the empty-state message must use the debounced

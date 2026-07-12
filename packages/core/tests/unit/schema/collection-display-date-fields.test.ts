@@ -82,6 +82,13 @@ describe("collection displayField/dateField (#1133)", () => {
 		).rejects.toBeInstanceOf(SchemaError);
 	});
 
+	it("updateCollection rejects a displayField that isn't a text field", async () => {
+		// `pub_date` is a datetime field — a raw date reads poorly as a title.
+		await expect(
+			registry.updateCollection("employees", { displayField: "pub_date" }),
+		).rejects.toBeInstanceOf(SchemaError);
+	});
+
 	it("updateCollection rejects a dateField that is not a datetime field", async () => {
 		await expect(
 			registry.updateCollection("employees", { dateField: "title" }),
@@ -92,5 +99,20 @@ describe("collection displayField/dateField (#1133)", () => {
 		await expect(
 			registry.updateCollection("employees", { dateField: "nope" }),
 		).rejects.toBeInstanceOf(SchemaError);
+	});
+
+	it("clears displayField/dateField when the referenced field is deleted", async () => {
+		await registry.updateCollection("employees", { displayField: "name", dateField: "pub_date" });
+
+		// Deleting the field that powers dateField must clear the reference, so
+		// the content list doesn't later sort by a dropped column.
+		await registry.deleteField("employees", "pub_date");
+		const afterDate = await registry.getCollection("employees");
+		expect(afterDate?.dateField).toBeUndefined();
+		expect(afterDate?.displayField).toBe("name"); // unrelated reference untouched
+
+		await registry.deleteField("employees", "name");
+		const afterName = await registry.getCollection("employees");
+		expect(afterName?.displayField).toBeUndefined();
 	});
 });
