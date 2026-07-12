@@ -426,6 +426,9 @@ importers:
       '@emdash-cms/registry-moderation':
         specifier: workspace:*
         version: link:../../packages/registry-moderation
+      ulidx:
+        specifier: ^2.4.1
+        version: 2.4.1
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'

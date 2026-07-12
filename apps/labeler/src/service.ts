@@ -1,6 +1,8 @@
 import type { LabelSigner, SignedLabel } from "@emdash-cms/registry-moderation";
 
 import type { LabelerConfig } from "./config.js";
+import type { FindingSeverity } from "./evidence.js";
+import { getLabelDefinition } from "./policy.js";
 import {
 	getSigningStatusIfInitialized,
 	recordSigningAlert,
@@ -12,6 +14,7 @@ import type { LabelPublisher } from "./subscribe-labels.js";
 const DID = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const REGISTRY_RECORD =
 	/^at:\/\/(did:[a-z0-9]+:[A-Za-z0-9._:%-]+)\/(com\.emdashcms\.experimental\.package\.(?:profile|release))\/([A-Za-z0-9._~:%-]+)$/;
+const ASSESSMENT_ID = /^asmt_[0-9A-HJKMNP-TV-Z]{26}$/;
 
 export type ManualLabelValue =
 	| "!takedown"
@@ -26,6 +29,16 @@ export interface AuthorizedIssuanceAction {
 	idempotencyKey: string;
 }
 
+export interface AutomatedIssuanceAction {
+	actor: string;
+	type: "automated-assessment";
+	assessmentId: string;
+	reason: string;
+	idempotencyKey: string;
+}
+
+export type IssuanceAction = AuthorizedIssuanceAction | AutomatedIssuanceAction;
+
 export interface AllowedLabelProposal {
 	uri: string;
 	val: ManualLabelValue;
@@ -34,8 +47,22 @@ export interface AllowedLabelProposal {
 	exp?: string;
 }
 
+export interface AutomatedLabelProposal {
+	uri: string;
+	val: string;
+	cid?: string;
+	neg?: boolean;
+	exp?: string;
+	/** Required, and validated as an allowed automated-block category, when `val`'s policy category is automated-block. */
+	findingCategory?: string;
+	/** Required (and must be "critical") when `val`'s policy category is automated-block. */
+	severity?: FindingSeverity;
+}
+
+export type IssuanceProposal = AllowedLabelProposal | AutomatedLabelProposal;
+
 export interface IssuedLabel {
-	action: AuthorizedIssuanceAction;
+	action: IssuanceAction;
 	label: SignedLabel;
 	sequence: number;
 	signingKeyId: string;
@@ -47,6 +74,7 @@ interface StoredLabelRow {
 	type: string;
 	reason: string;
 	idempotency_key: string;
+	assessment_id: string | null;
 	sequence: number;
 	ver: number;
 	src: string;
@@ -62,40 +90,29 @@ interface StoredLabelRow {
 	publication_pending: number;
 }
 
-export async function issueManualLabel(
+export interface IssuanceStatements {
+	statements: D1PreparedStatement[];
+	postCommit: () => Promise<IssuedLabel>;
+}
+
+/**
+ * Builds the two INSERT statements that record an issuance action and its
+ * signed label, sharing the same signing/rotation guards for both the
+ * manual and automated-assessment paths. `publicationPending` must reflect
+ * whether the caller intends to publish the result, because rotation
+ * activation checks `issued_labels.publication_pending` for the row this
+ * batch is about to create — the flag has to be right at INSERT time, not
+ * patched in afterward.
+ */
+export async function buildIssuanceStatements(
 	db: D1Database,
 	config: LabelerConfig,
 	signer: LabelSigner,
-	action: AuthorizedIssuanceAction,
-	proposal: AllowedLabelProposal,
-	now = new Date(),
-	publisher?: LabelPublisher,
-): Promise<IssuedLabel> {
-	if (signer.issuerDid !== config.labelerDid)
-		throw new TypeError("signer issuer does not match the configured labeler DID");
-	validateKeyVersion(config.signingKeyVersion);
-	validateAction(action);
-	validateProposal(proposal);
-
-	const existing = await getIssuedLabel(db, action.idempotencyKey);
-	if (existing) {
-		const status = await getSigningStatusIfInitialized(db);
-		if (status && existing.signing_key_version !== status.activeKeyVersion) {
-			await recordSigningAlert(db, "IDEMPOTENT_RETRY_STALE_SIGNATURE", {
-				activeKeyVersion: status.activeKeyVersion,
-				targetKeyVersion: existing.signing_key_version,
-				rotationId: status.rotationId,
-			});
-			throw new Error("label signature must be refreshed before replay");
-		}
-		const result = assertMatches(existing, signer, action, proposal);
-		if (publisher) {
-			await claimPublication(db, existing, status);
-			await publisher.publish(result);
-			if (!publisher.managesPublicationState) await markPublicationAccepted(db, result);
-		}
-		return result;
-	}
+	action: IssuanceAction,
+	proposal: IssuanceProposal,
+	now: Date,
+	publicationPending: boolean,
+): Promise<IssuanceStatements> {
 	const signingStatus = await getSigningStatusIfInitialized(db);
 	if (signingStatus?.phase === "paused") {
 		await recordSigningAlert(db, "ISSUANCE_PAUSED", {
@@ -145,12 +162,13 @@ export async function issueManualLabel(
 	const signingKeyId = `${signer.issuerDid}#atproto_label`;
 	const isPrebootstrap = signingStatus === null;
 	const storedKeyVersion = isPrebootstrap ? "legacy" : config.signingKeyVersion;
+	const assessmentId = action.type === "automated-assessment" ? action.assessmentId : null;
 
-	await db.batch([
+	const statements: D1PreparedStatement[] = [
 		db
 			.prepare(
-				`INSERT INTO issuance_actions (actor, type, reason, idempotency_key, created_at)
-				 SELECT ?, ?, ?, ?, ?
+				`INSERT INTO issuance_actions (actor, type, reason, idempotency_key, assessment_id, created_at)
+				 SELECT ?, ?, ?, ?, ?, ?
 				 WHERE (? = 1 AND NOT EXISTS (SELECT 1 FROM signing_state))
 				 OR (? = 0 AND EXISTS (
 					SELECT 1 FROM signing_state
@@ -163,6 +181,7 @@ export async function issueManualLabel(
 				action.type,
 				action.reason,
 				action.idempotencyKey,
+				assessmentId,
 				now.toISOString(),
 				isPrebootstrap ? 1 : 0,
 				isPrebootstrap ? 1 : 0,
@@ -197,42 +216,89 @@ export async function issueManualLabel(
 				label.sig,
 				signingKeyId,
 				storedKeyVersion,
-				publisher ? 1 : 0,
+				publicationPending ? 1 : 0,
 				action.idempotencyKey,
 				isPrebootstrap ? 1 : 0,
 				isPrebootstrap ? 1 : 0,
 				config.signingKeyVersion,
 			),
-	]);
+	];
 
-	const issued = await getIssuedLabel(db, action.idempotencyKey);
-	if (!issued) {
+	return {
+		statements,
+		postCommit: async () => {
+			const issued = await getIssuedLabel(db, action.idempotencyKey);
+			if (!issued) {
+				const status = await getSigningStatusIfInitialized(db);
+				if (!status) throw new Error("label issuance did not persist");
+				if (!signingStatus) {
+					await recordSigningAlert(db, "SIGNING_STATE_CHANGED", {
+						activeKeyVersion: status.activeKeyVersion,
+						targetKeyVersion: config.signingKeyVersion,
+						rotationId: status.rotationId,
+					});
+					throw new Error("signing state changed; retry label issuance");
+				}
+				if (status.phase === "paused") {
+					await recordSigningAlert(db, "ISSUANCE_PAUSED", {
+						activeKeyVersion: status.activeKeyVersion,
+						targetKeyVersion: config.signingKeyVersion,
+						rotationId: status.rotationId,
+					});
+					throw new Error("label issuance is paused");
+				}
+				await recordSigningAlert(db, "STALE_SIGNING_KEY", {
+					activeKeyVersion: status.activeKeyVersion,
+					targetKeyVersion: config.signingKeyVersion,
+					rotationId: status.rotationId,
+				});
+				throw new Error("label signing key version is stale");
+			}
+			return assertMatches(issued, signer, action, proposal);
+		},
+	};
+}
+
+async function issueLabel(
+	db: D1Database,
+	config: LabelerConfig,
+	signer: LabelSigner,
+	action: IssuanceAction,
+	proposal: IssuanceProposal,
+	now: Date,
+	publisher?: LabelPublisher,
+): Promise<IssuedLabel> {
+	const existing = await getIssuedLabel(db, action.idempotencyKey);
+	if (existing) {
 		const status = await getSigningStatusIfInitialized(db);
-		if (!status) throw new Error("label issuance did not persist");
-		if (!signingStatus) {
-			await recordSigningAlert(db, "SIGNING_STATE_CHANGED", {
+		if (status && existing.signing_key_version !== status.activeKeyVersion) {
+			await recordSigningAlert(db, "IDEMPOTENT_RETRY_STALE_SIGNATURE", {
 				activeKeyVersion: status.activeKeyVersion,
-				targetKeyVersion: config.signingKeyVersion,
+				targetKeyVersion: existing.signing_key_version,
 				rotationId: status.rotationId,
 			});
-			throw new Error("signing state changed; retry label issuance");
+			throw new Error("label signature must be refreshed before replay");
 		}
-		if (status.phase === "paused") {
-			await recordSigningAlert(db, "ISSUANCE_PAUSED", {
-				activeKeyVersion: status.activeKeyVersion,
-				targetKeyVersion: config.signingKeyVersion,
-				rotationId: status.rotationId,
-			});
-			throw new Error("label issuance is paused");
+		const result = assertMatches(existing, signer, action, proposal);
+		if (publisher) {
+			await claimPublication(db, existing, status);
+			await publisher.publish(result);
+			if (!publisher.managesPublicationState) await markPublicationAccepted(db, result);
 		}
-		await recordSigningAlert(db, "STALE_SIGNING_KEY", {
-			activeKeyVersion: status.activeKeyVersion,
-			targetKeyVersion: config.signingKeyVersion,
-			rotationId: status.rotationId,
-		});
-		throw new Error("label signing key version is stale");
+		return result;
 	}
-	const result = assertMatches(issued, signer, action, proposal);
+
+	const { statements, postCommit } = await buildIssuanceStatements(
+		db,
+		config,
+		signer,
+		action,
+		proposal,
+		now,
+		publisher !== undefined,
+	);
+	await db.batch(statements);
+	const result = await postCommit();
 	// The D1 batch commits before this notification; replay covers subscribers
 	// which connect before the singleton processes the post-commit broadcast.
 	if (publisher) {
@@ -240,6 +306,40 @@ export async function issueManualLabel(
 		if (!publisher.managesPublicationState) await markPublicationAccepted(db, result);
 	}
 	return result;
+}
+
+export async function issueManualLabel(
+	db: D1Database,
+	config: LabelerConfig,
+	signer: LabelSigner,
+	action: AuthorizedIssuanceAction,
+	proposal: AllowedLabelProposal,
+	now = new Date(),
+	publisher?: LabelPublisher,
+): Promise<IssuedLabel> {
+	if (signer.issuerDid !== config.labelerDid)
+		throw new TypeError("signer issuer does not match the configured labeler DID");
+	validateKeyVersion(config.signingKeyVersion);
+	validateAction(action);
+	validateProposal(proposal);
+	return issueLabel(db, config, signer, action, proposal, now, publisher);
+}
+
+export async function issueAutomatedAssessmentLabel(
+	db: D1Database,
+	config: LabelerConfig,
+	signer: LabelSigner,
+	action: AutomatedIssuanceAction,
+	proposal: AutomatedLabelProposal,
+	now = new Date(),
+	publisher?: LabelPublisher,
+): Promise<IssuedLabel> {
+	if (signer.issuerDid !== config.labelerDid)
+		throw new TypeError("signer issuer does not match the configured labeler DID");
+	validateKeyVersion(config.signingKeyVersion);
+	validateAutomatedAction(action);
+	validateAutomatedProposal(proposal);
+	return issueLabel(db, config, signer, action, proposal, now, publisher);
 }
 
 async function markPublicationAccepted(db: D1Database, issued: IssuedLabel): Promise<void> {
@@ -287,8 +387,8 @@ async function getIssuedLabel(
 ): Promise<StoredLabelRow | null> {
 	return db
 		.prepare(
-			`SELECT a.actor, a.type, a.reason, a.idempotency_key, l.sequence, l.ver, l.src, l.uri,
-			 l.cid, l.val, l.neg, l.cts, l.exp, l.sig, l.signing_key_id,
+			`SELECT a.actor, a.type, a.reason, a.idempotency_key, a.assessment_id, l.sequence, l.ver,
+			 l.src, l.uri, l.cid, l.val, l.neg, l.cts, l.exp, l.sig, l.signing_key_id,
 			 l.signing_key_version, l.publication_pending
 			 FROM issuance_actions a
 			 JOIN issued_labels l ON l.action_id = a.id
@@ -301,13 +401,15 @@ async function getIssuedLabel(
 function assertMatches(
 	stored: StoredLabelRow,
 	signer: LabelSigner,
-	action: AuthorizedIssuanceAction,
-	proposal: AllowedLabelProposal,
+	action: IssuanceAction,
+	proposal: IssuanceProposal,
 ): IssuedLabel {
 	if (
 		stored.actor !== action.actor ||
 		stored.type !== action.type ||
 		stored.reason !== action.reason ||
+		stored.assessment_id !==
+			(action.type === "automated-assessment" ? action.assessmentId : null) ||
 		stored.src !== signer.issuerDid ||
 		stored.uri !== proposal.uri ||
 		stored.cid !== (proposal.cid ?? null) ||
@@ -367,5 +469,49 @@ function validateProposal(proposal: AllowedLabelProposal): void {
 				throw new TypeError("security-yanked must target a release record");
 			if (proposal.cid !== undefined) throw new TypeError("security-yanked must not include a CID");
 			return;
+	}
+}
+
+function validateAutomatedAction(action: AutomatedIssuanceAction): void {
+	if (!DID.test(action.actor)) throw new TypeError("action.actor must be a DID");
+	if (action.type !== "automated-assessment")
+		throw new TypeError("action.type must be automated-assessment");
+	if (!ASSESSMENT_ID.test(action.assessmentId))
+		throw new TypeError("action.assessmentId must be a valid assessment id");
+	if (action.reason.trim().length === 0 || action.reason.length > 1_000)
+		throw new TypeError("action.reason must be between 1 and 1000 characters");
+	if (action.idempotencyKey.length < 1 || action.idempotencyKey.length > 200)
+		throw new TypeError("action.idempotencyKey must be between 1 and 200 characters");
+}
+
+/**
+ * Validation is driven entirely from the ratified policy fixture's
+ * `subjectRules`/`issuanceModes`/`category` (per label value) so the issuer
+ * and the policy document cannot drift apart. `assessment-overridden` and
+ * reviewer manual-pass flows are rejected here simply because the fixture
+ * never lists "automated" among their issuance modes — no special case.
+ */
+function validateAutomatedProposal(proposal: AutomatedLabelProposal): void {
+	const definition = getLabelDefinition(proposal.val);
+	if (!definition) throw new TypeError(`unknown label value: ${proposal.val}`);
+	const record = REGISTRY_RECORD.exec(proposal.uri);
+	if (!record || !record[2]!.endsWith(".release"))
+		throw new TypeError("automated labels must target a release record");
+	const rule = definition.subjectRules.find((candidate) => candidate.subject === "release");
+	if (!rule || !rule.issuanceModes.includes("automated"))
+		throw new TypeError(`${proposal.val} cannot be issued through the automated path`);
+	if (rule.cidRule === "required" && proposal.cid === undefined)
+		throw new TypeError(`${proposal.val} requires a CID`);
+	if (rule.cidRule === "forbidden" && proposal.cid !== undefined)
+		throw new TypeError(`${proposal.val} must not include a CID`);
+	if (proposal.neg === true) return;
+	if (definition.category === "automated-block") {
+		if (proposal.findingCategory === undefined)
+			throw new TypeError(`${proposal.val} requires a finding category`);
+		const findingDefinition = getLabelDefinition(proposal.findingCategory);
+		if (!findingDefinition || findingDefinition.category !== "automated-block")
+			throw new TypeError("finding category must be an allowed security/impersonation category");
+		if (proposal.severity !== "critical")
+			throw new TypeError(`${proposal.val} requires a critical finding severity`);
 	}
 }
