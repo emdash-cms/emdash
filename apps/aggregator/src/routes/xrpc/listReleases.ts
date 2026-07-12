@@ -149,6 +149,12 @@ export async function listReleases(
 		// 400 (per the strict-cursor policy) and fall back to fetching
 		// page 1. Acceptable for the experimental NSID; revisit if/when
 		// we stabilise.
+		//
+		// An all-redacted page returns an empty list WITH a cursor, which
+		// lets a caller infer hidden rows exist. Accepted trade-off: the
+		// alternatives either stop pagination early (cursor only when a row
+		// survived) or re-page server-side until the page fills. Package-
+		// level redaction — the sensitive case — 404s above instead.
 		response.cursor = encodeListCursor({ versionSort: last.version_sort, version: last.version });
 	}
 	return json(response);

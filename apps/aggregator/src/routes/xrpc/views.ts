@@ -127,8 +127,9 @@ export function releaseUri(row: Pick<ReleaseRow, "did" | "rkey">) {
 
 /** Caps a combined labels array at the lexicon's maxLength. A view's
  * labels are the union of multiple hydrated subjects (e.g. a release's own
- * URI plus its parent package and publisher DID), each individually
- * capped by `hydrateLabels` — the concatenation can still exceed it. */
+ * URI plus its parent package and publisher DID). Hydration returns
+ * untruncated per-subject sets so redaction decisions see every label;
+ * this boundary cap trims only the final view array. */
 function capLabels(labels: LabelView[], uri: string): LabelView[] {
 	if (labels.length <= LABELS_MAX_LENGTH) return labels;
 	console.warn("[aggregator] view labels truncated to maxLength", {
