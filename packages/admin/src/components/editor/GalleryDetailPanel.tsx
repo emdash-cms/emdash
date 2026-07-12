@@ -287,10 +287,13 @@ function SortableGalleryThumb({
 
 	return (
 		<div ref={setNodeRef} style={style} className="relative group">
-			<button
+			<Button
 				type="button"
+				variant="ghost"
+				shape="square"
+				aria-label={image.alt || t`Image ${index + 1}`}
 				className={cn(
-					"aspect-square w-full rounded-md border overflow-hidden",
+					"aspect-square h-full w-full rounded-md border overflow-hidden",
 					selected && "ring-2 ring-kumo-brand",
 				)}
 				onClick={onSelect}
@@ -303,7 +306,7 @@ function SortableGalleryThumb({
 					className="object-cover w-full h-full"
 					draggable={false}
 				/>
-			</button>
+			</Button>
 			<Button
 				type="button"
 				variant="destructive"
