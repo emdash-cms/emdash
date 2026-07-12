@@ -308,7 +308,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				"Content-Security-Policy",
 				buildEmDashCsp(
 					context.locals.emdash?.config.experimental?.registry,
-					getConfiguredStorageEndpoint(context.locals.emdash?.config.storage),
+					getConfiguredStorageEndpoint(
+						context.locals.emdash?.config.storage,
+						context.locals.emdash?.storage,
+					),
 				),
 			);
 		}
@@ -323,7 +326,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			"Content-Security-Policy",
 			buildEmDashCsp(
 				context.locals.emdash?.config.experimental?.registry,
-				getConfiguredStorageEndpoint(context.locals.emdash?.config.storage),
+				getConfiguredStorageEndpoint(
+					context.locals.emdash?.config.storage,
+					context.locals.emdash?.storage,
+				),
 			),
 		);
 	}
