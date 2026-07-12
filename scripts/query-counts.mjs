@@ -63,6 +63,8 @@ import { dirname, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
+import { assertCompleteMeasurements, assertSuccessfulResponse } from "./query-counts-guards.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
 const fixtureDir = resolve(repoRoot, "fixtures/perf-site");
@@ -122,6 +124,18 @@ function waitForPort(host, port, timeoutMs = 120_000) {
 		};
 		attempt();
 	});
+}
+
+async function stopChild(child, closed) {
+	child.kill("SIGTERM");
+	const stopped = await Promise.race([
+		closed.then(() => true),
+		new Promise((resolveTimeout) => setTimeout(resolveTimeout, 5_000, false)),
+	]);
+	if (!stopped) {
+		child.kill("SIGKILL");
+		await closed;
+	}
 }
 
 function parseArgs(argv) {
@@ -244,7 +258,7 @@ async function seedD1ViaDevBypass(events) {
 		if (line.includes(STREAM_END_PREFIX)) return;
 		process.stdout.write(line + "\n");
 	});
-	const exited = new Promise((res) => child.once("exit", res));
+	const closed = new Promise((resolveClose) => child.once("close", resolveClose));
 
 	try {
 		await waitForPort(HOST, PORT);
@@ -259,11 +273,7 @@ async function seedD1ViaDevBypass(events) {
 		await r.arrayBuffer();
 		process.stdout.write(`  seed via dev-bypass -> ${r.status}\n`);
 	} finally {
-		child.kill("SIGTERM");
-		await Promise.race([
-			exited,
-			new Promise((r) => setTimeout(r, 5_000)).then(() => child.kill("SIGKILL")),
-		]);
+		await stopChild(child, closed);
 		await new Promise((r) => setTimeout(r, 250));
 	}
 }
@@ -329,17 +339,13 @@ function startServer({ collectedEvents, streamEndSnapshots = [] }) {
 		process.stdout.write(line + "\n");
 	});
 
-	const exited = new Promise((res) => child.once("exit", res));
+	const closed = new Promise((resolveClose) => child.once("close", resolveClose));
 	child.once("error", (err) => {
 		process.stderr.write(`server spawn error: ${err.message}\n`);
 	});
 
 	async function stop() {
-		child.kill("SIGTERM");
-		await Promise.race([
-			exited,
-			new Promise((r) => setTimeout(r, 5_000)).then(() => child.kill("SIGKILL")),
-		]);
+		await stopChild(child, closed);
 		// Small pause for the OS to release the port before the next spawn.
 		await new Promise((r) => setTimeout(r, 250));
 	}
@@ -354,19 +360,22 @@ async function hit(method, path, phase) {
 	// in the "default" phase), just papering over a race.
 	let lastErr;
 	for (let i = 0; i < 10; i++) {
+		let r;
 		try {
-			const r = await fetch(`${BASE}${path}`, {
+			r = await fetch(`${BASE}${path}`, {
 				method,
 				headers: { "x-perf-phase": phase },
 				redirect: "manual",
 			});
-			await r.arrayBuffer();
-			process.stdout.write(`  ${phase.padEnd(5)} ${method} ${path} -> ${r.status}\n`);
-			return r.status;
 		} catch (err) {
 			lastErr = err;
-			await new Promise((r) => setTimeout(r, 200));
+			await new Promise((resolveDelay) => setTimeout(resolveDelay, 200));
+			continue;
 		}
+		await r.arrayBuffer();
+		process.stdout.write(`  ${phase.padEnd(5)} ${method} ${path} -> ${r.status}\n`);
+		assertSuccessfulResponse(method, path, phase, r.status);
+		return r.status;
 	}
 	throw lastErr;
 }
@@ -573,6 +582,7 @@ async function main() {
 	else await runD1(events, streamEndSnapshots);
 
 	reportStreamEnd(streamEndSnapshots);
+	assertCompleteMeasurements(events, streamEndSnapshots, ROUTES);
 
 	const counts = aggregate(events);
 	const queries = aggregateQueries(events);
