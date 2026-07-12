@@ -16,8 +16,8 @@ The following decisions were made before drafting this spec.
 | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Launch role               | Safety and quality labeler, with narrow takedown authority                                                      |
 | Assessment coverage       | Assess every release, including verified and first-party publishers                                             |
-| Automated inputs          | Bundle code, manifest and metadata, images, dependencies/SBOM, and publisher history                            |
-| Automated authority       | Deterministic critical findings, critical scanner matches, and a single AI critical finding may hard-block      |
+| Automated inputs          | Bundle code, manifest and metadata, images, and publisher history                                               |
+| Automated authority       | Deterministic critical findings and a single AI critical finding may hard-block                                 |
 | AI hard-block scope       | Security and impersonation findings only; quality findings never hard-block                                     |
 | Hard-block representation | Descriptive labels, not `!takedown`                                                                             |
 | Official client policy    | Require a positive assessment label; hard-block configured high-risk labels                                     |
@@ -29,12 +29,12 @@ The following decisions were made before drafting this spec.
 | Deployable shape          | One Worker application for assessment, issuance, distribution, and console                                      |
 | Discovery                 | Independent Jetstream consumer                                                                                  |
 | Artifact source           | Verified aggregator mirror, with a declared-URL fallback                                                        |
-| AI                        | Workers AI (`AI` runtime binding)                                                                               |
+| AI                        | Workers AI (`AI` runtime binding), `@cf/moonshotai/kimi-k2.7-code`                                               |
 | Public evidence           | Public assessment summary; private detailed evidence                                                            |
 | Publisher notice          | Package security contact, then publisher profile fallback; email plus an ATProto-visible notice where practical |
 | Appeals                   | Email/manual reconsideration, not a first-class appeals workflow in v1                                          |
 | Policy changes            | Versioned in code and deployed through normal review                                                            |
-| Reassessment              | New releases and relevant scanner-intelligence changes                                                          |
+| Reassessment              | New releases, operator request, and model/policy-revision changes                                               |
 | Assessment failure        | Release remains in a temporary pending/unknown state and official clients block it                              |
 | Reports                   | Defer `com.atproto.moderation.createReport` and report triage in v1                                             |
 
@@ -47,7 +47,7 @@ The following decisions were made before drafting this spec.
 5. Give operators enough interface to understand a decision, override it, re-run an assessment, or issue an emergency takedown.
 6. Give publishers a useful public explanation and a direct notification when a release is blocked or warned.
 7. Preserve the distinction between publication and reach: publishers control their records; labelers publish opinions; consumers choose policy.
-8. Keep policy, model, scanner, and operator decisions auditable and reproducible.
+8. Keep policy, model, and operator decisions auditable and reproducible.
 
 ## 3. Non-goals
 
@@ -91,10 +91,8 @@ flowchart LR
   AGG[Aggregator mirror and sync.getRecord] --> WF
   SRC[Publisher artifact URL fallback] --> WF
   WF --> DET[Deterministic checks]
-  WF --> DEP[Dependency and SBOM scanners]
   WF --> AI[Workers AI binding]
   DET --> PE[Versioned policy engine]
-  DEP --> PE
   AI --> PE
   PE --> D1[(Labeler D1)]
   PE --> ISSUER[Label issuer]
@@ -196,11 +194,11 @@ A reviewer/admin may manually unblock a false positive by issuing negations for 
 
 | Label                        | Meaning                                                                                                    | Automatic issuance                                                                     |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `malware`                    | Code or payload intentionally compromises, persists, mines, destroys, or executes an unauthorized workload | Deterministic/scanner critical or AI critical                                          |
-| `data-exfiltration`          | Plugin intentionally sends protected site/user data outside its declared and expected purpose              | Deterministic/scanner critical or AI critical                                          |
-| `credential-harvesting`      | Plugin solicits, captures, or transmits credentials deceptively                                            | Deterministic/scanner critical or AI critical                                          |
-| `supply-chain-compromise`    | Artifact or dependency evidence indicates a known malicious or substituted component                       | Deterministic/scanner critical or AI critical                                          |
-| `critical-vulnerability`     | A scanner identifies a critical, applicable vulnerability under the policy's blocking rule                 | Critical scanner rule only unless AI identifies an independently blocking exploit path |
+| `malware`                    | Code or payload intentionally compromises, persists, mines, destroys, or executes an unauthorized workload | Deterministic critical or AI critical                                                  |
+| `data-exfiltration`          | Plugin intentionally sends protected site/user data outside its declared and expected purpose              | Deterministic critical or AI critical                                                  |
+| `credential-harvesting`      | Plugin solicits, captures, or transmits credentials deceptively                                            | Deterministic critical or AI critical                                                  |
+| `supply-chain-compromise`    | Bundled code evidence indicates a known malicious or substituted component inlined at build time           | AI critical                                                                             |
+| `critical-vulnerability`     | AI identifies a critical, applicable vulnerability in the bundled code under the policy's blocking rule    | AI critical only; v1 has no dependency/vulnerability scanner                            |
 | `artifact-integrity-failure` | Available artifact bytes do not match the checksum in the signed release                                   | Deterministic critical                                                                 |
 | `invalid-bundle`             | The archive is malformed, unsafe, or missing required installable content                                  | Deterministic critical                                                                 |
 | `undeclared-access`          | Bundle behavior or manifest inconsistency attempts access outside the signed declaration                   | Deterministic critical; AI may propose but not establish manifest inequality           |
@@ -208,7 +206,7 @@ A reviewer/admin may manually unblock a false positive by issuing negations for 
 
 Official EmDash clients block these labels. Other consumers choose their own behavior.
 
-The policy must distinguish a vulnerable dependency from an actually blocking critical vulnerability. A raw CVSS score alone is insufficient. The versioned rule should require applicable package/version evidence and one of: known exploitation, reachable critical behavior, a policy-maintained deny-list, or another explicit rule.
+The policy must distinguish a routine code weakness from an actually blocking critical vulnerability. AI confidence alone is insufficient. The versioned rule should require reachable critical behavior, corroborating capability-analysis evidence, or another explicit rule.
 
 ### 7.3 Warning labels
 
@@ -299,14 +297,13 @@ sha256(
   policy-version + "\n" +
   model-id + "\n" +
   prompt-hash + "\n" +
-  scanner-set-version + "\n" +
   trigger-id
 )
 ```
 
-`trigger-id` is stable for a logical trigger: `initial:<cid>` for first observation, an advisory/signature corpus revision for scanner intelligence, or the immutable operator action ID for a manual rerun. At most one active workflow exists for a `runKey`. Redelivery wakes or observes the same run; a new scanner revision or operator action creates a new immutable run that may supersede the previous effective assessment.
+`trigger-id` is stable for a logical trigger: `initial:<cid>` for first observation, the immutable operator action ID for a manual rerun, or the new model/policy version for a model-or-policy-revision rerun. At most one active workflow exists for a `runKey`. Redelivery wakes or observes the same run; a new model/policy revision or operator action creates a new immutable run that may supersede the previous effective assessment.
 
-A new policy version does not automatically reassess every release. Scanner-intelligence updates select affected releases and enqueue a run with the new scanner-set version and trigger ID.
+A new policy version does not automatically reassess every release. A model-or-policy-revision trigger selects affected releases and enqueues a run with the new model ID or policy version and trigger ID.
 
 ### 9.3 Acquire verified inputs
 
@@ -318,8 +315,7 @@ The workflow obtains:
 4. Bundle from a validated aggregator mirror.
 5. Bundle from the publisher-declared URL only if the mirror is unavailable.
 6. Images referenced by the package/release where needed.
-7. SBOM from the release record or bundle, if present.
-8. Relevant publisher history already observed by the labeler.
+7. Relevant publisher history already observed by the labeler.
 
 Every artifact source is checksum-verified against the signed release before extraction. The mirror is a transport optimization, not a trust root.
 
@@ -345,42 +341,35 @@ Run deterministic checks before any AI call:
 - Required bundle files and manifest validity.
 - Canonical manifest `declaredAccess` equality with the signed release extension.
 - Unknown access category/operation rejection.
-- Forbidden archive entries, executable payload classes, and known malicious hashes.
+- Forbidden archive entries and executable payload classes.
 - Static forbidden-runtime patterns where they are unambiguous.
 - Metadata URL and identity consistency.
 - Image dimensions/types and archive policy.
 
 A registry-invalid release may already have been rejected by the aggregator. The labeler still stores the observation if independently discovered, but only issues labels for a resolvable, valid subject. Invalid/unresolvable records go to operational dead letters rather than creating unverifiable public labels.
 
-Permanent failures after the source record is verified are findings, not operational errors. Checksum mismatch maps to `artifact-integrity-failure`; malformed/unsafe/missing bundle content maps to `invalid-bundle`; manifest declaration mismatch maps to `undeclared-access`. Transient mirror/network/model/scanner unavailability retries and may become `assessment-error`.
+Permanent failures after the source record is verified are findings, not operational errors. Checksum mismatch maps to `artifact-integrity-failure`; malformed/unsafe/missing bundle content maps to `invalid-bundle`; manifest declaration mismatch maps to `undeclared-access`. Transient mirror/network/model unavailability retries and may become `assessment-error`.
 
-### 9.5 Dependency and SBOM analysis
+### 9.5 Capability analysis
 
-The service prefers a publisher-supplied SBOM when it is bound to the release. It may also derive dependency evidence from lockfiles and bundled metadata.
+EmDash registry plugins ship as a single bundled artifact: dependencies are inlined at build time, so there is no dependency graph, lockfile, or SBOM in the shipped bundle, and no dependency, SBOM, or advisory/CVE analysis is performed.
 
-The normalized result records:
+Instead the labeler statically extracts the bundle's real API/capability surface (network/fetch, storage, `eval`/`Function`, filesystem, crypto, env/process, DOM) and diffs it against the `releaseExtension` declared access categories. A mismatch produces an `undeclared-access` finding. This deterministic declared-vs-actual diff is the highest-signal, EmDash-specific check in the pipeline and also feeds the normalized capability evidence given to the AI code adapter.
 
-- Ecosystem, package, version, and dependency path.
-- Advisory identifier and source.
-- Severity and exploit status.
-- Whether the vulnerable code is bundled/reachable where determinable.
-- Scanner database/version and observation time.
-- Confidence and any suppression rule.
+Missing or incomplete capability extraction is not itself a blocking condition in v1. It may lower assessment coverage and be shown in the public summary.
 
-Missing SBOM data is not itself a blocking condition in v1. It may lower assessment coverage and be shown in the public summary.
-
-Scanner-intelligence updates enqueue only releases whose dependency/hash index intersects the changed advisories or signatures.
+A model-or-policy-revision trigger enqueues affected releases for reassessment; see section 10.
 
 ### 9.6 Code and metadata AI assessment
 
-Workers AI is invoked directly through the runtime `AI` binding (`env.AI`), not AI Gateway; moderation inference is never cached. An internal inference request ID generated per call is retained with private evidence for correlation.
+`@cf/moonshotai/kimi-k2.7-code` is invoked directly through the runtime `AI` binding (`env.AI`), not AI Gateway; moderation inference is never cached. An internal inference request ID generated per call is retained with private evidence for correlation.
 
-The model receives bounded, explicitly delimited inputs:
+The model receives explicitly delimited inputs:
 
 - Manifest and signed declared access.
 - Package/release metadata.
-- File inventory and deterministic scanner summary.
-- Relevant source files, selected by deterministic entrypoint/import analysis.
+- File inventory and deterministic check and capability-analysis summary.
+- The full bundle source, size-capped by the existing release artifact size cap. If a bundle ever exceeds the model's context window, coverage degrades (`partial`/`unavailable`) rather than silently truncating.
 - Publisher-history facts, not an unbounded reputation narrative.
 - A policy-generated task and output schema.
 
@@ -433,21 +422,21 @@ History is context, not guilt by association. The model/policy may use:
 - Prior releases from the same DID.
 - Recent identity/handle/profile changes.
 - Existing active manual labels.
-- Repeated exact malicious hashes or repeated policy violations.
+- Repeated exact artifact checksums previously found violating, or repeated policy violations.
 - Verification state as display context, never as an assessment exemption.
 
 Automation cannot issue package- or publisher-wide labels from history. It can create an operator review recommendation.
 
 ### 9.9 Policy resolution
 
-The policy engine consumes normalized deterministic, scanner, image, and model findings.
+The policy engine consumes normalized deterministic, image, and model findings.
 
 Resolution order:
 
 1. If the subject disappeared or CID changed, store the result as stale and issue no current label.
 2. Map permanent artifact, archive, manifest, and other validation failures to deterministic findings. Do not retry them as infrastructure failures.
 3. If transient infrastructure failure prevented complete required inputs, retry; after exhaustion issue `assessment-error` and negate `assessment-pending`.
-4. Map blocking deterministic/scanner findings to descriptive labels.
+4. Map blocking deterministic findings to descriptive labels.
 5. Map AI critical security/impersonation findings to descriptive blocking labels.
 6. Map non-blocking findings to warning labels.
 7. If no blocking label exists, issue `assessment-passed`.
@@ -463,7 +452,7 @@ An assessment may pass and warn at the same time. `assessment-passed` means no h
 V1 reassesses when:
 
 - A new release CID is observed.
-- A known-malware or vulnerability intelligence update identifies an affected artifact/dependency.
+- The assessment model or policy version changes (a model/policy revision).
 - An operator requests a re-run.
 
 Policy/model changes do not silently rewrite historical outcomes. A deployment may mark old assessments as using an older policy, and an admin may enqueue a bounded migration if a change requires it.
@@ -491,7 +480,7 @@ V1 pages:
 | ----------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `/admin`                      | Queue health, pending/error counts, recent blocking decisions, subscription health                     |
 | `/admin/assessments`          | Filterable assessment list by state, label, publisher, package, model, and policy version              |
-| `/admin/assessments/:id`      | Public summary, private findings, evidence excerpts, model/scanner provenance, labels, and timeline    |
+| `/admin/assessments/:id`      | Public summary, private findings, evidence excerpts, model provenance, labels, and timeline            |
 | `/admin/subjects/:encodedUri` | All assessments and active/historical labels for a release/package/publisher                           |
 | `/admin/audit-log`            | Immutable operator and system action log                                                               |
 | `/admin/system`               | Read-only policy/model versions, signing key ID, Jetstream cursor, subscriber health, queue/DLQ health |
@@ -629,6 +618,8 @@ interface PublicAssessment {
 	reconsiderationUrl: string;
 }
 ```
+
+`scannerVersions` and `coverage.dependencies` are retained in the frozen output shape for contract stability. v1 performs no dependency or third-party-scanner analysis, so `scannerVersions` is always empty and `coverage.dependencies` is always `unavailable`.
 
 Public output excludes:
 
@@ -1030,7 +1021,7 @@ Public summaries explain:
 - What class of issue was found.
 - Whether it came from automation or manual action.
 - Which assessment coverage completed.
-- Which policy/model/scanner versions were used.
+- Which policy/model versions were used.
 - Which labels are active.
 - How to request reconsideration.
 
@@ -1042,7 +1033,7 @@ Private evidence may include:
 
 - Model request/response after secret redaction.
 - Code excerpts and file hashes.
-- Scanner raw results.
+- Capability-analysis raw results.
 - Image-analysis details.
 - Operator notes.
 - Notification delivery failures.
@@ -1071,7 +1062,7 @@ Retention values are policy constants versioned in code and may change after leg
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Prompt injection in source/metadata            | Delimit untrusted input, strict system task, structured schema, category allowlist, evidence-reference validation              |
 | Model false positive blocks legitimate release | Narrow blockable categories, fixture calibration, public explanation, immediate reviewer retraction, immutable audit trail     |
-| Model false negative                           | Defense in depth: deterministic checks, scanners, sandbox enforcement, reports in future, reassessment on intelligence updates |
+| Model false negative                           | Defense in depth: deterministic checks, capability analysis, sandbox enforcement, reports in future, reassessment on model/policy revision |
 | Malicious artifact attacks fetcher/extractor   | Mirror preference, checksum verification, SSRF controls, streaming caps, safe archive parsing, time budgets                    |
 | Aggregator serves wrong artifact               | Verify signed release record, CID, and artifact checksum independently                                                         |
 | Publisher mutates artifact URL bytes           | Checksum binds accepted bytes; mismatch blocks assessment and installation                                                     |
@@ -1086,8 +1077,7 @@ Retention values are policy constants versioned in code and may change after leg
 | Package/publisher overreach                    | Broad labels are manual only; subject-wide action shown explicitly                                                             |
 | Assessment absence mistaken for safety         | Official clients require positive `assessment-passed`                                                                          |
 | Labeler outage blocks ecosystem indefinitely   | Clear pending/error state, alerts, retry/DLQ, site operators can choose a different trust policy/labeler                       |
-| Policy/model drift changes outcomes silently   | Version all policy/model/prompt/scanner inputs; no automatic whole-catalog rewrite                                             |
-| Dependency scanner noise                       | Applicability/blocking rule stricter than raw severity score                                                                   |
+| Policy/model drift changes outcomes silently   | Version all policy/model/prompt inputs; no automatic whole-catalog rewrite                                                     |
 | Evidence leaks vulnerability details           | Public/private split and redacted summaries                                                                                    |
 
 ### 20.2 Signing proposal validation
@@ -1122,7 +1112,7 @@ At a handful of releases per day, correctness and debuggability matter more than
 ### 21.2 Retry policy
 
 - Record/artifact fetch: bounded exponential retry; distinguish permanent checksum/validation failure from transient network failure.
-- Scanners/models: bounded retry on transport/rate/availability errors; never reinterpret an execution error as a malicious finding.
+- Model calls: bounded retry on transport/rate/availability errors; never reinterpret an execution error as a malicious finding.
 - Notifications: independent retry and DLQ; notification failure does not roll back a label.
 - Label broadcast: D1 commit is authoritative; disconnected subscribers replay by cursor.
 
@@ -1160,7 +1150,7 @@ Emit metrics for:
 - Releases observed, deduplicated, queued, running, completed, blocked, warned, errored.
 - Assessment duration by stage.
 - Artifact mirror hit/fallback/failure and checksum mismatch.
-- Scanner/model error rate, latency, token use, and cost.
+- Model error rate, latency, token use, and cost.
 - Finding and label counts by category and policy/model version.
 - Operator overrides and automated-label retraction rate.
 - Issued label sequence and Subscriber DO connection count.
@@ -1172,7 +1162,7 @@ Alert on:
 
 - Jetstream disconnected or cursor stale for more than five minutes.
 - Pending assessment older than 20 minutes.
-- Any sustained model/scanner failure causing assessment errors.
+- Any sustained model failure causing assessment errors.
 - Signing failure or DID/key mismatch.
 - Subscriber endpoint failure.
 - Emergency `!takedown` issuance.
@@ -1207,8 +1197,8 @@ The fixture corpus includes the legacy marketplace cases plus new cases for:
 - Dynamic URL construction.
 - Misleading screenshots.
 - Brand impersonation.
-- Vulnerable but unreachable dependency.
-- Known exploited dependency.
+- Declared-vs-actual capability mismatch.
+- Bundle exceeding the model context window (coverage degrades).
 - Generated but functional plugin.
 - Low-effort placeholder.
 - False-positive-sensitive security tooling.
@@ -1316,9 +1306,8 @@ This phase may initially use deterministic test assessments. It freezes the safe
 
 - Add independent Jetstream discovery and reconciliation.
 - Add verified mirror artifact fetch and safe fallback.
-- Port/harden deterministic, code, metadata, and image audit inputs.
-- Add SBOM/dependency scanning.
-- Add Workers AI through the `AI` binding (`env.AI`) and versioned policy resolution.
+- Port/harden deterministic checks, capability analysis, code, metadata, and image audit inputs.
+- Add Workers AI (`@cf/moonshotai/kimi-k2.7-code`) through the `AI` binding (`env.AI`) and versioned policy resolution.
 - Port and extend the fixture corpus.
 
 ### Phase 4: Operator product
@@ -1345,7 +1334,7 @@ The v1 labelling service is complete when:
 
 - Every new release is independently observed and receives a CID-bound assessment state.
 - Official clients require a signed positive assessment and block configured descriptive security labels.
-- Deterministic, dependency, code/metadata AI, image, and publisher-history inputs run under a versioned policy.
+- Deterministic, capability-analysis, code/metadata AI, image, and publisher-history inputs run under a versioned policy.
 - AI critical findings can hard-block only security/impersonation categories.
 - Quality findings remain warning/downranking signals.
 - Labels are spec-compliant, signed, queryable, replayable, negatable, and verified by the aggregator.
@@ -1375,8 +1364,8 @@ The v1 labelling service is complete when:
 
 These are implementation-specific decisions that should be settled before Phase 0 closes, not product questions requiring another broad design round.
 
-1. Initial Workers AI model ID and the measured calibration threshold used to assign model severity/confidence.
-2. Initial dependency scanner/advisory sources and the exact critical applicability rule.
+1. The measured calibration threshold used to assign model severity/confidence for `@cf/moonshotai/kimi-k2.7-code`.
+2. The initial model and the exact critical block rule for code/capability findings.
 3. The production key-generation ceremony, performed by the maintainer before launch. The scalar format is ratified in the Gate 0 crypto contract; the offline copy lives in the maintainer's Keeper vault.
 4. The monitored reconsideration address. Email delivery is decided: Cloudflare Email Sending through the Workers `send_email` binding, sending from an onboarded emdashcms.com address.
 5. Final retention values after legal/privacy review.

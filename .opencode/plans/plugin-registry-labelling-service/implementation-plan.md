@@ -14,7 +14,7 @@ The implementation is complete when:
 2. The EmDash labeler issues standard DRISL-signed labels through public `queryLabels` and replayable `subscribeLabels` endpoints.
 3. A fresh aggregator verifies, ingests, hydrates, and enforces labels from configured labelers.
 4. Official clients require an active positive assessment and consistently block pending, errored, yanked, taken-down, or high-risk releases.
-5. Deterministic validation, dependency intelligence, code/metadata AI, image analysis, and publisher-history context run under one versioned policy.
+5. Deterministic validation, capability analysis, code/metadata AI, image analysis, and publisher-history context run under one versioned policy.
 6. AI can hard-block only critical security or impersonation findings; quality findings warn or downrank.
 7. Reviewers can inspect evidence, rerun assessments, and override false positives; admins alone control emergency `!takedown` and publisher-wide compromise actions.
 8. Public assessment summaries explain decisions without exposing private evidence or exploit details.
@@ -52,7 +52,7 @@ The implementation is complete when:
 | `W4`  | Aggregator label consumption           | Verified subscription, current state, hydration, redaction, and cascades       |
 | `W5`  | Client eligibility enforcement         | One moderation helper used by registry client, core, CLI, and admin            |
 | `W6`  | Discovery and assessment orchestration | Independent Jetstream ingest, verified subjects, run lifecycle, reconciliation |
-| `W7`  | Artifact and deterministic analysis    | Safe artifact acquisition, bundle checks, dependency/SBOM scanners             |
+| `W7`  | Artifact and deterministic analysis    | Safe artifact acquisition, bundle checks, capability analysis                 |
 | `W8`  | AI, image, and policy resolution       | Versioned model pipeline, normalized findings, automated decisions             |
 | `W9`  | Operator authentication and console    | Access-protected review UI and manual label actions                            |
 | `W10` | Transparency and notifications         | Public assessment API, policy document, email, reconsideration flow            |
@@ -127,7 +127,7 @@ W0 contract decisions
 Automated assessment path:
 
 ```text
-W0 scanner/model/artifact feasibility
+W0 model/artifact/capability feasibility
 -> W7 deterministic analysis
 -> W8 AI and policy resolution
                          \
@@ -161,8 +161,8 @@ Required before production implementation is treated as stable:
 - Signing-key format, Secrets Store binding, generation ceremony, and recovery custody are selected.
 - DRISL labels signed in workerd verify in an independent ATProto implementation, and vice versa.
 - The aggregator mirror contract can supply artifact bytes and metadata required by the assessor.
-- Initial dependency/advisory sources and critical-applicability rules are selected.
-- The initial Workers AI model and structured-output path can process representative plugin inputs through the Workers AI binding (`env.AI`).
+- The deterministic capability-analysis rule set (declared-vs-actual access) and the exact critical block rule for code/capability findings are confirmed.
+- `@cf/moonshotai/kimi-k2.7-code` and its structured-output path can process representative plugin code and image inputs through the Workers AI binding (`env.AI`).
 
 Gate owner: `W0`.
 
@@ -201,7 +201,7 @@ Gate owners: `W4`, `W5`.
 - A verified release event creates one idempotent run and no label is signed before record verification.
 - Verified mirror bytes are checksum-checked and safely extracted; declared-URL fallback passes SSRF/adversarial tests.
 - Permanent validation failures become deterministic findings; transient failures retry and become `assessment-error` only after exhaustion.
-- Dependency, code/metadata, image, and publisher-history stages produce normalized findings.
+- Capability-analysis, code/metadata, image, and publisher-history stages produce normalized findings.
 - Policy emits blocking labels only for critical security/impersonation findings and warning labels for quality findings.
 - A model outage never creates a malicious-content label.
 
@@ -321,25 +321,22 @@ Output: artifact acquisition contract consumed by `W7`.
 
 Dependencies: none.
 
-### `W0.7` Select scanners and AI model
+### `W0.7` Confirm AI model and capability analysis
 
 Evaluate representative fixtures through:
 
-- Candidate Workers AI model via the Workers AI binding (`env.AI`) with strict JSON output.
-- Initial vulnerability/advisory sources.
-- Malware/hash/signature source.
-- SBOM parser/generator candidates.
-- Image-capable model path.
+- Confirm `@cf/moonshotai/kimi-k2.7-code` via the Workers AI binding (`env.AI`) handles full-bundle code analysis and image analysis with strict structured output. `@cf/zai-org/glm-5.2` (text-only, same binding) is an available alternative; v1 ships single-model.
+- Confirm the release artifact size cap fits within the model's context window; otherwise define the coverage-degradation fallback (`partial`/`unavailable` rather than silent truncation).
+- Define the deterministic capability-analysis rule set: API-surface extraction (network/fetch, storage, `eval`/`Function`, filesystem, crypto, env/process, DOM) versus declared access.
+- Record model input/output limits, supported file/image types, and prompt version.
 
-Record model input/output limits, supported file/image types, scanner licensing, update identifiers, and deterministic critical rules.
-
-Output: versioned adapter choices and calibration baseline.
+Output: confirmed model + capability-analysis baseline.
 
 Dependencies: policy fixtures from `W0.2`.
 
 ### W0 Completion
 
-Gate 0 passes. Failed crypto, identity, mirror, model, or scanner assumptions change the spec before downstream production work continues.
+Gate 0 passes. Failed crypto, identity, mirror, or model assumptions change the spec before downstream production work continues.
 
 ## Workstream W1: Shared Protocol and Policy
 
@@ -540,7 +537,7 @@ Dependencies: `W2.1`, `W2.3`.
 
 ### W2 Completion
 
-The service can persist and recover every lifecycle state without model/scanner or label-distribution code. All migrations and repositories pass real workerd/D1 tests.
+The service can persist and recover every lifecycle state without model or label-distribution code. All migrations and repositories pass real workerd/D1 tests.
 
 ## Workstream W3: Label Issuance and Distribution
 
@@ -865,7 +862,7 @@ Workflow stages:
 1. Verify subject.
 2. Acquire artifact inputs.
 3. Deterministic bundle validation.
-4. Dependency/SBOM analysis.
+4. Capability analysis.
 5. Code/metadata AI.
 6. Image AI where applicable.
 7. Policy resolution.
@@ -894,18 +891,18 @@ Dependencies: `W2.4` policy-proposal contract, `W3.3`.
 
 - `initial:<cid>` trigger.
 - Immutable operator action ID trigger.
-- Deterministic run key including policy/model/prompt/scanner set.
+- Deterministic run key including policy/model/prompt.
 
 Dependencies: `W2.4` operator-trigger contract.
 
-### `W6.7` Implement scanner-intelligence triggers
+### `W6.7` Implement model/policy-revision rerun triggers
 
-- Accept a scanner/advisory corpus revision as an immutable trigger ID.
-- Select only affected releases from dependency/hash indexes.
+- Accept a new model ID or policy version as an immutable trigger ID.
+- Select only releases whose current assessment used an older model/policy version.
 - Reuse the same deterministic run creation path as initial/operator triggers.
-- Deduplicate repeated intelligence notifications.
+- Deduplicate repeated revision notifications.
 
-Dependencies: `W6.6`, `W7.5`.
+Dependencies: `W6.6`.
 
 ### `W6.8` Implement reconciliation
 
@@ -954,7 +951,7 @@ Reject:
 - Unknown access categories/operations.
 - Manifest/release declared-access mismatch.
 
-Produce validated file inventory and bounded source/image inputs for later stages.
+Produce validated file inventory and safe full-bundle/image inputs for later stages.
 
 Dependencies: `W7.1`.
 
@@ -962,9 +959,9 @@ Dependencies: `W7.1`.
 
 Adapters/findings for:
 
-- Known malicious artifact/file hashes.
-- Forbidden executable/payload classes.
-- Unambiguous forbidden runtime patterns.
+- Declared-vs-actual capability analysis (feeding `undeclared-access`).
+- Forbidden archive entries and executable payload classes.
+- Unambiguous forbidden runtime patterns (local rules, not a signature feed).
 - Metadata/identity/URL consistency.
 - Image dimensions/types.
 
@@ -972,32 +969,31 @@ Map permanent conditions to `artifact-integrity-failure`, `invalid-bundle`, `und
 
 Dependencies: `W0.2`, `W7.3`.
 
-### `W7.5` Implement SBOM and dependency analysis
+### `W7.5` Implement full-bundle capability extraction
 
-- Parse publisher-supplied SBOM bound to the release.
-- Derive dependency evidence from supported lockfiles/bundle metadata.
-- Query selected advisory sources through adapters.
-- Record advisory source/version, exploit status, applicability, reachability evidence, and dependency path.
-- Maintain affected artifact/dependency indexes for intelligence-triggered reassessment.
-- Apply the ratified critical rule rather than raw CVSS alone.
+- Statically extract the bundle's real API/capability surface (network/fetch, storage, `eval`/`Function`, filesystem, crypto, env/process, DOM).
+- Diff the extracted surface against the signed release's declared access for the `W7.4` declared-vs-actual check.
+- Produce the normalized capability evidence consumed by the `W8.2` AI adapter.
 
-Dependencies: `W0.7`, `W7.3`.
+No dependency, SBOM, or advisory content is produced by this task.
+
+Dependencies: `W7.3`.
 
 ### `W7.6` Port and expand deterministic fixtures
 
-Reuse legacy marketplace fixtures and add archive, SSRF, dependency applicability, checksum, declaration mismatch, and identity cases. Tests run without live external scanners.
+Reuse legacy marketplace fixtures and add archive, SSRF, capability declaration mismatch, checksum, and identity cases. Tests run without any live external service.
 
 Dependencies: `W7.2` through `W7.5`.
 
 ### W7 Completion
 
-The service can produce complete deterministic/dependency findings and safely prepare bounded AI inputs without calling a model.
+The service can produce complete deterministic and capability findings and safely prepare the full bundle as AI input without calling a model.
 
 ## Workstream W8: AI, Image, and Policy Resolution
 
 ### `W8.1` Define normalized finding contracts
 
-Implement strict schemas for deterministic, dependency, model, image, and history findings with:
+Implement strict schemas for deterministic, model, image, and history findings with:
 
 - Allowed category.
 - Severity.
@@ -1005,7 +1001,7 @@ Implement strict schemas for deterministic, dependency, model, image, and histor
 - Public summary.
 - Private detail.
 - Evidence references.
-- Affected files/images/dependencies.
+- Affected files/images.
 - Source/version metadata.
 
 Unknown categories and unresolved evidence references fail validation.
@@ -1014,12 +1010,12 @@ Dependencies: `W1.5`, `W2.5`.
 
 ### `W8.2` Implement code/metadata AI adapter
 
-- Invoke the selected Workers AI model through the Workers AI binding (`env.AI`), not AI Gateway.
+- Invoke `@cf/moonshotai/kimi-k2.7-code` through the Workers AI binding (`env.AI`), not AI Gateway.
 - Never cache moderation inference.
 - Attach assessment/policy/model metadata without secrets.
 - Delimit all plugin-controlled text as untrusted input.
 - Use strict structured output.
-- Select bounded source using deterministic entrypoint/import analysis.
+- Analyze the full bundle (size-capped, fits the model context; degrade coverage rather than truncate if a bundle ever exceeds context).
 - Store model/prompt hashes and an internal per-call inference request ID.
 - Treat model/parse/transport failures as retryable operational failures.
 
@@ -1027,6 +1023,7 @@ Dependencies: `W0.7`, `W7.3`, `W8.1`.
 
 ### `W8.3` Implement image AI adapter
 
+- Invoke the same `@cf/moonshotai/kimi-k2.7-code` model (vision) through the Workers AI binding (`env.AI`).
 - Preserve true MIME/hash/dimensions/source path.
 - Analyze supported icons/screenshots for impersonation, phishing UI, misleading content, and policy imagery.
 - Bound image count/size and model concurrency.
@@ -1041,7 +1038,7 @@ Provide bounded factual context:
 - Prior releases from the DID.
 - Recent handle/profile changes.
 - Existing active manual labels.
-- Repeated exact hashes/policy findings.
+- Repeated exact artifact checksums or policy findings.
 - Verification state as display context only.
 
 History may recommend operator review but cannot automatically produce package/publisher labels.
@@ -1053,7 +1050,6 @@ Dependencies: `W2.3`, registry publisher/profile data.
 Resolve normalized findings under an immutable policy version:
 
 - Permanent deterministic critical findings -> blocking descriptive labels.
-- Critical scanner applicability -> blocking descriptive labels.
 - AI critical security/impersonation -> blocking descriptive labels.
 - Quality findings of any severity -> warning/downranking labels.
 - No blocking findings -> `assessment-passed`.
@@ -1176,7 +1172,7 @@ Serve the versioned policy document with:
 - Localized label definitions.
 - Official effects.
 - Public API/contact/reconsideration links.
-- Model/scanner transparency statement.
+- Model transparency statement.
 
 Dependencies: `W1.7`, `W3.1` identity.
 
@@ -1280,7 +1276,7 @@ Dependencies: `W2.1`, `W3.1`.
 
 ### `W11.3` Implement metrics, logs, and alerts
 
-Each component workstream emits its own typed counters/events without depending on `W11`. Aggregate those signals into deployment logs, dashboards, and alerts covering every signal in spec section 22, including Jetstream cursor age, stage latency, model/scanner failures/cost, issuance sequence, subscriber lag, overrides, notification failures, and DLQ age.
+Each component workstream emits its own typed counters/events without depending on `W11`. Aggregate those signals into deployment logs, dashboards, and alerts covering every signal in spec section 22, including Jetstream cursor age, stage latency, model failures/cost, issuance sequence, subscriber lag, overrides, notification failures, and DLQ age.
 
 Alerts include emergency actions, signing/DID mismatch, block spikes, stale pending work, and reconciliation gaps.
 
@@ -1315,7 +1311,7 @@ Dependencies: `W2.5`.
 - Jetstream outage/cursor loss.
 - Queue/DLQ recovery.
 - Workflow stuck runs.
-- Model/scanner outage.
+- AI outage.
 - Mirror/fallback outage.
 - Subscriber lag.
 - Publisher reconsideration.
@@ -1331,7 +1327,7 @@ Document:
 - One-deployment-per-DID model.
 - Required bindings and costs.
 - DID/key/domain setup.
-- Policy/model/scanner configuration boundaries.
+- Policy/model configuration boundaries.
 - How a third-party aggregator subscribes and verifies.
 - How clients choose accepted labelers.
 - Which defaults are EmDash policy rather than protocol rules.
@@ -1387,7 +1383,7 @@ Cover every spec section 24.4 case plus:
 - Manual pass without `assessment-overridden`.
 - Override attempting to bypass publisher/package manual block.
 - Concurrent assessment finalization/current-pointer races.
-- Reassessment under changed scanner version.
+- Reassessment under changed model/policy version.
 - Legacy `security:yanked` data preflight behavior.
 - Malformed RFC-8941 accepted-labeler headers.
 
@@ -1499,7 +1495,7 @@ Each item should remain independently reviewable and leave production behavior s
 11. Admin/CLI consumer UI states against fixtures.
 12. Jetstream discovery and source-record verification.
 13. Shared artifact acquisition and canonical bundle validation.
-14. Deterministic and dependency analysis.
+14. Deterministic and capability analysis.
 15. AI/image adapters, policy resolver, and calibration harness.
 16. Automated assessment finalization and current-assessment projection.
 17. Access authentication and read-only operator console.
@@ -1582,7 +1578,7 @@ Exit: Gate 6 production smoke and sustained healthy operation.
 - [ ] Signer, query, subscription, replay, negation, and rotation pass.
 - [ ] Discovery never labels unverified subjects.
 - [ ] Assessment reruns/supersession/current pointer are deterministic.
-- [ ] Artifact, dependency, AI, image, and history stages pass their fixtures.
+- [ ] Artifact, capability-analysis, AI, image, and history stages pass their fixtures.
 
 ### Consumers
 
