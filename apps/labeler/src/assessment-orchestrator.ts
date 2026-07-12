@@ -319,6 +319,12 @@ export class AssessmentOrchestrator {
 		// every label's signing round-trip above. Full closure still needs the
 		// workflow lock (see the re-check before this method); this shrinks the
 		// exposure in the interim.
+		//
+		// The same lock also closes a signing-state flip during the batch: the
+		// label inserts are guarded on active signing state and no-op if it
+		// flips, but the state CAS below is not, so a flip after this point
+		// could commit the terminal state without its labels. Deferred to the
+		// same W7/W8 production wiring as the delete race above.
 		const stillCurrent = await isSubjectCurrent(this.db, {
 			uri: assessment.uri,
 			cid: assessment.cid,

@@ -442,6 +442,39 @@ describe("processDiscoveryMessage: delete", () => {
 		expect(pending?.neg).toBe(1);
 	});
 
+	it("retries a confirmed delete when pending-negation issuance is paused mid-rotation", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const msg = new FakeMessage();
+		await testEnv.DB.prepare(
+			`UPDATE signing_state SET phase = 'paused', pending_key_version = 'v2',
+			 pending_public_multikey = ?, rotation_id = 'rot-1' WHERE id = 1`,
+		)
+			.bind(MULTIKEY)
+			.run();
+		try {
+			await processDiscoveryMessage(deleteJob, msg, {
+				...deps,
+				confirmDeleted: () => Promise.resolve(true),
+			});
+		} finally {
+			await testEnv.DB.prepare(
+				`UPDATE signing_state SET phase = 'active', pending_key_version = NULL,
+				 pending_public_multikey = NULL, rotation_id = NULL WHERE id = 1`,
+			).run();
+		}
+
+		expect(msg.retried).toBe(1);
+		expect(msg.acked).toBe(0);
+		const dl = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM dead_letters WHERE rkey = ?`)
+			.bind(job.rkey)
+			.first<{ n: number }>();
+		expect(dl?.n).toBe(0);
+	});
+
 	it("dead-letters a forged/premature delete whose record still resolves, suppressing nothing", async () => {
 		const job = await jobFor({ rkey: rkey() });
 		const deps = await buildDeps();
