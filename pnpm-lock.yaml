@@ -2215,6 +2215,9 @@ importers:
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../registry-lexicons
+      '@emdash-cms/registry-moderation':
+        specifier: workspace:*
+        version: link:../registry-moderation
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'

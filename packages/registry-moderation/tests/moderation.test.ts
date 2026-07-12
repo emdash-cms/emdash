@@ -4,12 +4,14 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import {
 	createLabelSigner,
+	evaluateHydratedReleaseModeration,
 	evaluateReleaseModeration,
 	verifyLabel,
 	PACKAGE_SCOPE_BLOCK_VALUES,
 	RELEASE_BLOCK_VALUES,
 	type LabelDidDocument,
 	type ModerationLabel,
+	type ReleaseModeration,
 	type VerifiedModerationLabel,
 } from "../src/index.js";
 
@@ -403,42 +405,69 @@ function expectedValues(references: string[]): string[] {
 	return references.map((reference) => reference.slice(reference.lastIndexOf(":") + 1)).toSorted();
 }
 
-describe("ratified moderation corpus", () => {
+interface CorpusEvaluationInput {
+	acceptedLabelers: { did: string; redact: boolean }[];
+	context: {
+		publisherDid: string;
+		package: { uri: string; cid: string };
+		release: { uri: string; cid: string };
+	};
+	evaluatedAt: string;
+	labels: ModerationLabel[];
+}
+
+function buildCorpusInput(fixtureCase: FixtureCase): CorpusEvaluationInput {
+	const subject = { ...corpus.caseDefaults.subject, ...fixtureCase.subject };
+	const labels = fixtureCase.labels ?? corpus.caseDefaults.labels;
+	return {
+		acceptedLabelers: (fixtureCase.acceptedLabellers ?? corpus.caseDefaults.acceptedLabellers).map(
+			(policy) => ({
+				did: corpus.sources[policy.src]!,
+				redact: policy.redact,
+			}),
+		),
+		context: {
+			publisherDid: subject.publisherDid!,
+			package: { uri: subject.packageUri!, cid: subject.packageCid! },
+			release: { uri: subject.releaseUri!, cid: subject.releaseCid! },
+		},
+		evaluatedAt: corpus.evaluatedAt,
+		labels: labels.map((fixtureLabel) => ({
+			ver: 1,
+			src: corpus.sources[fixtureLabel.src]!,
+			uri:
+				fixtureLabel.subject === "publisher"
+					? subject.publisherDid!
+					: fixtureLabel.subject === "package"
+						? subject.packageUri!
+						: subject.releaseUri!,
+			cid: fixtureLabel.cid,
+			val: fixtureLabel.val,
+			cts: fixtureLabel.cts,
+			neg: fixtureLabel.neg,
+			exp: fixtureLabel.exp,
+		})),
+	};
+}
+
+// The corpus runs through both entry points to prove the branded and
+// hydrated paths cannot drift: they share the same evaluation core, and
+// only their label validation differs.
+describe.each([
+	{
+		name: "evaluateReleaseModeration (branded)",
+		evaluate: (input: CorpusEvaluationInput): ReleaseModeration =>
+			evaluateReleaseModeration({ ...input, labels: input.labels.map(verified) }),
+	},
+	{
+		name: "evaluateHydratedReleaseModeration (hydrated)",
+		evaluate: (input: CorpusEvaluationInput): ReleaseModeration =>
+			evaluateHydratedReleaseModeration(input),
+	},
+])("ratified moderation corpus via $name", ({ evaluate: runEvaluation }) => {
 	for (const fixtureCase of corpus.cases) {
 		it(fixtureCase.id, () => {
-			const subject = { ...corpus.caseDefaults.subject, ...fixtureCase.subject };
-			const labels = fixtureCase.labels ?? corpus.caseDefaults.labels;
-			const result = evaluateReleaseModeration({
-				acceptedLabelers: (
-					fixtureCase.acceptedLabellers ?? corpus.caseDefaults.acceptedLabellers
-				).map((policy) => ({
-					did: corpus.sources[policy.src]!,
-					redact: policy.redact,
-				})),
-				context: {
-					publisherDid: subject.publisherDid!,
-					package: { uri: subject.packageUri!, cid: subject.packageCid! },
-					release: { uri: subject.releaseUri!, cid: subject.releaseCid! },
-				},
-				evaluatedAt: corpus.evaluatedAt,
-				labels: labels.map((fixtureLabel) =>
-					verified({
-						ver: 1,
-						src: corpus.sources[fixtureLabel.src]!,
-						uri:
-							fixtureLabel.subject === "publisher"
-								? subject.publisherDid!
-								: fixtureLabel.subject === "package"
-									? subject.packageUri!
-									: subject.releaseUri!,
-						cid: fixtureLabel.cid,
-						val: fixtureLabel.val,
-						cts: fixtureLabel.cts,
-						neg: fixtureLabel.neg,
-						exp: fixtureLabel.exp,
-					}),
-				),
-			});
+			const result = runEvaluation(buildCorpusInput(fixtureCase));
 			expect(result).toMatchObject({
 				eligibility: fixtureCase.expected.eligibility,
 				reasonCodes: fixtureCase.expected.reasonCodes,
@@ -450,4 +479,64 @@ describe("ratified moderation corpus", () => {
 			});
 		});
 	}
+});
+
+describe("evaluateHydratedReleaseModeration structural validation", () => {
+	// A real DASL CID (unlike the file-level `context`'s placeholder strings),
+	// since the hydrated path -- unlike the branded path -- structurally
+	// validates each label's `cid`.
+	const validCid = "bafkreif4oaymum54i5qefbwoblrt5zasfjhpyhyvacpseqtehi3queew5m";
+	const validContext = {
+		...context,
+		release: { ...context.release, cid: validCid },
+	};
+	const baseLabel = {
+		ver: 1 as const,
+		src: source,
+		uri: context.release.uri,
+		cid: validCid,
+		val: "assessment-passed",
+		cts: "2026-07-10T12:00:00.000Z",
+	};
+
+	function evaluateHydrated(labels: unknown[]) {
+		return evaluateHydratedReleaseModeration({
+			acceptedLabelers: [{ did: source, redact: false }],
+			context: validContext,
+			evaluatedAt: "2026-07-10T13:00:00.000Z",
+			labels: labels as ModerationLabel[],
+		});
+	}
+
+	it("accepts a well-formed unsigned label with no sig field", () => {
+		expect(evaluateHydrated([baseLabel])).toMatchObject({ eligibility: "eligible" });
+	});
+
+	it("rejects a label carrying a sig field (not a hydrated label)", () => {
+		expect(() => evaluateHydrated([{ ...baseLabel, sig: new Uint8Array(64) }])).toThrow(
+			"unsupported field: sig",
+		);
+	});
+
+	it("rejects a malformed uri", () => {
+		expect(() => evaluateHydrated([{ ...baseLabel, uri: "not a uri" }])).toThrow(
+			"label.uri must be an at:// URI or DID",
+		);
+	});
+
+	it("rejects a malformed cts timestamp", () => {
+		expect(() => evaluateHydrated([{ ...baseLabel, cts: "not-a-datetime" }])).toThrow(
+			"label.cts must be a valid RFC 3339 timestamp",
+		);
+	});
+
+	it("rejects an unknown field", () => {
+		expect(() => evaluateHydrated([{ ...baseLabel, extra: "nope" }])).toThrow(
+			"label contains unsupported field: extra",
+		);
+	});
+
+	it("rejects a non-object label", () => {
+		expect(() => evaluateHydrated(["not a label"])).toThrow("label must be an object");
+	});
 });
