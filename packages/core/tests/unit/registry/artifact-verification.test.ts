@@ -4,8 +4,8 @@ import {
 	MAX_BUNDLE_COMPRESSED_BYTES,
 	MAX_BUNDLE_FILE_BYTES,
 	MAX_BUNDLE_TAR_ENTRY_COUNT,
-	computeMultihash,
 } from "@emdash-cms/registry-verification";
+import { computeMultihash } from "@emdash-cms/registry-verification/checksum";
 import { packTar, type TarEntry } from "modern-tar";
 import { describe, expect, it } from "vitest";
 

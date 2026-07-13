@@ -31,6 +31,10 @@ try {
 		join(extracted, "package", "dist", "bundle.js"),
 		"utf8",
 	);
+	const publishedChecksumOutput = await readFile(
+		join(extracted, "package", "dist", "checksum.js"),
+		"utf8",
+	);
 	const publishedFetchOutput = await readFile(
 		join(extracted, "package", "dist", "fetch-entry.js"),
 		"utf8",
@@ -38,6 +42,8 @@ try {
 	if (
 		publishedBundleOutput.includes("createRequire") ||
 		publishedBundleOutput.includes("@sigstore") ||
+		publishedChecksumOutput.includes("createRequire") ||
+		publishedChecksumOutput.includes("@sigstore") ||
 		publishedFetchOutput.includes("createRequire") ||
 		publishedFetchOutput.includes("@sigstore")
 	) {

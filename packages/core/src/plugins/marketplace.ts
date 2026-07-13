@@ -6,11 +6,11 @@
  * not a runtime dependency — bundles are copied to site-local R2 at install time.
  */
 
-import { computeMultihash, decodeMultihash } from "@emdash-cms/registry-verification";
 import {
 	validatePluginBundle,
 	type ValidatePluginBundleOptions,
 } from "@emdash-cms/registry-verification/bundle";
+import { computeMultihash, decodeMultihash } from "@emdash-cms/registry-verification/checksum";
 
 import type { PluginManifest } from "./types.js";
 

@@ -9,6 +9,8 @@
  * - reportInstall (fire-and-forget)
  */
 
+import { createHash } from "node:crypto";
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
@@ -21,7 +23,6 @@ import {
 	type MarketplaceSearchResult,
 } from "../../../src/plugins/marketplace.js";
 
-const HEX_64_PATTERN = /^[a-f0-9]{64}$/;
 const HEX_16_PATTERN = /^[a-f0-9]{16}$/;
 
 // ── Helpers ───────────���────────────────────────────────────────────
@@ -320,7 +321,7 @@ describe("MarketplaceClient", () => {
 			expect(bundle.manifest.id).toBe("test-seo");
 			expect(bundle.manifest.version).toBe("1.0.0");
 			expect(bundle.backendCode).toContain("hello");
-			expect(bundle.checksum).toMatch(HEX_64_PATTERN);
+			expect(bundle.checksum).toBe(createHash("sha256").update(gzipped).digest("hex"));
 		});
 
 		it("extracts optional admin.js", async () => {

@@ -47,7 +47,7 @@ import {
 	computeMultihash,
 	decodeMultihash,
 	verifyMultihash,
-} from "@emdash-cms/registry-verification";
+} from "@emdash-cms/registry-verification/checksum";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
