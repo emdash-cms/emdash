@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fetchVerifiedResource } from "../src/index.js";
 
 const encoder = new TextEncoder();
 const resolvePublicHostname = async (): Promise<readonly string[]> => ["203.0.113.5"];
+
+afterEach(() => {
+	vi.useRealTimers();
+});
 
 function bytesResponse(value: string, init?: ResponseInit): Response {
 	return new Response(encoder.encode(value), init);
@@ -166,21 +170,44 @@ describe("fetchVerifiedResource", () => {
 	});
 
 	it("cancels a stalled stream when the total timeout expires", async () => {
-		let cancelled = false;
-		const response = new Response(
-			new ReadableStream({
-				cancel() {
-					cancelled = true;
-				},
-			}),
-		);
-		const result = await fetchVerifiedResource("https://example.test/file", {
-			fetch: vi.fn().mockResolvedValue(response),
-			resolveHostname: resolvePublicHostname,
-			totalTimeoutMs: 1,
-		});
-		expect(result).toMatchObject({ success: false, error: { code: "RESOURCE_TIMEOUT" } });
-		expect(cancelled).toBe(true);
+		vi.useFakeTimers();
+		try {
+			let cancelled = false;
+			let markReadStarted!: () => void;
+			const readStarted = new Promise<void>((resolve) => {
+				markReadStarted = resolve;
+			});
+			const response = new Response(
+				new ReadableStream(
+					{
+						pull() {
+							markReadStarted();
+							return new Promise<void>(() => {});
+						},
+						cancel() {
+							cancelled = true;
+						},
+					},
+					{ highWaterMark: 0 },
+				),
+			);
+			const fetch = vi.fn().mockResolvedValue(response);
+			const resultPromise = fetchVerifiedResource("https://example.test/file", {
+				fetch,
+				resolveHostname: resolvePublicHostname,
+				totalTimeoutMs: 100,
+			});
+
+			await readStarted;
+			expect(fetch).toHaveBeenCalledOnce();
+			await vi.advanceTimersByTimeAsync(100);
+
+			const result = await resultPromise;
+			expect(result).toMatchObject({ success: false, error: { code: "RESOURCE_TIMEOUT" } });
+			expect(cancelled).toBe(true);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("maps resolver rejection to a stable error before fetching", async () => {

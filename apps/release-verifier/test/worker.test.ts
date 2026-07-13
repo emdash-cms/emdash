@@ -15,6 +15,7 @@ const publicAddress = async (): Promise<readonly string[]> => ["203.0.113.5"];
 afterEach(() => {
 	globalThis.fetch = originalFetch;
 	vi.restoreAllMocks();
+	vi.useRealTimers();
 });
 
 describe("release-verifier Worker", () => {
@@ -79,21 +80,45 @@ describe("release-verifier Worker", () => {
 		});
 		expect(headers).toMatchObject({ success: false, error: { code: "RESOURCE_TIMEOUT" } });
 
-		let cancelled = false;
-		const body = await fetchResource("https://artifact.example.test/plugin.tgz", 1024, {
-			fetch: async () =>
+		vi.useFakeTimers();
+		try {
+			let cancelled = false;
+			let markReadStarted!: () => void;
+			const readStarted = new Promise<void>((resolve) => {
+				markReadStarted = resolve;
+			});
+			const fetch = vi.fn(async () =>
 				new Response(
-					new ReadableStream({
-						cancel() {
-							cancelled = true;
+					new ReadableStream(
+						{
+							pull() {
+								markReadStarted();
+								return new Promise<void>(() => {});
+							},
+							cancel() {
+								cancelled = true;
+							},
 						},
-					}),
+						{ highWaterMark: 0 },
+					),
 				),
-			resolveHostname: publicAddress,
-			totalTimeoutMs: 1,
-		});
-		expect(body).toMatchObject({ success: false, error: { code: "RESOURCE_TIMEOUT" } });
-		expect(cancelled).toBe(true);
+			);
+			const bodyPromise = fetchResource("https://artifact.example.test/plugin.tgz", 1024, {
+				fetch,
+				resolveHostname: publicAddress,
+				totalTimeoutMs: 100,
+			});
+
+			await readStarted;
+			expect(fetch).toHaveBeenCalledOnce();
+			await vi.advanceTimersByTimeAsync(100);
+
+			const body = await bodyPromise;
+			expect(body).toMatchObject({ success: false, error: { code: "RESOURCE_TIMEOUT" } });
+			expect(cancelled).toBe(true);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("rejects malformed and oversize DNS responses", async () => {
