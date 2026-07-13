@@ -14,6 +14,7 @@ import {
 } from "../src/api/security.js";
 import { loadConfiguration, type ConfigurationBindings } from "../src/config.js";
 import { ROUTES } from "../src/routes.js";
+import { TEST_ASSERTION_KEYSET } from "./fixtures/oauth.js";
 
 const BINDINGS = {
 	PUBLIC_ORIGIN: "https://release.example.com",
@@ -22,9 +23,11 @@ const BINDINGS = {
 	DEPLOYMENT_POLICY: "hosted",
 	ENCRYPTION_KEYRING:
 		'{"current":1,"keys":[{"version":1,"key":"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"}]}',
+	OAUTH_REDIRECT_URIS: '["https://release.example.com/oauth/callback"]',
+	OAUTH_ASSERTION_KEYSET: TEST_ASSERTION_KEYSET,
 } satisfies ConfigurationBindings;
 
-const config = loadConfiguration(BINDINGS);
+const config = await loadConfiguration(BINDINGS);
 
 describe("request IDs and errors", () => {
 	it("accepts only bounded, header-safe inbound request IDs", () => {
@@ -68,8 +71,10 @@ describe("configuration", () => {
 		{ ...BINDINGS, ALLOWED_PUBLISHERS: '{"mode":"allowlist","dids":["not-a-did"]}' },
 		{ ...BINDINGS, DEPLOYMENT_POLICY: "preview" },
 		{ ...BINDINGS, ENCRYPTION_KEYRING: "not-json" },
-	])("fails closed for invalid deployment configuration", (bindings) => {
-		expect(() => loadConfiguration(bindings)).toThrowError("Invalid release-service configuration");
+	])("fails closed for invalid deployment configuration", async (bindings) => {
+		await expect(loadConfiguration(bindings)).rejects.toThrowError(
+			"Invalid release-service configuration",
+		);
 	});
 });
 
@@ -250,10 +255,11 @@ describe("API schema", () => {
 	});
 
 	it("preserves multiple methods registered for the same path", () => {
+		const healthRoute = ROUTES.find((route) => route.path === "/health")!;
 		const schema = generateApiSchema([
 			...ROUTES,
 			{
-				...ROUTES[0],
+				...healthRoute,
 				method: "POST",
 				operationId: "postHealthTest",
 			},

@@ -29,6 +29,7 @@ const errorEnvelopeSchema = {
 export function generateApiSchema(routes: readonly RouteDefinition[] = ROUTES) {
 	const paths: Record<string, Record<string, unknown>> = {};
 	for (const route of routes) {
+		if (route.includeInApiSchema === false) continue;
 		const path = (paths[route.path] ??= {});
 		path[route.method.toLowerCase()] = {
 			operationId: route.operationId,

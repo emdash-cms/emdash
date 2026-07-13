@@ -18,12 +18,16 @@ const OWNED_PURPOSES: ReadonlySet<unknown> = new Set<OwnedEncryptionPurpose>([
 	"email-address",
 	"webhook-destination",
 	"webhook-secret",
+	"csrf-secret",
 ]);
 const UNOWNED_PURPOSES: ReadonlySet<unknown> = new Set<UnownedEncryptionPurpose>([
 	"confidential-client-private-key",
 ]);
 const OPTIONAL_OWNER_PURPOSES: ReadonlySet<unknown> = new Set<OptionalOwnerEncryptionPurpose>([
 	"oauth-transaction",
+	"oauth-console-transaction",
+	"oauth-approver-transaction",
+	"oauth-delegation-transaction",
 ]);
 
 export type OwnedEncryptionPurpose =
@@ -31,9 +35,14 @@ export type OwnedEncryptionPurpose =
 	| "dpop-private-key"
 	| "email-address"
 	| "webhook-destination"
-	| "webhook-secret";
+	| "webhook-secret"
+	| "csrf-secret";
 
-export type OptionalOwnerEncryptionPurpose = "oauth-transaction";
+export type OptionalOwnerEncryptionPurpose =
+	| "oauth-transaction"
+	| "oauth-console-transaction"
+	| "oauth-approver-transaction"
+	| "oauth-delegation-transaction";
 
 export type UnownedEncryptionPurpose = "confidential-client-private-key";
 

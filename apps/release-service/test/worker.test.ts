@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ConfigurationBindings } from "../src/config.js";
 import { failInactiveSchedule, handleRequest, retryUnsupportedQueue } from "../src/index.js";
 import { ROUTES, type RouteDefinition } from "../src/routes.js";
+import { TEST_ASSERTION_KEYSET } from "./fixtures/oauth.js";
 
 const BLOCKED_PATHS = [
 	"/v1/release-intents",
@@ -46,6 +47,8 @@ describe("release-service worker", () => {
 			DEPLOYMENT_POLICY: "hosted",
 			ENCRYPTION_KEYRING:
 				'{"current":1,"keys":[{"version":1,"key":"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"}]}',
+			OAUTH_REDIRECT_URIS: '["https://test/oauth/callback"]',
+			OAUTH_ASSERTION_KEYSET: TEST_ASSERTION_KEYSET,
 		} satisfies ConfigurationBindings;
 		const response = await handleRequest(new Request("https://test/health"), bindings);
 		expect(response.status).toBe(503);
@@ -64,8 +67,31 @@ describe("release-service worker", () => {
 		expect(result).toEqual({ healthy: 1 });
 	});
 
-	it("registers only the health route", () => {
-		expect(ROUTES.map(({ method, path }) => `${method} ${path}`)).toEqual(["GET /health"]);
+	it("serves stable public-only OAuth metadata and overlapping JWKS", async () => {
+		const metadataResponse = await SELF.fetch(
+			"https://untrusted-host.invalid/.well-known/atproto-client-metadata.json",
+		);
+		expect(metadataResponse.status).toBe(200);
+		expect(metadataResponse.headers.get("cache-control")).toBe("public, max-age=300");
+		expect(await metadataResponse.json()).toMatchObject({
+			client_id: "https://release.example.invalid/.well-known/atproto-client-metadata.json",
+			redirect_uris: ["https://release.example.invalid/oauth/callback"],
+			jwks_uri: "https://release.example.invalid/oauth/jwks.json",
+		});
+
+		const jwksResponse = await SELF.fetch("https://release.example.invalid/oauth/jwks.json");
+		const jwksText = await jwksResponse.text();
+		expect(jwksResponse.status).toBe(200);
+		expect(JSON.parse(jwksText).keys).toHaveLength(2);
+		expect(jwksText).not.toContain('"d"');
+	});
+
+	it("registers only public OAuth discovery and health routes", () => {
+		expect(ROUTES.map(({ method, path }) => `${method} ${path}`)).toEqual([
+			"GET /.well-known/atproto-client-metadata.json",
+			"GET /oauth/jwks.json",
+			"GET /health",
+		]);
 	});
 
 	it("catches async route failures without leaking them to clients", async () => {
