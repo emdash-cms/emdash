@@ -1,6 +1,6 @@
 # Delegated Release Service Implementation Spec
 
-Status: implementation in progress; deployed-PDS validation is deferred to production conformance, and aggregator-history validation remains open
+Status: implementation in progress; deployed-PDS validation is deferred to production conformance; Gate 0B complete
 
 Source: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870), Attested Automated Publishing
 
@@ -925,10 +925,51 @@ The aggregator needs event-history work before it can implement the RFC's "polic
 
 ### Ingest ordering
 
-Current Jetstream jobs discard `time_us`, event CID, and repo revision, then fetch the current record by rkey. That loses intermediate profile versions. Merely adding those fields to the job is insufficient because a later PDS read still returns only the current value. Phase 0 must choose and prove an event source that provides the event-specific record value plus a verifiable commit/CAR path, or explicitly document a weaker trust model. Carry its ordering key, event CID, repo revision, and record blocks through the queue and persist every profile-policy version.
+**Gate 0B decision (W0.6): `subscribeRepos` firehose `#commit` events are the selected source. Gate 0B is complete.**
 
-Do not claim downgrade cooldown support until intermediate versions are provably retained.
+The `com.atproto.sync.subscribeRepos` firehose `#commit` event is the selected viable standardized ATProto source that provides event-specific record values with verifiable ordering and cryptographic proof material. Each `#commit` event carries: `seq` (relay-scoped monotonic ordering key, not comparable across relay and direct-PDS sources), `rev` (TID repo revision, per-repo logical clock), `since` (the `rev` of the preceding commit for this repo, enabling per-repo chain continuity checks), `commit` (CID of the signed commit object), `blocks` (CAR slice containing the signed commit and MST diff nodes), `ops` (per-record operations with new CID and, for updates and deletes, `prev` CID of the prior record version), and `prevData` (previous MST root CID, required for MST inversion). The signed commit in `blocks` is verifiable against the DID's signing key that was valid at the time of the commit. MST inversion against `prevData` confirms the ops list is complete and unmanipulated, but requires the aggregator to have maintained inductive firehose state from the prior commit; it is not independently verifiable from a single event in isolation.
 
+**Sources evaluated and rejected:**
+
+- **Jetstream (current production deployment and the experimental archival rewrite under development):** Both strip CAR blocks and MST proof material, providing JSON-decoded record values without commit signatures or MST proofs. The current production Jetstream does not provide `prev` CID for updates and has no historical backfill API for intermediate record states. The experimental archival rewrite stores full-network segments on disk and is not yet deployed to production; its on-disk format is still changing and it does not expose a stable API for retrieving intermediate record states with proof material. Neither is sufficient for a verifiable trust model.
+- **`getRepo` (CAR export):** Returns current repo state only. The `since` parameter returns a diff from a given rev, but only for what the PDS still holds; intermediate values between two revisions are not recoverable if the PDS has since advanced. Cannot reconstruct intermediate profile states after the fact.
+- **`getRecord`:** Returns a CAR proof for the current record only. No historical versions.
+- **PDS repo history:** The `prev` field in v3 commit objects is virtually always `null`. No standard API enumerates historical commits from a PDS.
+- **`did:plc` audit log:** Provides a complete, hash-linked, verifiable chain of DID document operations (PDS endpoint, signing keys, handles). Does not contain profile record content. Useful only for identity resolution, not profile policy history. `#identity` firehose events signal that identity may have changed and prompt re-resolution; they do not carry key material themselves.
+
+**Trust model and constraints for W10.1:**
+
+The aggregator must subscribe to `subscribeRepos` from the relay (or directly from each publisher's PDS) and process `#commit` events in real time. For each profile-collection commit, extract the record value from the CAR blocks at the CID indicated by the op, attempt commit signature verification against the DID's signing key that was valid at the commit's `rev`, and verify MST inversion against `prevData` using inductive state from the prior processed commit. Persist the event-specific record value, CID, `rev`, `seq`, the signed commit block, and the MST proof slice needed to bind the record transition (the signed commit block, the referenced record block, and the MST diff nodes required for inversion). Retaining only the signed commit block is insufficient for later independent verification; the full proof slice must be retained if post-hoc re-verification is required, or the verification scope must be explicitly limited to ingest time.
+
+Trust assumptions:
+- `seq` is relay-scoped and monotonically increasing within a single relay connection. It must not be compared across relay and direct-PDS sources, or across different relay instances. Per-repo continuity is tracked via `#commit.since` (which must equal the last processed `rev` for that DID) and `rev` (which must increase monotonically per DID). Gaps in `since`/`rev` continuity, not gaps in `seq`, are the signal for per-repo desynchronization.
+- Commit signature verification requires the DID's signing key that was valid at the time of the commit. `#identity` events signal that the DID document may have changed and require the aggregator to re-resolve the DID document; they do not carry key material. The aggregator must maintain a per-DID key history sufficient to verify commits against the key active at each `rev`. If historical key material is unavailable (the old key has been removed from the DID document and was not retained by the aggregator), the commit signature cannot be verified retroactively. This is an explicit limitation of the atproto signing model; such events are marked "signature unverifiable at ingest" but their record value is retained if the MST inversion check passed at ingest time.
+- `prevData` and `op.prev` validation requires inductive firehose state: the aggregator must have successfully processed the prior commit for the same DID and retained its MST root. A `tooBig` event (deprecated but may appear from older producers) or a `#sync` event breaks the inductive chain; both must be treated as a gap requiring `getRepo` re-sync, not as proof of intermediate history.
+- The relay backfill window is hours to days, not permanent. Profile events that occurred before the aggregator began consuming are not recoverable from the relay. For publishers who registered before the aggregator's subscription start, the aggregator can only recover the current profile state via `getRepo` and must mark all prior policy events as unrecoverable.
+
+**Retention and backfill constraints:**
+- The aggregator must start consuming the firehose before any publisher registers. For publishers already registered at aggregator launch, bootstrap via `getRepo` to capture current state; mark historical policy events before the bootstrap rev as unrecoverable.
+- The relay backfill window (hours to days) is the only replay mechanism. The aggregator must maintain a persistent cursor and reconnect within the window after any outage. Outages exceeding the backfill window require `getRepo` re-sync and mark the gap period as unrecoverable.
+- `listReposByCollection` on the relay enumerates all DIDs with records in a given collection, enabling targeted backfill of known publishers.
+
+**Fork, rebase, and tombstone handling:**
+- The `rebase` field in `#commit` is deprecated and unused in v3 repos. Treat it as always false.
+- A `#sync` event resets the repo to a new state without providing intermediate history. On receipt of a `#sync`, mark the repo as desynchronized, fetch the full repo via `getRepo`, and mark any gap in policy events as unrecoverable.
+- A `tooBig` event (deprecated; producers should always set it to `false`) breaks the inductive chain in the same way as `#sync`. Treat it as a gap requiring `getRepo` re-sync.
+- Account deletion (`#account` with `active=false, status=deleted`) makes the repo unavailable. Mark all policy events after the last known rev as unrecoverable. Historical events already persisted remain valid.
+- Account deactivation (`status=deactivated`) is temporary; resume on reactivation.
+
+**Explicit W10.1 constraints:**
+- W10.1 must subscribe to `subscribeRepos` from the relay and process `#commit` events in real time.
+- For each profile-collection op, extract the record value from the CAR blocks, attempt commit signature verification against the DID's signing key valid at the commit's `rev`, and verify MST inversion using inductive state from the prior processed commit for that DID.
+- Persist: `seq`, `rev`, `since`, `commit` CID, record CID, record value (CBOR bytes), the signed commit block, and the MST proof slice (signed commit block, referenced record block, and MST diff nodes needed for inversion). Retaining only the signed commit block is insufficient for later independent re-verification; the full proof slice is required for that guarantee, or the verification scope must be explicitly documented as ingest-time only.
+- Track per-DID last-seen `rev`, `prevData`, and inductive MST state. Use `#commit.since` to detect per-repo chain breaks; do not rely on `seq` gaps for per-repo continuity.
+- On chain break, `#sync`, `tooBig`, or `getRepo` re-sync, mark the gap as unrecoverable.
+- On `#identity`, re-resolve the DID document and update the cached key history; do not assume the event carries key material.
+- For publishers bootstrapped from `getRepo` at aggregator launch, mark all policy events before the bootstrap rev as unrecoverable.
+- Unrecoverable gaps must be surfaced in the policy history view and must not be silently treated as "no policy change occurred."
+- Commit signature verification against a key no longer in the DID document is not possible retroactively; such events are marked "signature unverifiable" but their record value is retained if MST inversion passed at ingest time.
+- Do not claim downgrade cooldown accuracy for any period marked unrecoverable.
 ### Schema
 
 Add:
@@ -1075,10 +1116,10 @@ Run a second suite against real GitHub OIDC, a Bluesky-hosted PDS, and at least 
 - Deferred to conformance and production smoke: validate create-only permission support on every supported deployed PDS without broad fallback.
 - Complete: confirmed `@atcute/oauth-node-client@2.0.1` confidential-client persistence, DPoP nonce retry, D1 lock requirements, and client-key rotation behavior in workerd.
 - Complete: inspect a real GitHub provenance bundle and land the Workers-compatible Sigstore verifier plus exact field mapping.
-- Pending Gate 0B: select an aggregator history source that can retain event-specific signed profile values and document `W10.1` constraints.
+- Complete (Gate 0B): `subscribeRepos` firehose `#commit` events selected as the aggregator history source. Trust model, retention constraints, fork/rebase/tombstone handling, and explicit `W10.1` constraints documented in the Aggregator Changes section.
 - Complete: use `emdash-plugin` as the v1 public command.
 
-OAuth custody feasibility is complete. Gate 0B passes when historical ingest has a viable source and trust model. External history validation adds no repository harnesses, production code, test scripts, package dependencies, or CI wiring; commit conclusions directly to the integration branch.
+OAuth custody feasibility is complete. Gate 0B is complete: `subscribeRepos` firehose `#commit` events are the selected source; trust model, constraints, and W10.1 requirements are documented in the Aggregator Changes section.
 
 ### Phase 1: Protocol and verification foundation
 
@@ -1157,4 +1198,4 @@ Phase 4 is a production launch gate for the default public service and registry,
 
 ## Implementation Blockers to Resolve First
 
-1. Decide the authoritative historical event source and trust model for aggregator policy ordering.
+All Gate 0 blockers are resolved. Gate 0A (OAuth custody) and Gate 0B (historical ingest source) are complete. Deployed-PDS compatibility (`W0.3`) is deferred to `W12.7` conformance and production smoke.

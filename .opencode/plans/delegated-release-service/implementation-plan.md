@@ -2,7 +2,7 @@
 
 Companion: [Implementation spec](./spec.md)
 
-Status: implementation in progress; deployed-PDS validation is deferred to `W12.7`, and history feasibility validation remains open
+Status: implementation in progress; deployed-PDS validation is deferred to `W12.7`; Gate 0B complete
 
 This plan turns the delegated release service spec into independently deliverable workstreams. It defines ownership boundaries, dependencies, integration gates, and completion criteria. It intentionally contains no time estimates.
 
@@ -11,7 +11,7 @@ This plan turns the delegated release service spec into independently deliverabl
 | Stage   | Deliverable                                                                  | Repository change allowed                                         |
 | ------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Gate 0A | Complete: confidential OAuth custody feasibility                             | Spec and plan updates only                                        |
-| Gate 0B | History feasibility: event-specific, verifiable aggregator input             | Spec and plan updates only                                        |
+| Gate 0B | Complete: `subscribeRepos` `#commit` events selected; W10.1 constraints documented | Spec and plan updates only                                    |
 | Gate 1  | Experimental lexicons, generated types, and one shared verification contract | Production contract code and tests                                |
 | Gate 2  | Secure delegated release service vertical slice                              | Service, client, and installer code and tests                     |
 | Gate 3  | Independent install and minimum discovery enforcement                        | Installer and aggregator code and tests                           |
@@ -37,7 +37,7 @@ The integration branch includes these completed merge units:
 | `W2.5`                     | #1951    | Production public Sigstore provenance verification landed.             |
 | `W0.4`                     | Direct   | Confidential OAuth custody and refresh are compatible with workerd.    |
 
-`W0.6` remains external-validation work. Deployed-PDS compatibility from `W0.3` moves to conformance and production smoke. The next shared-verification merge unit is combined `W2.6` and `W2.7`; `W1.6` and `W1.7` land together to establish the exact supported scope contract.
+`W0.6` is complete: `subscribeRepos` `#commit` events selected; see Gate 0B and the Aggregator Changes section of the spec for W10.1 constraints. Deployed-PDS compatibility from `W0.3` moves to conformance and production smoke. The next shared-verification merge unit is combined `W2.6` and `W2.7`; `W1.6` and `W1.7` land together to establish the exact supported scope contract.
 
 ## Outcomes
 
@@ -157,14 +157,15 @@ Deployed-PDS create-only compatibility is validated by the conformance suite and
 
 ### Gate 0B: Historical Ingest Feasibility
 
-Required before `W10.1` and production historical-policy claims:
+Complete.
 
-- An aggregator event source can recover intermediate profile values with verifiable ordering.
-- The source supplies event-specific record values, CIDs, revisions, ordering keys, and proof material sufficient for the selected trust model.
+- Source selected: `subscribeRepos` firehose `#commit` events.
+- The source provides event-specific record values, CIDs, revisions (`rev`), ordering keys (`seq`), and verifiable commit proof material (signed commit block in CAR, MST inversion via `prevData`).
+- Trust model, retention constraints, backfill limits, fork/rebase/tombstone handling, and explicit W10.1 constraints are documented in the Aggregator Changes section of the spec.
 
 Gate owner: `W0`.
 
-Gate 0B evidence is a source-selection decision and explicit `W10.1` constraints. Failure changes the RFC's historical-policy and cooldown guarantees before `W10.1` through `W10.3` and `W10.5` through `W10.7` proceed; it does not block minimum current-policy filtering in `W10.4` or invalidate the service or installer architecture.
+`W10.1` through `W10.3` and `W10.5` through `W10.7` may proceed. Minimum current-policy filtering in `W10.4` was already unblocked.
 
 ### Gate 1: Protocol and Verification Foundation
 
@@ -302,9 +303,13 @@ Dependencies: `W0.1` provenance draft.
 
 ### `W0.6` Prove historical aggregator input
 
-Determine whether an event source can recover profile states `strict -> relaxed -> strict`, with a release between transitions, after queue delay. The selected source must provide event-specific record values, ordering keys, CIDs, revisions, and verifiable commit proof material.
+Result: complete. `subscribeRepos` firehose `#commit` events are the selected source.
 
-Output: a source-selection decision and explicit W10.1 constraints. If no source can provide this, return to the RFC before implementing cooldown semantics. Do not add an aggregator prototype to this repository.
+Each `#commit` event provides: `seq` (relay-scoped ordering key, not comparable across relay and direct-PDS sources), `rev` (TID repo revision, per-repo logical clock), `since` (the `rev` of the preceding commit for this repo, the per-repo chain link), `commit` CID, `blocks` (CAR slice with signed commit and MST diff), `ops` (per-record operations with new CID and, for updates/deletes, `prev` CID), and `prevData` (previous MST root, required for inductive MST inversion). The signed commit is verifiable against the DID's signing key that was valid at the commit's `rev`. MST inversion against `prevData` requires inductive firehose state from the prior processed commit; it is not independently verifiable from a single event in isolation.
+
+Jetstream (current production and the experimental archival rewrite under development), `getRepo`, `getRecord`, PDS repo history, and the `did:plc` audit log were evaluated and rejected: none provide event-specific record values with verifiable commit proof material for intermediate profile states. `#identity` events signal identity changes and require DID resolution; they do not carry key material.
+
+Trust model, retention constraints, backfill limits, fork/rebase/tombstone handling, and explicit W10.1 constraints are documented in the Aggregator Changes section of the spec. Key constraints: `seq` is relay-scoped and must not be used for per-repo continuity — use `#commit.since` and `rev` instead; the relay backfill window is hours to days (not permanent); publishers active before the aggregator's subscription start can only be bootstrapped from current state via `getRepo`, with prior policy events marked unrecoverable; commit signature verification requires the key valid at the commit's `rev` and is not possible retroactively if that key is no longer in the DID document; persisting only the signed commit block is insufficient for later independent re-verification — the full MST proof slice (signed commit, record block, MST diff nodes) must be retained or the verification scope explicitly limited to ingest time; `#sync` and `tooBig` events break the inductive chain and require `getRepo` re-sync with the gap marked unrecoverable.
 
 Dependencies: none.
 
@@ -318,7 +323,7 @@ Dependencies: none.
 
 ### W0 Completion
 
-The RFC-derived work (`W0.1`, `W0.2`, `W0.5`, and `W0.7`) and OAuth custody validation (`W0.4`) are complete, so Gate 0A is complete. `W0.3` is deferred to `W12.7`. Gate 0B passes independently when `W0.6` selects a viable historical event source. An incompatible deployed-PDS result changes the support matrix or affected RFC guarantee before support is claimed or production launches.
+The RFC-derived work (`W0.1`, `W0.2`, `W0.5`, and `W0.7`) and OAuth custody validation (`W0.4`) are complete, so Gate 0A is complete. `W0.3` is deferred to `W12.7`. `W0.6` is complete: `subscribeRepos` firehose `#commit` events are the selected source, and Gate 0B is complete. An incompatible deployed-PDS result changes the support matrix or affected RFC guarantee before support is claimed or production launches.
 
 ## Workstream W1: Protocol and Lexicons
 
@@ -1126,7 +1131,7 @@ Start these independently, with at most three implementation branches active at 
 
 1. `W2.6` + `W2.7`: structured record/policy verification over authoritative direct-PDS reads.
 2. `W1.6` + `W1.7`: implement the typed exact scope and narrow create-only publishing helper.
-3. `W0.6`: select historical aggregator input and record Gate 0B constraints independently.
+3. `W0.6`: complete. Gate 0B is closed.
 4. `W3.6`: required-UV passkey primitives.
 5. `W5.1` + `W5.8`: unreachable service and API foundations.
 6. After `W5.1`, `W4.1` + `W4.2` and `W5.1a`: workload verification and the isolated verifier Worker.
