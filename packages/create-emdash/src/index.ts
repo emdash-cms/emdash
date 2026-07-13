@@ -31,7 +31,12 @@ import {
 	validateProjectName,
 	wantsHelp,
 } from "./flags.js";
-import { isDirNonEmpty, sanitizePackageName, writeEncryptionKey } from "./utils.js";
+import {
+	assertTemplateScaffold,
+	isDirNonEmpty,
+	sanitizePackageName,
+	writeEncryptionKey,
+} from "./utils.js";
 
 const GITHUB_REPO = "emdash-cms/templates";
 
@@ -360,6 +365,7 @@ async function main() {
 			dir: projectDir,
 			force: true,
 		});
+		assertTemplateScaffold(projectDir, templateConfig.dir);
 
 		// Set project name in package.json
 		const pkgPath = resolve(projectDir, "package.json");

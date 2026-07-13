@@ -6,12 +6,36 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
 	PROJECT_NAME_PATTERN,
+	assertTemplateScaffold,
 	generateEncryptionKey,
 	isDirNonEmpty,
 	parseTargetArg,
 	sanitizePackageName,
 	writeEncryptionKey,
 } from "../src/utils.js";
+
+describe("assertTemplateScaffold", () => {
+	let tempDir: string;
+
+	beforeEach(() => {
+		tempDir = mkdtempSync(join(tmpdir(), "create-emdash-scaffold-"));
+	});
+
+	afterEach(() => {
+		rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("accepts a downloaded template with package.json", () => {
+		writeFileSync(join(tempDir, "package.json"), "{}");
+		expect(() => assertTemplateScaffold(tempDir, "blog")).not.toThrow();
+	});
+
+	it("rejects a provider response without package.json", () => {
+		expect(() => assertTemplateScaffold(tempDir, "service-business")).toThrow(
+			'Downloaded template "service-business" is incomplete: package.json is missing.',
+		);
+	});
+});
 
 // ---------------------------------------------------------------------------
 // sanitizePackageName
