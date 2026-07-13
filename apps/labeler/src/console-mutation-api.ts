@@ -35,6 +35,12 @@ import {
 	type MutationGuardDeps,
 	type MutationSpec,
 } from "./mutation-guard.js";
+import {
+	buildOperationalEventInsert,
+	buildOutboxInsert,
+	newOperationalEventId,
+	type OperationalEventType,
+} from "./operational-events.js";
 import { ReadGuardError } from "./operator-read-guard.js";
 import { getLabelDefinition, MODERATION_POLICY } from "./policy.js";
 import {
@@ -151,6 +157,16 @@ export async function handleConsoleMutation(
 			if (segments[2] === "rerun") return await runRerun(request, deps, id);
 			if (segments[2] === "override") return await runOverride(request, deps, id);
 			if (segments[2] === "override-retract") return await runOverrideRetract(request, deps, id);
+		}
+		if (segments[0] === "emergency" && segments.length === 2) {
+			if (segments[1] === "takedown")
+				return await runEmergencyAction(request, deps, "takedown", false);
+			if (segments[1] === "takedown-retract")
+				return await runEmergencyAction(request, deps, "takedown", true);
+			if (segments[1] === "publisher-compromised")
+				return await runEmergencyAction(request, deps, "publisher-compromised", false);
+			if (segments[1] === "publisher-compromised-retract")
+				return await runEmergencyAction(request, deps, "publisher-compromised", true);
 		}
 		throw new ReadGuardError("NOT_FOUND");
 	} catch (error) {
@@ -766,4 +782,200 @@ async function runOverrideRetract(
 	await assertIssuancePersisted(deps.db, committedKeys);
 	deferPublishAll(deps, committedKeys);
 	return jsonData(returned);
+}
+
+// ─── W9.6: admin-only emergency actions (!takedown, publisher-compromised) ───
+
+type EmergencyAction = "takedown" | "publisher-compromised";
+
+const EMERGENCY_VALUE: Record<EmergencyAction, string> = {
+	takedown: "!takedown",
+	"publisher-compromised": "publisher-compromised",
+};
+
+const EMERGENCY_EVENT_TYPE: Record<EmergencyAction, OperationalEventType> = {
+	takedown: "emergency-takedown",
+	"publisher-compromised": "publisher-compromised",
+};
+
+/** The second typed ceremony field: a server constant the operator must retype
+ * verbatim, distinct per action and per direction so a scripted client cannot
+ * skip the ceremony and a retract cannot be replayed as an issuance. */
+const EMERGENCY_INTENT: Record<EmergencyAction, { issue: string; retract: string }> = {
+	takedown: { issue: "CONFIRM TAKEDOWN", retract: "CONFIRM RETRACT" },
+	"publisher-compromised": { issue: "CONFIRM COMPROMISE", retract: "CONFIRM RETRACT" },
+};
+
+const EMERGENCY_CHANNEL = "deployment-alert";
+
+/**
+ * The two-field emergency ceremony body (design §3). `val` and `neg` are fixed
+ * by the endpoint, not read from the client, so the wire body carries only the
+ * subject and the two typed confirmations. Both `subjectConfirmation` and
+ * `intent` are part of the parsed body, so both fold into the request
+ * fingerprint (`computeRequestFingerprint` hashes the whole normalized body) —
+ * a replay must resend identical values.
+ */
+interface EmergencyActionBody {
+	uri: string;
+	val: string;
+	neg: boolean;
+	subjectConfirmation: string;
+	intent: string;
+}
+
+/** The idempotent emergency result — the same shape as a label descriptor
+ * (`cid` is always null: every emergency label is URI-wide / DID-subject). */
+type EmergencyDescriptor = IssuedLabelDescriptor;
+
+/**
+ * `POST /admin/api/emergency/{takedown,publisher-compromised}` and their
+ * `-retract` siblings — the admin-only crown-jewel actions (spec §11.3/§18.2,
+ * design §2–§4). Issuance flows through `prepareManualLabelIssuance` unchanged;
+ * the delta from the reviewer issue endpoint is the `admin` role, the
+ * admin-issuable policy gate, the two-field ceremony, and the label-gated
+ * operational event + notification outbox committed in the same atomic batch.
+ * Retraction is the same path with `neg: true` and a `CONFIRM RETRACT` intent;
+ * its resting state is the subject's pre-takedown computed state (the automated
+ * labels, never negated, re-expose — nothing is re-issued).
+ */
+async function runEmergencyAction(
+	request: Request,
+	deps: ConsoleMutationDeps,
+	action: EmergencyAction,
+	neg: boolean,
+): Promise<Response> {
+	const val = EMERGENCY_VALUE[action];
+	const spec: MutationSpec<EmergencyActionBody> = {
+		action,
+		requiredRole: "admin",
+		parseBody: (raw) => {
+			const body: EmergencyActionBody = {
+				uri: requireString(raw.uri),
+				val,
+				neg,
+				subjectConfirmation: requireString(raw.subjectConfirmation),
+				intent: requireString(raw.intent),
+			};
+			assertAdminIssuable(body);
+			assertEmergencyConfirmation(body, action, neg);
+			return body;
+		},
+		auditFields: (body) => ({
+			subjectUri: body.uri,
+			labelValue: val,
+			metadata: { neg, effect: getLabelDefinition(val)?.officialEffect ?? null },
+		}),
+	};
+
+	const outcome = await guardMutation(request, spec, guardDepsOf(deps));
+	if (outcome.outcome === "replay") {
+		const stored = storedDescriptor<EmergencyDescriptor>(outcome.result);
+		await assertIssuancePersisted(deps.db, [stored.actionId]);
+		return jsonData(stored);
+	}
+
+	const { ctx } = outcome;
+	const signer = await deps.createSigner();
+	const issuance = await prepareManualLabelIssuance(
+		deps.db,
+		deps.config,
+		signer,
+		{
+			actor: deps.config.labelerDid,
+			type: "manual-label",
+			reason: ctx.reason,
+			idempotencyKey: ctx.actionId,
+		},
+		{ uri: ctx.body.uri, val, neg },
+		ctx.now,
+	);
+
+	// The event + outbox are gated on the label's in-batch existence keyed by the
+	// issuance idempotency key (= this action id): a signing-state race that
+	// suppresses the label INSERT drops the event and outbox with it, so no
+	// "takedown issued" alert fires for a takedown that never landed (T1).
+	const eventId = newOperationalEventId();
+	const eventInsert = buildOperationalEventInsert(deps.db, {
+		id: eventId,
+		eventType: EMERGENCY_EVENT_TYPE[action],
+		severity: neg ? "high" : "critical",
+		actionId: ctx.actionId,
+		subjectUri: ctx.body.uri,
+		labelValue: val,
+		payload: { reason: ctx.reason },
+		now: ctx.now,
+		gateOnIssuedLabelActionKey: ctx.actionId,
+	});
+	const outboxInsert = buildOutboxInsert(deps.db, {
+		eventId,
+		channel: EMERGENCY_CHANNEL,
+		now: ctx.now,
+		gateOnIssuedLabelActionKey: ctx.actionId,
+	});
+
+	const descriptor: EmergencyDescriptor = {
+		actionId: ctx.actionId,
+		val,
+		uri: ctx.body.uri,
+		cid: null,
+		neg,
+		cts: ctx.now.toISOString(),
+		effect: getLabelDefinition(val)?.officialEffect ?? "",
+	};
+	const returned = await commitMutation(
+		deps.db,
+		ctx,
+		spec,
+		[...issuance.statements, eventInsert, outboxInsert],
+		descriptor,
+	);
+	await assertIssuancePersisted(deps.db, [returned.actionId]);
+	deps.defer(deps.afterCommit(returned.actionId));
+	return jsonData(returned);
+}
+
+/**
+ * The admin issuance gate, policy-driven like `assertW94Issuable` but requiring
+ * the matched `subjectRule` to grant `admin`: `!takedown` on a release, package,
+ * or publisher; `publisher-compromised` on a publisher. Every emergency label is
+ * `cidRule: forbidden`, and the wire body carries no CID, so scope is satisfied
+ * structurally. A subject the value does not grant `admin` for (e.g.
+ * `publisher-compromised` on a release) is a clean 400 before signing.
+ */
+function assertAdminIssuable(body: EmergencyActionBody): void {
+	const definition = getLabelDefinition(body.val);
+	if (!definition) throw new MutationGuardError("INVALID_BODY");
+	const subject = parseSubjectKind(body.uri);
+	if (subject === null) throw new MutationGuardError("INVALID_BODY");
+	const rule = definition.subjectRules.find((candidate) => candidate.subject === subject);
+	if (!rule || !rule.issuanceModes.includes("admin")) throw new MutationGuardError("INVALID_BODY");
+}
+
+/**
+ * The two-field ceremony (design §3), enforced in code, not prompt text. The
+ * typed subject identifier is the record rkey for a release/package and the
+ * DID's final `:`-segment for a publisher, tying the confirmation to the parsed
+ * subject kind — a URI whose kind mismatches the typed identifier fails (T7).
+ * The typed intent must equal the server constant for this action + direction.
+ * Both errors are the static `CONFIRMATION_MISMATCH`, which never echoes the
+ * typed value.
+ */
+function assertEmergencyConfirmation(
+	body: EmergencyActionBody,
+	action: EmergencyAction,
+	neg: boolean,
+): void {
+	const subject = parseSubjectKind(body.uri);
+	const expectedSubject = subject === "publisher" ? didFinalSegment(body.uri) : rkeyOf(body.uri);
+	if (body.subjectConfirmation !== expectedSubject)
+		throw new LabelMutationError("CONFIRMATION_MISMATCH");
+	const expectedIntent = EMERGENCY_INTENT[action][neg ? "retract" : "issue"];
+	if (body.intent !== expectedIntent) throw new LabelMutationError("CONFIRMATION_MISMATCH");
+}
+
+/** A publisher subject's typed confirmation is its DID's final `:`-segment (the
+ * PLC/web identifier), not a resolved handle. */
+function didFinalSegment(uri: string): string {
+	return uri.split(":").at(-1) ?? "";
 }

@@ -11,6 +11,8 @@ import type {
 	AssessmentRun,
 	EffectPreview,
 	EffectPreviewParams,
+	EmergencyActionInput,
+	EmergencyActionKind,
 	IssuedLabel,
 	IssuedLabelDescriptor,
 	LabelActionInput,
@@ -53,7 +55,21 @@ export interface LabelerConsoleClient {
 	rerunAssessment(id: string, input: AssessmentActionInput): Promise<RerunResult>;
 	overrideAssessment(id: string, input: OverrideActionInput): Promise<OverrideResult>;
 	retractOverride(id: string, input: AssessmentActionInput): Promise<OverrideRetractResult>;
+	emergencyAction(
+		kind: EmergencyActionKind,
+		mode: "issue" | "retract",
+		input: EmergencyActionInput,
+	): Promise<IssuedLabelDescriptor>;
 }
+
+/** The admin-only emergency endpoints, keyed by action and direction. */
+const EMERGENCY_PATHS: Record<EmergencyActionKind, { issue: string; retract: string }> = {
+	takedown: { issue: "/emergency/takedown", retract: "/emergency/takedown-retract" },
+	"publisher-compromised": {
+		issue: "/emergency/publisher-compromised",
+		retract: "/emergency/publisher-compromised-retract",
+	},
+};
 
 interface ApiErrorBody {
 	error?: { code?: string; message?: string };
@@ -201,6 +217,9 @@ export function createFetchClient(): LabelerConsoleClient {
 				"Failed to retract override",
 			);
 		},
+		async emergencyAction(kind, mode, input) {
+			return postAction(EMERGENCY_PATHS[kind][mode], input, "Failed to submit emergency action");
+		},
 	};
 }
 
@@ -305,6 +324,17 @@ export function createFixtureClient(): LabelerConsoleClient {
 				cid: "bafyfixture",
 				negated: ["assessment-passed", "assessment-overridden"],
 				cts: new Date().toISOString(),
+			};
+		},
+		async emergencyAction(kind, mode, input) {
+			return {
+				actionId: "oact_fixture",
+				val: kind === "takedown" ? "!takedown" : "publisher-compromised",
+				uri: input.uri,
+				cid: null,
+				neg: mode === "retract",
+				cts: new Date().toISOString(),
+				effect: kind === "takedown" ? "redact" : "block",
 			};
 		},
 	};

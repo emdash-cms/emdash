@@ -43,6 +43,16 @@ export interface OperationalEventInsert {
 	 * not insert either — so no alert fires for a label that never landed.
 	 */
 	gateOnIssuedLabelActionId?: number;
+	/**
+	 * The same in-batch label gate keyed on the issuance action's idempotency
+	 * key rather than the numeric `issuance_actions.id`. The real issuance path
+	 * (`prepareManualLabelIssuance`) lets D1 autoincrement `issuance_actions.id`,
+	 * so the numeric id is unknown before the batch commits — but the idempotency
+	 * key is the caller-minted operator action id. The gate joins through
+	 * `issuance_actions` to reach the label, so a signing-suppressed batch (no
+	 * `issued_labels` row) inserts neither the event nor its outbox row.
+	 */
+	gateOnIssuedLabelActionKey?: string;
 }
 
 export interface OutboxInsert {
@@ -51,6 +61,8 @@ export interface OutboxInsert {
 	now: Date;
 	/** Same in-batch label gating as {@link OperationalEventInsert}. */
 	gateOnIssuedLabelActionId?: number;
+	/** Same in-batch label gating as {@link OperationalEventInsert.gateOnIssuedLabelActionKey}. */
+	gateOnIssuedLabelActionKey?: string;
 }
 
 export interface StoredOperationalEvent {
@@ -134,6 +146,20 @@ export function buildOperationalEventInsert(
 		input.now.getTime(),
 	];
 
+	if (input.gateOnIssuedLabelActionKey !== undefined) {
+		return db
+			.prepare(
+				`INSERT INTO operational_events (${columns})
+				 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+				 WHERE EXISTS (
+					SELECT 1 FROM issued_labels l
+					JOIN issuance_actions a ON a.id = l.action_id
+					WHERE a.idempotency_key = ?
+				 )`,
+			)
+			.bind(...values, input.gateOnIssuedLabelActionKey);
+	}
+
 	if (input.gateOnIssuedLabelActionId !== undefined) {
 		return db
 			.prepare(
@@ -165,6 +191,20 @@ export function buildOutboxInsert(db: D1Database, input: OutboxInsert): D1Prepar
 		input.now.toISOString(),
 		input.now.getTime(),
 	];
+
+	if (input.gateOnIssuedLabelActionKey !== undefined) {
+		return db
+			.prepare(
+				`INSERT INTO notification_outbox (id, event_id, channel, created_at, created_at_epoch_ms)
+				 SELECT ?, ?, ?, ?, ?
+				 WHERE EXISTS (
+					SELECT 1 FROM issued_labels l
+					JOIN issuance_actions a ON a.id = l.action_id
+					WHERE a.idempotency_key = ?
+				 )`,
+			)
+			.bind(...values, input.gateOnIssuedLabelActionKey);
+	}
 
 	if (input.gateOnIssuedLabelActionId !== undefined) {
 		return db
