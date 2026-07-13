@@ -200,7 +200,7 @@ describe("analyzeCode", () => {
 			promptVersion: PROMPT_VERSION,
 		});
 
-		const schema = calls[0]?.response_format.json_schema as {
+		const schema = calls[0]?.response_format.json_schema.schema as {
 			properties: { findings: { items: { properties: { category: { enum: string[] } } } } };
 		};
 		const categoryEnum = schema.properties.findings.items.properties.category.enum;

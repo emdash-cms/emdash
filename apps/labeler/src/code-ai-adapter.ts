@@ -19,7 +19,10 @@ import type { ModerationPolicy } from "./policy.js";
 
 export interface AiRunInputs {
 	messages: { role: "system" | "user"; content: string }[];
-	response_format: { type: "json_schema"; json_schema: Record<string, unknown> };
+	response_format: {
+		type: "json_schema";
+		json_schema: { name: string; schema: Record<string, unknown> };
+	};
 }
 
 /** Minimal structural interface, compatible with workers-types `Ai`. */
@@ -110,15 +113,24 @@ export async function analyzeCode(
 	);
 	const coverage: "complete" | "partial" = dropped.length > 0 ? "partial" : "complete";
 
+	// kimi-k2.7-code isn't in workers-types' AiModelList yet, but Cloudflare
+	// documents its API as identical to kimi-k2.6, whose input is the
+	// chat-completions shape. `satisfies` pins the request we actually send to
+	// that contract, so a drift from Workers AI's input type stops compiling.
+	const runInputs = {
+		messages: [
+			{ role: "system", content: systemPrompt },
+			{ role: "user", content: buildUserContent(metadataFence, kept, boundary) },
+		],
+		response_format: {
+			type: "json_schema",
+			json_schema: { name: "moderation_findings", schema: responseSchema },
+		},
+	} satisfies ChatCompletionsInput;
+
 	let rawResult: unknown;
 	try {
-		rawResult = await deps.ai.run(modelId, {
-			messages: [
-				{ role: "system", content: systemPrompt },
-				{ role: "user", content: buildUserContent(metadataFence, kept, boundary) },
-			],
-			response_format: { type: "json_schema", json_schema: responseSchema },
-		});
+		rawResult = await deps.ai.run(modelId, runInputs);
 	} catch (err) {
 		throw new ModelTransientError(
 			`code AI model call failed: ${err instanceof Error ? err.message : String(err)}`,
