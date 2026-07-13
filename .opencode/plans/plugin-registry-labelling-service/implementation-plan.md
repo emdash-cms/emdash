@@ -1125,6 +1125,8 @@ Dependencies: `W2.3`, `W9.1`, static `W8.1` fixtures.
 - Require exact CID/URI-wide confirmation as appropriate.
 - Show resulting official-client effect before submit.
 
+Decisions (2026-07-13): the moderation policy grants `reviewer` issuance on descriptive release labels (policy version bump; a reviewer-issued label is human-retract-only per §10). The typed confirmation is server-validated (exact CID for CID-bound actions, rkey for URI-wide) and participates in the idempotency fingerprint. Caller identity/roles for cosmetic UI gating come from a new `/admin/api/whoami` read. Retraction is manual negation through the same issuance path. The effect preview is a server-derived read grounded in the aggregator evaluator — the console holds no policy logic.
+
 Dependencies: `W3.3`, `W5.1`, `W9.2`.
 
 ### `W9.5` Implement rerun and false-positive override
