@@ -365,6 +365,40 @@ describe("rerun", () => {
 		).toBe(1);
 	});
 
+	it("503s and creates no run when the batch is suppressed mid-commit", async () => {
+		const { id, uri } = await seedRun("rerun-phantom");
+		const key = nextKey();
+		const body = { confirmation: CID, reason: "rotation lands mid-rerun", idempotencyKey: key };
+		const suppressed = new Proxy(testEnv.DB, {
+			get(target, prop, receiver) {
+				if (prop === "batch")
+					return (statements: D1PreparedStatement[]) => target.batch([statements[0]!]);
+				const value: unknown = Reflect.get(target, prop, receiver);
+				return typeof value === "function" ? value.bind(target) : value;
+			},
+		});
+		const response = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/rerun`, body),
+			mutationDeps({ db: suppressed }),
+		);
+		expect(response.status).toBe(503);
+		expect((await bodyError(response)).code).toBe("LABEL_ISSUANCE_UNAVAILABLE");
+		// Audit row committed (unguarded), but no fresh run and no re-pend.
+		expect(
+			await countRows(`SELECT COUNT(*) n FROM operator_actions WHERE idempotency_key = ?`, key),
+		).toBe(1);
+		expect(await countRows(`SELECT COUNT(*) n FROM assessments WHERE uri = ?`, uri)).toBe(1);
+		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: CID });
+		expect(winners.get("assessment-pending")?.active ?? false).toBe(false);
+
+		// Replay reconstructs the pending key and re-runs the persistence check.
+		const retry = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/rerun`, body),
+			mutationDeps(),
+		);
+		expect(retry.status).toBe(503);
+	});
+
 	it("rejects a confirmation that is not the release CID", async () => {
 		const { id } = await seedRun("rerun-conf");
 		const response = await handleConsoleMutation(
@@ -691,6 +725,53 @@ describe("override-retract", () => {
 		expect(rerun.status).toBe(200);
 		const after = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: CID });
 		expect(after.get("assessment-pending")?.active).toBe(true);
+	});
+
+	it("rejects a confirmation that is not the release CID", async () => {
+		const { id, uri } = await seedRun("retract-conf");
+		await seedAutomatedBlock(uri, id, "malware");
+		expect((await override(id, uri, ["malware"])).status).toBe(200);
+
+		const response = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/override-retract`, {
+				confirmation: "not-the-cid",
+				reason: "bad confirm",
+				idempotencyKey: nextKey(),
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(400);
+		expect((await bodyError(response)).code).toBe("CONFIRMATION_MISMATCH");
+		// The pair is untouched.
+		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: CID });
+		expect(winners.get("assessment-overridden")?.active).toBe(true);
+	});
+
+	it("409s the same key with a different fingerprint", async () => {
+		const { id, uri } = await seedRun("retract-conflict");
+		await seedAutomatedBlock(uri, id, "malware");
+		expect((await override(id, uri, ["malware"])).status).toBe(200);
+
+		const key = nextKey();
+		const first = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/override-retract`, {
+				confirmation: CID,
+				reason: "first",
+				idempotencyKey: key,
+			}),
+			mutationDeps(),
+		);
+		expect(first.status).toBe(200);
+		const second = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/override-retract`, {
+				confirmation: CID,
+				reason: "different reason",
+				idempotencyKey: key,
+			}),
+			mutationDeps(),
+		);
+		expect(second.status).toBe(409);
+		expect((await bodyError(second)).code).toBe("IDEMPOTENCY_KEY_CONFLICT");
 	});
 });
 

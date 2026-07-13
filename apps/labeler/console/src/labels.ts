@@ -1,3 +1,4 @@
+import { automatedBlockCategories, MODERATION_POLICY } from "../../src/policy.js";
 import type { IssuableLabel } from "./api/types.js";
 
 /**
@@ -37,20 +38,12 @@ export const PACKAGE_ISSUABLE_LABELS: readonly IssuableLabel[] = [
 ];
 
 /** The automated blocking label vocabulary (policy `category: automated-block`),
- * mirrored so the console can list a release's active blocks for the override
- * ceremony. Presentation only — the server re-derives the authoritative set from
- * live label state and rejects a stale submission. */
-export const AUTOMATED_BLOCK_LABELS: ReadonlySet<string> = new Set([
-	"malware",
-	"data-exfiltration",
-	"credential-harvesting",
-	"supply-chain-compromise",
-	"critical-vulnerability",
-	"artifact-integrity-failure",
-	"invalid-bundle",
-	"undeclared-access",
-	"impersonation",
-]);
+ * derived from the bundled policy fixture with the server's own helper so a
+ * fixture change reaches the override ceremony without a code edit. Presentation
+ * only — the server re-derives the authoritative set from live label state and
+ * rejects a stale submission. */
+export const AUTOMATED_BLOCK_LABELS: ReadonlySet<string> =
+	automatedBlockCategories(MODERATION_POLICY);
 
 export function isAutomatedBlock(val: string): boolean {
 	return AUTOMATED_BLOCK_LABELS.has(val);
