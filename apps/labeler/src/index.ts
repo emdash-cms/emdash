@@ -4,7 +4,7 @@ import {
 	type AccessAuthConfig,
 } from "./access-auth.js";
 import { getLabelerIdentityConfig, type LabelerConfig } from "./config.js";
-import { handleConsoleApi, probeJetstreamConnected } from "./console-api.js";
+import { consoleAssetPath, handleConsoleApi, probeJetstreamConnected } from "./console-api.js";
 import { drainDiscoveryDeadLetterBatch, processDiscoveryBatch } from "./discovery-consumer.js";
 import { LABELER_DISCOVERY_DO_NAME } from "./discovery-do.js";
 import type { DiscoveryJob } from "./env.js";
@@ -58,7 +58,12 @@ export default {
 		// request regardless (see console-api.ts / operator-read-guard.ts).
 		if (pathname === "/admin/api" || pathname.startsWith("/admin/api/"))
 			return handleConsoleApiRequest(env, request, config);
-		if (pathname === "/admin" || pathname.startsWith("/admin/")) return env.ASSETS.fetch(request);
+		const assetPath = consoleAssetPath(pathname);
+		if (assetPath !== null) {
+			const assetUrl = new URL(request.url);
+			assetUrl.pathname = assetPath;
+			return env.ASSETS.fetch(new Request(assetUrl, request));
+		}
 		return new Response("emdash-labeler: not found", { status: 404 });
 	},
 

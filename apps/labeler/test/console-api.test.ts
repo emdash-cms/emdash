@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { AccessKeyResolver } from "../src/access-auth.js";
 import { createSubject, recordFinding } from "../src/assessment-store.js";
 import {
+	consoleAssetPath,
 	handleConsoleApi,
 	probeJetstreamConnected,
 	type ConsoleApiDeps,
@@ -618,6 +619,43 @@ describe("handleConsoleApi — system status", () => {
 		expect(status.deadLetterDepth).toBe(3);
 		expect(status).not.toHaveProperty("lastReconciliationAt");
 	});
+});
+
+describe("consoleAssetPath — asset prefix rewrite", () => {
+	// The SPA is built with base "/admin/" but the asset binding serves
+	// ./dist/console one-to-one, so the /admin prefix must be stripped before
+	// ASSETS.fetch or every hashed asset falls through to the SPA shell.
+	it.each([
+		["/admin", "/"],
+		["/admin/", "/"],
+		["/admin/assets/index-abc123.js", "/assets/index-abc123.js"],
+		["/admin/assets/index-abc123.css", "/assets/index-abc123.css"],
+		["/admin/index.html", "/index.html"],
+		// Client-side deep links resolve to no file, so the SPA fallback serves
+		// the shell — the rewrite just has to land them under the binding root.
+		["/admin/assessments/abc", "/assessments/abc"],
+		["/admin/subjects", "/subjects"],
+	])("rewrites %s to %s", (input, expected) => {
+		expect(consoleAssetPath(input)).toBe(expected);
+	});
+
+	// Must NOT be treated as console assets: near-miss prefixes and the public
+	// surface stay out of the asset branch (they fall through to the 404).
+	it.each(["/adminx", "/administrator", "/admin-console", "/", "/xrpc/x", "/.well-known/did.json"])(
+		"returns null for the non-asset path %s",
+		(input) => {
+			expect(consoleAssetPath(input)).toBeNull();
+		},
+	);
+
+	// The read API is dispatched before the asset branch; the helper also
+	// excludes it so an asset rewrite can never swallow an API path.
+	it.each(["/admin/api", "/admin/api/", "/admin/api/status", "/admin/api/assessments/x"])(
+		"never treats the API path %s as an asset",
+		(input) => {
+			expect(consoleAssetPath(input)).toBeNull();
+		},
+	);
 });
 
 describe("probeJetstreamConnected — degradation", () => {

@@ -292,6 +292,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * Maps an `/admin` console request path onto the asset binding's namespace, or
+ * returns `null` when the path is not a console asset request. The binding serves
+ * `./dist/console` one-to-one from the root, but the SPA is built with
+ * `base: "/admin/"`, so its `index.html` references `/admin/assets/*`. Without
+ * this strip the binding resolves those against `dist/console/admin/*`, misses,
+ * and hands every JS/CSS request the SPA `index.html` fallback — the shell would
+ * load but never execute. `/admin` and `/admin/` map to `/` (the shell); a deep
+ * link like `/admin/assessments/x` maps to `/assessments/x` (no such file, so the
+ * SPA fallback correctly serves the shell). `/admin/api/*` is the read API,
+ * dispatched before the asset branch, and is excluded here so an asset rewrite
+ * can never swallow an API path regardless of call order.
+ */
+export function consoleAssetPath(pathname: string): string | null {
+	if (pathname === "/admin/api" || pathname.startsWith("/admin/api/")) return null;
+	if (pathname !== "/admin" && !pathname.startsWith("/admin/")) return null;
+	const rest = pathname.slice("/admin".length);
+	return rest === "" ? "/" : rest;
+}
+
+/**
  * `jetstreamConnected` probe (index.ts glue). Primary signal: the discovery
  * DO's `{ cursor, consecutiveFailures }` status (`0` failures ⇒ connected).
  * Fallback when the DO is unreachable/evicted: whether the D1 `ingest_state`
