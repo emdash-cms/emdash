@@ -54,6 +54,20 @@ describe("release verifier binding adapter", () => {
 		).resolves.toEqual(failure);
 	});
 
+	it("preserves definitive failures from a newer verifier", async () => {
+		const failure = {
+			success: false as const,
+			error: { code: "NEW_VERSION_CODE", message: "new definitive failure" },
+		};
+
+		await expect(
+			fetchArtifact(
+				verifierBinding({ fetchArtifact: async () => failure }),
+				"https://example.test/plugin.tgz",
+			),
+		).resolves.toEqual(failure);
+	});
+
 	it("fails closed with a retryable generic error when the binding rejects", async () => {
 		const cause = new Error("internal service address");
 		const binding = verifierBinding({
@@ -83,7 +97,6 @@ describe("release verifier binding adapter", () => {
 	it.each([
 		null,
 		{ success: true, value: "not bytes" },
-		{ success: false, error: { code: "NEW_VERSION_CODE", message: "version skew" } },
 		{ success: false, error: { code: "FETCH_FAILED" } },
 	])("rejects malformed RPC result %#", async (rpcResult) => {
 		const binding = verifierBinding({ fetchArtifact: async () => rpcResult });
