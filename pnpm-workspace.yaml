@@ -95,7 +95,7 @@ catalog:
   "@cloudflare/kumo": 2.6.0
   "@cloudflare/vite-plugin": ^1.36.3
   "@cloudflare/vitest-pool-workers": ^0.16.3
-  "@cloudflare/workers-types": ^4.20260305.1
+  "@cloudflare/workers-types": ^5.20260708.1
   "@iconify-json/ph": ^1.2.2
   "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4

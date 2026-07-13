@@ -79,6 +79,15 @@ export function isDirNonEmpty(dir: string): boolean {
 	}
 }
 
+/** Fail when a provider reports success without yielding a usable template. */
+export function assertTemplateScaffold(projectDir: string, templateDir: string): void {
+	if (!existsSync(resolve(projectDir, "package.json"))) {
+		throw new Error(
+			`Downloaded template "${templateDir}" is incomplete: package.json is missing.`,
+		);
+	}
+}
+
 /**
  * Parse the first positional argument (not a flag) from an argv array.
  * Returns undefined if no positional argument is found.

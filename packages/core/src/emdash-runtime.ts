@@ -1223,13 +1223,13 @@ export class EmDashRuntime {
 					() => (seedHolder.done.has(seedKey) ? true : undefined),
 					async () => {
 						const { applySeed } = await import("./seed/apply.js");
-						const { loadSeed } = await import("./seed/load.js");
+						const { loadAutoSeed } = await import("./seed/load.js");
 						const { validateSeed } = await import("./seed/validate.js");
 
-						const seed = await loadSeed();
+						const { seed, includeContent } = await loadAutoSeed();
 						const validation = validateSeed(seed);
 						if (validation.valid) {
-							await applySeed(db, seed, { onConflict: "skip" });
+							await applySeed(db, seed, { onConflict: "skip", includeContent });
 							console.log("Auto-seeded default collections");
 						}
 						seedHolder.done.add(seedKey);

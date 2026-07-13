@@ -26,6 +26,19 @@ export async function loadSeed(): Promise<SeedFile> {
 	return seed;
 }
 
+export function resolveAutoSeed(
+	seed: SeedFile,
+	userSeed: SeedFile | null,
+): { seed: SeedFile; includeContent: boolean } {
+	return { seed: userSeed ?? seed, includeContent: userSeed !== null };
+}
+
+/** Load the automatic first-boot seed and whether its authored content should be applied. */
+export async function loadAutoSeed(): Promise<{ seed: SeedFile; includeContent: boolean }> {
+	const { seed, userSeed } = await getSeedModule();
+	return resolveAutoSeed(seed, userSeed);
+}
+
 /**
  * Load the user's seed file, or null if none exists.
  */
