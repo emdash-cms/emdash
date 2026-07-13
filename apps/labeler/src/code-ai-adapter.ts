@@ -71,7 +71,7 @@ export class ModelTransientError extends Error {
 
 export const DEFAULT_MODEL_ID = "@cf/moonshotai/kimi-k2.7-code";
 
-const MAX_MODEL_INPUT_CHARS = 200_000;
+export const MAX_MODEL_INPUT_CHARS = 200_000;
 
 const FINDING_SEVERITIES = [
 	"critical",
@@ -101,7 +101,7 @@ export async function analyzeCode(
 
 	const boundary = crypto.randomUUID();
 	const metadataFence = buildMetadataFence(input, boundary);
-	const fixedOverheadChars = systemPrompt.length + metadataFence.length;
+	const fixedOverheadChars = systemPrompt.length + metadataFence.length + 1;
 	const { kept, dropped } = capFilesToBudget(
 		input.files,
 		boundary,
@@ -261,17 +261,22 @@ function capFilesToBudget(
 	fixedOverheadChars: number,
 	maxChars: number,
 ): { kept: readonly CodeAnalysisFile[]; dropped: readonly string[] } {
-	const renderedCost = (file: CodeAnalysisFile) => buildFence(file, boundary).length + 1;
-	const total = files.reduce((sum, file) => sum + renderedCost(file), fixedOverheadChars);
+	// Each file renders as its fence plus a blank-line separator — two newlines
+	// in the joined user content — so its cost is the fence length + 2.
+	const renderedCost = new Map<CodeAnalysisFile, number>(
+		files.map((file) => [file, buildFence(file, boundary).length + 2]),
+	);
+	const costOf = (file: CodeAnalysisFile) => renderedCost.get(file) ?? 0;
+	const total = files.reduce((sum, file) => sum + costOf(file), fixedOverheadChars);
 	if (total <= maxChars) return { kept: files, dropped: [] };
 
-	const largestFirst = files.toSorted((a, b) => renderedCost(b) - renderedCost(a));
+	const largestFirst = files.toSorted((a, b) => costOf(b) - costOf(a));
 	const droppedPaths = new Set<string>();
 	let remaining = total;
 	for (const file of largestFirst) {
 		if (remaining <= maxChars) break;
 		droppedPaths.add(file.path);
-		remaining -= renderedCost(file);
+		remaining -= costOf(file);
 	}
 	return {
 		kept: files.filter((file) => !droppedPaths.has(file.path)),

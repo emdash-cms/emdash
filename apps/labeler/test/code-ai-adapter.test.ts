@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	analyzeCode,
 	DEFAULT_MODEL_ID,
+	MAX_MODEL_INPUT_CHARS,
 	ModelTransientError,
 	type AiBinding,
 	type AiRunInputs,
@@ -283,6 +284,28 @@ describe("analyzeCode", () => {
 		const userMessage = calls[0]?.messages.find((m) => m.role === "user");
 		expect(userMessage!.content).not.toContain("a".repeat(150_000));
 		expect(userMessage!.content).toContain("small.ts");
+	});
+
+	it("keeps the assembled prompt within the model input budget when capping", async () => {
+		// Many mid-sized files: individually under budget, collectively over it once
+		// fences, per-file newlines, and the system prompt are counted. The assembled
+		// prompt must stay within budget — the accounting can't ignore that overhead.
+		const files = Array.from({ length: 55 }, (_, i) => ({
+			path: `src/file-${i}.ts`,
+			content: "x".repeat(4_000),
+		}));
+		const { ai, calls } = capturingAi(findingResponse([]));
+
+		const result = await analyzeCode(baseInput({ files }), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+		});
+
+		const assembled = calls[0]!.messages.reduce((sum, message) => sum + message.content.length, 0);
+		expect(assembled).toBeLessThanOrEqual(MAX_MODEL_INPUT_CHARS);
+		expect(result.coverage).toBe("partial");
+		expect(result.droppedFiles.length).toBeGreaterThan(0);
 	});
 
 	it("sends no cache/gateway cache option in the run inputs", async () => {
