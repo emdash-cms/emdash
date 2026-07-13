@@ -3,13 +3,29 @@
 // Reviews one pull request and returns structured findings plus a verdict. No
 // firecracker container: the PR is hydrated into a durable cf-shell Workspace
 // (DO SQLite + R2 for large files) via JS git, and the agent inspects it with a
-// Worker-Loader-backed `code` tool. It does NOT post to GitHub: the orchestrator
-// (the workflow's trusted DO code) posts with a write-scoped installation token,
-// so no secret is ever reachable by the model.
+// Worker-Loader-backed `code` tool. It does NOT post to GitHub: the workflow's
+// trusted Action code posts with a write-scoped installation token, so no
+// secret is ever reachable by the model.
+//
+// @flue 1.0 workflow model: the agent (execution policy + sandbox) is defined
+// with `defineAgent`, and the finite behavior is an inline Action bound with
+// `defineWorkflow`. The Action's `run` receives `{ harness, log, input }` --
+// deliberately NOT platform bindings -- so env-scoped work (repo hydration,
+// GitHub auth) reads the bindings back through `getCloudflareContext()`. The
+// Workspace is keyed by the Durable Object identity so the sandbox built in the
+// agent initializer and the clone performed in the Action target the exact same
+// DO SQLite + R2 namespace.
 
 import { WorkspaceFileSystem } from "@cloudflare/shell";
 import { createGit } from "@cloudflare/shell/git";
-import { createAgent, type FlueContext, type WorkflowRouteHandler } from "@flue/runtime";
+import {
+	defineAgent,
+	defineWorkflow,
+	type ActionContext,
+	type WorkflowRouteHandler,
+} from "@flue/runtime";
+import { getCloudflareContext, getDurableObjectIdentity } from "@flue/runtime/cloudflare";
+import * as v from "valibot";
 
 import { withCapacityRetry } from "../lib/capacity.js";
 import {
@@ -25,15 +41,17 @@ import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
 import { getDefaultWorkspace, getShellSandbox } from "../sandboxes/cloudflare-shell.js";
 import review from "../skills/review/SKILL.md" with { type: "skill" };
 
-interface ReviewPayload {
-	prNumber: number;
-	prTitle: string;
-	prBody: string;
-	headRef: string;
-	baseRef: string;
-	owner: string;
-	repo: string;
-}
+const reviewPayloadSchema = v.object({
+	prNumber: v.number(),
+	prTitle: v.string(),
+	prBody: v.string(),
+	headRef: v.string(),
+	baseRef: v.string(),
+	owner: v.string(),
+	repo: v.string(),
+});
+
+type ReviewPayload = v.InferOutput<typeof reviewPayloadSchema>;
 
 const REPO_DIR = "/repo";
 const DIFF_PATH = `${REPO_DIR}/.flue-pr.diff`;
@@ -63,38 +81,30 @@ function assertSafe(payload: ReviewPayload): void {
 	}
 }
 
-// cf-shell agent: hydrate the PR into the durable Workspace via JS git (shallow
-// clone of base, then fetch + checkout the PR head -- refs/pull/N/head covers
-// fork PRs), then expose the Workspace through the Worker-Loader `code` tool.
-// Large objects (the git packfile) spill to R2 (see the workspace `name`).
-const reviewAgent = createAgent<ReviewPayload, Env>(async ({ id, env, payload }) => {
-	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, `review-${id}`);
-	const fs = new WorkspaceFileSystem(workspace);
+// Stable per-run Workspace name shared by the agent initializer (sandbox) and
+// the Action (clone). Both run inside the same workflow-run Durable Object and
+// therefore share one DO SqlStorage regardless of this name -- SQLite isolation
+// comes from the per-run DO, not the name. The name only keys the R2 large-file
+// spill prefix (r2://<name>/...) and observability, so the two call sites must
+// derive it identically, otherwise the sandbox and the clone would look for
+// spilled git objects under different prefixes. The DO id is a run-unique,
+// retry-stable key (same runId -> same DO).
+function workspaceName(): string {
+	return `review-${getDurableObjectIdentity().id}`;
+}
 
-	if (payload && !(await workspace.exists(HYDRATED))) {
-		const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
-		const git = createGit(fs);
-		await git.clone({
-			url: cloneUrl,
-			dir: REPO_DIR,
-			branch: payload.baseRef,
-			singleBranch: true,
-			depth: 1,
-		});
-		const fetched = await git.fetch({
-			ref: `pull/${payload.prNumber}/head`,
-			depth: 1,
-			dir: REPO_DIR,
-		});
-		if (fetched.fetchHead) {
-			await git.checkout({ ref: fetched.fetchHead, dir: REPO_DIR, force: true });
-		}
-		await workspace.writeFile(HYDRATED, new Date().toISOString());
-	}
-
+// The agent: execution policy (model, reasoning effort) plus the cf-shell
+// sandbox built from the platform bindings. Repo hydration cannot live here --
+// the initializer has no access to the PR payload -- so it moves into the
+// Action's `run` below, which shares this sandbox via the same Workspace name.
+const reviewAgent = defineAgent<Env>(({ env }) => {
+	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
 	return {
-		// Kimi (k2.7-code) via the Workers AI binding: no model API key needed.
-		model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
+		// GLM-5.2 via the Workers AI binding: no model API key needed. A reasoning
+		// model, so `thinkingLevel` maps to `reasoning_effort` on the call; "low"
+		// keeps it from over-deliberating on straightforward diffs.
+		model: "cloudflare/@cf/zai-org/glm-5.2",
+		thinkingLevel: "low",
 		sandbox: getShellSandbox({ workspace, loader: env.LOADER }),
 		cwd: REPO_DIR,
 		instructions: [
@@ -107,8 +117,6 @@ const reviewAgent = createAgent<ReviewPayload, Env>(async ({ id, env, payload })
 		skills: [review],
 	};
 });
-
-export const route: WorkflowRouteHandler = async (_c, next) => next();
 
 function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 	const lines = [
@@ -127,11 +135,45 @@ function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 	return lines.join("\n");
 }
 
-export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewResult> {
-	const { init, payload, env } = ctx;
+// Hydrate the PR into the durable Workspace via JS git (shallow clone of base,
+// then fetch + checkout the PR head -- refs/pull/N/head covers fork PRs). Large
+// objects (the git packfile) spill to R2 under the workspace name. Idempotent:
+// a HYDRATED marker skips re-cloning on workflow re-entry.
+async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
+	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
+	if (await workspace.exists(HYDRATED)) return;
+
+	const fs = new WorkspaceFileSystem(workspace);
+	const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
+	const git = createGit(fs);
+	await git.clone({
+		url: cloneUrl,
+		dir: REPO_DIR,
+		branch: payload.baseRef,
+		singleBranch: true,
+		depth: 1,
+	});
+	const fetched = await git.fetch({
+		ref: `pull/${payload.prNumber}/head`,
+		depth: 1,
+		dir: REPO_DIR,
+	});
+	if (fetched.fetchHead) {
+		await git.checkout({ ref: fetched.fetchHead, dir: REPO_DIR, force: true });
+	}
+	await workspace.writeFile(HYDRATED, new Date().toISOString());
+}
+
+async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<ReviewResult> {
+	const payload = context.input;
 	assertSafe(payload);
 
-	// GitHub access lives only in this trusted DO code, never in the agent's
+	// ActionContext intentionally excludes platform bindings; read them back
+	// through the Cloudflare context established for this workflow run.
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+	const env = getCloudflareContext().env as unknown as Env;
+
+	// GitHub access lives only in this trusted Action code, never in the agent's
 	// workspace. Without app creds (local dev) we skip posting and return.
 	const creds = readAppCreds(env);
 	let token: string | undefined;
@@ -144,13 +186,15 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 	}
 
 	try {
-		// init() hydrates the Workspace (clone + checkout the PR head).
-		const harness = await init(reviewAgent);
-		const session = await harness.session();
+		// Hydrate the Workspace (clone + checkout the PR head) into the same DO
+		// SQLite + R2 namespace the agent's sandbox reads from.
+		await hydrate(env, payload);
+
+		const session = await context.harness.session();
 
 		// Stage the canonical unified diff into the Workspace (no `git` in cf-shell).
 		const diff = await fetchUnifiedDiff(payload.owner, payload.repo, payload.prNumber, token);
-		await harness.fs.writeFile(DIFF_PATH, diff);
+		await context.harness.fs.writeFile(DIFF_PATH, diff);
 
 		const { data } = await withCapacityRetry(
 			(signal) =>
@@ -171,9 +215,9 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 			{
 				label: `review#${payload.prNumber}`,
 				attempts: 3,
-				perAttemptTimeoutMs: 20 * 60_000,
+				perAttemptTimeoutMs: 30 * 60_000,
 				onRetry: ({ attempt, delayMs, error }) =>
-					ctx.log.warn?.("[review] model over capacity, backing off", {
+					context.log.warn?.("[review] model over capacity, backing off", {
 						prNumber: payload.prNumber,
 						attempt,
 						delayMs,
@@ -210,3 +254,14 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 		}
 	}
 }
+
+export default defineWorkflow({
+	agent: reviewAgent,
+	input: reviewPayloadSchema,
+	output: reviewResultSchema,
+	run,
+});
+
+// Enable POST /workflows/review (the internal admission route the webhook
+// handler calls). Pass-through: admission control lives in the webhook handler.
+export const route: WorkflowRouteHandler = async (_c, next) => next();
