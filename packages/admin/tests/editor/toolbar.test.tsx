@@ -169,16 +169,19 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("collapses the supported heading levels into one menu", async () => {
 		const { screen } = await renderEditor();
-		await expect.element(getToolbarButton(screen, "Headings")).toBeVisible();
+		const trigger = getToolbarButton(screen, "Headings");
+		await expect.element(trigger).toBeVisible();
+		await expect.element(trigger).toHaveAttribute("aria-haspopup", "menu");
 
-		getToolbarButton(screen, "Headings").element().click();
+		trigger.element().click();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeVisible();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeVisible();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeVisible();
 		expect(
-			screen.getByRole("menuitem", { name: "Heading 1" }).element().hasAttribute(
-				"data-emdash-heading-item",
-			),
+			screen
+				.getByRole("menuitem", { name: "Heading 1" })
+				.element()
+				.hasAttribute("data-emdash-heading-item"),
 		).toBe(true);
 
 		const headingLabels = Array.from(
@@ -330,22 +333,23 @@ describe("Formatting Button Toggle States", () => {
 		});
 	});
 
-	it("Heading 1: click toggles aria-pressed to true and changes to h1", async () => {
+	it("Heading 1: click changes to h1 without exposing toggle semantics", async () => {
 		const { screen, editor } = await renderEditor();
 		// Focus editor and place cursor (block commands need cursor in a paragraph)
 		editor.commands.focus();
 
 		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 1");
-		await expect.element(trigger).toHaveAttribute("aria-pressed", "false");
+		expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
+		await expect.element(trigger).toHaveAttribute("aria-expanded", "true");
 		item.element().click();
 
 		await vi.waitFor(() => {
-			expect(trigger.element().getAttribute("aria-pressed")).toBe("true");
+			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
 			expect(editor.isActive("heading", { level: 1 })).toBe(true);
 		});
 	});
 
-	it("Heading 2: click toggles aria-pressed to true", async () => {
+	it("Heading 2: click changes to h2", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
@@ -353,12 +357,12 @@ describe("Formatting Button Toggle States", () => {
 		item.element().click();
 
 		await vi.waitFor(() => {
-			expect(trigger.element().getAttribute("aria-pressed")).toBe("true");
+			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
 			expect(editor.isActive("heading", { level: 2 })).toBe(true);
 		});
 	});
 
-	it("Heading 3: click toggles aria-pressed to true", async () => {
+	it("Heading 3: click changes to h3", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
@@ -366,7 +370,7 @@ describe("Formatting Button Toggle States", () => {
 		item.element().click();
 
 		await vi.waitFor(() => {
-			expect(trigger.element().getAttribute("aria-pressed")).toBe("true");
+			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
 			expect(editor.isActive("heading", { level: 3 })).toBe(true);
 		});
 	});
@@ -818,6 +822,21 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 
 		// Press ArrowLeft
 		await userEvent.keyboard("{ArrowLeft}");
+
+		await vi.waitFor(() => {
+			expect(document.activeElement).toBe(bold.element());
+		});
+	});
+
+	it("inverts horizontal arrow navigation in RTL", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const bold = screen.getByRole("button", { name: "Bold" });
+		const italic = screen.getByRole("button", { name: "Italic" });
+		toolbar.style.direction = "rtl";
+		italic.element().focus();
+
+		await userEvent.keyboard("{ArrowRight}");
 
 		await vi.waitFor(() => {
 			expect(document.activeElement).toBe(bold.element());

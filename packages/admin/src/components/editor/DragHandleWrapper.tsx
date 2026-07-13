@@ -17,6 +17,7 @@ import type { Node as PMNode } from "@tiptap/pm/model";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
+import { getLocaleDir } from "../../locales/config.js";
 import { BlockMenu } from "./BlockMenu";
 
 interface DragHandleWrapperProps {
@@ -29,17 +30,6 @@ interface HoveredNode {
 	pos: number;
 }
 
-// Extend Editor commands type to include DragHandle commands
-declare module "@tiptap/core" {
-	interface Commands<ReturnType> {
-		dragHandle: {
-			lockDragHandle: () => ReturnType;
-			unlockDragHandle: () => ReturnType;
-			toggleDragHandle: () => ReturnType;
-		};
-	}
-}
-
 export function _getDragHandlePlacement(direction: "ltr" | "rtl") {
 	return direction === "rtl" ? ("right-start" as const) : ("left-start" as const);
 }
@@ -48,15 +38,40 @@ export function _getDragHandlePlacement(direction: "ltr" | "rtl") {
  * DragHandleWrapper - Official TipTap drag handle with BlockMenu integration
  */
 export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperProps) {
-	const { t } = useLingui();
-	const direction =
-		editor.view.dom.ownerDocument.defaultView?.getComputedStyle(editor.view.dom).direction === "rtl"
-			? "rtl"
-			: "ltr";
+	const { i18n, t } = useLingui();
+	const direction = getLocaleDir(i18n.locale);
 	const [hoveredNode, setHoveredNode] = React.useState<HoveredNode | null>(null);
 	const [menuOpen, setMenuOpen] = React.useState(false);
 	const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
 	const handleRef = React.useRef<HTMLButtonElement>(null);
+	const insertPressLockedRef = React.useRef(false);
+
+	const disableDrag = React.useCallback(
+		(e: React.PointerEvent<HTMLButtonElement>) => {
+			e.stopPropagation();
+			if (!insertPressLockedRef.current) {
+				insertPressLockedRef.current = true;
+				editor.commands.setMeta("lockDragHandle", true);
+			}
+		},
+		[editor],
+	);
+
+	const restoreDrag = React.useCallback(() => {
+		if (insertPressLockedRef.current) {
+			insertPressLockedRef.current = false;
+			editor.commands.setMeta("lockDragHandle", menuOpen);
+		}
+	}, [editor, menuOpen]);
+
+	React.useEffect(() => {
+		window.addEventListener("pointerup", restoreDrag, true);
+		window.addEventListener("pointercancel", restoreDrag, true);
+		return () => {
+			window.removeEventListener("pointerup", restoreDrag, true);
+			window.removeEventListener("pointercancel", restoreDrag, true);
+		};
+	}, [restoreDrag]);
 
 	// Handle click on drag handle to open menu
 	const handleClick = React.useCallback(
@@ -74,7 +89,7 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 			setMenuOpen(true);
 
 			// Lock the drag handle so it stays visible while menu is open
-			editor.commands.lockDragHandle();
+			editor.commands.setMeta("lockDragHandle", true);
 		},
 		[editor, hoveredNode],
 	);
@@ -94,7 +109,7 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 	const handleCloseMenu = React.useCallback(() => {
 		setMenuOpen(false);
 		setMenuAnchor(null);
-		editor.commands.unlockDragHandle();
+		editor.commands.setMeta("lockDragHandle", false);
 	}, [editor]);
 
 	// Handle node change from drag handle
@@ -130,13 +145,16 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 				onNodeChange={handleNodeChange}
 				computePositionConfig={computePositionConfig}
 			>
-				<div className="flex translate-y-0.5 items-center gap-0">
+				<div className="flex translate-y-0.5 items-center gap-0 rtl:flex-row-reverse">
 					<Button
 						type="button"
 						variant="ghost"
 						shape="square"
 						className="h-6 w-6 text-kumo-subtle/50 hover:text-kumo-subtle"
-						onPointerDown={(e) => e.stopPropagation()}
+						onPointerDown={disableDrag}
+						onPointerUp={restoreDrag}
+						onPointerCancel={restoreDrag}
+						onBlur={restoreDrag}
 						onMouseDown={(e) => {
 							e.preventDefault();
 							e.stopPropagation();

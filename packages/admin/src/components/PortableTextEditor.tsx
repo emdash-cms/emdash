@@ -993,6 +993,8 @@ interface SlashCommandItem {
 	description: MessageDescriptor | string;
 	icon: Icon | React.ComponentType<{ className?: string }>;
 	command: (props: { editor: Editor; range: Range }) => void;
+	/** Delay document insertion until a modal-backed command returns a selection. */
+	deferInsertion?: boolean;
 	aliases?: string[];
 	/**
 	 * Display category. Built-in commands use `msg`-tagged descriptors;
@@ -2162,6 +2164,7 @@ export function PortableTextEditor({
 
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
+	const pendingBlockInsertPosRef = React.useRef<number | null>(null);
 
 	// Slash commands state
 	const [slashMenuState, setSlashMenuStateRaw] = React.useState<SlashMenuState>({
@@ -2216,6 +2219,7 @@ export function PortableTextEditor({
 			icon: ImageIcon,
 			aliases: ["img", "photo", "picture", "url"],
 			category: msg`Media`,
+			deferInsertion: true,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setMediaPickerOpen(true);
@@ -2230,6 +2234,7 @@ export function PortableTextEditor({
 			icon: Stack,
 			aliases: ["pattern", "block", "template"],
 			category: msg`Content`,
+			deferInsertion: true,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setSectionPickerOpen(true);
@@ -2246,6 +2251,7 @@ export function PortableTextEditor({
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
 				category: block.category ?? msg`Embeds`,
+				deferInsertion: true,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);
@@ -2381,15 +2387,7 @@ export function PortableTextEditor({
 	const openBlockInsertMenuAt = React.useCallback(
 		(insertPos: number) => {
 			if (!editor) return;
-
-			const selectionPos = insertPos + 1;
-			const inserted = editor
-				.chain()
-				.focus()
-				.insertContentAt(insertPos, { type: "paragraph" })
-				.setTextSelection(selectionPos)
-				.run();
-			if (!inserted) return;
+			editor.commands.focus();
 
 			setSlashMenuState({
 				isOpen: true,
@@ -2397,7 +2395,7 @@ export function PortableTextEditor({
 				selectedIndex: 0,
 				clientRect: () => {
 					if (editor.isDestroyed) return null;
-					const coords = editor.view.coordsAtPos(selectionPos);
+					const coords = editor.view.coordsAtPos(insertPos);
 					const DOMRectCtor = editor.view.dom.ownerDocument.defaultView?.DOMRect;
 					if (!DOMRectCtor) return null;
 					return new DOMRectCtor(
@@ -2407,7 +2405,7 @@ export function PortableTextEditor({
 						coords.bottom - coords.top,
 					);
 				},
-				range: { from: selectionPos, to: selectionPos },
+				range: { from: insertPos, to: insertPos },
 				trigger: "gutter",
 				gutterBlockPos: insertPos,
 			});
@@ -2416,21 +2414,40 @@ export function PortableTextEditor({
 	);
 
 	const closeSlashMenu = React.useCallback(() => {
-		const state = slashMenuStateRef.current;
-		if (editor && state.trigger === "gutter" && state.gutterBlockPos !== null) {
-			const node = editor.state.doc.nodeAt(state.gutterBlockPos);
-			if (node?.type.name === "paragraph" && node.content.size === 0) {
-				editor
-					.chain()
-					.deleteRange({
-						from: state.gutterBlockPos,
-						to: state.gutterBlockPos + node.nodeSize,
-					})
-					.run();
-			}
-		}
 		setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
-	}, [editor, setSlashMenuState]);
+	}, [setSlashMenuState]);
+
+	const executeSlashCommand = React.useCallback(
+		(item: SlashCommandItem, state: SlashMenuState) => {
+			if (!editor || !state.range) return;
+
+			let range = state.range;
+			if (state.trigger === "gutter") {
+				const insertPos = state.gutterBlockPos;
+				if (insertPos === null) return;
+
+				if (item.deferInsertion) {
+					pendingBlockInsertPosRef.current = insertPos;
+					const selectionPos = editor.state.selection.from;
+					range = { from: selectionPos, to: selectionPos };
+				} else {
+					const selectionPos = insertPos + 1;
+					const inserted = editor
+						.chain()
+						.focus()
+						.insertContentAt(insertPos, { type: "paragraph" })
+						.setTextSelection(selectionPos)
+						.run();
+					if (!inserted) return;
+					range = { from: selectionPos, to: selectionPos };
+				}
+			}
+
+			item.command({ editor, range });
+			setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
+		},
+		[editor, setSlashMenuState],
+	);
 
 	React.useEffect(() => {
 		if (!editor || !slashMenuState.isOpen || slashMenuState.trigger !== "gutter") return;
@@ -2460,20 +2477,50 @@ export function PortableTextEditor({
 				const item = state.items[state.selectedIndex];
 				if (!item || !state.range) return;
 				event.preventDefault();
-				item.command({ editor, range: state.range });
+				executeSlashCommand(item, state);
+				return;
+			}
+
+			if (
+				event.key.length === 1 &&
+				!event.ctrlKey &&
+				!event.metaKey &&
+				!event.altKey &&
+				!event.isComposing &&
+				state.gutterBlockPos !== null
+			) {
+				event.preventDefault();
+				const selectionPos = state.gutterBlockPos + event.key.length + 1;
+				editor
+					.chain()
+					.focus()
+					.insertContentAt(state.gutterBlockPos, {
+						type: "paragraph",
+						content: [{ type: "text", text: event.key }],
+					})
+					.setTextSelection(selectionPos)
+					.run();
 				setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
 				return;
 			}
 
-			if (event.key.length === 1 || event.key === "Backspace" || event.key === "Delete") {
-				setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
+			if (event.key === "Backspace" || event.key === "Delete") {
+				event.preventDefault();
+				closeSlashMenu();
 			}
 		};
 
 		const editorElement = editor.view.dom;
-		editorElement.addEventListener("keydown", handleKeyDown);
-		return () => editorElement.removeEventListener("keydown", handleKeyDown);
-	}, [closeSlashMenu, editor, setSlashMenuState, slashMenuState.isOpen, slashMenuState.trigger]);
+		editorElement.addEventListener("keydown", handleKeyDown, true);
+		return () => editorElement.removeEventListener("keydown", handleKeyDown, true);
+	}, [
+		closeSlashMenu,
+		editor,
+		executeSlashCommand,
+		setSlashMenuState,
+		slashMenuState.isOpen,
+		slashMenuState.trigger,
+	]);
 
 	const handleTouchInsertBlock = React.useCallback(() => {
 		if (!editor) return;
@@ -2559,21 +2606,25 @@ export function PortableTextEditor({
 			if (editor) {
 				// For external providers, src is only used for admin preview
 				// The frontend Image component uses provider + mediaId to generate proper URLs
-				editor
-					.chain()
-					.focus()
-					.setImage({
-						src: item.url,
-						alt: item.alt || item.filename,
-						mediaId: item.id,
-						provider: item.provider || "local",
-						width: item.width,
-						height: item.height,
-						blurhash: item.blurhash,
-						dominantColor: item.dominantColor,
-					})
-					.run();
+				const attrs = {
+					src: item.url,
+					alt: item.alt || item.filename,
+					mediaId: item.id,
+					provider: item.provider || "local",
+					width: item.width,
+					height: item.height,
+					blurhash: item.blurhash,
+					dominantColor: item.dominantColor,
+				};
+				const insertPos = pendingBlockInsertPosRef.current;
+				const chain = editor.chain().focus();
+				if (insertPos === null) {
+					chain.setImage(attrs).run();
+				} else {
+					chain.insertContentAt(insertPos, { type: "image", attrs }).run();
+				}
 			}
+			pendingBlockInsertPosRef.current = null;
 			setMediaPickerOpen(false);
 		},
 		[editor],
@@ -2609,20 +2660,24 @@ export function PortableTextEditor({
 					.run();
 			} else {
 				// Inserting a new block
-				editor
-					.chain()
-					.focus()
-					.insertContent({
-						type: "pluginBlock",
-						attrs: {
-							blockType: pluginBlockModal.type,
-							id: typeof id === "string" ? id : "",
-							data,
-						},
-					})
-					.run();
+				const content = {
+					type: "pluginBlock",
+					attrs: {
+						blockType: pluginBlockModal.type,
+						id: typeof id === "string" ? id : "",
+						data,
+					},
+				};
+				const insertPos = pendingBlockInsertPosRef.current;
+				const chain = editor.chain().focus();
+				if (insertPos === null) {
+					chain.insertContent(content).run();
+				} else {
+					chain.insertContentAt(insertPos, content).run();
+				}
 			}
 
+			pendingBlockInsertPosRef.current = null;
 			setPluginBlockModal(null);
 			setPluginBlockInitialValues(undefined);
 			editingBlockPosRef.current = null;
@@ -2634,12 +2689,9 @@ export function PortableTextEditor({
 	const handleSlashCommand = React.useCallback(
 		(item: SlashCommandItem) => {
 			const state = slashMenuStateRef.current;
-			if (editor && state.range) {
-				item.command({ editor, range: state.range });
-				setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
-			}
+			executeSlashCommand(item, state);
 		},
-		[editor, setSlashMenuState],
+		[executeSlashCommand],
 	);
 
 	// Handle section selection - insert section content at cursor
@@ -2653,8 +2705,14 @@ export function PortableTextEditor({
 				: [];
 			const { content: prosemirrorContent } = portableTextToProsemirror(ptContent);
 
-			// Insert the content at current cursor position
-			editor.chain().focus().insertContent(prosemirrorContent).run();
+			const insertPos = pendingBlockInsertPosRef.current;
+			const chain = editor.chain().focus();
+			if (insertPos === null) {
+				chain.insertContent(prosemirrorContent).run();
+			} else {
+				chain.insertContentAt(insertPos, prosemirrorContent).run();
+			}
+			pendingBlockInsertPosRef.current = null;
 		},
 		[editor],
 	);
@@ -2706,7 +2764,10 @@ export function PortableTextEditor({
 			{/* Media picker for image insertion */}
 			<MediaPickerModal
 				open={mediaPickerOpen}
-				onOpenChange={setMediaPickerOpen}
+				onOpenChange={(open) => {
+					setMediaPickerOpen(open);
+					if (!open) pendingBlockInsertPosRef.current = null;
+				}}
 				onSelect={handleImageSelect}
 				mimeTypeFilter="image/"
 				title={t`Select Image`}
@@ -2717,6 +2778,7 @@ export function PortableTextEditor({
 				block={pluginBlockModal}
 				initialValues={pluginBlockInitialValues}
 				onClose={() => {
+					pendingBlockInsertPosRef.current = null;
 					setPluginBlockModal(null);
 					setPluginBlockInitialValues(undefined);
 					editingBlockPosRef.current = null;
@@ -2727,7 +2789,10 @@ export function PortableTextEditor({
 			{/* Section picker modal */}
 			<SectionPickerModal
 				open={sectionPickerOpen}
-				onOpenChange={setSectionPickerOpen}
+				onOpenChange={(open) => {
+					setSectionPickerOpen(open);
+					if (!open) pendingBlockInsertPosRef.current = null;
+				}}
 				onSelect={handleSectionSelect}
 			/>
 		</div>
@@ -3099,15 +3164,20 @@ function EditorToolbar({
 		].filter((button) => button.getClientRects().length > 0);
 		const currentIndex = buttons.findIndex((btn) => btn === document.activeElement);
 		if (currentIndex === -1) return;
+		const isRtl = getComputedStyle(toolbar).direction === "rtl";
 
 		let nextIndex: number | null = null;
 
 		switch (e.key) {
 			case "ArrowRight":
+				nextIndex = (currentIndex + (isRtl ? -1 : 1) + buttons.length) % buttons.length;
+				break;
+			case "ArrowLeft":
+				nextIndex = (currentIndex + (isRtl ? 1 : -1) + buttons.length) % buttons.length;
+				break;
 			case "ArrowDown":
 				nextIndex = (currentIndex + 1) % buttons.length;
 				break;
-			case "ArrowLeft":
 			case "ArrowUp":
 				nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
 				break;

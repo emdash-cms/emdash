@@ -141,7 +141,8 @@ export const HeadingDropdownMenu = React.forwardRef<HTMLButtonElement, HeadingDr
 							disabled={!canToggle}
 							onMouseDown={(event) => event.preventDefault()}
 							aria-label={t`Headings`}
-							aria-pressed={isActive}
+							aria-haspopup="menu"
+							aria-expanded={open}
 						>
 							<Icon className="h-4 w-4" aria-hidden="true" />
 							<CaretDown className="h-3 w-3" aria-hidden="true" />
@@ -152,12 +153,12 @@ export const HeadingDropdownMenu = React.forwardRef<HTMLButtonElement, HeadingDr
 					{levels.map((level) => {
 						const HeadingIcon = HEADING_ICONS[level];
 						return (
-						<DropdownMenu.Item
-							key={level}
-							icon={HeadingIcon}
-							selected={activeLevel === level}
-							data-emdash-heading-item
-							onClick={() => toggleHeading(editor, level)}
+							<DropdownMenu.Item
+								key={level}
+								icon={HeadingIcon}
+								selected={activeLevel === level}
+								data-emdash-heading-item
+								onClick={() => toggleHeading(editor, level)}
 							>
 								{t`Heading ${level}`}
 							</DropdownMenu.Item>

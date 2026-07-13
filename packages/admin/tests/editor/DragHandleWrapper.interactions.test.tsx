@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import type { Editor } from "@tiptap/core";
 import * as React from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -6,8 +7,16 @@ import { DragHandleWrapper } from "../../src/components/editor/DragHandleWrapper
 import { render } from "../utils/render";
 
 vi.mock("@tiptap/extension-drag-handle-react", () => ({
-	DragHandle: ({ children }: { children: React.ReactNode }) => (
-		<div draggable="true">{children}</div>
+	DragHandle: ({
+		children,
+		computePositionConfig,
+	}: {
+		children: React.ReactNode;
+		computePositionConfig: { placement: string };
+	}) => (
+		<div className="drag-handle" draggable="true" data-placement={computePositionConfig.placement}>
+			{children}
+		</div>
 	),
 }));
 
@@ -16,17 +25,59 @@ vi.mock("../../src/components/editor/BlockMenu", () => ({
 }));
 
 describe("DragHandleWrapper interactions", () => {
-	it("prevents the insert button from starting a native block drag", async () => {
+	it("disables native block dragging while pressing the insert button", async () => {
 		const editorElement = document.createElement("div");
+		const setMeta = vi.fn((_key: string, locked: boolean) => {
+			const dragHandle = document.querySelector<HTMLElement>(".drag-handle");
+			if (dragHandle) dragHandle.draggable = !locked;
+			return true;
+		});
 		const editor = {
 			view: { dom: editorElement },
+			commands: { setMeta },
 		} as unknown as Editor;
 		const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
 		const insertButton = screen.getByRole("button", { name: "Insert block below" }).element();
-		const mouseDown = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+		const dragHandle = insertButton.closest<HTMLElement>(".drag-handle");
+		expect(dragHandle).not.toBe(insertButton);
+		expect(dragHandle?.draggable).toBe(true);
 
-		insertButton.dispatchEvent(mouseDown);
+		insertButton.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+		expect(setMeta).toHaveBeenLastCalledWith("lockDragHandle", true);
+		expect(dragHandle?.draggable).toBe(false);
 
-		expect(mouseDown.defaultPrevented).toBe(true);
+		window.dispatchEvent(new PointerEvent("pointerup"));
+		expect(setMeta).toHaveBeenLastCalledWith("lockDragHandle", false);
+		expect(dragHandle?.draggable).toBe(true);
+	});
+
+	it("places and orders controls from the admin UI direction", async () => {
+		const previousLocale = i18n.locale;
+		i18n.load("ar", {});
+		i18n.load("en", {});
+		i18n.activate("en");
+		const editorElement = document.createElement("div");
+		editorElement.dir = "ltr";
+		const editor = {
+			view: { dom: editorElement },
+		} as unknown as Editor;
+
+		try {
+			const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
+			const insertButton = screen.getByRole("button", { name: "Insert block below" }).element();
+			expect(insertButton.closest("[data-placement]")?.getAttribute("data-placement")).toBe(
+				"left-start",
+			);
+
+			i18n.activate("ar");
+			await vi.waitFor(() => {
+				expect(insertButton.closest("[data-placement]")?.getAttribute("data-placement")).toBe(
+					"right-start",
+				);
+			});
+			expect(insertButton.parentElement?.className).toContain("rtl:flex-row-reverse");
+		} finally {
+			i18n.activate(previousLocale);
+		}
 	});
 });
