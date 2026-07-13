@@ -66,7 +66,7 @@ export interface Project {
   service?: string;
   location?: string;
   summary?: string;
-  gallery?: unknown;
+  gallery?: { src: string; alt: string }[];
   result?: string;
   createdAt: Date;
   updatedAt: Date;

@@ -281,6 +281,45 @@ describe("Zod Generator", () => {
 			expect(schema.parse(validImage)).toMatchObject(validImage);
 		});
 
+		it("should generate structured repeater schemas", () => {
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "gallery",
+				label: "Gallery",
+				type: "repeater",
+				columnType: "JSON",
+				required: false,
+				unique: false,
+				validation: {
+					minItems: 1,
+					subFields: [
+						{ slug: "src", type: "string", label: "Image URL", required: true },
+						{ slug: "alt", type: "string", label: "Alt text", required: true },
+					],
+				},
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			};
+
+			const schema = generateFieldSchema(field);
+			const validGallery = [{ src: "/projects/example.svg", alt: "Example project" }];
+			expect(schema.parse(validGallery)).toEqual(validGallery);
+			expect(() => schema.parse([{ src: "/projects/example.svg" }])).toThrow();
+			expect(() => schema.parse([])).toThrow();
+
+			const ts = generateTypeScript({
+				id: "c1",
+				slug: "projects",
+				label: "Projects",
+				supports: [],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				fields: [field],
+			});
+			expect(ts).toContain("gallery?: { src: string; alt: string }[];");
+		});
+
 		it("should make field optional when required is false", () => {
 			const field: Field = {
 				id: "f1",
