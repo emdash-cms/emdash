@@ -794,6 +794,39 @@ describe("subject-label read + override effect preview", () => {
 		expect(byVal.get("malware")?.neg).toBe(true);
 	});
 
+	it("reports head provenance so a manually-headed block is not offered for override", async () => {
+		const { id, uri } = await seedRun("subject-provenance");
+		await seedAutomatedBlock(uri, id, "malware");
+		const manual = await handleConsoleMutation(
+			post("/admin/api/labels/issue", {
+				uri,
+				val: "impersonation",
+				cid: CID,
+				confirmation: CID,
+				reason: "manually flagged impersonation",
+				idempotencyKey: nextKey(),
+			}),
+			mutationDeps(),
+		);
+		expect(manual.status).toBe(200);
+
+		const response = await handleConsoleApi(
+			getReq(`/admin/api/subjects/${encodeURIComponent(uri)}/labels?cid=${CID}`),
+			readDeps(),
+		);
+		const labels = await bodyData<{ val: string; active: boolean; automated: boolean }[]>(
+			response,
+		);
+		const byVal = new Map(labels.map((label) => [label.val, label]));
+		expect(byVal.get("malware")).toMatchObject({ active: true, automated: true });
+		expect(byVal.get("impersonation")).toMatchObject({ active: true, automated: false });
+
+		// The provenance flag keeps the console's offer aligned with the server's
+		// negatable set: the manual head is rejected, the automated-only set proceeds.
+		expect((await override(id, uri, ["malware", "impersonation"])).status).toBe(400);
+		expect((await override(id, uri, ["malware"])).status).toBe(200);
+	});
+
 	it("grounds the override preview before→after in the evaluator", async () => {
 		const { id, uri } = await seedRun("override-preview");
 		await seedAutomatedBlock(uri, id, "malware");

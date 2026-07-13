@@ -96,8 +96,10 @@ function AssessmentDetail() {
 	}
 
 	const activeSubjectLabels = subjectLabels ?? [];
+	// `automated` matches the server's negatable-set semantics: a manually-headed
+	// block is not override-negatable (its unblock path is the label retract).
 	const activeBlocks = activeSubjectLabels
-		.filter((label) => label.active && isAutomatedBlock(label.val))
+		.filter((label) => label.active && label.automated && isAutomatedBlock(label.val))
 		.map((label) => label.val);
 	const hasActiveOverride = activeSubjectLabels.some(
 		(label) => label.val === "assessment-overridden" && label.active,

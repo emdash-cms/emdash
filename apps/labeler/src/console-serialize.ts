@@ -82,6 +82,7 @@ export interface SubjectLabel {
 	cid: string | null;
 	active: boolean;
 	neg: boolean;
+	automated: boolean;
 	cts: string;
 	exp: string | null;
 	sequence: number;
@@ -185,6 +186,7 @@ export function serializeSubjectLabel(winner: LabelStreamWinner): SubjectLabel {
 		cid: winner.cid,
 		active: winner.active,
 		neg: winner.neg,
+		automated: winner.automated,
 		cts: winner.cts,
 		exp: winner.exp,
 		sequence: winner.sequence,

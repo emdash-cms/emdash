@@ -831,6 +831,11 @@ export interface LabelStreamWinner {
 	 * `neg: true, active: false`; carried so the operator subject view can show
 	 * "retracted" distinctly from an unexpired/CID-mismatched inactive winner. */
 	neg: boolean;
+	/** Whether the stream head was issued by automation. The override's
+	 * negatable set (`getNegatableAutomatedLabels`) only spans automated heads,
+	 * so the console must not offer the override for a manually-headed block —
+	 * that path is the label-level retract. */
+	automated: boolean;
 	active: boolean;
 }
 
@@ -859,10 +864,11 @@ export async function getActiveLabelState(
 	const now = input.now ?? new Date();
 	const rows = await db
 		.prepare(
-			`SELECT val, neg, cid, cts, exp, sequence
-			 FROM issued_labels
-			 WHERE src = ? AND uri = ?
-			 ORDER BY sequence ASC`,
+			`SELECT l.val, l.neg, l.cid, l.cts, l.exp, l.sequence, a.type AS action_type
+			 FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE l.src = ? AND l.uri = ?
+			 ORDER BY l.sequence ASC`,
 		)
 		.bind(input.src, input.uri)
 		.all<{
@@ -872,6 +878,7 @@ export async function getActiveLabelState(
 			cts: string;
 			exp: string | null;
 			sequence: number;
+			action_type: string;
 		}>();
 	const winners = new Map<string, LabelStreamWinner>();
 	for (const row of rows.results ?? []) {
@@ -885,6 +892,7 @@ export async function getActiveLabelState(
 			exp: row.exp,
 			sequence: row.sequence,
 			neg: row.neg === 1,
+			automated: row.action_type === "automated-assessment",
 			active,
 		});
 	}

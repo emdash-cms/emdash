@@ -237,6 +237,9 @@ export interface SubjectLabel {
 	cid: string | null;
 	active: boolean;
 	neg: boolean;
+	/** Whether the stream head was issued by automation — only automated heads
+	 * are in the override's negatable set; a manual head unblocks via retract. */
+	automated: boolean;
 	cts: string;
 	exp: string | null;
 	sequence: number;
