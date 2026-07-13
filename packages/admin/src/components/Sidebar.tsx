@@ -272,7 +272,10 @@ function NavIcon({ icon: Icon, className }: { icon: React.ElementType; className
  * Resolve the display label for a plugin admin page (sidebar + command
  * palette). Declared labels are run through the shared Lingui instance:
  * plugins that load their own catalog — with the English label as msgid —
- * get localized nav items, and labels without a catalog entry fall back to
+ * get localized nav items. The catalog is shared with the admin, so common
+ * labels like "Settings" pick up the admin's own translations even without
+ * a plugin catalog (deliberate: a localized admin shouldn't show stray
+ * English nav items). Labels with no catalog entry anywhere fall back to
  * the literal string. Pages without a label prettify the plugin id
  * ("my-shop" → "My Shop").
  */
