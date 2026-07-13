@@ -30,7 +30,17 @@ vi.mock("../../src/components/SectionPickerModal", () => ({
 }));
 
 vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
-	DragHandleWrapper: () => null,
+	DragHandleWrapper: ({
+		editor,
+		onInsertBlock,
+	}: {
+		editor: Editor;
+		onInsertBlock?: (insertPos: number) => void;
+	}) => (
+		<button type="button" onClick={() => onInsertBlock?.(editor.state.doc.content.size)}>
+			Test gutter insert
+		</button>
+	),
 }));
 
 vi.mock("../../src/components/editor/ImageNode", async () => {
@@ -194,6 +204,33 @@ function isItemSelected(el: HTMLElement): boolean {
 // =============================================================================
 
 describe("Slash Command Menu", () => {
+	it("opens from the gutter and cancels without inserting a slash", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		const before = editor.getText();
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		expect(editor.getText()).not.toContain("/");
+
+		await userEvent.keyboard("{Escape}");
+		await waitForSlashMenuClosed();
+		expect(editor.getText()).toBe(before);
+	});
+
+	it("discards an untouched gutter block when clicking outside the menu", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		const before = editor.getText();
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		pm.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+		await waitForSlashMenuClosed();
+		expect(editor.getText()).toBe(before);
+	});
+
 	it("opens when typing / at the start of an empty line", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusEditor(pm);

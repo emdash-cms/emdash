@@ -224,11 +224,6 @@ body {
 	transition: opacity 0.2s ease;
 }
 
-/* Add left padding to accommodate block handles */
-.ProseMirror {
-	padding-left: 2.5rem;
-}
-
 /* Block dragging styles */
 .ProseMirror .dragging {
 	opacity: 0.5;

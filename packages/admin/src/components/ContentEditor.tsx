@@ -1174,7 +1174,7 @@ function FieldRenderer({
 					<PortableTextEditor
 						value={Array.isArray(value) ? value : []}
 						onChange={handleChange}
-						placeholder={t`Enter ${label.toLowerCase()}...`}
+						placeholder={t`Type / for commands`}
 						aria-labelledby={labelId}
 						pluginBlocks={pluginBlocks}
 						onEditorReady={onEditorReady}

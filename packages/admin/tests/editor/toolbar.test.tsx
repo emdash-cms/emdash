@@ -192,6 +192,31 @@ describe("Toolbar Presence and Structure", () => {
 			.toBeVisible();
 	});
 
+	it("renders the link editor outside the horizontally scrolling toolbar", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		screen.getByRole("button", { name: "Insert Link" }).element().click();
+
+		await vi.waitFor(() => {
+			const input = document.querySelector<HTMLInputElement>('input[placeholder="https://..."]');
+			expect(input).toBeTruthy();
+			expect(toolbar.contains(input)).toBe(false);
+		});
+	});
+
+	it("provides an independent block inserter for coarse pointers", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const touchInsert = toolbar.querySelector<HTMLButtonElement>("[data-touch-block-insert]");
+
+		expect(touchInsert).toBeTruthy();
+		expect(touchInsert?.className).toContain("pointer-coarse:flex");
+		touchInsert?.click();
+		await vi.waitFor(() => {
+			expect(document.querySelector("body > div [data-index]")).toBeTruthy();
+		});
+	});
+
 	it("has history buttons", async () => {
 		const { screen } = await renderEditor();
 		await expect.element(screen.getByRole("button", { name: "Undo" })).toBeVisible();
@@ -574,7 +599,7 @@ describe("Link Insertion", () => {
 		linkBtn.element().click();
 
 		await vi.waitFor(() => {
-			const input = screen.container.querySelector('input[type="url"]');
+			const input = document.querySelector('input[type="url"]');
 			expect(input).toBeTruthy();
 		});
 	});
@@ -598,10 +623,10 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(screen.container.querySelector('input[type="url"]')).toBeTruthy();
+			expect(document.querySelector('input[type="url"]')).toBeTruthy();
 		});
 
-		const input = screen.container.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = document.querySelector('input[type="url"]') as HTMLInputElement;
 		// Focus input and type URL
 		input.focus();
 		// Use native input value setter to trigger React's onChange
@@ -627,13 +652,13 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(screen.container.querySelector('input[type="url"]')).toBeTruthy();
+			expect(document.querySelector('input[type="url"]')).toBeTruthy();
 		});
 
 		screen.getByRole("button", { name: "Cancel" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(screen.container.querySelector('input[type="url"]')).toBeNull();
+			expect(document.querySelector('input[type="url"]')).toBeNull();
 		});
 	});
 

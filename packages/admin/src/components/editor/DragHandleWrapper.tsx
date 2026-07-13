@@ -8,8 +8,9 @@
  * - Block menu integration for transforms, duplicate, delete
  */
 
+import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { DotsSixVertical } from "@phosphor-icons/react";
+import { DotsSixVertical, Plus } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/core";
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import type { Node as PMNode } from "@tiptap/pm/model";
@@ -20,6 +21,7 @@ import { BlockMenu } from "./BlockMenu";
 
 interface DragHandleWrapperProps {
 	editor: Editor;
+	onInsertBlock: (insertPos: number) => void;
 }
 
 interface HoveredNode {
@@ -38,11 +40,19 @@ declare module "@tiptap/core" {
 	}
 }
 
+export function _getDragHandlePlacement(direction: "ltr" | "rtl") {
+	return direction === "rtl" ? ("right-start" as const) : ("left-start" as const);
+}
+
 /**
  * DragHandleWrapper - Official TipTap drag handle with BlockMenu integration
  */
-export function DragHandleWrapper({ editor }: DragHandleWrapperProps) {
+export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperProps) {
 	const { t } = useLingui();
+	const direction =
+		editor.view.dom.ownerDocument.defaultView?.getComputedStyle(editor.view.dom).direction === "rtl"
+			? "rtl"
+			: "ltr";
 	const [hoveredNode, setHoveredNode] = React.useState<HoveredNode | null>(null);
 	const [menuOpen, setMenuOpen] = React.useState(false);
 	const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
@@ -67,6 +77,17 @@ export function DragHandleWrapper({ editor }: DragHandleWrapperProps) {
 			editor.commands.lockDragHandle();
 		},
 		[editor, hoveredNode],
+	);
+
+	const handleInsertClick = React.useCallback(
+		(e: React.MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			if (!hoveredNode) return;
+
+			onInsertBlock(hoveredNode.pos + hoveredNode.node.nodeSize);
+		},
+		[hoveredNode, onInsertBlock],
 	);
 
 	// Close the menu
@@ -96,10 +117,10 @@ export function DragHandleWrapper({ editor }: DragHandleWrapperProps) {
 	// tears down the Suggestion plugin view (calling onExit → setState → loop).
 	const computePositionConfig = React.useMemo(
 		() => ({
-			placement: "left-start" as const,
+			placement: _getDragHandlePlacement(direction),
 			strategy: "absolute" as const,
 		}),
-		[],
+		[direction],
 	);
 
 	return (
@@ -109,23 +130,45 @@ export function DragHandleWrapper({ editor }: DragHandleWrapperProps) {
 				onNodeChange={handleNodeChange}
 				computePositionConfig={computePositionConfig}
 			>
-				<button
-					ref={handleRef}
-					type="button"
-					className={cn(
-						"flex items-center justify-center",
-						"w-6 h-6 rounded select-none",
-						"text-kumo-subtle/50 hover:text-kumo-subtle",
-						"hover:bg-kumo-tint/80 cursor-grab active:cursor-grabbing",
-						"transition-colors duration-100",
-						menuOpen && "text-kumo-subtle bg-kumo-tint",
-					)}
-					onClick={handleClick}
-					data-block-handle
-					aria-label={t`Block actions - drag to reorder, click for menu`}
-				>
-					<DotsSixVertical className="h-4 w-4" />
-				</button>
+				<div className="flex translate-y-0.5 items-center gap-0">
+					<Button
+						type="button"
+						variant="ghost"
+						shape="square"
+						className="h-6 w-6 text-kumo-subtle/50 hover:text-kumo-subtle"
+						onPointerDown={(e) => e.stopPropagation()}
+						onMouseDown={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+						}}
+						onDragStart={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+						}}
+						draggable={false}
+						onClick={handleInsertClick}
+						aria-label={t`Insert block below`}
+					>
+						<Plus className="h-4 w-4" aria-hidden="true" />
+					</Button>
+					<button
+						ref={handleRef}
+						type="button"
+						className={cn(
+							"flex items-center justify-center",
+							"w-6 h-6 rounded select-none",
+							"text-kumo-subtle/50 hover:text-kumo-subtle",
+							"hover:bg-kumo-tint/80 cursor-grab active:cursor-grabbing",
+							"transition-colors duration-100",
+							menuOpen && "text-kumo-subtle bg-kumo-tint",
+						)}
+						onClick={handleClick}
+						data-block-handle
+						aria-label={t`Block actions - drag to reorder, click for menu`}
+					>
+						<DotsSixVertical className="h-4 w-4" />
+					</button>
+				</div>
 			</DragHandle>
 
 			{/* Block menu */}

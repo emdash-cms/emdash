@@ -450,6 +450,25 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(textContent.trim()).toBe("");
 	});
 
+	it("teaches slash commands in the default placeholder", async () => {
+		await render(<PortableTextEditor value={[]} />);
+		const pm = await waitForEditor();
+		const placeholder = pm.querySelector("[data-placeholder]");
+		expect(placeholder?.getAttribute("data-placeholder")).toBe("Type / for commands");
+	});
+
+	it("centers the writing column with responsive space for block controls", async () => {
+		await render(<PortableTextEditor value={[textBlock("Gutter spacing")]} />);
+		const pm = await waitForEditor();
+		expect(pm.className).toContain("w-full");
+		expect(pm.className).toContain("max-w-[calc(75ch+8rem)]");
+		expect(pm.className).toContain("mx-auto");
+		expect(pm.className).toContain("ps-14");
+		expect(pm.className).toContain("pe-14");
+		expect(pm.className).toContain("sm:ps-16");
+		expect(pm.className).toContain("sm:pe-16");
+	});
+
 	it("renders bold+italic text with multiple marks", async () => {
 		await render(
 			<PortableTextEditor value={[textBlock("Bold italic", { marks: ["strong", "em"] })]} />,

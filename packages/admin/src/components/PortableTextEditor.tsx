@@ -11,7 +11,7 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Popover, Select, Switch } from "@cloudflare/kumo";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -1126,6 +1126,8 @@ interface SlashMenuState {
 	selectedIndex: number;
 	clientRect: (() => DOMRect | null) | null;
 	range: Range | null;
+	trigger: "slash" | "gutter";
+	gutterBlockPos: number | null;
 }
 
 /**
@@ -1161,6 +1163,8 @@ function createSlashCommandsExtension(options: {
 									selectedIndex: 0,
 									clientRect: props.clientRect ?? null,
 									range: props.range,
+									trigger: "slash",
+									gutterBlockPos: null,
 								});
 							},
 							onUpdate: (props) => {
@@ -1170,6 +1174,8 @@ function createSlashCommandsExtension(options: {
 									selectedIndex: 0,
 									clientRect: props.clientRect ?? null,
 									range: props.range,
+									trigger: "slash",
+									gutterBlockPos: null,
 								}));
 							},
 							onKeyDown: (props) => {
@@ -1226,7 +1232,7 @@ function createSlashCommandsExtension(options: {
 function SlashCommandMenu({
 	state,
 	onCommand,
-	onClose: _onClose,
+	onClose,
 	setSelectedIndex,
 }: {
 	state: SlashMenuState;
@@ -1281,6 +1287,19 @@ function SlashCommandMenu({
 			hasMouseMovedRef.current = false;
 		}
 	}, [state.isOpen]);
+
+	React.useEffect(() => {
+		if (!state.isOpen) return;
+
+		const handlePointerDown = (event: PointerEvent) => {
+			const target = event.target as Node | null;
+			if (target && containerRef.current?.contains(target)) return;
+			onClose();
+		};
+
+		document.addEventListener("pointerdown", handlePointerDown, true);
+		return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+	}, [onClose, state.isOpen]);
 
 	if (!state.isOpen) return null;
 
@@ -2096,7 +2115,7 @@ export interface PortableTextEditorProps {
 export function PortableTextEditor({
 	value,
 	onChange,
-	placeholder = "Start writing...",
+	placeholder,
 	className,
 	editable = true,
 	"aria-labelledby": ariaLabelledby,
@@ -2109,6 +2128,8 @@ export function PortableTextEditor({
 	onBlockSidebarClose,
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
+	const placeholderRef = React.useRef(placeholder ?? t`Type / for commands`);
+	placeholderRef.current = placeholder ?? t`Type / for commands`;
 
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
@@ -2148,6 +2169,8 @@ export function PortableTextEditor({
 		selectedIndex: 0,
 		clientRect: null,
 		range: null,
+		trigger: "slash",
+		gutterBlockPos: null,
 	});
 
 	// Ref to access current state synchronously in keyboard handlers.
@@ -2302,12 +2325,7 @@ export function PortableTextEditor({
 			TableCell,
 			Placeholder.configure({
 				includeChildren: true,
-				placeholder: ({ node }) => {
-					if (node.type.name === "paragraph") {
-						return placeholder;
-					}
-					return placeholder;
-				},
+				placeholder: () => placeholderRef.current,
 			}),
 			TextAlign.configure({
 				types: ["heading", "paragraph"],
@@ -2334,7 +2352,7 @@ export function PortableTextEditor({
 		() => ({
 			attributes: {
 				class:
-					"prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none min-h-[200px] p-4",
+					"prose prose-sm sm:prose-base dark:prose-invert w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			},
 		}),
@@ -2358,6 +2376,113 @@ export function PortableTextEditor({
 			}
 		},
 	});
+
+	const openBlockInsertMenuAt = React.useCallback(
+		(insertPos: number) => {
+			if (!editor) return;
+
+			const selectionPos = insertPos + 1;
+			const inserted = editor
+				.chain()
+				.focus()
+				.insertContentAt(insertPos, { type: "paragraph" })
+				.setTextSelection(selectionPos)
+				.run();
+			if (!inserted) return;
+
+			setSlashMenuState({
+				isOpen: true,
+				items: filterCommandsRef.current(""),
+				selectedIndex: 0,
+				clientRect: () => {
+					if (editor.isDestroyed) return null;
+					const coords = editor.view.coordsAtPos(selectionPos);
+					const DOMRectCtor = editor.view.dom.ownerDocument.defaultView?.DOMRect;
+					if (!DOMRectCtor) return null;
+					return new DOMRectCtor(
+						coords.left,
+						coords.top,
+						coords.right - coords.left,
+						coords.bottom - coords.top,
+					);
+				},
+				range: { from: selectionPos, to: selectionPos },
+				trigger: "gutter",
+				gutterBlockPos: insertPos,
+			});
+		},
+		[editor, setSlashMenuState],
+	);
+
+	const closeSlashMenu = React.useCallback(() => {
+		const state = slashMenuStateRef.current;
+		if (editor && state.trigger === "gutter" && state.gutterBlockPos !== null) {
+			const node = editor.state.doc.nodeAt(state.gutterBlockPos);
+			if (node?.type.name === "paragraph" && node.content.size === 0) {
+				editor
+					.chain()
+					.deleteRange({
+						from: state.gutterBlockPos,
+						to: state.gutterBlockPos + node.nodeSize,
+					})
+					.run();
+			}
+		}
+		setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
+	}, [editor, setSlashMenuState]);
+
+	React.useEffect(() => {
+		if (!editor || !slashMenuState.isOpen || slashMenuState.trigger !== "gutter") return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			const state = slashMenuStateRef.current;
+			if (!state.isOpen || state.trigger !== "gutter") return;
+
+			if (event.key === "Escape") {
+				event.preventDefault();
+				closeSlashMenu();
+				return;
+			}
+
+			if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+				if (state.items.length === 0) return;
+				event.preventDefault();
+				const delta = event.key === "ArrowUp" ? -1 : 1;
+				setSlashMenuState((prev) => ({
+					...prev,
+					selectedIndex: (prev.selectedIndex + delta + prev.items.length) % prev.items.length,
+				}));
+				return;
+			}
+
+			if (event.key === "Enter") {
+				const item = state.items[state.selectedIndex];
+				if (!item || !state.range) return;
+				event.preventDefault();
+				item.command({ editor, range: state.range });
+				setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
+				return;
+			}
+
+			if (event.key.length === 1 || event.key === "Backspace" || event.key === "Delete") {
+				setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
+			}
+		};
+
+		const editorElement = editor.view.dom;
+		editorElement.addEventListener("keydown", handleKeyDown);
+		return () => editorElement.removeEventListener("keydown", handleKeyDown);
+	}, [closeSlashMenu, editor, setSlashMenuState, slashMenuState.isOpen, slashMenuState.trigger]);
+
+	const handleTouchInsertBlock = React.useCallback(() => {
+		if (!editor) return;
+		const { $from } = editor.state.selection;
+		const topLevelPos = $from.depth > 0 ? $from.before(1) : $from.pos;
+		const topLevelNode = editor.state.doc.nodeAt(topLevelPos);
+		openBlockInsertMenuAt(
+			topLevelNode ? topLevelPos + topLevelNode.nodeSize : editor.state.doc.content.size,
+		);
+	}, [editor, openBlockInsertMenuAt]);
 
 	// Notify when editor is ready, and on unmount so consumers can clear the
 	// reference before TipTap destroys the instance (e.g. when keying by item.id
@@ -2507,12 +2632,13 @@ export function PortableTextEditor({
 	// Handle slash menu command execution
 	const handleSlashCommand = React.useCallback(
 		(item: SlashCommandItem) => {
-			if (editor && slashMenuState.range) {
-				item.command({ editor, range: slashMenuState.range });
-				setSlashMenuState((prev) => ({ ...prev, isOpen: false }));
+			const state = slashMenuStateRef.current;
+			if (editor && state.range) {
+				item.command({ editor, range: state.range });
+				setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
 			}
 		},
-		[editor, slashMenuState.range],
+		[editor, setSlashMenuState],
 	);
 
 	// Handle section selection - insert section content at cursor
@@ -2551,13 +2677,18 @@ export function PortableTextEditor({
 			aria-labelledby={ariaLabelledby}
 		>
 			{!minimal && (
-				<EditorToolbar editor={editor} focusMode={focusMode} onFocusModeChange={setFocusMode} />
+				<EditorToolbar
+					editor={editor}
+					focusMode={focusMode}
+					onFocusModeChange={setFocusMode}
+					onInsertBlock={handleTouchInsertBlock}
+				/>
 			)}
 			<EditorBubbleMenu editor={editor} />
 			<TableBubbleMenu editor={editor} />
 			<div className="relative overflow-visible">
 				<EditorContent editor={editor} />
-				{editable && <DragHandleWrapper editor={editor} />}
+				{editable && <DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />}
 			</div>
 			{!minimal && <EditorFooter editor={editor} />}
 
@@ -2565,7 +2696,7 @@ export function PortableTextEditor({
 			<SlashCommandMenu
 				state={slashMenuState}
 				onCommand={handleSlashCommand}
-				onClose={() => setSlashMenuState((prev) => ({ ...prev, isOpen: false }))}
+				onClose={closeSlashMenu}
 				setSelectedIndex={(index) =>
 					setSlashMenuState((prev) => ({ ...prev, selectedIndex: index }))
 				}
@@ -2864,10 +2995,12 @@ function EditorToolbar({
 	editor,
 	focusMode,
 	onFocusModeChange,
+	onInsertBlock,
 }: {
 	editor: Editor;
 	focusMode: FocusMode;
 	onFocusModeChange: (mode: FocusMode) => void;
+	onInsertBlock: () => void;
 }) {
 	const { t } = useLingui();
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
@@ -2963,9 +3096,9 @@ function EditorToolbar({
 
 		const buttons = [
 			...toolbar.querySelectorAll<HTMLButtonElement>(
-				'button:not([disabled]), [role="button"]:not([disabled])',
+				'button:not([disabled]):not([data-touch-block-insert]), [role="button"]:not([disabled]):not([data-touch-block-insert])',
 			),
-		];
+		].filter((button) => button.getClientRects().length > 0);
 		const currentIndex = buttons.findIndex((btn) => btn === document.activeElement);
 		if (currentIndex === -1) return;
 
@@ -3001,11 +3134,24 @@ function EditorToolbar({
 			ref={toolbarRef}
 			role="toolbar"
 			aria-label={t`Text formatting`}
-			className="sticky -top-6 z-10 border-b bg-kumo-tint p-1 flex flex-wrap gap-0.5"
+			className="sticky -top-6 z-10 border-b bg-kumo-tint p-1 flex flex-nowrap gap-0.5 overflow-x-auto"
 			onKeyDown={handleKeyDown}
 		>
 			{/* Text formatting */}
 			<ToolbarGroup>
+				<Button
+					type="button"
+					variant="ghost"
+					shape="square"
+					className="hidden h-8 w-8 flex-none pointer-coarse:flex"
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={onInsertBlock}
+					aria-label={t`Insert block below`}
+					tabIndex={-1}
+					data-touch-block-insert
+				>
+					<Plus className="h-4 w-4" aria-hidden="true" />
+				</Button>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
@@ -3145,63 +3291,79 @@ function EditorToolbar({
 			{/* Insert */}
 			<ToolbarGroup>
 				{/* Link with popover */}
-				<div className="relative">
-					<ToolbarButton
-						onClick={() => setShowLinkPopover(!showLinkPopover)}
-						active={editorState.isLink}
-						title={t`Insert Link`}
-					>
-						<LinkIcon className="h-4 w-4" aria-hidden="true" />
-					</ToolbarButton>
-					{showLinkPopover && (
-						<div className="absolute top-full start-0 mt-1 z-50 rounded-md border bg-kumo-overlay p-3 shadow-lg">
-							<div className="flex flex-col gap-2">
-								<label className="text-xs font-medium text-kumo-subtle">{t`URL`}</label>
-								<div className="flex items-center gap-1">
-									<Input
-										ref={linkInputRef}
-										type="url"
-										placeholder="https://..."
-										value={linkUrl}
-										onChange={(e) => setLinkUrl(e.target.value)}
-										onKeyDown={handleLinkKeyDown}
-										className="h-8 w-52 text-sm"
-									/>
-								</div>
-								<div className="flex justify-between">
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										onClick={() => {
-											setShowLinkPopover(false);
-											setLinkUrl("");
-										}}
-									>
-										{t`Cancel`}
-									</Button>
-									<div className="flex gap-1">
-										{editorState.isLink && (
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												className="text-kumo-danger"
-												onClick={handleRemoveLink}
-												icon={<LinkBreak />}
-											>
-												{t`Remove`}
-											</Button>
-										)}
-										<Button type="button" variant="primary" size="sm" onClick={handleSetLink}>
-											{t`Apply`}
+				<Popover
+					open={showLinkPopover}
+					onOpenChange={(open) => {
+						setShowLinkPopover(open);
+						if (!open) setLinkUrl("");
+					}}
+				>
+					<Popover.Trigger
+						render={
+							<Button
+								type="button"
+								variant="ghost"
+								shape="square"
+								className={cn(
+									"h-8 w-8 flex-none",
+									editorState.isLink && "bg-kumo-tint text-kumo-default",
+								)}
+								onMouseDown={(event) => event.preventDefault()}
+								aria-label={t`Insert Link`}
+								aria-pressed={editorState.isLink}
+							>
+								<LinkIcon className="h-4 w-4" aria-hidden="true" />
+							</Button>
+						}
+					/>
+					<Popover.Content side="bottom" align="start" className="w-auto p-3">
+						<div className="flex flex-col gap-2">
+							<label className="text-xs font-medium text-kumo-subtle">{t`URL`}</label>
+							<div className="flex items-center gap-1">
+								<Input
+									ref={linkInputRef}
+									type="url"
+									placeholder="https://..."
+									value={linkUrl}
+									onChange={(e) => setLinkUrl(e.target.value)}
+									onKeyDown={handleLinkKeyDown}
+									className="h-8 w-52 text-sm"
+									aria-label={t`URL`}
+								/>
+							</div>
+							<div className="flex justify-between">
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={() => {
+										setShowLinkPopover(false);
+										setLinkUrl("");
+									}}
+								>
+									{t`Cancel`}
+								</Button>
+								<div className="flex gap-1">
+									{editorState.isLink && (
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="text-kumo-danger"
+											onClick={handleRemoveLink}
+											icon={<LinkBreak />}
+										>
+											{t`Remove`}
 										</Button>
-									</div>
+									)}
+									<Button type="button" variant="primary" size="sm" onClick={handleSetLink}>
+										{t`Apply`}
+									</Button>
 								</div>
 							</div>
 						</div>
-					)}
-				</div>
+					</Popover.Content>
+				</Popover>
 				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title={t`Insert Image`}>
 					<ImageIcon className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -3257,7 +3419,6 @@ function EditorToolbar({
 					<Eye className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
-
 			{/* Media Picker Modal */}
 			<MediaPickerModal
 				open={mediaPickerOpen}
@@ -3271,11 +3432,11 @@ function EditorToolbar({
 }
 
 function ToolbarGroup({ children }: { children: React.ReactNode }) {
-	return <div className="flex gap-0.5">{children}</div>;
+	return <div className="flex flex-none gap-0.5">{children}</div>;
 }
 
 function ToolbarSeparator() {
-	return <div className="w-px bg-kumo-line mx-1" />;
+	return <div className="w-px bg-kumo-line mx-1 flex-none" />;
 }
 
 interface ToolbarButtonProps {
@@ -3292,7 +3453,7 @@ function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarBu
 			type="button"
 			variant="ghost"
 			shape="square"
-			className={cn("h-8 w-8", active && "bg-kumo-tint text-kumo-default")}
+			className={cn("h-8 w-8 flex-none", active && "bg-kumo-tint text-kumo-default")}
 			onMouseDown={(e) => e.preventDefault()}
 			onClick={onClick}
 			disabled={disabled}
