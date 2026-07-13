@@ -1135,6 +1135,7 @@ Dependencies: `W3.3`, `W5.1`, `W9.2`.
 - Unblock is one transaction/action that negates selected automated blocking labels and issues `assessment-passed` plus `assessment-overridden` for exact URI + CID.
 - New automated findings remain visible but cannot remove the override.
 - Reviewer/admin can explicitly retract the override.
+- Carried from W9.4: manually-issued labels (`assessment_id` NULL, keyed to subject URI+CID) aren't visible in the console — `getAllLabelsForAssessment` is assessment-scoped. Add a subject+CID label read (`GET /admin/api/subjects/:uri/labels?cid=`, wrapping `getActiveLabelState`) and surface manual labels on the subject view and merged into the assessment detail page. Override/rerun needs the same subject-label read, so it lands here.
 
 Dependencies: `W6.6`, `W9.4`.
 
