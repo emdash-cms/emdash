@@ -485,7 +485,7 @@ V1 pages:
 | `/admin/audit-log`            | Immutable operator and system action log                                                               |
 | `/admin/system`               | Read-only policy/model versions, signing key ID, Jetstream cursor, subscriber health, queue/DLQ health |
 
-All user-facing strings use Lingui and all layout uses RTL-safe logical classes. The console uses Kumo components rather than hand-rolled controls.
+All layout uses RTL-safe logical classes and the console uses Kumo components rather than hand-rolled controls. Console strings are plain English — decision (2026-07-13): the console is internal infrastructure and is not localized; `packages/admin` localization rules are unaffected.
 
 ### 11.2 Reviewer actions
 
@@ -1312,7 +1312,7 @@ This phase may initially use deterministic test assessments. It freezes the safe
 ### Phase 4: Operator product
 
 - Add Access JWT validation and reviewer/admin mapping.
-- Build Kumo/Lingui console.
+- Build Kumo console.
 - Add override, re-run, `security-yanked`, package action, and admin emergency takedown flows.
 - Add notifications and reconsideration handling.
 - Add operational dashboards and alerts.

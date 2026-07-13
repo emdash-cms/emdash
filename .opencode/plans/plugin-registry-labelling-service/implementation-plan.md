@@ -35,7 +35,7 @@ The implementation is complete when:
 - Incomplete integration remains unreachable by default. Feature flags may expose staging paths, but production clients must not depend on half-built label state.
 - Tests land with each workstream. Protocol, security, and failure tests are not deferred to the final gate.
 - `.opencode/plans` is ephemeral coordination material. Retained runtime code and tests must never import it. A feasibility spike does not become a product test merely because it was useful; vectors and fixtures move into normal package/test directories only when they test an implemented EmDash component.
-- The operator console uses Kumo, Lingui, and RTL-safe logical layout from its first UI change.
+- The operator console uses Kumo and RTL-safe logical layout from its first UI change. Decision (2026-07-13): no Lingui/i18n in the console — it is internal infrastructure with a handful of operators, and the catalog/build machinery isn't worth carrying. Plain English strings; `packages/admin` localization rules are unaffected.
 - Existing unrelated worktree changes are left untouched.
 - Published-package changes receive changesets when their workstream lands.
 
@@ -1103,7 +1103,7 @@ Dependencies: `W9.1`, `W2.3`.
 
 ### `W9.3` Build console shell and read-only views
 
-Decision (2026-07-13): the console is a Vite React SPA colocated in `apps/labeler`, served as Workers static assets from the labeler Worker under `/admin`, calling same-origin `/admin/api/*`. It mirrors `packages/admin`'s conventions (Kumo, Lingui, RTL-safe classes, TanStack Router where routing is needed) without depending on that package; copy thin pieces rather than extracting shared packages preemptively.
+Decision (2026-07-13): the console is a Vite React SPA colocated in `apps/labeler`, served as Workers static assets from the labeler Worker under `/admin`, calling same-origin `/admin/api/*`. It mirrors `packages/admin`'s conventions (Kumo, RTL-safe classes, TanStack Router where routing is needed) without depending on that package; copy thin pieces rather than extracting shared packages preemptively. No Lingui — plain English strings (internal-infrastructure decision, see Constraints).
 
 Routes:
 
@@ -1598,7 +1598,7 @@ Exit: Gate 6 production smoke and sustained healthy operation.
 - [ ] Reviewer/admin action boundaries pass tests.
 - [ ] Public/private evidence separation is proven.
 - [ ] Notifications and reconsideration flow work without DB edits.
-- [ ] Kumo/Lingui/RTL/accessibility requirements pass.
+- [ ] Kumo/RTL/accessibility requirements pass.
 
 ### Operations
 
