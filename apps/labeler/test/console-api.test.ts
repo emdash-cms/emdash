@@ -637,13 +637,43 @@ describe("handleConsoleApi — system status", () => {
 			jetstreamConnected: boolean;
 			pendingAssessments: number;
 			deadLetterDepth: number;
+			automationPaused: boolean;
+			pausedReason: string | null;
+			pausedSince: string | null;
 		};
 		expect(status.labelerDid).toBe(LABELER_DID);
 		expect(status.jetstreamConnected).toBe(false);
 		// asmt_run (running) + asmt_pending (pending).
 		expect(status.pendingAssessments).toBe(2);
 		expect(status.deadLetterDepth).toBe(3);
+		// Ingestion runs by default: the seeded kill-switch reads unpaused.
+		expect(status.automationPaused).toBe(false);
+		expect(status.pausedReason).toBeNull();
+		expect(status.pausedSince).toBeNull();
 		expect(status).not.toHaveProperty("lastReconciliationAt");
+	});
+
+	it("reports the paused state, reason, and since when ingestion is paused", async () => {
+		await testEnv.DB.prepare(
+			`UPDATE automation_state
+			 SET paused = 1, paused_reason = 'incident-77', updated_at = '2026-07-13T12:00:00.000Z'
+			 WHERE id = 1`,
+		).run();
+		try {
+			const res = await handleConsoleApi(req("/admin/api/status", { token: reviewerToken }), deps());
+			const status = (await body(res)).data as {
+				automationPaused: boolean;
+				pausedReason: string | null;
+				pausedSince: string | null;
+			};
+			expect(status.automationPaused).toBe(true);
+			expect(status.pausedReason).toBe("incident-77");
+			expect(status.pausedSince).toBe("2026-07-13T12:00:00.000Z");
+		} finally {
+			await testEnv.DB.prepare(
+				`UPDATE automation_state SET paused = 0, paused_reason = NULL WHERE id = 1`,
+			).run();
+		}
 	});
 });
 
