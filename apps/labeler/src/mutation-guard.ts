@@ -167,7 +167,9 @@ export async function guardMutation<TBody>(
 			throw new MutationGuardError("IDEMPOTENCY_KEY_CONFLICT");
 		return {
 			outcome: "replay",
-			result: existing.resultJson === null ? null : JSON.parse(existing.resultJson),
+			// A NULL stored result_json is the serialization of `undefined`; surface
+			// that stored value so a replay matches the original response exactly.
+			result: existing.resultJson === null ? undefined : JSON.parse(existing.resultJson),
 			actionId: existing.id,
 		};
 	}
@@ -207,6 +209,9 @@ export async function commitMutation<TBody, TResult>(
 	result: TResult,
 ): Promise<TResult> {
 	const audit = spec.auditFields(ctx.body);
+	// `JSON.stringify(undefined)` is `undefined`, which D1 refuses to bind; store
+	// it as SQL NULL. The read-back paths deserialize NULL back to `undefined`.
+	const resultJson: string | undefined = JSON.stringify(result);
 	const insert = buildOperatorActionInsert(db, {
 		id: ctx.actionId,
 		actorType: ctx.identity.kind,
@@ -221,7 +226,7 @@ export async function commitMutation<TBody, TResult>(
 		reason: ctx.reason,
 		idempotencyKey: ctx.idempotencyKey,
 		requestFingerprint: ctx.fingerprint,
-		resultJson: JSON.stringify(result),
+		resultJson: resultJson ?? null,
 		metadataJson: JSON.stringify(audit.metadata ?? {}),
 		createdAt: ctx.now.toISOString(),
 		createdAtEpochMs: ctx.now.getTime(),
@@ -238,8 +243,11 @@ export async function commitMutation<TBody, TResult>(
 		if (!stored) throw error;
 		if (stored.requestFingerprint !== ctx.fingerprint)
 			throw new MutationGuardError("IDEMPOTENCY_KEY_CONFLICT");
-		if (stored.resultJson === null) return result;
-		const winnerResult: TResult = JSON.parse(stored.resultJson);
+		// Return the winner's STORED result, never our own. A NULL stored
+		// result_json is the serialization of `undefined`, so it deserializes back
+		// to `undefined` — two identical requests must not observably disagree.
+		const winnerResult: TResult =
+			stored.resultJson === null ? undefined : JSON.parse(stored.resultJson);
 		return winnerResult;
 	}
 
@@ -252,16 +260,23 @@ function assertJsonContentType(request: Request): void {
 	const [rawMedia, ...params] = header.split(";");
 	if ((rawMedia ?? "").trim().toLowerCase() !== "application/json")
 		throw new MutationGuardError("UNSUPPORTED_MEDIA_TYPE");
+	// The only parameter permitted is a single `charset=utf-8` (case-insensitive,
+	// optionally quoted). Any other parameter name, a malformed parameter, or a
+	// repeated charset is rejected — a bare trailing `;` carries no parameter.
+	let seenCharset = false;
 	for (const param of params) {
+		if (param.trim() === "") continue;
 		const eq = param.indexOf("=");
-		if (eq === -1) continue;
-		if (param.slice(0, eq).trim().toLowerCase() !== "charset") continue;
+		if (eq === -1) throw new MutationGuardError("UNSUPPORTED_MEDIA_TYPE");
+		if (param.slice(0, eq).trim().toLowerCase() !== "charset" || seenCharset)
+			throw new MutationGuardError("UNSUPPORTED_MEDIA_TYPE");
 		const charset = param
 			.slice(eq + 1)
 			.trim()
 			.toLowerCase()
 			.replace(QUOTED_VALUE, "$1");
 		if (charset !== "utf-8") throw new MutationGuardError("UNSUPPORTED_MEDIA_TYPE");
+		seenCharset = true;
 	}
 }
 

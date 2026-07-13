@@ -237,6 +237,36 @@ describe("guardMutation — JSON content type", () => {
 		);
 		expect(outcome.outcome).toBe("proceed");
 	});
+
+	it("rejects a parameter other than charset", async () => {
+		for (const contentType of [
+			"application/json; boundary=foo",
+			"application/json; custom=bar",
+			"application/json; charset=utf-8; boundary=x",
+		]) {
+			await expectRejection(
+				buildRequest({ token: adminToken, contentType, body: validBody() }),
+				testSpec(),
+				deps(),
+				"UNSUPPORTED_MEDIA_TYPE",
+				415,
+			);
+		}
+	});
+
+	it("rejects a repeated charset parameter", async () => {
+		await expectRejection(
+			buildRequest({
+				token: adminToken,
+				contentType: "application/json; charset=utf-8; charset=utf-8",
+				body: validBody(),
+			}),
+			testSpec(),
+			deps(),
+			"UNSUPPORTED_MEDIA_TYPE",
+			415,
+		);
+	});
 });
 
 describe("guardMutation — same-origin", () => {
@@ -575,6 +605,40 @@ describe("commitMutation", () => {
 		);
 		const stored = await getOperatorActionByKey(testEnv.DB, body.idempotencyKey as string);
 		expect(stored!.role).toBe("reviewer");
+	});
+
+	it("surfaces a stored undefined result as undefined, never the caller's own result", async () => {
+		const body = validBody();
+		// Two guarded contexts obtained before either commits — both proceed.
+		const g1 = await guardMutation(buildRequest({ token: adminToken, body }), testSpec(), deps());
+		const g2 = await guardMutation(buildRequest({ token: adminToken, body }), testSpec(), deps());
+		if (g1.outcome !== "proceed" || g2.outcome !== "proceed") {
+			expect.unreachable();
+			return;
+		}
+		const key = body.idempotencyKey as string;
+
+		// Winner commits an undefined result -> stored result_json is SQL NULL.
+		const r1 = await commitMutation(testEnv.DB, g1.ctx, testSpec(), effectFor(key), undefined);
+		expect(r1).toBeUndefined();
+		expect((await getOperatorActionByKey(testEnv.DB, key))!.resultJson).toBeNull();
+
+		// commitMutation loser path: g2's insert conflicts. It must return the
+		// stored value (undefined), NOT its own supplied result.
+		const r2 = await commitMutation(testEnv.DB, g2.ctx, testSpec(), effectFor(key), {
+			loser: "own-result",
+		});
+		expect(r2).toBeUndefined();
+
+		// Guard step-7 replay path: a later same-key request replays the stored value.
+		const replay = await guardMutation(
+			buildRequest({ token: adminToken, body }),
+			testSpec(),
+			deps(),
+		);
+		expect(replay.outcome).toBe("replay");
+		if (replay.outcome !== "replay") return;
+		expect(replay.result).toBeUndefined();
 	});
 
 	it("does not double-apply concurrent duplicates and returns the same result", async () => {
