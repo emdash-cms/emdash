@@ -80,7 +80,17 @@
 				{ "slug": "service", "label": "Service", "type": "string" },
 				{ "slug": "location", "label": "Location", "type": "string" },
 				{ "slug": "summary", "label": "Summary", "type": "text", "searchable": true },
-				{ "slug": "gallery", "label": "Gallery", "type": "json" },
+				{
+					"slug": "gallery",
+					"label": "Gallery",
+					"type": "repeater",
+					"validation": {
+						"subFields": [
+							{ "slug": "src", "type": "string", "label": "Image URL", "required": true },
+							{ "slug": "alt", "type": "string", "label": "Alt text", "required": true }
+						]
+					}
+				},
 				{ "slug": "result", "label": "Result", "type": "string" }
 			]
 		},

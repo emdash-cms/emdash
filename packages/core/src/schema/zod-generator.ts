@@ -1,7 +1,7 @@
 import { z, type ZodTypeAny } from "zod";
 
 import { hashString } from "../utils/hash.js";
-import type { Field, FieldType, CollectionWithFields } from "./types.js";
+import type { Field, FieldType, CollectionWithFields, RepeaterSubField } from "./types.js";
 
 /** Pattern to split on underscores, hyphens, and spaces for PascalCase conversion */
 const PASCAL_CASE_SPLIT_PATTERN = /[_\-\s]+/;
@@ -133,19 +133,7 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 			);
 
 		case "image":
-			return z.object({
-				id: z.string(),
-				src: z.string().optional(),
-				alt: z.string().optional(),
-				width: z.number().optional(),
-				height: z.number().optional(),
-				/** Provider ID (e.g. "local", "cloudflare-images") */
-				provider: z.string().optional(),
-				/** Admin-side preview URL for external providers (not persisted by plugins) */
-				previewUrl: z.string().optional(),
-				/** Provider-specific metadata; for local media this carries storageKey */
-				meta: z.record(z.string(), z.unknown()).optional(),
-			});
+			return imageSchema();
 
 		case "file":
 			return z.object({
@@ -162,6 +150,19 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 
 		case "reference":
 			return z.string(); // Reference ID
+
+		case "repeater": {
+			const subFields = field.validation?.subFields;
+			if (!subFields || subFields.length === 0) {
+				return z.array(z.record(z.string(), z.unknown()));
+			}
+
+			const shape: Record<string, ZodTypeAny> = {};
+			for (const subField of subFields) {
+				shape[subField.slug] = repeaterSubFieldSchema(subField);
+			}
+			return z.array(z.object(shape).passthrough());
+		}
 
 		case "json":
 			return z.unknown();
@@ -205,7 +206,74 @@ function applyValidation(schema: ZodTypeAny, field: Field): ZodTypeAny {
 		return numSchema;
 	}
 
+	if (schema instanceof z.ZodArray) {
+		let arraySchema = schema;
+		if (validation.minItems !== undefined) {
+			arraySchema = arraySchema.min(validation.minItems);
+		}
+		if (validation.maxItems !== undefined) {
+			arraySchema = arraySchema.max(validation.maxItems);
+		}
+		return arraySchema;
+	}
+
 	return schema;
+}
+
+function imageSchema(): ZodTypeAny {
+	return z.object({
+		id: z.string(),
+		src: z.string().optional(),
+		alt: z.string().optional(),
+		width: z.number().optional(),
+		height: z.number().optional(),
+		/** Provider ID (e.g. "local", "cloudflare-images") */
+		provider: z.string().optional(),
+		/** Admin-side preview URL for external providers (not persisted by plugins) */
+		previewUrl: z.string().optional(),
+		/** Provider-specific metadata; for local media this carries storageKey */
+		meta: z.record(z.string(), z.unknown()).optional(),
+	});
+}
+
+function repeaterSubFieldSchema(field: RepeaterSubField): ZodTypeAny {
+	let schema: ZodTypeAny;
+
+	switch (field.type) {
+		case "string":
+		case "text":
+		case "url":
+		case "datetime":
+			schema = z.string();
+			break;
+		case "number":
+			schema = z.number();
+			break;
+		case "integer":
+			schema = z.number().int();
+			break;
+		case "boolean":
+			schema = z.preprocess(
+				(value) => (value === 0 || value === 1 ? Boolean(value) : value),
+				z.boolean(),
+			);
+			break;
+		case "select": {
+			const options = field.options;
+			if (options && options.length > 0) {
+				const [first, ...rest] = options;
+				schema = z.enum([first, ...rest]);
+			} else {
+				schema = z.string();
+			}
+			break;
+		}
+		case "image":
+			schema = imageSchema();
+			break;
+	}
+
+	return field.required ? schema : schema.nullish();
 }
 
 /**
@@ -412,7 +480,7 @@ function fieldTypeToTypeScript(field: Field): string {
 			return "PortableTextBlock[]";
 
 		case "image":
-			return "{ id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+			return imageTypeScript();
 
 		case "file":
 			return "{ id: string; src?: string; filename?: string; mimeType?: string; size?: number; provider?: string; meta?: Record<string, unknown> }";
@@ -421,11 +489,50 @@ function fieldTypeToTypeScript(field: Field): string {
 			// Could be enhanced to include the referenced collection type
 			return "string";
 
+		case "repeater": {
+			const subFields = field.validation?.subFields;
+			if (!subFields || subFields.length === 0) {
+				return "Record<string, unknown>[]";
+			}
+
+			const properties = subFields.map(
+				(subField) =>
+					`${subField.slug}${subField.required ? "" : "?"}: ${repeaterSubFieldTypeScript(subField)}`,
+			);
+			return `{ ${properties.join("; ")} }[]`;
+		}
+
 		case "json":
 			return "unknown";
 
 		default:
 			return "unknown";
+	}
+}
+
+function imageTypeScript(): string {
+	return "{ id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+}
+
+function repeaterSubFieldTypeScript(field: RepeaterSubField): string {
+	switch (field.type) {
+		case "string":
+		case "text":
+		case "url":
+		case "datetime":
+			return "string";
+		case "number":
+		case "integer":
+			return "number";
+		case "boolean":
+			return "boolean";
+		case "select":
+			if (field.options && field.options.length > 0) {
+				return field.options.map((option) => `"${option}"`).join(" | ");
+			}
+			return "string";
+		case "image":
+			return imageTypeScript();
 	}
 }
 
