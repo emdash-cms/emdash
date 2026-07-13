@@ -1,0 +1,281 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-07-13 09:27+0100\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+
+#: src/routes/AssessmentDetail.tsx:80
+#: src/routes/AssessmentDetail.tsx:84
+msgid "—"
+msgstr "—"
+
+#: src/routes/AssessmentList.tsx:59
+msgid "All states"
+msgstr "All states"
+
+#: src/routes/AssessmentDetail.tsx:56
+msgid "Assessment"
+msgstr "Assessment"
+
+#: src/routes/AssessmentDetail.tsx:49
+msgid "Assessment not found."
+msgstr "Assessment not found."
+
+#: src/components/Sidebar.tsx:46
+#: src/routes/AssessmentList.tsx:53
+msgid "Assessments"
+msgstr "Assessments"
+
+#: src/components/Sidebar.tsx:47
+#: src/routes/AuditLog.tsx:17
+msgid "Audit log"
+msgstr "Audit log"
+
+#: src/routes/AuditLog.tsx:20
+msgid "Audit log not yet available"
+msgstr "Audit log not yet available"
+
+#: src/components/StateBadge.tsx:37
+#: src/routes/AssessmentList.tsx:38
+msgid "Blocked"
+msgstr "Blocked"
+
+#: src/components/StateBadge.tsx:40
+msgid "Cancelled"
+msgstr "Cancelled"
+
+#: src/routes/AssessmentDetail.tsx:68
+#: src/routes/SubjectHistory.tsx:58
+msgid "CID"
+msgstr "CID"
+
+#: src/routes/AssessmentDetail.tsx:83
+msgid "Completed"
+msgstr "Completed"
+
+#: src/routes/Dashboard.tsx:42
+msgid "Connected"
+msgstr "Connected"
+
+#: src/routes/AssessmentDetail.tsx:77
+#: src/routes/AssessmentList.tsx:82
+#: src/routes/SubjectHistory.tsx:61
+msgid "Created"
+msgstr "Created"
+
+#: src/components/SeverityBadge.tsx:23
+msgid "Critical"
+msgstr "Critical"
+
+#: src/routes/SubjectHistory.tsx:40
+msgid "Current CID"
+msgstr "Current CID"
+
+#: src/components/Sidebar.tsx:45
+#: src/routes/Dashboard.tsx:36
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: src/routes/SubjectHistory.tsx:44
+msgid "Deleted at"
+msgstr "Deleted at"
+
+#: src/routes/Dashboard.tsx:42
+msgid "Disconnected"
+msgstr "Disconnected"
+
+#: src/routes/Dashboard.tsx:47
+msgid "Discovery queue depth"
+msgstr "Discovery queue depth"
+
+#: src/components/StateBadge.tsx:38
+#: src/routes/AssessmentList.tsx:39
+msgid "Error"
+msgstr "Error"
+
+#: src/components/FindingCard.tsx:42
+msgid "Evidence"
+msgstr "Evidence"
+
+#: src/routes/AssessmentList.tsx:55
+msgid "Filter by state"
+msgstr "Filter by state"
+
+#: src/routes/AssessmentDetail.tsx:120
+msgid "Findings"
+msgstr "Findings"
+
+#: src/components/Header.tsx:15
+msgid "Fixture data"
+msgstr "Fixture data"
+
+#: src/components/SeverityBadge.tsx:24
+msgid "High"
+msgstr "High"
+
+#: src/components/SeverityBadge.tsx:27
+msgid "Info"
+msgstr "Info"
+
+#: src/routes/Dashboard.tsx:39
+msgid "Jetstream connection"
+msgstr "Jetstream connection"
+
+#: src/components/Sidebar.tsx:54
+msgid "Labeler console"
+msgstr "Labeler console"
+
+#: src/components/Sidebar.tsx:51
+msgid "Labeler console navigation"
+msgstr "Labeler console navigation"
+
+#: src/routes/Dashboard.tsx:58
+msgid "Labeler DID"
+msgstr "Labeler DID"
+
+#: src/routes/AssessmentDetail.tsx:103
+msgid "Labels"
+msgstr "Labels"
+
+#: src/routes/Dashboard.tsx:49
+msgid "Last reconciliation"
+msgstr "Last reconciliation"
+
+#: src/components/SeverityBadge.tsx:26
+msgid "Low"
+msgstr "Low"
+
+#: src/components/SeverityBadge.tsx:25
+msgid "Medium"
+msgstr "Medium"
+
+#: src/routes/AssessmentDetail.tsx:76
+msgid "Model"
+msgstr "Model"
+
+#: src/routes/AssessmentList.tsx:116
+msgid "More assessments available."
+msgstr "More assessments available."
+
+#: src/routes/Dashboard.tsx:53
+msgid "Never"
+msgstr "Never"
+
+#: src/routes/AssessmentList.tsx:74
+msgid "No assessments found."
+msgstr "No assessments found."
+
+#: src/routes/SubjectHistory.tsx:52
+msgid "No assessments recorded for this subject."
+msgstr "No assessments recorded for this subject."
+
+#: src/routes/AssessmentDetail.tsx:124
+msgid "No findings recorded for this run."
+msgstr "No findings recorded for this run."
+
+#: src/routes/AssessmentDetail.tsx:107
+msgid "No labels issued for this run."
+msgstr "No labels issued for this run."
+
+#: src/routes/AssessmentDetail.tsx:76
+msgid "None"
+msgstr "None"
+
+#: src/routes/NotFound.tsx:11
+msgid "Not found"
+msgstr "Not found"
+
+#: src/components/StateBadge.tsx:31
+msgid "Observed"
+msgstr "Observed"
+
+#: src/routes/AuditLog.tsx:21
+msgid "Operator action history ships once the audit table lands."
+msgstr "Operator action history ships once the audit table lands."
+
+#: src/components/StateBadge.tsx:35
+#: src/routes/AssessmentList.tsx:36
+msgid "Passed"
+msgstr "Passed"
+
+#: src/components/StateBadge.tsx:33
+#: src/routes/AssessmentList.tsx:35
+msgid "Pending"
+msgstr "Pending"
+
+#: src/routes/Dashboard.tsx:46
+msgid "Pending assessments"
+msgstr "Pending assessments"
+
+#: src/routes/AssessmentDetail.tsx:75
+msgid "Policy version"
+msgstr "Policy version"
+
+#: src/components/FindingCard.tsx:37
+msgid "Private detail — operators only"
+msgstr "Private detail — operators only"
+
+#: src/components/FindingCard.tsx:31
+msgid "Public summary"
+msgstr "Public summary"
+
+#: src/components/StateBadge.tsx:34
+msgid "Running"
+msgstr "Running"
+
+#: src/components/StateBadge.tsx:39
+msgid "Stale"
+msgstr "Stale"
+
+#: src/routes/AssessmentDetail.tsx:79
+msgid "Started"
+msgstr "Started"
+
+#: src/routes/AssessmentList.tsx:80
+#: src/routes/SubjectHistory.tsx:59
+msgid "State"
+msgstr "State"
+
+#: src/routes/AssessmentList.tsx:79
+msgid "Subject"
+msgstr "Subject"
+
+#: src/routes/SubjectHistory.tsx:37
+msgid "Subject history"
+msgstr "Subject history"
+
+#: src/routes/SubjectHistory.tsx:29
+msgid "Subject not found."
+msgstr "Subject not found."
+
+#: src/routes/AssessmentDetail.tsx:58
+#: src/routes/AssessmentList.tsx:40
+#: src/routes/AssessmentList.tsx:98
+msgid "Superseded"
+msgstr "Superseded"
+
+#: src/routes/AssessmentDetail.tsx:88
+msgid "Supersedes"
+msgstr "Supersedes"
+
+#: src/routes/NotFound.tsx:12
+msgid "This page doesn't exist."
+msgstr "This page doesn't exist."
+
+#: src/routes/AssessmentDetail.tsx:74
+#: src/routes/AssessmentList.tsx:81
+#: src/routes/SubjectHistory.tsx:60
+msgid "Trigger"
+msgstr "Trigger"
+
+#: src/components/StateBadge.tsx:32
+msgid "Verifying"
+msgstr "Verifying"
+
+#: src/components/StateBadge.tsx:36
+#: src/routes/AssessmentList.tsx:37
+msgid "Warned"
+msgstr "Warned"
