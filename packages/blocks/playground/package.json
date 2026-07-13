@@ -23,7 +23,7 @@
     "tailwindcss": "^4.1.11",
     "typescript": "catalog:",
     "vite": "^6.3.5",
-    "wrangler": "^4.63.0"
+    "wrangler": "catalog:"
   },
   "peerDependencies": {},
   "optionalDependencies": {}
