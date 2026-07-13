@@ -1101,6 +1101,8 @@ Dependencies: `W9.1`, `W2.3`.
 
 ### `W9.3` Build console shell and read-only views
 
+Decision (2026-07-13): the console is a Vite React SPA colocated in `apps/labeler`, served as Workers static assets from the labeler Worker under `/admin`, calling same-origin `/admin/api/*`. It mirrors `packages/admin`'s conventions (Kumo, Lingui, RTL-safe classes, TanStack Router where routing is needed) without depending on that package; copy thin pieces rather than extracting shared packages preemptively.
+
 Routes:
 
 - Dashboard.
