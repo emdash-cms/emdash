@@ -46,6 +46,8 @@ END;
 CREATE INDEX idx_operational_events_created ON operational_events(created_at_epoch_ms DESC);
 CREATE INDEX idx_operational_events_severity
 	ON operational_events(severity, created_at_epoch_ms DESC);
+CREATE INDEX idx_operational_events_action ON operational_events(action_id)
+	WHERE action_id IS NOT NULL;
 
 CREATE TABLE notification_outbox (
 	id TEXT PRIMARY KEY,
@@ -61,6 +63,7 @@ CREATE TABLE notification_outbox (
 
 CREATE INDEX idx_notification_outbox_pending
 	ON notification_outbox(state, created_at_epoch_ms) WHERE state = 'pending';
+CREATE INDEX idx_notification_outbox_event ON notification_outbox(event_id);
 
 CREATE TABLE automation_state (
 	id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -80,3 +83,5 @@ ALTER TABLE dead_letters ADD COLUMN resolved_at TEXT;
 ALTER TABLE dead_letters ADD COLUMN resolved_by_action_id TEXT REFERENCES operator_actions(id);
 
 CREATE INDEX idx_dead_letters_status ON dead_letters(status, received_at);
+CREATE INDEX idx_dead_letters_resolved_action ON dead_letters(resolved_by_action_id)
+	WHERE resolved_by_action_id IS NOT NULL;
