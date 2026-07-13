@@ -12,6 +12,10 @@
 		"./bundle": {
 			"types": "./dist/bundle.d.ts",
 			"default": "./dist/bundle.js"
+		},
+		"./fetch": {
+			"types": "./dist/fetch-entry.d.ts",
+			"default": "./dist/fetch-entry.js"
 		}
 	},
 	"files": [

@@ -5,6 +5,7 @@ export {
 	verifyMultihash,
 } from "./checksum.js";
 export { DEFAULT_FETCH_LIMITS, fetchVerifiedResource } from "./fetch.js";
+export { VERIFICATION_ERROR_CODES } from "./errors.js";
 export {
 	MAX_BUNDLE_COMPRESSED_BYTES,
 	MAX_BUNDLE_DECOMPRESSED_BYTES,
