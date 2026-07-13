@@ -660,7 +660,10 @@ describe("handleConsoleApi — system status", () => {
 			 WHERE id = 1`,
 		).run();
 		try {
-			const res = await handleConsoleApi(req("/admin/api/status", { token: reviewerToken }), deps());
+			const res = await handleConsoleApi(
+				req("/admin/api/status", { token: reviewerToken }),
+				deps(),
+			);
 			const status = (await body(res)).data as {
 				automationPaused: boolean;
 				pausedReason: string | null;
@@ -674,6 +677,73 @@ describe("handleConsoleApi — system status", () => {
 				`UPDATE automation_state SET paused = 0, paused_reason = NULL WHERE id = 1`,
 			).run();
 		}
+	});
+});
+
+async function insertResolvedDeadLetter(status: "retried" | "quarantined"): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO dead_letters (did, collection, rkey, reason, payload, received_at, status, resolved_at)
+		 VALUES (?, 'col', ?, 'verify-failed', ?, datetime('now'), ?, datetime('now'))`,
+	)
+		.bind(`did:plc:resolved${status}`, `rk-${status}`, new Uint8Array([0]), status)
+		.run();
+}
+
+describe("handleConsoleApi — dead letters", () => {
+	it("lists dead letters newest-first for a reviewer", async () => {
+		const res = await handleConsoleApi(
+			req("/admin/api/dead-letters", { token: reviewerToken }),
+			deps(),
+		);
+		expect(res.status).toBe(200);
+		const page = (await body(res)).data as { items: { id: number; status: string }[] };
+		expect(page.items.length).toBeGreaterThan(0);
+		const ids = page.items.map((d) => d.id);
+		expect(ids).toEqual(ids.toSorted((a, b) => b - a));
+	});
+
+	it("round-trips the cursor across pages, newest-first", async () => {
+		const first = await handleConsoleApi(
+			req("/admin/api/dead-letters?limit=1", { token: reviewerToken }),
+			deps(),
+		);
+		const page1 = (await body(first)).data as { items: { id: number }[]; nextCursor?: string };
+		expect(page1.items).toHaveLength(1);
+		expect(page1.nextCursor).toBeDefined();
+		const second = await handleConsoleApi(
+			req(`/admin/api/dead-letters?limit=1&cursor=${encodeURIComponent(page1.nextCursor!)}`, {
+				token: reviewerToken,
+			}),
+			deps(),
+		);
+		const page2 = (await body(second)).data as { items: { id: number }[] };
+		expect(page2.items).toHaveLength(1);
+		expect(page2.items[0]!.id).toBeLessThan(page1.items[0]!.id);
+	});
+
+	it("rejects an identity with no role (403) and an unauthenticated caller (401)", async () => {
+		expect(
+			(await handleConsoleApi(req("/admin/api/dead-letters", { token: noRoleToken }), deps()))
+				.status,
+		).toBe(403);
+		expect((await handleConsoleApi(req("/admin/api/dead-letters"), deps())).status).toBe(401);
+	});
+
+	it("400s a malformed cursor", async () => {
+		const res = await handleConsoleApi(
+			req("/admin/api/dead-letters?cursor=not-a-cursor", { token: reviewerToken }),
+			deps(),
+		);
+		expect(res.status).toBe(400);
+	});
+
+	it("counts only new dead letters in the health figure", async () => {
+		await insertResolvedDeadLetter("retried");
+		await insertResolvedDeadLetter("quarantined");
+		const res = await handleConsoleApi(req("/admin/api/status", { token: reviewerToken }), deps());
+		const status = (await body(res)).data as { deadLetterDepth: number };
+		// The three seeded rows are 'new'; the retried + quarantined rows are excluded.
+		expect(status.deadLetterDepth).toBe(3);
 	});
 });
 

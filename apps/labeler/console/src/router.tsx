@@ -5,6 +5,7 @@ import { assessmentDetailRoute } from "./routes/AssessmentDetail.js";
 import { assessmentListRoute } from "./routes/AssessmentList.js";
 import { auditLogRoute } from "./routes/AuditLog.js";
 import { dashboardRoute } from "./routes/Dashboard.js";
+import { deadLetterQueueRoute } from "./routes/DeadLetterQueue.js";
 import { notFoundRoute } from "./routes/NotFound.js";
 import { rootRoute, shellRoute } from "./routes/root.js";
 import { subjectHistoryRoute } from "./routes/SubjectHistory.js";
@@ -15,6 +16,7 @@ const shellRoutes = shellRoute.addChildren([
 	assessmentDetailRoute,
 	subjectHistoryRoute,
 	auditLogRoute,
+	deadLetterQueueRoute,
 	notFoundRoute,
 ]);
 

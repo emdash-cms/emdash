@@ -145,6 +145,9 @@ async function handleConsoleApiRequest(
 			now: () => new Date(),
 			afterCommit: (actionId) => publishAfterCommit(env, actionId),
 			defer: (work) => ctx.waitUntil(work),
+			sendDiscoveryJob: async (job) => {
+				await env.DISCOVERY_QUEUE.send(job);
+			},
 		});
 	}
 	return handleConsoleApi(request, {

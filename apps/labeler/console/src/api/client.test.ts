@@ -40,6 +40,14 @@ describe("fixture client", () => {
 		expect(history?.subject.uri).toBe(assessment!.uri);
 		expect(history?.assessments.some((a) => a.id === assessment!.id)).toBe(true);
 	});
+
+	it("lists dead letters newest-first with a new (actionable) row", async () => {
+		const page = await apiClient.listDeadLetters();
+		expect(page.items.length).toBeGreaterThan(0);
+		const ids = page.items.map((d) => d.id);
+		expect(ids).toEqual(ids.toSorted((a, b) => b - a));
+		expect(page.items.some((d) => d.status === "new")).toBe(true);
+	});
 });
 
 describe("fetch client label actions", () => {
@@ -208,6 +216,51 @@ describe("fetch client label actions", () => {
 		expect(url).toContain("/admin/api/labels/override-effect-preview?");
 		expect(url).toContain("negate=malware");
 		expect(url).toContain("negate=impersonation");
+	});
+
+	it("POSTs a dead-letter retry to the retry route with the threaded key", async () => {
+		stubFetch(() =>
+			Response.json({ data: { actionId: "oact_1", deadLetterId: 42, status: "retried" } }),
+		);
+		const result = await fetchClient.retryDeadLetter(42, {
+			reason: "re-drive",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(result).toMatchObject({ deadLetterId: 42, status: "retried" });
+		const call = calls[0]!;
+		expect(call.url).toBe("/admin/api/dead-letters/42/retry");
+		expect(call.init.method).toBe("POST");
+		const headers = new Headers(call.init.headers);
+		expect(headers.get("X-EmDash-Request")).toBe("1");
+		expect(headers.get("Content-Type")).toBe("application/json");
+		expect(JSON.parse(call.init.body as string)).toMatchObject({
+			reason: "re-drive",
+			idempotencyKey: input.idempotencyKey,
+		});
+	});
+
+	it("POSTs a dead-letter quarantine to the quarantine route", async () => {
+		stubFetch(() =>
+			Response.json({ data: { actionId: "oact_1", deadLetterId: 42, status: "quarantined" } }),
+		);
+		await fetchClient.quarantineDeadLetter(42, {
+			reason: "reviewed",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(calls[0]!.url).toBe("/admin/api/dead-letters/42/quarantine");
+		expect(calls[0]!.init.method).toBe("POST");
+	});
+
+	it("surfaces the server 409 already-resolved message on a dead-letter retry", async () => {
+		stubFetch(() =>
+			Response.json(
+				{ error: { code: "DEAD_LETTER_RESOLVED", message: "Dead letter is already resolved" } },
+				{ status: 409 },
+			),
+		);
+		await expect(
+			fetchClient.retryDeadLetter(42, { reason: "x", idempotencyKey: input.idempotencyKey }),
+		).rejects.toThrow("Dead letter is already resolved");
 	});
 
 	it("surfaces a 409 idempotency conflict message", async () => {

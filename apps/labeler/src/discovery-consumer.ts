@@ -536,7 +536,10 @@ async function writeDeadLetter(
 	detail: string | null,
 	now: Date,
 ): Promise<void> {
-	const payload = JSON.stringify(job.jetstreamRecord ?? { operation: job.operation, cid: job.cid });
+	// Persist the whole discovery job (identity + operation + cid + the unverified
+	// Jetstream record) so an operator retry can re-enqueue an identical job for a
+	// re-drive (design §6); the record alone would lose the cid a re-verify needs.
+	const payload = JSON.stringify(job);
 	const payloadBytes = new TextEncoder().encode(payload);
 	await db
 		.prepare(

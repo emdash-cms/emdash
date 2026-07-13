@@ -30,11 +30,19 @@ import {
 import { buildAutomationPauseUpdate } from "./automation-state.js";
 import type { LabelerIdentityConfig } from "./config.js";
 import {
+	buildDeadLetterResolveUpdate,
+	getDeadLetter,
+	readDeadLetterJob,
+	type DeadLetterStatus,
+} from "./dead-letters.js";
+import type { DiscoveryJob } from "./env.js";
+import {
 	commitMutation,
 	guardMutation,
 	MutationGuardError,
 	type MutationGuardDeps,
 	type MutationSpec,
+	type OperatorActionType,
 } from "./mutation-guard.js";
 import {
 	buildOperationalEventInsert,
@@ -68,6 +76,7 @@ const RERUN_PROMPT_HASH = "unassigned";
 const RERUN_SCANNER_SET_VERSION = "unassigned";
 
 const ADMIN_API_PREFIX = /^\/admin\/api\/?/;
+const POSITIVE_INTEGER = /^[1-9]\d*$/;
 
 /** Override-coupled labels: the atomic unblock action (W9.5) is the only path
  * that issues these, so the standalone issue/retract endpoints reject them. */
@@ -124,6 +133,10 @@ export interface ConsoleMutationDeps {
 	afterCommit: (actionId: string) => Promise<void>;
 	/** Schedules `afterCommit` without blocking the response (workerd `waitUntil`). */
 	defer: (work: Promise<unknown>) => void;
+	/** Re-enqueues a dead letter's discovery job on retry (design §6). A queue op
+	 * cannot join the D1 batch, so it runs in the deferred tail; the discovery
+	 * consumer's `runKey` dedup absorbs a duplicate re-drive. */
+	sendDiscoveryJob: (job: DiscoveryJob) => Promise<void>;
 }
 
 /**
@@ -173,12 +186,19 @@ export async function handleConsoleMutation(
 			if (segments[1] === "pause") return await runAutomationToggle(request, deps, true);
 			if (segments[1] === "resume") return await runAutomationToggle(request, deps, false);
 		}
+		if (segments[0] === "dead-letters" && segments.length === 3 && segments[1] !== undefined) {
+			const id = segments[1];
+			if (segments[2] === "retry") return await runDeadLetterAction(request, deps, id, "retried");
+			if (segments[2] === "quarantine")
+				return await runDeadLetterAction(request, deps, id, "quarantined");
+		}
 		throw new ReadGuardError("NOT_FOUND");
 	} catch (error) {
 		if (
 			error instanceof MutationGuardError ||
 			error instanceof ReadGuardError ||
-			error instanceof LabelMutationError
+			error instanceof LabelMutationError ||
+			error instanceof DeadLetterResolvedError
 		)
 			return error.toResponse();
 		// A submitted override negation set that isn't exactly the live automated
@@ -1049,7 +1069,166 @@ async function runAutomationToggle(
 		reason: ctx.reason,
 		cts: ctx.now.toISOString(),
 	};
-	return jsonData(
-		await commitMutation(deps.db, ctx, spec, [stateUpdate, eventInsert], descriptor),
+	return jsonData(await commitMutation(deps.db, ctx, spec, [stateUpdate, eventInsert], descriptor));
+}
+
+// ─── W9.6: admin-only dead-letter retry / quarantine controls ────────────────
+
+type DeadLetterResolution = Exclude<DeadLetterStatus, "new">;
+
+const DEAD_LETTER_ACTION: Record<DeadLetterResolution, OperatorActionType> = {
+	retried: "dlq-retry",
+	quarantined: "dlq-quarantine",
+};
+
+const DEAD_LETTER_EVENT_TYPE: Record<DeadLetterResolution, OperationalEventType> = {
+	retried: "dead-letter-retried",
+	quarantined: "dead-letter-quarantined",
+};
+
+/** A dead letter that is no longer actionable (already retried or quarantined).
+ * Static message; a 409 rather than a spurious success so a second resolve does
+ * not double-enqueue (T6). */
+class DeadLetterResolvedError extends Error {
+	override readonly name = "DeadLetterResolvedError";
+	readonly code = "DEAD_LETTER_RESOLVED";
+	readonly status = 409;
+
+	constructor() {
+		super("Dead letter is already resolved");
+	}
+
+	toResponse(): Response {
+		return Response.json(
+			{ error: { code: this.code, message: this.message } },
+			{ status: this.status },
+		);
+	}
+}
+
+/** The id from the path, folded into the parsed body so it joins the request
+ * fingerprint — a replayed key must target the same dead letter. */
+interface DeadLetterActionBody {
+	deadLetterId: number;
+}
+
+/** The idempotent resolve result. */
+interface DeadLetterActionDescriptor {
+	actionId: string;
+	deadLetterId: number;
+	status: DeadLetterResolution;
+	cts: string;
+}
+
+/**
+ * `POST /admin/api/dead-letters/:id/{retry,quarantine}` — the admin-only
+ * operational controls (design §6). Neither issues a label: the effect is a
+ * `status` UPDATE guarded by `status = 'new'` plus an ungated `info` operational
+ * event, both committed in one atomic `commitMutation` batch with the audit row.
+ * Retry additionally re-enqueues the dead letter's discovery job in the deferred
+ * tail. A row that is absent (404) or already resolved (409) is rejected before
+ * any commit, so a late request commits nothing and enqueues nothing (T6).
+ */
+async function runDeadLetterAction(
+	request: Request,
+	deps: ConsoleMutationDeps,
+	rawId: string,
+	status: DeadLetterResolution,
+): Promise<Response> {
+	const spec: MutationSpec<DeadLetterActionBody> = {
+		action: DEAD_LETTER_ACTION[status],
+		requiredRole: "admin",
+		parseBody: () => ({ deadLetterId: parseDeadLetterId(rawId) }),
+		auditFields: () => ({}),
+	};
+
+	const outcome = await guardMutation(request, spec, guardDepsOf(deps));
+	if (outcome.outcome === "replay")
+		return jsonData(storedDescriptor<DeadLetterActionDescriptor>(outcome.result));
+
+	const { ctx } = outcome;
+	const id = ctx.body.deadLetterId;
+	const letter = await getDeadLetter(deps.db, id);
+	if (!letter) throw new ReadGuardError("NOT_FOUND");
+	if (letter.status !== "new") throw new DeadLetterResolvedError();
+
+	const subjectUri = `at://${letter.did}/${letter.collection}/${letter.rkey}`;
+	const update = buildDeadLetterResolveUpdate(deps.db, {
+		id,
+		status,
+		actionId: ctx.actionId,
+		now: ctx.now,
+	});
+	const eventInsert = buildOperationalEventInsert(deps.db, {
+		id: newOperationalEventId(),
+		eventType: DEAD_LETTER_EVENT_TYPE[status],
+		severity: "info",
+		actionId: ctx.actionId,
+		subjectUri,
+		payload: { reason: ctx.reason },
+		now: ctx.now,
+	});
+
+	const descriptor: DeadLetterActionDescriptor = {
+		actionId: ctx.actionId,
+		deadLetterId: id,
+		status,
+		cts: ctx.now.toISOString(),
+	};
+	const commitSpec: MutationSpec<DeadLetterActionBody> = {
+		...spec,
+		auditFields: () => ({ subjectUri, metadata: { deadLetterId: id, status } }),
+	};
+	const returned = await commitMutation(
+		deps.db,
+		ctx,
+		commitSpec,
+		[update, eventInsert],
+		descriptor,
 	);
+
+	if (status === "retried") deferDeadLetterReenqueue(deps, id, ctx.actionId);
+	return jsonData(returned);
+}
+
+/**
+ * Re-enqueues a retried dead letter's discovery job off the response path, but
+ * only when this action won the `status = 'new'` race: a concurrent retry that
+ * committed its audit row yet matched zero rows in the UPDATE reads back a
+ * `resolved_by_action_id` that is not ours and skips, so the job enqueues once
+ * even under a double retry. The consumer's `runKey` dedup is the backstop; a
+ * lost enqueue is recoverable by re-driving `status = 'retried'` rows.
+ */
+function deferDeadLetterReenqueue(deps: ConsoleMutationDeps, id: number, actionId: string): void {
+	deps.defer(
+		(async () => {
+			try {
+				const letter = await getDeadLetter(deps.db, id);
+				if (!letter || letter.resolvedByActionId !== actionId) return;
+				const job = await readDeadLetterJob(deps.db, id);
+				if (!job) {
+					// The row flipped to 'retried' but its payload didn't decode to a
+					// valid job (e.g. a row written before the full-job payload shape),
+					// so nothing re-drives it and a fresh retry is barred by status.
+					console.error("[console-mutation] dead-letter payload undecodable, re-enqueue skipped", {
+						id,
+					});
+					return;
+				}
+				await deps.sendDiscoveryJob(job);
+			} catch (error) {
+				console.error("[console-mutation] dead-letter re-enqueue failed", error);
+			}
+		})(),
+	);
+}
+
+/** A non-numeric or non-positive path segment names no dead letter — a 404,
+ * matching the absent-row case. Runs after the guard's role gate, so a non-admin
+ * is rejected before this. */
+function parseDeadLetterId(raw: string): number {
+	if (!POSITIVE_INTEGER.test(raw)) throw new ReadGuardError("NOT_FOUND");
+	const id = Number(raw);
+	if (!Number.isSafeInteger(id)) throw new ReadGuardError("NOT_FOUND");
+	return id;
 }
