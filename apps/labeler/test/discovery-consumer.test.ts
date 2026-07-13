@@ -6,7 +6,7 @@ import {
 	type LabelSigner,
 } from "@emdash-cms/registry-moderation";
 import { applyD1Migrations, env } from "cloudflare:test";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
 	automatedIdempotencyKey,
@@ -14,6 +14,7 @@ import {
 	initialTriggerId,
 } from "../src/assessment-lifecycle.js";
 import { getAssessmentByRunKey, getCurrentAssessment } from "../src/assessment-store.js";
+import { buildAutomationPauseUpdate } from "../src/automation-state.js";
 import {
 	type DiscoveryConsumerDeps,
 	type MessageController,
@@ -567,5 +568,118 @@ describe("getCurrentAssessment", () => {
 			cid: job.cid,
 		});
 		expect(pointer).toBeNull();
+	});
+});
+
+describe("processDiscoveryMessage: automation kill-switch", () => {
+	const NOW = new Date("2026-07-13T00:00:00.000Z");
+	const ACTION_ID = "oact_pausetest";
+
+	beforeAll(async () => {
+		await testEnv.DB.prepare(
+			`INSERT INTO operator_actions
+			 (id, actor_type, actor_id, role, action, reason, idempotency_key,
+			  request_fingerprint, created_at, created_at_epoch_ms)
+			 VALUES (?, 'human', 'u', 'admin', 'pause-issuance', 'r', ?, 'fp',
+			         '2026-07-13T00:00:00.000Z', 0)`,
+		)
+			.bind(ACTION_ID, `key-${ACTION_ID}`)
+			.run();
+	});
+
+	async function setPaused(paused: boolean): Promise<void> {
+		await buildAutomationPauseUpdate(testEnv.DB, {
+			paused,
+			reason: paused ? "incident" : null,
+			actionId: ACTION_ID,
+			now: NOW,
+		}).run();
+	}
+
+	afterEach(async () => {
+		await setPaused(false);
+	});
+
+	it("retries and creates no run while ingestion is paused", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		const msg = new FakeMessage();
+		await setPaused(true);
+
+		await processDiscoveryMessage(job, msg, { ...deps, verify: verifiedFor(job) });
+
+		expect(msg.retried).toBe(1);
+		expect(msg.acked).toBe(0);
+		const subject = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM subjects WHERE uri = ?`)
+			.bind(uriFor(job))
+			.first<{ n: number }>();
+		expect(subject?.n).toBe(0);
+	});
+
+	it("processes normally once resumed", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+
+		await setPaused(true);
+		const first = new FakeMessage();
+		await processDiscoveryMessage(job, first, { ...deps, verify: verifiedFor(job) });
+		expect(first.retried).toBe(1);
+
+		await setPaused(false);
+		const second = new FakeMessage();
+		await processDiscoveryMessage(job, second, { ...deps, verify: verifiedFor(job) });
+
+		expect(second.acked).toBe(1);
+		expect(second.retried).toBe(0);
+		const assessment = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		expect(assessment?.state).toBe("pending");
+	});
+
+	it("retries when the switch is unreadable (fails closed)", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		const msg = new FakeMessage();
+		await testEnv.DB.prepare(`DELETE FROM automation_state WHERE id = 1`).run();
+
+		try {
+			await processDiscoveryMessage(job, msg, { ...deps, verify: verifiedFor(job) });
+			expect(msg.retried).toBe(1);
+			expect(msg.acked).toBe(0);
+			const subject = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM subjects WHERE uri = ?`)
+				.bind(uriFor(job))
+				.first<{ n: number }>();
+			expect(subject?.n).toBe(0);
+		} finally {
+			await testEnv.DB.prepare(
+				`INSERT INTO automation_state (id, paused, updated_at, updated_at_epoch_ms)
+				 VALUES (1, 0, '1970-01-01T00:00:00.000Z', 0)`,
+			).run();
+		}
+	});
+
+	it("does not gate the delete branch while ingestion is paused", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+
+		await setPaused(true);
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const msg = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, msg, {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		expect(msg.acked).toBe(1);
+		expect(msg.retried).toBe(0);
+		const after = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		expect(after?.state).toBe("cancelled");
+		const negated = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels
+			 WHERE uri = ? AND val = 'assessment-pending' ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uriFor(job))
+			.first<{ neg: number }>();
+		expect(negated?.neg).toBe(1);
 	});
 });

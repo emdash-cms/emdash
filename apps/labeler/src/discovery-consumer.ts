@@ -45,6 +45,7 @@ import {
 	transitionAssessmentState,
 	type Assessment,
 } from "./assessment-store.js";
+import { AutomationStateUnavailableError, isAutomationPaused } from "./automation-state.js";
 import { getLabelerIdentityConfig, type LabelerConfig } from "./config.js";
 import type { DiscoveryJob } from "./env.js";
 import {
@@ -223,10 +224,33 @@ export async function processDiscoveryMessage(
 	}
 
 	try {
+		if (await readAutomationPaused(deps.db)) {
+			// Ingestion is paused (spec §11.3): retry so the event isn't lost —
+			// resume re-drives it. Manual/admin issuance stays available because
+			// the switch is checked here, not in the signing layer.
+			controller.retry();
+			return;
+		}
 		await verifyAndCreateRun(uri, job, deps, now());
 		controller.ack();
 	} catch (err) {
 		await classifyDiscoveryError(err, job, deps, controller, now());
+	}
+}
+
+/**
+ * Reads the automation kill-switch, failing closed: an unreadable switch
+ * becomes a `LabelIssuanceUnavailableError` so `classifyDiscoveryError` retries
+ * rather than letting ingestion issue past a switch it could not read.
+ */
+async function readAutomationPaused(db: D1Database): Promise<boolean> {
+	try {
+		return await isAutomationPaused(db);
+	} catch (err) {
+		if (err instanceof AutomationStateUnavailableError) {
+			throw new LabelIssuanceUnavailableError("automation pause state unreadable", { cause: err });
+		}
+		throw err;
 	}
 }
 
