@@ -136,6 +136,17 @@ function getToolbarButton(screen: Awaited<ReturnType<typeof render>>, name: stri
 	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name });
 }
 
+async function getHeadingMenuItem(
+	screen: Awaited<ReturnType<typeof render>>,
+	name: "Heading 1" | "Heading 2" | "Heading 3",
+) {
+	const trigger = getToolbarButton(screen, "Headings");
+	trigger.element().click();
+	const item = screen.getByRole("menuitem", { name });
+	await expect.element(item).toBeVisible();
+	return { trigger, item };
+}
+
 // =============================================================================
 // 1. Toolbar Presence and Structure
 // =============================================================================
@@ -156,11 +167,25 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeVisible();
 	});
 
-	it("has all heading buttons", async () => {
+	it("collapses the supported heading levels into one menu", async () => {
 		const { screen } = await renderEditor();
-		await expect.element(screen.getByRole("button", { name: "Heading 1" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Heading 2" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Heading 3" })).toBeVisible();
+		await expect.element(getToolbarButton(screen, "Headings")).toBeVisible();
+
+		getToolbarButton(screen, "Headings").element().click();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeVisible();
+		expect(
+			screen.getByRole("menuitem", { name: "Heading 1" }).element().hasAttribute(
+				"data-emdash-heading-item",
+			),
+		).toBe(true);
+
+		const headingLabels = Array.from(
+			document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+			(item) => item.textContent?.trim(),
+		);
+		expect(headingLabels).not.toContain("Heading 4");
 	});
 
 	it("has all list buttons", async () => {
@@ -310,12 +335,12 @@ describe("Formatting Button Toggle States", () => {
 		// Focus editor and place cursor (block commands need cursor in a paragraph)
 		editor.commands.focus();
 
-		const btn = screen.getByRole("button", { name: "Heading 1" });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
-		btn.element().click();
+		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 1");
+		await expect.element(trigger).toHaveAttribute("aria-pressed", "false");
+		item.element().click();
 
 		await vi.waitFor(() => {
-			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
+			expect(trigger.element().getAttribute("aria-pressed")).toBe("true");
 			expect(editor.isActive("heading", { level: 1 })).toBe(true);
 		});
 	});
@@ -324,11 +349,12 @@ describe("Formatting Button Toggle States", () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
-		const btn = screen.getByRole("button", { name: "Heading 2" });
-		btn.element().click();
+		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 2");
+		item.element().click();
 
 		await vi.waitFor(() => {
-			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
+			expect(trigger.element().getAttribute("aria-pressed")).toBe("true");
+			expect(editor.isActive("heading", { level: 2 })).toBe(true);
 		});
 	});
 
@@ -336,11 +362,12 @@ describe("Formatting Button Toggle States", () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
-		const btn = screen.getByRole("button", { name: "Heading 3" });
-		btn.element().click();
+		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 3");
+		item.element().click();
 
 		await vi.waitFor(() => {
-			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
+			expect(trigger.element().getAttribute("aria-pressed")).toBe("true");
+			expect(editor.isActive("heading", { level: 3 })).toBe(true);
 		});
 	});
 

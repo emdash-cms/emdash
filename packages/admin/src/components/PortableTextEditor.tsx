@@ -94,6 +94,7 @@ import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
@@ -3018,9 +3019,6 @@ function EditorToolbar({
 			isUnderline: ctx.editor.isActive("underline"),
 			isStrike: ctx.editor.isActive("strike"),
 			isCode: ctx.editor.isActive("code"),
-			isHeading1: ctx.editor.isActive("heading", { level: 1 }),
-			isHeading2: ctx.editor.isActive("heading", { level: 2 }),
-			isHeading3: ctx.editor.isActive("heading", { level: 3 }),
 			isBulletList: ctx.editor.isActive("bulletList"),
 			isOrderedList: ctx.editor.isActive("orderedList"),
 			isBlockquote: ctx.editor.isActive("blockquote"),
@@ -3193,27 +3191,7 @@ function EditorToolbar({
 
 			{/* Headings */}
 			<ToolbarGroup>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-					active={editorState.isHeading1}
-					title={t`Heading 1`}
-				>
-					<TextHOne className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-					active={editorState.isHeading2}
-					title={t`Heading 2`}
-				>
-					<TextHTwo className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-					active={editorState.isHeading3}
-					title={t`Heading 3`}
-				>
-					<TextHThree className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
+				<HeadingDropdownMenu editor={editor} levels={[1, 2, 3]} />
 			</ToolbarGroup>
 
 			<ToolbarSeparator />
