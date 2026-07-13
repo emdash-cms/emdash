@@ -354,6 +354,20 @@ describe("verifyAccessRequest", () => {
 		expect(identityB.roles).toEqual(["reviewer"]);
 	});
 
+	it("does not treat an empty-string group entry as a principal", async () => {
+		const token = await mintToken(
+			{ email: "nobody@example.com", groups: ["", "not-a-configured-group"] },
+			signKey,
+		);
+		// An empty-string allowlist entry can only match if an empty group leaks in as a principal.
+		const identity = await verifyAccessRequest(
+			requestWith({ "Cf-Access-Jwt-Assertion": token }),
+			baseConfig({ admins: [""] }),
+			resolver,
+		);
+		expect(identity.roles).toEqual([]);
+	});
+
 	it("never includes the raw token in a thrown error message", async () => {
 		const token = await mintToken({ email: "admin@example.com" }, otherKey);
 		try {
@@ -396,6 +410,24 @@ describe("parseAccessAuthConfig", () => {
 				teamDomain: "http://example-team.cloudflareaccess.com",
 			}),
 		).toThrow(TypeError);
+	});
+
+	it("rejects a teamDomain that is not a bare origin", () => {
+		for (const teamDomain of [
+			"https://example-team.cloudflareaccess.com/cdn-cgi/access/certs",
+			"https://user:pass@example-team.cloudflareaccess.com",
+			"https://example-team.cloudflareaccess.com?foo=bar",
+			"https://example-team.cloudflareaccess.com#frag",
+		])
+			expect(() => parseAccessAuthConfig({ ...validRaw, teamDomain })).toThrow(TypeError);
+	});
+
+	it("accepts a trailing-slash teamDomain and normalizes it to a bare origin", () => {
+		const config = parseAccessAuthConfig({
+			...validRaw,
+			teamDomain: `${TEAM_DOMAIN}/`,
+		});
+		expect(config.teamDomain).toBe(TEAM_DOMAIN);
 	});
 
 	it("rejects a missing audience", () => {

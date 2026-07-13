@@ -33,15 +33,22 @@ export function parseAccessAuthConfig(value: unknown): AccessAuthConfig {
 	try {
 		teamDomainUrl = new URL(teamDomain);
 	} catch {
-		throw new TypeError("Access auth config teamDomain must be an HTTPS URL");
+		throw new TypeError("Access auth config teamDomain must be an HTTPS origin");
 	}
-	if (teamDomainUrl.protocol !== "https:")
-		throw new TypeError("Access auth config teamDomain must be an HTTPS URL");
+	if (
+		teamDomainUrl.protocol !== "https:" ||
+		teamDomainUrl.username !== "" ||
+		teamDomainUrl.password !== "" ||
+		teamDomainUrl.search !== "" ||
+		teamDomainUrl.hash !== "" ||
+		teamDomainUrl.pathname !== "/"
+	)
+		throw new TypeError("Access auth config teamDomain must be an HTTPS origin");
 	const audience = value.audience;
 	if (typeof audience !== "string" || audience.length === 0)
 		throw new TypeError("Access auth config audience must be a non-empty string");
 	return {
-		teamDomain,
+		teamDomain: teamDomainUrl.origin,
 		audience,
 		admins: parseStringArray(value.admins, "admins"),
 		reviewers: parseStringArray(value.reviewers, "reviewers"),
@@ -73,7 +80,7 @@ export function getAccessKeyResolver(teamDomain: string): AccessKeyResolver {
 		})();
 	let resolver = cache.get(teamDomain);
 	if (!resolver) {
-		resolver = createRemoteJWKSet(new URL(`${teamDomain}/cdn-cgi/access/certs`));
+		resolver = createRemoteJWKSet(new URL("/cdn-cgi/access/certs", teamDomain));
 		cache.set(teamDomain, resolver);
 	}
 	return resolver;
@@ -132,7 +139,7 @@ export async function verifyAccessRequest(
 
 function groupPrincipals(groups: unknown): readonly string[] {
 	if (!Array.isArray(groups)) return [];
-	return groups.filter((entry): entry is string => typeof entry === "string");
+	return groups.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
 }
 
 export function hasRole(identity: OperatorIdentity, role: OperatorRole): boolean {
