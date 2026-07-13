@@ -21,6 +21,7 @@ import type { AssessmentState, PublicAssessmentState } from "./assessment-lifecy
 import type {
 	AssessmentFinding,
 	AssessmentIssuedLabel,
+	LabelStreamWinner,
 	ListedAssessment,
 	Subject,
 } from "./assessment-store.js";
@@ -70,6 +71,20 @@ export interface IssuedLabel {
 	cts: string;
 	exp: string | null;
 	neg: boolean;
+	sequence: number;
+}
+
+/** The active label state for a subject `(src, uri)` at a CID — the current
+ * stream winner per value, including manual/override labels that carry no
+ * `assessment_id` and so never appear in the assessment-scoped label list. */
+export interface SubjectLabel {
+	val: string;
+	cid: string | null;
+	active: boolean;
+	neg: boolean;
+	automated: boolean;
+	cts: string;
+	exp: string | null;
 	sequence: number;
 }
 
@@ -162,6 +177,19 @@ export function serializeIssuedLabel(label: AssessmentIssuedLabel): IssuedLabel 
 		exp: label.exp,
 		neg: label.neg,
 		sequence: label.sequence,
+	};
+}
+
+export function serializeSubjectLabel(winner: LabelStreamWinner): SubjectLabel {
+	return {
+		val: winner.val,
+		cid: winner.cid,
+		active: winner.active,
+		neg: winner.neg,
+		automated: winner.automated,
+		cts: winner.cts,
+		exp: winner.exp,
+		sequence: winner.sequence,
 	};
 }
 

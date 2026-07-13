@@ -190,16 +190,18 @@ export interface CreateAssessmentRunResult {
 }
 
 /**
- * Idempotent run creation keyed on `run_key`: redelivery of the same logical
- * trigger observes the existing run rather than creating a second one.
+ * The idempotent `INSERT ... WHERE NOT EXISTS(run_key)` for one assessment run,
+ * as a bare prepared statement the caller mints the `id` for and batches
+ * alongside its own statements (plan W9.5 rerun: the run row commits in the same
+ * `db.batch` as the operator audit row and the `assessment-pending` label).
+ * `createAssessmentRun` is the self-executing variant used by discovery.
  */
-export async function createAssessmentRun(
+export function buildAssessmentRunStatement(
 	db: D1Database,
-	input: CreateAssessmentRunInput,
-): Promise<CreateAssessmentRunResult> {
-	const id = `asmt_${ulid()}`;
+	input: CreateAssessmentRunInput & { id: string },
+): D1PreparedStatement {
 	const now = input.now ?? new Date();
-	await db
+	return db
 		.prepare(
 			`INSERT INTO assessments
 			 (id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
@@ -209,7 +211,7 @@ export async function createAssessmentRun(
 			 WHERE NOT EXISTS (SELECT 1 FROM assessments WHERE run_key = ?)`,
 		)
 		.bind(
-			id,
+			input.id,
 			input.runKey,
 			input.uri,
 			input.cid,
@@ -224,8 +226,19 @@ export async function createAssessmentRun(
 			now.toISOString(),
 			now.getTime(),
 			input.runKey,
-		)
-		.run();
+		);
+}
+
+/**
+ * Idempotent run creation keyed on `run_key`: redelivery of the same logical
+ * trigger observes the existing run rather than creating a second one.
+ */
+export async function createAssessmentRun(
+	db: D1Database,
+	input: CreateAssessmentRunInput,
+): Promise<CreateAssessmentRunResult> {
+	const id = `asmt_${ulid()}`;
+	await buildAssessmentRunStatement(db, { ...input, id }).run();
 	const assessment = await getAssessmentByRunKey(db, input.runKey);
 	if (!assessment) throw new Error("assessment run did not persist");
 	return { assessment, created: assessment.id === id };
@@ -336,6 +349,44 @@ export async function transitionAssessmentState(
 	const assessment = await getAssessment(db, input.id);
 	if (!assessment) throw new Error("assessment disappeared after a successful transition");
 	return assessment;
+}
+
+/**
+ * Advances a freshly-created run from `observed` through `verifying` to
+ * `pending`, tolerating a concurrent invocation that already did some or all of
+ * the work (a redelivered rerun re-drives this and must converge, not throw).
+ * Used off the response path after a rerun's run row and `assessment-pending`
+ * label commit — the label re-gates the release atomically; this bookkeeping CAS
+ * follows. Mirrors the discovery consumer's inline advance.
+ */
+export async function advanceAssessmentToPending(
+	db: D1Database,
+	assessment: Assessment,
+	now: Date,
+): Promise<void> {
+	let current = assessment;
+	if (current.state === "observed")
+		current = await transitionOrObserveState(db, current, "observed", "verifying", now);
+	if (current.state === "verifying")
+		await transitionOrObserveState(db, current, "verifying", "pending", now);
+}
+
+async function transitionOrObserveState(
+	db: D1Database,
+	assessment: Assessment,
+	from: AssessmentState,
+	to: AssessmentState,
+	now: Date,
+): Promise<Assessment> {
+	try {
+		return await transitionAssessmentState(db, { id: assessment.id, from, to, now });
+	} catch (err) {
+		if (!(err instanceof AssessmentTransitionConflictError)) throw err;
+		const current = await getAssessment(db, assessment.id);
+		if (!current)
+			throw new Error(`assessment ${assessment.id} disappeared mid-transition`, { cause: err });
+		return current;
+	}
 }
 
 export interface CurrentAssessmentPointer {
@@ -776,6 +827,15 @@ export interface LabelStreamWinner {
 	cts: string;
 	exp: string | null;
 	sequence: number;
+	/** Whether the stream head is a negation. A retracted label reports
+	 * `neg: true, active: false`; carried so the operator subject view can show
+	 * "retracted" distinctly from an unexpired/CID-mismatched inactive winner. */
+	neg: boolean;
+	/** Whether the stream head was issued by automation. The override's
+	 * negatable set (`getNegatableAutomatedLabels`) only spans automated heads,
+	 * so the console must not offer the override for a manually-headed block —
+	 * that path is the label-level retract. */
+	automated: boolean;
 	active: boolean;
 }
 
@@ -804,10 +864,11 @@ export async function getActiveLabelState(
 	const now = input.now ?? new Date();
 	const rows = await db
 		.prepare(
-			`SELECT val, neg, cid, cts, exp, sequence
-			 FROM issued_labels
-			 WHERE src = ? AND uri = ?
-			 ORDER BY sequence ASC`,
+			`SELECT l.val, l.neg, l.cid, l.cts, l.exp, l.sequence, a.type AS action_type
+			 FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE l.src = ? AND l.uri = ?
+			 ORDER BY l.sequence ASC`,
 		)
 		.bind(input.src, input.uri)
 		.all<{
@@ -817,6 +878,7 @@ export async function getActiveLabelState(
 			cts: string;
 			exp: string | null;
 			sequence: number;
+			action_type: string;
 		}>();
 	const winners = new Map<string, LabelStreamWinner>();
 	for (const row of rows.results ?? []) {
@@ -829,6 +891,8 @@ export async function getActiveLabelState(
 			cts: row.cts,
 			exp: row.exp,
 			sequence: row.sequence,
+			neg: row.neg === 1,
+			automated: row.action_type === "automated-assessment",
 			active,
 		});
 	}

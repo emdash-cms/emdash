@@ -141,4 +141,89 @@ describe("fetch client label actions", () => {
 		expect(url).toContain("cid=bafy");
 		expect(url).toContain("neg=true");
 	});
+
+	it("POSTs a rerun with the CSRF header, JSON content type, and threaded key", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", runId: "asmt_1" } }));
+		const action = {
+			confirmation: "bafy",
+			reason: "reassess",
+			idempotencyKey: input.idempotencyKey,
+		};
+		const result = await fetchClient.rerunAssessment("asmt_target", action);
+		expect(result).toMatchObject({ actionId: "oact_1", runId: "asmt_1" });
+		const call = calls[0]!;
+		expect(call.url).toBe("/admin/api/assessments/asmt_target/rerun");
+		expect(call.init.method).toBe("POST");
+		const headers = new Headers(call.init.headers);
+		expect(headers.get("X-EmDash-Request")).toBe("1");
+		expect(headers.get("Content-Type")).toBe("application/json");
+		expect(JSON.parse(call.init.body as string)).toMatchObject(action);
+	});
+
+	it("POSTs an override to the override route with the negate set", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", negated: ["malware"] } }));
+		await fetchClient.overrideAssessment("asmt_target", {
+			confirmation: "bafy",
+			reason: "false positive",
+			idempotencyKey: input.idempotencyKey,
+			negate: ["malware", "data-exfiltration"],
+		});
+		expect(calls[0]!.url).toBe("/admin/api/assessments/asmt_target/override");
+		expect(JSON.parse(calls[0]!.init.body as string).negate).toEqual([
+			"malware",
+			"data-exfiltration",
+		]);
+	});
+
+	it("POSTs an override-retract to the override-retract route", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1" } }));
+		await fetchClient.retractOverride("asmt_target", {
+			confirmation: "bafy",
+			reason: "override was wrong",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(calls[0]!.url).toBe("/admin/api/assessments/asmt_target/override-retract");
+		expect(calls[0]!.init.method).toBe("POST");
+	});
+
+	it("GETs subject labels with the CID", async () => {
+		stubFetch(() => Response.json({ data: [{ val: "assessment-overridden", active: true }] }));
+		const labels = await fetchClient.getSubjectLabels(input.uri, "bafy");
+		expect(labels).toEqual([{ val: "assessment-overridden", active: true }]);
+		const url = calls[0]!.url;
+		expect(url).toContain(`/admin/api/subjects/${encodeURIComponent(input.uri)}/labels?`);
+		expect(url).toContain("cid=bafy");
+	});
+
+	it("builds the override-effect-preview query with repeated negate params", async () => {
+		stubFetch(() =>
+			Response.json({ data: { labelEffect: "pass", scope: "cid-bound", supersedes: [] } }),
+		);
+		await fetchClient.previewOverrideEffect({
+			uri: input.uri,
+			cid: "bafy",
+			negate: ["malware", "impersonation"],
+		});
+		const url = calls[0]!.url;
+		expect(url).toContain("/admin/api/labels/override-effect-preview?");
+		expect(url).toContain("negate=malware");
+		expect(url).toContain("negate=impersonation");
+	});
+
+	it("surfaces a 409 idempotency conflict message", async () => {
+		stubFetch(() =>
+			Response.json(
+				{ error: { code: "IDEMPOTENCY_KEY_CONFLICT", message: "key already used" } },
+				{ status: 409 },
+			),
+		);
+		await expect(
+			fetchClient.overrideAssessment("asmt_target", {
+				confirmation: "bafy",
+				reason: "x",
+				idempotencyKey: input.idempotencyKey,
+				negate: ["malware"],
+			}),
+		).rejects.toThrow("key already used");
+	});
 });

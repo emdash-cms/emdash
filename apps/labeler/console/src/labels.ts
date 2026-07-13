@@ -1,3 +1,4 @@
+import { automatedBlockCategories, MODERATION_POLICY } from "../../src/policy.js";
 import type { IssuableLabel } from "./api/types.js";
 
 /**
@@ -35,6 +36,18 @@ export const RELEASE_ISSUABLE_LABELS: readonly IssuableLabel[] = [
 export const PACKAGE_ISSUABLE_LABELS: readonly IssuableLabel[] = [
 	{ val: "package-disputed", scope: "uri-wide" },
 ];
+
+/** The automated blocking label vocabulary (policy `category: automated-block`),
+ * derived from the bundled policy fixture with the server's own helper so a
+ * fixture change reaches the override ceremony without a code edit. Presentation
+ * only — the server re-derives the authoritative set from live label state and
+ * rejects a stale submission. */
+export const AUTOMATED_BLOCK_LABELS: ReadonlySet<string> =
+	automatedBlockCategories(MODERATION_POLICY);
+
+export function isAutomatedBlock(val: string): boolean {
+	return AUTOMATED_BLOCK_LABELS.has(val);
+}
 
 const RELEASE_SCOPES = new Map(RELEASE_ISSUABLE_LABELS.map((entry) => [entry.val, entry.scope]));
 

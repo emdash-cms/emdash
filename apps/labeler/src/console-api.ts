@@ -22,6 +22,7 @@ import {
 } from "./assessment-cursor.js";
 import {
 	countInFlightAssessments,
+	getActiveLabelState,
 	getAllLabelsForAssessment,
 	getAssessment,
 	getAssessmentsForUri,
@@ -37,14 +38,16 @@ import {
 	serializeIssuedLabel,
 	serializeOperatorActionView,
 	serializeOperatorFinding,
+	serializeSubjectLabel,
 	serializeSubjectRecord,
 	type Page,
 } from "./console-serialize.js";
 import { LABELER_DISCOVERY_DO_NAME } from "./discovery-do.js";
-import { computeEffectPreview } from "./label-effect-preview.js";
+import { computeEffectPreview, computeOverrideEffectPreview } from "./label-effect-preview.js";
 import { MutationGuardError } from "./mutation-guard.js";
 import { getOperatorActionsPage } from "./operator-actions.js";
 import { guardRead, ReadGuardError, type ReadGuardDeps } from "./operator-read-guard.js";
+import { assertNegatableBlockSet, NegatableBlockSetError } from "./service.js";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -112,21 +115,21 @@ function matchRoute(
 			return () => handleListFindings(request, deps, id);
 		if (id !== undefined && segments.length === 3 && segments[2] === "labels")
 			return () => handleListLabels(request, deps, id);
-	} else if (segments[0] === "subjects" && segments.length === 2 && segments[1] !== undefined) {
+	} else if (segments[0] === "subjects" && segments[1] !== undefined) {
 		const uri = decodeSubjectUri(segments[1]);
-		return () => handleGetSubjectHistory(request, deps, uri);
+		if (segments.length === 2) return () => handleGetSubjectHistory(request, deps, uri);
+		if (segments.length === 3 && segments[2] === "labels")
+			return () => handleGetSubjectLabels(request, url, deps, uri);
 	} else if (segments[0] === "audit-log" && segments.length === 1) {
 		return () => handleListAuditLog(request, url, deps);
 	} else if (segments[0] === "status" && segments.length === 1) {
 		return () => handleGetStatus(request, deps);
 	} else if (segments[0] === "whoami" && segments.length === 1) {
 		return () => handleWhoami(request, identity);
-	} else if (
-		segments[0] === "labels" &&
-		segments.length === 2 &&
-		segments[1] === "effect-preview"
-	) {
-		return () => handleEffectPreview(request, url, deps);
+	} else if (segments[0] === "labels" && segments.length === 2) {
+		if (segments[1] === "effect-preview") return () => handleEffectPreview(request, url, deps);
+		if (segments[1] === "override-effect-preview")
+			return () => handleOverrideEffectPreview(request, url, deps);
 	}
 
 	throw new ReadGuardError("NOT_FOUND");
@@ -255,6 +258,37 @@ async function handleGetSubjectHistory(
 	});
 }
 
+/**
+ * Active label state for a subject `(labelerDid, uri)` at a CID — the current
+ * stream winner per value, including the manual/override labels that carry no
+ * `assessment_id` and so never surface in the assessment-scoped label list. The
+ * CID is `?cid=` or falls back to the current observed subject CID; a URI never
+ * observed (and no CID given) is a 404, matching the subject-history route.
+ */
+async function handleGetSubjectLabels(
+	request: Request,
+	url: URL,
+	deps: ConsoleApiDeps,
+	uri: string,
+): Promise<Response> {
+	requireGet(request);
+	const cidParam = url.searchParams.get("cid");
+	if (cidParam !== null && cidParam.length === 0) throw new ReadGuardError("INVALID_REQUEST");
+	let cid = cidParam ?? undefined;
+	if (cid === undefined) {
+		const subject = await getCurrentSubjectByUri(deps.db, uri);
+		if (!subject) throw new ReadGuardError("NOT_FOUND");
+		cid = subject.cid;
+	}
+	const winners = await getActiveLabelState(deps.db, {
+		src: deps.labelerDid,
+		uri,
+		cid,
+		now: new Date(),
+	});
+	return jsonData(Array.from(winners.values(), serializeSubjectLabel));
+}
+
 async function handleListAuditLog(
 	request: Request,
 	url: URL,
@@ -328,6 +362,41 @@ async function handleEffectPreview(
 		new Date(),
 	);
 	// An unknown label value has no policy definition to preview.
+	if (!preview) throw new ReadGuardError("INVALID_REQUEST");
+	return jsonData(preview);
+}
+
+/** Multi-overlay override preview: `?uri=&cid=&negate=v1&negate=v2` grounds the
+ * post-override release state (blocked → eligible-manual-override) the reviewer
+ * confirms before submitting. The `negate` set is validated against the live
+ * negatable set with the same check the submit endpoint runs, so the preview
+ * can never render an outcome the submit would reject. */
+async function handleOverrideEffectPreview(
+	request: Request,
+	url: URL,
+	deps: ConsoleApiDeps,
+): Promise<Response> {
+	requireGet(request);
+	const uri = url.searchParams.get("uri");
+	const cid = url.searchParams.get("cid");
+	if (uri === null || uri.length === 0 || cid === null || cid.length === 0)
+		throw new ReadGuardError("INVALID_REQUEST");
+	const negate = url.searchParams.getAll("negate");
+	if (negate.some((val) => val.length === 0)) throw new ReadGuardError("INVALID_REQUEST");
+	try {
+		await assertNegatableBlockSet(deps.db, deps.labelerDid, { uri, cid }, negate);
+	} catch (error) {
+		if (error instanceof NegatableBlockSetError) throw new ReadGuardError("INVALID_REQUEST");
+		throw error;
+	}
+
+	const preview = await computeOverrideEffectPreview(
+		deps.db,
+		deps.labelerDid,
+		{ uri, cid, negate },
+		new Date(),
+	);
+	// A non-release subject (or one never observed) has no override to preview.
 	if (!preview) throw new ReadGuardError("INVALID_REQUEST");
 	return jsonData(preview);
 }
