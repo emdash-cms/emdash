@@ -8,15 +8,15 @@ This plan turns the delegated release service spec into independently deliverabl
 
 ## Stage Deliverables
 
-| Stage   | Deliverable                                                                  | Repository change allowed                                         |
-| ------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Gate 0A | Complete: confidential OAuth custody feasibility                             | Spec and plan updates only                                        |
-| Gate 0B | Complete: `subscribeRepos` `#commit` events selected; W10.1 constraints documented | Spec and plan updates only                                    |
-| Gate 1  | Experimental lexicons, generated types, and one shared verification contract | Production contract code and tests                                |
-| Gate 2  | Secure delegated release service vertical slice                              | Service, client, and installer code and tests                     |
-| Gate 3  | Independent install and minimum discovery enforcement                        | Installer and aggregator code and tests                           |
-| Gate 4  | Hosted beta product and operational readiness                                | Console, notifications, tooling, operations, and conformance code |
-| Gate 5  | Accurate historical policy enforcement and production launch evidence        | Aggregator history implementation and production verification     |
+| Stage   | Deliverable                                                                        | Repository change allowed                                         |
+| ------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Gate 0A | Complete: confidential OAuth custody feasibility                                   | Spec and plan updates only                                        |
+| Gate 0B | Complete: `subscribeRepos` `#commit` events selected; W10.1 constraints documented | Spec and plan updates only                                        |
+| Gate 1  | Experimental lexicons, generated types, and one shared verification contract       | Production contract code and tests                                |
+| Gate 2  | Secure delegated release service vertical slice                                    | Service, client, and installer code and tests                     |
+| Gate 3  | Independent install and minimum discovery enforcement                              | Installer and aggregator code and tests                           |
+| Gate 4  | Hosted beta product and operational readiness                                      | Console, notifications, tooling, operations, and conformance code |
+| Gate 5  | Accurate historical policy enforcement and production launch evidence              | Aggregator history implementation and production verification     |
 
 Gates 0A and 0B are deliberately not implementation stages. RFC #1870 is the product and protocol decision; these gates record only implementation clarifications and external validation. Gate 0A is complete. Deployed-PDS compatibility remains required by conformance and production smoke but does not block implementation. Gate 0B blocks historical aggregator enforcement and production launch, but does not block shared verification, installer work, or the service. Do not reopen RFC decisions unless the text is ambiguous, contradicts an existing constraint, or an external result makes it impossible. Do not add repository test harnesses, prototype services, package dependencies, root scripts, or CI wiring for these gates. Commit concise conclusions directly to the integration branch.
 

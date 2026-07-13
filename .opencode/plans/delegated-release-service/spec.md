@@ -942,17 +942,20 @@ The `com.atproto.sync.subscribeRepos` firehose `#commit` event is the selected v
 The aggregator must subscribe to `subscribeRepos` from the relay (or directly from each publisher's PDS) and process `#commit` events in real time. For each profile-collection commit, extract the record value from the CAR blocks at the CID indicated by the op, attempt commit signature verification against the DID's signing key that was valid at the commit's `rev`, and verify MST inversion against `prevData` using inductive state from the prior processed commit. Persist the event-specific record value, CID, `rev`, `seq`, the signed commit block, and the MST proof slice needed to bind the record transition (the signed commit block, the referenced record block, and the MST diff nodes required for inversion). Retaining only the signed commit block is insufficient for later independent verification; the full proof slice must be retained if post-hoc re-verification is required, or the verification scope must be explicitly limited to ingest time.
 
 Trust assumptions:
+
 - `seq` is relay-scoped and monotonically increasing within a single relay connection. It must not be compared across relay and direct-PDS sources, or across different relay instances. Per-repo continuity is tracked via `#commit.since` (which must equal the last processed `rev` for that DID) and `rev` (which must increase monotonically per DID). Gaps in `since`/`rev` continuity, not gaps in `seq`, are the signal for per-repo desynchronization.
 - Commit signature verification requires the DID's signing key that was valid at the time of the commit. `#identity` events signal that the DID document may have changed and require the aggregator to re-resolve the DID document; they do not carry key material. The aggregator must maintain a per-DID key history sufficient to verify commits against the key active at each `rev`. If historical key material is unavailable (the old key has been removed from the DID document and was not retained by the aggregator), the commit signature cannot be verified retroactively. This is an explicit limitation of the atproto signing model; such events are marked "signature unverifiable at ingest" but their record value is retained if the MST inversion check passed at ingest time.
 - `prevData` and `op.prev` validation requires inductive firehose state: the aggregator must have successfully processed the prior commit for the same DID and retained its MST root. A `tooBig` event (deprecated but may appear from older producers) or a `#sync` event breaks the inductive chain; both must be treated as a gap requiring `getRepo` re-sync, not as proof of intermediate history.
 - The relay backfill window is hours to days, not permanent. Profile events that occurred before the aggregator began consuming are not recoverable from the relay. For publishers who registered before the aggregator's subscription start, the aggregator can only recover the current profile state via `getRepo` and must mark all prior policy events as unrecoverable.
 
 **Retention and backfill constraints:**
+
 - The aggregator must start consuming the firehose before any publisher registers. For publishers already registered at aggregator launch, bootstrap via `getRepo` to capture current state; mark historical policy events before the bootstrap rev as unrecoverable.
 - The relay backfill window (hours to days) is the only replay mechanism. The aggregator must maintain a persistent cursor and reconnect within the window after any outage. Outages exceeding the backfill window require `getRepo` re-sync and mark the gap period as unrecoverable.
 - `listReposByCollection` on the relay enumerates all DIDs with records in a given collection, enabling targeted backfill of known publishers.
 
 **Fork, rebase, and tombstone handling:**
+
 - The `rebase` field in `#commit` is deprecated and unused in v3 repos. Treat it as always false.
 - A `#sync` event resets the repo to a new state without providing intermediate history. On receipt of a `#sync`, mark the repo as desynchronized, fetch the full repo via `getRepo`, and mark any gap in policy events as unrecoverable.
 - A `tooBig` event (deprecated; producers should always set it to `false`) breaks the inductive chain in the same way as `#sync`. Treat it as a gap requiring `getRepo` re-sync.
@@ -960,6 +963,7 @@ Trust assumptions:
 - Account deactivation (`status=deactivated`) is temporary; resume on reactivation.
 
 **Explicit W10.1 constraints:**
+
 - W10.1 must subscribe to `subscribeRepos` from the relay and process `#commit` events in real time.
 - For each profile-collection op, extract the record value from the CAR blocks, attempt commit signature verification against the DID's signing key valid at the commit's `rev`, and verify MST inversion using inductive state from the prior processed commit for that DID.
 - Persist: `seq`, `rev`, `since`, `commit` CID, record CID, record value (CBOR bytes), the signed commit block, and the MST proof slice (signed commit block, referenced record block, and MST diff nodes needed for inversion). Retaining only the signed commit block is insufficient for later independent re-verification; the full proof slice is required for that guarantee, or the verification scope must be explicitly documented as ingest-time only.
@@ -970,6 +974,7 @@ Trust assumptions:
 - Unrecoverable gaps must be surfaced in the policy history view and must not be silently treated as "no policy change occurred."
 - Commit signature verification against a key no longer in the DID document is not possible retroactively; such events are marked "signature unverifiable" but their record value is retained if MST inversion passed at ingest time.
 - Do not claim downgrade cooldown accuracy for any period marked unrecoverable.
+
 ### Schema
 
 Add:
