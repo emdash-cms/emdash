@@ -4,6 +4,7 @@ import { createRoute, Link, useNavigate } from "@tanstack/react-router";
 
 import { apiClient } from "../api/client.js";
 import type { PublicAssessmentState } from "../api/types.js";
+import { QueryError } from "../components/QueryError.js";
 import { StateBadge } from "../components/StateBadge.js";
 import { shellRoute } from "./root.js";
 
@@ -37,7 +38,7 @@ function AssessmentList() {
 	const navigate = useNavigate();
 	const { state } = assessmentListRoute.useSearch();
 
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isError, error } = useQuery({
 		queryKey: ["assessments", { state }],
 		queryFn: () => apiClient.listAssessments({ state }),
 	});
@@ -67,53 +68,57 @@ function AssessmentList() {
 				</Select>
 			</div>
 
-			<LayerCard className="p-0">
-				{isLoading || !data ? (
-					<div className="flex items-center justify-center py-16">
-						<Loader />
-					</div>
-				) : data.items.length === 0 ? (
-					<div className="p-8 text-center text-sm text-kumo-subtle">No assessments found.</div>
-				) : (
-					<Table>
-						<Table.Header>
-							<Table.Row>
-								<Table.Head>Subject</Table.Head>
-								<Table.Head>State</Table.Head>
-								<Table.Head>Trigger</Table.Head>
-								<Table.Head>Created</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{data.items.map((assessment) => (
-								<Table.Row key={assessment.id}>
-									<Table.Cell>
-										<Link
-											to="/assessments/$id"
-											params={{ id: assessment.id }}
-											className="font-medium text-kumo-link hover:underline"
-										>
-											{assessment.uri.split("/").pop()}
-										</Link>
-										{assessment.isSuperseded && (
-											<Badge variant="neutral" className="ms-2">
-												Superseded
-											</Badge>
-										)}
-									</Table.Cell>
-									<Table.Cell>
-										<StateBadge state={assessment.state} />
-									</Table.Cell>
-									<Table.Cell>{assessment.trigger}</Table.Cell>
-									<Table.Cell>{new Date(assessment.createdAt).toLocaleString()}</Table.Cell>
+			{isError ? (
+				<QueryError title="Failed to load assessments" error={error} />
+			) : (
+				<LayerCard className="p-0">
+					{isLoading || !data ? (
+						<div className="flex items-center justify-center py-16">
+							<Loader />
+						</div>
+					) : data.items.length === 0 ? (
+						<div className="p-8 text-center text-sm text-kumo-subtle">No assessments found.</div>
+					) : (
+						<Table>
+							<Table.Header>
+								<Table.Row>
+									<Table.Head>Subject</Table.Head>
+									<Table.Head>State</Table.Head>
+									<Table.Head>Trigger</Table.Head>
+									<Table.Head>Created</Table.Head>
 								</Table.Row>
-							))}
-						</Table.Body>
-					</Table>
-				)}
-			</LayerCard>
+							</Table.Header>
+							<Table.Body>
+								{data.items.map((assessment) => (
+									<Table.Row key={assessment.id}>
+										<Table.Cell>
+											<Link
+												to="/assessments/$id"
+												params={{ id: assessment.id }}
+												className="font-medium text-kumo-link hover:underline"
+											>
+												{assessment.uri.split("/").pop()}
+											</Link>
+											{assessment.isSuperseded && (
+												<Badge variant="neutral" className="ms-2">
+													Superseded
+												</Badge>
+											)}
+										</Table.Cell>
+										<Table.Cell>
+											<StateBadge state={assessment.state} />
+										</Table.Cell>
+										<Table.Cell>{assessment.trigger}</Table.Cell>
+										<Table.Cell>{new Date(assessment.createdAt).toLocaleString()}</Table.Cell>
+									</Table.Row>
+								))}
+							</Table.Body>
+						</Table>
+					)}
+				</LayerCard>
+			)}
 
-			{data?.nextCursor && (
+			{!isError && data?.nextCursor && (
 				<div className="flex justify-center">
 					<span className="text-sm text-kumo-subtle">More assessments available.</span>
 				</div>

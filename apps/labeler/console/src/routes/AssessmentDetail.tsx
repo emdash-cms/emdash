@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { apiClient } from "../api/client.js";
 import { FindingCard } from "../components/FindingCard.js";
+import { QueryError } from "../components/QueryError.js";
 import { StateBadge } from "../components/StateBadge.js";
 import { shellRoute } from "./root.js";
 
@@ -20,20 +21,39 @@ function MetaRow({ label, value }: { label: string; value: ReactNode }) {
 function AssessmentDetail() {
 	const { id } = assessmentDetailRoute.useParams();
 
-	const { data: assessment, isLoading: isLoadingAssessment } = useQuery({
+	const {
+		data: assessment,
+		isLoading: isLoadingAssessment,
+		isError: isAssessmentError,
+		error: assessmentError,
+	} = useQuery({
 		queryKey: ["assessment", id],
 		queryFn: () => apiClient.getAssessment(id),
 	});
-	const { data: findings, isLoading: isLoadingFindings } = useQuery({
+	const {
+		data: findings,
+		isLoading: isLoadingFindings,
+		isError: isFindingsError,
+		error: findingsError,
+	} = useQuery({
 		queryKey: ["assessment", id, "findings"],
 		queryFn: () => apiClient.listFindings(id),
 		enabled: !!assessment,
 	});
-	const { data: labels, isLoading: isLoadingLabels } = useQuery({
+	const {
+		data: labels,
+		isLoading: isLoadingLabels,
+		isError: isLabelsError,
+		error: labelsError,
+	} = useQuery({
 		queryKey: ["assessment", id, "labels"],
 		queryFn: () => apiClient.listLabels(id),
 		enabled: !!assessment,
 	});
+
+	if (isAssessmentError) {
+		return <QueryError title="Failed to load assessment" error={assessmentError} />;
+	}
 
 	if (isLoadingAssessment) {
 		return (
@@ -43,6 +63,8 @@ function AssessmentDetail() {
 		);
 	}
 
+	// A successful query that resolved to null is a genuine not-found, distinct
+	// from isAssessmentError above -- that branch already returned.
 	if (!assessment) {
 		return <div className="p-8 text-center text-sm text-kumo-subtle">Assessment not found.</div>;
 	}
@@ -99,7 +121,9 @@ function AssessmentDetail() {
 
 			<section className="flex flex-col gap-3">
 				<h2 className="text-lg font-semibold">Labels</h2>
-				{isLoadingLabels || !labels ? (
+				{isLabelsError ? (
+					<QueryError title="Failed to load labels" error={labelsError} />
+				) : isLoadingLabels || !labels ? (
 					<Loader />
 				) : labels.length === 0 ? (
 					<p className="text-sm text-kumo-subtle">No labels issued for this run.</p>
@@ -119,7 +143,9 @@ function AssessmentDetail() {
 
 			<section className="flex flex-col gap-3">
 				<h2 className="text-lg font-semibold">Findings</h2>
-				{isLoadingFindings || !findings ? (
+				{isFindingsError ? (
+					<QueryError title="Failed to load findings" error={findingsError} />
+				) : isLoadingFindings || !findings ? (
 					<Loader />
 				) : findings.length === 0 ? (
 					<p className="text-sm text-kumo-subtle">No findings recorded for this run.</p>

@@ -3,16 +3,26 @@ import { useQuery } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
 
 import { apiClient } from "../api/client.js";
+import { QueryError } from "../components/QueryError.js";
 import { StateBadge } from "../components/StateBadge.js";
 import { shellRoute } from "./root.js";
 
 function SubjectHistory() {
 	const { uri } = subjectHistoryRoute.useParams();
 
-	const { data: history, isLoading } = useQuery({
+	const {
+		data: history,
+		isLoading,
+		isError,
+		error,
+	} = useQuery({
 		queryKey: ["subject-history", uri],
 		queryFn: () => apiClient.getSubjectHistory(uri),
 	});
+
+	if (isError) {
+		return <QueryError title="Failed to load subject history" error={error} />;
+	}
 
 	if (isLoading) {
 		return (
@@ -22,6 +32,8 @@ function SubjectHistory() {
 		);
 	}
 
+	// A successful query that resolved to null is a genuine not-found, distinct
+	// from isError above -- that branch already returned.
 	if (!history) {
 		return <div className="p-8 text-center text-sm text-kumo-subtle">Subject not found.</div>;
 	}

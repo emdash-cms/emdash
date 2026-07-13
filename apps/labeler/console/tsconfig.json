@@ -6,5 +6,5 @@
 		"types": ["vite/client"],
 		"noEmit": true
 	},
-	"include": ["src/**/*", "vite.config.ts", "lingui.config.ts", "vitest.config.ts"]
+	"include": ["src/**/*", "vite.config.ts", "vitest.config.ts"]
 }

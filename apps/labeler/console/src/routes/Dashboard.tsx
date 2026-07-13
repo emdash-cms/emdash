@@ -4,6 +4,7 @@ import { createRoute } from "@tanstack/react-router";
 import * as React from "react";
 
 import { apiClient } from "../api/client.js";
+import { QueryError } from "../components/QueryError.js";
 import { shellRoute } from "./root.js";
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
@@ -16,10 +17,24 @@ function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function Dashboard() {
-	const { data: status, isLoading } = useQuery({
+	const {
+		data: status,
+		isLoading,
+		isError,
+		error,
+	} = useQuery({
 		queryKey: ["system-status"],
 		queryFn: () => apiClient.getSystemStatus(),
 	});
+
+	if (isError) {
+		return (
+			<div className="flex flex-col gap-6">
+				<h1 className="text-xl font-semibold">Dashboard</h1>
+				<QueryError title="Failed to load system status" error={error} />
+			</div>
+		);
+	}
 
 	if (isLoading || !status) {
 		return (
