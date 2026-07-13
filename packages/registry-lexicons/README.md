@@ -61,4 +61,6 @@ Everything under `com.emdashcms.experimental.*` is unstable by design. The contr
 - Existing fields may have their constraints tightened or loosened in any release.
 - NSIDs may be renamed at the next stable cutover (see RFC 0001's migration plan).
 
+Delegated release grants are collection-specific. When the release NSID moves out of the experimental namespace, every publisher must authorize a new grant for the stable collection. `getDelegatedReleasePermission()` returns the active collection and exact create-only OAuth scope so clients do not hard-code either value.
+
 Once the registry is non-experimental, this package will publish a 1.0 with the post-experimental NSIDs and a stability commitment.

@@ -2,6 +2,7 @@ import { is, safeParse } from "@atcute/lexicons/validations";
 import { describe, expect, it } from "vitest";
 
 import {
+	getDelegatedReleasePermission,
 	NSID,
 	PackageProfile,
 	PackageProfileExtension,
@@ -9,6 +10,19 @@ import {
 	PackageReleaseExtension,
 	PublisherProfile,
 } from "../src/index.js";
+
+describe("delegated release permission", () => {
+	it("exposes only the active release collection's create scope", () => {
+		const permission = getDelegatedReleasePermission();
+
+		expect(permission).toEqual({
+			collection: NSID.packageRelease,
+			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+		});
+		expect(Object.isFrozen(permission)).toBe(true);
+		expect(permission.scope).not.toContain("transition:generic");
+	});
+});
 
 /**
  * Smoke tests over the generated types and validation schemas. The goal isn't

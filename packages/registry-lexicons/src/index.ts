@@ -58,6 +58,19 @@ export const NSID = {
 
 export type NSIDValue = (typeof NSID)[keyof typeof NSID];
 
+const DELEGATED_RELEASE_PERMISSION = Object.freeze({
+	collection: NSID.packageRelease,
+	scope: `atproto repo:${NSID.packageRelease}?action=create`,
+} as const);
+
+/**
+ * Return the exact collection and OAuth scope used by delegated publishing.
+ * A collection change requires every publisher to authorize a new grant.
+ */
+export function getDelegatedReleasePermission(): typeof DELEGATED_RELEASE_PERMISSION {
+	return DELEGATED_RELEASE_PERMISSION;
+}
+
 /**
  * NSIDs of record-shaped lexicons in this package (one row per NSID in the
  * publisher's repo). Embedded objects (`profileExtension`, `releaseExtension`) and shared defs
