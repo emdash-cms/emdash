@@ -56,6 +56,7 @@ const EXCLUDE = new Set([
 	"dist",
 	".astro",
 	".emdash",
+	".wrangler",
 	"CHANGELOG.md",
 	// AGENTS-template.md is the canonical per-template body that the
 	// sync-template-skills.sh script concatenates with scripts/agents-base.md
