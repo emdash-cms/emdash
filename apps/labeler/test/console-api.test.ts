@@ -4,7 +4,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import type { AccessKeyResolver } from "../src/access-auth.js";
 import { createSubject, recordFinding } from "../src/assessment-store.js";
-import { handleConsoleApi, type ConsoleApiDeps } from "../src/console-api.js";
+import {
+	handleConsoleApi,
+	probeJetstreamConnected,
+	type ConsoleApiDeps,
+} from "../src/console-api.js";
 import { OPERATOR_REQUEST_HEADER } from "../src/mutation-guard.js";
 import { buildOperatorActionInsert, type OperatorActionType } from "../src/operator-actions.js";
 
@@ -385,6 +389,23 @@ describe("handleConsoleApi — guard rejections", () => {
 		);
 		expect(res.status).toBe(200);
 	});
+
+	// The guard runs before route matching, so every family must reject an
+	// unauthenticated caller identically — no route reaches a store read (and so
+	// no private evidence) without a verified assertion.
+	it.each([
+		"/admin/api/assessments",
+		`/admin/api/assessments/${ASMT_BLOCK_B}`,
+		`/admin/api/assessments/${ASMT_BLOCK_B}/findings`,
+		`/admin/api/assessments/${ASMT_BLOCK_B}/labels`,
+		`/admin/api/subjects/${encodeURIComponent(URI_S)}`,
+		"/admin/api/audit-log",
+		"/admin/api/status",
+	])("rejects an unauthenticated request to %s (401)", async (path) => {
+		const res = await handleConsoleApi(req(path), deps());
+		expect(res.status).toBe(401);
+		expect((await body(res)).error?.code).toBe("UNAUTHENTICATED");
+	});
 });
 
 describe("handleConsoleApi — method + routing", () => {
@@ -596,5 +617,28 @@ describe("handleConsoleApi — system status", () => {
 		expect(status.pendingAssessments).toBe(2);
 		expect(status.deadLetterDepth).toBe(3);
 		expect(status).not.toHaveProperty("lastReconciliationAt");
+	});
+});
+
+describe("probeJetstreamConnected — degradation", () => {
+	it("reports disconnected (not an error) when both the DO and the D1 fallback fail", async () => {
+		const brokenEnv = {
+			LABELER_DISCOVERY_DO: {
+				idFromName: () => ({}),
+				get: () => ({
+					fetch: async () => {
+						throw new Error("DO unreachable");
+					},
+				}),
+			},
+			DB: {
+				prepare: () => ({
+					first: async () => {
+						throw new Error("no such table: ingest_state");
+					},
+				}),
+			},
+		} as unknown as Parameters<typeof probeJetstreamConnected>[0];
+		expect(await probeJetstreamConnected(brokenEnv)).toBe(false);
 	});
 });

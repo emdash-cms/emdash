@@ -166,6 +166,8 @@ describe("serializeOperatorActionView", () => {
 		expect(view).not.toHaveProperty("idempotencyKey");
 		expect(view).not.toHaveProperty("requestFingerprint");
 		expect(view).not.toHaveProperty("resultJson");
+		expect(view).not.toHaveProperty("metadataJson");
+		expect(view).not.toHaveProperty("createdAtEpochMs");
 	});
 
 	it("keeps the displayed who/what/why fields", () => {

@@ -47,6 +47,7 @@ import { guardRead, ReadGuardError, type ReadGuardDeps } from "./operator-read-g
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const NON_NEGATIVE_INTEGER = /^\d+$/;
+const ADMIN_API_PREFIX = /^\/admin\/api\/?/;
 
 const PUBLIC_STATES: ReadonlySet<string> = new Set([
 	"pending",
@@ -94,10 +95,7 @@ export async function handleConsoleApi(request: Request, deps: ConsoleApiDeps): 
 function matchRoute(request: Request, deps: ConsoleApiDeps): () => Promise<Response> {
 	const url = new URL(request.url);
 	// pathname keeps percent-encoding; the subject URI segment is decoded per route.
-	const segments = url.pathname
-		.replace(/^\/admin\/api\/?/, "")
-		.split("/")
-		.filter(Boolean);
+	const segments = url.pathname.replace(ADMIN_API_PREFIX, "").split("/").filter(Boolean);
 
 	if (segments[0] === "assessments") {
 		if (segments.length === 1) return () => handleListAssessments(request, url, deps);
@@ -310,10 +308,16 @@ export async function probeJetstreamConnected(env: Env): Promise<boolean> {
 	} catch {
 		// falls through to the D1 freshness fallback
 	}
-	const fresh = await env.DB.prepare(
-		`SELECT 1 FROM ingest_state
-		 WHERE source = 'jetstream' AND updated_at >= datetime('now', '-15 minutes')
-		 LIMIT 1`,
-	).first();
-	return fresh !== null;
+	try {
+		const fresh = await env.DB.prepare(
+			`SELECT 1 FROM ingest_state
+			 WHERE source = 'jetstream' AND updated_at >= datetime('now', '-15 minutes')
+			 LIMIT 1`,
+		).first();
+		return fresh !== null;
+	} catch {
+		// Neither signal is reachable; report disconnected rather than throwing and
+		// failing the whole status route on a degraded observability field.
+		return false;
+	}
 }
