@@ -12,6 +12,7 @@ import type { FindingSeverity } from "./evidence.js";
 import {
 	allowedFindingCategories,
 	FindingValidationError,
+	MAX_METADATA_FIELD_LENGTH,
 	validateFindings,
 	type NormalizedFinding,
 } from "./findings.js";
@@ -84,19 +85,30 @@ const FINDING_SEVERITIES = [
 	"info",
 ] as const satisfies readonly FindingSeverity[];
 
-const FENCE_SENTINEL = "<<<";
+export const FENCE_SENTINEL = "<<<";
 
 export async function analyzeCode(
 	input: CodeAnalysisInput,
 	deps: CodeAiDeps,
 ): Promise<CodeAnalysisResult> {
-	// A blank promptVersion is a caller/config bug, not flaky model output —
-	// fail loudly here rather than let validateSourceMetadata reject it later
-	// and have it misclassified as a retryable ModelTransientError.
+	// A blank or over-long promptVersion/modelId is a caller/config bug, not
+	// flaky model output — fail loudly here rather than let
+	// validateSourceMetadata reject the injected sourceMetadata later on every
+	// call and have it misclassified as a retryable ModelTransientError.
 	if (deps.promptVersion.trim().length === 0)
 		throw new TypeError("analyzeCode: deps.promptVersion must be a non-empty string");
+	if (deps.promptVersion.length > MAX_METADATA_FIELD_LENGTH)
+		throw new TypeError(
+			`analyzeCode: deps.promptVersion must be at most ${MAX_METADATA_FIELD_LENGTH} characters`,
+		);
 
 	const modelId = deps.modelId ?? DEFAULT_MODEL_ID;
+	if (modelId.trim().length === 0)
+		throw new TypeError("analyzeCode: modelId must be a non-empty string");
+	if (modelId.length > MAX_METADATA_FIELD_LENGTH)
+		throw new TypeError(
+			`analyzeCode: modelId must be at most ${MAX_METADATA_FIELD_LENGTH} characters`,
+		);
 	const allowedCategories = allowedFindingCategories(deps.policy);
 	const systemPrompt = buildSystemPrompt(allowedCategories);
 	const responseSchema = buildResponseSchema(allowedCategories);
@@ -258,7 +270,7 @@ function buildFence(file: CodeAnalysisFile, boundary: string): string {
 // the rest of its own content as a fence boundary — closing the untrusted
 // section early, or opening a fake one that reads as legitimate. Escaping the
 // sentinel breaks any embedded fence syntax without altering what the file says.
-function escapeFenceSentinel(content: string): string {
+export function escapeFenceSentinel(content: string): string {
 	return content.replaceAll(FENCE_SENTINEL, "\\<\\<\\<");
 }
 

@@ -15,7 +15,7 @@ export type FindingSource = "deterministic" | "capability" | "model" | "image" |
 
 const MAX_TITLE_LENGTH = 512;
 const MAX_SUMMARY_LENGTH = 4096;
-const MAX_METADATA_FIELD_LENGTH = 256;
+export const MAX_METADATA_FIELD_LENGTH = 256;
 const MAX_ARRAY_ENTRIES = 512;
 const MAX_ARRAY_ENTRY_LENGTH = 1024;
 

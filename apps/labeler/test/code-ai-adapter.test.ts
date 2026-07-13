@@ -9,7 +9,11 @@ import {
 	type AiRunInputs,
 	type CodeAnalysisInput,
 } from "../src/code-ai-adapter.js";
-import { allowedFindingCategories, FindingValidationError } from "../src/findings.js";
+import {
+	allowedFindingCategories,
+	FindingValidationError,
+	MAX_METADATA_FIELD_LENGTH,
+} from "../src/findings.js";
 import { MODERATION_POLICY, parseModerationPolicy } from "../src/policy.js";
 
 function baseInput(overrides: Partial<CodeAnalysisInput> = {}): CodeAnalysisInput {
@@ -190,6 +194,43 @@ describe("analyzeCode", () => {
 		});
 		await expect(promise).rejects.toThrow(TypeError);
 		await expect(promise).rejects.not.toThrow(ModelTransientError);
+	});
+
+	it("rejects a blank modelId up front rather than treating it as retryable", async () => {
+		const { ai, calls } = capturingAi(findingResponse([]));
+		const promise = analyzeCode(baseInput(), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+			modelId: "  ",
+		});
+		await expect(promise).rejects.toThrow(TypeError);
+		await expect(promise).rejects.not.toThrow(ModelTransientError);
+		expect(calls).toHaveLength(0);
+	});
+
+	it("rejects an over-long promptVersion or modelId up front rather than retrying it forever", async () => {
+		const { ai, calls } = capturingAi(findingResponse([]));
+		const longValue = "v".repeat(MAX_METADATA_FIELD_LENGTH + 1);
+
+		const longPrompt = analyzeCode(baseInput(), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: longValue,
+		});
+		await expect(longPrompt).rejects.toThrow(TypeError);
+		await expect(longPrompt).rejects.not.toThrow(ModelTransientError);
+
+		const longModel = analyzeCode(baseInput(), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+			modelId: longValue,
+		});
+		await expect(longModel).rejects.toThrow(TypeError);
+		await expect(longModel).rejects.not.toThrow(ModelTransientError);
+
+		expect(calls).toHaveLength(0);
 	});
 
 	it("restricts the response schema's category enum to exactly allowedFindingCategories(policy)", async () => {
