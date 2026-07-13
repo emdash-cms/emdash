@@ -1,15 +1,13 @@
-import { useLingui } from "@lingui/react/macro";
 import { createRoute } from "@tanstack/react-router";
 
 import { shellRoute } from "./root.js";
 
 function NotFoundPage() {
-	const { t } = useLingui();
 	return (
 		<div className="flex min-h-[50vh] items-center justify-center">
 			<div className="text-center">
-				<h1 className="text-2xl font-bold">{t`Not found`}</h1>
-				<p className="mt-2 text-kumo-subtle">{t`This page doesn't exist.`}</p>
+				<h1 className="text-2xl font-bold">Not found</h1>
+				<p className="mt-2 text-kumo-subtle">This page doesn't exist.</p>
 			</div>
 		</div>
 	);

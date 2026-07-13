@@ -1,5 +1,4 @@
 import { Badge, LayerCard, Loader, Select, Table } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
 
@@ -25,8 +24,16 @@ export interface AssessmentListSearch {
 	state?: PublicAssessmentState;
 }
 
+const STATE_LABELS: Record<PublicAssessmentState, string> = {
+	pending: "Pending",
+	passed: "Passed",
+	warned: "Warned",
+	blocked: "Blocked",
+	error: "Error",
+	superseded: "Superseded",
+};
+
 function AssessmentList() {
-	const { t } = useLingui();
 	const navigate = useNavigate();
 	const { state } = assessmentListRoute.useSearch();
 
@@ -34,15 +41,6 @@ function AssessmentList() {
 		queryKey: ["assessments", { state }],
 		queryFn: () => apiClient.listAssessments({ state }),
 	});
-
-	const stateLabels: Record<PublicAssessmentState, string> = {
-		pending: t`Pending`,
-		passed: t`Passed`,
-		warned: t`Warned`,
-		blocked: t`Blocked`,
-		error: t`Error`,
-		superseded: t`Superseded`,
-	};
 
 	const handleStateChange = (value: string | null) => {
 		void navigate({
@@ -54,16 +52,16 @@ function AssessmentList() {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-between">
-				<h1 className="text-xl font-semibold">{t`Assessments`}</h1>
+				<h1 className="text-xl font-semibold">Assessments</h1>
 				<Select
-					aria-label={t`Filter by state`}
+					aria-label="Filter by state"
 					value={state ?? "all"}
 					onValueChange={handleStateChange}
 				>
-					<Select.Option value="all">{t`All states`}</Select.Option>
+					<Select.Option value="all">All states</Select.Option>
 					{PUBLIC_STATES.map((value) => (
 						<Select.Option key={value} value={value}>
-							{stateLabels[value]}
+							{STATE_LABELS[value]}
 						</Select.Option>
 					))}
 				</Select>
@@ -75,15 +73,15 @@ function AssessmentList() {
 						<Loader />
 					</div>
 				) : data.items.length === 0 ? (
-					<div className="p-8 text-center text-sm text-kumo-subtle">{t`No assessments found.`}</div>
+					<div className="p-8 text-center text-sm text-kumo-subtle">No assessments found.</div>
 				) : (
 					<Table>
 						<Table.Header>
 							<Table.Row>
-								<Table.Head>{t`Subject`}</Table.Head>
-								<Table.Head>{t`State`}</Table.Head>
-								<Table.Head>{t`Trigger`}</Table.Head>
-								<Table.Head>{t`Created`}</Table.Head>
+								<Table.Head>Subject</Table.Head>
+								<Table.Head>State</Table.Head>
+								<Table.Head>Trigger</Table.Head>
+								<Table.Head>Created</Table.Head>
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
@@ -99,7 +97,7 @@ function AssessmentList() {
 										</Link>
 										{assessment.isSuperseded && (
 											<Badge variant="neutral" className="ms-2">
-												{t`Superseded`}
+												Superseded
 											</Badge>
 										)}
 									</Table.Cell>
@@ -117,7 +115,7 @@ function AssessmentList() {
 
 			{data?.nextCursor && (
 				<div className="flex justify-center">
-					<span className="text-sm text-kumo-subtle">{t`More assessments available.`}</span>
+					<span className="text-sm text-kumo-subtle">More assessments available.</span>
 				</div>
 			)}
 		</div>

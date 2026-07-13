@@ -11,14 +11,7 @@ export default defineConfig({
 	// Served as Workers static assets from the labeler Worker under /admin
 	// (plan W9.3) — same-origin /admin/api/* calls need matching asset paths.
 	base: "/admin/",
-	plugins: [
-		react({
-			babel: {
-				plugins: ["@lingui/babel-plugin-lingui-macro"],
-			},
-		}),
-		tailwindcss(),
-	],
+	plugins: [react(), tailwindcss()],
 	build: {
 		outDir: fileURLToPath(new URL("../dist/console", import.meta.url)),
 		emptyOutDir: true,

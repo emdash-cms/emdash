@@ -102,9 +102,6 @@ catalogs:
     '@lingui/cli':
       specifier: ^5.9.4
       version: 5.9.5
-    '@lingui/conf':
-      specifier: ^5.9.4
-      version: 5.9.5
     '@lingui/core':
       specifier: ^5.9.4
       version: 5.9.5
@@ -472,24 +469,6 @@ importers:
       '@emdash-cms/atproto-test-utils':
         specifier: workspace:*
         version: link:../../packages/atproto-test-utils
-      '@lingui/babel-plugin-lingui-macro':
-        specifier: 'catalog:'
-        version: 5.9.5(typescript@6.0.3)
-      '@lingui/cli':
-        specifier: 'catalog:'
-        version: 5.9.5(typescript@6.0.3)
-      '@lingui/conf':
-        specifier: 'catalog:'
-        version: 5.9.5(typescript@6.0.3)
-      '@lingui/core':
-        specifier: 'catalog:'
-        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))
-      '@lingui/macro':
-        specifier: 'catalog:'
-        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))(react@19.2.4)
-      '@lingui/react':
-        specifier: 'catalog:'
-        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))(react@19.2.4)
       '@phosphor-icons/react':
         specifier: 'catalog:'
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

@@ -14,11 +14,9 @@
 		"db:migrate:local": "wrangler d1 migrations apply emdash-labeler --local",
 		"db:migrate": "wrangler d1 migrations apply emdash-labeler --remote",
 		"console:dev": "vite dev --config console/vite.config.ts",
-		"console:build": "node --run console:locale:extract && node --run console:locale:compile && vite build --config console/vite.config.ts",
+		"console:build": "vite build --config console/vite.config.ts",
 		"console:typecheck": "tsgo --noEmit -p console/tsconfig.json",
-		"console:test": "vitest run --config console/vitest.config.ts",
-		"console:locale:extract": "lingui extract --config console/lingui.config.ts --clean",
-		"console:locale:compile": "lingui compile --config console/lingui.config.ts --namespace es"
+		"console:test": "vitest run --config console/vitest.config.ts"
 	},
 	"dependencies": {
 		"@atcute/cbor": "catalog:",
@@ -40,12 +38,6 @@
 		"@cloudflare/vite-plugin": "catalog:",
 		"@cloudflare/vitest-pool-workers": "catalog:",
 		"@emdash-cms/atproto-test-utils": "workspace:*",
-		"@lingui/babel-plugin-lingui-macro": "catalog:",
-		"@lingui/cli": "catalog:",
-		"@lingui/conf": "catalog:",
-		"@lingui/core": "catalog:",
-		"@lingui/macro": "catalog:",
-		"@lingui/react": "catalog:",
 		"@phosphor-icons/react": "catalog:",
 		"@tailwindcss/vite": "^4.3.2",
 		"@tanstack/react-query": "catalog:",

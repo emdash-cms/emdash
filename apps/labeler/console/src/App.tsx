@@ -1,12 +1,9 @@
 import { LinkProvider, Toasty, type LinkComponentProps } from "@cloudflare/kumo";
-import { i18n } from "@lingui/core";
-import type { Messages } from "@lingui/core";
-import { I18nProvider } from "@lingui/react";
+import { DirectionProvider } from "@cloudflare/kumo/primitives";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, RouterProvider, type LinkProps } from "@tanstack/react-router";
 import * as React from "react";
 
-import { LocaleDirectionProvider } from "./locales/index.js";
 import { createConsoleRouter } from "./router.js";
 
 const queryClient = new QueryClient({
@@ -52,30 +49,17 @@ const KumoRouterLink = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(
 	},
 );
 
-export interface ConsoleAppProps {
-	locale?: string;
-	messages?: Messages;
-}
-
-export function ConsoleApp({ locale = "en", messages = {} }: ConsoleAppProps) {
-	const i18nInitialized = React.useRef(false);
-	if (!i18nInitialized.current) {
-		i18n.loadAndActivate({ locale, messages });
-		i18nInitialized.current = true;
-	}
-
+export function ConsoleApp() {
 	return (
-		<I18nProvider i18n={i18n}>
-			<LocaleDirectionProvider>
-				<Toasty>
-					<QueryClientProvider client={queryClient}>
-						<LinkProvider component={KumoRouterLink}>
-							<RouterProvider router={router} />
-						</LinkProvider>
-					</QueryClientProvider>
-				</Toasty>
-			</LocaleDirectionProvider>
-		</I18nProvider>
+		<DirectionProvider direction="ltr">
+			<Toasty>
+				<QueryClientProvider client={queryClient}>
+					<LinkProvider component={KumoRouterLink}>
+						<RouterProvider router={router} />
+					</LinkProvider>
+				</QueryClientProvider>
+			</Toasty>
+		</DirectionProvider>
 	);
 }
 

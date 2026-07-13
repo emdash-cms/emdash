@@ -1,5 +1,4 @@
 import { Badge, LayerCard, Loader } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -19,7 +18,6 @@ function MetaRow({ label, value }: { label: string; value: ReactNode }) {
 }
 
 function AssessmentDetail() {
-	const { t } = useLingui();
 	const { id } = assessmentDetailRoute.useParams();
 
 	const { data: assessment, isLoading: isLoadingAssessment } = useQuery({
@@ -46,18 +44,16 @@ function AssessmentDetail() {
 	}
 
 	if (!assessment) {
-		return (
-			<div className="p-8 text-center text-sm text-kumo-subtle">{t`Assessment not found.`}</div>
-		);
+		return <div className="p-8 text-center text-sm text-kumo-subtle">Assessment not found.</div>;
 	}
 
 	return (
 		<div className="flex flex-col gap-6">
 			<div className="flex flex-col gap-2">
 				<div className="flex items-center gap-2">
-					<h1 className="text-xl font-semibold">{t`Assessment`}</h1>
+					<h1 className="text-xl font-semibold">Assessment</h1>
 					<StateBadge state={assessment.state} />
-					{assessment.isSuperseded && <Badge variant="neutral">{t`Superseded`}</Badge>}
+					{assessment.isSuperseded && <Badge variant="neutral">Superseded</Badge>}
 				</div>
 				<Link
 					to="/subjects/$uri"
@@ -67,27 +63,27 @@ function AssessmentDetail() {
 					{assessment.uri}
 				</Link>
 				<p className="text-sm text-kumo-subtle">
-					{t`CID`}: <span className="font-mono">{assessment.cid}</span>
+					CID: <span className="font-mono">{assessment.cid}</span>
 				</p>
 				{assessment.publicSummary && <p className="text-sm">{assessment.publicSummary}</p>}
 			</div>
 
 			<LayerCard className="grid grid-cols-2 gap-4 p-4 md:grid-cols-4">
-				<MetaRow label={t`Trigger`} value={assessment.trigger} />
-				<MetaRow label={t`Policy version`} value={assessment.policyVersion} />
-				<MetaRow label={t`Model`} value={assessment.modelId ?? t`None`} />
-				<MetaRow label={t`Created`} value={new Date(assessment.createdAt).toLocaleString()} />
+				<MetaRow label="Trigger" value={assessment.trigger} />
+				<MetaRow label="Policy version" value={assessment.policyVersion} />
+				<MetaRow label="Model" value={assessment.modelId ?? "None"} />
+				<MetaRow label="Created" value={new Date(assessment.createdAt).toLocaleString()} />
 				<MetaRow
-					label={t`Started`}
-					value={assessment.startedAt ? new Date(assessment.startedAt).toLocaleString() : t`—`}
+					label="Started"
+					value={assessment.startedAt ? new Date(assessment.startedAt).toLocaleString() : "—"}
 				/>
 				<MetaRow
-					label={t`Completed`}
-					value={assessment.completedAt ? new Date(assessment.completedAt).toLocaleString() : t`—`}
+					label="Completed"
+					value={assessment.completedAt ? new Date(assessment.completedAt).toLocaleString() : "—"}
 				/>
 				{assessment.supersedesAssessmentId && (
 					<MetaRow
-						label={t`Supersedes`}
+						label="Supersedes"
 						value={
 							<Link
 								to="/assessments/$id"
@@ -102,11 +98,11 @@ function AssessmentDetail() {
 			</LayerCard>
 
 			<section className="flex flex-col gap-3">
-				<h2 className="text-lg font-semibold">{t`Labels`}</h2>
+				<h2 className="text-lg font-semibold">Labels</h2>
 				{isLoadingLabels || !labels ? (
 					<Loader />
 				) : labels.length === 0 ? (
-					<p className="text-sm text-kumo-subtle">{t`No labels issued for this run.`}</p>
+					<p className="text-sm text-kumo-subtle">No labels issued for this run.</p>
 				) : (
 					<div className="flex flex-wrap gap-2">
 						{labels.map((label) => (
@@ -122,11 +118,11 @@ function AssessmentDetail() {
 			</section>
 
 			<section className="flex flex-col gap-3">
-				<h2 className="text-lg font-semibold">{t`Findings`}</h2>
+				<h2 className="text-lg font-semibold">Findings</h2>
 				{isLoadingFindings || !findings ? (
 					<Loader />
 				) : findings.length === 0 ? (
-					<p className="text-sm text-kumo-subtle">{t`No findings recorded for this run.`}</p>
+					<p className="text-sm text-kumo-subtle">No findings recorded for this run.</p>
 				) : (
 					<div className="flex flex-col gap-3">
 						{findings.map((finding) => (

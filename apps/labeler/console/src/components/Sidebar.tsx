@@ -1,5 +1,4 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { ClockCounterClockwise, ShieldCheck, SquaresFour } from "@phosphor-icons/react";
 import { useLocation } from "@tanstack/react-router";
 import * as React from "react";
@@ -38,20 +37,19 @@ function isItemActive(itemPath: string, currentPath: string): boolean {
 }
 
 export function SidebarNav() {
-	const { t } = useLingui();
 	const currentPath = useLocation({ select: (location) => location.pathname });
 
 	const items: NavItem[] = [
-		{ to: "/", label: t`Dashboard`, icon: SquaresFour },
-		{ to: "/assessments", label: t`Assessments`, icon: ShieldCheck },
-		{ to: "/audit", label: t`Audit log`, icon: ClockCounterClockwise },
+		{ to: "/", label: "Dashboard", icon: SquaresFour },
+		{ to: "/assessments", label: "Assessments", icon: ShieldCheck },
+		{ to: "/audit", label: "Audit log", icon: ClockCounterClockwise },
 	];
 
 	return (
-		<KumoSidebar aria-label={t`Labeler console navigation`}>
+		<KumoSidebar aria-label="Labeler console navigation">
 			<KumoSidebar.Header>
 				<span className="truncate px-3 py-1 font-semibold group-data-[state=collapsed]/sidebar:hidden">
-					{t`Labeler console`}
+					Labeler console
 				</span>
 			</KumoSidebar.Header>
 			<KumoSidebar.Content>

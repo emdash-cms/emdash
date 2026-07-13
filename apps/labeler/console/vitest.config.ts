@@ -5,13 +5,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	root: fileURLToPath(new URL(".", import.meta.url)),
-	plugins: [
-		react({
-			babel: {
-				plugins: ["@lingui/babel-plugin-lingui-macro"],
-			},
-		}),
-	],
+	plugins: [react()],
 	test: {
 		globals: true,
 		environment: "jsdom",

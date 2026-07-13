@@ -1,5 +1,4 @@
 import { Badge } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 
 import type { FindingSeverity } from "../api/types.js";
 
@@ -13,18 +12,18 @@ const VARIANT_BY_SEVERITY: Record<FindingSeverity, BadgeVariant> = {
 	info: "neutral",
 };
 
+const LABEL_BY_SEVERITY: Record<FindingSeverity, string> = {
+	critical: "Critical",
+	high: "High",
+	medium: "Medium",
+	low: "Low",
+	info: "Info",
+};
+
 export interface SeverityBadgeProps {
 	severity: FindingSeverity;
 }
 
 export function SeverityBadge({ severity }: SeverityBadgeProps) {
-	const { t } = useLingui();
-	const labels: Record<FindingSeverity, string> = {
-		critical: t`Critical`,
-		high: t`High`,
-		medium: t`Medium`,
-		low: t`Low`,
-		info: t`Info`,
-	};
-	return <Badge variant={VARIANT_BY_SEVERITY[severity]}>{labels[severity]}</Badge>;
+	return <Badge variant={VARIANT_BY_SEVERITY[severity]}>{LABEL_BY_SEVERITY[severity]}</Badge>;
 }
