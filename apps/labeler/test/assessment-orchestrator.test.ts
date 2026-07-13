@@ -221,7 +221,7 @@ describe("AssessmentOrchestrator: happy path", () => {
 });
 
 describe("AssessmentOrchestrator: warning findings", () => {
-	it("finalizes warned and issues the warning label", async () => {
+	it("finalizes warned and issues the warning label alongside assessment-passed", async () => {
 		const run = await pendingRun({ name: "warn", cidValue: await cid("warn") });
 		const stages: OrchestratorStages = {
 			...stubStages,
@@ -239,6 +239,212 @@ describe("AssessmentOrchestrator: warning findings", () => {
 			.bind(run.uri, run.cid)
 			.first<{ neg: number }>();
 		expect(label?.neg).toBe(0);
+		const passed = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-passed'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(passed?.neg).toBe(0);
+	});
+
+	it("negates a superseded warning label while keeping assessment-passed active across the new run", async () => {
+		const name = "warn-then-clean";
+		const cidValue = await cid(name);
+		const uri = releaseUri(name);
+		await createSubject(testEnv.DB, {
+			uri,
+			cid: cidValue,
+			did: PUBLISHER_DID,
+			collection: "com.emdashcms.experimental.package.release",
+			rkey: `${name}:1.0.0`,
+		});
+
+		const firstRunKey = await computeRunKey({
+			uri,
+			cid: cidValue,
+			policyVersion: MODERATION_POLICY.policyVersion,
+			modelId: "unassigned",
+			promptHash: "unassigned",
+			scannerSetVersion: "unassigned",
+			triggerId: initialTriggerId(cidValue),
+		});
+		const { assessment: first } = await createAssessmentRun(testEnv.DB, {
+			runKey: firstRunKey,
+			uri,
+			cid: cidValue,
+			trigger: "initial",
+			triggerId: initialTriggerId(cidValue),
+			policyVersion: MODERATION_POLICY.policyVersion,
+			coverageJson: "{}",
+		});
+		await transitionAssessmentState(testEnv.DB, {
+			id: first.id,
+			from: "observed",
+			to: "verifying",
+		});
+		await transitionAssessmentState(testEnv.DB, { id: first.id, from: "verifying", to: "pending" });
+		const warningStages: OrchestratorStages = {
+			...stubStages,
+			deterministic: () =>
+				Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
+		};
+		const firstResult = await (await buildOrchestrator(warningStages)).runAssessment(first.id);
+		expect(firstResult.state).toBe("warned");
+
+		const secondRunKey = await computeRunKey({
+			uri,
+			cid: cidValue,
+			policyVersion: MODERATION_POLICY.policyVersion,
+			modelId: "unassigned",
+			promptHash: "unassigned",
+			scannerSetVersion: "unassigned",
+			triggerId: operatorTriggerId("op-rerun-1"),
+		});
+		const { assessment: second } = await createAssessmentRun(testEnv.DB, {
+			runKey: secondRunKey,
+			uri,
+			cid: cidValue,
+			trigger: "operator",
+			triggerId: operatorTriggerId("op-rerun-1"),
+			policyVersion: MODERATION_POLICY.policyVersion,
+			coverageJson: "{}",
+		});
+		await transitionAssessmentState(testEnv.DB, {
+			id: second.id,
+			from: "observed",
+			to: "verifying",
+		});
+		await transitionAssessmentState(testEnv.DB, {
+			id: second.id,
+			from: "verifying",
+			to: "pending",
+		});
+		const secondResult = await (await buildOrchestrator(stubStages)).runAssessment(second.id);
+		expect(secondResult.state).toBe("passed");
+
+		const obfuscated = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'obfuscated-code'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uri, cidValue)
+			.first<{ neg: number }>();
+		expect(obfuscated?.neg).toBe(1);
+
+		const passed = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-passed'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uri, cidValue)
+			.first<{ neg: number }>();
+		expect(passed?.neg).toBe(0);
+	});
+
+	it("negates a superseded assessment-passed when a blocking run supersedes a warned run", async () => {
+		const name = "warn-then-block";
+		const cidValue = await cid(name);
+		const uri = releaseUri(name);
+		await createSubject(testEnv.DB, {
+			uri,
+			cid: cidValue,
+			did: PUBLISHER_DID,
+			collection: "com.emdashcms.experimental.package.release",
+			rkey: `${name}:1.0.0`,
+		});
+
+		const firstRunKey = await computeRunKey({
+			uri,
+			cid: cidValue,
+			policyVersion: MODERATION_POLICY.policyVersion,
+			modelId: "unassigned",
+			promptHash: "unassigned",
+			scannerSetVersion: "unassigned",
+			triggerId: initialTriggerId(cidValue),
+		});
+		const { assessment: first } = await createAssessmentRun(testEnv.DB, {
+			runKey: firstRunKey,
+			uri,
+			cid: cidValue,
+			trigger: "initial",
+			triggerId: initialTriggerId(cidValue),
+			policyVersion: MODERATION_POLICY.policyVersion,
+			coverageJson: "{}",
+		});
+		await transitionAssessmentState(testEnv.DB, {
+			id: first.id,
+			from: "observed",
+			to: "verifying",
+		});
+		await transitionAssessmentState(testEnv.DB, { id: first.id, from: "verifying", to: "pending" });
+		const warningStages: OrchestratorStages = {
+			...stubStages,
+			deterministic: () =>
+				Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
+		};
+		const firstResult = await (await buildOrchestrator(warningStages)).runAssessment(first.id);
+		expect(firstResult.state).toBe("warned");
+
+		const secondRunKey = await computeRunKey({
+			uri,
+			cid: cidValue,
+			policyVersion: MODERATION_POLICY.policyVersion,
+			modelId: "unassigned",
+			promptHash: "unassigned",
+			scannerSetVersion: "unassigned",
+			triggerId: operatorTriggerId("op-rerun-2"),
+		});
+		const { assessment: second } = await createAssessmentRun(testEnv.DB, {
+			runKey: secondRunKey,
+			uri,
+			cid: cidValue,
+			trigger: "operator",
+			triggerId: operatorTriggerId("op-rerun-2"),
+			policyVersion: MODERATION_POLICY.policyVersion,
+			coverageJson: "{}",
+		});
+		await transitionAssessmentState(testEnv.DB, {
+			id: second.id,
+			from: "observed",
+			to: "verifying",
+		});
+		await transitionAssessmentState(testEnv.DB, {
+			id: second.id,
+			from: "verifying",
+			to: "pending",
+		});
+		const blockingStages: OrchestratorStages = {
+			...stubStages,
+			deterministic: () =>
+				Promise.resolve([finding({ category: "malware", severity: "critical" })]),
+		};
+		const secondResult = await (await buildOrchestrator(blockingStages)).runAssessment(second.id);
+		expect(secondResult.state).toBe("blocked");
+
+		// The stale assessment-passed from the warned run must be negated: a
+		// blocked release satisfying clients' install-eligibility gate through
+		// a leftover pass would be a critical bypass.
+		const passedAfterBlock = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-passed'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uri, cidValue)
+			.first<{ neg: number }>();
+		expect(passedAfterBlock?.neg).toBe(1);
+
+		const blocked = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'malware'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uri, cidValue)
+			.first<{ neg: number }>();
+		expect(blocked?.neg).toBe(0);
+
+		const staleWarning = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'obfuscated-code'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uri, cidValue)
+			.first<{ neg: number }>();
+		expect(staleWarning?.neg).toBe(1);
 	});
 });
 
@@ -290,6 +496,30 @@ describe("AssessmentOrchestrator: permanent deterministic failure", () => {
 			.filter((v) => !v.startsWith("assessment-"));
 		expect(blockVals).toContain("malware");
 		expect(blockVals).toContain("supply-chain-compromise");
+	});
+
+	it("issues warning labels alongside a blocking label, and no assessment-passed", async () => {
+		const run = await pendingRun({ name: "block-and-warn", cidValue: await cid("block-and-warn") });
+		const stages: OrchestratorStages = {
+			...stubStages,
+			deterministic: () =>
+				Promise.resolve([finding({ category: "malware", severity: "critical" })]),
+			codeAi: () => Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
+		};
+		const orchestrator = await buildOrchestrator(stages);
+
+		const result = await orchestrator.runAssessment(run.id);
+
+		expect(result.state).toBe("blocked");
+		const vals = await testEnv.DB.prepare(
+			`SELECT val FROM issued_labels WHERE uri = ? AND cid = ? AND neg = 0 ORDER BY val`,
+		)
+			.bind(run.uri, run.cid)
+			.all<{ val: string }>();
+		const issued = (vals.results ?? []).map((r) => r.val);
+		expect(issued).toContain("malware");
+		expect(issued).toContain("obfuscated-code");
+		expect(issued).not.toContain("assessment-passed");
 	});
 });
 
