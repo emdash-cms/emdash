@@ -548,12 +548,13 @@ export class OAuthCustodyRepository {
 			}
 			return id;
 		}
-		await this.#db
+		const result = await this.#db
 			.prepare(
 				`INSERT INTO delegations (
 					id, publisher_did, release_nsid, encrypted_session, encryption_key_version,
 					client_key_id, scope, status, refresh_before, created_at, updated_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
+				) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
+				ON CONFLICT(publisher_did, release_nsid) WHERE revoked_at IS NULL DO NOTHING`,
 			)
 			.bind(
 				id,
@@ -568,6 +569,9 @@ export class OAuthCustodyRepository {
 				now,
 			)
 			.run();
+		if (result.meta.changes !== 1) {
+			throw new OAuthCustodyError("OAUTH_DELEGATION_CAS_REQUIRED");
+		}
 		return id;
 	}
 
@@ -735,7 +739,11 @@ export class OAuthCustodyRepository {
 					status = 'refreshing', lease_owner = ?, lease_expires_at = ?,
 					state_version = state_version + 1, updated_at = ?
 				WHERE id = ? AND publisher_did = ? AND release_nsid = ? AND state_version = ?
-					AND status = 'active' AND lease_owner IS NULL AND revoked_at IS NULL`,
+					AND revoked_at IS NULL AND (
+						(status = 'active' AND lease_owner IS NULL AND lease_expires_at IS NULL)
+						OR (status = 'refreshing' AND lease_owner IS NOT NULL
+							AND lease_expires_at IS NOT NULL AND lease_expires_at <= ?)
+					)`,
 			)
 			.bind(
 				input.leaseOwner,
@@ -745,6 +753,7 @@ export class OAuthCustodyRepository {
 				input.publisherDid,
 				this.#oauth.releaseNsid,
 				input.expectedVersion,
+				now,
 			)
 			.run();
 		return result.meta.changes === 1;

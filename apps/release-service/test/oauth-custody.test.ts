@@ -491,6 +491,31 @@ describe("OAuth custody D1 repository", () => {
 		await expect(statement("01J00000000000000000000002").run()).rejects.toThrow();
 	});
 
+	it("normalizes concurrent first-delegation conflicts", async () => {
+		const publisherDid = "did:plc:concurrent-delegation" as const;
+		const { repository } = await createRepository();
+		await repository.upsertPublisher({ did: publisherDid });
+		const stores = createOAuthStores(repository, {
+			purpose: "release_delegation",
+			expectedDid: publisherDid,
+			redirectTarget: "/delegations",
+		});
+		const session = {
+			...storedSession(),
+			tokenSet: { ...storedSession().tokenSet, sub: publisherDid },
+		};
+
+		const results = await Promise.allSettled(
+			Array.from({ length: 8 }, async () => stores.sessions.set(publisherDid, session)),
+		);
+		expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+		const rejected = results.filter((result) => result.status === "rejected");
+		expect(rejected).toHaveLength(7);
+		for (const result of rejected) {
+			expect(result.reason).toMatchObject({ code: "OAUTH_DELEGATION_CAS_REQUIRED" });
+		}
+	});
+
 	it("replaces a delegation after reauthorization is required", async () => {
 		const { repository } = await createRepository();
 		await repository.upsertPublisher({ did: DID });
@@ -734,6 +759,61 @@ describe("OAuth custody D1 repository", () => {
 			lease_expires_at: null,
 		});
 		expect(await stores.sessions.get(publisherDid)).toEqual(session);
+	});
+
+	it("reclaims an expired delegation refresh lease", async () => {
+		const { repository } = await createRepository();
+		const publisherDid = "did:plc:stale-refresh-lease" as const;
+		await repository.upsertPublisher({ did: publisherDid });
+		const session = {
+			...storedSession(),
+			tokenSet: { ...storedSession().tokenSet, sub: publisherDid },
+		};
+		const stores = createOAuthStores(repository, {
+			purpose: "release_delegation",
+			expectedDid: publisherDid,
+			redirectTarget: "/delegations",
+		});
+		await stores.sessions.set(publisherDid, session);
+		const delegation = await repository.getDelegationByPublisher(publisherDid);
+		expect(
+			await repository.claimDelegationLeaseCas({
+				id: delegation!.id,
+				publisherDid,
+				expectedVersion: 1,
+				leaseOwner: "stale-worker",
+				leaseExpiresAt: new Date(Date.now() + 30_000),
+			}),
+		).toBe(true);
+		await testEnv.DB.prepare("UPDATE delegations SET lease_expires_at = ? WHERE id = ?")
+			.bind(new Date(Date.now() - 1).toISOString(), delegation!.id)
+			.run();
+
+		expect(
+			await repository.claimDelegationLeaseCas({
+				id: delegation!.id,
+				publisherDid,
+				expectedVersion: 2,
+				leaseOwner: "recovery-worker",
+				leaseExpiresAt: new Date(Date.now() + 30_000),
+			}),
+		).toBe(true);
+		const recovered = await repository.getDelegationByPublisher(publisherDid);
+		expect(recovered).toMatchObject({
+			status: "refreshing",
+			state_version: 3,
+			lease_owner: "recovery-worker",
+		});
+		expect(
+			await repository.storeDelegationSessionCas({
+				id: delegation!.id,
+				publisherDid,
+				expectedVersion: 2,
+				leaseOwner: "stale-worker",
+				session,
+				refreshBefore: new Date(Date.now() + 45_000),
+			}),
+		).toBe(false);
 	});
 
 	it("transitions a leased delegation when its client key is unavailable", async () => {
