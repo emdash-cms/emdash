@@ -107,15 +107,23 @@ export interface SubjectHistoryView {
 }
 
 /**
- * Placeholder shape for the append-only `operator_actions` audit table
- * (plan W9.2) — that table doesn't exist yet, so the audit log route
- * renders an empty state rather than calling this through the client.
+ * A row from the append-only `operator_actions` audit table (plan W9.2),
+ * sanitized by the server's `serializeOperatorActionView` — the internal
+ * replay fields (`idempotencyKey`, `requestFingerprint`, `resultJson`) are
+ * never sent. Actor identity is the Cloudflare Access subject (`actorId`), not
+ * a DID; humans carry `actorEmail`, service tokens carry `actorCommonName`.
  */
 export interface OperatorAction {
 	id: string;
-	actorDid: string;
+	actorType: "human" | "service";
+	actorId: string;
+	actorEmail: string | null;
+	actorCommonName: string | null;
+	role: "admin" | "reviewer";
 	action: string;
 	subjectUri: string | null;
+	subjectCid: string | null;
+	labelValue: string | null;
 	reason: string;
 	createdAt: string;
 }
@@ -124,8 +132,9 @@ export interface SystemStatusSnapshot {
 	labelerDid: string;
 	jetstreamConnected: boolean;
 	pendingAssessments: number;
-	discoveryQueueDepth: number;
-	lastReconciliationAt: string | null;
+	/** Dead-letter backlog — the observable stand-in for discovery-queue depth,
+	 * which the Queues API does not expose to the consumer Worker. */
+	deadLetterDepth: number;
 }
 
 export interface Page<T> {

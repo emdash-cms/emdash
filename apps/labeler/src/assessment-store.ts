@@ -9,6 +9,8 @@ import {
 	type AssessmentState,
 	type PublicAssessmentState,
 } from "./assessment-lifecycle.js";
+import type { FindingSeverity } from "./evidence.js";
+import type { FindingSource } from "./findings.js";
 
 const DECISION_OUTCOME_STATES: ReadonlySet<AssessmentState> = new Set([
 	"passed",
@@ -868,6 +870,198 @@ export async function subjectWasObserved(
 		.bind(input.uri, input.cid)
 		.first();
 	return row !== null;
+}
+
+/** Full-lifecycle assessment history for a URI (all states, all CIDs),
+ * newest-first, capped at {@link SUBJECT_HISTORY_LIMIT}. Powers the operator
+ * console's subject view, which — unlike the public list — surfaces
+ * `observed`/`stale`/`cancelled` runs too. `isSuperseded` is computed inline
+ * via the same correlated subquery as {@link getAssessmentsPage}. */
+const SUBJECT_HISTORY_LIMIT = 100;
+
+export async function getAssessmentsForUri(
+	db: D1Database,
+	uri: string,
+): Promise<ListedAssessment[]> {
+	const rows = await db
+		.prepare(
+			`SELECT a.id, a.run_key, a.uri, a.cid, a.artifact_id, a.artifact_checksum, a.state,
+			 a.trigger, a.trigger_id, a.policy_version, a.model_id, a.prompt_hash,
+			 a.public_summary, a.coverage_json, a.supersedes_assessment_id,
+			 a.started_at, a.completed_at, a.created_at,
+			 ${SUPERSEDED_EXISTS_SQL} AS is_superseded
+			 FROM assessments a
+			 WHERE a.uri = ?
+			 ORDER BY a.created_at_epoch_ms DESC, a.id DESC
+			 LIMIT ?`,
+		)
+		.bind(uri, SUBJECT_HISTORY_LIMIT)
+		.all<AssessmentRow & { is_superseded: number }>();
+	return (rows.results ?? []).map((row) => ({
+		...rowToAssessment(row),
+		isSuperseded: row.is_superseded === 1,
+	}));
+}
+
+/** Count of in-flight runs (`pending` or `running`) across all subjects — the
+ * operator dashboard's "pending assessments" figure. */
+export async function countInFlightAssessments(db: D1Database): Promise<number> {
+	const row = await db
+		.prepare(`SELECT COUNT(*) AS n FROM assessments WHERE state IN ('pending', 'running')`)
+		.first<{ n: number }>();
+	return row?.n ?? 0;
+}
+
+export interface Subject {
+	uri: string;
+	cid: string;
+	did: string;
+	collection: string;
+	rkey: string;
+	observedAt: string;
+	deletedAt: string | null;
+}
+
+interface SubjectRow {
+	uri: string;
+	cid: string;
+	did: string;
+	collection: string;
+	rkey: string;
+	observed_at: string;
+	deleted_at: string | null;
+}
+
+/** The current subject row at a URI: the newest non-deleted CID (same
+ * observed-then-CID tie-break as {@link isSubjectCurrent}), falling back to the
+ * newest deleted row when every CID has been tombstoned. Returns null only when
+ * the URI was never observed at all — the operator console maps that to a 404. */
+export async function getCurrentSubjectByUri(db: D1Database, uri: string): Promise<Subject | null> {
+	const row = await db
+		.prepare(
+			`SELECT uri, cid, did, collection, rkey, observed_at, deleted_at
+			 FROM subjects WHERE uri = ?
+			 ORDER BY (deleted_at IS NULL) DESC, observed_at_epoch_ms DESC, cid DESC
+			 LIMIT 1`,
+		)
+		.bind(uri)
+		.first<SubjectRow>();
+	return row
+		? {
+				uri: row.uri,
+				cid: row.cid,
+				did: row.did,
+				collection: row.collection,
+				rkey: row.rkey,
+				observedAt: row.observed_at,
+				deletedAt: row.deleted_at,
+			}
+		: null;
+}
+
+export interface AssessmentFinding {
+	id: string;
+	assessmentId: string;
+	source: FindingSource;
+	category: string;
+	severity: FindingSeverity;
+	confidence: number | null;
+	title: string;
+	publicSummary: string;
+	privateDetail: string;
+	evidenceRefs: string[];
+	createdAt: string;
+}
+
+interface FindingRow {
+	id: string;
+	assessment_id: string;
+	source: FindingSource;
+	category: string;
+	severity: FindingSeverity;
+	confidence: number | null;
+	title: string;
+	public_summary: string;
+	private_detail: string;
+	evidence_refs_json: string;
+	created_at: string;
+}
+
+/** Every finding for a run, oldest-first, with the operator-only
+ * `privateDetail`/`evidenceRefs` intact — the console serves the full record,
+ * not the public API's stripped view (spec §19.2). A malformed
+ * `evidence_refs_json` degrades to an empty list rather than throwing. */
+export async function getFindingsForAssessment(
+	db: D1Database,
+	assessmentId: string,
+): Promise<AssessmentFinding[]> {
+	const rows = await db
+		.prepare(
+			`SELECT id, assessment_id, source, category, severity, confidence, title,
+			 public_summary, private_detail, evidence_refs_json, created_at
+			 FROM findings WHERE assessment_id = ?
+			 ORDER BY created_at ASC, id ASC`,
+		)
+		.bind(assessmentId)
+		.all<FindingRow>();
+	return (rows.results ?? []).map((row) => ({
+		id: row.id,
+		assessmentId: row.assessment_id,
+		source: row.source,
+		category: row.category,
+		severity: row.severity,
+		confidence: row.confidence,
+		title: row.title,
+		publicSummary: row.public_summary,
+		privateDetail: row.private_detail,
+		evidenceRefs: parseEvidenceRefs(row.evidence_refs_json),
+		createdAt: row.created_at,
+	}));
+}
+
+function parseEvidenceRefs(json: string): string[] {
+	try {
+		const parsed: unknown = JSON.parse(json);
+		if (Array.isArray(parsed))
+			return parsed.filter((entry): entry is string => typeof entry === "string");
+	} catch {
+		// falls through to the empty default
+	}
+	return [];
+}
+
+export interface AssessmentIssuedLabel {
+	val: string;
+	cts: string;
+	exp: string | null;
+	neg: boolean;
+	sequence: number;
+}
+
+/** Every label op an assessment produced, including negations, oldest-first.
+ * Unlike {@link getLabelsForAssessment} (which filters `neg=0` for the public
+ * view), the operator console needs the full issue/retract timeline. */
+export async function getAllLabelsForAssessment(
+	db: D1Database,
+	assessmentId: string,
+): Promise<AssessmentIssuedLabel[]> {
+	const rows = await db
+		.prepare(
+			`SELECT l.val, l.cts, l.exp, l.neg, l.sequence
+			 FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?
+			 ORDER BY l.sequence ASC`,
+		)
+		.bind(assessmentId)
+		.all<{ val: string; cts: string; exp: string | null; neg: number; sequence: number }>();
+	return (rows.results ?? []).map((row) => ({
+		val: row.val,
+		cts: row.cts,
+		exp: row.exp,
+		neg: row.neg === 1,
+		sequence: row.sequence,
+	}));
 }
 
 function rowToAssessment(row: AssessmentRow): Assessment {

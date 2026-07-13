@@ -1,4 +1,10 @@
-import { getLabelerIdentityConfig } from "./config.js";
+import {
+	getAccessKeyResolver,
+	parseAccessAuthConfig,
+	type AccessAuthConfig,
+} from "./access-auth.js";
+import { getLabelerIdentityConfig, type LabelerConfig } from "./config.js";
+import { consoleAssetPath, handleConsoleApi, probeJetstreamConnected } from "./console-api.js";
 import { drainDiscoveryDeadLetterBatch, processDiscoveryBatch } from "./discovery-consumer.js";
 import { LABELER_DISCOVERY_DO_NAME } from "./discovery-do.js";
 import type { DiscoveryJob } from "./env.js";
@@ -44,6 +50,20 @@ export default {
 			if (pathname === CREATE_REPORT_PATH) return rejectModerationReport(request);
 			return handleAssessmentXrpc(env, request, config);
 		}
+		// `/admin/api/*` is the Access-guarded operator read API; anything else
+		// under `/admin` is the console SPA, served (with SPA deep-link
+		// fallback) by the assets binding. The Access edge policy on `/admin/*`
+		// redirects an unauthenticated browser before it reaches the Worker, so
+		// the shell needs no in-Worker auth check — the API re-verifies per
+		// request regardless (see console-api.ts / operator-read-guard.ts).
+		if (pathname === "/admin/api" || pathname.startsWith("/admin/api/"))
+			return handleConsoleApiRequest(env, request, config);
+		const assetPath = consoleAssetPath(pathname);
+		if (assetPath !== null) {
+			const assetUrl = new URL(request.url);
+			assetUrl.pathname = assetPath;
+			return env.ASSETS.fetch(new Request(assetUrl, request));
+		}
 		return new Response("emdash-labeler: not found", { status: 404 });
 	},
 
@@ -81,6 +101,44 @@ export default {
 		);
 	},
 };
+
+const OPERATOR_ACCESS_CONFIG_CACHE_KEY = Symbol.for("emdash-labeler:operator-access-config");
+
+/** Parse `OPERATOR_ACCESS_CONFIG` (a JSON string var) once and cache the result
+ * on `globalThis` — Vite can duplicate this module across SSR chunks, so a
+ * plain module-scope binding would parse per chunk. */
+function getOperatorAccessConfig(env: Env): AccessAuthConfig {
+	const g = globalThis as Record<symbol, unknown>;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+	const cached = g[OPERATOR_ACCESS_CONFIG_CACHE_KEY] as AccessAuthConfig | undefined;
+	if (cached) return cached;
+	const parsed = parseAccessAuthConfig(JSON.parse(env.OPERATOR_ACCESS_CONFIG));
+	g[OPERATOR_ACCESS_CONFIG_CACHE_KEY] = parsed;
+	return parsed;
+}
+
+async function handleConsoleApiRequest(
+	env: Env,
+	request: Request,
+	config: LabelerConfig,
+): Promise<Response> {
+	let accessConfig: AccessAuthConfig;
+	try {
+		accessConfig = getOperatorAccessConfig(env);
+	} catch {
+		return Response.json(
+			{ error: { code: "NOT_CONFIGURED", message: "Operator console is not configured" } },
+			{ status: 500 },
+		);
+	}
+	return handleConsoleApi(request, {
+		db: env.DB,
+		config: accessConfig,
+		keys: getAccessKeyResolver(accessConfig.teamDomain),
+		labelerDid: config.labelerDid,
+		jetstreamConnected: () => probeJetstreamConnected(env),
+	});
+}
 
 function rejectModerationReport(request: Request): Response {
 	if (request.method !== "POST")

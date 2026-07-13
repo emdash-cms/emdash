@@ -6,11 +6,13 @@ interface __BaseEnv_Env {
 	DB: D1Database;
 	DISCOVERY_QUEUE: Queue;
 	AI: Ai;
+	ASSETS: Fetcher;
 	LABELER_DID: "did:web:labels.emdashcms.com";
 	LABELER_SERVICE_URL: "https://labels.emdashcms.com";
 	LABEL_SIGNING_KEY_VERSION: "v1";
 	LABEL_SIGNING_PUBLIC_KEY: "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
 	JETSTREAM_URL: "wss://jetstream2.us-east.bsky.network/subscribe";
+	OPERATOR_ACCESS_CONFIG: "{\"teamDomain\":\"https://emdash.cloudflareaccess.com\",\"audience\":\"REPLACE_WITH_ACCESS_APP_AUD_TAG\",\"admins\":[\"emdash-labeler-admins\"],\"reviewers\":[\"emdash-labeler-reviewers\"]}";
 	LABEL_SIGNING_PRIVATE_KEY: string;
 	LABEL_SUBSCRIPTION: DurableObjectNamespace<import("./src/index").LabelSubscriptionDO>;
 	LABELER_DISCOVERY_DO: DurableObjectNamespace<import("./src/index").LabelerDiscoveryDO>;
@@ -27,7 +29,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "LABELER_DID" | "LABELER_SERVICE_URL" | "LABEL_SIGNING_KEY_VERSION" | "LABEL_SIGNING_PUBLIC_KEY" | "JETSTREAM_URL" | "LABEL_SIGNING_PRIVATE_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "LABELER_DID" | "LABELER_SERVICE_URL" | "LABEL_SIGNING_KEY_VERSION" | "LABEL_SIGNING_PUBLIC_KEY" | "JETSTREAM_URL" | "OPERATOR_ACCESS_CONFIG" | "LABEL_SIGNING_PRIVATE_KEY">> {}
 }
 
 // Begin runtime types

@@ -280,14 +280,14 @@ function assertJsonContentType(request: Request): void {
 	}
 }
 
-function assertSameOrigin(request: Request, expectedOrigin: string): void {
+export function assertSameOrigin(request: Request, expectedOrigin: string): void {
 	const origin = request.headers.get("Origin");
 	if (origin !== null && origin !== expectedOrigin) throw new MutationGuardError("CROSS_ORIGIN");
 	const site = request.headers.get("Sec-Fetch-Site");
 	if (site !== null && site !== "same-origin") throw new MutationGuardError("CROSS_ORIGIN");
 }
 
-function assertCsrfHeader(request: Request): void {
+export function assertCsrfHeader(request: Request): void {
 	if (request.headers.get(OPERATOR_REQUEST_HEADER) !== "1")
 		throw new MutationGuardError("CSRF_HEADER_MISSING");
 }
