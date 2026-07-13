@@ -1137,6 +1137,8 @@ Dependencies: `W3.3`, `W5.1`, `W9.2`.
 - Reviewer/admin can explicitly retract the override.
 - Carried from W9.4: manually-issued labels (`assessment_id` NULL, keyed to subject URI+CID) aren't visible in the console — `getAllLabelsForAssessment` is assessment-scoped. Add a subject+CID label read (`GET /admin/api/subjects/:uri/labels?cid=`, wrapping `getActiveLabelState`) and surface manual labels on the subject view and merged into the assessment detail page. Override/rerun needs the same subject-label read, so it lands here.
 
+Decisions (2026-07-13): rerun mints the operator trigger + fresh run + re-issues `assessment-pending` (terminal verdict waits on the W7/W8 orchestrator wiring — not pulled forward). Override negates ALL live automated blocks for the exact URI+CID (client submits the observed set, server validates against live state), never an operator-chosen subset. The multi-label override commits as one `commitMutation` batch (audit row + N negations + `assessment-passed` + `assessment-overridden`) under one operator action, each issuance piece keyed `${actionId}:${val}:${neg}`; `assertIssuancePersisted` verifies all N+2 landed. Override-retract negates only `assessment-passed`/`assessment-overridden` and leaves the blocks negated → evaluator resolves to blocked/`missing-assessment-pass` (safe default); re-surfacing real findings is "retract then rerun" (re-exposing blocks would corrupt automated provenance under §10). Override-permanence needs no evaluator change — `evaluateReleaseModerationCore` already suppresses current and future automated blocks when the pass+override pair is active.
+
 Dependencies: `W6.6`, `W9.4`.
 
 ### `W9.6` Implement admin-only emergency actions
