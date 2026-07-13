@@ -556,9 +556,9 @@ The exact claim used for groups must be verified against the configured Access i
 
 Mutation requests also require:
 
-- Same-origin checks.
-- CSRF token or signed double-submit token.
-- JSON content type.
+- Same-origin checks (`Origin` and `Sec-Fetch-Site` when present; absence passes for non-browser clients such as Access service tokens).
+- A required custom header (`X-EmDash-Request: 1`). Decision (2026-07-13): replaces the earlier CSRF token/double-submit wording — combined with the JSON content-type and origin checks it blocks every browser forgery vector via CORS preflight, and matches emdash core's convention. The Access assertion alone is not a CSRF defense: the edge injects it from the `CF_Authorization` cookie. Console API routes must never emit cross-origin CORS allow headers.
+- JSON content type (`application/json`, optional `utf-8` charset only).
 - Idempotency key.
 - Freshly verified Access identity.
 - Role check in the handler.
@@ -770,13 +770,13 @@ Sequence allocation and label insertion occur atomically. The service never deri
 ### 14.4 Actions, notifications, and cursors
 
 ```sql
-CREATE TABLE actions (
+CREATE TABLE operator_actions (
   id TEXT PRIMARY KEY,
   actor_type TEXT NOT NULL,
   actor_id TEXT NOT NULL,
   role TEXT,
   action TEXT NOT NULL,
-  subject_uri TEXT NOT NULL,
+  subject_uri TEXT,
   subject_cid TEXT,
   label_value TEXT,
   reason TEXT NOT NULL,
@@ -784,10 +784,14 @@ CREATE TABLE actions (
   metadata_json TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+```
 
+Decisions (2026-07-13): the table is named `operator_actions` (this spec previously said `actions`) to disambiguate from the signing-layer `issuance_actions` audit. `subject_uri` is nullable because admin actions such as pause/resume issuance and DLQ controls have no subject. The `action` vocabulary is enforced as a typed union in the guard module (the sole writer), not a SQL `CHECK`, so later workstreams extend it without table rebuilds. The table is append-only, enforced with `BEFORE UPDATE`/`BEFORE DELETE` triggers.
+
+```sql
 CREATE TABLE notifications (
   id TEXT PRIMARY KEY,
-  action_id TEXT NOT NULL REFERENCES actions(id),
+  action_id TEXT NOT NULL REFERENCES operator_actions(id),
   channel TEXT NOT NULL,
   recipient_hash TEXT NOT NULL,
   state TEXT NOT NULL,

@@ -1089,13 +1089,15 @@ Dependencies: `W2.1`.
 
 ### `W9.2` Implement mutation protections
 
-- Same-origin validation.
-- CSRF token/double-submit protection.
+Decision (2026-07-13, ratified with spec §12/§14.4 updates): a single composable guard (`guardMutation` -> `commitMutation`) every W9.4-W9.6 endpoint routes through. CSRF is a required `X-EmDash-Request: 1` header plus JSON content-type plus origin checks — no token/double-submit. The operator audit table is `operator_actions` (distinct from the signing-layer `issuance_actions`), append-only via triggers, `subject_uri` nullable for subject-less admin actions, action vocabulary enforced as a typed union in the guard rather than a SQL `CHECK`. Idempotency keys are globally unique; replay with an identical request fingerprint returns the stored result, a different fingerprint returns 409. The audit row commits in the same `db.batch` as the effect.
+
+- Same-origin validation (`Origin`/`Sec-Fetch-Site` when present).
+- Required custom header (`X-EmDash-Request: 1`).
 - JSON content type.
-- Idempotency key.
-- Fresh role evaluation.
+- Idempotency key with fingerprint-based replay/conflict semantics.
+- Fresh role evaluation (per-request `verifyAccessRequest` + `hasRole`).
 - Required reason.
-- Immutable action audit.
+- Immutable action audit (`operator_actions`).
 
 Dependencies: `W9.1`, `W2.3`.
 
