@@ -90,8 +90,8 @@ import { i18n } from "@lingui/core";
 
 // Merge the plugin's compiled catalog into the admin's i18n instance.
 // "Reports" now renders as "Berichte" when the admin locale is German.
-const catalogs: Record<string, Record<string, string[]>> = {
-	de: { Reports: ["Berichte"], Settings: ["Einstellungen"] },
+const catalogs: Record<string, Record<string, string>> = {
+	de: { Reports: "Berichte", Settings: "Einstellungen" },
 };
 
 function mergeCatalog() {

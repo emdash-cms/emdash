@@ -295,11 +295,12 @@ function filterNavItems(
 
 export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const { t } = useLingui();
-	// `_` (not `i18n`) is the nav-items memo dependency: the i18n instance is
-	// a stable singleton, while the provider re-binds `_` on every locale or
-	// catalog change — exactly the invalidation the plugin labels need. The
-	// macro useLingui() omits `_`, so it comes from the runtime hook.
-	const { _: translateDynamic } = useLinguiContext();
+	// The runtime hook (the macro useLingui() omits `_`): `_` translates the
+	// dynamic plugin labels, and both it and `i18n.locale` invalidate the
+	// nav-items memo below. `i18n.locale` is the documented signal for locale
+	// switches; the `_` rebind covers catalog merges that arrive without a
+	// locale change (plugins load their catalogs asynchronously).
+	const { _: translateDynamic, i18n } = useLinguiContext();
 	const [open, setOpen] = React.useState(false);
 	const [query, setQuery] = React.useState("");
 	const navigate = useNavigate();
@@ -326,7 +327,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	// Build navigation items
 	const allNavItems = React.useMemo(
 		() => buildNavItems(manifest, userRole, translateDynamic),
-		[manifest, userRole, translateDynamic],
+		[manifest, userRole, translateDynamic, i18n.locale],
 	);
 
 	// Filter nav items based on query
