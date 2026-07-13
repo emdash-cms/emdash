@@ -281,14 +281,15 @@ describe("console mutation: issue/retract effect + audit atomicity", () => {
 	it("returns a retryable 503 (not a phantom 200) when the label is suppressed after the audit commits", async () => {
 		const uri = await seedReleaseSubject("phantom-suppressed");
 		const key = nextKey();
+		const body = {
+			uri,
+			val: "security-yanked",
+			confirmation: "phantom-suppressed",
+			reason: "rotation lands mid-issuance",
+			idempotencyKey: key,
+		};
 		const response = await handleConsoleMutation(
-			post("/admin/api/labels/issue", {
-				uri,
-				val: "security-yanked",
-				confirmation: "phantom-suppressed",
-				reason: "rotation lands mid-issuance",
-				idempotencyKey: key,
-			}),
+			post("/admin/api/labels/issue", body),
 			mutationDeps({ db: suppressIssuanceDb(testEnv.DB) }),
 		);
 		expect(response.status).toBe(503);
@@ -299,6 +300,22 @@ describe("console mutation: issue/retract effect + audit atomicity", () => {
 			await countRows(`SELECT COUNT(*) n FROM operator_actions WHERE idempotency_key = ?`, key),
 		).toBe(1);
 		expect(await countRows(`SELECT COUNT(*) n FROM issued_labels WHERE uri = ?`, uri)).toBe(0);
+
+		// A retry with the same idempotency key hits guardMutation's replay branch —
+		// which would return the stored (success) descriptor. The replay path must run
+		// the same persistence check and also 503, not a phantom 200. A plain db here:
+		// the replay short-circuits before any batch, reading the committed audit row.
+		const retry = await handleConsoleMutation(
+			post("/admin/api/labels/issue", body),
+			mutationDeps(),
+		);
+		expect(retry.status).toBe(503);
+		expect((await bodyError(retry)).code).toBe("LABEL_ISSUANCE_UNAVAILABLE");
+		// The replay wrote nothing: still no label, still exactly one audit row.
+		expect(await countRows(`SELECT COUNT(*) n FROM issued_labels WHERE uri = ?`, uri)).toBe(0);
+		expect(
+			await countRows(`SELECT COUNT(*) n FROM operator_actions WHERE idempotency_key = ?`, key),
+		).toBe(1);
 	});
 
 	it("writes no audit row when signing prep fails (no effect ⇒ no audit)", async () => {

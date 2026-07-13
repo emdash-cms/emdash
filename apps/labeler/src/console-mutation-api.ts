@@ -162,7 +162,10 @@ async function runLabelMutation(
 		now: deps.now,
 	};
 	const outcome = await guardMutation(request, spec, guardDeps);
-	if (outcome.outcome === "replay") return jsonData(outcome.result);
+	if (outcome.outcome === "replay") {
+		await assertIssuancePersisted(deps.db, outcome.actionId);
+		return jsonData(outcome.result);
+	}
 
 	const { ctx } = outcome;
 	const signer = await deps.createSigner();
@@ -199,18 +202,27 @@ async function runLabelMutation(
 		effect: getLabelDefinition(proposal.val)?.officialEffect ?? "",
 	};
 	const returned = await commitMutation(deps.db, ctx, spec, statements, descriptor);
-	// The operator_actions audit row commits unconditionally, but the issued_labels
-	// INSERT is guarded by an in-batch signing-state condition: a key rotation
-	// landing between the signing pre-check and this batch suppresses the label as a
-	// zero-row INSERT (not an error) while the audit row lands. Verify the label
-	// persisted for the committed action so a suppressed issuance surfaces as a
-	// retryable 503, not a phantom success. Keying on the committed action id
-	// distinguishes a genuine suppression (our id, no label) from a concurrent-race
-	// loss (the winner's id, whose label is present).
-	if (!(await readIssuedLabelByActionKey(deps.db, returned.actionId)))
-		throw new LabelIssuanceUnavailableError("label issuance did not persist");
+	await assertIssuancePersisted(deps.db, returned.actionId);
 	deps.defer(deps.afterCommit(ctx.actionId));
 	return jsonData(returned);
+}
+
+/**
+ * Rejects a phantom success. The `operator_actions` audit row commits
+ * unconditionally, but the `issued_labels` INSERT is guarded by an in-batch
+ * signing-state condition — a key rotation landing between the signing pre-check
+ * and the commit suppresses the label as a zero-row INSERT (not an error) while
+ * the audit row lands, and that audit row stores the success descriptor as its
+ * result. Both the proceed path and the replay path (which the guard serves from
+ * that stored descriptor) must verify the label actually persisted for the
+ * committed action, or a retry would return the suppressed issuance as a 200.
+ * Keying on the committed action id distinguishes a genuine suppression (no
+ * label) from a concurrent-race loss (the winner's action id, whose label is
+ * present).
+ */
+async function assertIssuancePersisted(db: D1Database, actionId: string): Promise<void> {
+	if (!(await readIssuedLabelByActionKey(db, actionId)))
+		throw new LabelIssuanceUnavailableError("label issuance did not persist");
 }
 
 function makeSpec(neg: boolean): MutationSpec<LabelActionBody> {

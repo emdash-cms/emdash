@@ -44,3 +44,12 @@ const RELEASE_SCOPES = new Map(RELEASE_ISSUABLE_LABELS.map((entry) => [entry.val
 export function releaseLabelScope(val: string): IssuableLabel["scope"] {
 	return RELEASE_SCOPES.get(val) ?? "cid-bound";
 }
+
+/** Whether a value is reviewer-issuable on a release subject, and therefore
+ * retractable through the issue/retract endpoints. Mirrors the server's policy
+ * allow-set so the retract button renders only where the action can succeed —
+ * eligibility labels (assessment-passed/overridden/pending/error) are absent
+ * from the issuable set and are rejected by the server's `assertW94Issuable`. */
+export function isReleaseRetractable(val: string): boolean {
+	return RELEASE_SCOPES.has(val);
+}

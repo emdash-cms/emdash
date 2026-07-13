@@ -9,7 +9,7 @@ import { FindingCard } from "../components/FindingCard.js";
 import { LabelActionDialog } from "../components/LabelActionDialog.js";
 import { QueryError } from "../components/QueryError.js";
 import { StateBadge } from "../components/StateBadge.js";
-import { RELEASE_ISSUABLE_LABELS, releaseLabelScope } from "../labels.js";
+import { isReleaseRetractable, RELEASE_ISSUABLE_LABELS, releaseLabelScope } from "../labels.js";
 import { shellRoute } from "./root.js";
 
 function MetaRow({ label, value }: { label: string; value: ReactNode }) {
@@ -147,7 +147,7 @@ function AssessmentDetail() {
 						{labels.map((label) => (
 							<div key={`${label.val}-${label.sequence}`} className="flex items-center gap-1">
 								<Badge variant={label.neg ? "neutral" : "info"}>{label.val}</Badge>
-								{canAct && !label.neg && (
+								{canAct && !label.neg && isReleaseRetractable(label.val) && (
 									<Button
 										variant="ghost"
 										size="sm"
