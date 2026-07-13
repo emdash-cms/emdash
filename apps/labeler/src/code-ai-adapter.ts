@@ -103,6 +103,8 @@ export async function analyzeCode(
 		);
 
 	const modelId = deps.modelId ?? DEFAULT_MODEL_ID;
+	if (modelId.trim().length === 0)
+		throw new TypeError("analyzeCode: modelId must be a non-empty string");
 	if (modelId.length > MAX_METADATA_FIELD_LENGTH)
 		throw new TypeError(
 			`analyzeCode: modelId must be at most ${MAX_METADATA_FIELD_LENGTH} characters`,

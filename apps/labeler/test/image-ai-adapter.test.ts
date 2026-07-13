@@ -23,6 +23,7 @@ function baseImage(overrides: Partial<ImageAnalysisImage> = {}): ImageAnalysisIm
 	return {
 		path: "assets/icon.png",
 		mime: "image/png",
+		sha256: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
 		dataBase64: "aGVsbG8=",
 		width: 128,
 		height: 128,
@@ -162,6 +163,24 @@ describe("analyzeImages", () => {
 			{ type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },
 			{ type: "image_url", image_url: { url: "data:image/jpeg;base64,BBBB" } },
 		]);
+	});
+
+	it("retains each image's original mime, hash, dimensions, and path in the manifest", async () => {
+		const { ai, calls } = capturingAi(findingResponse([]));
+		const image = baseImage({ path: "shot.png", sha256: "f".repeat(64), width: 640, height: 480 });
+
+		await analyzeImages(baseInput({ images: [image] }), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+		});
+
+		const text = userContentParts(calls[0]!).find((part) => part.type === "text")!.text!;
+		expect(text).toContain('"path": "shot.png"');
+		expect(text).toContain('"mime": "image/png"');
+		expect(text).toContain(`"sha256": "${"f".repeat(64)}"`);
+		expect(text).toContain('"width": 640');
+		expect(text).toContain('"height": 480');
 	});
 
 	it("neutralizes a malicious image path in the manifest so it can't forge a fence boundary", async () => {
@@ -419,6 +438,19 @@ describe("analyzeImages", () => {
 		});
 		await expect(promise).rejects.toThrow(TypeError);
 		await expect(promise).rejects.not.toThrow(ModelTransientError);
+	});
+
+	it("rejects a blank modelId up front rather than treating it as retryable", async () => {
+		const { ai, calls } = capturingAi(findingResponse([]));
+		const promise = analyzeImages(baseInput(), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+			modelId: "  ",
+		});
+		await expect(promise).rejects.toThrow(TypeError);
+		await expect(promise).rejects.not.toThrow(ModelTransientError);
+		expect(calls).toHaveLength(0);
 	});
 
 	it("rejects an over-long promptVersion or modelId up front rather than retrying it forever", async () => {

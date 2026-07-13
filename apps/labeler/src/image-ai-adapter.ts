@@ -46,6 +46,9 @@ export interface ImageAiBinding {
 export interface ImageAnalysisImage {
 	readonly path: string;
 	readonly mime: string;
+	/** SHA-256 of the original image bytes (spec §9.7: every image retains its
+	 * original MIME type, hash, dimensions, and source path). */
+	readonly sha256: string;
 	readonly dataBase64: string;
 	readonly width: number;
 	readonly height: number;
@@ -100,6 +103,8 @@ export async function analyzeImages(
 		throw new TypeError("analyzeImages: deps.promptVersion must be a non-empty string");
 
 	const modelId = deps.modelId ?? DEFAULT_MODEL_ID;
+	if (modelId.trim().length === 0)
+		throw new TypeError("analyzeImages: modelId must be a non-empty string");
 	// promptVersion and modelId are injected into every finding's
 	// sourceMetadata, where validateSourceMetadata bounds them at
 	// MAX_METADATA_FIELD_LENGTH — over-long values would fail there on every
@@ -289,6 +294,8 @@ function buildManifestFence(images: readonly ImageAnalysisImage[], boundary: str
 		images.map((image) => ({
 			path: image.path,
 			kind: image.kind,
+			mime: image.mime,
+			sha256: image.sha256,
 			width: image.width,
 			height: image.height,
 		})),

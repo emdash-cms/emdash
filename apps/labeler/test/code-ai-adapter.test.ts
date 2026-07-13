@@ -196,6 +196,19 @@ describe("analyzeCode", () => {
 		await expect(promise).rejects.not.toThrow(ModelTransientError);
 	});
 
+	it("rejects a blank modelId up front rather than treating it as retryable", async () => {
+		const { ai, calls } = capturingAi(findingResponse([]));
+		const promise = analyzeCode(baseInput(), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+			modelId: "  ",
+		});
+		await expect(promise).rejects.toThrow(TypeError);
+		await expect(promise).rejects.not.toThrow(ModelTransientError);
+		expect(calls).toHaveLength(0);
+	});
+
 	it("rejects an over-long promptVersion or modelId up front rather than retrying it forever", async () => {
 		const { ai, calls } = capturingAi(findingResponse([]));
 		const longValue = "v".repeat(MAX_METADATA_FIELD_LENGTH + 1);
