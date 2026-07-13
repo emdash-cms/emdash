@@ -4,6 +4,7 @@ import { createRoute } from "@tanstack/react-router";
 import * as React from "react";
 
 import { apiClient } from "../api/client.js";
+import { AutomationControl } from "../components/AutomationControl.js";
 import { QueryError } from "../components/QueryError.js";
 import { shellRoute } from "./root.js";
 
@@ -26,6 +27,8 @@ function Dashboard() {
 		queryKey: ["system-status"],
 		queryFn: () => apiClient.getSystemStatus(),
 	});
+	const { data: whoami } = useQuery({ queryKey: ["whoami"], queryFn: () => apiClient.whoami() });
+	const isAdmin = whoami?.roles.includes("admin") ?? false;
 
 	if (isError) {
 		return (
@@ -59,6 +62,11 @@ function Dashboard() {
 				<StatCard label="Pending assessments" value={status.pendingAssessments} />
 				<StatCard label="Dead-letter depth" value={status.deadLetterDepth} />
 			</Grid>
+			<AutomationControl
+				paused={status.automationPaused}
+				pausedReason={status.pausedReason}
+				isAdmin={isAdmin}
+			/>
 			<LayerCard className="p-4 text-sm text-kumo-subtle">
 				Labeler DID: <span className="font-mono">{status.labelerDid}</span>
 			</LayerCard>

@@ -9,6 +9,8 @@ import {
 import type {
 	AssessmentActionInput,
 	AssessmentRun,
+	AutomationToggleInput,
+	AutomationToggleResult,
 	EffectPreview,
 	EffectPreviewParams,
 	EmergencyActionInput,
@@ -60,6 +62,8 @@ export interface LabelerConsoleClient {
 		mode: "issue" | "retract",
 		input: EmergencyActionInput,
 	): Promise<IssuedLabelDescriptor>;
+	pauseAutomation(input: AutomationToggleInput): Promise<AutomationToggleResult>;
+	resumeAutomation(input: AutomationToggleInput): Promise<AutomationToggleResult>;
 }
 
 /** The admin-only emergency endpoints, keyed by action and direction. */
@@ -220,6 +224,12 @@ export function createFetchClient(): LabelerConsoleClient {
 		async emergencyAction(kind, mode, input) {
 			return postAction(EMERGENCY_PATHS[kind][mode], input, "Failed to submit emergency action");
 		},
+		async pauseAutomation(input) {
+			return postAction("/automation/pause", input, "Failed to pause automation");
+		},
+		async resumeAutomation(input) {
+			return postAction("/automation/resume", input, "Failed to resume automation");
+		},
 	};
 }
 
@@ -335,6 +345,22 @@ export function createFixtureClient(): LabelerConsoleClient {
 				neg: mode === "retract",
 				cts: new Date().toISOString(),
 				effect: kind === "takedown" ? "redact" : "block",
+			};
+		},
+		async pauseAutomation(input) {
+			return {
+				actionId: "oact_fixture",
+				paused: true,
+				reason: input.reason,
+				cts: new Date().toISOString(),
+			};
+		},
+		async resumeAutomation(input) {
+			return {
+				actionId: "oact_fixture",
+				paused: false,
+				reason: input.reason,
+				cts: new Date().toISOString(),
 			};
 		},
 	};

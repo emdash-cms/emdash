@@ -6,7 +6,7 @@ import {
 } from "@emdash-cms/registry-moderation";
 import { applyD1Migrations, env } from "cloudflare:test";
 import { generateKeyPair, SignJWT } from "jose";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { AccessKeyResolver } from "../src/access-auth.js";
 import { computeRunKey, initialTriggerId } from "../src/assessment-lifecycle.js";
@@ -21,7 +21,14 @@ import {
 	type ConsoleMutationDeps,
 	type IssuedLabelDescriptor,
 } from "../src/console-mutation-api.js";
+import {
+	processDiscoveryMessage,
+	type DiscoveryConsumerDeps,
+	type MessageController,
+} from "../src/discovery-consumer.js";
+import type { DiscoveryJob } from "../src/env.js";
 import { OPERATOR_REQUEST_HEADER } from "../src/mutation-guard.js";
+import type { DidDocumentResolverLike } from "../src/record-verification.js";
 import { issueAutomatedAssessmentLabel, issueManualLabel } from "../src/service.js";
 
 const TEAM_DOMAIN = "https://example-team.cloudflareaccess.com";
@@ -1290,5 +1297,283 @@ describe("console mutation: emergency §10 automation interaction", () => {
 
 		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: CID });
 		expect(winners.get("!takedown")?.active).toBe(true);
+	});
+});
+
+// ─── W9.6: admin-only automation kill-switch (pause/resume) ──────────────────
+
+function automation(
+	path: string,
+	token: string | null = adminToken,
+	body: Record<string, unknown> = {},
+): Request {
+	return post(path, { reason: "incident response", idempotencyKey: nextKey(), ...body }, { token });
+}
+
+async function automationRow(): Promise<{ paused: number; reason: string | null } | null> {
+	return testEnv.DB.prepare(
+		`SELECT paused, paused_reason AS reason FROM automation_state WHERE id = 1`,
+	).first<{ paused: number; reason: string | null }>();
+}
+
+async function resetAutomation(): Promise<void> {
+	await testEnv.DB.prepare(
+		`UPDATE automation_state SET paused = 0, paused_reason = NULL WHERE id = 1`,
+	).run();
+}
+
+interface AutomationToggleDescriptor {
+	actionId: string;
+	paused: boolean;
+	reason: string;
+	cts: string;
+}
+
+describe("console mutation: automation pause/resume (admin)", () => {
+	afterEach(resetAutomation);
+
+	it("pause flips the switch and emits one automation-paused event + audit row", async () => {
+		const response = await handleConsoleMutation(
+			automation("/admin/api/automation/pause"),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<AutomationToggleDescriptor>(response);
+		expect(descriptor).toMatchObject({ paused: true, reason: "incident response" });
+
+		const row = await automationRow();
+		expect(row?.paused).toBe(1);
+		expect(row?.reason).toBe("incident response");
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM operator_actions WHERE id = ? AND action = 'pause-issuance'`,
+				descriptor.actionId,
+			),
+		).toBe(1);
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM operational_events
+				 WHERE action_id = ? AND event_type = 'automation-paused' AND severity = 'high'`,
+				descriptor.actionId,
+			),
+		).toBe(1);
+		// Pause issues no label and queues no delivery row.
+		expect(await outboxCount(descriptor.actionId)).toBe(0);
+
+		// T8: the event carries the operator reason only, with no subject or label.
+		const event = await testEnv.DB.prepare(
+			`SELECT payload_json, subject_uri, label_value FROM operational_events WHERE action_id = ?`,
+		)
+			.bind(descriptor.actionId)
+			.first<{ payload_json: string; subject_uri: string | null; label_value: string | null }>();
+		expect(event).toMatchObject({ subject_uri: null, label_value: null });
+		expect(JSON.parse(event!.payload_json)).toEqual({ reason: "incident response" });
+	});
+
+	it("resume flips the switch back and emits an automation-resumed event", async () => {
+		await handleConsoleMutation(automation("/admin/api/automation/pause"), mutationDeps());
+		expect((await automationRow())?.paused).toBe(1);
+
+		const response = await handleConsoleMutation(
+			automation("/admin/api/automation/resume"),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<AutomationToggleDescriptor>(response);
+		expect(descriptor.paused).toBe(false);
+
+		const row = await automationRow();
+		expect(row?.paused).toBe(0);
+		expect(row?.reason).toBeNull();
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM operational_events
+				 WHERE action_id = ? AND event_type = 'automation-resumed' AND severity = 'info'`,
+				descriptor.actionId,
+			),
+		).toBe(1);
+	});
+});
+
+describe("console mutation: automation authorization (per-endpoint, pre-effect)", () => {
+	afterEach(resetAutomation);
+
+	it.each(["/admin/api/automation/pause", "/admin/api/automation/resume"])(
+		"rejects a reviewer with zero side effects: %s",
+		async (path) => {
+			const before = {
+				actions: await countRows(`SELECT COUNT(*) n FROM operator_actions`),
+				events: await countRows(`SELECT COUNT(*) n FROM operational_events`),
+				paused: (await automationRow())?.paused,
+			};
+			const response = await handleConsoleMutation(automation(path, reviewerToken), mutationDeps());
+			expect(response.status).toBe(403);
+			expect((await bodyError(response)).code).toBe("FORBIDDEN_ROLE");
+			expect(await countRows(`SELECT COUNT(*) n FROM operator_actions`)).toBe(before.actions);
+			expect(await countRows(`SELECT COUNT(*) n FROM operational_events`)).toBe(before.events);
+			expect((await automationRow())?.paused).toBe(before.paused);
+		},
+	);
+
+	it.each(["/admin/api/automation/pause", "/admin/api/automation/resume"])(
+		"accepts an admin (the 403 is the role, not a broken endpoint): %s",
+		async (path) => {
+			const response = await handleConsoleMutation(automation(path, adminToken), mutationDeps());
+			expect(response.status).toBe(200);
+		},
+	);
+
+	it("rejects an unauthenticated caller with zero side effects (401)", async () => {
+		const before = {
+			actions: await countRows(`SELECT COUNT(*) n FROM operator_actions`),
+			events: await countRows(`SELECT COUNT(*) n FROM operational_events`),
+			paused: (await automationRow())?.paused,
+		};
+		const response = await handleConsoleMutation(
+			automation("/admin/api/automation/pause", null),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(401);
+		expect(await countRows(`SELECT COUNT(*) n FROM operator_actions`)).toBe(before.actions);
+		expect(await countRows(`SELECT COUNT(*) n FROM operational_events`)).toBe(before.events);
+		expect((await automationRow())?.paused).toBe(before.paused);
+	});
+});
+
+describe("console mutation: automation replay and idempotency", () => {
+	afterEach(resetAutomation);
+
+	it("replays the stored result for the same key + reason, toggling once", async () => {
+		const key = nextKey();
+		const request = () =>
+			post(
+				"/admin/api/automation/pause",
+				{ reason: "same reason", idempotencyKey: key },
+				{ token: adminToken },
+			);
+		const first = await handleConsoleMutation(request(), mutationDeps());
+		const firstBody = await first.text();
+		const second = await handleConsoleMutation(request(), mutationDeps());
+		expect(second.status).toBe(200);
+		expect(await second.text()).toBe(firstBody);
+
+		const descriptor = (JSON.parse(firstBody) as { data: AutomationToggleDescriptor }).data;
+		expect(await eventCount(descriptor.actionId)).toBe(1);
+		expect((await automationRow())?.paused).toBe(1);
+	});
+
+	it("409s a same-key request whose reason differs, with no second event", async () => {
+		const key = nextKey();
+		const first = await handleConsoleMutation(
+			post(
+				"/admin/api/automation/pause",
+				{ reason: "first reason", idempotencyKey: key },
+				{ token: adminToken },
+			),
+			mutationDeps(),
+		);
+		expect(first.status).toBe(200);
+		const eventsBefore = await countRows(`SELECT COUNT(*) n FROM operational_events`);
+
+		const second = await handleConsoleMutation(
+			post(
+				"/admin/api/automation/pause",
+				{ reason: "different reason", idempotencyKey: key },
+				{ token: adminToken },
+			),
+			mutationDeps(),
+		);
+		expect(second.status).toBe(409);
+		expect((await bodyError(second)).code).toBe("IDEMPOTENCY_KEY_CONFLICT");
+		expect(await countRows(`SELECT COUNT(*) n FROM operational_events`)).toBe(eventsBefore);
+	});
+
+	it("a second distinct pause while already paused is a harmless success", async () => {
+		const first = await bodyData<AutomationToggleDescriptor>(
+			await handleConsoleMutation(automation("/admin/api/automation/pause"), mutationDeps()),
+		);
+		const secondResponse = await handleConsoleMutation(
+			automation("/admin/api/automation/pause"),
+			mutationDeps(),
+		);
+		expect(secondResponse.status).toBe(200);
+		const second = await bodyData<AutomationToggleDescriptor>(secondResponse);
+		expect(second.paused).toBe(true);
+		expect(second.actionId).not.toBe(first.actionId);
+
+		// Still paused; each distinct action is independently audited and emits its
+		// own event.
+		expect((await automationRow())?.paused).toBe(1);
+		expect(await eventCount(first.actionId)).toBe(1);
+		expect(await eventCount(second.actionId)).toBe(1);
+	});
+});
+
+class KillSwitchMessage implements MessageController {
+	acked = 0;
+	retried = 0;
+	ack() {
+		this.acked += 1;
+	}
+	retry() {
+		this.retried += 1;
+	}
+}
+
+class KillSwitchStubResolver implements DidDocumentResolverLike {
+	resolve(): never {
+		throw new Error("resolver should not be called — verify is injected");
+	}
+}
+
+describe("console mutation: pause endpoint drives the discovery consumer gate (end-to-end)", () => {
+	afterEach(resetAutomation);
+
+	it("retries ingestion while paused, processes after resume", async () => {
+		const rkeyName = "kill-switch-e2e";
+		const uri = releaseUri(rkeyName);
+		const job: DiscoveryJob = {
+			did: PUBLISHER_DID,
+			collection: "com.emdashcms.experimental.package.release",
+			operation: "create",
+			cid: CID,
+			rkey: rkeyName,
+		};
+		const consumerDeps: DiscoveryConsumerDeps = {
+			db: testEnv.DB,
+			config: CONFIG,
+			signer: await testSigner(),
+			didDocumentResolver: new KillSwitchStubResolver(),
+			verify: () =>
+				Promise.resolve({
+					cid: CID,
+					record: { $type: job.collection, package: rkeyName, version: "1.0.0" },
+					carBytes: new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
+				}),
+		};
+
+		const paused = await handleConsoleMutation(
+			automation("/admin/api/automation/pause"),
+			mutationDeps(),
+		);
+		expect(paused.status).toBe(200);
+
+		const pausedMsg = new KillSwitchMessage();
+		await processDiscoveryMessage(job, pausedMsg, consumerDeps);
+		expect(pausedMsg.retried).toBe(1);
+		expect(pausedMsg.acked).toBe(0);
+		expect(await countRows(`SELECT COUNT(*) n FROM subjects WHERE uri = ?`, uri)).toBe(0);
+
+		const resumed = await handleConsoleMutation(
+			automation("/admin/api/automation/resume"),
+			mutationDeps(),
+		);
+		expect(resumed.status).toBe(200);
+
+		const resumedMsg = new KillSwitchMessage();
+		await processDiscoveryMessage(job, resumedMsg, consumerDeps);
+		expect(resumedMsg.acked).toBe(1);
+		expect(resumedMsg.retried).toBe(0);
+		expect(await countRows(`SELECT COUNT(*) n FROM subjects WHERE uri = ?`, uri)).toBe(1);
 	});
 });

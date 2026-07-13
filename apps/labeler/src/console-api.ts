@@ -321,9 +321,10 @@ async function handleListAuditLog(
 
 async function handleGetStatus(request: Request, deps: ConsoleApiDeps): Promise<Response> {
 	requireGet(request);
-	const [pendingAssessments, deadLetterDepth, jetstreamConnected] = await Promise.all([
+	const [pendingAssessments, deadLetterDepth, automation, jetstreamConnected] = await Promise.all([
 		countInFlightAssessments(deps.db),
 		countDeadLetters(deps.db),
+		readAutomationState(deps.db),
 		deps.jetstreamConnected(),
 	]);
 	return jsonData({
@@ -331,7 +332,22 @@ async function handleGetStatus(request: Request, deps: ConsoleApiDeps): Promise<
 		jetstreamConnected,
 		pendingAssessments,
 		deadLetterDepth,
+		automationPaused: automation.paused,
+		pausedReason: automation.reason,
+		pausedSince: automation.since,
 	});
+}
+
+/** The ingestion kill-switch state for the operator dashboard. `reason`/`since`
+ * are meaningful only while paused; both read null when ingestion is live. */
+async function readAutomationState(
+	db: D1Database,
+): Promise<{ paused: boolean; reason: string | null; since: string | null }> {
+	const row = await db
+		.prepare(`SELECT paused, paused_reason, updated_at FROM automation_state WHERE id = 1`)
+		.first<{ paused: number; paused_reason: string | null; updated_at: string }>();
+	if (!row || row.paused !== 1) return { paused: false, reason: null, since: null };
+	return { paused: true, reason: row.paused_reason, since: row.updated_at };
 }
 
 /** The caller's own verified identity — kind, principal, and roles — for the

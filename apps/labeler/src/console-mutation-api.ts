@@ -27,6 +27,7 @@ import {
 	getAssessment,
 	type Assessment,
 } from "./assessment-store.js";
+import { buildAutomationPauseUpdate } from "./automation-state.js";
 import type { LabelerIdentityConfig } from "./config.js";
 import {
 	commitMutation,
@@ -167,6 +168,10 @@ export async function handleConsoleMutation(
 				return await runEmergencyAction(request, deps, "publisher-compromised", false);
 			if (segments[1] === "publisher-compromised-retract")
 				return await runEmergencyAction(request, deps, "publisher-compromised", true);
+		}
+		if (segments[0] === "automation" && segments.length === 2) {
+			if (segments[1] === "pause") return await runAutomationToggle(request, deps, true);
+			if (segments[1] === "resume") return await runAutomationToggle(request, deps, false);
 		}
 		throw new ReadGuardError("NOT_FOUND");
 	} catch (error) {
@@ -978,4 +983,73 @@ function assertEmergencyConfirmation(
  * PLC/web identifier), not a resolved handle. */
 function didFinalSegment(uri: string): string {
 	return uri.split(":").at(-1) ?? "";
+}
+
+// ─── W9.6: admin-only automation kill-switch (pause/resume ingestion) ────────
+
+/** The idempotent pause/resume result. `paused` is the switch's post-action
+ * state; `reason` echoes the operator reason folded into the audit row and the
+ * operational event. */
+interface AutomationToggleDescriptor {
+	actionId: string;
+	paused: boolean;
+	reason: string;
+	cts: string;
+}
+
+/**
+ * `POST /admin/api/automation/{pause,resume}` — the admin-only global ingestion
+ * kill-switch (spec §11.3, design §5). Flips `automation_state.paused` and emits
+ * an ungated operational event in one atomic `commitMutation` batch with the
+ * audit row. Unlike the emergency actions it issues no label: the effect is a
+ * state UPDATE plus an unconditional event insert, so there is no confirmation
+ * ceremony and no phantom-label verification. A required `reason` is the only
+ * body field and folds into the request fingerprint, so a replay must resend it.
+ *
+ * The switch gates only the discovery consumer's ingestion path — manual/admin
+ * issuance (including an emergency `!takedown`) stays available while paused.
+ * Pausing an already-paused switch is a harmless idempotent re-write; each
+ * distinct action is independently audited and emits its own event.
+ */
+async function runAutomationToggle(
+	request: Request,
+	deps: ConsoleMutationDeps,
+	paused: boolean,
+): Promise<Response> {
+	const spec: MutationSpec<Record<string, never>> = {
+		action: paused ? "pause-issuance" : "resume-issuance",
+		requiredRole: "admin",
+		parseBody: () => ({}),
+		auditFields: () => ({ metadata: { paused } }),
+	};
+
+	const outcome = await guardMutation(request, spec, guardDepsOf(deps));
+	if (outcome.outcome === "replay")
+		return jsonData(storedDescriptor<AutomationToggleDescriptor>(outcome.result));
+
+	const { ctx } = outcome;
+	const stateUpdate = buildAutomationPauseUpdate(deps.db, {
+		paused,
+		reason: paused ? ctx.reason : null,
+		actionId: ctx.actionId,
+		now: ctx.now,
+	});
+	const eventInsert = buildOperationalEventInsert(deps.db, {
+		id: newOperationalEventId(),
+		eventType: paused ? "automation-paused" : "automation-resumed",
+		severity: paused ? "high" : "info",
+		actionId: ctx.actionId,
+		payload: { reason: ctx.reason },
+		now: ctx.now,
+	});
+
+	const descriptor: AutomationToggleDescriptor = {
+		actionId: ctx.actionId,
+		paused,
+		reason: ctx.reason,
+		cts: ctx.now.toISOString(),
+	};
+	return jsonData(
+		await commitMutation(deps.db, ctx, spec, [stateUpdate, eventInsert], descriptor),
+	);
 }

@@ -135,6 +135,11 @@ export interface SystemStatusSnapshot {
 	/** Dead-letter backlog — the observable stand-in for discovery-queue depth,
 	 * which the Queues API does not expose to the consumer Worker. */
 	deadLetterDepth: number;
+	/** The global ingestion kill-switch (spec §11.3). `pausedReason`/`pausedSince`
+	 * are non-null only while paused. */
+	automationPaused: boolean;
+	pausedReason: string | null;
+	pausedSince: string | null;
 }
 
 export interface Page<T> {
@@ -311,6 +316,23 @@ export interface EmergencyActionInput {
 	intent: string;
 	reason: string;
 	idempotencyKey: string;
+}
+
+/** Body for the admin-only pause/resume endpoints (`POST /admin/api/automation/*`).
+ * A required reason (folded into the audit row, the operational event, and — for
+ * a pause — `automation_state.paused_reason`) and a client-minted idempotency key
+ * reused across retries so a network retry replays rather than double-toggles. */
+export interface AutomationToggleInput {
+	reason: string;
+	idempotencyKey: string;
+}
+
+/** Idempotent pause/resume result — the kill-switch's post-action state. */
+export interface AutomationToggleResult {
+	actionId: string;
+	paused: boolean;
+	reason: string;
+	cts: string;
 }
 
 export interface ListAssessmentsParams {

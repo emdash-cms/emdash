@@ -6,4 +6,7 @@ export const FIXTURE_SYSTEM_STATUS: SystemStatusSnapshot = {
 	jetstreamConnected: true,
 	pendingAssessments: 1,
 	deadLetterDepth: 2,
+	automationPaused: false,
+	pausedReason: null,
+	pausedSince: null,
 };
