@@ -47,7 +47,7 @@ function Dashboard() {
 	return (
 		<div className="flex flex-col gap-6">
 			<h1 className="text-xl font-semibold">Dashboard</h1>
-			<Grid variant="4up" gap="base">
+			<Grid variant="3up" gap="base">
 				<StatCard
 					label="Jetstream connection"
 					value={
@@ -57,15 +57,7 @@ function Dashboard() {
 					}
 				/>
 				<StatCard label="Pending assessments" value={status.pendingAssessments} />
-				<StatCard label="Discovery queue depth" value={status.discoveryQueueDepth} />
-				<StatCard
-					label="Last reconciliation"
-					value={
-						status.lastReconciliationAt
-							? new Date(status.lastReconciliationAt).toLocaleString()
-							: "Never"
-					}
-				/>
+				<StatCard label="Dead-letter depth" value={status.deadLetterDepth} />
 			</Grid>
 			<LayerCard className="p-4 text-sm text-kumo-subtle">
 				Labeler DID: <span className="font-mono">{status.labelerDid}</span>

@@ -20,10 +20,10 @@ import type {
 
 export const CONSOLE_API_BASE = "/admin/api";
 
-/** The console's data-access contract. `fixtureClient` below is the only
- * implementation wired up today; `createFetchClient` talks to the real
- * Worker routes once W9.4-W9.6 land — swapping `apiClient`'s assignment at
- * the bottom of this file is the only change either side needs. */
+/** The console's data-access contract. `createFetchClient` talks to the real
+ * Access-guarded `/admin/api/*` Worker routes and is what `apiClient` uses;
+ * `createFixtureClient` reads the static sample data and is kept exported for
+ * tests and offline UI work. */
 export interface LabelerConsoleClient {
 	listAssessments(params?: ListAssessmentsParams): Promise<Page<AssessmentRun>>;
 	getAssessment(id: string): Promise<AssessmentRun | null>;
@@ -64,8 +64,8 @@ async function parseJson<T>(response: Response, fallback: string): Promise<T> {
 	return body.data;
 }
 
-/** Talks to the real `/admin/api/*` routes. Not wired up yet — see
- * `apiClient` at the bottom of this file. */
+/** Talks to the real Access-guarded `/admin/api/*` routes — the client
+ * `apiClient` uses. */
 export function createFetchClient(): LabelerConsoleClient {
 	return {
 		async listAssessments(params = {}) {
@@ -112,9 +112,9 @@ export function createFetchClient(): LabelerConsoleClient {
 	};
 }
 
-/** Reads the static fixtures under src/fixtures/ — the only client wired
- * up until the labeler's `/admin/api/*` routes exist. */
-function createFixtureClient(): LabelerConsoleClient {
+/** Reads the static fixtures under src/fixtures/ — used by tests and offline
+ * UI work. */
+export function createFixtureClient(): LabelerConsoleClient {
 	return {
 		async listAssessments(params = {}) {
 			const filtered = params.state
@@ -144,4 +144,4 @@ function createFixtureClient(): LabelerConsoleClient {
 	};
 }
 
-export const apiClient: LabelerConsoleClient = createFixtureClient();
+export const apiClient: LabelerConsoleClient = createFetchClient();

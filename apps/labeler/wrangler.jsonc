@@ -43,6 +43,17 @@
 	"ai": {
 		"binding": "AI",
 	},
+	// Operator console SPA (apps/labeler/console), built to ./dist/console by
+	// `console:build`. `run_worker_first: true` keeps the Worker the sole
+	// router: the SPA fallback only fires where index.ts explicitly calls
+	// env.ASSETS.fetch (the /admin branch), so the public XRPC/well-known
+	// surface and the root 404 are unaffected. See W9.3 design.
+	"assets": {
+		"directory": "./dist/console",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": true,
+	},
 	"queues": {
 		"producers": [
 			{
@@ -82,6 +93,10 @@
 		"LABEL_SIGNING_KEY_VERSION": "v1",
 		"LABEL_SIGNING_PUBLIC_KEY": "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
 		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
+		// Operator console Access config (parsed via parseAccessAuthConfig).
+		// Group names / audience tag are not secrets. Replace `audience` with the
+		// Access application's AUD tag and the group names with the deployment's.
+		"OPERATOR_ACCESS_CONFIG": "{\"teamDomain\":\"https://emdash.cloudflareaccess.com\",\"audience\":\"REPLACE_WITH_ACCESS_APP_AUD_TAG\",\"admins\":[\"emdash-labeler-admins\"],\"reviewers\":[\"emdash-labeler-reviewers\"]}",
 	},
 	// Required secret, declared in config so `wrangler types` generates the
 	// typed binding and `wrangler deploy` validates the secret is set on the

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { apiClient } from "./client.js";
+import { createFixtureClient } from "./client.js";
 
-describe("fixture apiClient", () => {
+const apiClient = createFixtureClient();
+
+describe("fixture client", () => {
 	it("lists assessments newest first", async () => {
 		const page = await apiClient.listAssessments();
 		expect(page.items.length).toBeGreaterThan(0);

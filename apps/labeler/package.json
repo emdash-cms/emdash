@@ -8,7 +8,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"deploy": "vite build && wrangler deploy",
+		"deploy": "vite build && node --run console:build && wrangler deploy",
 		"typecheck": "tsgo --noEmit && tsgo --noEmit -p console/tsconfig.json",
 		"test": "vitest run && vitest run --config console/vitest.config.ts",
 		"db:migrate:local": "wrangler d1 migrations apply emdash-labeler --local",

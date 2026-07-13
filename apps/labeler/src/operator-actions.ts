@@ -136,6 +136,40 @@ export async function getOperatorActionByKey(
 }
 
 /**
+ * Audit-log page, newest first, exclusive keyset on `(created_at_epoch_ms, id)`
+ * over `idx_operator_actions_created`. `keyset.createdAt` is the ISO timestamp
+ * carried in the opaque cursor; the epoch comparison derives from it via
+ * `Date.parse`, matching `getAssessmentsPage`. Fetches `limit + 1` so the caller
+ * detects a next page without a trailing COUNT.
+ */
+export async function getOperatorActionsPage(
+	db: D1Database,
+	keyset: { createdAt: string; id: string } | null,
+	limit: number,
+): Promise<StoredOperatorAction[]> {
+	const bindings: (string | number)[] = [];
+	let where = "";
+	if (keyset !== null) {
+		const epochMs = Date.parse(keyset.createdAt);
+		where = `WHERE (created_at_epoch_ms < ? OR (created_at_epoch_ms = ? AND id < ?))`;
+		bindings.push(epochMs, epochMs, keyset.id);
+	}
+	bindings.push(limit + 1);
+	const rows = await db
+		.prepare(
+			`SELECT id, actor_type, actor_id, actor_email, actor_common_name, role, action,
+			 subject_uri, subject_cid, label_value, reason, idempotency_key,
+			 request_fingerprint, result_json, metadata_json, created_at, created_at_epoch_ms
+			 FROM operator_actions ${where}
+			 ORDER BY created_at_epoch_ms DESC, id DESC
+			 LIMIT ?`,
+		)
+		.bind(...bindings)
+		.all<OperatorActionRow>();
+	return (rows.results ?? []).map(rowToStoredOperatorAction);
+}
+
+/**
  * True when `error` is the D1 UNIQUE violation on `operator_actions.idempotency_key`.
  * Matches the qualified column so it does not catch the `id` primary-key conflict
  * or any other constraint — `commitMutation` uses it to tell a duplicate-key race
