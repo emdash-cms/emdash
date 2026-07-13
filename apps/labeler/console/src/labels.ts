@@ -36,6 +36,26 @@ export const PACKAGE_ISSUABLE_LABELS: readonly IssuableLabel[] = [
 	{ val: "package-disputed", scope: "uri-wide" },
 ];
 
+/** The automated blocking label vocabulary (policy `category: automated-block`),
+ * mirrored so the console can list a release's active blocks for the override
+ * ceremony. Presentation only — the server re-derives the authoritative set from
+ * live label state and rejects a stale submission. */
+export const AUTOMATED_BLOCK_LABELS: ReadonlySet<string> = new Set([
+	"malware",
+	"data-exfiltration",
+	"credential-harvesting",
+	"supply-chain-compromise",
+	"critical-vulnerability",
+	"artifact-integrity-failure",
+	"invalid-bundle",
+	"undeclared-access",
+	"impersonation",
+]);
+
+export function isAutomatedBlock(val: string): boolean {
+	return AUTOMATED_BLOCK_LABELS.has(val);
+}
+
 const RELEASE_SCOPES = new Map(RELEASE_ISSUABLE_LABELS.map((entry) => [entry.val, entry.scope]));
 
 /** The ceremony scope for a value already active on a release, so a retract

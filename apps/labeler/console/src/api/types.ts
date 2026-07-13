@@ -226,6 +226,70 @@ export interface IssuedLabelDescriptor {
 	effect: string;
 }
 
+/**
+ * The active label state for a subject `(src, uri)` at a CID from
+ * `GET /admin/api/subjects/:uri/labels?cid=` — the current stream winner per
+ * value, including the manual/override labels that carry no `assessment_id` and
+ * so never appear in the assessment-scoped label list. `active` already encodes
+ * non-negated + unexpired + CID-applicable. */
+export interface SubjectLabel {
+	val: string;
+	cid: string | null;
+	active: boolean;
+	neg: boolean;
+	cts: string;
+	exp: string | null;
+	sequence: number;
+}
+
+/** Body shared by the rerun and override-retract actions: a required reason, a
+ * server-validated typed CID confirmation, and a client-minted idempotency key
+ * (ULID) reused across retries so a network retry replays rather than repeats. */
+export interface AssessmentActionInput {
+	confirmation: string;
+	reason: string;
+	idempotencyKey: string;
+}
+
+/** Override body: adds the observed active automated block set, validated
+ * server-side against live label state (a stale set is rejected). */
+export interface OverrideActionInput extends AssessmentActionInput {
+	negate: string[];
+}
+
+/** Idempotent rerun result — the new run + its immutable operator trigger. */
+export interface RerunResult {
+	actionId: string;
+	runId: string;
+	triggerId: string;
+	uri: string;
+	cid: string;
+	cts: string;
+}
+
+export interface OverrideResult {
+	actionId: string;
+	uri: string;
+	cid: string;
+	negated: string[];
+	issued: string[];
+	cts: string;
+}
+
+export interface OverrideRetractResult {
+	actionId: string;
+	uri: string;
+	cid: string;
+	negated: string[];
+	cts: string;
+}
+
+export interface OverrideEffectPreviewParams {
+	uri: string;
+	cid: string;
+	negate: string[];
+}
+
 export interface ListAssessmentsParams {
 	state?: PublicAssessmentState;
 	cursor?: string;

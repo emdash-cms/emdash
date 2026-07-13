@@ -7,6 +7,7 @@ import {
 	FIXTURE_SYSTEM_STATUS,
 } from "../fixtures/index.js";
 import type {
+	AssessmentActionInput,
 	AssessmentRun,
 	EffectPreview,
 	EffectPreviewParams,
@@ -16,9 +17,15 @@ import type {
 	ListAssessmentsParams,
 	ListAuditLogParams,
 	OperatorAction,
+	OverrideActionInput,
+	OverrideEffectPreviewParams,
+	OverrideResult,
+	OverrideRetractResult,
 	OperatorFinding,
 	Page,
+	RerunResult,
 	SubjectHistoryView,
+	SubjectLabel,
 	SystemStatusSnapshot,
 	WhoamiIdentity,
 } from "./types.js";
@@ -35,12 +42,17 @@ export interface LabelerConsoleClient {
 	listFindings(assessmentId: string): Promise<OperatorFinding[]>;
 	listLabels(assessmentId: string): Promise<IssuedLabel[]>;
 	getSubjectHistory(uri: string): Promise<SubjectHistoryView | null>;
+	getSubjectLabels(uri: string, cid?: string): Promise<SubjectLabel[]>;
 	listAuditLog(params?: ListAuditLogParams): Promise<Page<OperatorAction>>;
 	getSystemStatus(): Promise<SystemStatusSnapshot>;
 	whoami(): Promise<WhoamiIdentity>;
 	previewEffect(params: EffectPreviewParams): Promise<EffectPreview>;
+	previewOverrideEffect(params: OverrideEffectPreviewParams): Promise<EffectPreview>;
 	issueLabel(input: LabelActionInput): Promise<IssuedLabelDescriptor>;
 	retractLabel(input: LabelActionInput): Promise<IssuedLabelDescriptor>;
+	rerunAssessment(id: string, input: AssessmentActionInput): Promise<RerunResult>;
+	overrideAssessment(id: string, input: OverrideActionInput): Promise<OverrideResult>;
+	retractOverride(id: string, input: AssessmentActionInput): Promise<OverrideRetractResult>;
 }
 
 interface ApiErrorBody {
@@ -63,16 +75,13 @@ function consoleApiFetch(path: string, init?: RequestInit): Promise<Response> {
 /** POST a state-changing label action. `consoleApiFetch` already sets the CSRF
  * header and same-origin credentials; this adds the JSON content type the
  * mutation guard requires and threads the client-minted idempotency key. */
-async function postLabelAction(
-	path: string,
-	input: LabelActionInput,
-): Promise<IssuedLabelDescriptor> {
+async function postAction<T>(path: string, input: unknown, fallback: string): Promise<T> {
 	const response = await consoleApiFetch(path, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	return parseJson(response, "Failed to submit label action");
+	return parseJson(response, fallback);
 }
 
 async function parseJson<T>(response: Response, fallback: string): Promise<T> {
@@ -122,6 +131,15 @@ export function createFetchClient(): LabelerConsoleClient {
 			if (response.status === 404) return null;
 			return parseJson(response, "Failed to load subject history");
 		},
+		async getSubjectLabels(uri, cid) {
+			const search = new URLSearchParams();
+			if (cid) search.set("cid", cid);
+			const query = search.toString();
+			const response = await consoleApiFetch(
+				`/subjects/${encodeURIComponent(uri)}/labels${query ? `?${query}` : ""}`,
+			);
+			return parseJson(response, "Failed to load subject labels");
+		},
 		async listAuditLog(params = {}) {
 			const search = new URLSearchParams();
 			if (params.cursor) search.set("cursor", params.cursor);
@@ -146,11 +164,42 @@ export function createFetchClient(): LabelerConsoleClient {
 			const response = await consoleApiFetch(`/labels/effect-preview?${search.toString()}`);
 			return parseJson(response, "Failed to preview effect");
 		},
+		async previewOverrideEffect(params) {
+			const search = new URLSearchParams();
+			search.set("uri", params.uri);
+			search.set("cid", params.cid);
+			for (const val of params.negate) search.append("negate", val);
+			const response = await consoleApiFetch(
+				`/labels/override-effect-preview?${search.toString()}`,
+			);
+			return parseJson(response, "Failed to preview override effect");
+		},
 		async issueLabel(input) {
-			return postLabelAction("/labels/issue", input);
+			return postAction("/labels/issue", input, "Failed to submit label action");
 		},
 		async retractLabel(input) {
-			return postLabelAction("/labels/retract", input);
+			return postAction("/labels/retract", input, "Failed to submit label action");
+		},
+		async rerunAssessment(id, input) {
+			return postAction(
+				`/assessments/${encodeURIComponent(id)}/rerun`,
+				input,
+				"Failed to rerun assessment",
+			);
+		},
+		async overrideAssessment(id, input) {
+			return postAction(
+				`/assessments/${encodeURIComponent(id)}/override`,
+				input,
+				"Failed to override assessment",
+			);
+		},
+		async retractOverride(id, input) {
+			return postAction(
+				`/assessments/${encodeURIComponent(id)}/override-retract`,
+				input,
+				"Failed to retract override",
+			);
 		},
 	};
 }
@@ -178,6 +227,9 @@ export function createFixtureClient(): LabelerConsoleClient {
 		async getSubjectHistory(uri) {
 			return FIXTURE_SUBJECT_HISTORY[uri] ?? null;
 		},
+		async getSubjectLabels() {
+			return [];
+		},
 		async listAuditLog() {
 			return { items: [...FIXTURE_OPERATOR_ACTIONS] };
 		},
@@ -201,6 +253,9 @@ export function createFixtureClient(): LabelerConsoleClient {
 				after: null,
 			};
 		},
+		async previewOverrideEffect() {
+			return { labelEffect: "pass", scope: "cid-bound", supersedes: [], before: null, after: null };
+		},
 		async issueLabel(input) {
 			return {
 				actionId: "oact_fixture",
@@ -221,6 +276,35 @@ export function createFixtureClient(): LabelerConsoleClient {
 				neg: true,
 				cts: new Date().toISOString(),
 				effect: input.val === "security-yanked" ? "block" : "warn",
+			};
+		},
+		async rerunAssessment() {
+			return {
+				actionId: "oact_fixture",
+				runId: "asmt_fixture",
+				triggerId: "operator:oact_fixture",
+				uri: "at://did:plc:x/com.emdashcms.experimental.package.release/rk1",
+				cid: "bafyfixture",
+				cts: new Date().toISOString(),
+			};
+		},
+		async overrideAssessment(_id, input) {
+			return {
+				actionId: "oact_fixture",
+				uri: "at://did:plc:x/com.emdashcms.experimental.package.release/rk1",
+				cid: "bafyfixture",
+				negated: input.negate,
+				issued: ["assessment-passed", "assessment-overridden"],
+				cts: new Date().toISOString(),
+			};
+		},
+		async retractOverride() {
+			return {
+				actionId: "oact_fixture",
+				uri: "at://did:plc:x/com.emdashcms.experimental.package.release/rk1",
+				cid: "bafyfixture",
+				negated: ["assessment-passed", "assessment-overridden"],
+				cts: new Date().toISOString(),
 			};
 		},
 	};

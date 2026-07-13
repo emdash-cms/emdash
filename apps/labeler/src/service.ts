@@ -1,6 +1,7 @@
 import type { LabelSigner, SignedLabel } from "@emdash-cms/registry-moderation";
 
 import { ASSESSMENT_ID } from "./assessment-lifecycle.js";
+import { getNegatableAutomatedLabels } from "./assessment-store.js";
 import type { LabelerConfig } from "./config.js";
 import type { FindingSeverity } from "./evidence.js";
 import { getLabelDefinition, type SubjectKind } from "./policy.js";
@@ -402,6 +403,156 @@ export async function prepareManualLabelIssuance(
 	validateAction(action);
 	validateManualProposal(proposal);
 	return buildIssuanceStatements(db, config, signer, action, proposal, now, true);
+}
+
+/**
+ * Automated analog of `prepareManualLabelIssuance`: validates + signs an
+ * automated-assessment issuance without executing the batch, returning the
+ * `IssuanceStatements` a caller commits alongside its own statements (plan W9.5
+ * rerun commits the `assessment-pending` label in the same `db.batch` as the
+ * operator audit row and the new run). `publicationPending` is `true` — the
+ * caller publishes post-commit.
+ */
+export async function prepareAutomatedLabelIssuance(
+	db: D1Database,
+	config: LabelerConfig,
+	signer: LabelSigner,
+	action: AutomatedIssuanceAction,
+	proposal: AutomatedLabelProposal,
+	now: Date,
+): Promise<IssuanceStatements> {
+	if (signer.issuerDid !== config.labelerDid)
+		throw new TypeError("signer issuer does not match the configured labeler DID");
+	validateKeyVersion(config.signingKeyVersion);
+	validateAutomatedAction(action);
+	validateAutomatedProposal(proposal);
+	return buildIssuanceStatements(db, config, signer, action, proposal, now, true);
+}
+
+export interface OverrideIssuanceSpec {
+	uri: string;
+	cid: string;
+	/** The automated blocking labels to negate; must equal the live negatable
+	 * automated-block set for `(labelerDid, uri, cid)` (validated here). */
+	negate: readonly string[];
+}
+
+/** The reviewer override pair, issued together as the eligibility half of an
+ * unblock (spec §7.1/§20.2). Order is load-bearing only for the descriptor. */
+const OVERRIDE_ELIGIBILITY_LABELS = ["assessment-passed", "assessment-overridden"] as const;
+
+/**
+ * The distinct signing idempotency key for one label piece of a multi-label
+ * operator action, derived from the single action's base key. Each `(val,
+ * direction)` pair is unique within an override or retract, so every piece gets
+ * its own `issuance_actions` + `issued_labels` row — a shared key would trip
+ * `buildIssuanceStatements`' single-label-per-action guard. Shared with the
+ * console handler so the post-commit persistence check reconstructs the same
+ * keys on replay.
+ */
+export function overridePieceKey(base: string, val: string, neg: boolean): string {
+	return `${base}:${val}:${neg ? "neg" : "pos"}`;
+}
+
+/**
+ * Composes the reviewer false-positive override (plan W9.5) as one signed,
+ * batchable statement set: `N` negations of the live automated blocking labels
+ * for the exact release `(uri, cid)`, then the `assessment-passed` +
+ * `assessment-overridden` eligibility pair. All pieces derive a distinct
+ * issuance idempotency key from the single operator action (`${base}:${val}:
+ * ${neg}`) so each gets its own `issuance_actions` + `issued_labels` row — a
+ * shared key would trip `buildIssuanceStatements`' single-label-per-action
+ * guard and silently drop all but the first.
+ *
+ * The negations are §20.2-authorized, not reviewer-issuance-mode labels, so they
+ * bypass `validateManualProposal` (which requires a `reviewer`/`admin` mode the
+ * automated blocks lack) and sign through `buildIssuanceStatements` directly.
+ * The two eligibility labels go through the normal manual path. The submitted
+ * `negate` set is validated against the live `getNegatableAutomatedLabels`
+ * (filtered to `automated-block`), so a stale or crafted set is rejected before
+ * signing rather than negating a different set than the reviewer saw.
+ */
+export async function prepareOverrideIssuance(
+	db: D1Database,
+	config: LabelerConfig,
+	signer: LabelSigner,
+	action: AuthorizedIssuanceAction,
+	spec: OverrideIssuanceSpec,
+	now: Date,
+): Promise<D1PreparedStatement[]> {
+	if (signer.issuerDid !== config.labelerDid)
+		throw new TypeError("signer issuer does not match the configured labeler DID");
+	validateKeyVersion(config.signingKeyVersion);
+	validateAction(action);
+	if (parseSubjectKind(spec.uri) !== "release")
+		throw new TypeError("override must target a release record");
+	if (spec.cid.length === 0) throw new TypeError("override must include a release CID");
+
+	const statements: D1PreparedStatement[] = [];
+
+	for (const val of spec.negate) {
+		const definition = getLabelDefinition(val);
+		if (!definition || definition.category !== "automated-block")
+			throw new TypeError(`${val} is not an automated blocking label`);
+		const built = await buildIssuanceStatements(
+			db,
+			config,
+			signer,
+			{ ...action, idempotencyKey: overridePieceKey(action.idempotencyKey, val, true) },
+			{ uri: spec.uri, val, cid: spec.cid, neg: true },
+			now,
+			true,
+		);
+		statements.push(...built.statements);
+	}
+
+	for (const val of OVERRIDE_ELIGIBILITY_LABELS) {
+		const built = await prepareManualLabelIssuance(
+			db,
+			config,
+			signer,
+			{ ...action, idempotencyKey: overridePieceKey(action.idempotencyKey, val, false) },
+			{ uri: spec.uri, val, cid: spec.cid, neg: false },
+			now,
+		);
+		statements.push(...built.statements);
+	}
+
+	return statements;
+}
+
+/**
+ * Validates that a submitted override `negate` set is exactly the live
+ * negatable automated-block set for `(src, uri, cid)`. Returns the authoritative
+ * live vals (sorted) when they match; throws when the submitted set omits an
+ * active block, includes a non-active/warning/manual-headed val, or is otherwise
+ * not identical — so a reviewer can never override against a stale view.
+ */
+export async function assertNegatableBlockSet(
+	db: D1Database,
+	src: string,
+	subject: { uri: string; cid: string },
+	submitted: readonly string[],
+): Promise<string[]> {
+	const live = (await getNegatableAutomatedLabels(db, { src, uri: subject.uri, cid: subject.cid }))
+		.map((label) => label.val)
+		.filter((val) => getLabelDefinition(val)?.category === "automated-block");
+	const liveSet = new Set(live);
+	const submittedSet = new Set(submitted);
+	const identical =
+		liveSet.size === submittedSet.size && [...liveSet].every((val) => submittedSet.has(val));
+	if (!identical || submitted.length !== submittedSet.size)
+		throw new NegatableBlockSetError("submitted block set does not match live automated blocks");
+	return live.toSorted();
+}
+
+/**
+ * The submitted override negation set is not exactly the live automated-block
+ * set. Message is static — it never echoes the submitted vals. Callers map this
+ * to a 400 `INVALID_BODY`.
+ */
+export class NegatableBlockSetError extends Error {
+	override readonly name = "NegatableBlockSetError";
 }
 
 export async function issueAutomatedAssessmentLabel(

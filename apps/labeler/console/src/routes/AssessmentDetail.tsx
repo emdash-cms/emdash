@@ -5,11 +5,18 @@ import { useState, type ReactNode } from "react";
 
 import { apiClient } from "../api/client.js";
 import type { IssuableLabel } from "../api/types.js";
+import { AssessmentActionDialog } from "../components/AssessmentActionDialog.js";
 import { FindingCard } from "../components/FindingCard.js";
 import { LabelActionDialog } from "../components/LabelActionDialog.js";
+import { OverrideDialog } from "../components/OverrideDialog.js";
 import { QueryError } from "../components/QueryError.js";
 import { StateBadge } from "../components/StateBadge.js";
-import { isReleaseRetractable, RELEASE_ISSUABLE_LABELS, releaseLabelScope } from "../labels.js";
+import {
+	isAutomatedBlock,
+	isReleaseRetractable,
+	RELEASE_ISSUABLE_LABELS,
+	releaseLabelScope,
+} from "../labels.js";
 import { shellRoute } from "./root.js";
 
 function MetaRow({ label, value }: { label: string; value: ReactNode }) {
@@ -56,8 +63,19 @@ function AssessmentDetail() {
 	const { data: whoami } = useQuery({ queryKey: ["whoami"], queryFn: () => apiClient.whoami() });
 	const canAct = whoami?.roles.includes("reviewer") || whoami?.roles.includes("admin") || false;
 
+	const subjectUri = assessment?.uri;
+	const subjectCid = assessment?.cid;
+	const { data: subjectLabels } = useQuery({
+		queryKey: ["subject-labels", subjectUri, subjectCid],
+		queryFn: () => apiClient.getSubjectLabels(subjectUri!, subjectCid),
+		enabled: !!subjectUri,
+	});
+
 	const [issueOpen, setIssueOpen] = useState(false);
 	const [retractTarget, setRetractTarget] = useState<IssuableLabel | null>(null);
+	const [rerunOpen, setRerunOpen] = useState(false);
+	const [overrideOpen, setOverrideOpen] = useState(false);
+	const [overrideRetractOpen, setOverrideRetractOpen] = useState(false);
 
 	if (isAssessmentError) {
 		return <QueryError title="Failed to load assessment" error={assessmentError} />;
@@ -76,6 +94,19 @@ function AssessmentDetail() {
 	if (!assessment) {
 		return <div className="p-8 text-center text-sm text-kumo-subtle">Assessment not found.</div>;
 	}
+
+	const activeSubjectLabels = subjectLabels ?? [];
+	const activeBlocks = activeSubjectLabels
+		.filter((label) => label.active && isAutomatedBlock(label.val))
+		.map((label) => label.val);
+	const hasActiveOverride = activeSubjectLabels.some(
+		(label) => label.val === "assessment-overridden" && label.active,
+	);
+	const actionInvalidateKeys: readonly (readonly unknown[])[] = [
+		["assessment", id, "labels"],
+		["assessment", id],
+		["subject-labels", assessment.uri, assessment.cid],
+	];
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -127,9 +158,46 @@ function AssessmentDetail() {
 				)}
 			</LayerCard>
 
+			{canAct && (
+				<div className="flex flex-wrap gap-2">
+					<Button variant="secondary" onClick={() => setRerunOpen(true)}>
+						Rerun
+					</Button>
+					{activeBlocks.length > 0 && (
+						<Button variant="secondary" onClick={() => setOverrideOpen(true)}>
+							Override (unblock)
+						</Button>
+					)}
+					{hasActiveOverride && (
+						<Button variant="destructive" onClick={() => setOverrideRetractOpen(true)}>
+							Retract override
+						</Button>
+					)}
+				</div>
+			)}
+
+			<section className="flex flex-col gap-3">
+				<h2 className="text-lg font-semibold">Active labels for this release</h2>
+				{activeSubjectLabels.length === 0 ? (
+					<p className="text-sm text-kumo-subtle">No active labels for this release.</p>
+				) : (
+					<div className="flex flex-wrap gap-2">
+						{activeSubjectLabels.map((label) => (
+							<Badge
+								key={`${label.val}-${label.sequence}`}
+								variant={label.active ? "info" : "neutral"}
+							>
+								{label.val}
+								{!label.active && (label.neg ? " (retracted)" : " (inactive)")}
+							</Badge>
+						))}
+					</div>
+				)}
+			</section>
+
 			<section className="flex flex-col gap-3">
 				<div className="flex items-center justify-between">
-					<h2 className="text-lg font-semibold">Labels</h2>
+					<h2 className="text-lg font-semibold">Labels issued by this run</h2>
 					{canAct && (
 						<Button variant="secondary" onClick={() => setIssueOpen(true)}>
 							Issue label
@@ -174,10 +242,7 @@ function AssessmentDetail() {
 						subjectUri={assessment.uri}
 						subjectCid={assessment.cid}
 						issuable={RELEASE_ISSUABLE_LABELS}
-						invalidateKeys={[
-							["assessment", id, "labels"],
-							["assessment", id],
-						]}
+						invalidateKeys={actionInvalidateKeys}
 					/>
 					<LabelActionDialog
 						open={retractTarget !== null}
@@ -188,10 +253,34 @@ function AssessmentDetail() {
 						subjectUri={assessment.uri}
 						subjectCid={assessment.cid}
 						{...(retractTarget ? { target: retractTarget } : {})}
-						invalidateKeys={[
-							["assessment", id, "labels"],
-							["assessment", id],
-						]}
+						invalidateKeys={actionInvalidateKeys}
+					/>
+					<AssessmentActionDialog
+						open={rerunOpen}
+						onOpenChange={setRerunOpen}
+						mode="rerun"
+						assessmentId={id}
+						subjectUri={assessment.uri}
+						subjectCid={assessment.cid}
+						invalidateKeys={actionInvalidateKeys}
+					/>
+					<OverrideDialog
+						open={overrideOpen}
+						onOpenChange={setOverrideOpen}
+						assessmentId={id}
+						subjectUri={assessment.uri}
+						subjectCid={assessment.cid}
+						blocks={activeBlocks}
+						invalidateKeys={actionInvalidateKeys}
+					/>
+					<AssessmentActionDialog
+						open={overrideRetractOpen}
+						onOpenChange={setOverrideRetractOpen}
+						mode="override-retract"
+						assessmentId={id}
+						subjectUri={assessment.uri}
+						subjectCid={assessment.cid}
+						invalidateKeys={actionInvalidateKeys}
 					/>
 				</>
 			)}

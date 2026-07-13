@@ -13,8 +13,20 @@
  */
 
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
+import { ulid } from "ulidx";
 
 import type { AccessAuthConfig, AccessKeyResolver } from "./access-auth.js";
+import {
+	automatedIdempotencyKey,
+	computeRunKey,
+	operatorTriggerId,
+} from "./assessment-lifecycle.js";
+import {
+	advanceAssessmentToPending,
+	buildAssessmentRunStatement,
+	getAssessment,
+	type Assessment,
+} from "./assessment-store.js";
 import type { LabelerIdentityConfig } from "./config.js";
 import {
 	commitMutation,
@@ -24,16 +36,29 @@ import {
 	type MutationSpec,
 } from "./mutation-guard.js";
 import { ReadGuardError } from "./operator-read-guard.js";
-import { getLabelDefinition } from "./policy.js";
+import { getLabelDefinition, MODERATION_POLICY } from "./policy.js";
 import {
+	assertNegatableBlockSet,
 	LabelIssuanceUnavailableError,
+	NegatableBlockSetError,
+	overridePieceKey,
 	parseSubjectKind,
+	prepareAutomatedLabelIssuance,
 	prepareManualLabelIssuance,
+	prepareOverrideIssuance,
 	readIssuedLabelByActionKey,
 	type AllowedLabelProposal,
 	type AuthorizedIssuanceAction,
 } from "./service.js";
 import { createLabelPublisher } from "./subscribe-labels.js";
+
+/** Model/prompt/scanner-set run-key components for an operator rerun. Like
+ * discovery's, these are stable stubs until W7/W8 wire real stage adapters; the
+ * run's identity comes from the operator trigger, so these need only be
+ * deterministic across replays. */
+const RERUN_MODEL_ID = "unassigned";
+const RERUN_PROMPT_HASH = "unassigned";
+const RERUN_SCANNER_SET_VERSION = "unassigned";
 
 const ADMIN_API_PREFIX = /^\/admin\/api\/?/;
 
@@ -117,9 +142,16 @@ export async function handleConsoleMutation(
 	try {
 		const url = new URL(request.url);
 		const segments = url.pathname.replace(ADMIN_API_PREFIX, "").split("/").filter(Boolean);
-		if (segments[0] !== "labels" || segments.length !== 2) throw new ReadGuardError("NOT_FOUND");
-		if (segments[1] === "issue") return await runLabelMutation(request, deps, false);
-		if (segments[1] === "retract") return await runLabelMutation(request, deps, true);
+		if (segments[0] === "labels" && segments.length === 2) {
+			if (segments[1] === "issue") return await runLabelMutation(request, deps, false);
+			if (segments[1] === "retract") return await runLabelMutation(request, deps, true);
+		}
+		if (segments[0] === "assessments" && segments.length === 3 && segments[1] !== undefined) {
+			const id = segments[1];
+			if (segments[2] === "rerun") return await runRerun(request, deps, id);
+			if (segments[2] === "override") return await runOverride(request, deps, id);
+			if (segments[2] === "override-retract") return await runOverrideRetract(request, deps, id);
+		}
 		throw new ReadGuardError("NOT_FOUND");
 	} catch (error) {
 		if (
@@ -128,6 +160,11 @@ export async function handleConsoleMutation(
 			error instanceof LabelMutationError
 		)
 			return error.toResponse();
+		// A submitted override negation set that isn't exactly the live automated
+		// block set is a 400 — the reviewer acted on a stale view (a block cleared
+		// or appeared since the console loaded) or a crafted set.
+		if (error instanceof NegatableBlockSetError)
+			return new MutationGuardError("INVALID_BODY").toResponse();
 		// Transient signing-state unavailability (issuance paused, key stale, or the
 		// in-batch signing guard suppressing the label under a rotation race) is
 		// retryable — surface a 503 rather than a misleading 500 or a phantom 200.
@@ -163,7 +200,7 @@ async function runLabelMutation(
 	};
 	const outcome = await guardMutation(request, spec, guardDeps);
 	if (outcome.outcome === "replay") {
-		await assertIssuancePersisted(deps.db, outcome.actionId);
+		await assertIssuancePersisted(deps.db, [outcome.actionId]);
 		return jsonData(outcome.result);
 	}
 
@@ -202,7 +239,7 @@ async function runLabelMutation(
 		effect: getLabelDefinition(proposal.val)?.officialEffect ?? "",
 	};
 	const returned = await commitMutation(deps.db, ctx, spec, statements, descriptor);
-	await assertIssuancePersisted(deps.db, returned.actionId);
+	await assertIssuancePersisted(deps.db, [returned.actionId]);
 	deps.defer(deps.afterCommit(ctx.actionId));
 	return jsonData(returned);
 }
@@ -219,10 +256,18 @@ async function runLabelMutation(
  * Keying on the committed action id distinguishes a genuine suppression (no
  * label) from a concurrent-race loss (the winner's action id, whose label is
  * present).
+ *
+ * For a multi-label batch (W9.5 override: `N` negations + the eligibility pair;
+ * override-retract: two negations; rerun: the pending label) every issuance key
+ * must persist — a mid-batch signing-state suppression drops all of them
+ * together while the audit row commits, so a single missing key is enough to
+ * treat the whole action as not-persisted and 503-retry.
  */
-async function assertIssuancePersisted(db: D1Database, actionId: string): Promise<void> {
-	if (!(await readIssuedLabelByActionKey(db, actionId)))
-		throw new LabelIssuanceUnavailableError("label issuance did not persist");
+async function assertIssuancePersisted(db: D1Database, issuanceKeys: string[]): Promise<void> {
+	for (const key of issuanceKeys) {
+		if (!(await readIssuedLabelByActionKey(db, key)))
+			throw new LabelIssuanceUnavailableError("label issuance did not persist");
+	}
 }
 
 function makeSpec(neg: boolean): MutationSpec<LabelActionBody> {
@@ -303,6 +348,11 @@ function optionalString(value: unknown): string | undefined {
 	return value;
 }
 
+function requireStringArray(value: unknown): string[] {
+	if (!Array.isArray(value)) throw new MutationGuardError("INVALID_BODY");
+	return value.map((entry) => requireString(entry));
+}
+
 function jsonData<T>(data: T): Response {
 	return Response.json({ data }, { headers: { "cache-control": "no-store" } });
 }
@@ -324,4 +374,396 @@ export async function publishAfterCommit(env: Env, actionId: string): Promise<vo
 	} catch (error) {
 		console.error("[console-mutation] publish failed", error);
 	}
+}
+
+// ─── W9.5: assessment rerun + false-positive override ───────────────────────
+
+/** The URL path's assessment id, folded into the parsed body so it joins the
+ * request fingerprint — a replayed key must target the same assessment. */
+interface AssessmentActionBody {
+	assessmentId: string;
+	/** The release CID, server-validated against the loaded assessment. */
+	confirmation: string;
+}
+
+interface OverrideActionBody extends AssessmentActionBody {
+	/** The active automated blocking labels the reviewer observed; validated
+	 * against the live negatable set before signing. */
+	negate: string[];
+}
+
+/** Idempotent rerun result (no `sequence`; assigned post-commit). */
+interface RerunDescriptor {
+	actionId: string;
+	runId: string;
+	triggerId: string;
+	uri: string;
+	cid: string;
+	cts: string;
+}
+
+interface OverrideDescriptor {
+	actionId: string;
+	uri: string;
+	cid: string;
+	negated: string[];
+	issued: string[];
+	cts: string;
+}
+
+interface OverrideRetractDescriptor {
+	actionId: string;
+	uri: string;
+	cid: string;
+	negated: string[];
+	cts: string;
+}
+
+const OVERRIDE_RETRACT_PAIR = ["assessment-passed", "assessment-overridden"] as const;
+
+function guardDepsOf(deps: ConsoleMutationDeps): MutationGuardDeps {
+	return { db: deps.db, config: deps.accessConfig, keys: deps.keys, now: deps.now };
+}
+
+/** Loads the assessment named in the path; a malformed id or a missing row is a
+ * 404 (`getAssessment` throws `TypeError` on a bad id). */
+async function loadAssessment(db: D1Database, id: string): Promise<Assessment> {
+	let assessment: Assessment | null;
+	try {
+		assessment = await getAssessment(db, id);
+	} catch (error) {
+		if (error instanceof TypeError) throw new ReadGuardError("NOT_FOUND");
+		throw error;
+	}
+	if (!assessment) throw new ReadGuardError("NOT_FOUND");
+	return assessment;
+}
+
+/** CID-bound confirmation ceremony: the typed confirmation must be the exact
+ * release CID from the loaded assessment (the W9.4 check, resolved server-side
+ * from the assessment rather than an echoed body CID). */
+function assertConfirmationCid(confirmation: string, cid: string): void {
+	if (confirmation !== cid) throw new LabelMutationError("CONFIRMATION_MISMATCH");
+}
+
+/** The stored `result_json` this handler itself wrote on the original commit,
+ * trusted on replay. */
+function storedDescriptor<T>(result: unknown): T {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- our own stored descriptor
+	return result as T;
+}
+
+function overrideIssuanceKeys(
+	actionId: string,
+	negated: readonly string[],
+	issued: readonly string[],
+): string[] {
+	return [
+		...negated.map((val) => overridePieceKey(actionId, val, true)),
+		...issued.map((val) => overridePieceKey(actionId, val, false)),
+	];
+}
+
+function rerunRunKey(uri: string, cid: string, triggerId: string): Promise<string> {
+	return computeRunKey({
+		uri,
+		cid,
+		policyVersion: MODERATION_POLICY.policyVersion,
+		modelId: RERUN_MODEL_ID,
+		promptHash: RERUN_PROMPT_HASH,
+		scannerSetVersion: RERUN_SCANNER_SET_VERSION,
+		triggerId,
+	});
+}
+
+/** Off-response tail (re-driven on replay, all pieces idempotent): advance the
+ * fresh run `observed → pending` and publish the pending label. The label is in
+ * the atomic batch, so the release re-gates to pending atomically with the audit
+ * row; only this internal state advance is deferred. */
+function deferRerunTail(deps: ConsoleMutationDeps, runId: string, pendingKey: string): void {
+	deps.defer(
+		(async () => {
+			try {
+				const run = await getAssessment(deps.db, runId);
+				if (run) await advanceAssessmentToPending(deps.db, run, deps.now());
+			} catch (error) {
+				console.error("[console-mutation] rerun advance failed", error);
+			}
+			await deps.afterCommit(pendingKey);
+		})(),
+	);
+}
+
+function deferPublishAll(deps: ConsoleMutationDeps, issuanceKeys: readonly string[]): void {
+	deps.defer(Promise.all(issuanceKeys.map((key) => deps.afterCommit(key))));
+}
+
+/**
+ * `POST /admin/api/assessments/:id/rerun` — mints the immutable operator trigger
+ * (`operator:<actionId>`), creates a fresh run for the assessment's exact URI+CID
+ * anchored to that trigger, and re-issues `assessment-pending`, all in one atomic
+ * batch with the audit row (spec §10/§11.2). Production wiring stops at pending
+ * (as initial discovery does today), so the run sits at `pending` until W7/W8
+ * supply stage adapters.
+ */
+async function runRerun(
+	request: Request,
+	deps: ConsoleMutationDeps,
+	id: string,
+): Promise<Response> {
+	const spec: MutationSpec<AssessmentActionBody> = {
+		action: "assessment-rerun",
+		requiredRole: "reviewer",
+		parseBody: (raw) => ({ assessmentId: id, confirmation: requireString(raw.confirmation) }),
+		auditFields: () => ({}),
+	};
+	const outcome = await guardMutation(request, spec, guardDepsOf(deps));
+	if (outcome.outcome === "replay") {
+		const stored = storedDescriptor<RerunDescriptor>(outcome.result);
+		const pendingKey = automatedIdempotencyKey(
+			await rerunRunKey(stored.uri, stored.cid, stored.triggerId),
+			"assessment-pending",
+			false,
+		);
+		await assertIssuancePersisted(deps.db, [pendingKey]);
+		deferRerunTail(deps, stored.runId, pendingKey);
+		return jsonData(stored);
+	}
+
+	const { ctx } = outcome;
+	const assessment = await loadAssessment(deps.db, id);
+	assertConfirmationCid(ctx.body.confirmation, assessment.cid);
+
+	const triggerId = operatorTriggerId(ctx.actionId);
+	const runKey = await rerunRunKey(assessment.uri, assessment.cid, triggerId);
+	const runId = `asmt_${ulid()}`;
+	const pendingKey = automatedIdempotencyKey(runKey, "assessment-pending", false);
+
+	const runStatement = buildAssessmentRunStatement(deps.db, {
+		id: runId,
+		runKey,
+		uri: assessment.uri,
+		cid: assessment.cid,
+		trigger: "operator",
+		triggerId,
+		policyVersion: MODERATION_POLICY.policyVersion,
+		modelId: RERUN_MODEL_ID,
+		promptHash: RERUN_PROMPT_HASH,
+		coverageJson: "{}",
+		now: ctx.now,
+	});
+	const signer = await deps.createSigner();
+	const pending = await prepareAutomatedLabelIssuance(
+		deps.db,
+		deps.config,
+		signer,
+		{
+			actor: deps.config.labelerDid,
+			type: "automated-assessment",
+			assessmentId: runId,
+			reason: ctx.reason,
+			idempotencyKey: pendingKey,
+		},
+		{ uri: assessment.uri, cid: assessment.cid, val: "assessment-pending" },
+		ctx.now,
+	);
+
+	const descriptor: RerunDescriptor = {
+		actionId: ctx.actionId,
+		runId,
+		triggerId,
+		uri: assessment.uri,
+		cid: assessment.cid,
+		cts: ctx.now.toISOString(),
+	};
+	const commitSpec: MutationSpec<AssessmentActionBody> = {
+		...spec,
+		auditFields: () => ({
+			subjectUri: assessment.uri,
+			subjectCid: assessment.cid,
+			labelValue: "assessment-pending",
+			metadata: { runId, triggerId },
+		}),
+	};
+	// The run row precedes the pending issuance in the batch so the
+	// `issuance_actions.assessment_id → runId` FK resolves within the transaction.
+	const returned = await commitMutation(
+		deps.db,
+		ctx,
+		commitSpec,
+		[runStatement, ...pending.statements],
+		descriptor,
+	);
+	// Derive the persistence + tail keys from the committed descriptor, not the
+	// locally built ones: on a concurrent-key race `commitMutation` returns the
+	// winner's stored descriptor, whose run + pending label are the ones on disk.
+	const committedPendingKey = automatedIdempotencyKey(
+		await rerunRunKey(returned.uri, returned.cid, returned.triggerId),
+		"assessment-pending",
+		false,
+	);
+	await assertIssuancePersisted(deps.db, [committedPendingKey]);
+	deferRerunTail(deps, returned.runId, committedPendingKey);
+	return jsonData(returned);
+}
+
+/**
+ * `POST /admin/api/assessments/:id/override` — the atomic false-positive unblock
+ * (spec §7.1/§20.2). One `commitMutation` batch commits the audit row, `N`
+ * negations of the live automated blocking labels for the exact URI+CID, and the
+ * `assessment-passed` + `assessment-overridden` eligibility pair. The submitted
+ * `negate` set must equal the live negatable automated-block set (else 400) so
+ * the reviewer cannot override against a stale view.
+ */
+async function runOverride(
+	request: Request,
+	deps: ConsoleMutationDeps,
+	id: string,
+): Promise<Response> {
+	const spec: MutationSpec<OverrideActionBody> = {
+		action: "unblock-override",
+		requiredRole: "reviewer",
+		parseBody: (raw) => ({
+			assessmentId: id,
+			confirmation: requireString(raw.confirmation),
+			negate: requireStringArray(raw.negate),
+		}),
+		auditFields: () => ({}),
+	};
+	const outcome = await guardMutation(request, spec, guardDepsOf(deps));
+	if (outcome.outcome === "replay") {
+		const stored = storedDescriptor<OverrideDescriptor>(outcome.result);
+		const keys = overrideIssuanceKeys(stored.actionId, stored.negated, stored.issued);
+		await assertIssuancePersisted(deps.db, keys);
+		deferPublishAll(deps, keys);
+		return jsonData(stored);
+	}
+
+	const { ctx } = outcome;
+	const assessment = await loadAssessment(deps.db, id);
+	assertConfirmationCid(ctx.body.confirmation, assessment.cid);
+	// Throws NegatableBlockSetError (→ 400) unless the submitted set is exactly
+	// the live automated-block set for the exact URI+CID.
+	await assertNegatableBlockSet(
+		deps.db,
+		deps.config.labelerDid,
+		{ uri: assessment.uri, cid: assessment.cid },
+		ctx.body.negate,
+	);
+
+	const signer = await deps.createSigner();
+	const overrideStatements = await prepareOverrideIssuance(
+		deps.db,
+		deps.config,
+		signer,
+		{
+			actor: deps.config.labelerDid,
+			type: "manual-label",
+			reason: ctx.reason,
+			idempotencyKey: ctx.actionId,
+		},
+		{ uri: assessment.uri, cid: assessment.cid, negate: ctx.body.negate },
+		ctx.now,
+	);
+
+	const descriptor: OverrideDescriptor = {
+		actionId: ctx.actionId,
+		uri: assessment.uri,
+		cid: assessment.cid,
+		negated: [...ctx.body.negate],
+		issued: [...OVERRIDE_RETRACT_PAIR],
+		cts: ctx.now.toISOString(),
+	};
+	const commitSpec: MutationSpec<OverrideActionBody> = {
+		...spec,
+		auditFields: () => ({
+			subjectUri: assessment.uri,
+			subjectCid: assessment.cid,
+			labelValue: "assessment-overridden",
+			metadata: { negated: descriptor.negated, issued: descriptor.issued },
+		}),
+	};
+	const returned = await commitMutation(deps.db, ctx, commitSpec, overrideStatements, descriptor);
+	// Keys from the committed descriptor (winner's on a race), not the loser's.
+	const committedKeys = overrideIssuanceKeys(returned.actionId, returned.negated, returned.issued);
+	await assertIssuancePersisted(deps.db, committedKeys);
+	deferPublishAll(deps, committedKeys);
+	return jsonData(returned);
+}
+
+/**
+ * `POST /admin/api/assessments/:id/override-retract` — negates only the
+ * `assessment-passed` + `assessment-overridden` override pair in one batch. The
+ * originally-negated automated blocks stay negated (retraction does not re-issue
+ * them — that would mint automated findings as permanent manual labels); the
+ * release returns to `blocked` / `missing-assessment-pass`. A rerun re-surfaces
+ * real findings with correct automated provenance.
+ */
+async function runOverrideRetract(
+	request: Request,
+	deps: ConsoleMutationDeps,
+	id: string,
+): Promise<Response> {
+	const spec: MutationSpec<AssessmentActionBody> = {
+		action: "override-retract",
+		requiredRole: "reviewer",
+		parseBody: (raw) => ({ assessmentId: id, confirmation: requireString(raw.confirmation) }),
+		auditFields: () => ({}),
+	};
+	const outcome = await guardMutation(request, spec, guardDepsOf(deps));
+	if (outcome.outcome === "replay") {
+		const stored = storedDescriptor<OverrideRetractDescriptor>(outcome.result);
+		const keys = stored.negated.map((val) => overridePieceKey(stored.actionId, val, true));
+		await assertIssuancePersisted(deps.db, keys);
+		deferPublishAll(deps, keys);
+		return jsonData(stored);
+	}
+
+	const { ctx } = outcome;
+	const assessment = await loadAssessment(deps.db, id);
+	assertConfirmationCid(ctx.body.confirmation, assessment.cid);
+
+	const signer = await deps.createSigner();
+	const statements: D1PreparedStatement[] = [];
+	for (const val of OVERRIDE_RETRACT_PAIR) {
+		const built = await prepareManualLabelIssuance(
+			deps.db,
+			deps.config,
+			signer,
+			{
+				actor: deps.config.labelerDid,
+				type: "manual-label",
+				reason: ctx.reason,
+				idempotencyKey: overridePieceKey(ctx.actionId, val, true),
+			},
+			{ uri: assessment.uri, val, cid: assessment.cid, neg: true },
+			ctx.now,
+		);
+		statements.push(...built.statements);
+	}
+
+	const descriptor: OverrideRetractDescriptor = {
+		actionId: ctx.actionId,
+		uri: assessment.uri,
+		cid: assessment.cid,
+		negated: [...OVERRIDE_RETRACT_PAIR],
+		cts: ctx.now.toISOString(),
+	};
+	const commitSpec: MutationSpec<AssessmentActionBody> = {
+		...spec,
+		auditFields: () => ({
+			subjectUri: assessment.uri,
+			subjectCid: assessment.cid,
+			labelValue: "assessment-overridden",
+			metadata: { negated: descriptor.negated },
+		}),
+	};
+	const returned = await commitMutation(deps.db, ctx, commitSpec, statements, descriptor);
+	// Keys from the committed descriptor (winner's on a race), not the loser's.
+	const committedKeys = returned.negated.map((val) =>
+		overridePieceKey(returned.actionId, val, true),
+	);
+	await assertIssuancePersisted(deps.db, committedKeys);
+	deferPublishAll(deps, committedKeys);
+	return jsonData(returned);
 }
