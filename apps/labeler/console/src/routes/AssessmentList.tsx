@@ -117,12 +117,6 @@ function AssessmentList() {
 					)}
 				</LayerCard>
 			)}
-
-			{!isError && data?.nextCursor && (
-				<div className="flex justify-center">
-					<span className="text-sm text-kumo-subtle">More assessments available.</span>
-				</div>
-			)}
 		</div>
 	);
 }

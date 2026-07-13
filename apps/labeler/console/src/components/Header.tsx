@@ -9,7 +9,7 @@ import { Sidebar } from "./Sidebar.js";
 export function Header() {
 	return (
 		<header className="sticky top-0 z-10 flex h-[58px] items-center justify-between border-b bg-kumo-elevated px-4">
-			<Sidebar.Trigger className="cursor-pointer rtl:rotate-180" />
+			<Sidebar.Trigger className="cursor-pointer" />
 			<Badge variant="outline">Fixture data</Badge>
 		</header>
 	);

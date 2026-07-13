@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 const migrationsPath = fileURLToPath(new URL("./migrations", import.meta.url));
 const migrations = await readD1Migrations(migrationsPath);
@@ -10,7 +10,7 @@ export default defineConfig({
 	// The console (console/vitest.config.ts) runs its own jsdom-based suite
 	// separately -- it doesn't run in the workerd pool this config sets up.
 	test: {
-		exclude: ["**/node_modules/**", "console/**"],
+		exclude: [...configDefaults.exclude, "console/**"],
 	},
 	plugins: [
 		cloudflareTest({
