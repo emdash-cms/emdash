@@ -62,9 +62,10 @@
 		"ALLOWED_ORIGINS": "[]",
 		"ALLOWED_PUBLISHERS": "{\"mode\":\"allowlist\",\"dids\":[]}",
 		"DEPLOYMENT_POLICY": "",
+		"OAUTH_REDIRECT_URIS": "[]",
 	},
 	"secrets": {
-		"required": ["ENCRYPTION_KEYRING"],
+		"required": ["ENCRYPTION_KEYRING", "OAUTH_ASSERTION_KEYSET"],
 	},
 	"observability": {
 		"enabled": true,

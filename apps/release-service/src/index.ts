@@ -20,7 +20,7 @@ export async function handleRequest(
 ): Promise<Response> {
 	const requestId = getRequestId(request);
 	try {
-		const configuration = loadConfiguration(bindings);
+		const configuration = await loadConfiguration(bindings);
 		const url = new URL(request.url);
 		const route = routes.find(
 			(candidate) => candidate.path === url.pathname && candidate.method === request.method,
