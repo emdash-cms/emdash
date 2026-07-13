@@ -25,9 +25,9 @@ import {
 	type Assessment,
 } from "./assessment-store.js";
 import type { LabelerConfig } from "./config.js";
-import type { FindingSeverity } from "./evidence.js";
 import { allowedFindingCategories, validateFindings, type NormalizedFinding } from "./findings.js";
-import { automatedBlockCategories, type ModerationPolicy } from "./policy.js";
+import { resolvePolicyOutcome, type OutcomeLabel, type PolicyOutcome } from "./policy-resolver.js";
+import type { ModerationPolicy } from "./policy.js";
 import {
 	buildIssuanceStatements,
 	type AutomatedIssuanceAction,
@@ -60,54 +60,6 @@ export interface OrchestratorStages {
 	dependency: StageAdapter;
 	codeAi: StageAdapter;
 	imageAi: StageAdapter;
-}
-
-export interface OutcomeLabel {
-	val: string;
-	findingCategory?: string;
-	severity?: FindingSeverity;
-}
-
-export interface PolicyOutcome {
-	toState: "passed" | "warned" | "blocked";
-	labels: readonly OutcomeLabel[];
-}
-
-/**
- * Pure resolution per spec §9.9 order (blocking findings first, then
- * warnings, else pass). A stub — W7/W8 replace this with the real policy
- * engine; this PR only needs enough to exercise the orchestrator's
- * finalization/negation plumbing in tests.
- */
-export function resolvePolicyOutcome(
-	findings: readonly StageFinding[],
-	policy: ModerationPolicy,
-): PolicyOutcome {
-	const blockCategories = automatedBlockCategories(policy);
-	const blockingVals = [
-		...new Set(
-			findings
-				.filter((f) => f.severity === "critical" && blockCategories.has(f.category))
-				.map((f) => f.category),
-		),
-	];
-	if (blockingVals.length > 0) {
-		return {
-			toState: "blocked",
-			labels: blockingVals.map((val) => ({ val, findingCategory: val, severity: "critical" })),
-		};
-	}
-	const warningVals = [
-		...new Set(
-			findings
-				.filter((f) => policy.labelsByValue.get(f.category)?.category === "warning")
-				.map((f) => f.category),
-		),
-	];
-	if (warningVals.length > 0) {
-		return { toState: "warned", labels: warningVals.map((val) => ({ val })) };
-	}
-	return { toState: "passed", labels: [{ val: "assessment-passed" }] };
 }
 
 const STAGE_ORDER = ["acquire", "deterministic", "dependency", "codeAi", "imageAi"] as const;
