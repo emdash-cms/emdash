@@ -9,7 +9,7 @@ import {
 
 describe("moderation policy fixture", () => {
 	it("loads the ratified fixture and exposes label lookups", () => {
-		expect(MODERATION_POLICY.policyVersion).toBe("2026-07-10.experimental.2");
+		expect(MODERATION_POLICY.policyVersion).toBe("2026-07-10.experimental.3");
 		expect(getLabelDefinition("malware")).toMatchObject({
 			value: "malware",
 			category: "automated-block",

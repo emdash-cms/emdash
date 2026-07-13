@@ -3,8 +3,9 @@ import {
 	parseAccessAuthConfig,
 	type AccessAuthConfig,
 } from "./access-auth.js";
-import { getLabelerIdentityConfig, type LabelerConfig } from "./config.js";
+import { getLabelerIdentityConfig, type LabelerIdentityConfig } from "./config.js";
 import { consoleAssetPath, handleConsoleApi, probeJetstreamConnected } from "./console-api.js";
+import { handleConsoleMutation, publishAfterCommit } from "./console-mutation-api.js";
 import { drainDiscoveryDeadLetterBatch, processDiscoveryBatch } from "./discovery-consumer.js";
 import { LABELER_DISCOVERY_DO_NAME } from "./discovery-do.js";
 import type { DiscoveryJob } from "./env.js";
@@ -29,7 +30,7 @@ const DISCOVERY_QUEUE_NAME = "emdash-labeler-discovery";
 const DISCOVERY_DLQ_NAME = "emdash-labeler-discovery-dlq";
 
 export default {
-	async fetch(request: Request, env: Env): Promise<Response> {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const pathname = new URL(request.url).pathname;
 		let config;
 		try {
@@ -57,7 +58,7 @@ export default {
 		// the shell needs no in-Worker auth check — the API re-verifies per
 		// request regardless (see console-api.ts / operator-read-guard.ts).
 		if (pathname === "/admin/api" || pathname.startsWith("/admin/api/"))
-			return handleConsoleApiRequest(env, request, config);
+			return handleConsoleApiRequest(env, request, config, ctx);
 		const assetPath = consoleAssetPath(pathname);
 		if (assetPath !== null) {
 			const assetUrl = new URL(request.url);
@@ -120,7 +121,8 @@ function getOperatorAccessConfig(env: Env): AccessAuthConfig {
 async function handleConsoleApiRequest(
 	env: Env,
 	request: Request,
-	config: LabelerConfig,
+	config: LabelerIdentityConfig,
+	ctx: ExecutionContext,
 ): Promise<Response> {
 	let accessConfig: AccessAuthConfig;
 	try {
@@ -131,10 +133,24 @@ async function handleConsoleApiRequest(
 			{ status: 500 },
 		);
 	}
+	const keys = getAccessKeyResolver(accessConfig.teamDomain);
+	if (request.method === "POST") {
+		return handleConsoleMutation(request, {
+			db: env.DB,
+			accessConfig,
+			keys,
+			config,
+			createSigner: async () =>
+				(await createRuntimeSigner(config, getRuntimeSigningSecret(env))).signer,
+			now: () => new Date(),
+			afterCommit: (actionId) => publishAfterCommit(env, actionId),
+			defer: (work) => ctx.waitUntil(work),
+		});
+	}
 	return handleConsoleApi(request, {
 		db: env.DB,
 		config: accessConfig,
-		keys: getAccessKeyResolver(accessConfig.teamDomain),
+		keys,
 		labelerDid: config.labelerDid,
 		jetstreamConnected: () => probeJetstreamConnected(env),
 	});

@@ -78,7 +78,7 @@ describe("service identity", () => {
 		expect(response.headers.get("etag")).toMatch(/^"[a-f0-9]{64}"$/);
 		expect(await response.json()).toMatchObject({
 			schemaVersion: 1,
-			policyVersion: "2026-07-10.experimental.2",
+			policyVersion: "2026-07-10.experimental.3",
 			labelerDid: LABELER_DID,
 			assessmentSchemaVersion: 1,
 		});

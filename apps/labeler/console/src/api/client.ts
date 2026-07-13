@@ -8,7 +8,11 @@ import {
 } from "../fixtures/index.js";
 import type {
 	AssessmentRun,
+	EffectPreview,
+	EffectPreviewParams,
 	IssuedLabel,
+	IssuedLabelDescriptor,
+	LabelActionInput,
 	ListAssessmentsParams,
 	ListAuditLogParams,
 	OperatorAction,
@@ -16,6 +20,7 @@ import type {
 	Page,
 	SubjectHistoryView,
 	SystemStatusSnapshot,
+	WhoamiIdentity,
 } from "./types.js";
 
 export const CONSOLE_API_BASE = "/admin/api";
@@ -32,6 +37,10 @@ export interface LabelerConsoleClient {
 	getSubjectHistory(uri: string): Promise<SubjectHistoryView | null>;
 	listAuditLog(params?: ListAuditLogParams): Promise<Page<OperatorAction>>;
 	getSystemStatus(): Promise<SystemStatusSnapshot>;
+	whoami(): Promise<WhoamiIdentity>;
+	previewEffect(params: EffectPreviewParams): Promise<EffectPreview>;
+	issueLabel(input: LabelActionInput): Promise<IssuedLabelDescriptor>;
+	retractLabel(input: LabelActionInput): Promise<IssuedLabelDescriptor>;
 }
 
 interface ApiErrorBody {
@@ -49,6 +58,21 @@ function consoleApiFetch(path: string, init?: RequestInit): Promise<Response> {
 	const headers = new Headers(init?.headers);
 	headers.set("X-EmDash-Request", "1");
 	return fetch(`${CONSOLE_API_BASE}${path}`, { ...init, headers, credentials: "same-origin" });
+}
+
+/** POST a state-changing label action. `consoleApiFetch` already sets the CSRF
+ * header and same-origin credentials; this adds the JSON content type the
+ * mutation guard requires and threads the client-minted idempotency key. */
+async function postLabelAction(
+	path: string,
+	input: LabelActionInput,
+): Promise<IssuedLabelDescriptor> {
+	const response = await consoleApiFetch(path, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+	return parseJson(response, "Failed to submit label action");
 }
 
 async function parseJson<T>(response: Response, fallback: string): Promise<T> {
@@ -109,6 +133,25 @@ export function createFetchClient(): LabelerConsoleClient {
 			const response = await consoleApiFetch("/status");
 			return parseJson(response, "Failed to load system status");
 		},
+		async whoami() {
+			const response = await consoleApiFetch("/whoami");
+			return parseJson(response, "Failed to load identity");
+		},
+		async previewEffect(params) {
+			const search = new URLSearchParams();
+			search.set("uri", params.uri);
+			search.set("val", params.val);
+			if (params.cid) search.set("cid", params.cid);
+			if (params.neg) search.set("neg", "true");
+			const response = await consoleApiFetch(`/labels/effect-preview?${search.toString()}`);
+			return parseJson(response, "Failed to preview effect");
+		},
+		async issueLabel(input) {
+			return postLabelAction("/labels/issue", input);
+		},
+		async retractLabel(input) {
+			return postLabelAction("/labels/retract", input);
+		},
 	};
 }
 
@@ -140,6 +183,45 @@ export function createFixtureClient(): LabelerConsoleClient {
 		},
 		async getSystemStatus() {
 			return FIXTURE_SYSTEM_STATUS;
+		},
+		async whoami() {
+			return {
+				kind: "human",
+				principal: "reviewer@example.com",
+				sub: "dev-reviewer",
+				roles: ["reviewer"],
+			};
+		},
+		async previewEffect(params) {
+			return {
+				labelEffect: params.val === "security-yanked" ? "block" : "warn",
+				scope: params.cid ? "cid-bound" : "uri-wide",
+				supersedes: [],
+				before: null,
+				after: null,
+			};
+		},
+		async issueLabel(input) {
+			return {
+				actionId: "oact_fixture",
+				val: input.val,
+				uri: input.uri,
+				cid: input.cid ?? null,
+				neg: false,
+				cts: new Date().toISOString(),
+				effect: input.val === "security-yanked" ? "block" : "warn",
+			};
+		},
+		async retractLabel(input) {
+			return {
+				actionId: "oact_fixture",
+				val: input.val,
+				uri: input.uri,
+				cid: input.cid ?? null,
+				neg: true,
+				cts: new Date().toISOString(),
+				effect: input.val === "security-yanked" ? "block" : "warn",
+			};
 		},
 	};
 }

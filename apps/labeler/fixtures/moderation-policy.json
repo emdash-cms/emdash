@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"policyVersion": "2026-07-10.experimental.2",
+	"policyVersion": "2026-07-10.experimental.3",
 	"effectiveAt": "2026-07-10T00:00:00Z",
 	"labelerDid": "did:web:labels.emdashcms.com",
 	"assessmentSchemaVersion": 1,
@@ -117,7 +117,7 @@
 			"category": "automated-block",
 			"officialEffect": "block",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -132,7 +132,7 @@
 			"category": "automated-block",
 			"officialEffect": "block",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -147,7 +147,7 @@
 			"category": "automated-block",
 			"officialEffect": "block",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -162,7 +162,7 @@
 			"category": "automated-block",
 			"officialEffect": "block",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -177,7 +177,7 @@
 			"category": "automated-block",
 			"officialEffect": "block",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -192,7 +192,7 @@
 			"category": "automated-block",
 			"officialEffect": "block",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -207,7 +207,7 @@
 			"category": "automated-block",
 			"officialEffect": "block",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -222,7 +222,7 @@
 			"category": "automated-block",
 			"officialEffect": "block",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -237,7 +237,7 @@
 			"category": "automated-block",
 			"officialEffect": "block",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -252,7 +252,7 @@
 			"category": "warning",
 			"officialEffect": "warn",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -267,7 +267,7 @@
 			"category": "warning",
 			"officialEffect": "warn",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -282,7 +282,7 @@
 			"category": "warning",
 			"officialEffect": "warn",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -297,7 +297,7 @@
 			"category": "warning",
 			"officialEffect": "warn",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -312,7 +312,7 @@
 			"category": "warning",
 			"officialEffect": "warn",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
@@ -327,7 +327,7 @@
 			"category": "warning",
 			"officialEffect": "warn",
 			"subjectRules": [
-				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated"] }
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
 			"locales": [
 				{
