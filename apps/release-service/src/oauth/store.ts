@@ -512,10 +512,42 @@ export class OAuthCustodyRepository {
 	async putDelegation(publisherDid: `did:${string}:${string}`, session: StoredSession) {
 		this.validateDelegationSession(publisherDid, session);
 		const existing = await this.getDelegationByPublisher(publisherDid);
-		if (existing) throw new OAuthCustodyError("OAUTH_DELEGATION_CAS_REQUIRED");
-		const id = ulid();
+		if (existing && existing.status !== "reauthorization_required") {
+			throw new OAuthCustodyError("OAUTH_DELEGATION_CAS_REQUIRED");
+		}
+		const id = existing?.id ?? ulid();
 		const encrypted = await this.encryptSession(id, publisherDid, session);
 		const now = new Date().toISOString();
+		const refreshBefore = session.tokenSet.expires_at
+			? new Date(session.tokenSet.expires_at).toISOString()
+			: null;
+		if (existing) {
+			const result = await this.#db
+				.prepare(
+					`UPDATE delegations SET
+						encrypted_session = ?, encryption_key_version = ?, client_key_id = ?, scope = ?,
+						status = 'active', refresh_before = ?, lease_owner = NULL, lease_expires_at = NULL,
+						state_version = state_version + 1, updated_at = ?
+					WHERE id = ? AND publisher_did = ? AND release_nsid = ?
+						AND status = 'reauthorization_required' AND revoked_at IS NULL`,
+				)
+				.bind(
+					encrypted.envelope,
+					encrypted.keyVersion,
+					getClientKeyId(session),
+					this.#oauth.releaseScope,
+					refreshBefore,
+					now,
+					id,
+					publisherDid,
+					this.#oauth.releaseNsid,
+				)
+				.run();
+			if (result.meta.changes !== 1) {
+				throw new OAuthCustodyError("OAUTH_DELEGATION_CAS_REQUIRED");
+			}
+			return id;
+		}
 		await this.#db
 			.prepare(
 				`INSERT INTO delegations (
@@ -531,7 +563,7 @@ export class OAuthCustodyRepository {
 				encrypted.keyVersion,
 				getClientKeyId(session),
 				this.#oauth.releaseScope,
-				session.tokenSet.expires_at ? new Date(session.tokenSet.expires_at).toISOString() : null,
+				refreshBefore,
 				now,
 				now,
 			)

@@ -491,6 +491,50 @@ describe("OAuth custody D1 repository", () => {
 		await expect(statement("01J00000000000000000000002").run()).rejects.toThrow();
 	});
 
+	it("replaces a delegation after reauthorization is required", async () => {
+		const { repository } = await createRepository();
+		await repository.upsertPublisher({ did: DID });
+		const stores = createOAuthStores(repository, {
+			purpose: "release_delegation",
+			expectedDid: DID,
+			redirectTarget: "/delegations",
+		});
+		await stores.sessions.set(DID, storedSession());
+		const original = await repository.getDelegationByPublisher(DID);
+
+		const key1OnlyBindings = {
+			...TEST_BINDINGS,
+			OAUTH_ASSERTION_KEYSET: JSON.stringify({
+				active: ASSERTION_KEY_1.kid,
+				keys: [ASSERTION_KEY_1],
+			}),
+		};
+		const { repository: rotatedRepository } = await createRepository(key1OnlyBindings);
+		const rotatedStores = createOAuthStores(rotatedRepository, {
+			purpose: "release_delegation",
+			expectedDid: DID,
+			redirectTarget: "/delegations",
+		});
+		await expect(rotatedStores.sessions.get(DID)).rejects.toMatchObject({
+			code: "OAUTH_CLIENT_KEY_UNAVAILABLE",
+		});
+
+		const reauthorized = {
+			...storedSession("reauthorized-access"),
+			authMethod: { method: "private_key_jwt" as const, kid: ASSERTION_KEY_1.kid },
+		};
+		await rotatedStores.sessions.set(DID, reauthorized);
+
+		const replacement = await rotatedRepository.getDelegationByPublisher(DID);
+		expect(replacement).toMatchObject({
+			id: original!.id,
+			client_key_id: ASSERTION_KEY_1.kid,
+			status: "active",
+			state_version: 3,
+		});
+		expect(await rotatedStores.sessions.get(DID)).toEqual(reauthorized);
+	});
+
 	it("provides owner-bound delegation CAS and lease persistence for refresh coordination", async () => {
 		const { repository } = await createRepository();
 		await repository.upsertPublisher({ did: "did:plc:lease" });
