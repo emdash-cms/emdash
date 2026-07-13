@@ -273,6 +273,15 @@ function capFilesToBudget(
 	fixedOverheadChars: number,
 	maxChars: number,
 ): { kept: readonly CodeAnalysisFile[]; dropped: readonly string[] } {
+	// Metadata is publisher-controlled and never dropped, so it can exceed the
+	// budget on its own; no amount of file-dropping fixes that. Retrying an
+	// oversized request can't succeed either, so this must not surface as a
+	// retryable ModelTransientError.
+	if (fixedOverheadChars > maxChars)
+		throw new TypeError(
+			"analyzeCode: system prompt and metadata alone exceed the model input budget",
+		);
+
 	// Each file renders as its fence plus a blank-line separator — two newlines
 	// in the joined user content — so its cost is the fence length + 2.
 	const renderedCost = new Map<CodeAnalysisFile, number>(
@@ -283,16 +292,18 @@ function capFilesToBudget(
 	if (total <= maxChars) return { kept: files, dropped: [] };
 
 	const largestFirst = files.toSorted((a, b) => costOf(b) - costOf(a));
-	const droppedPaths = new Set<string>();
+	// Drop by identity, not path: a bundle with duplicate paths must not drop
+	// every same-named file when one is over budget.
+	const droppedFiles = new Set<CodeAnalysisFile>();
 	let remaining = total;
 	for (const file of largestFirst) {
 		if (remaining <= maxChars) break;
-		droppedPaths.add(file.path);
+		droppedFiles.add(file);
 		remaining -= costOf(file);
 	}
 	return {
-		kept: files.filter((file) => !droppedPaths.has(file.path)),
-		dropped: files.filter((file) => droppedPaths.has(file.path)).map((file) => file.path),
+		kept: files.filter((file) => !droppedFiles.has(file)),
+		dropped: files.filter((file) => droppedFiles.has(file)).map((file) => file.path),
 	};
 }
 

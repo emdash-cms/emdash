@@ -308,6 +308,44 @@ describe("analyzeCode", () => {
 		expect(result.droppedFiles.length).toBeGreaterThan(0);
 	});
 
+	it("rejects metadata that alone exceeds the input budget as non-retryable, without calling the model", async () => {
+		const { ai, calls } = capturingAi(findingResponse([]));
+		const promise = analyzeCode(
+			baseInput({
+				metadata: {
+					name: "example-plugin",
+					description: "d".repeat(MAX_MODEL_INPUT_CHARS + 1),
+					publisherDid: "did:plc:example",
+					version: "1.0.0",
+				},
+			}),
+			{ ai, policy: MODERATION_POLICY, promptVersion: PROMPT_VERSION },
+		);
+		await expect(promise).rejects.toThrow(TypeError);
+		await expect(promise).rejects.not.toThrow(ModelTransientError);
+		expect(calls).toHaveLength(0);
+	});
+
+	it("drops over-budget files by identity, keeping a smaller file that shares the same path", async () => {
+		const files = [
+			{ path: "dup.ts", content: "y".repeat(150_000) },
+			{ path: "dup.ts", content: "const KEEP_ME_MARKER = 1;" },
+			{ path: "other.ts", content: "z".repeat(100_000) },
+		];
+		const { ai, calls } = capturingAi(findingResponse([]));
+
+		const result = await analyzeCode(baseInput({ files }), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+		});
+
+		expect(result.droppedFiles).toEqual(["dup.ts"]);
+		const userContent = calls[0]!.messages.find((m) => m.role === "user")!.content;
+		expect(userContent).toContain("KEEP_ME_MARKER");
+		expect(userContent).not.toContain("y".repeat(150_000));
+	});
+
 	it("sends no cache/gateway cache option in the run inputs", async () => {
 		const { ai, calls } = capturingAi(findingResponse([]));
 		await analyzeCode(baseInput(), {
