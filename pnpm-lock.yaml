@@ -447,6 +447,9 @@ importers:
       '@emdash-cms/registry-moderation':
         specifier: workspace:*
         version: link:../../packages/registry-moderation
+      jose:
+        specifier: ^6.1.3
+        version: 6.1.3
       ulidx:
         specifier: ^2.4.1
         version: 2.4.1
