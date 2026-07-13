@@ -30,7 +30,7 @@
 		"@cloudflare/kumo": "catalog:"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20250224.0",
+		"@cloudflare/workers-types": "catalog:",
 		"@types/react": "catalog:",
 		"vitest": "catalog:"
 	},
