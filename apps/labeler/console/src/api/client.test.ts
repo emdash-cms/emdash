@@ -112,6 +112,23 @@ describe("fetch client label actions", () => {
 		await expect(fetchClient.issueLabel(input)).rejects.toThrow("does not match");
 	});
 
+	it("surfaces a retryable 503 as an error, not a false success", async () => {
+		stubFetch(() =>
+			Response.json(
+				{
+					error: {
+						code: "LABEL_ISSUANCE_UNAVAILABLE",
+						message: "Label issuance is temporarily unavailable; retry.",
+					},
+				},
+				{ status: 503 },
+			),
+		);
+		await expect(fetchClient.issueLabel(input)).rejects.toThrow(
+			"Label issuance is temporarily unavailable; retry.",
+		);
+	});
+
 	it("builds the effect-preview query string", async () => {
 		stubFetch(() =>
 			Response.json({ data: { labelEffect: "block", scope: "cid-bound", supersedes: [] } }),

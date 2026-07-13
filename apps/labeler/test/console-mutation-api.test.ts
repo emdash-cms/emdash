@@ -186,6 +186,26 @@ function nextKey(): string {
 	return `idem-key-${keySeq.toString().padStart(6, "0")}`;
 }
 
+/**
+ * Simulates the in-batch signing-guard suppression a signing-key rotation race
+ * produces: the unguarded `operator_actions` INSERT commits while the guarded
+ * `issuance_actions` / `issued_labels` INSERTs match zero rows. Wraps `batch` to
+ * run only the audit INSERT, leaving the exact "audit row present, label absent"
+ * phantom state the handler's post-commit verification must reject. Every other
+ * method (`prepare`, etc.) passes through to the real D1, so no signing_state is
+ * written and later tests stay isolated.
+ */
+function suppressIssuanceDb(db: D1Database): D1Database {
+	return new Proxy(db, {
+		get(target, prop, receiver) {
+			if (prop === "batch")
+				return (statements: D1PreparedStatement[]) => target.batch([statements[0]!]);
+			const value: unknown = Reflect.get(target, prop, receiver);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+}
+
 async function countRows(sql: string, ...binds: unknown[]): Promise<number> {
 	const row = await testEnv.DB.prepare(sql)
 		.bind(...binds)
@@ -256,6 +276,29 @@ describe("console mutation: issue/retract effect + audit atomicity", () => {
 			.bind(descriptor.actionId)
 			.first<{ val: string; neg: number }>();
 		expect(linked).toEqual({ val: "security-yanked", neg: 0 });
+	});
+
+	it("returns a retryable 503 (not a phantom 200) when the label is suppressed after the audit commits", async () => {
+		const uri = await seedReleaseSubject("phantom-suppressed");
+		const key = nextKey();
+		const response = await handleConsoleMutation(
+			post("/admin/api/labels/issue", {
+				uri,
+				val: "security-yanked",
+				confirmation: "phantom-suppressed",
+				reason: "rotation lands mid-issuance",
+				idempotencyKey: key,
+			}),
+			mutationDeps({ db: suppressIssuanceDb(testEnv.DB) }),
+		);
+		expect(response.status).toBe(503);
+		expect((await bodyError(response)).code).toBe("LABEL_ISSUANCE_UNAVAILABLE");
+		// The audit row committed (its INSERT is unguarded) but no label persisted —
+		// the exact phantom state the post-commit verification rejects.
+		expect(
+			await countRows(`SELECT COUNT(*) n FROM operator_actions WHERE idempotency_key = ?`, key),
+		).toBe(1);
+		expect(await countRows(`SELECT COUNT(*) n FROM issued_labels WHERE uri = ?`, uri)).toBe(0);
 	});
 
 	it("writes no audit row when signing prep fails (no effect ⇒ no audit)", async () => {

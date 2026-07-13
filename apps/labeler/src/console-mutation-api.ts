@@ -26,6 +26,7 @@ import {
 import { ReadGuardError } from "./operator-read-guard.js";
 import { getLabelDefinition } from "./policy.js";
 import {
+	LabelIssuanceUnavailableError,
 	parseSubjectKind,
 	prepareManualLabelIssuance,
 	readIssuedLabelByActionKey,
@@ -127,6 +128,19 @@ export async function handleConsoleMutation(
 			error instanceof LabelMutationError
 		)
 			return error.toResponse();
+		// Transient signing-state unavailability (issuance paused, key stale, or the
+		// in-batch signing guard suppressing the label under a rotation race) is
+		// retryable — surface a 503 rather than a misleading 500 or a phantom 200.
+		if (error instanceof LabelIssuanceUnavailableError)
+			return Response.json(
+				{
+					error: {
+						code: "LABEL_ISSUANCE_UNAVAILABLE",
+						message: "Label issuance is temporarily unavailable; retry.",
+					},
+				},
+				{ status: 503 },
+			);
 		console.error("[console-mutation] unhandled error", error);
 		return Response.json(
 			{ error: { code: "INTERNAL", message: "Internal error" } },
@@ -185,6 +199,16 @@ async function runLabelMutation(
 		effect: getLabelDefinition(proposal.val)?.officialEffect ?? "",
 	};
 	const returned = await commitMutation(deps.db, ctx, spec, statements, descriptor);
+	// The operator_actions audit row commits unconditionally, but the issued_labels
+	// INSERT is guarded by an in-batch signing-state condition: a key rotation
+	// landing between the signing pre-check and this batch suppresses the label as a
+	// zero-row INSERT (not an error) while the audit row lands. Verify the label
+	// persisted for the committed action so a suppressed issuance surfaces as a
+	// retryable 503, not a phantom success. Keying on the committed action id
+	// distinguishes a genuine suppression (our id, no label) from a concurrent-race
+	// loss (the winner's id, whose label is present).
+	if (!(await readIssuedLabelByActionKey(deps.db, returned.actionId)))
+		throw new LabelIssuanceUnavailableError("label issuance did not persist");
 	deps.defer(deps.afterCommit(ctx.actionId));
 	return jsonData(returned);
 }
