@@ -45,6 +45,8 @@ const TEMPLATES = [
 	"marketing-cloudflare",
 	"portfolio",
 	"portfolio-cloudflare",
+	"service-business",
+	"service-business-cloudflare",
 	"starter",
 	"starter-cloudflare",
 ];

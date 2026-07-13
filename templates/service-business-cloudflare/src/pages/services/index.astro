@@ -1,0 +1,8 @@
+---
+import { getEmDashCollection } from "emdash";
+import Base from "../../layouts/Base.astro";
+const result = await getEmDashCollection("services", { limit: 50, orderBy: { created_at: "asc" } });
+if (Astro.cache?.enabled) Astro.cache.set(result.cacheHint);
+---
+<Base title="Services" description="Practical, professional services for homes and small businesses."><section class="section"><div class="container"><div class="section-heading"><p class="eyebrow">Services</p><h1>Skilled help for every corner of your property.</h1><p>Every visit begins with a clear assessment and upfront recommendation. Choose a service below or contact us if your project crosses several specialties.</p></div><div class="services">{result.entries.map((service, index) => <article class="card"><span>{String(index + 1).padStart(2,"0")}</span><div><h2><a href={`/services/${service.id}`}>{service.data.title}</a></h2><p>{service.data.short_description}</p>{service.data.starting_price && <strong>{service.data.starting_price}</strong>}</div><a href={`/services/${service.id}`} aria-label={`Learn about ${service.data.title}`}>→</a></article>)}</div></div></section></Base>
+<style>.section-heading{max-width:52rem}.services{display:grid;gap:1rem}.services article{display:grid;grid-template-columns:4rem 1fr auto;gap:1.5rem;align-items:center}.services article>span{color:var(--brand);font-weight:800}.services h2{font-size:1.65rem;margin:0}.services h2 a{color:var(--ink);text-decoration:none}.services p{color:var(--muted);margin:.45rem 0}.services strong{color:var(--brand)}.services article>a{font-size:2rem;text-decoration:none}@media(max-width:600px){.services article{grid-template-columns:1fr}.services article>a{display:none}}</style>

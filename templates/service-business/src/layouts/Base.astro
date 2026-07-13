@@ -1,0 +1,62 @@
+---
+import { getEmDashCollection, getMenu, getSiteSettings } from "emdash";
+import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
+import { createPublicPageContext } from "emdash/page";
+import "../styles/tokens.css";
+import "../styles/theme.css";
+
+interface Props { title?: string; description?: string; image?: string; schemaType?: "WebSite" | "LocalBusiness" }
+const { title, description, image, schemaType = "WebSite" } = Astro.props;
+const [settings, menu, { entries: globals, cacheHint }] = await Promise.all([
+	getSiteSettings(), getMenu("primary"), getEmDashCollection("business_settings", { limit: 1 }),
+]);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const business = globals[0]?.data;
+const siteTitle = business?.business_name || settings?.title || "Evergreen Home Services";
+const siteDescription = description || settings?.tagline || "Reliable local care for your home.";
+const fullTitle = title ? `${title} | ${siteTitle}` : siteTitle;
+const ctaLabel = business?.primary_cta_label || "Request a free estimate";
+const ctaUrl = business?.primary_cta_url || "/contact";
+const pageCtx = createPublicPageContext({ Astro, kind: "custom", pageType: "website", title: fullTitle, pageTitle: title || siteTitle, description: siteDescription, canonical: Astro.url.href, image, siteName: siteTitle });
+const jsonLd = {
+	"@context": "https://schema.org",
+	"@type": schemaType,
+	name: siteTitle,
+	url: Astro.url.origin,
+	...(schemaType === "LocalBusiness" ? {
+		telephone: business?.phone,
+		email: business?.email,
+		priceRange: business?.price_range,
+		openingHours: business?.opening_hours,
+		address: { "@type": "PostalAddress", streetAddress: business?.street_address, addressLocality: business?.city, addressRegion: business?.region, postalCode: business?.postal_code },
+	} : {}),
+};
+---
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" /><meta name="viewport" content="width=device-width" />
+		<title>{fullTitle}</title><meta name="description" content={siteDescription} />
+		<EmDashHead page={pageCtx} />
+		<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+	</head>
+	<body>
+		<EmDashBodyStart page={pageCtx} />
+		<div class="topbar"><span>Licensed, insured, and locally trusted</span><a href={`tel:${business?.phone}`}>{business?.phone || "(555) 014-0284"}</a></div>
+		<header><nav>
+			<a class="logo" href="/"><span aria-hidden="true">◆</span>{siteTitle}</a>
+			<div class="links">{menu?.items.map((item) => <a href={item.url}>{item.label}</a>)}</div>
+			<a class="button nav-cta" href={ctaUrl}>{ctaLabel}</a>
+		</nav></header>
+		<main><slot /></main>
+		<footer><div class="footer-grid"><div><a class="logo" href="/"><span aria-hidden="true">◆</span>{siteTitle}</a><p>{settings?.tagline}</p></div><div><h2>Contact</h2><p><a href={`tel:${business?.phone}`}>{business?.phone}</a><br/><a href={`mailto:${business?.email}`}>{business?.email}</a><br/>{business?.street_address}, {business?.city}, {business?.region} {business?.postal_code}</p></div><div><h2>Hours</h2><p>{business?.opening_hours || "Mon–Fri 8:00–18:00"}</p><a href="/_emdash/admin">Manage this site</a></div></div><p class="copyright">© {new Date().getFullYear()} {siteTitle}. All rights reserved.</p></footer>
+		<EmDashBodyEnd page={pageCtx} />
+	</body>
+</html>
+<style is:global>
+	@layer base;
+	@layer base {
+		*,*::before,*::after { box-sizing: border-box; } html { scroll-behavior: smooth; } body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); line-height: 1.65; } h1,h2,h3 { font-family: var(--font-heading); line-height: 1.12; margin-top: 0; } h1 { font-size: clamp(2.5rem, 6vw, 5rem); letter-spacing: -.045em; } h2 { font-size: clamp(2rem, 4vw, 3.2rem); letter-spacing: -.03em; } a { color: var(--brand); } img { max-width: 100%; display: block; } .topbar { display: flex; justify-content: space-between; gap: 1rem; padding: .45rem max(1rem, calc((100% - var(--max))/2)); background: var(--ink); color: var(--bg); font-size: .86rem; } .topbar a { color: inherit; font-weight: 700; } header { border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 92%, transparent); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(12px); } nav { max-width: var(--max); margin: auto; min-height: 5rem; padding: .8rem 1.2rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; } .logo { color: var(--ink); text-decoration: none; font-weight: 800; font-family: var(--font-heading); display: inline-flex; align-items: center; gap: .55rem; } .logo span { color: var(--brand); } .links { display: flex; gap: 1.35rem; } .links a { color: var(--ink); text-decoration: none; font-weight: 600; } .button { display: inline-flex; justify-content: center; align-items: center; padding: .85rem 1.25rem; border-radius: 999px; background: var(--brand); color: var(--on-brand); text-decoration: none; font-weight: 750; border: 0; } .button:hover { background: var(--brand-strong); } .button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--border); } .container { width: min(var(--max), calc(100% - 2.4rem)); margin-inline: auto; } .section { padding: clamp(4rem, 8vw, 7rem) 0; } .section-heading { max-width: 46rem; margin-bottom: 2.4rem; } .eyebrow { color: var(--brand); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: .78rem; } .grid { display: grid; gap: 1.4rem; } .grid.three { grid-template-columns: repeat(3, 1fr); } .card { padding: 1.6rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); } footer { background: var(--ink); color: var(--bg); padding: 4rem 1.2rem 1.5rem; } footer a { color: inherit; } footer .logo { color: inherit; } .footer-grid { max-width: var(--max); margin: auto; display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 3rem; } footer h2 { font-size: 1rem; } .copyright { max-width: var(--max); margin: 3rem auto 0; border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); padding-top: 1.5rem; font-size: .85rem; }
+		@media (max-width: 800px) { .links { display: none; } .nav-cta { display: none; } .grid.three,.footer-grid { grid-template-columns: 1fr; } .topbar span { display: none; } .topbar { justify-content: center; } }
+	}
+</style>

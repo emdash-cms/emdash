@@ -1,0 +1,661 @@
+{
+	"$schema": "https://emdashcms.com/seed.schema.json",
+	"version": "1",
+	"meta": {
+		"name": "Service Business Starter",
+		"description": "A reusable local service-business website",
+		"author": "EmDash"
+	},
+	"settings": {
+		"title": "Evergreen Home Services",
+		"tagline": "Reliable local care for your home and property"
+	},
+	"collections": [
+		{
+			"slug": "business_settings",
+			"label": "Business Settings",
+			"labelSingular": "Business Settings",
+			"description": "Global contact, CTA, and LocalBusiness details",
+			"supports": ["revisions"],
+			"fields": [
+				{ "slug": "business_name", "label": "Business Name", "type": "string", "required": true },
+				{ "slug": "phone", "label": "Phone", "type": "string", "required": true },
+				{ "slug": "email", "label": "Email", "type": "string", "required": true },
+				{ "slug": "street_address", "label": "Street Address", "type": "string" },
+				{ "slug": "city", "label": "City", "type": "string" },
+				{ "slug": "region", "label": "State or Region", "type": "string" },
+				{ "slug": "postal_code", "label": "Postal Code", "type": "string" },
+				{ "slug": "opening_hours", "label": "Opening Hours", "type": "string" },
+				{ "slug": "price_range", "label": "Schema Price Range", "type": "string" },
+				{ "slug": "hero_heading", "label": "Hero Heading", "type": "string" },
+				{ "slug": "hero_text", "label": "Hero Text", "type": "text" },
+				{ "slug": "primary_cta_label", "label": "Primary CTA Label", "type": "string" },
+				{ "slug": "primary_cta_url", "label": "Primary CTA URL", "type": "string" }
+			]
+		},
+		{
+			"slug": "services",
+			"label": "Services",
+			"labelSingular": "Service",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "short_description",
+					"label": "Short Description",
+					"type": "text",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "description",
+					"label": "Full Description",
+					"type": "portableText",
+					"searchable": true
+				},
+				{ "slug": "icon", "label": "Icon or Symbol", "type": "string" },
+				{ "slug": "starting_price", "label": "Pricing Note", "type": "string" },
+				{ "slug": "featured", "label": "Featured", "type": "boolean", "defaultValue": false }
+			]
+		},
+		{
+			"slug": "projects",
+			"label": "Projects & Gallery",
+			"labelSingular": "Project",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{ "slug": "service", "label": "Service", "type": "string" },
+				{ "slug": "location", "label": "Location", "type": "string" },
+				{ "slug": "summary", "label": "Summary", "type": "text", "searchable": true },
+				{ "slug": "gallery", "label": "Gallery", "type": "json" },
+				{ "slug": "result", "label": "Result", "type": "string" }
+			]
+		},
+		{
+			"slug": "reviews",
+			"label": "Reviews",
+			"labelSingular": "Review",
+			"supports": ["drafts", "revisions"],
+			"fields": [
+				{ "slug": "customer_name", "label": "Customer Name", "type": "string", "required": true },
+				{ "slug": "quote", "label": "Review", "type": "text", "required": true },
+				{
+					"slug": "rating",
+					"label": "Rating",
+					"type": "integer",
+					"defaultValue": 5,
+					"validation": { "min": 1, "max": 5 }
+				},
+				{ "slug": "service", "label": "Service", "type": "string" },
+				{ "slug": "location", "label": "Location", "type": "string" }
+			]
+		},
+		{
+			"slug": "faqs",
+			"label": "FAQs",
+			"labelSingular": "FAQ",
+			"supports": ["drafts", "revisions", "search"],
+			"fields": [
+				{
+					"slug": "question",
+					"label": "Question",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "answer",
+					"label": "Answer",
+					"type": "text",
+					"required": true,
+					"searchable": true
+				},
+				{ "slug": "category", "label": "Service Category", "type": "string" }
+			]
+		},
+		{
+			"slug": "service_areas",
+			"label": "Service Areas",
+			"labelSingular": "Service Area",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
+				{
+					"slug": "name",
+					"label": "Area Name",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{ "slug": "region", "label": "State or Region", "type": "string" },
+				{ "slug": "description", "label": "Description", "type": "text", "searchable": true }
+			]
+		},
+		{
+			"slug": "team",
+			"label": "Team",
+			"labelSingular": "Team Member",
+			"supports": ["drafts", "revisions"],
+			"fields": [
+				{ "slug": "name", "label": "Name", "type": "string", "required": true },
+				{ "slug": "role", "label": "Role", "type": "string", "required": true },
+				{ "slug": "bio", "label": "Bio", "type": "text" },
+				{ "slug": "years_experience", "label": "Years of Experience", "type": "integer" }
+			]
+		},
+		{
+			"slug": "certificates",
+			"label": "Certificates & Partners",
+			"labelSingular": "Certificate or Partner",
+			"supports": ["drafts", "revisions"],
+			"fields": [
+				{ "slug": "name", "label": "Name", "type": "string", "required": true },
+				{ "slug": "issuer", "label": "Issuer or Partner", "type": "string" },
+				{ "slug": "credential", "label": "Credential Details", "type": "string" },
+				{ "slug": "logo_text", "label": "Short Logo Text", "type": "string" }
+			]
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "service_category",
+			"label": "Service Categories",
+			"labelSingular": "Service Category",
+			"hierarchical": false,
+			"collections": ["services", "projects"],
+			"terms": [
+				{ "slug": "maintenance", "label": "Maintenance" },
+				{ "slug": "repairs", "label": "Repairs" },
+				{ "slug": "improvements", "label": "Improvements" }
+			]
+		}
+	],
+	"menus": [
+		{
+			"name": "primary",
+			"label": "Primary Navigation",
+			"items": [
+				{ "type": "custom", "label": "Services", "url": "/services" },
+				{ "type": "custom", "label": "Projects", "url": "/projects" },
+				{ "type": "custom", "label": "About", "url": "/about" },
+				{ "type": "custom", "label": "Contact", "url": "/contact" }
+			]
+		}
+	],
+	"sections": [
+		{
+			"slug": "estimate-cta",
+			"title": "Free Estimate CTA",
+			"description": "Reusable call to action for service pages",
+			"keywords": ["estimate", "quote", "cta"],
+			"source": "theme",
+			"content": [
+				{
+					"_type": "block",
+					"style": "h3",
+					"children": [{ "_type": "span", "text": "Ready to get your project moving?" }]
+				},
+				{
+					"_type": "block",
+					"style": "normal",
+					"children": [
+						{ "_type": "span", "text": "Contact our team for a clear, no-pressure estimate." }
+					]
+				}
+			]
+		}
+	],
+	"content": {
+		"business_settings": [
+			{
+				"id": "business-main",
+				"slug": "main",
+				"status": "published",
+				"data": {
+					"business_name": "Evergreen Home Services",
+					"phone": "(555) 014-0284",
+					"email": "hello@example.com",
+					"street_address": "1840 Cedar Avenue",
+					"city": "Riverton",
+					"region": "OR",
+					"postal_code": "97035",
+					"opening_hours": "Mo-Fr 08:00-18:00, Sa 09:00-14:00",
+					"price_range": "$$",
+					"hero_heading": "Home services done right, the first time.",
+					"hero_text": "Friendly, skilled professionals for the repairs, improvements, and maintenance your property needs.",
+					"primary_cta_label": "Request a free estimate",
+					"primary_cta_url": "/contact"
+				}
+			}
+		],
+		"services": [
+			{
+				"id": "service-maintenance",
+				"slug": "seasonal-home-maintenance",
+				"status": "published",
+				"data": {
+					"title": "Seasonal Home Maintenance",
+					"short_description": "A practical property checkup that catches small issues before they become expensive repairs.",
+					"icon": "⌂",
+					"starting_price": "Plans from $149",
+					"featured": true,
+					"description": [
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [{ "_type": "span", "text": "Stay ahead of household wear" }]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We inspect high-use areas, complete agreed maintenance tasks, and leave you with a prioritized summary of anything that needs attention."
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "service-repairs",
+				"slug": "repairs-and-handyman",
+				"status": "published",
+				"data": {
+					"title": "Repairs & Handyman",
+					"short_description": "Dependable help for drywall, doors, fixtures, trim, assembly, and the lingering list of small repairs.",
+					"icon": "◇",
+					"starting_price": "Upfront estimate",
+					"featured": true,
+					"description": [
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [{ "_type": "span", "text": "A shorter to-do list starts here" }]
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Share your list and photos when you request an estimate. We will confirm the scope, materials, and schedule before work begins."
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "service-exterior",
+				"slug": "exterior-cleaning",
+				"status": "published",
+				"data": {
+					"title": "Exterior Cleaning",
+					"short_description": "Careful washing for siding, patios, walkways, fences, and other hard-working outdoor surfaces.",
+					"icon": "✦",
+					"starting_price": "Free site estimate",
+					"featured": true,
+					"description": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We match pressure and cleaning methods to each surface, protect surrounding landscaping, and rinse the work area thoroughly."
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "service-painting",
+				"slug": "interior-painting",
+				"status": "published",
+				"data": {
+					"title": "Interior Painting",
+					"short_description": "Clean lines, thoughtful preparation, and low-disruption painting for lived-in homes and offices.",
+					"icon": "▰",
+					"starting_price": "Room estimates available",
+					"featured": true,
+					"description": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Our process covers protection, surface preparation, repairs, finish coats, and a detailed walkthrough before cleanup."
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "service-landscape",
+				"slug": "landscape-care",
+				"status": "published",
+				"data": {
+					"title": "Landscape Care",
+					"short_description": "Routine trimming, cleanup, planting, and curb-appeal improvements tailored to your property.",
+					"icon": "♧",
+					"starting_price": "Seasonal plans available",
+					"featured": false,
+					"description": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Choose a one-time seasonal cleanup or a recurring plan designed around your property and priorities."
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"id": "service-commercial",
+				"slug": "light-commercial-service",
+				"status": "published",
+				"data": {
+					"title": "Light Commercial Service",
+					"short_description": "Responsive maintenance and improvement support for offices, shops, rentals, and community spaces.",
+					"icon": "▦",
+					"starting_price": "Flexible scheduling",
+					"featured": false,
+					"description": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We coordinate around business hours and provide straightforward documentation for managers and owners."
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"projects": [
+			{
+				"id": "project-entry",
+				"slug": "welcoming-entry-refresh",
+				"status": "published",
+				"data": {
+					"title": "Welcoming Entry Refresh",
+					"service": "Repairs & Handyman",
+					"location": "Riverton",
+					"summary": "Door repair, new trim, updated lighting, and a durable painted finish brought this well-used entry back to life.",
+					"result": "Completed in 2 days",
+					"gallery": [
+						{
+							"src": "/projects/entry-refresh.svg",
+							"alt": "Illustrated green front door after an entry refresh"
+						}
+					]
+				}
+			},
+			{
+				"id": "project-patio",
+				"slug": "backyard-patio-cleanup",
+				"status": "published",
+				"data": {
+					"title": "Backyard Patio Cleanup",
+					"service": "Exterior Cleaning",
+					"location": "Oak Hills",
+					"summary": "A surface-safe wash and joint cleanup restored a shaded patio without disturbing the surrounding garden.",
+					"result": "Ready for the weekend",
+					"gallery": [
+						{
+							"src": "/projects/patio-cleanup.svg",
+							"alt": "Illustrated clean backyard patio and garden"
+						}
+					]
+				}
+			},
+			{
+				"id": "project-office",
+				"slug": "small-office-repaint",
+				"status": "published",
+				"data": {
+					"title": "Small Office Repaint",
+					"service": "Interior Painting",
+					"location": "Cedar Grove",
+					"summary": "Weekend scheduling, wall repairs, and a calm new palette refreshed the workspace before employees returned Monday.",
+					"result": "Zero business downtime",
+					"gallery": [
+						{
+							"src": "/projects/office-repaint.svg",
+							"alt": "Illustrated freshly painted small office"
+						}
+					]
+				}
+			}
+		],
+		"reviews": [
+			{
+				"id": "review-lee",
+				"slug": "jamie-lee",
+				"status": "published",
+				"data": {
+					"customer_name": "Jamie Lee",
+					"quote": "The estimate was clear, the crew arrived exactly when promised, and they left the room cleaner than they found it.",
+					"rating": 5,
+					"service": "Interior Painting",
+					"location": "Riverton"
+				}
+			},
+			{
+				"id": "review-morgan",
+				"slug": "alex-morgan",
+				"status": "published",
+				"data": {
+					"customer_name": "Alex Morgan",
+					"quote": "They worked through our long repair list efficiently and explained which items could wait. No pressure and no surprises.",
+					"rating": 5,
+					"service": "Repairs & Handyman",
+					"location": "Oak Hills"
+				}
+			},
+			{
+				"id": "review-patel",
+				"slug": "sam-patel",
+				"status": "published",
+				"data": {
+					"customer_name": "Sam Patel",
+					"quote": "Our patio looks new again, and every plant around it was carefully protected. We have already booked next spring.",
+					"rating": 5,
+					"service": "Exterior Cleaning",
+					"location": "Cedar Grove"
+				}
+			}
+		],
+		"faqs": [
+			{
+				"id": "faq-estimate",
+				"slug": "are-estimates-free",
+				"status": "published",
+				"data": {
+					"question": "Are estimates free?",
+					"answer": "Yes. We provide a clear, no-pressure estimate before scheduling most work. Diagnostic visits may carry a fee when extensive troubleshooting is required, and we will explain that upfront."
+				}
+			},
+			{
+				"id": "faq-insured",
+				"slug": "are-you-licensed-and-insured",
+				"status": "published",
+				"data": {
+					"question": "Are you licensed and insured?",
+					"answer": "Yes. Replace this sample answer with the licenses and coverage that apply to your business and location before publishing."
+				}
+			},
+			{
+				"id": "faq-materials",
+				"slug": "who-provides-materials",
+				"status": "published",
+				"data": {
+					"question": "Who provides materials?",
+					"answer": "We can source standard materials or work with suitable products you already purchased. Your estimate will clearly show what is included."
+				}
+			},
+			{
+				"id": "faq-schedule",
+				"slug": "how-soon-can-you-schedule",
+				"status": "published",
+				"data": {
+					"question": "How soon can you schedule?",
+					"answer": "Small projects are often scheduled within one to two weeks. Timing varies by season, materials, and project size."
+				}
+			},
+			{
+				"id": "faq-prepare",
+				"slug": "how-should-i-prepare",
+				"status": "published",
+				"data": {
+					"question": "How should I prepare for a visit?",
+					"answer": "Please make the work area accessible and secure pets. We will send any project-specific preparation notes before arrival."
+				}
+			}
+		],
+		"service_areas": [
+			{
+				"id": "area-riverton",
+				"slug": "riverton",
+				"status": "published",
+				"data": {
+					"name": "Riverton",
+					"region": "OR",
+					"description": "Full residential and light commercial service throughout Riverton."
+				}
+			},
+			{
+				"id": "area-oak-hills",
+				"slug": "oak-hills",
+				"status": "published",
+				"data": {
+					"name": "Oak Hills",
+					"region": "OR",
+					"description": "Scheduled service for Oak Hills homes and neighborhood businesses."
+				}
+			},
+			{
+				"id": "area-cedar-grove",
+				"slug": "cedar-grove",
+				"status": "published",
+				"data": {
+					"name": "Cedar Grove",
+					"region": "OR",
+					"description": "Property maintenance, repairs, and improvement projects in Cedar Grove."
+				}
+			},
+			{
+				"id": "area-lakeview",
+				"slug": "lakeview",
+				"status": "published",
+				"data": {
+					"name": "Lakeview",
+					"region": "OR",
+					"description": "Serving Lakeview by appointment Monday through Saturday."
+				}
+			}
+		],
+		"team": [
+			{
+				"id": "team-jordan",
+				"slug": "jordan-rivera",
+				"status": "published",
+				"data": {
+					"name": "Jordan Rivera",
+					"role": "Owner & Project Lead",
+					"bio": "Jordan founded Evergreen to give local property owners a more dependable, transparent service experience.",
+					"years_experience": 18
+				}
+			},
+			{
+				"id": "team-casey",
+				"slug": "casey-brooks",
+				"status": "published",
+				"data": {
+					"name": "Casey Brooks",
+					"role": "Service Coordinator",
+					"bio": "Casey keeps customers informed, schedules crews, and makes sure every detail is ready before a visit.",
+					"years_experience": 9
+				}
+			},
+			{
+				"id": "team-drew",
+				"slug": "drew-chen",
+				"status": "published",
+				"data": {
+					"name": "Drew Chen",
+					"role": "Senior Technician",
+					"bio": "Drew specializes in careful troubleshooting, finish work, and practical solutions for older homes.",
+					"years_experience": 14
+				}
+			}
+		],
+		"certificates": [
+			{
+				"id": "cert-licensed",
+				"slug": "state-licensed",
+				"status": "published",
+				"data": {
+					"name": "State Licensed Contractor",
+					"issuer": "State Construction Board",
+					"credential": "Replace with your license number",
+					"logo_text": "LICENSED"
+				}
+			},
+			{
+				"id": "cert-insured",
+				"slug": "fully-insured",
+				"status": "published",
+				"data": {
+					"name": "Fully Insured",
+					"issuer": "Commercial liability coverage",
+					"logo_text": "INSURED"
+				}
+			},
+			{
+				"id": "cert-training",
+				"slug": "safety-trained",
+				"status": "published",
+				"data": {
+					"name": "Safety Trained",
+					"issuer": "Industry safety program",
+					"logo_text": "SAFETY"
+				}
+			},
+			{
+				"id": "cert-partner",
+				"slug": "local-business-partner",
+				"status": "published",
+				"data": {
+					"name": "Local Business Partner",
+					"issuer": "Regional business association",
+					"logo_text": "LOCAL"
+				}
+			}
+		]
+	}
+}

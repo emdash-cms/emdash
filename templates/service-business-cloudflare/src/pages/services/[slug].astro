@@ -1,0 +1,13 @@
+---
+import { getEmDashCollection, getEmDashEntry } from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect("/404");
+const [{ entry: service, cacheHint }, faqs] = await Promise.all([getEmDashEntry("services", slug), getEmDashCollection("faqs", { limit: 20 })]);
+if (!service) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const relatedFaqs = faqs.entries.filter((faq) => !faq.data.category || faq.data.category === service.data.title);
+---
+<Base title={service.data.title} description={service.data.short_description}><section class="service-hero"><div class="container"><a href="/services">← All services</a><p class="eyebrow">Professional service</p><h1 {...service.edit.title}>{service.data.title}</h1><p {...service.edit.short_description}>{service.data.short_description}</p><div><a class="button" href="/contact">Request an estimate</a>{service.data.starting_price && <strong>{service.data.starting_price}</strong>}</div></div></section><section class="section"><div class="container body-grid"><article>{service.data.description ? <PortableText value={service.data.description} /> : <p>Contact our team for details about this service.</p>}</article><aside class="card"><h2>What to expect</h2><ul><li>A prompt response</li><li>A clear scope and estimate</li><li>Respectful work at your property</li><li>A thorough final walkthrough</li></ul><a class="button" href="/contact">Start your project</a></aside></div></section>{relatedFaqs.length > 0 && <section class="section faq"><div class="container"><h2>Questions about {service.data.title.toLowerCase()}</h2>{relatedFaqs.map((item) => <details><summary>{item.data.question}</summary><p>{item.data.answer}</p></details>)}</div></section>}</Base>
+<style>.service-hero{padding:clamp(4rem,9vw,8rem) 0;background:color-mix(in srgb,var(--brand) 8%,var(--bg))}.service-hero .container>p:not(.eyebrow){font-size:1.3rem;color:var(--muted);max-width:48rem}.service-hero .container>div{display:flex;align-items:center;gap:1.5rem;margin-top:2rem}.service-hero strong{color:var(--brand)}.body-grid{display:grid;grid-template-columns:1.4fr .7fr;gap:clamp(2rem,7vw,6rem)}article :global(h2){font-size:2rem;margin-top:2.5rem}article :global(p),article :global(li){font-size:1.08rem;color:var(--muted)}aside{align-self:start}aside h2{font-size:1.4rem}aside li{margin:.6rem 0}.faq{background:color-mix(in srgb,var(--brand) 7%,var(--bg))}.faq details{max-width:50rem;border-bottom:1px solid var(--border);padding:1rem 0}.faq summary{font-weight:750;cursor:pointer}@media(max-width:800px){.body-grid{grid-template-columns:1fr}}</style>

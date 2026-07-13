@@ -48,7 +48,7 @@ cd templates/portfolio
 pnpm dev
 ```
 
-Available templates: `blank`, `starter`, `blog`, `portfolio`, `marketing`, plus a `-cloudflare` variant of each runnable template. Seed content is applied automatically on first request. To start fresh, delete the local database (`data.db` or the D1 binding) and restart the dev server.
+Available templates: `blank`, `starter`, `blog`, `portfolio`, `marketing`, `service-business`, plus a `-cloudflare` variant of each runnable template. Seed content is applied automatically on first request. To start fresh, delete the local database (`data.db` or the D1 binding) and restart the dev server.
 
 ### Watch mode
 

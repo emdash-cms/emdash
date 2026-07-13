@@ -45,6 +45,8 @@
 		"@emdash-cms/template-marketing-cloudflare",
 		"@emdash-cms/template-portfolio",
 		"@emdash-cms/template-portfolio-cloudflare",
+		"@emdash-cms/template-service-business",
+		"@emdash-cms/template-service-business-cloudflare",
 		"@emdash-cms/template-starter",
 		"@emdash-cms/template-starter-cloudflare",
 		"docs",

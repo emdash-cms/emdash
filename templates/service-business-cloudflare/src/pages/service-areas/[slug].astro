@@ -1,0 +1,11 @@
+---
+import { getEmDashCollection, getEmDashEntry } from "emdash";
+import Base from "../../layouts/Base.astro";
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect("/404");
+const [{ entry: area, cacheHint }, services] = await Promise.all([getEmDashEntry("service_areas", slug), getEmDashCollection("services", { limit: 20 })]);
+if (!area) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+---
+<Base title={`Home services in ${area.data.name}`} description={area.data.description} schemaType="LocalBusiness"><section class="area-hero"><div class="container"><p class="eyebrow">Local service area</p><h1>Property services in {area.data.name}, {area.data.region}</h1><p>{area.data.description}</p><a class="button" href="/contact">Request a local estimate</a></div></section><section class="section"><div class="container"><div class="section-heading"><h2>How we can help in {area.data.name}</h2><p>Our local crew provides scheduled maintenance, repairs, and improvements throughout the area.</p></div><div class="grid three">{services.entries.map((service) => <article class="card"><h3><a href={`/services/${service.id}`}>{service.data.title}</a></h3><p>{service.data.short_description}</p></article>)}</div></div></section></Base>
+<style>.area-hero{padding:clamp(5rem,10vw,9rem) 0;background:linear-gradient(135deg,color-mix(in srgb,var(--brand) 13%,var(--bg)),var(--bg))}.area-hero p:not(.eyebrow){font-size:1.25rem;color:var(--muted);max-width:44rem}.area-hero .button{margin-top:1.4rem}.card h3 a{color:var(--ink);text-decoration:none}.card p{color:var(--muted)}</style>

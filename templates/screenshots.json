@@ -26,5 +26,16 @@
 			"contact": "/contact",
 			"404": "/nonexistent"
 		}
+	},
+	"service-business": {
+		"pages": {
+			"homepage": "/",
+			"services": "/services",
+			"service": "/services/repairs-and-handyman",
+			"projects": "/projects",
+			"project": "/projects/welcoming-entry-refresh",
+			"about": "/about",
+			"contact": "/contact"
+		}
 	}
 }

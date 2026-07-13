@@ -94,6 +94,7 @@ describe("parseFlags — --template", () => {
 		expect(parseFlags(argv("--template", "starter")).template).toBe("starter");
 		expect(parseFlags(argv("--template", "marketing")).template).toBe("marketing");
 		expect(parseFlags(argv("--template", "portfolio")).template).toBe("portfolio");
+		expect(parseFlags(argv("--template", "service-business")).template).toBe("service-business");
 	});
 
 	it("rejects unknown template keys", () => {

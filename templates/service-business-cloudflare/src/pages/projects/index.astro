@@ -1,0 +1,8 @@
+---
+import { getEmDashCollection } from "emdash";
+import ProjectCard from "../../components/ProjectCard.astro";
+import Base from "../../layouts/Base.astro";
+const result = await getEmDashCollection("projects", { limit: 50, orderBy: { published_at: "desc" } });
+if (Astro.cache?.enabled) Astro.cache.set(result.cacheHint);
+---
+<Base title="Project gallery" description="Browse recent home service projects and results."><section class="section"><div class="container"><div class="section-heading"><p class="eyebrow">Project gallery</p><h1>Real work for real neighbors.</h1><p>Explore a sample of repairs, upgrades, and transformations completed by our team.</p></div><div class="grid three">{result.entries.map((project) => <ProjectCard title={project.data.title} summary={project.data.summary} location={project.data.location} result={project.data.result} href={`/projects/${project.id}`} image={project.data.gallery?.[0]} />)}</div></div></section></Base>

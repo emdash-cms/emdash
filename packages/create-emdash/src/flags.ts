@@ -31,11 +31,17 @@ export interface ParsedFlags {
 }
 
 export type Platform = "node" | "cloudflare";
-export type TemplateKey = "blog" | "starter" | "marketing" | "portfolio";
+export type TemplateKey = "blog" | "starter" | "marketing" | "portfolio" | "service-business";
 export type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
 
 const PLATFORMS: readonly Platform[] = ["node", "cloudflare"] as const;
-const TEMPLATES: readonly TemplateKey[] = ["blog", "starter", "marketing", "portfolio"] as const;
+const TEMPLATES: readonly TemplateKey[] = [
+	"blog",
+	"starter",
+	"marketing",
+	"portfolio",
+	"service-business",
+] as const;
 const PACKAGE_MANAGERS: readonly PackageManager[] = ["pnpm", "npm", "yarn", "bun"] as const;
 
 /**
@@ -76,7 +82,7 @@ export function wantsHelp(argv: string[]): boolean {
  *
  * Accepted forms (lifted from established `create-*` tools):
  * - Positional: `[name]` — the project directory (or `.` for cwd).
- * - `--template <key>` — one of `blog | starter | marketing | portfolio`,
+ * - `--template <key>` — one of `blog | starter | marketing | portfolio | service-business`,
  *   or the combined form `<platform>:<template>` (e.g. `cloudflare:blog`).
  * - `--platform <node | cloudflare>`.
  * - `--pm <pnpm | npm | yarn | bun>` (alias: `--package-manager`).
@@ -253,7 +259,7 @@ Arguments:
   [name]                       Project directory name, or "." for cwd
 
 Options:
-  --template <key>             blog | starter | marketing | portfolio
+  --template <key>             blog | starter | marketing | portfolio | service-business
                                or "<platform>:<key>" (e.g. cloudflare:blog)
   --platform <key>             node | cloudflare
   --pm <key>                   pnpm | npm | yarn | bun

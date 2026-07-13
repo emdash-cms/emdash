@@ -1,0 +1,11 @@
+---
+import { getEmDashEntry } from "emdash";
+import Base from "../../layouts/Base.astro";
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect("/404");
+const { entry: project, cacheHint } = await getEmDashEntry("projects", slug);
+if (!project) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+---
+<Base title={project.data.title} description={project.data.summary}><section class="section"><div class="container"><a href="/projects">← Project gallery</a><div class="project-head"><div><p class="eyebrow">{project.data.location || "Recent project"}</p><h1 {...project.edit.title}>{project.data.title}</h1><p>{project.data.summary}</p></div>{project.data.result && <aside><span>Result</span><strong>{project.data.result}</strong></aside>}</div>{project.data.gallery && project.data.gallery.length > 0 ? <div class="gallery">{project.data.gallery.map((image) => <img src={image.src} alt={image.alt} />)}</div> : <div class="placeholder"><span aria-hidden="true">◆</span><p>Project photos can be added from the EmDash media library.</p></div>}<div class="next"><div><p class="eyebrow">Have a similar project?</p><h2>Let’s talk through the possibilities.</h2></div><a class="button" href="/contact">Request an estimate</a></div></div></section></Base>
+<style>.project-head{display:grid;grid-template-columns:1fr auto;gap:3rem;align-items:end;margin:3rem 0}.project-head p{color:var(--muted);font-size:1.15rem}.project-head aside{padding:1.5rem;border-inline-start:4px solid var(--accent);display:grid}.project-head aside span{color:var(--muted)}.project-head aside strong{font-size:1.4rem}.gallery{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}.gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radius)}.placeholder{min-height:24rem;border-radius:var(--radius);background:linear-gradient(135deg,var(--brand),var(--brand-strong));color:white;display:grid;place-items:center;align-content:center}.placeholder span{font-size:5rem}.next{margin-top:4rem;padding:2rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:space-between;gap:2rem}.next h2{margin:0}@media(max-width:800px){.project-head,.gallery{grid-template-columns:1fr}.next{display:block}.next .button{margin-top:1rem}}</style>
