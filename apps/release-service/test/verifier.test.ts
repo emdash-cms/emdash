@@ -55,14 +55,28 @@ describe("release verifier binding adapter", () => {
 	});
 
 	it("fails closed with a retryable generic error when the binding rejects", async () => {
+		const cause = new Error("internal service address");
 		const binding = verifierBinding({
-			fetchArtifact: vi.fn().mockRejectedValue(new Error("internal service address")),
+			fetchArtifact: vi.fn().mockRejectedValue(cause),
 		});
 		const result = fetchArtifact(binding, "https://example.test/plugin.tgz");
 		await expect(result).rejects.toBeInstanceOf(VerifierUnavailableError);
 		await expect(result).rejects.toMatchObject({
 			message: "Release verifier is unavailable",
 			retryable: true,
+			cause,
+		});
+	});
+
+	it("preserves malformed response details as a diagnostic cause", async () => {
+		const binding = verifierBinding({ fetchArtifact: async () => null });
+
+		await expect(fetchArtifact(binding, "https://example.test/plugin.tgz")).rejects.toMatchObject({
+			name: "VerifierUnavailableError",
+			cause: expect.objectContaining({
+				name: "TypeError",
+				message: "Release verifier returned an invalid response",
+			}),
 		});
 	});
 

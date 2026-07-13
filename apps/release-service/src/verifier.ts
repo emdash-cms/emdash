@@ -15,8 +15,8 @@ export interface ReleaseVerifierBinding {
 export class VerifierUnavailableError extends Error {
 	readonly retryable = true;
 
-	constructor() {
-		super("Release verifier is unavailable");
+	constructor(options?: ErrorOptions) {
+		super("Release verifier is unavailable", options);
 		this.name = "VerifierUnavailableError";
 	}
 }
@@ -42,11 +42,13 @@ async function callVerifier(
 ): Promise<VerificationResult<Uint8Array>> {
 	try {
 		const result = await binding[method](url);
-		if (!isVerificationResult(result)) throw new VerifierUnavailableError();
+		if (!isVerificationResult(result)) {
+			throw new TypeError("Release verifier returned an invalid response");
+		}
 		return result;
 	} catch (error) {
 		if (error instanceof VerifierUnavailableError) throw error;
-		throw new VerifierUnavailableError();
+		throw new VerifierUnavailableError({ cause: error });
 	}
 }
 

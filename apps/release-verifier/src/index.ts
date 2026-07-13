@@ -7,7 +7,8 @@ import {
 import { WorkerEntrypoint } from "cloudflare:workers";
 
 export const ARTIFACT_MAX_BYTES = 384 * 1024;
-export const PROVENANCE_MAX_BYTES = 1024 * 1024;
+// Workers RPC messages are capped at 1 MiB, including the result envelope.
+export const PROVENANCE_MAX_BYTES = 960 * 1024;
 
 const DNS_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const DNS_TIMEOUT_MS = 5_000;

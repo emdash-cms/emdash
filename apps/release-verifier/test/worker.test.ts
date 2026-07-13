@@ -57,7 +57,9 @@ describe("release-verifier Worker", () => {
 
 	it("uses separate bounded limits for artifacts and provenance", async () => {
 		expect(ARTIFACT_MAX_BYTES).toBe(384 * 1024);
-		expect(PROVENANCE_MAX_BYTES).toBe(1024 * 1024);
+		// Leave room for the VerificationResult envelope within Workers' 1 MiB RPC limit.
+		expect(PROVENANCE_MAX_BYTES).toBe(960 * 1024);
+		expect(PROVENANCE_MAX_BYTES).toBeLessThan(1024 * 1024);
 		const result = await fetchResource("https://artifact.example.test/plugin.tgz", 3, {
 			fetch: async () => new Response(encoder.encode("large")),
 			resolveHostname: publicAddress,
