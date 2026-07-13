@@ -23,7 +23,6 @@
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
-		"@emdash-cms/registry-verification": "workspace:*",
 		"jose": "^6.1.3"
 	}
 }
