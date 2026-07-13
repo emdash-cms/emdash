@@ -142,6 +142,90 @@ export interface Page<T> {
 	nextCursor?: string;
 }
 
+export type OperatorRole = "admin" | "reviewer";
+
+/** The caller's verified identity from `/admin/api/whoami`, used only for
+ * cosmetic button gating — the server (`guardMutation`) is the enforcement
+ * boundary, so hiding a button never grants anything. */
+export interface WhoamiIdentity {
+	kind: "human" | "service";
+	principal: string;
+	sub: string;
+	roles: OperatorRole[];
+}
+
+export type ReleaseEligibility = "eligible" | "pending" | "error" | "blocked";
+
+/** Console mirror of registry-moderation's `ReleaseModeration` (redeclared, not
+ * imported — the console renders what the effect-preview endpoint returns and
+ * holds no policy logic). `applicableLabels` is opaque here; the UI shows the
+ * summarized value lists. */
+export interface ReleaseModeration {
+	eligibility: ReleaseEligibility;
+	reasonCodes: string[];
+	blockingLabels: string[];
+	stateLabels: string[];
+	warningLabels: string[];
+	suppressedLabels: string[];
+	applicableLabels: { val: string; cid?: string; neg?: boolean }[];
+	redacted: boolean;
+}
+
+export interface SupersededLabel {
+	val: string;
+	cid: string | null;
+	sequence: number;
+}
+
+/** Server-derived preview of a proposed label action's official-client effect
+ * (`GET /admin/api/labels/effect-preview`). */
+export interface EffectPreview {
+	labelEffect: string;
+	scope: "cid-bound" | "uri-wide";
+	supersedes: SupersededLabel[];
+	before: ReleaseModeration | null;
+	after: ReleaseModeration | null;
+}
+
+export interface EffectPreviewParams {
+	uri: string;
+	val: string;
+	cid?: string;
+	neg?: boolean;
+}
+
+/** A selectable label value plus its ceremony scope, for the action dialog's
+ * menu. Presentation only — the server is the authority on what a reviewer may
+ * issue (`guardMutation`), so this menu never gates anything. */
+export interface IssuableLabel {
+	val: string;
+	scope: "cid-bound" | "uri-wide";
+}
+
+/** Body for `POST /admin/api/labels/{issue,retract}`. `idempotencyKey` is minted
+ * client-side (ULID) per confirm-dialog open and reused across retries so a
+ * network retry replays rather than double-issues. */
+export interface LabelActionInput {
+	uri: string;
+	val: string;
+	cid?: string;
+	confirmation: string;
+	reason: string;
+	idempotencyKey: string;
+}
+
+/** The deterministic idempotent result returned by an issue/retract — no
+ * `sequence` (assigned by a DB trigger post-commit; two replays must agree). */
+export interface IssuedLabelDescriptor {
+	actionId: string;
+	val: string;
+	uri: string;
+	cid: string | null;
+	neg: boolean;
+	cts: string;
+	effect: string;
+}
+
 export interface ListAssessmentsParams {
 	state?: PublicAssessmentState;
 	cursor?: string;

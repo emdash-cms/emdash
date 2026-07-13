@@ -1,12 +1,15 @@
-import { Badge, LayerCard, Loader } from "@cloudflare/kumo";
+import { Badge, Button, LayerCard, Loader } from "@cloudflare/kumo";
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { apiClient } from "../api/client.js";
+import type { IssuableLabel } from "../api/types.js";
 import { FindingCard } from "../components/FindingCard.js";
+import { LabelActionDialog } from "../components/LabelActionDialog.js";
 import { QueryError } from "../components/QueryError.js";
 import { StateBadge } from "../components/StateBadge.js";
+import { isReleaseRetractable, RELEASE_ISSUABLE_LABELS, releaseLabelScope } from "../labels.js";
 import { shellRoute } from "./root.js";
 
 function MetaRow({ label, value }: { label: string; value: ReactNode }) {
@@ -50,6 +53,11 @@ function AssessmentDetail() {
 		queryFn: () => apiClient.listLabels(id),
 		enabled: !!assessment,
 	});
+	const { data: whoami } = useQuery({ queryKey: ["whoami"], queryFn: () => apiClient.whoami() });
+	const canAct = whoami?.roles.includes("reviewer") || whoami?.roles.includes("admin") || false;
+
+	const [issueOpen, setIssueOpen] = useState(false);
+	const [retractTarget, setRetractTarget] = useState<IssuableLabel | null>(null);
 
 	if (isAssessmentError) {
 		return <QueryError title="Failed to load assessment" error={assessmentError} />;
@@ -120,7 +128,14 @@ function AssessmentDetail() {
 			</LayerCard>
 
 			<section className="flex flex-col gap-3">
-				<h2 className="text-lg font-semibold">Labels</h2>
+				<div className="flex items-center justify-between">
+					<h2 className="text-lg font-semibold">Labels</h2>
+					{canAct && (
+						<Button variant="secondary" onClick={() => setIssueOpen(true)}>
+							Issue label
+						</Button>
+					)}
+				</div>
 				{isLabelsError ? (
 					<QueryError title="Failed to load labels" error={labelsError} />
 				) : isLoadingLabels || !labels ? (
@@ -130,16 +145,56 @@ function AssessmentDetail() {
 				) : (
 					<div className="flex flex-wrap gap-2">
 						{labels.map((label) => (
-							<Badge
-								key={`${label.val}-${label.sequence}`}
-								variant={label.neg ? "neutral" : "info"}
-							>
-								{label.val}
-							</Badge>
+							<div key={`${label.val}-${label.sequence}`} className="flex items-center gap-1">
+								<Badge variant={label.neg ? "neutral" : "info"}>{label.val}</Badge>
+								{canAct && !label.neg && isReleaseRetractable(label.val) && (
+									<Button
+										variant="ghost"
+										size="sm"
+										aria-label={`Retract ${label.val}`}
+										onClick={() =>
+											setRetractTarget({ val: label.val, scope: releaseLabelScope(label.val) })
+										}
+									>
+										Retract
+									</Button>
+								)}
+							</div>
 						))}
 					</div>
 				)}
 			</section>
+
+			{canAct && (
+				<>
+					<LabelActionDialog
+						open={issueOpen}
+						onOpenChange={setIssueOpen}
+						mode="issue"
+						subjectUri={assessment.uri}
+						subjectCid={assessment.cid}
+						issuable={RELEASE_ISSUABLE_LABELS}
+						invalidateKeys={[
+							["assessment", id, "labels"],
+							["assessment", id],
+						]}
+					/>
+					<LabelActionDialog
+						open={retractTarget !== null}
+						onOpenChange={(open) => {
+							if (!open) setRetractTarget(null);
+						}}
+						mode="retract"
+						subjectUri={assessment.uri}
+						subjectCid={assessment.cid}
+						{...(retractTarget ? { target: retractTarget } : {})}
+						invalidateKeys={[
+							["assessment", id, "labels"],
+							["assessment", id],
+						]}
+					/>
+				</>
+			)}
 
 			<section className="flex flex-col gap-3">
 				<h2 className="text-lg font-semibold">Findings</h2>

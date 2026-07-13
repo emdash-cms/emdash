@@ -3,7 +3,7 @@ import type { LabelSigner, SignedLabel } from "@emdash-cms/registry-moderation";
 import { ASSESSMENT_ID } from "./assessment-lifecycle.js";
 import type { LabelerConfig } from "./config.js";
 import type { FindingSeverity } from "./evidence.js";
-import { getLabelDefinition } from "./policy.js";
+import { getLabelDefinition, type SubjectKind } from "./policy.js";
 import {
 	getSigningStatusIfInitialized,
 	recordSigningAlert,
@@ -51,7 +51,11 @@ export type IssuanceAction = AuthorizedIssuanceAction | AutomatedIssuanceAction;
 
 export interface AllowedLabelProposal {
 	uri: string;
-	val: ManualLabelValue;
+	/** Any label whose policy `subjectRules` grant a `reviewer` or `admin`
+	 * issuance mode for the parsed subject — validated in `validateManualProposal`
+	 * against the ratified fixture, not a hardcoded union, so a fixture grant lights
+	 * up a value with no code change. */
+	val: string;
 	cid?: string;
 	neg?: boolean;
 	exp?: string;
@@ -371,8 +375,33 @@ export async function issueManualLabel(
 		throw new TypeError("signer issuer does not match the configured labeler DID");
 	validateKeyVersion(config.signingKeyVersion);
 	validateAction(action);
-	validateProposal(proposal);
+	validateManualProposal(proposal);
 	return issueLabel(db, config, signer, action, proposal, now, publisher);
+}
+
+/**
+ * Prepares (validates + signs) a manual label issuance without executing the
+ * batch, returning the same `IssuanceStatements` `commitMutation` consumes so
+ * the operator console can commit the signed label INSERTs in the same atomic
+ * `db.batch` as the `operator_actions` audit row (plan W9.4). Mirrors the
+ * validation half of `issueManualLabel`; the caller owns `db.batch` and
+ * publication. `publicationPending` is `true` — the console publishes after the
+ * commit via `readIssuedLabelByActionKey`.
+ */
+export async function prepareManualLabelIssuance(
+	db: D1Database,
+	config: LabelerConfig,
+	signer: LabelSigner,
+	action: AuthorizedIssuanceAction,
+	proposal: AllowedLabelProposal,
+	now: Date,
+): Promise<IssuanceStatements> {
+	if (signer.issuerDid !== config.labelerDid)
+		throw new TypeError("signer issuer does not match the configured labeler DID");
+	validateKeyVersion(config.signingKeyVersion);
+	validateAction(action);
+	validateManualProposal(proposal);
+	return buildIssuanceStatements(db, config, signer, action, proposal, now, true);
 }
 
 export async function issueAutomatedAssessmentLabel(
@@ -462,6 +491,56 @@ async function assertAutomatedNegationAllowed(
 	}
 }
 
+/**
+ * Reads a persisted issuance as an `IssuedLabel` by its issuance-action
+ * idempotency key. Unlike `IssuanceStatements.postCommit`, a missing row
+ * returns `null` rather than re-diagnosing signing state and throwing — the
+ * console's post-commit publisher keys on its own `actionId`, so the race
+ * loser (whose batch rolled back) legitimately finds nothing and skips.
+ */
+export async function readIssuedLabelByActionKey(
+	db: D1Database,
+	idempotencyKey: string,
+): Promise<IssuedLabel | null> {
+	const row = await getIssuedLabel(db, idempotencyKey);
+	return row ? rowToIssuedLabel(row) : null;
+}
+
+function rowToIssuedLabel(stored: StoredLabelRow): IssuedLabel {
+	const action: IssuanceAction =
+		stored.type === "automated-assessment"
+			? {
+					actor: stored.actor,
+					type: "automated-assessment",
+					assessmentId: stored.assessment_id ?? "",
+					reason: stored.reason,
+					idempotencyKey: stored.idempotency_key,
+				}
+			: {
+					actor: stored.actor,
+					type: "manual-label",
+					reason: stored.reason,
+					idempotencyKey: stored.idempotency_key,
+				};
+	return {
+		action,
+		label: {
+			ver: 1,
+			src: stored.src,
+			uri: stored.uri,
+			...(stored.cid === null ? {} : { cid: stored.cid }),
+			val: stored.val,
+			...(stored.neg === 1 ? { neg: true } : {}),
+			cts: stored.cts,
+			...(stored.exp === null ? {} : { exp: stored.exp }),
+			sig: new Uint8Array(stored.sig),
+		},
+		sequence: stored.sequence,
+		signingKeyId: stored.signing_key_id,
+		signingKeyVersion: stored.signing_key_version,
+	};
+}
+
 async function getIssuedLabel(
 	db: D1Database,
 	idempotencyKey: string,
@@ -500,23 +579,7 @@ function assertMatches(
 	) {
 		throw new TypeError("idempotency key is already bound to a different issuance");
 	}
-	return {
-		action,
-		label: {
-			ver: 1,
-			src: stored.src,
-			uri: stored.uri,
-			...(stored.cid === null ? {} : { cid: stored.cid }),
-			val: stored.val,
-			...(stored.neg === 1 ? { neg: true } : {}),
-			cts: stored.cts,
-			...(stored.exp === null ? {} : { exp: stored.exp }),
-			sig: new Uint8Array(stored.sig),
-		},
-		sequence: stored.sequence,
-		signingKeyId: stored.signing_key_id,
-		signingKeyVersion: stored.signing_key_version,
-	};
+	return rowToIssuedLabel(stored);
 }
 
 function validateAction(action: AuthorizedIssuanceAction): void {
@@ -528,29 +591,60 @@ function validateAction(action: AuthorizedIssuanceAction): void {
 		throw new TypeError("action.idempotencyKey must be between 1 and 200 characters");
 }
 
-function validateProposal(proposal: AllowedLabelProposal): void {
-	const record = REGISTRY_RECORD.exec(proposal.uri);
-	const isDidSubject = DID.test(proposal.uri);
-	switch (proposal.val) {
-		case "publisher-compromised":
-			if (!isDidSubject || proposal.cid !== undefined)
-				throw new TypeError("publisher-compromised must target a DID without a CID");
-			return;
-		case "!takedown":
-			if (!isDidSubject && !record)
-				throw new TypeError("!takedown must target a DID, package profile, or release record");
-			if (proposal.cid !== undefined) throw new TypeError("!takedown must not include a CID");
-			return;
-		case "package-disputed":
-			if (!record || !record[2]!.endsWith(".profile"))
-				throw new TypeError("package-disputed must target a package profile record");
-			return;
-		case "security-yanked":
-			if (!record || !record[2]!.endsWith(".release"))
-				throw new TypeError("security-yanked must target a release record");
-			if (proposal.cid !== undefined) throw new TypeError("security-yanked must not include a CID");
-			return;
+/** Parses a label subject URI into its policy `SubjectKind`: a bare DID is a
+ * publisher, a `…package.profile` record is a package, a `…package.release`
+ * record is a release; anything else is unrecognized. */
+export function parseSubjectKind(uri: string): SubjectKind | null {
+	if (DID.test(uri)) return "publisher";
+	const record = REGISTRY_RECORD.exec(uri);
+	if (!record) return null;
+	const collection = record[2]!;
+	if (collection.endsWith(".profile")) return "package";
+	if (collection.endsWith(".release")) return "release";
+	return null;
+}
+
+function describeSubject(subject: SubjectKind): string {
+	switch (subject) {
+		case "release":
+			return "release record";
+		case "package":
+			return "package profile record";
+		case "publisher":
+			return "DID";
 	}
+}
+
+/**
+ * Manual issuance legality driven from the ratified policy fixture, mirroring
+ * `validateAutomatedProposal`: a value is manually issuable only where its
+ * `subjectRules` grant a `reviewer` or `admin` mode for the subject parsed from
+ * the URI, and the matched rule's `cidRule` decides whether a CID is forbidden
+ * (URI-wide), required (CID-bound), or optional. Keeping the issuer policy-driven
+ * means a fixture grant lights up a value with no code change, and an
+ * automated-only value (`assessment-pending`, an ungranted descriptive label)
+ * is rejected here. The per-endpoint W9.4 scope gate (override-coupled labels,
+ * role) lives in the console mutation dispatcher, not here.
+ */
+function validateManualProposal(proposal: AllowedLabelProposal): void {
+	const definition = getLabelDefinition(proposal.val);
+	if (!definition) throw new TypeError(`unknown label value: ${proposal.val}`);
+	const manualRules = definition.subjectRules.filter(
+		(rule) => rule.issuanceModes.includes("reviewer") || rule.issuanceModes.includes("admin"),
+	);
+	if (manualRules.length === 0)
+		throw new TypeError(`${proposal.val} cannot be issued through the manual path`);
+	const subject = parseSubjectKind(proposal.uri);
+	const rule =
+		subject === null ? undefined : manualRules.find((candidate) => candidate.subject === subject);
+	if (!rule) {
+		const allowed = manualRules.map((candidate) => describeSubject(candidate.subject)).join(", ");
+		throw new TypeError(`${proposal.val} must target a ${allowed}`);
+	}
+	if (rule.cidRule === "forbidden" && proposal.cid !== undefined)
+		throw new TypeError(`${proposal.val} must not include a CID`);
+	if (rule.cidRule === "required" && proposal.cid === undefined)
+		throw new TypeError(`${proposal.val} must include a CID`);
 }
 
 function validateAutomatedAction(action: AutomatedIssuanceAction): void {

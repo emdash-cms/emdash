@@ -13,6 +13,7 @@
  * expose the body. No route here sets a CORS header.
  */
 
+import type { OperatorIdentity } from "./access-auth.js";
 import {
 	computeFilterHash,
 	decodeCursor,
@@ -40,6 +41,7 @@ import {
 	type Page,
 } from "./console-serialize.js";
 import { LABELER_DISCOVERY_DO_NAME } from "./discovery-do.js";
+import { computeEffectPreview } from "./label-effect-preview.js";
 import { MutationGuardError } from "./mutation-guard.js";
 import { getOperatorActionsPage } from "./operator-actions.js";
 import { guardRead, ReadGuardError, type ReadGuardDeps } from "./operator-read-guard.js";
@@ -74,11 +76,11 @@ export interface ConsoleApiDeps extends ReadGuardDeps {
  */
 export async function handleConsoleApi(request: Request, deps: ConsoleApiDeps): Promise<Response> {
 	try {
-		await guardRead(request, deps, { minRole: "reviewer" });
+		const identity = await guardRead(request, deps, { minRole: "reviewer" });
 		// `matchRoute` is synchronous, so a rejection from the handler is consumed
 		// by this `await` directly — never adopted by an intermediate async layer,
 		// which would surface a spurious unhandled rejection under workerd.
-		const handler = matchRoute(request, deps);
+		const handler = matchRoute(request, deps, identity);
 		const response = await handler();
 		return response;
 	} catch (error) {
@@ -92,7 +94,11 @@ export async function handleConsoleApi(request: Request, deps: ConsoleApiDeps): 
 	}
 }
 
-function matchRoute(request: Request, deps: ConsoleApiDeps): () => Promise<Response> {
+function matchRoute(
+	request: Request,
+	deps: ConsoleApiDeps,
+	identity: OperatorIdentity,
+): () => Promise<Response> {
 	const url = new URL(request.url);
 	// pathname keeps percent-encoding; the subject URI segment is decoded per route.
 	const segments = url.pathname.replace(ADMIN_API_PREFIX, "").split("/").filter(Boolean);
@@ -113,6 +119,14 @@ function matchRoute(request: Request, deps: ConsoleApiDeps): () => Promise<Respo
 		return () => handleListAuditLog(request, url, deps);
 	} else if (segments[0] === "status" && segments.length === 1) {
 		return () => handleGetStatus(request, deps);
+	} else if (segments[0] === "whoami" && segments.length === 1) {
+		return () => handleWhoami(request, identity);
+	} else if (
+		segments[0] === "labels" &&
+		segments.length === 2 &&
+		segments[1] === "effect-preview"
+	) {
+		return () => handleEffectPreview(request, url, deps);
 	}
 
 	throw new ReadGuardError("NOT_FOUND");
@@ -277,6 +291,51 @@ async function handleGetStatus(request: Request, deps: ConsoleApiDeps): Promise<
 		pendingAssessments,
 		deadLetterDepth,
 	});
+}
+
+/** The caller's own verified identity — kind, principal, and roles — for the
+ * console's cosmetic button gating. The server remains the enforcement boundary
+ * (`guardMutation`'s role gate); hiding a button never grants anything. */
+async function handleWhoami(request: Request, identity: OperatorIdentity): Promise<Response> {
+	requireGet(request);
+	const principal = identity.kind === "human" ? identity.email : identity.commonName;
+	return jsonData({
+		kind: identity.kind,
+		principal,
+		sub: identity.sub,
+		roles: identity.roles,
+	});
+}
+
+async function handleEffectPreview(
+	request: Request,
+	url: URL,
+	deps: ConsoleApiDeps,
+): Promise<Response> {
+	requireGet(request);
+	const uri = url.searchParams.get("uri");
+	const val = url.searchParams.get("val");
+	if (uri === null || uri.length === 0 || val === null || val.length === 0)
+		throw new ReadGuardError("INVALID_REQUEST");
+	const cid = url.searchParams.get("cid") ?? undefined;
+	if (cid !== undefined && cid.length === 0) throw new ReadGuardError("INVALID_REQUEST");
+	const neg = parseNeg(url.searchParams.get("neg"));
+
+	const preview = await computeEffectPreview(
+		deps.db,
+		deps.labelerDid,
+		{ uri, val, ...(cid === undefined ? {} : { cid }), neg },
+		new Date(),
+	);
+	// An unknown label value has no policy definition to preview.
+	if (!preview) throw new ReadGuardError("INVALID_REQUEST");
+	return jsonData(preview);
+}
+
+function parseNeg(raw: string | null): boolean {
+	if (raw === null || raw === "false") return false;
+	if (raw === "true") return true;
+	throw new ReadGuardError("INVALID_REQUEST");
 }
 
 /** Dead-letter backlog — the observable stand-in for discovery-queue depth,
