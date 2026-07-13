@@ -9,7 +9,7 @@ import Base from "../layouts/Base.astro";
 		<p>The page you're looking for doesn't exist or has been moved.</p>
 		<div class="not-found-links">
 			<a href="/" class="link-primary">Go home</a>
-			<a href="/work" class="link-secondary">View our work</a>
+			<a href="/projects" class="link-secondary">View our projects</a>
 		</div>
 	</div>
 </Base>
@@ -17,71 +17,63 @@ import Base from "../layouts/Base.astro";
 <style>
 	.not-found {
 		text-align: center;
-		padding: var(--spacing-4xl) var(--spacing-lg);
-		max-width: var(--max-width);
+		padding: clamp(4rem, 10vw, 8rem) 1.2rem;
+		max-width: var(--max);
 		margin: 0 auto;
 	}
 
 	.not-found-code {
 		display: block;
 		font-family: var(--font-heading);
-		font-size: 8rem;
-		font-weight: var(--font-weight-display);
+		font-size: clamp(5rem, 16vw, 9rem);
+		font-weight: 800;
 		line-height: 1;
-		color: var(--color-border);
-		margin-bottom: var(--spacing-lg);
+		color: var(--border);
+		margin-bottom: 1.5rem;
 	}
 
 	.not-found h1 {
 		font-family: var(--font-heading);
-		font-size: var(--font-size-2xl);
-		font-weight: var(--font-weight-heading);
-		margin-bottom: var(--spacing-sm);
+		font-size: clamp(2rem, 5vw, 3.2rem);
+		margin-bottom: .75rem;
 	}
 
 	.not-found p {
-		color: var(--color-muted);
-		margin-bottom: var(--spacing-2xl);
+		color: var(--muted);
+		margin-bottom: 2rem;
 	}
 
 	.not-found-links {
 		display: flex;
-		gap: var(--spacing-md);
+		gap: 1rem;
 		justify-content: center;
 	}
 
 	.link-primary {
-		padding: var(--spacing-sm) var(--spacing-lg);
-		font-size: var(--font-size-sm);
-		color: var(--color-bg);
-		background: var(--color-text);
+		padding: .85rem 1.25rem;
+		color: var(--on-brand);
+		background: var(--brand);
 		text-decoration: none;
 		border-radius: var(--radius);
-		transition:
-			background var(--transition-fast),
-			transform var(--transition-fast);
+		transition: background 150ms ease, transform 150ms ease;
 	}
 
 	.link-primary:hover {
-		background: var(--color-brand);
-		color: var(--color-on-brand);
+		background: var(--brand-strong);
 		transform: translateY(-1px);
 	}
 
 	.link-secondary {
-		padding: var(--spacing-sm) var(--spacing-lg);
-		font-size: var(--font-size-sm);
-		color: var(--color-text);
+		padding: .85rem 1.25rem;
+		color: var(--ink);
 		text-decoration: none;
-		border: 1px solid var(--color-border);
+		border: 1px solid var(--border);
 		border-radius: var(--radius);
-		transition:
-			border-color var(--transition-fast),
-			transform var(--transition-fast);
+		transition: border-color 150ms ease, transform 150ms ease;
 	}
 
 	.link-secondary:hover {
-		border-color: var(--color-text);
+		border-color: var(--ink);
 		transform: translateY(-1px);
 	}
 

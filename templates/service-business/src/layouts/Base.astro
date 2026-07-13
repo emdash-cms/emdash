@@ -1,7 +1,7 @@
 ---
 import { getEmDashCollection, getMenu, getSiteSettings } from "emdash";
 import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
-import { createPublicPageContext } from "emdash/page";
+import { createPublicPageContext, safeJsonLdSerialize } from "emdash/page";
 import "../styles/tokens.css";
 import "../styles/theme.css";
 
@@ -38,7 +38,7 @@ const jsonLd = {
 		<meta charset="utf-8" /><meta name="viewport" content="width=device-width" />
 		<title>{fullTitle}</title><meta name="description" content={siteDescription} />
 		<EmDashHead page={pageCtx} />
-		<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+		<script is:inline type="application/ld+json" set:html={safeJsonLdSerialize(jsonLd)} />
 	</head>
 	<body>
 		<EmDashBodyStart page={pageCtx} />
