@@ -1,0 +1,27 @@
+/**
+ * EmDash Labeler Console styles.
+ *
+ * Uses Kumo's semantic token system exclusively (no raw Tailwind colors).
+ */
+
+/* Scan Kumo component JS for Tailwind utility classes (e.g. Dialog centering).
+ * @cloudflare/kumo installs under apps/labeler/node_modules (the package
+ * root), not console/node_modules -- console has no package.json of its
+ * own, so this path goes up two levels rather than packages/admin's one. */
+@source "../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+
+@import "@cloudflare/kumo/styles";
+@import "tailwindcss";
+
+* {
+	border-color: var(--color-kumo-line);
+}
+
+body {
+	background-color: var(--color-kumo-elevated);
+	color: var(--text-color-kumo-default);
+}
+
+#console-root {
+	isolation: isolate;
+}
