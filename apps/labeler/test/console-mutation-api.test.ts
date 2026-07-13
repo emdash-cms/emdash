@@ -9,7 +9,12 @@ import { generateKeyPair, SignJWT } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import type { AccessKeyResolver } from "../src/access-auth.js";
-import { createSubject, getActiveLabelState } from "../src/assessment-store.js";
+import { computeRunKey, initialTriggerId } from "../src/assessment-lifecycle.js";
+import {
+	createAssessmentRun,
+	createSubject,
+	getActiveLabelState,
+} from "../src/assessment-store.js";
 import { handleConsoleApi, type ConsoleApiDeps } from "../src/console-api.js";
 import {
 	handleConsoleMutation,
@@ -17,7 +22,7 @@ import {
 	type IssuedLabelDescriptor,
 } from "../src/console-mutation-api.js";
 import { OPERATOR_REQUEST_HEADER } from "../src/mutation-guard.js";
-import { issueManualLabel } from "../src/service.js";
+import { issueAutomatedAssessmentLabel, issueManualLabel } from "../src/service.js";
 
 const TEAM_DOMAIN = "https://example-team.cloudflareaccess.com";
 const AUDIENCE = "test-audience";
@@ -732,5 +737,558 @@ describe("console reads: effect preview", () => {
 	it("rejects an unknown label value", async () => {
 		const response = await preview(releaseUri("preview-unknown"), "not-a-label");
 		expect(response.status).toBe(400);
+	});
+});
+
+// ─── W9.6: admin-only emergency actions ─────────────────────────────────────
+
+const PUBLISHER_SEGMENT = PUBLISHER_DID.split(":").at(-1)!;
+
+/** Seeds a real automated `malware` block (via an assessment, satisfying the
+ * `issuance_actions.assessment_id` FK) so a takedown/retract test rests on a
+ * genuine automated block, not a hand-inserted row. */
+async function seedAutomatedBlock(uri: string, cid: string): Promise<void> {
+	await createSubject(testEnv.DB, {
+		uri,
+		cid,
+		did: PUBLISHER_DID,
+		collection: "com.emdashcms.experimental.package.release",
+		rkey: uri.split("/").at(-1)!,
+		now: new Date("2026-07-08T08:00:00.000Z"),
+	});
+	const triggerId = initialTriggerId(cid);
+	const runKey = await computeRunKey({
+		uri,
+		cid,
+		policyVersion: "v1",
+		modelId: "m",
+		promptHash: "p",
+		scannerSetVersion: "v1",
+		triggerId,
+	});
+	const { assessment } = await createAssessmentRun(testEnv.DB, {
+		runKey,
+		uri,
+		cid,
+		trigger: "initial",
+		triggerId,
+		policyVersion: "v1",
+		coverageJson: "{}",
+	});
+	await issueAutomatedAssessmentLabel(
+		testEnv.DB,
+		CONFIG,
+		await testSigner(),
+		{
+			actor: LABELER_DID,
+			type: "automated-assessment",
+			assessmentId: assessment.id,
+			reason: "automated block",
+			idempotencyKey: nextKey(),
+		},
+		{ uri, cid, val: "malware", findingCategory: "malware", severity: "critical" },
+		new Date("2026-07-08T09:00:00.000Z"),
+	);
+}
+
+/** Reads the issued labels for a URI as evaluator input, newest last — the
+ * grounded label set the aggregator evaluator reduces (sigs are irrelevant to
+ * label semantics). */
+async function moderationLabelsFor(uri: string): Promise<ModerationLabel[]> {
+	const rows = await testEnv.DB.prepare(
+		`SELECT src, uri, cid, val, neg, cts FROM issued_labels WHERE uri = ? ORDER BY sequence ASC`,
+	)
+		.bind(uri)
+		.all<{ src: string; uri: string; cid: string | null; val: string; neg: number; cts: string }>();
+	return (rows.results ?? []).map((row) => ({
+		ver: 1,
+		src: row.src,
+		uri: row.uri,
+		...(row.cid === null ? {} : { cid: row.cid }),
+		val: row.val,
+		...(row.neg === 1 ? { neg: true } : {}),
+		cts: row.cts,
+	}));
+}
+
+async function eventCount(actionId: string): Promise<number> {
+	return countRows(`SELECT COUNT(*) n FROM operational_events WHERE action_id = ?`, actionId);
+}
+
+async function outboxCount(actionId: string): Promise<number> {
+	return countRows(
+		`SELECT COUNT(*) n FROM notification_outbox nob
+		 JOIN operational_events oe ON oe.id = nob.event_id
+		 WHERE oe.action_id = ?`,
+		actionId,
+	);
+}
+
+function emergency(
+	path: string,
+	body: Record<string, unknown>,
+	token: string | null = adminToken,
+): Request {
+	return post(path, { reason: "incident response", idempotencyKey: nextKey(), ...body }, { token });
+}
+
+describe("console mutation: emergency issuance (admin)", () => {
+	it("issues !takedown URI-wide on a release with the atomic event + outbox", async () => {
+		const uri = await seedReleaseSubject("emrg-td-release");
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri,
+				subjectConfirmation: "emrg-td-release",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<IssuedLabelDescriptor>(response);
+		expect(descriptor).toMatchObject({
+			val: "!takedown",
+			uri,
+			cid: null,
+			neg: false,
+			effect: "redact",
+		});
+
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM issued_labels WHERE uri = ? AND val = '!takedown' AND neg = 0`,
+				uri,
+			),
+		).toBe(1);
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM operational_events
+				 WHERE action_id = ? AND event_type = 'emergency-takedown' AND severity = 'critical'`,
+				descriptor.actionId,
+			),
+		).toBe(1);
+		expect(await outboxCount(descriptor.actionId)).toBe(1);
+
+		// T8: the alert payload carries the operator reason only — no evidence fields.
+		const event = await testEnv.DB.prepare(
+			`SELECT payload_json, subject_uri, label_value FROM operational_events WHERE action_id = ?`,
+		)
+			.bind(descriptor.actionId)
+			.first<{ payload_json: string; subject_uri: string; label_value: string }>();
+		expect(event).toMatchObject({ subject_uri: uri, label_value: "!takedown" });
+		expect(JSON.parse(event!.payload_json)).toEqual({ reason: "incident response" });
+	});
+
+	it("issues !takedown on a package profile (rkey confirmation)", async () => {
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri: profileUri("emrg-td-pkg"),
+				subjectConfirmation: "emrg-td-pkg",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(200);
+		expect((await bodyData<IssuedLabelDescriptor>(response)).val).toBe("!takedown");
+	});
+
+	it("issues !takedown on a publisher DID (final-segment confirmation)", async () => {
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri: PUBLISHER_DID,
+				subjectConfirmation: PUBLISHER_SEGMENT,
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(200);
+		expect((await bodyData<IssuedLabelDescriptor>(response)).uri).toBe(PUBLISHER_DID);
+	});
+
+	it("issues publisher-compromised on a publisher DID", async () => {
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/publisher-compromised", {
+				uri: PUBLISHER_DID,
+				subjectConfirmation: PUBLISHER_SEGMENT,
+				intent: "CONFIRM COMPROMISE",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<IssuedLabelDescriptor>(response);
+		expect(descriptor).toMatchObject({
+			val: "publisher-compromised",
+			uri: PUBLISHER_DID,
+			neg: false,
+		});
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM operational_events
+				 WHERE action_id = ? AND event_type = 'publisher-compromised' AND severity = 'critical'`,
+				descriptor.actionId,
+			),
+		).toBe(1);
+	});
+
+	it("rejects publisher-compromised targeting a release (no admin rule for that subject)", async () => {
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/publisher-compromised", {
+				uri: releaseUri("emrg-pc-release"),
+				subjectConfirmation: "emrg-pc-release",
+				intent: "CONFIRM COMPROMISE",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(400);
+		expect((await bodyError(response)).code).toBe("INVALID_BODY");
+	});
+});
+
+describe("console mutation: emergency authorization (per-endpoint, pre-effect)", () => {
+	const cases = [
+		{
+			path: "/admin/api/emergency/takedown",
+			uri: () => PUBLISHER_DID,
+			conf: PUBLISHER_SEGMENT,
+			intent: "CONFIRM TAKEDOWN",
+		},
+		{
+			path: "/admin/api/emergency/takedown-retract",
+			uri: () => PUBLISHER_DID,
+			conf: PUBLISHER_SEGMENT,
+			intent: "CONFIRM RETRACT",
+		},
+		{
+			path: "/admin/api/emergency/publisher-compromised",
+			uri: () => PUBLISHER_DID,
+			conf: PUBLISHER_SEGMENT,
+			intent: "CONFIRM COMPROMISE",
+		},
+		{
+			path: "/admin/api/emergency/publisher-compromised-retract",
+			uri: () => PUBLISHER_DID,
+			conf: PUBLISHER_SEGMENT,
+			intent: "CONFIRM RETRACT",
+		},
+	];
+
+	it.each(cases)(
+		"rejects a reviewer with zero side effects: $path",
+		async ({ path, uri, conf, intent }) => {
+			const before = {
+				actions: await countRows(`SELECT COUNT(*) n FROM operator_actions`),
+				labels: await countRows(`SELECT COUNT(*) n FROM issued_labels`),
+				events: await countRows(`SELECT COUNT(*) n FROM operational_events`),
+				outbox: await countRows(`SELECT COUNT(*) n FROM notification_outbox`),
+			};
+			const response = await handleConsoleMutation(
+				emergency(path, { uri: uri(), subjectConfirmation: conf, intent }, reviewerToken),
+				mutationDeps(),
+			);
+			expect(response.status).toBe(403);
+			expect((await bodyError(response)).code).toBe("FORBIDDEN_ROLE");
+			expect(await countRows(`SELECT COUNT(*) n FROM operator_actions`)).toBe(before.actions);
+			expect(await countRows(`SELECT COUNT(*) n FROM issued_labels`)).toBe(before.labels);
+			expect(await countRows(`SELECT COUNT(*) n FROM operational_events`)).toBe(before.events);
+			expect(await countRows(`SELECT COUNT(*) n FROM notification_outbox`)).toBe(before.outbox);
+		},
+	);
+
+	it.each(cases)(
+		"accepts an admin (the 403 is the role, not a broken endpoint): $path",
+		async ({ path, uri, conf, intent }) => {
+			const response = await handleConsoleMutation(
+				emergency(path, { uri: uri(), subjectConfirmation: conf, intent }, adminToken),
+				mutationDeps(),
+			);
+			expect(response.status).toBe(200);
+		},
+	);
+
+	it("rejects an unauthenticated caller with zero side effects (401)", async () => {
+		const before = {
+			actions: await countRows(`SELECT COUNT(*) n FROM operator_actions`),
+			labels: await countRows(`SELECT COUNT(*) n FROM issued_labels`),
+			events: await countRows(`SELECT COUNT(*) n FROM operational_events`),
+			outbox: await countRows(`SELECT COUNT(*) n FROM notification_outbox`),
+		};
+		const response = await handleConsoleMutation(
+			emergency(
+				"/admin/api/emergency/takedown",
+				{ uri: PUBLISHER_DID, subjectConfirmation: PUBLISHER_SEGMENT, intent: "CONFIRM TAKEDOWN" },
+				null,
+			),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(401);
+		expect(await countRows(`SELECT COUNT(*) n FROM operator_actions`)).toBe(before.actions);
+		expect(await countRows(`SELECT COUNT(*) n FROM issued_labels`)).toBe(before.labels);
+		expect(await countRows(`SELECT COUNT(*) n FROM operational_events`)).toBe(before.events);
+		expect(await countRows(`SELECT COUNT(*) n FROM notification_outbox`)).toBe(before.outbox);
+	});
+});
+
+describe("console mutation: emergency ceremony", () => {
+	it("rejects a wrong subject confirmation without echoing the typed value (400)", async () => {
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri: releaseUri("emrg-conf"),
+				subjectConfirmation: "not-the-rkey",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(400);
+		const error = await bodyError(response);
+		expect(error.code).toBe("CONFIRMATION_MISMATCH");
+		expect(error.message).not.toContain("not-the-rkey");
+	});
+
+	it("rejects a wrong intent phrase (400)", async () => {
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri: releaseUri("emrg-intent"),
+				subjectConfirmation: "emrg-intent",
+				intent: "CONFIRM COMPROMISE",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(400);
+		expect((await bodyError(response)).code).toBe("CONFIRMATION_MISMATCH");
+	});
+
+	it("rejects a missing intent (400)", async () => {
+		const response = await handleConsoleMutation(
+			post(
+				"/admin/api/emergency/takedown",
+				{
+					uri: releaseUri("emrg-nointent"),
+					subjectConfirmation: "emrg-nointent",
+					reason: "no intent",
+					idempotencyKey: nextKey(),
+				},
+				{ token: adminToken },
+			),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(400);
+	});
+
+	it("rejects the issue intent on a retract endpoint (400)", async () => {
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri: PUBLISHER_DID,
+				subjectConfirmation: PUBLISHER_SEGMENT,
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(400);
+		expect((await bodyError(response)).code).toBe("CONFIRMATION_MISMATCH");
+	});
+
+	it("T7: a release URI confirmed with a DID segment fails (subject-kind confusion)", async () => {
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri: releaseUri("emrg-t7"),
+				subjectConfirmation: PUBLISHER_SEGMENT,
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(400);
+		expect((await bodyError(response)).code).toBe("CONFIRMATION_MISMATCH");
+	});
+});
+
+describe("console mutation: emergency replay and phantom success", () => {
+	it("emits exactly one operational event + outbox row across a replay", async () => {
+		const uri = await seedReleaseSubject("emrg-replay");
+		const key = nextKey();
+		const request = () =>
+			post(
+				"/admin/api/emergency/takedown",
+				{
+					uri,
+					subjectConfirmation: "emrg-replay",
+					intent: "CONFIRM TAKEDOWN",
+					reason: "replay incident",
+					idempotencyKey: key,
+				},
+				{ token: adminToken },
+			);
+		const first = await handleConsoleMutation(request(), mutationDeps());
+		const firstBody = await first.text();
+		const second = await handleConsoleMutation(request(), mutationDeps());
+		expect(second.status).toBe(200);
+		expect(await second.text()).toBe(firstBody);
+
+		const descriptor = JSON.parse(firstBody).data as IssuedLabelDescriptor;
+		expect(await eventCount(descriptor.actionId)).toBe(1);
+		expect(await outboxCount(descriptor.actionId)).toBe(1);
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM issued_labels WHERE uri = ? AND val = '!takedown'`,
+				uri,
+			),
+		).toBe(1);
+	});
+
+	it("503s with no label, event, or outbox when the batch is suppressed, and re-503s on replay (T1)", async () => {
+		const uri = await seedReleaseSubject("emrg-phantom");
+		const key = nextKey();
+		const body = {
+			uri,
+			subjectConfirmation: "emrg-phantom",
+			intent: "CONFIRM TAKEDOWN",
+			reason: "rotation mid-issuance",
+			idempotencyKey: key,
+		};
+		const response = await handleConsoleMutation(
+			post("/admin/api/emergency/takedown", body, { token: adminToken }),
+			mutationDeps({ db: suppressIssuanceDb(testEnv.DB) }),
+		);
+		expect(response.status).toBe(503);
+		expect((await bodyError(response)).code).toBe("LABEL_ISSUANCE_UNAVAILABLE");
+		expect(
+			await countRows(`SELECT COUNT(*) n FROM operator_actions WHERE idempotency_key = ?`, key),
+		).toBe(1);
+		expect(await countRows(`SELECT COUNT(*) n FROM issued_labels WHERE uri = ?`, uri)).toBe(0);
+		expect(
+			await countRows(`SELECT COUNT(*) n FROM operational_events WHERE subject_uri = ?`, uri),
+		).toBe(0);
+
+		const outboxBefore = await countRows(`SELECT COUNT(*) n FROM notification_outbox`);
+		const retry = await handleConsoleMutation(
+			post("/admin/api/emergency/takedown", body, { token: adminToken }),
+			mutationDeps(),
+		);
+		expect(retry.status).toBe(503);
+		expect((await bodyError(retry)).code).toBe("LABEL_ISSUANCE_UNAVAILABLE");
+		expect(await countRows(`SELECT COUNT(*) n FROM issued_labels WHERE uri = ?`, uri)).toBe(0);
+		expect(
+			await countRows(`SELECT COUNT(*) n FROM operational_events WHERE subject_uri = ?`, uri),
+		).toBe(0);
+		expect(await countRows(`SELECT COUNT(*) n FROM notification_outbox`)).toBe(outboxBefore);
+	});
+});
+
+describe("console mutation: emergency retract resting state", () => {
+	it("re-exposes pre-takedown automated blocks and re-issues nothing (evaluator agrees)", async () => {
+		const uri = releaseUri("emrg-rest");
+		await seedAutomatedBlock(uri, CID);
+
+		const takedown = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri,
+				subjectConfirmation: "emrg-rest",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(takedown.status).toBe(200);
+
+		const redacted = evaluateHydratedReleaseModeration({
+			acceptedLabelers: [{ did: LABELER_DID, redact: true }],
+			context: {
+				publisherDid: PUBLISHER_DID,
+				package: { uri, cid: CID },
+				release: { uri, cid: CID },
+			},
+			evaluatedAt: new Date(),
+			labels: await moderationLabelsFor(uri),
+		});
+		expect(redacted.redacted).toBe(true);
+
+		const retract = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri,
+				subjectConfirmation: "emrg-rest",
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(retract.status).toBe(200);
+		expect((await bodyData<IssuedLabelDescriptor>(retract)).neg).toBe(true);
+
+		// Resting state: the takedown is inactive, the automated malware block is
+		// active again (it was never negated), and nothing was re-issued for it.
+		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: CID });
+		expect(winners.get("!takedown")?.active).toBe(false);
+		expect(winners.get("malware")?.active).toBe(true);
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM issued_labels WHERE uri = ? AND val = 'malware'`,
+				uri,
+			),
+		).toBe(1);
+
+		const atRest = evaluateHydratedReleaseModeration({
+			acceptedLabelers: [{ did: LABELER_DID, redact: true }],
+			context: {
+				publisherDid: PUBLISHER_DID,
+				package: { uri, cid: CID },
+				release: { uri, cid: CID },
+			},
+			evaluatedAt: new Date(),
+			labels: await moderationLabelsFor(uri),
+		});
+		expect(atRest.redacted).toBe(false);
+		expect(atRest.eligibility).toBe("blocked");
+		expect(atRest.blockingLabels).toContain("malware");
+	});
+
+	it("emits a high-severity operational event for a retract", async () => {
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri: PUBLISHER_DID,
+				subjectConfirmation: PUBLISHER_SEGMENT,
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<IssuedLabelDescriptor>(response);
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM operational_events WHERE action_id = ? AND severity = 'high'`,
+				descriptor.actionId,
+			),
+		).toBe(1);
+	});
+});
+
+describe("console mutation: emergency §10 automation interaction", () => {
+	it("automation cannot negate an admin-issued !takedown", async () => {
+		const uri = await seedReleaseSubject("emrg-s10");
+		const takedown = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri,
+				subjectConfirmation: "emrg-s10",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(takedown.status).toBe(200);
+
+		// The automated issuance path refuses the emergency vocabulary outright, so
+		// automation can never reach — let alone negate — a manually-headed takedown.
+		await expect(
+			issueAutomatedAssessmentLabel(
+				testEnv.DB,
+				CONFIG,
+				await testSigner(),
+				{
+					actor: LABELER_DID,
+					type: "automated-assessment",
+					assessmentId: `asmt_${"0".repeat(26)}`,
+					reason: "automated negation attempt",
+					idempotencyKey: nextKey(),
+				},
+				{ uri, cid: CID, val: "!takedown", neg: true },
+			),
+		).rejects.toThrow();
+
+		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: CID });
+		expect(winners.get("!takedown")?.active).toBe(true);
 	});
 });

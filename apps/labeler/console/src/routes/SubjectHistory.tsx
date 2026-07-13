@@ -4,12 +4,29 @@ import { createRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { apiClient } from "../api/client.js";
-import type { IssuableLabel } from "../api/types.js";
+import type { EmergencyActionKind, IssuableLabel, SubjectLabel } from "../api/types.js";
+import { EmergencyActionDialog } from "../components/EmergencyActionDialog.js";
 import { LabelActionDialog } from "../components/LabelActionDialog.js";
 import { QueryError } from "../components/QueryError.js";
 import { StateBadge } from "../components/StateBadge.js";
 import { PACKAGE_ISSUABLE_LABELS, RELEASE_ISSUABLE_LABELS } from "../labels.js";
 import { shellRoute } from "./root.js";
+
+/** A publisher's typed confirmation is its DID's final `:`-segment. */
+function didFinalSegment(did: string): string {
+	return did.split(":").at(-1) ?? "";
+}
+
+function isLabelActive(labels: readonly SubjectLabel[] | undefined, val: string): boolean {
+	return (labels ?? []).some((label) => label.val === val && label.active);
+}
+
+interface EmergencyTarget {
+	kind: EmergencyActionKind;
+	mode: "issue" | "retract";
+	uri: string;
+	confirm: string;
+}
 
 /** URI-wide (record-level) issuable labels for a subject, chosen by its
  * collection: a release record can be security-yanked, a package profile can be
@@ -35,7 +52,22 @@ function SubjectHistory() {
 	});
 	const { data: whoami } = useQuery({ queryKey: ["whoami"], queryFn: () => apiClient.whoami() });
 	const canAct = whoami?.roles.includes("reviewer") || whoami?.roles.includes("admin") || false;
+	const isAdmin = whoami?.roles.includes("admin") ?? false;
+
+	const subjectRecord = history?.subject;
+	const { data: recordLabels } = useQuery({
+		queryKey: ["subject-labels", subjectRecord?.uri, subjectRecord?.cid],
+		queryFn: () => apiClient.getSubjectLabels(subjectRecord!.uri, subjectRecord!.cid),
+		enabled: isAdmin && !!subjectRecord,
+	});
+	const { data: publisherLabels } = useQuery({
+		queryKey: ["publisher-labels", subjectRecord?.did],
+		queryFn: () => apiClient.getSubjectLabels(subjectRecord!.did),
+		enabled: isAdmin && !!subjectRecord,
+	});
+
 	const [issueOpen, setIssueOpen] = useState(false);
+	const [emergency, setEmergency] = useState<EmergencyTarget | null>(null);
 
 	if (isError) {
 		return <QueryError title="Failed to load subject history" error={error} />;
@@ -57,6 +89,15 @@ function SubjectHistory() {
 
 	const { subject, assessments } = history;
 	const uriWideLabels = uriWideLabelsFor(subject.collection);
+	const publisherSegment = didFinalSegment(subject.did);
+	const recordTakenDown = isLabelActive(recordLabels, "!takedown");
+	const publisherTakenDown = isLabelActive(publisherLabels, "!takedown");
+	const publisherCompromised = isLabelActive(publisherLabels, "publisher-compromised");
+	const emergencyInvalidateKeys: readonly (readonly unknown[])[] = [
+		["subject-history", uri],
+		["subject-labels", subject.uri, subject.cid],
+		["publisher-labels", subject.did],
+	];
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -79,6 +120,74 @@ function SubjectHistory() {
 					</Button>
 				)}
 			</div>
+
+			{isAdmin && (
+				<LayerCard className="flex flex-col gap-3 border border-kumo-danger p-4">
+					<div className="flex items-center gap-2">
+						<h2 className="text-lg font-semibold text-kumo-danger">Emergency actions</h2>
+						{recordTakenDown && (
+							<span className="text-sm text-kumo-danger">This record is taken down.</span>
+						)}
+					</div>
+					<div className="flex flex-wrap gap-2">
+						<Button
+							variant={recordTakenDown ? "secondary" : "destructive"}
+							onClick={() =>
+								setEmergency({
+									kind: "takedown",
+									mode: recordTakenDown ? "retract" : "issue",
+									uri: subject.uri,
+									confirm: subject.rkey,
+								})
+							}
+						>
+							{recordTakenDown ? "Retract record takedown" : "Take down record"}
+						</Button>
+						<Button
+							variant={publisherTakenDown ? "secondary" : "destructive"}
+							onClick={() =>
+								setEmergency({
+									kind: "takedown",
+									mode: publisherTakenDown ? "retract" : "issue",
+									uri: subject.did,
+									confirm: publisherSegment,
+								})
+							}
+						>
+							{publisherTakenDown ? "Retract publisher takedown" : "Take down publisher"}
+						</Button>
+						<Button
+							variant={publisherCompromised ? "secondary" : "destructive"}
+							onClick={() =>
+								setEmergency({
+									kind: "publisher-compromised",
+									mode: publisherCompromised ? "retract" : "issue",
+									uri: subject.did,
+									confirm: publisherSegment,
+								})
+							}
+						>
+							{publisherCompromised
+								? "Retract publisher-compromised"
+								: "Mark publisher compromised"}
+						</Button>
+					</div>
+				</LayerCard>
+			)}
+
+			{emergency && (
+				<EmergencyActionDialog
+					open
+					onOpenChange={(open) => {
+						if (!open) setEmergency(null);
+					}}
+					kind={emergency.kind}
+					mode={emergency.mode}
+					subjectUri={emergency.uri}
+					subjectConfirmationExpected={emergency.confirm}
+					invalidateKeys={emergencyInvalidateKeys}
+				/>
+			)}
 
 			{canAct && uriWideLabels.length > 0 && (
 				<LabelActionDialog

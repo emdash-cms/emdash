@@ -293,6 +293,26 @@ export interface OverrideEffectPreviewParams {
 	negate: string[];
 }
 
+/** The emergency action vocabulary (admin-only). `takedown` is the URI-wide
+ * `!takedown` on a release, package, or publisher; `publisher-compromised`
+ * targets a publisher DID. */
+export type EmergencyActionKind = "takedown" | "publisher-compromised";
+
+/**
+ * Body for the admin-only emergency endpoints (`POST /admin/api/emergency/*`).
+ * The two typed ceremony fields — `subjectConfirmation` (the record rkey or the
+ * publisher DID's final segment) and `intent` (the server-constant phrase) — are
+ * both server-validated pre-signing and both fold into the request fingerprint.
+ * The client mirrors the checks for UX; the server is authoritative.
+ */
+export interface EmergencyActionInput {
+	uri: string;
+	subjectConfirmation: string;
+	intent: string;
+	reason: string;
+	idempotencyKey: string;
+}
+
 export interface ListAssessmentsParams {
 	state?: PublicAssessmentState;
 	cursor?: string;

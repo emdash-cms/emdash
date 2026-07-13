@@ -47,7 +47,7 @@ import { computeEffectPreview, computeOverrideEffectPreview } from "./label-effe
 import { MutationGuardError } from "./mutation-guard.js";
 import { getOperatorActionsPage } from "./operator-actions.js";
 import { guardRead, ReadGuardError, type ReadGuardDeps } from "./operator-read-guard.js";
-import { assertNegatableBlockSet, NegatableBlockSetError } from "./service.js";
+import { assertNegatableBlockSet, NegatableBlockSetError, parseSubjectKind } from "./service.js";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -263,7 +263,10 @@ async function handleGetSubjectHistory(
  * stream winner per value, including the manual/override labels that carry no
  * `assessment_id` and so never surface in the assessment-scoped label list. The
  * CID is `?cid=` or falls back to the current observed subject CID; a URI never
- * observed (and no CID given) is a 404, matching the subject-history route.
+ * observed (and no CID given) is a 404, matching the subject-history route. A
+ * publisher (bare DID) subject has no record row and no CID; its labels
+ * (`!takedown`, `publisher-compromised`) are URI-wide, so an empty CID key
+ * resolves their active state without a record lookup.
  */
 async function handleGetSubjectLabels(
 	request: Request,
@@ -276,9 +279,13 @@ async function handleGetSubjectLabels(
 	if (cidParam !== null && cidParam.length === 0) throw new ReadGuardError("INVALID_REQUEST");
 	let cid = cidParam ?? undefined;
 	if (cid === undefined) {
-		const subject = await getCurrentSubjectByUri(deps.db, uri);
-		if (!subject) throw new ReadGuardError("NOT_FOUND");
-		cid = subject.cid;
+		if (parseSubjectKind(uri) === "publisher") {
+			cid = "";
+		} else {
+			const subject = await getCurrentSubjectByUri(deps.db, uri);
+			if (!subject) throw new ReadGuardError("NOT_FOUND");
+			cid = subject.cid;
+		}
 	}
 	const winners = await getActiveLabelState(deps.db, {
 		src: deps.labelerDid,
