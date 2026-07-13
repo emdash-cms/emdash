@@ -6,12 +6,27 @@
 // JWT signed with the app's private key (RS256), exchange it for an
 // installation access token (valid ~1h, scoped to the installation's repos and
 // the app's permissions), and use that token for reads and for posting the
-// review. The app needs `pull_requests: write` and `contents: read`.
+// review. The app needs `pull_requests: write`, `checks: write`, and
+// `contents: read`.
 
 import type { ReviewResult } from "./review-schema.js";
 
 const GITHUB_API = "https://api.github.com";
 const USER_AGENT = "emdash-flue-review";
+const GITHUB_REQUEST_TIMEOUT_MS = 30_000;
+const GITHUB_HEADERS = {
+	accept: "application/vnd.github+json",
+	"content-type": "application/json",
+	"user-agent": USER_AGENT,
+	"x-github-api-version": "2022-11-28",
+};
+
+function githubFetch(input: string, init: RequestInit = {}): Promise<Response> {
+	return fetch(input, {
+		...init,
+		signal: init.signal ?? AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
+	});
+}
 
 export interface GitHubAppCreds {
 	appId: string;
@@ -81,21 +96,144 @@ async function signAppJwt(creds: GitHubAppCreds): Promise<string> {
 /** Mint a short-lived installation access token. */
 export async function mintInstallationToken(creds: GitHubAppCreds): Promise<string> {
 	const jwt = await signAppJwt(creds);
-	const res = await fetch(`${GITHUB_API}/app/installations/${creds.installationId}/access_tokens`, {
-		method: "POST",
-		headers: {
-			authorization: `Bearer ${jwt}`,
-			accept: "application/vnd.github+json",
-			"user-agent": USER_AGENT,
-			"x-github-api-version": "2022-11-28",
+	const res = await githubFetch(
+		`${GITHUB_API}/app/installations/${creds.installationId}/access_tokens`,
+		{
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${jwt}`,
+				accept: "application/vnd.github+json",
+				"user-agent": USER_AGENT,
+				"x-github-api-version": "2022-11-28",
+			},
 		},
-	});
+	);
 	if (!res.ok) {
 		throw new Error(`installation token mint failed: ${res.status} ${await res.text()}`);
 	}
 	const json = await res.json<{ token?: string }>();
 	if (!json.token) throw new Error("installation token response had no token");
 	return json.token;
+}
+
+function installationHeaders(token: string): Record<string, string> {
+	return { ...GITHUB_HEADERS, authorization: `Bearer ${token}` };
+}
+
+async function requireGitHubResponse(res: Response, operation: string): Promise<void> {
+	if (!res.ok) throw new Error(`${operation} failed: ${res.status} ${await res.text()}`);
+}
+
+export async function createReviewCheck(
+	token: string,
+	owner: string,
+	repo: string,
+	input: { headSha: string; attemptId: string; prNumber: number },
+): Promise<number> {
+	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/check-runs`, {
+		method: "POST",
+		headers: installationHeaders(token),
+		body: JSON.stringify({
+			name: "EmDash review",
+			head_sha: input.headSha,
+			status: "in_progress",
+			external_id: input.attemptId,
+			started_at: new Date().toISOString(),
+			output: {
+				title: `Reviewing PR #${input.prNumber}`,
+				summary: "The review request was accepted and is being admitted.",
+			},
+		}),
+	});
+	await requireGitHubResponse(res, "create review check");
+	const json = await res.json<{ id?: number }>();
+	if (typeof json.id !== "number" || !Number.isInteger(json.id)) {
+		throw new Error("create review check response had no id");
+	}
+	return json.id;
+}
+
+export async function findReviewCheck(
+	token: string,
+	owner: string,
+	repo: string,
+	headSha: string,
+	attemptId: string,
+): Promise<number | undefined> {
+	const query = new URLSearchParams({
+		check_name: "EmDash review",
+		filter: "all",
+		per_page: "100",
+	});
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${owner}/${repo}/commits/${encodeURIComponent(headSha)}/check-runs?${query.toString()}`,
+		{ headers: installationHeaders(token) },
+	);
+	await requireGitHubResponse(res, "find review check");
+	const body = await res.json<{ check_runs?: Array<{ id?: number; external_id?: string }> }>();
+	return body.check_runs?.find((check) => check.external_id === attemptId)?.id;
+}
+
+export async function updateReviewCheck(
+	token: string,
+	owner: string,
+	repo: string,
+	checkRunId: number,
+	input: {
+		prNumber: number;
+		runId?: string;
+		stage: string;
+		detail: string;
+	},
+): Promise<void> {
+	const correlation = input.runId ?? "pending admission";
+	const body: Record<string, unknown> = {
+		status: "in_progress",
+		output: {
+			title: `Reviewing PR #${input.prNumber}`,
+			summary: input.detail,
+			text: `Run: \`${correlation}\`\n\nStage: \`${input.stage}\``,
+		},
+	};
+	if (input.runId) body.external_id = input.runId;
+	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
+		method: "PATCH",
+		headers: installationHeaders(token),
+		body: JSON.stringify(body),
+	});
+	await requireGitHubResponse(res, "update review check");
+}
+
+export async function completeReviewCheck(
+	token: string,
+	owner: string,
+	repo: string,
+	checkRunId: number,
+	input: {
+		conclusion: "success" | "failure" | "timed_out";
+		prNumber: number;
+		runId: string;
+		summary: string;
+	},
+): Promise<void> {
+	const title =
+		input.conclusion === "success"
+			? `Review completed for PR #${input.prNumber}`
+			: input.conclusion === "timed_out"
+				? `Review timed out for PR #${input.prNumber}`
+				: `Review failed for PR #${input.prNumber}`;
+	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
+		method: "PATCH",
+		headers: installationHeaders(token),
+		body: JSON.stringify({
+			status: "completed",
+			conclusion: input.conclusion,
+			completed_at: new Date().toISOString(),
+			external_id: input.runId,
+			output: { title, summary: input.summary, text: `Run: \`${input.runId}\`` },
+		}),
+	});
+	await requireGitHubResponse(res, "complete review check");
 }
 
 /**
@@ -109,6 +247,8 @@ export async function fetchUnifiedDiff(
 	repo: string,
 	prNumber: number,
 	token?: string,
+	baseSha?: string,
+	headSha?: string,
 ): Promise<string> {
 	const headers: Record<string, string> = {
 		accept: "application/vnd.github.v3.diff",
@@ -116,11 +256,30 @@ export async function fetchUnifiedDiff(
 		"x-github-api-version": "2022-11-28",
 	};
 	if (token) headers.authorization = `Bearer ${token}`;
-	const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`, { headers });
+	const path =
+		baseSha && headSha
+			? `/repos/${owner}/${repo}/compare/${encodeURIComponent(baseSha)}...${encodeURIComponent(headSha)}`
+			: `/repos/${owner}/${repo}/pulls/${prNumber}`;
+	const res = await githubFetch(`${GITHUB_API}${path}`, { headers });
 	if (!res.ok) {
 		throw new Error(`unified diff fetch failed: ${res.status} ${await res.text()}`);
 	}
 	return res.text();
+}
+
+export async function fetchPullRequestHeadSha(
+	token: string,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<string> {
+	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`, {
+		headers: installationHeaders(token),
+	});
+	await requireGitHubResponse(res, "fetch pull request head");
+	const pull = await res.json<{ head?: { sha?: string } }>();
+	if (!pull.head?.sha) throw new Error("Pull request response did not include a head SHA");
+	return pull.head.sha;
 }
 
 /**
@@ -135,7 +294,7 @@ export async function fetchPriorReview(
 	prNumber: number,
 ): Promise<string | undefined> {
 	try {
-		const res = await fetch(
+		const res = await githubFetch(
 			`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100`,
 			{
 				headers: {
@@ -178,17 +337,20 @@ export async function addEyesReaction(
 	prNumber: number,
 ): Promise<number | undefined> {
 	try {
-		const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions`, {
-			method: "POST",
-			headers: {
-				authorization: `Bearer ${token}`,
-				accept: "application/vnd.github+json",
-				"content-type": "application/json",
-				"user-agent": USER_AGENT,
-				"x-github-api-version": "2022-11-28",
+		const res = await githubFetch(
+			`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions`,
+			{
+				method: "POST",
+				headers: {
+					authorization: `Bearer ${token}`,
+					accept: "application/vnd.github+json",
+					"content-type": "application/json",
+					"user-agent": USER_AGENT,
+					"x-github-api-version": "2022-11-28",
+				},
+				body: JSON.stringify({ content: "eyes" }),
 			},
-			body: JSON.stringify({ content: "eyes" }),
-		});
+		);
 		if (!res.ok) return undefined;
 		const json = await res.json<{ id?: number }>();
 		return json.id;
@@ -206,15 +368,18 @@ export async function removeReaction(
 	reactionId: number,
 ): Promise<void> {
 	try {
-		await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions/${reactionId}`, {
-			method: "DELETE",
-			headers: {
-				authorization: `Bearer ${token}`,
-				accept: "application/vnd.github+json",
-				"user-agent": USER_AGENT,
-				"x-github-api-version": "2022-11-28",
+		await githubFetch(
+			`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions/${reactionId}`,
+			{
+				method: "DELETE",
+				headers: {
+					authorization: `Bearer ${token}`,
+					accept: "application/vnd.github+json",
+					"user-agent": USER_AGENT,
+					"x-github-api-version": "2022-11-28",
+				},
 			},
-		});
+		);
 	} catch {
 		// Best-effort cleanup; leaving a stray reaction is harmless.
 	}
@@ -266,6 +431,29 @@ function renderFindingsMarkdown(findings: ReviewResult["findings"]): string {
 	return `\n\n---\n\n### Findings\n\n${lines.join("\n\n")}`;
 }
 
+async function reviewWasPosted(
+	token: string,
+	owner: string,
+	repo: string,
+	prNumber: number,
+	commitId: string,
+	marker: string,
+): Promise<boolean> {
+	try {
+		const res = await githubFetch(
+			`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100`,
+			{ headers: installationHeaders(token) },
+		);
+		if (!res.ok) return false;
+		const reviews = await res.json<Array<{ body?: string; commit_id?: string }>>();
+		return reviews.some(
+			(review) => review.commit_id === commitId && review.body?.includes(marker) === true,
+		);
+	} catch {
+		return false;
+	}
+}
+
 /**
  * Post the review. Maps verdict -> review event and findings -> line comments.
  * If GitHub rejects the inline comments (a comment anchors outside the diff),
@@ -278,10 +466,13 @@ export async function postReview(
 	repo: string,
 	prNumber: number,
 	result: ReviewResult,
+	commitId?: string,
+	attemptId?: string,
 ): Promise<void> {
 	const url = `${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews`;
 	const event = verdictToEvent(result.verdict);
-	const summary = result.summary.trim() || FALLBACK_SUMMARY;
+	const marker = attemptId ? `<!-- emdash-review-attempt:${attemptId} -->` : undefined;
+	const summary = `${result.summary.trim() || FALLBACK_SUMMARY}${marker ? `\n\n${marker}` : ""}`;
 	const headers = {
 		authorization: `Bearer ${token}`,
 		accept: "application/vnd.github+json",
@@ -293,18 +484,63 @@ export async function postReview(
 	const withComments = {
 		body: summary,
 		event,
+		...(commitId ? { commit_id: commitId } : {}),
 		comments: result.findings.map(findingToComment),
 	};
-	let res = await fetch(url, { method: "POST", headers, body: JSON.stringify(withComments) });
+	let res: Response;
+	try {
+		res = await githubFetch(url, { method: "POST", headers, body: JSON.stringify(withComments) });
+	} catch (error) {
+		if (
+			commitId &&
+			marker &&
+			(await reviewWasPosted(token, owner, repo, prNumber, commitId, marker))
+		) {
+			return;
+		}
+		throw error;
+	}
 	if (res.ok) return;
 
 	// Most likely cause: a comment anchors to a line outside the diff
 	// ("Path could not be resolved"). Fall back to a body-only review that
 	// carries the summary AND the findings inline, so the review still lands.
 	const firstError = await res.text();
-	const bodyOnly = { body: summary + renderFindingsMarkdown(result.findings), event };
-	res = await fetch(url, { method: "POST", headers, body: JSON.stringify(bodyOnly) });
+	if (res.status !== 422) {
+		if (
+			commitId &&
+			marker &&
+			(await reviewWasPosted(token, owner, repo, prNumber, commitId, marker))
+		) {
+			return;
+		}
+		throw new Error(`postReview failed: ${res.status} ${firstError}`);
+	}
+	const bodyOnly = {
+		body: summary + renderFindingsMarkdown(result.findings),
+		event,
+		...(commitId ? { commit_id: commitId } : {}),
+	};
+	try {
+		res = await githubFetch(url, { method: "POST", headers, body: JSON.stringify(bodyOnly) });
+	} catch (error) {
+		if (
+			commitId &&
+			marker &&
+			(await reviewWasPosted(token, owner, repo, prNumber, commitId, marker))
+		) {
+			return;
+		}
+		throw error;
+	}
 	if (!res.ok) {
+		if (
+			commitId &&
+			marker &&
+			(await reviewWasPosted(token, owner, repo, prNumber, commitId, marker))
+		) {
+			return;
+		}
 		throw new Error(
 			`postReview failed (with comments: ${firstError}); body-only retry: ${res.status} ${await res.text()}`,
 		);

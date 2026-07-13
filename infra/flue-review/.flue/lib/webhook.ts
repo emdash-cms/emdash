@@ -40,7 +40,9 @@ export interface GatedPr {
 	prTitle: string;
 	prBody: string;
 	headRef: string;
+	headSha: string;
 	baseRef: string;
+	baseSha: string;
 	owner: string;
 	repo: string;
 }
@@ -62,8 +64,8 @@ interface PullRequestEvent {
 		title?: string;
 		body?: string | null;
 		draft?: boolean;
-		head?: { ref?: string };
-		base?: { ref?: string };
+		head?: { ref?: string; sha?: string };
+		base?: { ref?: string; sha?: string };
 		user?: { login?: string };
 	};
 	repository?: { name?: string; owner?: { login?: string } };
@@ -99,8 +101,10 @@ export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 	const repo = event.repository?.name;
 	const prNumber = pr.number;
 	const headRef = pr.head?.ref;
+	const headSha = pr.head?.sha;
 	const baseRef = pr.base?.ref;
-	if (!owner || !repo || !prNumber || !headRef || !baseRef || !pr.title) {
+	const baseSha = pr.base?.sha;
+	if (!owner || !repo || !prNumber || !headRef || !headSha || !baseRef || !baseSha || !pr.title) {
 		return { review: false, reason: "payload missing required PR fields" };
 	}
 
@@ -111,7 +115,9 @@ export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 			prTitle: pr.title,
 			prBody: pr.body ?? "",
 			headRef,
+			headSha,
 			baseRef,
+			baseSha,
 			owner,
 			repo,
 		},
