@@ -500,6 +500,32 @@ describe("handleConsoleApi — findings and labels", () => {
 		expect(labels.length).toBe(3);
 		expect(labels.some((l) => l.neg === true)).toBe(true);
 	});
+
+	it("resolves URI-wide labels for a bare-DID publisher subject with no cid", async () => {
+		const publisherDid = "did:plc:pppppppppppppppppppppppp";
+		await testEnv.DB.prepare(
+			`INSERT INTO issuance_actions (id, actor, type, reason, idempotency_key, created_at)
+			 VALUES (2001, ?, 'manual-label', 'r', 'idem-pub-2001', '2026-07-09T00:00:00.000Z')`,
+		)
+			.bind(LABELER_DID)
+			.run();
+		await testEnv.DB.prepare(
+			`INSERT INTO issued_labels (action_id, ver, src, uri, cid, val, neg, cts, sig, signing_key_id)
+			 VALUES (2001, 1, ?, ?, NULL, 'publisher-compromised', 0, '2026-07-09T00:00:00.000Z', ?, 'v1')`,
+		)
+			.bind(LABELER_DID, publisherDid, new Uint8Array([0]))
+			.run();
+
+		const res = await handleConsoleApi(
+			req(`/admin/api/subjects/${encodeURIComponent(publisherDid)}/labels`, {
+				token: reviewerToken,
+			}),
+			deps(),
+		);
+		expect(res.status).toBe(200);
+		const labels = (await body(res)).data as { val: string; active: boolean }[];
+		expect(labels.find((l) => l.val === "publisher-compromised")?.active).toBe(true);
+	});
 });
 
 describe("handleConsoleApi — subject history", () => {
