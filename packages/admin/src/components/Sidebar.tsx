@@ -268,6 +268,26 @@ function NavIcon({ icon: Icon, className }: { icon: React.ElementType; className
 	);
 }
 
+/**
+ * Resolve the display label for a plugin admin page (sidebar + command
+ * palette). Declared labels are run through the shared Lingui instance:
+ * plugins that load their own catalog — with the English label as msgid —
+ * get localized nav items, and labels without a catalog entry fall back to
+ * the literal string. Pages without a label prettify the plugin id
+ * ("my-shop" → "My Shop").
+ */
+export function resolvePluginPageLabel(
+	label: string | undefined,
+	pluginId: string,
+	translate: (id: string) => string,
+): string {
+	if (label) return translate(label);
+	return pluginId
+		.split("-")
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+		.join(" ");
+}
+
 /** Resolves a nav item's route path by substituting $param placeholders. */
 function resolveItemPath(item: NavItem): string {
 	let path = item.to;
@@ -290,7 +310,7 @@ function isItemActive(itemPath: string, currentPath: string): boolean {
  * Admin sidebar navigation using kumo's Sidebar compound component.
  */
 export function SidebarNav({ manifest }: SidebarNavProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const location = useLocation();
 	const currentPath = location.pathname;
 	const pluginAdmins = usePluginAdmins();
@@ -387,12 +407,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const isBlocksMode = config.adminMode === "blocks";
 			for (const page of config.adminPages) {
 				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
-				const label =
-					page.label ||
-					pluginId
-						.split("-")
-						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-						.join(" ");
+				const label = resolvePluginPageLabel(page.label, pluginId, (id) => i18n._(id));
 				pluginItems.push({
 					to: `/plugins/${pluginId}${page.path}`,
 					label,
