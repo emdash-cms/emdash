@@ -718,12 +718,11 @@ export class EmDashRuntime {
 			// pipelineFactoryOptions), so the merge only adds emailPipeline.
 			newPipeline.setContextFactory({ emailPipeline: this.email });
 		}
-		if (this.cronScheduler) {
-			const scheduler = this.cronScheduler;
-			newPipeline.setContextFactory({
-				cronReschedule: () => scheduler.reschedule(),
-			});
-		}
+		newPipeline.setContextFactory({
+			// Plugin schedules remain database-backed when no in-process scheduler
+			// exists; an external trigger is responsible for invoking due tasks.
+			cronReschedule: () => this.cronScheduler?.reschedule(),
+		});
 
 		// Update the email pipeline to use the new hook pipeline
 		if (this.email) {
@@ -1491,6 +1490,12 @@ export class EmDashRuntime {
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
 				cronExecutor = new CronExecutor(resolveDb, invokeCronHook);
+				// Plugin schedules are always D1-backed. On long-lived runtimes this
+				// callback also wakes the timer; on Cloudflare the external Cron Trigger
+				// drives execution, so rescheduling is intentionally a no-op.
+				pipeline.setContextFactory({
+					cronReschedule: () => cronScheduler?.reschedule(),
+				});
 
 				// Recover stale locks from previous crashes. Pure bookkeeping
 				// against the _emdash_cron_tasks table — no request needs the
@@ -1547,11 +1552,6 @@ export class EmDashRuntime {
 						}
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
-					});
-
-					// Add cron reschedule callback (merges with existing factory options)
-					pipeline.setContextFactory({
-						cronReschedule: () => cronScheduler?.reschedule(),
 					});
 
 					// start() is void on the timer scheduler but the interface
@@ -3336,6 +3336,7 @@ export class EmDashRuntime {
 				db: this.db,
 				storage: this.storage ?? undefined,
 				emailPipeline: this.email ?? undefined,
+				cronReschedule: () => this.cronScheduler?.reschedule(),
 				trustedProxyHeaders: getTrustedProxyHeaders(this.config),
 			});
 			routeRegistry.register(trustedPlugin);

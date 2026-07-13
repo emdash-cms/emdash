@@ -386,7 +386,7 @@ async function handlePluginRouteAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 ): Promise<Response> {
-	const { locals } = context;
+	const { locals, url } = context;
 	const { emdash } = locals;
 
 	try {
@@ -407,9 +407,18 @@ async function handlePluginRouteAuth(
 				},
 			);
 		}
-		// "none" — no token presented, try session auth below.
+		// "none" — no token presented, try external/session auth below.
 	} catch (error) {
 		console.error("Plugin route bearer auth error:", error);
+	}
+
+	const authMode = getAuthMode(emdash?.config);
+	if (
+		authMode.type === "external" &&
+		!import.meta.env.DEV &&
+		!isPublicPluginApiRoute(url.pathname, emdash)
+	) {
+		return handleExternalAuth(context, next, authMode, true);
 	}
 
 	try {
@@ -429,6 +438,17 @@ async function handlePluginRouteAuth(
 	}
 
 	return next();
+}
+
+function isPublicPluginApiRoute(pathname: string, emdash: EmDashHandlers | undefined): boolean {
+	const prefix = "/_emdash/api/plugins/";
+	const route = pathname.slice(prefix.length);
+	const slashIndex = route.indexOf("/");
+	if (slashIndex <= 0 || !emdash?.getPluginRouteMeta) return false;
+
+	return (
+		emdash.getPluginRouteMeta(route.slice(0, slashIndex), route.slice(slashIndex))?.public === true
+	);
 }
 
 /**

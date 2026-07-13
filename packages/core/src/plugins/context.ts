@@ -252,6 +252,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				updatedAt: item.updatedAt,
 				locale: item.locale,
 				publishedAt: item.publishedAt,
+				scheduledAt: item.scheduledAt,
 			};
 
 			if (await seoRepo.isEnabled(collection)) {
@@ -292,6 +293,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				updatedAt: item.updatedAt,
 				locale: item.locale,
 				publishedAt: item.publishedAt,
+				scheduledAt: item.scheduledAt,
 			}));
 
 			if (items.length > 0 && (await seoRepo.isEnabled(collection))) {
