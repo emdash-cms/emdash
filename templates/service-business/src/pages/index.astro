@@ -11,7 +11,15 @@ const [servicesResult, projectsResult, reviewsResult, faqsResult, areasResult, s
 	getEmDashCollection("certificates", { limit: 6 }),
 ]);
 const business = settingsResult.entries[0]?.data;
-if (Astro.cache?.enabled) Astro.cache.set(servicesResult.cacheHint);
+if (Astro.cache?.enabled) {
+	Astro.cache.set(servicesResult.cacheHint);
+	Astro.cache.set(projectsResult.cacheHint);
+	Astro.cache.set(reviewsResult.cacheHint);
+	Astro.cache.set(faqsResult.cacheHint);
+	Astro.cache.set(areasResult.cacheHint);
+	Astro.cache.set(settingsResult.cacheHint);
+	Astro.cache.set(certificatesResult.cacheHint);
+}
 ---
 <Base description={business?.hero_text} schemaType="LocalBusiness">
 	<section class="hero"><div class="container hero-grid"><div><p class="eyebrow">Local expertise. Lasting results.</p><h1 {...settingsResult.entries[0]?.edit.hero_heading}>{business?.hero_heading || "Home services done right, the first time."}</h1><p class="hero-copy">{business?.hero_text || "Friendly, skilled professionals for the repairs, improvements, and maintenance your property needs."}</p><div class="hero-actions"><a class="button" href={business?.primary_cta_url || "/contact"}>{business?.primary_cta_label || "Request a free estimate"}</a><a class="button secondary" href="/services">Explore services</a></div><ul><li>Upfront estimates</li><li>Respectful, tidy crews</li><li>Work backed by our guarantee</li></ul></div><div class="hero-panel"><div class="hero-mark" aria-hidden="true">◆</div><strong>Neighbors helping neighbors</strong><p>Serving homes and small businesses across the region since 2011.</p><a href={`tel:${business?.phone}`}>Call {business?.phone}</a></div></div></section>

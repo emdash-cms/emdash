@@ -1,61 +1,65 @@
 ## This Template
 
-A portfolio for showcasing creative work. Editorial, near-monochrome, with photography as the main visual interest. Designed for designers, photographers, illustrators, studios, and other people whose work speaks for itself when laid out with generous whitespace.
-
-The design is intentionally restrained. Don't pile on colour, gradients, or decoration -- the work is the decoration.
+A reusable website for local service businesses. It combines service and service-area landing pages with project galleries, reviews, FAQs, team details, credentials, and a contact page. The starter content uses a fictional home-services company; replace its claims, contact details, and service area before launch.
 
 ## Pages
 
-| Page           | Path           | What it shows                                                                                          |
-| -------------- | -------------- | ------------------------------------------------------------------------------------------------------ |
-| Home           | `/`            | Centred serif title + tagline, "Selected Work" grid                                                    |
-| Work index     | `/work`        | Heading + summary, tag filter chips, full grid                                                         |
-| Project detail | `/work/[slug]` | Project meta line, big serif title, summary, featured image, Portable Text body, optional gallery, URL |
-| About          | `/about`       | Page content (Portable Text)                                                                           |
-| Contact        | `/contact`     | Form + email / location / social column                                                                |
+| Page                | Path                    | What it shows                                                     |
+| ------------------- | ----------------------- | ----------------------------------------------------------------- |
+| Home                | `/`                     | Hero, featured services and projects, reviews, FAQs, service areas, credentials, CTA |
+| Services            | `/services`             | All service summaries                                             |
+| Service detail      | `/services/[slug]`      | Service description, pricing note, related FAQs, estimate CTA     |
+| Projects            | `/projects`             | Project gallery index                                             |
+| Project detail      | `/projects/[slug]`      | Project summary, result, and image gallery                         |
+| Service-area detail | `/service-areas/[slug]` | Local landing page and available services                         |
+| About               | `/about`                | Company story, team, certificates, and partners                   |
+| Contact             | `/contact`              | Contact details, service areas, and a mail-client estimate form   |
+
+There is no `/work` route. Project URLs live under `/projects`.
 
 ## Schema
 
-- `projects` collection: `title`, `featured_image`, `client`, `year`, `summary` (text), `content` (Portable Text), `gallery` (json -- optional array of `{ url, alt? }` records, see below), `url`.
-- `pages` collection: `title`, `content` (Portable Text). Used for `/about`.
-- Taxonomies: `category`, `tag`. Used for filtering on the work index.
-- Single `primary` menu.
+- `business_settings`: global business identity, contact information, address, hours, hero copy, and primary CTA.
+- `services`: title, short description, Portable Text description, icon, pricing note, and featured toggle.
+- `projects`: title, service, location, summary, gallery, and result.
+- `reviews`: customer name, quote, rating, service, and location.
+- `faqs`: question, answer, and optional service category.
+- `service_areas`: name, region, and description.
+- `team`: name, role, bio, and years of experience.
+- `certificates`: certificate or partner name, issuer, credential, and short logo text.
+- `service_category` taxonomy applies to services and projects.
+- A single `primary` menu drives the header and footer navigation.
 
-Site settings have `title` and `tagline` -- both render on the home page (title as the centred serif heading, tagline as italic subtitle).
+The `gallery` field on `projects` is a repeater whose items have required scalar `src` and `alt` fields. Render it as an array of `{ src: string, alt: string }`; do not treat it as an EmDash image field. The starter uses external image URLs, so replace them with durable URLs you control.
 
-The `gallery` field on `projects` is a JSON field, not an EmDash image field. It expects a literal array of `{ url: string, alt?: string }` records (a flat external URL plus optional alt text), and is rendered as-is by `src/pages/work/[slug].astro`. Do NOT confuse it with EmDash image fields like `featured_image`, which take `{ id, provider, alt }` objects from the media library. If you need media-library images in a gallery in the future, the right fix is to change the field type and renderer together.
+The contact form intentionally uses `mailto:` and opens the visitor's email client. Before production, connect it to a form service or server endpoint with validation, spam protection, and delivery monitoring.
 
 ## Visual character
 
-Typography is the design. The display face is **Playfair Display** (serif) on the `--font-heading` CSS variable; the body face is the system sans stack on `--font-body`. The serif is used for the site title, hero titles, project titles, page titles, and contact column labels. Everything else is the sans. Serif weight is calm on purpose (`--font-weight-heading` and `--font-weight-display` both default to 500).
+The template is confident and neighborly rather than corporate. **Manrope** is the heading face on `--font-heading`; body copy uses the system sans stack on `--font-body`. Headings are sturdy and compact, while copy stays direct and practical.
 
-The brand colour is barely visible by design -- the only saturated colour on the page should be inside images. The default `--color-brand` (`#7c3aed`) is used sparingly for link hover and focus states.
-
-Whitespace is generous. Sections breathe. Don't fight that.
+The palette pairs a deep service green (`--brand`) with a warm gold (`--accent`). Cards use restrained borders, round corners, and a soft shadow. Colour bands mark service areas and calls to action; avoid spreading the accent onto every element.
 
 ## Customisation
 
-Design tokens live in `src/styles/tokens.css` with their default values. To restyle the site, override tokens in `src/styles/theme.css` -- declarations there are unlayered, so they always beat the `@layer base` defaults. Don't edit `tokens.css` or `Base.astro` for visual changes.
+Default tokens live in `src/styles/tokens.css`. Put brand overrides in `src/styles/theme.css`, which is intentionally empty in the generated starter. Do not edit `Base.astro` just to change colours or type.
 
-Colours are defined with `light-dark(<light>, <dark>)`, so each token carries both modes. Overriding with a plain colour changes light and dark at once; use `light-dark()` in the override to keep them distinct. There is no separate dark palette to maintain.
+Colours use `light-dark(<light>, <dark>)`, so each default token supports both modes. Use `light-dark()` in overrides when the light and dark values should differ.
 
-The display face is configured in `astro.config.mjs` under `fonts:` (the Astro Fonts API). To change it, swap the `name:` for any Google Fonts serif and keep `cssVariable: "--font-heading"`. Good pairings: Cormorant Garamond, Fraunces, EB Garamond, DM Serif Display. The body face (`--font-body`) is a plain token in `tokens.css` -- system sans, deliberately quiet; override it in `theme.css` only if you have a reason.
+The heading font is configured in `astro.config.mjs` under `fonts:`. If you replace Manrope, keep a broad weight range so navigation, cards, and large headings remain distinct.
 
-CSS variables worth knowing (see `tokens.css` for the full list):
+Important tokens include:
 
-- `--color-brand`, `--color-on-brand`, `--color-brand-ring` -- the single accent, used very sparingly
-- `--color-bg`, `--color-surface`, `--color-text`, `--color-muted`, `--color-border` -- neutral palette
-- `--color-danger` -- form errors
-- `--font-heading` (Fonts API entry in `astro.config.mjs`), `--font-body` (token)
-- `--font-weight-heading` / `--font-weight-display` (both 500) -- raise for a heavier serif voice
-- `--font-size-4xl` -- the size of the homepage title and project titles
-- `--max-width` (720px), `--wide-width` (1200px) -- column widths
+- `--ink`, `--muted`, `--bg`, `--surface`, `--border`
+- `--brand`, `--brand-strong`, `--accent`, `--on-brand`
+- `--font-body`, `--font-heading`
+- `--max`, `--radius`, `--shadow`
 
 ## What not to do
 
-- Don't introduce gradients, drop shadows on cards, or coloured section backgrounds. The template's voice is calm and editorial; those break it.
-- Don't change `--font-body` to a display font. Two display faces fight each other.
-- Don't add more than one accent colour.
-- Don't write generic copy like "Welcome to my portfolio" or "Crafting beautiful experiences". The work should speak; the words should be specific (a client name, a discipline, a year).
-- Don't pack the home page with every project. The "Selected Work" framing is intentional -- 3-6 is plenty.
-- Don't add a `gallery` of small thumbnails on the home page. Use one strong image per project; the gallery field renders on the project detail page only.
+- Don't publish the fictional business name, phone number, address, credentials, reviews, or service claims as real facts.
+- Don't add a service-area page for a place the business does not actually serve.
+- Don't remove the visible contact route or make the primary CTA lead to a dead end.
+- Don't turn the project gallery into a portfolio-style `/work` section; existing links and seed data use `/projects`.
+- Don't change the gallery item shape without updating the seed schema, generated types, and both project renderers together.
+- Don't imply the starter's `mailto:` form stores or delivers submissions on the server.
