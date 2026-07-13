@@ -121,6 +121,7 @@ export interface RegistryInstallInput {
 	 * surface a consent UI before posting (e.g. CI scripts) opt out.
 	 */
 	acknowledgedDeclaredAccess?: unknown;
+	acknowledgedMcpTools?: unknown;
 }
 
 export interface RegistryInstallResult {
@@ -1098,6 +1099,22 @@ export async function handleRegistryInstall(
 			}
 		}
 
+		const actualMcpTools = (bundle.manifest.mcp?.tools ?? []).map(
+			({ inputSchema: _, outputSchema: __, ...tool }) => tool,
+		);
+		if (actualMcpTools.length > 0) {
+			if (JSON.stringify(input.acknowledgedMcpTools) !== JSON.stringify(actualMcpTools)) {
+				return {
+					success: false,
+					error: {
+						code: "MCP_TOOL_CONSENT_REQUIRED",
+						message: "Plugin MCP tools require explicit consent",
+						details: { mcpTools: actualMcpTools },
+					},
+				};
+			}
+		}
+
 		// Step 7: store in R2 under the registry prefix.
 		await storeBundleInR2(storage, pluginId, version, bundle, "registry");
 
@@ -1318,6 +1335,7 @@ export async function handleRegistryUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		confirmMcpTools?: boolean;
 		hostEnv?: HostEnv;
 	},
 ): Promise<ApiResult<RegistryUpdateResult>> {
@@ -1590,6 +1608,25 @@ export async function handleRegistryUpdate(
 			};
 		}
 
+		const oldMcpTools = [...(oldBundle?.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		const newMcpTools = [...(bundle.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		if (JSON.stringify(oldMcpTools) !== JSON.stringify(newMcpTools) && !opts?.confirmMcpTools) {
+			return {
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					message: "Plugin update changes its MCP tools",
+					details: {
+						mcpTools: newMcpTools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool),
+					},
+				},
+			};
+		}
+
 		// Store new bundle. R2 prefix is deterministic per (pluginId, version),
 		// so a retry of the same update is idempotent.
 		await storeBundleInR2(storage, pluginId, newVersion, bundle, "registry");
@@ -1605,6 +1642,8 @@ export async function handleRegistryUpdate(
 			registrySlug: slug,
 			displayName: existing.displayName ?? slug,
 			description: existing.description ?? undefined,
+			mcpToolsEnabled: false,
+			mcpToolsConsent: null,
 		});
 
 		// Best-effort cleanup of the old bundle. Failures here don't roll

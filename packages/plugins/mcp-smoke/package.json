@@ -1,0 +1,20 @@
+{
+	"name": "@emdash-cms/plugin-mcp-smoke",
+	"private": true,
+	"version": "0.0.1",
+	"description": "Test fixture for end-to-end plugin MCP verification",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	},
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	},
+	"dependencies": {
+		"zod": "catalog:"
+	}
+}

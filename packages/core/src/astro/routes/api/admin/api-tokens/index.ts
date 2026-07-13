@@ -12,13 +12,13 @@ import { z } from "zod";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleApiTokenCreate, handleApiTokenList } from "#api/handlers/api-tokens.js";
 import { isParseError, parseBody } from "#api/parse.js";
-import { VALID_SCOPES } from "#auth/api-tokens.js";
+import { isValidScope } from "#auth/api-tokens.js";
 
 export const prerender = false;
 
 const createTokenSchema = z.object({
 	name: z.string().min(1).max(100),
-	scopes: z.array(z.enum(VALID_SCOPES)).min(1),
+	scopes: z.array(z.string().refine(isValidScope)).min(1),
 	expiresAt: z.string().datetime().optional(),
 });
 

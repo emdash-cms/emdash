@@ -54,6 +54,7 @@ import * as m048 from "./048_restore_content_taxonomies_term_index.js";
 import * as m049 from "./049_taxonomies_name_locale_index.js";
 import * as m050 from "./050_media_usage_index_status.js";
 import * as m051 from "./051_content_taxonomies_denorm.js";
+import * as m052 from "./052_plugin_mcp_tools.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -106,6 +107,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"049_taxonomies_name_locale_index": m049,
 	"050_media_usage_index_status": m050,
 	"051_content_taxonomies_denorm": m051,
+	"052_plugin_mcp_tools": m052,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

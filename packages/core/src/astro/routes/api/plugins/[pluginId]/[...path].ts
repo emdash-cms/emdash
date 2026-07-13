@@ -9,6 +9,7 @@
  * Private routes (the default) require authentication and appropriate permissions.
  */
 
+import { Permissions, type Permission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -48,7 +49,11 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		// method (#1853). Astro also dispatches HEAD to the GET export, so no
 		// explicit HEAD handler is needed to reach a "GET" route. Gate every
 		// private invocation on `plugins:manage` + CSRF regardless of method.
-		const denied = requirePerm(user, "plugins:manage");
+		const permission = routeMeta.permission ?? "plugins:manage";
+		if (!(permission in Permissions)) {
+			return apiError("INVALID_PLUGIN_ROUTE", "Plugin route declares an invalid permission", 500);
+		}
+		const denied = requirePerm(user, permission as Permission);
 		if (denied) return denied;
 
 		// Token scope enforcement — plugin routes require "admin" scope.

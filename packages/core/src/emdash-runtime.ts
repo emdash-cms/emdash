@@ -7,9 +7,11 @@
  * Created once per worker lifetime, cached and reused across requests.
  */
 
+import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
 import { Kysely, sql, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
+import { z } from "zod";
 
 import { validateRev } from "./api/rev.js";
 import type {
@@ -27,6 +29,7 @@ import {
 	MIGRATION_RACE_WAIT_MS,
 	runMigrations,
 } from "./database/migrations/runner.js";
+import { AuditRepository } from "./database/repositories/audit.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type {
 	ContentItem as ContentItemInternal,
@@ -48,6 +51,7 @@ import type {
 	PluginManifest,
 	PluginCapability,
 	PluginStorageConfig,
+	PluginMcpManifestConfig,
 	PublicPageContext,
 	PageMetadataContribution,
 	PageFragmentContribution,
@@ -221,6 +225,8 @@ export interface SandboxedPluginEntry {
 	allowedHosts: string[];
 	/** Declared storage collections */
 	storage: PluginStorageConfig;
+	/** Serialized MCP declarations emitted at plugin build time. */
+	mcp?: PluginMcpManifestConfig;
 	/** Admin pages */
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
@@ -471,6 +477,7 @@ const marketplaceManifestCache = new Map<
 			pages?: PluginAdminPage[];
 			widgets?: PluginDashboardWidget[];
 		};
+		mcp?: PluginMcpManifestConfig;
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -870,6 +877,7 @@ export class EmDashRuntime {
 					id: bundle.manifest.id,
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
+					mcp: bundle.manifest.mcp,
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -877,7 +885,10 @@ export class EmDashRuntime {
 					const routeMetaMap = new Map<string, RouteMeta>();
 					for (const entry of bundle.manifest.routes) {
 						const normalized = normalizeManifestRoute(entry);
-						routeMetaMap.set(normalized.name, { public: normalized.public === true });
+						routeMetaMap.set(normalized.name, {
+							public: normalized.public === true,
+							permission: normalized.permission,
+						});
 					}
 					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
 				} else {
@@ -984,12 +995,16 @@ export class EmDashRuntime {
 					id: bundle.manifest.id,
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
+					mcp: bundle.manifest.mcp,
 				});
 				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
 					for (const entry of bundle.manifest.routes) {
 						const normalized = normalizeManifestRoute(entry);
-						routeMetaMap.set(normalized.name, { public: normalized.public === true });
+						routeMetaMap.set(normalized.name, {
+							public: normalized.public === true,
+							permission: normalized.permission,
+						});
 					}
 					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
 				} else {
@@ -1906,6 +1921,7 @@ export class EmDashRuntime {
 					hooks: [],
 					routes: [],
 					admin: {},
+					mcp: entry.mcp,
 				};
 
 				const plugin = await sandboxRunner.load(manifest, entry.code);
@@ -2003,6 +2019,7 @@ export class EmDashRuntime {
 						id: bundle.manifest.id,
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
+						mcp: bundle.manifest.mcp,
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2010,7 +2027,10 @@ export class EmDashRuntime {
 						const routeMeta = new Map<string, RouteMeta>();
 						for (const entry of bundle.manifest.routes) {
 							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, { public: normalized.public === true });
+							routeMeta.set(normalized.name, {
+								public: normalized.public === true,
+								permission: normalized.permission,
+							});
 						}
 						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
 					}
@@ -2074,12 +2094,16 @@ export class EmDashRuntime {
 						id: bundle.manifest.id,
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
+						mcp: bundle.manifest.mcp,
 					});
 					if (bundle.manifest.routes.length > 0) {
 						const routeMeta = new Map<string, RouteMeta>();
 						for (const entry of bundle.manifest.routes) {
 							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, { public: normalized.public === true });
+							routeMeta.set(normalized.name, {
+								public: normalized.public === true,
+								permission: normalized.permission,
+							});
 						}
 						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
 					}
@@ -3286,7 +3310,7 @@ export class EmDashRuntime {
 		if (trustedPlugin) {
 			const route = trustedPlugin.routes[routeKey];
 			if (!route) return null;
-			return { public: route.public === true };
+			return { public: route.public === true, permission: route.permission };
 		}
 
 		// Check sandboxed plugin route metadata cache
@@ -3362,6 +3386,165 @@ export class EmDashRuntime {
 			success: false,
 			error: { code: "NOT_FOUND", message: `Plugin not found: ${pluginId}` },
 		};
+	}
+
+	async getPluginMcpTools(pluginId?: string) {
+		const tools: Array<{
+			pluginId: string;
+			name: string;
+			description: string;
+			route: string;
+			permission: string;
+			destructive: boolean;
+			inputSchema: z.ZodType;
+			outputSchema?: z.ZodType;
+		}> = [];
+		const seen = new Set<string>();
+
+		for (const plugin of this.configuredPlugins) {
+			if (pluginId && plugin.id !== pluginId) continue;
+			for (const [name, tool] of Object.entries(plugin.mcp?.tools ?? {})) {
+				const route = plugin.routes[tool.route];
+				if (!route || route.public || !route.permission || !(route.permission in Permissions))
+					continue;
+				const key = `${plugin.id}__${name}`;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				tools.push({
+					pluginId: plugin.id,
+					name,
+					description: tool.description,
+					route: tool.route,
+					permission: route.permission,
+					destructive: tool.destructive ?? false,
+					inputSchema: tool.input,
+					outputSchema: tool.output,
+				});
+			}
+		}
+
+		const addManifestTools = (id: string, mcp: PluginMcpManifestConfig | undefined) => {
+			if (pluginId && id !== pluginId) return;
+			for (const tool of mcp?.tools ?? []) {
+				const key = `${id}__${tool.name}`;
+				const routeMeta = this.getPluginRouteMeta(id, tool.route);
+				if (
+					seen.has(key) ||
+					!routeMeta ||
+					routeMeta.public ||
+					routeMeta.permission !== tool.permission ||
+					!(tool.permission in Permissions)
+				) {
+					continue;
+				}
+				seen.add(key);
+				tools.push({
+					pluginId: id,
+					name: tool.name,
+					description: tool.description,
+					route: tool.route,
+					permission: tool.permission,
+					destructive: tool.destructive,
+					inputSchema: z.fromJSONSchema({ ...tool.inputSchema }),
+					outputSchema: tool.outputSchema ? z.fromJSONSchema({ ...tool.outputSchema }) : undefined,
+				});
+			}
+		};
+
+		for (const entry of this.sandboxedPluginEntries) addManifestTools(entry.id, entry.mcp);
+		for (const [id, manifest] of marketplaceManifestCache) addManifestTools(id, manifest.mcp);
+
+		return tools;
+	}
+
+	async getEnabledPluginMcpTools() {
+		const [tools, states] = await Promise.all([
+			this.getPluginMcpTools(),
+			new PluginStateRepository(this.db).getAll(),
+		]);
+		const stateByPlugin = new Map(states.map((state) => [state.pluginId, state]));
+		return tools.filter((tool) => {
+			const state = stateByPlugin.get(tool.pluginId);
+			if (
+				!state?.mcpToolsEnabled ||
+				state.status !== "active" ||
+				!this.isPluginEnabled(tool.pluginId)
+			) {
+				return false;
+			}
+			const consented = state.mcpToolsConsent;
+			return consented === this.serializePluginMcpConsent(tools, tool.pluginId);
+		});
+	}
+
+	serializePluginMcpConsent(
+		tools: Awaited<ReturnType<EmDashRuntime["getPluginMcpTools"]>>,
+		pluginId: string,
+	): string {
+		return JSON.stringify(
+			tools
+				.filter((tool) => tool.pluginId === pluginId)
+				.map((tool) => ({
+					name: tool.name,
+					description: tool.description,
+					route: tool.route,
+					permission: tool.permission,
+					destructive: tool.destructive,
+					inputSchema: z.toJSONSchema(tool.inputSchema, { target: "draft-7" }),
+					...(tool.outputSchema
+						? { outputSchema: z.toJSONSchema(tool.outputSchema, { target: "draft-7" }) }
+						: {}),
+				}))
+				.toSorted((a, b) => a.name.localeCompare(b.name)),
+		);
+	}
+
+	async handlePluginMcpTool(
+		pluginId: string,
+		toolName: string,
+		route: string,
+		input: unknown,
+		actorId: string,
+		request: Request,
+	) {
+		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
+		const audit = new AuditRepository(this.db);
+		const internalRequest = new Request(request.url, {
+			method: "POST",
+			headers: request.headers,
+			body: JSON.stringify(input),
+		});
+		const result = await this.handlePluginApiRoute(pluginId, "POST", route, internalRequest);
+		await audit.log({
+			actorId,
+			actorIp: requestMeta.ip ?? undefined,
+			action: "plugin_tool_invoke",
+			resourceType: "plugin_mcp_tool",
+			resourceId: `${pluginId}__${toolName}`,
+			details: { pluginId, tool: toolName, route },
+			status: result.success ? "success" : "failure",
+		});
+		return result;
+	}
+
+	async handlePluginMcpDenied(
+		pluginId: string,
+		toolName: string,
+		route: string,
+		actorId: string,
+		request: Request,
+		reason: string,
+	): Promise<void> {
+		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
+		await new AuditRepository(this.db).log({
+			actorId,
+			actorIp: requestMeta.ip ?? undefined,
+			action: "plugin_tool_invoke",
+			resourceType: "plugin_mcp_tool",
+			resourceId: `${pluginId}__${toolName}`,
+			details: { pluginId, tool: toolName, route, reason },
+			status: "denied",
+		});
 	}
 
 	// =========================================================================

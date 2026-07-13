@@ -54,6 +54,7 @@ function guardConsumedRequestBody(request: Request): Request {
  */
 export interface RouteMeta {
 	public: boolean;
+	permission?: string;
 }
 
 /**
@@ -199,7 +200,7 @@ export class PluginRouteHandler {
 	getRouteMeta(name: string): RouteMeta | null {
 		const route: PluginRoute | undefined = this.plugin.routes[name];
 		if (!route) return null;
-		return { public: route.public === true };
+		return { public: route.public === true, permission: route.permission };
 	}
 }
 

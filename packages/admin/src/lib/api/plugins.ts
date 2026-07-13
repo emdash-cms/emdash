@@ -33,6 +33,15 @@ export interface PluginInfo {
 	description?: string;
 	/** URL to the plugin icon (marketplace plugins use the icon proxy) */
 	iconUrl?: string;
+	/** Absent when talking to an older core that predates plugin MCP tools. */
+	mcpToolsEnabled?: boolean;
+	mcpTools?: Array<{
+		name: string;
+		description: string;
+		route: string;
+		permission: string;
+		destructive: boolean;
+	}>;
 }
 
 /**
@@ -91,4 +100,15 @@ export async function disablePlugin(pluginId: string): Promise<PluginInfo> {
 		i18n._(msg`Failed to disable plugin`),
 	);
 	return result.item;
+}
+
+export async function setPluginMcpEnabled(pluginId: string, enabled: boolean): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/admin/plugins/${pluginId}/mcp`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ enabled }),
+	});
+	if (!response.ok) {
+		await throwResponseError(response, i18n._(msg`Failed to update plugin MCP access`));
+	}
 }

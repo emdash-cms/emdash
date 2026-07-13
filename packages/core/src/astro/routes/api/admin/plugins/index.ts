@@ -28,6 +28,14 @@ export const GET: APIRoute = async ({ locals }) => {
 		emdash.sandboxedPluginEntries,
 		emdash.config.marketplace,
 	);
+	if (result.success) {
+		const tools = await emdash.getPluginMcpTools();
+		for (const item of result.data.items) {
+			item.mcpTools = tools
+				.filter((tool) => tool.pluginId === item.id)
+				.map(({ inputSchema: _, outputSchema: __, pluginId: ___, ...tool }) => tool);
+		}
+	}
 
 	return unwrapResult(result);
 };

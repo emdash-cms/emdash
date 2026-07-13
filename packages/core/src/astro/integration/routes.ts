@@ -419,6 +419,10 @@ export function injectCoreRoutes(
 		pattern: "/_emdash/api/admin/plugins/[id]/disable",
 		entrypoint: resolveRoute("api/admin/plugins/[id]/disable.ts"),
 	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/[id]/mcp",
+		entrypoint: resolveRoute("api/admin/plugins/[id]/mcp.ts"),
+	});
 
 	// Marketplace plugin routes
 	injectRoute({
