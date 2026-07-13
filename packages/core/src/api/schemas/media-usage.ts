@@ -20,6 +20,49 @@ export const mediaUsageSummarySchema = z
 	})
 	.meta({ id: "MediaUsageSummary" });
 
+export const mediaUsageDetailsQuery = z.object({
+	cursor: z.string().min(1).max(2048).optional(),
+	limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+});
+
+export const mediaUsageOccurrenceDetailSchema = z
+	.object({
+		fieldSlug: z.string(),
+		fieldPath: z.string(),
+		occurrenceIndex: z.number().int().min(0),
+		referenceType: z.enum(["image_field", "file_field", "portable_text_image", "unknown"]),
+	})
+	.meta({ id: "MediaUsageOccurrenceDetail" });
+
+export const mediaUsageSourceDetailSchema = z
+	.object({
+		variant: z.enum(["columns", "draft_overlay"]),
+		occurrences: z.array(mediaUsageOccurrenceDetailSchema),
+	})
+	.meta({ id: "MediaUsageSourceDetail" });
+
+export const mediaUsageEntryDetailSchema = z
+	.object({
+		collection: z.string(),
+		contentId: z.string(),
+		title: z.string().nullable(),
+		slug: z.string().nullable(),
+		locale: z.string().nullable(),
+		status: z.string().nullable(),
+		scheduledAt: z.string().nullable(),
+		deletedAt: z.string().nullable(),
+		sources: z.array(mediaUsageSourceDetailSchema),
+	})
+	.meta({ id: "MediaUsageEntryDetail" });
+
+export const mediaUsageDetailsResponseSchema = z
+	.object({
+		items: z.array(mediaUsageEntryDetailSchema),
+		nextCursor: z.string().optional(),
+		coverage: mediaUsageCoverageSchema,
+	})
+	.meta({ id: "MediaUsageDetailsResponse" });
+
 export const mediaUsageRepairStatusSchema = z
 	.enum(["complete", "partial", "failed", "stale"])
 	.meta({ id: "MediaUsageRepairStatus" });
@@ -67,3 +110,7 @@ export type MediaUsageRepairResponse = z.infer<typeof mediaUsageRepairResponseSc
 export type MediaUsageCoverageStatus = z.infer<typeof mediaUsageCoverageStatusSchema>;
 export type MediaUsageCoverage = z.infer<typeof mediaUsageCoverageSchema>;
 export type MediaUsageSummary = z.infer<typeof mediaUsageSummarySchema>;
+export type MediaUsageOccurrenceDetail = z.infer<typeof mediaUsageOccurrenceDetailSchema>;
+export type MediaUsageSourceDetail = z.infer<typeof mediaUsageSourceDetailSchema>;
+export type MediaUsageEntryDetail = z.infer<typeof mediaUsageEntryDetailSchema>;
+export type MediaUsageDetailsResponse = z.infer<typeof mediaUsageDetailsResponseSchema>;

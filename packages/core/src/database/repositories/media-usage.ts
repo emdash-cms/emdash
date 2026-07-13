@@ -20,7 +20,7 @@ import type {
 	MediaUsageTable,
 } from "../types.js";
 import { validateIdentifier } from "../validate.js";
-import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
+import { decodeCursor, encodeCursor, InvalidCursorError, type FindManyResult } from "./types.js";
 
 type DatabaseExecutor = Kysely<Database> | Transaction<Database>;
 type MediaUsageSourceNullableStringColumn =
@@ -537,6 +537,9 @@ export class MediaUsageRepository {
 		const requestedLimit = Math.floor(options.limit ?? 50);
 		const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(1, requestedLimit), 100) : 50;
 		const cursor = options.cursor ? decodeCursor(options.cursor) : null;
+		if (cursor && (cursor.orderValue.length === 0 || cursor.id.length === 0)) {
+			throw new InvalidCursorError(options.cursor ?? "");
+		}
 		let matchedGroups = this.currentContentMediaUsageBaseQuery()
 			.select(["s.collection_slug as collection_slug", "s.content_id as content_id"])
 			.where("u.media_id", "=", mediaId)
@@ -567,7 +570,21 @@ export class MediaUsageRepository {
 					.orderBy("content_id", "asc")
 					.limit(limit),
 			)
-			.selectFrom("page_groups as page")
+			.with("entry_state", (db) =>
+				db
+					.selectFrom("page_groups as page")
+					.crossJoin("_emdash_media_usage_sources as state")
+					.select(["page.collection_slug", "page.content_id"])
+					.select((eb) =>
+						eb.fn.max<string | null>("state.content_deleted_at").as("entry_deleted_at"),
+					)
+					.whereRef("page.collection_slug", "=", "state.collection_slug")
+					.whereRef("page.content_id", "=", "state.content_id")
+					.where("state.source_type", "=", "content")
+					.where("state.source_variant", "in", ["columns", "draft_overlay"])
+					.groupBy(["page.collection_slug", "page.content_id"]),
+			)
+			.selectFrom("entry_state as page")
 			.crossJoin("_emdash_media_usage_sources as s")
 			.crossJoin("_emdash_media_usage as u")
 			.innerJoin("_emdash_collections as collection", "collection.slug", "s.collection_slug")
@@ -576,19 +593,7 @@ export class MediaUsageRepository {
 			.whereRef("s.source_key", "=", "u.source_key")
 			.whereRef("s.current_generation", "=", "u.generation")
 			.select(currentUsageSelect)
-			.select(
-				sql<string | null>`(
-					SELECT deleted_source.content_deleted_at
-					FROM _emdash_media_usage_sources AS deleted_source
-					WHERE deleted_source.source_type = 'content'
-						AND deleted_source.collection_slug = s.collection_slug
-						AND deleted_source.content_id = s.content_id
-						AND deleted_source.source_variant IN ('columns', 'draft_overlay')
-						AND deleted_source.content_deleted_at IS NOT NULL
-					ORDER BY deleted_source.content_deleted_at DESC
-					LIMIT 1
-				)`.as("entry_deleted_at"),
-			)
+			.select("page.entry_deleted_at")
 			.select(
 				sql<number>`CASE
 					WHEN (SELECT COUNT(*) FROM matched_groups) > ${limit} THEN 1
