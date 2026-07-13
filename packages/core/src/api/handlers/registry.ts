@@ -42,10 +42,16 @@ import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
 import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import {
+	compareDigestBytes,
+	computeMultihash,
+	decodeMultihash,
+	verifyMultihash,
+} from "@emdash-cms/registry-verification";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
-import { extractBundle } from "../../plugins/marketplace.js";
+import { extractBundle, MarketplaceError } from "../../plugins/marketplace.js";
 import type { PluginBundle } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
@@ -141,42 +147,6 @@ export interface RegistryInstallResult {
 /** Matches a bare 64-character lowercase/uppercase hex SHA-256 digest. */
 const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/i;
 
-/** Compute the SHA-256 of `bytes` as a lowercase hex string. */
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Uint8Array is a valid BufferSource at runtime
-	const buf = await crypto.subtle.digest("SHA-256", bytes as unknown as BufferSource);
-	const arr = new Uint8Array(buf);
-	return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/** multihash code for sha2-256 (single-byte varint). */
-const MULTIHASH_SHA256_CODE = 0x12;
-/** sha2-256 digest length in bytes (single-byte varint). */
-const MULTIHASH_SHA256_LENGTH = 0x20;
-
-/**
- * Compute the multibase-multihash sha2-256 checksum of `bytes`, in the
- * same `b<base32>` shape the registry CLI publishes
- * (`packages/plugin-cli/src/multihash.ts`). Returns a 56-character
- * string starting with `b`.
- *
- * The trust contract is: if both sides produce the same string for
- * the same bytes, the bytes are unchanged. We don't decode the
- * publisher-supplied checksum -- we just re-encode our own and compare,
- * which is equivalent and avoids needing a base32 decoder.
- */
-async function sha256MultibaseMultihash(bytes: Uint8Array): Promise<string> {
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Uint8Array is a valid BufferSource at runtime
-	const digestBuf = await crypto.subtle.digest("SHA-256", bytes as unknown as BufferSource);
-	const digest = new Uint8Array(digestBuf);
-	const multihash = new Uint8Array(2 + digest.length);
-	multihash[0] = MULTIHASH_SHA256_CODE;
-	multihash[1] = MULTIHASH_SHA256_LENGTH;
-	multihash.set(digest, 2);
-	const { toBase32 } = await import("@atcute/multibase");
-	return `b${toBase32(multihash)}`;
-}
-
 /**
  * Verify that a checksum string from a release record's
  * `artifact.checksum` field corresponds to the SHA-256 of the given
@@ -195,23 +165,79 @@ async function sha256MultibaseMultihash(bytes: Uint8Array): Promise<string> {
  */
 export async function verifyChecksum(bytes: Uint8Array, checksum: string): Promise<boolean> {
 	if (SHA256_HEX_PATTERN.test(checksum)) {
-		const actual = await sha256Hex(bytes);
-		return checksum.toLowerCase() === actual;
+		const computed = await computeMultihash(bytes);
+		if (!computed.success) return false;
+		const decoded = decodeMultihash(computed.value);
+		if (!decoded.success) return false;
+		const expected = new Uint8Array(32);
+		for (let offset = 0; offset < checksum.length; offset += 2) {
+			expected[offset / 2] = Number.parseInt(checksum.slice(offset, offset + 2), 16);
+		}
+		return compareDigestBytes(decoded.value.digest, expected);
 	}
 
-	// Multibase-base32 multihash with sha2-256. We re-encode our own
-	// digest in the same shape and compare strings -- equivalent to
-	// decoding and comparing bytes, but doesn't need a base32 decoder.
+	// Multibase-base32 multihash with sha2-256. Preserve the installer's
+	// case-insensitive base32 compatibility at this legacy boundary.
 	// 56 chars = 'b' + base32(34 bytes) = 'b' + 55 chars.
 	if (checksum.length === 56 && checksum.startsWith("b")) {
-		const actual = await sha256MultibaseMultihash(bytes);
-		// Case-insensitive: multibase 'b' is lowercase by convention but
-		// some emitters use uppercase. RFC 4648 base32 alphabets are
-		// case-insensitive.
-		return actual.toLowerCase() === checksum.toLowerCase();
+		return (await verifyMultihash(bytes, checksum.toLowerCase())).success;
 	}
 
 	return false;
+}
+
+type RegistryArtifactOperation = "install" | "update";
+
+/**
+ * Adapt shared bundle verification to the installer API's established error
+ * codes and messages. A mismatch is parsed once more without expectations so
+ * core can retain its dynamic messages and version-before-identity precedence.
+ */
+export async function validateRegistryArtifactBundle(
+	artifactBytes: Uint8Array,
+	expectedSlug: string,
+	expectedVersion: string,
+	operation: RegistryArtifactOperation,
+): Promise<ApiResult<PluginBundle>> {
+	try {
+		return {
+			success: true,
+			data: await extractBundle(artifactBytes, { expectedSlug, expectedVersion }),
+		};
+	} catch (error) {
+		if (
+			error instanceof MarketplaceError &&
+			(error.code === "MANIFEST_MISMATCH" || error.code === "MANIFEST_VERSION_MISMATCH")
+		) {
+			const bundle = await extractBundle(artifactBytes);
+			if (bundle.manifest.version !== expectedVersion) {
+				return {
+					success: false,
+					error: {
+						code: operation === "install" ? "MANIFEST_VERSION_MISMATCH" : "BUNDLE_VERSION_MISMATCH",
+						message: `Bundle manifest version (${bundle.manifest.version}) does not match release version (${expectedVersion})`,
+					},
+				};
+			}
+			return {
+				success: false,
+				error: {
+					code: operation === "install" ? "MANIFEST_ID_MISMATCH" : "BUNDLE_IDENTITY_MISMATCH",
+					message: `Bundle manifest id (${bundle.manifest.id}) does not match registry slug (${expectedSlug})`,
+				},
+			};
+		}
+		if (operation === "install") {
+			return {
+				success: false,
+				error: {
+					code: "INVALID_BUNDLE",
+					message: error instanceof Error ? error.message : "Failed to extract plugin bundle",
+				},
+			};
+		}
+		throw error;
+	}
 }
 
 /**
@@ -970,47 +996,15 @@ export async function handleRegistryInstall(
 			};
 		}
 
-		// Step 6: extract the bundle.
-		let bundle: PluginBundle;
-		try {
-			bundle = await extractBundle(artifactBytes);
-		} catch (err) {
-			return {
-				success: false,
-				error: {
-					code: "INVALID_BUNDLE",
-					message: err instanceof Error ? err.message : "Failed to extract plugin bundle",
-				},
-			};
-		}
-
-		// Manifest sanity: declared version must match the release's version.
-		if (bundle.manifest.version !== version) {
-			return {
-				success: false,
-				error: {
-					code: "MANIFEST_VERSION_MISMATCH",
-					message: `Bundle manifest version (${bundle.manifest.version}) does not match release version (${version})`,
-				},
-			};
-		}
-
-		// Manifest identity: the bundle's `manifest.id` is the publisher's
-		// natural plugin id (their slug). It MUST equal the slug the
-		// install was requested for; otherwise a malicious registry bundle
-		// could declare `manifest.id: "audit-log"` and confuse the sandbox
-		// bridge, which uses `manifest.id` as the trust key for
-		// per-plugin storage, cron schedules, and bridge-scoped
-		// operations.
-		if (bundle.manifest.id !== slug) {
-			return {
-				success: false,
-				error: {
-					code: "MANIFEST_ID_MISMATCH",
-					message: `Bundle manifest id (${bundle.manifest.id}) does not match registry slug (${slug})`,
-				},
-			};
-		}
+		// Step 6: extract and verify the bundle manifest against this release.
+		const bundleResult = await validateRegistryArtifactBundle(
+			artifactBytes,
+			slug,
+			version,
+			"install",
+		);
+		if (!bundleResult.success) return bundleResult;
+		const bundle = bundleResult.data;
 
 		// Rewrite the manifest's id to the derived opaque pluginId before
 		// it reaches R2 storage or the sandbox loader. The sandbox uses
@@ -1510,26 +1504,14 @@ export async function handleRegistryUpdate(
 			};
 		}
 
-		const bundle: PluginBundle = await extractBundle(artifactBytes);
-
-		if (bundle.manifest.version !== newVersion) {
-			return {
-				success: false,
-				error: {
-					code: "BUNDLE_VERSION_MISMATCH",
-					message: `Bundle manifest version (${bundle.manifest.version}) does not match release version (${newVersion})`,
-				},
-			};
-		}
-		if (bundle.manifest.id !== slug) {
-			return {
-				success: false,
-				error: {
-					code: "BUNDLE_IDENTITY_MISMATCH",
-					message: `Bundle manifest id (${bundle.manifest.id}) does not match registry slug (${slug})`,
-				},
-			};
-		}
+		const bundleResult = await validateRegistryArtifactBundle(
+			artifactBytes,
+			slug,
+			newVersion,
+			"update",
+		);
+		if (!bundleResult.success) return bundleResult;
+		const bundle = bundleResult.data;
 
 		// Rewrite manifest.id to the opaque pluginId so the sandbox loader
 		// and R2 layout stay in sync across install and update.

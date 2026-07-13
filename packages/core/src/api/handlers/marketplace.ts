@@ -164,34 +164,6 @@ async function resolveVersionMetadata(
 	return versions.find((v) => v.version === version) ?? null;
 }
 
-function validateBundleIdentity(
-	bundle: PluginBundle,
-	pluginId: string,
-	version: string,
-): ApiResult<never> | null {
-	if (bundle.manifest.id !== pluginId) {
-		return {
-			success: false,
-			error: {
-				code: "MANIFEST_MISMATCH",
-				message: `Bundle manifest ID (${bundle.manifest.id}) does not match requested plugin (${pluginId})`,
-			},
-		};
-	}
-
-	if (bundle.manifest.version !== version) {
-		return {
-			success: false,
-			error: {
-				code: "MANIFEST_VERSION_MISMATCH",
-				message: `Bundle manifest version (${bundle.manifest.version}) does not match requested version (${version})`,
-			},
-		};
-	}
-
-	return null;
-}
-
 /** Store a plugin bundle's files in site-local R2 storage */
 /**
  * Storage source for an installed plugin bundle. Determines the R2
@@ -445,9 +417,6 @@ export async function handleMarketplaceInstall(
 			};
 		}
 
-		const bundleIdentityError = validateBundleIdentity(bundle, pluginId, version);
-		if (bundleIdentityError) return bundleIdentityError;
-
 		// Store bundle in site-local R2
 		await storeBundleInR2(storage, pluginId, version, bundle);
 
@@ -626,9 +595,6 @@ export async function handleMarketplaceUpdate(
 				},
 			};
 		}
-
-		const bundleIdentityError = validateBundleIdentity(bundle, pluginId, newVersion);
-		if (bundleIdentityError) return bundleIdentityError;
 
 		// Diff capabilities and route visibility against old version
 		const oldBundle = await loadBundleFromR2(storage, pluginId, oldVersion);

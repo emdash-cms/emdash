@@ -6,6 +6,7 @@
  * not a runtime dependency — bundles are copied to site-local R2 at install time.
  */
 
+import { computeMultihash, decodeMultihash } from "@emdash-cms/registry-verification";
 import {
 	validatePluginBundle,
 	type ValidatePluginBundleOptions,
@@ -397,11 +398,25 @@ export async function extractBundle(
 		throw new MarketplaceError(result.error.message, undefined, code);
 	}
 
-	// Compute SHA-256 checksum of the tarball for verification
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Uint8Array is a valid BufferSource at runtime; TS lib mismatch
-	const hashBuffer = await crypto.subtle.digest("SHA-256", tarballBytes as unknown as BufferSource);
-	const hashArray = new Uint8Array(hashBuffer);
-	const checksum = Array.from(hashArray, (b) => b.toString(16).padStart(2, "0")).join("");
+	const multihash = await computeMultihash(tarballBytes);
+	if (!multihash.success) {
+		throw new MarketplaceError(
+			"Failed to compute plugin bundle checksum",
+			undefined,
+			"INVALID_BUNDLE",
+		);
+	}
+	const decoded = decodeMultihash(multihash.value);
+	if (!decoded.success) {
+		throw new MarketplaceError(
+			"Failed to compute plugin bundle checksum",
+			undefined,
+			"INVALID_BUNDLE",
+		);
+	}
+	const checksum = Array.from(decoded.value.digest, (byte) =>
+		byte.toString(16).padStart(2, "0"),
+	).join("");
 
 	return {
 		// Canonical validation uses the shared wire type. Its schema restricts
