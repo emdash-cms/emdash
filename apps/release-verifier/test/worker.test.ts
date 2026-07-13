@@ -87,21 +87,22 @@ describe("release-verifier Worker", () => {
 			const readStarted = new Promise<void>((resolve) => {
 				markReadStarted = resolve;
 			});
-			const fetch = vi.fn(async () =>
-				new Response(
-					new ReadableStream(
-						{
-							pull() {
-								markReadStarted();
-								return new Promise<void>(() => {});
+			const fetch = vi.fn(
+				async () =>
+					new Response(
+						new ReadableStream(
+							{
+								pull() {
+									markReadStarted();
+									return new Promise<void>(() => {});
+								},
+								cancel() {
+									cancelled = true;
+								},
 							},
-							cancel() {
-								cancelled = true;
-							},
-						},
-						{ highWaterMark: 0 },
+							{ highWaterMark: 0 },
+						),
 					),
-				),
 			);
 			const bodyPromise = fetchResource("https://artifact.example.test/plugin.tgz", 1024, {
 				fetch,
