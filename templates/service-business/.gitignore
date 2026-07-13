@@ -1,0 +1,23 @@
+# build output
+dist/
+
+# dependencies
+node_modules/
+
+# astro
+.astro/
+
+# local data
+data.db
+data.db-journal
+uploads/
+
+# logs
+npm-debug.log*
+
+# environment variables
+.env
+.env.local
+
+# macOS
+.DS_Store

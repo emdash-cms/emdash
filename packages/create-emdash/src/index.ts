@@ -63,6 +63,11 @@ const NODE_TEMPLATES = {
 		description: "A portfolio site with projects and case studies",
 		dir: "portfolio",
 	},
+	"service-business": {
+		name: "Service business",
+		description: "A local service site with services, reviews, and lead generation",
+		dir: "service-business",
+	},
 } as const satisfies Record<TemplateKey, TemplateConfig>;
 
 const CLOUDFLARE_TEMPLATES = {
@@ -85,6 +90,11 @@ const CLOUDFLARE_TEMPLATES = {
 		name: "Portfolio",
 		description: "A portfolio site with projects and case studies",
 		dir: "portfolio-cloudflare",
+	},
+	"service-business": {
+		name: "Service business",
+		description: "A free-tier local service site using Workers and D1",
+		dir: "service-business-cloudflare",
 	},
 } as const satisfies Record<TemplateKey, TemplateConfig>;
 

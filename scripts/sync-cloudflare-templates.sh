@@ -28,6 +28,7 @@ TEMPLATE_PAIRS=(
 	"blog:blog-cloudflare"
 	"marketing:marketing-cloudflare"
 	"portfolio:portfolio-cloudflare"
+	"service-business:service-business-cloudflare"
 	"starter:starter-cloudflare"
 )
 

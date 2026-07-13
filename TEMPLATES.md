@@ -50,12 +50,26 @@ A portfolio for showcasing creative work with project pages and tag filtering.
 
 **Pages:** Homepage, work listing, single project, about, contact, 404
 
+### Service Business
+
+A reusable lead-generation site for contractors, home services, studios, and other local professionals.
+
+**Features:**
+
+- Structured services, projects/gallery, reviews, FAQs, service areas, team, and certificates/partner content
+- Global contact details and CTA settings
+- LocalBusiness JSON-LD with editable address, hours, phone, email, and price range
+- Realistic starter copy and static project artwork
+- Free-tier Cloudflare variant that requires only Workers and D1, with static assets instead of R2 uploads
+
+**Pages:** Homepage, services, single service, project gallery, single project, service area, about, contact, 404
+
 ## Using a Template
 
 Each template has two variants:
 
-- **Node.js** (`templates/blog`, `templates/marketing`, `templates/portfolio`) — uses SQLite and local file storage
-- **Cloudflare** (`templates/blog-cloudflare`, etc.) — uses D1 and R2
+- **Node.js** (`templates/blog`, `templates/marketing`, `templates/portfolio`, `templates/service-business`) — uses SQLite and local file storage
+- **Cloudflare** (`templates/blog-cloudflare`, etc.) — uses D1; most templates use R2, while service-business uses static assets as a free fallback
 
 ### Quick Start
 
@@ -99,9 +113,11 @@ templates/blog/
 
 The cloudflare variants share most of their code with the base templates. Only these files differ:
 
-- `astro.config.mjs` (cloudflare adapter, D1/R2 storage)
+- `astro.config.mjs` (Cloudflare adapter and D1; storage varies by template)
 - `package.json` (different dependencies)
 - `wrangler.jsonc` (cloudflare config)
+- `src/worker.ts` (Cloudflare Worker entry point)
+- `README.md` and `.gitignore` (Cloudflare deployment notes and local files)
 
 Everything else is synced from the base template using a script:
 
@@ -109,7 +125,7 @@ Everything else is synced from the base template using a script:
 ./scripts/sync-cloudflare-templates.sh
 ```
 
-**Run this after making changes** to `src/`, `seed/`, `tsconfig.json`, `emdash-env.d.ts`, or `.gitignore` in any base template. It copies those files to the corresponding cloudflare variant.
+**Run this after making changes** to `src/`, `public/`, `seed/`, `tsconfig.json`, or `emdash-env.d.ts` in any base template. It copies those files to the corresponding cloudflare variant.
 
 The primary Node demo is also synced from the blog template:
 

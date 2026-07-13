@@ -100,13 +100,14 @@ The Setup Wizard runs automatically on first admin visit. It performs these step
 
 ## Official Themes
 
-EmDash provides official starter themes, each available in local (SQLite + filesystem) and Cloudflare (D1 + R2) variants:
+EmDash provides official starter themes, each available in local and Cloudflare variants:
 
 | Theme | Description | Use Case |
 | ----- | ----------- | -------- |
 | `@emdash-cms/template-blog` | Minimal blog with posts, pages, categories, and dark mode | Personal blogs, simple sites |
 | `@emdash-cms/template-portfolio` | Editorial-style portfolio with projects, serif typography (Playfair Display), and image-focused layouts | Freelancers, agencies, creatives |
 | `@emdash-cms/template-marketing` | Bold marketing site with custom Portable Text blocks (hero, features, testimonials, pricing, FAQ) | Landing pages, SaaS sites, product marketing |
+| `@emdash-cms/template-service-business` | Lead-focused local business site with services, projects, reviews, FAQs, service areas, team, credentials, and LocalBusiness schema | Contractors, home services, studios, and local professionals |
 
 ### Cloudflare Variants
 
@@ -116,9 +117,10 @@ For deployment on Cloudflare Workers with D1 and R2, append `-cloudflare` to the
 npm create astro@latest -- --template @emdash-cms/template-blog-cloudflare
 npm create astro@latest -- --template @emdash-cms/template-portfolio-cloudflare
 npm create astro@latest -- --template @emdash-cms/template-marketing-cloudflare
+npm create astro@latest -- --template @emdash-cms/template-service-business-cloudflare
 ```
 
-These variants include `wrangler.jsonc` for deployment configuration.
+These variants include `wrangler.jsonc` for deployment configuration. Most use D1 and R2. The service-business variant uses only Workers, D1, and static assets so it can stay entirely within the free tier; R2-backed editor uploads are optional.
 
 ## Customizing After Install
 

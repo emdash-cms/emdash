@@ -86,6 +86,18 @@ const SITE_MATRIX: SiteCase[] = [
 		port: 4618,
 		startupTimeoutMs: 120_000,
 	},
+	{
+		name: "templates/service-business",
+		dir: resolve(WORKSPACE_ROOT, "templates/service-business"),
+		port: 4619,
+		startupTimeoutMs: 90_000,
+	},
+	{
+		name: "templates/service-business-cloudflare",
+		dir: resolve(WORKSPACE_ROOT, "templates/service-business-cloudflare"),
+		port: 4620,
+		startupTimeoutMs: 120_000,
+	},
 ];
 
 async function waitForServer(url: string, timeoutMs: number): Promise<void> {

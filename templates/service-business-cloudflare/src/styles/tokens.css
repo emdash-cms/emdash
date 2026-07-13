@@ -1,0 +1,19 @@
+@layer base {
+	:root {
+		color-scheme: light dark;
+		--ink: light-dark(#17221d, #f1f7f3);
+		--muted: light-dark(#5d6b63, #a9b7ae);
+		--bg: light-dark(#fbfcf8, #101713);
+		--surface: light-dark(#ffffff, #18221c);
+		--border: light-dark(#dfe7e1, #304038);
+		--brand: light-dark(#176b4b, #62d4a3);
+		--brand-strong: light-dark(#0f5138, #81e6b9);
+		--accent: light-dark(#f3b544, #efbd60);
+		--on-brand: #fff;
+		--font-body: system-ui, -apple-system, sans-serif;
+		--font-heading: system-ui, sans-serif;
+		--max: 1180px;
+		--radius: 1rem;
+		--shadow: 0 18px 50px rgb(15 50 34 / 10%);
+	}
+}

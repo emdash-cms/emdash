@@ -42,6 +42,8 @@ const TEMPLATE_SEEDS = [
 	"templates/starter-cloudflare/seed/seed.json",
 	"templates/marketing/seed/seed.json",
 	"templates/marketing-cloudflare/seed/seed.json",
+	"templates/service-business/seed/seed.json",
+	"templates/service-business-cloudflare/seed/seed.json",
 ] as const;
 
 function loadSeed(rel: string): SeedFile {

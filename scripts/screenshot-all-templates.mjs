@@ -22,6 +22,7 @@ const TEMPLATES = {
 	blog: { dir: "templates/blog", port: 4321 },
 	marketing: { dir: "templates/marketing", port: 4322 },
 	portfolio: { dir: "templates/portfolio", port: 4323 },
+	"service-business": { dir: "templates/service-business", port: 4324 },
 };
 
 function loadConfig() {
