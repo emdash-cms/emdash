@@ -294,6 +294,7 @@ export interface BuildAdminNavModelOptions {
 // ── Defaults ────────────────────────────────────────────────────
 
 const DASHBOARD_GROUP_ID = "dashboard";
+const DASHBOARD_ITEM_ID = "core:dashboard";
 const DASHBOARD_GROUP_ORDER = -1;
 
 /**
@@ -652,6 +653,7 @@ export function buildAdminNavModel(
 		});
 	}
 	for (const group of config?.groups ?? []) {
+		if (group.id === DASHBOARD_GROUP_ID) continue;
 		// A config group without a label keeps the default group's translated
 		// label (reorder-only override); a label-less custom group falls back
 		// to its id.
@@ -666,6 +668,7 @@ export function buildAdminNavModel(
 
 	const itemConfigById = new Map<string, AdminNavigationItemConfig>();
 	for (const item of config?.items ?? []) {
+		if (item.id === DASHBOARD_ITEM_ID) continue;
 		if (!itemConfigById.has(item.id)) itemConfigById.set(item.id, item);
 	}
 
@@ -687,7 +690,9 @@ export function buildAdminNavModel(
 		// A groupId pointing at a group that no longer exists falls back to
 		// the item's default group — stale config never loses items.
 		const groupId =
-			itemConfig?.groupId && groupDefs.has(itemConfig.groupId)
+			itemConfig?.groupId &&
+			itemConfig.groupId !== DASHBOARD_GROUP_ID &&
+			groupDefs.has(itemConfig.groupId)
 				? itemConfig.groupId
 				: item.defaultGroupId;
 		const sortKey = itemConfig?.order ?? UNCONFIGURED_ITEM_ORDER_BASE + defaultIndex;
@@ -742,6 +747,36 @@ export function flattenAdminNavModel(
 	return [...items, ...model.hiddenItems];
 }
 
+/** Resolve an item's route path by substituting its router parameters. */
+export function resolveAdminNavItemPath(item: Pick<AdminNavItem, "to" | "params">): string {
+	let path = item.to;
+	if (item.params) {
+		for (const [key, value] of Object.entries(item.params)) {
+			path = path.replace(`$${key}`, value);
+		}
+	}
+	return path;
+}
+
+/** Return the most specific visible navigation item matching the current path. */
+export function findActiveAdminNavItemId(
+	model: AdminNavModel,
+	currentPath: string,
+): string | undefined {
+	let active: { id: string; pathLength: number } | undefined;
+	for (const item of model.groups.flatMap((group) => group.items)) {
+		const itemPath = resolveAdminNavItemPath(item);
+		const matches =
+			itemPath === "/"
+				? currentPath === "/"
+				: currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
+		if (matches && (!active || itemPath.length > active.pathLength)) {
+			active = { id: item.id, pathLength: itemPath.length };
+		}
+	}
+	return active?.id;
+}
+
 // ── Per-user collapse state (localStorage) ──────────────────────
 
 export const NAV_COLLAPSE_STORAGE_KEY = "emdash:admin-nav:v1";
@@ -783,8 +818,13 @@ export function serializeNavCollapseState(state: NavCollapseState): string {
  * Whether a group renders collapsed: an explicit user choice wins in either
  * direction; otherwise the group's `collapsedByDefault` applies.
  */
-export function isGroupCollapsed(group: AdminNavGroup, state: NavCollapseState): boolean {
+export function isGroupCollapsed(
+	group: AdminNavGroup,
+	state: NavCollapseState,
+	activeItemId?: string,
+): boolean {
 	if (!group.collapsible) return false;
+	if (activeItemId && group.items.some((item) => item.id === activeItemId)) return false;
 	if (state.collapsedGroupIds.includes(group.id)) return true;
 	if (state.expandedGroupIds.includes(group.id)) return false;
 	return group.collapsedByDefault;

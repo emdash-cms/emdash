@@ -158,6 +158,20 @@ describe("normalizeAdminNavigationConfig", () => {
 		expect(normalized?.items).toEqual([{ id: "core:settings", groupId: "custom" }]);
 	});
 
+	it("keeps the dashboard group pinned and reserved", () => {
+		const config = {
+			version: 1,
+			groups: [{ id: "dashboard", label: "Moved", order: 500, collapsedByDefault: true }],
+			items: [
+				{ id: "core:dashboard", groupId: "content", order: 4 },
+				{ id: "core:media", groupId: "dashboard", order: 2 },
+			],
+		};
+		const normalized = normalizeAdminNavigationConfig(config);
+		expect(normalized?.groups).toEqual([]);
+		expect(normalized?.items).toEqual([{ id: "core:media", order: 2 }]);
+	});
+
 	it("trims group labels", () => {
 		const config = validConfig();
 		config.groups[0]!.label = "  Editorial  ";

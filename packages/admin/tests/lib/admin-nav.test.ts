@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	buildAdminNavModel,
+	findActiveAdminNavItemId,
 	flattenAdminNavModel,
 	isGroupCollapsed,
 	parseNavCollapseState,
@@ -109,6 +110,28 @@ describe("buildAdminNavModel defaults (parity with the classic sidebar)", () => 
 		expect(dashboard?.collapsible).toBe(false);
 	});
 
+	it("keeps the dashboard group pinned when config targets its reserved ids", () => {
+		const model = buildAdminNavModel(
+			{
+				...baseManifest(),
+				adminNavigation: {
+					version: 1,
+					groups: [{ id: "dashboard", label: "Moved", order: 500, collapsedByDefault: true }],
+					items: [
+						{ id: "core:dashboard", groupId: "admin", order: 0 },
+						{ id: "core:media", groupId: "dashboard", order: 1 },
+					],
+				},
+			},
+			{ userRole: ROLE_ADMIN },
+		);
+
+		expect(groupIds(model)[0]).toBe("dashboard");
+		expect(itemIds(model, "dashboard")).toEqual(["core:dashboard"]);
+		expect(itemIds(model, "content")).toContain("core:media");
+		expect(model.groups[0]).toMatchObject({ label: undefined, collapsible: false });
+	});
+
 	it("routes items to the classic paths with params", () => {
 		const model = buildAdminNavModel(baseManifest(), { userRole: ROLE_ADMIN });
 		const flat = flattenAdminNavModel(model);
@@ -155,6 +178,15 @@ describe("buildAdminNavModel defaults (parity with the classic sidebar)", () => 
 		);
 		expect(itemIds(without, "admin")).not.toContain("core:marketplace");
 		expect(itemIds(without, "admin")).not.toContain("core:themes");
+	});
+});
+
+describe("findActiveAdminNavItemId", () => {
+	it("chooses the most specific matching navigation item", () => {
+		const model = buildAdminNavModel(baseManifest(), { userRole: ROLE_ADMIN });
+
+		expect(findActiveAdminNavItemId(model, "/settings/navigation")).toBe("core:navigation");
+		expect(findActiveAdminNavItemId(model, "/settings/security")).toBe("core:settings");
 	});
 });
 
@@ -417,6 +449,32 @@ describe("nav collapse state", () => {
 		expect(isGroupCollapsed(group({ id: "b", collapsedByDefault: true }), state)).toBe(false);
 		expect(isGroupCollapsed(group({ id: "c", collapsedByDefault: true }), state)).toBe(true);
 		expect(isGroupCollapsed(group({ id: "d" }), state)).toBe(false);
+	});
+
+	it("expands a collapsed group containing the active item", () => {
+		const model = buildAdminNavModel(
+			{
+				...baseManifest(),
+				adminNavigation: {
+					version: 1,
+					groups: [{ id: "admin", order: 300, collapsedByDefault: true }],
+					items: [],
+				},
+			},
+			{ userRole: ROLE_ADMIN },
+		);
+		const admin = model.groups.find((entry) => entry.id === "admin");
+		expect(admin).toBeDefined();
+		expect(isGroupCollapsed(admin!, { collapsedGroupIds: ["admin"], expandedGroupIds: [] })).toBe(
+			true,
+		);
+		expect(
+			isGroupCollapsed(
+				admin!,
+				{ collapsedGroupIds: ["admin"], expandedGroupIds: [] },
+				"core:navigation",
+			),
+		).toBe(false);
 	});
 
 	it("toggle moves a group between the two lists", () => {

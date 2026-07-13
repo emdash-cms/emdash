@@ -35,6 +35,8 @@ const PLUGIN_ID_PATTERN = /^[a-z0-9@][a-z0-9@/_.-]*$/i;
 
 const ITEM_ID_MAX_LENGTH = 256;
 const SLUG_MAX_LENGTH = 63;
+const DASHBOARD_GROUP_ID = "dashboard";
+const DASHBOARD_ITEM_ID = "core:dashboard";
 
 export type AdminNavigationItemId =
 	| `core:${string}`
@@ -156,6 +158,8 @@ function compareStrings(a: string, b: string): number {
  * manifest hash depends on this):
  * - duplicate group/item ids: first occurrence wins
  * - `hidden` is only ever stored as `true`, and never on non-hideable items
+ * - the dashboard group/item stay pinned; other items targeting it fall back
+ *   to their default group
  * - items carrying no placement info at all are dropped
  * - groups sort by (order, id); items sort by (groupId, order, id)
  */
@@ -170,6 +174,7 @@ export function normalizeAdminNavigationConfig(
 	for (const group of parsed.data.groups) {
 		if (seenGroupIds.has(group.id)) continue;
 		seenGroupIds.add(group.id);
+		if (group.id === DASHBOARD_GROUP_ID) continue;
 		groups.push(group);
 	}
 	groups.sort((a, b) => a.order - b.order || compareStrings(a.id, b.id));
@@ -179,8 +184,11 @@ export function normalizeAdminNavigationConfig(
 	for (const item of parsed.data.items) {
 		if (seenItemIds.has(item.id)) continue;
 		seenItemIds.add(item.id);
+		if (item.id === DASHBOARD_ITEM_ID) continue;
 		const entry: AdminNavigationItemConfig = { id: item.id };
-		if (item.groupId !== undefined) entry.groupId = item.groupId;
+		if (item.groupId !== undefined && item.groupId !== DASHBOARD_GROUP_ID) {
+			entry.groupId = item.groupId;
+		}
 		if (item.order !== undefined) entry.order = item.order;
 		if (item.hidden === true && !NON_HIDEABLE_NAV_ITEM_IDS.has(item.id)) entry.hidden = true;
 		if (entry.groupId === undefined && entry.order === undefined && entry.hidden === undefined) {

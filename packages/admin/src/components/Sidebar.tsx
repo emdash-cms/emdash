@@ -8,10 +8,12 @@ import * as React from "react";
 
 import {
 	buildAdminNavModel,
+	findActiveAdminNavItemId,
 	isGroupCollapsed,
 	NAV_COLLAPSE_STORAGE_KEY,
 	parseNavCollapseState,
 	ROLE_EDITOR,
+	resolveAdminNavItemPath,
 	serializeNavCollapseState,
 	toggleGroupCollapsed,
 	type AdminNavGroup,
@@ -71,7 +73,7 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 
 	return (
 		<KumoSidebar.MenuButton
-			href={resolveItemPath(item)}
+			href={resolveAdminNavItemPath(item)}
 			active={isActive}
 			tooltip={state === "collapsed" ? item.label : undefined}
 			icon={IconComponent}
@@ -90,24 +92,6 @@ function NavIcon({ icon: Icon, className }: { icon: React.ElementType; className
 			<Icon className={className} aria-hidden="true" />
 		</React.Suspense>
 	);
-}
-
-/** Resolves a nav item's route path by substituting $param placeholders. */
-function resolveItemPath(item: Pick<NavItem, "to" | "params">): string {
-	let path = item.to;
-	if (item.params) {
-		for (const [key, value] of Object.entries(item.params)) {
-			path = path.replace(`$${key}`, value);
-		}
-	}
-	return path;
-}
-
-/** Checks if a nav item is active based on the current router path. */
-function isItemActive(itemPath: string, currentPath: string): boolean {
-	return itemPath === "/"
-		? currentPath === "/"
-		: currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
 }
 
 function readStoredCollapseState(): NavCollapseState {
@@ -150,6 +134,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		() => buildAdminNavModel(manifest, { userRole, pendingComments, pluginAdmins }),
 		[manifest, userRole, pendingComments, pluginAdmins],
 	);
+	const activeItemId = React.useMemo(
+		() => findActiveAdminNavItemId(model, currentPath),
+		[model, currentPath],
+	);
 
 	const [collapseState, setCollapseState] =
 		React.useState<NavCollapseState>(readStoredCollapseState);
@@ -179,9 +167,8 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				params: item.params,
 				badge: item.badge,
 			};
-			const itemPath = resolveItemPath(navItem);
 			return (
-				<NavMenuLink key={item.id} item={navItem} isActive={isItemActive(itemPath, currentPath)} />
+				<NavMenuLink key={item.id} item={navItem} isActive={item.id === activeItemId} />
 			);
 		});
 	}
@@ -206,7 +193,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			);
 		}
 
-		const open = !isGroupCollapsed(group, collapseState);
+		const open = !isGroupCollapsed(group, collapseState, activeItemId);
 		const label = resolveLabel(group.label);
 
 		return (
