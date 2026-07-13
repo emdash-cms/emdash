@@ -47,6 +47,7 @@ import { computeEffectPreview, computeOverrideEffectPreview } from "./label-effe
 import { MutationGuardError } from "./mutation-guard.js";
 import { getOperatorActionsPage } from "./operator-actions.js";
 import { guardRead, ReadGuardError, type ReadGuardDeps } from "./operator-read-guard.js";
+import { assertNegatableBlockSet, NegatableBlockSetError } from "./service.js";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -367,8 +368,9 @@ async function handleEffectPreview(
 
 /** Multi-overlay override preview: `?uri=&cid=&negate=v1&negate=v2` grounds the
  * post-override release state (blocked → eligible-manual-override) the reviewer
- * confirms before submitting. The `negate` set is echoed from the subject-label
- * read; the server re-derives the authoritative set at submit time. */
+ * confirms before submitting. The `negate` set is validated against the live
+ * negatable set with the same check the submit endpoint runs, so the preview
+ * can never render an outcome the submit would reject. */
 async function handleOverrideEffectPreview(
 	request: Request,
 	url: URL,
@@ -381,6 +383,12 @@ async function handleOverrideEffectPreview(
 		throw new ReadGuardError("INVALID_REQUEST");
 	const negate = url.searchParams.getAll("negate");
 	if (negate.some((val) => val.length === 0)) throw new ReadGuardError("INVALID_REQUEST");
+	try {
+		await assertNegatableBlockSet(deps.db, deps.labelerDid, { uri, cid }, negate);
+	} catch (error) {
+		if (error instanceof NegatableBlockSetError) throw new ReadGuardError("INVALID_REQUEST");
+		throw error;
+	}
 
 	const preview = await computeOverrideEffectPreview(
 		deps.db,

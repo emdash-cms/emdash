@@ -852,4 +852,39 @@ describe("subject-label read + override effect preview", () => {
 		expect(preview.after?.reasonCodes).toContain("eligible-manual-override");
 		expect(preview.after?.blockingLabels).not.toContain("malware");
 	});
+
+	it("rejects a preview whose negate set the submit endpoint would reject", async () => {
+		const { id, uri } = await seedRun("preview-mismatch");
+		await seedAutomatedBlock(uri, id, "malware");
+		const manual = await handleConsoleMutation(
+			post("/admin/api/labels/issue", {
+				uri,
+				val: "impersonation",
+				cid: CID,
+				confirmation: CID,
+				reason: "manually flagged",
+				idempotencyKey: nextKey(),
+			}),
+			mutationDeps(),
+		);
+		expect(manual.status).toBe(200);
+
+		// A manually-headed block and an incomplete set both fail the same
+		// live-set check the submit runs, so the preview cannot over-promise.
+		const withManualHead = await handleConsoleApi(
+			getReq(
+				`/admin/api/labels/override-effect-preview?uri=${encodeURIComponent(uri)}&cid=${CID}&negate=malware&negate=impersonation`,
+			),
+			readDeps(),
+		);
+		expect(withManualHead.status).toBe(400);
+
+		const liveSet = await handleConsoleApi(
+			getReq(
+				`/admin/api/labels/override-effect-preview?uri=${encodeURIComponent(uri)}&cid=${CID}&negate=malware`,
+			),
+			readDeps(),
+		);
+		expect(liveSet.status).toBe(200);
+	});
 });
