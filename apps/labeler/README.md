@@ -31,7 +31,7 @@ The console is not localized (plain English) and there is no dev auth bypass, so
 
 ## Deploying
 
-The Worker validates on boot that its signing keypair matches the public key published in its DID document, so a copy error fails the deploy rather than shipping a labeler whose signatures cannot be verified. Work through the checklist in order.
+The Worker checks that its signing keypair matches the public key published in its DID document the first time it signs a label — not at deploy time. `wrangler deploy` only enforces that the `LABEL_SIGNING_PRIVATE_KEY` secret exists, so a mismatched pair deploys cleanly and then fails on the first signing operation. After setting or rotating the key, exercise a signing path (a console mutation, an assessment, or a `queryLabels` re-sign) to confirm the pair is consistent. Work through the checklist in order.
 
 1. **Create a Cloudflare Access application** covering `/admin/*` on the labeler's domain, with two Access groups (one for admins, one for reviewers) mapped to your identity provider. This produces the application's **AUD tag**.
 

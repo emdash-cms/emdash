@@ -1,5 +1,5 @@
 // Generates a P-256 signing keypair for the labeler in the exact formats the
-// Worker validates on boot: the private key as unpadded base64url of the raw
+// Worker validates: the private key as unpadded base64url of the raw
 // 32-byte scalar (LABEL_SIGNING_PRIVATE_KEY secret) and the public key as a
 // canonical P-256 Multikey (LABEL_SIGNING_PUBLIC_KEY var, published in the DID
 // document's #atproto_label verification method).
@@ -8,8 +8,9 @@
 //
 // The two values are printed to stdout; nothing is written to disk. Set the
 // private key with `wrangler secret put LABEL_SIGNING_PRIVATE_KEY` and paste the
-// public key into wrangler.jsonc. The Worker refuses to start if the pair is
-// inconsistent, so a copy error fails the deploy rather than shipping silently.
+// public key into wrangler.jsonc. The Worker verifies the pair the first time it
+// signs (not at deploy), so a mismatch surfaces as a failed signing operation
+// rather than at boot -- exercise a signing path after setting or rotating it.
 
 import { P256PrivateKeyExportable } from "@atcute/crypto";
 import { toBase64Url } from "@atcute/multibase";

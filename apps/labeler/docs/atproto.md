@@ -79,7 +79,7 @@ Labels are cryptographically signed so a consumer can trust their provenance wit
 - The **public key** lives in the DID document's `#atproto_label` method, as a canonical P-256 Multikey (`LABEL_SIGNING_PUBLIC_KEY`). Anyone resolving the DID can read it.
 - The **private key** stays on the server as a secret (`LABEL_SIGNING_PRIVATE_KEY`, the unpadded base64url of the raw 32-byte scalar). It signs every label the service emits and is never exposed.
 
-A consumer verifies a label by resolving the labeler's DID, reading the public key from `#atproto_label`, and checking the label's signature against it. The Worker validates on boot that the configured private key derives the public key published in the document — a mismatch throws and fails the deploy, so the service cannot ship in a state where its own signatures would fail to verify.
+A consumer verifies a label by resolving the labeler's DID, reading the public key from `#atproto_label`, and checking the label's signature against it. The Worker checks that the configured private key derives the public key published in the document when it constructs its signer — which happens lazily, on the first signing operation, not at boot or deploy. A mismatched pair therefore deploys cleanly and fails the first time the Worker tries to sign (a discovery assessment, a `queryLabels` re-sign, or a console mutation), rather than being caught up front.
 
 Key rotation is tracked by `LABEL_SIGNING_KEY_VERSION` (currently `v1`). Generate a fresh keypair with `pnpm --filter @emdash-cms/labeler keygen`, install the new secret and public key, and bump the version.
 
