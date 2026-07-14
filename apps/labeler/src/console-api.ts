@@ -35,6 +35,7 @@ import {
 } from "./assessment-store.js";
 import {
 	serializeAssessmentRun,
+	serializeDeadLetter,
 	serializeIssuedLabel,
 	serializeOperatorActionView,
 	serializeOperatorFinding,
@@ -42,6 +43,7 @@ import {
 	serializeSubjectRecord,
 	type Page,
 } from "./console-serialize.js";
+import { getDeadLettersPage } from "./dead-letters.js";
 import { LABELER_DISCOVERY_DO_NAME } from "./discovery-do.js";
 import { computeEffectPreview, computeOverrideEffectPreview } from "./label-effect-preview.js";
 import { MutationGuardError } from "./mutation-guard.js";
@@ -122,6 +124,8 @@ function matchRoute(
 			return () => handleGetSubjectLabels(request, url, deps, uri);
 	} else if (segments[0] === "audit-log" && segments.length === 1) {
 		return () => handleListAuditLog(request, url, deps);
+	} else if (segments[0] === "dead-letters" && segments.length === 1) {
+		return () => handleListDeadLetters(request, url, deps);
 	} else if (segments[0] === "status" && segments.length === 1) {
 		return () => handleGetStatus(request, deps);
 	} else if (segments[0] === "whoami" && segments.length === 1) {
@@ -319,6 +323,45 @@ async function handleListAuditLog(
 	return jsonData(body);
 }
 
+/**
+ * Lists `dead_letters` newest-first for the operator console (design §6). All
+ * statuses are listed so the operator sees resolved history; the retry /
+ * quarantine actions are admin-only and gated separately. Keyset pagination is
+ * on the numeric autoincrement `id` (a total order); the opaque cursor still
+ * carries `received_at` for the shared cursor's shape/validation.
+ */
+async function handleListDeadLetters(
+	request: Request,
+	url: URL,
+	deps: ConsoleApiDeps,
+): Promise<Response> {
+	requireGet(request);
+	const limit = parseLimit(url.searchParams);
+	const filterHash = await computeFilterHash({});
+	const keyset = decodeReadCursor(url.searchParams.get("cursor"), filterHash);
+	const keysetId = keyset === null ? null : parseCursorId(keyset.id);
+
+	const rows = await getDeadLettersPage(deps.db, keysetId, limit);
+	const hasMore = rows.length > limit;
+	const page = hasMore ? rows.slice(0, limit) : rows;
+	const last = page.at(-1);
+	const body: Page<ReturnType<typeof serializeDeadLetter>> = {
+		items: page.map(serializeDeadLetter),
+		...(hasMore && last
+			? {
+					nextCursor: encodeCursor({ createdAt: last.receivedAt, id: String(last.id) }, filterHash),
+				}
+			: {}),
+	};
+	return jsonData(body);
+}
+
+function parseCursorId(raw: string): number {
+	const id = Number(raw);
+	if (!Number.isSafeInteger(id) || id <= 0) throw new ReadGuardError("INVALID_CURSOR");
+	return id;
+}
+
 async function handleGetStatus(request: Request, deps: ConsoleApiDeps): Promise<Response> {
 	requireGet(request);
 	const [pendingAssessments, deadLetterDepth, automation, jetstreamConnected] = await Promise.all([
@@ -432,9 +475,12 @@ function parseNeg(raw: string | null): boolean {
 
 /** Dead-letter backlog — the observable stand-in for discovery-queue depth,
  * which the Queues API does not expose to the consumer Worker (spec §11.1's
- * `/admin/system` "queue/DLQ health"). */
+ * `/admin/system` "queue/DLQ health"). Counts only `status = 'new'`: a retried
+ * or quarantined letter has been actioned and no longer represents backlog. */
 async function countDeadLetters(db: D1Database): Promise<number> {
-	const row = await db.prepare(`SELECT COUNT(*) AS n FROM dead_letters`).first<{ n: number }>();
+	const row = await db
+		.prepare(`SELECT COUNT(*) AS n FROM dead_letters WHERE status = 'new'`)
+		.first<{ n: number }>();
 	return row?.n ?? 0;
 }
 

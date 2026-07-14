@@ -14,6 +14,7 @@ export {
 	FINDING_GAMMA_OBFUSCATED_CODE,
 	FIXTURE_FINDINGS_BY_ASSESSMENT,
 } from "./findings.js";
+export { FIXTURE_DEAD_LETTERS } from "./dead-letters.js";
 export { FIXTURE_LABELS_BY_ASSESSMENT } from "./labels.js";
 export { FIXTURE_OPERATOR_ACTIONS } from "./operator-actions.js";
 export { FIXTURE_SUBJECT_HISTORY } from "./subject-history.js";

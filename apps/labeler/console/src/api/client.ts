@@ -1,5 +1,6 @@
 import {
 	FIXTURE_ASSESSMENTS,
+	FIXTURE_DEAD_LETTERS,
 	FIXTURE_FINDINGS_BY_ASSESSMENT,
 	FIXTURE_LABELS_BY_ASSESSMENT,
 	FIXTURE_OPERATOR_ACTIONS,
@@ -11,6 +12,9 @@ import type {
 	AssessmentRun,
 	AutomationToggleInput,
 	AutomationToggleResult,
+	DeadLetter,
+	DeadLetterActionInput,
+	DeadLetterActionResult,
 	EffectPreview,
 	EffectPreviewParams,
 	EmergencyActionInput,
@@ -20,6 +24,7 @@ import type {
 	LabelActionInput,
 	ListAssessmentsParams,
 	ListAuditLogParams,
+	ListDeadLettersParams,
 	OperatorAction,
 	OverrideActionInput,
 	OverrideEffectPreviewParams,
@@ -48,6 +53,7 @@ export interface LabelerConsoleClient {
 	getSubjectHistory(uri: string): Promise<SubjectHistoryView | null>;
 	getSubjectLabels(uri: string, cid?: string): Promise<SubjectLabel[]>;
 	listAuditLog(params?: ListAuditLogParams): Promise<Page<OperatorAction>>;
+	listDeadLetters(params?: ListDeadLettersParams): Promise<Page<DeadLetter>>;
 	getSystemStatus(): Promise<SystemStatusSnapshot>;
 	whoami(): Promise<WhoamiIdentity>;
 	previewEffect(params: EffectPreviewParams): Promise<EffectPreview>;
@@ -64,6 +70,8 @@ export interface LabelerConsoleClient {
 	): Promise<IssuedLabelDescriptor>;
 	pauseAutomation(input: AutomationToggleInput): Promise<AutomationToggleResult>;
 	resumeAutomation(input: AutomationToggleInput): Promise<AutomationToggleResult>;
+	retryDeadLetter(id: number, input: DeadLetterActionInput): Promise<DeadLetterActionResult>;
+	quarantineDeadLetter(id: number, input: DeadLetterActionInput): Promise<DeadLetterActionResult>;
 }
 
 /** The admin-only emergency endpoints, keyed by action and direction. */
@@ -167,6 +175,13 @@ export function createFetchClient(): LabelerConsoleClient {
 			const response = await consoleApiFetch(`/audit-log?${search.toString()}`);
 			return parseJson(response, "Failed to load audit log");
 		},
+		async listDeadLetters(params = {}) {
+			const search = new URLSearchParams();
+			if (params.cursor) search.set("cursor", params.cursor);
+			if (params.limit) search.set("limit", String(params.limit));
+			const response = await consoleApiFetch(`/dead-letters?${search.toString()}`);
+			return parseJson(response, "Failed to load dead letters");
+		},
 		async getSystemStatus() {
 			const response = await consoleApiFetch("/status");
 			return parseJson(response, "Failed to load system status");
@@ -230,6 +245,20 @@ export function createFetchClient(): LabelerConsoleClient {
 		async resumeAutomation(input) {
 			return postAction("/automation/resume", input, "Failed to resume automation");
 		},
+		async retryDeadLetter(id, input) {
+			return postAction(
+				`/dead-letters/${encodeURIComponent(id)}/retry`,
+				input,
+				"Failed to retry dead letter",
+			);
+		},
+		async quarantineDeadLetter(id, input) {
+			return postAction(
+				`/dead-letters/${encodeURIComponent(id)}/quarantine`,
+				input,
+				"Failed to quarantine dead letter",
+			);
+		},
 	};
 }
 
@@ -261,6 +290,9 @@ export function createFixtureClient(): LabelerConsoleClient {
 		},
 		async listAuditLog() {
 			return { items: [...FIXTURE_OPERATOR_ACTIONS] };
+		},
+		async listDeadLetters() {
+			return { items: [...FIXTURE_DEAD_LETTERS] };
 		},
 		async getSystemStatus() {
 			return FIXTURE_SYSTEM_STATUS;
@@ -360,6 +392,22 @@ export function createFixtureClient(): LabelerConsoleClient {
 				actionId: "oact_fixture",
 				paused: false,
 				reason: input.reason,
+				cts: new Date().toISOString(),
+			};
+		},
+		async retryDeadLetter(id) {
+			return {
+				actionId: "oact_fixture",
+				deadLetterId: id,
+				status: "retried",
+				cts: new Date().toISOString(),
+			};
+		},
+		async quarantineDeadLetter(id) {
+			return {
+				actionId: "oact_fixture",
+				deadLetterId: id,
+				status: "quarantined",
 				cts: new Date().toISOString(),
 			};
 		},

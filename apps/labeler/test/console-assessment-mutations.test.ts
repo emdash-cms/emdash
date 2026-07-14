@@ -108,6 +108,7 @@ function mutationDeps(overrides: Partial<ConsoleMutationDeps> = {}): ConsoleMuta
 		defer: (work) => {
 			void work;
 		},
+		sendDiscoveryJob: async () => {},
 		...overrides,
 	};
 }

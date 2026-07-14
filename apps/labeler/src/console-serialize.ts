@@ -25,6 +25,7 @@ import type {
 	ListedAssessment,
 	Subject,
 } from "./assessment-store.js";
+import type { StoredDeadLetter } from "./dead-letters.js";
 import type { FindingSeverity } from "./evidence.js";
 import type { FindingSource } from "./findings.js";
 import type { StoredOperatorAction } from "./operator-actions.js";
@@ -125,6 +126,22 @@ export interface SystemStatusSnapshot {
 	deadLetterDepth: number;
 }
 
+/** A `dead_letters` row for the operator console. The raw `payload` (unverified
+ * Jetstream bytes) is deliberately excluded — the console displays the failure
+ * reason and resolution state, never the untrusted record. */
+export interface DeadLetter {
+	id: number;
+	did: string;
+	collection: string;
+	rkey: string;
+	reason: string;
+	detail: string | null;
+	status: string;
+	receivedAt: string;
+	resolvedAt: string | null;
+	resolvedByActionId: string | null;
+}
+
 export interface Page<T> {
 	items: T[];
 	nextCursor?: string;
@@ -222,5 +239,20 @@ export function serializeOperatorActionView(action: StoredOperatorAction): Opera
 		labelValue: action.labelValue,
 		reason: action.reason,
 		createdAt: action.createdAt,
+	};
+}
+
+export function serializeDeadLetter(row: StoredDeadLetter): DeadLetter {
+	return {
+		id: row.id,
+		did: row.did,
+		collection: row.collection,
+		rkey: row.rkey,
+		reason: row.reason,
+		detail: row.detail,
+		status: row.status,
+		receivedAt: row.receivedAt,
+		resolvedAt: row.resolvedAt,
+		resolvedByActionId: row.resolvedByActionId,
 	};
 }

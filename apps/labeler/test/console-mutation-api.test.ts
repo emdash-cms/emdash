@@ -125,6 +125,7 @@ function mutationDeps(overrides: Partial<ConsoleMutationDeps> = {}): ConsoleMuta
 		defer: (work) => {
 			void work;
 		},
+		sendDiscoveryJob: async () => {},
 		...overrides,
 	};
 }
@@ -1575,5 +1576,337 @@ describe("console mutation: pause endpoint drives the discovery consumer gate (e
 		expect(resumedMsg.acked).toBe(1);
 		expect(resumedMsg.retried).toBe(0);
 		expect(await countRows(`SELECT COUNT(*) n FROM subjects WHERE uri = ?`, uri)).toBe(1);
+	});
+});
+
+// ─── W9.6: admin-only dead-letter retry / quarantine controls ────────────────
+
+interface DeadLetterActionDescriptor {
+	actionId: string;
+	deadLetterId: number;
+	status: string;
+	cts: string;
+}
+
+let dlSeq = 0;
+
+async function seedDeadLetter(
+	overrides: { status?: string; job?: Partial<DiscoveryJob> } = {},
+): Promise<{ id: number; job: DiscoveryJob }> {
+	dlSeq += 1;
+	const rkey = `dl-${dlSeq.toString().padStart(4, "0")}`;
+	const job: DiscoveryJob = {
+		did: PUBLISHER_DID,
+		collection: "com.emdashcms.experimental.package.release",
+		rkey,
+		operation: "create",
+		cid: CID,
+		jetstreamRecord: { $type: "com.emdashcms.experimental.package.release", package: rkey },
+		...overrides.job,
+	};
+	const payload = new TextEncoder().encode(JSON.stringify(job));
+	const result = await testEnv.DB.prepare(
+		`INSERT INTO dead_letters (did, collection, rkey, reason, detail, payload, received_at, status)
+		 VALUES (?, ?, ?, 'verify-failed', 'detail', ?, datetime('now'), ?)`,
+	)
+		.bind(job.did, job.collection, job.rkey, payload, overrides.status ?? "new")
+		.run();
+	return { id: Number(result.meta.last_row_id), job };
+}
+
+async function deadLetterRow(
+	id: number,
+): Promise<{
+	status: string;
+	resolved_at: string | null;
+	resolved_by_action_id: string | null;
+} | null> {
+	return testEnv.DB.prepare(
+		`SELECT status, resolved_at, resolved_by_action_id FROM dead_letters WHERE id = ?`,
+	)
+		.bind(id)
+		.first();
+}
+
+function deadLetterReq(
+	path: string,
+	token: string | null = adminToken,
+	body: Record<string, unknown> = {},
+): Request {
+	return post(path, { reason: "re-drive", idempotencyKey: nextKey(), ...body }, { token });
+}
+
+/** Captures the deferred re-enqueue tail so a test can settle it and observe the
+ * queue sends. `defer` collects the work rather than dropping it (the default
+ * `mutationDeps` swallows deferred work). */
+function captureReenqueue(): {
+	deps: ConsoleMutationDeps;
+	sent: DiscoveryJob[];
+	settle: () => Promise<unknown>;
+} {
+	const sent: DiscoveryJob[] = [];
+	const deferred: Promise<unknown>[] = [];
+	const deps = mutationDeps({
+		sendDiscoveryJob: async (job) => {
+			sent.push(job);
+		},
+		defer: (work) => {
+			deferred.push(work);
+		},
+	});
+	return { deps, sent, settle: () => Promise.all(deferred.splice(0)) };
+}
+
+describe("console mutation: dead-letter retry (admin)", () => {
+	it("flips new→retried, emits one info event + audit row, enqueues one job", async () => {
+		const { id, job } = await seedDeadLetter();
+		const { deps, sent, settle } = captureReenqueue();
+		const response = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/${id}/retry`),
+			deps,
+		);
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<DeadLetterActionDescriptor>(response);
+		expect(descriptor).toMatchObject({ deadLetterId: id, status: "retried" });
+
+		const row = await deadLetterRow(id);
+		expect(row?.status).toBe("retried");
+		expect(row?.resolved_at).not.toBeNull();
+		expect(row?.resolved_by_action_id).toBe(descriptor.actionId);
+
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM operator_actions WHERE id = ? AND action = 'dlq-retry'`,
+				descriptor.actionId,
+			),
+		).toBe(1);
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM operational_events
+				 WHERE action_id = ? AND event_type = 'dead-letter-retried' AND severity = 'info'`,
+				descriptor.actionId,
+			),
+		).toBe(1);
+		// No label issued, so no delivery outbox row.
+		expect(await outboxCount(descriptor.actionId)).toBe(0);
+
+		await settle();
+		expect(sent).toHaveLength(1);
+		expect(sent[0]).toMatchObject({
+			did: job.did,
+			collection: job.collection,
+			rkey: job.rkey,
+			cid: job.cid,
+			operation: "create",
+		});
+	});
+});
+
+describe("console mutation: dead-letter quarantine (admin)", () => {
+	it("flips new→quarantined, emits one info event, enqueues nothing", async () => {
+		const { id } = await seedDeadLetter();
+		const { deps, sent, settle } = captureReenqueue();
+		const response = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/${id}/quarantine`),
+			deps,
+		);
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<DeadLetterActionDescriptor>(response);
+		expect(descriptor).toMatchObject({ deadLetterId: id, status: "quarantined" });
+
+		const row = await deadLetterRow(id);
+		expect(row?.status).toBe("quarantined");
+		expect(row?.resolved_by_action_id).toBe(descriptor.actionId);
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM operational_events
+				 WHERE action_id = ? AND event_type = 'dead-letter-quarantined' AND severity = 'info'`,
+				descriptor.actionId,
+			),
+		).toBe(1);
+
+		await settle();
+		expect(sent).toHaveLength(0);
+	});
+});
+
+describe("console mutation: dead-letter authorization (per-endpoint, pre-effect)", () => {
+	it.each(["retry", "quarantine"])(
+		"rejects a reviewer with zero side effects: %s",
+		async (verb) => {
+			const { id } = await seedDeadLetter();
+			const before = {
+				actions: await countRows(`SELECT COUNT(*) n FROM operator_actions`),
+				events: await countRows(`SELECT COUNT(*) n FROM operational_events`),
+			};
+			const { deps, sent, settle } = captureReenqueue();
+			const response = await handleConsoleMutation(
+				deadLetterReq(`/admin/api/dead-letters/${id}/${verb}`, reviewerToken),
+				deps,
+			);
+			expect(response.status).toBe(403);
+			expect((await bodyError(response)).code).toBe("FORBIDDEN_ROLE");
+			expect(await countRows(`SELECT COUNT(*) n FROM operator_actions`)).toBe(before.actions);
+			expect(await countRows(`SELECT COUNT(*) n FROM operational_events`)).toBe(before.events);
+			expect((await deadLetterRow(id))?.status).toBe("new");
+			await settle();
+			expect(sent).toHaveLength(0);
+		},
+	);
+
+	it.each(["retry", "quarantine"])(
+		"accepts an admin (the 403 is the role, not a broken endpoint): %s",
+		async (verb) => {
+			const { id } = await seedDeadLetter();
+			const response = await handleConsoleMutation(
+				deadLetterReq(`/admin/api/dead-letters/${id}/${verb}`, adminToken),
+				mutationDeps(),
+			);
+			expect(response.status).toBe(200);
+		},
+	);
+
+	it("rejects an unauthenticated caller with zero side effects (401)", async () => {
+		const { id } = await seedDeadLetter();
+		const before = {
+			actions: await countRows(`SELECT COUNT(*) n FROM operator_actions`),
+			events: await countRows(`SELECT COUNT(*) n FROM operational_events`),
+		};
+		const { deps, sent, settle } = captureReenqueue();
+		const response = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/${id}/retry`, null),
+			deps,
+		);
+		expect(response.status).toBe(401);
+		expect(await countRows(`SELECT COUNT(*) n FROM operator_actions`)).toBe(before.actions);
+		expect(await countRows(`SELECT COUNT(*) n FROM operational_events`)).toBe(before.events);
+		expect((await deadLetterRow(id))?.status).toBe("new");
+		await settle();
+		expect(sent).toHaveLength(0);
+	});
+});
+
+describe("console mutation: dead-letter double-processing (T6)", () => {
+	it("404s a retry on an absent dead letter", async () => {
+		const response = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/99999999/retry`),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(404);
+	});
+
+	it("404s a malformed dead-letter id", async () => {
+		const response = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/not-an-id/retry`),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(404);
+	});
+
+	it("409s a second retry on an already-resolved letter with no second enqueue", async () => {
+		const { id } = await seedDeadLetter();
+		const { deps, sent, settle } = captureReenqueue();
+		const first = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/${id}/retry`),
+			deps,
+		);
+		expect(first.status).toBe(200);
+		await settle();
+		expect(sent).toHaveLength(1);
+
+		const actionsBefore = await countRows(`SELECT COUNT(*) n FROM operator_actions`);
+		const eventsBefore = await countRows(`SELECT COUNT(*) n FROM operational_events`);
+		const second = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/${id}/retry`),
+			deps,
+		);
+		expect(second.status).toBe(409);
+		expect((await bodyError(second)).code).toBe("DEAD_LETTER_RESOLVED");
+		expect(await countRows(`SELECT COUNT(*) n FROM operator_actions`)).toBe(actionsBefore);
+		expect(await countRows(`SELECT COUNT(*) n FROM operational_events`)).toBe(eventsBefore);
+		await settle();
+		expect(sent).toHaveLength(1);
+	});
+
+	it("409s a quarantine after a retry, and a retry after a quarantine", async () => {
+		const a = await seedDeadLetter();
+		expect(
+			(
+				await handleConsoleMutation(
+					deadLetterReq(`/admin/api/dead-letters/${a.id}/retry`),
+					mutationDeps(),
+				)
+			).status,
+		).toBe(200);
+		const quarantineAfterRetry = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/${a.id}/quarantine`),
+			mutationDeps(),
+		);
+		expect(quarantineAfterRetry.status).toBe(409);
+
+		const b = await seedDeadLetter();
+		expect(
+			(
+				await handleConsoleMutation(
+					deadLetterReq(`/admin/api/dead-letters/${b.id}/quarantine`),
+					mutationDeps(),
+				)
+			).status,
+		).toBe(200);
+		const retryAfterQuarantine = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/${b.id}/retry`),
+			mutationDeps(),
+		);
+		expect(retryAfterQuarantine.status).toBe(409);
+	});
+});
+
+describe("console mutation: dead-letter replay and idempotency", () => {
+	it("replays the stored result for the same key, enqueuing exactly once", async () => {
+		const { id } = await seedDeadLetter();
+		const key = nextKey();
+		const { deps, sent, settle } = captureReenqueue();
+		const request = () =>
+			post(
+				`/admin/api/dead-letters/${id}/retry`,
+				{ reason: "re-drive", idempotencyKey: key },
+				{ token: adminToken },
+			);
+		const first = await handleConsoleMutation(request(), deps);
+		const firstBody = await first.text();
+		await settle();
+		const second = await handleConsoleMutation(request(), deps);
+		expect(second.status).toBe(200);
+		expect(await second.text()).toBe(firstBody);
+		await settle();
+		// The replay returns the stored descriptor without re-running the effect.
+		expect(sent).toHaveLength(1);
+		const actionId = (JSON.parse(firstBody) as { data: DeadLetterActionDescriptor }).data.actionId;
+		expect(await eventCount(actionId)).toBe(1);
+	});
+
+	it("409s a same-key request targeting a different dead letter", async () => {
+		const a = await seedDeadLetter();
+		const b = await seedDeadLetter();
+		const key = nextKey();
+		const first = await handleConsoleMutation(
+			post(
+				`/admin/api/dead-letters/${a.id}/retry`,
+				{ reason: "re-drive", idempotencyKey: key },
+				{ token: adminToken },
+			),
+			mutationDeps(),
+		);
+		expect(first.status).toBe(200);
+		const second = await handleConsoleMutation(
+			post(
+				`/admin/api/dead-letters/${b.id}/retry`,
+				{ reason: "re-drive", idempotencyKey: key },
+				{ token: adminToken },
+			),
+			mutationDeps(),
+		);
+		expect(second.status).toBe(409);
+		expect((await bodyError(second)).code).toBe("IDEMPOTENCY_KEY_CONFLICT");
 	});
 });

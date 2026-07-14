@@ -1,5 +1,5 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
-import { ClockCounterClockwise, ShieldCheck, SquaresFour } from "@phosphor-icons/react";
+import { ClockCounterClockwise, Envelope, ShieldCheck, SquaresFour } from "@phosphor-icons/react";
 import { useLocation } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -42,6 +42,7 @@ export function SidebarNav() {
 	const items: NavItem[] = [
 		{ to: "/", label: "Dashboard", icon: SquaresFour },
 		{ to: "/assessments", label: "Assessments", icon: ShieldCheck },
+		{ to: "/dead-letters", label: "Dead letters", icon: Envelope },
 		{ to: "/audit", label: "Audit log", icon: ClockCounterClockwise },
 	];
 

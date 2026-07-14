@@ -335,6 +335,41 @@ export interface AutomationToggleResult {
 	cts: string;
 }
 
+export type DeadLetterStatus = "new" | "retried" | "quarantined";
+
+/** A `dead_letters` row from `GET /admin/api/dead-letters` — a discovery event
+ * that failed verification. The raw payload is never sent; the console shows the
+ * failure reason and resolution state. `new` letters are actionable (admin-only
+ * retry / quarantine); `retried` / `quarantined` are terminal. */
+export interface DeadLetter {
+	id: number;
+	did: string;
+	collection: string;
+	rkey: string;
+	reason: string;
+	detail: string | null;
+	status: DeadLetterStatus;
+	receivedAt: string;
+	resolvedAt: string | null;
+	resolvedByActionId: string | null;
+}
+
+/** Body for the admin-only dead-letter endpoints (`POST /admin/api/dead-letters/:id/*`).
+ * A required reason and a client-minted idempotency key reused across retries so
+ * a network retry replays rather than re-drives twice. */
+export interface DeadLetterActionInput {
+	reason: string;
+	idempotencyKey: string;
+}
+
+/** Idempotent retry / quarantine result — the dead letter's post-action status. */
+export interface DeadLetterActionResult {
+	actionId: string;
+	deadLetterId: number;
+	status: Exclude<DeadLetterStatus, "new">;
+	cts: string;
+}
+
 export interface ListAssessmentsParams {
 	state?: PublicAssessmentState;
 	cursor?: string;
@@ -342,6 +377,11 @@ export interface ListAssessmentsParams {
 }
 
 export interface ListAuditLogParams {
+	cursor?: string;
+	limit?: number;
+}
+
+export interface ListDeadLettersParams {
 	cursor?: string;
 	limit?: number;
 }
