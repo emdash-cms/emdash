@@ -2131,8 +2131,9 @@ export function PortableTextEditor({
 	onBlockSidebarClose,
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
-	const placeholderRef = React.useRef(placeholder ?? t`Type / for commands`);
-	placeholderRef.current = placeholder ?? t`Type / for commands`;
+	const placeholderRef = React.useRef(placeholder ?? t`Start writing, or type '/' for commands`);
+	placeholderRef.current = placeholder ?? t`Start writing, or type '/' for commands`;
+	const toolbarRef = React.useRef<HTMLDivElement>(null);
 
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
@@ -2737,13 +2738,14 @@ export function PortableTextEditor({
 		>
 			{!minimal && (
 				<EditorToolbar
+					toolbarRef={toolbarRef}
 					editor={editor}
 					focusMode={focusMode}
 					onFocusModeChange={setFocusMode}
 					onInsertBlock={handleTouchInsertBlock}
 				/>
 			)}
-			<EditorBubbleMenu editor={editor} />
+			<EditorBubbleMenu editor={editor} toolbarRef={toolbarRef} />
 			<TableBubbleMenu editor={editor} />
 			<div className="relative overflow-visible">
 				<EditorContent editor={editor} />
@@ -2803,11 +2805,37 @@ export function PortableTextEditor({
  * Bubble Menu - appears when text is selected
  * Shows inline formatting options and link editing
  */
-function EditorBubbleMenu({ editor }: { editor: Editor }) {
+function EditorBubbleMenu({
+	editor,
+	toolbarRef,
+}: {
+	editor: Editor;
+	toolbarRef: React.RefObject<HTMLDivElement | null>;
+}) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const { t } = useLingui();
+	// The adjacent sticky toolbar is not a clipping ancestor, so Floating UI cannot detect it.
+	const getCollisionOptions = () => {
+		const viewport = window.visualViewport;
+		const viewportTop = viewport?.offsetTop ?? 0;
+		const viewportLeft = viewport?.offsetLeft ?? 0;
+		const viewportWidth = viewport?.width ?? window.innerWidth;
+		const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+		const toolbarBottom = toolbarRef.current?.getBoundingClientRect().bottom ?? viewportTop;
+		const safeTop = Math.min(viewportBottom, Math.max(viewportTop, toolbarBottom));
+
+		return {
+			rootBoundary: {
+				x: viewportLeft,
+				y: safeTop,
+				width: viewportWidth,
+				height: Math.max(0, viewportBottom - safeTop),
+			},
+			padding: 8,
+		};
+	};
 
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
@@ -2852,8 +2880,8 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 			options={{
 				placement: "top",
 				offset: 8,
-				flip: true,
-				shift: true,
+				flip: getCollisionOptions,
+				shift: getCollisionOptions,
 			}}
 			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
 		>
@@ -3058,11 +3086,13 @@ function BubbleButton({
  * Arrow keys move focus between buttons, Home/End jump to first/last.
  */
 function EditorToolbar({
+	toolbarRef,
 	editor,
 	focusMode,
 	onFocusModeChange,
 	onInsertBlock,
 }: {
+	toolbarRef: React.RefObject<HTMLDivElement | null>;
 	editor: Editor;
 	focusMode: FocusMode;
 	onFocusModeChange: (mode: FocusMode) => void;
@@ -3072,7 +3102,6 @@ function EditorToolbar({
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
-	const toolbarRef = React.useRef<HTMLDivElement>(null);
 	const linkInputRef = React.useRef<HTMLInputElement>(null);
 
 	// Subscribe to editor state changes for reactive button states
@@ -3214,7 +3243,7 @@ function EditorToolbar({
 					className="hidden h-8 w-8 flex-none pointer-coarse:flex"
 					onMouseDown={(event) => event.preventDefault()}
 					onClick={onInsertBlock}
-					aria-label={t`Insert block below`}
+					aria-label={t`Insert block after current block`}
 					tabIndex={-1}
 					data-touch-block-insert
 				>

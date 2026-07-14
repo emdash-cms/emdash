@@ -239,6 +239,7 @@ describe("Toolbar Presence and Structure", () => {
 
 		expect(touchInsert).toBeTruthy();
 		expect(touchInsert?.className).toContain("pointer-coarse:flex");
+		expect(touchInsert?.getAttribute("aria-label")).toBe("Insert block after current block");
 		touchInsert?.click();
 		await vi.waitFor(() => {
 			expect(document.querySelector("body > div [data-index]")).toBeTruthy();

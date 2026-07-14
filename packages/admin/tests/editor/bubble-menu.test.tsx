@@ -104,17 +104,25 @@ const defaultValue = [
 	},
 ];
 
-async function renderEditor(props: Partial<PortableTextEditorProps> = {}) {
+async function renderEditor(props: Partial<PortableTextEditorProps> = {}, scrollContainerTop = 0) {
 	let editorInstance: Editor | null = null;
 
 	const screen = await render(
-		<PortableTextEditor
-			value={defaultValue}
-			onEditorReady={(editor) => {
-				editorInstance = editor;
+		<div
+			style={{
+				marginTop: scrollContainerTop,
+				maxHeight: scrollContainerTop ? 500 : undefined,
+				overflowY: scrollContainerTop ? "auto" : undefined,
 			}}
-			{...props}
-		/>,
+		>
+			<PortableTextEditor
+				value={defaultValue}
+				onEditorReady={(editor) => {
+					editorInstance = editor;
+				}}
+				{...props}
+			/>
+		</div>,
 	);
 
 	await vi.waitFor(
@@ -190,6 +198,60 @@ describe("Bubble Menu", () => {
 
 		const menu = await waitForBubbleMenu();
 		expect(menu).toBeTruthy();
+	});
+
+	it("flips below a top-line selection when the sticky toolbar blocks the preferred position", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		const toolbar = document.querySelector<HTMLElement>(
+			'[role="toolbar"][aria-label="Text formatting"]',
+		);
+		expect(toolbar).toBeTruthy();
+
+		await vi.waitFor(() => {
+			const selection = window.getSelection();
+			expect(selection?.rangeCount).toBe(1);
+			const selectionRect = selection!.getRangeAt(0).getBoundingClientRect();
+			const menuRect = menu.getBoundingClientRect();
+			expect(menuRect.top).toBeGreaterThanOrEqual(selectionRect.bottom);
+			expect(menuRect.top).toBeGreaterThanOrEqual(toolbar!.getBoundingClientRect().bottom);
+		});
+	});
+
+	it("stays above the selection when there is room below the sticky toolbar", async () => {
+		const value = ["First line", "Second line", "Third line"].map((text, index) => ({
+			_type: "block" as const,
+			_key: String(index),
+			style: "normal" as const,
+			children: [{ _type: "span" as const, _key: `span-${index}`, text }],
+		}));
+		const { editor, pm } = await renderEditor({ value }, 58);
+		pm.focus();
+
+		let textPosition = 0;
+		editor.state.doc.descendants((node, position) => {
+			if (node.isText && node.text === "Third line") {
+				textPosition = position;
+				return false;
+			}
+			return undefined;
+		});
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: textPosition, to: textPosition + 10 })
+			.run();
+
+		const menu = await waitForBubbleMenu();
+		await vi.waitFor(() => {
+			const selection = window.getSelection();
+			expect(selection?.rangeCount).toBe(1);
+			const selectionRect = selection!.getRangeAt(0).getBoundingClientRect();
+			const menuRect = menu.getBoundingClientRect();
+			expect(menuRect.bottom).toBeLessThanOrEqual(selectionRect.top);
+		});
 	});
 
 	it("shows formatting buttons: Bold, Italic, Underline, Strikethrough, Code", async () => {

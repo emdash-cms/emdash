@@ -222,7 +222,7 @@ describe("ContentEditor", () => {
 			fields: { content: { kind: "portableText", label: "Content" } },
 		});
 
-		expect(portableTextProps.current?.placeholder).toBe("Type / for commands");
+		expect(portableTextProps.current?.placeholder).toBe("Start writing, or type '/' for commands");
 	});
 
 	describe("block panel + mobile sheet sync", () => {
