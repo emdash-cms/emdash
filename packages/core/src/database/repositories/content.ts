@@ -1339,13 +1339,34 @@ export class ContentRepository {
 			// so the content table always holds the published version
 			const revision = await revisionRepo.findById(revisionToPublish);
 			if (revision) {
+				// A staged slug lands on the live column only here — it never
+				// passes through update(), so its uniqueness was never checked.
+				// Validate before any write: the `(slug, locale)` unique index
+				// covers every row (drafts and trashed entries included), and
+				// letting the constraint fire mid-publish would surface as an
+				// opaque 500 after draft data already hit the live columns.
+				const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
+				if (stagedSlug !== null && stagedSlug !== existing.slug) {
+					const conflict = await this.findBySlugIncludingTrashed(
+						type,
+						stagedSlug,
+						existing.locale ?? undefined,
+					);
+					if (conflict && conflict.id !== id) {
+						throw new EmDashValidationError(
+							`Cannot publish: slug '${stagedSlug}' is already used by another entry` +
+								` in this collection (id: ${conflict.id}). Choose a different slug.`,
+						);
+					}
+				}
+
 				await this.syncDataColumns(type, id, revision.data);
 
 				// Sync slug from revision if stored there
-				if (typeof revision.data._slug === "string") {
+				if (stagedSlug !== null) {
 					await sql`
 						UPDATE ${sql.ref(tableName)}
-						SET slug = ${revision.data._slug}
+						SET slug = ${stagedSlug}
 						WHERE id = ${id}
 					`.execute(this.db);
 				}

@@ -1495,6 +1495,23 @@ export async function handleContentPublish(
 				},
 			};
 		}
+		// Backstop for the pre-check inside repo.publish(): a concurrent write
+		// can still take the slug between the check and the UPDATE, in which
+		// case the `(slug, locale)` unique constraint fires. Same fingerprint
+		// mapping as create/update — never a raw SQLite error to the client.
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (
+			(message.includes("unique constraint failed") || message.includes("duplicate key")) &&
+			message.includes("slug")
+		) {
+			return {
+				success: false,
+				error: {
+					code: "SLUG_CONFLICT",
+					message: `The staged slug is already used by another entry in collection '${collection}'`,
+				},
+			};
+		}
 		console.error("Content publish error:", error);
 		return {
 			success: false,
