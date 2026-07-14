@@ -78,6 +78,12 @@ describe("axe: routes", () => {
 		await screen.findByRole("button", { name: "Retry" });
 		expect(await axe(container)).toHaveNoViolations();
 	});
+
+	it("NotFound", async () => {
+		const { container } = renderRoute("/no-such-page");
+		await screen.findByRole("heading", { name: "Not found", level: 1 });
+		expect(await axe(container)).toHaveNoViolations();
+	});
 });
 
 describe("axe: dialogs", () => {
