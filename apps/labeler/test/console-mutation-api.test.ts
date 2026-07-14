@@ -832,6 +832,15 @@ async function outboxCount(actionId: string): Promise<number> {
 	);
 }
 
+async function globalCounts(): Promise<Record<string, number>> {
+	return {
+		actions: await countRows(`SELECT COUNT(*) n FROM operator_actions`),
+		labels: await countRows(`SELECT COUNT(*) n FROM issued_labels`),
+		events: await countRows(`SELECT COUNT(*) n FROM operational_events`),
+		outbox: await countRows(`SELECT COUNT(*) n FROM notification_outbox`),
+	};
+}
+
 function emergency(
 	path: string,
 	body: Record<string, unknown>,
@@ -1246,10 +1255,21 @@ describe("console mutation: emergency retract resting state", () => {
 	});
 
 	it("emits a high-severity operational event for a retract", async () => {
+		const uri = await seedReleaseSubject("emrg-retract-event");
+		const issued = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri,
+				subjectConfirmation: "emrg-retract-event",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(issued.status).toBe(200);
+
 		const response = await handleConsoleMutation(
 			emergency("/admin/api/emergency/takedown-retract", {
-				uri: PUBLISHER_DID,
-				subjectConfirmation: PUBLISHER_SEGMENT,
+				uri,
+				subjectConfirmation: "emrg-retract-event",
 				intent: "CONFIRM RETRACT",
 			}),
 			mutationDeps(),
@@ -1262,6 +1282,211 @@ describe("console mutation: emergency retract resting state", () => {
 				descriptor.actionId,
 			),
 		).toBe(1);
+	});
+});
+
+describe("console mutation: emergency retract guard", () => {
+	const FRESH_DID = "did:plc:nocompromise00000000000000";
+	const FRESH_DID_SEGMENT = FRESH_DID.split(":").at(-1)!;
+
+	it("retracts an active takedown: negation lands, event emitted (200)", async () => {
+		const uri = await seedReleaseSubject("guard-active-td");
+		const issued = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri,
+				subjectConfirmation: "guard-active-td",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(issued.status).toBe(200);
+
+		const retract = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri,
+				subjectConfirmation: "guard-active-td",
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(retract.status).toBe(200);
+		const descriptor = await bodyData<IssuedLabelDescriptor>(retract);
+		expect(descriptor.neg).toBe(true);
+
+		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: CID });
+		expect(winners.get("!takedown")?.active).toBe(false);
+		expect(await eventCount(descriptor.actionId)).toBe(1);
+	});
+
+	it("retracts an active takedown on a package subject (200)", async () => {
+		const uri = profileUri("guard-active-td-pkg");
+		const issued = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri,
+				subjectConfirmation: "guard-active-td-pkg",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(issued.status).toBe(200);
+
+		const retract = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri,
+				subjectConfirmation: "guard-active-td-pkg",
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(retract.status).toBe(200);
+		expect((await bodyData<IssuedLabelDescriptor>(retract)).neg).toBe(true);
+		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: "" });
+		expect(winners.get("!takedown")?.active).toBe(false);
+	});
+
+	it("retracts an active takedown on a publisher subject (200)", async () => {
+		const uri = "did:plc:guardtdpublisher00000000000";
+		const issued = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri,
+				subjectConfirmation: uri.split(":").at(-1)!,
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(issued.status).toBe(200);
+
+		const retract = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri,
+				subjectConfirmation: uri.split(":").at(-1)!,
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(retract.status).toBe(200);
+		expect((await bodyData<IssuedLabelDescriptor>(retract)).neg).toBe(true);
+		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: "" });
+		expect(winners.get("!takedown")?.active).toBe(false);
+	});
+
+	it("retracts an active publisher-compromised on a publisher (200)", async () => {
+		const uri = "did:plc:guardpccompromised000000000";
+		const issued = await handleConsoleMutation(
+			emergency("/admin/api/emergency/publisher-compromised", {
+				uri,
+				subjectConfirmation: uri.split(":").at(-1)!,
+				intent: "CONFIRM COMPROMISE",
+			}),
+			mutationDeps(),
+		);
+		expect(issued.status).toBe(200);
+
+		const retract = await handleConsoleMutation(
+			emergency("/admin/api/emergency/publisher-compromised-retract", {
+				uri,
+				subjectConfirmation: uri.split(":").at(-1)!,
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(retract.status).toBe(200);
+		expect((await bodyData<IssuedLabelDescriptor>(retract)).neg).toBe(true);
+		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: "" });
+		expect(winners.get("publisher-compromised")?.active).toBe(false);
+	});
+
+	it("rejects a takedown-retract with no active takedown (404, zero side effects)", async () => {
+		const uri = await seedReleaseSubject("guard-no-td");
+		const before = await globalCounts();
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri,
+				subjectConfirmation: "guard-no-td",
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(404);
+		expect((await bodyError(response)).code).toBe("NO_ACTIVE_LABEL");
+		expect(await globalCounts()).toEqual(before);
+	});
+
+	it("rejects a publisher-compromised-retract with no active label (404, zero side effects)", async () => {
+		const before = await globalCounts();
+		const response = await handleConsoleMutation(
+			emergency("/admin/api/emergency/publisher-compromised-retract", {
+				uri: FRESH_DID,
+				subjectConfirmation: FRESH_DID_SEGMENT,
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(response.status).toBe(404);
+		expect((await bodyError(response)).code).toBe("NO_ACTIVE_LABEL");
+		expect(await globalCounts()).toEqual(before);
+	});
+
+	it("rejects retracting an already-retracted takedown (404, zero side effects)", async () => {
+		const uri = await seedReleaseSubject("guard-double-retract");
+		const issued = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown", {
+				uri,
+				subjectConfirmation: "guard-double-retract",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(issued.status).toBe(200);
+		const firstRetract = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri,
+				subjectConfirmation: "guard-double-retract",
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(firstRetract.status).toBe(200);
+
+		const before = await globalCounts();
+		const secondRetract = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri,
+				subjectConfirmation: "guard-double-retract",
+				intent: "CONFIRM RETRACT",
+			}),
+			mutationDeps(),
+		);
+		expect(secondRetract.status).toBe(404);
+		expect((await bodyError(secondRetract)).code).toBe("NO_ACTIVE_LABEL");
+		expect(await globalCounts()).toEqual(before);
+	});
+
+	it("keeps the role and ceremony rejections ahead of the retract guard", async () => {
+		const uri = await seedReleaseSubject("guard-order");
+		// Reviewer role gate (403) precedes the retract guard even with nothing active.
+		const roleDenied = await handleConsoleMutation(
+			emergency(
+				"/admin/api/emergency/takedown-retract",
+				{ uri, subjectConfirmation: "guard-order", intent: "CONFIRM RETRACT" },
+				reviewerToken,
+			),
+			mutationDeps(),
+		);
+		expect(roleDenied.status).toBe(403);
+		expect((await bodyError(roleDenied)).code).toBe("FORBIDDEN_ROLE");
+
+		// Admin with a wrong intent: the ceremony gate (400) precedes the retract guard.
+		const ceremonyDenied = await handleConsoleMutation(
+			emergency("/admin/api/emergency/takedown-retract", {
+				uri,
+				subjectConfirmation: "guard-order",
+				intent: "CONFIRM TAKEDOWN",
+			}),
+			mutationDeps(),
+		);
+		expect(ceremonyDenied.status).toBe(400);
+		expect((await bodyError(ceremonyDenied)).code).toBe("CONFIRMATION_MISMATCH");
 	});
 });
 
@@ -1614,9 +1839,7 @@ async function seedDeadLetter(
 	return { id: Number(result.meta.last_row_id), job };
 }
 
-async function deadLetterRow(
-	id: number,
-): Promise<{
+async function deadLetterRow(id: number): Promise<{
 	status: string;
 	resolved_at: string | null;
 	resolved_by_action_id: string | null;

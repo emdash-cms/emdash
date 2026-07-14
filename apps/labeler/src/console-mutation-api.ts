@@ -24,6 +24,7 @@ import {
 import {
 	advanceAssessmentToPending,
 	buildAssessmentRunStatement,
+	getActiveLabelState,
 	getAssessment,
 	type Assessment,
 } from "./assessment-store.js";
@@ -198,7 +199,8 @@ export async function handleConsoleMutation(
 			error instanceof MutationGuardError ||
 			error instanceof ReadGuardError ||
 			error instanceof LabelMutationError ||
-			error instanceof DeadLetterResolvedError
+			error instanceof DeadLetterResolvedError ||
+			error instanceof NoActiveLabelError
 		)
 			return error.toResponse();
 		// A submitted override negation set that isn't exactly the live automated
@@ -853,6 +855,27 @@ interface EmergencyActionBody {
  * (`cid` is always null: every emergency label is URI-wide / DID-subject). */
 type EmergencyDescriptor = IssuedLabelDescriptor;
 
+/** A retract whose target positive label is not currently in effect (never
+ * issued, already negated, or expired) — there is nothing to retract. Static
+ * message; a 404 mirroring the absent-subject case so a no-op negation is never
+ * signed and no operational event fires for a takedown that was never live. */
+class NoActiveLabelError extends Error {
+	override readonly name = "NoActiveLabelError";
+	readonly code = "NO_ACTIVE_LABEL";
+	readonly status = 404;
+
+	constructor() {
+		super("No active label to retract");
+	}
+
+	toResponse(): Response {
+		return Response.json(
+			{ error: { code: this.code, message: this.message } },
+			{ status: this.status },
+		);
+	}
+}
+
 /**
  * `POST /admin/api/emergency/{takedown,publisher-compromised}` and their
  * `-retract` siblings — the admin-only crown-jewel actions (spec §11.3/§18.2,
@@ -901,6 +924,12 @@ async function runEmergencyAction(
 	}
 
 	const { ctx } = outcome;
+	// A retract only makes sense against a currently-in-effect positive label. A
+	// pure read after the role + ceremony gates and before any signing/commit: an
+	// absent, already-negated, or expired winner is rejected here, so no no-op
+	// negation is signed and no operational event or alert fires.
+	if (neg) await assertRetractableLabel(deps.db, deps.config.labelerDid, ctx.body.uri, val);
+
 	const signer = await deps.createSigner();
 	const issuance = await prepareManualLabelIssuance(
 		deps.db,
@@ -1003,6 +1032,24 @@ function assertEmergencyConfirmation(
  * PLC/web identifier), not a resolved handle. */
 function didFinalSegment(uri: string): string {
 	return uri.split(":").at(-1) ?? "";
+}
+
+/**
+ * Rejects a retract with no positive label to retract. Reads the same stream
+ * winner official clients see (`getActiveLabelState`); the label is retractable
+ * iff its winner exists and is `active` (non-negated, unexpired). Every emergency
+ * label is URI-wide, so `cid: ""` matches the CID-forbidden winner the same way
+ * the console's publisher subject-label read does.
+ */
+async function assertRetractableLabel(
+	db: D1Database,
+	src: string,
+	uri: string,
+	val: string,
+): Promise<void> {
+	const winners = await getActiveLabelState(db, { src, uri, cid: "" });
+	const winner = winners.get(val);
+	if (!winner || !winner.active) throw new NoActiveLabelError();
 }
 
 // ─── W9.6: admin-only automation kill-switch (pause/resume ingestion) ────────
