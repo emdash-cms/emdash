@@ -1487,10 +1487,18 @@ export async function handleContentPublish(
 			};
 		}
 		if (error instanceof EmDashValidationError) {
+			// The staged-slug pre-check tags its error so it maps to the same
+			// 409 SLUG_CONFLICT as direct slug edits in create/update.
+			const details: unknown = error.details;
+			const isSlugConflict =
+				typeof details === "object" &&
+				details !== null &&
+				"code" in details &&
+				details.code === "SLUG_CONFLICT";
 			return {
 				success: false,
 				error: {
-					code: "VALIDATION_ERROR",
+					code: isSlugConflict ? "SLUG_CONFLICT" : "VALIDATION_ERROR",
 					message: error.message,
 				},
 			};

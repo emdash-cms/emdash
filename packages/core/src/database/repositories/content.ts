@@ -1345,24 +1345,24 @@ export class ContentRepository {
 				// covers every row (drafts and trashed entries included), and
 				// letting the constraint fire mid-publish would surface as an
 				// opaque 500 after draft data already hit the live columns.
+				// A NULL locale never collides (unique indexes treat NULLs as
+				// distinct), so the check only applies to localized rows.
 				const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
-				if (stagedSlug !== null && stagedSlug !== existing.slug) {
-					const conflict = await this.findBySlugIncludingTrashed(
-						type,
-						stagedSlug,
-						existing.locale ?? undefined,
-					);
+				if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
+					const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
 					if (conflict && conflict.id !== id) {
 						throw new EmDashValidationError(
 							`Cannot publish: slug '${stagedSlug}' is already used by another entry` +
 								` in this collection (id: ${conflict.id}). Choose a different slug.`,
+							{ code: "SLUG_CONFLICT" },
 						);
 					}
 				}
 
-				await this.syncDataColumns(type, id, revision.data);
-
-				// Sync slug from revision if stored there
+				// Write the slug before the data columns: the slug UPDATE is the
+				// only statement here that can hit the unique constraint (if a
+				// concurrent write took the slug after the check above), and on
+				// D1 there is no transaction to roll back earlier statements.
 				if (stagedSlug !== null) {
 					await sql`
 						UPDATE ${sql.ref(tableName)}
@@ -1370,6 +1370,8 @@ export class ContentRepository {
 						WHERE id = ${id}
 					`.execute(this.db);
 				}
+
+				await this.syncDataColumns(type, id, revision.data);
 			}
 
 			if (publishedAt !== undefined) {
