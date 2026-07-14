@@ -16,7 +16,8 @@
 		"console:dev": "vite dev --config console/vite.config.ts",
 		"console:build": "vite build --config console/vite.config.ts",
 		"console:typecheck": "tsgo --noEmit -p console/tsconfig.json",
-		"console:test": "vitest run --config console/vitest.config.ts"
+		"console:test": "vitest run --config console/vitest.config.ts",
+		"keygen": "node scripts/keygen.mjs"
 	},
 	"dependencies": {
 		"@atcute/cbor": "catalog:",
@@ -34,6 +35,7 @@
 	},
 	"devDependencies": {
 		"@atcute/cid": "catalog:",
+		"@atcute/multibase": "catalog:",
 		"@cloudflare/kumo": "catalog:",
 		"@cloudflare/vite-plugin": "catalog:",
 		"@cloudflare/vitest-pool-workers": "catalog:",
