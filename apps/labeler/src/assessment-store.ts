@@ -1128,6 +1128,54 @@ export async function getAllLabelsForAssessment(
 	}));
 }
 
+/**
+ * Distinct release URIs previously observed under a publishing DID, newest
+ * observation first, excluding the URI under assessment — the "prior releases
+ * from the DID" input to the publisher-history stage (plan W8.4). Capped at
+ * `limit`; the caller reports the count as bounded rather than exact.
+ */
+export async function getPriorReleaseUrisForDid(
+	db: D1Database,
+	input: { did: string; excludeUri: string; limit: number },
+): Promise<string[]> {
+	const rows = await db
+		.prepare(
+			`SELECT uri, MAX(observed_at_epoch_ms) AS observed
+			 FROM subjects
+			 WHERE did = ? AND uri != ?
+			 GROUP BY uri
+			 ORDER BY observed DESC
+			 LIMIT ?`,
+		)
+		.bind(input.did, input.excludeUri, input.limit)
+		.all<{ uri: string; observed: number }>();
+	return (rows.results ?? []).map((row) => row.uri);
+}
+
+/**
+ * Distinct OTHER publishing DIDs that have submitted an assessment for the same
+ * exact artifact checksum (plan W8.4 D2) — the cross-publisher reuse signal.
+ * Global: it spans every publisher's assessments, not just the queried
+ * subject's. Capped at `limit`.
+ */
+export async function getPublishersSharingChecksum(
+	db: D1Database,
+	input: { checksum: string; excludeDid: string; limit: number },
+): Promise<string[]> {
+	const rows = await db
+		.prepare(
+			`SELECT DISTINCT s.did
+			 FROM assessments a
+			 JOIN subjects s ON s.uri = a.uri AND s.cid = a.cid
+			 WHERE a.artifact_checksum = ? AND s.did != ?
+			 ORDER BY s.did
+			 LIMIT ?`,
+		)
+		.bind(input.checksum, input.excludeDid, input.limit)
+		.all<{ did: string }>();
+	return (rows.results ?? []).map((row) => row.did);
+}
+
 function rowToAssessment(row: AssessmentRow): Assessment {
 	return {
 		id: row.id,

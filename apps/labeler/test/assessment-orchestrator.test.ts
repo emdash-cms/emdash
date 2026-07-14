@@ -23,7 +23,8 @@ import {
 	getCurrentAssessment,
 	transitionAssessmentState,
 } from "../src/assessment-store.js";
-import { FindingValidationError } from "../src/findings.js";
+import { FindingValidationError, HISTORY_FINDING_CATEGORIES } from "../src/findings.js";
+import { analyzeHistory } from "../src/history-context.js";
 import { MODERATION_POLICY } from "../src/policy.js";
 import { issueManualLabel } from "../src/service.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
@@ -696,6 +697,40 @@ describe("AssessmentOrchestrator: invalid findings", () => {
 
 		const assessment = await getAssessment(testEnv.DB, run.id);
 		expect(assessment?.state).toBe("running");
+	});
+});
+
+describe("AssessmentOrchestrator: history stage never auto-labels (W8.4)", () => {
+	it("runs the history stage, whose finding surfaces but is never turned into an issued label", async () => {
+		const run = await pendingRun({
+			name: "history-invariant",
+			cidValue: await cid("history-invariant"),
+		});
+
+		// Prior releases exist under PUBLISHER_DID (every run in this suite shares
+		// it), so the history stage genuinely produces a publisher-history finding
+		// — the invariant below is non-vacuous.
+		const assessment = await getAssessment(testEnv.DB, run.id);
+		const produced = await analyzeHistory(testEnv.DB, assessment!, { src: LABELER_DID });
+		expect(produced.some((f) => HISTORY_FINDING_CATEGORIES.has(f.category))).toBe(true);
+
+		const stages: OrchestratorStages = {
+			...stubStages,
+			history: (ctx) => analyzeHistory(testEnv.DB, ctx.assessment, { src: LABELER_DID }),
+		};
+		const result = await (await buildOrchestrator(stages)).runAssessment(run.id);
+
+		// The history finding flowed through validation (it did not abort the run)
+		// and resolution, yet produced no blocking or warning outcome.
+		expect(result.state).toBe("passed");
+
+		// No history-category value is ever issued as a label — the resolver drops
+		// every history-source finding before any category→label mapping.
+		const labels = await testEnv.DB.prepare(`SELECT val FROM issued_labels WHERE uri = ?`)
+			.bind(run.uri)
+			.all<{ val: string }>();
+		const issued = (labels.results ?? []).map((row) => row.val);
+		for (const category of HISTORY_FINDING_CATEGORIES) expect(issued).not.toContain(category);
 	});
 });
 

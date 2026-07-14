@@ -4,6 +4,7 @@ import type { PublicFindingView } from "../src/evidence.js";
 import {
 	allowedFindingCategories,
 	FindingValidationError,
+	HISTORY_FINDING_CATEGORIES,
 	toPublicFindingView,
 	validateFinding,
 	validateFindings,
@@ -62,7 +63,9 @@ describe("allowedFindingCategories", () => {
 describe("validateFinding", () => {
 	it("passes a valid finding for each FindingSource", () => {
 		for (const source of ["deterministic", "capability", "model", "image", "history"]) {
-			const finding = validateFinding(baseFinding({ source }), {
+			// History findings cite their own category set, disjoint from block/warn.
+			const category = source === "history" ? "publisher-history" : "obfuscated-code";
+			const finding = validateFinding(baseFinding({ source, category }), {
 				allowedCategories: ALLOWED_CATEGORIES,
 				resolvableEvidenceIds: NO_EVIDENCE,
 			});
@@ -204,6 +207,47 @@ describe("validateFinding", () => {
 				allowedCategories: ALLOWED_CATEGORIES,
 				resolvableEvidenceIds: NO_EVIDENCE,
 			}),
+		).toThrow(FindingValidationError);
+	});
+});
+
+describe("validateFinding: history-source categories (W8.1 D4)", () => {
+	const opts = { allowedCategories: ALLOWED_CATEGORIES, resolvableEvidenceIds: NO_EVIDENCE };
+
+	it("accepts a history finding for every history category, none of which are block/warn values", () => {
+		for (const category of HISTORY_FINDING_CATEGORIES) {
+			expect(ALLOWED_CATEGORIES.has(category)).toBe(false);
+			const finding = validateFinding(baseFinding({ source: "history", category }), opts);
+			expect(finding.source).toBe("history");
+			expect(finding.category).toBe(category);
+		}
+	});
+
+	it("rejects a history finding that cites a block/warn category, holding history to its own set", () => {
+		for (const category of ["malware", "obfuscated-code"]) {
+			expect(() => validateFinding(baseFinding({ source: "history", category }), opts)).toThrow(
+				FindingValidationError,
+			);
+		}
+	});
+
+	it("rejects a NON-history finding that cites a history category", () => {
+		for (const source of ["deterministic", "capability", "model", "image"]) {
+			expect(() =>
+				validateFinding(baseFinding({ source, category: "publisher-history" }), opts),
+			).toThrow(FindingValidationError);
+		}
+	});
+
+	it("leaves non-history validation unchanged: a deterministic finding still needs a block/warn category", () => {
+		expect(() =>
+			validateFinding(baseFinding({ source: "deterministic", category: "malware" }), opts),
+		).not.toThrow();
+		expect(() =>
+			validateFinding(
+				baseFinding({ source: "deterministic", category: "active-manual-label" }),
+				opts,
+			),
 		).toThrow(FindingValidationError);
 	});
 });
