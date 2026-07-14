@@ -6,6 +6,7 @@ import {
 	parseTransformParams,
 	isTransformFormat,
 	originalMediaHeaders,
+	DEFAULT_TRANSFORM_QUALITY,
 	MAX_TRANSFORM_DIMENSION,
 } from "../../../src/media/image-endpoint.js";
 
@@ -94,9 +95,15 @@ describe("parseTransformParams", () => {
 		});
 	});
 
-	it("defaults format to webp and leaves height/quality undefined", () => {
+	it("defaults format to webp and quality to the default, leaves height undefined", () => {
+		// The quality default matters on Cloudflare: the Images binding encodes
+		// near-losslessly when quality is omitted, so an explicit default must
+		// always be present.
 		const r = parse("w=800");
-		expect(r).toEqual({ ok: true, options: { width: 800, format: "webp" } });
+		expect(r).toEqual({
+			ok: true,
+			options: { width: 800, format: "webp", quality: DEFAULT_TRANSFORM_QUALITY },
+		});
 	});
 
 	it("rejects out-of-range and non-integer dimensions", () => {

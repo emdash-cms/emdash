@@ -20,6 +20,15 @@ export const ALLOWED_TRANSFORM_FORMATS = ["webp", "avif", "jpeg", "png"] as cons
 /** Default output format -- broad support, strong compression. */
 export const DEFAULT_TRANSFORM_FORMAT: ImageTransformFormat = "webp";
 
+/**
+ * Default output quality when the request doesn't specify one. Matches the
+ * default Cloudflare applies to URL-based image transformations. The Images
+ * *binding* applies no default of its own and encodes near-losslessly when
+ * quality is omitted (a 2048px WebP comes out ~900 KB instead of ~100 KB),
+ * so the endpoint must always send an explicit quality.
+ */
+export const DEFAULT_TRANSFORM_QUALITY = 85;
+
 /** Upper bound for a requested dimension; caps the work a single request asks for. */
 export const MAX_TRANSFORM_DIMENSION = 4000;
 
@@ -31,7 +40,7 @@ export interface ImageTransformOptions {
 	width?: number;
 	height?: number;
 	format: ImageTransformFormat;
-	quality?: number;
+	quality: number;
 }
 
 /** Long-lived immutable cache -- transform output is deterministic per key+params. */
@@ -120,7 +129,9 @@ export type ParsedTransformParams =
 /**
  * Parse and validate `?w=&h=&f=&q=` query params. Width is required (it sizes
  * the rendition); dimensions are bounded so a request can't ask for an
- * unbounded or nonsensical transform.
+ * unbounded or nonsensical transform. Format and quality fall back to
+ * {@link DEFAULT_TRANSFORM_FORMAT} / {@link DEFAULT_TRANSFORM_QUALITY} when
+ * not requested.
  */
 export function parseTransformParams(params: URLSearchParams): ParsedTransformParams {
 	const width = parseDimension(params.get("w"));
@@ -140,7 +151,7 @@ export function parseTransformParams(params: URLSearchParams): ParsedTransformPa
 	}
 
 	const qualityRaw = params.get("q");
-	let quality: number | undefined;
+	let quality = DEFAULT_TRANSFORM_QUALITY;
 	if (qualityRaw !== null) {
 		const q = Number(qualityRaw);
 		if (!Number.isInteger(q) || q < 1 || q > 100) {

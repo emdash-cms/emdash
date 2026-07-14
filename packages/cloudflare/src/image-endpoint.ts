@@ -86,8 +86,10 @@ export const GET: APIRoute = async (ctx) => {
 		const transform: ImageTransform = {};
 		if (width) transform.width = width;
 		if (height) transform.height = height;
-		const output: ImageOutputOptions = { format: outputMime };
-		if (quality) output.quality = quality;
+		// Always send a quality: the Images binding has no default and encodes
+		// near-losslessly without one, producing renditions several times the
+		// size of the original.
+		const output: ImageOutputOptions = { format: outputMime, quality };
 
 		const result = await images.input(source.body).transform(transform).output(output);
 		const response = result.response();
