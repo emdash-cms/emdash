@@ -3099,7 +3099,6 @@ function EditorToolbar({
 	onInsertBlock: () => void;
 }) {
 	const { t } = useLingui();
-	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
 	const linkInputRef = React.useRef<HTMLInputElement>(null);
@@ -3162,25 +3161,6 @@ function EditorToolbar({
 		}
 	};
 
-	const handleImageSelect = React.useCallback(
-		(item: MediaItem) => {
-			editor
-				.chain()
-				.focus()
-				.setImage({
-					src: item.url,
-					alt: item.alt || item.filename,
-					mediaId: item.id,
-					width: item.width,
-					height: item.height,
-					blurhash: item.blurhash,
-					dominantColor: item.dominantColor,
-				})
-				.run();
-		},
-		[editor],
-	);
-
 	// Keyboard navigation for toolbar (WAI-ARIA toolbar pattern)
 	const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
 		const toolbar = toolbarRef.current;
@@ -3231,7 +3211,8 @@ function EditorToolbar({
 			ref={toolbarRef}
 			role="toolbar"
 			aria-label={t`Text formatting`}
-			className="sticky -top-6 z-10 border-b bg-kumo-tint p-1 flex flex-nowrap gap-0.5 overflow-x-auto"
+			className="sticky -top-6 z-10 flex flex-nowrap gap-0.5 overflow-x-auto border-b bg-kumo-tint p-1"
+			style={{ justifyContent: "safe center" }}
 			onKeyDown={handleKeyDown}
 		>
 			{/* Text formatting */}
@@ -3325,15 +3306,6 @@ function EditorToolbar({
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
-				<ToolbarButton
-					onClick={() =>
-						editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-					}
-					active={editor.isActive("table")}
-					title={t`Insert Table`}
-				>
-					<TableIcon className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
 			</ToolbarGroup>
 
 			<ToolbarSeparator />
@@ -3365,9 +3337,8 @@ function EditorToolbar({
 
 			<ToolbarSeparator />
 
-			{/* Insert */}
+			{/* Link */}
 			<ToolbarGroup>
-				{/* Link with popover */}
 				<Popover
 					open={showLinkPopover}
 					onOpenChange={(open) => {
@@ -3441,27 +3412,6 @@ function EditorToolbar({
 						</div>
 					</Popover.Content>
 				</Popover>
-				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title={t`Insert Image`}>
-					<ImageIcon className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() =>
-						editor
-							.chain()
-							.focus()
-							.insertContent({ type: "htmlBlock", attrs: { html: "" } })
-							.run()
-					}
-					title={t`Insert HTML`}
-				>
-					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().setHorizontalRule().run()}
-					title={t`Insert Horizontal Rule`}
-				>
-					<Minus className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
 			</ToolbarGroup>
 
 			<ToolbarSeparator aria-hidden="true" />
@@ -3496,14 +3446,6 @@ function EditorToolbar({
 					<Eye className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
-			{/* Media Picker Modal */}
-			<MediaPickerModal
-				open={mediaPickerOpen}
-				onOpenChange={setMediaPickerOpen}
-				onSelect={handleImageSelect}
-				mimeTypeFilter="image/"
-				title={t`Select Image`}
-			/>
 		</div>
 	);
 }

@@ -362,7 +362,9 @@ describe("Slash Command Menu", () => {
 		expect(titles).toContain("Numbered List");
 		expect(titles).toContain("Quote");
 		expect(titles).toContain("Code Block");
+		expect(titles).toContain("HTML");
 		expect(titles).toContain("Divider");
+		expect(titles).toContain("Table");
 	});
 
 	it("shows descriptions for each command", async () => {
@@ -576,6 +578,27 @@ describe("Slash Command Menu", () => {
 
 		await vi.waitFor(() => {
 			expect(pm.querySelector("hr")).toBeTruthy();
+		});
+	});
+
+	it("inserts an HTML block via slash command", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		const htmlBtn = getSlashMenuItems(menu).find(
+			(btn) => btn.querySelector(".font-medium")?.textContent === "HTML",
+		);
+		expect(htmlBtn).toBeTruthy();
+		htmlBtn!.click();
+
+		await waitForSlashMenuClosed();
+
+		await vi.waitFor(() => {
+			const htmlBlock = editor.getJSON().content?.find((node) => node.type === "htmlBlock");
+			expect(htmlBlock).toBeDefined();
+			expect((htmlBlock as { attrs?: { html?: string } }).attrs?.html).toBe("");
 		});
 	});
 

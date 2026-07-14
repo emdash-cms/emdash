@@ -158,6 +158,14 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(toolbar).toHaveAttribute("aria-label", "Text formatting");
 	});
 
+	it("centers controls when they fit and preserves horizontal overflow", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+
+		expect(toolbar.className).toContain("overflow-x-auto");
+		expect(getComputedStyle(toolbar).justifyContent).toBe("safe center");
+	});
+
 	it("has all formatting buttons", async () => {
 		const { screen } = await renderEditor();
 		await expect.element(screen.getByRole("button", { name: "Bold" })).toBeVisible();
@@ -210,14 +218,14 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeVisible();
 	});
 
-	it("has all insert buttons", async () => {
+	it("keeps insertion-only actions in the block menu", async () => {
 		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Insert Image" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Insert HTML" })).toBeVisible();
-		await expect
-			.element(screen.getByRole("button", { name: "Insert Horizontal Rule" }))
-			.toBeVisible();
+		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
 
 	it("renders the link editor outside the horizontally scrolling toolbar", async () => {
@@ -600,26 +608,7 @@ describe("Undo/Redo", () => {
 });
 
 // =============================================================================
-// 5. HTML Block Insertion
-// =============================================================================
-
-describe("HTML Block Insertion", () => {
-	it("clicking Insert HTML inserts an empty HTML block", async () => {
-		const { screen, editor } = await renderEditor();
-		editor.commands.focus("end");
-
-		getToolbarButton(screen, "Insert HTML").element().click();
-
-		await vi.waitFor(() => {
-			const htmlBlock = editor.getJSON().content?.find((node) => node.type === "htmlBlock");
-			expect(htmlBlock).toBeDefined();
-			expect((htmlBlock as { attrs?: { html?: string } }).attrs?.html).toBe("");
-		});
-	});
-});
-
-// =============================================================================
-// 6. Link Insertion (Toolbar Popover)
+// 5. Link Insertion (Toolbar Popover)
 // =============================================================================
 
 describe("Link Insertion", () => {

@@ -682,13 +682,14 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeInTheDocument();
 	});
 
-	it("has insert buttons", async () => {
+	it("keeps insertion-only actions out of the formatting toolbar", async () => {
 		const screen = await renderWithToolbar();
+		const toolbar = screen.getByRole("toolbar").element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Insert Image" })).toBeInTheDocument();
-		await expect
-			.element(screen.getByRole("button", { name: "Insert Horizontal Rule" }))
-			.toBeInTheDocument();
+		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
 
 	it("has history buttons (initially disabled)", async () => {
