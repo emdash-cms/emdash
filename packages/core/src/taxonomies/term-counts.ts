@@ -18,6 +18,10 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import {
+	getContentTableNames,
+	resetContentTableNamesCache,
+} from "../database/content-tables-cache.js";
 import { buildStatusCondition } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
@@ -77,14 +81,23 @@ async function runCounts(
  *
  * Counts are scoped to the taxonomy's declared collections — pass
  * `TaxonomyDef.collections` (`_emdash_taxonomy_defs.collections`). Collections
- * whose `ec_*` table doesn't exist (pre-migration drift, a declared collection
- * that was never created) are skipped, yielding a partial-but-correct count
- * rather than a throw.
+ * whose `ec_*` table doesn't exist are skipped, yielding a partial-but-correct
+ * count rather than a throw. That case is not exotic: migration 006 seeds the
+ * default `category`/`tag` defs bound to a `posts` collection that only exists
+ * if a seed creates it, so any site without `posts` hits it on every count.
+ *
+ * Missing tables are resolved upfront rather than by querying optimistically
+ * and retrying on a missing-table error: the database logs every failed
+ * statement (on D1 each one surfaces as an error span in Workers
+ * Observability), so the probe-and-retry approach floods the logs with one
+ * phantom error per taxonomy per uncached render.
  *
  * One database round-trip for the whole taxonomy (UNION ALL across
- * collections). Callers on the public render path should go through the
- * request-cached wrapper in `taxonomies/index.ts` so a page rendering both the
- * widget and a term detail shares one computation.
+ * collections, never one query per collection) — the existing-table lookup is
+ * cached per isolate (`database/content-tables-cache.ts`) so it costs a query
+ * only on a cold isolate. Callers on the public render path should go through
+ * the request-cached wrapper in `taxonomies/index.ts` so a page rendering
+ * both the widget and a term detail shares one computation.
  */
 export async function fetchVisibleTermCounts(
 	db: Kysely<Database>,
@@ -95,23 +108,21 @@ export async function fetchVisibleTermCounts(
 	for (const collection of unique) validateIdentifier(collection, "collection slug");
 	if (unique.length === 0) return new Map();
 
+	const tables = await getContentTableNames(db);
+	const present = unique.filter((collection) => tables.has(`ec_${collection}`));
+	if (present.length === 0) return new Map();
+
 	try {
-		return await runCounts(db, taxonomyName, unique);
+		return await runCounts(db, taxonomyName, present);
 	} catch (error) {
 		if (!isMissingTableError(error)) throw error;
 	}
 
-	// A declared collection has no ec_* table — retry per collection so the
-	// existing tables still contribute (still scheduled-aware + deleted_at).
-	const counts = new Map<string, number>();
-	for (const collection of unique) {
-		try {
-			for (const [group, count] of await runCounts(db, taxonomyName, [collection])) {
-				counts.set(group, (counts.get(group) ?? 0) + count);
-			}
-		} catch (error) {
-			if (!isMissingTableError(error)) throw error;
-		}
-	}
-	return counts;
+	// The isolate-cached table list was stale — a collection was dropped after
+	// it was populated (another isolate's delete). Refresh it and retry once.
+	resetContentTableNamesCache();
+	const fresh = await getContentTableNames(db);
+	const remaining = present.filter((collection) => fresh.has(`ec_${collection}`));
+	if (remaining.length === 0) return new Map();
+	return runCounts(db, taxonomyName, remaining);
 }

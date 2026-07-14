@@ -8,6 +8,7 @@ import type {
 } from "kysely";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { getContentTableNames } from "../../../src/database/content-tables-cache.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import {
@@ -174,6 +175,11 @@ describeEachDialect("getTerm", (dialect) => {
 			data: { title: "P1" },
 		});
 		await taxRepo.attachToEntry("post", post.id, parent.id);
+
+		// The count path resolves the existing ec_* tables once per isolate
+		// (content-tables cache); prime it so the budget below reflects the
+		// steady state rather than the one-off cold-isolate lookup.
+		await getContentTableNames(ctx.db);
 
 		counter.count = 0;
 		const term = await getTerm("category", "tech");
