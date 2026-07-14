@@ -45,6 +45,7 @@
 		"@tanstack/react-query": "catalog:",
 		"@tanstack/react-router": "catalog:",
 		"@testing-library/react": "^16.3.0",
+		"@testing-library/user-event": "^14.6.1",
 		"@types/node": "catalog:",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
@@ -56,6 +57,7 @@
 		"typescript": "catalog:",
 		"vite": "catalog:",
 		"vitest": "catalog:",
+		"vitest-axe": "^0.1.0",
 		"wrangler": "catalog:"
 	}
 }

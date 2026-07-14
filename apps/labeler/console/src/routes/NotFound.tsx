@@ -15,6 +15,6 @@ function NotFoundPage() {
 
 export const notFoundRoute = createRoute({
 	getParentRoute: () => shellRoute,
-	path: "*",
+	path: "$",
 	component: NotFoundPage,
 });
