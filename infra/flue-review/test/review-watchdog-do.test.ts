@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const github = vi.hoisted(() => ({
 	completeReviewCheck: vi.fn(),
+	readAppCreds: vi.fn(),
 }));
 
 vi.mock("cloudflare:workers", () => ({
@@ -19,7 +20,7 @@ vi.mock("cloudflare:workers", () => ({
 vi.mock("../.flue/lib/github.js", () => ({
 	completeReviewCheck: github.completeReviewCheck,
 	mintInstallationToken: vi.fn().mockResolvedValue("token"),
-	readAppCreds: vi.fn().mockReturnValue({ appId: "1", installationId: "2", privateKey: "key" }),
+	readAppCreds: github.readAppCreds,
 }));
 
 import { ReviewWatchdog } from "../.flue/cloudflare.js";
@@ -47,7 +48,6 @@ class MemoryStorage {
 
 	async deleteAll(): Promise<void> {
 		this.values.clear();
-		this.alarm = undefined;
 	}
 }
 
@@ -72,6 +72,11 @@ function setup() {
 
 beforeEach(() => {
 	github.completeReviewCheck.mockReset().mockResolvedValue(undefined);
+	github.readAppCreds.mockReset().mockReturnValue({
+		appId: "1",
+		installationId: "2",
+		privateKey: "key",
+	});
 });
 
 describe("ReviewWatchdog terminal arbitration", () => {
@@ -110,24 +115,69 @@ describe("ReviewWatchdog terminal arbitration", () => {
 		});
 	});
 
-	it("persists a failed terminal update for alarm retry", async () => {
+	it("backs off failed terminal updates for alarm retry", async () => {
 		const { attempt, storage, watchdog } = setup();
 		await watchdog.reserve(attempt, "lease-1");
-		github.completeReviewCheck.mockRejectedValueOnce(new Error("GitHub unavailable"));
+		github.completeReviewCheck.mockRejectedValue(new Error("GitHub unavailable"));
 
 		await expect(
 			watchdog.finish(attempt.attemptId, { conclusion: "failure", summary: "failed" }),
-		).rejects.toThrow("GitHub unavailable");
-		expect(storage.alarm).toBeTypeOf("number");
+		).resolves.toBe(true);
+		const firstAlarm = storage.alarm;
+		expect(firstAlarm).toBeTypeOf("number");
 		expect(storage.values.get("attempt")).toMatchObject({
 			terminal: { conclusion: "failure" },
+			terminalRetryCount: 1,
 		});
 
 		await watchdog.alarm();
 		expect(github.completeReviewCheck).toHaveBeenCalledTimes(2);
 		expect(storage.values.get("attempt")).toMatchObject({
+			terminalRetryCount: 2,
+		});
+		expect(storage.alarm).toBeGreaterThan(firstAlarm ?? 0);
+	});
+
+	it("abandons non-retryable terminal reporting failures", async () => {
+		const { attempt, storage, watchdog } = setup();
+		await watchdog.reserve(attempt, "lease-1");
+		github.readAppCreds.mockReturnValue(null);
+
+		await expect(
+			watchdog.finish(attempt.attemptId, { conclusion: "failure", summary: "failed" }),
+		).resolves.toBe(true);
+		expect(storage.values.get("attempt")).toMatchObject({
+			terminalAbandonedAt: expect.any(Number),
+		});
+	});
+
+	it("marks a stale active attempt as timed out", async () => {
+		const { attempt, storage, watchdog } = setup();
+		attempt.lastProgressAt = 0;
+		await watchdog.reserve(attempt, "lease-1");
+
+		await watchdog.alarm();
+
+		expect(github.completeReviewCheck).toHaveBeenCalledWith(
+			"token",
+			"emdash-cms",
+			"emdash",
+			123,
+			expect.objectContaining({ conclusion: "timed_out" }),
+		);
+		expect(storage.values.get("attempt")).toMatchObject({
+			terminal: { conclusion: "timed_out" },
 			terminalReportedAt: expect.any(Number),
 		});
+	});
+
+	it("clears a pending alarm when setup is completed", async () => {
+		const { attempt, storage, watchdog } = setup();
+		await watchdog.reserve(attempt, "lease-1");
+		expect(storage.alarm).toBeTypeOf("number");
+
+		await watchdog.complete(attempt.attemptId);
+
 		expect(storage.alarm).toBeUndefined();
 	});
 });

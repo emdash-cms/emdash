@@ -53,6 +53,7 @@ const reviewPayloadSchema = v.object({
 	prTitle: v.string(),
 	prBody: v.string(),
 	headRef: v.string(),
+	// Optional only so persisted pre-observability runs remain readable; run() fails closed without them.
 	headSha: v.optional(v.string()),
 	baseRef: v.string(),
 	baseSha: v.optional(v.string()),
@@ -244,7 +245,6 @@ async function reportStage(
 
 async function finishReviewCheck(
 	env: Env,
-	token: string | undefined,
 	payload: ReviewPayload,
 	runId: string,
 	terminal: ReviewTerminal,
@@ -287,6 +287,13 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			throw new Error("Review payload does not include immutable base and head SHAs");
 		}
 		runId = workflowRunId();
+		if (
+			payload.attemptId &&
+			payload.checkRunId !== undefined &&
+			!(await getReviewWatchdog(env, payload.attemptId).identify(payload.attemptId, runId))
+		) {
+			throw new Error("Review attempt is no longer active");
+		}
 		if (creds) {
 			token = await mintInstallationToken(creds);
 			reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
@@ -417,7 +424,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			logReviewEvent("log", payload, runId, "GitHub App credentials unavailable; skipping post");
 		}
 
-		await finishReviewCheck(env, token, payload, runId, {
+		await finishReviewCheck(env, payload, runId, {
 			conclusion: "success",
 			summary: `The automated review completed with verdict \`${data.verdict}\` and ${data.findings.length} finding(s).`,
 		});
@@ -427,11 +434,8 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 		logReviewEvent("error", payload, runId, "review run failed", {
 			error: error instanceof Error ? error.message : String(error),
 		});
-		if (!token && creds) {
-			token = await mintInstallationToken(creds).catch(() => undefined);
-		}
 		const errorName = error instanceof Error ? error.name : "Error";
-		await finishReviewCheck(env, token, payload, runId, {
+		await finishReviewCheck(env, payload, runId, {
 			conclusion: "failure",
 			summary: `The review failed during the \`${stage}\` stage (\`${errorName}\`). Reapply the \`bot:review\` label to retry.`,
 		});

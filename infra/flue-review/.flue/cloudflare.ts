@@ -11,6 +11,12 @@ import {
 } from "./lib/review-watchdog.js";
 
 const ATTEMPT_KEY = "attempt";
+const TERMINAL_RETRY_BASE_MS = 60_000;
+const TERMINAL_RETRY_MAX_MS = 60 * 60_000;
+const TERMINAL_RETRY_LIMIT = 10;
+const TERMINAL_RETENTION_MS = 7 * 24 * 60 * 60_000;
+
+class TerminalConfigurationError extends Error {}
 
 export class ReviewWatchdog extends DurableObject<Env> {
 	async reserve(
@@ -63,10 +69,11 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		await this.ctx.storage.setAlarm(attempt.lastProgressAt + REVIEW_STALE_AFTER_MS);
 	}
 
-	async identify(attemptId: string, runId: string): Promise<void> {
+	async identify(attemptId: string, runId: string): Promise<boolean> {
 		const attempt = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);
-		if (!attempt || attempt.attemptId !== attemptId) return;
+		if (!attempt || attempt.attemptId !== attemptId || attempt.terminal) return false;
 		await this.ctx.storage.put(ATTEMPT_KEY, { ...attempt, runId });
+		return true;
 	}
 
 	async beginAdmission(attemptId: string, setupLease: string): Promise<boolean> {
@@ -97,6 +104,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		const attempt = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);
 		if (!attempt || attempt.attemptId !== attemptId) return;
 		await this.ctx.storage.deleteAll();
+		await this.ctx.storage.deleteAlarm();
 	}
 
 	async finish(attemptId: string, terminal: ReviewTerminal): Promise<boolean> {
@@ -107,8 +115,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		try {
 			await this.flushTerminal(terminalAttempt);
 		} catch (error) {
-			await this.ctx.storage.setAlarm(Date.now() + 60_000);
-			throw error;
+			await this.scheduleTerminalRetry(terminalAttempt, error);
 		}
 		return true;
 	}
@@ -117,10 +124,10 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		attempt: ReviewAttempt & { terminal: ReviewTerminal },
 	): Promise<void> {
 		if (attempt.checkRunId === undefined) {
-			throw new Error("Review attempt has no GitHub check run");
+			throw new TerminalConfigurationError("Review attempt has no GitHub check run");
 		}
 		const creds = readAppCreds(this.env);
-		if (!creds) throw new Error("GitHub App credentials are unavailable");
+		if (!creds) throw new TerminalConfigurationError("GitHub App credentials are unavailable");
 		const token = await mintInstallationToken(creds);
 		await completeReviewCheck(token, attempt.owner, attempt.repo, attempt.checkRunId, {
 			...attempt.terminal,
@@ -131,26 +138,72 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			...attempt,
 			terminalReportedAt: Date.now(),
 		});
-		await this.ctx.storage.deleteAlarm();
+		await this.ctx.storage.setAlarm(Date.now() + TERMINAL_RETENTION_MS);
 	}
 
-	private async retryTerminal(
+	private async scheduleTerminalRetry(
 		attempt: ReviewAttempt & { terminal: ReviewTerminal },
+		error: unknown,
 	): Promise<void> {
-		try {
-			await this.flushTerminal(attempt);
-		} catch (error) {
-			await this.ctx.storage.setAlarm(Date.now() + 60_000);
-			throw error;
+		const retryCount = (attempt.terminalRetryCount ?? 0) + 1;
+		const abandoned =
+			error instanceof TerminalConfigurationError || retryCount >= TERMINAL_RETRY_LIMIT;
+		if (abandoned) {
+			const terminalAbandonedAt = Date.now();
+			await this.ctx.storage.put(ATTEMPT_KEY, {
+				...attempt,
+				terminalRetryCount: retryCount,
+				terminalAbandonedAt,
+			});
+			await this.ctx.storage.setAlarm(terminalAbandonedAt + TERMINAL_RETENTION_MS);
+			console.error(
+				JSON.stringify({
+					message: "review terminal reporting abandoned",
+					error: error instanceof Error ? error.message : String(error),
+					attemptId: attempt.attemptId,
+					runId: attempt.runId,
+					retryCount,
+				}),
+			);
+			return;
 		}
+
+		const delay = Math.min(TERMINAL_RETRY_BASE_MS * 2 ** (retryCount - 1), TERMINAL_RETRY_MAX_MS);
+		await this.ctx.storage.put(ATTEMPT_KEY, { ...attempt, terminalRetryCount: retryCount });
+		await this.ctx.storage.setAlarm(Date.now() + delay);
+		console.error(
+			JSON.stringify({
+				message: "review terminal reporting retry scheduled",
+				error: error instanceof Error ? error.message : String(error),
+				attemptId: attempt.attemptId,
+				runId: attempt.runId,
+				retryCount,
+				delay,
+			}),
+		);
 	}
 
 	override async alarm(): Promise<void> {
 		const attempt = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);
 		if (!attempt) return;
-		if (attempt.terminalReportedAt !== undefined) return;
+		const retainedAt = attempt.terminalReportedAt ?? attempt.terminalAbandonedAt;
+		if (retainedAt !== undefined) {
+			const cleanupAt = retainedAt + TERMINAL_RETENTION_MS;
+			if (Date.now() >= cleanupAt) {
+				await this.ctx.storage.deleteAll();
+				await this.ctx.storage.deleteAlarm();
+			} else {
+				await this.ctx.storage.setAlarm(cleanupAt);
+			}
+			return;
+		}
 		if (attempt.terminal) {
-			await this.retryTerminal({ ...attempt, terminal: attempt.terminal });
+			const terminalAttempt = { ...attempt, terminal: attempt.terminal };
+			try {
+				await this.flushTerminal(terminalAttempt);
+			} catch (error) {
+				await this.scheduleTerminalRetry(terminalAttempt, error);
+			}
 			return;
 		}
 		if (!isReviewAttemptStale(attempt.lastProgressAt)) {
@@ -159,6 +212,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		}
 		if (attempt.checkRunId === undefined) {
 			await this.ctx.storage.deleteAll();
+			await this.ctx.storage.deleteAlarm();
 			return;
 		}
 
@@ -178,6 +232,10 @@ export class ReviewWatchdog extends DurableObject<Env> {
 				stage: attempt.stage,
 			}),
 		);
-		await this.retryTerminal(terminalAttempt);
+		try {
+			await this.flushTerminal(terminalAttempt);
+		} catch (error) {
+			await this.scheduleTerminalRetry(terminalAttempt, error);
+		}
 	}
 }

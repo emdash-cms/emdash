@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { gatePullRequestEvent } from "../.flue/lib/webhook.js";
+import { gatePullRequestEvent, getWebhookDeliveryId } from "../.flue/lib/webhook.js";
 
 describe("pull request webhook gate", () => {
+	it("rejects a webhook without a delivery id", () => {
+		expect(getWebhookDeliveryId(undefined)).toBeNull();
+		expect(getWebhookDeliveryId("delivery-1")).toBe("delivery-1");
+	});
+
 	it("carries the immutable head SHA into the review payload", () => {
 		const decision = gatePullRequestEvent({
 			action: "opened",

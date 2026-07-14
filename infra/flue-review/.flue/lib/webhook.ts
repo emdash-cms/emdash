@@ -3,6 +3,10 @@
 const encoder = new TextEncoder();
 const NON_HEX = /[^0-9a-fA-F]/;
 
+export function getWebhookDeliveryId(header: string | undefined | null): string | null {
+	return header?.trim() || null;
+}
+
 /**
  * Verify the `X-Hub-Signature-256` header against the raw request body using
  * the shared webhook secret (HMAC-SHA256). Constant-time comparison.

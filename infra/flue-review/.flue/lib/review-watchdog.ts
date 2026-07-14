@@ -24,6 +24,8 @@ export interface ReviewAttempt {
 	admissionStartedAt?: number;
 	terminal?: ReviewTerminal;
 	terminalReportedAt?: number;
+	terminalAbandonedAt?: number;
+	terminalRetryCount?: number;
 }
 
 export interface ReviewTerminal {
@@ -40,7 +42,7 @@ interface ReviewWatchdogRpc {
 	>;
 	arm(attempt: ReviewAttempt, setupLease: string): Promise<void>;
 	beginAdmission(attemptId: string, setupLease: string): Promise<boolean>;
-	identify(attemptId: string, runId: string): Promise<void>;
+	identify(attemptId: string, runId: string): Promise<boolean>;
 	heartbeat(attemptId: string, stage: ReviewStage): Promise<boolean>;
 	complete(attemptId: string): Promise<void>;
 	finish(attemptId: string, terminal: ReviewTerminal): Promise<boolean>;
@@ -49,7 +51,7 @@ interface ReviewWatchdogRpc {
 export function getReviewWatchdog(env: Env, attemptId: string): ReviewWatchdogRpc {
 	// Wrangler cannot infer RPC methods through Flue's generated Worker entrypoint.
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
-	return env.REVIEW_WATCHDOG.getByName(attemptId) as DurableObjectStub & ReviewWatchdogRpc;
+	return env.REVIEW_WATCHDOG.getByName(attemptId) as unknown as ReviewWatchdogRpc;
 }
 
 export function isReviewAttemptStale(lastProgressAt: number, now = Date.now()): boolean {

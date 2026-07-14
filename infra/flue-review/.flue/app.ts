@@ -20,7 +20,11 @@ import {
 	readAppCreds,
 } from "./lib/github.js";
 import { getReviewWatchdog, type ReviewAttempt } from "./lib/review-watchdog.js";
-import { verifyWebhookSignature, gatePullRequestEvent } from "./lib/webhook.js";
+import {
+	verifyWebhookSignature,
+	gatePullRequestEvent,
+	getWebhookDeliveryId,
+} from "./lib/webhook.js";
 
 const flueApp = flue();
 
@@ -133,7 +137,8 @@ app.post("/webhook/github", async (c) => {
 	});
 	if (!decision.review) return c.text(`skipped: ${decision.reason}`, 202);
 
-	const deliveryId = c.req.header("x-github-delivery") ?? crypto.randomUUID();
+	const deliveryId = getWebhookDeliveryId(c.req.header("x-github-delivery"));
+	if (!deliveryId) return c.text("missing delivery id", 400);
 	const attemptId = deliveryId;
 	const setupLease = crypto.randomUUID();
 	const watchdog = getReviewWatchdog(c.env, attemptId);
