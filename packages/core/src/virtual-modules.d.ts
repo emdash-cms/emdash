@@ -173,10 +173,12 @@ declare module "virtual:emdash/admin-registry" {
 	/**
 	 * Plugin admin module registry.
 	 * Each entry is the namespace import of the plugin's admin entry module.
-	 * Convention for exports:
+	 * Convention for exports (contribution types live in `@emdash-cms/admin`):
 	 *   - pages: Record<pageId, ComponentType>
 	 *   - widgets: Record<widgetId, ComponentType>
 	 *   - fields: Record<widgetName, ComponentType> (field widget renderers)
+	 *   - contentListColumns: ContentListColumnExtension[]
+	 *   - contentEditorPanels: ContentEditorPanelExtension[]
 	 */
 	export const pluginAdmins: Record<
 		string,
@@ -184,6 +186,8 @@ declare module "virtual:emdash/admin-registry" {
 			pages?: Record<string, unknown>;
 			widgets?: Record<string, unknown>;
 			fields?: Record<string, unknown>;
+			contentListColumns?: unknown[];
+			contentEditorPanels?: unknown[];
 		}
 	>;
 }

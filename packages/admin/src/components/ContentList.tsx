@@ -27,10 +27,18 @@ import {
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import {
+	selectContentListColumns,
+	type ContentListColumnExtension,
+} from "../lib/admin-extensions.js";
 import type { ContentAuthor, ContentDateField, ContentItem, TrashedContentItem } from "../lib/api";
+import { useCurrentUser } from "../lib/api/current-user";
+import { useDisabledPluginIds } from "../lib/api/manifest.js";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { usePluginAdmins } from "../lib/plugin-context";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
+import { AdminExtensionBoundary } from "./AdminExtensionBoundary.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
@@ -194,6 +202,20 @@ export function ContentList({
 	const [page, setPage] = React.useState(0);
 	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
 
+	// Trusted-plugin list columns. With no registered extensions this selects
+	// an empty array and the table renders exactly its classic markup. Role
+	// defaults to 0 while the current user loads, so role-gated columns stay
+	// hidden rather than flashing in (same rule as the sidebar nav), and
+	// disabled plugins' columns are skipped like every other admin surface.
+	const pluginAdmins = usePluginAdmins();
+	const { data: currentUser } = useCurrentUser();
+	const disabledPluginIds = useDisabledPluginIds();
+	const userRole = currentUser?.role ?? 0;
+	const extensionColumns = React.useMemo(
+		() => selectContentListColumns(pluginAdmins, { collection, userRole, disabledPluginIds }),
+		[pluginAdmins, collection, userRole, disabledPluginIds],
+	);
+
 	// Bulk selection is opt-in: the checkbox column + toolbar only render when
 	// the parent wired at least one bulk handler.
 	const bulkEnabled = !!(onBulkPublish || onBulkUnpublish || onBulkDelete);
@@ -315,7 +337,7 @@ export function ContentList({
 			}
 		})();
 	};
-	const colSpan = (i18n ? 5 : 4) + (bulkEnabled ? 1 : 0);
+	const colSpan = (i18n ? 5 : 4) + (bulkEnabled ? 1 : 0) + extensionColumns.length;
 
 	return (
 		<div className="space-y-4">
@@ -524,6 +546,30 @@ export function ContentList({
 										onSortChange={onSortChange}
 										label={t`Date`}
 									/>
+									{extensionColumns.map((column) => {
+										const label = typeof column.label === "string" ? column.label : t(column.label);
+										const HeaderContent = column.header;
+										return (
+											<th
+												key={column.id}
+												scope="col"
+												className={cn(
+													"px-4 py-3 text-sm font-medium",
+													column.align === "end" ? "text-end" : "text-start",
+												)}
+											>
+												{HeaderContent ? (
+													// A broken custom header falls back to the plain
+													// label so the column stays identifiable.
+													<AdminExtensionBoundary variant="cell" fallback={label}>
+														<HeaderContent collection={collection} locale={activeLocale} />
+													</AdminExtensionBoundary>
+												) : (
+													label
+												)}
+											</th>
+										);
+									})}
 									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 										{t`Actions`}
 									</th>
@@ -578,6 +624,8 @@ export function ContentList({
 											selectable={bulkEnabled}
 											selected={selectedIds.has(item.id)}
 											onToggleSelect={toggleOne}
+											extensionColumns={extensionColumns}
+											activeLocale={activeLocale}
 										/>
 									))
 								)}
@@ -946,6 +994,10 @@ interface ContentListItemProps {
 	selectable?: boolean;
 	selected?: boolean;
 	onToggleSelect?: (id: string) => void;
+	/** Trusted-plugin columns, already filtered and ordered for this list. */
+	extensionColumns?: ContentListColumnExtension[];
+	/** Active list locale, forwarded to extension cells. */
+	activeLocale?: string;
 }
 
 function ContentListItem({
@@ -958,6 +1010,8 @@ function ContentListItem({
 	selectable,
 	selected,
 	onToggleSelect,
+	extensionColumns,
+	activeLocale,
 }: ContentListItemProps) {
 	const { t } = useLingui();
 	const title = getItemTitle(item);
@@ -998,6 +1052,21 @@ function ContentListItem({
 				</td>
 			)}
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
+			{extensionColumns?.map((column) => {
+				const Cell = column.cell;
+				return (
+					<td
+						key={column.id}
+						className={cn("px-4 py-3 text-sm", column.align === "end" && "text-end")}
+					>
+						{/* Each cell is isolated: one broken contribution degrades to a
+						    quiet placeholder without breaking the row or the table. */}
+						<AdminExtensionBoundary variant="cell">
+							<Cell collection={collection} locale={activeLocale} item={item} />
+						</AdminExtensionBoundary>
+					</td>
+				);
+			})}
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (

@@ -26,6 +26,16 @@ export {
 	type PluginAdmins,
 } from "./lib/plugin-context";
 
+// Admin extension slots for trusted (native) plugins. Contribution and
+// context types only — the selection helpers are host internals.
+export type {
+	ContentEditorPanelContext,
+	ContentEditorPanelExtension,
+	ContentListColumnCellContext,
+	ContentListColumnExtension,
+	ContentListColumnHeaderContext,
+} from "./lib/admin-extensions.js";
+
 // Auth provider context (for accessing pluggable auth provider components)
 export {
 	AuthProviderProvider,

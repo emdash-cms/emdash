@@ -16,6 +16,7 @@ import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
+import { selectContentEditorPanels } from "../lib/admin-extensions.js";
 import type {
 	BylineCreditInput,
 	BylineSummary,
@@ -25,8 +26,11 @@ import type {
 	UserListItem,
 } from "../lib/api";
 import { fetchBylines } from "../lib/api";
+import { useDisabledPluginIds } from "../lib/api/manifest.js";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { usePluginAdmins } from "../lib/plugin-context";
 import { slugify } from "../lib/utils";
+import { AdminExtensionBoundary } from "./AdminExtensionBoundary.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
@@ -354,6 +358,19 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const [showScheduler, setShowScheduler] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 
+	// Trusted-plugin sidebar panels. Read from context (referentially stable)
+	// rather than a prop so this memoized subtree gains no new prop to keep
+	// stable. With no registered extensions the panel renders exactly its
+	// classic markup; disabled plugins' panels are skipped like every other
+	// admin surface.
+	const pluginAdmins = usePluginAdmins();
+	const disabledPluginIds = useDisabledPluginIds();
+	const userRole = currentUser?.role ?? 0;
+	const extensionPanels = React.useMemo(
+		() => selectContentEditorPanels(pluginAdmins, { collection, userRole, disabledPluginIds }),
+		[pluginAdmins, collection, userRole, disabledPluginIds],
+	);
+
 	const handleScheduleSubmit = () => {
 		if (scheduleDate && onSchedule) {
 			const date = new Date(scheduleDate);
@@ -570,6 +587,34 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					/>
 				</div>
 			)}
+
+			{/* Trusted-plugin panels render for saved entries only (a never-saved
+			    entry has no id or saved state to expose). Keyed by entry id so
+			    panel-local state resets when switching translations. min-w-0 keeps
+			    a panel from forcing horizontal overflow in the narrow sidebar. */}
+			{item &&
+				!isNew &&
+				extensionPanels.map((extensionPanel) => {
+					const Panel = extensionPanel.panel;
+					const title =
+						typeof extensionPanel.title === "string"
+							? extensionPanel.title
+							: t(extensionPanel.title);
+					return (
+						<div key={`${extensionPanel.id}:${item.id}`} className="p-4 border-t min-w-0">
+							<Text bold as="h3" DANGEROUS_className="mb-4">
+								{title}
+							</Text>
+							<AdminExtensionBoundary variant="panel" label={title}>
+								<Panel
+									collection={collection}
+									entry={item}
+									locale={item.locale ?? entryLocale ?? undefined}
+								/>
+							</AdminExtensionBoundary>
+						</div>
+					);
+				})}
 
 			{portableTextEditor && (
 				<div className="p-4 border-t">

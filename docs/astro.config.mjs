@@ -163,6 +163,10 @@ export default defineConfig({
 									slug: "plugins/creating-native-plugins/react-admin",
 								},
 								{
+									label: "List Columns & Editor Panels",
+									slug: "plugins/creating-native-plugins/admin-extensions",
+								},
+								{
 									label: "Portable Text Components",
 									slug: "plugins/creating-native-plugins/portable-text-components",
 								},

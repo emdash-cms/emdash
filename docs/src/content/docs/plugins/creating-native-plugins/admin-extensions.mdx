@@ -1,0 +1,158 @@
+---
+title: Content list columns and editor panels
+description: Extend the admin content list and entry editor sidebar with typed React contributions from a native plugin.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Native plugins can extend two content-focused admin surfaces with typed React contributions:
+
+- **Content list columns** — extra columns in a collection's content list
+- **Editor sidebar panels** — extra sections in the entry editor's settings sidebar
+
+Contributions travel the same trusted path as [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/): your `admin` entry point exports them, EmDash bundles that module into the admin at build time, and the host screens render them. There are no DOM queries, mutation observers, or global hooks involved — the host owns placement, semantics, and error isolation.
+
+<Aside type="caution" title="Trusted plugins only">
+	These slots ship your JavaScript into the admin SPA, so they are available only to
+	`format: "native"` plugins — the same rule as `adminEntry` itself. Sandboxed plugins cannot
+	declare an admin entry (EmDash rejects it at config time) and never appear in the admin
+	registry, so they can never reach these React slots. Sandboxed plugins describe admin UI as
+	[Block Kit](/plugins/creating-plugins/block-kit/) instead.
+</Aside>
+
+## Registering contributions
+
+Export `contentListColumns` and/or `contentEditorPanels` from your admin entry point, alongside `pages`, `widgets`, and `fields`:
+
+```tsx title="src/admin.tsx"
+import type {
+	ContentEditorPanelExtension,
+	ContentListColumnExtension,
+} from "@emdash-cms/admin";
+
+import { ReviewStatusCell } from "./components/ReviewStatusCell";
+import { ReviewStatusPanel } from "./components/ReviewStatusPanel";
+
+export const contentListColumns: ContentListColumnExtension[] = [
+	{
+		id: "my-plugin:review-status",
+		label: "Review",
+		collections: ["posts"],
+		cell: ReviewStatusCell,
+	},
+];
+
+export const contentEditorPanels: ContentEditorPanelExtension[] = [
+	{
+		id: "my-plugin:review-status",
+		title: "Review status",
+		collections: ["posts"],
+		minRole: 40, // Editor and up
+		panel: ReviewStatusPanel,
+	},
+];
+```
+
+Both contribution kinds share the same base fields:
+
+| Field         | Type                                          | Meaning                                                                                                     |
+| ------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `id`          | `string`                                      | Stable unique id, by convention `"<plugin-id>:<name>"`. Duplicates keep the first (in sorted plugin order) and log a warning — never a silent overwrite. An id stays claimed by its first registrant even on screens where that contribution is filtered out. |
+| `order`       | `number?`                                     | Sort key within the slot (default `0`). Ties break by `id`, so ordering is deterministic.                    |
+| `collections` | `string[] \| ((collection: string) => boolean)?` | Which collections the contribution applies to. Omit for all. A throwing predicate counts as "not applicable". |
+| `minRole`     | `number?`                                     | Minimum numeric role (`40` Editor, `50` Admin) required to *see* the contribution. Server authorization still applies to any data it requests. |
+
+When a contribution doesn't apply — wrong collection, insufficient role, plugin disabled, or nothing registered at all — the host renders exactly its classic markup: no empty columns, headers, cells, or section chrome. Disabling a plugin in the Plugin Manager removes its columns and panels along with its pages and widgets.
+
+## Content list columns
+
+A column contributes a header label and a cell component. The host renders the `<th scope="col">` and one `<td>` per row; your `cell` component renders inside the `<td>`:
+
+```tsx title="src/components/ReviewStatusCell.tsx"
+import type { ContentListColumnCellContext } from "@emdash-cms/admin";
+
+export function ReviewStatusCell({ item }: ContentListColumnCellContext) {
+	const reviewed = item.data.reviewedAt != null;
+	return <span>{reviewed ? "Reviewed" : "Pending"}</span>;
+}
+```
+
+The cell context is read-only host data:
+
+- `collection` — the collection slug the list is showing
+- `locale` — the active list locale (`undefined` when the site has no i18n config)
+- `item` — the saved entry for this row (`ContentItem`: id, slug, status, locale, `data`, timestamps, revision ids)
+
+`align: "end"` right-aligns the column in LTR and left-aligns it in RTL (alignment is logical). Column *width* is intentionally not configurable — the list table auto-sizes. An optional `header` component replaces the plain label; if it crashes, the header falls back to the label so the column stays identifiable. Columns apply to the main list only, never to the Trash tab.
+
+### Loading data without N+1
+
+Cells receive the already-loaded row — the host never issues a request per row on your behalf, and neither should you. If a column needs data beyond the entry itself, batch it: use **one react-query key for the whole column**, so every cell shares a single in-flight request:
+
+```tsx
+import { useQuery } from "@tanstack/react-query";
+import type { ContentListColumnCellContext } from "@emdash-cms/admin";
+
+export function ScoreCell({ collection, locale, item }: ContentListColumnCellContext) {
+	// One key per (collection, locale) — NOT per row. All cells share the
+	// same cached result and the same in-flight promise.
+	const { data, isError } = useQuery({
+		queryKey: ["my-plugin", "scores", collection, locale],
+		queryFn: () => fetchScoresForCollection(collection, locale),
+	});
+
+	if (isError) {
+		return (
+			<span className="text-kumo-subtle">
+				<span aria-hidden="true">—</span>
+				<span className="sr-only">Scores unavailable</span>
+			</span>
+		);
+	}
+	if (!data) return <span className="text-kumo-subtle">…</span>; // fixed-size placeholder
+	return <span>{data[item.id] ?? "—"}</span>;
+}
+```
+
+Keying a query by `item.id` re-introduces one request per row and is a bug. While loading, render a small fixed-size placeholder so the table doesn't shift.
+
+## Editor sidebar panels
+
+A panel contributes a titled section to the entry settings sidebar. The host renders the section wrapper and heading; your `panel` component renders the body:
+
+```tsx title="src/components/ReviewStatusPanel.tsx"
+import type { ContentEditorPanelContext } from "@emdash-cms/admin";
+
+export function ReviewStatusPanel({ collection, entry, locale }: ContentEditorPanelContext) {
+	return (
+		<dl className="space-y-1 text-sm">
+			<div className="flex items-center justify-between gap-2">
+				<dt>Entry</dt>
+				<dd className="truncate">{entry.slug ?? entry.id}</dd>
+			</div>
+			<div className="flex items-center justify-between gap-2">
+				<dt>Locale</dt>
+				<dd>{locale ?? "—"}</dd>
+			</div>
+		</dl>
+	);
+}
+```
+
+Panels render **for saved entries only** — a brand-new entry has no id or saved state to expose. They appear after the core content sections (Publish, Ownership, Bylines, Translations, Taxonomies, SEO) and before the document outline, revision history, and trash action. When a Portable Text block takes over the sidebar (for example the image detail panel), core sections and contributed panels are both replaced until it closes.
+
+The panel context carries the same host data as the cell context — `collection`, the saved entry snapshot (named `entry` here; list cells call it `item` to match their row framing), and the entry's `locale`. Edits in progress are deliberately not exposed — read the saved state, and use the [plugin API](/plugins/creating-native-plugins/react-admin/#plugin-api-hook) for anything richer.
+
+<Aside type="tip" title="Design for a narrow sidebar">
+	The settings sidebar is ~20rem wide on small screens and becomes an off-canvas sheet below
+	the `lg` breakpoint. Let content wrap, use logical (`ms-*`/`ps-*`) spacing for RTL, and never
+	assume a wide viewport — a panel must not force horizontal overflow.
+</Aside>
+
+## Error isolation
+
+Every contributed header, cell, and panel is wrapped in an error boundary. A contribution that throws degrades to a quiet, accessible fallback — a placeholder in list cells, a short note with a Retry action in panels — without breaking the table, the row, the editor, or other contributions. The error object is logged to the browser console for developers and never rendered into the admin UI.
+
+## Localization
+
+`label` and `title` accept a plain string (rendered as-is) or a Lingui `MessageDescriptor` (translated with the admin's active locale). Plugin strings are not part of the admin's catalogs, so most plugins pass plain strings; descriptors exist so contributions defined inside the admin package itself stay translatable.
