@@ -707,9 +707,16 @@ describe("AssessmentOrchestrator: history stage never auto-labels (W8.4)", () =>
 			cidValue: await cid("history-invariant"),
 		});
 
-		// Prior releases exist under PUBLISHER_DID (every run in this suite shares
-		// it), so the history stage genuinely produces a publisher-history finding
-		// — the invariant below is non-vacuous.
+		// Seed an explicit prior release under the same DID so the stage genuinely
+		// produces a publisher-history finding without relying on other tests'
+		// state — keeps the non-vacuousness assertion below self-contained.
+		await createSubject(testEnv.DB, {
+			uri: releaseUri("history-invariant-prior"),
+			cid: await cid("history-invariant-prior"),
+			did: PUBLISHER_DID,
+			collection: "com.emdashcms.experimental.package.release",
+			rkey: "history-invariant-prior:1.0.0",
+		});
 		const assessment = await getAssessment(testEnv.DB, run.id);
 		const produced = await analyzeHistory(testEnv.DB, assessment!, { src: LABELER_DID });
 		expect(produced.some((f) => HISTORY_FINDING_CATEGORIES.has(f.category))).toBe(true);
