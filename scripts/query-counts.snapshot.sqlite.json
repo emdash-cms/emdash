@@ -11,7 +11,7 @@
 	"GET /pages/about (warm)": 6,
 	"GET /posts (cold)": 6,
 	"GET /posts (warm)": 6,
-	"GET /posts/building-for-the-long-term (cold)": 18,
+	"GET /posts/building-for-the-long-term (cold)": 19,
 	"GET /posts/building-for-the-long-term (warm)": 18,
 	"GET /rss.xml (cold)": 2,
 	"GET /rss.xml (warm)": 2,
