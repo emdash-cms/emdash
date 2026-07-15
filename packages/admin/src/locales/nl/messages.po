@@ -144,7 +144,7 @@ msgstr "{0, plural, one {# bericht} other {# berichten}}"
 #. placeholder {0}: loopRedirectIds.size
 #: packages/admin/src/components/Redirects.tsx:444
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
-msgstr "{0, plural, one {# redirect maakt deel uit van een lus.} other {# redirects maken deel uit van een lus.}}"
+msgstr "{0, plural, one {# omleiding maakt deel uit van een lus.} other {# omleidingen maken deel uit van een lus.}}"
 
 #. placeholder {0}: selected.size
 #: packages/admin/src/components/comments/CommentInbox.tsx:228
@@ -658,7 +658,7 @@ msgstr "Velden toevoegen"
 
 #: packages/admin/src/routes/byline-schema.tsx:293
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
-msgstr "Voeg velden zoals \"Functietitel\" of \"Voornaamwoorden\" toe om elke byline te verrijken."
+msgstr "Voeg velden zoals \"Functietitel\" of \"Voornaamwoorden\" toe om elke auteursvermelding te verrijken."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:613
 msgid "Add fields to define the structure of your content"
@@ -800,7 +800,7 @@ msgstr "Alle auteurs"
 
 #: packages/admin/src/routes/bylines.tsx:413
 msgid "All bylines"
-msgstr "Alle bylines"
+msgstr "Alle auteursvermeldingen"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:108
 msgid "All capabilities"
@@ -1283,17 +1283,17 @@ msgstr "Opsommingslijst"
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:384
 msgid "Byline schema"
-msgstr "Byline-schema"
+msgstr "Schema voor auteursvermeldingen"
 
 #: packages/admin/src/components/Sidebar.tsx:347
 msgid "Byline Schema"
-msgstr "Byline-schema"
+msgstr "Schema voor auteursvermeldingen"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:513
 #: packages/admin/src/components/Sidebar.tsx:342
 #: packages/admin/src/routes/bylines.tsx:376
 msgid "Bylines"
-msgstr "Bylines"
+msgstr "Auteursvermeldingen"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:30
 msgid "C"
@@ -1842,7 +1842,7 @@ msgstr "Kan WordPress niet detecteren"
 
 #: packages/admin/src/routes/byline-schema.tsx:268
 msgid "Couldn't load byline fields."
-msgstr "Kan byline-velden niet laden."
+msgstr "Kan auteursvermeldingsvelden niet laden."
 
 #: packages/admin/src/routes/bylines.tsx:548
 msgid "Couldn't load custom fields."
@@ -1854,7 +1854,7 @@ msgstr "Kan \"{draft}\" niet aan een MIME-type koppelen. Typ het MIME-type direc
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:807
 msgid "Couldn't search bylines. Please try again."
-msgstr "Kan bylines niet doorzoeken. Probeer het opnieuw."
+msgstr "Kan auteursvermeldingen niet doorzoeken. Probeer het opnieuw."
 
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:369
@@ -1904,7 +1904,7 @@ msgstr "Een account aanmaken"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:890
 #: packages/admin/src/routes/bylines.tsx:477
 msgid "Create byline"
-msgstr "Byline aanmaken"
+msgstr "Auteursvermelding aanmaken"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 msgid "Create Content Type"
@@ -1943,15 +1943,15 @@ msgstr "Maak persoonlijke toegangstokens aan voor programmatische API-toegang"
 #. placeholder {0}: item.path
 #: packages/admin/src/components/Redirects.tsx:247
 msgid "Create redirect for {0}"
-msgstr "Redirect aanmaken voor {0}"
+msgstr "Omleiding aanmaken voor {0}"
 
 #: packages/admin/src/components/Redirects.tsx:246
 msgid "Create redirect for this path"
-msgstr "Redirect aanmaken voor dit pad"
+msgstr "Omleiding aanmaken voor dit pad"
 
 #: packages/admin/src/components/Redirects.tsx:461
 msgid "Create redirect rules to manage URL changes."
-msgstr "Maak regels voor redirects aan om URL-wijzigingen te beheren."
+msgstr "Maak omleidingsregels aan om URL-wijzigingen te beheren."
 
 #: packages/admin/src/components/WordPressImport.tsx:1921
 msgid "Create Schema & Import"
@@ -2165,7 +2165,7 @@ msgstr "Definieer een nieuwe taxonomie om content te classificeren"
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
-msgstr "Definieer aangepaste velden die bij elke byline worden opgeslagen — functietitel, voornaamwoorden, social handles en meer."
+msgstr "Definieer aangepaste velden die bij elke auteursvermelding worden opgeslagen — functietitel, voornaamwoorden, social handles en meer."
 
 #: packages/admin/src/components/ContentTypeList.tsx:41
 msgid "Define the structure of your content"
@@ -2242,11 +2242,11 @@ msgstr "Back-up verwijderen?"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
-msgstr "Byline-veld verwijderen?"
+msgstr "Auteursvermeldingsveld verwijderen?"
 
 #: packages/admin/src/routes/bylines.tsx:623
 msgid "Delete Byline?"
-msgstr "Byline verwijderen?"
+msgstr "Auteursvermelding verwijderen?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2787
 msgid "Delete column"
@@ -2300,16 +2300,16 @@ msgstr "Definitief verwijderen?"
 
 #: packages/admin/src/components/Redirects.tsx:535
 msgid "Delete redirect"
-msgstr "Redirect verwijderen"
+msgstr "Omleiding verwijderen"
 
 #. placeholder {0}: r.source
 #: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect {0}"
-msgstr "Redirect {0} verwijderen"
+msgstr "Omleiding {0} verwijderen"
 
 #: packages/admin/src/components/Redirects.tsx:580
 msgid "Delete Redirect?"
-msgstr "Redirect verwijderen?"
+msgstr "Omleiding verwijderen?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2808
 msgid "Delete row"
@@ -2335,7 +2335,7 @@ msgstr "Verwijderd"
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
 #: packages/admin/src/routes/byline-schema.tsx:371
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
-msgstr "Het verwijderen van \"{0}\" verwijdert ook {1, plural, one {# opgeslagen waarde} other {# opgeslagen waarden}} in alle bylines. Dit kan niet ongedaan worden gemaakt."
+msgstr "Het verwijderen van \"{0}\" verwijdert ook {1, plural, one {# opgeslagen waarde} other {# opgeslagen waarden}} in alle auteursvermeldingen. Dit kan niet ongedaan worden gemaakt."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:673
@@ -2453,7 +2453,7 @@ msgstr "Plugin uitschakelen"
 
 #: packages/admin/src/components/Redirects.tsx:504
 msgid "Disable redirect"
-msgstr "Redirect uitschakelen"
+msgstr "Omleiding uitschakelen"
 
 #: packages/admin/src/routes/users.tsx:279
 msgid "Disable User"
@@ -2733,11 +2733,11 @@ msgstr "{title} bewerken"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:952
 msgid "Edit byline"
-msgstr "Byline bewerken"
+msgstr "Auteursvermelding bewerken"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
-msgstr "Byline-veld bewerken"
+msgstr "Auteursvermeldingsveld bewerken"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:331
 msgid "Edit Domain"
@@ -2761,16 +2761,16 @@ msgstr "Menu-items bewerken"
 
 #: packages/admin/src/components/Redirects.tsx:527
 msgid "Edit redirect"
-msgstr "Redirect bewerken"
+msgstr "Omleiding bewerken"
 
 #: packages/admin/src/components/Redirects.tsx:105
 msgid "Edit Redirect"
-msgstr "Redirect bewerken"
+msgstr "Omleiding bewerken"
 
 #. placeholder {0}: r.source
 #: packages/admin/src/components/Redirects.tsx:528
 msgid "Edit redirect {0}"
-msgstr "Redirect {0} bewerken"
+msgstr "Omleiding {0} bewerken"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
@@ -2875,7 +2875,7 @@ msgstr "Plugin inschakelen"
 
 #: packages/admin/src/components/Redirects.tsx:504
 msgid "Enable redirect"
-msgstr "Redirect inschakelen"
+msgstr "Omleiding inschakelen"
 
 #: packages/admin/src/components/Redirects.tsx:175
 #: packages/admin/src/components/Redirects.tsx:418
@@ -3054,11 +3054,11 @@ msgstr "Aanmaken van back-up mislukt"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:936
 msgid "Failed to create byline"
-msgstr "Aanmaken van byline mislukt"
+msgstr "Aanmaken van auteursvermelding mislukt"
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
-msgstr "Aanmaken van byline-veld mislukt"
+msgstr "Aanmaken van auteursvermeldingsveld mislukt"
 
 #: packages/admin/src/routes/byline-schema.tsx:102
 msgid "Failed to create field"
@@ -3097,11 +3097,11 @@ msgstr "Verwijderen van back-up mislukt"
 
 #: packages/admin/src/lib/api/bylines.ts:143
 msgid "Failed to delete byline"
-msgstr "Verwijderen van byline mislukt"
+msgstr "Verwijderen van auteursvermelding mislukt"
 
 #: packages/admin/src/lib/api/byline-fields.ts:143
 msgid "Failed to delete byline field"
-msgstr "Verwijderen van byline-veld mislukt"
+msgstr "Verwijderen van auteursvermeldingsveld mislukt"
 
 #: packages/admin/src/lib/api/schema.ts:222
 msgid "Failed to delete collection"
@@ -3143,7 +3143,7 @@ msgstr "Verwijderen van passkey mislukt"
 
 #: packages/admin/src/lib/api/redirects.ts:111
 msgid "Failed to delete redirect"
-msgstr "Verwijderen van redirect mislukt"
+msgstr "Verwijderen van omleiding mislukt"
 
 #: packages/admin/src/lib/api/sections.ts:110
 msgid "Failed to delete section"
@@ -3326,7 +3326,7 @@ msgstr "Installeren van plugin mislukt"
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
-msgstr "Ophalen van byline-velden mislukt"
+msgstr "Ophalen van auteursvermeldingsvelden mislukt"
 
 #: packages/admin/src/router.tsx:281
 msgid "Failed to load admin"
@@ -3343,7 +3343,7 @@ msgstr "Laden van back-upinstellingen mislukt"
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:366
 msgid "Failed to load bylines: {0}"
-msgstr "Laden van bylines mislukt: {0}"
+msgstr "Laden van auteursvermeldingen mislukt: {0}"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:81
 msgid "Failed to load email settings"
@@ -3410,7 +3410,7 @@ msgstr "Publiceren mislukt"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
-msgstr "Ophalen van gebruik van byline-veld mislukt"
+msgstr "Ophalen van gebruik van auteursvermeldingsveld mislukt"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:112
 msgid "Failed to remove domain"
@@ -3427,7 +3427,7 @@ msgstr "Hernoemen van passkey mislukt"
 
 #: packages/admin/src/lib/api/byline-fields.ts:156
 msgid "Failed to reorder byline fields"
-msgstr "Herschikken van byline-velden mislukt"
+msgstr "Herschikken van auteursvermeldingsvelden mislukt"
 
 #: packages/admin/src/lib/api/schema.ts:293
 #: packages/admin/src/routes/byline-schema.tsx:152
@@ -3532,11 +3532,11 @@ msgstr "Bijwerken van back-upinstellingen mislukt"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:986
 msgid "Failed to update byline"
-msgstr "Bijwerken van byline mislukt"
+msgstr "Bijwerken van auteursvermelding mislukt"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
-msgstr "Bijwerken van byline-veld mislukt"
+msgstr "Bijwerken van auteursvermeldingsveld mislukt"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:94
 msgid "Failed to update domain"
@@ -3704,7 +3704,7 @@ msgstr "Filteren op type"
 
 #: packages/admin/src/routes/bylines.tsx:409
 msgid "Filter byline type"
-msgstr "Filteren op type byline"
+msgstr "Filteren op type auteursvermelding"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
@@ -3791,7 +3791,7 @@ msgstr "Groep (optioneel)"
 
 #: packages/admin/src/routes/bylines.tsx:556
 msgid "Guest byline"
-msgstr "Byline voor gast"
+msgstr "Auteursvermelding voor gast"
 
 #: packages/admin/src/routes/bylines.tsx:414
 msgid "Guest only"
@@ -4257,7 +4257,7 @@ msgstr "Houd dit tabblad open. De import verloopt in kleine stappen en kan bij o
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:812
 msgid "Keep typing to narrow down more bylines."
-msgstr "Typ verder om de lijst met bylines te verfijnen."
+msgstr "Typ verder om de lijst met auteursvermeldingen te verfijnen."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:293
 #: packages/admin/src/components/SectionEditor.tsx:270
@@ -4424,7 +4424,7 @@ msgstr "Meer laden"
 
 #: packages/admin/src/routes/byline-schema.tsx:257
 msgid "Loading byline fields…"
-msgstr "Byline-velden laden…"
+msgstr "Auteursvermeldingsvelden laden…"
 
 #: packages/admin/src/components/ContentTypeList.tsx:114
 msgid "Loading collections..."
@@ -4460,7 +4460,7 @@ msgstr "Plugins laden..."
 
 #: packages/admin/src/components/Redirects.tsx:456
 msgid "Loading redirects..."
-msgstr "Redirects laden..."
+msgstr "Omleidingen laden..."
 
 #: packages/admin/src/components/SectionPickerModal.tsx:94
 #: packages/admin/src/components/Sections.tsx:252
@@ -4579,7 +4579,7 @@ msgstr "Beheer {0} voor {1}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:774
 msgid "Manage bylines in {entryLocale}"
-msgstr "Bylines beheren in {entryLocale}"
+msgstr "Auteursvermeldingen beheren in {entryLocale}"
 
 #: packages/admin/src/components/Widgets.tsx:326
 msgid "Manage content widgets in your widget areas"
@@ -4595,7 +4595,7 @@ msgstr "Beheer navigatiemenu's voor je site"
 
 #: packages/admin/src/components/Redirects.tsx:359
 msgid "Manage URL redirects and view 404 errors."
-msgstr "Beheer URL-redirects en bekijk 404-fouten."
+msgstr "Beheer URL-omleidingen en bekijk 404-fouten."
 
 #: packages/admin/src/components/Settings.tsx:94
 msgid "Manage your passkeys and authentication"
@@ -4944,7 +4944,7 @@ msgstr "Nieuwe {collectionLabel}"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
-msgstr "Nieuw byline-veld"
+msgstr "Nieuw auteursvermeldingsveld"
 
 #: packages/admin/src/components/WordPressImport.tsx:1982
 msgid "New collection"
@@ -4966,7 +4966,7 @@ msgstr "Nieuwe openbare routes"
 #: packages/admin/src/components/Redirects.tsx:105
 #: packages/admin/src/components/Redirects.tsx:362
 msgid "New Redirect"
-msgstr "Nieuwe redirect"
+msgstr "Nieuwe omleiding"
 
 #: packages/admin/src/components/Sections.tsx:143
 msgid "New Section"
@@ -5052,19 +5052,19 @@ msgstr "Nog geen goedgekeurde reacties."
 
 #: packages/admin/src/routes/byline-schema.tsx:291
 msgid "No byline fields yet."
-msgstr "Nog geen byline-velden."
+msgstr "Nog geen auteursvermeldingsvelden."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:766
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
-msgstr "Geen bylines beschikbaar in {entryLocale}. Maak een variant aan via de pagina Bylines voordat je er een aan dit item toekent."
+msgstr "Geen auteursvermeldingen beschikbaar in {entryLocale}. Maak een variant aan via de pagina Auteursvermeldingen voordat je er een aan dit item toekent."
 
 #: packages/admin/src/routes/bylines.tsx:453
 msgid "No bylines found"
-msgstr "Geen bylines gevonden"
+msgstr "Geen auteursvermeldingen gevonden"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:877
 msgid "No bylines selected."
-msgstr "Geen bylines geselecteerd."
+msgstr "Geen auteursvermeldingen geselecteerd."
 
 #: packages/admin/src/components/Dashboard.tsx:226
 msgid "No collections configured"
@@ -5157,7 +5157,7 @@ msgstr "Geen overeenkomsten"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:809
 msgid "No matching bylines."
-msgstr "Geen overeenkomende bylines."
+msgstr "Geen overeenkomende auteursvermeldingen."
 
 #: packages/admin/src/components/MediaLibrary.tsx:489
 #: packages/admin/src/components/MediaLibrary.tsx:517
@@ -5245,7 +5245,7 @@ msgstr "Geen recente activiteit"
 
 #: packages/admin/src/components/Redirects.tsx:460
 msgid "No redirects yet"
-msgstr "Nog geen redirects"
+msgstr "Nog geen omleidingen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1300
 #: packages/admin/src/components/RepeaterField.tsx:374
@@ -5479,7 +5479,7 @@ msgstr "Bovenliggend item"
 #: packages/admin/src/components/Redirects.tsx:509
 #: packages/admin/src/components/Redirects.tsx:515
 msgid "Part of a redirect loop"
-msgstr "Onderdeel van een redirect-loop"
+msgstr "Onderdeel van een omleidingslus"
 
 #: packages/admin/src/components/WordPressImport.tsx:1153
 msgid "Partial"
@@ -5839,7 +5839,7 @@ msgstr "Python"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:885
 msgid "Quick create byline"
-msgstr "Snel byline aanmaken"
+msgstr "Snel auteursvermelding aanmaken"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:196
 #: packages/admin/src/components/editor/ImageNode.tsx:197
@@ -5914,7 +5914,7 @@ msgstr "Herstellink verzonden naar {0}"
 
 #: packages/admin/src/components/Redirects.tsx:442
 msgid "Redirect loop detected"
-msgstr "Redirect-loop gedetecteerd"
+msgstr "Omleidingslus gedetecteerd"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:163
 msgid "Redirecting to login..."
@@ -5924,7 +5924,7 @@ msgstr "Je wordt doorgestuurd naar de inlogpagina..."
 #: packages/admin/src/components/Redirects.tsx:377
 #: packages/admin/src/components/Sidebar.tsx:332
 msgid "Redirects"
-msgstr "Redirects"
+msgstr "Omleidingen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3242
 msgid "Redo"
@@ -6466,11 +6466,11 @@ msgstr "Zoeken op naam of e-mailadres..."
 #: packages/admin/src/components/ContentSettingsPanel.tsx:783
 #: packages/admin/src/routes/bylines.tsx:402
 msgid "Search bylines"
-msgstr "Bylines zoeken"
+msgstr "Auteursvermeldingen zoeken"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:782
 msgid "Search bylines to add..."
-msgstr "Zoek bylines om toe te voegen..."
+msgstr "Zoek auteursvermeldingen om toe te voegen..."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Search comments"
@@ -6864,7 +6864,7 @@ msgstr "Deel deze link met de uitgenodigde gebruiker"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:294
 msgid "Shared across all translations of the same byline."
-msgstr "Gedeeld door alle vertalingen van dezelfde byline."
+msgstr "Gedeeld door alle vertalingen van dezelfde auteursvermelding."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:52
 msgid "Short text"
@@ -7122,7 +7122,7 @@ msgstr "Opgeslagen back-ups"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
 msgid "Stored per locale — each translation of a byline gets its own value."
-msgstr "Opgeslagen per taal — elke vertaling van een byline krijgt een eigen waarde."
+msgstr "Opgeslagen per taal — elke vertaling van een auteursvermelding krijgt een eigen waarde."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2725
 #: packages/admin/src/components/PortableTextEditor.tsx:3033
@@ -7388,7 +7388,7 @@ msgstr "Deze uitgever claimt een naam waarvan niet kon worden aangetoond dat die
 
 #: packages/admin/src/components/Redirects.tsx:581
 msgid "This redirect rule will be permanently removed."
-msgstr "Deze redirect wordt permanent verwijderd."
+msgstr "Deze omleidingsregel wordt permanent verwijderd."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:618
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
@@ -7396,7 +7396,7 @@ msgstr "Deze release vereist een nieuwere omgeving dan waar je site momenteel op
 
 #: packages/admin/src/routes/bylines.tsx:624
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
-msgstr "Dit verwijdert het profiel van de byline. Bylinekoppelingen in content worden verwijderd en leadverwijzingen worden gewist."
+msgstr "Dit verwijdert het profiel van de auteursvermelding. Auteursvermeldingskoppelingen in content worden verwijderd en leadverwijzingen worden gewist."
 
 #: packages/admin/src/components/SectionEditor.tsx:285
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
@@ -7794,7 +7794,7 @@ msgstr "Werk de gegevens van de {0} bij"
 
 #: packages/admin/src/components/Redirects.tsx:109
 msgid "Update this redirect rule."
-msgstr "Werk deze redirect bij."
+msgstr "Werk deze omleidingsregel bij."
 
 #. placeholder {0}: updateInfo.latest
 #: packages/admin/src/components/PluginManager.tsx:417
@@ -8345,7 +8345,7 @@ msgstr "Je hebt volledige toegang om deze site te beheren, inclusief gebruikers,
 
 #: packages/admin/src/routes/byline-schema.tsx:175
 msgid "You need admin permissions to manage byline schema."
-msgstr "Je hebt admin-rechten nodig om het byline-schema te beheren."
+msgstr "Je hebt admin-rechten nodig om het schema voor auteursvermeldingen te beheren."
 
 #: packages/admin/src/router.tsx:1485
 msgid "You need Editor permissions to moderate comments."
