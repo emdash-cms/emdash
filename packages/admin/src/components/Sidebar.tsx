@@ -128,6 +128,15 @@ interface NavItem {
 }
 
 /**
+ * Product attribution shown in the admin footer. The configured site name
+ * belongs in the header brand; it must not replace the CMS product identity.
+ */
+export function formatAdminFooter(version?: string, commit?: string): string {
+	const label = `EmDash CMS v${version || "0.0.0"}`;
+	return commit ? `${label} (${commit})` : label;
+}
+
+/**
  * Static map of common plugin admin-page icon names to Phosphor components.
  *
  * Plugins declare `adminPages: [{ path, label, icon }]`, where `icon` is a
@@ -482,8 +491,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 			<KumoSidebar.Footer>
 				<p className="px-3 py-2 text-[11px] text-kumo-subtle group-data-[state=collapsed]/sidebar:hidden">
-					{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-					{manifest.commit && ` (${manifest.commit})`}
+					{formatAdminFooter(manifest.version, manifest.commit)}
 				</p>
 			</KumoSidebar.Footer>
 		</KumoSidebar>

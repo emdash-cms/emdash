@@ -30,6 +30,7 @@ import { describe, it, expect } from "vitest";
 import {
 	BYLINE_SCHEMA_NAV_ITEM,
 	filterNavItemsByRole,
+	formatAdminFooter,
 	resolveNavIcon,
 	toPhosphorIconName,
 } from "../../src/components/Sidebar";
@@ -42,6 +43,16 @@ const ROLE_CONTRIBUTOR = 20;
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 const ROLE_ADMIN = 50;
+
+describe("formatAdminFooter", () => {
+	it("keeps EmDash product attribution independent from site branding", () => {
+		expect(formatAdminFooter("0.29.0", "baf4d839")).toBe("EmDash CMS v0.29.0 (baf4d839)");
+	});
+
+	it("keeps a deterministic fallback when build metadata is unavailable", () => {
+		expect(formatAdminFooter()).toBe("EmDash CMS v0.0.0");
+	});
+});
 
 describe("BYLINE_SCHEMA_NAV_ITEM invariants", () => {
 	it("points to the /byline-schema route", () => {
