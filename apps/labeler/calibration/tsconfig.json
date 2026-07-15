@@ -1,0 +1,9 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["@cloudflare/vitest-pool-workers/types", "@types/node"],
+		"verbatimModuleSyntax": true,
+		"noEmit": true
+	},
+	"include": ["**/*.ts", "../worker-configuration.d.ts"]
+}

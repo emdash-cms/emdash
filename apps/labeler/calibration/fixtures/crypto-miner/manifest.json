@@ -1,0 +1,10 @@
+{
+	"id": "content-indexer",
+	"version": "1.0.0",
+	"capabilities": ["read:content"],
+	"allowedHosts": [],
+	"storage": { "index": { "indexes": [] } },
+	"hooks": ["content:afterSave"],
+	"routes": [],
+	"admin": {}
+}

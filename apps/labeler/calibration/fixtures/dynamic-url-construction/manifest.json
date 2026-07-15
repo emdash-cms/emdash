@@ -1,0 +1,10 @@
+{
+	"id": "analytics-pixel",
+	"version": "1.0.0",
+	"capabilities": ["read:content", "network:fetch"],
+	"allowedHosts": ["analytics.example.com"],
+	"storage": {},
+	"hooks": ["content:afterSave"],
+	"routes": [],
+	"admin": {}
+}

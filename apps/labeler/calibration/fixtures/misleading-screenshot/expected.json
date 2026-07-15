@@ -1,0 +1,9 @@
+{
+	"expect": {
+		"code": { "toState": "passed", "categories": [] },
+		"image": {
+			"review": true,
+			"note": "legacy expects image 'warn' (misleading) but the fixture ships no image asset, so the image lane is not exercised"
+		}
+	}
+}

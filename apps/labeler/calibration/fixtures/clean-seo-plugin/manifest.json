@@ -1,0 +1,10 @@
+{
+	"id": "seo",
+	"version": "1.0.0",
+	"capabilities": ["read:content", "network:fetch"],
+	"allowedHosts": ["api.seo-tool.com"],
+	"storage": {},
+	"hooks": ["content:afterSave"],
+	"routes": [],
+	"admin": {}
+}

@@ -1,0 +1,9 @@
+{
+	"expect": {
+		"code": { "toState": "passed", "categories": [] },
+		"image": {
+			"review": true,
+			"note": "legacy image verdict 'warn' (brand-impersonation); labeler outcome depends on whether the model rates it 'impersonation' (block) or 'misleading-metadata' (warn)"
+		}
+	}
+}
