@@ -87,6 +87,44 @@ describe("analyzeCode", () => {
 		expect(result.call.promptVersion).toBe(PROMPT_VERSION);
 	});
 
+	it("parses the OpenAI-compatible chat envelope (choices[0].message.content) and ignores reasoning_content", async () => {
+		const ai = fakeAi(() =>
+			Promise.resolve({
+				choices: [
+					{
+						message: {
+							role: "assistant",
+							content: JSON.stringify({
+								findings: [
+									{
+										category: "obfuscated-code",
+										severity: "medium",
+										title: "obfuscated payload",
+										publicSummary: "the code appears obfuscated",
+										privateDetail: "base64-decoded a suspicious eval call",
+										affectedFiles: ["src/index.ts"],
+									},
+								],
+							}),
+							reasoning_content: "I considered whether the base64 blob was benign.",
+						},
+						finish_reason: "stop",
+					},
+				],
+				usage: { total_tokens: 42 },
+			}),
+		);
+
+		const result = await analyzeCode(baseInput(), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+		});
+
+		expect(result.findings).toHaveLength(1);
+		expect(result.findings[0]).toMatchObject({ source: "model", category: "obfuscated-code" });
+	});
+
 	it("uses the modelId passed in deps over the default", async () => {
 		const { ai } = capturingAi(findingResponse([]));
 		const result = await analyzeCode(baseInput(), {

@@ -14,6 +14,7 @@ import {
 	FENCE_SENTINEL,
 	MAX_MODEL_INPUT_CHARS,
 	ModelTransientError,
+	unwrapModelEnvelope,
 	type CodeAnalysisMetadata,
 } from "./code-ai-adapter.js";
 import type { FindingSeverity } from "./evidence.js";
@@ -323,7 +324,7 @@ function buildImagePart(image: ImageAnalysisImage): ImageMessageContentPart {
 }
 
 function parseModelOutput(raw: unknown): unknown[] {
-	let payload: unknown = raw;
+	let payload: unknown = unwrapModelEnvelope(raw);
 	if (isRecord(payload) && "response" in payload) payload = payload.response;
 	if (typeof payload === "string") {
 		try {

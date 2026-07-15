@@ -112,6 +112,43 @@ describe("analyzeImages", () => {
 		expect(result.call?.promptVersion).toBe(PROMPT_VERSION);
 	});
 
+	it("parses the OpenAI-compatible chat envelope (choices[0].message.content) and ignores reasoning_content", async () => {
+		const ai = fakeAi(() =>
+			Promise.resolve({
+				choices: [
+					{
+						message: {
+							role: "assistant",
+							content: JSON.stringify({
+								findings: [
+									{
+										category: "impersonation",
+										severity: "critical",
+										title: "impersonates a well-known brand",
+										publicSummary: "the icon mimics a popular payment provider's logo",
+										privateDetail: "icon closely matches Acme Pay's trademarked mark",
+										affectedImages: ["assets/icon.png"],
+									},
+								],
+							}),
+							reasoning_content: "The mark is very close to a known logo.",
+						},
+						finish_reason: "stop",
+					},
+				],
+			}),
+		);
+
+		const result = await analyzeImages(baseInput(), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+		});
+
+		expect(result.findings).toHaveLength(1);
+		expect(result.findings[0]).toMatchObject({ source: "image", category: "impersonation" });
+	});
+
 	it("overrides model-supplied source, sourceMetadata, and evidenceRefs so they can't be forged", async () => {
 		const ai = fakeAi(() =>
 			Promise.resolve(
