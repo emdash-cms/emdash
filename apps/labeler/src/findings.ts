@@ -35,11 +35,30 @@ export interface ModelFindingMetadata {
  * finding; model/image stages report the model and prompt version. */
 export type FindingSourceMetadata = ToolFindingMetadata | ModelFindingMetadata;
 
+/**
+ * The category vocabulary a `source: "history"` finding may cite (plan W8.4
+ * D4). History findings are context, never labels — the resolver drops them
+ * before any category→label mapping — so they cite this dedicated set rather
+ * than the policy's automated-block ∪ warning label values, and
+ * `validateFinding` holds them to it exclusively.
+ */
+export type HistoryFindingCategory =
+	| "publisher-history"
+	| "shared-artifact"
+	| "active-manual-label";
+
+export const HISTORY_FINDING_CATEGORIES: ReadonlySet<string> = new Set<HistoryFindingCategory>([
+	"publisher-history",
+	"shared-artifact",
+	"active-manual-label",
+]);
+
 export interface NormalizedFinding {
 	source: FindingSource;
-	/** A label value from the policy vocabulary — validated against
-	 * `allowedFindingCategories` (automated-block ∪ warning), never the
-	 * eligibility or manual-system label values. */
+	/** For non-history sources, a label value from the policy vocabulary —
+	 * validated against `allowedFindingCategories` (automated-block ∪ warning),
+	 * never the eligibility or manual-system label values. For `source:
+	 * "history"`, one of `HISTORY_FINDING_CATEGORIES` instead (plan W8.4 D4). */
 	category: string;
 	severity: FindingSeverity;
 	confidence?: number;
@@ -77,8 +96,14 @@ export function validateFinding(finding: unknown, opts: ValidateFindingOptions):
 	if (typeof source !== "string" || !isFindingSource(source))
 		throw new FindingValidationError(`finding.source is invalid: ${String(source)}`);
 
+	// History findings are exempt from the automated-block ∪ warning constraint
+	// (plan W8.4 D4): they cite the dedicated `HISTORY_FINDING_CATEGORIES` set,
+	// and only that set — a history finding may not borrow a block/warn label
+	// value, nor a non-history finding a history category.
+	const allowedCategories =
+		source === "history" ? HISTORY_FINDING_CATEGORIES : opts.allowedCategories;
 	const category = finding.category;
-	if (typeof category !== "string" || !opts.allowedCategories.has(category))
+	if (typeof category !== "string" || !allowedCategories.has(category))
 		throw new FindingValidationError(
 			`finding.category is not an allowed finding category: ${String(category)}`,
 		);

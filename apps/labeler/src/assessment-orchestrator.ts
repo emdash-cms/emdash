@@ -60,9 +60,23 @@ export interface OrchestratorStages {
 	dependency: StageAdapter;
 	codeAi: StageAdapter;
 	imageAi: StageAdapter;
+	/** Publisher-history context (plan W8.4). Runs last: its findings are
+	 * context the resolver drops, never labels, so nothing downstream depends on
+	 * them. Must be best-effort — a history stage that throws would fail the whole
+	 * run and discard every other stage's findings; `analyzeHistory` swallows its
+	 * own errors and returns `[]`. DB-bound — a real wiring passes a closure over
+	 * `analyzeHistory`. */
+	history: StageAdapter;
 }
 
-const STAGE_ORDER = ["acquire", "deterministic", "dependency", "codeAi", "imageAi"] as const;
+const STAGE_ORDER = [
+	"acquire",
+	"deterministic",
+	"dependency",
+	"codeAi",
+	"imageAi",
+	"history",
+] as const;
 
 export interface AssessmentOrchestratorOptions {
 	db: D1Database;
@@ -336,4 +350,5 @@ export const stubStages: OrchestratorStages = {
 	dependency: () => Promise.resolve([]),
 	codeAi: () => Promise.resolve([]),
 	imageAi: () => Promise.resolve([]),
+	history: () => Promise.resolve([]),
 };

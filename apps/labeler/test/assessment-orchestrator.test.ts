@@ -23,7 +23,8 @@ import {
 	getCurrentAssessment,
 	transitionAssessmentState,
 } from "../src/assessment-store.js";
-import { FindingValidationError } from "../src/findings.js";
+import { FindingValidationError, HISTORY_FINDING_CATEGORIES } from "../src/findings.js";
+import { analyzeHistory } from "../src/history-context.js";
 import { MODERATION_POLICY } from "../src/policy.js";
 import { issueManualLabel } from "../src/service.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
@@ -696,6 +697,50 @@ describe("AssessmentOrchestrator: invalid findings", () => {
 
 		const assessment = await getAssessment(testEnv.DB, run.id);
 		expect(assessment?.state).toBe("running");
+	});
+});
+
+describe("AssessmentOrchestrator: history stage never auto-labels (W8.4)", () => {
+	it("runs the history stage, whose finding surfaces but is never turned into an issued label", async () => {
+		const run = await pendingRun({
+			name: "history-invariant",
+			cidValue: await cid("history-invariant"),
+		});
+
+		// Seed an explicit prior release under the same DID so the stage genuinely
+		// produces a publisher-history finding without relying on other tests'
+		// state — keeps the non-vacuousness assertion below self-contained.
+		await createSubject(testEnv.DB, {
+			uri: releaseUri("history-invariant-prior"),
+			cid: await cid("history-invariant-prior"),
+			did: PUBLISHER_DID,
+			collection: "com.emdashcms.experimental.package.release",
+			rkey: "history-invariant-prior:1.0.0",
+		});
+		const assessment = await getAssessment(testEnv.DB, run.id);
+		const produced = await analyzeHistory(testEnv.DB, assessment!, { src: LABELER_DID });
+		// Assert the specific finding the seeded prior release produces, not just
+		// "any history category" — so a regression in the prior-release path can't
+		// pass on the back of an unrelated history finding.
+		expect(produced.some((f) => f.category === "publisher-history")).toBe(true);
+
+		const stages: OrchestratorStages = {
+			...stubStages,
+			history: (ctx) => analyzeHistory(testEnv.DB, ctx.assessment, { src: LABELER_DID }),
+		};
+		const result = await (await buildOrchestrator(stages)).runAssessment(run.id);
+
+		// The history finding flowed through validation (it did not abort the run)
+		// and resolution, yet produced no blocking or warning outcome.
+		expect(result.state).toBe("passed");
+
+		// No history-category value is ever issued as a label — the resolver drops
+		// every history-source finding before any category→label mapping.
+		const labels = await testEnv.DB.prepare(`SELECT val FROM issued_labels WHERE uri = ?`)
+			.bind(run.uri)
+			.all<{ val: string }>();
+		const issued = (labels.results ?? []).map((row) => row.val);
+		for (const category of HISTORY_FINDING_CATEGORIES) expect(issued).not.toContain(category);
 	});
 });
 
