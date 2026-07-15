@@ -6,7 +6,7 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve, sep } from "node:path";
 
 import {
 	parseExpectation,
@@ -70,8 +70,23 @@ function sanitize(modelId: string): string {
 	return modelId.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "");
 }
 
+const MAX_LABEL_LENGTH = 64;
+// The label is operator-supplied (CALIBRATE_LABEL) and joined into the run
+// path, so it must not carry `/`, `..`, or a leading dot that could escape
+// runs/. Alphanumeric start, then alphanumerics plus `.`, `-`, `_`.
+const LABEL_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
+
 export function createRunDir(timestamp: string, label: string): string {
+	if (label.length > MAX_LABEL_LENGTH || !LABEL_PATTERN.test(label))
+		throw new Error(
+			`calibration: invalid run label ${JSON.stringify(label)} — must match ${LABEL_PATTERN} and be at most ${MAX_LABEL_LENGTH} characters`,
+		);
 	const runDir = join(RUNS_DIR, `${timestamp.replaceAll(":", "-")}-${label}`);
+	// Defense in depth: never create a directory outside runs/, whatever the
+	// label pattern lets through.
+	const resolved = resolve(runDir);
+	if (resolved !== RUNS_DIR && !resolved.startsWith(RUNS_DIR + sep))
+		throw new Error(`calibration: run dir ${resolved} escapes ${RUNS_DIR}`);
 	mkdirSync(runDir, { recursive: true });
 	return runDir;
 }
