@@ -105,6 +105,15 @@ interface NavItem {
 }
 
 /**
+ * Product attribution shown in the admin footer. The configured site name
+ * belongs in the header brand; it must not replace the CMS product identity.
+ */
+export function formatAdminFooter(version?: string, commit?: string): string {
+	const label = `EmDash CMS v${version || "0.0.0"}`;
+	return commit ? `${label} (${commit})` : label;
+}
+
+/**
  * Navigation item rendered with Kumo's native Sidebar.MenuButton. Kumo's
  * LinkProvider maps the href to TanStack Router for client-side navigation.
  */
@@ -401,8 +410,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						data-testid="admin-version"
 						className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle"
 					>
-						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-						{manifest.commit && ` (${manifest.commit})`}
+						{formatAdminFooter(manifest.version, manifest.commit)}
 					</p>
 				</div>
 			</KumoSidebar.Footer>
