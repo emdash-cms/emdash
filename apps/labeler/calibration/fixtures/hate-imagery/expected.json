@@ -2,8 +2,9 @@
 	"expect": {
 		"code": { "toState": "passed", "categories": [] },
 		"image": {
-			"review": true,
-			"note": "legacy category 'nsfw' has no labeler policy mapping (coverage gap in the moderation policy)"
+			"toState": "blocked",
+			"categories": ["hateful-imagery"],
+			"note": "legacy tagged this fixture 'nsfw' under the retired two-axis grouping; the asset is hate imagery, now a blockable hateful-imagery category (blocks at high/critical)"
 		}
 	}
 }

@@ -357,12 +357,23 @@ describe("automated proposal validation", () => {
 		await expect(built.postCommit()).rejects.toThrow("cannot negate the manually-issued label");
 	});
 
-	it("rejects a blocking value from a non-critical severity", async () => {
+	it("accepts an automated-block label with a high-severity finding", async () => {
+		const uri = releaseUri();
+		const id = await assessmentId();
+		const issued = await issue(uri, id, {
+			val: "malware",
+			findingCategory: "malware",
+			severity: "high",
+		});
+		expect(issued.label.val).toBe("malware");
+	});
+
+	it("rejects a blocking value from a below-high severity", async () => {
 		const uri = releaseUri();
 		const id = await assessmentId();
 		await expect(
-			issue(uri, id, { val: "malware", findingCategory: "malware", severity: "high" }),
-		).rejects.toThrow("requires a critical finding severity");
+			issue(uri, id, { val: "malware", findingCategory: "malware", severity: "medium" }),
+		).rejects.toThrow("requires a high or critical finding severity");
 	});
 
 	it("rejects a blocking value whose finding category is a quality (non-blocking) category", async () => {

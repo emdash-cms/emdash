@@ -9,7 +9,7 @@ import {
 
 describe("moderation policy fixture", () => {
 	it("loads the ratified fixture and exposes label lookups", () => {
-		expect(MODERATION_POLICY.policyVersion).toBe("2026-07-10.experimental.3");
+		expect(MODERATION_POLICY.policyVersion).toBe("2026-07-15.experimental.1");
 		expect(getLabelDefinition("malware")).toMatchObject({
 			value: "malware",
 			category: "automated-block",
@@ -25,6 +25,22 @@ describe("moderation policy fixture", () => {
 		expect(categories.has("malware")).toBe(true);
 		expect(categories.has("impersonation")).toBe(true);
 		expect(categories.has("low-quality")).toBe(false);
+	});
+
+	it("includes the image-content categories as automated-block and content-warning as a warning", () => {
+		const blockCategories = automatedBlockCategories(MODERATION_POLICY);
+		for (const value of ["hateful-imagery", "explicit-imagery", "graphic-violence"]) {
+			expect(blockCategories.has(value)).toBe(true);
+			expect(getLabelDefinition(value)).toMatchObject({
+				category: "automated-block",
+				officialEffect: "block",
+			});
+		}
+		expect(blockCategories.has("content-warning")).toBe(false);
+		expect(getLabelDefinition("content-warning")).toMatchObject({
+			category: "warning",
+			officialEffect: "warn",
+		});
 	});
 });
 

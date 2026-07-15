@@ -28,7 +28,7 @@ describe("resolvePolicyOutcome: blocking", () => {
 		]);
 	});
 
-	it("blocks on a critical model finding but not a high-severity one", () => {
+	it("blocks on a critical or high-severity model finding", () => {
 		const critical = resolvePolicyOutcome(
 			[finding({ source: "model", category: "malware", severity: "critical" })],
 			MODERATION_POLICY,
@@ -39,8 +39,19 @@ describe("resolvePolicyOutcome: blocking", () => {
 			[finding({ source: "model", category: "malware", severity: "high" })],
 			MODERATION_POLICY,
 		);
-		expect(high.toState).toBe("passed");
-		expect(high.labels).toEqual([{ val: "assessment-passed" }]);
+		expect(high.toState).toBe("blocked");
+		expect(high.labels).toEqual([{ val: "malware", findingCategory: "malware", severity: "high" }]);
+	});
+
+	it("blocks on a high-severity data-exfiltration model finding (the eval false-negative case)", () => {
+		const outcome = resolvePolicyOutcome(
+			[finding({ source: "model", category: "data-exfiltration", severity: "high" })],
+			MODERATION_POLICY,
+		);
+		expect(outcome.toState).toBe("blocked");
+		expect(outcome.labels).toEqual([
+			{ val: "data-exfiltration", findingCategory: "data-exfiltration", severity: "high" },
+		]);
 	});
 
 	it("blocks on a critical image finding", () => {
@@ -58,6 +69,54 @@ describe("resolvePolicyOutcome: blocking", () => {
 		);
 		expect(outcome.toState).toBe("passed");
 		expect(outcome.labels).toEqual([{ val: "assessment-passed" }]);
+	});
+});
+
+describe("resolvePolicyOutcome: sub-threshold block findings degrade, never drop", () => {
+	it("degrades a below-high code block finding to a suspicious-code warning, preserving provenance", () => {
+		const outcome = resolvePolicyOutcome(
+			[finding({ source: "model", category: "malware", severity: "medium" })],
+			MODERATION_POLICY,
+		);
+		expect(outcome.toState).toBe("warned");
+		expect(outcome.labels).toEqual([
+			{ val: "suspicious-code", findingCategory: "malware", severity: "medium" },
+			{ val: "assessment-passed" },
+		]);
+	});
+
+	it("degrades a below-high image-content block finding to a content-warning, preserving provenance", () => {
+		const outcome = resolvePolicyOutcome(
+			[finding({ source: "image", category: "hateful-imagery", severity: "medium" })],
+			MODERATION_POLICY,
+		);
+		expect(outcome.toState).toBe("warned");
+		expect(outcome.labels).toEqual([
+			{ val: "content-warning", findingCategory: "hateful-imagery", severity: "medium" },
+			{ val: "assessment-passed" },
+		]);
+	});
+
+	it("blocks a high-severity image-content finding rather than degrading it", () => {
+		const outcome = resolvePolicyOutcome(
+			[finding({ source: "image", category: "explicit-imagery", severity: "high" })],
+			MODERATION_POLICY,
+		);
+		expect(outcome.toState).toBe("blocked");
+		expect(outcome.labels).toEqual([
+			{ val: "explicit-imagery", findingCategory: "explicit-imagery", severity: "high" },
+		]);
+	});
+
+	it("never degrades a deterministic block finding — it blocks at any severity", () => {
+		const outcome = resolvePolicyOutcome(
+			[finding({ source: "deterministic", category: "malware", severity: "low" })],
+			MODERATION_POLICY,
+		);
+		expect(outcome.toState).toBe("blocked");
+		expect(outcome.labels).toEqual([
+			{ val: "malware", findingCategory: "malware", severity: "low" },
+		]);
 	});
 });
 

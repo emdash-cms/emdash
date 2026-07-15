@@ -50,14 +50,28 @@ describe("mapLegacyExpectation", () => {
 		).toEqual({ toState: "blocked", categories: ["data-exfiltration"] });
 	});
 
-	it("derives an image expectation and flags an unmapped image category", () => {
-		const result = mapLegacyExpectation(
+	it("maps a legacy image fail to the ratified image-content block categories", () => {
+		const nsfw = mapLegacyExpectation(
 			{ verdict: "pass", categories: [], images: "fail", imageCategories: ["nsfw"] },
 			policy,
 		);
-		expect(result.code).toEqual({ toState: "passed", categories: [] });
+		expect(nsfw.code).toEqual({ toState: "passed", categories: [] });
+		expect(nsfw.image).toEqual({ toState: "blocked", categories: ["explicit-imagery"] });
+
+		const offensive = mapLegacyExpectation(
+			{ verdict: "pass", categories: [], images: "fail", imageCategories: ["offensive"] },
+			policy,
+		);
+		expect(offensive.image).toEqual({ toState: "blocked", categories: ["hateful-imagery"] });
+	});
+
+	it("flags a still-unmapped image category as review", () => {
+		const result = mapLegacyExpectation(
+			{ verdict: "pass", categories: [], images: "fail", imageCategories: ["spam"] },
+			policy,
+		);
 		expect(result.image?.review).toBe(true);
-		expect(result.image?.note).toMatch(/nsfw/);
+		expect(result.image?.note).toMatch(/spam/);
 	});
 });
 

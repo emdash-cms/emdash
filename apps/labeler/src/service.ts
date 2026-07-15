@@ -70,7 +70,7 @@ export interface AutomatedLabelProposal {
 	exp?: string;
 	/** Required, and validated as an allowed automated-block category, when `val`'s policy category is automated-block. */
 	findingCategory?: string;
-	/** Required (and must be "critical") when `val`'s policy category is automated-block. */
+	/** Required (and must be at least "high") when `val`'s policy category is automated-block. */
 	severity?: FindingSeverity;
 }
 
@@ -840,7 +840,11 @@ function validateAutomatedProposal(proposal: AutomatedLabelProposal): void {
 		const findingDefinition = getLabelDefinition(proposal.findingCategory);
 		if (!findingDefinition || findingDefinition.category !== "automated-block")
 			throw new TypeError("finding category must be an allowed security/impersonation category");
-		if (proposal.severity !== "critical")
-			throw new TypeError(`${proposal.val} requires a critical finding severity`);
+		// Mirrors the resolver's amended blocking gate (W8.5): a model/image
+		// block finding blocks at `high` or `critical`. The proposal carries no
+		// finding source, so the issuer enforces the stricter model/image
+		// threshold uniformly rather than admitting a sub-high block.
+		if (proposal.severity !== "critical" && proposal.severity !== "high")
+			throw new TypeError(`${proposal.val} requires a high or critical finding severity`);
 	}
 }
