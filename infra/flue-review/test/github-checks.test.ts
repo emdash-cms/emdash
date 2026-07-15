@@ -6,6 +6,7 @@ import {
 	findReviewCheck,
 	fetchUnifiedDiff,
 	postReview,
+	removePullRequestLabel,
 	updateReviewCheck,
 } from "../.flue/lib/github.js";
 
@@ -22,6 +23,18 @@ afterEach(() => {
 });
 
 describe("GitHub review checks", () => {
+	it("removes the manual review label", async () => {
+		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 200 }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await removePullRequestLabel(TOKEN, "emdash-cms", "emdash", 42, "bot:review");
+
+		expect(fetchMock).toHaveBeenCalledWith(
+			"https://api.github.com/repos/emdash-cms/emdash/issues/42/labels/bot%3Areview",
+			expect.objectContaining({ method: "DELETE" }),
+		);
+	});
+
 	it("creates an in-progress check for the admitted head commit", async () => {
 		const fetchMock = vi
 			.fn<typeof fetch>()

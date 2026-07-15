@@ -296,6 +296,23 @@ export async function completeReviewCheck(
 	await requireGitHubResponse(res, "complete review check");
 }
 
+export async function removePullRequestLabel(
+	token: string,
+	owner: string,
+	repo: string,
+	prNumber: number,
+	label: string,
+): Promise<void> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent(label)}`,
+		{
+			method: "DELETE",
+			headers: installationHeaders(token),
+		},
+	);
+	if (res.status !== 404) await requireGitHubResponse(res, "remove pull request label");
+}
+
 /**
  * Fetch the PR's unified diff (the canonical base...head diff, 3-dot). Used to
  * stage the exact changed lines into the agent's workspace, since the cf-shell

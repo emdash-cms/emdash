@@ -5,6 +5,7 @@ import {
 	completeReviewCheck,
 	mintInstallationToken,
 	readAppCreds,
+	removePullRequestLabel,
 	updateReviewCheck,
 } from "./lib/github.js";
 import {
@@ -25,6 +26,7 @@ const TERMINAL_RETENTION_MS = 7 * 24 * 60 * 60_000;
 const WORKFLOW_RETRY_LIMIT = 2;
 const WORKFLOW_STATUS_RETRY_MS = 60_000;
 const WORKFLOW_ACTIVE_STALE_LIMIT_MS = 5 * 60_000;
+const MANUAL_REVIEW_LABEL = "bot:review";
 
 class TerminalConfigurationError extends Error {}
 
@@ -295,6 +297,13 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			prNumber: attempt.prNumber,
 			runId: attempt.runId,
 		});
+		await removePullRequestLabel(
+			token,
+			attempt.owner,
+			attempt.repo,
+			attempt.prNumber,
+			MANUAL_REVIEW_LABEL,
+		);
 		await this.ctx.storage.put(ATTEMPT_KEY, {
 			...attempt,
 			terminalReportedAt: Date.now(),

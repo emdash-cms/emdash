@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const github = vi.hoisted(() => ({
 	completeReviewCheck: vi.fn(),
 	readAppCreds: vi.fn(),
+	removePullRequestLabel: vi.fn(),
 	updateReviewCheck: vi.fn(),
 }));
 const workflow = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ vi.mock("../.flue/lib/github.js", () => ({
 	completeReviewCheck: github.completeReviewCheck,
 	mintInstallationToken: vi.fn().mockResolvedValue("token"),
 	readAppCreds: github.readAppCreds,
+	removePullRequestLabel: github.removePullRequestLabel,
 	updateReviewCheck: github.updateReviewCheck,
 }));
 
@@ -88,6 +90,7 @@ function setup() {
 
 beforeEach(() => {
 	github.completeReviewCheck.mockReset().mockResolvedValue(undefined);
+	github.removePullRequestLabel.mockReset().mockResolvedValue(undefined);
 	github.updateReviewCheck.mockReset().mockResolvedValue(undefined);
 	github.readAppCreds.mockReset().mockReturnValue({
 		appId: "1",
@@ -132,6 +135,13 @@ describe("ReviewWatchdog terminal arbitration", () => {
 			false,
 		);
 		expect(github.completeReviewCheck).toHaveBeenCalledTimes(1);
+		expect(github.removePullRequestLabel).toHaveBeenCalledWith(
+			"token",
+			attempt.owner,
+			attempt.repo,
+			attempt.prNumber,
+			"bot:review",
+		);
 		expect(storage.values.get("attempt")).toMatchObject({
 			terminal: { conclusion: "timed_out" },
 			terminalReportedAt: expect.any(Number),
