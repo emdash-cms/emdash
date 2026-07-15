@@ -719,7 +719,10 @@ describe("AssessmentOrchestrator: history stage never auto-labels (W8.4)", () =>
 		});
 		const assessment = await getAssessment(testEnv.DB, run.id);
 		const produced = await analyzeHistory(testEnv.DB, assessment!, { src: LABELER_DID });
-		expect(produced.some((f) => HISTORY_FINDING_CATEGORIES.has(f.category))).toBe(true);
+		// Assert the specific finding the seeded prior release produces, not just
+		// "any history category" — so a regression in the prior-release path can't
+		// pass on the back of an unrelated history finding.
+		expect(produced.some((f) => f.category === "publisher-history")).toBe(true);
 
 		const stages: OrchestratorStages = {
 			...stubStages,
