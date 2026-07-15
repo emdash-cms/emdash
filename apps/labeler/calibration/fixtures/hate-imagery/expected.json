@@ -1,0 +1,9 @@
+{
+	"expect": {
+		"code": { "toState": "passed", "categories": [] },
+		"image": {
+			"review": true,
+			"note": "legacy category 'nsfw' has no labeler policy mapping (coverage gap in the moderation policy)"
+		}
+	}
+}

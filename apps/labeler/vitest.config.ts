@@ -7,10 +7,11 @@ const migrationsPath = fileURLToPath(new URL("./migrations", import.meta.url));
 const migrations = await readD1Migrations(migrationsPath);
 
 export default defineConfig({
-	// The console (console/vitest.config.ts) runs its own jsdom-based suite
-	// separately -- it doesn't run in the workerd pool this config sets up.
+	// The console (console/vitest.config.ts) and calibration
+	// (calibration/unit.vitest.config.ts) run their own suites separately --
+	// neither belongs in the workerd pool this config sets up.
 	test: {
-		exclude: [...configDefaults.exclude, "console/**"],
+		exclude: [...configDefaults.exclude, "console/**", "calibration/**"],
 	},
 	plugins: [
 		cloudflareTest({

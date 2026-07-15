@@ -1,0 +1,10 @@
+{
+	"id": "analytics",
+	"version": "1.0.0",
+	"capabilities": ["read:content", "network:fetch"],
+	"allowedHosts": [],
+	"storage": {},
+	"hooks": ["content:afterSave"],
+	"routes": [],
+	"admin": {}
+}

@@ -1,0 +1,8 @@
+{
+	"expect": {
+		"code": {
+			"review": true,
+			"note": "legacy verdict 'fail' but legacy category 'obfuscation' maps only to the warning label 'obfuscated-code'"
+		}
+	}
+}

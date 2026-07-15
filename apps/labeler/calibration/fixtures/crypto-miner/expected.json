@@ -1,0 +1,8 @@
+{
+	"expect": {
+		"code": {
+			"review": true,
+			"note": "legacy category 'resource-abuse' has no labeler policy mapping"
+		}
+	}
+}

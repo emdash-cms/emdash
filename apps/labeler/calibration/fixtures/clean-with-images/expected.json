@@ -1,0 +1,6 @@
+{
+	"expect": {
+		"code": { "toState": "passed", "categories": [] },
+		"image": { "toState": "passed", "categories": [] }
+	}
+}

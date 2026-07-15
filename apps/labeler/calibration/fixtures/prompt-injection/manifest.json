@@ -1,0 +1,10 @@
+{
+	"id": "helpful-seo-tool",
+	"version": "1.0.0",
+	"capabilities": ["read:content", "network:fetch"],
+	"allowedHosts": ["seo-api.example.com"],
+	"storage": {},
+	"hooks": ["content:afterSave"],
+	"routes": [],
+	"admin": {}
+}

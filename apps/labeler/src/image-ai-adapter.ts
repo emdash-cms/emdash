@@ -9,11 +9,11 @@
  */
 
 import {
-	DEFAULT_MODEL_ID,
 	escapeFenceSentinel,
 	FENCE_SENTINEL,
 	MAX_MODEL_INPUT_CHARS,
 	ModelTransientError,
+	parseModelOutput,
 	type CodeAnalysisMetadata,
 } from "./code-ai-adapter.js";
 import type { FindingSeverity } from "./evidence.js";
@@ -79,6 +79,11 @@ export interface ImageAnalysisResult {
 	} | null;
 }
 
+// The code adapter's DEFAULT_MODEL_ID is a text-only model (glm-5.2); an image
+// caller that omits modelId needs a vision model. kimi-k2.7-code was the only
+// reliable image model in the W8.6 calibration sweep.
+export const DEFAULT_IMAGE_MODEL_ID = "@cf/moonshotai/kimi-k2.7-code";
+
 export const MAX_IMAGES = 12;
 
 export const MAX_IMAGE_BYTES = 2_000_000;
@@ -102,7 +107,7 @@ export async function analyzeImages(
 	if (deps.promptVersion.trim().length === 0)
 		throw new TypeError("analyzeImages: deps.promptVersion must be a non-empty string");
 
-	const modelId = deps.modelId ?? DEFAULT_MODEL_ID;
+	const modelId = deps.modelId ?? DEFAULT_IMAGE_MODEL_ID;
 	if (modelId.trim().length === 0)
 		throw new TypeError("analyzeImages: modelId must be a non-empty string");
 	// promptVersion and modelId are injected into every finding's
@@ -320,25 +325,6 @@ function buildUserContent(
 
 function buildImagePart(image: ImageAnalysisImage): ImageMessageContentPart {
 	return { type: "image_url", image_url: { url: `data:${image.mime};base64,${image.dataBase64}` } };
-}
-
-function parseModelOutput(raw: unknown): unknown[] {
-	let payload: unknown = raw;
-	if (isRecord(payload) && "response" in payload) payload = payload.response;
-	if (typeof payload === "string") {
-		try {
-			payload = JSON.parse(payload);
-		} catch (err) {
-			throw new ModelTransientError(
-				`model response was not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
-			);
-		}
-	}
-	if (!isRecord(payload)) throw new ModelTransientError("model response was not a JSON object");
-	const findings = payload.findings;
-	if (!Array.isArray(findings))
-		throw new ModelTransientError("model response did not contain a findings array");
-	return findings;
 }
 
 async function hashPromptText(text: string): Promise<string> {

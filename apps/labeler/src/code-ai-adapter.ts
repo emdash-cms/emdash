@@ -73,7 +73,7 @@ export class ModelTransientError extends Error {
 	override readonly name = "ModelTransientError";
 }
 
-export const DEFAULT_MODEL_ID = "@cf/moonshotai/kimi-k2.7-code";
+export const DEFAULT_MODEL_ID = "@cf/zai-org/glm-5.2";
 
 export const MAX_MODEL_INPUT_CHARS = 200_000;
 
@@ -125,10 +125,10 @@ export async function analyzeCode(
 	);
 	const coverage: "complete" | "partial" = dropped.length > 0 ? "partial" : "complete";
 
-	// kimi-k2.7-code isn't in workers-types' AiModelList yet, but Cloudflare
-	// documents its API as identical to kimi-k2.6, whose input is the
-	// chat-completions shape. `satisfies` pins the request we actually send to
-	// that contract, so a drift from Workers AI's input type stops compiling.
+	// The moonshot/kimi and zai/glm models aren't in workers-types' AiModelList
+	// yet, but Cloudflare documents their input as the chat-completions shape.
+	// `satisfies` pins the request we actually send to that contract, so a drift
+	// from Workers AI's input type stops compiling.
 	const runInputs = {
 		messages: [
 			{ role: "system", content: systemPrompt },
@@ -319,8 +319,27 @@ function capFilesToBudget(
 	};
 }
 
-function parseModelOutput(raw: unknown): unknown[] {
-	let payload: unknown = raw;
+/**
+ * Reduces a raw model result to the innermost payload the finding parser
+ * understands. Workers AI text models return `{ response: <json> }`; the
+ * OpenAI-compatible chat models (moonshot/kimi, zai/glm, meta llama-vision)
+ * return `{ choices: [{ message: { content: <json>, reasoning_content? } }] }`.
+ * `reasoning_content` is discarded — only `content` carries the
+ * schema-constrained findings JSON. Shared by both the code and image adapters
+ * so the two parse paths can't drift.
+ */
+export function unwrapModelEnvelope(raw: unknown): unknown {
+	if (isRecord(raw) && Array.isArray(raw.choices)) {
+		const message = isRecord(raw.choices[0]) ? raw.choices[0].message : undefined;
+		if (isRecord(message) && typeof message.content === "string") return message.content;
+	}
+	return raw;
+}
+
+/** Shared by both adapters (image imports this) so the envelope-parsing logic
+ * lives in one place. */
+export function parseModelOutput(raw: unknown): unknown[] {
+	let payload: unknown = unwrapModelEnvelope(raw);
 	if (isRecord(payload) && "response" in payload) payload = payload.response;
 	if (typeof payload === "string") {
 		try {
