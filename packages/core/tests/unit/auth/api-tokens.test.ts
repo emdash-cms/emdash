@@ -90,8 +90,20 @@ describe("hashApiToken", () => {
 
 describe("validateScopes", () => {
 	it("accepts broad and plugin-specific MCP tool scopes", () => {
-		expect(validateScopes(["mcp:tools", "mcp:tools:@acme/calendar"])).toEqual([]);
-		expect(validateScopes(["mcp:tools:"])).toEqual(["mcp:tools:"]);
+		expect(validateScopes(["mcp:tools", "mcp:tools:calendar-plugin"])).toEqual([]);
+		expect(
+			validateScopes([
+				"mcp:tools:",
+				"mcp:tools:@acme/calendar",
+				"mcp:tools:Calendar",
+				"mcp:tools:-calendar",
+			]),
+		).toEqual([
+			"mcp:tools:",
+			"mcp:tools:@acme/calendar",
+			"mcp:tools:Calendar",
+			"mcp:tools:-calendar",
+		]);
 	});
 	it("returns empty array for valid scopes", () => {
 		const invalid = validateScopes(["content:read", "media:write"]);

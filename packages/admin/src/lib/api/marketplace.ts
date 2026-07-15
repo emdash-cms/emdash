@@ -127,9 +127,11 @@ function getMcpConsentTools(body: unknown): PluginMcpConsentTool[] | null {
 	if (!error || typeof error !== "object") return null;
 	if (Reflect.get(error, "code") !== "MCP_TOOL_CONSENT_REQUIRED") return null;
 	const details = Reflect.get(error, "details");
-	if (!details || typeof details !== "object") return [];
+	if (!details || typeof details !== "object") return null;
 	const tools = Reflect.get(details, "mcpTools");
-	return Array.isArray(tools) ? tools.filter(isPluginMcpConsentTool) : [];
+	if (!Array.isArray(tools) || tools.length === 0) return null;
+	const valid = tools.filter(isPluginMcpConsentTool);
+	return valid.length > 0 ? valid : null;
 }
 
 /** Update request body */

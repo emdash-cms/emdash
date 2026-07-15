@@ -9,6 +9,7 @@ import {
 	checkPluginUpdates,
 	describeCapability,
 	CAPABILITY_LABELS,
+	PluginMcpConsentRequiredError,
 } from "../../src/lib/api/marketplace";
 
 describe("marketplace API client", () => {
@@ -150,6 +151,54 @@ describe("marketplace API client", () => {
 			await expect(installMarketplacePlugin("my-plugin")).rejects.toThrow(
 				"Failed to install plugin: Server Error",
 			);
+		});
+
+		it.each([
+			["missing details", undefined],
+			["an empty tool list", { mcpTools: [] }],
+			["no valid tools", { mcpTools: [{ name: 42 }] }],
+		])("preserves the server error when MCP consent has %s", async (_label, details) => {
+			fetchSpy.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						error: {
+							code: "MCP_TOOL_CONSENT_REQUIRED",
+							message: "Consent payload is invalid",
+							...(details ? { details } : {}),
+						},
+					}),
+					{ status: 400 },
+				),
+			);
+
+			await expect(installMarketplacePlugin("my-plugin")).rejects.toThrow(
+				"Consent payload is invalid",
+			);
+		});
+
+		it("throws a consent error when the response contains valid MCP tools", async () => {
+			const tool = {
+				name: "sync",
+				description: "Sync content",
+				route: "sync",
+				permission: "content:write",
+				destructive: false,
+			};
+			fetchSpy.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						error: {
+							code: "MCP_TOOL_CONSENT_REQUIRED",
+							details: { mcpTools: [tool] },
+						},
+					}),
+					{ status: 409 },
+				),
+			);
+
+			const error = await installMarketplacePlugin("my-plugin").catch((reason: unknown) => reason);
+			expect(error).toBeInstanceOf(PluginMcpConsentRequiredError);
+			expect((error as PluginMcpConsentRequiredError).tools).toEqual([tool]);
 		});
 	});
 

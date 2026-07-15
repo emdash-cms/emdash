@@ -48,7 +48,8 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		// since HEAD is CORS-safe) invoke a mutating admin route by choosing the
 		// method (#1853). Astro also dispatches HEAD to the GET export, so no
 		// explicit HEAD handler is needed to reach a "GET" route. Gate every
-		// private invocation on `plugins:manage` + CSRF regardless of method.
+		// private invocation on the route's declared permission (defaulting to
+		// `plugins:manage`) + CSRF regardless of method.
 		const permission = routeMeta.permission ?? "plugins:manage";
 		if (!(permission in Permissions)) {
 			return apiError("INVALID_PLUGIN_ROUTE", "Plugin route declares an invalid permission", 500);

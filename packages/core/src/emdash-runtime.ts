@@ -3509,9 +3509,12 @@ export class EmDashRuntime {
 	) {
 		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
 		const audit = new AuditRepository(this.db);
+		const headers = new Headers(request.headers);
+		headers.delete("content-length");
+		headers.delete("content-encoding");
 		const internalRequest = new Request(request.url, {
 			method: "POST",
-			headers: request.headers,
+			headers,
 			body: JSON.stringify(input),
 		});
 		const result = await this.handlePluginApiRoute(pluginId, "POST", route, internalRequest);

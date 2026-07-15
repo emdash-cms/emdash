@@ -46,7 +46,7 @@ export const VALID_SCOPES = [
 
 export type ApiTokenScope = (typeof VALID_SCOPES)[number] | `mcp:tools:${string}`;
 
-const PLUGIN_MCP_SCOPE_PATTERN = /^mcp:tools:[a-zA-Z0-9@/_-]+$/;
+const PLUGIN_MCP_SCOPE_PATTERN = /^mcp:tools:[a-z][a-z0-9_-]*$/;
 
 export function isValidScope(scope: string): scope is ApiTokenScope {
 	return (

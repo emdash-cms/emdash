@@ -785,7 +785,9 @@ function parseMcpConsent(body: unknown): PluginMcpConsentRequiredError | null {
 		"details" in error && error.details && typeof error.details === "object"
 			? (error.details as { mcpTools?: PluginMcpConsentTool[] })
 			: {};
-	return new PluginMcpConsentRequiredError(details.mcpTools ?? []);
+	return details.mcpTools && details.mcpTools.length > 0
+		? new PluginMcpConsentRequiredError(details.mcpTools)
+		: null;
 }
 
 function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {
