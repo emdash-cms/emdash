@@ -1,20 +1,25 @@
+import { getRun } from "@flue/runtime";
 import { DurableObject } from "cloudflare:workers";
 
 import { completeReviewCheck, mintInstallationToken, readAppCreds } from "./lib/github.js";
 import {
 	isReviewAttemptStale,
+	reviewStaleAfter,
 	REVIEW_SETUP_LEASE_MS,
-	REVIEW_STALE_AFTER_MS,
 	type ReviewAttempt,
 	type ReviewStage,
 	type ReviewTerminal,
 } from "./lib/review-watchdog.js";
+import { admitReviewWorkflow } from "./lib/workflow-admission.js";
 
 const ATTEMPT_KEY = "attempt";
 const TERMINAL_RETRY_BASE_MS = 60_000;
 const TERMINAL_RETRY_MAX_MS = 60 * 60_000;
 const TERMINAL_RETRY_LIMIT = 10;
 const TERMINAL_RETENTION_MS = 7 * 24 * 60 * 60_000;
+const WORKFLOW_RETRY_LIMIT = 2;
+const WORKFLOW_STATUS_RETRY_MS = 60_000;
+const WORKFLOW_ACTIVE_STALE_LIMIT_MS = 30 * 60_000;
 
 class TerminalConfigurationError extends Error {}
 
@@ -51,7 +56,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			setupLeaseExpiresAt: Date.now() + REVIEW_SETUP_LEASE_MS,
 		};
 		await this.ctx.storage.put(ATTEMPT_KEY, reserved);
-		await this.ctx.storage.setAlarm(attempt.lastProgressAt + REVIEW_STALE_AFTER_MS);
+		await this.ctx.storage.setAlarm(attempt.lastProgressAt + reviewStaleAfter(attempt.stage));
 		return { status: "acquired", attempt: reserved };
 	}
 
@@ -66,13 +71,27 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			throw new Error("Review attempt was not reserved");
 		}
 		await this.ctx.storage.put(ATTEMPT_KEY, { ...reserved, ...attempt });
-		await this.ctx.storage.setAlarm(attempt.lastProgressAt + REVIEW_STALE_AFTER_MS);
+		await this.ctx.storage.setAlarm(attempt.lastProgressAt + reviewStaleAfter(attempt.stage));
 	}
 
-	async identify(attemptId: string, runId: string): Promise<boolean> {
+	async identify(attemptId: string, expectedRunId: string, runId: string): Promise<boolean> {
 		const attempt = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);
-		if (!attempt || attempt.attemptId !== attemptId || attempt.terminal) return false;
-		await this.ctx.storage.put(ATTEMPT_KEY, { ...attempt, runId });
+		if (attempt?.attemptId === attemptId && !attempt.terminal && attempt.runId === runId) {
+			return true;
+		}
+		if (
+			!attempt ||
+			attempt.attemptId !== attemptId ||
+			attempt.runId !== expectedRunId ||
+			attempt.terminal
+		) {
+			return false;
+		}
+		await this.ctx.storage.put(ATTEMPT_KEY, {
+			...attempt,
+			runId,
+			workflowActiveStaleSince: undefined,
+		});
 		return true;
 	}
 
@@ -91,12 +110,24 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		return true;
 	}
 
-	async heartbeat(attemptId: string, stage: ReviewStage): Promise<boolean> {
+	async heartbeat(attemptId: string, runId: string, stage: ReviewStage): Promise<boolean> {
 		const attempt = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);
-		if (!attempt || attempt.attemptId !== attemptId || attempt.terminal) return false;
+		if (
+			!attempt ||
+			attempt.attemptId !== attemptId ||
+			attempt.runId !== runId ||
+			attempt.terminal
+		) {
+			return false;
+		}
 		const lastProgressAt = Date.now();
-		await this.ctx.storage.put(ATTEMPT_KEY, { ...attempt, stage, lastProgressAt });
-		await this.ctx.storage.setAlarm(lastProgressAt + REVIEW_STALE_AFTER_MS);
+		await this.ctx.storage.put(ATTEMPT_KEY, {
+			...attempt,
+			stage,
+			lastProgressAt,
+			workflowActiveStaleSince: undefined,
+		});
+		await this.ctx.storage.setAlarm(lastProgressAt + reviewStaleAfter(stage));
 		return true;
 	}
 
@@ -107,9 +138,16 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		await this.ctx.storage.deleteAlarm();
 	}
 
-	async finish(attemptId: string, terminal: ReviewTerminal): Promise<boolean> {
+	async finish(attemptId: string, runId: string, terminal: ReviewTerminal): Promise<boolean> {
 		const attempt = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);
-		if (!attempt || attempt.attemptId !== attemptId || attempt.terminal) return false;
+		if (
+			!attempt ||
+			attempt.attemptId !== attemptId ||
+			attempt.runId !== runId ||
+			attempt.terminal
+		) {
+			return false;
+		}
 		const terminalAttempt = { ...attempt, terminal };
 		await this.ctx.storage.put(ATTEMPT_KEY, terminalAttempt);
 		try {
@@ -118,6 +156,101 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			await this.scheduleTerminalRetry(terminalAttempt, error);
 		}
 		return true;
+	}
+
+	private async retryWorkflow(
+		attempt: ReviewAttempt,
+	): Promise<"admitted" | "pending" | "exhausted"> {
+		const workflowRetryCount = (attempt.workflowRetryCount ?? 0) + 1;
+		if (
+			!attempt.workflowInput ||
+			attempt.checkRunId === undefined ||
+			workflowRetryCount > WORKFLOW_RETRY_LIMIT
+		) {
+			return "exhausted";
+		}
+
+		const lastProgressAt = Date.now();
+		const retryRunId = `${attempt.attemptId}:retry:${workflowRetryCount}`;
+		const retrying = {
+			...attempt,
+			runId: retryRunId,
+			stage: "admitted" as const,
+			lastProgressAt,
+			workflowRetryCount,
+			workflowActiveStaleSince: undefined,
+		};
+		await this.ctx.storage.put(ATTEMPT_KEY, retrying);
+		await this.ctx.storage.setAlarm(lastProgressAt + reviewStaleAfter("admitted"));
+
+		try {
+			// Flue needs a fetch-style context to durably admit the replacement run.
+			// DurableObjectState supplies the waitUntil primitive used by this path.
+			const executionCtx = {
+				waitUntil: (promise: Promise<unknown>) => this.ctx.waitUntil(promise),
+				passThroughOnException: () => undefined,
+			};
+			const response = await admitReviewWorkflow(
+				{
+					...attempt.workflowInput,
+					attemptId: attempt.attemptId,
+					expectedRunId: retryRunId,
+					deliveryId: attempt.deliveryId,
+					checkRunId: attempt.checkRunId,
+				},
+				this.env,
+				executionCtx,
+			);
+			if (!response.ok) throw new Error(`workflow admission returned ${response.status}`);
+			const admission: { runId?: string } = await response
+				.json<{ runId?: string }>()
+				.catch(() => ({}));
+			if (admission.runId) {
+				await this.identify(attempt.attemptId, retryRunId, admission.runId);
+			}
+			console.log(
+				JSON.stringify({
+					message: "stale review workflow re-admitted",
+					attemptId: attempt.attemptId,
+					previousRunId: attempt.runId,
+					runId: admission.runId,
+					workflowRetryCount,
+				}),
+			);
+			return "admitted";
+		} catch (error) {
+			console.error(
+				JSON.stringify({
+					message: "stale review workflow re-admission failed",
+					error: error instanceof Error ? error.message : String(error),
+					attemptId: attempt.attemptId,
+					previousRunId: attempt.runId,
+					workflowRetryCount,
+				}),
+			);
+			return "pending";
+		}
+	}
+
+	private async workflowStatus(
+		attempt: ReviewAttempt,
+	): Promise<"active" | "completed" | "recoverable" | "unavailable"> {
+		try {
+			const run = await getRun(attempt.runId);
+			if (!run || run.status === "errored") return "recoverable";
+			return run.status;
+		} catch (error) {
+			console.error(
+				JSON.stringify({
+					message: "review workflow status inspection failed",
+					error: error instanceof Error ? error.message : String(error),
+					attemptId: attempt.attemptId,
+					runId: attempt.runId,
+				}),
+			);
+			await this.ctx.storage.setAlarm(Date.now() + WORKFLOW_STATUS_RETRY_MS);
+			return "unavailable";
+		}
 	}
 
 	private async flushTerminal(
@@ -206,8 +339,8 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			}
 			return;
 		}
-		if (!isReviewAttemptStale(attempt.lastProgressAt)) {
-			await this.ctx.storage.setAlarm(attempt.lastProgressAt + REVIEW_STALE_AFTER_MS);
+		if (!isReviewAttemptStale(attempt.lastProgressAt, Date.now(), attempt.stage)) {
+			await this.ctx.storage.setAlarm(attempt.lastProgressAt + reviewStaleAfter(attempt.stage));
 			return;
 		}
 		if (attempt.checkRunId === undefined) {
@@ -215,21 +348,65 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			await this.ctx.storage.deleteAlarm();
 			return;
 		}
+		const workflowStatus = await this.workflowStatus(attempt);
+		if (workflowStatus === "unavailable") return;
+		const currentAttempt = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);
+		if (
+			!currentAttempt ||
+			currentAttempt.terminal ||
+			currentAttempt.runId !== attempt.runId ||
+			currentAttempt.stage !== attempt.stage ||
+			currentAttempt.lastProgressAt !== attempt.lastProgressAt
+		) {
+			return;
+		}
+		if (workflowStatus === "active") {
+			const now = Date.now();
+			const workflowActiveStaleSince = currentAttempt.workflowActiveStaleSince ?? now;
+			if (now - workflowActiveStaleSince < WORKFLOW_ACTIVE_STALE_LIMIT_MS) {
+				await this.ctx.storage.put(ATTEMPT_KEY, {
+					...currentAttempt,
+					workflowActiveStaleSince,
+				});
+				await this.ctx.storage.setAlarm(now + WORKFLOW_STATUS_RETRY_MS);
+				return;
+			}
+		}
+		if (workflowStatus === "completed") {
+			const terminalAttempt = {
+				...currentAttempt,
+				terminal: {
+					conclusion: "success",
+					summary: "The automated review completed successfully.",
+				} satisfies ReviewTerminal,
+			};
+			await this.ctx.storage.put(ATTEMPT_KEY, terminalAttempt);
+			try {
+				await this.flushTerminal(terminalAttempt);
+			} catch (error) {
+				await this.scheduleTerminalRetry(terminalAttempt, error);
+			}
+			return;
+		}
+		if (workflowStatus === "recoverable") {
+			const retryResult = await this.retryWorkflow(currentAttempt);
+			if (retryResult !== "exhausted") return;
+		}
 
 		const terminal: ReviewTerminal = {
 			conclusion: "timed_out",
-			summary: `The review stopped reporting progress while in the \`${attempt.stage}\` stage. Reapply the \`bot:review\` label to retry.`,
+			summary: `The review stopped reporting progress while in the \`${currentAttempt.stage}\` stage. Reapply the \`bot:review\` label to retry.`,
 		};
-		const terminalAttempt = { ...attempt, terminal };
+		const terminalAttempt = { ...currentAttempt, terminal };
 		await this.ctx.storage.put(ATTEMPT_KEY, terminalAttempt);
 		console.error(
 			JSON.stringify({
 				message: "review watchdog timed out stale attempt",
-				attemptId: attempt.attemptId,
-				runId: attempt.runId,
-				deliveryId: attempt.deliveryId,
-				prNumber: attempt.prNumber,
-				stage: attempt.stage,
+				attemptId: currentAttempt.attemptId,
+				runId: currentAttempt.runId,
+				deliveryId: currentAttempt.deliveryId,
+				prNumber: currentAttempt.prNumber,
+				stage: currentAttempt.stage,
 			}),
 		);
 		try {

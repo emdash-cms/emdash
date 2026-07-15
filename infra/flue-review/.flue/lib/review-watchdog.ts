@@ -1,5 +1,15 @@
+import type { GatedPr } from "./webhook.js";
+
 export const REVIEW_STALE_AFTER_MS = 35 * 60_000;
 export const REVIEW_SETUP_LEASE_MS = 5 * 60_000;
+
+const STAGE_STALE_AFTER_MS: Record<ReviewStage, number> = {
+	admitted: 5 * 60_000,
+	hydrating: 3 * 60_000,
+	fetching_diff: 3 * 60_000,
+	model_review: REVIEW_STALE_AFTER_MS,
+	posting_review: 5 * 60_000,
+};
 
 export type ReviewStage =
 	| "admitted"
@@ -16,6 +26,7 @@ export interface ReviewAttempt {
 	repo: string;
 	prNumber: number;
 	headSha: string;
+	workflowInput?: GatedPr;
 	checkRunId?: number;
 	stage: ReviewStage;
 	lastProgressAt: number;
@@ -26,6 +37,8 @@ export interface ReviewAttempt {
 	terminalReportedAt?: number;
 	terminalAbandonedAt?: number;
 	terminalRetryCount?: number;
+	workflowRetryCount?: number;
+	workflowActiveStaleSince?: number;
 }
 
 export interface ReviewTerminal {
@@ -42,10 +55,10 @@ interface ReviewWatchdogRpc {
 	>;
 	arm(attempt: ReviewAttempt, setupLease: string): Promise<void>;
 	beginAdmission(attemptId: string, setupLease: string): Promise<boolean>;
-	identify(attemptId: string, runId: string): Promise<boolean>;
-	heartbeat(attemptId: string, stage: ReviewStage): Promise<boolean>;
+	identify(attemptId: string, expectedRunId: string, runId: string): Promise<boolean>;
+	heartbeat(attemptId: string, runId: string, stage: ReviewStage): Promise<boolean>;
 	complete(attemptId: string): Promise<void>;
-	finish(attemptId: string, terminal: ReviewTerminal): Promise<boolean>;
+	finish(attemptId: string, runId: string, terminal: ReviewTerminal): Promise<boolean>;
 }
 
 export function getReviewWatchdog(env: Env, attemptId: string): ReviewWatchdogRpc {
@@ -55,6 +68,14 @@ export function getReviewWatchdog(env: Env, attemptId: string): ReviewWatchdogRp
 	return watchdog as ReviewWatchdogRpc;
 }
 
-export function isReviewAttemptStale(lastProgressAt: number, now = Date.now()): boolean {
-	return now - lastProgressAt >= REVIEW_STALE_AFTER_MS;
+export function reviewStaleAfter(stage: ReviewStage): number {
+	return STAGE_STALE_AFTER_MS[stage];
+}
+
+export function isReviewAttemptStale(
+	lastProgressAt: number,
+	now = Date.now(),
+	stage: ReviewStage = "model_review",
+): boolean {
+	return now - lastProgressAt >= reviewStaleAfter(stage);
 }

@@ -431,6 +431,11 @@ function renderFindingsMarkdown(findings: ReviewResult["findings"]): string {
 	return `\n\n---\n\n### Findings\n\n${lines.join("\n\n")}`;
 }
 
+type ReviewLookup =
+	| { status: "present" }
+	| { status: "absent" }
+	| { status: "unavailable"; error: Error };
+
 async function reviewWasPosted(
 	token: string,
 	owner: string,
@@ -438,19 +443,35 @@ async function reviewWasPosted(
 	prNumber: number,
 	commitId: string,
 	marker: string,
-): Promise<boolean> {
+): Promise<ReviewLookup> {
 	try {
-		const res = await githubFetch(
-			`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100`,
-			{ headers: installationHeaders(token) },
-		);
-		if (!res.ok) return false;
-		const reviews = await res.json<Array<{ body?: string; commit_id?: string }>>();
-		return reviews.some(
-			(review) => review.commit_id === commitId && review.body?.includes(marker) === true,
-		);
-	} catch {
-		return false;
+		for (let page = 1; ; page++) {
+			const suffix = page === 1 ? "" : `&page=${page}`;
+			const res = await githubFetch(
+				`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100${suffix}`,
+				{ headers: installationHeaders(token) },
+			);
+			if (!res.ok) {
+				return {
+					status: "unavailable",
+					error: new Error(`review marker inspection failed: ${res.status}`),
+				};
+			}
+			const reviews = await res.json<Array<{ body?: string; commit_id?: string }>>();
+			if (
+				reviews.some(
+					(review) => review.commit_id === commitId && review.body?.includes(marker) === true,
+				)
+			) {
+				return { status: "present" };
+			}
+			if (reviews.length < 100) return { status: "absent" };
+		}
+	} catch (error) {
+		return {
+			status: "unavailable",
+			error: new Error("review marker inspection failed", { cause: error }),
+		};
 	}
 }
 
@@ -473,6 +494,11 @@ export async function postReview(
 	const event = verdictToEvent(result.verdict);
 	const marker = attemptId ? `<!-- emdash-review-attempt:${attemptId} -->` : undefined;
 	const summary = `${result.summary.trim() || FALLBACK_SUMMARY}${marker ? `\n\n${marker}` : ""}`;
+	if (commitId && marker) {
+		const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
+		if (lookup.status === "present") return;
+		if (lookup.status === "unavailable") throw lookup.error;
+	}
 	const headers = {
 		authorization: `Bearer ${token}`,
 		accept: "application/vnd.github+json",
@@ -491,12 +517,9 @@ export async function postReview(
 	try {
 		res = await githubFetch(url, { method: "POST", headers, body: JSON.stringify(withComments) });
 	} catch (error) {
-		if (
-			commitId &&
-			marker &&
-			(await reviewWasPosted(token, owner, repo, prNumber, commitId, marker))
-		) {
-			return;
+		if (commitId && marker) {
+			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
+			if (lookup.status === "present") return;
 		}
 		throw error;
 	}
@@ -507,12 +530,9 @@ export async function postReview(
 	// carries the summary AND the findings inline, so the review still lands.
 	const firstError = await res.text();
 	if (res.status !== 422) {
-		if (
-			commitId &&
-			marker &&
-			(await reviewWasPosted(token, owner, repo, prNumber, commitId, marker))
-		) {
-			return;
+		if (commitId && marker) {
+			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
+			if (lookup.status === "present") return;
 		}
 		throw new Error(`postReview failed: ${res.status} ${firstError}`);
 	}
@@ -524,22 +544,16 @@ export async function postReview(
 	try {
 		res = await githubFetch(url, { method: "POST", headers, body: JSON.stringify(bodyOnly) });
 	} catch (error) {
-		if (
-			commitId &&
-			marker &&
-			(await reviewWasPosted(token, owner, repo, prNumber, commitId, marker))
-		) {
-			return;
+		if (commitId && marker) {
+			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
+			if (lookup.status === "present") return;
 		}
 		throw error;
 	}
 	if (!res.ok) {
-		if (
-			commitId &&
-			marker &&
-			(await reviewWasPosted(token, owner, repo, prNumber, commitId, marker))
-		) {
-			return;
+		if (commitId && marker) {
+			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
+			if (lookup.status === "present") return;
 		}
 		throw new Error(
 			`postReview failed (with comments: ${firstError}); body-only retry: ${res.status} ${await res.text()}`,

@@ -60,6 +60,7 @@ const reviewPayloadSchema = v.object({
 	owner: v.string(),
 	repo: v.string(),
 	attemptId: v.optional(v.string()),
+	expectedRunId: v.optional(v.string()),
 	deliveryId: v.optional(v.string()),
 	checkRunId: v.optional(v.number()),
 });
@@ -222,6 +223,7 @@ async function reportStage(
 
 	const active = await getReviewWatchdog(env, payload.attemptId).heartbeat(
 		payload.attemptId,
+		runId,
 		stage,
 	);
 	if (!active) return false;
@@ -253,6 +255,7 @@ async function finishReviewCheck(
 	try {
 		const finished = await getReviewWatchdog(env, payload.attemptId).finish(
 			payload.attemptId,
+			runId,
 			terminal,
 		);
 		if (!finished) {
@@ -290,7 +293,11 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 		if (
 			payload.attemptId &&
 			payload.checkRunId !== undefined &&
-			!(await getReviewWatchdog(env, payload.attemptId).identify(payload.attemptId, runId))
+			!(await getReviewWatchdog(env, payload.attemptId).identify(
+				payload.attemptId,
+				payload.expectedRunId ?? payload.attemptId,
+				runId,
+			))
 		) {
 			throw new Error("Review attempt is no longer active");
 		}
