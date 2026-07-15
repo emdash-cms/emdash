@@ -24,6 +24,8 @@ export interface RecordedFinding {
 	readonly title: string;
 	readonly publicSummary: string;
 	readonly privateDetail: string;
+	readonly affectedFiles?: readonly string[];
+	readonly affectedImages?: readonly string[];
 }
 
 export interface CallRecord {

@@ -59,6 +59,8 @@ function recordFindings(
 		title: string;
 		publicSummary: string;
 		privateDetail: string;
+		affectedFiles?: readonly string[];
+		affectedImages?: readonly string[];
 	}[],
 ): RecordedFinding[] {
 	return findings.map((finding) => ({
@@ -69,6 +71,8 @@ function recordFindings(
 		title: finding.title,
 		publicSummary: finding.publicSummary,
 		privateDetail: finding.privateDetail,
+		...(finding.affectedFiles !== undefined ? { affectedFiles: finding.affectedFiles } : {}),
+		...(finding.affectedImages !== undefined ? { affectedImages: finding.affectedImages } : {}),
 	}));
 }
 
