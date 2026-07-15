@@ -48,32 +48,54 @@ function permitsAutomatedRelease(definition: LabelDefinition | undefined): boole
 	);
 }
 
-/** Spec §9.9 steps 4–5: source/severity rule for whether an automated-block
- * category finding actually blocks. `history` never blocks (plan W8.4). */
+/** The automated-block categories that describe image content rather than code
+ * behavior (spec §20.2, W8.5 amendment). A sub-threshold finding on one of
+ * these degrades to `content-warning`; every other block category degrades to
+ * `suspicious-code`. */
+const IMAGE_CONTENT_BLOCK_CATEGORIES: ReadonlySet<string> = new Set([
+	"hateful-imagery",
+	"explicit-imagery",
+	"graphic-violence",
+]);
+
+/** Warning label a sub-threshold block-category finding degrades to, keyed by
+ * the original block category so image-content concerns and code concerns land
+ * on honest, distinct warnings. */
+function degradedWarningValue(blockCategory: string): string {
+	return IMAGE_CONTENT_BLOCK_CATEGORIES.has(blockCategory) ? "content-warning" : "suspicious-code";
+}
+
+/** Spec §9.9 steps 4–5 (W8.5 amendment): source/severity rule for whether an
+ * automated-block category finding actually blocks. Deterministic/capability
+ * findings block at any severity; model/image findings block at `high` or
+ * `critical`. `history` never blocks (plan W8.4). A model/image block-category
+ * finding below `high` does not block but is never dropped — the caller
+ * degrades it to a warning. */
 function isBlockingFinding(finding: NormalizedFinding): boolean {
 	if (finding.source === "deterministic" || finding.source === "capability") return true;
 	if (finding.source === "model" || finding.source === "image")
-		return finding.severity === "critical";
+		return SEVERITY_RANK[finding.severity] >= SEVERITY_RANK.high;
 	return false;
 }
 
+/** Adds an outcome label, or merges into an existing one with the same `val`
+ * (the value issued to the subject) by keeping the higher severity. Provenance
+ * (`findingCategory`) is first-citation-wins. */
 function addOrMergeLabel(
 	labels: OutcomeLabel[],
 	index: Map<string, OutcomeLabel>,
-	finding: NormalizedFinding,
+	val: string,
+	findingCategory: string,
+	severity: FindingSeverity,
 ): void {
-	const existing = index.get(finding.category);
+	const existing = index.get(val);
 	if (existing) {
-		existing.severity = higherSeverity(existing.severity ?? finding.severity, finding.severity);
+		existing.severity = higherSeverity(existing.severity ?? severity, severity);
 		return;
 	}
-	const label: OutcomeLabel = {
-		val: finding.category,
-		findingCategory: finding.category,
-		severity: finding.severity,
-	};
+	const label: OutcomeLabel = { val, findingCategory, severity };
 	labels.push(label);
-	index.set(finding.category, label);
+	index.set(val, label);
 }
 
 /**
@@ -101,11 +123,36 @@ export function resolvePolicyOutcome(
 		if (!permitsAutomatedRelease(policy.labelsByValue.get(finding.category))) continue;
 
 		if (blockCategories.has(finding.category)) {
-			if (isBlockingFinding(finding)) addOrMergeLabel(blockingLabels, blockingIndex, finding);
+			if (isBlockingFinding(finding)) {
+				addOrMergeLabel(
+					blockingLabels,
+					blockingIndex,
+					finding.category,
+					finding.category,
+					finding.severity,
+				);
+			} else {
+				// Sub-threshold model/image block finding: never dropped — degrade to
+				// a warning so the concern stays visible, keeping the original block
+				// category as the finding association (W8.5 amendment).
+				addOrMergeLabel(
+					warningLabels,
+					warningIndex,
+					degradedWarningValue(finding.category),
+					finding.category,
+					finding.severity,
+				);
+			}
 			continue;
 		}
 		if (warnCategories.has(finding.category)) {
-			addOrMergeLabel(warningLabels, warningIndex, finding);
+			addOrMergeLabel(
+				warningLabels,
+				warningIndex,
+				finding.category,
+				finding.category,
+				finding.severity,
+			);
 		}
 	}
 

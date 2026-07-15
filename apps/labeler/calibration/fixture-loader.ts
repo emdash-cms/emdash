@@ -60,7 +60,10 @@ export interface LegacyExpected {
 /**
  * Legacy audit category -> labeler policy label value. Categories absent from
  * this map have no labeler equivalent and force a `review` expectation rather
- * than a guess (e.g. `resource-abuse`, `nsfw`).
+ * than a guess (e.g. `resource-abuse`). The legacy two-axis `offensive`/`nsfw`
+ * grouping maps onto the ratified three-way image-content split — `offensive`
+ * to `hateful-imagery`, `nsfw` to `explicit-imagery`; the third category,
+ * `graphic-violence`, has no legacy source and no corpus fixture.
  */
 export const LEGACY_CATEGORY_MAP: Readonly<Record<string, string>> = {
 	"credential-harvesting": "credential-harvesting",
@@ -68,6 +71,8 @@ export const LEGACY_CATEGORY_MAP: Readonly<Record<string, string>> = {
 	obfuscation: "obfuscated-code",
 	"brand-impersonation": "impersonation",
 	misleading: "misleading-metadata",
+	offensive: "hateful-imagery",
+	nsfw: "explicit-imagery",
 };
 
 function mapLane(

@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
-	"policyVersion": "2026-07-10.experimental.3",
-	"effectiveAt": "2026-07-10T00:00:00Z",
+	"policyVersion": "2026-07-15.experimental.1",
+	"effectiveAt": "2026-07-15T00:00:00Z",
 	"labelerDid": "did:web:labels.emdashcms.com",
 	"assessmentSchemaVersion": 1,
 	"supportedSubjects": {
@@ -248,6 +248,51 @@
 			]
 		},
 		{
+			"value": "hateful-imagery",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Hateful imagery",
+					"description": "An image contains hate symbols, slurs, or extremist content."
+				}
+			]
+		},
+		{
+			"value": "explicit-imagery",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Explicit imagery",
+					"description": "An image contains sexually explicit content."
+				}
+			]
+		},
+		{
+			"value": "graphic-violence",
+			"category": "automated-block",
+			"officialEffect": "block",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Graphic violence",
+					"description": "An image contains gratuitous violence or gore."
+				}
+			]
+		},
+		{
 			"value": "suspicious-code",
 			"category": "warning",
 			"officialEffect": "warn",
@@ -334,6 +379,21 @@
 					"lang": "en",
 					"name": "Broken release",
 					"description": "The structurally valid bundle cannot perform its stated function."
+				}
+			]
+		},
+		{
+			"value": "content-warning",
+			"category": "warning",
+			"officialEffect": "warn",
+			"subjectRules": [
+				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
+			],
+			"locales": [
+				{
+					"lang": "en",
+					"name": "Content warning",
+					"description": "An image raises a content-policy concern below the threshold for a blocking label."
 				}
 			]
 		},
