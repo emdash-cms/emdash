@@ -13,6 +13,10 @@
 			"types": "./dist/bundle.d.ts",
 			"default": "./dist/bundle.js"
 		},
+		"./checksum": {
+			"types": "./dist/checksum.d.ts",
+			"default": "./dist/checksum.js"
+		},
 		"./fetch": {
 			"types": "./dist/fetch-entry.d.ts",
 			"default": "./dist/fetch-entry.js"
