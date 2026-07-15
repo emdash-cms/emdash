@@ -336,7 +336,9 @@ export function unwrapModelEnvelope(raw: unknown): unknown {
 	return raw;
 }
 
-function parseModelOutput(raw: unknown): unknown[] {
+/** Shared by both adapters (image imports this) so the envelope-parsing logic
+ * lives in one place. */
+export function parseModelOutput(raw: unknown): unknown[] {
 	let payload: unknown = unwrapModelEnvelope(raw);
 	if (isRecord(payload) && "response" in payload) payload = payload.response;
 	if (typeof payload === "string") {

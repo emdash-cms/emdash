@@ -8,6 +8,7 @@ import {
 } from "../src/findings.js";
 import {
 	analyzeImages,
+	DEFAULT_IMAGE_MODEL_ID,
 	MAX_IMAGES,
 	MAX_IMAGE_BYTES,
 	MAX_TOTAL_IMAGE_BYTES,
@@ -105,11 +106,26 @@ describe("analyzeImages", () => {
 			source: "image",
 			category: "impersonation",
 			evidenceRefs: [],
-			sourceMetadata: { kind: "model", modelId: DEFAULT_MODEL_ID, promptVersion: PROMPT_VERSION },
+			sourceMetadata: {
+				kind: "model",
+				modelId: DEFAULT_IMAGE_MODEL_ID,
+				promptVersion: PROMPT_VERSION,
+			},
 		});
 		expect(result.call).not.toBeNull();
-		expect(result.call?.modelId).toBe(DEFAULT_MODEL_ID);
+		expect(result.call?.modelId).toBe(DEFAULT_IMAGE_MODEL_ID);
 		expect(result.call?.promptVersion).toBe(PROMPT_VERSION);
+	});
+
+	it("defaults to the dedicated image model, not the code adapter's text-only default", async () => {
+		const ai = fakeAi(() => Promise.resolve(findingResponse([])));
+		const result = await analyzeImages(baseInput(), {
+			ai,
+			policy: MODERATION_POLICY,
+			promptVersion: PROMPT_VERSION,
+		});
+		expect(result.call?.modelId).toBe(DEFAULT_IMAGE_MODEL_ID);
+		expect(result.call?.modelId).not.toBe(DEFAULT_MODEL_ID);
 	});
 
 	it("parses the OpenAI-compatible chat envelope (choices[0].message.content) and ignores reasoning_content", async () => {
@@ -177,7 +193,11 @@ describe("analyzeImages", () => {
 		expect(result.findings[0]).toMatchObject({
 			source: "image",
 			evidenceRefs: [],
-			sourceMetadata: { kind: "model", modelId: DEFAULT_MODEL_ID, promptVersion: PROMPT_VERSION },
+			sourceMetadata: {
+				kind: "model",
+				modelId: DEFAULT_IMAGE_MODEL_ID,
+				promptVersion: PROMPT_VERSION,
+			},
 		});
 	});
 
