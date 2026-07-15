@@ -48,7 +48,7 @@
 		"oxlint": "^1.73.0",
 		"oxlint-tsgolint": "^0.24.0",
 		"pkg-pr-new": "^0.0.75",
-		"prettier": "^3.9.1",
+		"prettier": "^3.9.5",
 		"prettier-plugin-astro": "^0.14.1",
 		"typescript": "6.0.0-beta"
 	},
