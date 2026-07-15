@@ -22,9 +22,8 @@
 // Wrapper component with EmDash defaults
 export { default as PortableText } from "./PortableText.astro";
 
-// Comment components
-export { default as Comments } from "./Comments.astro";
-export { default as CommentForm } from "./CommentForm.astro";
+// Comment components live in a separate `emdash/ui/comments` entry point so
+// their styles aren't pulled into every page that imports this barrel (#2039).
 
 // Widget components
 export { default as WidgetArea } from "./WidgetArea.astro";

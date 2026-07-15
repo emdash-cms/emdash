@@ -52,9 +52,6 @@ export {
 	// Shares the name with the `type Block` re-export above; the
 	// type and the component live in different namespaces.
 	Block,
-	// Comment components
-	Comments,
-	CommentForm,
 	// Widget components
 	WidgetArea,
 	// Components object for manual use
