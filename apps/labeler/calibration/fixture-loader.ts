@@ -32,14 +32,15 @@ export interface RawFixtureFile {
 
 /** A finding lane's expected outcome, re-expressed in labeler policy terms.
  * `review: true` marks a legacy expectation that does not translate cleanly and
- * needs human review rather than a machine-checked assertion. `toState` is
- * deliberately only `passed` or `blocked`: the warn-zone is inherently
- * ambiguous (a warning depends on the severity the model assigns), so the
- * corpus expresses it as `review`, never as a hard `warned` assertion — a
- * concrete `warned` expectation would have no false-positive/negative branch
- * and would silently escape the deltas. */
+ * needs human review rather than a machine-checked assertion. `toState` is one
+ * of `passed`, `blocked`, or `warned`. `warned` is only for fixtures authored
+ * as deliberate warn-positive ground truth: a genuinely reportable but
+ * non-blocking plugin. It is scored — produced `warned` agrees, `passed`
+ * under-warns, `blocked` is a false positive — so the report never hides it.
+ * Legacy 'warn' priors, whose outcome depends on the severity the model assigns,
+ * stay `review`; only hand-authored fixtures assert `warned`. */
 export interface LaneExpectation {
-	readonly toState?: "passed" | "blocked";
+	readonly toState?: "passed" | "blocked" | "warned";
 	readonly categories?: readonly string[];
 	readonly review?: boolean;
 	readonly note?: string;
@@ -142,17 +143,17 @@ export function parseExpectation(value: unknown): Expectation {
 function parseLaneExpectation(value: unknown, lane: string): LaneExpectation {
 	if (!isRecord(value)) throw new TypeError(`expect.${lane} must be an object`);
 	const result: {
-		toState?: "passed" | "blocked";
+		toState?: "passed" | "blocked" | "warned";
 		categories?: readonly string[];
 		review?: boolean;
 		note?: string;
 	} = {};
 	if (value.toState !== undefined) {
-		// "warned" is intentionally rejected — see LaneExpectation. A warn-zone
-		// prior belongs in `review`, not a hard assertion the deltas can't score.
-		if (value.toState !== "passed" && value.toState !== "blocked")
+		// A legacy 'warn' prior belongs in `review`; only a hand-authored
+		// warn-positive fixture asserts a scored `warned` — see LaneExpectation.
+		if (value.toState !== "passed" && value.toState !== "blocked" && value.toState !== "warned")
 			throw new TypeError(
-				`expect.${lane}.toState must be "passed" or "blocked" (use review for the warn-zone), got: ${String(value.toState)}`,
+				`expect.${lane}.toState must be "passed", "blocked", or "warned" (use review for legacy warn-zone priors), got: ${String(value.toState)}`,
 			);
 		result.toState = value.toState;
 	}

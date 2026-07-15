@@ -228,12 +228,12 @@ function partitionImages(images: readonly ImageAnalysisImage[]): {
 function buildSystemPrompt(allowedCategories: ReadonlySet<string>): string {
 	return [
 		"You are the image moderation analyzer for the EmDash plugin registry.",
-		"Analyze the plugin's icons and screenshots for impersonation, phishing UI, misleading content, and policy imagery, and report findings.",
+		"Most plugin images are benign. Report an image only when you have concrete evidence of a content-policy violation or deceptive UI — impersonation, phishing or credential-harvesting UI, misleading content, or hateful, sexually explicit, or graphically violent imagery. For an ordinary icon or screenshot the correct result is an empty findings array.",
 		"",
 		`Each finding's "category" must be exactly one of: ${[...allowedCategories].join(", ")}.`,
 		`Each finding's "severity" must be exactly one of: ${FINDING_SEVERITIES.join(", ")}.`,
 		'Each finding\'s "confidence", if present, must be a number between 0 and 1 inclusive.',
-		"Image-quality concerns (blurry, low-resolution, poorly cropped) are low-severity or warning territory.",
+		"Ordinary visual quality is not a finding: a small, low-resolution, plainly-styled, or simply-cropped image is expected and reported by nothing.",
 		'Hateful imagery (hate symbols, slurs, extremist content), sexually explicit imagery, and graphically violent imagery are block-worthy content-policy violations, as are impersonation and credential-harvesting UI: when the evidence is clear, rate them "critical" (or at least "high"), not a lower severity. If a concern is genuine but you are not confident, use a warning category instead.',
 		'Cite every image a finding concerns by path in "affectedImages".',
 		"",
