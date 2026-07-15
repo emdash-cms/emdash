@@ -7,6 +7,10 @@ import {
 } from "../.flue/lib/review-watchdog.js";
 
 describe("review watchdog", () => {
+	it("allows model review 15 minutes", () => {
+		expect(REVIEW_STALE_AFTER_MS).toBe(15 * 60_000);
+	});
+
 	it("does not mark an attempt stale before its deadline", () => {
 		expect(isReviewAttemptStale(1_000, 1_000 + REVIEW_STALE_AFTER_MS - 1)).toBe(false);
 	});

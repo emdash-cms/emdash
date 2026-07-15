@@ -1,6 +1,6 @@
 import type { GatedPr } from "./webhook.js";
 
-export const REVIEW_STALE_AFTER_MS = 35 * 60_000;
+export const REVIEW_STALE_AFTER_MS = 15 * 60_000;
 export const REVIEW_SETUP_LEASE_MS = 5 * 60_000;
 
 const STAGE_STALE_AFTER_MS: Record<ReviewStage, number> = {

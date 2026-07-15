@@ -1,7 +1,12 @@
 import { getRun } from "@flue/runtime";
 import { DurableObject } from "cloudflare:workers";
 
-import { completeReviewCheck, mintInstallationToken, readAppCreds } from "./lib/github.js";
+import {
+	completeReviewCheck,
+	mintInstallationToken,
+	readAppCreds,
+	updateReviewCheck,
+} from "./lib/github.js";
 import {
 	isReviewAttemptStale,
 	reviewStaleAfter,
@@ -19,7 +24,7 @@ const TERMINAL_RETRY_LIMIT = 10;
 const TERMINAL_RETENTION_MS = 7 * 24 * 60 * 60_000;
 const WORKFLOW_RETRY_LIMIT = 2;
 const WORKFLOW_STATUS_RETRY_MS = 60_000;
-const WORKFLOW_ACTIVE_STALE_LIMIT_MS = 30 * 60_000;
+const WORKFLOW_ACTIVE_STALE_LIMIT_MS = 5 * 60_000;
 
 class TerminalConfigurationError extends Error {}
 
@@ -182,6 +187,29 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		};
 		await this.ctx.storage.put(ATTEMPT_KEY, retrying);
 		await this.ctx.storage.setAlarm(lastProgressAt + reviewStaleAfter("admitted"));
+		try {
+			const creds = readAppCreds(this.env);
+			if (creds) {
+				const token = await mintInstallationToken(creds);
+				await updateReviewCheck(token, attempt.owner, attempt.repo, attempt.checkRunId, {
+					prNumber: attempt.prNumber,
+					runId: retryRunId,
+					stage: "hydrating",
+					detail:
+						"The previous review stopped reporting progress. EmDashBot is starting a replacement run.",
+				});
+			}
+		} catch (error) {
+			console.error(
+				JSON.stringify({
+					message: "review recovery check update failed",
+					error: error instanceof Error ? error.message : String(error),
+					attemptId: attempt.attemptId,
+					previousRunId: attempt.runId,
+					workflowRetryCount,
+				}),
+			);
+		}
 
 		try {
 			// Flue needs a fetch-style context to durably admit the replacement run.
@@ -237,7 +265,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 	): Promise<"active" | "completed" | "recoverable" | "unavailable"> {
 		try {
 			const run = await getRun(attempt.runId);
-			if (!run || run.status === "errored") return "recoverable";
+			if (!run || run.status === "errored" || run.isError) return "recoverable";
 			return run.status;
 		} catch (error) {
 			console.error(

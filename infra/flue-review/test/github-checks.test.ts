@@ -328,4 +328,29 @@ describe("GitHub review checks", () => {
 			expect.any(Object),
 		);
 	});
+
+	it("fails closed after inspecting 10 full review pages", async () => {
+		const reviews = Array.from({ length: 100 }, (_, index) => ({
+			body: `Review ${index}`,
+			commit_id: "head-sha",
+		}));
+		const fetchMock = vi.fn<typeof fetch>();
+		for (let page = 0; page < 10; page++) {
+			fetchMock.mockResolvedValueOnce(Response.json(reviews));
+		}
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(
+			postReview(
+				TOKEN,
+				"emdash-cms",
+				"emdash",
+				42,
+				{ verdict: "approve", summary: "Looks good", findings: [] },
+				"head-sha",
+				"attempt-1",
+			),
+		).rejects.toThrow("review marker inspection exceeded 10 pages");
+		expect(fetchMock).toHaveBeenCalledTimes(10);
+	});
 });

@@ -496,6 +496,8 @@ type ReviewLookup =
 	| { status: "absent" }
 	| { status: "unavailable"; error: Error };
 
+const REVIEW_LOOKUP_MAX_PAGES = 10;
+
 async function reviewWasPosted(
 	token: string,
 	owner: string,
@@ -505,7 +507,7 @@ async function reviewWasPosted(
 	marker: string,
 ): Promise<ReviewLookup> {
 	try {
-		for (let page = 1; ; page++) {
+		for (let page = 1; page <= REVIEW_LOOKUP_MAX_PAGES; page++) {
 			const suffix = page === 1 ? "" : `&page=${page}`;
 			const res = await githubFetch(
 				`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100${suffix}`,
@@ -527,6 +529,10 @@ async function reviewWasPosted(
 			}
 			if (reviews.length < 100) return { status: "absent" };
 		}
+		return {
+			status: "unavailable",
+			error: new Error(`review marker inspection exceeded ${REVIEW_LOOKUP_MAX_PAGES} pages`),
+		};
 	} catch (error) {
 		return {
 			status: "unavailable",

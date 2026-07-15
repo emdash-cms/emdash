@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const github = vi.hoisted(() => ({
 	completeReviewCheck: vi.fn(),
 	readAppCreds: vi.fn(),
+	updateReviewCheck: vi.fn(),
 }));
 const workflow = vi.hoisted(() => ({
 	admitReviewWorkflow: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("../.flue/lib/github.js", () => ({
 	completeReviewCheck: github.completeReviewCheck,
 	mintInstallationToken: vi.fn().mockResolvedValue("token"),
 	readAppCreds: github.readAppCreds,
+	updateReviewCheck: github.updateReviewCheck,
 }));
 
 vi.mock("../.flue/lib/workflow-admission.js", () => ({
@@ -86,6 +88,7 @@ function setup() {
 
 beforeEach(() => {
 	github.completeReviewCheck.mockReset().mockResolvedValue(undefined);
+	github.updateReviewCheck.mockReset().mockResolvedValue(undefined);
 	github.readAppCreds.mockReset().mockReturnValue({
 		appId: "1",
 		installationId: "2",
@@ -222,6 +225,18 @@ describe("ReviewWatchdog terminal arbitration", () => {
 			expect.anything(),
 		);
 		expect(github.completeReviewCheck).not.toHaveBeenCalled();
+		expect(github.updateReviewCheck).toHaveBeenCalledWith(
+			"token",
+			attempt.owner,
+			attempt.repo,
+			attempt.checkRunId,
+			expect.objectContaining({
+				prNumber: attempt.prNumber,
+				stage: "hydrating",
+				detail:
+					"The previous review stopped reporting progress. EmDashBot is starting a replacement run.",
+			}),
+		);
 		expect(storage.values.get("attempt")).toMatchObject({
 			runId: "run-2",
 			stage: "admitted",
@@ -273,6 +288,33 @@ describe("ReviewWatchdog terminal arbitration", () => {
 		);
 		expect(storage.values.get("attempt")).toMatchObject({
 			terminal: { conclusion: "success" },
+		});
+	});
+
+	it("re-admits a completed Flue run marked as an error", async () => {
+		const { attempt, storage, watchdog } = setup();
+		attempt.lastProgressAt = 0;
+		attempt.workflowInput = {
+			prNumber: attempt.prNumber,
+			prTitle: "Errored review",
+			prBody: "",
+			headRef: "fix/errored",
+			headSha: attempt.headSha,
+			baseRef: "main",
+			baseSha: "b".repeat(40),
+			owner: attempt.owner,
+			repo: attempt.repo,
+		};
+		flue.getRun.mockResolvedValue({ status: "completed", isError: true });
+		await watchdog.reserve(attempt, "lease-1");
+
+		await watchdog.alarm();
+
+		expect(workflow.admitReviewWorkflow).toHaveBeenCalledTimes(1);
+		expect(github.completeReviewCheck).not.toHaveBeenCalled();
+		expect(storage.values.get("attempt")).toMatchObject({
+			runId: "run-2",
+			workflowRetryCount: 1,
 		});
 	});
 
@@ -418,7 +460,7 @@ describe("ReviewWatchdog terminal arbitration", () => {
 	it("terminalizes a Flue run that remains active beyond the hard ceiling", async () => {
 		const { attempt, storage, watchdog } = setup();
 		attempt.lastProgressAt = 0;
-		attempt.workflowActiveStaleSince = Date.now() - 31 * 60_000;
+		attempt.workflowActiveStaleSince = Date.now() - 6 * 60_000;
 		flue.getRun.mockResolvedValue({ status: "active" });
 		await watchdog.reserve(attempt, "lease-1");
 
