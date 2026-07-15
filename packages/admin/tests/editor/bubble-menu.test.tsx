@@ -9,6 +9,7 @@
  * when there's a text selection in the editor.
  */
 
+import { CellSelection } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
 import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
@@ -104,6 +105,50 @@ const defaultValue = [
 	},
 ];
 
+const tableValue = [
+	{
+		_type: "table" as const,
+		_key: "table-1",
+		hasHeaderRow: true,
+		rows: [
+			{
+				_type: "tableRow" as const,
+				_key: "row-1",
+				cells: [
+					{
+						_type: "tableCell" as const,
+						_key: "cell-1",
+						content: [{ _type: "span" as const, _key: "table-span-1", text: "Header" }],
+						isHeader: true,
+					},
+					{
+						_type: "tableCell" as const,
+						_key: "cell-2",
+						content: [{ _type: "span" as const, _key: "table-span-2", text: "Other" }],
+						isHeader: true,
+					},
+				],
+			},
+			{
+				_type: "tableRow" as const,
+				_key: "row-2",
+				cells: [
+					{
+						_type: "tableCell" as const,
+						_key: "cell-3",
+						content: [{ _type: "span" as const, _key: "table-span-3", text: "Body" }],
+					},
+					{
+						_type: "tableCell" as const,
+						_key: "cell-4",
+						content: [{ _type: "span" as const, _key: "table-span-4", text: "Cell" }],
+					},
+				],
+			},
+		],
+	},
+];
+
 async function renderEditor(props: Partial<PortableTextEditorProps> = {}, scrollContainerTop = 0) {
 	let editorInstance: Editor | null = null;
 
@@ -143,6 +188,36 @@ async function focusAndSelectAll(editor: Editor, pm: HTMLElement) {
 	await vi.waitFor(() => expect(document.activeElement).toBe(pm), { timeout: 1000 });
 	editor.commands.focus();
 	editor.commands.selectAll();
+}
+
+function getTextPosition(editor: Editor, text: string): number {
+	let textPosition = 0;
+	editor.state.doc.descendants((node, position) => {
+		if (node.isText && node.text === text) {
+			textPosition = position;
+			return false;
+		}
+		return undefined;
+	});
+	return textPosition;
+}
+
+async function focusTableCell(editor: Editor, pm: HTMLElement, text = "Header") {
+	pm.focus();
+	editor.chain().focus().setTextSelection(getTextPosition(editor, text)).run();
+	await vi.waitFor(() => expect(editor.isActive("table")).toBe(true));
+}
+
+async function waitForTableToolbar(): Promise<HTMLElement> {
+	let toolbar: HTMLElement | null = null;
+	await vi.waitFor(
+		() => {
+			toolbar = document.querySelector('[role="toolbar"][aria-label="Table controls"]');
+			expect(toolbar).toBeTruthy();
+		},
+		{ timeout: 3000 },
+	);
+	return toolbar!;
 }
 
 /**
@@ -192,6 +267,30 @@ function getBubbleButton(menu: HTMLElement, label: string): HTMLButtonElement | 
 // =============================================================================
 
 describe("Bubble Menu", () => {
+	it("registers stable, independent plugins for both bubble menus", async () => {
+		const { editor, pm } = await renderEditor({ value: [...tableValue, ...defaultValue] });
+		const expectBubbleMenuPlugins = () => {
+			const pluginKeys = editor.state.plugins.map((plugin) => plugin.key);
+			expect(pluginKeys.filter((key) => key.startsWith("emdashInlineBubbleMenu"))).toHaveLength(1);
+			expect(pluginKeys.filter((key) => key.startsWith("emdashTableBubbleMenu"))).toHaveLength(1);
+		};
+
+		await vi.waitFor(expectBubbleMenuPlugins);
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		expectBubbleMenuPlugins();
+
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "Hello world")).run();
+		await vi.waitFor(() => {
+			expect(document.querySelector('[aria-label="Table controls"]')).toBeNull();
+		});
+		expectBubbleMenuPlugins();
+
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		expectBubbleMenuPlugins();
+	});
+
 	it("appears when text is selected", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
@@ -254,6 +353,132 @@ describe("Bubble Menu", () => {
 		});
 	});
 
+	it("keeps table controls mounted, unclipped, and below obstructing sticky chrome", async () => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+
+		const tableToolbar = await waitForTableToolbar();
+		const floatingRoot = screen.container.querySelector("[data-emdash-editor-floating-root]");
+		const clippedSurface = screen.container.querySelector("[data-emdash-editor-surface]");
+		expect(floatingRoot).toBeTruthy();
+		expect(floatingRoot?.contains(tableToolbar)).toBe(true);
+		expect(clippedSurface?.contains(tableToolbar)).toBe(false);
+
+		await vi.waitFor(() => {
+			const selection = window.getSelection();
+			expect(selection?.rangeCount).toBe(1);
+			const selectionRect = selection!.getRangeAt(0).getBoundingClientRect();
+			const menuRect = tableToolbar.getBoundingClientRect();
+			const formattingToolbar = document.querySelector<HTMLElement>(
+				'[role="toolbar"][aria-label="Text formatting"]',
+			);
+			expect(menuRect.top).toBeGreaterThanOrEqual(selectionRect.bottom);
+			expect(menuRect.top).toBeGreaterThanOrEqual(
+				formattingToolbar!.getBoundingClientRect().bottom,
+			);
+		});
+	});
+
+	it("shows only inline formatting for a non-empty text selection inside a table", async () => {
+		const { editor, pm } = await renderEditor({ value: tableValue });
+		pm.focus();
+		const textPosition = getTextPosition(editor, "Body");
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({ from: textPosition, to: textPosition + 4 })
+			.run();
+
+		await waitForBubbleMenu();
+		await vi.waitFor(() => {
+			expect(document.querySelector('[aria-label="Table controls"]')).toBeNull();
+		});
+	});
+
+	it("shows only table controls for a cell selection", async () => {
+		const { editor, pm } = await renderEditor({ value: tableValue });
+		pm.focus();
+		const cellPositions: number[] = [];
+		editor.state.doc.descendants((node, position) => {
+			if (node.type.name === "tableHeader" || node.type.name === "tableCell") {
+				cellPositions.push(position);
+			}
+		});
+		editor.view.dispatch(
+			editor.state.tr.setSelection(
+				CellSelection.create(editor.state.doc, cellPositions[0]!, cellPositions[3]!),
+			),
+		);
+		expect(editor.state.selection).toBeInstanceOf(CellSelection);
+
+		await waitForTableToolbar();
+		await vi.waitFor(() => expect(getBubbleMenu()).toBeNull());
+	});
+
+	it("hides inline formatting controls when the editor becomes read-only", async () => {
+		const { editor, pm } = await renderEditor();
+		editor.setEditable(false);
+		pm.tabIndex = 0;
+		pm.focus();
+		editor.commands.selectAll();
+		await new Promise((resolve) => setTimeout(resolve, 350));
+
+		expect(document.activeElement).toBe(pm);
+		expect(getBubbleMenu()).toBeNull();
+	});
+
+	it("uses one keyboard-navigable Kumo toolbar with accessible table toggle state", async () => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+
+		const addBefore = screen.getByRole("button", { name: "Add column before" });
+		const addAfter = screen.getByRole("button", { name: "Add column after" });
+		const headerToggle = screen.getByRole("button", { name: "Toggle header row" });
+		await expect.element(headerToggle).toHaveAttribute("aria-pressed", "true");
+
+		addBefore.element().focus();
+		await userEvent.keyboard("{ArrowRight}");
+		await vi.waitFor(() => expect(document.activeElement).toBe(addAfter.element()));
+	});
+
+	it("anchors each decorative table badge to an RTL-safe icon wrapper", async () => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+
+		for (const name of [
+			"Add column before",
+			"Add column after",
+			"Add row before",
+			"Add row after",
+		]) {
+			const button = screen.getByRole("button", { name }).element();
+			const icon = button.querySelector<HTMLElement>("[data-emdash-composite-icon]");
+			expect(icon).toBeTruthy();
+			expect(icon?.className).toContain("relative");
+			expect(icon?.className).toContain("size-4");
+			expect(icon?.getAttribute("aria-hidden")).toBe("true");
+			const buttonRect = button.getBoundingClientRect();
+			const badgeRect = icon!.querySelectorAll("svg")[1]!.getBoundingClientRect();
+			expect(badgeRect.left).toBeGreaterThanOrEqual(buttonRect.left);
+			expect(badgeRect.right).toBeLessThanOrEqual(buttonRect.right);
+			expect(badgeRect.top).toBeGreaterThanOrEqual(buttonRect.top);
+			expect(badgeRect.bottom).toBeLessThanOrEqual(buttonRect.bottom);
+		}
+
+		const beforeBadge = screen
+			.getByRole("button", { name: "Add column before" })
+			.element()
+			.querySelectorAll("svg")[1];
+		const afterBadge = screen
+			.getByRole("button", { name: "Add column after" })
+			.element()
+			.querySelectorAll("svg")[1];
+		expect(beforeBadge?.getAttribute("class")).toContain("-start-0.5");
+		expect(afterBadge?.getAttribute("class")).toContain("-end-0.5");
+	});
+
 	it("shows formatting buttons: Bold, Italic, Underline, Strikethrough, Code", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
@@ -281,11 +506,13 @@ describe("Bubble Menu", () => {
 
 		const menu = await waitForBubbleMenu();
 		const boldBtn = getBubbleButton(menu, "Bold")!;
+		expect(boldBtn.getAttribute("aria-pressed")).toBe("false");
 
 		boldBtn.click();
 
 		await vi.waitFor(() => {
 			expect(editor.isActive("bold")).toBe(true);
+			expect(boldBtn.getAttribute("aria-pressed")).toBe("true");
 		});
 
 		// Verify the text is wrapped in <strong>

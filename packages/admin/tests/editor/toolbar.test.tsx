@@ -248,10 +248,24 @@ describe("Toolbar Presence and Structure", () => {
 		expect(touchInsert).toBeTruthy();
 		expect(touchInsert?.className).toContain("pointer-coarse:flex");
 		expect(touchInsert?.getAttribute("aria-label")).toBe("Insert block after current block");
+		expect(touchInsert?.tabIndex).toBe(0);
 		touchInsert?.click();
 		await vi.waitFor(() => {
 			expect(document.querySelector("body > div [data-index]")).toBeTruthy();
 		});
+	});
+
+	it("includes the coarse-pointer inserter in toolbar arrow navigation when visible", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const touchInsert = toolbar.querySelector<HTMLButtonElement>("[data-touch-block-insert]")!;
+		const bold = screen.getByRole("button", { name: "Bold" });
+		touchInsert.style.display = "flex";
+		bold.element().focus();
+
+		await userEvent.keyboard("{ArrowLeft}");
+
+		await vi.waitFor(() => expect(document.activeElement).toBe(touchInsert));
 	});
 
 	it("has history buttons", async () => {
@@ -835,8 +849,10 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 
 	it("Home moves focus to first button", async () => {
 		const { screen } = await renderEditor();
-
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const firstButton = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
+			(button) => !button.disabled && button.getClientRects().length > 0,
+		)!;
 		const alignCenter = screen.getByRole("button", { name: "Align Center" });
 
 		// Focus a button in the middle
@@ -846,7 +862,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 		await userEvent.keyboard("{Home}");
 
 		await vi.waitFor(() => {
-			expect(document.activeElement).toBe(bold.element());
+			expect(document.activeElement).toBe(firstButton);
 		});
 	});
 
@@ -870,9 +886,11 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 
 	it("ArrowRight wraps from last to first button", async () => {
 		const { screen } = await renderEditor();
-
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
 		const spotlightBtn = screen.getByRole("button", { name: "Spotlight Mode" });
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const firstButton = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
+			(button) => !button.disabled && button.getClientRects().length > 0,
+		)!;
 
 		// Focus the last button
 		spotlightBtn.element().focus();
@@ -881,17 +899,19 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 		await userEvent.keyboard("{ArrowRight}");
 
 		await vi.waitFor(() => {
-			expect(document.activeElement).toBe(bold.element());
+			expect(document.activeElement).toBe(firstButton);
 		});
 	});
 
 	it("ArrowLeft wraps from first to last button", async () => {
 		const { screen } = await renderEditor();
-
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const firstButton = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
+			(button) => !button.disabled && button.getClientRects().length > 0,
+		)!;
 
 		// Focus the first button
-		bold.element().focus();
+		firstButton.focus();
 
 		// Press ArrowLeft - should wrap to last
 		await userEvent.keyboard("{ArrowLeft}");

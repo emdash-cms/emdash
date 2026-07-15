@@ -10,6 +10,7 @@
  */
 
 import type { Editor } from "@tiptap/react";
+import { SuggestionPluginKey } from "@tiptap/suggestion";
 import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
 
@@ -227,6 +228,12 @@ function isItemSelected(el: HTMLElement): boolean {
 	return el.className.split(WHITESPACE_SPLIT_REGEX).includes("bg-kumo-tint");
 }
 
+function isSlashSuggestionActive(editor: Editor): boolean {
+	return Boolean(
+		(SuggestionPluginKey.getState(editor.state) as { active?: boolean } | undefined)?.active,
+	);
+}
+
 // =============================================================================
 // Slash Command Menu
 // =============================================================================
@@ -258,6 +265,49 @@ describe("Slash Command Menu", () => {
 
 		await waitForSlashMenuClosed();
 		expect(editor.getText()).toBe(before);
+	});
+
+	it("exits the slash suggestion plugin when clicking outside the menu", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+		expect(isSlashSuggestionActive(editor)).toBe(true);
+
+		pm.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+		await waitForSlashMenuClosed();
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+	});
+
+	it("keeps slash suggestion dismissed when opening the gutter menu", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+
+		const gutterButton = screen.getByRole("button", { name: "Test gutter insert" }).element();
+		gutterButton.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+		gutterButton.click();
+		await waitForSlashMenu();
+		editor.view.dispatch(editor.state.tr.setMeta("test", true));
+
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+		expect(getSlashMenu()).toBeTruthy();
+	});
+
+	it("records slash dismissal when opening the gutter menu from the keyboard", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+
+		screen.getByRole("button", { name: "Test gutter insert" }).element().click();
+		await waitForSlashMenu();
+		editor.view.dispatch(editor.state.tr.setMeta("test", true));
+
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+		expect(getSlashMenu()).toBeTruthy();
 	});
 
 	it("does not leave a staging paragraph when a gutter command opens a modal", async () => {
@@ -519,6 +569,7 @@ describe("Slash Command Menu", () => {
 
 		// Should still be a paragraph
 		expect(pm.querySelector("h1")).toBeNull();
+		expect(isSlashSuggestionActive(editor)).toBe(false);
 	});
 
 	it("executes command when clicking an item", async () => {

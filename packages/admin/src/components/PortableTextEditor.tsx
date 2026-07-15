@@ -11,7 +11,7 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input, Popover, Select, Switch } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Popover, Select, Switch, Toolbar, Tooltip } from "@cloudflare/kumo";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -80,10 +80,12 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
+import { AllSelection, TextSelection } from "@tiptap/pm/state";
+import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
-import Suggestion from "@tiptap/suggestion";
+import Suggestion, { exitSuggestion } from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
@@ -106,6 +108,14 @@ import {
 } from "./editor/PluginBlockNode";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { SectionPickerModal } from "./SectionPickerModal";
+
+const INLINE_BUBBLE_MENU_KEY = "emdashInlineBubbleMenu";
+const TABLE_BUBBLE_MENU_KEY = "emdashTableBubbleMenu";
+
+type BubbleMenuCollisionOptions = () => {
+	rootBoundary: { x: number; y: number; width: number; height: number };
+	padding: number;
+};
 
 // Import converters from inline module since we can't import from emdash package
 // These will be duplicated here until we set up proper package exports
@@ -1131,6 +1141,7 @@ interface SlashMenuState {
 	range: Range | null;
 	trigger: "slash" | "gutter";
 	gutterBlockPos: number | null;
+	dismissedSlashFrom: number | null;
 }
 
 /**
@@ -1145,6 +1156,14 @@ function createSlashCommandsExtension(options: {
 
 	return Extension.create({
 		name: "slashCommands",
+		onTransaction() {
+			const state = getState();
+			if (state.dismissedSlashFrom === null) return;
+			const to = Math.min(state.dismissedSlashFrom + 1, this.editor.state.doc.content.size);
+			if (this.editor.state.doc.textBetween(state.dismissedSlashFrom, to) !== "/") {
+				onStateChange((prev) => ({ ...prev, dismissedSlashFrom: null }));
+			}
+		},
 
 		addProseMirrorPlugins() {
 			return [
@@ -1157,6 +1176,7 @@ function createSlashCommandsExtension(options: {
 						item.command({ editor, range });
 					},
 					items: ({ query }) => filterCommands(query),
+					allow: ({ range }) => getState().dismissedSlashFrom !== range.from,
 					render: () => {
 						return {
 							onStart: (props) => {
@@ -1168,6 +1188,7 @@ function createSlashCommandsExtension(options: {
 									range: props.range,
 									trigger: "slash",
 									gutterBlockPos: null,
+									dismissedSlashFrom: null,
 								});
 							},
 							onUpdate: (props) => {
@@ -1179,11 +1200,17 @@ function createSlashCommandsExtension(options: {
 									range: props.range,
 									trigger: "slash",
 									gutterBlockPos: null,
+									dismissedSlashFrom: null,
 								}));
 							},
 							onKeyDown: (props) => {
 								if (props.event.key === "Escape") {
-									onStateChange((prev) => ({ ...prev, isOpen: false }));
+									onStateChange((prev) => ({
+										...prev,
+										isOpen: false,
+										dismissedSlashFrom: props.range.from,
+									}));
+									exitSuggestion(props.view);
 									return true;
 								}
 
@@ -2134,6 +2161,27 @@ export function PortableTextEditor({
 	const placeholderRef = React.useRef(placeholder ?? t`Start writing, or type '/' for commands`);
 	placeholderRef.current = placeholder ?? t`Start writing, or type '/' for commands`;
 	const toolbarRef = React.useRef<HTMLDivElement>(null);
+	const floatingRootRef = React.useRef<HTMLDivElement>(null);
+	const appendBubbleMenu = React.useCallback(() => floatingRootRef.current!, []);
+	const getBubbleMenuCollisionOptions = React.useCallback(() => {
+		const viewport = window.visualViewport;
+		const viewportTop = viewport?.offsetTop ?? 0;
+		const viewportLeft = viewport?.offsetLeft ?? 0;
+		const viewportWidth = viewport?.width ?? window.innerWidth;
+		const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+		const toolbarBottom = toolbarRef.current?.getBoundingClientRect().bottom ?? viewportTop;
+		const safeTop = Math.min(viewportBottom, Math.max(viewportTop, toolbarBottom));
+
+		return {
+			rootBoundary: {
+				x: viewportLeft,
+				y: safeTop,
+				width: viewportWidth,
+				height: Math.max(0, viewportBottom - safeTop),
+			},
+			padding: 8,
+		};
+	}, []);
 
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
@@ -2176,6 +2224,7 @@ export function PortableTextEditor({
 		range: null,
 		trigger: "slash",
 		gutterBlockPos: null,
+		dismissedSlashFrom: null,
 	});
 
 	// Ref to access current state synchronously in keyboard handlers.
@@ -2388,9 +2437,15 @@ export function PortableTextEditor({
 	const openBlockInsertMenuAt = React.useCallback(
 		(insertPos: number) => {
 			if (!editor) return;
+			const state = slashMenuStateRef.current;
+			const activeSlashFrom = state.trigger === "slash" && state.isOpen ? state.range?.from : null;
+			if (activeSlashFrom != null) {
+				setSlashMenuState((prev) => ({ ...prev, dismissedSlashFrom: activeSlashFrom }));
+			}
+			exitSuggestion(editor.view);
 			editor.commands.focus();
 
-			setSlashMenuState({
+			setSlashMenuState((prev) => ({
 				isOpen: true,
 				items: filterCommandsRef.current(""),
 				selectedIndex: 0,
@@ -2409,14 +2464,25 @@ export function PortableTextEditor({
 				range: { from: insertPos, to: insertPos },
 				trigger: "gutter",
 				gutterBlockPos: insertPos,
-			});
+				dismissedSlashFrom: prev.dismissedSlashFrom,
+			}));
 		},
 		[editor, setSlashMenuState],
 	);
 
 	const closeSlashMenu = React.useCallback(() => {
-		setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
-	}, [setSlashMenuState]);
+		const state = slashMenuStateRef.current;
+		setSlashMenuState((prev) => ({
+			...prev,
+			isOpen: false,
+			gutterBlockPos: null,
+			dismissedSlashFrom:
+				state.trigger === "slash" ? (state.range?.from ?? null) : prev.dismissedSlashFrom,
+		}));
+		if (editor && state.trigger === "slash") {
+			exitSuggestion(editor.view);
+		}
+	}, [editor, setSlashMenuState]);
 
 	const executeSlashCommand = React.useCallback(
 		(item: SlashCommandItem, state: SlashMenuState) => {
@@ -2545,6 +2611,27 @@ export function PortableTextEditor({
 		}
 		return undefined;
 	}, [editor, onEditorReady]);
+
+	React.useEffect(() => {
+		const viewport = window.visualViewport;
+		if (!editor || !viewport) return;
+
+		const updateBubbleMenuPositions = () => {
+			if (editor.isDestroyed) return;
+			editor.view.dispatch(
+				editor.state.tr
+					.setMeta(INLINE_BUBBLE_MENU_KEY, "updatePosition")
+					.setMeta(TABLE_BUBBLE_MENU_KEY, "updatePosition"),
+			);
+		};
+
+		viewport.addEventListener("resize", updateBubbleMenuPositions);
+		viewport.addEventListener("scroll", updateBubbleMenuPositions);
+		return () => {
+			viewport.removeEventListener("resize", updateBubbleMenuPositions);
+			viewport.removeEventListener("scroll", updateBubbleMenuPositions);
+		};
+	}, [editor]);
 
 	// Register plugin blocks into editor storage so the node view can look up metadata
 	React.useEffect(() => {
@@ -2727,76 +2814,87 @@ export function PortableTextEditor({
 	}
 
 	return (
-		<div
-			className={cn(
-				"border rounded-lg overflow-clip",
-				minimal && "border-0 rounded-none -mx-4",
-				focusMode === "spotlight" && "spotlight-mode",
-				className,
-			)}
-			aria-labelledby={ariaLabelledby}
-		>
-			{!minimal && (
-				<EditorToolbar
-					toolbarRef={toolbarRef}
-					editor={editor}
-					focusMode={focusMode}
-					onFocusModeChange={setFocusMode}
-					onInsertBlock={handleTouchInsertBlock}
+		<div ref={floatingRootRef} className="relative" data-emdash-editor-floating-root>
+			<EditorBubbleMenu
+				editor={editor}
+				appendTo={appendBubbleMenu}
+				getCollisionOptions={getBubbleMenuCollisionOptions}
+			/>
+			<TableBubbleMenu
+				editor={editor}
+				appendTo={appendBubbleMenu}
+				getCollisionOptions={getBubbleMenuCollisionOptions}
+			/>
+			<div
+				className={cn(
+					"border rounded-lg overflow-clip",
+					minimal && "border-0 rounded-none -mx-4",
+					focusMode === "spotlight" && "spotlight-mode",
+					className,
+				)}
+				aria-labelledby={ariaLabelledby}
+				data-emdash-editor-surface
+			>
+				{!minimal && (
+					<EditorToolbar
+						toolbarRef={toolbarRef}
+						editor={editor}
+						focusMode={focusMode}
+						onFocusModeChange={setFocusMode}
+						onInsertBlock={handleTouchInsertBlock}
+					/>
+				)}
+				<div className="relative overflow-visible">
+					<EditorContent editor={editor} />
+					{editable && <DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />}
+				</div>
+				{!minimal && <EditorFooter editor={editor} />}
+
+				{/* Slash command menu */}
+				<SlashCommandMenu
+					state={slashMenuState}
+					onCommand={handleSlashCommand}
+					onClose={closeSlashMenu}
+					setSelectedIndex={(index) =>
+						setSlashMenuState((prev) => ({ ...prev, selectedIndex: index }))
+					}
 				/>
-			)}
-			<EditorBubbleMenu editor={editor} toolbarRef={toolbarRef} />
-			<TableBubbleMenu editor={editor} />
-			<div className="relative overflow-visible">
-				<EditorContent editor={editor} />
-				{editable && <DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />}
+
+				{/* Media picker for image insertion */}
+				<MediaPickerModal
+					open={mediaPickerOpen}
+					onOpenChange={(open) => {
+						setMediaPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					onSelect={handleImageSelect}
+					mimeTypeFilter="image/"
+					title={t`Select Image`}
+				/>
+
+				{/* Plugin block insertion/editing modal */}
+				<PluginBlockModal
+					block={pluginBlockModal}
+					initialValues={pluginBlockInitialValues}
+					onClose={() => {
+						pendingBlockInsertPosRef.current = null;
+						setPluginBlockModal(null);
+						setPluginBlockInitialValues(undefined);
+						editingBlockPosRef.current = null;
+					}}
+					onInsert={handlePluginBlockInsert}
+				/>
+
+				{/* Section picker modal */}
+				<SectionPickerModal
+					open={sectionPickerOpen}
+					onOpenChange={(open) => {
+						setSectionPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					onSelect={handleSectionSelect}
+				/>
 			</div>
-			{!minimal && <EditorFooter editor={editor} />}
-
-			{/* Slash command menu */}
-			<SlashCommandMenu
-				state={slashMenuState}
-				onCommand={handleSlashCommand}
-				onClose={closeSlashMenu}
-				setSelectedIndex={(index) =>
-					setSlashMenuState((prev) => ({ ...prev, selectedIndex: index }))
-				}
-			/>
-
-			{/* Media picker for image insertion */}
-			<MediaPickerModal
-				open={mediaPickerOpen}
-				onOpenChange={(open) => {
-					setMediaPickerOpen(open);
-					if (!open) pendingBlockInsertPosRef.current = null;
-				}}
-				onSelect={handleImageSelect}
-				mimeTypeFilter="image/"
-				title={t`Select Image`}
-			/>
-
-			{/* Plugin block insertion/editing modal */}
-			<PluginBlockModal
-				block={pluginBlockModal}
-				initialValues={pluginBlockInitialValues}
-				onClose={() => {
-					pendingBlockInsertPosRef.current = null;
-					setPluginBlockModal(null);
-					setPluginBlockInitialValues(undefined);
-					editingBlockPosRef.current = null;
-				}}
-				onInsert={handlePluginBlockInsert}
-			/>
-
-			{/* Section picker modal */}
-			<SectionPickerModal
-				open={sectionPickerOpen}
-				onOpenChange={(open) => {
-					setSectionPickerOpen(open);
-					if (!open) pendingBlockInsertPosRef.current = null;
-				}}
-				onSelect={handleSectionSelect}
-			/>
 		</div>
 	);
 }
@@ -2807,36 +2905,28 @@ export function PortableTextEditor({
  */
 function EditorBubbleMenu({
 	editor,
-	toolbarRef,
+	appendTo,
+	getCollisionOptions,
 }: {
 	editor: Editor;
-	toolbarRef: React.RefObject<HTMLDivElement | null>;
+	appendTo: () => HTMLElement;
+	getCollisionOptions: BubbleMenuCollisionOptions;
 }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const { t } = useLingui();
-	// The adjacent sticky toolbar is not a clipping ancestor, so Floating UI cannot detect it.
-	const getCollisionOptions = () => {
-		const viewport = window.visualViewport;
-		const viewportTop = viewport?.offsetTop ?? 0;
-		const viewportLeft = viewport?.offsetLeft ?? 0;
-		const viewportWidth = viewport?.width ?? window.innerWidth;
-		const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
-		const toolbarBottom = toolbarRef.current?.getBoundingClientRect().bottom ?? viewportTop;
-		const safeTop = Math.min(viewportBottom, Math.max(viewportTop, toolbarBottom));
-
-		return {
-			rootBoundary: {
-				x: viewportLeft,
-				y: safeTop,
-				width: viewportWidth,
-				height: Math.max(0, viewportBottom - safeTop),
-			},
-			padding: 8,
-		};
-	};
-
+	const activeMarks = useEditorState({
+		editor,
+		selector: ({ editor: activeEditor }) => ({
+			bold: activeEditor.isActive("bold"),
+			italic: activeEditor.isActive("italic"),
+			underline: activeEditor.isActive("underline"),
+			strike: activeEditor.isActive("strike"),
+			code: activeEditor.isActive("code"),
+			link: activeEditor.isActive("link"),
+		}),
+	});
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
 		if (showLinkInput) {
@@ -2877,12 +2967,32 @@ function EditorBubbleMenu({
 	return (
 		<BubbleMenu
 			editor={editor}
+			pluginKey={INLINE_BUBBLE_MENU_KEY}
+			appendTo={appendTo}
 			options={{
+				strategy: "absolute",
 				placement: "top",
 				offset: 8,
 				flip: getCollisionOptions,
 				shift: getCollisionOptions,
+				size: () => ({
+					...getCollisionOptions(),
+					apply: ({ availableWidth, elements }) => {
+						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
+						elements.floating.style.overflowX = "auto";
+					},
+				}),
 			}}
+			shouldShow={({ editor: activeEditor, element, state, view }) => {
+				const { selection } = state;
+				return (
+					activeEditor.isEditable &&
+					(selection instanceof TextSelection || selection instanceof AllSelection) &&
+					!selection.empty &&
+					(view.hasFocus() || element.contains(document.activeElement))
+				);
+			}}
+			data-emdash-inline-bubble-menu
 			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
 		>
 			{showLinkInput ? (
@@ -2907,7 +3017,7 @@ function EditorBubbleMenu({
 					>
 						<ArrowSquareOut className="h-4 w-4" />
 					</Button>
-					{editor.isActive("link") && (
+					{activeMarks.link && (
 						<Button
 							type="button"
 							variant="ghost"
@@ -2925,35 +3035,35 @@ function EditorBubbleMenu({
 				<>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleBold().run()}
-						active={editor.isActive("bold")}
+						active={activeMarks.bold}
 						title={t`Bold`}
 					>
 						<TextB className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleItalic().run()}
-						active={editor.isActive("italic")}
+						active={activeMarks.italic}
 						title={t`Italic`}
 					>
 						<TextItalic className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleUnderline().run()}
-						active={editor.isActive("underline")}
+						active={activeMarks.underline}
 						title={t`Underline`}
 					>
 						<TextUnderline className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleStrike().run()}
-						active={editor.isActive("strike")}
+						active={activeMarks.strike}
 						title={t`Strikethrough`}
 					>
 						<TextStrikethrough className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleCode().run()}
-						active={editor.isActive("code")}
+						active={activeMarks.code}
 						title={t`Code`}
 					>
 						<Code className="h-4 w-4" />
@@ -2961,8 +3071,8 @@ function EditorBubbleMenu({
 					<div className="w-px h-6 bg-kumo-line mx-1" />
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
-						active={editor.isActive("link")}
-						title={editor.isActive("link") ? t`Edit link` : t`Add link`}
+						active={activeMarks.link}
+						title={activeMarks.link ? t`Edit link` : t`Add link`}
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
@@ -2976,80 +3086,160 @@ function EditorBubbleMenu({
  * Table Bubble Menu - appears when cursor is in a table.
  * Shows table editing options: add/remove rows/columns, toggle header, delete table.
  */
-function TableBubbleMenu({ editor }: { editor: Editor }) {
+function TableBubbleMenu({
+	editor,
+	appendTo,
+	getCollisionOptions,
+}: {
+	editor: Editor;
+	appendTo: () => HTMLElement;
+	getCollisionOptions: BubbleMenuCollisionOptions;
+}) {
 	const { t } = useLingui();
-
-	if (!editor.isActive("table")) {
-		return null;
-	}
+	const [toolbarGeneration, setToolbarGeneration] = React.useState(0);
+	const isHeaderRow = useEditorState({
+		editor,
+		selector: ({ editor: activeEditor }) => activeEditor.isActive("tableHeader"),
+	});
 
 	return (
 		<BubbleMenu
 			editor={editor}
+			pluginKey={TABLE_BUBBLE_MENU_KEY}
+			appendTo={appendTo}
 			options={{
+				strategy: "absolute",
 				placement: "top",
 				offset: 8,
+				flip: getCollisionOptions,
+				shift: getCollisionOptions,
+				onShow: () => setToolbarGeneration((generation) => generation + 1),
+				size: () => ({
+					...getCollisionOptions(),
+					apply: ({ availableWidth, elements }) => {
+						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
+						elements.floating.style.overflowX = "auto";
+					},
+				}),
 			}}
-			shouldShow={({ editor: activeEditor }) => activeEditor.isActive("table")}
-			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
+			shouldShow={({ editor: activeEditor, element, state, view }) => {
+				const hasEditorFocus = view.hasFocus() || element.contains(document.activeElement);
+				return (
+					activeEditor.isEditable &&
+					hasEditorFocus &&
+					activeEditor.isActive("table") &&
+					(state.selection.empty || state.selection instanceof CellSelection)
+				);
+			}}
+			data-emdash-table-bubble-menu
+			className="z-[100]"
 		>
-			<BubbleButton
-				onClick={() => editor.chain().focus().addColumnBefore().run()}
-				title={t`Add column before`}
+			<Toolbar
+				key={toolbarGeneration}
+				size="sm"
+				loopFocus
+				aria-label={t`Table controls`}
+				className="gap-0.5 bg-kumo-base p-1 shadow-lg"
 			>
-				<Columns className="h-4 w-4" />
-				<Plus className="absolute -left-0.5 h-2 w-2" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().addColumnAfter().run()}
-				title={t`Add column after`}
-			>
-				<Columns className="h-4 w-4" />
-				<Plus className="absolute -right-0.5 h-2 w-2" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().deleteColumn().run()}
-				title={t`Delete column`}
-			>
-				<Columns className="h-4 w-4 text-kumo-danger" />
-			</BubbleButton>
+				<TableBubbleButton
+					onClick={() => editor.chain().focus().addColumnBefore().run()}
+					title={t`Add column before`}
+				>
+					<span className="relative size-4" aria-hidden="true" data-emdash-composite-icon>
+						<Columns className="size-4" />
+						<Plus className="absolute -start-0.5 top-1/2 size-2 -translate-y-1/2" />
+					</span>
+				</TableBubbleButton>
+				<TableBubbleButton
+					onClick={() => editor.chain().focus().addColumnAfter().run()}
+					title={t`Add column after`}
+				>
+					<span className="relative size-4" aria-hidden="true" data-emdash-composite-icon>
+						<Columns className="size-4" />
+						<Plus className="absolute -end-0.5 top-1/2 size-2 -translate-y-1/2" />
+					</span>
+				</TableBubbleButton>
+				<TableBubbleButton
+					onClick={() => editor.chain().focus().deleteColumn().run()}
+					title={t`Delete column`}
+				>
+					<Columns className="size-4 text-kumo-danger" aria-hidden="true" />
+				</TableBubbleButton>
 
-			<div className="mx-1 h-6 w-px bg-kumo-line" />
+				<div className="mx-1 h-6 w-px bg-kumo-line" aria-hidden="true" />
 
-			<BubbleButton
-				onClick={() => editor.chain().focus().addRowBefore().run()}
-				title={t`Add row before`}
-			>
-				<Rows className="h-4 w-4" />
-				<Plus className="absolute -top-0.5 h-2 w-2" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().addRowAfter().run()}
-				title={t`Add row after`}
-			>
-				<Rows className="h-4 w-4" />
-				<Plus className="absolute -bottom-0.5 h-2 w-2" />
-			</BubbleButton>
-			<BubbleButton onClick={() => editor.chain().focus().deleteRow().run()} title={t`Delete row`}>
-				<Rows className="h-4 w-4 text-kumo-danger" />
-			</BubbleButton>
+				<TableBubbleButton
+					onClick={() => editor.chain().focus().addRowBefore().run()}
+					title={t`Add row before`}
+				>
+					<span className="relative size-4" aria-hidden="true" data-emdash-composite-icon>
+						<Rows className="size-4" />
+						<Plus className="absolute -top-0.5 start-1/2 size-2 -translate-x-1/2 rtl:translate-x-1/2" />
+					</span>
+				</TableBubbleButton>
+				<TableBubbleButton
+					onClick={() => editor.chain().focus().addRowAfter().run()}
+					title={t`Add row after`}
+				>
+					<span className="relative size-4" aria-hidden="true" data-emdash-composite-icon>
+						<Rows className="size-4" />
+						<Plus className="absolute -bottom-0.5 start-1/2 size-2 -translate-x-1/2 rtl:translate-x-1/2" />
+					</span>
+				</TableBubbleButton>
+				<TableBubbleButton
+					onClick={() => editor.chain().focus().deleteRow().run()}
+					title={t`Delete row`}
+				>
+					<Rows className="size-4 text-kumo-danger" aria-hidden="true" />
+				</TableBubbleButton>
 
-			<div className="mx-1 h-6 w-px bg-kumo-line" />
+				<div className="mx-1 h-6 w-px bg-kumo-line" aria-hidden="true" />
 
-			<BubbleButton
-				onClick={() => editor.chain().focus().toggleHeaderRow().run()}
-				active={editor.isActive("tableHeader")}
-				title={t`Toggle header row`}
-			>
-				<TableIcon className="h-4 w-4" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().deleteTable().run()}
-				title={t`Delete table`}
-			>
-				<Trash className="h-4 w-4 text-kumo-danger" />
-			</BubbleButton>
+				<TableBubbleButton
+					onClick={() => editor.chain().focus().toggleHeaderRow().run()}
+					active={isHeaderRow}
+					title={t`Toggle header row`}
+				>
+					<TableIcon className="size-4" aria-hidden="true" />
+				</TableBubbleButton>
+				<TableBubbleButton
+					onClick={() => editor.chain().focus().deleteTable().run()}
+					title={t`Delete table`}
+				>
+					<Trash className="size-4 text-kumo-danger" aria-hidden="true" />
+				</TableBubbleButton>
+			</Toolbar>
 		</BubbleMenu>
+	);
+}
+
+function TableBubbleButton({
+	onClick,
+	active,
+	title,
+	children,
+}: {
+	onClick: () => void;
+	active?: boolean;
+	title: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<Toolbar.Button
+			type="button"
+			shape="square"
+			className={cn(
+				"h-8 w-8 flex-none rounded-lg! border-0!",
+				active && "bg-kumo-tint text-kumo-default",
+			)}
+			onClick={onClick}
+			aria-label={title}
+			aria-pressed={active}
+		>
+			<Tooltip content={title} render={<span className="contents" tabIndex={-1} />}>
+				{children}
+			</Tooltip>
+		</Toolbar.Button>
 	);
 }
 
@@ -3073,6 +3263,7 @@ function BubbleButton({
 			onClick={onClick}
 			title={title}
 			aria-label={title}
+			aria-pressed={Boolean(active)}
 		>
 			{children}
 		</Button>
@@ -3168,7 +3359,7 @@ function EditorToolbar({
 
 		const buttons = [
 			...toolbar.querySelectorAll<HTMLButtonElement>(
-				'button:not([disabled]):not([data-touch-block-insert]), [role="button"]:not([disabled]):not([data-touch-block-insert])',
+				'button:not([disabled]), [role="button"]:not([disabled])',
 			),
 		].filter((button) => button.getClientRects().length > 0);
 		const currentIndex = buttons.findIndex((btn) => btn === document.activeElement);
@@ -3225,7 +3416,6 @@ function EditorToolbar({
 					onMouseDown={(event) => event.preventDefault()}
 					onClick={onInsertBlock}
 					aria-label={t`Insert block after current block`}
-					tabIndex={-1}
 					data-touch-block-insert
 				>
 					<Plus className="h-4 w-4" aria-hidden="true" />
