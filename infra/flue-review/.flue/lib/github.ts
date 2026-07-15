@@ -138,7 +138,7 @@ export async function createReviewCheck(
 		method: "POST",
 		headers: installationHeaders(token),
 		body: JSON.stringify({
-			name: "EmDash review",
+			name: "EmDashBot review",
 			head_sha: input.headSha,
 			status: "in_progress",
 			details_url: pullRequestUrl(owner, repo, input.prNumber, true),
@@ -166,7 +166,7 @@ export async function findReviewCheck(
 	attemptId: string,
 ): Promise<number | undefined> {
 	const query = new URLSearchParams({
-		check_name: "EmDash review",
+		check_name: "EmDashBot review",
 		filter: "all",
 		per_page: "100",
 	});
@@ -189,7 +189,7 @@ const REVIEW_PROGRESS = [
 const REVIEW_STAGE_COPY: Record<string, { title: string; guidance: string }> = {
 	hydrating: {
 		title: "Preparing",
-		guidance: "Next, EmDash will load the pull request diff.",
+		guidance: "Next, EmDashBot will load the pull request diff.",
 	},
 	fetching_diff: {
 		title: "Loading changes for",
@@ -198,7 +198,7 @@ const REVIEW_STAGE_COPY: Record<string, { title: string; guidance: string }> = {
 	model_review: {
 		title: "Analyzing",
 		guidance:
-			"This is usually the longest step and can take several minutes. Next, EmDash will publish the review to GitHub.",
+			"This is usually the longest step and can take several minutes. Next, EmDashBot will publish the review to GitHub.",
 	},
 	posting_review: {
 		title: "Publishing review for",
@@ -243,7 +243,7 @@ export async function updateReviewCheck(
 	const correlation = input.runId ?? "pending admission";
 	const stageCopy = REVIEW_STAGE_COPY[input.stage] ?? {
 		title: "Reviewing",
-		guidance: "EmDash will update this check when the next step begins.",
+		guidance: "EmDashBot will update this check when the next step begins.",
 	};
 	const body: Record<string, unknown> = {
 		status: "in_progress",

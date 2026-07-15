@@ -43,7 +43,7 @@ describe("GitHub review checks", () => {
 			}),
 		);
 		expect(requestBody(fetchMock)).toMatchObject({
-			name: "EmDash review",
+			name: "EmDashBot review",
 			head_sha: "abc123",
 			status: "in_progress",
 			details_url: "https://github.com/emdash-cms/emdash/pull/42/files",
@@ -78,7 +78,7 @@ describe("GitHub review checks", () => {
 			output: {
 				title: "Analyzing PR #42",
 				summary:
-					"The model is reviewing the diff. This is usually the longest step and can take several minutes. Next, EmDash will publish the review to GitHub.",
+					"The model is reviewing the diff. This is usually the longest step and can take several minutes. Next, EmDashBot will publish the review to GitHub.",
 				text: [
 					"### Progress",
 					"",
