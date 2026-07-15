@@ -46,6 +46,7 @@ describe("GitHub review checks", () => {
 			name: "EmDash review",
 			head_sha: "abc123",
 			status: "in_progress",
+			details_url: "https://github.com/emdash-cms/emdash/pull/42/files",
 			external_id: "attempt-1",
 			started_at: expect.any(String),
 			output: {
@@ -73,10 +74,27 @@ describe("GitHub review checks", () => {
 		expect(requestBody(fetchMock)).toEqual({
 			status: "in_progress",
 			external_id: "run_123",
+			details_url: "https://github.com/emdash-cms/emdash/pull/42/files",
 			output: {
-				title: "Reviewing PR #42",
-				summary: "The model is reviewing the diff.",
-				text: "Run: `run_123`\n\nStage: `model_review`",
+				title: "Analyzing PR #42",
+				summary:
+					"The model is reviewing the diff. This is usually the longest step and can take several minutes. Next, EmDash will publish the review to GitHub.",
+				text: [
+					"### Progress",
+					"",
+					"- [x] Prepare the workspace",
+					"- [x] Load the pull request diff",
+					"- [ ] **Analyze the changes (in progress)**",
+					"- [ ] Publish the review",
+					"",
+					"<details>",
+					"<summary>Diagnostics</summary>",
+					"",
+					"Run ID: `run_123`",
+					"",
+					"Stage: `model_review`",
+					"</details>",
+				].join("\n"),
 			},
 		});
 	});
@@ -99,6 +117,7 @@ describe("GitHub review checks", () => {
 		expect(requestBody(fetchMock)).toMatchObject({
 			status: "completed",
 			conclusion: "failure",
+			details_url: "https://github.com/emdash-cms/emdash/pull/42",
 			completed_at: expect.any(String),
 			external_id: "run_123",
 			output: {
