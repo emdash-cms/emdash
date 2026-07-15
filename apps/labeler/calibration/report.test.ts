@@ -102,6 +102,43 @@ describe("summarizeByModel", () => {
 		});
 		expect(b).toMatchObject({ errors: 1, truncations: 1, falseNegatives: 1 });
 	});
+
+	it("scores warn-expected fixtures: warned agrees, passed under-warns, blocked is a false positive", () => {
+		const records: CallRecord[] = [
+			record({
+				fixture: "obf-benign",
+				modelId: "@cf/x/model-a",
+				outcome: outcome("warned"),
+				expected: { toState: "warned", categories: ["obfuscated-code"] },
+			}),
+			record({
+				fixture: "misleading",
+				modelId: "@cf/x/model-a",
+				outcome: outcome("passed"),
+				expected: { toState: "warned", categories: ["misleading-metadata"] },
+			}),
+			record({
+				fixture: "obf-benign",
+				modelId: "@cf/x/model-b",
+				outcome: outcome("blocked"),
+				expected: { toState: "warned", categories: ["obfuscated-code"] },
+			}),
+		];
+
+		const summaries = summarizeByModel(records);
+		const a = summaries.find((s) => s.modelId === "@cf/x/model-a");
+		const b = summaries.find((s) => s.modelId === "@cf/x/model-b");
+
+		expect(a).toMatchObject({
+			comparable: 2,
+			agreements: 1,
+			underWarnings: 1,
+			overWarnings: 0,
+			falsePositives: 0,
+			falseNegatives: 0,
+		});
+		expect(b).toMatchObject({ falsePositives: 1, underWarnings: 0, agreements: 0 });
+	});
 });
 
 describe("renderReport", () => {
@@ -142,7 +179,9 @@ describe("renderReport", () => {
 		expect(markdown).toContain("model-a");
 		expect(markdown).toContain("False negatives");
 		expect(markdown).toContain("Over-warnings");
+		expect(markdown).toContain("Under-warnings");
 		expect(markdown).toContain("overwarn");
+		expect(markdown).toContain("underwarn");
 	});
 
 	it("reports newly blocked and newly allowed against a baseline", () => {

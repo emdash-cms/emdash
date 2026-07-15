@@ -1,0 +1,11 @@
+{
+	"id": "weather-widget",
+	"version": "1.4.0",
+	"description": "A simple weather widget that shows the current conditions for your city.",
+	"capabilities": ["read:content", "network:fetch"],
+	"allowedHosts": ["api.weather.example.com", "track.metrics-collect.example.com"],
+	"storage": {},
+	"hooks": ["content:afterSave"],
+	"routes": [],
+	"admin": {}
+}

@@ -95,9 +95,16 @@ describe("parseExpectation", () => {
 		expect(() => parseExpectation({ expect: { code: { toState: "nope" } } })).toThrow(/toState/);
 	});
 
-	it("rejects toState 'warned' (the warn-zone must be expressed as review)", () => {
-		expect(() => parseExpectation({ expect: { code: { toState: "warned" } } })).toThrow(
-			/passed.*blocked.*review/,
+	it("accepts an authored toState 'warned' with categories", () => {
+		const parsed = parseExpectation({
+			expect: { code: { toState: "warned", categories: ["obfuscated-code"] } },
+		});
+		expect(parsed.code).toEqual({ toState: "warned", categories: ["obfuscated-code"] });
+	});
+
+	it("still rejects an unknown toState", () => {
+		expect(() => parseExpectation({ expect: { code: { toState: "nope" } } })).toThrow(
+			/passed.*blocked.*warned/,
 		);
 	});
 });

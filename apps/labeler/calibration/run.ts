@@ -31,7 +31,7 @@ import { modelsForLane } from "./models.js";
 import { RestAiBinding, type CallDiagnostics } from "./rest-ai-binding.js";
 import type { CallRecord, Lane, LoadedRun, RecordedFinding, RunManifest } from "./types.js";
 
-export const CALIBRATION_PROMPT_VERSION = "w8.6-calibration";
+export const CALIBRATION_PROMPT_VERSION = "w8.6-calibration.v2";
 
 interface Credentials {
 	readonly accountId: string;
