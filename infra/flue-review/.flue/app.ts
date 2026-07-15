@@ -9,7 +9,6 @@
 // inside the workflow's Durable Object, which is not bound by that budget.
 
 import { getRun, listRuns } from "@flue/runtime";
-import { flue } from "@flue/runtime/routing";
 import { Hono } from "hono";
 
 import {
@@ -25,8 +24,7 @@ import {
 	gatePullRequestEvent,
 	getWebhookDeliveryId,
 } from "./lib/webhook.js";
-
-const flueApp = flue();
+import { admitReviewWorkflow } from "./lib/workflow-admission.js";
 
 // Extract a short, displayable message from an unknown run error without
 // risking an "[object Object]" stringification.
@@ -150,6 +148,7 @@ app.post("/webhook/github", async (c) => {
 		repo: decision.pr.repo,
 		prNumber: decision.pr.prNumber,
 		headSha: decision.pr.headSha,
+		workflowInput: decision.pr,
 		stage: "admitted",
 		lastProgressAt: Date.now(),
 	};
@@ -243,17 +242,8 @@ app.post("/webhook/github", async (c) => {
 	// block the webhook on the (minutes-long) review.
 	let admit: Response;
 	try {
-		admit = await flueApp.fetch(
-			new Request("https://flue.internal/workflows/review", {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({
-					...decision.pr,
-					attemptId,
-					deliveryId,
-					checkRunId,
-				}),
-			}),
+		admit = await admitReviewWorkflow(
+			{ ...decision.pr, attemptId, expectedRunId: attemptId, deliveryId, checkRunId },
 			c.env,
 			c.executionCtx,
 		);
@@ -270,7 +260,7 @@ app.post("/webhook/github", async (c) => {
 			}),
 		);
 		await watchdog
-			.finish(attemptId, {
+			.finish(attemptId, attemptId, {
 				conclusion: "failure",
 				summary: "The review could not be admitted. Reapply the `bot:review` label to retry.",
 			})
@@ -292,7 +282,7 @@ app.post("/webhook/github", async (c) => {
 			}),
 		);
 		await watchdog
-			.finish(attemptId, {
+			.finish(attemptId, attemptId, {
 				conclusion: "failure",
 				summary: "The review could not be admitted. Reapply the `bot:review` label to retry.",
 			})
@@ -327,7 +317,7 @@ app.post("/webhook/github", async (c) => {
 			}),
 		);
 	} else {
-		await watchdog.identify(attemptId, runId).catch((error) => {
+		await watchdog.identify(attemptId, attemptId, runId).catch((error) => {
 			console.error(
 				JSON.stringify({
 					message: "review watchdog correlation failed",

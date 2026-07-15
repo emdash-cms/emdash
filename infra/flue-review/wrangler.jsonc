@@ -87,6 +87,14 @@
 			"tag": "v6-review-watchdog",
 			"new_sqlite_classes": ["ReviewWatchdog"],
 		},
+		{
+			"tag": "v7-reset-registry-drop-v2",
+			"deleted_classes": ["FlueRegistry"],
+		},
+		{
+			"tag": "v8-reset-registry-new-v2",
+			"new_sqlite_classes": ["FlueRegistry"],
+		},
 	],
 	"vars": {
 		"NODE_OPTIONS": "--max-old-space-size=6144",
