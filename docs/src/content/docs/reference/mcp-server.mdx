@@ -64,6 +64,7 @@ In addition to scopes, some tools require a minimum RBAC role. Both must be sati
 | Settings read | Editor (40) |
 | Settings manage | Admin (50) |
 | Media upload (`media_create`) | Author (30) |
+| Media usage repair | Admin (50) |
 
 See the [Authentication guide](/guides/authentication#user-roles) for role definitions.
 
@@ -79,7 +80,7 @@ Responses follow the [JSON-RPC 2.0](https://www.jsonrpc.org/specification) forma
 
 ## Tools
 
-The server exposes 45 tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
+The server exposes 52 tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
 
 ### Content Tools
 
@@ -433,6 +434,19 @@ Permanently delete a media file. Removes the database record and the file from s
 | `id` | `string` | Yes | Media item ID |
 
 **Scope:** `media:write` | **Destructive:** Yes
+
+#### `media_usage_repair`
+
+Repair content media usage indexes for one collection or every collection. Repair runs synchronously and can be slow or expensive on large sites; prefer collection scope when possible.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `scope` | `"collection" \| "all"` | Yes | Whether to repair one collection or all collections |
+| `collection` | `string` | For collection scope | Collection slug; omit when `scope` is `all` |
+
+The result has a structured `status` of `complete`, `partial`, `failed`, or `stale`, plus aggregate and per-collection source counts. All four statuses are successful MCP tool results, so callers must inspect `status` rather than relying on `isError`. Authentication, validation, or unexpected repair errors return `isError: true`.
+
+**Scope:** `admin` | **Minimum role:** Admin
 
 ### Search Tool
 
