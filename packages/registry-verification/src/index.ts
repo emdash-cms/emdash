@@ -26,7 +26,11 @@ export type {
 	VerifiedResource,
 } from "./fetch.js";
 export type { VerificationError, VerificationErrorCode, VerificationResult } from "./errors.js";
-export type { ValidatePluginBundleOptions, ValidatedPluginBundle } from "./bundle.js";
+export type {
+	ValidatedBundleFile,
+	ValidatePluginBundleOptions,
+	ValidatedPluginBundle,
+} from "./bundle.js";
 export type {
 	ProvenanceVerificationInput,
 	ProvenanceVerifier,

@@ -75,6 +75,22 @@ describe("validatePluginBundle", () => {
 		}
 	});
 
+	it("exposes every regular file in the archive as the validated inventory", async () => {
+		const result = await validatePluginBundle(
+			await canonicalBundle([file("admin.js", "export const a = 1;"), file("README.md", "hi")]),
+		);
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		const decoder = new TextDecoder();
+		const inventory = result.value.files.map((f) => [f.path, decoder.decode(f.bytes)]);
+		expect(inventory).toEqual([
+			["manifest.json", JSON.stringify(manifest)],
+			["backend.js", "export default {};"],
+			["admin.js", "export const a = 1;"],
+			["README.md", "hi"],
+		]);
+	});
+
 	it("rejects expected slug and version mismatches", async () => {
 		const bytes = await canonicalBundle();
 		expect(await validatePluginBundle(bytes, { expectedSlug: "other" })).toMatchObject({

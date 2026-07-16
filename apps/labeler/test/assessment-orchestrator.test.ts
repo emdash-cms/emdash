@@ -7,12 +7,18 @@ import {
 import { applyD1Migrations, env } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import {
+	createAcquireStage,
+	type AcquisitionHolder,
+	type AcquisitionTarget,
+} from "../src/artifact-acquisition.js";
 import { computeRunKey, initialTriggerId, operatorTriggerId } from "../src/assessment-lifecycle.js";
 import {
 	AssessmentOrchestrator,
 	StageTransientError,
 	stubStages,
 	type OrchestratorStages,
+	type StageAdapter,
 	type StageFinding,
 } from "../src/assessment-orchestrator.js";
 import {
@@ -28,6 +34,7 @@ import { analyzeHistory } from "../src/history-context.js";
 import { MODERATION_POLICY } from "../src/policy.js";
 import { issueManualLabel } from "../src/service.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
+import { canonicalBundle, checksumOf, file } from "./bundle-fixture.js";
 
 interface TestEnv {
 	DB: D1Database;
@@ -872,5 +879,106 @@ describe("AssessmentOrchestrator: supersession negation provenance (decision 6)"
 			cid: cidValue,
 		});
 		expect(pointer?.assessmentId).toBe(second.id);
+	});
+});
+
+describe("AssessmentOrchestrator: real acquire stage (W7.2)", () => {
+	const resolveHostname = async () => ["203.0.113.5"];
+
+	function targetFor(
+		checksum: string,
+	): (assessment: { uri: string }) => Promise<AcquisitionTarget> {
+		return async () => ({
+			url: "https://cdn.example.test/plugin.tgz",
+			checksum,
+			slug: "test-plugin",
+			version: "1.0.0",
+		});
+	}
+
+	it("acquires the bundle, feeds its file set to a downstream stage, and finalizes passed", async () => {
+		const run = await pendingRun({ name: "acquire-ok", cidValue: await cid("acquire-ok") });
+		const bytes = await canonicalBundle();
+		const holder: AcquisitionHolder = {};
+		let downstreamFiles: readonly string[] = [];
+
+		const acquire = createAcquireStage({
+			deps: { fetch: async () => new Response(bytes), resolveHostname },
+			resolveTarget: targetFor(await checksumOf(bytes)),
+			holder,
+		});
+		// Stand-in for the code stage: reads the acquired file set the way the
+		// real codeAi wiring will.
+		const codeAi: StageAdapter = () => {
+			downstreamFiles = (holder.result?.files ?? []).map((f) => f.path);
+			return Promise.resolve([]);
+		};
+		const orchestrator = await buildOrchestrator({ ...stubStages, acquire, codeAi });
+
+		const result = await orchestrator.runAssessment(run.id);
+
+		expect(result.state).toBe("passed");
+		expect(holder.result?.source).toBe("declared-url");
+		expect(downstreamFiles).toEqual(["manifest.json", "backend.js"]);
+	});
+
+	it("blocks with artifact-integrity-failure when the fetched bytes miss the signed checksum", async () => {
+		const run = await pendingRun({
+			name: "acquire-integrity",
+			cidValue: await cid("acquire-integrity"),
+		});
+		const served = await canonicalBundle([file("tampered.js", "steal();")]);
+		const pinned = await checksumOf(await canonicalBundle());
+		const acquire = createAcquireStage({
+			deps: { fetch: async () => new Response(served), resolveHostname },
+			resolveTarget: targetFor(pinned),
+			holder: {},
+		});
+		const orchestrator = await buildOrchestrator({ ...stubStages, acquire });
+
+		const result = await orchestrator.runAssessment(run.id);
+
+		expect(result.state).toBe("blocked");
+		const label = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'artifact-integrity-failure'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(label?.neg).toBe(0);
+	});
+
+	it("retries then finalizes error when the declared URL is unfetchable", async () => {
+		const run = await pendingRun({
+			name: "acquire-transient",
+			cidValue: await cid("acquire-transient"),
+		});
+		let attempts = 0;
+		const acquire = createAcquireStage({
+			deps: {
+				fetch: async () => {
+					attempts += 1;
+					await Promise.resolve();
+					throw new TypeError("origin unreachable");
+				},
+				resolveHostname,
+			},
+			resolveTarget: targetFor(await checksumOf(await canonicalBundle())),
+			holder: {},
+		});
+		const orchestrator = await buildOrchestrator(
+			{ ...stubStages, acquire },
+			{ maxStageRetries: 1 },
+		);
+
+		const result = await orchestrator.runAssessment(run.id);
+
+		expect(result.state).toBe("error");
+		expect(attempts).toBe(2);
+		const error = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-error'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(error?.neg).toBe(0);
 	});
 });
