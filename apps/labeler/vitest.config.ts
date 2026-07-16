@@ -24,11 +24,21 @@ export default defineConfig({
 				},
 				// wrangler.jsonc declares an AGGREGATOR service binding to the
 				// aggregator Worker, which doesn't exist in the test runtime.
-				// Stub it so miniflare can start; tests that exercise the client
-				// inject their own mock Fetcher rather than using this binding.
+				// Stub it so miniflare can start; most tests inject their own mock
+				// Fetcher rather than using this binding. The stub still fails loud
+				// (501) for an accidental call, and echoes the inbound
+				// atproto-accept-labelers header as a marker so a binding-transport
+				// test can prove the client's blank value survives the hop (a
+				// dropped empty header would read `absent`, not `empty`).
 				serviceBindings: {
-					AGGREGATOR: () =>
-						new Response("AGGREGATOR is stubbed in tests", { status: 501 }),
+					AGGREGATOR: (request) => {
+						const raw = request.headers.get("atproto-accept-labelers");
+						const marker = raw === null ? "absent" : raw === "" ? "empty" : `value:${raw}`;
+						return new Response("AGGREGATOR is stubbed in tests", {
+							status: 501,
+							headers: { "x-test-accept-labelers": marker },
+						});
+					},
 				},
 			},
 		}),

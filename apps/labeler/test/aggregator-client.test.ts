@@ -1,3 +1,4 @@
+import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 import { AggregatorClient } from "../src/aggregator-client.js";
@@ -170,5 +171,19 @@ describe("AggregatorClient param encoding", () => {
 		expect(urls).toEqual([
 			`${BASE}/com.emdashcms.experimental.aggregator.getPackage?did=did%3Aplc%3Aa%26b%20c&slug=s%2Fl%26ug`,
 		]);
+	});
+});
+
+describe("AGGREGATOR binding transport", () => {
+	// The unfiltered-read contract depends on the blank atproto-accept-labelers
+	// header surviving the service-binding hop: if workerd dropped an
+	// empty-valued header, the aggregator would fall back to default redaction
+	// and return NotFound for redacted subjects, silently blinding analysis.
+	// The vitest AGGREGATOR stub echoes the inbound header as a marker.
+	it("delivers a blank accept-labelers header across the service binding", async () => {
+		const response = await env.AGGREGATOR.fetch("https://aggregator/xrpc/probe", {
+			headers: { "atproto-accept-labelers": "" },
+		});
+		expect(response.headers.get("x-test-accept-labelers")).toBe("empty");
 	});
 });
