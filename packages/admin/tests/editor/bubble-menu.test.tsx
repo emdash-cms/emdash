@@ -212,7 +212,7 @@ async function waitForTableToolbar(): Promise<HTMLElement> {
 	let toolbar: HTMLElement | null = null;
 	await vi.waitFor(
 		() => {
-			toolbar = document.querySelector('[role="toolbar"][aria-label="Table controls"]');
+			toolbar = document.querySelector('[role="group"][aria-label="Table controls"]');
 			expect(toolbar).toBeTruthy();
 		},
 		{ timeout: 3000 },
@@ -427,22 +427,19 @@ describe("Bubble Menu", () => {
 		expect(getBubbleMenu()).toBeNull();
 	});
 
-	it("uses one keyboard-navigable Kumo toolbar with accessible table toggle state", async () => {
+	it("exposes accessible table actions and toggle state", async () => {
 		const { screen, editor, pm } = await renderEditor({ value: tableValue });
 		await focusTableCell(editor, pm);
 		await waitForTableToolbar();
 
 		const addBefore = screen.getByRole("button", { name: "Add column before" });
-		const addAfter = screen.getByRole("button", { name: "Add column after" });
 		const headerToggle = screen.getByRole("button", { name: "Toggle header row" });
+		await expect.element(addBefore).toBeVisible();
+		expect(addBefore.element().hasAttribute("aria-pressed")).toBe(false);
 		await expect.element(headerToggle).toHaveAttribute("aria-pressed", "true");
-
-		addBefore.element().focus();
-		await userEvent.keyboard("{ArrowRight}");
-		await vi.waitFor(() => expect(document.activeElement).toBe(addAfter.element()));
 	});
 
-	it("anchors each decorative table badge to an RTL-safe icon wrapper", async () => {
+	it("uses purpose-built icons for table insertion actions", async () => {
 		const { screen, editor, pm } = await renderEditor({ value: tableValue });
 		await focusTableCell(editor, pm);
 		await waitForTableToolbar();
@@ -454,29 +451,15 @@ describe("Bubble Menu", () => {
 			"Add row after",
 		]) {
 			const button = screen.getByRole("button", { name }).element();
-			const icon = button.querySelector<HTMLElement>("[data-emdash-composite-icon]");
-			expect(icon).toBeTruthy();
-			expect(icon?.className).toContain("relative");
-			expect(icon?.className).toContain("size-4");
-			expect(icon?.getAttribute("aria-hidden")).toBe("true");
-			const buttonRect = button.getBoundingClientRect();
-			const badgeRect = icon!.querySelectorAll("svg")[1]!.getBoundingClientRect();
-			expect(badgeRect.left).toBeGreaterThanOrEqual(buttonRect.left);
-			expect(badgeRect.right).toBeLessThanOrEqual(buttonRect.right);
-			expect(badgeRect.top).toBeGreaterThanOrEqual(buttonRect.top);
-			expect(badgeRect.bottom).toBeLessThanOrEqual(buttonRect.bottom);
+			expect(button.querySelectorAll("svg")).toHaveLength(1);
+			expect(button.querySelector(".absolute")).toBeNull();
 		}
 
-		const beforeBadge = screen
+		const beforeIcon = screen
 			.getByRole("button", { name: "Add column before" })
 			.element()
-			.querySelectorAll("svg")[1];
-		const afterBadge = screen
-			.getByRole("button", { name: "Add column after" })
-			.element()
-			.querySelectorAll("svg")[1];
-		expect(beforeBadge?.getAttribute("class")).toContain("-start-0.5");
-		expect(afterBadge?.getAttribute("class")).toContain("-end-0.5");
+			.querySelector("svg");
+		expect(beforeIcon?.getAttribute("class")).toContain("rtl:-scale-x-100");
 	});
 
 	it("shows formatting buttons: Bold, Italic, Underline, Strikethrough, Code", async () => {

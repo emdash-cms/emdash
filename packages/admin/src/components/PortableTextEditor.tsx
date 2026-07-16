@@ -11,7 +11,7 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input, Popover, Select, Switch, Toolbar, Tooltip } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Popover, Select, Switch } from "@cloudflare/kumo";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -64,7 +64,11 @@ import {
 	Plus,
 	Trash,
 	Rows,
+	RowsPlusBottom,
+	RowsPlusTop,
 	Columns,
+	ColumnsPlusLeft,
+	ColumnsPlusRight,
 	DotsSixVertical,
 	CaretDown,
 	type Icon,
@@ -3109,7 +3113,6 @@ function TableBubbleMenu({
 	getCollisionOptions: BubbleMenuCollisionOptions;
 }) {
 	const { t } = useLingui();
-	const [toolbarGeneration, setToolbarGeneration] = React.useState(0);
 	const isHeaderRow = useEditorState({
 		editor,
 		selector: ({ editor: activeEditor }) => activeEditor.isActive("tableHeader"),
@@ -3126,7 +3129,6 @@ function TableBubbleMenu({
 				offset: 8,
 				flip: getCollisionOptions,
 				shift: getCollisionOptions,
-				onShow: () => setToolbarGeneration((generation) => generation + 1),
 				size: () => ({
 					...getCollisionOptions(),
 					apply: ({ availableWidth, elements }) => {
@@ -3145,114 +3147,63 @@ function TableBubbleMenu({
 				);
 			}}
 			data-emdash-table-bubble-menu
-			className="z-[100]"
+			role="group"
+			aria-label={t`Table controls`}
+			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
 		>
-			<Toolbar
-				key={toolbarGeneration}
-				size="sm"
-				loopFocus
-				aria-label={t`Table controls`}
-				className="gap-0.5 bg-kumo-base p-1 shadow-lg"
+			<BubbleButton
+				onClick={() => editor.chain().focus().addColumnBefore().run()}
+				title={t`Add column before`}
 			>
-				<TableBubbleButton
-					onClick={() => editor.chain().focus().addColumnBefore().run()}
-					title={t`Add column before`}
-				>
-					<span className="relative size-4" aria-hidden="true" data-emdash-composite-icon>
-						<Columns className="size-4" />
-						<Plus className="absolute -start-0.5 top-1/2 size-2 -translate-y-1/2" />
-					</span>
-				</TableBubbleButton>
-				<TableBubbleButton
-					onClick={() => editor.chain().focus().addColumnAfter().run()}
-					title={t`Add column after`}
-				>
-					<span className="relative size-4" aria-hidden="true" data-emdash-composite-icon>
-						<Columns className="size-4" />
-						<Plus className="absolute -end-0.5 top-1/2 size-2 -translate-y-1/2" />
-					</span>
-				</TableBubbleButton>
-				<TableBubbleButton
-					onClick={() => editor.chain().focus().deleteColumn().run()}
-					title={t`Delete column`}
-				>
-					<Columns className="size-4 text-kumo-danger" aria-hidden="true" />
-				</TableBubbleButton>
+				<ColumnsPlusLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+			</BubbleButton>
+			<BubbleButton
+				onClick={() => editor.chain().focus().addColumnAfter().run()}
+				title={t`Add column after`}
+			>
+				<ColumnsPlusRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+			</BubbleButton>
+			<BubbleButton
+				onClick={() => editor.chain().focus().deleteColumn().run()}
+				title={t`Delete column`}
+			>
+				<Columns className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
+			</BubbleButton>
 
-				<div className="mx-1 h-6 w-px bg-kumo-line" aria-hidden="true" />
+			<div className="mx-1 h-6 w-px bg-kumo-line" aria-hidden="true" />
 
-				<TableBubbleButton
-					onClick={() => editor.chain().focus().addRowBefore().run()}
-					title={t`Add row before`}
-				>
-					<span className="relative size-4" aria-hidden="true" data-emdash-composite-icon>
-						<Rows className="size-4" />
-						<Plus className="absolute -top-0.5 start-1/2 size-2 -translate-x-1/2 rtl:translate-x-1/2" />
-					</span>
-				</TableBubbleButton>
-				<TableBubbleButton
-					onClick={() => editor.chain().focus().addRowAfter().run()}
-					title={t`Add row after`}
-				>
-					<span className="relative size-4" aria-hidden="true" data-emdash-composite-icon>
-						<Rows className="size-4" />
-						<Plus className="absolute -bottom-0.5 start-1/2 size-2 -translate-x-1/2 rtl:translate-x-1/2" />
-					</span>
-				</TableBubbleButton>
-				<TableBubbleButton
-					onClick={() => editor.chain().focus().deleteRow().run()}
-					title={t`Delete row`}
-				>
-					<Rows className="size-4 text-kumo-danger" aria-hidden="true" />
-				</TableBubbleButton>
+			<BubbleButton
+				onClick={() => editor.chain().focus().addRowBefore().run()}
+				title={t`Add row before`}
+			>
+				<RowsPlusTop className="h-4 w-4" aria-hidden="true" />
+			</BubbleButton>
+			<BubbleButton
+				onClick={() => editor.chain().focus().addRowAfter().run()}
+				title={t`Add row after`}
+			>
+				<RowsPlusBottom className="h-4 w-4" aria-hidden="true" />
+			</BubbleButton>
+			<BubbleButton onClick={() => editor.chain().focus().deleteRow().run()} title={t`Delete row`}>
+				<Rows className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
+			</BubbleButton>
 
-				<div className="mx-1 h-6 w-px bg-kumo-line" aria-hidden="true" />
+			<div className="mx-1 h-6 w-px bg-kumo-line" aria-hidden="true" />
 
-				<TableBubbleButton
-					onClick={() => editor.chain().focus().toggleHeaderRow().run()}
-					active={isHeaderRow}
-					title={t`Toggle header row`}
-				>
-					<TableIcon className="size-4" aria-hidden="true" />
-				</TableBubbleButton>
-				<TableBubbleButton
-					onClick={() => editor.chain().focus().deleteTable().run()}
-					title={t`Delete table`}
-				>
-					<Trash className="size-4 text-kumo-danger" aria-hidden="true" />
-				</TableBubbleButton>
-			</Toolbar>
+			<BubbleButton
+				onClick={() => editor.chain().focus().toggleHeaderRow().run()}
+				active={isHeaderRow}
+				title={t`Toggle header row`}
+			>
+				<TableIcon className="h-4 w-4" aria-hidden="true" />
+			</BubbleButton>
+			<BubbleButton
+				onClick={() => editor.chain().focus().deleteTable().run()}
+				title={t`Delete table`}
+			>
+				<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
+			</BubbleButton>
 		</BubbleMenu>
-	);
-}
-
-function TableBubbleButton({
-	onClick,
-	active,
-	title,
-	children,
-}: {
-	onClick: () => void;
-	active?: boolean;
-	title: string;
-	children: React.ReactNode;
-}) {
-	return (
-		<Toolbar.Button
-			type="button"
-			shape="square"
-			className={cn(
-				"h-8 w-8 flex-none rounded-lg! border-0!",
-				active && "bg-kumo-tint text-kumo-default",
-			)}
-			onClick={onClick}
-			aria-label={title}
-			aria-pressed={active}
-		>
-			<Tooltip content={title} render={<span className="contents" tabIndex={-1} />}>
-				{children}
-			</Tooltip>
-		</Toolbar.Button>
 	);
 }
 
@@ -3276,7 +3227,7 @@ function BubbleButton({
 			onClick={onClick}
 			title={title}
 			aria-label={title}
-			aria-pressed={Boolean(active)}
+			aria-pressed={active === undefined ? undefined : active}
 		>
 			{children}
 		</Button>
