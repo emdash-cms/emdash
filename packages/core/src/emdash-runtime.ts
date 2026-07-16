@@ -2273,6 +2273,8 @@ export class EmDashRuntime {
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					displayField: collection.displayField,
+					dateField: collection.dateField,
 					fields,
 				};
 			}

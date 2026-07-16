@@ -11,8 +11,9 @@ import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchCollections, fetchContentList, getDraftStatus } from "../lib/api";
+import { fetchCollections, fetchContentList, fetchManifest, getDraftStatus } from "../lib/api";
 import type { ContentItem } from "../lib/api";
+import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks";
 import { cn } from "../lib/utils";
 
@@ -20,17 +21,6 @@ interface ContentPickerModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onSelect: (item: { collection: string; id: string; title: string }) => void;
-}
-
-function getItemTitle(item: { data: Record<string, unknown>; slug: string | null; id: string }) {
-	const rawTitle = item.data.title;
-	const rawName = item.data.name;
-	return (
-		(typeof rawTitle === "string" ? rawTitle : "") ||
-		(typeof rawName === "string" ? rawName : "") ||
-		item.slug ||
-		item.id
-	);
 }
 
 export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPickerModalProps) {
@@ -47,6 +37,15 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 		queryFn: fetchCollections,
 		enabled: open,
 	});
+
+	// Reuse the cached manifest (same query key as the rest of the admin) to
+	// resolve the selected collection's displayField for entry titles (#1133).
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+		enabled: open,
+	});
+	const displayField = manifest?.collections[selectedCollection]?.displayField;
 
 	// Default to first collection when collections load
 	React.useEffect(() => {
@@ -87,8 +86,10 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 	const filteredItems = React.useMemo(() => {
 		if (!debouncedSearch) return allItems;
 		const query = debouncedSearch.toLowerCase();
-		return allItems.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [allItems, debouncedSearch]);
+		return allItems.filter((item) =>
+			getEntryTitle(item, displayField).toLowerCase().includes(query),
+		);
+	}, [allItems, debouncedSearch, displayField]);
 
 	// Reset state when modal opens or collection changes
 	React.useEffect(() => {
@@ -104,7 +105,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 		onSelect({
 			collection: selectedCollection,
 			id: item.id,
-			title: getItemTitle(item),
+			title: getEntryTitle(item, displayField),
 		});
 		onOpenChange(false);
 	};
@@ -193,7 +194,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 											"focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2",
 										)}
 									>
-										<div className="font-medium">{getItemTitle(item)}</div>
+										<div className="font-medium">{getEntryTitle(item, displayField)}</div>
 										<div className="text-sm text-kumo-subtle flex items-center gap-2">
 											<span
 												className={cn(

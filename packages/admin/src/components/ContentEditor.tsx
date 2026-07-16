@@ -33,6 +33,7 @@ import type {
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
+import { getEntryTitle } from "../lib/entryTitle.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
@@ -512,6 +513,12 @@ export function ContentEditor({
 
 	const urlPattern = manifest?.collections[collection]?.urlPattern;
 
+	// When the collection configures a displayField (#1133), the editor header
+	// shows the entry's title for existing entries; otherwise it keeps the
+	// generic "Edit <label>".
+	const displayField = manifest?.collections[collection]?.displayField;
+	const entryTitle = item && displayField ? getEntryTitle(item, displayField) : "";
+
 	const handlePreview = async () => {
 		if (!item?.id) return;
 
@@ -648,7 +655,7 @@ export function ContentEditor({
 								</Button>
 							)}
 							<h1 className="text-2xl font-bold">
-								{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
+								{isNew ? t`New ${collectionLabel}` : entryTitle || t`Edit ${collectionLabel}`}
 							</h1>
 							{i18n && item?.locale && (
 								<Badge variant="outline" className="uppercase text-xs">

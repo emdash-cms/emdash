@@ -164,6 +164,7 @@ export async function searchWithDb(
 			},
 			config.weights,
 			titleColumns.has(collection),
+			config.displayField,
 		);
 
 		allResults.push(...collectionResults);
@@ -222,6 +223,8 @@ export async function searchCollection(
 		query,
 		{ status: options.status, locale: options.locale, limit: offset + limit + 1 },
 		config.weights,
+		undefined,
+		config.displayField,
 	);
 
 	const items = fetched.slice(offset, offset + limit);
@@ -241,6 +244,7 @@ async function searchSingleCollection(
 	options: CollectionSearchOptions,
 	weights?: Record<string, number>,
 	hasTitle?: boolean,
+	displayField?: string,
 ): Promise<SearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
@@ -271,8 +275,17 @@ async function searchSingleCollection(
 	// errors with "no such column: c.title" (#1178). Multi-collection callers
 	// precompute this in bulk and pass it in; single-collection callers fall
 	// back to the per-collection check.
-	const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
-	const titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
+	// A configured displayField (#1133) drives the result title so search shows
+	// the same value as the content list. It's a validated existing field, so
+	// the column exists; otherwise fall back to the optional `title` column.
+	let titleExpr;
+	if (displayField) {
+		validateIdentifier(displayField, "display field");
+		titleExpr = sql`c.${sql.ref(displayField)}`;
+	} else {
+		const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
+		titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
+	}
 
 	// Build weight string for bm25 if weights provided
 	// Format: bm25(table, weight1, weight2, ...)
