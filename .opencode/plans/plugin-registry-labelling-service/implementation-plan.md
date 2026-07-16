@@ -857,6 +857,8 @@ For each job:
 
 Dependencies: `W3.3`, existing aggregator/PDS verification helpers, `W2.4`.
 
+Decision (2026-07-16): the aggregator's `sync.getRecord` passthrough is RATIFIED as excluded from label enforcement. It serves the publisher's own signed record CAR — metadata, not artifact bytes — which exists identically on the publisher's PDS and the relay firehose, so filtering our cache removes nothing from the network while breaking the sync layer's verifiable-passthrough contract and its public cacheability. Label enforcement lives in the application views, install eligibility, and — bindingly — the future artifact mirror: when the aggregator mirror lands, a `!takedown` MUST stop mirror serving of the artifact bytes (that is where our infrastructure would distribute the actual content). Unlawful content is handled by actual out-of-band removal per the CSAM decision, and a deleted row 404s from `sync.getRecord` automatically — deletion, not label redaction, is the mechanism that binds this route.
+
 ### `W6.4` Implement Workflow stage orchestration
 
 Workflow stages:
