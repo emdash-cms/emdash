@@ -11,7 +11,9 @@ export type OperationalEventType =
 	| "automation-paused"
 	| "automation-resumed"
 	| "dead-letter-retried"
-	| "dead-letter-quarantined";
+	| "dead-letter-quarantined"
+	| "reconsideration-opened"
+	| "reconsideration-resolved";
 
 export type OperationalEventSeverity = "critical" | "high" | "info";
 
