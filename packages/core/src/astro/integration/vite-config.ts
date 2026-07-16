@@ -271,7 +271,11 @@ export function createVirtualModulesPlugin(
 			if (id === RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID) {
 				// Pass project root for proper module resolution
 				const projectRoot = fileURLToPath(astroConfig.root);
-				return generateSandboxedPluginsModule(resolvedConfig.sandboxed ?? [], projectRoot);
+				return generateSandboxedPluginsModule(
+					resolvedConfig.sandboxed ?? [],
+					projectRoot,
+					(filePath) => this.addWatchFile(filePath),
+				);
 			}
 			// Generate auth module that statically imports the configured auth provider
 			if (id === RESOLVED_VIRTUAL_AUTH_ID) {

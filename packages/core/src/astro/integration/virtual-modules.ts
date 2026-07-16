@@ -598,12 +598,14 @@ function resolveModulePathFromProject(specifier: string, projectRoot: string): s
 /**
  * Generates the sandboxed plugins module.
  * Resolves plugin entrypoints to files, reads them, and embeds the code.
+ * Notifies the caller about each resolved entry so build tools can watch it.
  *
  * At runtime, middleware uses SandboxRunner to load these into isolates.
  */
 export function generateSandboxedPluginsModule(
 	sandboxed: PluginDescriptor[],
 	projectRoot: string,
+	onEntryResolved?: (filePath: string) => void,
 ): string {
 	if (sandboxed.length === 0) {
 		return `
@@ -629,6 +631,8 @@ export const sandboxedPlugins = [];
 					`and run the plugin's build step before building the site.`,
 			);
 		}
+
+		onEntryResolved?.(filePath);
 
 		const code = readFileSync(filePath, "utf-8");
 
