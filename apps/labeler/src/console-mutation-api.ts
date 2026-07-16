@@ -545,9 +545,11 @@ function deferPublishAll(deps: ConsoleMutationDeps, issuanceKeys: readonly strin
  * `POST /admin/api/assessments/:id/rerun` — mints the immutable operator trigger
  * (`operator:<actionId>`), creates a fresh run for the assessment's exact URI+CID
  * anchored to that trigger, and re-issues `assessment-pending`, all in one atomic
- * batch with the audit row (spec §10/§11.2). Production wiring stops at pending
- * (as initial discovery does today), so the run sits at `pending` until W7/W8
- * supply stage adapters.
+ * batch with the audit row (spec §10/§11.2). Initial discovery now dispatches an
+ * assessment Workflow after `pending`; this rerun path still stops at `pending`
+ * (its own Workflow dispatch is a follow-on). The operator trigger yields a
+ * distinct `runKey`, so the rerun maps to its own Workflow instance id rather
+ * than colliding with the prior run's — the re-assessment is not stranded.
  */
 async function runRerun(
 	request: Request,

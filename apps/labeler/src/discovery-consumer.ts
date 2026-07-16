@@ -3,12 +3,12 @@
  * verified subject, an idempotent assessment run, an `assessment-pending`
  * label, and a dispatched assessment Workflow instance — spec §9.1 steps 5-7.
  * This file's job ends at dispatch: it never constructs
- * `AssessmentOrchestrator` itself. The instance id derives from the subject
- * (assessment-dispatch.ts), so a duplicate subject cannot start a second
- * concurrent run — that collision is the spec §14.1 per-subject lock.
- * `AssessmentWorkflow` (assessment-workflow.ts) then drives `pending → running
- * → finalization` through the orchestrator (still stub stages until W7/W8 land
- * real stage adapters).
+ * `AssessmentOrchestrator` itself. The instance id is the run's runKey
+ * (assessment-dispatch.ts), so a redelivered discovery event dedups onto the
+ * same instance while a later re-assessment (distinct trigger → distinct
+ * runKey) gets its own. `AssessmentWorkflow` (assessment-workflow.ts) then
+ * drives `pending → running → finalization` through the orchestrator (still
+ * stub stages until W7/W8 land real stage adapters).
  *
  * Error policy mirrors the aggregator's records-consumer with one
  * difference (spec §9.1): a forged or unverifiable event is ALWAYS a dead
@@ -89,8 +89,9 @@ export interface DiscoveryConsumerDeps {
 	signer: LabelSigner;
 	didDocumentResolver: DidDocumentResolverLike;
 	/** The assessment Workflow binding. Once a verified subject reaches
-	 * `pending`, the consumer dispatches one instance per subject; the
-	 * deterministic instance id is the per-subject lock (assessment-dispatch.ts). */
+	 * `pending`, the consumer dispatches its run; the instance id is the run's
+	 * runKey, so a redelivered event dedups onto the same instance
+	 * (assessment-dispatch.ts). */
 	assessmentWorkflow: AssessmentWorkflowBinding;
 	fetch?: typeof fetch;
 	now?: () => Date;
@@ -400,14 +401,13 @@ async function verifyAndCreateRun(
 		now,
 	);
 
-	// Hand the run to its Workflow instance. The instance id derives from the
-	// subject, so a redelivered event converges on the same instance rather than
-	// starting a second run (the §14.1 lock). A dispatch infra failure throws
+	// Hand the run to its Workflow instance. The instance id is the run's runKey,
+	// so a redelivered event (same runKey) converges on the same instance rather
+	// than starting a second run. A dispatch infra failure throws
 	// AssessmentDispatchError → the message retries; upstream steps are all
 	// idempotent, so redelivery re-dispatches.
 	await dispatchAssessmentWorkflow(deps.assessmentWorkflow, {
-		uri,
-		cid: job.cid,
+		runKey,
 		assessmentId: assessment.id,
 	});
 }

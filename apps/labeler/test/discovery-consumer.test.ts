@@ -9,7 +9,6 @@ import { applyD1Migrations, env } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
-	assessmentWorkflowInstanceId,
 	type AssessmentWorkflowBinding,
 	type AssessmentWorkflowParams,
 } from "../src/assessment-dispatch.js";
@@ -306,10 +305,10 @@ describe("processDiscoveryMessage: Workflow dispatch and per-subject lock", () =
 		await processDiscoveryMessage(job, msg, { ...deps, verify: verifiedFor(job) });
 
 		expect(msg.acked).toBe(1);
-		const assessment = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
-		const expectedId = await assessmentWorkflowInstanceId(uriFor(job), job.cid);
+		const runKey = await runKeyFor(job);
+		const assessment = await getAssessmentByRunKey(testEnv.DB, runKey);
 		expect(workflow.created).toHaveLength(1);
-		expect(workflow.created[0]?.id).toBe(expectedId);
+		expect(workflow.created[0]?.id).toBe(runKey);
 		expect(workflow.created[0]?.params.assessmentId).toBe(assessment!.id);
 	});
 
@@ -378,8 +377,7 @@ describe("processDiscoveryMessage: Workflow dispatch and per-subject lock", () =
 		await processDiscoveryMessage(job, second, { ...deps, verify: verifiedFor(job) });
 		expect(second.acked).toBe(1);
 		expect(workflow.created).toHaveLength(1);
-		const expectedId = await assessmentWorkflowInstanceId(uriFor(job), job.cid);
-		expect(workflow.created[0]?.id).toBe(expectedId);
+		expect(workflow.created[0]?.id).toBe(await runKeyFor(job));
 	});
 });
 

@@ -4,14 +4,16 @@
  * §9.9, §10).
  *
  * Driven in production by `AssessmentWorkflow` (assessment-workflow.ts): each
- * verified subject runs as one Workflow instance whose id serializes duplicate
- * runs of that subject (the §14.1 per-subject lock — see
- * assessment-dispatch.ts). The Workflow constructs this orchestrator per run
- * and calls `runAssessment`. Until W7/W8 supply the real stage adapters
+ * run executes as one Workflow instance whose id is the run's runKey, so a
+ * redelivered discovery event dedups onto the same instance rather than starting
+ * a duplicate (see assessment-dispatch.ts). The Workflow constructs this
+ * orchestrator per run and calls `runAssessment`. Until W7/W8 supply the real stage adapters
  * (acquire, deterministic validation, dependency/SBOM, code/metadata AI, image
- * AI), that wiring runs `stubStages` — every stage resolves with no findings —
- * so a real subject finalizes as `passed`, clearing only its own
- * `assessment-pending`.
+ * AI), that wiring runs `stubStages` — every stage resolves with no findings, so
+ * `resolvePolicyOutcome` returns `passed` and finalization issues a real signed
+ * `assessment-passed` label for EVERY subject (not merely clearing its own
+ * `assessment-pending`). That is a hard deploy gate — see the DEPLOY GATE note
+ * in assessment-workflow.ts.
  */
 
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
@@ -121,14 +123,24 @@ export class AssessmentOrchestrator {
 		const now = this.now();
 		const loaded = await getAssessment(this.db, runId);
 		if (!loaded) throw new Error(`assessment ${runId} not found`);
-		if (loaded.state !== "pending")
-			throw new Error(`assessment ${runId} is not pending (state=${loaded.state})`);
-		const assessment = await transitionAssessmentState(this.db, {
-			id: runId,
-			from: "pending",
-			to: "running",
-			now,
-		});
+		// Accept a `running` row left by a crashed prior attempt and resume it: the
+		// production driver is a Workflow step that retries `runAssessment`, and any
+		// failure after the pending→running CAS (e.g. a transient D1 error in
+		// `finalize`) leaves the row `running`. Re-running is safe — stages are
+		// recomputed (findings are held in memory, not persisted mid-run) and every
+		// label issuance is idempotency-keyed. A `pending` row is transitioned to
+		// `running` first; a terminal row is the caller's to short-circuit.
+		if (loaded.state !== "pending" && loaded.state !== "running")
+			throw new Error(`assessment ${runId} is not resumable (state=${loaded.state})`);
+		const assessment =
+			loaded.state === "pending"
+				? await transitionAssessmentState(this.db, {
+						id: runId,
+						from: "pending",
+						to: "running",
+						now,
+					})
+				: loaded;
 
 		const findings: StageFinding[] = [];
 		let transientExhausted = false;
@@ -166,11 +178,11 @@ export class AssessmentOrchestrator {
 		// label (an async round-trip) between here and `db.batch`, so a delete or
 		// a cancel landing in that window still commits labels — the finalization
 		// CAS guards its own row, but the issuance statements carry no
-		// assessment-state guard. The instance-per-subject Workflow lock
-		// (assessment-dispatch.ts) serializes duplicate runs of the same subject
-		// but not a delete or operator cancel against an in-flight run, so closing
-		// this window still needs an in-batch assessment-state guard on every
-		// issuance statement — tracked with the real-stage wiring.
+		// assessment-state guard. The Workflow instance id (the runKey) dedups only
+		// redelivery of the same run (assessment-dispatch.ts) — not a delete or
+		// operator cancel against an in-flight run — so closing this window still
+		// needs an in-batch assessment-state guard on every issuance statement,
+		// tracked with the real-stage wiring.
 		const current = await isSubjectCurrent(this.db, { uri: assessment.uri, cid: assessment.cid });
 		if (!current) {
 			return transitionAssessmentState(this.db, { id: runId, from: "running", to: "stale", now });
@@ -304,10 +316,10 @@ export class AssessmentOrchestrator {
 		// flips, but the state CAS below is not, so a flip after this point could
 		// commit the terminal state without its labels.
 		//
-		// The instance-per-subject Workflow lock closes concurrent duplicate runs
-		// of a subject, but NOT a delete, operator cancel, or signing flip racing
-		// an in-flight run, so three related gaps in this method remain open until
-		// that in-batch state guard lands (tracked with the real-stage wiring):
+		// The Workflow instance id (the runKey) dedups only redelivery of the same
+		// run, NOT a delete, operator cancel, or signing flip racing an in-flight
+		// run, so three related gaps in this method remain open until that in-batch
+		// state guard lands (tracked with the real-stage wiring):
 		//   - a stale (CID-superseded) run returns without negating its own
 		//     assessment-pending, so a superseded subject keeps advertising an
 		//     in-progress assessment;

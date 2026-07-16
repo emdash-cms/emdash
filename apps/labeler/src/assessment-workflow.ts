@@ -1,20 +1,26 @@
 /**
- * Production assessment execution: one Cloudflare Workflow instance per
- * subject, a thin durable shell over `AssessmentOrchestrator`. The instance id
- * (see `assessment-dispatch.ts`) serializes runs per subject; `run` loads the
- * pending assessment and drives it through the orchestrator's stages and atomic
- * finalization inside a single durable step.
+ * Production assessment execution: one Cloudflare Workflow instance per run, a
+ * thin durable shell over `AssessmentOrchestrator`. The instance id is the run's
+ * runKey (see `assessment-dispatch.ts`); `run` loads the assessment and drives
+ * it through the orchestrator's stages and atomic finalization inside a single
+ * durable step.
+ *
+ * DEPLOY GATE: with `stubStages`, a run finalizes `passed` and issues a real
+ * signed `assessment-passed` label for EVERY subject — an unconditional "this is
+ * safe" attestation over unscanned content. This shell must NOT reach an
+ * enforcing or label-consuming production deployment until the real analysis
+ * stages (W7/W8) land; shipping it live before then would vouch for everything.
  *
  * The whole run executes in one `step.do`, not one step per stage: the
  * orchestrator accumulates stage findings in memory and the acquire stage
  * publishes the acquired artifact to an in-process `AcquisitionHolder` that
  * downstream stages read, so a per-stage step boundary would drop that shared
- * state across a durable resume. Running the orchestrator whole keeps its
- * atomic finalization intact. The tradeoff is coarse resume granularity — a
- * mid-run eviction re-runs from `pending`, and because `runAssessment` guards
- * on `pending`, a row already advanced to `running` cannot be resumed here; the
- * reconciliation pass (reconciliation.ts) surfaces such stuck runs. Finer,
- * per-stage durable resume lands with the real-stage wiring.
+ * state across a durable resume. Running the orchestrator whole keeps its atomic
+ * finalization intact. The tradeoff is coarse resume granularity: a mid-run
+ * eviction re-runs the whole step. `executeAssessmentInstance` makes that
+ * idempotent — a terminal row short-circuits, and `runAssessment` resumes a row
+ * left `running` by a crashed attempt. Finer, per-stage durable resume lands
+ * with the real-stage wiring.
  */
 
 import { WorkflowEntrypoint } from "cloudflare:workers";
@@ -61,10 +67,10 @@ export async function executeAssessmentInstance(
 ): Promise<AssessmentState> {
 	const existing = await getAssessment(env.DB, assessmentId);
 	if (!existing) throw new Error(`assessment ${assessmentId} not found`);
-	// Idempotent resume: a previous execution already finalized this run (an
-	// eviction after the finalization batch committed but before the step result
-	// was durable). Return the terminal state rather than re-entering the
-	// orchestrator, whose pending-guard would throw on a non-pending row.
+	// Idempotent resume for a durable-step retry: a terminal row means a prior
+	// attempt already finalized (its batch committed but the step result was
+	// lost) — return that state. A `pending` or crash-left `running` row falls
+	// through to `runAssessment`, which drives (or resumes) it to finalization.
 	if (TERMINAL_STATES.has(existing.state)) return existing.state;
 
 	const config = await getLabelerIdentityConfig(env);

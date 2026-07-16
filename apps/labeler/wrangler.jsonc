@@ -52,11 +52,11 @@
 			"service": "emdash-aggregator",
 		},
 	],
-	// One Workflow instance per subject drives an assessment run to
-	// finalization (a durable shell over AssessmentOrchestrator). The instance
-	// id derives from the subject (uri, cid), so a duplicate subject cannot run
-	// concurrently — that is the spec §14.1 per-subject lock. See
-	// src/assessment-workflow.ts and src/assessment-dispatch.ts.
+	// One Workflow instance per assessment run drives it to finalization (a
+	// durable shell over AssessmentOrchestrator). The instance id is the run's
+	// runKey, so a redelivered discovery event dedups onto the same instance
+	// while a re-assessment (distinct trigger → distinct runKey) gets its own.
+	// See src/assessment-workflow.ts and src/assessment-dispatch.ts.
 	"workflows": [
 		{
 			"name": "emdash-labeler-assessment",

@@ -707,6 +707,39 @@ describe("AssessmentOrchestrator: invalid findings", () => {
 	});
 });
 
+describe("AssessmentOrchestrator: resume from running", () => {
+	it("resumes a run left `running` by a crashed attempt and finalizes on the next call", async () => {
+		const run = await pendingRun({ name: "resume-running", cidValue: await cid("resume-running") });
+		let attempts = 0;
+		const flaky: StageAdapter = () => {
+			attempts += 1;
+			// Attempt 1: a non-transient failure after the pending→running CAS
+			// (models a crash in a later stage or in finalize). Later attempts pass.
+			if (attempts === 1) throw new Error("stage crashed post-transition");
+			return Promise.resolve([]);
+		};
+		const orchestrator = await buildOrchestrator({ ...stubStages, deterministic: flaky });
+
+		await expect(orchestrator.runAssessment(run.id)).rejects.toThrow(
+			"stage crashed post-transition",
+		);
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("running");
+
+		// Re-invoking (as the durable step retry does) resumes the `running` row
+		// and finalizes passed — no pending-guard rejection, no duplicate labels.
+		const finalized = await orchestrator.runAssessment(run.id);
+		expect(finalized.state).toBe("passed");
+
+		const pending = await testEnv.DB.prepare(
+			`SELECT l.neg FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE l.uri = ? AND l.cid = ? AND l.val = 'assessment-pending'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(pending?.neg).toBe(1);
+	});
+});
+
 describe("AssessmentOrchestrator: history stage never auto-labels (W8.4)", () => {
 	it("runs the history stage, whose finding surfaces but is never turned into an issued label", async () => {
 		const run = await pendingRun({

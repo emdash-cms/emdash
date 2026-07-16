@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
 	AssessmentDispatchError,
-	assessmentWorkflowInstanceId,
 	dispatchAssessmentWorkflow,
 	type AssessmentWorkflowBinding,
 	type AssessmentWorkflowParams,
 } from "../src/assessment-dispatch.js";
 
-const URI =
-	"at://did:plc:publisher000000000000000000/com.emdashcms.experimental.package.release/pkg:1.0.0";
-const CID = "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku";
+// Stand-in runKeys (real ones are 64-char SHA-256 hex from computeRunKey). Two
+// distinct values model same-subject-different-trigger re-assessment.
+const RUNKEY_A = "a".repeat(64);
+const RUNKEY_B = "b".repeat(64);
 
 interface Recorded {
 	id: string;
@@ -49,51 +49,38 @@ class FakeWorkflow implements AssessmentWorkflowBinding {
 	}
 }
 
-describe("assessmentWorkflowInstanceId", () => {
-	it("is deterministic and 64 lowercase hex chars", async () => {
-		const a = await assessmentWorkflowInstanceId(URI, CID);
-		const b = await assessmentWorkflowInstanceId(URI, CID);
-		expect(a).toBe(b);
-		expect(a).toMatch(/^[0-9a-f]{64}$/);
-	});
-
-	it("derives from both uri and cid — either changing changes the id", async () => {
-		const base = await assessmentWorkflowInstanceId(URI, CID);
-		expect(await assessmentWorkflowInstanceId(`${URI}x`, CID)).not.toBe(base);
-		expect(await assessmentWorkflowInstanceId(URI, `${CID}x`)).not.toBe(base);
-	});
-
-	it("does not collide across a uri/cid boundary shift", async () => {
-		// `a\nb` vs `a` + `\nb` must not hash the same: guards the delimiter.
-		expect(await assessmentWorkflowInstanceId("a", "b")).not.toBe(
-			await assessmentWorkflowInstanceId("a\nb", ""),
-		);
-	});
-});
-
 describe("dispatchAssessmentWorkflow", () => {
-	it("creates the instance with the derived id and returns 'created'", async () => {
+	it("creates the instance with the runKey as its id and returns 'created'", async () => {
 		const workflow = new FakeWorkflow();
 		const outcome = await dispatchAssessmentWorkflow(workflow, {
-			uri: URI,
-			cid: CID,
+			runKey: RUNKEY_A,
 			assessmentId: "asmt_1",
 		});
 		expect(outcome).toBe("created");
-		const expectedId = await assessmentWorkflowInstanceId(URI, CID);
-		expect(workflow.created).toEqual([{ id: expectedId, params: { assessmentId: "asmt_1" } }]);
+		expect(workflow.created).toEqual([{ id: RUNKEY_A, params: { assessmentId: "asmt_1" } }]);
 	});
 
-	it("returns 'exists' when the id is already taken — the lock held", async () => {
+	it("returns 'exists' when the same runKey is dispatched again — redelivery dedup", async () => {
 		const workflow = new FakeWorkflow();
-		await dispatchAssessmentWorkflow(workflow, { uri: URI, cid: CID, assessmentId: "asmt_1" });
+		await dispatchAssessmentWorkflow(workflow, { runKey: RUNKEY_A, assessmentId: "asmt_1" });
 		const outcome = await dispatchAssessmentWorkflow(workflow, {
-			uri: URI,
-			cid: CID,
+			runKey: RUNKEY_A,
 			assessmentId: "asmt_1",
 		});
 		expect(outcome).toBe("exists");
 		expect(workflow.created).toHaveLength(1);
+	});
+
+	it("a distinct runKey (re-assessment's new trigger) dispatches its own instance", async () => {
+		const workflow = new FakeWorkflow();
+		// Same subject, different trigger → different runKey → must not collide.
+		await dispatchAssessmentWorkflow(workflow, { runKey: RUNKEY_A, assessmentId: "asmt_1" });
+		const outcome = await dispatchAssessmentWorkflow(workflow, {
+			runKey: RUNKEY_B,
+			assessmentId: "asmt_2",
+		});
+		expect(outcome).toBe("created");
+		expect(workflow.created.map((c) => c.id)).toEqual([RUNKEY_A, RUNKEY_B]);
 	});
 
 	it("returns 'exists' when create fails but the instance survives", async () => {
@@ -101,8 +88,7 @@ describe("dispatchAssessmentWorkflow", () => {
 		workflow.failCreate = new Error("ack lost");
 		workflow.persistOnFailure = true;
 		const outcome = await dispatchAssessmentWorkflow(workflow, {
-			uri: URI,
-			cid: CID,
+			runKey: RUNKEY_A,
 			assessmentId: "asmt_1",
 		});
 		expect(outcome).toBe("exists");
@@ -112,7 +98,7 @@ describe("dispatchAssessmentWorkflow", () => {
 		const workflow = new FakeWorkflow();
 		workflow.failCreate = new Error("backend down");
 		await expect(
-			dispatchAssessmentWorkflow(workflow, { uri: URI, cid: CID, assessmentId: "asmt_1" }),
+			dispatchAssessmentWorkflow(workflow, { runKey: RUNKEY_A, assessmentId: "asmt_1" }),
 		).rejects.toBeInstanceOf(AssessmentDispatchError);
 	});
 });

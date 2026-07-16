@@ -129,6 +129,18 @@ describe("executeAssessmentInstance", () => {
 		expect(await executeAssessmentInstance(workflowEnv, run.id)).toBe("passed");
 	});
 
+	it("resumes a run left `running` by a crashed attempt and finalizes it", async () => {
+		const run = await pendingRun("wf-running-resume");
+		// Simulate a prior attempt that made the pending→running CAS then crashed
+		// (e.g. a durable step evicted mid-finalize) before finalizing.
+		await transitionAssessmentState(testEnv.DB, { id: run.id, from: "pending", to: "running" });
+
+		const state = await executeAssessmentInstance(workflowEnv, run.id);
+
+		expect(state).toBe("passed");
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("passed");
+	});
+
 	it("throws when the assessment does not exist", async () => {
 		await expect(
 			executeAssessmentInstance(workflowEnv, "asmt_00000000000000000000000000"),

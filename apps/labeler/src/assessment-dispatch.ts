@@ -1,14 +1,28 @@
 /**
- * Dispatch seam between verified discovery and the assessment Workflow.
+ * Dispatch seam between a created assessment run and its Workflow.
  *
- * Each subject runs as one Cloudflare Workflow instance whose id is a
- * deterministic function of (uri, cid). That id IS the spec §14.1 per-subject
- * lock: `create` throws when an instance with the id already exists, so a
- * duplicate subject cannot start a second concurrent run — resolving the
- * queue-vs-Workflow serialization question deferred in #1978.
- * `dispatchAssessmentWorkflow` treats that collision as an idempotent no-op and
- * surfaces genuine infrastructure failures as `AssessmentDispatchError` for the
- * caller to retry.
+ * Each run executes as one Cloudflare Workflow instance whose id IS the run's
+ * `runKey` — the deterministic per-run identity already computed by the
+ * discovery consumer / rerun path (`computeRunKey`: SHA-256 over uri, cid,
+ * policy, model, prompt, scanner-set, and triggerId). It is a 64-char lowercase
+ * hex string, within the 100-char instance-id limit, so it is used verbatim as
+ * the id — no second hash, no second formula.
+ *
+ * Keying on the runKey (not the subject) gives the right dedup granularity:
+ *
+ *   - Redelivery of the SAME discovery event recomputes the SAME runKey → same
+ *     instance id → `create` collides → idempotent no-op, no duplicate run.
+ *   - A re-assessment (operator rerun, intel re-trigger) mints a run with a new
+ *     triggerId → different runKey → different instance id → it dispatches its
+ *     own instance. A subject-only id would instead collide with the RETAINED
+ *     id of the prior completed/failed run (Cloudflare keeps instance ids ~30
+ *     days) and strand the re-assessment `pending` forever.
+ *
+ * This is per-run serialization, not per-subject: two DIFFERENT triggers for one
+ * subject can run concurrently. That is acceptable — the orchestrator's currency
+ * re-check + supersede and idempotency-keyed label issuance keep the outcome
+ * correct (at worst recomputed wastefully); the instance id is not the arbiter
+ * there.
  *
  * This module holds no reference to `AssessmentOrchestrator` or
  * `cloudflare:workers`: the discovery consumer imports only this, so the
@@ -40,49 +54,38 @@ export class AssessmentDispatchError extends Error {
 	override readonly name = "AssessmentDispatchError";
 }
 
-/**
- * Deterministic Workflow instance id for a subject: SHA-256 hex of (uri, cid).
- * Derived from the subject alone — not the run key — so any run for the same
- * subject maps to the same instance and is serialized by it. 64 hex chars, well
- * within the 100-char instance-id limit.
- */
-export async function assessmentWorkflowInstanceId(uri: string, cid: string): Promise<string> {
-	const material = `${uri}\n${cid}`;
-	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(material));
-	return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 export interface DispatchAssessmentInput {
-	uri: string;
-	cid: string;
+	/** The run's `runKey`, used verbatim as the Workflow instance id. */
+	runKey: string;
 	assessmentId: string;
 }
 
 /**
- * Create the subject's Workflow instance, or converge if it already exists.
- * Returns `"created"` on a fresh dispatch and `"exists"` when the deterministic
- * id was already taken (the lock held — no second run). A `create` failure with
- * no surviving instance is a real infrastructure error and throws
+ * Create the run's Workflow instance, or converge if its id already exists.
+ * Returns `"created"` on a fresh dispatch and `"exists"` when the runKey-derived
+ * id was already taken (redelivery of the same run). A `create` failure with no
+ * surviving instance is a real infrastructure error and throws
  * `AssessmentDispatchError`.
  */
 export async function dispatchAssessmentWorkflow(
 	workflow: AssessmentWorkflowBinding,
 	input: DispatchAssessmentInput,
 ): Promise<"created" | "exists"> {
-	const id = await assessmentWorkflowInstanceId(input.uri, input.cid);
+	const id = input.runKey;
 	const params: AssessmentWorkflowParams = { assessmentId: input.assessmentId };
 	try {
 		await workflow.create({ id, params });
 		return "created";
 	} catch (err) {
-		// `create` throws on an already-taken id (the lock) and on transient
-		// infra failures alike. Disambiguate by probing for the instance: present
-		// means the collision is the lock (idempotent no-op); absent means the
-		// create genuinely failed and the caller must retry.
+		// `create` throws on an already-taken id (same-run redelivery) and on
+		// transient infra failures alike. Disambiguate by probing for the
+		// instance: present means the collision is a redelivery (idempotent
+		// no-op); absent means the create genuinely failed and the caller retries.
 		const existing = await workflow.get(id).catch(() => null);
 		if (existing) return "exists";
-		throw new AssessmentDispatchError(`failed to dispatch assessment Workflow for ${input.uri}`, {
-			cause: err,
-		});
+		throw new AssessmentDispatchError(
+			`failed to dispatch assessment Workflow for run ${input.assessmentId}`,
+			{ cause: err },
+		);
 	}
 }
