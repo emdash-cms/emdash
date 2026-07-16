@@ -52,6 +52,18 @@
 			"service": "emdash-aggregator",
 		},
 	],
+	// One Workflow instance per assessment run drives it to finalization (a
+	// durable shell over AssessmentOrchestrator). The instance id is the run's
+	// runKey, so a redelivered discovery event dedups onto the same instance
+	// while a re-assessment (distinct trigger → distinct runKey) gets its own.
+	// See src/assessment-workflow.ts and src/assessment-dispatch.ts.
+	"workflows": [
+		{
+			"name": "emdash-labeler-assessment",
+			"binding": "ASSESSMENT_WORKFLOW",
+			"class_name": "AssessmentWorkflow",
+		},
+	],
 	// Operator console SPA (apps/labeler/console), built to ./dist/console by
 	// `console:build`. `run_worker_first: true` keeps the Worker the sole
 	// router: the SPA fallback only fires where index.ts explicitly calls

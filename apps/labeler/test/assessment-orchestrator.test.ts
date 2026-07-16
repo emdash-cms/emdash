@@ -14,6 +14,7 @@ import {
 } from "../src/artifact-acquisition.js";
 import { computeRunKey, initialTriggerId, operatorTriggerId } from "../src/assessment-lifecycle.js";
 import {
+	AssessmentFinalizationConflictError,
 	AssessmentOrchestrator,
 	StageTransientError,
 	stubStages,
@@ -704,6 +705,75 @@ describe("AssessmentOrchestrator: invalid findings", () => {
 
 		const assessment = await getAssessment(testEnv.DB, run.id);
 		expect(assessment?.state).toBe("running");
+	});
+});
+
+describe("AssessmentOrchestrator: resume from running", () => {
+	it("resumes a run left `running` by a crashed attempt and finalizes on the next call", async () => {
+		const run = await pendingRun({ name: "resume-running", cidValue: await cid("resume-running") });
+		let attempts = 0;
+		const flaky: StageAdapter = () => {
+			attempts += 1;
+			// Attempt 1: a non-transient failure after the pending→running CAS
+			// (models a crash in a later stage or in finalize). Later attempts pass.
+			if (attempts === 1) throw new Error("stage crashed post-transition");
+			return Promise.resolve([]);
+		};
+		const orchestrator = await buildOrchestrator({ ...stubStages, deterministic: flaky });
+
+		await expect(orchestrator.runAssessment(run.id)).rejects.toThrow(
+			"stage crashed post-transition",
+		);
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("running");
+
+		// Re-invoking (as the durable step retry does) resumes the `running` row
+		// and finalizes passed — no pending-guard rejection, no duplicate labels.
+		const finalized = await orchestrator.runAssessment(run.id);
+		expect(finalized.state).toBe("passed");
+
+		const pending = await testEnv.DB.prepare(
+			`SELECT l.neg FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE l.uri = ? AND l.cid = ? AND l.val = 'assessment-pending'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(pending?.neg).toBe(1);
+	});
+});
+
+describe("AssessmentOrchestrator: cancel racing finalization", () => {
+	it("issues no labels and throws when a cancel moves the run out of running before commit", async () => {
+		const run = await pendingRun({ name: "cancel-race", cidValue: await cid("cancel-race") });
+		// A stage that cancels the run mid-flight simulates a delete/operator cancel
+		// landing after the currency check but before the finalization batch commits.
+		const cancelDuringStage: StageAdapter = async () => {
+			await transitionAssessmentState(testEnv.DB, {
+				id: run.id,
+				from: "running",
+				to: "cancelled",
+			});
+			return [];
+		};
+		const orchestrator = await buildOrchestrator({
+			...stubStages,
+			deterministic: cancelDuringStage,
+		});
+
+		await expect(orchestrator.runAssessment(run.id)).rejects.toBeInstanceOf(
+			AssessmentFinalizationConflictError,
+		);
+
+		// The run stays cancelled and NO label was issued — not the positive
+		// outcome label, not even the assessment-pending negation.
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("cancelled");
+		const labels = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?`,
+		)
+			.bind(run.id)
+			.first<{ n: number }>();
+		expect(labels?.n).toBe(0);
 	});
 });
 

@@ -1,13 +1,16 @@
 /**
- * Binding decision: production wiring stops at `assessment-pending`. Nothing
- * in a production code path may construct or call `AssessmentOrchestrator`
- * until W7/W8 land real stage adapters — it exists only to be exercised by
- * `assessment-orchestrator.test.ts`.
+ * Boundary invariant: `AssessmentOrchestrator` reaches production through
+ * exactly one door — `AssessmentWorkflow` (assessment-workflow.ts), which
+ * constructs it per run. The queue consumer, discovery DO, Jetstream ingestor,
+ * reconciliation pass, and worker entry must never construct or call it
+ * directly; their job ends at dispatching a Workflow instance. This keeps the
+ * per-subject serialization in one place (the Workflow instance id) rather than
+ * letting an ad-hoc call site drive a run outside the lock.
  *
- * `?raw` pulls each production entry point's source as a string (a Vite
- * import query, supported under `@cloudflare/vitest-pool-workers`'s Vite
- * pipeline) so this check runs without any filesystem access at test time —
- * a static grep for the module specifier, not a runtime behavioural test.
+ * `?raw` pulls each entry point's source as a string (a Vite import query,
+ * supported under `@cloudflare/vitest-pool-workers`'s Vite pipeline) so this
+ * check runs without any filesystem access at test time — a static grep for the
+ * module specifier, not a runtime behavioural test.
  */
 
 import { describe, expect, it } from "vitest";
@@ -39,9 +42,9 @@ const PRODUCTION_ENTRY_POINTS: Record<string, string> = {
 const IMPORTS_ORCHESTRATOR =
 	/(?:from\s+["'][^"']*assessment-orchestrator[^"']*["']|import\(\s*["'][^"']*assessment-orchestrator|import\s+["'][^"']*assessment-orchestrator)/;
 
-describe("production boundary: AssessmentOrchestrator is test-only", () => {
+describe("production boundary: AssessmentOrchestrator is reached only via the Workflow", () => {
 	for (const [name, source] of Object.entries(PRODUCTION_ENTRY_POINTS)) {
-		it(`${name} never imports assessment-orchestrator`, () => {
+		it(`${name} never imports assessment-orchestrator directly`, () => {
 			expect(source).not.toMatch(IMPORTS_ORCHESTRATOR);
 		});
 	}

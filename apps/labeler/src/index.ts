@@ -18,6 +18,7 @@ import { LABEL_SUBSCRIPTION_DO_NAME } from "./subscribe-labels.js";
 import { handleAssessmentXrpc } from "./xrpc-router.js";
 import { xrpcError } from "./xrpc.js";
 
+export { AssessmentWorkflow } from "./assessment-workflow.js";
 export { LabelerDiscoveryDO } from "./discovery-do.js";
 export { LabelSubscriptionDO } from "./subscribe-labels.js";
 

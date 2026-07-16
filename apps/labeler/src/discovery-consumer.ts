@@ -1,11 +1,14 @@
 /**
  * Discovery queue consumer. Replaces the Jetstream-observed event with a
- * verified subject, an idempotent assessment run, and (once verified) an
- * `assessment-pending` label — spec §9.1 steps 5-7. Per binding decision,
- * production wiring stops here: nothing in this file advances a run past
- * `pending`. `assessment-orchestrator.ts` drives `pending → running →
- * finalization` and is exercised only by tests until W7/W8 land real stage
- * adapters.
+ * verified subject, an idempotent assessment run, an `assessment-pending`
+ * label, and a dispatched assessment Workflow instance — spec §9.1 steps 5-7.
+ * This file's job ends at dispatch: it never constructs
+ * `AssessmentOrchestrator` itself. The instance id is the run's runKey
+ * (assessment-dispatch.ts), so a redelivered discovery event dedups onto the
+ * same instance while a later re-assessment (distinct trigger → distinct
+ * runKey) gets its own. `AssessmentWorkflow` (assessment-workflow.ts) then
+ * drives `pending → running → finalization` through the orchestrator (still
+ * stub stages until W7/W8 land real stage adapters).
  *
  * Error policy mirrors the aggregator's records-consumer with one
  * difference (spec §9.1): a forged or unverifiable event is ALWAYS a dead
@@ -30,6 +33,11 @@ import {
 } from "@atcute/identity-resolver";
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
 
+import {
+	AssessmentDispatchError,
+	dispatchAssessmentWorkflow,
+	type AssessmentWorkflowBinding,
+} from "./assessment-dispatch.js";
 import {
 	AssessmentTransitionConflictError,
 	automatedIdempotencyKey,
@@ -80,6 +88,11 @@ export interface DiscoveryConsumerDeps {
 	config: LabelerConfig;
 	signer: LabelSigner;
 	didDocumentResolver: DidDocumentResolverLike;
+	/** The assessment Workflow binding. Once a verified subject reaches
+	 * `pending`, the consumer dispatches its run; the instance id is the run's
+	 * runKey, so a redelivered event dedups onto the same instance
+	 * (assessment-dispatch.ts). */
+	assessmentWorkflow: AssessmentWorkflowBinding;
 	fetch?: typeof fetch;
 	now?: () => Date;
 	/**
@@ -272,6 +285,12 @@ async function classifyDiscoveryError(
 		controller.retry();
 		return;
 	}
+	if (err instanceof AssessmentDispatchError) {
+		// Subject verified and pending; only the Workflow dispatch failed. Retry
+		// so redelivery re-dispatches — every upstream step is idempotent.
+		controller.retry();
+		return;
+	}
 	if (err instanceof PdsVerificationError) {
 		if (isTransient(err.reason, err.status)) {
 			controller.retry();
@@ -381,6 +400,16 @@ async function verifyAndCreateRun(
 		{ uri, cid: job.cid, val: "assessment-pending" },
 		now,
 	);
+
+	// Hand the run to its Workflow instance. The instance id is the run's runKey,
+	// so a redelivered event (same runKey) converges on the same instance rather
+	// than starting a second run. A dispatch infra failure throws
+	// AssessmentDispatchError → the message retries; upstream steps are all
+	// idempotent, so redelivery re-dispatches.
+	await dispatchAssessmentWorkflow(deps.assessmentWorkflow, {
+		runKey,
+		assessmentId: assessment.id,
+	});
 }
 
 /**
@@ -513,6 +542,7 @@ async function createProductionDiscoveryDeps(env: Env): Promise<DiscoveryConsume
 		db: env.DB,
 		config: identityConfig,
 		signer: versioned.signer,
+		assessmentWorkflow: env.ASSESSMENT_WORKFLOW,
 		didDocumentResolver: new CompositeDidDocumentResolver({
 			methods: {
 				plc: new PlcDidDocumentResolver({ fetch: boundFetch }),
