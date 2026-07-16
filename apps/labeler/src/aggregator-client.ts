@@ -33,7 +33,11 @@
  * may treat a throw as transient and retry the whole read.
  */
 
-import type { AggregatorDefs, AggregatorListReleases } from "@emdash-cms/registry-lexicons";
+import type {
+	AggregatorDefs,
+	AggregatorGetPublisherVerification,
+	AggregatorListReleases,
+} from "@emdash-cms/registry-lexicons";
 
 /**
  * XRPC endpoint host. Irrelevant to routing — a service binding dispatches by
@@ -58,6 +62,7 @@ const NSID = {
 	getPublisher: "com.emdashcms.experimental.aggregator.getPublisher",
 	getLatestRelease: "com.emdashcms.experimental.aggregator.getLatestRelease",
 	listReleases: "com.emdashcms.experimental.aggregator.listReleases",
+	getPublisherVerification: "com.emdashcms.experimental.aggregator.getPublisherVerification",
 } as const;
 
 /** Build an XRPC GET URL from a constant NSID and caller-supplied param
@@ -123,6 +128,22 @@ export class AggregatorClient {
 		if (cursor) params["cursor"] = cursor;
 		const url = buildUrl(NSID.listReleases, params);
 		return this.#query<AggregatorListReleases.$output>(NSID.listReleases, url);
+	}
+
+	/** Fetch the verification state indexed for a publisher `did` — the
+	 * non-tombstoned verification claims naming it as subject. Returns a view
+	 * with an empty `verifications` array for an unverified publisher; `null`
+	 * only when the DID is redacted by a labeler the aggregator's default
+	 * policy accepts (which the blank accept-labelers header opts out of, so an
+	 * indexed subject resolves to the view). */
+	async getPublisherVerification(
+		did: string,
+	): Promise<AggregatorGetPublisherVerification.$output | null> {
+		const url = buildUrl(NSID.getPublisherVerification, { did });
+		return this.#query<AggregatorGetPublisherVerification.$output>(
+			NSID.getPublisherVerification,
+			url,
+		);
 	}
 
 	/** One fetch, no retry. `NotFound` → `null`; any other non-2xx or a

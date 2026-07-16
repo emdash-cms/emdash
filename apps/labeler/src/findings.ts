@@ -45,12 +45,14 @@ export type FindingSourceMetadata = ToolFindingMetadata | ModelFindingMetadata;
 export type HistoryFindingCategory =
 	| "publisher-history"
 	| "shared-artifact"
-	| "active-manual-label";
+	| "active-manual-label"
+	| "publisher-verification";
 
 export const HISTORY_FINDING_CATEGORIES: ReadonlySet<string> = new Set<HistoryFindingCategory>([
 	"publisher-history",
 	"shared-artifact",
 	"active-manual-label",
+	"publisher-verification",
 ]);
 
 export interface NormalizedFinding {

@@ -1,0 +1,35 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.aggregator.getPublisherVerification",
+	"description": "Get the verification state indexed for a publisher DID. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"description": "Returns the non-tombstoned verification claims naming `did` as subject, as operator/display context. Claims are returned regardless of expiry — each carries `expiresAt` for the caller to evaluate in-force state. Returns an empty `verifications` array when the DID has no indexed claims. Redaction (the atproto-accept-labelers negotiation, same as the other read endpoints) applies at two scopes: a redacted subject DID returns NotFound; a claim whose issuer DID is redacted is dropped from `verifications`, since a claim is authored by its issuer, not the subject. A request that opts out with a blank header always gets the full view.",
+			"parameters": {
+				"type": "params",
+				"required": ["did"],
+				"properties": {
+					"did": {
+						"type": "string",
+						"format": "did",
+						"description": "Subject publisher DID."
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "ref",
+					"ref": "com.emdashcms.experimental.aggregator.defs#publisherVerificationView"
+				}
+			},
+			"errors": [
+				{
+					"name": "NotFound",
+					"description": "The subject publisher DID is redacted by a labeler the request accepts. An unknown or unverified DID is NOT a 404 — it returns 200 with an empty `verifications` array — so this status is distinguishable from absence."
+				}
+			]
+		}
+	}
+}

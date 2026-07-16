@@ -25,6 +25,7 @@ export * as AggregatorDefs from "./generated/types/com/emdashcms/experimental/ag
 export * as AggregatorGetLatestRelease from "./generated/types/com/emdashcms/experimental/aggregator/getLatestRelease.js";
 export * as AggregatorGetPackage from "./generated/types/com/emdashcms/experimental/aggregator/getPackage.js";
 export * as AggregatorGetPublisher from "./generated/types/com/emdashcms/experimental/aggregator/getPublisher.js";
+export * as AggregatorGetPublisherVerification from "./generated/types/com/emdashcms/experimental/aggregator/getPublisherVerification.js";
 export * as AggregatorListReleases from "./generated/types/com/emdashcms/experimental/aggregator/listReleases.js";
 export * as AggregatorResolvePackage from "./generated/types/com/emdashcms/experimental/aggregator/resolvePackage.js";
 export * as AggregatorSearchPackages from "./generated/types/com/emdashcms/experimental/aggregator/searchPackages.js";
@@ -59,6 +60,8 @@ export const NSID = {
 	aggregatorGetLatestRelease: "com.emdashcms.experimental.aggregator.getLatestRelease",
 	aggregatorGetPackage: "com.emdashcms.experimental.aggregator.getPackage",
 	aggregatorGetPublisher: "com.emdashcms.experimental.aggregator.getPublisher",
+	aggregatorGetPublisherVerification:
+		"com.emdashcms.experimental.aggregator.getPublisherVerification",
 	aggregatorListReleases: "com.emdashcms.experimental.aggregator.listReleases",
 	aggregatorResolvePackage: "com.emdashcms.experimental.aggregator.resolvePackage",
 	aggregatorSearchPackages: "com.emdashcms.experimental.aggregator.searchPackages",
@@ -110,6 +113,7 @@ export const QUERY_NSIDS = [
 	NSID.aggregatorGetLatestRelease,
 	NSID.aggregatorGetPackage,
 	NSID.aggregatorGetPublisher,
+	NSID.aggregatorGetPublisherVerification,
 	NSID.aggregatorListReleases,
 	NSID.aggregatorResolvePackage,
 	NSID.aggregatorSearchPackages,
