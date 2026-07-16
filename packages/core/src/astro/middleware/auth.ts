@@ -378,9 +378,10 @@ async function handleEmDashAuth(
 }
 
 /**
- * Soft auth for plugin routes: resolve user from Bearer token or session if present,
- * but never block unauthenticated requests. The catch-all handler checks route
- * metadata to decide whether auth is required (public vs private routes).
+ * Plugin-route auth: resolve the user from Bearer token, external provider, or
+ * session if present. Public routes are always allowed through; private routes
+ * are blocked when credentials are invalid or absent. The catch-all handler enforces
+ * the `plugins:manage` permission and CSRF for private invocations.
  */
 async function handlePluginRouteAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
