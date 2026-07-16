@@ -378,9 +378,11 @@ async function handleEmDashAuth(
 }
 
 /**
- * Plugin-route auth: resolve the user from Bearer token, external provider, or
- * session if present. Public routes are always allowed through; private routes
- * are blocked when credentials are invalid or absent. The catch-all handler enforces
+ * Plugin-route auth. A Bearer token is tried first in all modes: a valid token
+ * authenticates, an invalid one returns 401. With no token, private routes under
+ * external-auth mode (non-DEV) are hard-authenticated via `handleExternalAuth`
+ * (401 on failure); every other case falls back to soft session auth and never
+ * blocks. Public routes are always allowed through. The catch-all handler enforces
  * the `plugins:manage` permission and CSRF for private invocations.
  */
 async function handlePluginRouteAuth(
