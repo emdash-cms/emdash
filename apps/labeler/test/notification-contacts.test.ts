@@ -194,15 +194,50 @@ describe("contact lifecycle", () => {
 		}
 	});
 
-	it("declineContact marks the contact declined and clears the token", async () => {
+	it("declineContact marks an unconfirmed contact declined and clears the token", async () => {
 		const hash = await freshHash();
 		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
 		await recordConfirmSent(db(), hash, "tokenhash-decl", 1_000);
 
-		await declineContact(db(), hash);
+		expect(await declineContact(db(), hash)).toBe(true);
 		const state = await getContactState(db(), hash);
 		expect(state?.confirmState).toBe("declined");
 		expect(state?.confirmTokenHash).toBeNull();
+	});
+
+	it("declineContact refuses to revoke a confirmed opt-in", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		await recordConfirmSent(db(), hash, "tokenhash-conf", 1_000);
+		await confirmContact(db(), hash, "tokenhash-conf", "2026-07-16T02:00:00.000Z");
+
+		expect(await declineContact(db(), hash)).toBe(false);
+		const state = await getContactState(db(), hash);
+		expect(state?.confirmState).toBe("confirmed");
+		expect(state?.confirmedAt).toBe("2026-07-16T02:00:00.000Z");
+	});
+
+	it("declineContact on an unknown recipient returns false", async () => {
+		expect(await declineContact(db(), await freshHash())).toBe(false);
+	});
+
+	it("recordConfirmSent rejects a non-finite epochMs", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		await expect(recordConfirmSent(db(), hash, "tokenhash-nan", NaN)).rejects.toThrow(TypeError);
+		const state = await getContactState(db(), hash);
+		expect(state?.confirmTokenHash).toBeNull();
+		expect(state?.lastConfirmSentAtEpochMs).toBeNull();
+	});
+
+	it("confirmContact returns false when the row exists but carries no token", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		expect(await confirmContact(db(), hash, "tokenhash-anything", "2026-07-16T02:00:00.000Z")).toBe(
+			false,
+		);
+		const state = await getContactState(db(), hash);
+		expect(state?.confirmState).toBe("unconfirmed");
 	});
 });
 

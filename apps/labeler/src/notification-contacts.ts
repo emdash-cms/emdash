@@ -145,6 +145,9 @@ export async function recordConfirmSent(
 	tokenHash: string,
 	epochMs: number,
 ): Promise<boolean> {
+	if (!Number.isFinite(epochMs)) {
+		throw new TypeError("recordConfirmSent requires a finite epochMs");
+	}
 	const result = await db
 		.prepare(
 			`UPDATE notification_contacts
@@ -159,9 +162,12 @@ export async function recordConfirmSent(
 /**
  * Flip to `confirmed` iff `tokenHash` matches the stored token hash, clearing
  * the token so it cannot be replayed (single-use). Returns whether the flip
- * happened. The provided token is compared in constant time; the conditional
- * UPDATE re-checks the stored hash and `unconfirmed` state to close the
- * read-then-write race, so a stale token can never flip a declined/confirmed row.
+ * happened. The provided token is compared in constant time against the stored
+ * hash — or a fixed-length dummy when the row is missing or has no token — so
+ * elapsed time never reveals whether the recipient or a pending token exists.
+ * The conditional UPDATE re-checks the stored hash and `unconfirmed` state to
+ * close the read-then-write race, so a stale token can never flip a
+ * declined/confirmed row.
  */
 export async function confirmContact(
 	db: D1Database,
@@ -173,8 +179,9 @@ export async function confirmContact(
 		.prepare(`SELECT confirm_token_hash FROM notification_contacts WHERE recipient_hash = ?`)
 		.bind(recipientHashValue)
 		.first<{ confirm_token_hash: string | null }>();
-	if (!row || row.confirm_token_hash === null) return false;
-	if (!constantTimeEqual(row.confirm_token_hash, tokenHash)) return false;
+	const stored = row?.confirm_token_hash ?? ABSENT_TOKEN_HASH;
+	const matches = constantTimeEqual(stored, tokenHash);
+	if (!row || row.confirm_token_hash === null || !matches) return false;
 	const result = await db
 		.prepare(
 			`UPDATE notification_contacts
@@ -186,16 +193,22 @@ export async function confirmContact(
 	return result.meta.changes > 0;
 }
 
-/** Mark the contact `declined`, clearing any outstanding confirm token. */
-export async function declineContact(db: D1Database, recipientHashValue: string): Promise<void> {
-	await db
+/**
+ * Decline the pending confirmation, clearing any outstanding token. Only touches
+ * an `unconfirmed` contact — a confirmed opt-in is never revoked here (that goes
+ * through {@link suppress}), so an unsubscribe-path bug can't downgrade it.
+ * Returns whether a row was updated.
+ */
+export async function declineContact(db: D1Database, recipientHashValue: string): Promise<boolean> {
+	const result = await db
 		.prepare(
 			`UPDATE notification_contacts
 			 SET confirm_state = 'declined', confirm_token_hash = NULL
-			 WHERE recipient_hash = ?`,
+			 WHERE recipient_hash = ? AND confirm_state = 'unconfirmed'`,
 		)
 		.bind(recipientHashValue)
 		.run();
+	return result.meta.changes > 0;
 }
 
 export async function isSuppressed(db: D1Database, recipientHashValue: string): Promise<boolean> {
@@ -263,6 +276,13 @@ function toHex(buffer: ArrayBuffer): string {
 	}
 	return hex;
 }
+
+/**
+ * Stand-in stored hash for `confirmContact` when the row or token is absent, so
+ * the constant-time compare always runs. 64 hex chars — the SHA-256 token-hash
+ * length — so the length guard never short-circuits for a well-formed token.
+ */
+const ABSENT_TOKEN_HASH = "0".repeat(64);
 
 /** Length-guarded XOR compare for the fixed-length hex token hashes. */
 function constantTimeEqual(a: string, b: string): boolean {
