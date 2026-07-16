@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
@@ -37,6 +37,12 @@ let onRequest: typeof import("../../../src/astro/middleware/auth.js").onRequest;
 beforeAll(async () => {
 	vi.stubEnv("DEV", false);
 	({ onRequest } = await import("../../../src/astro/middleware/auth.js"));
+});
+
+// Restore env stubs so `import.meta.env.DEV` does not leak into other test
+// files sharing this Vitest worker.
+afterAll(() => {
+	vi.unstubAllEnvs();
 });
 
 function createContext(path: string, isPublic: boolean) {
