@@ -100,6 +100,52 @@ function context(email: string | null, sender: RecordingSender, now?: () => Date
 	};
 }
 
+/**
+ * Wraps a D1Database so that `flip` runs exactly once, during the per-DID
+ * distinct-recipient count — which the send path runs AFTER reading the contact
+ * state but BEFORE stamping the token. That is the deterministic seam for the
+ * contact_state_changed abort: a fake sender / aggregator fires too early or too
+ * late, so a mid-query DB side effect is the only way to flip the contact at that
+ * exact point. Only `prepare` and the count statement's `first` are intercepted;
+ * everything else delegates to the real database.
+ */
+function dbFlippingContactDuringCount(real: D1Database, flip: () => Promise<void>): D1Database {
+	let fired = false;
+	const wrapStatement = (stmt: D1PreparedStatement, isTarget: boolean): D1PreparedStatement =>
+		new Proxy(stmt, {
+			get(target, prop, receiver) {
+				if (prop === "bind") {
+					return (...args: unknown[]) =>
+						wrapStatement(
+							(target.bind as (...a: unknown[]) => D1PreparedStatement)(...args),
+							isTarget,
+						);
+				}
+				if (prop === "first" && isTarget) {
+					return async (...args: unknown[]) => {
+						if (!fired) {
+							fired = true;
+							await flip();
+						}
+						return (target.first as (...a: unknown[]) => unknown)(...args);
+					};
+				}
+				const value = Reflect.get(target, prop, receiver);
+				return typeof value === "function" ? value.bind(target) : value;
+			},
+		});
+	return new Proxy(real, {
+		get(target, prop, receiver) {
+			if (prop === "prepare") {
+				return (query: string) =>
+					wrapStatement(target.prepare(query), query.includes("COUNT(DISTINCT recipient_hash)"));
+			}
+			const value = Reflect.get(target, prop, receiver);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+}
+
 function request(did: string, sourceId: string): NotificationRequest {
 	return {
 		source: { type: "issuance", id: sourceId },
@@ -460,6 +506,47 @@ describe("unconfirmed contact — double opt-in", () => {
 		const rows = await rowsForSource(sourceId);
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.state).toBe("sent");
+	});
+
+	it("aborts with no ledger row when the contact leaves unconfirmed mid-send", async () => {
+		const email = uniq("midflip") + "@example.test";
+		const hash = await recipientHash(PEPPER, email);
+		const did = uniq("did:plc:midflip");
+		const sender = recordingSender();
+		const sourceId = uniq("src");
+
+		// Flip the contact to declined during the per-DID count — after the state read,
+		// before the token stamp — so recordConfirmSent aborts the send.
+		const ctx: SendContext = {
+			db: dbFlippingContactDuringCount(db(), async () => {
+				await declineContact(db(), hash);
+			}),
+			aggregator: aggregatorFor(email),
+			pepper: PEPPER,
+			sender,
+			origin: ORIGIN,
+			now: () => new Date(4_000_000),
+		};
+
+		const outcome = await sendNotification(ctx, request(did, sourceId));
+
+		expect(outcome).toEqual({
+			status: "skipped",
+			recipientHash: hash,
+			reason: "contact_state_changed",
+		});
+		expect(sender.confirmations).toHaveLength(0);
+		// The aborted mail consumed no per-DID budget...
+		expect(await ledgerCount(did)).toBe(0);
+		// ...and the claimed row is retired undeliverable, with sent_at left NULL.
+		const rows = await rowsForSource(sourceId);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			kind: "confirmation",
+			state: "undeliverable",
+			last_error: "contact_state_changed",
+		});
+		expect(rows[0]?.sent_at).toBeNull();
 	});
 });
 

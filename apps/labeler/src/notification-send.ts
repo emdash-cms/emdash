@@ -167,14 +167,16 @@ export async function sendNotification(
 	const nowIso = nowDate.toISOString();
 	const nowMs = nowDate.getTime();
 
-	await ensureContact(ctx.db, hash, nowIso);
-	const state = await getContactState(ctx.db, hash);
-
+	// Suppression is checked BEFORE ensureContact (matching seedPublisherContact),
+	// so a suppressed address is never seeded with an unconfirmed contact row.
 	if (await isSuppressed(ctx.db, hash)) {
 		await recordUndeliverable(ctx.db, request.source, "notice", hash, "suppressed", nowDate);
 		logSend(request.target.did, "suppressed", hash);
 		return { status: "suppressed", recipientHash: hash };
 	}
+
+	await ensureContact(ctx.db, hash, nowIso);
+	const state = await getContactState(ctx.db, hash);
 
 	if (state === null || state.confirmState === "declined") {
 		if (state?.confirmState === "declined") {
@@ -238,9 +240,10 @@ async function sendConfirmationMail(
 	// cap guarantees that — so it admits a few extra distinct victims, it never
 	// bombs anyone). Exact enforcement needs a serialized claim (a Durable Object)
 	// and is deferred to slice 2. The gate returns before any write, so a sustained
-	// DID email-bomb costs no rows; the ledger is written only after a successful
-	// claim (an actual first-ever mail), so a repeat trigger for an already-mailed
-	// address writes nothing and cannot bloat the ledger or falsely trip the cap.
+	// DID email-bomb costs no rows; the ledger is written only once the token is
+	// stamped and the mail is about to go out, so neither an already-mailed repeat
+	// (blocked at the claim) nor a contact_state_changed abort (blocked at the
+	// stamp) leaves a ledger row eating a distinct-recipient slot.
 	const sinceMs = now.ms - CONFIRM_DID_WINDOW_MS;
 	const distinctRecipients = await countDistinctConfirmRecipients(
 		ctx.db,
@@ -276,8 +279,6 @@ async function sendConfirmationMail(
 		return { status: "already_mailed", recipientHash: hash };
 	}
 
-	await recordConfirmLedgerEntry(ctx.db, request.target.did, hash, now.ms);
-
 	const token = generateConfirmToken();
 	const tokenHash = await hashConfirmToken(token);
 	const recorded = await recordConfirmSent(ctx.db, hash, tokenHash, now.ms);
@@ -285,10 +286,15 @@ async function sendConfirmationMail(
 		// The claim already enforced the lifetime cap and concurrency; a false here
 		// is only the contact leaving `unconfirmed` between the state read and this
 		// stamp. Retire the claimed row rather than mail a dead-token confirmation.
-		await markRowUndeliverable(ctx.db, id, "contact_state_changed", now.date);
+		// No ledger row was written, so the aborted mail consumes no per-DID budget.
+		await markRowUndeliverable(ctx.db, id, "contact_state_changed");
 		logSend(request.target.did, "skipped:contact_state_changed", hash);
 		return { status: "skipped", recipientHash: hash, reason: "contact_state_changed" };
 	}
+
+	// Ledger only now — after a stamped token, before the send. A failed SEND still
+	// consumes budget (the conservative fail-safe), but an abort above does not.
+	await recordConfirmLedgerEntry(ctx.db, request.target.did, hash, now.ms);
 
 	const result = await ctx.sender.sendConfirmation({
 		to: email,
@@ -428,20 +434,16 @@ async function recordUndeliverable(
 }
 
 /** Flip an already-claimed pending row to `undeliverable`, clearing plaintext.
- * Used when the contact left `unconfirmed` in the race after the claim. */
-async function markRowUndeliverable(
-	db: D1Database,
-	id: string,
-	reason: string,
-	now: Date,
-): Promise<void> {
+ * Used when the contact left `unconfirmed` in the race after the claim. Leaves
+ * `sent_at` NULL — the mail was never handed to a provider. */
+async function markRowUndeliverable(db: D1Database, id: string, reason: string): Promise<void> {
 	await db
 		.prepare(
 			`UPDATE notifications
-			 SET state = 'undeliverable', last_error = ?, plaintext_email = NULL, sent_at = ?
+			 SET state = 'undeliverable', last_error = ?, plaintext_email = NULL
 			 WHERE id = ? AND state = 'pending'`,
 		)
-		.bind(reason, now.toISOString(), id)
+		.bind(reason, id)
 		.run();
 }
 
