@@ -1,3 +1,4 @@
+import type { AggregatorGetPublisherVerification } from "@emdash-cms/registry-lexicons";
 import { createLabelSigner, type LabelSigner } from "@emdash-cms/registry-moderation";
 import { applyD1Migrations, env } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -8,7 +9,7 @@ import {
 	HISTORY_FINDING_CATEGORIES,
 	validateFindings,
 } from "../src/findings.js";
-import { analyzeHistory } from "../src/history-context.js";
+import { analyzeHistory, type PublisherVerificationReader } from "../src/history-context.js";
 import { MODERATION_POLICY } from "../src/policy.js";
 import { issueManualLabel } from "../src/service.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
@@ -287,4 +288,96 @@ describe("analyzeHistory", () => {
 			}),
 		).resolves.toEqual([]);
 	});
+
+	it("reports the publisher's verification state read from the aggregator", async () => {
+		const did = "did:plc:verified0000000000000000";
+		const subject = await seedSubject(did, "verified");
+		const reader = readerReturning(
+			verificationView([
+				{ issuer: "did:plc:issuerA00000000000000000", handle: "pub.example" },
+				{ issuer: "did:plc:issuerB00000000000000000", handle: "pub.example" },
+			]),
+		);
+
+		const findings = await analyzeHistory(
+			testEnv.DB,
+			assessmentFor({ uri: subject.uri, cid: subject.cid }),
+			{ src: LABELER_DID, aggregator: reader },
+		);
+
+		const verification = findings.find((f) => f.category === "publisher-verification");
+		expect(verification).toBeDefined();
+		expect(verification!.source).toBe("history");
+		// Issuer identities are indexed from public records but stay out of the
+		// public-facing fields, consistent with the other history findings.
+		expect(verification!.title).not.toContain("did:plc:issuerA00000000000000000");
+		expect(verification!.publicSummary).not.toContain("did:plc:issuerA00000000000000000");
+		expect(verification!.privateDetail).toContain("did:plc:issuerA00000000000000000");
+		expect(verification!.privateDetail).toContain("2 issuers");
+
+		// The orchestrator validates every stage's output; the verification
+		// category must be admitted by the amended validator.
+		const validated = validateFindings(findings, {
+			allowedCategories: allowedFindingCategories(MODERATION_POLICY),
+			resolvableEvidenceIds: new Set(),
+		});
+		expect(validated.some((f) => f.category === "publisher-verification")).toBe(true);
+	});
+
+	it("omits a verification finding for an unverified publisher (no indexed claims)", async () => {
+		const did = "did:plc:unverified00000000000000";
+		const subject = await seedSubject(did, "unverified");
+		const reader = readerReturning(verificationView([]));
+
+		const findings = await analyzeHistory(
+			testEnv.DB,
+			assessmentFor({ uri: subject.uri, cid: subject.cid }),
+			{ src: LABELER_DID, aggregator: reader },
+		);
+
+		expect(findings.find((f) => f.category === "publisher-verification")).toBeUndefined();
+	});
+
+	it("preserves the own-D1 findings when the aggregator verification read fails", async () => {
+		const did = "did:plc:aggfail00000000000000000";
+		const current = await seedSubject(did, "aggfail-current");
+		await seedSubject(did, "aggfail-older");
+		const reader: PublisherVerificationReader = {
+			getPublisherVerification: () => Promise.reject(new Error("aggregator unreachable")),
+		};
+
+		const findings = await analyzeHistory(
+			testEnv.DB,
+			assessmentFor({ uri: current.uri, cid: current.cid }),
+			{ src: LABELER_DID, aggregator: reader },
+		);
+
+		// The own-D1 prior-releases finding survives; the failed aggregator read
+		// contributes nothing and never throws.
+		expect(findings.find((f) => f.category === "publisher-history")).toBeDefined();
+		expect(findings.find((f) => f.category === "publisher-verification")).toBeUndefined();
+	});
 });
+
+type VerificationView = AggregatorGetPublisherVerification.$output;
+
+function verificationView(
+	claims: Array<{ issuer: string; handle: string; expiresAt?: string }>,
+): VerificationView {
+	return {
+		did: "did:plc:viewsubject0000000000000",
+		verifications: claims.map((claim) => ({
+			issuer: claim.issuer,
+			handle: claim.handle,
+			displayName: "Publisher",
+			createdAt: "2026-03-01T00:00:00.000Z",
+			indexedAt: "2026-03-01T00:00:00.000Z",
+			...(claim.expiresAt !== undefined ? { expiresAt: claim.expiresAt } : {}),
+		})),
+		labels: [],
+	} as VerificationView;
+}
+
+function readerReturning(view: VerificationView | null): PublisherVerificationReader {
+	return { getPublisherVerification: () => Promise.resolve(view) };
+}

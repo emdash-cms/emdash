@@ -1,0 +1,35 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.aggregator.getPublisherVerification",
+	"description": "Get the verification state indexed for a publisher DID. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"description": "Returns the non-tombstoned verification claims naming `did` as subject, as operator/display context. Returns an empty `verifications` array when the DID has no indexed claims. Returns NotFound only when the DID is redacted by a labeler the request accepts (the atproto-accept-labelers negotiation applies, same as the other read endpoints); a request that opts out of redaction with a blank header always gets the view.",
+			"parameters": {
+				"type": "params",
+				"required": ["did"],
+				"properties": {
+					"did": {
+						"type": "string",
+						"format": "did",
+						"description": "Subject publisher DID."
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "ref",
+					"ref": "com.emdashcms.experimental.aggregator.defs#publisherVerificationView"
+				}
+			},
+			"errors": [
+				{
+					"name": "NotFound",
+					"description": "The publisher DID is redacted by a labeler the request accepts. Indistinguishable from absence by design."
+				}
+			]
+		}
+	}
+}

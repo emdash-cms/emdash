@@ -39,11 +39,13 @@ export default defineConfig({
 				// through the real binding: the package view carries only url-only
 				// contacts (tiers 1-2 miss) and the publisher view carries a
 				// security-kind email (tier 3 hits), so one resolution walks the
-				// full tier chain across the binding hop. Any other path still fails
-				// loud (501) and echoes the inbound atproto-accept-labelers header
-				// as a marker, so a binding-transport test can prove the client's
-				// blank value survives the hop (a dropped empty header reads
-				// `absent`, not `empty`).
+				// full tier chain across the binding hop. It also serves a canned
+				// getPublisherVerification view so a consumer-wiring test can drive
+				// AggregatorClient over the real binding end-to-end (W8.4 slice 3).
+				// Any other path still fails loud (501) and echoes the inbound
+				// atproto-accept-labelers header as a marker, so a binding-transport
+				// test can prove the client's blank value survives the hop (a
+				// dropped empty header reads `absent`, not `empty`).
 				serviceBindings: {
 					AGGREGATOR: (request) => {
 						const path = new URL(request.url).pathname;
@@ -85,6 +87,29 @@ export default defineConfig({
 						}
 						const raw = request.headers.get("atproto-accept-labelers");
 						const marker = raw === null ? "absent" : raw === "" ? "empty" : `value:${raw}`;
+						const url = new URL(request.url);
+						if (
+							url.pathname ===
+							"/xrpc/com.emdashcms.experimental.aggregator.getPublisherVerification"
+						) {
+							const did = url.searchParams.get("did") ?? "did:plc:unknown";
+							return Response.json(
+								{
+									did,
+									verifications: [
+										{
+											issuer: "did:plc:issuerstub00000000000000",
+											handle: "stub.example",
+											displayName: "Stub Publisher",
+											createdAt: "2026-03-01T00:00:00.000Z",
+											indexedAt: "2026-03-01T00:00:00.000Z",
+										},
+									],
+									labels: [],
+								},
+								{ headers: { "x-test-accept-labelers": marker } },
+							);
+						}
 						return new Response("AGGREGATOR is stubbed in tests", {
 							status: 501,
 							headers: { "x-test-accept-labelers": marker },

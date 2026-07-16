@@ -165,6 +165,74 @@
 					}
 				}
 			}
+		},
+		"verificationClaimView": {
+			"type": "object",
+			"description": "One verification claim the aggregator has indexed for a subject: an issuer DID vouching for the subject as a trusted publisher, bound to the subject's handle and publisher-profile displayName at issuance. Whether the claim is currently in force (handle and displayName still match, and it has not expired) is a read-time concern; this view reports the facts as indexed.",
+			"required": ["issuer", "handle", "displayName", "createdAt", "indexedAt"],
+			"properties": {
+				"issuer": {
+					"type": "string",
+					"format": "did",
+					"description": "DID of the repo that issued the verification."
+				},
+				"handle": {
+					"type": "string",
+					"format": "handle",
+					"description": "Subject handle bound at issuance."
+				},
+				"displayName": {
+					"type": "string",
+					"description": "Subject publisher-profile displayName bound at issuance.",
+					"maxLength": 1024,
+					"maxGraphemes": 100
+				},
+				"createdAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "When the verification was issued."
+				},
+				"expiresAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "Optional expiry. Absent means no automatic expiry."
+				},
+				"indexedAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "When the aggregator first indexed this verification."
+				}
+			}
+		},
+		"publisherVerificationView": {
+			"type": "object",
+			"description": "An aggregator's view of the verification state indexed for a publisher DID: the non-tombstoned verification claims naming it as subject. Returns an empty `verifications` array for a DID with no indexed claims (an unverified publisher) — distinct from NotFound, which means the DID is redacted by a labeler the request accepts.",
+			"required": ["did", "verifications"],
+			"properties": {
+				"did": {
+					"type": "string",
+					"format": "did",
+					"description": "Subject publisher DID the verification state is for."
+				},
+				"verifications": {
+					"type": "array",
+					"description": "Non-tombstoned verification claims naming this DID as subject, newest issuance first.",
+					"maxLength": 100,
+					"items": {
+						"type": "ref",
+						"ref": "com.emdashcms.experimental.aggregator.defs#verificationClaimView"
+					}
+				},
+				"labels": {
+					"type": "array",
+					"description": "Hydrated labels applying to this publisher DID, per the labelers the request asked for via the atproto-accept-labelers header.",
+					"maxLength": 64,
+					"items": {
+						"type": "ref",
+						"ref": "com.atproto.label.defs#label"
+					}
+				}
+			}
 		}
 	}
 }

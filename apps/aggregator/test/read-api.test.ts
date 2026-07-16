@@ -250,6 +250,43 @@ async function seedLabelState(opts: {
 		.run();
 }
 
+interface SeedVerificationOpts {
+	issuerDid?: string;
+	rkey?: string;
+	subjectDid?: string;
+	handle?: string;
+	displayName?: string;
+	createdAt?: string;
+	expiresAt?: string | null;
+	indexedAt?: string;
+	tombstoned?: boolean;
+}
+
+async function seedVerification(opts: SeedVerificationOpts = {}): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO publisher_verifications
+		   (issuer_did, rkey, subject_did, subject_handle, subject_display_name,
+		    created_at, expires_at, record_blob, signature_metadata, verified_at,
+		    indexed_at, tombstoned_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	)
+		.bind(
+			opts.issuerDid ?? DID_B,
+			opts.rkey ?? "3kaverifyrkey000",
+			opts.subjectDid ?? DID_A,
+			opts.handle ?? "publisher.example",
+			opts.displayName ?? "Publisher",
+			opts.createdAt ?? NOW.toISOString(),
+			opts.expiresAt === undefined ? null : opts.expiresAt,
+			new Uint8Array([0xc1, 0xc2, 0xc3]),
+			JSON.stringify({ cid: "bafyverif" }),
+			NOW.toISOString(),
+			opts.indexedAt ?? NOW.toISOString(),
+			opts.tombstoned ? NOW.toISOString() : null,
+		)
+		.run();
+}
+
 /** An expiry that is an hour in the past as an instant, rendered with a
  * +14:00 offset so its raw string compares lexically AFTER the current UTC
  * timestamp — the case that text comparison gets wrong. */
@@ -1106,5 +1143,110 @@ describe("XRPC dispatcher", () => {
 	it("returns 404 on unknown XRPC NSIDs", async () => {
 		const res = await SELF.fetch("https://test/xrpc/com.example.notARealEndpoint");
 		expect(res.status).toBe(404);
+	});
+});
+
+describe("getPublisherVerification", () => {
+	it("returns the verification claims naming a DID as subject, newest first", async () => {
+		await seedVerification({
+			issuerDid: DID_B,
+			rkey: "3kolder000000000",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			handle: "pub.example",
+			displayName: "Pub",
+		});
+		await seedVerification({
+			issuerDid: DID_B,
+			rkey: "3knewer000000000",
+			createdAt: "2026-03-01T00:00:00.000Z",
+			handle: "pub.example",
+			displayName: "Pub",
+			expiresAt: "2027-01-01T00:00:00.000Z",
+		});
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPublisherVerification}?did=${DID_A}`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			did: string;
+			labels: unknown[];
+			verifications: Array<Record<string, unknown>>;
+		};
+		expect(body.did).toBe(DID_A);
+		expect(body.labels).toEqual([]);
+		expect(body.verifications).toHaveLength(2);
+		// created_at DESC — the March claim comes first.
+		expect(body.verifications[0]).toMatchObject({
+			issuer: DID_B,
+			handle: "pub.example",
+			displayName: "Pub",
+			createdAt: "2026-03-01T00:00:00.000Z",
+			expiresAt: "2027-01-01T00:00:00.000Z",
+			indexedAt: NOW.toISOString(),
+		});
+		// The older claim has no expiry — expiresAt is omitted, not null.
+		expect(body.verifications[1]).not.toHaveProperty("expiresAt");
+	});
+
+	it("returns an empty verifications array for a DID with no claims (not a 404)", async () => {
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPublisherVerification}?did=${DID_A}`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { did: string; verifications: unknown[] };
+		expect(body.verifications).toEqual([]);
+	});
+
+	it("excludes tombstoned claims", async () => {
+		await seedVerification({ rkey: "3klive0000000000" });
+		await seedVerification({ rkey: "3kdead0000000000", tombstoned: true });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPublisherVerification}?did=${DID_A}`,
+		);
+		const body = (await res.json()) as { verifications: unknown[] };
+		expect(body.verifications).toHaveLength(1);
+	});
+
+	it("returns 400 InvalidRequest when the did param is missing", async () => {
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisherVerification}`);
+		expect(res.status).toBe(400);
+	});
+
+	it("sets Cache-Control: private, no-store on success", async () => {
+		await seedVerification();
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPublisherVerification}?did=${DID_A}`,
+		);
+		expect(res.headers.get("cache-control")).toBe("private, no-store");
+	});
+
+	it("404s (redacted) when a default-accepted source's !takedown covers the DID", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedVerification();
+		await seedLabelState({ uri: DID_A, val: "!takedown" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPublisherVerification}?did=${DID_A}`,
+		);
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toBe("NotFound");
+	});
+
+	it("serves the view unfiltered for a blank accept-labelers header despite an active takedown", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedVerification();
+		await seedLabelState({ uri: DID_A, val: "!takedown" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPublisherVerification}?did=${DID_A}`,
+			{ headers: { "atproto-accept-labelers": "" } },
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { verifications: unknown[]; labels: unknown[] };
+		expect(body.verifications).toHaveLength(1);
+		expect(body.labels).toEqual([]);
 	});
 });

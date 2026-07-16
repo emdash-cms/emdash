@@ -72,6 +72,21 @@ const RELEASE_VIEW = {
 	labels: [],
 };
 
+const PUBLISHER_VERIFICATION_VIEW = {
+	did: "did:plc:abc123",
+	verifications: [
+		{
+			issuer: "did:plc:issuer0000000000000000000",
+			handle: "ada.example",
+			displayName: "Ada",
+			createdAt: "2026-03-01T00:00:00.000Z",
+			expiresAt: "2027-03-01T00:00:00.000Z",
+			indexedAt: "2026-03-01T00:00:00.000Z",
+		},
+	],
+	labels: [],
+};
+
 describe("AggregatorClient.getPackage", () => {
 	it("builds the getPackage URL with URL-encoded params and parses the view", async () => {
 		const { fetcher, urls } = mockFetcher(() => jsonResponse(PACKAGE_VIEW));
@@ -172,6 +187,39 @@ describe("AggregatorClient.listReleases", () => {
 	});
 });
 
+describe("AggregatorClient.getPublisherVerification", () => {
+	it("builds the getPublisherVerification URL and parses the view", async () => {
+		const { fetcher, urls } = mockFetcher(() => jsonResponse(PUBLISHER_VERIFICATION_VIEW));
+		const view = await new AggregatorClient(fetcher).getPublisherVerification("did:plc:abc123");
+
+		expect(urls).toEqual([
+			`${BASE}/com.emdashcms.experimental.aggregator.getPublisherVerification?did=did%3Aplc%3Aabc123`,
+		]);
+		expect(view).toEqual(PUBLISHER_VERIFICATION_VIEW);
+	});
+
+	it("returns null on a NotFound (404) error (redacted DID)", async () => {
+		const { fetcher } = mockFetcher(() => notFoundResponse());
+		const view = await new AggregatorClient(fetcher).getPublisherVerification("did:plc:redacted");
+		expect(view).toBeNull();
+	});
+
+	it("sends a blank atproto-accept-labelers header to opt out of default redaction", async () => {
+		const { fetcher, inits } = mockFetcher(() => jsonResponse(PUBLISHER_VERIFICATION_VIEW));
+		await new AggregatorClient(fetcher).getPublisherVerification("did:plc:abc123");
+
+		const headers = new Headers(inits[0]?.headers);
+		expect(headers.get("atproto-accept-labelers")).toBe("");
+	});
+
+	it("throws on a 5xx response", async () => {
+		const { fetcher } = mockFetcher(() => new Response("upstream boom", { status: 500 }));
+		await expect(
+			new AggregatorClient(fetcher).getPublisherVerification("did:plc:abc123"),
+		).rejects.toThrow(/getPublisherVerification failed: 500/);
+	});
+});
+
 describe("AggregatorClient param encoding", () => {
 	it("percent-encodes reserved characters so they cannot alter the query", async () => {
 		const { fetcher, urls } = mockFetcher(() => jsonResponse(PACKAGE_VIEW));
@@ -194,5 +242,22 @@ describe("AGGREGATOR binding transport", () => {
 			headers: { "atproto-accept-labelers": "" },
 		});
 		expect(response.headers.get("x-test-accept-labelers")).toBe("empty");
+	});
+
+	// Drives the real binding through AggregatorClient (not an injected mock
+	// Fetcher): proves the getPublisherVerification method reaches the bound
+	// Worker, sends the blank accept-labelers header across the hop, and parses
+	// the view. The vitest AGGREGATOR stub serves the canned view.
+	it("reads publisher verification state through the real AGGREGATOR binding", async () => {
+		const view = await new AggregatorClient(env.AGGREGATOR).getPublisherVerification(
+			"did:plc:abc123",
+		);
+		expect(view).not.toBeNull();
+		expect(view?.did).toBe("did:plc:abc123");
+		expect(view?.verifications).toHaveLength(1);
+		expect(view?.verifications[0]).toMatchObject({
+			issuer: "did:plc:issuerstub00000000000000",
+			handle: "stub.example",
+		});
 	});
 });

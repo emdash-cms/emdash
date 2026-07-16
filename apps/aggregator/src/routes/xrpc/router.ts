@@ -26,6 +26,7 @@ import {
 	AggregatorGetLatestRelease,
 	AggregatorGetPackage,
 	AggregatorGetPublisher,
+	AggregatorGetPublisherVerification,
 	AggregatorListReleases,
 	AggregatorResolvePackage,
 	AggregatorSearchPackages,
@@ -34,6 +35,7 @@ import {
 import { getLatestRelease } from "./getLatestRelease.js";
 import { getPackage } from "./getPackage.js";
 import { getPublisher } from "./getPublisher.js";
+import { getPublisherVerification } from "./getPublisherVerification.js";
 import { listReleases } from "./listReleases.js";
 import { resolveRequestLabelerPolicy } from "./request-policy.js";
 import { resolvePackage } from "./resolvePackage.js";
@@ -175,6 +177,9 @@ function createRouter(env: Env): XRPCRouter {
 	});
 	router.addQuery(AggregatorGetPublisher.mainSchema, {
 		handler: ({ params, request }) => getPublisher(env, params, request),
+	});
+	router.addQuery(AggregatorGetPublisherVerification.mainSchema, {
+		handler: ({ params, request }) => getPublisherVerification(env, params, request),
 	});
 	return router;
 }

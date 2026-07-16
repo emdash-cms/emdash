@@ -357,6 +357,77 @@ function synthesizePackageRelease(row: ReleaseRow): Record<string, unknown> {
 	return release;
 }
 
+/** Subset of columns from `publisher_verifications` we read for
+ * `verificationClaimView`. */
+export interface PublisherVerificationRow {
+	issuer_did: string;
+	subject_handle: string;
+	subject_display_name: string;
+	created_at: string;
+	expires_at: string | null;
+	indexed_at: string | null;
+	verified_at: string;
+}
+
+const PUBLISHER_VERIFICATION_VIEW_COLUMN_NAMES = [
+	"issuer_did",
+	"subject_handle",
+	"subject_display_name",
+	"created_at",
+	"expires_at",
+	"indexed_at",
+	"verified_at",
+] as const;
+
+/** SELECT-clause string for `PublisherVerificationRow`, optionally prefixed
+ * for JOINs. */
+export function publisherVerificationColumns(prefix = ""): string {
+	return PUBLISHER_VERIFICATION_VIEW_COLUMN_NAMES.map((c) => `${prefix}${c}`).join(", ");
+}
+
+/**
+ * Map the `publisher_verifications` rows naming `did` as subject to the
+ * lexicon's `publisherVerificationView`. `labels` are hydrated by the caller
+ * (the publisher DID subject) and passed in; an empty `rows` is a valid view
+ * (an unverified publisher), distinct from the caller throwing NotFound for a
+ * redacted DID.
+ */
+export function publisherVerificationView(
+	did: string,
+	rows: PublisherVerificationRow[],
+	labels: LabelView[] = [],
+): AggregatorDefs.PublisherVerificationView {
+	return {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- `did` is the route param, validated as a DID by the lexicon
+		did: did as `did:${string}:${string}`,
+		verifications: rows.map(verificationClaimView),
+		labels: toLexiconVerificationLabels(capLabels(labels, did)),
+	};
+}
+
+function verificationClaimView(
+	row: PublisherVerificationRow,
+): AggregatorDefs.VerificationClaimView {
+	const claim: AggregatorDefs.VerificationClaimView = {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- issuer_did is consumer-validated at ingest time
+		issuer: row.issuer_did as `did:${string}:${string}`,
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- subject_handle is consumer-validated at ingest time
+		handle: row.subject_handle as AggregatorDefs.VerificationClaimView["handle"],
+		displayName: row.subject_display_name,
+		createdAt: row.created_at,
+		indexedAt: row.indexed_at ?? row.verified_at,
+	};
+	if (row.expires_at !== null) claim.expiresAt = row.expires_at;
+	return claim;
+}
+
+function toLexiconVerificationLabels(
+	labels: LabelView[],
+): AggregatorDefs.PublisherVerificationView["labels"] {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion
+	return labels as AggregatorDefs.PublisherVerificationView["labels"];
+}
+
 function parseJsonArray(json: string): unknown[] {
 	try {
 		const parsed: unknown = JSON.parse(json);
