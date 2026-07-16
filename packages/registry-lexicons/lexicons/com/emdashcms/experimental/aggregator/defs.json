@@ -206,7 +206,7 @@
 		},
 		"publisherVerificationView": {
 			"type": "object",
-			"description": "An aggregator's view of the verification state indexed for a publisher DID: the non-tombstoned verification claims naming it as subject. Returns an empty `verifications` array for a DID with no indexed claims (an unverified publisher) — distinct from NotFound, which means the DID is redacted by a labeler the request accepts.",
+			"description": "An aggregator's view of the verification state indexed for a publisher DID: the non-tombstoned verification claims naming it as subject. Claims are returned regardless of expiry — the caller evaluates in-force state from each claim's `expiresAt`. An empty `verifications` array means the DID has no indexed claims (an unverified publisher), or every claim's issuer is redacted for this caller — distinct from NotFound, which means the subject DID itself is redacted.",
 			"required": ["did", "verifications"],
 			"properties": {
 				"did": {

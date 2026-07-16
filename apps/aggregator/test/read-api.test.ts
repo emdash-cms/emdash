@@ -1249,4 +1249,45 @@ describe("getPublisherVerification", () => {
 		expect(body.verifications).toHaveLength(1);
 		expect(body.labels).toEqual([]);
 	});
+
+	it("drops a claim whose issuer is redacted for a default-policy caller, keeping the others", async () => {
+		const redactedIssuer = "did:plc:issuertakedown00000000000";
+		const okIssuer = "did:plc:issuerok0000000000000000";
+		await seedLabeler(LABELER_DID, true);
+		await seedVerification({ issuerDid: redactedIssuer, rkey: "3kredacted000000" });
+		await seedVerification({ issuerDid: okIssuer, rkey: "3kok000000000000" });
+		// Takedown is on the ISSUER's DID, not the subject's.
+		await seedLabelState({ uri: redactedIssuer, val: "!takedown" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPublisherVerification}?did=${DID_A}`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { verifications: Array<{ issuer: string }> };
+		// The subject is not redacted, so the view is served; only the
+		// redacted-issuer claim is filtered out.
+		expect(body.verifications).toHaveLength(1);
+		expect(body.verifications[0]?.issuer).toBe(okIssuer);
+	});
+
+	it("keeps a redacted-issuer claim for a blank accept-labelers caller (internal unfiltered read)", async () => {
+		const redactedIssuer = "did:plc:issuertakedown00000000000";
+		const okIssuer = "did:plc:issuerok0000000000000000";
+		await seedLabeler(LABELER_DID, true);
+		await seedVerification({ issuerDid: redactedIssuer, rkey: "3kredacted000000" });
+		await seedVerification({ issuerDid: okIssuer, rkey: "3kok000000000000" });
+		await seedLabelState({ uri: redactedIssuer, val: "!takedown" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPublisherVerification}?did=${DID_A}`,
+			{ headers: { "atproto-accept-labelers": "" } },
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { verifications: Array<{ issuer: string }> };
+		// Empty accepted set → nothing redacted → the labeler sees both claims.
+		expect(body.verifications).toHaveLength(2);
+		expect(body.verifications.map((v) => v.issuer).toSorted()).toEqual(
+			[okIssuer, redactedIssuer].toSorted(),
+		);
+	});
 });

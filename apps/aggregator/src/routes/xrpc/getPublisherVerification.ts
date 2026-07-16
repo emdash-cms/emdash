@@ -4,11 +4,21 @@
  * `publisher_verifications` claims naming it as subject, as operator/display
  * context.
  *
- * An empty `verifications` array is a valid 200 (an unverified publisher).
- * NotFound is returned only when the DID is redacted by a labeler the request
- * accepts — same redaction rule as `getPackage` applies to a publisher DID
- * subject, so an internal caller opting out with a blank
- * `atproto-accept-labelers` header always gets the view.
+ * Redaction runs at two scopes, because a claim is authored by its ISSUER's
+ * repo, not the subject's:
+ *   - the subject DID gates the whole view (redacted → NotFound), the same rule
+ *     `getPackage` applies to a publisher subject;
+ *   - each claim's issuer DID gates only that claim (redacted issuer → the claim
+ *     is dropped from `verifications`), so one taken-down issuer can't hide a
+ *     publisher's other, still-valid claims.
+ * An internal caller opting out with a blank `atproto-accept-labelers` header
+ * has an empty accepted set, so nothing is redacted — it reads every claim,
+ * including redacted-issuer ones, and weighs trust itself.
+ *
+ * An empty `verifications` array is a valid 200 (an unverified publisher, or one
+ * whose every claim's issuer is redacted for this caller) — a NON-redacted
+ * subject is never a 404, so 404 (redacted subject) is distinguishable from an
+ * empty result, unlike `getPackage` where absence is also a 404.
  *
  * The companion input in plan W8.4 slice 3 — recent handle/profile *changes* —
  * has no read here because the aggregator does not ingest a history of them:
@@ -57,10 +67,17 @@ export async function getPublisherVerification(
 	const rows = result.results ?? [];
 
 	const { accepted } = getRequestLabelerPolicy(request);
-	const labelsByUri = await hydrateLabels(session, accepted, [{ uri: params.did }], Date.now());
-	const labels = labelsByUri.get(params.did) ?? [];
-	if (isRedacted(labels, accepted)) {
-		// Indistinguishable from absence — that is what redaction means.
+	// One batched hydration for the subject DID plus every distinct issuer DID
+	// in the result. `hydrateLabels` chunks its `uri IN (...)` at 50, so this
+	// stays a single query unless a publisher has 50+ distinct issuers.
+	const issuerDids = [...new Set(rows.map((row) => row.issuer_did))];
+	const subjects = [params.did, ...issuerDids].map((uri) => ({ uri }));
+	const labelsByUri = await hydrateLabels(session, accepted, subjects, Date.now());
+
+	const subjectLabels = labelsByUri.get(params.did) ?? [];
+	if (isRedacted(subjectLabels, accepted)) {
+		// A redacted publisher DID hides the whole view — the caller can't tell it
+		// apart from an empty result, which is the point of redaction.
 		throw new XRPCError({
 			status: 404,
 			error: "NotFound",
@@ -68,10 +85,14 @@ export async function getPublisherVerification(
 		});
 	}
 
+	const visibleRows = rows.filter(
+		(row) => !isRedacted(labelsByUri.get(row.issuer_did) ?? [], accepted),
+	);
+
 	const view: AggregatorDefs.PublisherVerificationView = publisherVerificationView(
 		params.did,
-		rows,
-		labels,
+		visibleRows,
+		subjectLabels,
 	);
 	return json(view);
 }
