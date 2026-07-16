@@ -23,7 +23,7 @@
  * the contract, the filter pins the gate.
  */
 
-import { PuzzlePiece, Gear, Trophy, ClockCounterClockwise } from "@phosphor-icons/react";
+import { Plug, Gear, Trophy, ClockCounterClockwise } from "@phosphor-icons/react";
 import * as React from "react";
 import { describe, it, expect } from "vitest";
 
@@ -108,12 +108,12 @@ describe("toPhosphorIconName", () => {
 });
 
 describe("resolveNavIcon", () => {
-	it("falls back to PuzzlePiece when no icon is provided", () => {
+	it("falls back to Plug when no icon is provided", () => {
 		// `icon` is optional on adminPages; an omitted value is the
 		// common case and must resolve synchronously to the default
 		// (no Suspense boundary needed for the icon-less page).
-		expect(resolveNavIcon(undefined)).toBe(PuzzlePiece);
-		expect(resolveNavIcon("")).toBe(PuzzlePiece);
+		expect(resolveNavIcon(undefined)).toBe(Plug);
+		expect(resolveNavIcon("")).toBe(Plug);
 	});
 
 	it("resolves common/documented names synchronously from the static map", () => {
@@ -132,20 +132,20 @@ describe("resolveNavIcon", () => {
 		const first = resolveNavIcon("heart");
 		const second = resolveNavIcon("heart");
 		expect(first).toBe(second);
-		expect(first).not.toBe(PuzzlePiece);
+		expect(first).not.toBe(Plug);
 		expect((first as { $$typeof?: symbol }).$$typeof).toBe(Symbol.for("react.lazy"));
 	});
 
-	it("renders the PuzzlePiece fallback for a name that doesn't exist in Phosphor", async () => {
-		// The lazy path resolves `mod[componentName] ?? PuzzlePiece`. Drive
+	it("renders the Plug fallback for a name that doesn't exist in Phosphor", async () => {
+		// The lazy path resolves an unknown icon name to Plug. Drive
 		// it through a real render (not the Kumo Sidebar — just the icon) and
-		// confirm the rendered glyph IS PuzzlePiece by comparing the SVG body
+		// confirm the rendered glyph IS Plug by comparing the SVG body
 		// against a directly-rendered reference.
 		const Unknown = resolveNavIcon("definitely-not-a-real-icon-xyz");
 		const screen = await render(
 			<React.Suspense fallback={<span>loading</span>}>
 				<Unknown data-testid="resolved" />
-				<PuzzlePiece data-testid="expected" />
+				<Plug data-testid="expected" />
 			</React.Suspense>,
 		);
 		const resolved = screen.getByTestId("resolved");
