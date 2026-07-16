@@ -239,6 +239,7 @@ export function createVirtualModulesPlugin(
 					entrypoint: resolvedConfig.database?.entrypoint,
 					type: resolvedConfig.database?.type,
 					supportsRequestScope: resolvedConfig.database?.supportsRequestScope ?? false,
+					supportsCoalescing: resolvedConfig.database?.supportsCoalescing ?? false,
 				});
 			}
 			// Generate a module that statically imports the configured storage

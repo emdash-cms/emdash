@@ -37,7 +37,10 @@ describe("generateConfigModule", () => {
 
 describe("generateDialectModule", () => {
 	it("emits undefined createDialect and null stub when no entrypoint is configured", () => {
-		const out = generateDialectModule({ supportsRequestScope: false });
+		const out = generateDialectModule({
+			supportsRequestScope: false,
+			supportsCoalescing: false,
+		});
 		expect(out).toContain("export const createDialect = undefined");
 		expect(out).toContain("export const createRequestScopedDb = (_opts) => null");
 	});
@@ -47,9 +50,12 @@ describe("generateDialectModule", () => {
 			entrypoint: "some-adapter/dialect",
 			type: "sqlite",
 			supportsRequestScope: false,
+			supportsCoalescing: false,
 		});
 		expect(out).toContain(`import { createDialect as _createDialect } from "some-adapter/dialect"`);
 		expect(out).toContain("export const createRequestScopedDb = (_opts) => null");
+		expect(out).toContain("export const createCoalescingDialect = undefined");
+		expect(out).not.toContain("_dialectModule.createCoalescingDialect");
 		expect(out).not.toContain(`export { createRequestScopedDb } from`);
 	});
 
@@ -58,8 +64,13 @@ describe("generateDialectModule", () => {
 			entrypoint: "@emdash-cms/cloudflare/db/d1",
 			type: "sqlite",
 			supportsRequestScope: true,
+			supportsCoalescing: true,
 		});
 		expect(out).toContain(`export { createRequestScopedDb } from "@emdash-cms/cloudflare/db/d1"`);
+		expect(out).toContain(
+			`import { createCoalescingDialect as _createCoalescingDialect } from "@emdash-cms/cloudflare/db/d1"`,
+		);
+		expect(out).toContain("export const createCoalescingDialect = _createCoalescingDialect");
 		expect(out).not.toContain("= () => null");
 		expect(out).not.toContain("= (_opts) => null");
 	});
@@ -69,6 +80,7 @@ describe("generateDialectModule", () => {
 			entrypoint: "emdash/db/postgres",
 			type: "postgres",
 			supportsRequestScope: false,
+			supportsCoalescing: false,
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
 	});
