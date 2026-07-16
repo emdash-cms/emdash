@@ -1,6 +1,7 @@
 export * as ComEmdashcmsExperimentalAggregatorDefs from "./types/com/emdashcms/experimental/aggregator/defs.js";
 export * as ComEmdashcmsExperimentalAggregatorGetLatestRelease from "./types/com/emdashcms/experimental/aggregator/getLatestRelease.js";
 export * as ComEmdashcmsExperimentalAggregatorGetPackage from "./types/com/emdashcms/experimental/aggregator/getPackage.js";
+export * as ComEmdashcmsExperimentalAggregatorGetPublisher from "./types/com/emdashcms/experimental/aggregator/getPublisher.js";
 export * as ComEmdashcmsExperimentalAggregatorListReleases from "./types/com/emdashcms/experimental/aggregator/listReleases.js";
 export * as ComEmdashcmsExperimentalAggregatorResolvePackage from "./types/com/emdashcms/experimental/aggregator/resolvePackage.js";
 export * as ComEmdashcmsExperimentalAggregatorSearchPackages from "./types/com/emdashcms/experimental/aggregator/searchPackages.js";

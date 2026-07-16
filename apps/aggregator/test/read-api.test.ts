@@ -155,6 +155,48 @@ function releaseUri(pkg: string, version: string, did: string = DID_A): string {
 	return `at://${did}/${NSID.packageRelease}/${pkg}:${version}`;
 }
 
+function publisherUri(did: string = DID_A): string {
+	return `at://${did}/${NSID.publisherProfile}/self`;
+}
+
+interface SeedPublisherOpts {
+	did?: string;
+	displayName?: string;
+	description?: string | null;
+	url?: string | null;
+	contact?: unknown[] | null;
+	updatedAt?: string | null;
+	cid?: string;
+	indexedAt?: string;
+	verifiedAt?: string;
+}
+
+async function seedPublisher(opts: SeedPublisherOpts = {}): Promise<void> {
+	const did = opts.did ?? DID_A;
+	const indexedAt = opts.indexedAt ?? NOW.toISOString();
+	await testEnv.DB.prepare(
+		`INSERT INTO publishers
+		   (did, display_name, description, url, contact, updated_at,
+		    record_blob, signature_metadata, verified_at, indexed_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	)
+		.bind(
+			did,
+			opts.displayName ?? "Demo Publisher",
+			opts.description ?? null,
+			opts.url ?? null,
+			opts.contact === null
+				? null
+				: JSON.stringify(opts.contact ?? [{ kind: "security", email: "sec@pub.test" }]),
+			opts.updatedAt ?? null,
+			new Uint8Array([0xb1, 0xb2, 0xb3]),
+			JSON.stringify({ cid: opts.cid ?? "bafypub" }),
+			opts.verifiedAt ?? NOW.toISOString(),
+			indexedAt,
+		)
+		.run();
+}
+
 /** Seeds a `labelers` row so a DID is "available" per W4.4's resolution:
  * `trusted = 1` rows feed the missing-header default set; any row (trusted
  * or not) makes a DID acceptable when explicitly requested. */
@@ -395,6 +437,103 @@ describe("getPackage", () => {
 		expect(label).not.toHaveProperty("sig");
 		expect(label).not.toHaveProperty("neg");
 		expect(label).not.toHaveProperty("ver");
+	});
+});
+
+describe("getPublisher", () => {
+	it("returns the publisherView envelope for an indexed publisher", async () => {
+		await seedPublisher({
+			displayName: "Acme Plugin Co.",
+			description: "We make plugins",
+			url: "https://acme.test",
+			contact: [{ kind: "security", email: "security@acme.test" }],
+			updatedAt: NOW.toISOString(),
+		});
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisher}?did=${DID_A}`);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body).toMatchObject({
+			uri: publisherUri(),
+			cid: "bafypub",
+			did: DID_A,
+			indexedAt: NOW.toISOString(),
+			labels: [],
+		});
+		expect(body).not.toHaveProperty("slug");
+		const profile = body["profile"] as Record<string, unknown>;
+		expect(profile["$type"]).toBe(NSID.publisherProfile);
+		expect(profile["displayName"]).toBe("Acme Plugin Co.");
+		expect(profile["contact"]).toEqual([{ kind: "security", email: "security@acme.test" }]);
+	});
+
+	it("omits optional profile fields the publisher did not set", async () => {
+		await seedPublisher({
+			displayName: "Minimal",
+			description: null,
+			url: null,
+			contact: null,
+			updatedAt: null,
+		});
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisher}?did=${DID_A}`);
+		const body = (await res.json()) as { profile: Record<string, unknown> };
+		expect(body.profile).not.toHaveProperty("description");
+		expect(body.profile).not.toHaveProperty("url");
+		expect(body.profile).not.toHaveProperty("contact");
+		expect(body.profile).not.toHaveProperty("updatedAt");
+	});
+
+	it("returns 404 NotFound when no publisher is indexed", async () => {
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisher}?did=${DID_B}`);
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toBe("NotFound");
+	});
+
+	it("returns 400 InvalidRequest when did is missing", async () => {
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisher}`);
+		expect(res.status).toBe(400);
+	});
+
+	it("sets Cache-Control: private, no-store on success", async () => {
+		await seedPublisher();
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisher}?did=${DID_A}`);
+		expect(res.headers.get("cache-control")).toBe("private, no-store");
+	});
+
+	it("404s (redacted) when a default-accepted source's !takedown is active on the publisher DID", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPublisher();
+		await seedLabelState({ uri: DID_A, val: "!takedown" });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisher}?did=${DID_A}`);
+		expect(res.status).toBe(404);
+	});
+
+	it("404s (redacted) when the !takedown is active on the profile record URI, not the DID", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPublisher();
+		await seedLabelState({ uri: publisherUri(), val: "!takedown" });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisher}?did=${DID_A}`);
+		expect(res.status).toBe(404);
+	});
+
+	it("hydrates labels on the publisher profile record URI", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPublisher();
+		await seedLabelState({ uri: publisherUri(), val: "unverified-publisher" });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisher}?did=${DID_A}`);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { labels: Array<{ src: string; uri: string; val: string }> };
+		expect(body.labels).toContainEqual(
+			expect.objectContaining({
+				src: LABELER_DID,
+				uri: publisherUri(),
+				val: "unverified-publisher",
+			}),
+		);
 	});
 });
 

@@ -55,6 +55,7 @@ const ACCEPT_LABELERS_HEADER = "atproto-accept-labelers";
  * is therefore no path for caller data to alter the target host or path. */
 const NSID = {
 	getPackage: "com.emdashcms.experimental.aggregator.getPackage",
+	getPublisher: "com.emdashcms.experimental.aggregator.getPublisher",
 	getLatestRelease: "com.emdashcms.experimental.aggregator.getLatestRelease",
 	listReleases: "com.emdashcms.experimental.aggregator.listReleases",
 } as const;
@@ -94,6 +95,12 @@ export class AggregatorClient {
 	async getPackage(did: string, slug: string): Promise<AggregatorDefs.PackageView | null> {
 		const url = buildUrl(NSID.getPackage, { did, slug });
 		return this.#query<AggregatorDefs.PackageView>(NSID.getPackage, url);
+	}
+
+	/** Fetch the publisher profile view for `did`, or `null` if not indexed. */
+	async getPublisher(did: string): Promise<AggregatorDefs.PublisherView | null> {
+		const url = buildUrl(NSID.getPublisher, { did });
+		return this.#query<AggregatorDefs.PublisherView>(NSID.getPublisher, url);
 	}
 
 	/** Fetch the highest-precedence live release for `(did, pkg)`, or `null`
