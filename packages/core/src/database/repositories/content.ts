@@ -637,6 +637,18 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is", null)
 			.execute();
 
+		// Re-stamp the taxonomy pivot only when a denormalized column actually
+		// moved (status/publishedAt/scheduledAt). A plain content edit bumps
+		// `updated_at` — which is not denormalized — so it needs no pivot write,
+		// keeping the common edit path free of taxonomy write amplification.
+		if (
+			input.status !== undefined ||
+			input.publishedAt !== undefined ||
+			input.scheduledAt !== undefined
+		) {
+			await this.restampEntryPivot(type, id);
+		}
+
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -662,7 +674,10 @@ export class ContentRepository {
 		`.execute(this.db);
 
 		const changed = (result.numAffectedRows ?? 0n) > 0n;
-		if (changed) invalidateCollectionCache(type);
+		if (changed) {
+			await this.restampEntryPivot(type, id);
+			invalidateCollectionCache(type);
+		}
 		return changed;
 	}
 
@@ -683,8 +698,34 @@ export class ContentRepository {
 		const restored = result.rows[0];
 		if (!restored) return null;
 
+		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 		return this.mapRow(type, restored);
+	}
+
+	/**
+	 * Re-stamp the denormalized filter + sort columns on every
+	 * `content_taxonomies` pivot row for an entry from its authoritative `ec_*`
+	 * row (migration 051). Called after any mutation that moves one of those
+	 * columns so a taxonomy-filtered listing can seek the entry directly.
+	 *
+	 * A single correlated `UPDATE` reads the post-mutation values from `ec_*`, so
+	 * the pivot converges to the authoritative row. This is NOT atomic with the
+	 * `ec_*` mutation on D1 (no transactions), which is why the read path
+	 * re-checks the real predicates on the joined `ec_*` row. Untagged entries
+	 * have no pivot rows, so the statement is a cheap no-op for them.
+	 */
+	private async restampEntryPivot(type: string, id: string): Promise<void> {
+		const tableName = getTableName(type);
+		await sql`
+			UPDATE content_taxonomies
+			SET (status, scheduled_at, deleted_at, locale, published_at, created_at) = (
+				SELECT status, scheduled_at, deleted_at, locale, published_at, created_at
+				FROM ${sql.ref(tableName)}
+				WHERE ${sql.ref(tableName)}.id = ${id}
+			)
+			WHERE collection = ${type} AND entry_id = ${id}
+		`.execute(this.db);
 	}
 
 	/**
@@ -930,9 +971,7 @@ export class ContentRepository {
 			.where("author_id" as never, "is not", null)
 			.execute();
 
-		return rows
-			.map((row) => (row as { author_id: string | null }).author_id)
-			.filter((id): id is string => id !== null);
+		return rows.map((row) => row.author_id).filter((id): id is string => id !== null);
 	}
 
 	// get overall statistics for a content type in a single query
@@ -998,6 +1037,7 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1037,6 +1077,7 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1341,6 +1382,8 @@ export class ContentRepository {
 			}
 			publishCommitted = true;
 
+			await this.restampEntryPivot(type, id);
+
 			const updated = await this.findById(type, id);
 			if (!updated) {
 				throw new Error("Content not found");
@@ -1429,6 +1472,7 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);

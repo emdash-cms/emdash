@@ -10,6 +10,7 @@ export * as ComEmdashcmsExperimentalLabelerGetCurrentAssessment from "./types/co
 export * as ComEmdashcmsExperimentalLabelerGetPolicy from "./types/com/emdashcms/experimental/labeler/getPolicy.js";
 export * as ComEmdashcmsExperimentalLabelerListAssessments from "./types/com/emdashcms/experimental/labeler/listAssessments.js";
 export * as ComEmdashcmsExperimentalPackageProfile from "./types/com/emdashcms/experimental/package/profile.js";
+export * as ComEmdashcmsExperimentalPackageProfileExtension from "./types/com/emdashcms/experimental/package/profileExtension.js";
 export * as ComEmdashcmsExperimentalPackageRelease from "./types/com/emdashcms/experimental/package/release.js";
 export * as ComEmdashcmsExperimentalPackageReleaseExtension from "./types/com/emdashcms/experimental/package/releaseExtension.js";
 export * as ComEmdashcmsExperimentalPublisherProfile from "./types/com/emdashcms/experimental/publisher/profile.js";

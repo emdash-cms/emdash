@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
+import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
 import { emdashLoader } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
@@ -55,10 +56,11 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 	}
 
 	async function tag(contentId: string, taxonomyId: string) {
-		await db
-			.insertInto("content_taxonomies" as never)
-			.values({ collection: "post", entry_id: contentId, taxonomy_id: taxonomyId } as never)
-			.execute();
+		// Attach through the repository so the pivot row is stamped with the
+		// entry's denormalized filter/sort columns (migration 051) — the state the
+		// backfill and write-path re-stamp guarantee in production. The
+		// pivot-drive listing seeks on those columns.
+		await new TaxonomyRepository(db).attachToEntry("post", contentId, taxonomyId);
 	}
 
 	function load(where: Record<string, unknown>, locale?: string) {

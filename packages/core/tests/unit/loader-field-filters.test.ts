@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
+import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
 import { emdashLoader } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
@@ -264,14 +265,9 @@ describe("Loader field filters", () => {
 		const postA = await createPost("Tech Post");
 		await createPost("Other Post");
 
-		await db
-			.insertInto("content_taxonomies" as never)
-			.values({
-				collection: "post",
-				entry_id: postA.id,
-				taxonomy_id: "tax_cat_tech",
-			} as never)
-			.execute();
+		// Attach through the repository so the pivot row is stamped with the
+		// entry's denormalized filter/sort columns (migration 051).
+		await new TaxonomyRepository(db).attachToEntry("post", postA.id, "tax_cat_tech");
 
 		const loader = emdashLoader();
 		const result = await runWithContext({ editMode: false, db }, () =>

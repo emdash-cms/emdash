@@ -245,6 +245,45 @@ export type ContentWriteInput = Record<string, unknown> & {
 };
 
 /**
+ * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").
+ */
+export interface TaxonomyDefInfo {
+	name: string;
+	label: string;
+	labelSingular: string | null;
+	hierarchical: boolean;
+	/** Collections this taxonomy is attached to (e.g. `["posts"]`). */
+	collections: string[];
+	locale: string;
+}
+
+/**
+ * Taxonomy term returned from the taxonomy API. Flat shape — for hierarchical
+ * taxonomies the tree is reconstructed via `parentId` (which stores the
+ * parent's locale-agnostic `translationGroup`).
+ */
+export interface TaxonomyTermInfo {
+	id: string;
+	/** Taxonomy name this term belongs to (e.g. "category"). */
+	taxonomy: string;
+	slug: string;
+	label: string;
+	parentId: string | null;
+	/** Term metadata as edited in the admin (`description` etc.). */
+	data: Record<string, unknown> | null;
+	locale: string;
+	translationGroup: string | null;
+}
+
+/**
+ * Options accepted by taxonomy read operations. Omitting `locale` returns
+ * rows for every locale.
+ */
+export interface TaxonomyReadOptions {
+	locale?: string;
+}
+
+/**
  * Content access interface - capability-gated
  */
 export interface ContentAccess {
@@ -256,6 +295,23 @@ export interface ContentAccess {
 	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;
 	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
+}
+
+/**
+ * Taxonomy access interface — capability-gated on `taxonomies:read`.
+ * Read-only: there is no plugin-facing taxonomy write API.
+ */
+export interface TaxonomyAccess {
+	/** List taxonomy definitions. */
+	getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]>;
+	/** All terms of a taxonomy, ordered by label. */
+	getTerms(taxonomy: string, options?: TaxonomyReadOptions): Promise<TaxonomyTermInfo[]>;
+	/** Terms assigned to a content entry, optionally scoped to one taxonomy. */
+	getEntryTerms(
+		collection: string,
+		entryId: string,
+		options?: TaxonomyReadOptions & { taxonomy?: string },
+	): Promise<TaxonomyTermInfo[]>;
 }
 
 /**
@@ -412,6 +468,9 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** Content access - only if read:content or write:content capability */
 	content?: ContentAccess | ContentAccessWithWrite;
+
+	/** Taxonomy access (read-only) - only if taxonomies:read capability */
+	taxonomies?: TaxonomyAccess;
 
 	/** Media access - only if read:media or write:media capability */
 	media?: MediaAccess | MediaAccessWithWrite;

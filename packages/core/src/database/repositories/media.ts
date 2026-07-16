@@ -118,7 +118,7 @@ export class MediaRepository {
 
 		await this.db.insertInto("media").values(row).execute();
 
-		return this.rowToItem(row as MediaRow);
+		return this.rowToItem(row);
 	}
 
 	/**

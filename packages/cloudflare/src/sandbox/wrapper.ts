@@ -103,6 +103,13 @@ function createContext(env) {
 		delete: (collection, id) => bridge.contentDelete(collection, id)
 	};
 	
+	// Taxonomy access (read-only) - proxies to bridge (capability enforced by bridge)
+	const taxonomies = {
+		getAll: (opts) => bridge.taxonomyList(opts),
+		getTerms: (taxonomy, opts) => bridge.taxonomyTerms(taxonomy, opts),
+		getEntryTerms: (collection, entryId, opts) => bridge.taxonomyEntryTerms(collection, entryId, opts)
+	};
+	
 	// Media access - proxies to bridge (capability enforced by bridge)
 	const media = {
 		get: (id) => bridge.mediaGet(id),
@@ -170,6 +177,7 @@ function createContext(env) {
 		storage,
 		kv,
 		content,
+		taxonomies,
 		media,
 		http,
 		log,

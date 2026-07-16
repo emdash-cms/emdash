@@ -259,7 +259,7 @@ export function BylineFieldEditor({
 						<Select
 							label={t`Type`}
 							value={state.type}
-							onValueChange={(v) => setField("type", (v ?? "string") as BylineFieldType)}
+							onValueChange={(v) => setField("type", v ?? "string")}
 							items={Object.fromEntries(TYPE_OPTIONS.map(({ value, label }) => [value, t(label)]))}
 							disabled={isEdit}
 						/>
