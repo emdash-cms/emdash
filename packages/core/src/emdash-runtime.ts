@@ -1490,7 +1490,7 @@ export class EmDashRuntime {
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
 				cronExecutor = new CronExecutor(resolveDb, invokeCronHook);
-				// Plugin schedules are always D1-backed. On long-lived runtimes this
+				// Plugin schedules are always database-backed. On long-lived runtimes this
 				// callback also wakes the timer; on Cloudflare the external Cron Trigger
 				// drives execution, so rescheduling is intentionally a no-op.
 				pipeline.setContextFactory({

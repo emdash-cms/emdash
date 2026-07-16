@@ -34,7 +34,7 @@ function createDeps(onActivate: (hasCron: boolean) => void): RuntimeDependencies
 }
 
 describe("EmDashRuntime.handlePluginApiRoute — cron", () => {
-	it("provides D1-backed cron access without an in-process scheduler", async () => {
+	it("provides database-backed cron access without an in-process scheduler", async () => {
 		let activateHasCron = false;
 		const runtime = await EmDashRuntime.create(
 			createDeps((hasCron) => {
