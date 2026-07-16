@@ -43,6 +43,12 @@
 	"ai": {
 		"binding": "AI",
 	},
+	// Cloudflare Email Sending for publisher notifications (plan W10.5). The
+	// unrestricted binding form (no destination_address) permits arbitrary
+	// external recipients, which requires the emdashcms.com sending domain to be
+	// onboarded for Email Sending (`wrangler email sending enable`, operator
+	// prereq). Consumed via src/notification-email.ts.
+	"send_email": [{ "name": "EMAIL" }],
 	// Read-only service binding to the aggregator Worker's XRPC surface
 	// (fetch-over-binding; the aggregator is HTTP/XRPC-only, no RPC entrypoint).
 	// Consumed via src/aggregator-client.ts.
@@ -111,6 +117,9 @@
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",
 		"LABELER_SERVICE_URL": "https://labels.emdashcms.com",
+		// From-address for publisher notifications, on the onboarded Email Sending
+		// domain (plan W10.5). Consumed via src/notification-email.ts.
+		"NOTIFICATION_FROM_ADDRESS": "notifications@emdashcms.com",
 		"LABEL_SIGNING_KEY_VERSION": "v1",
 		"LABEL_SIGNING_PUBLIC_KEY": "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
 		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",

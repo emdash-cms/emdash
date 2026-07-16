@@ -46,6 +46,13 @@ import {
 	type OperatorActionType,
 } from "./mutation-guard.js";
 import {
+	notifyEmergencyTakedown,
+	notifyOperatorLabel,
+	notifyOverride,
+	notifyOverrideRetract,
+	type NotifyDeps,
+} from "./notification-triggers.js";
+import {
 	buildOperationalEventInsert,
 	buildOutboxInsert,
 	newOperationalEventId,
@@ -138,6 +145,11 @@ export interface ConsoleMutationDeps {
 	 * cannot join the D1 batch, so it runs in the deferred tail; the discovery
 	 * consumer's `runKey` dedup absorbs a duplicate re-drive. */
 	sendDiscoveryJob: (job: DiscoveryJob) => Promise<void>;
+	/** Publisher-notification deps (plan W10.5). When present, a label-affecting
+	 * operator action fires a post-commit publisher notice in the deferred tail
+	 * (never blocking or failing the label). Omitted in tests that don't exercise
+	 * notifications. */
+	notify?: NotifyDeps;
 }
 
 /**
@@ -244,6 +256,7 @@ async function runLabelMutation(
 	const outcome = await guardMutation(request, spec, guardDeps);
 	if (outcome.outcome === "replay") {
 		await assertIssuancePersisted(deps.db, [outcome.actionId]);
+		deferLabelNotify(deps, storedDescriptor<IssuedLabelDescriptor>(outcome.result));
 		return jsonData(outcome.result);
 	}
 
@@ -284,6 +297,7 @@ async function runLabelMutation(
 	const returned = await commitMutation(deps.db, ctx, spec, statements, descriptor);
 	await assertIssuancePersisted(deps.db, [returned.actionId]);
 	deps.defer(deps.afterCommit(ctx.actionId));
+	deferLabelNotify(deps, returned);
 	return jsonData(returned);
 }
 
@@ -541,6 +555,41 @@ function deferPublishAll(deps: ConsoleMutationDeps, issuanceKeys: readonly strin
 	deps.defer(Promise.all(issuanceKeys.map((key) => deps.afterCommit(key))));
 }
 
+// ─── W10.5: post-commit publisher notifications (deferred, never blocking) ────
+// Each fires only once the authoritative batch has committed. The trigger
+// swallows its own errors and dedups on the operator action id, so a replay
+// re-drives it harmlessly and a notification failure never touches the label.
+
+function deferLabelNotify(deps: ConsoleMutationDeps, d: IssuedLabelDescriptor): void {
+	if (!deps.notify) return;
+	deps.defer(
+		notifyOperatorLabel(deps.notify, {
+			actionId: d.actionId,
+			uri: d.uri,
+			...(d.cid !== null ? { cid: d.cid } : {}),
+			val: d.val,
+			neg: d.neg,
+		}),
+	);
+}
+
+function deferOverrideNotify(deps: ConsoleMutationDeps, d: OverrideDescriptor): void {
+	if (!deps.notify) return;
+	deps.defer(notifyOverride(deps.notify, { actionId: d.actionId, uri: d.uri, cid: d.cid }));
+}
+
+function deferOverrideRetractNotify(deps: ConsoleMutationDeps, d: OverrideRetractDescriptor): void {
+	if (!deps.notify) return;
+	deps.defer(notifyOverrideRetract(deps.notify, { actionId: d.actionId, uri: d.uri, cid: d.cid }));
+}
+
+function deferTakedownNotify(deps: ConsoleMutationDeps, d: EmergencyDescriptor): void {
+	if (!deps.notify) return;
+	deps.defer(
+		notifyEmergencyTakedown(deps.notify, { actionId: d.actionId, uri: d.uri, neg: d.neg }),
+	);
+}
+
 /**
  * `POST /admin/api/assessments/:id/rerun` — mints the immutable operator trigger
  * (`operator:<actionId>`), creates a fresh run for the assessment's exact URI+CID
@@ -681,6 +730,7 @@ async function runOverride(
 		const keys = overrideIssuanceKeys(stored.actionId, stored.negated, stored.issued);
 		await assertIssuancePersisted(deps.db, keys);
 		deferPublishAll(deps, keys);
+		deferOverrideNotify(deps, stored);
 		return jsonData(stored);
 	}
 
@@ -733,6 +783,7 @@ async function runOverride(
 	const committedKeys = overrideIssuanceKeys(returned.actionId, returned.negated, returned.issued);
 	await assertIssuancePersisted(deps.db, committedKeys);
 	deferPublishAll(deps, committedKeys);
+	deferOverrideNotify(deps, returned);
 	return jsonData(returned);
 }
 
@@ -761,6 +812,7 @@ async function runOverrideRetract(
 		const keys = stored.negated.map((val) => overridePieceKey(stored.actionId, val, true));
 		await assertIssuancePersisted(deps.db, keys);
 		deferPublishAll(deps, keys);
+		deferOverrideRetractNotify(deps, stored);
 		return jsonData(stored);
 	}
 
@@ -810,6 +862,7 @@ async function runOverrideRetract(
 	);
 	await assertIssuancePersisted(deps.db, committedKeys);
 	deferPublishAll(deps, committedKeys);
+	deferOverrideRetractNotify(deps, returned);
 	return jsonData(returned);
 }
 
@@ -922,6 +975,7 @@ async function runEmergencyAction(
 	if (outcome.outcome === "replay") {
 		const stored = storedDescriptor<EmergencyDescriptor>(outcome.result);
 		await assertIssuancePersisted(deps.db, [stored.actionId]);
+		if (action === "takedown") deferTakedownNotify(deps, stored);
 		return jsonData(stored);
 	}
 
@@ -988,6 +1042,7 @@ async function runEmergencyAction(
 	);
 	await assertIssuancePersisted(deps.db, [returned.actionId]);
 	deps.defer(deps.afterCommit(returned.actionId));
+	if (action === "takedown") deferTakedownNotify(deps, returned);
 	return jsonData(returned);
 }
 

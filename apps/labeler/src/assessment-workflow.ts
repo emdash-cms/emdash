@@ -33,8 +33,9 @@ import {
 	stubStages,
 	type OrchestratorStages,
 } from "./assessment-orchestrator.js";
-import { getAssessment } from "./assessment-store.js";
+import { getAssessment, type Assessment } from "./assessment-store.js";
 import { getLabelerIdentityConfig } from "./config.js";
+import { createNotifyDeps, notifyAssessmentOutcome } from "./notification-triggers.js";
 import { MODERATION_POLICY } from "./policy.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
 
@@ -71,7 +72,12 @@ export async function executeAssessmentInstance(
 	// attempt already finalized (its batch committed but the step result was
 	// lost) — return that state. A `pending` or crash-left `running` row falls
 	// through to `runAssessment`, which drives (or resumes) it to finalization.
-	if (TERMINAL_STATES.has(existing.state)) return existing.state;
+	// The notify runs on the resume path too (dedup makes it idempotent), so a
+	// crash between the label commit and the notify still delivers.
+	if (TERMINAL_STATES.has(existing.state)) {
+		await notifyOutcome(env, existing);
+		return existing.state;
+	}
 
 	const config = await getLabelerIdentityConfig(env);
 	const versioned = await createRuntimeSigner(config, getRuntimeSigningSecret(env));
@@ -83,7 +89,27 @@ export async function executeAssessmentInstance(
 		stages: buildStages(),
 	});
 	const finalized = await orchestrator.runAssessment(assessmentId);
+	await notifyOutcome(env, finalized);
 	return finalized.state;
+}
+
+/**
+ * Fire the automated block/warning publisher notice, best-effort. Reaching a
+ * `blocked`/`warned` terminal state means finalization's CAS committed the
+ * labels, so this is a true post-commit side effect; it never affects the run.
+ * `notifyAssessmentOutcome` swallows its own send errors and dedups on the
+ * assessment id, so a Workflow-step retry re-drives it harmlessly.
+ */
+async function notifyOutcome(env: Env, assessment: Assessment): Promise<void> {
+	if (assessment.state !== "blocked" && assessment.state !== "warned") return;
+	try {
+		await notifyAssessmentOutcome(await createNotifyDeps(env), assessment);
+	} catch (error) {
+		console.error("[notifications] assessment notify failed", {
+			assessmentId: assessment.id,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
 }
 
 /**

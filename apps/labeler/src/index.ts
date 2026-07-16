@@ -11,6 +11,8 @@ import { LABELER_DISCOVERY_DO_NAME } from "./discovery-do.js";
 import type { DiscoveryJob } from "./env.js";
 import { didDocumentResponse, policyDocumentResponse } from "./identity.js";
 import { handleNotificationRequest, isNotificationPath } from "./notification-endpoints.js";
+import { runNotificationSweep } from "./notification-sweep.js";
+import { createNotifyDeps } from "./notification-triggers.js";
 import { queryLabels } from "./query-labels.js";
 import { reconcileAssessments } from "./reconciliation.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
@@ -107,6 +109,21 @@ export default {
 				});
 			}),
 		);
+
+		// Publisher-notification retry sweep (plan W10.5): re-drive failed /
+		// crash-stuck sends, abandon the exhausted, prune terminal rows. Isolated in
+		// its own branch so a sweep failure never disturbs the passes above.
+		ctx.waitUntil(
+			(async () => {
+				try {
+					await runNotificationSweep(await createNotifyDeps(env));
+				} catch (err) {
+					console.error("[labeler] notification sweep failed", {
+						error: err instanceof Error ? err.message : String(err),
+					});
+				}
+			})(),
+		);
 	},
 };
 
@@ -155,6 +172,7 @@ async function handleConsoleApiRequest(
 			sendDiscoveryJob: async (job) => {
 				await env.DISCOVERY_QUEUE.send(job);
 			},
+			notify: await createNotifyDeps(env),
 		});
 	}
 	return handleConsoleApi(request, {
