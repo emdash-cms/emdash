@@ -211,7 +211,8 @@ function htmlResponse(body: string, status = 200): Response {
 			"referrer-policy": "no-referrer",
 			"x-content-type-options": "nosniff",
 			"x-frame-options": "DENY",
-			"content-security-policy": "frame-ancestors 'none'",
+			"content-security-policy":
+				"default-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
 		},
 	});
 }
