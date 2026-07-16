@@ -7,7 +7,6 @@ import {
 	EmDashBodyEnd,
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
-import LiveSearch from "emdash/ui/search";
 import { Font } from "astro:assets";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import "../styles/theme.css";
@@ -110,14 +109,23 @@ const isLoggedIn = !!Astro.locals.user;
 					}
 				</a>
 				<div class="nav-right">
-					<LiveSearch
-						placeholder="Search..."
-						class="site-search"
-						inputClass="site-search-input"
-						resultsClass="site-search-results"
-						resultClass="site-search-result"
-						collections={["posts", "pages"]}
-					/>
+					<button type="button" class="nav-search-btn" data-search-trigger aria-label="Search">
+						<svg class="nav-search-icon" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
+							<path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/>
+						</svg>
+						<span>Search</span>
+						<kbd class="nav-search-kbd">⌘K</kbd>
+					</button>
+					<search-modal-snippet
+						id="site-search"
+						api-url="/api/ai-search"
+						placeholder="Search…"
+						theme="auto"
+						max-results="30"
+						max-render-results="10"
+						show-url="true"
+						show-date="true"
+					></search-modal-snippet>
 					<div class="nav-links">
 						{
 							menu?.items.map((item) => (
@@ -622,6 +630,42 @@ const isLoggedIn = !!Astro.locals.user;
 				gap: var(--spacing-6);
 			}
 
+			.nav-search-btn {
+				display: inline-flex;
+				align-items: center;
+				gap: var(--spacing-2);
+				padding: var(--spacing-2) var(--spacing-3);
+				font-family: var(--font-sans);
+				font-size: var(--font-size-sm);
+				color: var(--color-text-secondary);
+				background: var(--color-bg);
+				border: 1px solid var(--color-border);
+				border-radius: var(--radius);
+				cursor: pointer;
+				transition:
+					border-color var(--transition-fast),
+					color var(--transition-fast);
+			}
+
+			.nav-search-btn:hover {
+				color: var(--color-text);
+				border-color: var(--color-accent);
+			}
+
+			.nav-search-icon {
+				width: 16px;
+				height: 16px;
+			}
+
+			.nav-search-kbd {
+				font-family: var(--font-sans);
+				font-size: var(--font-size-xs);
+				color: var(--color-muted);
+				border: 1px solid var(--color-border);
+				border-radius: var(--radius);
+				padding: 0 var(--spacing-1);
+			}
+
 			.nav-links {
 				display: flex;
 				gap: var(--spacing-5);
@@ -646,109 +690,6 @@ const isLoggedIn = !!Astro.locals.user;
 			}
 
 			.nav-admin:hover {
-				color: var(--color-text);
-			}
-
-			/* Search styling */
-			.site-search {
-				position: relative;
-				width: var(--search-input-width);
-				--emdash-search-border-focus: var(--color-accent);
-			}
-
-			:global(.site-search-input) {
-				width: var(--search-input-width);
-				padding: var(--spacing-2) var(--spacing-3);
-				font-family: var(--font-sans);
-				font-size: var(--font-size-sm);
-				border: 1px solid var(--color-border);
-				border-radius: var(--radius);
-				background: var(--color-bg);
-				color: var(--color-text);
-				transition:
-					border-color var(--transition-fast),
-					box-shadow var(--transition-fast);
-			}
-
-			:global(.site-search-input)::placeholder {
-				color: var(--color-muted);
-			}
-
-			:global(.site-search-input):focus,
-			:global(.site-search-input):focus-visible {
-				outline: none;
-				border-color: var(--color-accent) !important;
-				box-shadow: 0 0 0 3px var(--color-accent-ring);
-			}
-
-			:global(.site-search-results) {
-				position: absolute;
-				top: 100%;
-				left: 0;
-				right: 0;
-				margin-top: var(--spacing-2);
-				background: var(--color-bg);
-				border: 1px solid var(--color-border);
-				border-radius: var(--radius-lg);
-				box-shadow: var(--shadow-dropdown);
-				max-height: 400px;
-				overflow-y: auto;
-				z-index: 1000;
-			}
-
-			:global(.site-search-results .emdash-live-search-loading),
-			:global(.site-search-results .emdash-live-search-no-results) {
-				padding: var(--spacing-4);
-				text-align: center;
-				color: var(--color-muted);
-				font-size: var(--font-size-sm);
-			}
-
-			:global(.site-search-result) {
-				display: block;
-				padding: var(--spacing-3) var(--spacing-4);
-				text-decoration: none;
-				color: var(--color-text);
-				border-bottom: 1px solid var(--color-border-subtle);
-				transition: background var(--transition-fast);
-			}
-
-			:global(.site-search-result):last-child {
-				border-bottom: none;
-			}
-
-			:global(.site-search-result):hover,
-			:global(.site-search-result):focus,
-			:global(.site-search-result.focused) {
-				background: var(--color-surface);
-				outline: none;
-			}
-
-			:global(.site-search-result .emdash-live-search-result-title) {
-				display: block;
-				font-weight: 500;
-				font-size: var(--font-size-sm);
-			}
-
-			:global(.site-search-result .emdash-live-search-result-collection) {
-				display: block;
-				font-size: var(--font-size-xs);
-				color: var(--color-muted);
-				text-transform: uppercase;
-				letter-spacing: var(--tracking-wide);
-				margin-top: 2px;
-			}
-
-			:global(.site-search-result .emdash-live-search-result-snippet) {
-				display: block;
-				font-size: var(--font-size-sm);
-				color: var(--color-muted);
-				margin-top: var(--spacing-1);
-				line-height: var(--leading-snug);
-			}
-
-			:global(.site-search-result .emdash-live-search-result-snippet mark) {
-				font-weight: 600;
 				color: var(--color-text);
 			}
 
@@ -945,17 +886,6 @@ const isLoggedIn = !!Astro.locals.user;
 					display: contents;
 				}
 
-				.site-search {
-					order: 0;
-					max-width: 140px;
-				}
-
-				:global(.site-search-input) {
-					width: 140px !important;
-					padding: var(--spacing-1) var(--spacing-2) !important;
-					font-size: var(--font-size-sm) !important;
-				}
-
 				.nav-links {
 					order: 1;
 					width: 100%;
@@ -996,18 +926,16 @@ const isLoggedIn = !!Astro.locals.user;
 		</style>
 
 		<script>
-			// ⌘K / Ctrl+K to focus search
-			document.addEventListener("keydown", (e) => {
-				if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-					e.preventDefault();
-					const searchInput = document.querySelector(
-						".site-search-input"
-					) as HTMLInputElement;
-					if (searchInput) {
-						searchInput.focus();
-					}
-				}
-			});
+			// Registers the Cloudflare AI Search web components (e.g. search-modal-snippet).
+			import "@cloudflare/ai-search-snippet";
+
+			// The modal opens with Cmd/Ctrl+K by default; also wire the visible nav button.
+			const searchModal = document.getElementById("site-search") as HTMLElement & {
+				open?: () => void;
+			};
+			document
+				.querySelector("[data-search-trigger]")
+				?.addEventListener("click", () => searchModal?.open?.());
 		</script>
 		<EmDashBodyEnd page={pageCtx} />
 	</body>
