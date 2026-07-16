@@ -43,6 +43,15 @@
 	"ai": {
 		"binding": "AI",
 	},
+	// Read-only service binding to the aggregator Worker's XRPC surface
+	// (fetch-over-binding; the aggregator is HTTP/XRPC-only, no RPC entrypoint).
+	// Consumed via src/aggregator-client.ts.
+	"services": [
+		{
+			"binding": "AGGREGATOR",
+			"service": "emdash-aggregator",
+		},
+	],
 	// Operator console SPA (apps/labeler/console), built to ./dist/console by
 	// `console:build`. `run_worker_first: true` keeps the Worker the sole
 	// router: the SPA fallback only fires where index.ts explicitly calls

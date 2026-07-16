@@ -22,6 +22,14 @@ export default defineConfig({
 					LABEL_SIGNING_PRIVATE_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE",
 					NOTIFICATION_HASH_PEPPER: "test-notification-hash-pepper",
 				},
+				// wrangler.jsonc declares an AGGREGATOR service binding to the
+				// aggregator Worker, which doesn't exist in the test runtime.
+				// Stub it so miniflare can start; tests that exercise the client
+				// inject their own mock Fetcher rather than using this binding.
+				serviceBindings: {
+					AGGREGATOR: () =>
+						new Response("AGGREGATOR is stubbed in tests", { status: 501 }),
+				},
 			},
 		}),
 	],
