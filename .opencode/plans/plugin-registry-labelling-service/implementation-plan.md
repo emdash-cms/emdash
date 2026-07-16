@@ -321,6 +321,8 @@ Output: artifact acquisition contract consumed by `W7`.
 
 Dependencies: none.
 
+Decision (2026-07-16): v1 acquisition is DECLARED-URL-FIRST — the aggregator mirror is unbuilt (`records-consumer.ts` TODO; `mirrored_artifacts` never populated), and the release record's checksum/CID pin makes a declared-URL fetch exactly as verifiable as a mirror fetch, so the mirror is an availability/resilience layer, not an integrity requirement. The labeler fetches from the publisher's declared artifact URL under the ratified SSRF controls (HTTPS, DNS/redirect hardening, byte/time budgets, no ambient credentials) with checksum/CID verification; dead or changed URLs classify as the existing transient/permanent acquisition failures. W7.2's acquisition module is written mirror-ready with a source-preference switch: the future mirror interface is a deterministic R2 object key derived from release coordinates, resolved through the aggregator service binding (same read-path pattern ratified for W8.4 slice 3), and mirror-first ordering activates when the aggregator mirror lands on its own timetable (delegated release-service branch) without changing the labeler contract. W7 is no longer gated on aggregator mirror work.
+
 ### `W0.7` Confirm AI model and capability analysis
 
 Evaluate representative fixtures through:
