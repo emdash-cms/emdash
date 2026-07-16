@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { interpolateUrlPattern } from "../../i18n/resolve.js";
 import {
 	compilePattern,
 	matchPattern,
@@ -355,13 +356,22 @@ export class RedirectRepository {
 		newSlug: string,
 		contentId: string,
 		urlPattern: string | null,
+		publishedAt?: string | null,
 	): Promise<Redirect> {
-		const oldUrl = urlPattern
-			? urlPattern.replace("{slug}", oldSlug).replace("{id}", contentId)
-			: `/${collection}/${oldSlug}`;
-		const newUrl = urlPattern
-			? urlPattern.replace("{slug}", newSlug).replace("{id}", contentId)
-			: `/${collection}/${newSlug}`;
+		const oldUrl = interpolateUrlPattern({
+			pattern: urlPattern,
+			collection,
+			slug: oldSlug,
+			id: contentId,
+			date: publishedAt,
+		});
+		const newUrl = interpolateUrlPattern({
+			pattern: urlPattern,
+			collection,
+			slug: newSlug,
+			id: contentId,
+			date: publishedAt,
+		});
 
 		// Collapse chains: update any existing redirects pointing to the old URL
 		await this.collapseChains(oldUrl, newUrl);

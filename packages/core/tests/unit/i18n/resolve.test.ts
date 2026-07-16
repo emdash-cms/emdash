@@ -83,6 +83,41 @@ describe("interpolateUrlPattern", () => {
 			}),
 		).toBe("/blog/hello");
 	});
+
+	it("substitutes WordPress-style date tokens from the publish date (zero-padded)", () => {
+		expect(
+			interpolateUrlPattern({
+				pattern: "/{year}/{month}/{day}/{slug}.html",
+				collection: "post",
+				slug: "hello",
+				id: "abc",
+				date: "2018-05-08T09:03:07Z",
+			}),
+		).toBe("/2018/05/08/hello.html");
+	});
+
+	it("supports hour/minute/second date tokens", () => {
+		expect(
+			interpolateUrlPattern({
+				pattern: "/{year}/{hour}{minute}{second}/{slug}",
+				collection: "post",
+				slug: "hello",
+				id: "abc",
+				date: "2018-05-08T09:03:07Z",
+			}),
+		).toBe("/2018/090307/hello");
+	});
+
+	it("leaves date tokens untouched when no valid date is provided", () => {
+		expect(
+			interpolateUrlPattern({
+				pattern: "/{year}/{month}/{slug}",
+				collection: "post",
+				slug: "hello",
+				id: "abc",
+			}),
+		).toBe("/{year}/{month}/hello");
+	});
 });
 
 describe("localizePath", () => {
