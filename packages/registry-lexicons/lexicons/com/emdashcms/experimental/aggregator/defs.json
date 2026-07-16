@@ -59,6 +59,51 @@
 				}
 			}
 		},
+		"publisherView": {
+			"type": "object",
+			"description": "An aggregator's view of a publisher: the signed publisher.profile record verbatim (identity-level contact channels, display name), denormalised metadata for display, and any labels applied to the publisher DID by trusted labelers the aggregator hydrates.",
+			"required": ["uri", "cid", "did", "profile", "indexedAt"],
+			"properties": {
+				"uri": {
+					"type": "string",
+					"format": "at-uri",
+					"description": "AT URI of the publisher.profile record the aggregator indexed (rkey is always 'self'). Pins exactly which record version this view describes."
+				},
+				"cid": {
+					"type": "string",
+					"format": "cid",
+					"description": "CID of the profile record content the aggregator indexed. Lets clients confirm they're working with the same bytes the aggregator did."
+				},
+				"did": {
+					"type": "string",
+					"format": "did",
+					"description": "Publisher DID. Denormalised convenience; equivalent to the DID portion of `uri`."
+				},
+				"handle": {
+					"type": "string",
+					"format": "handle",
+					"description": "Publisher's current handle, if known. Best-effort: handles are mutable and may be stale at the moment of read."
+				},
+				"profile": {
+					"type": "unknown",
+					"description": "The signed publisher.profile record verbatim, passed through from the publisher's repo (carrying its $type, displayName, contact channels, etc.)."
+				},
+				"indexedAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "When the aggregator first indexed this publisher."
+				},
+				"labels": {
+					"type": "array",
+					"description": "Hydrated labels applying to this publisher DID, per the labelers the request asked for via the atproto-accept-labelers header.",
+					"maxLength": 64,
+					"items": {
+						"type": "ref",
+						"ref": "com.atproto.label.defs#label"
+					}
+				}
+			}
+		},
 		"releaseView": {
 			"type": "object",
 			"description": "An aggregator's view of a release: the signed record verbatim, the mirror URLs the aggregator is currently serving the primary artifact from, and any hydrated labels.",

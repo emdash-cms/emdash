@@ -62,6 +62,49 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 	 */
 	uri: /*#__PURE__*/ v.resourceUriString(),
 });
+const _publisherViewSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.aggregator.defs#publisherView",
+		),
+	),
+	/**
+	 * CID of the profile record content the aggregator indexed. Lets clients confirm they're working with the same bytes the aggregator did.
+	 */
+	cid: /*#__PURE__*/ v.cidString(),
+	/**
+	 * Publisher DID. Denormalised convenience; equivalent to the DID portion of `uri`.
+	 */
+	did: /*#__PURE__*/ v.didString(),
+	/**
+	 * Publisher's current handle, if known. Best-effort: handles are mutable and may be stale at the moment of read.
+	 */
+	handle: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.handleString()),
+	/**
+	 * When the aggregator first indexed this publisher.
+	 */
+	indexedAt: /*#__PURE__*/ v.datetimeString(),
+	/**
+	 * Hydrated labels applying to this publisher DID, per the labelers the request asked for via the atproto-accept-labelers header.
+	 * @maxLength 64
+	 */
+	get labels() {
+		return /*#__PURE__*/ v.optional(
+			/*#__PURE__*/ v.constrain(
+				/*#__PURE__*/ v.array(ComAtprotoLabelDefs.labelSchema),
+				[/*#__PURE__*/ v.arrayLength(0, 64)],
+			),
+		);
+	},
+	/**
+	 * The signed publisher.profile record verbatim, passed through from the publisher's repo (carrying its $type, displayName, contact channels, etc.).
+	 */
+	profile: /*#__PURE__*/ v.unknown(),
+	/**
+	 * AT URI of the publisher.profile record the aggregator indexed (rkey is always 'self'). Pins exactly which record version this view describes.
+	 */
+	uri: /*#__PURE__*/ v.resourceUriString(),
+});
 const _releaseViewSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
@@ -133,13 +176,19 @@ const _releaseViewSchema = /*#__PURE__*/ v.object({
 });
 
 type packageView$schematype = typeof _packageViewSchema;
+type publisherView$schematype = typeof _publisherViewSchema;
 type releaseView$schematype = typeof _releaseViewSchema;
 
 export interface packageViewSchema extends packageView$schematype {}
+export interface publisherViewSchema extends publisherView$schematype {}
 export interface releaseViewSchema extends releaseView$schematype {}
 
 export const packageViewSchema = _packageViewSchema as packageViewSchema;
+export const publisherViewSchema = _publisherViewSchema as publisherViewSchema;
 export const releaseViewSchema = _releaseViewSchema as releaseViewSchema;
 
 export interface PackageView extends v.InferInput<typeof packageViewSchema> {}
+export interface PublisherView extends v.InferInput<
+	typeof publisherViewSchema
+> {}
 export interface ReleaseView extends v.InferInput<typeof releaseViewSchema> {}

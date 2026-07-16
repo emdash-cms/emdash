@@ -1,0 +1,35 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.aggregator.getPublisher",
+	"description": "Get a single publisher profile by its DID. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"description": "Returns the aggregator's view of one publisher, including the signed publisher.profile record (identity-level contact channels, display name, description) and any hydrated labels. Returns NotFound if the aggregator has no profile indexed for this DID, or if the publisher has been tombstoned.",
+			"parameters": {
+				"type": "params",
+				"required": ["did"],
+				"properties": {
+					"did": {
+						"type": "string",
+						"format": "did",
+						"description": "Publisher DID."
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "ref",
+					"ref": "com.emdashcms.experimental.aggregator.defs#publisherView"
+				}
+			},
+			"errors": [
+				{
+					"name": "NotFound",
+					"description": "No publisher profile indexed under the given DID. Aggregators that hard-delete on publisher deletion (rather than soft-deleting) return NotFound for both the never-indexed and the deleted cases — clients should treat them equivalently."
+				}
+			]
+		}
+	}
+}

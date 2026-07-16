@@ -43,6 +43,19 @@ export interface PackageRow {
 	indexed_at: string | null;
 }
 
+/** Subset of columns from `publishers` we read for `publisherView`. */
+export interface PublisherRow {
+	did: string;
+	display_name: string;
+	description: string | null;
+	url: string | null;
+	contact: string | null; // JSON array of { kind, url?, email? }
+	updated_at: string | null;
+	signature_metadata: string | null;
+	verified_at: string;
+	indexed_at: string | null;
+}
+
 /** Subset of columns from `releases` we read for `releaseView`. */
 export interface ReleaseRow {
 	did: string;
@@ -79,6 +92,19 @@ const PACKAGE_VIEW_COLUMN_NAMES = [
 	"indexed_at",
 ] as const;
 
+/** Column list backing `PublisherRow`. */
+const PUBLISHER_VIEW_COLUMN_NAMES = [
+	"did",
+	"display_name",
+	"description",
+	"url",
+	"contact",
+	"updated_at",
+	"signature_metadata",
+	"verified_at",
+	"indexed_at",
+] as const;
+
 /** Column list backing `ReleaseRow`. */
 const RELEASE_VIEW_COLUMN_NAMES = [
 	"did",
@@ -108,6 +134,11 @@ export function releaseColumns(prefix = ""): string {
 	return RELEASE_VIEW_COLUMN_NAMES.map((c) => `${prefix}${c}`).join(", ");
 }
 
+/** SELECT-clause string for `PublisherRow`, optionally prefixed for JOINs. */
+export function publisherColumns(prefix = ""): string {
+	return PUBLISHER_VIEW_COLUMN_NAMES.map((c) => `${prefix}${c}`).join(", ");
+}
+
 /** AT URI of a package's profile record — the `packageView.uri` and the
  * hydration subject handlers hydrate labels for before calling
  * `packageView`. Single source of truth so the two never drift. No return
@@ -123,6 +154,12 @@ export function packageUri(row: Pick<PackageRow, "did" | "slug">) {
  * subject handlers hydrate labels for before calling `releaseView`. */
 export function releaseUri(row: Pick<ReleaseRow, "did" | "rkey">) {
 	return `at://${row.did}/${NSID.packageRelease}/${row.rkey}` as const;
+}
+
+/** AT URI of a publisher's profile record — the `publisherView.uri` and a
+ * label-hydration subject. The rkey is always `self` (enforced at ingest). */
+export function publisherUri(row: Pick<PublisherRow, "did">) {
+	return `at://${row.did}/${NSID.publisherProfile}/self` as const;
 }
 
 /** Caps a combined labels array at the lexicon's maxLength. A view's
@@ -209,6 +246,50 @@ export function releaseView(row: ReleaseRow, labels: LabelView[] = []): Aggregat
 		indexedAt: row.indexed_at ?? row.verified_at,
 		labels: toLexiconLabels(capLabels(labels, uri)),
 	};
+}
+
+/**
+ * Map a `publishers` row to the lexicon's `publisherView`. The synthesized
+ * `profile` field reconstructs the publisher.profile record JSON from the
+ * normalised columns — same field values the publisher signed. For
+ * byte-identical bytes, clients call `sync.getRecord` and re-verify.
+ *
+ * `labels` are hydrated by the caller (profile URI + publisher DID subjects)
+ * and passed in; defaulting to `[]` covers the accepted-policy-empty case.
+ */
+export function publisherView(
+	row: PublisherRow,
+	labels: LabelView[] = [],
+): AggregatorDefs.PublisherView {
+	const uri = publisherUri(row);
+	const cid = parseSignatureMetadataCid(row.signature_metadata) ?? "";
+	return {
+		uri,
+		cid,
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- `did` is consumer-validated at write time
+		did: row.did as `did:${string}:${string}`,
+		profile: synthesizePublisherProfile(row),
+		indexedAt: row.indexed_at ?? row.verified_at,
+		labels: toLexiconLabels(capLabels(labels, uri)),
+	};
+}
+
+/** Reconstruct the `com.emdashcms.experimental.publisher.profile` record
+ * JSON from the row's columns. Optional fields are omitted (rather than
+ * emitted as null) so the JSON shape matches what a publisher would have
+ * written. Same passthrough-shape caveat as `synthesizePackageProfile`:
+ * typed as `Record<string, unknown>` because clients re-validate against
+ * the published lexicon. */
+function synthesizePublisherProfile(row: PublisherRow): Record<string, unknown> {
+	const profile: Record<string, unknown> = {
+		$type: NSID.publisherProfile,
+		displayName: row.display_name,
+	};
+	if (row.description !== null) profile["description"] = row.description;
+	if (row.url !== null) profile["url"] = row.url;
+	if (row.contact !== null) profile["contact"] = parseJsonArray(row.contact);
+	if (row.updated_at !== null) profile["updatedAt"] = row.updated_at;
+	return profile;
 }
 
 /** Reconstruct the `com.emdashcms.experimental.package.profile` record

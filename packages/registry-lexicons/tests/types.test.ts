@@ -321,6 +321,7 @@ describe("NSID map", () => {
 			"com.emdashcms.experimental.aggregator.defs",
 			"com.emdashcms.experimental.aggregator.getLatestRelease",
 			"com.emdashcms.experimental.aggregator.getPackage",
+			"com.emdashcms.experimental.aggregator.getPublisher",
 			"com.emdashcms.experimental.aggregator.listReleases",
 			"com.emdashcms.experimental.aggregator.resolvePackage",
 			"com.emdashcms.experimental.aggregator.searchPackages",
