@@ -9,6 +9,7 @@
  */
 
 import { Button } from "@cloudflare/kumo";
+import { offset } from "@floating-ui/react";
 import { useLingui } from "@lingui/react/macro";
 import { DotsSixVertical, Plus } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/core";
@@ -134,6 +135,7 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 		() => ({
 			placement: _getDragHandlePlacement(direction),
 			strategy: "absolute" as const,
+			middleware: [offset(4)],
 		}),
 		[direction],
 	);

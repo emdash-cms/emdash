@@ -12,9 +12,19 @@ vi.mock("@tiptap/extension-drag-handle-react", () => ({
 		computePositionConfig,
 	}: {
 		children: React.ReactNode;
-		computePositionConfig: { placement: string };
+		computePositionConfig: {
+			placement: string;
+			middleware?: Array<{ name: string; options?: unknown[] }>;
+		};
 	}) => (
-		<div className="drag-handle" draggable="true" data-placement={computePositionConfig.placement}>
+		<div
+			className="drag-handle"
+			draggable="true"
+			data-placement={computePositionConfig.placement}
+			data-offset={String(
+				computePositionConfig.middleware?.find(({ name }) => name === "offset")?.options?.[0] ?? "",
+			)}
+		>
 			{children}
 		</div>
 	),
@@ -86,6 +96,7 @@ describe("DragHandleWrapper interactions", () => {
 			expect(insertButton.closest("[data-placement]")?.getAttribute("data-placement")).toBe(
 				"left-start",
 			);
+			expect(insertButton.closest("[data-offset]")?.getAttribute("data-offset")).toBe("4");
 
 			i18n.activate("ar");
 			await vi.waitFor(() => {
