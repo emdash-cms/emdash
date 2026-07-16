@@ -394,6 +394,116 @@ export interface DeadLetterActionResult {
 	cts: string;
 }
 
+/** A reconsideration case's lifecycle state (mirrors the server's
+ * `ReconsiderationState`). A case opens `open` and terminates `resolved`. */
+export type ReconsiderationState = "open" | "resolved";
+
+/** The terminal decision on a resolved case (mirrors the server's
+ * `ReconsiderationOutcome`). `withdrawn` fires no publisher notice. */
+export type ReconsiderationOutcome = "granted" | "denied" | "withdrawn";
+
+/**
+ * A reconsideration case from `GET /admin/api/reconsiderations` — mirrors the
+ * server's `serializeReconsideration`. Every field is operator-only (Access-edge
+ * + reviewer gated), including the actor provenance. Humans carry an email,
+ * service tokens a common name. `outcome`/`resolvedBy*`/`resolvedAt` are non-null
+ * only once resolved. */
+export interface ReconsiderationView {
+	id: string;
+	subjectUri: string;
+	subjectCid: string;
+	triggeringAssessmentId: string;
+	state: ReconsiderationState;
+	outcome: ReconsiderationOutcome | null;
+	openedById: string;
+	openedByEmail: string | null;
+	openedByCommonName: string | null;
+	openedByRole: OperatorRole;
+	openedAt: string;
+	resolvedById: string | null;
+	resolvedByEmail: string | null;
+	resolvedByCommonName: string | null;
+	resolvedAt: string | null;
+	outcomeActionId: string | null;
+}
+
+/** A private reconsideration note (mirrors `serializeReconsiderationNote`). The
+ * `note` text is operator-only and never enters publisher notice copy. */
+export interface ReconsiderationNoteView {
+	id: string;
+	reconsiderationId: string;
+	authorId: string;
+	authorEmail: string | null;
+	authorCommonName: string | null;
+	authorRole: OperatorRole;
+	note: string;
+	createdAt: string;
+}
+
+/** One case plus its private note thread (oldest-first) from
+ * `GET /admin/api/reconsiderations/:id`. */
+export interface ReconsiderationDetail {
+	reconsideration: ReconsiderationView;
+	notes: ReconsiderationNoteView[];
+}
+
+/** Body for `POST /admin/api/reconsiderations/open`. `note` is required
+ * non-empty (≤10000 chars); `idempotencyKey` is minted client-side (ULID) per
+ * dialog open and reused across retries so a network retry replays rather than
+ * double-opens. */
+export interface ReconsiderationOpenInput {
+	assessmentId: string;
+	note: string;
+	reason: string;
+	idempotencyKey: string;
+}
+
+/** Body for `POST /admin/api/reconsiderations/:id/note`. Allowed in any state. */
+export interface ReconsiderationNoteInput {
+	note: string;
+	reason: string;
+	idempotencyKey: string;
+}
+
+/** Body for `POST /admin/api/reconsiderations/:id/resolve`. `note` is an
+ * optional final note; the server rejects a resolve of an already-resolved case
+ * with a 409 `RECONSIDERATION_RESOLVED`. */
+export interface ReconsiderationResolveInput {
+	outcome: ReconsiderationOutcome;
+	note?: string;
+	reason: string;
+	idempotencyKey: string;
+}
+
+/** Idempotent open result — the new case's id and subject, plus the triggering
+ * assessment it was opened from. */
+export interface ReconsiderationOpenResult {
+	actionId: string;
+	reconsiderationId: string;
+	uri: string;
+	cid: string;
+	triggeringAssessmentId: string;
+	cts: string;
+}
+
+/** Idempotent note result — the appended note's id. */
+export interface ReconsiderationNoteResult {
+	actionId: string;
+	reconsiderationId: string;
+	noteId: string;
+	cts: string;
+}
+
+/** Idempotent resolve result — the case's terminal outcome and subject. */
+export interface ReconsiderationResolveResult {
+	actionId: string;
+	reconsiderationId: string;
+	outcome: ReconsiderationOutcome;
+	uri: string;
+	cid: string;
+	cts: string;
+}
+
 export interface ListAssessmentsParams {
 	state?: PublicAssessmentState;
 	cursor?: string;
@@ -406,6 +516,11 @@ export interface ListAuditLogParams {
 }
 
 export interface ListDeadLettersParams {
+	cursor?: string;
+	limit?: number;
+}
+
+export interface ListReconsiderationsParams {
 	cursor?: string;
 	limit?: number;
 }

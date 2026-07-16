@@ -4,6 +4,8 @@ import {
 	FIXTURE_FINDINGS_BY_ASSESSMENT,
 	FIXTURE_LABELS_BY_ASSESSMENT,
 	FIXTURE_OPERATOR_ACTIONS,
+	FIXTURE_RECONSIDERATION_DETAIL,
+	FIXTURE_RECONSIDERATIONS,
 	FIXTURE_SUBJECT_HISTORY,
 	FIXTURE_SYSTEM_STATUS,
 } from "../fixtures/index.js";
@@ -25,6 +27,7 @@ import type {
 	ListAssessmentsParams,
 	ListAuditLogParams,
 	ListDeadLettersParams,
+	ListReconsiderationsParams,
 	OperatorAction,
 	OverrideActionInput,
 	OverrideEffectPreviewParams,
@@ -32,6 +35,14 @@ import type {
 	OverrideRetractResult,
 	OperatorFinding,
 	Page,
+	ReconsiderationDetail,
+	ReconsiderationNoteInput,
+	ReconsiderationNoteResult,
+	ReconsiderationOpenInput,
+	ReconsiderationOpenResult,
+	ReconsiderationResolveInput,
+	ReconsiderationResolveResult,
+	ReconsiderationView,
 	RerunResult,
 	SubjectHistoryView,
 	SubjectLabel,
@@ -54,6 +65,8 @@ export interface LabelerConsoleClient {
 	getSubjectLabels(uri: string, cid?: string): Promise<SubjectLabel[]>;
 	listAuditLog(params?: ListAuditLogParams): Promise<Page<OperatorAction>>;
 	listDeadLetters(params?: ListDeadLettersParams): Promise<Page<DeadLetter>>;
+	listReconsiderations(params?: ListReconsiderationsParams): Promise<Page<ReconsiderationView>>;
+	getReconsideration(id: string): Promise<ReconsiderationDetail | null>;
 	getSystemStatus(): Promise<SystemStatusSnapshot>;
 	whoami(): Promise<WhoamiIdentity>;
 	previewEffect(params: EffectPreviewParams): Promise<EffectPreview>;
@@ -72,6 +85,15 @@ export interface LabelerConsoleClient {
 	resumeAutomation(input: AutomationToggleInput): Promise<AutomationToggleResult>;
 	retryDeadLetter(id: number, input: DeadLetterActionInput): Promise<DeadLetterActionResult>;
 	quarantineDeadLetter(id: number, input: DeadLetterActionInput): Promise<DeadLetterActionResult>;
+	openReconsideration(input: ReconsiderationOpenInput): Promise<ReconsiderationOpenResult>;
+	addReconsiderationNote(
+		id: string,
+		input: ReconsiderationNoteInput,
+	): Promise<ReconsiderationNoteResult>;
+	resolveReconsideration(
+		id: string,
+		input: ReconsiderationResolveInput,
+	): Promise<ReconsiderationResolveResult>;
 }
 
 /** The admin-only emergency endpoints, keyed by action and direction. */
@@ -182,6 +204,18 @@ export function createFetchClient(): LabelerConsoleClient {
 			const response = await consoleApiFetch(`/dead-letters?${search.toString()}`);
 			return parseJson(response, "Failed to load dead letters");
 		},
+		async listReconsiderations(params = {}) {
+			const search = new URLSearchParams();
+			if (params.cursor) search.set("cursor", params.cursor);
+			if (params.limit) search.set("limit", String(params.limit));
+			const response = await consoleApiFetch(`/reconsiderations?${search.toString()}`);
+			return parseJson(response, "Failed to load reconsiderations");
+		},
+		async getReconsideration(id) {
+			const response = await consoleApiFetch(`/reconsiderations/${encodeURIComponent(id)}`);
+			if (response.status === 404) return null;
+			return parseJson(response, "Failed to load reconsideration");
+		},
 		async getSystemStatus() {
 			const response = await consoleApiFetch("/status");
 			return parseJson(response, "Failed to load system status");
@@ -259,6 +293,23 @@ export function createFetchClient(): LabelerConsoleClient {
 				"Failed to quarantine dead letter",
 			);
 		},
+		async openReconsideration(input) {
+			return postAction("/reconsiderations/open", input, "Failed to open reconsideration");
+		},
+		async addReconsiderationNote(id, input) {
+			return postAction(
+				`/reconsiderations/${encodeURIComponent(id)}/note`,
+				input,
+				"Failed to add note",
+			);
+		},
+		async resolveReconsideration(id, input) {
+			return postAction(
+				`/reconsiderations/${encodeURIComponent(id)}/resolve`,
+				input,
+				"Failed to resolve reconsideration",
+			);
+		},
 	};
 }
 
@@ -293,6 +344,12 @@ export function createFixtureClient(): LabelerConsoleClient {
 		},
 		async listDeadLetters() {
 			return { items: [...FIXTURE_DEAD_LETTERS] };
+		},
+		async listReconsiderations() {
+			return { items: [...FIXTURE_RECONSIDERATIONS] };
+		},
+		async getReconsideration(id) {
+			return FIXTURE_RECONSIDERATION_DETAIL[id] ?? null;
 		},
 		async getSystemStatus() {
 			return FIXTURE_SYSTEM_STATUS;
@@ -408,6 +465,34 @@ export function createFixtureClient(): LabelerConsoleClient {
 				actionId: "oact_fixture",
 				deadLetterId: id,
 				status: "quarantined",
+				cts: new Date().toISOString(),
+			};
+		},
+		async openReconsideration(input) {
+			return {
+				actionId: "oact_fixture",
+				reconsiderationId: "recon_fixture",
+				uri: "at://did:plc:x/com.emdashcms.experimental.package.release/rk1",
+				cid: "bafyfixture",
+				triggeringAssessmentId: input.assessmentId,
+				cts: new Date().toISOString(),
+			};
+		},
+		async addReconsiderationNote(id) {
+			return {
+				actionId: "oact_fixture",
+				reconsiderationId: id,
+				noteId: "rnote_fixture",
+				cts: new Date().toISOString(),
+			};
+		},
+		async resolveReconsideration(id, input) {
+			return {
+				actionId: "oact_fixture",
+				reconsiderationId: id,
+				outcome: input.outcome,
+				uri: "at://did:plc:x/com.emdashcms.experimental.package.release/rk1",
+				cid: "bafyfixture",
 				cts: new Date().toISOString(),
 			};
 		},
