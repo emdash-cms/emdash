@@ -211,8 +211,11 @@ export async function acquireArtifact(
 }
 
 /** Cross-checks the pinned coordinates and the declared checksum before any
- * network work: a drift between what discovery pinned and what the release
- * declares, or a malformed declared checksum, is a permanent integrity fault. */
+ * network work. A drift between what discovery pinned and what the release
+ * declares is a permanent integrity fault (`COORDINATE_MISMATCH`). A malformed
+ * or unsupported declared checksum is not tampering — it is a bad record or a
+ * labeler capability gap — so it classifies as transient (retry →
+ * assessment-error), never a public block label. */
 function crossCheckCoordinates(target: AcquisitionTarget): AcquisitionFailure | null {
 	if (
 		typeof target.pinnedChecksum === "string" &&
