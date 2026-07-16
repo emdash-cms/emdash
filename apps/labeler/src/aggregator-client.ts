@@ -7,10 +7,26 @@
  * caching, or retry: internal consumers require a fresh read at call time
  * (W10.4). Callers layer their own retry/backoff if they want it.
  *
- * No `atproto-accept-labelers` header is sent — internal reads want the raw,
- * unfiltered aggregator view. Sending the header would make the aggregator
- * apply labeler policy and redact rows, which is the opposite of what the
- * labeler's own analysis needs.
+ * Every request sends a BLANK `atproto-accept-labelers` header to obtain the
+ * genuinely unfiltered view. Counter-intuitively, OMITTING the header does the
+ * opposite: the aggregator resolves an absent header to its default policy
+ * (every trusted labeler, `redact: true`), so a subject redacted by any trusted
+ * labeler — plausibly including this labeler itself — presents as `NotFound`
+ * and is indistinguishable from an unindexed subject. A blank value parses to
+ * an empty accepted-labelers set, which the aggregator enforces as a no-op.
+ * The labeler is the moderation authority performing analysis; it must not be
+ * blinded to redacted subjects when resolving a takedown contact, reading
+ * history context, or re-assessing a flagged subject.
+ *
+ * Boundary: this unfiltered view is for INTERNAL ANALYSIS ONLY. Its results
+ * must never be surfaced to a public serving path without re-applying takedown
+ * enforcement at that layer (see the ratified sync.getRecord / artifact-mirror
+ * serving decisions) — an unfiltered read that reached a public surface would
+ * re-expose taken-down content.
+ *
+ * Views are returned as their `@emdash-cms/registry-lexicons` types without
+ * runtime validation: the aggregator is a first-party in-process binding, and
+ * the acquire stage independently re-verifies artifact checksums downstream.
  *
  * Error contract: a missing subject (XRPC `NotFound`, HTTP 404) resolves to
  * `null`. Any other non-2xx status, or a transport failure, throws — callers
@@ -24,6 +40,14 @@ import type { AggregatorDefs, AggregatorListReleases } from "@emdash-cms/registr
  * binding, not DNS — but `fetch` needs a syntactically valid absolute URL.
  */
 const XRPC_BASE = "https://aggregator/xrpc";
+
+/**
+ * ATProto label-negotiation header. Sent with a blank value on every read to
+ * opt out of the aggregator's default trusted-labeler redaction (see the
+ * module doc). Mirrors the aggregator's own local constant; this is a stable
+ * protocol string, not currently exported from a shared package.
+ */
+const ACCEPT_LABELERS_HEADER = "atproto-accept-labelers";
 
 /** NSIDs are fixed per method and never derived from caller data. Only query
  * param *values* carry caller data, and every value is `encodeURIComponent`-
@@ -95,15 +119,17 @@ export class AggregatorClient {
 	/** One fetch, no retry. `NotFound` → `null`; any other non-2xx or a
 	 * transport failure throws. */
 	async #query<T>(nsid: string, url: string): Promise<T | null> {
-		const response = await this.#fetcher.fetch(url);
+		const response = await this.#fetcher.fetch(url, {
+			headers: { [ACCEPT_LABELERS_HEADER]: "" },
+		});
 		if (response.ok) {
 			return response.json<T>();
 		}
 		const body = await response.text();
-		if (response.status === 404 && parseXrpcErrorName(body) === "NotFound") {
+		const errorName = parseXrpcErrorName(body);
+		if (response.status === 404 && errorName === "NotFound") {
 			return null;
 		}
-		const errorName = parseXrpcErrorName(body);
 		throw new Error(
 			`Aggregator ${nsid} failed: ${response.status}${errorName ? ` ${errorName}` : ""}`,
 		);

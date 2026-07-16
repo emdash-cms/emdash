@@ -2,17 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import { AggregatorClient } from "../src/aggregator-client.js";
 
-/** Records every URL the client fetches and returns a caller-supplied
- * Response (or throws, to simulate a transport failure). */
+/** Records every URL and request init the client fetches and returns a
+ * caller-supplied Response (or throws, to simulate a transport failure). */
 function mockFetcher(handler: (url: string) => Response) {
 	const urls: string[] = [];
+	const inits: (RequestInit | undefined)[] = [];
 	const fetcher = {
-		fetch: (input: string) => {
+		fetch: (input: string, init?: RequestInit) => {
 			urls.push(input);
+			inits.push(init);
 			return Promise.resolve(handler(input));
 		},
 	} as unknown as Fetcher;
-	return { fetcher, urls };
+	return { fetcher, urls, inits };
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -84,6 +86,14 @@ describe("AggregatorClient.getPackage", () => {
 		const { fetcher } = mockFetcher(() => notFoundResponse());
 		const view = await new AggregatorClient(fetcher).getPackage("did:plc:abc123", "missing");
 		expect(view).toBeNull();
+	});
+
+	it("sends a blank atproto-accept-labelers header to opt out of default redaction", async () => {
+		const { fetcher, inits } = mockFetcher(() => jsonResponse(PACKAGE_VIEW));
+		await new AggregatorClient(fetcher).getPackage("did:plc:abc123", "my-plugin");
+
+		const headers = new Headers(inits[0]?.headers);
+		expect(headers.get("atproto-accept-labelers")).toBe("");
 	});
 
 	it("throws on a 5xx response", async () => {
