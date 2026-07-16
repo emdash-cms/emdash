@@ -587,7 +587,6 @@ export class MediaUsageRepository {
 			.selectFrom("entry_state as page")
 			.crossJoin("_emdash_media_usage_sources as s")
 			.crossJoin("_emdash_media_usage as u")
-			.innerJoin("_emdash_collections as collection", "collection.slug", "s.collection_slug")
 			.whereRef("page.collection_slug", "=", "s.collection_slug")
 			.whereRef("page.content_id", "=", "s.content_id")
 			.whereRef("s.source_key", "=", "u.source_key")
