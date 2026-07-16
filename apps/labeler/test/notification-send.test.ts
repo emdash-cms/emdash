@@ -2,7 +2,7 @@ import { applyD1Migrations, env } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { AggregatorClient } from "../src/aggregator-client.js";
-import { CONFIRM_DID_MAX_DISTINCT_RECIPIENTS, CONFIRM_MIN_INTERVAL_MS } from "../src/constants.js";
+import { CONFIRM_DID_MAX_DISTINCT_RECIPIENTS } from "../src/constants.js";
 import {
 	confirmContact,
 	declineContact,
@@ -310,24 +310,79 @@ describe("unconfirmed contact — double opt-in", () => {
 		expect(await storedTokenHash(hash)).not.toBeNull();
 	});
 
-	it("rate-limits per address: no second confirmation within the interval", async () => {
-		const email = uniq("addr") + "@example.test";
+	it("mails an address a confirmation at most once ever (lifetime cap)", async () => {
+		const email = uniq("lifetime") + "@example.test";
 		const hash = await recipientHash(PEPPER, email);
-		const sentAtMs = 2_000_000;
-		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
-		await recordConfirmSent(db(), hash, await hashConfirmToken("prev"), sentAtMs);
-		const sender = recordingSender();
+		const did = uniq("did:plc:life");
+		const sender = recordingSender({ ok: true, providerId: "p1" });
+
+		const first = await sendNotification(
+			context(email, sender, () => new Date(1_000_000)),
+			request(did, uniq("src")),
+		);
+		expect(first.status).toBe("confirmation_sent");
+		expect(sender.confirmations).toHaveLength(1);
+
+		// Arbitrary time later, a fresh trigger for the still-unconfirmed contact
+		// mails nothing and creates no row.
+		const laterSourceId = uniq("src");
+		const second = await sendNotification(
+			context(email, sender, () => new Date(999_000_000)),
+			request(did, laterSourceId),
+		);
+		expect(second).toEqual({ status: "already_mailed", recipientHash: hash });
+		expect(sender.confirmations).toHaveLength(1);
+		expect(await rowsForSource(laterSourceId)).toHaveLength(0);
+	});
+
+	it("does not re-mail after a FAILED confirmation (the failed row still counts)", async () => {
+		const email = uniq("lifefail") + "@example.test";
+		const hash = await recipientHash(PEPPER, email);
+		const did = uniq("did:plc:lifefail");
+
+		const failSender = recordingSender({ ok: false, error: "boom" });
+		const first = await sendNotification(
+			context(email, failSender, () => new Date(1_000_000)),
+			request(did, uniq("src")),
+		);
+		expect(first.status).toBe("confirmation_failed");
+
+		const okSender = recordingSender({ ok: true, providerId: "p" });
+		const laterSourceId = uniq("src");
+		const second = await sendNotification(
+			context(email, okSender, () => new Date(2_000_000)),
+			request(did, laterSourceId),
+		);
+		expect(second).toEqual({ status: "already_mailed", recipientHash: hash });
+		expect(okSender.confirmations).toHaveLength(0);
+		expect(await rowsForSource(laterSourceId)).toHaveLength(0);
+	});
+
+	it("still mails when the only prior confirmation row is undeliverable", async () => {
+		const email = uniq("undelprior") + "@example.test";
+		const hash = await recipientHash(PEPPER, email);
+		const did = uniq("did:plc:undel");
+		// A prior undeliverable confirmation row (e.g. a race loser or a
+		// suppressed-at-claim that never actually mailed) must not block a later send.
+		await db()
+			.prepare(
+				`INSERT INTO notifications
+					(id, source_type, source_id, kind, channel, recipient_hash, state, attempts,
+					 created_at, created_at_epoch_ms)
+				 VALUES (?, 'issuance', ?, 'confirmation', 'email', ?, 'undeliverable', 0, ?, ?)`,
+			)
+			.bind(uniq("ntf_prior"), uniq("src"), hash, "2026-07-16T00:00:00.000Z", 1_000)
+			.run();
+		const sender = recordingSender({ ok: true, providerId: "p" });
 		const sourceId = uniq("src");
-		const now = () => new Date(sentAtMs + CONFIRM_MIN_INTERVAL_MS - 1);
 
 		const outcome = await sendNotification(
-			context(email, sender, now),
-			request(uniq("did"), sourceId),
+			context(email, sender, () => new Date(3_000_000)),
+			request(did, sourceId),
 		);
 
-		expect(outcome).toEqual({ status: "rate_limited", recipientHash: hash, scope: "address" });
-		expect(sender.confirmations).toHaveLength(0);
-		expect(await rowsForSource(sourceId)).toHaveLength(0);
+		expect(outcome.status).toBe("confirmation_sent");
+		expect(sender.confirmations).toHaveLength(1);
 	});
 
 	it("rate-limits per DID once the distinct-recipient cap is reached", async () => {
@@ -383,24 +438,28 @@ describe("unconfirmed contact — double opt-in", () => {
 		expect(await ledgerCount(did)).toBe(CONFIRM_DID_MAX_DISTINCT_RECIPIENTS);
 	});
 
-	it("mails a racing unconfirmed victim exactly once (recordConfirmSent CAS closes the double-mail race)", async () => {
+	it("mails a racing unconfirmed victim exactly once (atomic claim closes the double-mail race)", async () => {
 		const email = uniq("race") + "@example.test";
 		const sender = recordingSender({ ok: true, providerId: "p" });
-		// One shared context + request, dispatched twice concurrently: both reads see
-		// the fresh unconfirmed contact and pass canSendConfirm off the same snapshot.
-		// Only the interval CAS in recordConfirmSent can stop the second mail.
+		// One shared context + request dispatched twice concurrently: both reads see
+		// the fresh unconfirmed contact. Only the atomic confirmation claim stops the
+		// second mail — its lifetime-cap NOT EXISTS sees the first's pending row, so
+		// the loser inserts no row at all.
 		const ctx = context(email, sender, () => new Date(9_000_000));
 		const sourceId = uniq("src");
 		const req = request(uniq("did:plc:race"), sourceId);
 
 		const outcomes = await Promise.all([sendNotification(ctx, req), sendNotification(ctx, req)]);
 
-		expect(outcomes.map((o) => o.status).toSorted()).toEqual(["confirmation_sent", "skipped"]);
+		expect(outcomes.map((o) => o.status).toSorted()).toEqual([
+			"already_mailed",
+			"confirmation_sent",
+		]);
 		expect(sender.confirmations).toHaveLength(1);
 
 		const rows = await rowsForSource(sourceId);
-		expect(rows).toHaveLength(2);
-		expect(rows.map((r) => r.state).toSorted()).toEqual(["sent", "undeliverable"]);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.state).toBe("sent");
 	});
 });
 

@@ -184,40 +184,30 @@ export async function ensureContact(
 
 /**
  * Record that a confirmation mail was sent: stores the token hash the eventual
- * confirm must match and stamps the send time the rate gate reads. Only touches
- * an `unconfirmed` contact — a confirmed or declined row is never reopened even
- * if a caller skips {@link canSendConfirm}. Returns whether a row was updated.
+ * confirm must match and stamps the send time. Only touches an `unconfirmed`
+ * contact — a confirmed or declined row is never reopened even if a caller skips
+ * {@link canSendConfirm}. Returns whether a row was updated.
  *
- * The UPDATE is the per-address rate gate's atomic compare-and-set, not just a
- * write: it re-checks the interval in SQL (`last_confirm_sent IS NULL OR
- * last_confirm_sent <= epochMs − minIntervalMs`), so two triggers racing for the
- * same unconfirmed address off a stale {@link canSendConfirm} snapshot cannot
- * both stamp — the second sees the first's write and gets `changes = 0`. The
- * caller sends only when this returns true. `minIntervalMs` defaults to 0 (a
- * monotonicity-only guard) for the slice-B/C seeding callers; the send path
- * passes the real `CONFIRM_MIN_INTERVAL_MS`.
+ * The lifetime "mail once ever" cap and the concurrency race are enforced
+ * upstream, atomically, by the confirmation delivery-row claim (W10.5), so this
+ * only needs to stamp the token on the still-unconfirmed contact.
  */
 export async function recordConfirmSent(
 	db: D1Database,
 	recipientHashValue: string,
 	tokenHash: string,
 	epochMs: number,
-	minIntervalMs = 0,
 ): Promise<boolean> {
 	if (!Number.isFinite(epochMs)) {
 		throw new TypeError("recordConfirmSent requires a finite epochMs");
-	}
-	if (!Number.isFinite(minIntervalMs)) {
-		throw new TypeError("recordConfirmSent requires a finite minIntervalMs");
 	}
 	const result = await db
 		.prepare(
 			`UPDATE notification_contacts
 			 SET confirm_token_hash = ?, last_confirm_sent_at_epoch_ms = ?
-			 WHERE recipient_hash = ? AND confirm_state = 'unconfirmed'
-			   AND (last_confirm_sent_at_epoch_ms IS NULL OR last_confirm_sent_at_epoch_ms <= ?)`,
+			 WHERE recipient_hash = ? AND confirm_state = 'unconfirmed'`,
 		)
-		.bind(tokenHash, epochMs, recipientHashValue, epochMs - minIntervalMs)
+		.bind(tokenHash, epochMs, recipientHashValue)
 		.run();
 	return result.meta.changes > 0;
 }

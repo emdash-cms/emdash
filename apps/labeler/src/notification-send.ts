@@ -19,16 +19,19 @@
  *   4. Confirm-state gate, NEVER `seeded:true`:
  *        * `confirmed`   → substantive NOTICE.
  *        * `unconfirmed` → double opt-in: a content-neutral CONFIRMATION mail,
- *          and only if BOTH the per-address and per-DID confirmation rate limits
- *          pass. Never a substantive notice.
+ *          sent to an address at most ONCE EVER (lifetime cap) and subject to the
+ *          per-DID cap. Never a substantive notice.
  *        * `declined`    → nothing (handled in step 3).
  *
- * Atomicity: the send is CLAIMED by inserting the pending `notifications` row
+ * Atomicity: every send is CLAIMED by inserting the pending `notifications` row
  * guarded by `WHERE NOT EXISTS (suppression)`, so a suppression committed before
- * the claim blocks the send even under a race with the step-3 read. A suppression
- * landing in the sub-millisecond window between the claim and the external send
- * is the accepted double-opt-in tradeoff — at most one content-neutral
- * confirmation mail.
+ * the claim blocks the send even under a race with the step-3 read. The
+ * confirmation claim adds a second guard in the same statement — no prior
+ * non-`undeliverable` confirmation row for the hash — which enforces both the
+ * lifetime "mail once ever" cap and the concurrency race (of two racing sends
+ * exactly one inserts). A suppression landing in the sub-millisecond window
+ * between the claim and the external send is the accepted double-opt-in tradeoff:
+ * at most one content-neutral confirmation mail, ever.
  *
  * PII: `plaintext_email` lives only on the delivery row and is cleared to NULL on
  * a successful send. Nothing here logs plaintext — logs carry the (public)
@@ -39,14 +42,8 @@
 import { ulid } from "ulidx";
 
 import type { AggregatorClient } from "./aggregator-client.js";
+import { CONFIRM_DID_MAX_DISTINCT_RECIPIENTS, CONFIRM_DID_WINDOW_MS } from "./constants.js";
 import {
-	CONFIRM_DID_MAX_DISTINCT_RECIPIENTS,
-	CONFIRM_DID_WINDOW_MS,
-	CONFIRM_MIN_INTERVAL_MS,
-} from "./constants.js";
-import type { ContactState } from "./notification-contacts.js";
-import {
-	canSendConfirm,
 	ensureContact,
 	generateConfirmToken,
 	getContactState,
@@ -135,9 +132,10 @@ export type SendOutcome =
 	| { status: "notice_failed"; recipientHash: string; error: string }
 	| { status: "confirmation_sent"; recipientHash: string; providerId?: string }
 	| { status: "confirmation_failed"; recipientHash: string; error: string }
-	| { status: "rate_limited"; recipientHash: string; scope: "address" | "did" }
+	| { status: "rate_limited"; recipientHash: string; scope: "did" }
 	| { status: "suppressed"; recipientHash: string }
 	| { status: "declined"; recipientHash: string }
+	| { status: "already_mailed"; recipientHash: string }
 	| { status: "skipped"; recipientHash: string; reason: "contact_state_changed" }
 	| { status: "no_contact" };
 
@@ -192,7 +190,7 @@ export async function sendNotification(
 		return sendSubstantiveNotice(ctx, request, hash, resolution.email, nowDate);
 	}
 
-	return sendConfirmationMail(ctx, request, hash, resolution.email, state, {
+	return sendConfirmationMail(ctx, request, hash, resolution.email, {
 		date: nowDate,
 		ms: nowMs,
 	});
@@ -232,24 +230,17 @@ async function sendConfirmationMail(
 	request: NotificationRequest,
 	hash: string,
 	email: string,
-	state: ContactState,
 	now: { date: Date; ms: number },
 ): Promise<SendOutcome> {
-	if (!canSendConfirm(state, now.ms, CONFIRM_MIN_INTERVAL_MS)) {
-		logSend(request.target.did, "rate_limited:address", hash);
-		return { status: "rate_limited", recipientHash: hash, scope: "address" };
-	}
-
-	// Per-DID gate, then the ledger write, adjacently. The count→insert pair is a
-	// non-atomic check-then-act: concurrent confirmations to DISTINCT victims for
-	// one DID can overshoot the cap (each victim still receives at most one mail —
-	// it admits a few extra distinct victims, it does not bomb anyone). Keeping the
-	// two statements adjacent narrows that window; exact enforcement needs a
-	// serialized claim (a Durable Object) and is deferred to slice 2. The gate
-	// returns before any write so a sustained DID email-bomb costs no rows; the
-	// ledger is written before the claim/send, so a later suppressed-claim or
-	// lost-CAS attempt still counts — a conservative over-count, never an
-	// under-count.
+	// Per-DID best-effort gate. The count→claim→ledger sequence is a non-atomic
+	// check-then-act: concurrent confirmations to DISTINCT victims for one DID can
+	// overshoot the cap (each victim still receives at most one mail — the lifetime
+	// cap guarantees that — so it admits a few extra distinct victims, it never
+	// bombs anyone). Exact enforcement needs a serialized claim (a Durable Object)
+	// and is deferred to slice 2. The gate returns before any write, so a sustained
+	// DID email-bomb costs no rows; the ledger is written only after a successful
+	// claim (an actual first-ever mail), so a repeat trigger for an already-mailed
+	// address writes nothing and cannot bloat the ledger or falsely trip the cap.
 	const sinceMs = now.ms - CONFIRM_DID_WINDOW_MS;
 	const distinctRecipients = await countDistinctConfirmRecipients(
 		ctx.db,
@@ -260,8 +251,9 @@ async function sendConfirmationMail(
 		logSend(request.target.did, "rate_limited:did", hash);
 		return { status: "rate_limited", recipientHash: hash, scope: "did" };
 	}
-	await recordConfirmLedgerEntry(ctx.db, request.target.did, hash, now.ms);
 
+	// Atomic claim: suppression + lifetime "mail once ever" cap + concurrency, all
+	// in one INSERT...SELECT (see claimSend). A false means one of those fired.
 	const id = newNotificationId();
 	const claimed = await claimSend(
 		ctx.db,
@@ -273,21 +265,26 @@ async function sendConfirmationMail(
 		now.date,
 	);
 	if (!claimed) {
-		await recordUndeliverable(ctx.db, request.source, "confirmation", hash, "suppressed", now.date);
-		logSend(request.target.did, "suppressed", hash);
-		return { status: "suppressed", recipientHash: hash };
+		// Suppression is pre-checked upstream, so a false here is almost always the
+		// lifetime cap. The cheap re-check only distinguishes a suppression that
+		// landed in the pre-check→claim window — an audit nicety, not correctness.
+		if (await isSuppressed(ctx.db, hash)) {
+			logSend(request.target.did, "suppressed", hash);
+			return { status: "suppressed", recipientHash: hash };
+		}
+		logSend(request.target.did, "already_mailed", hash);
+		return { status: "already_mailed", recipientHash: hash };
 	}
+
+	await recordConfirmLedgerEntry(ctx.db, request.target.did, hash, now.ms);
 
 	const token = generateConfirmToken();
 	const tokenHash = await hashConfirmToken(token);
-	const recorded = await recordConfirmSent(
-		ctx.db,
-		hash,
-		tokenHash,
-		now.ms,
-		CONFIRM_MIN_INTERVAL_MS,
-	);
+	const recorded = await recordConfirmSent(ctx.db, hash, tokenHash, now.ms);
 	if (!recorded) {
+		// The claim already enforced the lifetime cap and concurrency; a false here
+		// is only the contact leaving `unconfirmed` between the state read and this
+		// stamp. Retire the claimed row rather than mail a dead-token confirmation.
 		await markRowUndeliverable(ctx.db, id, "contact_state_changed", now.date);
 		logSend(request.target.did, "skipped:contact_state_changed", hash);
 		return { status: "skipped", recipientHash: hash, reason: "contact_state_changed" };
@@ -309,10 +306,16 @@ async function sendConfirmationMail(
 }
 
 /**
- * Claim a send by inserting the pending delivery row. Guarded by `WHERE NOT
- * EXISTS (suppression)` so the claim and the suppression re-check are one atomic
- * statement: a suppression committed before the claim blocks it. Returns whether
- * the row was inserted (false ⇒ suppressed at claim time).
+ * Claim a send by inserting the pending delivery row, guarded atomically. The
+ * suppression guard (`WHERE NOT EXISTS (suppression)`) is on both kinds: a
+ * suppression committed before the claim blocks it. A `confirmation` claim adds a
+ * second guard enforcing the LIFETIME cap and the concurrency race in the same
+ * INSERT...SELECT — it inserts only if NO prior non-`undeliverable` confirmation
+ * row exists for this recipient hash, so an address is mailed a confirmation at
+ * most once ever, and of two racing sends exactly one inserts (the second's
+ * subquery sees the first's `pending` row). An `undeliverable` prior (a race
+ * loser or a suppressed-at-claim that never mailed) is excluded, so it can never
+ * block a later legitimate confirmation. Returns whether the row was inserted.
  */
 async function claimSend(
 	db: D1Database,
@@ -323,15 +326,39 @@ async function claimSend(
 	email: string,
 	now: Date,
 ): Promise<boolean> {
+	const columns = `(id, source_type, source_id, kind, channel, recipient_hash, state, attempts,
+			 plaintext_email, created_at, created_at_epoch_ms)`;
+	const row = `SELECT ?, ?, ?, ?, 'email', ?, 'pending', 0, ?, ?, ?`;
+	const notSuppressed = `WHERE NOT EXISTS (SELECT 1 FROM notification_suppressions WHERE recipient_hash = ?)`;
+	const binds: (string | number)[] = [
+		id,
+		source.type,
+		source.id,
+		kind,
+		hash,
+		email,
+		now.toISOString(),
+		now.getTime(),
+		hash,
+	];
+
+	if (kind === "confirmation") {
+		const result = await db
+			.prepare(
+				`INSERT INTO notifications ${columns} ${row} ${notSuppressed}
+				 AND NOT EXISTS (
+					SELECT 1 FROM notifications
+					WHERE recipient_hash = ? AND kind = 'confirmation' AND state != 'undeliverable'
+				 )`,
+			)
+			.bind(...binds, hash)
+			.run();
+		return result.meta.changes > 0;
+	}
+
 	const result = await db
-		.prepare(
-			`INSERT INTO notifications
-				(id, source_type, source_id, kind, channel, recipient_hash, state, attempts,
-				 plaintext_email, created_at, created_at_epoch_ms)
-			 SELECT ?, ?, ?, ?, 'email', ?, 'pending', 0, ?, ?, ?
-			 WHERE NOT EXISTS (SELECT 1 FROM notification_suppressions WHERE recipient_hash = ?)`,
-		)
-		.bind(id, source.type, source.id, kind, hash, email, now.toISOString(), now.getTime(), hash)
+		.prepare(`INSERT INTO notifications ${columns} ${row} ${notSuppressed}`)
+		.bind(...binds)
 		.run();
 	return result.meta.changes > 0;
 }
