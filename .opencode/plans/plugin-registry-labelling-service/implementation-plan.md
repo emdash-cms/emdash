@@ -873,6 +873,8 @@ Workflow stages:
 
 Each stage stores bounded serializable output and has explicit retry/permanent-failure classification.
 
+Decision (2026-07-16, resolves the #1978 queue-vs-Workflow question): production wiring executes each assessment run as a Cloudflare WORKFLOW instance whose id derives from the subject (URI+CID) — a thin shell over the tested `AssessmentOrchestrator`: steps call the same stage adapters and atomic finalization, gaining per-stage durable resume, and the instance-per-subject serialization IS the §14.1 per-subject lock, closing both races #1978 deferred by construction. The queue consumer's role narrows to verified discovery + Workflow dispatch. The shell stays thin enough that workerd integration tests plus the existing orchestrator suite carry coverage (Workflows' local-test story is the accepted weak point).
+
 Dependencies: `W2.4` stage interfaces, `W6.3`. `W7` and `W8` later supply production adapters without changing orchestration.
 
 ### `W6.5` Implement supersession and current projection
@@ -928,7 +930,7 @@ Coordinate this work with the delegated release service plan's proposed `package
 
 ### `W7.1` Establish shared verification ownership
 
-Decision (2026-07-11): the delegated release service work owns `packages/registry-verification`, already built on its integration branch (checksum, safe fetch, canonical bundle validation, Sigstore provenance, workerd tests) and covering the required shared surface. `W7.2`/`W7.3` extend that package after it reaches main with the labeler's additions: mirror-first acquisition, the SSRF-hardened declared-URL fallback, and mirror-miss/transient/permanent-mismatch classification. If sequencing inverts and W7 starts first, graduate the package from that branch to main in a standalone PR; do not cherry-pick across integration branches or build a competing implementation.
+Decision (2026-07-11): the delegated release service work owns `packages/registry-verification`, already built on its integration branch (checksum, safe fetch, canonical bundle validation, Sigstore provenance, workerd tests) and covering the required shared surface. `W7.2`/`W7.3` extend that package after it reaches main with the labeler's additions: mirror-first acquisition, the SSRF-hardened declared-URL fallback, and mirror-miss/transient/permanent-mismatch classification. If sequencing inverts and W7 starts first, graduate the package from that branch to main in a standalone PR; do not cherry-pick across integration branches or build a competing implementation. Ratified (2026-07-16, sequencing has inverted): the graduation unit is a coordinated THREE-package promotion — registry-verification hard-depends on the delegated branch's additive, main-absent slices of `@emdash-cms/plugin-types` (manifest-schema, declared-access) and `@emdash-cms/registry-lexicons` (profileExtension) — lifted verbatim in one main PR with minor changesets for the two published packages; content-identical code reconciles into the delegated branch on its next main sync.
 
 Dependencies: `W0.6`, `packages/registry-verification` on main.
 
