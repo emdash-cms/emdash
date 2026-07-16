@@ -14,6 +14,7 @@ import {
 } from "../src/artifact-acquisition.js";
 import { computeRunKey, initialTriggerId, operatorTriggerId } from "../src/assessment-lifecycle.js";
 import {
+	AssessmentFinalizationConflictError,
 	AssessmentOrchestrator,
 	StageTransientError,
 	stubStages,
@@ -737,6 +738,42 @@ describe("AssessmentOrchestrator: resume from running", () => {
 			.bind(run.uri, run.cid)
 			.first<{ neg: number }>();
 		expect(pending?.neg).toBe(1);
+	});
+});
+
+describe("AssessmentOrchestrator: cancel racing finalization", () => {
+	it("issues no labels and throws when a cancel moves the run out of running before commit", async () => {
+		const run = await pendingRun({ name: "cancel-race", cidValue: await cid("cancel-race") });
+		// A stage that cancels the run mid-flight simulates a delete/operator cancel
+		// landing after the currency check but before the finalization batch commits.
+		const cancelDuringStage: StageAdapter = async () => {
+			await transitionAssessmentState(testEnv.DB, {
+				id: run.id,
+				from: "running",
+				to: "cancelled",
+			});
+			return [];
+		};
+		const orchestrator = await buildOrchestrator({
+			...stubStages,
+			deterministic: cancelDuringStage,
+		});
+
+		await expect(orchestrator.runAssessment(run.id)).rejects.toBeInstanceOf(
+			AssessmentFinalizationConflictError,
+		);
+
+		// The run stays cancelled and NO label was issued — not the positive
+		// outcome label, not even the assessment-pending negation.
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("cancelled");
+		const labels = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?`,
+		)
+			.bind(run.id)
+			.first<{ n: number }>();
+		expect(labels?.n).toBe(0);
 	});
 });
 

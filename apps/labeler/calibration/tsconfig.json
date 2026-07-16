@@ -5,5 +5,5 @@
 		"verbatimModuleSyntax": true,
 		"noEmit": true
 	},
-	"include": ["**/*.ts", "../worker-configuration.d.ts"]
+	"include": ["**/*.ts", "../worker-configuration.d.ts", "../src/vite-env.d.ts"]
 }

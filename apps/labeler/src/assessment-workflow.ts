@@ -96,5 +96,14 @@ export async function executeAssessmentInstance(
  * concurrent subjects.
  */
 function buildStages(): OrchestratorStages {
+	// Mechanical enforcement of the DEPLOY GATE above: a production build must not
+	// run stub stages (which would sign `assessment-passed` for every unscanned
+	// subject). `import.meta.env.PROD` is a Vite compile-time constant — true in
+	// `vite build`, false in dev and the vitest pool — so this cannot be spoofed
+	// at runtime. Remove once real stages are wired here.
+	if (import.meta.env.PROD)
+		throw new Error(
+			"AssessmentWorkflow has only stub stages in a production build — refusing to issue assessment-passed for unscanned subjects. Wire the real analysis stages (W7/W8) before deploying.",
+		);
 	return stubStages;
 }

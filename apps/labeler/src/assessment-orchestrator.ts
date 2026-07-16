@@ -52,6 +52,25 @@ export class StageTransientError extends Error {
 	override readonly name = "StageTransientError";
 }
 
+/**
+ * Thrown when the finalization batch's CAS out of `running` changed no row — a
+ * cancel or delete raced finalization. The in-batch state guard means no labels
+ * were issued; this signals the caller (the Workflow step) to retry, where the
+ * now-terminal row short-circuits.
+ */
+export class AssessmentFinalizationConflictError extends Error {
+	override readonly name = "AssessmentFinalizationConflictError";
+	constructor(
+		readonly assessmentId: string,
+		readonly expectedState: AssessmentState,
+		readonly actualState: AssessmentState | null,
+	) {
+		super(
+			`assessment ${assessmentId} finalization lost the race: expected ${expectedState}, found ${actualState ?? "missing"}`,
+		);
+	}
+}
+
 export interface StageContext {
 	readonly assessment: Assessment;
 }
@@ -271,6 +290,9 @@ export class AssessmentOrchestrator {
 				},
 				now,
 				false,
+				// Gate every finalization label on the run reaching `toState`, so a
+				// concurrent cancel/delete that no-ops the CAS also no-ops the labels.
+				{ requireAssessmentState: toState },
 			);
 			statements.push(...built.statements);
 			postCommits.push(built.postCommit);
@@ -305,29 +327,26 @@ export class AssessmentOrchestrator {
 			await issue(prior.val, true);
 		}
 
-		// Final currency re-check with no signing between it and the commit, so
-		// the delete/cancel window is two adjacent D1 ops rather than spanning
-		// every label's signing round-trip above. Full closure still needs an
-		// in-batch assessment-state guard (see the re-check before this method);
-		// this shrinks the exposure in the interim.
+		// Final currency re-check with no signing between it and the commit, so the
+		// delete/cancel window is two adjacent D1 ops rather than spanning every
+		// label's signing round-trip above.
 		//
-		// That same guard is what a signing-state flip during the batch needs:
-		// the label inserts are guarded on active signing state and no-op if it
-		// flips, but the state CAS below is not, so a flip after this point could
-		// commit the terminal state without its labels.
+		// The batch is all-or-nothing against the run→toState CAS: every issuance
+		// action is gated on the assessment reaching `toState`
+		// (buildIssuanceStatements' requireAssessmentState), and the CAS's row count
+		// is checked after commit (below). A cancel or delete that moves the run out
+		// of `running` in this gap therefore no-ops the CAS AND every label — nothing
+		// leaks — and the lost race raises AssessmentFinalizationConflictError.
 		//
-		// The Workflow instance id (the runKey) dedups only redelivery of the same
-		// run, NOT a delete, operator cancel, or signing flip racing an in-flight
-		// run, so three related gaps in this method remain open until that in-batch
-		// state guard lands (tracked with the real-stage wiring):
-		//   - a stale (CID-superseded) run returns without negating its own
-		//     assessment-pending, so a superseded subject keeps advertising an
-		//     in-progress assessment;
-		//   - the finalization CAS result below is not checked, so if a
-		//     concurrent cancel moved the run out of `running`, the CAS no-ops
-		//     while the label inserts commit and this returns a run that never
-		//     exited `running`;
-		//   - `transitionAssessmentState` here and in the stale branch can throw
+		// Narrower gaps remain, tracked with the real-stage wiring:
+		//   - a signing-state flip mid-batch: the label inserts are guarded on active
+		//     signing state and no-op if it flips, but the CAS is not, so a flip could
+		//     commit the terminal state with its labels suppressed (the CAS still
+		//     changed a row, so the postCommit below surfaces it as a signing error);
+		//   - a CID supersession landing in this gap does not move the run out of
+		//     `running`, so the CAS succeeds and this run finalizes labels for its own
+		//     CID (the pointer upsert is guarded on created-at ordering);
+		//   - `transitionAssessmentState` in the stale branch below can throw
 		//     `AssessmentTransitionConflictError` under a racing delete.
 		const stillCurrent = await isSubjectCurrent(this.db, {
 			uri: assessment.uri,
@@ -342,7 +361,18 @@ export class AssessmentOrchestrator {
 			});
 		}
 
-		await this.db.batch(statements);
+		const results = await this.db.batch(statements);
+		// If the finalization CAS changed no row, a cancel/delete moved the run out
+		// of `running` between the currency re-check and commit. The in-batch state
+		// guard on every issuance statement means NO labels were written, so skip
+		// the postCommits (each would otherwise mis-diagnose the absent label as a
+		// signing failure and throw) and surface the lost race loudly — the Workflow
+		// step retries and short-circuits on the now-terminal row.
+		const casChanged = results[finalization.assessmentUpdateIndex]?.meta.changes ?? 0;
+		if (casChanged !== 1) {
+			const raced = await getAssessment(this.db, assessment.id);
+			throw new AssessmentFinalizationConflictError(assessment.id, toState, raced?.state ?? null);
+		}
 		for (const postCommit of postCommits) await postCommit();
 
 		const finalised = await getAssessment(this.db, assessment.id);

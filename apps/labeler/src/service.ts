@@ -1,6 +1,6 @@
 import type { LabelSigner, SignedLabel } from "@emdash-cms/registry-moderation";
 
-import { ASSESSMENT_ID } from "./assessment-lifecycle.js";
+import { ASSESSMENT_ID, type AssessmentState } from "./assessment-lifecycle.js";
 import { getNegatableAutomatedLabels } from "./assessment-store.js";
 import type { LabelerConfig } from "./config.js";
 import type { FindingSeverity } from "./evidence.js";
@@ -110,6 +110,18 @@ export interface IssuanceStatements {
 	postCommit: () => Promise<IssuedLabel>;
 }
 
+export interface BuildIssuanceOptions {
+	/**
+	 * Gate the action insert (and thus its label) on the assessment row being in
+	 * this state at commit time. Finalization passes its `toState` so the whole
+	 * batch — the run→toState CAS and every label — is all-or-nothing against that
+	 * transition: a concurrent cancel/delete that no-ops the CAS also no-ops every
+	 * label, so no label leaks for a run that is no longer `running`. Requires an
+	 * automated-assessment action (it carries the assessmentId to check).
+	 */
+	requireAssessmentState?: AssessmentState;
+}
+
 /**
  * Builds the two INSERT statements that record an issuance action and its
  * signed label, sharing the same signing/rotation guards for both the
@@ -127,6 +139,7 @@ export async function buildIssuanceStatements(
 	proposal: IssuanceProposal,
 	now: Date,
 	publicationPending: boolean,
+	options: BuildIssuanceOptions = {},
 ): Promise<IssuanceStatements> {
 	const signingStatus = await getSigningStatusIfInitialized(db);
 	if (signingStatus?.phase === "paused") {
@@ -190,6 +203,37 @@ export async function buildIssuanceStatements(
 	// selects from an action that was never written.
 	const isAutomatedNegation = action.type === "automated-assessment" && proposal.neg === true;
 
+	// Optional finalization guard: gate the action insert on the assessment still
+	// being in the required state at commit time. The label insert selects from
+	// this action, so gating the action gates the label too — a no-op action
+	// leaves no orphan label (same pattern as the §10 negation guard above).
+	const requireState = options.requireAssessmentState;
+	if (requireState !== undefined && action.type !== "automated-assessment")
+		throw new TypeError("requireAssessmentState requires an automated-assessment action");
+	const stateGuardSql =
+		requireState === undefined
+			? ""
+			: `\n\t\t\t\t AND EXISTS (SELECT 1 FROM assessments WHERE id = ? AND state = ?)`;
+	const actionBinds: unknown[] = [
+		action.actor,
+		action.type,
+		action.reason,
+		action.idempotencyKey,
+		assessmentId,
+		now.toISOString(),
+		isPrebootstrap ? 1 : 0,
+		isPrebootstrap ? 1 : 0,
+		config.signingKeyVersion,
+		isAutomatedNegation ? 1 : 0,
+		signer.issuerDid,
+		proposal.uri,
+		proposal.val,
+		signer.issuerDid,
+		proposal.uri,
+		proposal.val,
+	];
+	if (requireState !== undefined) actionBinds.push(assessmentId, requireState);
+
 	const statements: D1PreparedStatement[] = [
 		db
 			.prepare(
@@ -213,27 +257,10 @@ export async function buildIssuanceStatements(
 						  )
 						  AND l2.neg = 0 AND a2.type <> 'automated-assessment'
 					)
-				 )
+				 )${stateGuardSql}
 				 ON CONFLICT(idempotency_key) DO NOTHING`,
 			)
-			.bind(
-				action.actor,
-				action.type,
-				action.reason,
-				action.idempotencyKey,
-				assessmentId,
-				now.toISOString(),
-				isPrebootstrap ? 1 : 0,
-				isPrebootstrap ? 1 : 0,
-				config.signingKeyVersion,
-				isAutomatedNegation ? 1 : 0,
-				signer.issuerDid,
-				proposal.uri,
-				proposal.val,
-				signer.issuerDid,
-				proposal.uri,
-				proposal.val,
-			),
+			.bind(...actionBinds),
 		db
 			.prepare(
 				`INSERT INTO issued_labels
