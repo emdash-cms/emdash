@@ -10,6 +10,7 @@ import { drainDiscoveryDeadLetterBatch, processDiscoveryBatch } from "./discover
 import { LABELER_DISCOVERY_DO_NAME } from "./discovery-do.js";
 import type { DiscoveryJob } from "./env.js";
 import { didDocumentResponse, policyDocumentResponse } from "./identity.js";
+import { handleNotificationRequest, isNotificationPath } from "./notification-endpoints.js";
 import { queryLabels } from "./query-labels.js";
 import { reconcileAssessments } from "./reconciliation.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
@@ -51,6 +52,11 @@ export default {
 			if (pathname === CREATE_REPORT_PATH) return rejectModerationReport(request);
 			return handleAssessmentXrpc(env, request, config);
 		}
+		// Public publisher-notification landing pages (confirm / unsubscribe /
+		// not-me). Mounted outside `/admin/*` so the Access edge policy and the
+		// operator guard never apply — the capability in the link is the sole
+		// authority (see notification-endpoints.ts).
+		if (isNotificationPath(pathname)) return handleNotificationRequest(env.DB, request);
 		// `/admin/api/*` is the Access-guarded operator read API; anything else
 		// under `/admin` is the console SPA, served (with SPA deep-link
 		// fallback) by the assets binding. The Access edge policy on `/admin/*`
