@@ -1372,8 +1372,8 @@ function SlashCommandMenu({
 						className={cn(
 							"flex items-center gap-3 w-full px-3 py-2 text-sm rounded text-start",
 							index === state.selectedIndex
-								? "bg-kumo-tint text-kumo-default"
-								: "hover:bg-kumo-tint/50",
+								? "bg-kumo-interact text-kumo-default"
+								: "hover:bg-kumo-interact",
 						)}
 						onClick={() => onCommand(item)}
 						onMouseEnter={() => {

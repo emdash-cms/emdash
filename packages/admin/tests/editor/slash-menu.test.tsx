@@ -220,12 +220,10 @@ function getSlashMenuItems(menu: HTMLElement): HTMLButtonElement[] {
 
 /**
  * Check if an item is the selected/highlighted item.
- * Selected items use "bg-kumo-tint text-kumo-default" (space-separated).
- * Non-selected items use "hover:bg-kumo-tint/50".
+ * Selected items use the semantic interaction surface.
  */
 function isItemSelected(el: HTMLElement): boolean {
-	// Split className by spaces and check for exact "bg-kumo-tint" token
-	return el.className.split(WHITESPACE_SPLIT_REGEX).includes("bg-kumo-tint");
+	return el.className.split(WHITESPACE_SPLIT_REGEX).includes("bg-kumo-interact");
 }
 
 function isSlashSuggestionActive(editor: Editor): boolean {
@@ -489,6 +487,18 @@ describe("Slash Command Menu", () => {
 			},
 			{ timeout: 3000 },
 		);
+	});
+
+	it("uses the interaction surface for selected items", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		const selectedItem = getSlashMenuItems(menu)[0]!;
+		const classes = selectedItem.className.split(WHITESPACE_SPLIT_REGEX);
+		expect(classes).toContain("bg-kumo-interact");
+		expect(classes).not.toContain("bg-kumo-tint");
 	});
 
 	it("moves selection down with ArrowDown", async () => {

@@ -14,16 +14,16 @@ vi.mock("@tiptap/extension-drag-handle-react", () => ({
 		children: React.ReactNode;
 		computePositionConfig: {
 			placement: string;
-			middleware?: Array<{ name: string; options?: unknown[] }>;
+			middleware?: Array<{ name: string; options?: [number?] }>;
 		};
 	}) => (
 		<div
 			className="drag-handle"
 			draggable="true"
 			data-placement={computePositionConfig.placement}
-			data-offset={String(
-				computePositionConfig.middleware?.find(({ name }) => name === "offset")?.options?.[0] ?? "",
-			)}
+			data-offset={
+				computePositionConfig.middleware?.find(({ name }) => name === "offset")?.options?.[0] ?? ""
+			}
 		>
 			{children}
 		</div>
