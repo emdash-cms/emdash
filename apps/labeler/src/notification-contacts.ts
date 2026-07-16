@@ -101,6 +101,19 @@ function getHmacKey(pepper: string): Promise<CryptoKey> {
 	return key;
 }
 
+/**
+ * SHA-256 hex (64 chars) of a raw confirmation token — the stored
+ * `confirm_token_hash` form. The confirm endpoint hashes the token from the
+ * email link through this before {@link confirmContact}'s constant-time compare;
+ * the send path (W10.5) stores the same digest via {@link recordConfirmSent}, so
+ * the raw token never touches the database. WebCrypto only, so it runs unchanged
+ * on workerd.
+ */
+export async function hashConfirmToken(token: string): Promise<string> {
+	const digest = await crypto.subtle.digest("SHA-256", encoder.encode(token));
+	return toHex(digest);
+}
+
 export async function getContactState(
 	db: D1Database,
 	recipientHashValue: string,
