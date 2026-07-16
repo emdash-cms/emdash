@@ -567,28 +567,29 @@ export class MediaUsageRepository {
 					.orderBy("content_id", "asc")
 					.limit(limit),
 			)
-			.selectFrom("page_groups as page")
+			.with("entry_state", (db) =>
+				db
+					.selectFrom("page_groups as page")
+					.crossJoin("_emdash_media_usage_sources as state")
+					.select(["page.collection_slug", "page.content_id"])
+					.select((eb) =>
+						eb.fn.max<string | null>("state.content_deleted_at").as("entry_deleted_at"),
+					)
+					.whereRef("page.collection_slug", "=", "state.collection_slug")
+					.whereRef("page.content_id", "=", "state.content_id")
+					.where("state.source_type", "=", "content")
+					.where("state.source_variant", "in", ["columns", "draft_overlay"])
+					.groupBy(["page.collection_slug", "page.content_id"]),
+			)
+			.selectFrom("entry_state as page")
 			.crossJoin("_emdash_media_usage_sources as s")
 			.crossJoin("_emdash_media_usage as u")
-			.innerJoin("_emdash_collections as collection", "collection.slug", "s.collection_slug")
 			.whereRef("page.collection_slug", "=", "s.collection_slug")
 			.whereRef("page.content_id", "=", "s.content_id")
 			.whereRef("s.source_key", "=", "u.source_key")
 			.whereRef("s.current_generation", "=", "u.generation")
 			.select(currentUsageSelect)
-			.select(
-				sql<string | null>`(
-					SELECT deleted_source.content_deleted_at
-					FROM _emdash_media_usage_sources AS deleted_source
-					WHERE deleted_source.source_type = 'content'
-						AND deleted_source.collection_slug = s.collection_slug
-						AND deleted_source.content_id = s.content_id
-						AND deleted_source.source_variant IN ('columns', 'draft_overlay')
-						AND deleted_source.content_deleted_at IS NOT NULL
-					ORDER BY deleted_source.content_deleted_at DESC
-					LIMIT 1
-				)`.as("entry_deleted_at"),
-			)
+			.select("page.entry_deleted_at")
 			.select(
 				sql<number>`CASE
 					WHEN (SELECT COUNT(*) FROM matched_groups) > ${limit} THEN 1

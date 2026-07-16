@@ -110,6 +110,8 @@ it("loads coverage and one grouped page in one statement each", async () => {
 	const groupedQueries = captured.filter((query) => query.sql.includes("matched_groups"));
 	expect(coverageQueries).toHaveLength(1);
 	expect(groupedQueries).toHaveLength(1);
+	expect(groupedQueries[0]!.sql).toContain("entry_state");
+	expect(groupedQueries[0]!.sql).not.toContain("deleted_source");
 
 	const plan = explain(groupedQueries[0]!);
 	expect(firstSourceOrUsageAccess(plan)).toMatch(
