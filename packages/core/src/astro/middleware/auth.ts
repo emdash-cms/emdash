@@ -384,10 +384,11 @@ async function handleEmDashAuth(
  * 1. Bearer token (all modes). A valid token authenticates; an invalid/expired one
  *    returns 401 (we never silently downgrade a bad token to anonymous).
  * 2. External provider — only for a *private* route in production external-auth
- *    mode. Here `handleExternalAuth` is the sole authority (the provider, e.g.
- *    Cloudflare Access, gates every request and EmDash mints no session of its
- *    own), so it hard-blocks with 401 on failure. Session auth is deliberately
- *    NOT a fallback in this case — there is no EmDash session to fall back to.
+ *    mode. Here `handleExternalAuth` is the sole authority: the provider (e.g.
+ *    Cloudflare Access) is re-verified on every request, so it hard-blocks with
+ *    401 on failure. It does persist an EmDash session (so public pages can
+ *    identify the user), but on these routes that session is deliberately NOT
+ *    consulted as a fallback — the provider check is authoritative every time.
  * 3. Session — everything else (non-external mode, DEV, and all public routes).
  *    This is soft: it sets `locals.user` if a session exists but never blocks.
  *
