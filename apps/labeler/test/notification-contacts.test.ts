@@ -7,7 +7,9 @@ import {
 	type ContactState,
 	declineContact,
 	ensureContact,
+	generateConfirmToken,
 	getContactState,
+	hashConfirmToken,
 	isSuppressed,
 	recipientHash,
 	recordConfirmSent,
@@ -306,6 +308,32 @@ describe("canSendConfirm", () => {
 		expect(canSendConfirm({ ...unconfirmed(null), confirmState: "declined" }, 10_000, 1_000)).toBe(
 			false,
 		);
+	});
+});
+
+describe("generateConfirmToken", () => {
+	it("emits base64url with at least 128 bits of entropy", () => {
+		const token = generateConfirmToken();
+		expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
+		// base64url has no padding; >=22 chars is >=128 bits, and this token is 32 bytes.
+		expect(token.length).toBeGreaterThanOrEqual(22);
+		expect(token).not.toContain("=");
+	});
+
+	it("is unique across draws (CSPRNG, not monotonic)", () => {
+		const tokens = new Set(Array.from({ length: 500 }, () => generateConfirmToken()));
+		expect(tokens.size).toBe(500);
+	});
+
+	it("survives the confirm round-trip: the send-path hash confirms against the endpoint re-hash", async () => {
+		const hash = await freshHash();
+		const token = generateConfirmToken();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		// Send path stores SHA-256(token); the raw token travels in the link.
+		await recordConfirmSent(db(), hash, await hashConfirmToken(token), 1_000);
+		// Confirm endpoint re-hashes the raw token from the link before comparing.
+		const presentedHash = await hashConfirmToken(token);
+		expect(await confirmContact(db(), hash, presentedHash, "2026-07-16T02:00:00.000Z")).toBe(true);
 	});
 });
 

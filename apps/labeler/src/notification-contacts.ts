@@ -122,6 +122,34 @@ export async function hashConfirmToken(token: string): Promise<string> {
 	return toHex(digest);
 }
 
+/**
+ * Bytes of CSPRNG entropy per confirmation token — 32 (256 bits), comfortably
+ * above the 128-bit floor {@link hashConfirmToken}'s doc mandates. base64url of
+ * 32 bytes is 43 chars, within the confirm endpoint's `CONFIRM_TOKEN` bound.
+ */
+const CONFIRM_TOKEN_BYTES = 32;
+
+/**
+ * Fresh single-use confirmation token, base64url (no padding) of
+ * {@link CONFIRM_TOKEN_BYTES} CSPRNG bytes from `crypto.getRandomValues`.
+ *
+ * SECURITY — this token is the SOLE protection against a brute-force confirm of
+ * a contact whose recipient hash leaked: the confirm endpoint stores only the
+ * pepper-less SHA-256 digest and applies no rate limit (see
+ * {@link hashConfirmToken}). It MUST therefore be drawn from a CSPRNG with high
+ * entropy — never a ULID, `randomUUID`, or any monotonic/timestamped value. The
+ * raw token travels only in the confirm link; the caller persists its
+ * {@link hashConfirmToken} digest via `recordConfirmSent` and never the raw value.
+ */
+export function generateConfirmToken(): string {
+	const bytes = crypto.getRandomValues(new Uint8Array(CONFIRM_TOKEN_BYTES));
+	let binary = "";
+	for (const byte of bytes) {
+		binary += String.fromCharCode(byte);
+	}
+	return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
 export async function getContactState(
 	db: D1Database,
 	recipientHashValue: string,
@@ -156,9 +184,13 @@ export async function ensureContact(
 
 /**
  * Record that a confirmation mail was sent: stores the token hash the eventual
- * confirm must match and stamps the send time the rate gate reads. Only touches
- * an `unconfirmed` contact — a confirmed or declined row is never reopened even
- * if a caller skips {@link canSendConfirm}. Returns whether a row was updated.
+ * confirm must match and stamps the send time. Only touches an `unconfirmed`
+ * contact — a confirmed or declined row is never reopened even if a caller skips
+ * {@link canSendConfirm}. Returns whether a row was updated.
+ *
+ * The lifetime "mail once ever" cap and the concurrency race are enforced
+ * upstream, atomically, by the confirmation delivery-row claim (W10.5), so this
+ * only needs to stamp the token on the still-unconfirmed contact.
  */
 export async function recordConfirmSent(
 	db: D1Database,
