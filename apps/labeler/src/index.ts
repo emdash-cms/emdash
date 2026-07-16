@@ -12,7 +12,7 @@ import type { DiscoveryJob } from "./env.js";
 import { didDocumentResponse, policyDocumentResponse } from "./identity.js";
 import { handleNotificationRequest, isNotificationPath } from "./notification-endpoints.js";
 import { runNotificationSweep } from "./notification-sweep.js";
-import { createNotifyDeps } from "./notification-triggers.js";
+import { createNotifyDeps, type NotifyDeps } from "./notification-triggers.js";
 import { queryLabels } from "./query-labels.js";
 import { reconcileAssessments } from "./reconciliation.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
@@ -142,6 +142,21 @@ function getOperatorAccessConfig(env: Env): AccessAuthConfig {
 	return parsed;
 }
 
+/** Build notify deps for the console mutation path without ever throwing: a
+ * failure (e.g. a missing hash pepper) degrades notifications to `undefined` so
+ * the label mutation still commits. Notifications are a post-commit side effect
+ * and must never block a label action. */
+export async function safeCreateNotifyDeps(env: Env): Promise<NotifyDeps | undefined> {
+	try {
+		return await createNotifyDeps(env);
+	} catch (err) {
+		console.error("[notifications] notify deps unavailable; skipping notifications", {
+			error: err instanceof Error ? err.message : String(err),
+		});
+		return undefined;
+	}
+}
+
 async function handleConsoleApiRequest(
 	env: Env,
 	request: Request,
@@ -172,7 +187,7 @@ async function handleConsoleApiRequest(
 			sendDiscoveryJob: async (job) => {
 				await env.DISCOVERY_QUEUE.send(job);
 			},
-			notify: await createNotifyDeps(env),
+			notify: await safeCreateNotifyDeps(env),
 		});
 	}
 	return handleConsoleApi(request, {
