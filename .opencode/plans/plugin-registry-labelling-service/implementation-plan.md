@@ -1246,6 +1246,8 @@ Delivery uses Cloudflare Email Sending through the Workers `send_email` binding;
 
 Notify on block, warning, override, retraction, prolonged error, and emergency takedown. Include public summary/effect/reconsideration URL without private details. Delivery retries independently and never rolls back a label.
 
+Hard requirement (2026-07-16, from the W10.4 slice-C adversary pass): the confirm token this slice generates MUST come from a CSPRNG with ≥128 bits of entropy. The confirm endpoint stores `SHA-256(token)` without a pepper (unlike the recipient hash, which is HMAC-peppered because email is low-entropy) and applies no in-worker rate limit, so the token's unguessability is the sole protection against a brute-force confirm of a contact whose recipient hash leaked. A weak or predictable token would make double opt-in bypassable through the public endpoint. Do not reuse a ULID or any monotonic/timestamped id as the token.
+
 Dependencies: `W2.3`, `W10.3`, `W10.4`.
 
 ### `W10.6` Implement reconsideration workflow
