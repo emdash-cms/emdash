@@ -1332,6 +1332,12 @@ function SlashCommandMenu({
 	}, [onClose, state.isOpen]);
 
 	if (!state.isOpen) return null;
+	const selectedItem = state.items[state.selectedIndex];
+	const selectedItemTitle = selectedItem
+		? typeof selectedItem.title === "string"
+			? selectedItem.title
+			: t(selectedItem.title)
+		: "";
 
 	return createPortal(
 		<div
@@ -1345,6 +1351,11 @@ function SlashCommandMenu({
 				hasMouseMovedRef.current = true;
 			}}
 		>
+			{selectedItem && (
+				<span className="sr-only" role="status">
+					{t`Selected ${selectedItemTitle}`}
+				</span>
+			)}
 			{state.items.length === 0 ? (
 				<p className="text-sm text-kumo-subtle px-3 py-2">{t`No results`}</p>
 			) : (
@@ -1353,6 +1364,7 @@ function SlashCommandMenu({
 						key={item.id}
 						type="button"
 						data-index={index}
+						aria-current={index === state.selectedIndex ? "true" : undefined}
 						className={cn(
 							"flex items-center gap-3 w-full px-3 py-2 text-sm rounded text-start",
 							index === state.selectedIndex
@@ -3000,11 +3012,12 @@ function EditorBubbleMenu({
 					<Input
 						ref={inputRef}
 						type="url"
-						placeholder="https://..."
+						placeholder={t`https://...`}
 						value={linkUrl}
 						onChange={(e) => setLinkUrl(e.target.value)}
 						onKeyDown={handleKeyDown}
 						className="h-8 w-48 text-sm"
+						aria-label={t`URL`}
 					/>
 					<Button
 						type="button"
@@ -3561,7 +3574,7 @@ function EditorToolbar({
 								<Input
 									ref={linkInputRef}
 									type="url"
-									placeholder="https://..."
+									placeholder={t`https://...`}
 									value={linkUrl}
 									onChange={(e) => setLinkUrl(e.target.value)}
 									onKeyDown={handleLinkKeyDown}

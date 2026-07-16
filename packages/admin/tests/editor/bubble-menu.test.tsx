@@ -601,6 +601,7 @@ describe("Bubble Menu", () => {
 		// Should have a URL input with placeholder
 		const input = menu.querySelector('input[type="url"]');
 		expect(input).toBeTruthy();
+		expect(input?.getAttribute("aria-label")).toBe("URL");
 	});
 
 	it("applies link URL when Apply button is clicked", async () => {

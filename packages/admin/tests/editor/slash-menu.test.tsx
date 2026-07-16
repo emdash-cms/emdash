@@ -484,6 +484,8 @@ describe("Slash Command Menu", () => {
 				const menu = getSlashMenu()!;
 				const items = getSlashMenuItems(menu);
 				expect(isItemSelected(items[0]!)).toBe(true);
+				expect(items[0]?.getAttribute("aria-current")).toBe("true");
+				expect(menu.querySelector('[role="status"]')?.textContent).toBe("Selected Heading 1");
 			},
 			{ timeout: 3000 },
 		);
@@ -502,6 +504,9 @@ describe("Slash Command Menu", () => {
 			const items = getSlashMenuItems(menu);
 			expect(isItemSelected(items[1]!)).toBe(true);
 			expect(isItemSelected(items[0]!)).toBe(false);
+			expect(items[1]?.getAttribute("aria-current")).toBe("true");
+			expect(items[0]?.hasAttribute("aria-current")).toBe(false);
+			expect(menu.querySelector('[role="status"]')?.textContent).toBe("Selected Heading 2");
 		});
 	});
 

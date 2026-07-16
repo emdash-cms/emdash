@@ -169,12 +169,13 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 					>
 						<Plus className="h-4 w-4" aria-hidden="true" />
 					</Button>
-					<button
+					<Button
 						ref={handleRef}
 						type="button"
+						variant="ghost"
+						shape="square"
 						className={cn(
-							"flex items-center justify-center",
-							"w-6 h-6 rounded select-none",
+							"h-6 w-6 flex-none rounded select-none",
 							"text-kumo-subtle/50 hover:text-kumo-subtle",
 							"hover:bg-kumo-tint/80 cursor-grab active:cursor-grabbing",
 							"transition-colors duration-100",
@@ -184,8 +185,8 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 						data-block-handle
 						aria-label={t`Block actions - drag to reorder, click for menu`}
 					>
-						<DotsSixVertical className="h-4 w-4" />
-					</button>
+						<DotsSixVertical className="h-4 w-4" aria-hidden="true" />
+					</Button>
 				</div>
 			</DragHandle>
 

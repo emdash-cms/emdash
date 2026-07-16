@@ -25,6 +25,24 @@ vi.mock("../../src/components/editor/BlockMenu", () => ({
 }));
 
 describe("DragHandleWrapper interactions", () => {
+	it("uses Kumo buttons for both drag-handle controls", async () => {
+		const editor = {
+			view: { dom: document.createElement("div") },
+		} as unknown as Editor;
+		const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Insert block below" }))
+			.toHaveAttribute("data-kumo-component", "Button");
+		await expect
+			.element(
+				screen.getByRole("button", {
+					name: "Block actions - drag to reorder, click for menu",
+				}),
+			)
+			.toHaveAttribute("data-kumo-component", "Button");
+	});
+
 	it("disables native block dragging while pressing the insert button", async () => {
 		const editorElement = document.createElement("div");
 		const setMeta = vi.fn((_key: string, locked: boolean) => {
