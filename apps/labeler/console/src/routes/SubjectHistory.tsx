@@ -1,10 +1,15 @@
-import { Button, LayerCard, Loader, Table } from "@cloudflare/kumo";
+import { Badge, Button, LayerCard, Loader, Table } from "@cloudflare/kumo";
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { apiClient } from "../api/client.js";
-import type { EmergencyActionKind, IssuableLabel, SubjectLabel } from "../api/types.js";
+import type {
+	EmergencyActionKind,
+	IssuableLabel,
+	PublisherHistory,
+	SubjectLabel,
+} from "../api/types.js";
 import { EmergencyActionDialog } from "../components/EmergencyActionDialog.js";
 import { LabelActionDialog } from "../components/LabelActionDialog.js";
 import { QueryError } from "../components/QueryError.js";
@@ -87,7 +92,7 @@ function SubjectHistory() {
 		return <div className="p-8 text-center text-sm text-kumo-subtle">Subject not found.</div>;
 	}
 
-	const { subject, assessments } = history;
+	const { subject, assessments, publisherHistory } = history;
 	const uriWideLabels = uriWideLabelsFor(subject.collection);
 	const publisherSegment = didFinalSegment(subject.did);
 	const recordTakenDown = isLabelActive(recordLabels, "!takedown");
@@ -120,6 +125,8 @@ function SubjectHistory() {
 					</Button>
 				)}
 			</div>
+
+			{publisherHistory && <PublisherHistoryCard history={publisherHistory} />}
 
 			{isAdmin && (
 				<LayerCard className="flex flex-col gap-3 border border-kumo-danger p-4">
@@ -240,6 +247,51 @@ function SubjectHistory() {
 				)}
 			</LayerCard>
 		</div>
+	);
+}
+
+/** Neutral read-time context (plan W8.4 D5): the publishing account's prior
+ * releases and the subject's active manual labels. Facts only — no findings, no
+ * action affordances. */
+function PublisherHistoryCard({ history }: { history: PublisherHistory }) {
+	const priorReleases = history.priorReleaseCapped
+		? `at least ${history.priorReleaseCount}`
+		: String(history.priorReleaseCount);
+	return (
+		<LayerCard className="flex flex-col gap-3 p-4">
+			<h2 className="text-lg font-semibold">Publisher history</h2>
+			<div className="flex flex-col gap-1">
+				<span className="text-sm text-kumo-subtle">Publishing account</span>
+				<span className="font-mono text-sm">{history.did}</span>
+			</div>
+			<div className="flex flex-col gap-1">
+				<span className="text-sm text-kumo-subtle">Prior releases from this publisher</span>
+				<span className="text-sm">{priorReleases}</span>
+				{history.priorReleaseSample.length > 0 && (
+					<ul className="flex flex-col gap-1">
+						{history.priorReleaseSample.map((uri) => (
+							<li key={uri} className="font-mono text-xs break-all">
+								{uri}
+							</li>
+						))}
+					</ul>
+				)}
+			</div>
+			<div className="flex flex-col gap-1">
+				<span className="text-sm text-kumo-subtle">Active manual labels</span>
+				{history.activeManualLabels.length > 0 ? (
+					<div className="flex flex-wrap gap-2">
+						{history.activeManualLabels.map((label) => (
+							<Badge key={`${label.val}:${label.cid ?? ""}`} variant="neutral">
+								{label.val}
+							</Badge>
+						))}
+					</div>
+				) : (
+					<span className="text-sm">None</span>
+				)}
+			</div>
+		</LayerCard>
 	);
 }
 
