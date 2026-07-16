@@ -30,6 +30,7 @@
 
 import {
 	confirmContact,
+	contactExists,
 	declineContact,
 	hashConfirmToken,
 	isSuppressed,
@@ -132,6 +133,9 @@ async function readPostParams(
  * suppressed contact. A malformed recipient hash routes to an absent row and a
  * suppressed contact to a non-matching sentinel token, so the constant-time
  * compare always runs full-length regardless of validity or suppression.
+ *
+ * This endpoint has no rate limit and the token lookup is pepper-less, so its
+ * safety depends on the token's entropy — see {@link hashConfirmToken}.
  */
 async function performConfirm(
 	db: D1Database,
@@ -157,7 +161,14 @@ async function performConfirm(
  * Record a suppression (idempotent) and decline any pending confirmation, so a
  * suppressed address can never later confirm. A confirmed opt-in is not
  * downgraded — it keeps its state and gains a suppression row that the send path
- * honors. A malformed recipient hash is a neutral no-op (no junk row written).
+ * honors.
+ *
+ * The write is gated on an existing contact row: a legitimate recipient always
+ * has one (they were sent mail, which created it via `ensureContact`, and
+ * contacts are never swept), so gating costs them nothing while an attacker who
+ * fabricates a well-formed but unseen hash writes no orphan suppression row. A
+ * malformed or unknown hash is a neutral no-op; the response is byte-identical
+ * either way because the caller only ever sees {@link donePage}.
  */
 async function performSuppression(
 	db: D1Database,
@@ -167,6 +178,10 @@ async function performSuppression(
 ): Promise<void> {
 	if (!RECIPIENT_HASH.test(rawRecipientHash)) {
 		logOutcome(reason, rawRecipientHash, "ignored-malformed");
+		return;
+	}
+	if (!(await contactExists(db, rawRecipientHash))) {
+		logOutcome(reason, rawRecipientHash, "ignored-no-contact");
 		return;
 	}
 	await suppress(db, rawRecipientHash, reason, now.toISOString(), now.getTime());

@@ -108,6 +108,14 @@ function getHmacKey(pepper: string): Promise<CryptoKey> {
  * the send path (W10.5) stores the same digest via {@link recordConfirmSent}, so
  * the raw token never touches the database. WebCrypto only, so it runs unchanged
  * on workerd.
+ *
+ * SECURITY — token entropy is a hard cross-slice dependency. This digest is
+ * pepper-less (plain SHA-256, so an offline dictionary of candidate tokens maps
+ * straight to stored hashes), and the confirm endpoint has no in-worker rate
+ * limit. Its safety therefore rests entirely on the token being unguessable:
+ * the W10.5 send path MUST draw the token from a CSPRNG with at least 128 bits
+ * of entropy. A weak or predictable token combined with a leaked recipient hash
+ * would be brute-forceable through the confirm endpoint.
  */
 export async function hashConfirmToken(token: string): Promise<string> {
 	const digest = await crypto.subtle.digest("SHA-256", encoder.encode(token));
@@ -222,6 +230,15 @@ export async function declineContact(db: D1Database, recipientHashValue: string)
 		.bind(recipientHashValue)
 		.run();
 	return result.meta.changes > 0;
+}
+
+/** Whether a contact row exists for the hash, without reading its columns. */
+export async function contactExists(db: D1Database, recipientHashValue: string): Promise<boolean> {
+	const row = await db
+		.prepare(`SELECT 1 FROM notification_contacts WHERE recipient_hash = ? LIMIT 1`)
+		.bind(recipientHashValue)
+		.first<{ 1: number }>();
+	return row !== null;
 }
 
 export async function isSuppressed(db: D1Database, recipientHashValue: string): Promise<boolean> {

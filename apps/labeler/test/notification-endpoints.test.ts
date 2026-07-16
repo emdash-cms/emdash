@@ -209,12 +209,23 @@ describe("not-me", () => {
 		expect((await getContactState(db(), hash))?.confirmState).toBe("declined");
 	});
 
-	it("suppresses an address that has no contact row at all", async () => {
-		const hash = await freshHash();
-		const response = await post("/notifications/not-me", { c: hash });
-		expect(response.status).toBe(200);
-		expect(await isSuppressed(db(), hash)).toBe(true);
-		expect(await reasonFor(hash)).toBe("not_me");
+	it("writes no suppression for a well-formed hash with no contact row, yet returns the same done page", async () => {
+		// A recipient who legitimately received mail always has a contact row, so
+		// a well-formed hash with none is an attacker-fabricated value: it must
+		// write no orphan suppression row while staying response-uniform.
+		const seeded = await freshHash();
+		await ensureContact(db(), seeded, "2026-07-16T00:00:00.000Z");
+		const suppressed = await post("/notifications/not-me", { c: seeded });
+
+		const orphan = await freshHash();
+		const noop = await post("/notifications/not-me", { c: orphan });
+
+		expect(noop.status).toBe(200);
+		expect(await noop.text()).toBe(await suppressed.text());
+		expect(await isSuppressed(db(), orphan)).toBe(false);
+		expect(await reasonFor(orphan)).toBeUndefined();
+		// The seeded contact, which does exist, was suppressed.
+		expect(await isSuppressed(db(), seeded)).toBe(true);
 	});
 });
 
