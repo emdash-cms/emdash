@@ -41,7 +41,7 @@ import type {
 	ResolvedPlugin,
 	RouteContext,
 } from "emdash";
-import { definePlugin, extractPlainText } from "emdash";
+import { definePlugin, extractPlainText, PluginRouteError } from "emdash";
 
 const MD_EXT = /\.md$/;
 const ITEM_PREFIX = /^item:/;
@@ -183,6 +183,7 @@ interface AiSearchConfig {
 	id: string;
 	type?: string;
 	source?: string;
+	index_method?: { vector: boolean; keyword: boolean };
 	custom_metadata?: Array<{ field_name: string; data_type: "text" | "number" | "boolean" }>;
 	[key: string]: unknown;
 }
@@ -210,11 +211,19 @@ interface AiSearchNamespace {
 // Helpers
 // =============================================================================
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isAiSearchNamespace(value: unknown): value is AiSearchNamespace {
+	return isRecord(value) && typeof value.get === "function" && typeof value.create === "function";
+}
+
 /** Get Cloudflare runtime env via cloudflare:workers. */
-async function getCloudflareEnv(): Promise<Record<string, unknown> | null> {
+async function getCloudflareEnv(): Promise<object | null> {
 	try {
 		const { env } = await import("cloudflare:workers");
-		return env as unknown as Record<string, unknown>;
+		return env;
 	} catch {
 		return null;
 	}
@@ -263,10 +272,7 @@ function isSystemContentKey(key: string): boolean {
 
 function extractIndexableText(value: unknown): string {
 	if (typeof value === "string") return extractPlainText(value);
-	if (Array.isArray(value)) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any, typescript-eslint(no-unsafe-type-assertion) -- Portable Text arrays are untyped; extractPlainText handles validation
-		return extractPlainText(value as any);
-	}
+	if (Array.isArray(value)) return extractPlainText(JSON.stringify(value));
 	return "";
 }
 
@@ -318,10 +324,9 @@ function contentToDescription(content: Record<string, unknown>): string {
 }
 
 function imageUrlFromValue(value: unknown): string {
-	if (!value || typeof value !== "object" || Array.isArray(value)) return "";
-	const obj = value as Record<string, unknown>;
-	if (typeof obj.src === "string" && obj.src) return obj.src;
-	const meta = obj.meta as Record<string, unknown> | undefined;
+	if (!isRecord(value)) return "";
+	if (typeof value.src === "string" && value.src) return value.src;
+	const meta = isRecord(value.meta) ? value.meta : undefined;
 	if (typeof meta?.storageKey === "string" && meta.storageKey) {
 		return `/_emdash/api/media/file/${meta.storageKey}`;
 	}
@@ -515,9 +520,8 @@ function parseSynonyms(value: unknown): Synonym[] | null {
 	if (!Array.isArray(value)) return null;
 	const result: Synonym[] = [];
 	for (const entry of value) {
-		if (typeof entry !== "object" || entry === null) continue;
-		const from = (entry as Record<string, unknown>).from;
-		const to = (entry as Record<string, unknown>).to;
+		if (!isRecord(entry)) continue;
+		const { from, to } = entry;
 		if (typeof from !== "string" || typeof to !== "string") continue;
 		const trimmedFrom = from.trim();
 		const trimmedTo = to.trim();
@@ -536,7 +540,7 @@ function escapeRegex(value: string): string {
  * A synonym rewriter compiled from a synonym set. Holds a single combined
  * regex plus the `from` -> `to` lookup so a query can be rewritten in one pass.
  */
-interface SynonymRewriter {
+export interface SynonymRewriter {
 	re: RegExp | null;
 	lookup: Map<string, string>;
 }
@@ -549,9 +553,9 @@ interface SynonymRewriter {
  * `Map`/`find` lookup. Callers cache the result so compilation happens only
  * when the synonym set changes.
  */
-function compileSynonyms(synonyms: Synonym[]): SynonymRewriter {
+export function compileSynonyms(synonyms: Synonym[]): SynonymRewriter {
 	// Longer phrases first so multi-word terms win over their sub-words.
-	const sorted = [...synonyms].filter((s) => s.from).sort((a, b) => b.from.length - a.from.length);
+	const sorted = synonyms.filter((s) => s.from).toSorted((a, b) => b.from.length - a.from.length);
 	const lookup = new Map<string, string>();
 	for (const s of sorted) {
 		const key = s.from.toLowerCase();
@@ -559,7 +563,10 @@ function compileSynonyms(synonyms: Synonym[]): SynonymRewriter {
 	}
 	if (sorted.length === 0) return { re: null, lookup };
 	const pattern = sorted.map((s) => escapeRegex(s.from)).join("|");
-	return { re: new RegExp(`\\b(?:${pattern})\\b`, "gi"), lookup };
+	return {
+		re: new RegExp(`(?<![\\p{L}\\p{N}_])(?:${pattern})(?![\\p{L}\\p{N}_])`, "giu"),
+		lookup,
+	};
 }
 
 /**
@@ -569,7 +576,7 @@ function compileSynonyms(synonyms: Synonym[]): SynonymRewriter {
  * e.g. with `autorag` -> `AI Search`, "what is autorag" becomes "what is AI
  * Search".
  */
-function applySynonyms(query: string, rewriter: SynonymRewriter): string {
+export function applySynonyms(query: string, rewriter: SynonymRewriter): string {
 	if (!rewriter.re) return query;
 	rewriter.re.lastIndex = 0;
 	return query.replace(rewriter.re, (match) => rewriter.lookup.get(match.toLowerCase()) ?? match);
@@ -656,8 +663,9 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 
 	async function getBinding(): Promise<AiSearchNamespace | null> {
 		const env = await getCloudflareEnv();
-		if (!env?.[bindingName]) return null;
-		return env[bindingName] as AiSearchNamespace;
+		if (!env) return null;
+		const candidate: unknown = Reflect.get(env, bindingName);
+		return isAiSearchNamespace(candidate) ? candidate : null;
 	}
 
 	async function ensureInstance(ns: AiSearchNamespace): Promise<AiSearchInstance> {
@@ -668,7 +676,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		} catch {
 			return ns.create({
 				id: instanceName,
-				hybrid_search_enabled: hybridSearch,
+				index_method: { vector: true, keyword: hybridSearch },
 				// AI Search allows at most 5 custom metadata fields, so title and
 				// description are packed into a single `title_desc` field to make
 				// room for `locale`.
@@ -1021,20 +1029,20 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					const start = Date.now();
 
 					// Support both JSON body input and URL query params (for GET requests)
-					const input = ctx.input as Record<string, unknown> | undefined;
+					const input = isRecord(ctx.input) ? ctx.input : undefined;
 					const url = new URL(ctx.request.url);
 					const params = url.searchParams;
 
 					const ns = await getBinding();
 					if (!ns) {
 						console.warn("[ai-search] Query failed: binding not available");
-						return { error: `${bindingName} binding not available`, results: [] };
+						throw new PluginRouteError("SEARCH_UNAVAILABLE", "Search is not available", 503);
 					}
 
 					const q =
 						(typeof input?.q === "string" ? input.q : undefined) ?? params.get("q") ?? undefined;
 					if (!q) {
-						return { error: "Query parameter 'q' is required", results: [] };
+						throw PluginRouteError.badRequest("Query parameter 'q' is required");
 					}
 
 					const locale =
@@ -1042,7 +1050,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 						params.get("locale") ??
 						undefined;
 					if (!locale) {
-						return { error: "Query parameter 'locale' is required", results: [] };
+						throw PluginRouteError.badRequest("Query parameter 'locale' is required");
 					}
 
 					const limit =
@@ -1152,10 +1160,11 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					} catch (error) {
 						const elapsed = Date.now() - start;
 						console.error(`[ai-search] Query failed after ${elapsed}ms:`, error);
-						return {
-							error: error instanceof Error ? error.message : "Search failed",
-							results: [],
-						};
+						throw new PluginRouteError(
+							"SEARCH_UNAVAILABLE",
+							"Search is temporarily unavailable",
+							503,
+						);
 					}
 				},
 			},
@@ -1163,7 +1172,11 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 			status: {
 				handler: async (ctx: RouteContext): Promise<unknown> => {
 					if (!ctx.content) {
-						return { error: "Content access not available" };
+						throw new PluginRouteError(
+							"CONTENT_UNAVAILABLE",
+							"Content access is not available",
+							500,
+						);
 					}
 
 					// Build the set of item keys currently present in the index from the
@@ -1175,13 +1188,13 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 						indexedKeys.add(key);
 					}
 
-					const input = ctx.input as Record<string, unknown> | undefined;
+					const input = isRecord(ctx.input) ? ctx.input : undefined;
 					const params = new URL(ctx.request.url).searchParams;
 					const requested =
 						typeof input?.collections === "string"
 							? input.collections.split(",")
 							: Array.isArray(input?.collections)
-								? (input.collections as string[])
+								? input.collections.filter((value): value is string => typeof value === "string")
 								: (params.get("collections")?.split(",") ?? []);
 					const trimmed = requested.map((c) => c.trim()).filter(Boolean);
 					const collections =
@@ -1258,12 +1271,14 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 						};
 					}
 
-					const input = ctx.input as Record<string, unknown> | undefined;
+					const input = isRecord(ctx.input) ? ctx.input : undefined;
 
 					if (input?.collections !== undefined) {
 						const collections = parseCollections(input.collections);
 						if (!collections) {
-							return { error: "collections must be an array of collection slugs" };
+							throw PluginRouteError.badRequest(
+								"collections must be an array or comma-separated list of collection slugs",
+							);
 						}
 						await saveConfiguredCollections(ctx, collections);
 					}
@@ -1271,7 +1286,9 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					if (input?.synonyms !== undefined) {
 						const synonyms = parseSynonyms(input.synonyms);
 						if (!synonyms) {
-							return { error: "synonyms must be an array of { from, to } objects" };
+							throw PluginRouteError.badRequest(
+								"synonyms must be an array of { from, to } objects",
+							);
 						}
 						await saveConfiguredSynonyms(ctx, synonyms);
 					}
@@ -1289,12 +1306,14 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					if (ctx.request.method.toUpperCase() === "GET") {
 						return current ? reindexResult(current) : null;
 					}
-					if (!ctx.cron) return { error: "Cron scheduling is not available" };
+					if (!ctx.cron) {
+						throw new PluginRouteError("CRON_UNAVAILABLE", "Cron scheduling is not available", 503);
+					}
 
-					const input = ctx.input as Record<string, unknown> | undefined;
+					const input = isRecord(ctx.input) ? ctx.input : undefined;
 					const requestedJobId = typeof input?.jobId === "string" ? input.jobId : undefined;
 					if (requestedJobId && current?.id !== requestedJobId) {
-						return { error: "Reindex job not found" };
+						throw PluginRouteError.notFound("Reindex job not found");
 					}
 
 					let job = current?.status === "running" ? current : null;
@@ -1302,9 +1321,9 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 						const collections =
 							parseCollections(input?.collections) ?? (await getConfiguredCollections(ctx)) ?? [];
 						if (collections.length === 0) {
-							return {
-								error: "No collections specified. Select collections in the dashboard first.",
-							};
+							throw PluginRouteError.badRequest(
+								"No collections specified. Select collections in the dashboard first.",
+							);
 						}
 						await saveConfiguredCollections(ctx, collections);
 						job = createReindexJob(collections, input?.onlyMissing === true);

@@ -18,7 +18,7 @@ import type { APIRoute } from "astro";
  */
 
 const AI_SEARCH_INSTANCE = "emdash-content";
-const DEFAULT_LOCALE = "en-us";
+const DEFAULT_LOCALE = "en";
 const MD_EXT = /\.md$/;
 
 // Title and description are packed into one metadata field by the ai-search
@@ -57,12 +57,18 @@ interface AiSearchNamespace {
 	get(name: string): AiSearchInstance;
 }
 
+function isAiSearchNamespace(value: unknown): value is AiSearchNamespace {
+	return (
+		typeof value === "object" && value !== null && "get" in value && typeof value.get === "function"
+	);
+}
+
 /** Resolve the AI_SEARCH namespace binding from the Cloudflare runtime env. */
 async function getAiSearch(): Promise<AiSearchNamespace | null> {
 	try {
 		const { env } = await import("cloudflare:workers");
-		const binding = (env as unknown as Record<string, unknown>).AI_SEARCH;
-		return binding ? (binding as AiSearchNamespace) : null;
+		const binding: unknown = Reflect.get(env, "AI_SEARCH");
+		return isAiSearchNamespace(binding) ? binding : null;
 	} catch {
 		return null;
 	}

@@ -111,6 +111,7 @@
   },
   "peerDependencies": {
     "@astrojs/cloudflare": ">=12.0.0",
+    "@cloudflare/kumo": "catalog:",
     "@cloudflare/workers-types": ">=4.0.0",
     "@phosphor-icons/react": "^2.1.10",
     "astro": ">=6.0.0-beta.0",
@@ -120,6 +121,9 @@
   },
   "peerDependenciesMeta": {
     "pg": {
+      "optional": true
+    },
+    "@cloudflare/kumo": {
       "optional": true
     },
     "@phosphor-icons/react": {
@@ -132,6 +136,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
     "@astrojs/cloudflare": "catalog:",
+    "@cloudflare/kumo": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "@types/pg": "^8.16.0",
     "@phosphor-icons/react": "catalog:",
