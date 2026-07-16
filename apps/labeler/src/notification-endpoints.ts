@@ -210,6 +210,8 @@ function htmlResponse(body: string, status = 200): Response {
 			"cache-control": "no-store",
 			"referrer-policy": "no-referrer",
 			"x-content-type-options": "nosniff",
+			"x-frame-options": "DENY",
+			"content-security-policy": "frame-ancestors 'none'",
 		},
 	});
 }

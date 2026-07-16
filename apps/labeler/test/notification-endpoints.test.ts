@@ -72,6 +72,12 @@ describe("route mounting and Access bypass", () => {
 		expect(response.headers.get("referrer-policy")).toBe("no-referrer");
 	});
 
+	it("denies framing so the state-changing form cannot be clickjacked", async () => {
+		const response = await get("/notifications/confirm?c=abc&t=xyz");
+		expect(response.headers.get("x-frame-options")).toBe("DENY");
+		expect(response.headers.get("content-security-policy")).toBe("frame-ancestors 'none'");
+	});
+
 	it("rejects non-GET/POST methods with an Allow header", async () => {
 		const response = await get("/notifications/confirm", { method: "PUT" });
 		expect(response.status).toBe(405);
