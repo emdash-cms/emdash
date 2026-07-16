@@ -18,6 +18,10 @@ import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+import {
+	ContentEditorExtensionPanels,
+	ContentEditorExtensionPanelsProvider,
+} from "../../src/components/ContentEditorExtensionPanels";
 import { ContentList } from "../../src/components/ContentList";
 import {
 	ContentSettingsPanel,
@@ -174,10 +178,44 @@ function panelProps(overrides: Partial<ContentSettingsPanelProps> = {}): Content
 	};
 }
 
+function HostedSettingsPanel({
+	props = panelProps(),
+	draftData = props.item?.data ?? {},
+}: {
+	props?: ContentSettingsPanelProps;
+	draftData?: Record<string, unknown>;
+}) {
+	return (
+		<ContentEditorExtensionPanelsProvider
+			collection={props.collection}
+			entry={props.item ?? null}
+			locale={props.item?.locale ?? props.entryLocale ?? undefined}
+			userId={props.currentUser?.id}
+			userRole={props.currentUser?.role ?? 0}
+			draft={{
+				data: draftData,
+				slug: props.slug,
+				status: props.status,
+				seo: props.item?.seo,
+				isNew: Boolean(props.isNew),
+				isDirty: Boolean(props.isNew),
+			}}
+			actions={{
+				updateField: vi.fn(),
+				updateSlug: props.onSlugChange,
+				updateSeo: props.onSeoChange,
+			}}
+		>
+			<ContentSettingsPanel {...props} />
+		</ContentEditorExtensionPanelsProvider>
+	);
+}
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	currentUserState.role = 50;
 	manifestState.disabledPluginIds = [];
+	window.localStorage.clear();
 });
 
 afterEach(() => {
@@ -360,9 +398,9 @@ describe("ContentList extension columns", () => {
 });
 
 describe("ContentSettingsPanel extension panels", () => {
-	function ctxPanel({ collection, entry, locale }: ContentEditorPanelContext) {
+	function ctxPanel({ collection, entry, locale, draft }: ContentEditorPanelContext) {
 		return (
-			<div data-testid="ext-panel">{`panel:${collection}:${entry.id}:${locale ?? "none"}`}</div>
+			<div data-testid="ext-panel">{`panel:${collection}:${entry?.id ?? "new"}:${locale ?? "none"}:${String(draft.data.title ?? "untitled")}`}</div>
 		);
 	}
 
@@ -372,14 +410,14 @@ describe("ContentSettingsPanel extension panels", () => {
 				contentEditorPanels: [{ id: "p:insights", title: "Editorial Status", panel: ctxPanel }],
 			},
 		};
-		const screen = await render(<ContentSettingsPanel {...panelProps()} />, {
+		const screen = await render(<HostedSettingsPanel />, {
 			wrapper: withPlugins(registry),
 		});
 
 		await expect
 			.element(screen.getByRole("heading", { name: "Editorial Status" }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByText("panel:posts:item-1:en")).toBeInTheDocument();
+		await expect.element(screen.getByText("panel:posts:item-1:en:My Post")).toBeInTheDocument();
 
 		// Deterministic placement: after the SEO section, before the outline —
 		// and Move to Trash stays the very last section.
@@ -396,19 +434,114 @@ describe("ContentSettingsPanel extension panels", () => {
 		expect(sections[extIndex]?.className).toContain("min-w-0");
 	});
 
-	it("renders nothing for new (never saved) entries", async () => {
+	it("renders panels for new entries with a nullable saved snapshot and live draft", async () => {
 		const registry: PluginAdmins = {
 			p: {
 				contentEditorPanels: [{ id: "p:insights", title: "Editorial Status", panel: ctxPanel }],
 			},
 		};
+		const props = panelProps({ item: null, isNew: true, entryLocale: "nl" });
 		const screen = await render(
-			<ContentSettingsPanel {...panelProps({ item: null, isNew: true })} />,
-			{ wrapper: withPlugins(registry) },
+			<HostedSettingsPanel props={props} draftData={{ title: "Draft" }} />,
+			{
+				wrapper: withPlugins(registry),
+			},
 		);
 
 		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
-		expect(screen.container.textContent).not.toContain("Editorial Status");
+		await expect
+			.element(screen.getByRole("heading", { name: "Editorial Status" }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("panel:posts:new:nl:Draft")).toBeInTheDocument();
+	});
+
+	it("places wide panels in the main editor while keeping sidebar panels in settings", async () => {
+		const registry: PluginAdmins = {
+			p: {
+				contentEditorPanels: [
+					{ id: "p:wide", title: "Wide Panel", placement: "main", panel: ctxPanel },
+					{ id: "p:side", title: "Side Panel", panel: ctxPanel },
+				],
+			},
+		};
+		const props = panelProps();
+		const screen = await render(
+			<ContentEditorExtensionPanelsProvider
+				collection="posts"
+				entry={props.item ?? null}
+				locale="en"
+				userId="u1"
+				userRole={40}
+				draft={{
+					data: props.item?.data ?? {},
+					slug: props.slug,
+					status: props.status,
+					isNew: false,
+					isDirty: false,
+				}}
+				actions={{ updateField: vi.fn(), updateSlug: vi.fn() }}
+			>
+				<main data-testid="main-panels">
+					<ContentEditorExtensionPanels placement="main" />
+				</main>
+				<aside data-testid="sidebar-panels">
+					<ContentEditorExtensionPanels placement="sidebar" />
+				</aside>
+			</ContentEditorExtensionPanelsProvider>,
+			{ wrapper: withPlugins(registry) },
+		);
+
+		await expect.element(screen.getByRole("heading", { name: "Wide Panel" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("heading", { name: "Side Panel" })).toBeInTheDocument();
+		expect(screen.getByTestId("main-panels").element().textContent).toContain("Wide Panel");
+		expect(screen.getByTestId("main-panels").element().textContent).not.toContain("Side Panel");
+		expect(screen.getByTestId("sidebar-panels").element().textContent).toContain("Side Panel");
+	});
+
+	it("exposes live draft state through host-owned field actions", async () => {
+		function LivePanel({ draft, actions }: ContentEditorPanelContext) {
+			return (
+				<div>
+					<span data-testid="live-title">{String(draft.data.title)}</span>
+					<button type="button" onClick={() => actions.updateField("title", "Updated")}>
+						Update title
+					</button>
+				</div>
+			);
+		}
+		function LiveHarness() {
+			const [data, setData] = React.useState<Record<string, unknown>>({ title: "Initial" });
+			return (
+				<ContentEditorExtensionPanelsProvider
+					collection="posts"
+					entry={makeItem()}
+					locale="en"
+					userId="u1"
+					userRole={40}
+					draft={{ data, slug: "draft", status: "draft", isNew: false, isDirty: true }}
+					actions={{
+						updateField: (name, value) => setData((current) => ({ ...current, [name]: value })),
+						updateSlug: vi.fn(),
+					}}
+				>
+					<ContentEditorExtensionPanels placement="main" />
+				</ContentEditorExtensionPanelsProvider>
+			);
+		}
+		const registry: PluginAdmins = {
+			p: {
+				contentEditorPanels: [
+					{ id: "p:live", title: "Live Panel", placement: "main", panel: LivePanel },
+				],
+			},
+		};
+		const screen = await render(<LiveHarness />, { wrapper: withPlugins(registry) });
+
+		expect(screen.getByTestId("live-title").element().textContent).toBe("Initial");
+		screen.getByRole("button", { name: "Update title" }).element().click();
+		await vi.waitFor(() => {
+			expect(screen.getByTestId("live-title").element().textContent).toBe("Updated");
+		});
 	});
 
 	it("applies role and collection gates with no leftover section chrome", async () => {
@@ -421,7 +554,7 @@ describe("ContentSettingsPanel extension panels", () => {
 			},
 		};
 		// currentUser prop is role 40 (Editor) — below the 50 gate.
-		const screen = await render(<ContentSettingsPanel {...panelProps()} />, {
+		const screen = await render(<HostedSettingsPanel />, {
 			wrapper: withPlugins(registry),
 		});
 
@@ -447,7 +580,7 @@ describe("ContentSettingsPanel extension panels", () => {
 				],
 			},
 		};
-		const screen = await render(<ContentSettingsPanel {...panelProps()} />, {
+		const screen = await render(<HostedSettingsPanel />, {
 			wrapper: withPlugins(registry),
 		});
 
@@ -532,7 +665,7 @@ describe("plugin lifecycle", () => {
 
 		await list.unmount();
 
-		const panel = await render(<ContentSettingsPanel {...panelProps()} />, {
+		const panel = await render(<HostedSettingsPanel />, {
 			wrapper: withPlugins(registry),
 		});
 		await expect.element(panel.getByRole("heading", { name: "Publish" })).toBeInTheDocument();

@@ -42,6 +42,10 @@ import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import {
+	ContentEditorExtensionPanels,
+	ContentEditorExtensionPanelsProvider,
+} from "./ContentEditorExtensionPanels.js";
+import {
 	ContentSettingsPanel,
 	DiscardDraftDialog,
 	PreviewButton,
@@ -552,6 +556,25 @@ export function ContentEditor({
 		setSlug(value);
 		setSlugTouched(true);
 	}, []);
+	const extensionDraft = React.useMemo(
+		() => ({
+			data: formData,
+			slug,
+			status,
+			seo: item?.seo,
+			isNew: Boolean(isNew),
+			isDirty,
+		}),
+		[formData, slug, status, item?.seo, isNew, isDirty],
+	);
+	const extensionActions = React.useMemo(
+		() => ({
+			updateField: handleFieldChange,
+			updateSlug: handleSlugChange,
+			updateSeo: onSeoChange ? handleSeoChange : undefined,
+		}),
+		[handleFieldChange, handleSlugChange, handleSeoChange, onSeoChange],
+	);
 
 	const isPublished = status === "published";
 
@@ -599,281 +622,292 @@ export function ContentEditor({
 			{/* Wraps the whole layout so the strip's Settings button and the
 			    block-panel sync can reach the sidebar context. Below lg Kumo
 			    renders the panel as an inline (not portaled) sheet. */}
-			<Sidebar.Provider
-				contained={!isBelowLg}
-				defaultOpen
-				side={panelSide}
-				collapsible="offcanvas"
-				mobileBreakpoint={1024}
-				className={cn(!isDistractionFree && "h-full min-h-0")}
-				style={
-					{
-						"--sidebar-width": isBelowLg ? "20rem" : "23rem",
-					} as React.CSSProperties
-				}
+			<ContentEditorExtensionPanelsProvider
+				collection={collection}
+				entry={item ?? null}
+				locale={item?.locale ?? entryLocale ?? undefined}
+				userId={currentUser?.id}
+				userRole={currentUser?.role ?? 0}
+				draft={extensionDraft}
+				actions={extensionActions}
 			>
-				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
-					{/* In distraction-free mode the header is a hover-revealed overlay. */}
-					<div
-						className={cn(
-							"flex flex-wrap items-center justify-between gap-y-2",
-							isDistractionFree
-								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10"
-								: cn(
-										"mx-auto mb-6 max-w-3xl",
-										isBelowLg && "sticky top-0 z-20 bg-kumo-base/95 py-3 backdrop-blur",
-									),
-						)}
-					>
-						<div className="flex items-center gap-4">
-							{!isDistractionFree && (
-								<RouterLinkButton
-									to="/content/$collection"
-									params={{ collection }}
-									search={{ locale: undefined }}
-									aria-label={t`Back to ${collectionLabel} list`}
-									variant="ghost"
-									shape="square"
-									icon={<ArrowPrev />}
-								/>
+				<Sidebar.Provider
+					contained={!isBelowLg}
+					defaultOpen
+					side={panelSide}
+					collapsible="offcanvas"
+					mobileBreakpoint={1024}
+					className={cn(!isDistractionFree && "h-full min-h-0")}
+					style={
+						{
+							"--sidebar-width": isBelowLg ? "20rem" : "23rem",
+						} as React.CSSProperties
+					}
+				>
+					<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
+						{/* In distraction-free mode the header is a hover-revealed overlay. */}
+						<div
+							className={cn(
+								"flex flex-wrap items-center justify-between gap-y-2",
+								isDistractionFree
+									? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10"
+									: cn(
+											"mx-auto mb-6 max-w-3xl",
+											isBelowLg && "sticky top-0 z-20 bg-kumo-base/95 py-3 backdrop-blur",
+										),
 							)}
-							{isDistractionFree && (
-								<Button
-									variant="ghost"
-									shape="square"
-									onClick={() => setIsDistractionFree(false)}
-									aria-label={t`Exit distraction-free mode`}
-								>
-									<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
-								</Button>
-							)}
-							<h1 className="text-2xl font-bold">
-								{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
-							</h1>
-							{i18n && item?.locale && (
-								<Badge variant="outline" className="uppercase text-xs">
-									{item.locale}
-								</Badge>
-							)}
-						</div>
-						<div className="flex items-center gap-2">
-							{!isDistractionFree ? (
-								// Below lg, actions move here from the (hidden) panel.
-								<>
-									{isBelowLg && (
-										<div className="flex flex-wrap items-center justify-end gap-2">
-											{!isNew && supportsPreview && (
-												<PreviewButton
-													hasPendingChanges={hasPendingChanges}
-													isLoadingPreview={isLoadingPreview}
-													onPreview={handlePreview}
-												/>
-											)}
-											<SaveButton
-												type="submit"
-												isDirty={isDirty}
-												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-												disabled={isContentOperationPending}
-											/>
-											{liveViewUrl && (
-												<LinkButton
-													href={liveViewUrl}
-													external
-													variant="outline"
-													icon={<ArrowSquareOut />}
-												>
-													{t`Live View`}
-												</LinkButton>
-											)}
-											<PublishActions
-												isNew={isNew}
-												isLive={isLive}
-												hasPendingChanges={hasPendingChanges}
-												onPublish={onPublish}
-												onUnpublish={onUnpublish}
-											/>
-											<MobileSettingsButton />
-										</div>
-									)}
+						>
+							<div className="flex items-center gap-4">
+								{!isDistractionFree && (
+									<RouterLinkButton
+										to="/content/$collection"
+										params={{ collection }}
+										search={{ locale: undefined }}
+										aria-label={t`Back to ${collectionLabel} list`}
+										variant="ghost"
+										shape="square"
+										icon={<ArrowPrev />}
+									/>
+								)}
+								{isDistractionFree && (
 									<Button
 										variant="ghost"
 										shape="square"
-										type="button"
-										onClick={() => setIsDistractionFree(true)}
-										aria-label={t`Enter distraction-free mode`}
-										title={t`Distraction-free mode (⌘⇧\\)`}
+										onClick={() => setIsDistractionFree(false)}
+										aria-label={t`Exit distraction-free mode`}
 									>
-										<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
+										<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
 									</Button>
-								</>
-							) : (
-								// Distraction-free: this overlay is the only save/exit surface.
-								<>
-									{!isNew && supportsPreview && (
-										<PreviewButton
-											hasPendingChanges={hasPendingChanges}
-											isLoadingPreview={isLoadingPreview}
-											onPreview={handlePreview}
-										/>
-									)}
-									<SaveButton
-										type="submit"
-										isDirty={isDirty}
-										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-										disabled={isContentOperationPending}
-									/>
-									{liveViewUrl && (
-										<LinkButton
-											href={liveViewUrl}
-											external
-											variant="outline"
-											icon={<ArrowSquareOut />}
+								)}
+								<h1 className="text-2xl font-bold">
+									{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
+								</h1>
+								{i18n && item?.locale && (
+									<Badge variant="outline" className="uppercase text-xs">
+										{item.locale}
+									</Badge>
+								)}
+							</div>
+							<div className="flex items-center gap-2">
+								{!isDistractionFree ? (
+									// Below lg, actions move here from the (hidden) panel.
+									<>
+										{isBelowLg && (
+											<div className="flex flex-wrap items-center justify-end gap-2">
+												{!isNew && supportsPreview && (
+													<PreviewButton
+														hasPendingChanges={hasPendingChanges}
+														isLoadingPreview={isLoadingPreview}
+														onPreview={handlePreview}
+													/>
+												)}
+												<SaveButton
+													type="submit"
+													isDirty={isDirty}
+													isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
+													disabled={isContentOperationPending}
+												/>
+												{liveViewUrl && (
+													<LinkButton
+														href={liveViewUrl}
+														external
+														variant="outline"
+														icon={<ArrowSquareOut />}
+													>
+														{t`Live View`}
+													</LinkButton>
+												)}
+												<PublishActions
+													isNew={isNew}
+													isLive={isLive}
+													hasPendingChanges={hasPendingChanges}
+													onPublish={onPublish}
+													onUnpublish={onUnpublish}
+												/>
+												<MobileSettingsButton />
+											</div>
+										)}
+										<Button
+											variant="ghost"
+											shape="square"
+											type="button"
+											onClick={() => setIsDistractionFree(true)}
+											aria-label={t`Enter distraction-free mode`}
+											title={t`Distraction-free mode (⌘⇧\\)`}
 										>
-											{t`Live View`}
-										</LinkButton>
-									)}
-									{!isNew && (
-										<>
-											{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-												<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
-											)}
-											<PublishActions
-												isLive={isLive}
+											<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
+										</Button>
+									</>
+								) : (
+									// Distraction-free: this overlay is the only save/exit surface.
+									<>
+										{!isNew && supportsPreview && (
+											<PreviewButton
 												hasPendingChanges={hasPendingChanges}
-												onPublish={onPublish}
-												onUnpublish={onUnpublish}
+												isLoadingPreview={isLoadingPreview}
+												onPreview={handlePreview}
 											/>
-										</>
-									)}
-								</>
+										)}
+										<SaveButton
+											type="submit"
+											isDirty={isDirty}
+											isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
+											disabled={isContentOperationPending}
+										/>
+										{liveViewUrl && (
+											<LinkButton
+												href={liveViewUrl}
+												external
+												variant="outline"
+												icon={<ArrowSquareOut />}
+											>
+												{t`Live View`}
+											</LinkButton>
+										)}
+										{!isNew && (
+											<>
+												{supportsDrafts && hasPendingChanges && onDiscardDraft && (
+													<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
+												)}
+												<PublishActions
+													isLive={isLive}
+													hasPendingChanges={hasPendingChanges}
+													onPublish={onPublish}
+													onUnpublish={onUnpublish}
+												/>
+											</>
+										)}
+									</>
+								)}
+							</div>
+						</div>
+
+						<div
+							className={cn(
+								isDistractionFree ? "max-w-4xl mx-auto pt-16" : "mx-auto max-w-3xl space-y-6",
 							)}
+						>
+							<div className="space-y-4">
+								{Object.entries(fields).map(([name, field]) => {
+									// Key by item id so all field editors remount cleanly when the
+									// underlying content item changes (e.g. switching translations).
+									// PortableTextEditor in particular freezes its initial content on
+									// mount; without this key, navigating between translations leaves
+									// the previous locale's body in the editor and silently overwrites
+									// the new translation on the next edit.
+									const fieldKey = `${name}:${item?.id ?? "new"}`;
+									const fieldEl = (
+										<FieldRenderer
+											key={fieldKey}
+											name={name}
+											field={field}
+											value={formData[name]}
+											onChange={handleFieldChange}
+											onEditorReady={
+												field.kind === "portableText" && name === "content"
+													? setPortableTextEditor
+													: undefined
+											}
+											minimal={isDistractionFree}
+											pluginBlocks={pluginBlocks}
+											onBlockSidebarOpen={
+												field.kind === "portableText" ? handleBlockSidebarOpen : undefined
+											}
+											onBlockSidebarClose={
+												field.kind === "portableText" ? handleBlockSidebarClose : undefined
+											}
+											manifest={manifest}
+										/>
+									);
+									return fieldEl;
+								})}
+							</div>
+							<ContentEditorExtensionPanels placement="main" />
 						</div>
 					</div>
 
-					<div
-						className={cn(
-							isDistractionFree ? "max-w-4xl mx-auto pt-16" : "mx-auto max-w-3xl space-y-6",
-						)}
-					>
-						<div className="space-y-4">
-							{Object.entries(fields).map(([name, field]) => {
-								// Key by item id so all field editors remount cleanly when the
-								// underlying content item changes (e.g. switching translations).
-								// PortableTextEditor in particular freezes its initial content on
-								// mount; without this key, navigating between translations leaves
-								// the previous locale's body in the editor and silently overwrites
-								// the new translation on the next edit.
-								const fieldKey = `${name}:${item?.id ?? "new"}`;
-								const fieldEl = (
-									<FieldRenderer
-										key={fieldKey}
-										name={name}
-										field={field}
-										value={formData[name]}
-										onChange={handleFieldChange}
-										onEditorReady={
-											field.kind === "portableText" && name === "content"
-												? setPortableTextEditor
-												: undefined
-										}
-										minimal={isDistractionFree}
-										pluginBlocks={pluginBlocks}
-										onBlockSidebarOpen={
-											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
-										}
-										onBlockSidebarClose={
-											field.kind === "portableText" ? handleBlockSidebarClose : undefined
-										}
-										manifest={manifest}
-									/>
-								);
-								return fieldEl;
-							})}
-						</div>
-					</div>
-				</div>
-
-				{/* Hidden (not unmounted) in distraction-free mode so panel-local
+					{/* Hidden (not unmounted) in distraction-free mode so panel-local
 			    state survives the round trip; `hidden` on the pane's own layout
 			    element leaves no gap. */}
-				<Sidebar aria-label={t`Settings`} className={cn(isDistractionFree && "hidden")}>
-					{/* The action bar absorbs the high-frequency props (isDirty,
+					<Sidebar aria-label={t`Settings`} className={cn(isDistractionFree && "hidden")}>
+						{/* The action bar absorbs the high-frequency props (isDirty,
 					    isSaving, isAutosaving) so they never reach the memoized panel. */}
-					{!isBelowLg && (
-						<SettingsActionBar
-							isNew={isNew}
-							isDirty={isDirty}
-							isSaving={Boolean(saveFeedbackActive)}
-							isAutosaving={autosaveFeedbackActive}
-							saveDisabled={isContentOperationPending}
-							isLive={isLive}
-							hasPendingChanges={hasPendingChanges}
-							liveViewUrl={liveViewUrl}
-							supportsPreview={supportsPreview}
-							isLoadingPreview={isLoadingPreview}
-							onPreview={handlePreview}
-							onPublish={onPublish}
-							onUnpublish={onUnpublish}
-							announceSaveStatus={!isDistractionFree}
-						/>
-					)}
-					<div
-						className="flex-1 overflow-y-auto overflow-x-hidden"
-						style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
-					>
-						{isBelowLg && (
-							<div className="flex justify-end px-4 pt-3">
-								<MobileSettingsCloseButton />
-							</div>
+						{!isBelowLg && (
+							<SettingsActionBar
+								isNew={isNew}
+								isDirty={isDirty}
+								isSaving={Boolean(saveFeedbackActive)}
+								isAutosaving={autosaveFeedbackActive}
+								saveDisabled={isContentOperationPending}
+								isLive={isLive}
+								hasPendingChanges={hasPendingChanges}
+								liveViewUrl={liveViewUrl}
+								supportsPreview={supportsPreview}
+								isLoadingPreview={isLoadingPreview}
+								onPreview={handlePreview}
+								onPublish={onPublish}
+								onUnpublish={onUnpublish}
+								announceSaveStatus={!isDistractionFree}
+							/>
 						)}
-						<ContentSettingsPanel
-							collection={collection}
-							item={item}
-							isNew={isNew}
-							entryLocale={entryLocale}
-							slug={slug}
-							onSlugChange={handleSlugChange}
-							status={status}
-							supportsDrafts={supportsDrafts}
-							isLive={isLive}
-							hasPendingChanges={hasPendingChanges}
-							hasSchedule={hasSchedule}
-							supportsRevisions={supportsRevisions}
-							canSchedule={canSchedule}
-							onSchedule={onSchedule}
-							onUnschedule={onUnschedule}
-							isScheduling={isScheduling}
-							onDiscardDraft={onDiscardDraft}
-							onDelete={onDelete}
-							isDeleting={isDeleting}
-							currentUser={currentUser}
-							users={users}
-							onAuthorChange={onAuthorChange}
-							activeBylines={activeBylines}
-							availableBylines={availableBylines}
-							availableBylinesLoaded={availableBylinesLoaded}
-							onBylinesChange={handleBylinesChange}
-							onQuickCreateByline={onQuickCreateByline}
-							onQuickEditByline={onQuickEditByline}
-							i18n={i18n}
-							translations={translations}
-							onTranslate={onTranslate}
-							hasSeo={hasSeo}
-							onSeoChange={onSeoChange ? handleSeoChange : undefined}
-							portableTextEditor={portableTextEditor}
-							blockSidebarPanel={blockSidebarPanel}
-							onBlockSidebarClose={handleBlockSidebarClose}
-							onBlockSidebarDelete={handleBlockSidebarDelete}
-						/>
-					</div>
-				</Sidebar>
+						<div
+							className="flex-1 overflow-y-auto overflow-x-hidden"
+							style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
+						>
+							{isBelowLg && (
+								<div className="flex justify-end px-4 pt-3">
+									<MobileSettingsCloseButton />
+								</div>
+							)}
+							<ContentSettingsPanel
+								collection={collection}
+								item={item}
+								isNew={isNew}
+								entryLocale={entryLocale}
+								slug={slug}
+								onSlugChange={handleSlugChange}
+								status={status}
+								supportsDrafts={supportsDrafts}
+								isLive={isLive}
+								hasPendingChanges={hasPendingChanges}
+								hasSchedule={hasSchedule}
+								supportsRevisions={supportsRevisions}
+								canSchedule={canSchedule}
+								onSchedule={onSchedule}
+								onUnschedule={onUnschedule}
+								isScheduling={isScheduling}
+								onDiscardDraft={onDiscardDraft}
+								onDelete={onDelete}
+								isDeleting={isDeleting}
+								currentUser={currentUser}
+								users={users}
+								onAuthorChange={onAuthorChange}
+								activeBylines={activeBylines}
+								availableBylines={availableBylines}
+								availableBylinesLoaded={availableBylinesLoaded}
+								onBylinesChange={handleBylinesChange}
+								onQuickCreateByline={onQuickCreateByline}
+								onQuickEditByline={onQuickEditByline}
+								i18n={i18n}
+								translations={translations}
+								onTranslate={onTranslate}
+								hasSeo={hasSeo}
+								onSeoChange={onSeoChange ? handleSeoChange : undefined}
+								portableTextEditor={portableTextEditor}
+								blockSidebarPanel={blockSidebarPanel}
+								onBlockSidebarClose={handleBlockSidebarClose}
+								onBlockSidebarDelete={handleBlockSidebarDelete}
+							/>
+						</div>
+					</Sidebar>
 
-				{/* Below lg, opening a block detail panel must open the sheet.
+					{/* Below lg, opening a block detail panel must open the sheet.
 				    Suspended in distraction-free mode: the nav is hidden there but
 				    Kumo's separate backdrop would still scrim the whole screen. */}
-				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
-				<MobileSidebarPortalGuard />
-			</Sidebar.Provider>
+					<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
+					<MobileSidebarPortalGuard />
+				</Sidebar.Provider>
+			</ContentEditorExtensionPanelsProvider>
 		</form>
 	);
 }

@@ -30,6 +30,8 @@ export {
 // context types only — the selection helpers are host internals.
 export type {
 	ContentEditorPanelContext,
+	ContentEditorDraftState,
+	ContentEditorPanelActions,
 	ContentEditorPanelExtension,
 	ContentListColumnCellContext,
 	ContentListColumnExtension,

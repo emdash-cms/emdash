@@ -1,6 +1,6 @@
 ---
 title: Content list columns and editor panels
-description: Extend the admin content list and entry editor sidebar with typed React contributions from a native plugin.
+description: Extend content lists and the entry editor with typed React contributions from a native plugin.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -8,7 +8,7 @@ import { Aside } from "@astrojs/starlight/components";
 Native plugins can extend two content-focused admin surfaces with typed React contributions:
 
 - **Content list columns** — extra columns in a collection's content list
-- **Editor sidebar panels** — extra sections in the entry editor's settings sidebar
+- **Editor panels** — extra sections in the main editor or its settings sidebar
 
 Contributions travel the same trusted path as [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/): your `admin` entry point exports them, EmDash bundles that module into the admin at build time, and the host screens render them. There are no DOM queries, mutation observers, or global hooks involved — the host owns placement, semantics, and error isolation.
 
@@ -48,6 +48,7 @@ export const contentEditorPanels: ContentEditorPanelExtension[] = [
 		title: "Review status",
 		collections: ["posts"],
 		minRole: 40, // Editor and up
+		placement: "main", // Optional; defaults to "sidebar"
 		panel: ReviewStatusPanel,
 	},
 ];
@@ -116,37 +117,45 @@ export function ScoreCell({ collection, locale, item }: ContentListColumnCellCon
 
 Keying a query by `item.id` re-introduces one request per row and is a bug. While loading, render a small fixed-size placeholder so the table doesn't shift.
 
-## Editor sidebar panels
+## Editor panels
 
-A panel contributes a titled section to the entry settings sidebar. The host renders the section wrapper and heading; your `panel` component renders the body:
+A panel contributes a titled section to the main editor or the entry settings sidebar. Set `placement: "main"` for a wide workflow; omit it (or use `"sidebar"`) for compact settings. The host renders the section wrapper, heading, and arrangement menu; your `panel` component renders only the body:
 
 ```tsx title="src/components/ReviewStatusPanel.tsx"
 import type { ContentEditorPanelContext } from "@emdash-cms/admin";
 
-export function ReviewStatusPanel({ collection, entry, locale }: ContentEditorPanelContext) {
+export function ReviewStatusPanel({ entry, locale, draft, actions }: ContentEditorPanelContext) {
 	return (
-		<dl className="space-y-1 text-sm">
-			<div className="flex items-center justify-between gap-2">
-				<dt>Entry</dt>
-				<dd className="truncate">{entry.slug ?? entry.id}</dd>
-			</div>
-			<div className="flex items-center justify-between gap-2">
-				<dt>Locale</dt>
-				<dd>{locale ?? "—"}</dd>
-			</div>
-		</dl>
+		<div className="space-y-3 text-sm">
+			<p>{entry ? `Editing ${entry.id}` : "Creating a new entry"}</p>
+			<p>Locale: {locale ?? "—"}</p>
+			<label>
+				Review note
+				<input
+					value={String(draft.data.reviewNote ?? "")}
+					onChange={(event) => actions.updateField("reviewNote", event.target.value)}
+				/>
+			</label>
+		</div>
 	);
 }
 ```
 
-Panels render **for saved entries only** — a brand-new entry has no id or saved state to expose. They appear after the core content sections (Publish, Ownership, Bylines, Translations, Taxonomies, SEO) and before the document outline, revision history, and trash action. When a Portable Text block takes over the sidebar (for example the image detail panel), core sections and contributed panels are both replaced until it closes.
+Panels render for saved entries and new entries. `entry` is the last saved snapshot, or `null` while creating a new entry. `draft` always contains the current field data, slug, status, dirty/new flags, and saved SEO metadata when available. Use the host-owned `actions.updateField`, `actions.updateSlug`, and optional `actions.updateSeo` callbacks to change editor state; do not mutate `draft` or `entry` directly.
 
-The panel context carries the same host data as the cell context — `collection`, the saved entry snapshot (named `entry` here; list cells call it `item` to match their row framing), and the entry's `locale`. Edits in progress are deliberately not exposed — read the saved state, and use the [plugin API](/plugins/creating-native-plugins/react-admin/#plugin-api-hook) for anything richer.
+`updateField` and `updateSlug` update the live draft and follow the editor's normal save/autosave path. `updateSeo` delegates to the collection's existing SEO persistence path and is absent when SEO is not enabled. Server authorization still applies to every request a plugin makes; visibility and host callbacks are not an authorization boundary.
+
+### Placement and user arrangement
+
+`placement` is only the initial preference. Every panel gets an accessible arrangement menu for moving it up or down within its surface or between the main editor and settings sidebar. EmDash stores the resulting order per authenticated user and collection in that browser. Preferences are versioned and reconciled against the live registry, so disabled or removed panels disappear and newly installed panels append to their declared default. This browser preference is intentionally not server-synced.
+
+Sidebar panels appear after the core SEO section and before the document outline, revisions, and trash action. Main panels appear after the collection fields. When a Portable Text block takes over the sidebar (for example the image detail panel), core sidebar sections and contributed sidebar panels are both replaced until it closes; main panels remain in place.
 
 <Aside type="tip" title="Design for a narrow sidebar">
 	The settings sidebar is ~20rem wide on small screens and becomes an off-canvas sheet below
 	the `lg` breakpoint. Let content wrap, use logical (`ms-*`/`ps-*`) spacing for RTL, and never
-	assume a wide viewport — a panel must not force horizontal overflow.
+	assume a wide viewport — a sidebar panel must not force horizontal overflow. Use
+	`placement: "main"` when the workflow genuinely needs more horizontal space.
 </Aside>
 
 ## Error isolation

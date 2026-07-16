@@ -22,7 +22,7 @@ export interface PluginAdminModule {
 	fields?: Record<string, React.ComponentType>;
 	/** Columns added to content collection lists (see `admin-extensions.ts`). */
 	contentListColumns?: ContentListColumnExtension[];
-	/** Panels added to the content editor settings sidebar. */
+	/** Panels added to the content editor's main area or settings sidebar. */
 	contentEditorPanels?: ContentEditorPanelExtension[];
 }
 

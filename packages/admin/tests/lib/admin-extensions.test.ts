@@ -255,6 +255,42 @@ describe("zero extensions and malformed contributions", () => {
 		]);
 		expect(consoleWarn).toHaveBeenCalledTimes(5);
 	});
+
+	it("accepts React memo, forwardRef, and lazy component forms", () => {
+		const MemoPanel = React.memo(() => null);
+		const ForwardPanel = React.forwardRef<HTMLDivElement>(() => null);
+		const LazyPanel = React.lazy(async () => ({ default: () => null }));
+		const registry = source({
+			p: {
+				contentEditorPanels: [
+					panel({ id: "p:memo", panel: MemoPanel }),
+					panel({ id: "p:forward", panel: ForwardPanel }),
+					panel({ id: "p:lazy", panel: LazyPanel }),
+				],
+			},
+		});
+
+		expect(selectContentEditorPanels(registry, posts).map((item) => item.id)).toEqual([
+			"p:forward",
+			"p:lazy",
+			"p:memo",
+		]);
+	});
+
+	it("rejects an invalid editor panel placement", () => {
+		const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const registry = source({
+			p: {
+				contentEditorPanels: [
+					panel({ id: "p:bad", placement: "drawer" as "sidebar" }),
+					panel({ id: "p:good", placement: "main" }),
+				],
+			},
+		});
+
+		expect(selectContentEditorPanels(registry, posts).map((item) => item.id)).toEqual(["p:good"]);
+		expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining("placement"));
+	});
 });
 
 describe("disabled plugins", () => {

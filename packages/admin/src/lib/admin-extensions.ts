@@ -5,7 +5,7 @@
  * hooks, or private patches:
  *
  *   - Content list columns (`contentListColumns` on the plugin admin module)
- *   - Content editor sidebar panels (`contentEditorPanels`)
+ *   - Content editor panels (`contentEditorPanels`)
  *
  * Contributions travel the existing trusted registration path: a native
  * plugin's `adminEntry` module exports them, the core integration bundles
@@ -22,7 +22,7 @@
 import type { MessageDescriptor } from "@lingui/core";
 import type * as React from "react";
 
-import type { ContentItem } from "./api";
+import type { ContentItem, ContentSeo, ContentSeoInput } from "./api";
 
 // ── Contribution contexts (host → extension, read-only) ────────────
 
@@ -45,14 +45,44 @@ export interface ContentListColumnCellContext extends ContentListColumnHeaderCon
 	item: ContentItem;
 }
 
-/** Context passed to a contributed editor sidebar panel component. */
+/** Live draft state exposed to a contributed editor panel. */
+export interface ContentEditorDraftState {
+	/** Current unsaved field values. Treat as read-only host state. */
+	data: Readonly<Record<string, unknown>>;
+	/** Current unsaved slug. */
+	slug: string;
+	/** Current editor status. */
+	status: string;
+	/** Current saved SEO metadata, when SEO is enabled for the collection. */
+	seo?: ContentSeo;
+	/** Whether this editor is creating a never-saved entry. */
+	isNew: boolean;
+	/** Whether the field/slug draft differs from the last saved state. */
+	isDirty: boolean;
+}
+
+/** Host-owned mutations a contributed editor panel may request. */
+export interface ContentEditorPanelActions {
+	/** Update one field in the live editor draft. */
+	updateField(name: string, value: unknown): void;
+	/** Update the live slug draft. */
+	updateSlug(value: string): void;
+	/** Persist SEO metadata through the host, when SEO is enabled. */
+	updateSeo?: (seo: ContentSeoInput) => void;
+}
+
+/** Context passed to a contributed editor panel component. */
 export interface ContentEditorPanelContext {
 	/** Collection slug of the entry being edited. */
 	collection: string;
-	/** The saved entry snapshot. Panels render only for saved entries. */
-	entry: ContentItem;
+	/** Saved entry snapshot, or null while creating a new entry. */
+	entry: ContentItem | null;
 	/** Locale the entry is bound to (undefined when i18n is off). */
 	locale?: string;
+	/** Live editor state. */
+	draft: ContentEditorDraftState;
+	/** Host-owned editor mutations. */
+	actions: ContentEditorPanelActions;
 }
 
 // ── Contribution shapes (extension → host) ─────────────────────────
@@ -117,17 +147,18 @@ export interface ContentListColumnExtension extends AdminExtensionBase {
 }
 
 /**
- * A content-editor sidebar panel contributed by a trusted plugin.
+ * A content-editor panel contributed by a trusted plugin.
  *
- * Rendered as a titled section in the entry settings sidebar, for saved
- * entries only (new, never-saved entries have no id/state to expose). The
+ * Rendered as a titled section in the main editor or settings sidebar. The
  * sidebar is narrow (20rem on small screens) and becomes an off-canvas
- * sheet below the `lg` breakpoint: panels must wrap instead of forcing
- * horizontal overflow and must not assume a wide viewport.
+ * sheet below the `lg` breakpoint: sidebar panels must wrap instead of
+ * forcing horizontal overflow and must not assume a wide viewport.
  */
 export interface ContentEditorPanelExtension extends AdminExtensionBase {
 	/** Section title. Strings render as-is; descriptors are translated. */
 	title: string | MessageDescriptor;
+	/** Preferred initial surface. Users may move it later. @default "sidebar" */
+	placement?: "main" | "sidebar";
 	/** Panel body component. */
 	panel: React.ComponentType<ContentEditorPanelContext>;
 }
@@ -173,6 +204,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
 }
 
+const REACT_COMPONENT_SYMBOLS = new Set([
+	Symbol.for("react.memo"),
+	Symbol.for("react.forward_ref"),
+	Symbol.for("react.lazy"),
+]);
+
+function isReactComponent(value: unknown): boolean {
+	if (typeof value === "function") return true;
+	return isRecord(value) && REACT_COMPONENT_SYMBOLS.has(value.$$typeof as symbol);
+}
+
 function isDisplayText(value: unknown): value is string | MessageDescriptor {
 	return (
 		typeof value === "string" ||
@@ -195,7 +237,7 @@ function isValidExtensionShape<T extends AdminExtensionBase>(
 		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): its ${textKey} is invalid.`);
 		return false;
 	}
-	if (typeof value[componentKey] !== "function") {
+	if (!isReactComponent(value[componentKey])) {
 		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): its component is not a React component.`);
 		return false;
 	}
@@ -239,7 +281,7 @@ function isContentListColumnExtension(
 		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): align must be "start" or "end".`);
 		return false;
 	}
-	if (value.header !== undefined && typeof value.header !== "function") {
+	if (value.header !== undefined && !isReactComponent(value.header)) {
 		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): its header is not a React component.`);
 		return false;
 	}
@@ -250,7 +292,18 @@ function isContentEditorPanelExtension(
 	value: unknown,
 	pluginId: string,
 ): value is ContentEditorPanelExtension {
-	return isValidExtensionShape<ContentEditorPanelExtension>(value, pluginId, "title", "panel");
+	if (!isValidExtensionShape<ContentEditorPanelExtension>(value, pluginId, "title", "panel")) {
+		return false;
+	}
+	if (
+		value.placement !== undefined &&
+		value.placement !== "main" &&
+		value.placement !== "sidebar"
+	) {
+		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): placement must be "main" or "sidebar".`);
+		return false;
+	}
+	return true;
 }
 
 function isApplicableToCollection(
@@ -354,9 +407,9 @@ export function selectContentListColumns(
 }
 
 /**
- * Editor sidebar panels applicable to a collection for the current user,
+ * Editor panels applicable to a collection for the current user,
  * deterministically ordered. Returns `[]` when no plugin contributes any —
- * the settings sidebar renders exactly its classic markup in that case.
+ * the editor renders exactly its classic markup in that case.
  */
 export function selectContentEditorPanels(
 	source: AdminExtensionSource,
