@@ -22,6 +22,13 @@ export default defineConfig({
 	},
 	plugins: [
 		cloudflareTest({
+			// Use miniflare's LOCAL binding simulation, never a remote proxy to real
+			// Cloudflare. The unrestricted `send_email` binding (arbitrary recipients)
+			// would otherwise force a remote proxy session — real credentials, real
+			// mail. Locally, the EMAIL binding is simulated; adapter tests inject a
+			// fake `SendEmail` regardless (src/notification-email.ts takes the binding
+			// as a constructor arg), so no test depends on the local email behaviour.
+			remoteBindings: false,
 			wrangler: { configPath: "./wrangler.jsonc" },
 			miniflare: {
 				bindings: {

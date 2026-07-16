@@ -247,6 +247,32 @@ export async function confirmContact(
 }
 
 /**
+ * Flip an `unconfirmed` contact straight to `confirmed` without a token — the
+ * verified-publisher path (W10.5 slice 2). A publisher carrying an in-force
+ * verification claim skips double opt-in, so a substantive notice may go out
+ * directly; this records that skip as an explicit confirm-state write distinct
+ * from token confirmation (no token was ever issued or matched). Guarded on
+ * `confirm_state = 'unconfirmed'` so it never reopens a `declined` contact — a
+ * publisher who said "not me" stays declined regardless of verification. Returns
+ * whether a row was updated.
+ */
+export async function confirmContactVerified(
+	db: D1Database,
+	recipientHashValue: string,
+	nowIso: string,
+): Promise<boolean> {
+	const result = await db
+		.prepare(
+			`UPDATE notification_contacts
+			 SET confirm_state = 'confirmed', confirm_token_hash = NULL, confirmed_at = ?
+			 WHERE recipient_hash = ? AND confirm_state = 'unconfirmed'`,
+		)
+		.bind(nowIso, recipientHashValue)
+		.run();
+	return result.meta.changes > 0;
+}
+
+/**
  * Decline the pending confirmation, clearing any outstanding token. Only touches
  * an `unconfirmed` contact — a confirmed opt-in is never revoked here (that goes
  * through {@link suppress}), so an unsubscribe-path bug can't downgrade it.

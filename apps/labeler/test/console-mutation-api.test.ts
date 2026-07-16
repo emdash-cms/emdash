@@ -27,6 +27,7 @@ import {
 	type MessageController,
 } from "../src/discovery-consumer.js";
 import type { DiscoveryJob } from "../src/env.js";
+import { safeCreateNotifyDeps } from "../src/index.js";
 import { OPERATOR_REQUEST_HEADER } from "../src/mutation-guard.js";
 import type { DidDocumentResolverLike } from "../src/record-verification.js";
 import { issueAutomatedAssessmentLabel, issueManualLabel } from "../src/service.js";
@@ -2135,5 +2136,55 @@ describe("console mutation: dead-letter replay and idempotency", () => {
 		);
 		expect(second.status).toBe(409);
 		expect((await bodyError(second)).code).toBe("IDEMPOTENCY_KEY_CONFLICT");
+	});
+});
+
+describe("console mutation: notify-deps failure never blocks the label", () => {
+	it("returns undefined (never throws) when the hash pepper is unconfigured", async () => {
+		await expect(safeCreateNotifyDeps({} as unknown as Env)).resolves.toBeUndefined();
+	});
+
+	it("returns undefined (never throws) when the pepper binding rejects", async () => {
+		const brokenEnv = {
+			NOTIFICATION_HASH_PEPPER: {
+				get: async () => {
+					throw new Error("secret store unavailable");
+				},
+			},
+		} as unknown as Env;
+		await expect(safeCreateNotifyDeps(brokenEnv)).resolves.toBeUndefined();
+	});
+
+	it("commits the label even when notify-deps construction failed (notify undefined)", async () => {
+		const uri = await seedReleaseSubject("notify-deps-down");
+		const notify = await safeCreateNotifyDeps({} as unknown as Env);
+		expect(notify).toBeUndefined();
+
+		const key = nextKey();
+		const response = await handleConsoleMutation(
+			post("/admin/api/labels/issue", {
+				uri,
+				val: "security-yanked",
+				confirmation: "notify-deps-down",
+				reason: "notify deps unavailable must not block issuance",
+				idempotencyKey: key,
+			}),
+			mutationDeps({ notify }),
+		);
+
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<IssuedLabelDescriptor>(response);
+		expect(descriptor).toMatchObject({ val: "security-yanked", uri, effect: "block" });
+
+		const persisted = await testEnv.DB.prepare(
+			`SELECT l.val, l.neg FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.idempotency_key = ?`,
+		)
+			.bind(descriptor.actionId)
+			.first<{ val: string; neg: number }>();
+		expect(persisted).toEqual({ val: "security-yanked", neg: 0 });
+
+		expect(await countRows(`SELECT COUNT(*) AS n FROM notifications`)).toBe(0);
 	});
 });

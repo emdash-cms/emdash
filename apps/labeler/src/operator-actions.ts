@@ -135,6 +135,25 @@ export async function getOperatorActionByKey(
 	return row ? rowToStoredOperatorAction(row) : null;
 }
 
+/** Read one audit row by its `operator_actions.id` primary key — the
+ * notification subsystem's polymorphic `source_id` for an operator-triggered
+ * notice, re-read by the retry sweep to rebuild the notice from source. */
+export async function getOperatorActionById(
+	db: D1Database,
+	id: string,
+): Promise<StoredOperatorAction | null> {
+	const row = await db
+		.prepare(
+			`SELECT id, actor_type, actor_id, actor_email, actor_common_name, role, action,
+			 subject_uri, subject_cid, label_value, reason, idempotency_key,
+			 request_fingerprint, result_json, metadata_json, created_at, created_at_epoch_ms
+			 FROM operator_actions WHERE id = ?`,
+		)
+		.bind(id)
+		.first<OperatorActionRow>();
+	return row ? rowToStoredOperatorAction(row) : null;
+}
+
 /**
  * Audit-log page, newest first, exclusive keyset on `(created_at_epoch_ms, id)`
  * over `idx_operator_actions_created`. `keyset.createdAt` is the ISO timestamp

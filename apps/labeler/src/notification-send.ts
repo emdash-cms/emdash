@@ -44,6 +44,7 @@ import { ulid } from "ulidx";
 import type { AggregatorClient } from "./aggregator-client.js";
 import { CONFIRM_DID_MAX_DISTINCT_RECIPIENTS, CONFIRM_DID_WINDOW_MS } from "./constants.js";
 import {
+	confirmContactVerified,
 	ensureContact,
 	generateConfirmToken,
 	getContactState,
@@ -51,6 +52,8 @@ import {
 	isSuppressed,
 	recipientHash,
 	recordConfirmSent,
+	suppress,
+	type SuppressionReason,
 } from "./notification-contacts.js";
 import type { ContactTarget } from "./publisher-contact.js";
 import { resolvePublisherContact } from "./publisher-contact.js";
@@ -84,7 +87,25 @@ export interface NotificationRequest {
 	notice: NoticeContent;
 }
 
-export type SendResult = { ok: true; providerId?: string } | { ok: false; error: string };
+/**
+ * A send attempt's result. A transport failure is `{ ok: false }`, not a throw,
+ * so the caller records `failed` and lets the retry sweep pick it up.
+ *
+ * `suppress` is the terminal-bounce discriminant: a provider hard-bounce /
+ * complaint suppression (Cloudflare's `E_RECIPIENT_SUPPRESSED`) that the
+ * orchestration layer maps to our own {@link SuppressionReason} — the row is
+ * retired `undeliverable` (never retried) and the address is added to the
+ * suppression ledger, so our do-not-contact set learns what the provider knows.
+ *
+ * SECURITY (slice-2 contract): `error` is persisted verbatim in
+ * `notifications.last_error` and NEVER cleared. An implementation MUST NOT put
+ * the `confirmUrl`, raw confirm token, or email body into it — that would leak a
+ * single-use capability / PII to the database. Return the provider's status code
+ * only, never the payload it was given.
+ */
+export type SendResult =
+	| { ok: true; providerId?: string }
+	| { ok: false; error: string; suppress?: SuppressionReason };
 
 export interface ConfirmationPayload {
 	to: string;
@@ -124,6 +145,17 @@ export interface SendContext {
 	 * `LABELER_SERVICE_URL` var), e.g. `https://labels.emdashcms.com`. The
 	 * confirm/unsubscribe/not-me links are built against it. */
 	origin: string;
+	/**
+	 * When true, an `unconfirmed` contact for a VERIFIED publisher is upgraded to
+	 * `confirmed` in place (a token-less confirm) and receives the substantive
+	 * notice directly, skipping double opt-in (plan W10.5 slice 2). The caller
+	 * computes this from the publisher's in-force verification claims and MUST fail
+	 * closed — an unreadable verification state leaves it unset, so the address
+	 * falls back to the confirmation-mail path. Suppressed / declined contacts are
+	 * short-circuited before this flag is consulted, so verification never revives
+	 * a do-not-contact address.
+	 */
+	verifiedPublisher?: boolean;
 	now?: () => Date;
 }
 
@@ -132,10 +164,12 @@ export type SendOutcome =
 	| { status: "notice_failed"; recipientHash: string; error: string }
 	| { status: "confirmation_sent"; recipientHash: string; providerId?: string }
 	| { status: "confirmation_failed"; recipientHash: string; error: string }
+	| { status: "provider_suppressed"; recipientHash: string }
 	| { status: "rate_limited"; recipientHash: string; scope: "did" }
 	| { status: "suppressed"; recipientHash: string }
 	| { status: "declined"; recipientHash: string }
 	| { status: "already_mailed"; recipientHash: string }
+	| { status: "already_notified"; recipientHash: string }
 	| { status: "skipped"; recipientHash: string; reason: "contact_state_changed" }
 	| { status: "no_contact" };
 
@@ -192,6 +226,18 @@ export async function sendNotification(
 		return sendSubstantiveNotice(ctx, request, hash, resolution.email, nowDate);
 	}
 
+	// Verified-publisher skip: an in-force verification claim upgrades the
+	// unconfirmed contact to confirmed in place and delivers the substantive
+	// notice directly. The upgrade is guarded on `unconfirmed`, so a decline that
+	// raced the state read leaves it false and we fall back to double opt-in.
+	if (ctx.verifiedPublisher === true) {
+		const upgraded = await confirmContactVerified(ctx.db, hash, nowIso);
+		if (upgraded) {
+			logSend(request.target.did, "verified_skip", hash);
+			return sendSubstantiveNotice(ctx, request, hash, resolution.email, nowDate);
+		}
+	}
+
 	return sendConfirmationMail(ctx, request, hash, resolution.email, {
 		date: nowDate,
 		ms: nowMs,
@@ -208,9 +254,20 @@ async function sendSubstantiveNotice(
 	const id = newNotificationId();
 	const claimed = await claimSend(ctx.db, id, request.source, "notice", hash, email, now);
 	if (!claimed) {
-		await recordUndeliverable(ctx.db, request.source, "notice", hash, "suppressed", now);
-		logSend(request.target.did, "suppressed", hash);
-		return { status: "suppressed", recipientHash: hash };
+		// The notice claim guards on suppression AND per-source dedup (see
+		// claimSend). A suppression that landed before the claim is recorded as an
+		// undeliverable audit row; otherwise a non-undeliverable notice row already
+		// exists for this source — a concurrent duplicate of the same action — so
+		// nothing is written and no second mail goes out (the hard "one notice per
+		// action" invariant, closed atomically rather than by the trigger's
+		// check-then-act dedup).
+		if (await isSuppressed(ctx.db, hash)) {
+			await recordUndeliverable(ctx.db, request.source, "notice", hash, "suppressed", now);
+			logSend(request.target.did, "suppressed", hash);
+			return { status: "suppressed", recipientHash: hash };
+		}
+		logSend(request.target.did, "already_notified", hash);
+		return { status: "already_notified", recipientHash: hash };
 	}
 
 	const result = await ctx.sender.sendNotice({
@@ -218,6 +275,11 @@ async function sendSubstantiveNotice(
 		to: email,
 		unsubscribeUrl: buildActionUrl(ctx.origin, "unsubscribe", hash),
 	});
+	if (!result.ok && result.suppress !== undefined) {
+		await markProviderSuppressed(ctx.db, id, hash, result.suppress, now);
+		logSend(request.target.did, "provider_suppressed", hash);
+		return { status: "provider_suppressed", recipientHash: hash };
+	}
 	await finalizeSend(ctx.db, id, result, now);
 	if (result.ok) {
 		logSend(request.target.did, "notice_sent", hash);
@@ -302,6 +364,14 @@ async function sendConfirmationMail(
 		unsubscribeUrl: buildActionUrl(ctx.origin, "unsubscribe", hash),
 		notMeUrl: buildActionUrl(ctx.origin, "not-me", hash),
 	});
+	if (!result.ok && result.suppress !== undefined) {
+		// A provider hard-bounce on the confirmation mail retires the row
+		// `undeliverable` (which reopens the lifetime cap) and records the
+		// suppression, so the address is never re-mailed.
+		await markProviderSuppressed(ctx.db, id, hash, result.suppress, now.date);
+		logSend(request.target.did, "provider_suppressed", hash);
+		return { status: "provider_suppressed", recipientHash: hash };
+	}
 	await finalizeSend(ctx.db, id, result, now.date);
 	if (result.ok) {
 		logSend(request.target.did, "confirmation_sent", hash);
@@ -362,9 +432,22 @@ async function claimSend(
 		return result.meta.changes > 0;
 	}
 
+	// A `notice` claim adds a per-source dedup guard in the same INSERT...SELECT:
+	// it inserts only if NO non-`undeliverable` notice row already exists for this
+	// (source_type, source_id). One triggering action therefore mails at most one
+	// substantive notice even under concurrent duplicate triggers (an original and
+	// a racing replay), of which exactly one claims. An `undeliverable` prior (a
+	// suppressed-at-claim that never mailed) is excluded so it can't foreclose a
+	// later legitimate notice for the same source.
 	const result = await db
-		.prepare(`INSERT INTO notifications ${columns} ${row} ${notSuppressed}`)
-		.bind(...binds)
+		.prepare(
+			`INSERT INTO notifications ${columns} ${row} ${notSuppressed}
+			 AND NOT EXISTS (
+				SELECT 1 FROM notifications
+				WHERE source_type = ? AND source_id = ? AND kind = 'notice' AND state != 'undeliverable'
+			 )`,
+		)
+		.bind(...binds, source.type, source.id)
 		.run();
 	return result.meta.changes > 0;
 }
@@ -447,6 +530,38 @@ async function markRowUndeliverable(db: D1Database, id: string, reason: string):
 		.run();
 }
 
+/**
+ * Retire a claimed pending row after the provider reported the recipient is
+ * hard-suppressed (Cloudflare `E_RECIPIENT_SUPPRESSED`): the row goes
+ * `undeliverable` with plaintext cleared and is never retried, and the address is
+ * added to our suppression ledger so every future send short-circuits. For a
+ * confirmation row the undeliverable transition reopens the lifetime cap, but the
+ * fresh suppression row bars any re-mail — the address is off the list for good.
+ * `last_error` carries only the reason code, never the email payload.
+ */
+async function markProviderSuppressed(
+	db: D1Database,
+	id: string,
+	hash: string,
+	reason: SuppressionReason,
+	now: Date,
+): Promise<void> {
+	// Suppress FIRST, THEN retire the row (which reopens a confirmation's lifetime
+	// cap). Before the suppression write the row is still a non-`undeliverable`
+	// confirmation prior, so a concurrent live claim is blocked by the lifetime
+	// guard; after it, by the suppression guard — closing the window where both
+	// cap-open and suppression-absent would admit a second mail.
+	await suppress(db, hash, reason, now.toISOString(), now.getTime());
+	await db
+		.prepare(
+			`UPDATE notifications
+			 SET state = 'undeliverable', plaintext_email = NULL, last_error = ?, attempts = attempts + 1
+			 WHERE id = ? AND state = 'pending'`,
+		)
+		.bind(`provider_suppressed:${reason}`, id)
+		.run();
+}
+
 /** Distinct recipients this DID has sent confirmation mail to since `sinceMs` —
  * the per-DID rate-limit read (counts victims, not repeats). */
 async function countDistinctConfirmRecipients(
@@ -479,7 +594,7 @@ async function recordConfirmLedgerEntry(
 		.run();
 }
 
-function buildActionUrl(
+export function buildActionUrl(
 	origin: string,
 	action: "confirm" | "unsubscribe" | "not-me",
 	hash: string,
