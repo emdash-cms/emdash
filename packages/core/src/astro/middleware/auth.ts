@@ -378,11 +378,20 @@ async function handleEmDashAuth(
 }
 
 /**
- * Plugin-route auth. A Bearer token is tried first in all modes: a valid token
- * authenticates, an invalid one returns 401. With no token, private routes under
- * external-auth mode (non-DEV) are hard-authenticated via `handleExternalAuth`
- * (401 on failure); every other case falls back to soft session auth and never
- * blocks. Public routes are always allowed through. The catch-all handler enforces
+ * Plugin-route auth. Resolves the user in three steps, stopping at the first that
+ * applies:
+ *
+ * 1. Bearer token (all modes). A valid token authenticates; an invalid/expired one
+ *    returns 401 (we never silently downgrade a bad token to anonymous).
+ * 2. External provider — only for a *private* route in production external-auth
+ *    mode. Here `handleExternalAuth` is the sole authority (the provider, e.g.
+ *    Cloudflare Access, gates every request and EmDash mints no session of its
+ *    own), so it hard-blocks with 401 on failure. Session auth is deliberately
+ *    NOT a fallback in this case — there is no EmDash session to fall back to.
+ * 3. Session — everything else (non-external mode, DEV, and all public routes).
+ *    This is soft: it sets `locals.user` if a session exists but never blocks.
+ *
+ * Public routes are always allowed through. The catch-all handler still enforces
  * the `plugins:manage` permission and CSRF for private invocations.
  */
 async function handlePluginRouteAuth(
