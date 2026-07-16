@@ -338,9 +338,10 @@ describe("schema", () => {
 async function columnNames(
 	table: "notification_contacts" | "notification_suppressions",
 ): Promise<string[]> {
-	// PRAGMA cannot parameterize the table name; validate the identifier before
+	// PRAGMA cannot parameterize the table name; allowlist the identifier before
 	// interpolating.
-	if (!/^[a-z][a-z0-9_]*$/.test(table)) throw new TypeError(`invalid table identifier: ${table}`);
+	const allowed = new Set(["notification_contacts", "notification_suppressions"]);
+	if (!allowed.has(table)) throw new TypeError(`invalid table identifier: ${table}`);
 	const result = await db().prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
 	return result.results.map((row) => row.name);
 }
