@@ -3,13 +3,15 @@
  * through `running`, the analysis stages, and atomic finalization (spec
  * §9.9, §10).
  *
- * BINDING DECISION: production wiring stops at `assessment-pending`
- * (discovery-consumer.ts). Nothing in a production code path constructs or
- * calls `AssessmentOrchestrator` — it ships as code, exercised only by
- * tests, until W7/W8 supply real stage adapters (acquire, deterministic
- * validation, dependency/SBOM, code/metadata AI, image AI). `stubStages` in
- * this module exists for that same reason: test fixtures, not production
- * defaults.
+ * Driven in production by `AssessmentWorkflow` (assessment-workflow.ts): each
+ * verified subject runs as one Workflow instance whose id serializes duplicate
+ * runs of that subject (the §14.1 per-subject lock — see
+ * assessment-dispatch.ts). The Workflow constructs this orchestrator per run
+ * and calls `runAssessment`. Until W7/W8 supply the real stage adapters
+ * (acquire, deterministic validation, dependency/SBOM, code/metadata AI, image
+ * AI), that wiring runs `stubStages` — every stage resolves with no findings —
+ * so a real subject finalizes as `passed`, clearing only its own
+ * `assessment-pending`.
  */
 
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
@@ -164,11 +166,11 @@ export class AssessmentOrchestrator {
 		// label (an async round-trip) between here and `db.batch`, so a delete or
 		// a cancel landing in that window still commits labels — the finalization
 		// CAS guards its own row, but the issuance statements carry no
-		// assessment-state guard. Closing it requires either the per-subject
-		// workflow lock the spec mandates (§14.1) or an in-batch state guard on
-		// every issuance statement. That belongs with wiring the orchestrator to
-		// production in W7/W8; today the production-boundary test guarantees no
-		// production path reaches this method.
+		// assessment-state guard. The instance-per-subject Workflow lock
+		// (assessment-dispatch.ts) serializes duplicate runs of the same subject
+		// but not a delete or operator cancel against an in-flight run, so closing
+		// this window still needs an in-batch assessment-state guard on every
+		// issuance statement — tracked with the real-stage wiring.
 		const current = await isSubjectCurrent(this.db, { uri: assessment.uri, cid: assessment.cid });
 		if (!current) {
 			return transitionAssessmentState(this.db, { id: runId, from: "running", to: "stale", now });
@@ -293,20 +295,19 @@ export class AssessmentOrchestrator {
 
 		// Final currency re-check with no signing between it and the commit, so
 		// the delete/cancel window is two adjacent D1 ops rather than spanning
-		// every label's signing round-trip above. Full closure still needs the
-		// workflow lock (see the re-check before this method); this shrinks the
-		// exposure in the interim.
+		// every label's signing round-trip above. Full closure still needs an
+		// in-batch assessment-state guard (see the re-check before this method);
+		// this shrinks the exposure in the interim.
 		//
-		// The same lock also closes a signing-state flip during the batch: the
-		// label inserts are guarded on active signing state and no-op if it
-		// flips, but the state CAS below is not, so a flip after this point
-		// could commit the terminal state without its labels. Deferred to the
-		// same W7/W8 production wiring as the delete race above.
+		// That same guard is what a signing-state flip during the batch needs:
+		// the label inserts are guarded on active signing state and no-op if it
+		// flips, but the state CAS below is not, so a flip after this point could
+		// commit the terminal state without its labels.
 		//
-		// Three related concurrency gaps in this method are owned by that same
-		// W7/W8 workflow lock (§14.1), which serialises finalization per subject
-		// and makes them all unreachable — the production-boundary test proves
-		// nothing wires this method live until then:
+		// The instance-per-subject Workflow lock closes concurrent duplicate runs
+		// of a subject, but NOT a delete, operator cancel, or signing flip racing
+		// an in-flight run, so three related gaps in this method remain open until
+		// that in-batch state guard lands (tracked with the real-stage wiring):
 		//   - a stale (CID-superseded) run returns without negating its own
 		//     assessment-pending, so a superseded subject keeps advertising an
 		//     in-progress assessment;

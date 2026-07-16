@@ -1770,6 +1770,10 @@ describe("console mutation: pause endpoint drives the discovery consumer gate (e
 			config: CONFIG,
 			signer: await testSigner(),
 			didDocumentResolver: new KillSwitchStubResolver(),
+			assessmentWorkflow: {
+				create: (options) => Promise.resolve({ id: options.id }),
+				get: (id) => Promise.resolve({ id }),
+			},
 			verify: () =>
 				Promise.resolve({
 					cid: CID,

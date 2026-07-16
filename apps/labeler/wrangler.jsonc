@@ -52,6 +52,18 @@
 			"service": "emdash-aggregator",
 		},
 	],
+	// One Workflow instance per subject drives an assessment run to
+	// finalization (a durable shell over AssessmentOrchestrator). The instance
+	// id derives from the subject (uri, cid), so a duplicate subject cannot run
+	// concurrently — that is the spec §14.1 per-subject lock. See
+	// src/assessment-workflow.ts and src/assessment-dispatch.ts.
+	"workflows": [
+		{
+			"name": "emdash-labeler-assessment",
+			"binding": "ASSESSMENT_WORKFLOW",
+			"class_name": "AssessmentWorkflow",
+		},
+	],
 	// Operator console SPA (apps/labeler/console), built to ./dist/console by
 	// `console:build`. `run_worker_first: true` keeps the Worker the sole
 	// router: the SPA fallback only fires where index.ts explicitly calls

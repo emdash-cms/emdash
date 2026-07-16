@@ -9,6 +9,11 @@ import { applyD1Migrations, env } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
+	assessmentWorkflowInstanceId,
+	type AssessmentWorkflowBinding,
+	type AssessmentWorkflowParams,
+} from "../src/assessment-dispatch.js";
+import {
 	automatedIdempotencyKey,
 	computeRunKey,
 	initialTriggerId,
@@ -119,12 +124,44 @@ class FakeMessage implements MessageController {
 	}
 }
 
+interface FakeInstance {
+	id: string;
+	params: AssessmentWorkflowParams;
+}
+
+/** In-memory stand-in for the assessment Workflow binding that enforces
+ * instance-id uniqueness the way the real one does: `create` throws when the id
+ * is already taken (the per-subject lock), `get` resolves it. `createError`
+ * simulates an infrastructure failure. */
+class FakeAssessmentWorkflow implements AssessmentWorkflowBinding {
+	readonly instances = new Map<string, FakeInstance>();
+	readonly created: FakeInstance[] = [];
+	createError: Error | undefined;
+
+	create(options: { id: string; params: AssessmentWorkflowParams }): Promise<{ id: string }> {
+		if (this.createError) return Promise.reject(this.createError);
+		if (this.instances.has(options.id))
+			return Promise.reject(new Error(`instance ${options.id} already exists`));
+		const instance = { id: options.id, params: options.params };
+		this.instances.set(options.id, instance);
+		this.created.push(instance);
+		return Promise.resolve({ id: options.id });
+	}
+
+	get(id: string): Promise<{ id: string }> {
+		const instance = this.instances.get(id);
+		if (!instance) return Promise.reject(new Error(`instance ${id} not found`));
+		return Promise.resolve({ id });
+	}
+}
+
 async function buildDeps(): Promise<DiscoveryConsumerDeps> {
 	return {
 		db: testEnv.DB,
 		config,
 		signer: await signer(),
 		didDocumentResolver: new StubResolver(),
+		assessmentWorkflow: new FakeAssessmentWorkflow(),
 	};
 }
 
@@ -256,6 +293,93 @@ describe("processDiscoveryMessage: verified create", () => {
 		const a2 = await getAssessmentByRunKey(testEnv.DB, runKey2);
 		expect(a1?.cid).toBe(jobV1.cid);
 		expect(a2?.cid).toBe(jobV2.cid);
+	});
+});
+
+describe("processDiscoveryMessage: Workflow dispatch and per-subject lock", () => {
+	it("dispatches one Workflow instance per verified subject, id derived from (uri, cid)", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const workflow = new FakeAssessmentWorkflow();
+		const deps = { ...(await buildDeps()), assessmentWorkflow: workflow };
+		const msg = new FakeMessage();
+
+		await processDiscoveryMessage(job, msg, { ...deps, verify: verifiedFor(job) });
+
+		expect(msg.acked).toBe(1);
+		const assessment = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		const expectedId = await assessmentWorkflowInstanceId(uriFor(job), job.cid);
+		expect(workflow.created).toHaveLength(1);
+		expect(workflow.created[0]?.id).toBe(expectedId);
+		expect(workflow.created[0]?.params.assessmentId).toBe(assessment!.id);
+	});
+
+	it("redelivery does not start a second run — the instance id is the per-subject lock", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const workflow = new FakeAssessmentWorkflow();
+		const deps = { ...(await buildDeps()), assessmentWorkflow: workflow };
+
+		const first = new FakeMessage();
+		const second = new FakeMessage();
+		await processDiscoveryMessage(job, first, { ...deps, verify: verifiedFor(job) });
+		await processDiscoveryMessage(job, second, { ...deps, verify: verifiedFor(job) });
+
+		// Second create collides on the deterministic id; dispatch converges
+		// rather than starting a duplicate run, and the message still acks.
+		expect(workflow.created).toHaveLength(1);
+		expect(first.acked).toBe(1);
+		expect(second.acked).toBe(1);
+		expect(second.retried).toBe(0);
+	});
+
+	it("distinct subjects (a new CID) get distinct Workflow instances", async () => {
+		const name = rkey();
+		const workflow = new FakeAssessmentWorkflow();
+		const deps = { ...(await buildDeps()), assessmentWorkflow: workflow };
+		const jobV1 = await jobFor({ rkey: name, cid: await cid(`${name}-wf-v1`) });
+		const jobV2 = { ...jobV1, operation: "update" as const, cid: await cid(`${name}-wf-v2`) };
+
+		await processDiscoveryMessage(jobV1, new FakeMessage(), {
+			...deps,
+			verify: verifiedFor(jobV1),
+		});
+		await processDiscoveryMessage(jobV2, new FakeMessage(), {
+			...deps,
+			verify: verifiedFor(jobV2),
+		});
+
+		expect(workflow.created).toHaveLength(2);
+		expect(workflow.created[0]?.id).not.toBe(workflow.created[1]?.id);
+	});
+
+	it("retries (no dead letter) when dispatch fails, then re-dispatches on redelivery", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const workflow = new FakeAssessmentWorkflow();
+		workflow.createError = new Error("workflows backend unavailable");
+		const deps = { ...(await buildDeps()), assessmentWorkflow: workflow };
+
+		const first = new FakeMessage();
+		await processDiscoveryMessage(job, first, { ...deps, verify: verifiedFor(job) });
+
+		// Dispatch failed with no surviving instance → retry, not dead-letter.
+		expect(first.retried).toBe(1);
+		expect(first.acked).toBe(0);
+		expect(workflow.created).toHaveLength(0);
+		const dl = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM dead_letters WHERE rkey = ?`)
+			.bind(job.rkey)
+			.first<{ n: number }>();
+		expect(dl?.n).toBe(0);
+		// The run still reached pending before the dispatch failure.
+		const pending = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		expect(pending?.state).toBe("pending");
+
+		// Redelivery with the backend recovered converges: same run, one instance.
+		workflow.createError = undefined;
+		const second = new FakeMessage();
+		await processDiscoveryMessage(job, second, { ...deps, verify: verifiedFor(job) });
+		expect(second.acked).toBe(1);
+		expect(workflow.created).toHaveLength(1);
+		const expectedId = await assessmentWorkflowInstanceId(uriFor(job), job.cid);
+		expect(workflow.created[0]?.id).toBe(expectedId);
 	});
 });
 
