@@ -510,6 +510,15 @@ describe("getPublisher", () => {
 		expect(res.status).toBe(404);
 	});
 
+	it("404s (redacted) when the !takedown is active on the profile record URI, not the DID", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPublisher();
+		await seedLabelState({ uri: publisherUri(), val: "!takedown" });
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorGetPublisher}?did=${DID_A}`);
+		expect(res.status).toBe(404);
+	});
+
 	it("hydrates labels on the publisher profile record URI", async () => {
 		await seedLabeler(LABELER_DID, true);
 		await seedPublisher();
