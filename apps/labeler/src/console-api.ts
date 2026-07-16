@@ -29,6 +29,7 @@ import {
 	getAssessmentsPage,
 	getCurrentSubjectByUri,
 	getFindingsForAssessment,
+	getPriorReleaseUrisForDid,
 	isSuperseded,
 	type ListAssessmentsFilters,
 	type ListedAssessment,
@@ -39,6 +40,7 @@ import {
 	serializeIssuedLabel,
 	serializeOperatorActionView,
 	serializeOperatorFinding,
+	serializePublisherHistory,
 	serializeSubjectLabel,
 	serializeSubjectRecord,
 	type Page,
@@ -53,6 +55,10 @@ import { assertNegatableBlockSet, NegatableBlockSetError, parseSubjectKind } fro
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+// Matches history-context.ts's DEFAULT_PRIOR_RELEASE_LIMIT / SAMPLE_SIZE so the
+// console's read-time count and sample agree with a run's history finding.
+const PRIOR_RELEASE_LIMIT = 20;
+const PRIOR_RELEASE_SAMPLE_SIZE = 5;
 const NON_NEGATIVE_INTEGER = /^\d+$/;
 const ADMIN_API_PREFIX = /^\/admin\/api\/?/;
 
@@ -255,10 +261,33 @@ async function handleGetSubjectHistory(
 	requireGet(request);
 	const subject = await getCurrentSubjectByUri(deps.db, uri);
 	if (!subject) throw new ReadGuardError("NOT_FOUND");
-	const assessments = await getAssessmentsForUri(deps.db, uri);
+	// Three independent reads keyed on the resolved subject — the assessment
+	// history plus the two neutral publisher-history inputs (plan W8.4 D5). No
+	// per-row fan-out: the label lookup reduces the whole (src, uri) stream once.
+	const [assessments, priorReleaseUris, labelWinners] = await Promise.all([
+		getAssessmentsForUri(deps.db, uri),
+		getPriorReleaseUrisForDid(deps.db, {
+			did: subject.did,
+			excludeUri: uri,
+			limit: PRIOR_RELEASE_LIMIT,
+		}),
+		getActiveLabelState(deps.db, {
+			src: deps.labelerDid,
+			uri,
+			cid: subject.cid,
+			now: new Date(),
+		}),
+	]);
 	return jsonData({
 		subject: serializeSubjectRecord(subject),
 		assessments: assessments.map(serializeAssessmentRun),
+		publisherHistory: serializePublisherHistory({
+			did: subject.did,
+			priorReleaseUris,
+			priorReleaseLimit: PRIOR_RELEASE_LIMIT,
+			priorReleaseSampleSize: PRIOR_RELEASE_SAMPLE_SIZE,
+			labelWinners: labelWinners.values(),
+		}),
 	});
 }
 

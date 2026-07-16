@@ -4,6 +4,7 @@ import type { AssessmentState } from "../src/assessment-lifecycle.js";
 import type {
 	AssessmentFinding,
 	AssessmentIssuedLabel,
+	LabelStreamWinner,
 	ListedAssessment,
 	Subject,
 } from "../src/assessment-store.js";
@@ -12,6 +13,7 @@ import {
 	serializeIssuedLabel,
 	serializeOperatorActionView,
 	serializeOperatorFinding,
+	serializePublisherHistory,
 	serializeSubjectRecord,
 } from "../src/console-serialize.js";
 import type { StoredOperatorAction } from "../src/operator-actions.js";
@@ -137,6 +139,57 @@ describe("serializeSubjectRecord", () => {
 			deletedAt: null,
 		};
 		expect(serializeSubjectRecord(subject)).toEqual(subject);
+	});
+});
+
+describe("serializePublisherHistory", () => {
+	function winner(over: Partial<LabelStreamWinner> & { val: string }): LabelStreamWinner {
+		return {
+			val: over.val,
+			cid: over.cid ?? null,
+			cts: "2026-07-12T00:00:00.000Z",
+			exp: over.exp ?? null,
+			sequence: over.sequence ?? 1,
+			neg: over.neg ?? false,
+			automated: over.automated ?? false,
+			active: over.active ?? true,
+		};
+	}
+
+	it("bounds the prior-release count and samples the URIs", () => {
+		const uris = Array.from({ length: 20 }, (_, i) => `at://did:plc:x/col/rk${i}`);
+		const view = serializePublisherHistory({
+			did: "did:plc:x",
+			priorReleaseUris: uris,
+			priorReleaseLimit: 20,
+			priorReleaseSampleSize: 5,
+			labelWinners: [],
+		});
+		expect(view.did).toBe("did:plc:x");
+		expect(view.priorReleaseCount).toBe(20);
+		expect(view.priorReleaseCapped).toBe(true);
+		expect(view.priorReleaseSample).toEqual(uris.slice(0, 5));
+	});
+
+	it("keeps only active, non-automated labels and omits a null cid", () => {
+		const view = serializePublisherHistory({
+			did: "did:plc:x",
+			priorReleaseUris: ["at://did:plc:x/col/rk0"],
+			priorReleaseLimit: 20,
+			priorReleaseSampleSize: 5,
+			labelWinners: [
+				winner({ val: "disputed" }),
+				winner({ val: "security-yanked", cid: "bafyreialpha" }),
+				winner({ val: "assessment-passed", automated: true }),
+				winner({ val: "retracted-manual", active: false }),
+			],
+		});
+		expect(view.priorReleaseCount).toBe(1);
+		expect(view.priorReleaseCapped).toBe(false);
+		expect(view.activeManualLabels).toEqual([
+			{ val: "disputed" },
+			{ val: "security-yanked", cid: "bafyreialpha" },
+		]);
 	});
 });
 

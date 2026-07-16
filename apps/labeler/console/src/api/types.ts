@@ -101,9 +101,33 @@ export interface SubjectRecord {
 	deletedAt: string | null;
 }
 
+/** An active, reviewer/admin-issued label on the subject, surfaced as neutral
+ * publisher-history context. `cid` is present only for a CID-bound label. */
+export interface PublisherHistoryLabel {
+	val: string;
+	cid?: string;
+}
+
+/**
+ * Neutral publisher-history context the server assembles at read-time in the
+ * subject-history endpoint (plan W8.4 D5): the publishing DID's prior releases
+ * and the subject's active manual labels, from the labeler's own D1. Operator-
+ * only; never part of any public serializer. `priorReleaseCount` is bounded by
+ * the server's read-time cap — `priorReleaseCapped` true means "at least this
+ * many". Optional so the UI degrades if a response omits it.
+ */
+export interface PublisherHistory {
+	did: string;
+	priorReleaseCount: number;
+	priorReleaseCapped: boolean;
+	priorReleaseSample: string[];
+	activeManualLabels: PublisherHistoryLabel[];
+}
+
 export interface SubjectHistoryView {
 	subject: SubjectRecord;
 	assessments: AssessmentRun[];
+	publisherHistory?: PublisherHistory;
 }
 
 /**

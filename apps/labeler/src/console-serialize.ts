@@ -99,9 +99,32 @@ export interface SubjectRecord {
 	deletedAt: string | null;
 }
 
+/** An active, reviewer/admin-issued label on the subject, surfaced as neutral
+ * publisher-history context. `cid` is present only for a CID-bound label. */
+export interface PublisherHistoryLabel {
+	val: string;
+	cid?: string;
+}
+
+/**
+ * Neutral publisher-history context assembled at console read-time from the
+ * labeler's own D1 (plan W8.4 D5): the publishing DID's prior releases and the
+ * subject's active manual labels. `priorReleaseCount` is bounded by the
+ * read-time cap — `priorReleaseCapped` true means "at least this many". Never
+ * part of any public serializer; served only on the reviewer-gated console API.
+ */
+export interface PublisherHistory {
+	did: string;
+	priorReleaseCount: number;
+	priorReleaseCapped: boolean;
+	priorReleaseSample: string[];
+	activeManualLabels: PublisherHistoryLabel[];
+}
+
 export interface SubjectHistoryView {
 	subject: SubjectRecord;
 	assessments: AssessmentRun[];
+	publisherHistory: PublisherHistory;
 }
 
 export interface OperatorActionView {
@@ -207,6 +230,37 @@ export function serializeSubjectLabel(winner: LabelStreamWinner): SubjectLabel {
 		cts: winner.cts,
 		exp: winner.exp,
 		sequence: winner.sequence,
+	};
+}
+
+/**
+ * Assembles the publisher-history block from the slice-1 queries
+ * (`getPriorReleaseUrisForDid`, `getActiveLabelState`). The prior-release count
+ * is the number of URIs returned under the cap; `capped` matches the pipeline
+ * stage's rule (`length >= limit`). Active manual labels are the non-automated,
+ * currently-active stream winners — the same `!automated && active` filter the
+ * history stage applies.
+ */
+export function serializePublisherHistory(input: {
+	did: string;
+	priorReleaseUris: readonly string[];
+	priorReleaseLimit: number;
+	priorReleaseSampleSize: number;
+	labelWinners: Iterable<LabelStreamWinner>;
+}): PublisherHistory {
+	const activeManualLabels: PublisherHistoryLabel[] = [];
+	for (const winner of input.labelWinners) {
+		if (winner.automated || !winner.active) continue;
+		activeManualLabels.push(
+			winner.cid === null ? { val: winner.val } : { val: winner.val, cid: winner.cid },
+		);
+	}
+	return {
+		did: input.did,
+		priorReleaseCount: input.priorReleaseUris.length,
+		priorReleaseCapped: input.priorReleaseUris.length >= input.priorReleaseLimit,
+		priorReleaseSample: input.priorReleaseUris.slice(0, input.priorReleaseSampleSize),
+		activeManualLabels,
 	};
 }
 

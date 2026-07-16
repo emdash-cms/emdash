@@ -29,6 +29,16 @@ const URI_S =
 const CID_S_OLD = "bafyreisssssssssssssssssssssssssssssssssssssssssssssssold";
 const CID_S_NEW = "bafyreisssssssssssssssssssssssssssssssssssssssssssssssnew";
 
+// Publisher-history fixture: one DID with three releases and, on the first, an
+// active manual label plus an automated label (which must not count as manual).
+const DID_HIST = "did:plc:hhhhhhhhhhhhhhhhhhhhhhhh";
+const URI_H1 = `at://${DID_HIST}/com.emdashcms.experimental.package.release/rkH1`;
+const CID_H1 = "bafyreihhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh1";
+const URI_H2 = `at://${DID_HIST}/com.emdashcms.experimental.package.release/rkH2`;
+const CID_H2 = "bafyreihhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh2";
+const URI_H3 = `at://${DID_HIST}/com.emdashcms.experimental.package.release/rkH3`;
+const CID_H3 = "bafyreihhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh3";
+
 // Assessment ids must satisfy assessment-lifecycle's ASSESSMENT_ID (ULID) regex,
 // which the detail route validates via getAssessment.
 const ASMT_PASS_A = "asmt_SQCP5CP1X1RBMM0V0TQP2WR9PD";
@@ -61,6 +71,7 @@ beforeAll(async () => {
 	noRoleToken = await mintToken({ email: "nobody@example.com" });
 
 	await seedSubjects();
+	await seedPublisherHistory();
 	await seedAssessments();
 	await seedFindings();
 	await seedLabels();
@@ -145,6 +156,72 @@ async function seedSubjects(): Promise<void> {
 		collection: "com.emdashcms.experimental.package.release",
 		rkey: "rkS",
 		now: new Date("2026-07-05T10:00:00.000Z"),
+	});
+}
+
+async function seedStreamLabel(input: {
+	actionId: number;
+	uri: string;
+	cid: string;
+	val: string;
+	type: string;
+	neg?: 0 | 1;
+	cts: string;
+}): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO issuance_actions (id, actor, type, reason, idempotency_key, created_at)
+		 VALUES (?, ?, ?, 'r', ?, ?)`,
+	)
+		.bind(input.actionId, LABELER_DID, input.type, `idem-hist-${input.actionId}`, input.cts)
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO issued_labels (action_id, ver, src, uri, cid, val, neg, cts, sig, signing_key_id)
+		 VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, 'v1')`,
+	)
+		.bind(
+			input.actionId,
+			LABELER_DID,
+			input.uri,
+			input.cid,
+			input.val,
+			input.neg ?? 0,
+			input.cts,
+			new Uint8Array([0]),
+		)
+		.run();
+}
+
+async function seedPublisherHistory(): Promise<void> {
+	const releases: [uri: string, cid: string, rkey: string, observedAt: string][] = [
+		[URI_H1, CID_H1, "rkH1", "2026-07-01T00:00:00.000Z"],
+		[URI_H2, CID_H2, "rkH2", "2026-07-02T00:00:00.000Z"],
+		[URI_H3, CID_H3, "rkH3", "2026-07-03T00:00:00.000Z"],
+	];
+	for (const [uri, cid, rkey, observedAt] of releases) {
+		await createSubject(testEnv.DB, {
+			uri,
+			cid,
+			did: DID_HIST,
+			collection: "com.emdashcms.experimental.package.release",
+			rkey,
+			now: new Date(observedAt),
+		});
+	}
+	await seedStreamLabel({
+		actionId: 3001,
+		uri: URI_H1,
+		cid: CID_H1,
+		val: "disputed",
+		type: "manual-label",
+		cts: "2026-07-04T00:00:00.000Z",
+	});
+	await seedStreamLabel({
+		actionId: 3002,
+		uri: URI_H1,
+		cid: CID_H1,
+		val: "assessment-passed",
+		type: "automated-assessment",
+		cts: "2026-07-04T01:00:00.000Z",
 	});
 }
 
@@ -553,6 +630,53 @@ describe("handleConsoleApi — subject history", () => {
 			deps(),
 		);
 		expect(res.status).toBe(404);
+	});
+
+	interface PublisherHistoryBody {
+		publisherHistory: {
+			did: string;
+			priorReleaseCount: number;
+			priorReleaseCapped: boolean;
+			priorReleaseSample: string[];
+			activeManualLabels: { val: string; cid?: string }[];
+		};
+	}
+
+	it("assembles publisher-history context: prior releases and active manual labels", async () => {
+		const res = await handleConsoleApi(
+			req(`/admin/api/subjects/${encodeURIComponent(URI_H1)}`, { token: reviewerToken }),
+			deps(),
+		);
+		expect(res.status).toBe(200);
+		const view = (await body(res)).data as PublisherHistoryBody;
+		expect(view.publisherHistory.did).toBe(DID_HIST);
+		expect(view.publisherHistory.priorReleaseCount).toBe(2);
+		expect(view.publisherHistory.priorReleaseCapped).toBe(false);
+		expect(view.publisherHistory.priorReleaseSample).toEqual(
+			expect.arrayContaining([URI_H2, URI_H3]),
+		);
+		expect(view.publisherHistory.priorReleaseSample).not.toContain(URI_H1);
+		const vals = view.publisherHistory.activeManualLabels.map((label) => label.val);
+		expect(vals).toContain("disputed");
+		// An automated stream head is not a manual label.
+		expect(vals).not.toContain("assessment-passed");
+		const disputed = view.publisherHistory.activeManualLabels.find(
+			(label) => label.val === "disputed",
+		);
+		expect(disputed?.cid).toBe(CID_H1);
+	});
+
+	it("returns an empty publisher-history block for a subject with no history", async () => {
+		const res = await handleConsoleApi(
+			req(`/admin/api/subjects/${encodeURIComponent(URI_A)}`, { token: reviewerToken }),
+			deps(),
+		);
+		expect(res.status).toBe(200);
+		const view = (await body(res)).data as PublisherHistoryBody;
+		expect(view.publisherHistory.did).toBe("did:plc:aaaaaaaaaaaaaaaaaaaaaaaa");
+		expect(view.publisherHistory.priorReleaseCount).toBe(0);
+		expect(view.publisherHistory.priorReleaseSample).toEqual([]);
+		expect(view.publisherHistory.activeManualLabels).toEqual([]);
 	});
 });
 
