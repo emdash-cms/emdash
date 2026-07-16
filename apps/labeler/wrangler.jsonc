@@ -98,13 +98,14 @@
 		// Access application's AUD tag and the group names with the deployment's.
 		"OPERATOR_ACCESS_CONFIG": "{\"teamDomain\":\"https://emdash.cloudflareaccess.com\",\"audience\":\"REPLACE_WITH_ACCESS_APP_AUD_TAG\",\"admins\":[\"emdash-labeler-admins\"],\"reviewers\":[\"emdash-labeler-reviewers\"]}",
 	},
-	// Required secret, declared in config so `wrangler types` generates the
-	// typed binding and `wrangler deploy` validates the secret is set on the
+	// Required secrets, declared in config so `wrangler types` generates the
+	// typed bindings and `wrangler deploy` validates each secret is set on the
 	// target Worker before publishing. Set in production with
-	// `wrangler secret put LABEL_SIGNING_PRIVATE_KEY`; tests bind a stub via
-	// miniflare in vitest.config.ts.
+	// `wrangler secret put <NAME>`; tests bind stubs via miniflare in
+	// vitest.config.ts. NOTIFICATION_HASH_PEPPER keys publisher-notification
+	// recipient hashes (src/notification-contacts.ts).
 	"secrets": {
-		"required": ["LABEL_SIGNING_PRIVATE_KEY"],
+		"required": ["LABEL_SIGNING_PRIVATE_KEY", "NOTIFICATION_HASH_PEPPER"],
 	},
 	"observability": { "enabled": true },
 }

@@ -14,6 +14,7 @@ interface __BaseEnv_Env {
 	JETSTREAM_URL: "wss://jetstream2.us-east.bsky.network/subscribe";
 	OPERATOR_ACCESS_CONFIG: "{\"teamDomain\":\"https://emdash.cloudflareaccess.com\",\"audience\":\"REPLACE_WITH_ACCESS_APP_AUD_TAG\",\"admins\":[\"emdash-labeler-admins\"],\"reviewers\":[\"emdash-labeler-reviewers\"]}";
 	LABEL_SIGNING_PRIVATE_KEY: string;
+	NOTIFICATION_HASH_PEPPER: string;
 	LABEL_SUBSCRIPTION: DurableObjectNamespace<import("./src/index").LabelSubscriptionDO>;
 	LABELER_DISCOVERY_DO: DurableObjectNamespace<import("./src/index").LabelerDiscoveryDO>;
 }
@@ -29,7 +30,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "LABELER_DID" | "LABELER_SERVICE_URL" | "LABEL_SIGNING_KEY_VERSION" | "LABEL_SIGNING_PUBLIC_KEY" | "JETSTREAM_URL" | "OPERATOR_ACCESS_CONFIG" | "LABEL_SIGNING_PRIVATE_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "LABELER_DID" | "LABELER_SERVICE_URL" | "LABEL_SIGNING_KEY_VERSION" | "LABEL_SIGNING_PUBLIC_KEY" | "JETSTREAM_URL" | "OPERATOR_ACCESS_CONFIG" | "LABEL_SIGNING_PRIVATE_KEY" | "NOTIFICATION_HASH_PEPPER">> {}
 }
 
 // Begin runtime types
