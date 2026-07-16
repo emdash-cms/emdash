@@ -106,6 +106,12 @@ export interface NoticePayload extends NoticeContent {
  * slice 2 supplies the Cloudflare Email Sending implementation. Each method
  * returns a discriminated result — a transport failure is `{ ok: false }`, not a
  * throw, so the caller records `failed` and lets the retry sweep pick it up.
+ *
+ * SECURITY (slice-2 contract): the `error` string is persisted verbatim in
+ * `notifications.last_error` and is NEVER cleared. An implementation MUST NOT put
+ * the `confirmUrl` or the raw confirm token into it — that would leak the
+ * single-use capability to the database. Return the provider's status/message
+ * only, never the payload it was given.
  */
 export interface NotificationSender {
 	sendConfirmation(payload: ConfirmationPayload): Promise<SendResult>;
@@ -234,6 +240,16 @@ async function sendConfirmationMail(
 		return { status: "rate_limited", recipientHash: hash, scope: "address" };
 	}
 
+	// Per-DID gate, then the ledger write, adjacently. The count→insert pair is a
+	// non-atomic check-then-act: concurrent confirmations to DISTINCT victims for
+	// one DID can overshoot the cap (each victim still receives at most one mail —
+	// it admits a few extra distinct victims, it does not bomb anyone). Keeping the
+	// two statements adjacent narrows that window; exact enforcement needs a
+	// serialized claim (a Durable Object) and is deferred to slice 2. The gate
+	// returns before any write so a sustained DID email-bomb costs no rows; the
+	// ledger is written before the claim/send, so a later suppressed-claim or
+	// lost-CAS attempt still counts — a conservative over-count, never an
+	// under-count.
 	const sinceMs = now.ms - CONFIRM_DID_WINDOW_MS;
 	const distinctRecipients = await countDistinctConfirmRecipients(
 		ctx.db,
@@ -244,6 +260,7 @@ async function sendConfirmationMail(
 		logSend(request.target.did, "rate_limited:did", hash);
 		return { status: "rate_limited", recipientHash: hash, scope: "did" };
 	}
+	await recordConfirmLedgerEntry(ctx.db, request.target.did, hash, now.ms);
 
 	const id = newNotificationId();
 	const claimed = await claimSend(
@@ -263,14 +280,18 @@ async function sendConfirmationMail(
 
 	const token = generateConfirmToken();
 	const tokenHash = await hashConfirmToken(token);
-	const recorded = await recordConfirmSent(ctx.db, hash, tokenHash, now.ms);
+	const recorded = await recordConfirmSent(
+		ctx.db,
+		hash,
+		tokenHash,
+		now.ms,
+		CONFIRM_MIN_INTERVAL_MS,
+	);
 	if (!recorded) {
 		await markRowUndeliverable(ctx.db, id, "contact_state_changed", now.date);
 		logSend(request.target.did, "skipped:contact_state_changed", hash);
 		return { status: "skipped", recipientHash: hash, reason: "contact_state_changed" };
 	}
-
-	await recordConfirmLedgerEntry(ctx.db, request.target.did, hash, now.ms);
 
 	const result = await ctx.sender.sendConfirmation({
 		to: email,
@@ -317,7 +338,10 @@ async function claimSend(
 
 /** Flip a claimed row to its terminal state. On success: `sent`, `provider_id`
  * and `sent_at` set, `plaintext_email` CLEARED. On failure: `failed`,
- * `last_error` recorded, `attempts` bumped, plaintext retained for the retry. */
+ * `last_error` recorded, `attempts` bumped, plaintext retained for the retry.
+ * The `AND state = 'pending'` guard makes this a one-shot transition — it can
+ * never overwrite an already-terminal row (belt-and-braces against a
+ * double-finalize). */
 async function finalizeSend(
 	db: D1Database,
 	id: string,
@@ -329,7 +353,7 @@ async function finalizeSend(
 			.prepare(
 				`UPDATE notifications
 				 SET state = 'sent', provider_id = ?, sent_at = ?, plaintext_email = NULL, last_error = NULL
-				 WHERE id = ?`,
+				 WHERE id = ? AND state = 'pending'`,
 			)
 			.bind(result.providerId ?? null, now.toISOString(), id)
 			.run();
@@ -339,7 +363,7 @@ async function finalizeSend(
 		.prepare(
 			`UPDATE notifications
 			 SET state = 'failed', last_error = ?, attempts = attempts + 1
-			 WHERE id = ?`,
+			 WHERE id = ? AND state = 'pending'`,
 		)
 		.bind(truncateError(result.error), id)
 		.run();
@@ -388,7 +412,7 @@ async function markRowUndeliverable(
 		.prepare(
 			`UPDATE notifications
 			 SET state = 'undeliverable', last_error = ?, plaintext_email = NULL, sent_at = ?
-			 WHERE id = ?`,
+			 WHERE id = ? AND state = 'pending'`,
 		)
 		.bind(reason, now.toISOString(), id)
 		.run();

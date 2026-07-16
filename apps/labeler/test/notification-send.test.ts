@@ -382,6 +382,26 @@ describe("unconfirmed contact — double opt-in", () => {
 		expect(sender.confirmations).toHaveLength(1);
 		expect(await ledgerCount(did)).toBe(CONFIRM_DID_MAX_DISTINCT_RECIPIENTS);
 	});
+
+	it("mails a racing unconfirmed victim exactly once (recordConfirmSent CAS closes the double-mail race)", async () => {
+		const email = uniq("race") + "@example.test";
+		const sender = recordingSender({ ok: true, providerId: "p" });
+		// One shared context + request, dispatched twice concurrently: both reads see
+		// the fresh unconfirmed contact and pass canSendConfirm off the same snapshot.
+		// Only the interval CAS in recordConfirmSent can stop the second mail.
+		const ctx = context(email, sender, () => new Date(9_000_000));
+		const sourceId = uniq("src");
+		const req = request(uniq("did:plc:race"), sourceId);
+
+		const outcomes = await Promise.all([sendNotification(ctx, req), sendNotification(ctx, req)]);
+
+		expect(outcomes.map((o) => o.status).toSorted()).toEqual(["confirmation_sent", "skipped"]);
+		expect(sender.confirmations).toHaveLength(1);
+
+		const rows = await rowsForSource(sourceId);
+		expect(rows).toHaveLength(2);
+		expect(rows.map((r) => r.state).toSorted()).toEqual(["sent", "undeliverable"]);
+	});
 });
 
 describe("declined / suppressed / no-contact", () => {

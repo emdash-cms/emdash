@@ -48,7 +48,10 @@ CREATE TABLE notifications (
 	plaintext_email TEXT,
 	created_at TEXT NOT NULL,
 	created_at_epoch_ms INTEGER NOT NULL,
-	sent_at TEXT
+	sent_at TEXT,
+	-- Only a no-resolvable-contact `undeliverable` audit row may omit the hash;
+	-- every sendable row (pending/sent/failed) must carry one.
+	CHECK (state = 'undeliverable' OR recipient_hash IS NOT NULL)
 );
 
 CREATE INDEX idx_notifications_pending ON notifications(state, created_at_epoch_ms)
