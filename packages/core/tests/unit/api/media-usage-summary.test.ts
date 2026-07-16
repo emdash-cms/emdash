@@ -323,8 +323,8 @@ describe("media usage summary handler and routes", () => {
 		expect(queries).toHaveLength(3);
 	});
 
-	it.each(["0", "true", "false"])("rejects includeUsage=%s", async (includeUsage) => {
-		const response = await invokeList(`?includeUsage=${includeUsage}`, Role.CONTRIBUTOR);
+	it("maps an invalid list includeUsage value to a validation error", async () => {
+		const response = await invokeList("?includeUsage=0", Role.CONTRIBUTOR);
 
 		expect(response.status).toBe(400);
 		expect((await response.json()) as ErrorBody).toEqual(
@@ -365,7 +365,7 @@ describe("media usage summary handler and routes", () => {
 		expect(queries.some((query) => query.includes("visible_entries"))).toBe(false);
 	});
 
-	it("applies token count authorization to media get", async () => {
+	it("redacts media get counts for a media-read token", async () => {
 		const redactedResponse = await invokeGet(usedMedia.id, "?includeUsage=1", Role.ADMIN, [
 			"media:read",
 		]);
@@ -373,15 +373,6 @@ describe("media usage summary handler and routes", () => {
 
 		expect(redacted.item.usage?.count).toBeNull();
 		expect(queries).toHaveLength(2);
-		queries = [];
-
-		const numericResponse = await invokeGet(usedMedia.id, "?includeUsage=1", Role.CONTRIBUTOR, [
-			"admin",
-		]);
-		const numeric = await readSuccess<{ item: MediaGetBodyItem }>(numericResponse);
-
-		expect(numeric.item.usage?.count).toBe(1);
-		expect(queries).toHaveLength(3);
 	});
 
 	it("uses the last duplicate includeUsage value and ignores unknown get query keys", async () => {

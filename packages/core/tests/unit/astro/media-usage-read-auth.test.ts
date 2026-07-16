@@ -86,14 +86,26 @@ describe("media usage detail auth middleware", () => {
 		);
 	});
 
-	it.each([["media:read"], ["content:read_drafts"], ["media:read", "content:read_drafts"]])(
-		"rejects a contributor token without admin scope: %j",
-		async (...scopes) => {
-			const response = await invokeThroughAuth(await createToken("contributor-1", scopes));
+	it("lets a media-read token reach the route before rejecting its missing admin scope", async () => {
+		const context = usageContext(await createToken("contributor-1", ["media:read"]));
+		const next = vi.fn(() => GET(context as never));
 
-			await expectError(response, 403, "INSUFFICIENT_SCOPE");
-		},
-	);
+		const response = await authMiddleware(context, next);
+
+		expect(next).toHaveBeenCalledOnce();
+		expect(context.locals.tokenScopes).toEqual(["media:read"]);
+		await expectError(response, 403, "INSUFFICIENT_SCOPE");
+	});
+
+	it("rejects a token without media-read scope before the route runs", async () => {
+		const context = usageContext(await createToken("contributor-1", ["content:read"]));
+		const next = vi.fn(async () => new Response("should not run"));
+
+		const response = await authMiddleware(context, next);
+
+		expect(next).not.toHaveBeenCalled();
+		await expectError(response, 403, "INSUFFICIENT_SCOPE");
+	});
 
 	it("rejects an admin-scoped token whose user lacks read permissions", async () => {
 		const response = await invokeThroughAuth(await createToken("subscriber-1", ["admin"]));
@@ -101,14 +113,14 @@ describe("media usage detail auth middleware", () => {
 		await expectError(response, 403, "FORBIDDEN");
 	});
 
-	it("rejects an invalid token before the route runs", async () => {
-		const context = usageContext("ec_pat_invalid");
+	it("rejects an unauthenticated request before the route runs", async () => {
+		const context = usageContext();
 		const next = vi.fn(async () => new Response("should not run"));
 
 		const response = await authMiddleware(context, next);
 
 		expect(next).not.toHaveBeenCalled();
-		await expectError(response, 401, "INVALID_TOKEN");
+		await expectError(response, 401, "NOT_AUTHENTICATED");
 	});
 
 	async function createToken(userId: string, scopes: string[]): Promise<string> {
@@ -127,9 +139,9 @@ describe("media usage detail auth middleware", () => {
 		return authMiddleware(context, () => GET(context as never));
 	}
 
-	function usageContext(token: string): AuthContext {
+	function usageContext(token?: string): AuthContext {
 		const request = new Request(`http://localhost/_emdash/api/media/${mediaId}/usage`, {
-			headers: { Authorization: `Bearer ${token}` },
+			headers: token ? { Authorization: `Bearer ${token}` } : undefined,
 		});
 
 		return {
