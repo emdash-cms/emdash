@@ -156,6 +156,15 @@ describe("AggregatorClient.listReleases", () => {
 		]);
 	});
 
+	it("omits the cursor param for an empty-string cursor (first page, not a 400)", async () => {
+		const { fetcher, urls } = mockFetcher(() => jsonResponse({ releases: [] }));
+		await new AggregatorClient(fetcher).listReleases("did:plc:abc123", "my-plugin", "");
+
+		expect(urls).toEqual([
+			`${BASE}/com.emdashcms.experimental.aggregator.listReleases?did=did%3Aplc%3Aabc123&package=my-plugin`,
+		]);
+	});
+
 	it("returns null when the parent package is NotFound", async () => {
 		const { fetcher } = mockFetcher(() => notFoundResponse());
 		const result = await new AggregatorClient(fetcher).listReleases("did:plc:abc123", "missing");

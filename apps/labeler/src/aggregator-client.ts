@@ -111,7 +111,9 @@ export class AggregatorClient {
 		cursor?: string,
 	): Promise<AggregatorListReleases.$output | null> {
 		const params: Record<string, string> = { did, package: pkg };
-		if (cursor !== undefined) params["cursor"] = cursor;
+		// Only a non-empty cursor is a page token; an empty string would decode as
+		// a malformed cursor (the aggregator 400s), so treat it as "first page".
+		if (cursor) params["cursor"] = cursor;
 		const url = buildUrl(NSID.listReleases, params);
 		return this.#query<AggregatorListReleases.$output>(NSID.listReleases, url);
 	}
