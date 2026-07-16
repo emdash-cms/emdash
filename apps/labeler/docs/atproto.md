@@ -12,7 +12,7 @@ ATProto identifies every account and service by a **DID** (Decentralized Identif
 The DID string encodes a **method** that says how to resolve it. Two methods are relevant to a labeler:
 
 - **`did:plc`** — the common ATProto method. The identifier is an opaque string (`did:plc:abc123…`) hosted by the PLC directory, a separate service that stores and serves the DID document. Rotating keys or moving hosts means updating the record in the directory.
-- **`did:web`** — the identifier *is* a domain. `did:web:labels.emdashcms.com` resolves by fetching `https://labels.emdashcms.com/.well-known/did.json`. No external directory is involved; whoever controls the domain controls the document.
+- **`did:web`** — the identifier _is_ a domain. `did:web:labels.emdashcms.com` resolves by fetching `https://labels.emdashcms.com/.well-known/did.json`. No external directory is involved; whoever controls the domain controls the document.
 
 ### Why this labeler uses `did:web`
 
@@ -26,26 +26,23 @@ The document (built by `serviceDidDocument` in `src/identity.ts`) has this shape
 
 ```json
 {
-  "@context": [
-    "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/multikey/v1"
-  ],
-  "id": "did:web:labels.emdashcms.com",
-  "verificationMethod": [
-    {
-      "id": "did:web:labels.emdashcms.com#atproto_label",
-      "type": "Multikey",
-      "controller": "did:web:labels.emdashcms.com",
-      "publicKeyMultibase": "zDnae..."
-    }
-  ],
-  "service": [
-    {
-      "id": "did:web:labels.emdashcms.com#atproto_labeler",
-      "type": "AtprotoLabeler",
-      "serviceEndpoint": "https://labels.emdashcms.com"
-    }
-  ]
+	"@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/multikey/v1"],
+	"id": "did:web:labels.emdashcms.com",
+	"verificationMethod": [
+		{
+			"id": "did:web:labels.emdashcms.com#atproto_label",
+			"type": "Multikey",
+			"controller": "did:web:labels.emdashcms.com",
+			"publicKeyMultibase": "zDnae..."
+		}
+	],
+	"service": [
+		{
+			"id": "did:web:labels.emdashcms.com#atproto_labeler",
+			"type": "AtprotoLabeler",
+			"serviceEndpoint": "https://labels.emdashcms.com"
+		}
+	]
 }
 ```
 
@@ -62,7 +59,7 @@ This service labels three kinds of subject:
 
 - **Publisher** — a DID. The identity that publishes packages.
 - **Package** — a record URI (the package profile record).
-- **Release** — a specific release, identified by its record URI *and* CID, so a label applies to one exact version's bytes.
+- **Release** — a specific release, identified by its record URI _and_ CID, so a label applies to one exact version's bytes.
 
 The **`cidRule`** on each label encodes which of these it can target:
 
@@ -87,19 +84,19 @@ Key rotation is tracked by `LABEL_SIGNING_KEY_VERSION` (currently `v1`). Generat
 
 ATProto's HTTP-RPC convention is **XRPC**: each method is a namespaced identifier (an NSID like `com.atproto.label.queryLabels`) called at `/xrpc/<nsid>`. The labeler exposes:
 
-| Path                                            | Purpose                                                                                     |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `/xrpc/com.atproto.label.queryLabels`           | Query the current labels for a set of subjects (a point-in-time read).                       |
-| `/xrpc/com.atproto.label.subscribeLabels`       | The streaming label firehose. A WebSocket subscription consumers follow to receive labels as they are issued; accepts a numeric `cursor` to resume. |
-| `/xrpc/com.atproto.moderation.createReport`     | **Rejected.** This labeler does not accept user moderation reports; the endpoint returns a `NotSupported` error. |
-| `/xrpc/com.emdashcms.experimental.labeler.*`    | The experimental assessment API (`getAssessment`, `getCurrentAssessment`, `listAssessments`, `getPolicy`). |
+| Path                                         | Purpose                                                                                                                                             |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/xrpc/com.atproto.label.queryLabels`        | Query the current labels for a set of subjects (a point-in-time read).                                                                              |
+| `/xrpc/com.atproto.label.subscribeLabels`    | The streaming label firehose. A WebSocket subscription consumers follow to receive labels as they are issued; accepts a numeric `cursor` to resume. |
+| `/xrpc/com.atproto.moderation.createReport`  | **Rejected.** This labeler does not accept user moderation reports; the endpoint returns a `NotSupported` error.                                    |
+| `/xrpc/com.emdashcms.experimental.labeler.*` | The experimental assessment API (`getAssessment`, `getCurrentAssessment`, `listAssessments`, `getPolicy`).                                          |
 
 Alongside the XRPC methods, two documents are served under `/.well-known`:
 
-| Path                                          | Purpose                                                          |
-| --------------------------------------------- | --------------------------------------------------------------- |
-| `/.well-known/did.json`                       | The DID document (above).                                       |
-| `/.well-known/emdash-labeler-policy.json`     | The moderation policy document (label vocabulary and rules), cached for 300s. |
+| Path                                      | Purpose                                                                       |
+| ----------------------------------------- | ----------------------------------------------------------------------------- |
+| `/.well-known/did.json`                   | The DID document (above).                                                     |
+| `/.well-known/emdash-labeler-policy.json` | The moderation policy document (label vocabulary and rules), cached for 300s. |
 
 ## Jetstream and ingestion
 

@@ -65,14 +65,14 @@ The Worker checks that its signing keypair matches the public key published in i
 
 ## Configuration reference
 
-| Key                         | Kind   | Description                                                                        |
-| --------------------------- | ------ | --------------------------------------------------------------------------------- |
-| `LABELER_DID`               | var    | The labeler's DID, `did:web:labels.emdashcms.com`.                                 |
-| `LABELER_SERVICE_URL`       | var    | Service endpoint published in the DID document, `https://labels.emdashcms.com`.    |
+| Key                         | Kind   | Description                                                                                                         |
+| --------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| `LABELER_DID`               | var    | The labeler's DID, `did:web:labels.emdashcms.com`.                                                                  |
+| `LABELER_SERVICE_URL`       | var    | Service endpoint published in the DID document, `https://labels.emdashcms.com`.                                     |
 | `LABEL_SIGNING_PUBLIC_KEY`  | var    | P-256 public key as a Multikey; published in the DID document's `#atproto_label` method for signature verification. |
-| `LABEL_SIGNING_PRIVATE_KEY` | secret | P-256 private key (unpadded base64url of the raw 32-byte scalar) used to sign labels server-side. |
-| `LABEL_SIGNING_KEY_VERSION` | var    | Signing key version (`v1`); bump when rotating.                                    |
-| `OPERATOR_ACCESS_CONFIG`    | var    | JSON: `teamDomain`, `audience` (Access AUD tag), and `admins` / `reviewers` group names. |
+| `LABEL_SIGNING_PRIVATE_KEY` | secret | P-256 private key (unpadded base64url of the raw 32-byte scalar) used to sign labels server-side.                   |
+| `LABEL_SIGNING_KEY_VERSION` | var    | Signing key version (`v1`); bump when rotating.                                                                     |
+| `OPERATOR_ACCESS_CONFIG`    | var    | JSON: `teamDomain`, `audience` (Access AUD tag), and `admins` / `reviewers` group names.                            |
 
 The private key is declared as a required secret in `wrangler.jsonc`, so `wrangler deploy` refuses to publish if it has not been set on the target Worker.
 

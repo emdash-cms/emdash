@@ -58,9 +58,7 @@ describe("AutomationControl", () => {
 		fireEvent.click(submit);
 
 		await waitFor(() => {
-			expect(pauseAutomation).toHaveBeenCalledWith(
-				expect.objectContaining({ reason: "incident" }),
-			);
+			expect(pauseAutomation).toHaveBeenCalledWith(expect.objectContaining({ reason: "incident" }));
 		});
 		expect(resumeAutomation).not.toHaveBeenCalled();
 	});
@@ -83,9 +81,7 @@ describe("AutomationControl", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Resume" }));
 
 		await waitFor(() => {
-			expect(resumeAutomation).toHaveBeenCalledWith(
-				expect.objectContaining({ reason: "cleared" }),
-			);
+			expect(resumeAutomation).toHaveBeenCalledWith(expect.objectContaining({ reason: "cleared" }));
 		});
 		expect(pauseAutomation).not.toHaveBeenCalled();
 	});

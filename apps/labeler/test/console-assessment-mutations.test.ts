@@ -815,9 +815,7 @@ describe("subject-label read + override effect preview", () => {
 			getReq(`/admin/api/subjects/${encodeURIComponent(uri)}/labels?cid=${CID}`),
 			readDeps(),
 		);
-		const labels = await bodyData<{ val: string; active: boolean; automated: boolean }[]>(
-			response,
-		);
+		const labels = await bodyData<{ val: string; active: boolean; automated: boolean }[]>(response);
 		const byVal = new Map(labels.map((label) => [label.val, label]));
 		expect(byVal.get("malware")).toMatchObject({ active: true, automated: true });
 		expect(byVal.get("impersonation")).toMatchObject({ active: true, automated: false });
