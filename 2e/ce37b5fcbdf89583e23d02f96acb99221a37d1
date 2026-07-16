@@ -1,0 +1,21 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_c56e2b7a31503d::t_7120fe685597a8 1375-1376
+packages/admin/tests/editor/slash-menu.test.tsx
+  s_c56e2b7a31503d::t_0ebb44d61667f7 223,226,492-503
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2ece37b5fcbdf89583e23d02f96acb99221a37d1",
+  "prompts": {},
+  "sessions": {
+    "s_c56e2b7a31503d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6afb-be76-7d40-aef7-5e3e5526cffb",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
