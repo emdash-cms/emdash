@@ -1,0 +1,252 @@
+import { applyD1Migrations, env } from "cloudflare:test";
+import { beforeAll, describe, expect, it } from "vitest";
+
+import {
+	canSendConfirm,
+	confirmContact,
+	type ContactState,
+	declineContact,
+	ensureContact,
+	getContactState,
+	isSuppressed,
+	recipientHash,
+	recordConfirmSent,
+	suppress,
+} from "../src/notification-contacts.js";
+
+interface TestEnv {
+	DB: D1Database;
+	TEST_MIGRATIONS: Parameters<typeof applyD1Migrations>[1];
+}
+
+const testEnv = env as unknown as TestEnv;
+const db = () => testEnv.DB;
+
+const PEPPER = "pepper-one";
+let hashCounter = 0;
+
+/** A distinct recipient hash per test, so rows never collide across cases. */
+async function freshHash(): Promise<string> {
+	hashCounter++;
+	return recipientHash(PEPPER, `person-${hashCounter}@example.test`);
+}
+
+beforeAll(async () => {
+	await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);
+});
+
+describe("recipientHash", () => {
+	it("emits lowercase hex of the HMAC-SHA256 digest (64 chars)", async () => {
+		const hash = await recipientHash(PEPPER, "user@example.test");
+		expect(hash).toMatch(/^[0-9a-f]{64}$/);
+	});
+
+	it("is deterministic for the same pepper and address", async () => {
+		const a = await recipientHash(PEPPER, "user@example.test");
+		const b = await recipientHash(PEPPER, "user@example.test");
+		expect(a).toBe(b);
+	});
+
+	it("collapses case and surrounding whitespace", async () => {
+		const canonical = await recipientHash(PEPPER, "user@example.test");
+		expect(await recipientHash(PEPPER, "USER@Example.TEST")).toBe(canonical);
+		expect(await recipientHash(PEPPER, "  user@example.test  ")).toBe(canonical);
+		expect(await recipientHash(PEPPER, "\tUser@Example.Test\n")).toBe(canonical);
+	});
+
+	it("does not fold provider-specific address variants", async () => {
+		const plain = await recipientHash(PEPPER, "user@example.test");
+		expect(await recipientHash(PEPPER, "u.s.e.r@example.test")).not.toBe(plain);
+		expect(await recipientHash(PEPPER, "user+tag@example.test")).not.toBe(plain);
+	});
+
+	it("changes with the pepper", async () => {
+		const a = await recipientHash(PEPPER, "user@example.test");
+		const b = await recipientHash("pepper-two", "user@example.test");
+		expect(a).not.toBe(b);
+	});
+});
+
+describe("contact lifecycle", () => {
+	it("ensureContact inserts an unconfirmed row and is idempotent", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		const first = await getContactState(db(), hash);
+		expect(first).toMatchObject({
+			recipientHash: hash,
+			confirmState: "unconfirmed",
+			confirmTokenHash: null,
+			firstSeenAt: "2026-07-16T00:00:00.000Z",
+			confirmedAt: null,
+			lastConfirmSentAtEpochMs: null,
+		});
+
+		await ensureContact(db(), hash, "2026-07-16T01:00:00.000Z");
+		const second = await getContactState(db(), hash);
+		expect(second?.firstSeenAt).toBe("2026-07-16T00:00:00.000Z");
+	});
+
+	it("getContactState returns null for an unknown recipient", async () => {
+		expect(await getContactState(db(), await freshHash())).toBeNull();
+	});
+
+	it("recordConfirmSent stores the token hash and send time", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		await recordConfirmSent(db(), hash, "tokenhash-aaa", 1_000);
+		const state = await getContactState(db(), hash);
+		expect(state?.confirmTokenHash).toBe("tokenhash-aaa");
+		expect(state?.lastConfirmSentAtEpochMs).toBe(1_000);
+		expect(state?.confirmState).toBe("unconfirmed");
+	});
+
+	it("confirmContact flips to confirmed on a token match and clears the token", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		await recordConfirmSent(db(), hash, "tokenhash-match", 1_000);
+
+		const ok = await confirmContact(db(), hash, "tokenhash-match", "2026-07-16T02:00:00.000Z");
+		expect(ok).toBe(true);
+
+		const state = await getContactState(db(), hash);
+		expect(state?.confirmState).toBe("confirmed");
+		expect(state?.confirmTokenHash).toBeNull();
+		expect(state?.confirmedAt).toBe("2026-07-16T02:00:00.000Z");
+	});
+
+	it("confirmContact rejects a wrong token and leaves state untouched", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		await recordConfirmSent(db(), hash, "tokenhash-real", 1_000);
+
+		const ok = await confirmContact(db(), hash, "tokenhash-wrong", "2026-07-16T02:00:00.000Z");
+		expect(ok).toBe(false);
+
+		const state = await getContactState(db(), hash);
+		expect(state?.confirmState).toBe("unconfirmed");
+		expect(state?.confirmTokenHash).toBe("tokenhash-real");
+		expect(state?.confirmedAt).toBeNull();
+	});
+
+	it("confirmContact tokens are single-use", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		await recordConfirmSent(db(), hash, "tokenhash-once", 1_000);
+
+		expect(await confirmContact(db(), hash, "tokenhash-once", "2026-07-16T02:00:00.000Z")).toBe(
+			true,
+		);
+		expect(await confirmContact(db(), hash, "tokenhash-once", "2026-07-16T03:00:00.000Z")).toBe(
+			false,
+		);
+
+		const state = await getContactState(db(), hash);
+		expect(state?.confirmedAt).toBe("2026-07-16T02:00:00.000Z");
+	});
+
+	it("confirmContact on an unknown recipient returns false", async () => {
+		expect(
+			await confirmContact(db(), await freshHash(), "tokenhash-any", "2026-07-16T02:00:00.000Z"),
+		).toBe(false);
+	});
+
+	it("declineContact marks the contact declined and clears the token", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+		await recordConfirmSent(db(), hash, "tokenhash-decl", 1_000);
+
+		await declineContact(db(), hash);
+		const state = await getContactState(db(), hash);
+		expect(state?.confirmState).toBe("declined");
+		expect(state?.confirmTokenHash).toBeNull();
+	});
+});
+
+describe("suppressions", () => {
+	it("isSuppressed is false until an address is suppressed", async () => {
+		const hash = await freshHash();
+		expect(await isSuppressed(db(), hash)).toBe(false);
+		await suppress(db(), hash, "bounce", "2026-07-16T00:00:00.000Z");
+		expect(await isSuppressed(db(), hash)).toBe(true);
+	});
+
+	it("keeps the earliest reason on repeated suppression", async () => {
+		const hash = await freshHash();
+		await suppress(db(), hash, "unsubscribe", "2026-07-16T00:00:00.000Z");
+		await suppress(db(), hash, "complaint", "2026-07-16T05:00:00.000Z");
+
+		const row = await db()
+			.prepare(`SELECT reason, created_at FROM notification_suppressions WHERE recipient_hash = ?`)
+			.bind(hash)
+			.first<{ reason: string; created_at: string }>();
+		expect(row?.reason).toBe("unsubscribe");
+		expect(row?.created_at).toBe("2026-07-16T00:00:00.000Z");
+	});
+});
+
+describe("canSendConfirm", () => {
+	const unconfirmed = (lastSent: number | null): ContactState => ({
+		recipientHash: "h",
+		confirmState: "unconfirmed",
+		confirmTokenHash: null,
+		firstSeenAt: "2026-07-16T00:00:00.000Z",
+		confirmedAt: null,
+		lastConfirmSentAtEpochMs: lastSent,
+	});
+
+	it("allows a never-seen contact", () => {
+		expect(canSendConfirm(null, 10_000, 1_000)).toBe(true);
+	});
+
+	it("allows an unconfirmed contact that has never been sent to", () => {
+		expect(canSendConfirm(unconfirmed(null), 10_000, 1_000)).toBe(true);
+	});
+
+	it("blocks before the interval elapses and allows exactly at the boundary", () => {
+		expect(canSendConfirm(unconfirmed(10_000), 10_999, 1_000)).toBe(false);
+		expect(canSendConfirm(unconfirmed(10_000), 11_000, 1_000)).toBe(true);
+		expect(canSendConfirm(unconfirmed(10_000), 11_001, 1_000)).toBe(true);
+	});
+
+	it("never sends a confirmation to a confirmed or declined contact", () => {
+		expect(canSendConfirm({ ...unconfirmed(null), confirmState: "confirmed" }, 10_000, 1_000)).toBe(
+			false,
+		);
+		expect(canSendConfirm({ ...unconfirmed(null), confirmState: "declined" }, 10_000, 1_000)).toBe(
+			false,
+		);
+	});
+});
+
+describe("schema", () => {
+	it("stores no plaintext email column on either table", async () => {
+		const contactColumns = await columnNames("notification_contacts");
+		expect(contactColumns).toEqual([
+			"recipient_hash",
+			"confirm_state",
+			"confirm_token_hash",
+			"first_seen_at",
+			"confirmed_at",
+			"last_confirm_sent_at_epoch_ms",
+		]);
+
+		const suppressionColumns = await columnNames("notification_suppressions");
+		expect(suppressionColumns).toEqual([
+			"recipient_hash",
+			"reason",
+			"created_at",
+			"created_at_epoch_ms",
+		]);
+
+		for (const column of [...contactColumns, ...suppressionColumns]) {
+			expect(column).not.toMatch(/email|address|plaintext/i);
+		}
+	});
+});
+
+async function columnNames(
+	table: "notification_contacts" | "notification_suppressions",
+): Promise<string[]> {
+	const result = await db().prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
+	return result.results.map((row) => row.name);
+}

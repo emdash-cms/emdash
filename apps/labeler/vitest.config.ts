@@ -20,6 +20,7 @@ export default defineConfig({
 				bindings: {
 					TEST_MIGRATIONS: migrations,
 					LABEL_SIGNING_PRIVATE_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE",
+					NOTIFICATION_HASH_PEPPER: "test-notification-hash-pepper",
 				},
 			},
 		}),
