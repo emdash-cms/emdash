@@ -55,8 +55,10 @@ export const DEFAULT_ARTIFACT_SOURCES: readonly ArtifactSource[] = ["mirror", "d
 /**
  * Fetch budgets for a declared-URL artifact download. The byte budget equals
  * the compressed-bundle cap, so an artifact larger than any valid bundle is
- * rejected during streaming (the earliest point) and classified as an invalid
- * bundle. Timeouts bound a slow or stalled origin.
+ * rejected during streaming (the earliest point), before any checksum. Those
+ * unverified bytes are classified as a transient failure (retry →
+ * assessment-error), never a public block label (spec §9.4). Timeouts bound a
+ * slow or stalled origin.
  */
 export const ACQUISITION_FETCH_LIMITS = {
 	headerTimeoutMs: 10_000,
@@ -160,8 +162,8 @@ export interface AcquisitionDeps {
 
 /**
  * Deterministic mirror object key derived from release coordinates. The mirror
- * is a content-addressed copy of the exact signed artifact, so the key is
- * stable across acquisitions and independent of the declared URL.
+ * stores the exact signed artifact, so the key is stable across acquisitions
+ * and independent of the declared URL.
  */
 export function mirrorObjectKey(target: AcquisitionTarget): string {
 	return `${target.slug}/${target.version}/${target.artifactId ?? "package"}`;
