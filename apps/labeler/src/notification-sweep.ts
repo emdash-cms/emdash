@@ -33,6 +33,7 @@ import {
 import {
 	generateConfirmToken,
 	hashConfirmToken,
+	isSuppressed,
 	recordConfirmSent,
 	suppress,
 	type SuppressionReason,
@@ -128,6 +129,16 @@ async function sweepRow(
 	// audit rows never enter the candidate set; this guards a corrupt row.)
 	if (row.plaintext_email === null || row.recipient_hash === null) {
 		if (await abandonRow(deps.db, row.id, "no_plaintext")) stats.abandoned++;
+		return;
+	}
+
+	// Suppression re-check — the live send gates every claim on it, but a
+	// suppression can land AFTER a row fails (e.g. a confirmed publisher whose
+	// notice failed transiently then clicks Unsubscribe). Abandon (not just skip):
+	// a suppressed `failed` row would otherwise linger as a candidate forever, since
+	// retention only deletes terminal rows. Covers notice AND confirmation uniformly.
+	if (await isSuppressed(deps.db, row.recipient_hash)) {
+		if (await abandonRow(deps.db, row.id, "suppressed")) stats.abandoned++;
 		return;
 	}
 
@@ -261,6 +272,13 @@ async function markSuppressed(
 	reason: SuppressionReason,
 	now: Date,
 ): Promise<void> {
+	// Suppress FIRST, THEN retire the row. Flipping the row to `undeliverable`
+	// reopens the confirmation lifetime cap; recording the suppression before that
+	// flip means a concurrent live claim is blocked by the lifetime guard until the
+	// suppression is durable and by the suppression guard after — no window where a
+	// second mail slips through. A crash between the two is covered by the sweep's
+	// own isSuppressed→abandon check.
+	await suppress(db, hash, reason, now.toISOString(), now.getTime());
 	await db
 		.prepare(
 			`UPDATE notifications
@@ -269,7 +287,6 @@ async function markSuppressed(
 		)
 		.bind(`provider_suppressed:${reason}`, id)
 		.run();
-	await suppress(db, hash, reason, now.toISOString(), now.getTime());
 }
 
 /**

@@ -546,6 +546,12 @@ async function markProviderSuppressed(
 	reason: SuppressionReason,
 	now: Date,
 ): Promise<void> {
+	// Suppress FIRST, THEN retire the row (which reopens a confirmation's lifetime
+	// cap). Before the suppression write the row is still a non-`undeliverable`
+	// confirmation prior, so a concurrent live claim is blocked by the lifetime
+	// guard; after it, by the suppression guard — closing the window where both
+	// cap-open and suppression-absent would admit a second mail.
+	await suppress(db, hash, reason, now.toISOString(), now.getTime());
 	await db
 		.prepare(
 			`UPDATE notifications
@@ -554,7 +560,6 @@ async function markProviderSuppressed(
 		)
 		.bind(`provider_suppressed:${reason}`, id)
 		.run();
-	await suppress(db, hash, reason, now.toISOString(), now.getTime());
 }
 
 /** Distinct recipients this DID has sent confirmation mail to since `sinceMs` —

@@ -326,13 +326,18 @@ export async function resolveNoticeForSource(
 	}
 }
 
-/** `getAssessment` throws on a malformed id; a stored `source_id` is always
- * well-formed, but a defensive null keeps the sweep from crashing on a bad row. */
+/** `getAssessment` throws `TypeError` only for a malformed id — which a stored
+ * `source_id` never is — so that maps to "no notice" (null). Any OTHER error is a
+ * transient read failure: it must PROPAGATE, not abandon the row, so the sweep
+ * leaves the claimed row `pending` to self-heal on a later pass (matching the
+ * operator path's unwrapped read). Swallowing it would permanently drop a
+ * legitimate block/warning notice on a single flaky D1 read. */
 async function loadAssessmentSafe(db: D1Database, id: string): Promise<Assessment | null> {
 	try {
 		return await getAssessment(db, id);
-	} catch {
-		return null;
+	} catch (error) {
+		if (error instanceof TypeError) return null;
+		throw error;
 	}
 }
 

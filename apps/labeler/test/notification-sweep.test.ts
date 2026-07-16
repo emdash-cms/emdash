@@ -1,4 +1,5 @@
 import { applyD1Migrations, env } from "cloudflare:test";
+import { ulid } from "ulidx";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { AggregatorClient } from "../src/aggregator-client.js";
@@ -12,6 +13,7 @@ import {
 	hashConfirmToken,
 	recipientHash,
 	recordConfirmSent,
+	suppress,
 } from "../src/notification-contacts.js";
 import type { ConfirmationPayload, NoticePayload, SendResult } from "../src/notification-send.js";
 import { runNotificationSweep } from "../src/notification-sweep.js";
@@ -391,6 +393,110 @@ describe("retention cleanup + ledger prune", () => {
 		expect(remaining?.n).toBe(0);
 	});
 });
+
+describe("suppression re-check (F1)", () => {
+	it("abandons and does NOT mail a failed NOTICE whose address was suppressed after it failed", async () => {
+		const sourceId = uniq("oact");
+		await insertOperatorAction(sourceId, "security-yanked");
+		const email = uniq("supp") + "@x.test";
+		const hash = await recipientHash(PEPPER, email);
+		const id = await insertNotification({
+			kind: "notice",
+			sourceId,
+			recipientHash: hash,
+			plaintext: email,
+			state: "failed",
+			attempts: 1,
+		});
+		// The suppression lands after the row failed (e.g. an Unsubscribe click).
+		await suppress(db(), hash, "unsubscribe", NOW.toISOString(), NOW.getTime());
+		const sender = recordingSender();
+
+		await runNotificationSweep(deps(sender));
+
+		expect(sender.notices).toHaveLength(0);
+		expect(await rowState(id)).toMatchObject({ state: "undeliverable", plaintext: null });
+	});
+
+	it("abandons a suppressed failed CONFIRMATION without minting a token", async () => {
+		const email = uniq("csupp") + "@x.test";
+		const hash = await recipientHash(PEPPER, email);
+		await ensureContact(db(), hash, NOW.toISOString());
+		await recordConfirmSent(db(), hash, await hashConfirmToken("t"), 1_000);
+		const id = await insertNotification({
+			kind: "confirmation",
+			sourceId: uniq("src"),
+			recipientHash: hash,
+			plaintext: email,
+			state: "failed",
+			attempts: 1,
+		});
+		await suppress(db(), hash, "not_me", NOW.toISOString(), NOW.getTime());
+		const sender = recordingSender();
+
+		await runNotificationSweep(deps(sender));
+
+		expect(sender.confirmations).toHaveLength(0);
+		expect((await rowState(id)).state).toBe("undeliverable");
+	});
+});
+
+describe("transient source read (F3)", () => {
+	it("keeps a notice row pending (self-heals) when the assessment read fails transiently — never abandons it", async () => {
+		const email = uniq("f3") + "@x.test";
+		const hash = await recipientHash(PEPPER, email);
+		const sourceId = `asmt_${ulid()}`; // valid id shape → getAssessment reaches the (throwing) query
+		const id = await insertNotification({
+			kind: "notice",
+			sourceType: "issuance",
+			sourceId,
+			recipientHash: hash,
+			plaintext: email,
+			state: "failed",
+			attempts: 1,
+		});
+		const sender = recordingSender();
+		const throwingDeps: NotifyDeps = { ...deps(sender), db: dbThrowingOnAssessments(db()) };
+
+		await runNotificationSweep(throwingDeps);
+
+		expect(sender.notices).toHaveLength(0);
+		// Claimed (→pending, attempts bumped) but NOT abandoned: the next sweep re-drives it.
+		const row = await rowState(id);
+		expect(row.state).toBe("pending");
+		expect(row.attempts).toBe(2);
+	});
+});
+
+/** Wrap a D1Database so the `getAssessment` read (`FROM assessments`) throws a
+ * transient (non-TypeError) error; every other statement delegates. */
+function dbThrowingOnAssessments(real: D1Database): D1Database {
+	const wrapStmt = (stmt: D1PreparedStatement): D1PreparedStatement =>
+		new Proxy(stmt, {
+			get(target, prop, receiver) {
+				if (prop === "bind")
+					return (...args: unknown[]) =>
+						wrapStmt((target.bind as (...a: unknown[]) => D1PreparedStatement)(...args));
+				if (prop === "first")
+					return async () => {
+						throw new Error("transient D1 read");
+					};
+				const v = Reflect.get(target, prop, receiver);
+				return typeof v === "function" ? v.bind(target) : v;
+			},
+		});
+	return new Proxy(real, {
+		get(target, prop, receiver) {
+			if (prop === "prepare")
+				return (query: string) => {
+					const stmt = target.prepare(query);
+					return query.includes("FROM assessments") ? wrapStmt(stmt) : stmt;
+				};
+			const v = Reflect.get(target, prop, receiver);
+			return typeof v === "function" ? v.bind(target) : v;
+		},
+	});
+}
 
 async function exists(id: string): Promise<boolean> {
 	const r = await db().prepare(`SELECT 1 FROM notifications WHERE id = ?`).bind(id).first();
