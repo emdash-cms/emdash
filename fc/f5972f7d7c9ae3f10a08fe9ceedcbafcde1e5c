@@ -1,0 +1,41 @@
+packages/admin/src/components/Dashboard.tsx
+  s_c56e2b7a31503d::t_0598ff97b95254 21,159
+packages/admin/src/components/Sidebar.tsx
+  s_c56e2b7a31503d::t_6870b178e04c64 3,11-16,21,133,180-182,187,191,197,201-209,213,217,221-226,229-234,327
+packages/admin/src/components/comments/CommentInbox.tsx
+  s_c56e2b7a31503d::t_518ea4e7c5c929 11,21,146
+packages/admin/tests/components/AdminCommandPalette.test.ts
+  s_c56e2b7a31503d::t_a06b24ff697183 1-25
+packages/admin/tests/components/admin-navigation-icons.test.ts
+  s_c56e2b7a31503d::t_9218fbc1fa8054 1-49
+.changeset/admin-navigation-icons.md
+  s_c56e2b7a31503d::t_6615e0af5c0f04 1-5
+packages/admin/src/components/AdminCommandPalette.tsx
+  s_c56e2b7a31503d::t_6bfb1e9b3fee33 12,20,115,121,133,144,151,159,167,175,184,193,209,255,329-335,351
+packages/admin/src/components/MarketplaceBrowse.tsx
+  s_c56e2b7a31503d::t_d5bb409f39f885 31,172
+packages/admin/src/components/PluginManager.tsx
+  s_c56e2b7a31503d::t_9c067c5ae32cac 49,194,343
+packages/admin/src/components/RegistryBrowse.tsx
+  s_c56e2b7a31503d::t_f557526f704d72 16,26,179
+packages/admin/src/components/admin-navigation-icons.ts
+  s_c56e2b7a31503d::t_65e1264bedd8cf 1-136
+packages/admin/tests/components/Sidebar.test.tsx
+  s_c56e2b7a31503d::t_ad4b177695f852 26,111,115-116,135,139-140,142,148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fcf5972f7d7c9ae3f10a08fe9ceedcbafcde1e5c",
+  "prompts": {},
+  "sessions": {
+    "s_c56e2b7a31503d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6afb-be76-7d40-aef7-5e3e5526cffb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
