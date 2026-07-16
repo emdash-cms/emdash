@@ -23,6 +23,25 @@ const SCHEMA_API_BASE = "/_emdash/api/schema";
 
 const indexedLabel = (n: number) => `${n} item${n !== 1 ? "s" : ""}`;
 
+function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const rejectAborted = () => reject(new DOMException("The operation was aborted", "AbortError"));
+		if (signal.aborted) {
+			rejectAborted();
+			return;
+		}
+		const onAbort = () => {
+			window.clearTimeout(timer);
+			rejectAborted();
+		};
+		const timer = window.setTimeout(() => {
+			signal.removeEventListener("abort", onAbort);
+			resolve();
+		}, ms);
+		signal.addEventListener("abort", onAbort, { once: true });
+	});
+}
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -75,6 +94,7 @@ interface Synonym {
 // =============================================================================
 
 function SettingsPage() {
+	const syncAbortRef = React.useRef<AbortController | null>(null);
 	const [syncMode, setSyncMode] = React.useState<"full" | "missing" | null>(null);
 	const isSyncing = syncMode !== null;
 	const [result, setResult] = React.useState<ReindexResult | null>(null);
@@ -137,6 +157,13 @@ function SettingsPage() {
 		};
 	}, []);
 
+	React.useEffect(
+		() => () => {
+			syncAbortRef.current?.abort();
+		},
+		[],
+	);
+
 	const labelForSlug = React.useCallback(
 		(slug: string) => available.find((c) => c.slug === slug)?.label ?? slug,
 		[available],
@@ -155,7 +182,9 @@ function SettingsPage() {
 
 	const handleSelectionChange = React.useCallback(
 		(value: unknown) => {
-			const next = Array.isArray(value) ? (value as string[]) : [];
+			const next = Array.isArray(value)
+				? value.filter((item): item is string => typeof item === "string")
+				: [];
 			setSelected(next);
 			persistSelection(next);
 		},
@@ -164,6 +193,9 @@ function SettingsPage() {
 
 	const runSync = React.useCallback(
 		async (body: Record<string, unknown>, mode: "full" | "missing") => {
+			syncAbortRef.current?.abort();
+			const controller = new AbortController();
+			syncAbortRef.current = controller;
 			setSyncMode(mode);
 			setError(null);
 			try {
@@ -171,25 +203,33 @@ function SettingsPage() {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(body),
+					signal: controller.signal,
 				});
-				let data = await parseApiResponse<ReindexResult | { error: string }>(response);
-				if ("error" in data) throw new Error(data.error);
+				let data = await parseApiResponse<ReindexResult>(response);
+				if (controller.signal.aborted) return;
 				setResult(data);
 
 				while (!data.done) {
-					await new Promise((resolve) => setTimeout(resolve, 5_000));
-					const statusResponse = await apiFetch(`${API_BASE}/reindex`);
+					await abortableDelay(5_000, controller.signal);
+					const statusResponse = await apiFetch(`${API_BASE}/reindex`, {
+						signal: controller.signal,
+					});
 					const jobStatus = await parseApiResponse<ReindexResult | null>(statusResponse);
 					if (!jobStatus || jobStatus.jobId !== data.jobId) {
 						throw new Error("Reindex job not found");
 					}
 					data = jobStatus;
-					setResult(data);
+					if (!controller.signal.aborted) setResult(data);
 				}
 			} catch (err) {
-				setError(err instanceof Error ? err.message : "Sync failed");
+				if (!controller.signal.aborted) {
+					setError(err instanceof Error ? err.message : "Sync failed");
+				}
 			} finally {
-				setSyncMode(null);
+				if (syncAbortRef.current === controller) {
+					syncAbortRef.current = null;
+					if (!controller.signal.aborted) setSyncMode(null);
+				}
 			}
 		},
 		[],
@@ -221,12 +261,8 @@ function SettingsPage() {
 		try {
 			const query = selected.length > 0 ? `?collections=${selected.join(",")}` : "";
 			const response = await apiFetch(`${API_BASE}/status${query}`);
-			const data = await parseApiResponse<IndexStatus | { error: string }>(response);
-			if ("error" in data) {
-				setStatusError(data.error);
-			} else {
-				setStatus(data);
-			}
+			const data = await parseApiResponse<IndexStatus>(response);
+			setStatus(data);
 		} catch (err) {
 			setStatusError(err instanceof Error ? err.message : "Failed to load status");
 		} finally {
@@ -263,13 +299,9 @@ function SettingsPage() {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ synonyms: cleaned }),
 			});
-			const data = await parseApiResponse<{ synonyms?: Synonym[]; error?: string }>(response);
-			if (data.error) {
-				setSynonymsError(data.error);
-			} else {
-				setSynonyms(data.synonyms ?? cleaned);
-				setSynonymsSaved(true);
-			}
+			const data = await parseApiResponse<{ synonyms?: Synonym[] }>(response);
+			setSynonyms(data.synonyms ?? cleaned);
+			setSynonymsSaved(true);
 		} catch (err) {
 			setSynonymsError(err instanceof Error ? err.message : "Failed to save synonyms");
 		} finally {

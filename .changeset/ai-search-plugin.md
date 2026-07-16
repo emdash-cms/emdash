@@ -2,4 +2,4 @@
 "@emdash-cms/cloudflare": minor
 ---
 
-Adds AI Search plugin with content indexing, search modal, and admin settings UI. Includes a Cloudflare-native integration using the AI Search worker binding and a standalone package using the REST API.
+Adds a Cloudflare AI Search plugin with automatic content indexing, cron-driven reindexing, language-aware queries, synonyms, index status, and admin configuration.
