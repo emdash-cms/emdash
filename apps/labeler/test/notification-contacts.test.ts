@@ -90,14 +90,34 @@ describe("contact lifecycle", () => {
 		expect(await getContactState(db(), await freshHash())).toBeNull();
 	});
 
-	it("recordConfirmSent stores the token hash and send time", async () => {
+	it("recordConfirmSent stores the token hash and send time on an unconfirmed contact", async () => {
 		const hash = await freshHash();
 		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
-		await recordConfirmSent(db(), hash, "tokenhash-aaa", 1_000);
+		expect(await recordConfirmSent(db(), hash, "tokenhash-aaa", 1_000)).toBe(true);
 		const state = await getContactState(db(), hash);
 		expect(state?.confirmTokenHash).toBe("tokenhash-aaa");
 		expect(state?.lastConfirmSentAtEpochMs).toBe(1_000);
 		expect(state?.confirmState).toBe("unconfirmed");
+	});
+
+	it("recordConfirmSent is a no-op on a confirmed or declined contact", async () => {
+		const confirmed = await freshHash();
+		await ensureContact(db(), confirmed, "2026-07-16T00:00:00.000Z");
+		await recordConfirmSent(db(), confirmed, "tokenhash-c", 1_000);
+		await confirmContact(db(), confirmed, "tokenhash-c", "2026-07-16T02:00:00.000Z");
+		expect(await recordConfirmSent(db(), confirmed, "tokenhash-reopen", 5_000)).toBe(false);
+		const confirmedState = await getContactState(db(), confirmed);
+		expect(confirmedState?.confirmState).toBe("confirmed");
+		expect(confirmedState?.confirmTokenHash).toBeNull();
+		expect(confirmedState?.lastConfirmSentAtEpochMs).toBe(1_000);
+
+		const declined = await freshHash();
+		await ensureContact(db(), declined, "2026-07-16T00:00:00.000Z");
+		await declineContact(db(), declined);
+		expect(await recordConfirmSent(db(), declined, "tokenhash-reopen", 5_000)).toBe(false);
+		const declinedState = await getContactState(db(), declined);
+		expect(declinedState?.confirmState).toBe("declined");
+		expect(declinedState?.confirmTokenHash).toBeNull();
 	});
 
 	it("confirmContact flips to confirmed on a token match and clears the token", async () => {
@@ -150,6 +170,30 @@ describe("contact lifecycle", () => {
 		).toBe(false);
 	});
 
+	it("a matching token cannot flip a declined or confirmed row (state guard)", async () => {
+		// A lingering token on a non-unconfirmed row can only arise from a bug or
+		// race; the UPDATE's state guard must still refuse it. Seed the state
+		// directly so the guard — not the token-clearing path — is what's tested.
+		for (const state of ["declined", "confirmed"] as const) {
+			const hash = await freshHash();
+			await db()
+				.prepare(
+					`INSERT INTO notification_contacts
+					 (recipient_hash, confirm_state, confirm_token_hash, first_seen_at)
+					 VALUES (?, ?, 'tokenhash-stale', '2026-07-16T00:00:00.000Z')`,
+				)
+				.bind(hash, state)
+				.run();
+
+			expect(await confirmContact(db(), hash, "tokenhash-stale", "2026-07-16T02:00:00.000Z")).toBe(
+				false,
+			);
+			const after = await getContactState(db(), hash);
+			expect(after?.confirmState).toBe(state);
+			expect(after?.confirmedAt).toBeNull();
+		}
+	});
+
 	it("declineContact marks the contact declined and clears the token", async () => {
 		const hash = await freshHash();
 		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
@@ -166,21 +210,33 @@ describe("suppressions", () => {
 	it("isSuppressed is false until an address is suppressed", async () => {
 		const hash = await freshHash();
 		expect(await isSuppressed(db(), hash)).toBe(false);
-		await suppress(db(), hash, "bounce", "2026-07-16T00:00:00.000Z");
+		await suppress(db(), hash, "bounce", "2026-07-16T00:00:00.000Z", 1_752_624_000_000);
 		expect(await isSuppressed(db(), hash)).toBe(true);
 	});
 
 	it("keeps the earliest reason on repeated suppression", async () => {
 		const hash = await freshHash();
-		await suppress(db(), hash, "unsubscribe", "2026-07-16T00:00:00.000Z");
-		await suppress(db(), hash, "complaint", "2026-07-16T05:00:00.000Z");
+		await suppress(db(), hash, "unsubscribe", "2026-07-16T00:00:00.000Z", 1_752_624_000_000);
+		await suppress(db(), hash, "complaint", "2026-07-16T05:00:00.000Z", 1_752_642_000_000);
 
 		const row = await db()
-			.prepare(`SELECT reason, created_at FROM notification_suppressions WHERE recipient_hash = ?`)
+			.prepare(
+				`SELECT reason, created_at, created_at_epoch_ms
+				 FROM notification_suppressions WHERE recipient_hash = ?`,
+			)
 			.bind(hash)
-			.first<{ reason: string; created_at: string }>();
+			.first<{ reason: string; created_at: string; created_at_epoch_ms: number }>();
 		expect(row?.reason).toBe("unsubscribe");
 		expect(row?.created_at).toBe("2026-07-16T00:00:00.000Z");
+		expect(row?.created_at_epoch_ms).toBe(1_752_624_000_000);
+	});
+
+	it("rejects a non-finite epochMs", async () => {
+		const hash = await freshHash();
+		await expect(suppress(db(), hash, "bounce", "2026-07-16T00:00:00.000Z", NaN)).rejects.toThrow(
+			TypeError,
+		);
+		expect(await isSuppressed(db(), hash)).toBe(false);
 	});
 });
 

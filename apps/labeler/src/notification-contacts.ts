@@ -63,19 +63,42 @@ function isNotificationHashPepper(value: unknown): value is NotificationHashPepp
  * so it runs unchanged on workerd.
  */
 export async function recipientHash(pepper: string, email: string): Promise<string> {
-	const key = await crypto.subtle.importKey(
-		"raw",
-		encoder.encode(pepper),
-		{ name: "HMAC", hash: "SHA-256" },
-		false,
-		["sign"],
-	);
+	const key = await getHmacKey(pepper);
 	const signature = await crypto.subtle.sign(
 		"HMAC",
 		key,
 		encoder.encode(email.trim().toLowerCase()),
 	);
 	return toHex(signature);
+}
+
+/**
+ * Cache the imported HMAC key per pepper on `globalThis` (Vite can duplicate a
+ * module across chunks; a plain module-scope `Map` would become two caches —
+ * see the xrpc-router precedent). The promise is cached so concurrent first
+ * callers share one `importKey`.
+ */
+const HMAC_KEY_CACHE_KEY = Symbol.for("emdash:labeler-notification-hmac-keys");
+const hmacKeyGlobal = globalThis as Record<symbol, unknown>;
+function getHmacKey(pepper: string): Promise<CryptoKey> {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see core request-cache.ts)
+	let cache = hmacKeyGlobal[HMAC_KEY_CACHE_KEY] as Map<string, Promise<CryptoKey>> | undefined;
+	if (!cache) {
+		cache = new Map();
+		hmacKeyGlobal[HMAC_KEY_CACHE_KEY] = cache;
+	}
+	let key = cache.get(pepper);
+	if (!key) {
+		key = crypto.subtle.importKey(
+			"raw",
+			encoder.encode(pepper),
+			{ name: "HMAC", hash: "SHA-256" },
+			false,
+			["sign"],
+		);
+		cache.set(pepper, key);
+	}
+	return key;
 }
 
 export async function getContactState(
@@ -112,29 +135,33 @@ export async function ensureContact(
 
 /**
  * Record that a confirmation mail was sent: stores the token hash the eventual
- * confirm must match and stamps the send time the rate gate reads.
+ * confirm must match and stamps the send time the rate gate reads. Only touches
+ * an `unconfirmed` contact — a confirmed or declined row is never reopened even
+ * if a caller skips {@link canSendConfirm}. Returns whether a row was updated.
  */
 export async function recordConfirmSent(
 	db: D1Database,
 	recipientHashValue: string,
 	tokenHash: string,
 	epochMs: number,
-): Promise<void> {
-	await db
+): Promise<boolean> {
+	const result = await db
 		.prepare(
 			`UPDATE notification_contacts
 			 SET confirm_token_hash = ?, last_confirm_sent_at_epoch_ms = ?
-			 WHERE recipient_hash = ?`,
+			 WHERE recipient_hash = ? AND confirm_state = 'unconfirmed'`,
 		)
 		.bind(tokenHash, epochMs, recipientHashValue)
 		.run();
+	return result.meta.changes > 0;
 }
 
 /**
  * Flip to `confirmed` iff `tokenHash` matches the stored token hash, clearing
  * the token so it cannot be replayed (single-use). Returns whether the flip
  * happened. The provided token is compared in constant time; the conditional
- * UPDATE re-checks the stored hash to close the read-then-write race.
+ * UPDATE re-checks the stored hash and `unconfirmed` state to close the
+ * read-then-write race, so a stale token can never flip a declined/confirmed row.
  */
 export async function confirmContact(
 	db: D1Database,
@@ -152,7 +179,7 @@ export async function confirmContact(
 		.prepare(
 			`UPDATE notification_contacts
 			 SET confirm_state = 'confirmed', confirm_token_hash = NULL, confirmed_at = ?
-			 WHERE recipient_hash = ? AND confirm_token_hash = ?`,
+			 WHERE recipient_hash = ? AND confirm_token_hash = ? AND confirm_state = 'unconfirmed'`,
 		)
 		.bind(nowIso, recipientHashValue, row.confirm_token_hash)
 		.run();
@@ -185,14 +212,18 @@ export async function suppress(
 	recipientHashValue: string,
 	reason: SuppressionReason,
 	nowIso: string,
+	epochMs: number,
 ): Promise<void> {
+	if (!Number.isFinite(epochMs)) {
+		throw new TypeError("suppress requires a finite epochMs");
+	}
 	await db
 		.prepare(
 			`INSERT INTO notification_suppressions (recipient_hash, reason, created_at, created_at_epoch_ms)
 			 VALUES (?, ?, ?, ?)
 			 ON CONFLICT(recipient_hash) DO NOTHING`,
 		)
-		.bind(recipientHashValue, reason, nowIso, Date.parse(nowIso))
+		.bind(recipientHashValue, reason, nowIso, epochMs)
 		.run();
 }
 
