@@ -161,7 +161,7 @@ export const POST: APIRoute = async ({ request }) => {
 	} catch {
 		return Response.json(
 			{ success: false, error: "Search is temporarily unavailable" },
-			{ status: 500 },
+			{ status: 503 },
 		);
 	}
 };
