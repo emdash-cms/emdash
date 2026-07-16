@@ -1,4 +1,6 @@
 import { Button, DropdownMenu } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	CaretDown,
@@ -25,6 +27,15 @@ import { cn } from "../../lib/utils.js";
 export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 const DEFAULT_LEVELS: readonly HeadingLevel[] = [1, 2, 3, 4, 5, 6];
+
+const HEADING_LABELS: Record<HeadingLevel, MessageDescriptor> = {
+	1: msg`Heading 1`,
+	2: msg`Heading 2`,
+	3: msg`Heading 3`,
+	4: msg`Heading 4`,
+	5: msg`Heading 5`,
+	6: msg`Heading 6`,
+};
 
 const HEADING_ICONS: Record<HeadingLevel, Icon> = {
 	1: TextHOne,
@@ -160,7 +171,7 @@ export const HeadingDropdownMenu = React.forwardRef<HTMLButtonElement, HeadingDr
 								data-emdash-heading-item
 								onClick={() => toggleHeading(editor, level)}
 							>
-								{t`Heading ${level}`}
+								{t(HEADING_LABELS[level])}
 							</DropdownMenu.Item>
 						);
 					})}
