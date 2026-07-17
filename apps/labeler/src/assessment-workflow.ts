@@ -9,7 +9,8 @@
  * signed `assessment-passed` label for EVERY subject — an unconditional "this is
  * safe" attestation over unscanned content. This shell must NOT reach an
  * enforcing or label-consuming production deployment until the real analysis
- * stages (W7/W8) land; shipping it live before then would vouch for everything.
+ * stages land in the acquire-consumer slice; shipping it live before then would
+ * vouch for everything.
  *
  * The whole run executes in one `step.do`, not one step per stage: the
  * orchestrator accumulates stage findings in memory and the acquire stage
@@ -114,8 +115,8 @@ async function notifyOutcome(env: Env, assessment: Assessment): Promise<void> {
 
 /**
  * The orchestrator's stage adapters, built per instance execution. Real
- * adapters attach here in the W7/W8 follow-on — acquire (via the aggregator
- * client), deterministic/dependency/AI scanning, and publisher history; today
+ * adapters attach here in the acquire-consumer follow-on — acquire (via the
+ * aggregator client), code/metadata AI, image AI, and publisher history; today
  * the run executes the exported stub stages. Building them per execution rather
  * than sharing module-scope state keeps per-run state — notably the acquire
  * stage's `AcquisitionHolder` — isolated to this instance, never shared across
@@ -129,7 +130,7 @@ function buildStages(): OrchestratorStages {
 	// at runtime. Remove once real stages are wired here.
 	if (import.meta.env.PROD)
 		throw new Error(
-			"AssessmentWorkflow has only stub stages in a production build — refusing to issue assessment-passed for unscanned subjects. Wire the real analysis stages (W7/W8) before deploying.",
+			"AssessmentWorkflow has only stub stages in a production build — refusing to issue assessment-passed for unscanned subjects. Wire the real analysis stages (the acquire-consumer slice) before deploying.",
 		);
 	return stubStages;
 }

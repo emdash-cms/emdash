@@ -234,8 +234,7 @@ describe("AssessmentOrchestrator: warning findings", () => {
 		const run = await pendingRun({ name: "warn", cidValue: await cid("warn") });
 		const stages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
-				Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
+			codeAi: () => Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
 		};
 		const orchestrator = await buildOrchestrator(stages);
 
@@ -294,8 +293,7 @@ describe("AssessmentOrchestrator: warning findings", () => {
 		await transitionAssessmentState(testEnv.DB, { id: first.id, from: "verifying", to: "pending" });
 		const warningStages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
-				Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
+			codeAi: () => Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
 		};
 		const firstResult = await (await buildOrchestrator(warningStages)).runAssessment(first.id);
 		expect(firstResult.state).toBe("warned");
@@ -386,8 +384,7 @@ describe("AssessmentOrchestrator: warning findings", () => {
 		await transitionAssessmentState(testEnv.DB, { id: first.id, from: "verifying", to: "pending" });
 		const warningStages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
-				Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
+			codeAi: () => Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
 		};
 		const firstResult = await (await buildOrchestrator(warningStages)).runAssessment(first.id);
 		expect(firstResult.state).toBe("warned");
@@ -422,8 +419,7 @@ describe("AssessmentOrchestrator: warning findings", () => {
 		});
 		const blockingStages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
-				Promise.resolve([finding({ category: "malware", severity: "critical" })]),
+			codeAi: () => Promise.resolve([finding({ category: "malware", severity: "critical" })]),
 		};
 		const secondResult = await (await buildOrchestrator(blockingStages)).runAssessment(second.id);
 		expect(secondResult.state).toBe("blocked");
@@ -457,12 +453,12 @@ describe("AssessmentOrchestrator: warning findings", () => {
 	});
 });
 
-describe("AssessmentOrchestrator: permanent deterministic failure", () => {
+describe("AssessmentOrchestrator: permanent blocking finding", () => {
 	it("finalizes blocked with the mapped automated-block label", async () => {
 		const run = await pendingRun({ name: "blocked", cidValue: await cid("blocked") });
 		const stages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
+			codeAi: () =>
 				Promise.resolve([
 					finding({ category: "artifact-integrity-failure", severity: "critical" }),
 				]),
@@ -484,7 +480,7 @@ describe("AssessmentOrchestrator: permanent deterministic failure", () => {
 		const run = await pendingRun({ name: "multi-block", cidValue: await cid("multi-block") });
 		const stages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
+			codeAi: () =>
 				Promise.resolve([
 					finding({ category: "malware", severity: "critical" }),
 					finding({ category: "supply-chain-compromise", severity: "critical" }),
@@ -511,9 +507,11 @@ describe("AssessmentOrchestrator: permanent deterministic failure", () => {
 		const run = await pendingRun({ name: "block-and-warn", cidValue: await cid("block-and-warn") });
 		const stages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
-				Promise.resolve([finding({ category: "malware", severity: "critical" })]),
-			codeAi: () => Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
+			codeAi: () =>
+				Promise.resolve([
+					finding({ category: "malware", severity: "critical" }),
+					finding({ category: "obfuscated-code", severity: "medium" }),
+				]),
 		};
 		const orchestrator = await buildOrchestrator(stages);
 
@@ -625,7 +623,7 @@ describe("AssessmentOrchestrator: deleted or superseded subject", () => {
 		// entry currency check passed, before finalize's re-check.
 		const stages: OrchestratorStages = {
 			...stubStages,
-			deterministic: async () => {
+			codeAi: async () => {
 				await deleteSubject(testEnv.DB, { uri: run.uri, cid: run.cid });
 				return [];
 			},
@@ -671,7 +669,7 @@ describe("AssessmentOrchestrator: invalid findings", () => {
 		});
 		const stages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
+			codeAi: () =>
 				Promise.resolve([finding({ category: "not-a-real-label", severity: "critical" })]),
 		};
 		const orchestrator = await buildOrchestrator(stages);
@@ -690,7 +688,7 @@ describe("AssessmentOrchestrator: invalid findings", () => {
 		});
 		const stages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
+			codeAi: () =>
 				Promise.resolve([
 					finding({
 						category: "obfuscated-code",
@@ -719,7 +717,7 @@ describe("AssessmentOrchestrator: resume from running", () => {
 			if (attempts === 1) throw new Error("stage crashed post-transition");
 			return Promise.resolve([]);
 		};
-		const orchestrator = await buildOrchestrator({ ...stubStages, deterministic: flaky });
+		const orchestrator = await buildOrchestrator({ ...stubStages, codeAi: flaky });
 
 		await expect(orchestrator.runAssessment(run.id)).rejects.toThrow(
 			"stage crashed post-transition",
@@ -756,7 +754,7 @@ describe("AssessmentOrchestrator: cancel racing finalization", () => {
 		};
 		const orchestrator = await buildOrchestrator({
 			...stubStages,
-			deterministic: cancelDuringStage,
+			codeAi: cancelDuringStage,
 		});
 
 		await expect(orchestrator.runAssessment(run.id)).rejects.toBeInstanceOf(
@@ -861,8 +859,7 @@ describe("AssessmentOrchestrator: supersession negation provenance (decision 6)"
 		await transitionAssessmentState(testEnv.DB, { id: first.id, from: "verifying", to: "pending" });
 		const blockingStages: OrchestratorStages = {
 			...stubStages,
-			deterministic: () =>
-				Promise.resolve([finding({ category: "malware", severity: "critical" })]),
+			codeAi: () => Promise.resolve([finding({ category: "malware", severity: "critical" })]),
 		};
 		const firstResult = await (await buildOrchestrator(blockingStages)).runAssessment(first.id);
 		expect(firstResult.state).toBe("blocked");

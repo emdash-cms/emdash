@@ -7,9 +7,9 @@
  * run executes as one Workflow instance whose id is the run's runKey, so a
  * redelivered discovery event dedups onto the same instance rather than starting
  * a duplicate (see assessment-dispatch.ts). The Workflow constructs this
- * orchestrator per run and calls `runAssessment`. Until W7/W8 supply the real stage adapters
- * (acquire, deterministic validation, dependency/SBOM, code/metadata AI, image
- * AI), that wiring runs `stubStages` — every stage resolves with no findings, so
+ * orchestrator per run and calls `runAssessment`. Until the acquire-consumer
+ * slice assembles the real stage adapters (acquire, code/metadata AI, image
+ * AI, history), that wiring runs `stubStages` — every stage resolves with no findings, so
  * `resolvePolicyOutcome` returns `passed` and finalization issues a real signed
  * `assessment-passed` label for EVERY subject (not merely clearing its own
  * `assessment-pending`). That is a hard deploy gate — see the DEPLOY GATE note
@@ -79,8 +79,6 @@ export type StageAdapter = (ctx: StageContext) => Promise<readonly StageFinding[
 
 export interface OrchestratorStages {
 	acquire: StageAdapter;
-	deterministic: StageAdapter;
-	dependency: StageAdapter;
 	codeAi: StageAdapter;
 	imageAi: StageAdapter;
 	/** Publisher-history context (plan W8.4). Runs last: its findings are
@@ -92,14 +90,7 @@ export interface OrchestratorStages {
 	history: StageAdapter;
 }
 
-const STAGE_ORDER = [
-	"acquire",
-	"deterministic",
-	"dependency",
-	"codeAi",
-	"imageAi",
-	"history",
-] as const;
+const STAGE_ORDER = ["acquire", "codeAi", "imageAi", "history"] as const;
 
 export interface AssessmentOrchestratorOptions {
 	db: D1Database;
@@ -113,6 +104,11 @@ export interface AssessmentOrchestratorOptions {
 	/** Sleep between stage retries; swap in tests to skip real waits. */
 	sleep?: (ms: number) => Promise<void>;
 	retryDelayMs?: number;
+	/** Resolves the `coverage_json` to stamp on the finalized row, called once
+	 * at finalization. The stage-wiring layer builds this over the coverage its
+	 * AI stages accumulate (`assessment-stages.ts`); `undefined` (or an undefined
+	 * return) leaves the stored value unchanged. */
+	resolveCoverageJson?: () => string | undefined;
 }
 
 export class AssessmentOrchestrator {
@@ -125,6 +121,7 @@ export class AssessmentOrchestrator {
 	private readonly maxStageRetries: number;
 	private readonly sleep: (ms: number) => Promise<void>;
 	private readonly retryDelayMs: number;
+	private readonly resolveCoverageJson: (() => string | undefined) | undefined;
 
 	constructor(opts: AssessmentOrchestratorOptions) {
 		this.db = opts.db;
@@ -136,6 +133,7 @@ export class AssessmentOrchestrator {
 		this.maxStageRetries = opts.maxStageRetries ?? 2;
 		this.sleep = opts.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
 		this.retryDelayMs = opts.retryDelayMs ?? 0;
+		this.resolveCoverageJson = opts.resolveCoverageJson;
 	}
 
 	async runAssessment(runId: string): Promise<Assessment> {
@@ -193,15 +191,14 @@ export class AssessmentOrchestrator {
 		// CID-superseded subject finalizes as `stale` — no labels, pointer
 		// untouched.
 		//
-		// This read narrows but does NOT close the window: `finalize` signs each
-		// label (an async round-trip) between here and `db.batch`, so a delete or
-		// a cancel landing in that window still commits labels — the finalization
-		// CAS guards its own row, but the issuance statements carry no
-		// assessment-state guard. The Workflow instance id (the runKey) dedups only
-		// redelivery of the same run (assessment-dispatch.ts) — not a delete or
-		// operator cancel against an in-flight run — so closing this window still
-		// needs an in-batch assessment-state guard on every issuance statement,
-		// tracked with the real-stage wiring.
+		// This read narrows the delete/cancel window; `finalize` closes it. Between
+		// here and `db.batch`, `finalize` signs each label (an async round-trip), so
+		// a delete or an operator cancel can still land in that window — but every
+		// issuance statement is gated on the run reaching `toState`
+		// (`requireAssessmentState`, see `finalize`) and the whole finalization batch
+		// is all-or-nothing against the run→toState CAS, so a race that moves the run
+		// out of `running` no-ops the CAS AND every label. Nothing leaks; the lost
+		// race raises `AssessmentFinalizationConflictError`.
 		const current = await isSubjectCurrent(this.db, { uri: assessment.uri, cid: assessment.cid });
 		if (!current) {
 			return transitionAssessmentState(this.db, { id: runId, from: "running", to: "stale", now });
@@ -250,6 +247,7 @@ export class AssessmentOrchestrator {
 		const toState: AssessmentState = outcome?.toState ?? "error";
 		const positiveLabels: readonly OutcomeLabel[] = outcome?.labels ?? [];
 
+		const coverageJson = this.resolveCoverageJson?.();
 		const finalization = buildFinalizationStatements(this.db, {
 			assessmentId: assessment.id,
 			fromState: "running",
@@ -258,6 +256,7 @@ export class AssessmentOrchestrator {
 			uri: assessment.uri,
 			cid: assessment.cid,
 			now,
+			...(coverageJson !== undefined ? { coverageJson } : {}),
 		});
 
 		const statements = [...finalization.statements];
@@ -389,8 +388,6 @@ export class AssessmentOrchestrator {
  */
 export const stubStages: OrchestratorStages = {
 	acquire: () => Promise.resolve([]),
-	deterministic: () => Promise.resolve([]),
-	dependency: () => Promise.resolve([]),
 	codeAi: () => Promise.resolve([]),
 	imageAi: () => Promise.resolve([]),
 	history: () => Promise.resolve([]),
