@@ -20,14 +20,12 @@ afterEach(() => {
 
 describe("ReconsiderationNoteDialog", () => {
 	it("threads the note and reason, keeping submit disabled until both are set", async () => {
-		const addNote = vi
-			.spyOn(apiClient, "addReconsiderationNote")
-			.mockResolvedValue({
-				actionId: "oact_1",
-				reconsiderationId: RECON_ID,
-				noteId: "rnote_1",
-				cts: "",
-			});
+		const addNote = vi.spyOn(apiClient, "addReconsiderationNote").mockResolvedValue({
+			actionId: "oact_1",
+			reconsiderationId: RECON_ID,
+			noteId: "rnote_1",
+			cts: "",
+		});
 		renderWithClient(
 			<ReconsiderationNoteDialog
 				open
