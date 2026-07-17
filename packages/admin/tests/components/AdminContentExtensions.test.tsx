@@ -611,19 +611,16 @@ describe("ContentSettingsPanel extension panels", () => {
 				],
 			},
 		};
-		const screen = await render(
-			<HostedSettingsPanel draftData={{ title: "Initial title" }} />,
-			{ wrapper: withPlugins(registry) },
-		);
+		const screen = await render(<HostedSettingsPanel draftData={{ title: "Initial title" }} />, {
+			wrapper: withPlugins(registry),
+		});
 
 		await screen.getByRole("button", { name: "Edit snippet" }).click();
 		await expect
 			.element(screen.getByRole("button", { name: "Close snippet editor" }))
 			.toBeInTheDocument();
 
-		await screen.rerender(
-			<HostedSettingsPanel draftData={{ title: "Updated title" }} />,
-		);
+		await screen.rerender(<HostedSettingsPanel draftData={{ title: "Updated title" }} />);
 
 		await expect
 			.element(screen.getByRole("button", { name: "Close snippet editor" }))
