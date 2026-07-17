@@ -5,12 +5,16 @@
  * it through the orchestrator's stages and atomic finalization inside a single
  * durable step.
  *
- * DEPLOY GATE: with `stubStages`, a run finalizes `passed` and issues a real
- * signed `assessment-passed` label for EVERY subject — an unconditional "this is
- * safe" attestation over unscanned content. This shell must NOT reach an
- * enforcing or label-consuming production deployment until the real analysis
- * stages land in the acquire-consumer slice; shipping it live before then would
- * vouch for everything.
+ * PROD safety (the lifted deploy gate): `buildStages` now assembles four REAL
+ * stages — acquire (SSRF-hardened verified fetch + aggregator release
+ * resolution), code AI, image AI, and publisher history. A `passed` outcome is
+ * therefore only ever reached after a real acquire produced a checksum-verified
+ * bundle that the AI stages analyzed clean; there is no stub path that would
+ * sign `assessment-passed` over unscanned content. The invariant that makes
+ * this safe: the acquire stage returns no findings ONLY when it has published a
+ * verified bundle to the holder (a permanent failure returns a blocking
+ * finding, a transient one throws), so a run cannot finalize `passed` with the
+ * holder empty. `buildStages` fails loudly if a required binding is missing.
  *
  * The whole run executes in one `step.do`, not one step per stage: the
  * orchestrator accumulates stage findings in memory and the acquire stage
@@ -20,24 +24,33 @@
  * finalization intact. The tradeoff is coarse resume granularity: a mid-run
  * eviction re-runs the whole step. `executeAssessmentInstance` makes that
  * idempotent — a terminal row short-circuits, and `runAssessment` resumes a row
- * left `running` by a crashed attempt. Finer, per-stage durable resume lands
- * with the real-stage wiring.
+ * left `running` by a crashed attempt.
  */
 
 import { WorkflowEntrypoint } from "cloudflare:workers";
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 
+import { AggregatorClient } from "./aggregator-client.js";
+import { createAcquireStage, type AcquisitionHolder } from "./artifact-acquisition.js";
+import { createArtifactEgress, type ArtifactEgress } from "./artifact-egress.js";
 import type { AssessmentWorkflowParams } from "./assessment-dispatch.js";
 import { TERMINAL_STATES, type AssessmentState } from "./assessment-lifecycle.js";
+import { AssessmentOrchestrator, type OrchestratorStages } from "./assessment-orchestrator.js";
 import {
-	AssessmentOrchestrator,
-	stubStages,
-	type OrchestratorStages,
-} from "./assessment-orchestrator.js";
+	createCodeAiStage,
+	createHistoryStage,
+	createImageAiStage,
+	serializeCoverage,
+	type CoverageAccumulator,
+} from "./assessment-stages.js";
 import { getAssessment, type Assessment } from "./assessment-store.js";
-import { getLabelerIdentityConfig } from "./config.js";
+import type { AiBinding } from "./code-ai-adapter.js";
+import { getLabelerIdentityConfig, type LabelerConfig } from "./config.js";
+import type { PublisherVerificationReader } from "./history-context.js";
+import type { ImageAiBinding } from "./image-ai-adapter.js";
 import { createNotifyDeps, notifyAssessmentOutcome } from "./notification-triggers.js";
-import { MODERATION_POLICY } from "./policy.js";
+import { MODERATION_POLICY, type ModerationPolicy } from "./policy.js";
+import { createReleaseResolver, type ReleaseReader } from "./release-resolution.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
 
 const RUN_STEP_CONFIG = {
@@ -80,14 +93,31 @@ export async function executeAssessmentInstance(
 		return existing.state;
 	}
 
+	assertRequiredBindings(env);
 	const config = await getLabelerIdentityConfig(env);
 	const versioned = await createRuntimeSigner(config, getRuntimeSigningSecret(env));
+	// Per-run state shared by reference across this run's stages: the acquire
+	// stage publishes its verified bundle to `holder`; the AI stages read it and
+	// record into `coverage`, which `resolveCoverageJson` serializes at finalization.
+	const holder: AcquisitionHolder = {};
+	const coverage: CoverageAccumulator = {};
+	const aggregator = new AggregatorClient(env.AGGREGATOR);
 	const orchestrator = new AssessmentOrchestrator({
 		db: env.DB,
 		config,
 		signer: versioned.signer,
 		policy: MODERATION_POLICY,
-		stages: buildStages(),
+		stages: buildStages({
+			holder,
+			coverage,
+			config,
+			policy: MODERATION_POLICY,
+			db: env.DB,
+			egress: createArtifactEgress(),
+			aggregator,
+			ai: env.AI,
+		}),
+		resolveCoverageJson: () => serializeCoverage(coverage),
 	});
 	const finalized = await orchestrator.runAssessment(assessmentId);
 	await notifyOutcome(env, finalized);
@@ -113,24 +143,75 @@ async function notifyOutcome(env: Env, assessment: Assessment): Promise<void> {
 	}
 }
 
+/** Prompt version stamped into AI-stage findings and their prompt hash. The
+ * calibration sweep re-validates the production prompt before enforcement
+ * launch (see the calibration-fidelity flags in `assessment-stages.ts`). */
+export const ASSESSMENT_PROMPT_VERSION = "1";
+
+export interface BuildStagesInput {
+	readonly holder: AcquisitionHolder;
+	readonly coverage: CoverageAccumulator;
+	readonly config: LabelerConfig;
+	readonly policy: ModerationPolicy;
+	readonly db: D1Database;
+	/** SSRF-hardened egress for the acquire stage's declared-URL fetch. */
+	readonly egress: ArtifactEgress;
+	/** Aggregator reads: release resolution (acquire) and publisher verification
+	 * (history). `AggregatorClient` satisfies both. */
+	readonly aggregator: ReleaseReader & PublisherVerificationReader;
+	/** Workers AI binding for both AI stages. */
+	readonly ai: AiBinding & ImageAiBinding;
+	readonly promptVersion?: string;
+}
+
 /**
- * The orchestrator's stage adapters, built per instance execution. Real
- * adapters attach here in the acquire-consumer follow-on — acquire (via the
- * aggregator client), code/metadata AI, image AI, and publisher history; today
- * the run executes the exported stub stages. Building them per execution rather
- * than sharing module-scope state keeps per-run state — notably the acquire
- * stage's `AcquisitionHolder` — isolated to this instance, never shared across
- * concurrent subjects.
+ * Assembles the orchestrator's four real stage adapters for one run. Built per
+ * execution rather than sharing module-scope state so per-run state — the
+ * acquire stage's `AcquisitionHolder` and the AI stages' `CoverageAccumulator`
+ * — stays isolated to this instance, never shared across concurrent subjects.
+ * `acquire` fetches the release's declared artifact under the SSRF-hardened
+ * egress and publishes the verified bundle; `codeAi`/`imageAi` read it; `history`
+ * runs last as best-effort operator context. Pure over its injected deps (no
+ * `env`, no network), so tests drive it with fakes; `executeAssessmentInstance`
+ * supplies the production deps and enforces binding presence.
  */
-function buildStages(): OrchestratorStages {
-	// Mechanical enforcement of the DEPLOY GATE above: a production build must not
-	// run stub stages (which would sign `assessment-passed` for every unscanned
-	// subject). `import.meta.env.PROD` is a Vite compile-time constant — true in
-	// `vite build`, false in dev and the vitest pool — so this cannot be spoofed
-	// at runtime. Remove once real stages are wired here.
-	if (import.meta.env.PROD)
+export function buildStages(input: BuildStagesInput): OrchestratorStages {
+	const promptVersion = input.promptVersion ?? ASSESSMENT_PROMPT_VERSION;
+	return {
+		acquire: createAcquireStage({
+			deps: input.egress,
+			resolveTarget: createReleaseResolver(input.aggregator),
+			holder: input.holder,
+		}),
+		codeAi: createCodeAiStage({
+			holder: input.holder,
+			ai: input.ai,
+			policy: input.policy,
+			promptVersion,
+			coverage: input.coverage,
+		}),
+		imageAi: createImageAiStage({
+			holder: input.holder,
+			ai: input.ai,
+			policy: input.policy,
+			promptVersion,
+			coverage: input.coverage,
+		}),
+		history: createHistoryStage({
+			db: input.db,
+			src: input.config.labelerDid,
+			aggregator: input.aggregator,
+		}),
+	};
+}
+
+/** Fails loudly when a binding the run cannot proceed without is absent, so a
+ * misconfigured deployment errors before any stage runs rather than silently
+ * scanning nothing and finalizing `passed`. */
+function assertRequiredBindings(env: Env): void {
+	const missing = (["AI", "AGGREGATOR", "DB"] as const).filter((name) => !env[name]);
+	if (missing.length > 0)
 		throw new Error(
-			"AssessmentWorkflow has only stub stages in a production build — refusing to issue assessment-passed for unscanned subjects. Wire the real analysis stages (the acquire-consumer slice) before deploying.",
+			`AssessmentWorkflow is missing required bindings: ${missing.join(", ")} — refusing to run an assessment that cannot fetch, scan, or persist.`,
 		);
-	return stubStages;
 }

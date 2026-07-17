@@ -361,13 +361,23 @@ function isForbiddenAddress(address: string): boolean {
 	const isPrivate = (first & 0xfe00) === 0xfc00;
 	const isLinkLocal = (first & 0xffc0) === 0xfe80;
 	const isMulticast = (first & 0xff00) === 0xff00;
+	// IPv4-mapped (::ffff:a.b.c.d), deprecated IPv4-compatible (::a.b.c.d, i.e.
+	// ::/96), and NAT64 (64:ff9b::a.b.c.d) all embed an IPv4 address in the low
+	// 32 bits. A public AAAA record of any of these forms is an SSRF vector onto
+	// the embedded address, so resolve it and apply the IPv4 rules.
 	const mappedIpv4 = ipv6.slice(0, 5).every((part) => part === 0) && ipv6[5] === 0xffff;
-	if (mappedIpv4) {
-		return isForbiddenAddress(
-			`${ipv6[6]! >>> 8}.${ipv6[6]! & 0xff}.${ipv6[7]! >>> 8}.${ipv6[7]! & 0xff}`,
-		);
+	const ipv4Compatible = ipv6.slice(0, 6).every((part) => part === 0);
+	const nat64 =
+		ipv6[0] === 0x0064 && ipv6[1] === 0xff9b && ipv6.slice(2, 6).every((part) => part === 0);
+	if (mappedIpv4 || ipv4Compatible || nat64) {
+		return isForbiddenAddress(embeddedIpv4(ipv6));
 	}
 	return isUnspecified || isLoopback || isPrivate || isLinkLocal || isMulticast;
+}
+
+/** Dotted-quad of the IPv4 embedded in the low 32 bits of an 8-hextet IPv6. */
+function embeddedIpv4(ipv6: number[]): string {
+	return `${ipv6[6]! >>> 8}.${ipv6[6]! & 0xff}.${ipv6[7]! >>> 8}.${ipv6[7]! & 0xff}`;
 }
 
 function parseIpv4(value: string): [number, number, number, number] | null {

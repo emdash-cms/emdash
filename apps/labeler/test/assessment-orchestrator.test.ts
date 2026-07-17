@@ -556,6 +556,76 @@ describe("AssessmentOrchestrator: transient exhaustion", () => {
 		expect(pendingNeg?.neg).toBe(1);
 	});
 
+	it("preserves an already-confirmed block when a later stage transient-exhausts", async () => {
+		const run = await pendingRun({
+			name: "block-preserved",
+			cidValue: await cid("block-preserved"),
+		});
+		const stages: OrchestratorStages = {
+			...stubStages,
+			codeAi: () => Promise.resolve([finding({ category: "malware", severity: "critical" })]),
+			imageAi: () => Promise.reject(new StageTransientError("vision model unavailable")),
+		};
+
+		const result = await (
+			await buildOrchestrator(stages, { maxStageRetries: 1 })
+		).runAssessment(run.id);
+
+		expect(result.state).toBe("blocked");
+		const block = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'malware'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(block?.neg).toBe(0);
+		// A confirmed block is monotonic: the run finalizes blocked, never error or a
+		// spurious pass, even though a later stage never completed.
+		const error = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-error'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(error).toBeNull();
+		const passed = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-passed'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(passed).toBeNull();
+	});
+
+	it("finalizes error, not warned, when only a warning preceded a later stage's exhaustion", async () => {
+		const run = await pendingRun({
+			name: "warn-then-exhaust",
+			cidValue: await cid("warn-then-exhaust"),
+		});
+		const stages: OrchestratorStages = {
+			...stubStages,
+			codeAi: () => Promise.resolve([finding({ category: "obfuscated-code", severity: "medium" })]),
+			imageAi: () => Promise.reject(new StageTransientError("vision model unavailable")),
+		};
+
+		const result = await (
+			await buildOrchestrator(stages, { maxStageRetries: 1 })
+		).runAssessment(run.id);
+
+		// A warning is not monotonic — an unrun stage might have found a block — so
+		// an incomplete run with only a warning must retry as error, never warned.
+		expect(result.state).toBe("error");
+		const errorLabel = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-error'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(errorLabel?.neg).toBe(0);
+		const warnLabel = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'obfuscated-code'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(warnLabel).toBeNull();
+	});
+
 	it("a second error run for the same subject leaves assessment-error active, not self-negated", async () => {
 		const cidValue = await cid("double-error");
 		const flaky: OrchestratorStages = {

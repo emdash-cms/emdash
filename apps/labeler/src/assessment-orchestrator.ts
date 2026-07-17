@@ -7,13 +7,10 @@
  * run executes as one Workflow instance whose id is the run's runKey, so a
  * redelivered discovery event dedups onto the same instance rather than starting
  * a duplicate (see assessment-dispatch.ts). The Workflow constructs this
- * orchestrator per run and calls `runAssessment`. Until the acquire-consumer
- * slice assembles the real stage adapters (acquire, code/metadata AI, image
- * AI, history), that wiring runs `stubStages` — every stage resolves with no findings, so
- * `resolvePolicyOutcome` returns `passed` and finalization issues a real signed
- * `assessment-passed` label for EVERY subject (not merely clearing its own
- * `assessment-pending`). That is a hard deploy gate — see the DEPLOY GATE note
- * in assessment-workflow.ts.
+ * orchestrator per run and calls `runAssessment` with the real stage adapters
+ * that `assessment-workflow.ts` `buildStages` assembles (acquire, code AI, image
+ * AI, history). `stubStages` remains exported only for tests that need an
+ * empty-findings pass; production never runs it.
  */
 
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
@@ -174,18 +171,25 @@ export class AssessmentOrchestrator {
 			}
 		}
 
+		// Validate and resolve the findings gathered so far even on transient
+		// exhaustion: a stage that already returned a BLOCKING finding must not be
+		// discarded because a LATER stage failed transiently. A block is monotonic —
+		// no unfinished stage can lift it, only add labels — so finalizing `blocked`
+		// on partial coverage is correct and safe, and it stops a crafted input that
+		// reliably exhausts a later stage from suppressing a real block on every
+		// rerun. Anything short of an already-confirmed block on an incomplete run
+		// still finalizes `error` (below) and retries — an unrun stage might have
+		// found a block.
+		//
 		// validateFindings throws on a malformed finding; uncaught, it aborts the
 		// run (assessment stays `running`, like any non-transient stage error).
 		// Resolution and persistence below read validatedFindings, never the raw
 		// stage output.
-		let validatedFindings: NormalizedFinding[] = [];
-		if (!transientExhausted) {
-			const resolvableEvidenceIds = await listEvidenceObjectIds(this.db, assessment.id);
-			validatedFindings = validateFindings(findings, {
-				allowedCategories: allowedFindingCategories(this.policy),
-				resolvableEvidenceIds,
-			});
-		}
+		const resolvableEvidenceIds = await listEvidenceObjectIds(this.db, assessment.id);
+		const validatedFindings = validateFindings(findings, {
+			allowedCategories: allowedFindingCategories(this.policy),
+			resolvableEvidenceIds,
+		});
 
 		// Re-read subject currency immediately before finalizing: a deleted or
 		// CID-superseded subject finalizes as `stale` — no labels, pointer
@@ -204,9 +208,15 @@ export class AssessmentOrchestrator {
 			return transitionAssessmentState(this.db, { id: runId, from: "running", to: "stale", now });
 		}
 
+		const resolved = resolvePolicyOutcome(validatedFindings, this.policy);
+		// On transient exhaustion, honor an already-confirmed block; every other
+		// incomplete outcome (clean or warn) is an `error` to retry, never a
+		// `passed`/`warned` finalized over an unrun stage.
 		const outcome = transientExhausted
-			? null
-			: resolvePolicyOutcome(validatedFindings, this.policy);
+			? resolved.toState === "blocked"
+				? resolved
+				: null
+			: resolved;
 		return this.finalize(assessment, outcome, now);
 	}
 
