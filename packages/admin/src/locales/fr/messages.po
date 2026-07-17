@@ -2613,7 +2613,7 @@ msgstr "Télécharger la sauvegarde"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:155
 msgid "Download Backup"
-msgstr "Téléchargement des sauvegardes"
+msgstr "Télécharger une sauvegarde"
 
 #: packages/admin/src/components/Settings.tsx:123
 msgid "Download backups and schedule automatic backups to storage"
