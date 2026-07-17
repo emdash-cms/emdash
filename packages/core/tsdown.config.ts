@@ -155,10 +155,6 @@ export default defineConfig({
 	},
 	// Externalize native modules, dialect-specific packages, and internal shared modules
 	external: [
-		// Native modules that use __filename
-		"better-sqlite3",
-		"bindings",
-		"file-uri-to-path",
 		// Dialect-specific packages
 		"@libsql/kysely-libsql",
 		"pg",

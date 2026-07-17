@@ -232,7 +232,6 @@
     "@unpic/placeholder": "^0.1.2",
     "arctic": "^3.7.0",
     "astro-portabletext": "^0.11.0",
-    "better-sqlite3": "catalog:",
     "blurhash": "^2.0.5",
     "citty": "^0.1.6",
     "consola": "^3.4.2",
@@ -272,6 +271,7 @@
     "@arethetypeswrong/cli": "catalog:",
     "@emdash-cms/blocks": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
+    "better-sqlite3": "catalog:",
     "@types/pg": "^8.16.0",
     "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",
@@ -297,5 +297,8 @@
     "wordpress"
   ],
   "author": "Matt Kane",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.15"
+  }
 }

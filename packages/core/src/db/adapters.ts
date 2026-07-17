@@ -78,9 +78,10 @@ export interface LibsqlConfig {
 }
 
 /**
- * SQLite database adapter (better-sqlite3)
+ * SQLite database adapter (node:sqlite)
  *
- * For local development and Node.js deployments.
+ * For local development and Node.js deployments. Uses the Node.js built-in
+ * SQLite driver — no native compiled dependency. Requires Node >= 22.15.
  *
  * @example
  * ```ts
