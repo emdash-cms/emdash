@@ -48,6 +48,8 @@ export type PluginCapability =
 	// Content
 	| "content:read"
 	| "content:write"
+	// Taxonomies (read-only; there is no plugin-facing taxonomy write API)
+	| "taxonomies:read"
 	// Media
 	| "media:read"
 	| "media:write"
@@ -181,6 +183,7 @@ export type AccessConstraints = Record<string, unknown>;
  */
 export interface DeclaredAccess {
 	content?: { read?: AccessConstraints; write?: AccessConstraints };
+	taxonomies?: { read?: AccessConstraints };
 	media?: { read?: AccessConstraints; write?: AccessConstraints };
 	network?: { request?: { allowedHosts?: string[] } };
 	email?: { send?: AccessConstraints; events?: AccessConstraints; transport?: AccessConstraints };
@@ -213,6 +216,7 @@ export function capabilitiesToDeclaredAccess(
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
+	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
 	if (caps.has("media:read") || caps.has("media:write")) {
 		out.media = { read: {} };
 		if (caps.has("media:write")) out.media.write = {};
@@ -255,6 +259,7 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 		caps.add("content:write");
 		caps.add("content:read");
 	}
+	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.media?.read) caps.add("media:read");
 	if (declaredAccess.media?.write) {
 		caps.add("media:write");
@@ -459,3 +464,30 @@ export function isPluginVersion(value: string): boolean {
 		value.length > 0 && value.length <= PLUGIN_VERSION_MAX_LENGTH && PLUGIN_VERSION_RE.test(value)
 	);
 }
+
+export {
+	CURRENT_PLUGIN_CAPABILITIES,
+	DEPRECATED_PLUGIN_CAPABILITIES,
+	HOOK_NAMES,
+	normalizeManifestHook,
+	normalizeManifestRoute,
+	PLUGIN_CAPABILITIES,
+	pluginManifestSchema,
+	reconcileManifestAccess,
+} from "./manifest-schema.js";
+export type { ValidatedPluginManifest } from "./manifest-schema.js";
+export {
+	canonicalizeDeclaredAccess,
+	declaredAccessDigestInput,
+	declaredAccessEqual,
+	diffDeclaredAccess,
+	isDeclaredAccessEscalation,
+} from "./declared-access.js";
+export type {
+	AccessChange,
+	AccessChangeKind,
+	AccessDiff,
+	CanonicalAccessConstraints,
+	CanonicalDeclaredAccess,
+	CanonicalJsonValue,
+} from "./declared-access.js";

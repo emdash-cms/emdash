@@ -16,6 +16,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
@@ -111,6 +112,50 @@ describe("EmDashRuntime.create — cold boot", () => {
 			);
 		} finally {
 			await runtime.stopCron();
+		}
+	});
+
+	it("passes normalized site information to the sandbox runner", async () => {
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		const options = new OptionsRepository(setupDb);
+		await options.set("emdash:setup_complete", true);
+		await options.set("emdash:site_title", "Example Site");
+		await options.set("emdash:site_url", "https://example.com/");
+		await options.set("emdash:locale", "nl");
+
+		const runner = {
+			isAvailable: () => true,
+			isHealthy: () => true,
+			load: vi.fn(),
+			setEmailSend: vi.fn(),
+			terminateAll: vi.fn(),
+		};
+		const createSandboxRunner = vi.fn(() => runner as never);
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			createDialect: () => new SqliteDialect({ database: sqlite }),
+			sandboxEnabled: true,
+			createSandboxRunner,
+		};
+
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			expect(createSandboxRunner).toHaveBeenCalledWith(
+				expect.objectContaining({
+					siteInfo: {
+						name: "Example Site",
+						url: "https://example.com",
+						locale: "nl",
+					},
+				}),
+			);
+		} finally {
+			await runtime.stopCron();
+			await setupDb.destroy();
 		}
 	});
 

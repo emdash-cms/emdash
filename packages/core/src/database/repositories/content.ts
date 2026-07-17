@@ -2,6 +2,7 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateCollectionCache } from "../../object-cache/index.js";
+import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
@@ -525,7 +526,7 @@ export class ContentRepository {
 			query = query.where("locale" as any, "=", options.where.locale);
 		}
 
-		query = this.applySearchFilter(query, options.where);
+		query = this.applySearchFilter(query, options.where, type);
 		query = this.applyDateFilter(query, options.where);
 
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
@@ -636,6 +637,18 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is", null)
 			.execute();
 
+		// Re-stamp the taxonomy pivot only when a denormalized column actually
+		// moved (status/publishedAt/scheduledAt). A plain content edit bumps
+		// `updated_at` — which is not denormalized — so it needs no pivot write,
+		// keeping the common edit path free of taxonomy write amplification.
+		if (
+			input.status !== undefined ||
+			input.publishedAt !== undefined ||
+			input.scheduledAt !== undefined
+		) {
+			await this.restampEntryPivot(type, id);
+		}
+
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -661,7 +674,10 @@ export class ContentRepository {
 		`.execute(this.db);
 
 		const changed = (result.numAffectedRows ?? 0n) > 0n;
-		if (changed) invalidateCollectionCache(type);
+		if (changed) {
+			await this.restampEntryPivot(type, id);
+			invalidateCollectionCache(type);
+		}
 		return changed;
 	}
 
@@ -682,8 +698,34 @@ export class ContentRepository {
 		const restored = result.rows[0];
 		if (!restored) return null;
 
+		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 		return this.mapRow(type, restored);
+	}
+
+	/**
+	 * Re-stamp the denormalized filter + sort columns on every
+	 * `content_taxonomies` pivot row for an entry from its authoritative `ec_*`
+	 * row (migration 051). Called after any mutation that moves one of those
+	 * columns so a taxonomy-filtered listing can seek the entry directly.
+	 *
+	 * A single correlated `UPDATE` reads the post-mutation values from `ec_*`, so
+	 * the pivot converges to the authoritative row. This is NOT atomic with the
+	 * `ec_*` mutation on D1 (no transactions), which is why the read path
+	 * re-checks the real predicates on the joined `ec_*` row. Untagged entries
+	 * have no pivot rows, so the statement is a cheap no-op for them.
+	 */
+	private async restampEntryPivot(type: string, id: string): Promise<void> {
+		const tableName = getTableName(type);
+		await sql`
+			UPDATE content_taxonomies
+			SET (status, scheduled_at, deleted_at, locale, published_at, created_at) = (
+				SELECT status, scheduled_at, deleted_at, locale, published_at, created_at
+				FROM ${sql.ref(tableName)}
+				WHERE ${sql.ref(tableName)}.id = ${id}
+			)
+			WHERE collection = ${type} AND entry_id = ${id}
+		`.execute(this.db);
 	}
 
 	/**
@@ -804,18 +846,45 @@ export class ContentRepository {
 	}
 
 	/**
-	 * Apply the optional case-insensitive `q` substring filter across the
-	 * handler-resolved `searchColumns` (OR'd). User input is treated literally
-	 * (LIKE wildcards escaped) and `lower()` is applied on both sides for
-	 * SQLite/Postgres case-insensitive parity.
+	 * Apply the optional `q` filter.
+	 *
+	 * When the handler sets `useFts` (collection has a healthy FTS5 index
+	 * covering the display columns; SQLite only), the filter is served from
+	 * the index: a token-prefix MATCH against `_emdash_fts_<slug>` OR'd with
+	 * an index-served `slug GLOB 'term*'` prefix (the slug is not in the FTS
+	 * index). Both sides are index-backed, so SQLite's OR optimization avoids
+	 * the full-table scan the LIKE fallback needs (#1517). The trade-off is
+	 * search semantics: token-prefix matching instead of arbitrary substring.
+	 *
+	 * Fallback (Postgres, search disabled, or no usable terms): case-
+	 * insensitive substring LIKE across the handler-resolved `searchColumns`
+	 * (OR'd). User input is treated literally (LIKE wildcards escaped) and
+	 * `lower()` is applied on both sides for SQLite/Postgres parity.
 	 */
 	private applySearchFilter<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
 		query: QB,
-		where?: { q?: string; searchColumns?: string[] },
+		where: { q?: string; searchColumns?: string[]; useFts?: boolean } | undefined,
+		type: string,
 	): QB {
 		const term = where?.q?.trim();
 		const columns = where?.searchColumns;
 		if (!term || !columns || columns.length === 0) return query;
+
+		if (where.useFts) {
+			const match = buildFtsPrefixMatch(term);
+			if (match) {
+				validateIdentifier(type, "collection slug");
+				const ftsTable = `_emdash_fts_${type}`;
+				const slugPrefix = buildSlugGlobPrefix(term);
+				return query.where((eb) =>
+					eb.or([
+						sql<boolean>`id IN (SELECT id FROM ${sql.ref(ftsTable)} WHERE ${sql.ref(ftsTable)} MATCH ${match})`,
+						sql<boolean>`slug GLOB ${slugPrefix}`,
+					]),
+				);
+			}
+			// No usable terms (e.g. quotes only) — fall through to LIKE.
+		}
 
 		const escaped = term.replace(LIKE_WILDCARD_RE, (c) => `\\${c}`);
 		const pattern = `%${escaped}%`;
@@ -878,7 +947,7 @@ export class ContentRepository {
 			query = query.where("locale" as any, "=", where.locale);
 		}
 
-		query = this.applySearchFilter(query, where);
+		query = this.applySearchFilter(query, where, type);
 		query = this.applyDateFilter(query, where);
 
 		const result = await query.executeTakeFirst();
@@ -902,9 +971,7 @@ export class ContentRepository {
 			.where("author_id" as never, "is not", null)
 			.execute();
 
-		return rows
-			.map((row) => (row as { author_id: string | null }).author_id)
-			.filter((id): id is string => id !== null);
+		return rows.map((row) => row.author_id).filter((id): id is string => id !== null);
 	}
 
 	// get overall statistics for a content type in a single query
@@ -970,6 +1037,7 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1009,6 +1077,7 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1313,6 +1382,8 @@ export class ContentRepository {
 			}
 			publishCommitted = true;
 
+			await this.restampEntryPivot(type, id);
+
 			const updated = await this.findById(type, id);
 			if (!updated) {
 				throw new Error("Content not found");
@@ -1401,6 +1472,7 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);

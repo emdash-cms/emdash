@@ -199,11 +199,7 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 	return (
 		<div className="group rounded-lg border bg-kumo-base overflow-hidden transition-colors hover:border-kumo-brand/50">
 			{/* Thumbnail */}
-			<Link
-				to={"/themes/marketplace/$themeId" as "/"}
-				params={{ themeId: theme.id }}
-				className="block"
-			>
+			<Link to={"/themes/marketplace/$themeId"} params={{ themeId: theme.id }} className="block">
 				{thumbnailUrl ? (
 					<img
 						src={thumbnailUrl}
@@ -220,11 +216,7 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 
 			{/* Info */}
 			<div className="p-4">
-				<Link
-					to={"/themes/marketplace/$themeId" as "/"}
-					params={{ themeId: theme.id }}
-					className="block"
-				>
+				<Link to={"/themes/marketplace/$themeId"} params={{ themeId: theme.id }} className="block">
 					<h3 className="font-semibold group-hover:text-kumo-brand truncate">{theme.name}</h3>
 				</Link>
 

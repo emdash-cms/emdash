@@ -79,6 +79,9 @@ export function createOAuthStateStore(db: Kysely<Database>): StateStore {
 				if ("nonce" in parsed && typeof parsed.nonce === "string") {
 					oauthState.nonce = parsed.nonce;
 				}
+				if ("inviteToken" in parsed && typeof parsed.inviteToken === "string") {
+					oauthState.inviteToken = parsed.inviteToken;
+				}
 				return oauthState;
 			} catch {
 				return null;

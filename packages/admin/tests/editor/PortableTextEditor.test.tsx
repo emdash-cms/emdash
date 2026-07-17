@@ -450,6 +450,27 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(textContent.trim()).toBe("");
 	});
 
+	it("teaches writing and slash commands in the default placeholder", async () => {
+		await render(<PortableTextEditor value={[]} />);
+		const pm = await waitForEditor();
+		const placeholder = pm.querySelector("[data-placeholder]");
+		expect(placeholder?.getAttribute("data-placeholder")).toBe(
+			"Start writing, or type '/' for commands",
+		);
+	});
+
+	it("centers the writing column with responsive space for block controls", async () => {
+		await render(<PortableTextEditor value={[textBlock("Gutter spacing")]} />);
+		const pm = await waitForEditor();
+		expect(pm.className).toContain("w-full");
+		expect(pm.className).toContain("max-w-[calc(75ch+8rem)]");
+		expect(pm.className).toContain("mx-auto");
+		expect(pm.className).toContain("ps-14");
+		expect(pm.className).toContain("pe-14");
+		expect(pm.className).toContain("sm:ps-16");
+		expect(pm.className).toContain("sm:pe-16");
+	});
+
 	it("renders bold+italic text with multiple marks", async () => {
 		await render(
 			<PortableTextEditor value={[textBlock("Bold italic", { marks: ["strong", "em"] })]} />,
@@ -633,11 +654,13 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
 	});
 
-	it("has heading buttons", async () => {
+	it("has a heading menu", async () => {
 		const screen = await renderWithToolbar();
-		await expect.element(screen.getByRole("button", { name: "Heading 1" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Heading 2" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Heading 3" })).toBeInTheDocument();
+		const trigger = screen.getByRole("button", { name: "Headings" });
+		await trigger.click();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeInTheDocument();
 	});
 
 	it("has list buttons", async () => {
@@ -659,13 +682,14 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeInTheDocument();
 	});
 
-	it("has insert buttons", async () => {
+	it("keeps insertion-only actions out of the formatting toolbar", async () => {
 		const screen = await renderWithToolbar();
+		const toolbar = screen.getByRole("toolbar").element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Insert Image" })).toBeInTheDocument();
-		await expect
-			.element(screen.getByRole("button", { name: "Insert Horizontal Rule" }))
-			.toBeInTheDocument();
+		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
 
 	it("has history buttons (initially disabled)", async () => {
@@ -721,19 +745,19 @@ describe("Toolbar", () => {
 		);
 	});
 
-	it("toggles Heading 1 aria-pressed when clicked", async () => {
+	it("changes the current block to Heading 1 from the heading menu", async () => {
 		const screen = await renderWithToolbar();
 		const pm = document.querySelector(".ProseMirror") as HTMLElement;
 		await focusEditor(pm);
 
-		const h1Btn = screen.getByRole("button", { name: "Heading 1" });
-		await expect.element(h1Btn).toHaveAttribute("aria-pressed", "false");
-
-		await h1Btn.click();
+		const trigger = screen.getByRole("button", { name: "Headings" });
+		await trigger.click();
+		await screen.getByRole("menuitem", { name: "Heading 1" }).click();
 
 		await vi.waitFor(
-			async () => {
-				await expect.element(h1Btn).toHaveAttribute("aria-pressed", "true");
+			() => {
+				expect(pm.querySelector("h1")).toBeTruthy();
+				expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
 			},
 			{ timeout: 2000 },
 		);

@@ -123,6 +123,13 @@ function createContext() {
 		deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids }),
 	};
 
+	// Taxonomy access (read-only) - capability enforced by the bridge
+	const taxonomies = {
+		getAll: (opts) => bridgeCall("taxonomy/list", { ...opts }),
+		getTerms: (taxonomy, opts) => bridgeCall("taxonomy/terms", { taxonomy, ...opts }),
+		getEntryTerms: (collection, entryId, opts) => bridgeCall("taxonomy/entryTerms", { collection, entryId, ...opts }),
+	};
+
 	const media = {
 		get: (id) => bridgeCall("media/get", { id }),
 		list: (opts) => bridgeCall("media/list", opts || {}),
@@ -317,6 +324,7 @@ function createContext() {
 		storage,
 		kv,
 		content,
+		taxonomies,
 		media,
 		http,
 		log,

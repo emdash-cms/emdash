@@ -117,8 +117,7 @@ export function createDialect(config: DurableObjectsConfig): Dialect {
 	if (!ns) throw bindingError(config.binding);
 	const id = ns.idFromName(config.name ?? DEFAULT_NAME);
 	return new DOSqlDialect({
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown row types
-		resolveStub: () => ns.get(id) as unknown as EmDashDBStub,
+		resolveStub: () => ns.get(id),
 		bookmarkSink: getSingletonBookmarkSink(config),
 		onRpc: recordRpc,
 	});
@@ -138,8 +137,7 @@ export function createCoalescingDialect(config: DurableObjectsConfig): Dialect {
 	if (!ns) throw bindingError(config.binding);
 	const id = ns.idFromName(config.name ?? DEFAULT_NAME);
 	return new CoalescingDOSqlDialect({
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown row types
-		resolveStub: () => ns.get(id) as unknown as EmDashDBStub,
+		resolveStub: () => ns.get(id),
 		bookmarkSink: getSingletonBookmarkSink(config),
 		onRpc: recordRpc,
 	});

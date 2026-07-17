@@ -37,6 +37,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "ca", label: "Català", enabled: true }, // Catalan
 	{ code: "zh-CN", label: "简体中文", enabled: true }, // Chinese (Simplified)
 	{ code: "zh-TW", label: "繁體中文", enabled: true }, // Chinese (Traditional)
+	{ code: "nl", label: "Nederlands", enabled: true }, // Dutch
 	{ code: "en-GB", label: "English (UK)", enabled: true }, // English (United Kingdom)
 	{ code: "fa", label: "فارسی", enabled: true, dir: "rtl" }, // Farsi (also known as Persian)
 	{ code: "fr", label: "Français", enabled: true }, // French
