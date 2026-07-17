@@ -509,6 +509,7 @@ describe("EmDashClient", () => {
 
 				const body = await response.json();
 				expect(body).toEqual({
+					success: true,
 					data: expect.objectContaining({
 						collections: expect.arrayContaining([
 							expect.objectContaining({ slug: "page" }),
