@@ -597,7 +597,7 @@ describe("getPolicy", () => {
 		expect(response.headers.get("cache-control")).toBe("public, max-age=300");
 		expect(await response.json()).toMatchObject({
 			schemaVersion: 1,
-			policyVersion: "2026-07-15.experimental.1",
+			policyVersion: "2026-07-17.experimental.1",
 			labelerDid: LABELER_DID,
 			assessmentSchemaVersion: 1,
 		});

@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"capabilities": ["read:content"],
 	"allowedHosts": [],
-	"storage": {},
+	"storage": { "gallery": { "indexes": [] } },
 	"hooks": ["content:afterSave"],
 	"routes": [],
 	"admin": {}

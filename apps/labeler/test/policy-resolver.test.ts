@@ -19,12 +19,12 @@ function finding(overrides: Partial<NormalizedFinding> & { category: string }): 
 describe("resolvePolicyOutcome: blocking", () => {
 	it("blocks on a deterministic finding at any severity", () => {
 		const outcome = resolvePolicyOutcome(
-			[finding({ source: "deterministic", category: "undeclared-access", severity: "low" })],
+			[finding({ source: "deterministic", category: "credential-harvesting", severity: "low" })],
 			MODERATION_POLICY,
 		);
 		expect(outcome.toState).toBe("blocked");
 		expect(outcome.labels).toEqual([
-			{ val: "undeclared-access", findingCategory: "undeclared-access", severity: "low" },
+			{ val: "credential-harvesting", findingCategory: "credential-harvesting", severity: "low" },
 		]);
 	});
 
@@ -140,6 +140,28 @@ describe("resolvePolicyOutcome: warnings", () => {
 		);
 		expect(outcome.toState).toBe("warned");
 		expect(outcome.labels.map((l) => l.val)).toEqual(["obfuscated-code", "assessment-passed"]);
+	});
+
+	it("warns rather than blocks on an undeclared-access finding, at any source or severity", () => {
+		const modelHigh = resolvePolicyOutcome(
+			[finding({ source: "model", category: "undeclared-access", severity: "high" })],
+			MODERATION_POLICY,
+		);
+		expect(modelHigh.toState).toBe("warned");
+		expect(modelHigh.labels).toEqual([
+			{ val: "undeclared-access", findingCategory: "undeclared-access", severity: "high" },
+			{ val: "assessment-passed" },
+		]);
+
+		const deterministicLow = resolvePolicyOutcome(
+			[finding({ source: "deterministic", category: "undeclared-access", severity: "low" })],
+			MODERATION_POLICY,
+		);
+		expect(deterministicLow.toState).toBe("warned");
+		expect(deterministicLow.labels).toEqual([
+			{ val: "undeclared-access", findingCategory: "undeclared-access", severity: "low" },
+			{ val: "assessment-passed" },
+		]);
 	});
 });
 

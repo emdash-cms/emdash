@@ -11,7 +11,7 @@ Labels are grouped into categories. Each label carries:
 - a **`cidRule`** — `required` (targets one exact release CID), `forbidden` (URI-wide, whole record or publisher), or `optional` (either); and
 - **issuance modes** — who may issue it: `automated`, `reviewer`, or `admin`.
 
-The policy document is served publicly at `/.well-known/emdash-labeler-policy.json`. The current `policyVersion` is `2026-07-15.experimental.1`.
+The policy document is served publicly at `/.well-known/emdash-labeler-policy.json`. The current `policyVersion` is `2026-07-17.experimental.1`.
 
 ## Vocabulary
 
@@ -28,7 +28,6 @@ The policy document is served publicly at `/.well-known/emdash-labeler-policy.js
 | `critical-vulnerability`     | automated-block | block   | release → required                        | automated, reviewer |
 | `artifact-integrity-failure` | automated-block | block   | release → required                        | automated, reviewer |
 | `invalid-bundle`             | automated-block | block   | release → required                        | automated, reviewer |
-| `undeclared-access`          | automated-block | block   | release → required                        | automated, reviewer |
 | `impersonation`              | automated-block | block   | release → required                        | automated, reviewer |
 | `hateful-imagery`            | automated-block | block   | release → required                        | automated, reviewer |
 | `explicit-imagery`           | automated-block | block   | release → required                        | automated, reviewer |
@@ -39,6 +38,7 @@ The policy document is served publicly at `/.well-known/emdash-labeler-policy.js
 | `misleading-metadata`        | warning         | warn    | release → required                        | automated, reviewer |
 | `low-quality`                | warning         | warn    | release → required                        | automated, reviewer |
 | `broken-release`             | warning         | warn    | release → required                        | automated, reviewer |
+| `undeclared-access`          | warning         | warn    | release → required                        | automated, reviewer |
 | `content-warning`            | warning         | warn    | release → required                        | automated, reviewer |
 | `!takedown`                  | manual-system   | redact  | release / package / publisher → forbidden | admin               |
 | `security-yanked`            | manual-system   | block   | release → forbidden                       | reviewer            |
