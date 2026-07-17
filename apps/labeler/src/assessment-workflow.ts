@@ -114,8 +114,8 @@ async function notifyOutcome(env: Env, assessment: Assessment): Promise<void> {
 
 /**
  * The orchestrator's stage adapters, built per instance execution. Real
- * adapters attach here in the W7/W8 follow-on — acquire (via the aggregator
- * client), deterministic/dependency/AI scanning, and publisher history; today
+ * adapters attach here in the acquire-consumer follow-on — acquire (via the
+ * aggregator client), code/metadata AI, image AI, and publisher history; today
  * the run executes the exported stub stages. Building them per execution rather
  * than sharing module-scope state keeps per-run state — notably the acquire
  * stage's `AcquisitionHolder` — isolated to this instance, never shared across

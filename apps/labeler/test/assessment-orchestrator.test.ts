@@ -453,7 +453,7 @@ describe("AssessmentOrchestrator: warning findings", () => {
 	});
 });
 
-describe("AssessmentOrchestrator: permanent deterministic failure", () => {
+describe("AssessmentOrchestrator: permanent blocking finding", () => {
 	it("finalizes blocked with the mapped automated-block label", async () => {
 		const run = await pendingRun({ name: "blocked", cidValue: await cid("blocked") });
 		const stages: OrchestratorStages = {
