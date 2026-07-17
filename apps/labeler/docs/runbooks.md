@@ -84,10 +84,10 @@ Both reject an already-resolved letter with `409` (the `status = 'new'` guard on
 
 **Operator action.**
 
-- **A stuck `verifying`/`pending`/`running` run:** re-queue it from the console with **Re-run** (`POST /admin/api/assessments/:id/rerun`, see [operating.md § Re-running an assessment](operating.md#re-running-an-assessment)). This mints a fresh run and re-issues `assessment-pending`, so the release stays gated until the new run resolves. Re-run requires typing the release **CID** as a deliberate check.
-- **An orphaned subject** (`verified subject has no assessment run`): there is no console "create run for this subject" action. The practical recovery is to re-drive discovery for that subject — if a corresponding `dead_letters` row exists, retry it; otherwise the subject will be re-assessed when the publisher next updates the release, or via a future reconciliation re-drive.
+- **A stuck `verifying`/`pending`/`running` run:** **Re-run** (`POST /admin/api/assessments/:id/rerun`, see [operating.md § Re-running an assessment](operating.md#re-running-an-assessment)) mints a fresh run and re-issues `assessment-pending`, but the current implementation stops at `pending` — its deferred tail (`deferRerunTail`) advances the row to `pending` and publishes the label, and does **not** dispatch the Cloudflare Workflow instance that would drive it to finalization (only the discovery path calls `dispatchAssessmentWorkflow`). So a re-run today gates the release with a new `assessment-pending` and leaves it stuck rather than recovering it. Until the rerun Workflow-dispatch follow-on is wired, the practical recovery for a stuck run is a fresh discovery event for the subject (which re-dispatches on the discovery path) — retry the corresponding `dead_letters` row if one exists, or wait for the publisher's next release update.
+- **An orphaned subject** (`verified subject has no assessment run`): there is no console "create run for this subject" action. The practical recovery is to re-drive discovery for that subject — if a corresponding `dead_letters` row exists, retry it; otherwise the subject will be re-assessed when the publisher next updates the release.
 
-> Flag: reconciliation's stuck-run handling is detection-only. A future enhancement (the same cron pass that the prolonged-error ladder already hangs off) could re-dispatch stuck runs; today that is an operator's manual re-run.
+> Flag: reconciliation's stuck-run handling is detection-only — it logs stuck runs and orphaned subjects, it does not re-drive them. Combined with the rerun-dispatch gap above, a run stuck in `pending`/`running` has no automatic OR manual re-drive today; its only recovery is a fresh discovery event. Wiring `dispatchAssessmentWorkflow` into the rerun tail (and/or a reconciliation re-dispatch pass) is the follow-on that closes this.
 
 ## AI outage
 
@@ -187,9 +187,9 @@ If the outcome is that the block was wrong, the corrective action is a separate 
 
 **How it works.** The label log is append-only and totally ordered by `sequence`. Negations are themselves labels (`neg: true`), so the full history — every issue and every retraction — is expressed as a forward sequence with no in-place mutation. A consumer replays the whole stream by connecting to `subscribeLabels` with `cursor=0` (or its last known good sequence) and reading forward; `LabelSubscriptionDO` pages the replay out of `issued_labels` (`REPLAY_PAGE_SIZE = 100`) and transitions the socket to live delivery once it catches the head. `queryLabels` (the pull XRPC) is the paged alternative for a bulk backfill by URI pattern.
 
-**Re-signing during replay.** Replayed labels are served with a signature valid under the labeler's _current_ active key, not necessarily the key in force when the label was first issued. `queryLabels` lazily re-signs any label whose `signing_key_version` differs from the active version (`resignStaleLabels`), preserving the original `cts` and keeping the prior signature in `label_signature_history`. So a replay after a key rotation verifies cleanly against the current DID document — the consumer does not need historical keys. (See [Historical re-signing](#historical-re-signing).)
+**Re-signing during replay — the two paths differ.** Only `queryLabels` re-signs on the fly. `queryLabels` (the pull XRPC) lazily re-signs any returned label whose `signing_key_version` differs from the active version (`resignStaleLabels`), preserving the original `cts` and keeping the prior signature in `label_signature_history` — so a `queryLabels` backfill after a key rotation verifies cleanly against the current DID document. `subscribeLabels` does **not**: `LabelSubscriptionDO.labelsAfter()` reads `issued_labels` rows verbatim and sends them as-signed, so a WebSocket replay from `cursor=0` after a rotation still serves labels under the _retired_ key until a proactive `queryLabels` sweep has re-signed them. If a `subscribeLabels` replay must verify against only the current key, drive a full `queryLabels` sweep first. (See [Historical re-signing](#historical-re-signing).)
 
-**Operator action.** None on the labeler beyond ensuring it's healthy — replay is a consumer-initiated read. Point the consumer at the labeler's `subscribeLabels` endpoint with `cursor=0`. If the labeler's own D1 label log has been lost, replay cannot reconstruct it (there is no separate backup restore today — see the note under [Key lifecycle & custody](#key-lifecycle--custody)); the append-only log in D1 _is_ the system of record.
+**Operator action.** None on the labeler beyond ensuring it's healthy — replay is a consumer-initiated read. For a replay that must verify under the current key after a rotation, have the consumer refresh its DID resolution and pull the backfill via `queryLabels` (or run a full `queryLabels` sweep before pointing it at `subscribeLabels`). If the labeler's own D1 label log has been lost, replay cannot reconstruct it (there is no separate backup restore today — see the note under [Key lifecycle & custody](#key-lifecycle--custody)); the append-only log in D1 _is_ the system of record.
 
 ---
 
@@ -272,12 +272,12 @@ If something is wrong with the pending key, `abortRoutineKeyRotation(db, { rotat
 
 ## Aggregator replay after a key event
 
-A downstream consumer recovering after a rotation or compromise doesn't need the old key. Because historical labels re-sign to the active key on query, a consumer that:
+A downstream consumer recovering after a rotation or compromise doesn't need the old key, because historical labels re-sign to the active key lazily on `queryLabels`. But the recovery path matters — only `queryLabels` re-signs, not `subscribeLabels` (see [Full aggregator replay](#full-aggregator-replay)). A consumer that:
 
 1. refreshes its DID resolution for `did:web:labels.emdashcms.com` (picking up the new `#atproto_label` public key), and
-2. replays the stream from its last cursor (or `cursor=0`) via `subscribeLabels` / `queryLabels`,
+2. pulls the backfill via `queryLabels` — or, if it must replay over the `subscribeLabels` WebSocket, drives a full `queryLabels` sweep FIRST so the stored rows are re-signed,
 
-will receive every label with a signature valid under the current key and verify cleanly. The `cts` values are unchanged, so the consumer's ordering and dedup are unaffected. This is the mechanism in [Full aggregator replay](#full-aggregator-replay), viewed through the key lens: the re-signing is what makes a post-rotation replay verify without the consumer ever holding a retired key.
+will receive every label with a signature valid under the current key and verify cleanly. Pointing a consumer straight at `subscribeLabels` from `cursor=0` without that prior sweep replays retired-key signatures and will fail verification against the new DID document. The `cts` values are unchanged, so ordering and dedup are unaffected. The re-signing is what makes a post-rotation replay verify without the consumer ever holding a retired key.
 
 ## Audit evidence & incident communications
 
