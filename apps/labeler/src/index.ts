@@ -13,6 +13,7 @@ import { didDocumentResponse, policyDocumentResponse } from "./identity.js";
 import { handleNotificationRequest, isNotificationPath } from "./notification-endpoints.js";
 import { runNotificationSweep } from "./notification-sweep.js";
 import { createNotifyDeps, type NotifyDeps } from "./notification-triggers.js";
+import { runProlongedErrorEscalation } from "./prolonged-error.js";
 import { queryLabels } from "./query-labels.js";
 import { reconcileAssessments } from "./reconciliation.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
@@ -119,6 +120,24 @@ export default {
 					await runNotificationSweep(await createNotifyDeps(env));
 				} catch (err) {
 					console.error("[labeler] notification sweep failed", {
+						error: err instanceof Error ? err.message : String(err),
+					});
+				}
+			})(),
+		);
+
+		// Prolonged-error escalation (plan W10.5 follow-up): 24h operator alert then
+		// 72h publisher notice for an errored, unsuperseded run. Its own branch with
+		// the non-throwing deps builder, so a notify-deps failure skips the pass
+		// rather than disturbing the sweep or reconciliation passes above.
+		ctx.waitUntil(
+			(async () => {
+				try {
+					const deps = await safeCreateNotifyDeps(env);
+					if (!deps) return;
+					await runProlongedErrorEscalation(deps, new Date());
+				} catch (err) {
+					console.error("[labeler] prolonged-error escalation failed", {
 						error: err instanceof Error ? err.message : String(err),
 					});
 				}

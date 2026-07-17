@@ -231,6 +231,26 @@ function reconsiderationOutcomeNoticeContent(
 			};
 }
 
+/** Prolonged-error notice for an assessment stuck in `error` past the 72h
+ * threshold (plan W10.5 follow-up). Neutral and actionable: it states the
+ * labeler could not complete its own assessment, that no label change is
+ * implied, and gives the publisher the one thing they can act on — checking the
+ * release's artifact URL is reachable. Carries NO findings or private detail. */
+function prolongedErrorNoticeContent(
+	urls: NoticeUrls,
+	input: { uri: string; cid: string },
+): NoticeContent {
+	return {
+		subject: "We couldn't complete the security assessment of your plugin release",
+		publicSummary:
+			"The automated security assessment of this release repeatedly failed to complete.",
+		effect:
+			"No label change is implied by this failure. If the release's artifact URL is unavailable or has changed, please verify it is reachable so the assessment can complete.",
+		assessmentUrl: assessmentUrl(urls.serviceUrl, input.uri, input.cid),
+		reconsiderationUrl: urls.reconsiderationUrl,
+	};
+}
+
 // ── Live trigger entry points ───────────────────────────────────────────────
 
 /** Automated block/warning notice from a finalized assessment run. Source is the
@@ -327,6 +347,30 @@ export async function notifyReconsiderationOutcome(
 }
 
 /**
+ * Prolonged-error publisher notice, fired by the reconciliation cron's 72h stage
+ * (plan W10.5 follow-up) — never at finalization (`assessmentNoticeContent`
+ * stays null for `error`, so `notifyAssessmentOutcome` no-ops on it). Source is
+ * the errored assessment id: an errored run never produces a block/warn notice,
+ * so the `(issuance, id)` key never collides with a finalization notice, and the
+ * claim dedups a crash-retry between the send and the escalation-row mark.
+ */
+export async function notifyProlongedError(
+	deps: NotifyDeps,
+	assessment: Assessment,
+): Promise<boolean> {
+	const target = contactTargetFromUri(assessment.uri);
+	// An unparseable URI is terminal, not transient (the URI never changes), so it
+	// counts as processed — the cron marks it rather than re-attempting forever.
+	if (!target) return true;
+	return runTrigger(
+		deps,
+		{ type: "issuance", id: assessment.id },
+		target,
+		prolongedErrorNoticeContent(deps, { uri: assessment.uri, cid: assessment.cid }),
+	);
+}
+
+/**
  * Rebuild a NOTICE's public content from its source row, for the retry sweep.
  * Nothing about the notice is persisted (plaintext minimization), so a retry
  * re-derives it from the assessment (`issuance`) or operator action (`operator`)
@@ -341,7 +385,10 @@ export async function resolveNoticeForSource(
 ): Promise<NoticeContent | null> {
 	if (sourceType === "issuance") {
 		const assessment = await loadAssessmentSafe(deps.db, sourceId);
-		return assessment ? assessmentNoticeContent(deps, assessment) : null;
+		if (!assessment) return null;
+		if (assessment.state === "error")
+			return prolongedErrorNoticeContent(deps, { uri: assessment.uri, cid: assessment.cid });
+		return assessmentNoticeContent(deps, assessment);
 	}
 	const action = await getOperatorActionById(deps.db, sourceId);
 	if (!action || action.subjectUri === null) return null;
@@ -423,18 +470,26 @@ function operatorActionNeg(metadataJson: string): boolean {
  * Dedup, resolve verification (fail-closed), send, swallow+log. Shared by every
  * trigger so the dedup and verified-skip policy is applied uniformly and a
  * notification failure can never escape into the label path.
+ *
+ * Returns whether the trigger reached a TERMINAL outcome — a dedup hit or a
+ * normal `sendNotification` return (sent, confirmation-sent, undeliverable, or a
+ * claimed-then-failed row the sweep now owns) — versus a thrown TRANSIENT error
+ * (an aggregator read or a pre-claim D1 write that failed before any row was
+ * claimed). The prolonged-error cron uses this to decide whether to stamp its
+ * fire-once mark: a transient failure returns `false` so the next tick retries
+ * instead of being silently swallowed. Fire-and-forget callers ignore it.
  */
 async function runTrigger(
 	deps: NotifyDeps,
 	source: NotificationSource,
 	target: ContactTarget,
 	notice: NoticeContent,
-): Promise<void> {
+): Promise<boolean> {
 	const now = deps.now ?? (() => new Date());
 	try {
 		if (await sourceAlreadyProcessed(deps.db, source)) {
 			logTrigger(source, target.did, "deduped");
-			return;
+			return true;
 		}
 		const verifiedPublisher = await isVerifiedPublisher(deps.aggregator, target.did, now());
 		const ctx: SendContext = {
@@ -449,6 +504,7 @@ async function runTrigger(
 		const request: NotificationRequest = { source, target, notice };
 		const outcome = await sendNotification(ctx, request);
 		logTrigger(source, target.did, outcome.status);
+		return true;
 	} catch (error) {
 		console.error("[notifications] trigger failed", {
 			sourceType: source.type,
@@ -456,6 +512,7 @@ async function runTrigger(
 			did: target.did,
 			error: error instanceof Error ? error.message : String(error),
 		});
+		return false;
 	}
 }
 
