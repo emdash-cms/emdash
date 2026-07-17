@@ -168,6 +168,16 @@ function aggregatorFor(email?: string): AggregatorClient {
 	return new AggregatorClient(fetcher);
 }
 
+/** An aggregator whose reads THROW — drives a transient pre-claim failure in
+ * `resolvePublisherContact` (which propagates rather than returning `none`). */
+function throwingAggregator(): AggregatorClient {
+	return new AggregatorClient({
+		fetch: async () => {
+			throw new Error("aggregator down");
+		},
+	} as unknown as Fetcher);
+}
+
 function deps(sender: RecordingSender, aggregator: AggregatorClient): NotifyDeps {
 	return {
 		db: db(),
@@ -431,6 +441,32 @@ describe("publisher notice stage (72h)", () => {
 		expect(sender.notices).toHaveLength(0);
 		expect(sender.confirmations).toHaveLength(1);
 		expect(await notificationRows(id)).toEqual([{ kind: "confirmation", state: "sent" }]);
+	});
+
+	it("does not mark on a transient pre-claim failure, and retries on the next tick", async () => {
+		const target = release();
+		await subject(target);
+		const id = await errorAssessment(target, {
+			createdAt: new Date(NOW.getTime() - 100 * H),
+			completedAt: new Date(NOW.getTime() - 73 * H),
+		});
+		const email = uniq("retry") + "@x.test";
+		await seedConfirmed(email);
+
+		// Tick 1: the aggregator read throws inside resolvePublisherContact, before any
+		// notifications row is claimed. The trigger swallows it and returns false, so
+		// nothing is claimed and publisher_notified_at stays null.
+		await runProlongedErrorEscalation(deps(recordingSender(), throwingAggregator()), NOW);
+		expect((await getEscalation(db(), id))?.publisherNotifiedAtEpochMs).toBeNull();
+		expect(await notificationRows(id)).toHaveLength(0);
+
+		// Tick 2: the aggregator is healthy → the notice is claimed and sent, and the
+		// mark is stamped. A transient failure retried rather than being swallowed.
+		const sender = recordingSender();
+		await runProlongedErrorEscalation(deps(sender, aggregatorFor(email)), NOW);
+		expect(sender.notices).toHaveLength(1);
+		expect(await notificationRows(id)).toEqual([{ kind: "notice", state: "sent" }]);
+		expect((await getEscalation(db(), id))?.publisherNotifiedAtEpochMs).not.toBeNull();
 	});
 });
 

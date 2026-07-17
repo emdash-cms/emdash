@@ -63,8 +63,12 @@ export async function runProlongedErrorEscalation(deps: NotifyDeps, now: Date): 
 		) {
 			const assessment = await getAssessment(deps.db, error.id);
 			if (!assessment) continue;
-			await notifyProlongedError(deps, assessment);
-			await markPublisherNotified(deps.db, error.id, now);
+			// Only stamp the fire-once mark when the trigger reached a terminal
+			// outcome. A transient failure (aggregator read / pre-claim D1 write threw
+			// before any notifications row was claimed) returns false — leave the mark
+			// null so the next tick retries rather than silently dropping the notice.
+			const processed = await notifyProlongedError(deps, assessment);
+			if (processed) await markPublisherNotified(deps.db, error.id, now);
 		}
 	}
 }
