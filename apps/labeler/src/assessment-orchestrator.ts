@@ -7,9 +7,9 @@
  * run executes as one Workflow instance whose id is the run's runKey, so a
  * redelivered discovery event dedups onto the same instance rather than starting
  * a duplicate (see assessment-dispatch.ts). The Workflow constructs this
- * orchestrator per run and calls `runAssessment`. Until W7/W8 supply the real stage adapters
- * (acquire, deterministic validation, dependency/SBOM, code/metadata AI, image
- * AI), that wiring runs `stubStages` — every stage resolves with no findings, so
+ * orchestrator per run and calls `runAssessment`. Until the acquire-consumer
+ * slice assembles the real stage adapters (acquire, code/metadata AI, image
+ * AI, history), that wiring runs `stubStages` — every stage resolves with no findings, so
  * `resolvePolicyOutcome` returns `passed` and finalization issues a real signed
  * `assessment-passed` label for EVERY subject (not merely clearing its own
  * `assessment-pending`). That is a hard deploy gate — see the DEPLOY GATE note
