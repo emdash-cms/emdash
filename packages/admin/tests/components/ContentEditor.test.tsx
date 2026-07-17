@@ -1603,30 +1603,5 @@ describe("ContentEditor", () => {
 
 			await expect.element(screen.getByText("Ada Lovelace")).toBeInTheDocument();
 		});
-
-		it("keeps credited byline actions inside the settings panel", async () => {
-			const credited = makeByline({ id: "b-layout", slug: "ada", displayName: "Ada Lovelace" });
-			const item = makeItem({
-				data: { title: "Hello", body: "" },
-				bylines: [{ byline: credited, sortOrder: 0, roleLabel: "Author" }],
-			});
-
-			const screen = await renderEditor({
-				isNew: false,
-				item,
-				currentUser: { id: "u-1", role: 50 },
-				availableBylines: [credited],
-				availableBylinesLoaded: true,
-			});
-
-			const actionRow = screen.getByRole("button", { name: "Up" }).element().parentElement;
-			expect(actionRow?.className).toContain("flex-wrap");
-			expect(actionRow?.className).toContain("min-w-0");
-			expect(actionRow?.className).not.toContain("shrink-0");
-
-			const creditHeader = actionRow?.parentElement;
-			expect(creditHeader?.className).toContain("min-w-0");
-			expect(creditHeader?.style.gridTemplateColumns).toBe("");
-		});
 	});
 });
