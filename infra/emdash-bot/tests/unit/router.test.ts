@@ -22,10 +22,9 @@ import {
 // the original .cjs tests punned across them. Asserting the discriminant once
 // gives us typed access to the rest of the fields inline.
 
-function assertTransition(d: Decision | CommentDecision): asserts d is Extract<
-	Decision,
-	{ kind: "transition" }
-> {
+function assertTransition(
+	d: Decision | CommentDecision,
+): asserts d is Extract<Decision, { kind: "transition" }> {
 	expect(d.kind).toBe("transition");
 }
 
