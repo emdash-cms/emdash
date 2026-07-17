@@ -1,0 +1,23 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_33ba43ffb1bbf5::t_ebc6e677d9dbfc 15,1210,1217,1262,1276-1282,1317,1332-1337,1340-1357,1359-1364,1366-1367,1370-1372,1374-1420,1422-1425,2566-2570
+packages/admin/src/styles.css
+  s_33ba43ffb1bbf5::t_84f38144a3900d 322-326
+packages/admin/tests/editor/slash-menu.test.tsx
+  s_33ba43ffb1bbf5::t_d34cc97da92a4e 184,234-304
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6bc869cfb75f6633952b2cf7adab9c062898587f",
+  "prompts": {},
+  "sessions": {
+    "s_33ba43ffb1bbf5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0a4555010ffei4AJQDAJ16H5yi",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
