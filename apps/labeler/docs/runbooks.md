@@ -95,14 +95,14 @@ Both reject an already-resolved letter with `409` (the `status = 'new'` guard on
 
 **Signal.** A spike in runs finalizing `error` and issuing `assessment-error`, followed (after 24h) by the prolonged-error escalation (see below). In the Workflow logs, the `assess-subject` step retrying and eventually failing.
 
-**Diagnose.** Confirm it's the model and not the input: `MAX_MODEL_INPUT_CHARS` (200,000) overflow is thrown as a _non_-transient error (it won't fix on retry) and aborts the run rather than looping — so a broad transient spike is the binding or the model, not oversized bundles. Check Workers AI health for the account.
+**Diagnose — `error` vs stuck `running` splits the cause.** Only `ModelTransientError` is caught at the stage and finalized (as `error`) on exhaustion; every _other_ adapter error (the `MAX_MODEL_INPUT_CHARS` (200,000) overflow `TypeError`, validation/JSON errors) is non-transient, propagates past the orchestrator, and is NOT finalized. The Workflow's `step.do` retries the whole step 3 times, then the Workflow fails and the row is left stuck in `running` (surfaced by the reconciliation stuck-run log after 1h). So a broad spike in **`error`** runs points at a transient model/binding outage; a spike in stuck **`running`** runs points at an input-size or config problem. Check Workers AI health for the account.
 
 **Automatic behavior.** The retry ladder is layered and self-healing for a brief blip:
 
 1. `ModelTransientError` in an adapter becomes a `StageTransientError` (`assessment-stages.ts`).
 2. The orchestrator retries the stage `maxStageRetries` times, then, if still failing, marks the run transient-exhausted (`assessment-orchestrator.ts`).
 3. On transient exhaustion the orchestrator finalizes the run — but never as a false pass. It resolves the findings gathered _so far_: **if a prior stage already produced a blocking finding, it finalizes `blocked`** (a block is monotonic; no unrun stage can lift it). Anything short of an already-confirmed block finalizes `error` and issues `assessment-error` — an incomplete run never concludes `passed` or `warned`.
-4. Above that, the Workflow's own `step.do` retries the whole step 3 times with exponential backoff before the run rests in `error`.
+4. Above that, the Workflow's own `step.do` retries the whole step 3 times with exponential backoff. This is the only retry layer a _non_-transient error (an oversized bundle, a config error) sees — it does not become a `StageTransientError`, so after those 3 retries the Workflow fails and the row is left stuck in `running`, not finalized as `error`.
 
 So a short outage is absorbed by the retries and the run completes once the model recovers. A sustained outage leaves runs in `error`, gated (the release keeps its `assessment-pending`/`assessment-error` labels), which is the safe state — the labeler failing to assess never silently clears a subject.
 
@@ -230,7 +230,7 @@ The runtime signer is built from the config public key + version and the secret 
 
 If something is wrong with the pending key, `abortRoutineKeyRotation(db, { rotationId, expectedPendingKeyVersion })` returns the phase to `active` on the _old_ key and marks the pending version `aborted`.
 
-**Verification window to minimize.** Between step 2 (new key deployed and served in the DID doc) and step 3 (DB activated), the DID document advertises the new key while the DB active version is still the old one. During this window the labeler is paused, and a `queryLabels` request touching labels signed under the old key returns `503 "label signing is temporarily unavailable"` (lazy re-signing runs only when the phase is `active`) — so the labeler fails closed rather than serving a label that won't verify against the freshly-served new-key DID doc. Keep the deploy→activate gap short and expect brief `503`s on label queries during it.
+**Verification window to minimize.** Between step 2 (new key deployed and served in the DID doc) and step 3 (DB activated), the DID document advertises the new key while the DB active version is still the old one. This window is NOT fail-closed for the most recent key: `queryLabels` only re-signs (or `503`s, while paused) labels whose stored `signing_key_version` differs from the DB-active version — and during this window the DB-active key is still the old one, so labels signed under it are considered current and served as-is (`200`) with the old-key signature. A consumer verifying against the freshly-served new-key DID document will reject them. (Labels signed under an even-earlier retired key do `503` while paused, since they are stale relative to the DB-active version.) The takeaway is the same: keep the deploy→activate gap short, because during it recent labels are served with a signature that won't verify against the advertised key.
 
 **Rotation status & alerts.** `getSigningStatus` exposes the current phase and active/pending versions; `listSigningAlerts` returns `signing_events` alert rows. Watch for `ROTATION_ACTIVATION_MISMATCH`, `ROTATION_SIGNER_MISMATCH`, `ROTATION_ACTIVATION_RACE` — each means activation's guards rejected the attempt.
 
