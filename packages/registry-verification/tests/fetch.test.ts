@@ -122,6 +122,26 @@ describe("fetchVerifiedResource", () => {
 		expect(fetch).toHaveBeenCalledTimes(1);
 	});
 
+	it("rejects an IPv4-compatible IPv6 address embedding a private IPv4", async () => {
+		const fetch = vi.fn();
+		const result = await fetchVerifiedResource("https://sneaky.example.test/artifact", {
+			fetch,
+			resolveHostname: async () => ["::7f00:1"],
+		});
+		expect(result).toMatchObject({ success: false, error: { code: "HOST_REJECTED" } });
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	it("rejects a NAT64 IPv6 address embedding the link-local metadata IPv4", async () => {
+		const fetch = vi.fn();
+		const result = await fetchVerifiedResource("https://sneaky.example.test/artifact", {
+			fetch,
+			resolveHostname: async () => ["64:ff9b::a9fe:a9fe"],
+		});
+		expect(result).toMatchObject({ success: false, error: { code: "HOST_REJECTED" } });
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
 	it("rejects oversize content-length and streaming bodies", async () => {
 		const contentLength = await fetchVerifiedResource("https://example.test/file", {
 			fetch: vi

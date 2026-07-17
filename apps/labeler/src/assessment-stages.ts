@@ -8,11 +8,8 @@
  *
  * Keeping this here rather than in the adapter modules preserves those modules'
  * purity (no DB, no orchestrator types) so they stay independently testable.
- *
- * The image stage and the whole `buildStages` assembly are deferred to the
- * acquire-consumer slice, when a production bundle producer (verified
- * acquisition + image-metadata extraction) exists to feed them; until then the
- * orchestrator's production gate keeps stub stages from running.
+ * `assessment-workflow.ts` `buildStages` assembles these factories with the
+ * acquire stage into the run's `OrchestratorStages`.
  */
 
 import { declaredAccessToCapabilities } from "@emdash-cms/plugin-types";
@@ -28,6 +25,13 @@ import {
 	type CodeAnalysisResult,
 } from "./code-ai-adapter.js";
 import { analyzeHistory, type PublisherVerificationReader } from "./history-context.js";
+import {
+	analyzeImages,
+	type ImageAiBinding,
+	type ImageAnalysisInput,
+	type ImageAnalysisResult,
+} from "./image-ai-adapter.js";
+import { extractBundleImages } from "./image-metadata.js";
 import type { ModerationPolicy } from "./policy.js";
 import { parseAtUri } from "./record-verification.js";
 
@@ -39,25 +43,36 @@ import { parseAtUri } from "./record-verification.js";
  */
 export interface CoverageAccumulator {
 	code?: { readonly coverage: "complete" | "partial"; readonly droppedFiles: readonly string[] };
+	images?: {
+		readonly coverage: "complete" | "partial" | "not-present";
+		readonly droppedImages: readonly string[];
+	};
 }
 
 /** Coverage axis value for an analysis that did not run this assessment (its
- * input was unavailable or its stage is not yet wired). */
+ * input was unavailable — e.g. acquisition produced no bundle, or the stage
+ * transient-exhausted before completing). */
 const UNAVAILABLE = "unavailable";
 
 /**
  * Serializes the accumulated coverage into the `coverage_json` blob shape
  * `public-assessment.ts` reads (`{ code, images, metadata }`, extra keys
- * ignored). `images` and `metadata` stay `unavailable` until their producers
- * land in the acquire-consumer slice. `droppedFiles` records which code files
- * were dropped to fit the model budget when `code` is `partial`.
+ * ignored). `code`/`images` reflect what each AI stage recorded this run;
+ * `metadata` stays `unavailable` (metadata analysis folds into the code stage,
+ * with no separate coverage producer). An axis its stage left unset serializes
+ * `unavailable` — this is how a post-code transient exhaustion honestly reports
+ * `code: complete, images: unavailable` (the image stage never completed). The
+ * `images` axis also carries `not-present` for a bundle with no image files.
+ * `droppedFiles`/`droppedImages` record what each stage dropped to fit its
+ * model budget.
  */
 export function serializeCoverage(coverage: CoverageAccumulator): string {
 	return JSON.stringify({
 		code: coverage.code?.coverage ?? UNAVAILABLE,
-		images: UNAVAILABLE,
+		images: coverage.images?.coverage ?? UNAVAILABLE,
 		metadata: UNAVAILABLE,
 		droppedFiles: coverage.code ? [...coverage.code.droppedFiles] : [],
+		droppedImages: coverage.images ? [...coverage.images.droppedImages] : [],
 	});
 }
 
@@ -90,19 +105,19 @@ export function createCodeAiStage(options: CodeAiStageOptions): StageAdapter {
 		// The declared surface is passed capabilities-only, matching the calibration
 		// input shape; the production declaredAccess vocabulary (from
 		// declaredAccessToCapabilities) differs from the legacy fixture vocabulary and
-		// must be re-validated by the calibration sweep. Second calibration-input
-		// divergence for that sweep: `description` is empty below — the bundle
-		// manifest carries no name/description, and the misleading-metadata and
-		// privacy-risk categories are rooted in the plugin's stated purpose, so they
-		// run near-inert until the acquire-consumer slice threads the release
-		// record's description through these options.
+		// must be re-validated by the calibration sweep. `description` is the release's
+		// advertised profile description resolved during acquisition — the stated
+		// purpose the misleading-metadata and privacy-risk categories key on; the
+		// calibration sweep must run against this real-description input (its second
+		// input divergence). Absent when the profile is unindexed, leaving those
+		// categories near-inert for that run only.
 		const { capabilities } = declaredAccessToCapabilities(acquired.bundle.declaredAccess);
 		const input: CodeAnalysisInput = {
 			files: acquired.files,
 			declaredAccess: capabilities,
 			metadata: {
 				name: acquired.bundle.manifest.id,
-				description: "",
+				description: acquired.description ?? "",
 				publisherDid: parseAtUri(ctx.assessment.uri).did,
 				version: acquired.bundle.manifest.version,
 			},
@@ -122,6 +137,71 @@ export function createCodeAiStage(options: CodeAiStageOptions): StageAdapter {
 		}
 
 		options.coverage.code = { coverage: result.coverage, droppedFiles: result.droppedFiles };
+		return result.findings;
+	};
+}
+
+export interface ImageAiStageOptions {
+	readonly holder: AcquisitionHolder;
+	readonly ai: ImageAiBinding;
+	readonly policy: ModerationPolicy;
+	readonly promptVersion: string;
+	readonly modelId?: string;
+	readonly coverage: CoverageAccumulator;
+}
+
+/**
+ * Builds the orchestrator's `imageAi` stage. With no acquired bundle there is
+ * nothing to analyze. Otherwise the deterministic extractor turns the bundle's
+ * binary files into the vision adapter's image set: no image files records
+ * `not-present` and skips the model; any images run `analyzeImages`. Image
+ * coverage is `partial` when the extractor skipped an unreadable/over-cap image
+ * OR the adapter dropped one for its input budget. A `ModelTransientError`
+ * becomes a `StageTransientError` so the orchestrator retries rather than
+ * finalizing on a flaky model call.
+ */
+export function createImageAiStage(options: ImageAiStageOptions): StageAdapter {
+	return async (ctx) => {
+		const acquired = options.holder.result;
+		if (!acquired) return [];
+
+		const { images, skipped } = await extractBundleImages(acquired.bundle.files);
+		if (images.length === 0) {
+			options.coverage.images =
+				skipped.length > 0
+					? { coverage: "partial", droppedImages: skipped }
+					: { coverage: "not-present", droppedImages: [] };
+			return [];
+		}
+
+		const input: ImageAnalysisInput = {
+			images,
+			metadata: {
+				name: acquired.bundle.manifest.id,
+				description: acquired.description ?? "",
+				publisherDid: parseAtUri(ctx.assessment.uri).did,
+				version: acquired.bundle.manifest.version,
+			},
+		};
+
+		let result: ImageAnalysisResult;
+		try {
+			result = await analyzeImages(input, {
+				ai: options.ai,
+				policy: options.policy,
+				promptVersion: options.promptVersion,
+				...(options.modelId !== undefined ? { modelId: options.modelId } : {}),
+			});
+		} catch (err) {
+			if (err instanceof ModelTransientError) throw new StageTransientError(err.message);
+			throw err;
+		}
+
+		const partial = skipped.length > 0 || result.coverage === "partial";
+		options.coverage.images = {
+			coverage: partial ? "partial" : "complete",
+			droppedImages: [...skipped, ...result.droppedImages],
+		};
 		return result.findings;
 	};
 }

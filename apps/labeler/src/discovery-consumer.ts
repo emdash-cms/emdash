@@ -7,8 +7,8 @@
  * (assessment-dispatch.ts), so a redelivered discovery event dedups onto the
  * same instance while a later re-assessment (distinct trigger → distinct
  * runKey) gets its own. `AssessmentWorkflow` (assessment-workflow.ts) then
- * drives `pending → running → finalization` through the orchestrator (still
- * stub stages until W7/W8 land real stage adapters).
+ * drives `pending → running → finalization` through the orchestrator's real
+ * acquire → code → image → history stages.
  *
  * Error policy mirrors the aggregator's records-consumer with one
  * difference (spec §9.1): a forged or unverifiable event is ALWAYS a dead

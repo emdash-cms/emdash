@@ -73,6 +73,8 @@ export default defineConfig({
 		"src/index.ts",
 		// Request context (ALS singleton - must be a separate entry for dedup)
 		"src/request-context.ts",
+		// SSRF egress primitives (DoH resolver) — consumed by the registry labeler Worker
+		"src/security/ssrf.ts",
 		// Astro integration (build-time)
 		"src/astro/index.ts",
 		"src/astro/middleware.ts",

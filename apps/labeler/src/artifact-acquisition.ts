@@ -123,6 +123,11 @@ export interface AcquisitionTarget {
 	 * declaration when present. */
 	readonly pinnedChecksum?: string | null;
 	readonly pinnedArtifactId?: string | null;
+	/** The release's advertised human description (the publisher's package-profile
+	 * description), for the code/image stages' stated-purpose analysis. Best-effort
+	 * — absent when the profile is unindexed. Carried through to the acquired
+	 * artifact; never an integrity input. */
+	readonly description?: string;
 }
 
 export interface AcquiredArtifact {
@@ -133,6 +138,9 @@ export interface AcquiredArtifact {
 	readonly files: readonly CodeAnalysisFile[];
 	/** The checksum-verified compressed bundle bytes. */
 	readonly bytes: Uint8Array;
+	/** The release's advertised description, carried from the target for the
+	 * analysis stages' stated-purpose input. Absent when unindexed. */
+	readonly description?: string;
 }
 
 export type AcquisitionResult =
@@ -312,6 +320,7 @@ async function verifyAndUnpack(
 			bundle: bundle.value,
 			files: fileSet.files,
 			bytes,
+			...(target.description !== undefined ? { description: target.description } : {}),
 		},
 	};
 }

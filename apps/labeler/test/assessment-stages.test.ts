@@ -21,6 +21,7 @@ import {
 import {
 	createCodeAiStage,
 	createHistoryStage,
+	createImageAiStage,
 	serializeCoverage,
 	type CoverageAccumulator,
 } from "../src/assessment-stages.js";
@@ -31,6 +32,7 @@ import {
 } from "../src/assessment-store.js";
 import type { AiBinding, AiRunInputs } from "../src/code-ai-adapter.js";
 import type { PublisherVerificationReader } from "../src/history-context.js";
+import type { ImageAiBinding } from "../src/image-ai-adapter.js";
 import { MODERATION_POLICY } from "../src/policy.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
 import { canonicalBundle, checksumOf, file } from "./bundle-fixture.js";
@@ -395,6 +397,234 @@ describe("analysis stages: acquire produced no bundle", () => {
 		expect(holder.result).toBeUndefined();
 		expect(await labelNeg(run.uri, run.cid, "artifact-integrity-failure")).toBe(0);
 		expect(JSON.parse(result.coverageJson).code).toBe("unavailable");
+	});
+});
+
+function pngBytes(width: number, height: number): Uint8Array {
+	const bytes = new Uint8Array(24);
+	bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+	bytes.set([0x00, 0x00, 0x00, 0x0d], 8);
+	bytes.set([0x49, 0x48, 0x44, 0x52], 12);
+	const view = new DataView(bytes.buffer);
+	view.setUint32(16, width);
+	view.setUint32(20, height);
+	return bytes;
+}
+
+function imageFakeAi(run: (model: string, inputs: unknown) => Promise<unknown>): ImageAiBinding {
+	return { run: run as ImageAiBinding["run"] };
+}
+
+const IMAGE_WARN_FINDING = {
+	category: "obfuscated-code",
+	severity: "medium",
+	title: "suspicious UI",
+	publicSummary: "the icon mimics a system dialog",
+	privateDetail: "icon.png renders a fake credential prompt",
+	affectedImages: ["icon.png"],
+};
+
+/** Acquire stage variant that pins a description onto the resolved target, so
+ * the AI stages receive a real stated-purpose input. */
+function acquireStageWithDescription(
+	bytes: Uint8Array,
+	checksum: string,
+	holder: AcquisitionHolder,
+	description: string,
+) {
+	return createAcquireStage({
+		deps: {
+			fetch: async () => new Response(bytes),
+			resolveHostname: async () => ["203.0.113.5"],
+		},
+		resolveTarget: async () => ({
+			url: "https://cdn.example.test/plugin.tgz",
+			checksum,
+			slug: "test-plugin",
+			version: "1.0.0",
+			description,
+		}),
+		holder,
+	});
+}
+
+describe("analysis stages: image AI stage", () => {
+	it("runs the vision model over extracted images and flows findings into the outcome", async () => {
+		const run = await pendingRun("image-warn");
+		const bytes = await canonicalBundle([file("icon.png", pngBytes(128, 128))]);
+		const holder: AcquisitionHolder = {};
+		const coverage: CoverageAccumulator = {};
+		const codeAi = fakeAi(() => Promise.resolve(findingResponse([])));
+		const imageAi = imageFakeAi(() =>
+			Promise.resolve({ response: JSON.stringify({ findings: [IMAGE_WARN_FINDING] }) }),
+		);
+		const stages: OrchestratorStages = {
+			...stubStages,
+			acquire: acquireStage(bytes, await checksumOf(bytes), holder),
+			codeAi: createCodeAiStage({
+				holder,
+				ai: codeAi,
+				policy: MODERATION_POLICY,
+				promptVersion: PROMPT_VERSION,
+				coverage,
+			}),
+			imageAi: createImageAiStage({
+				holder,
+				ai: imageAi,
+				policy: MODERATION_POLICY,
+				promptVersion: PROMPT_VERSION,
+				coverage,
+			}),
+			history: createHistoryStage({ db: testEnv.DB, src: LABELER_DID }),
+		};
+
+		const result = await (await buildOrchestrator(stages, { coverage })).runAssessment(run.id);
+
+		expect(result.state).toBe("warned");
+		expect(await labelNeg(run.uri, run.cid, "obfuscated-code")).toBe(0);
+		expect(JSON.parse(result.coverageJson).images).toBe("complete");
+	});
+
+	it("records not-present and never calls the model when the bundle has no images", async () => {
+		const run = await pendingRun("image-none");
+		const bytes = await canonicalBundle();
+		const holder: AcquisitionHolder = {};
+		const coverage: CoverageAccumulator = {};
+		let imageModelCalled = false;
+		const imageAi = imageFakeAi(() => {
+			imageModelCalled = true;
+			return Promise.resolve({ response: JSON.stringify({ findings: [] }) });
+		});
+		const stages: OrchestratorStages = {
+			...stubStages,
+			acquire: acquireStage(bytes, await checksumOf(bytes), holder),
+			codeAi: createCodeAiStage({
+				holder,
+				ai: fakeAi(() => Promise.resolve(findingResponse([]))),
+				policy: MODERATION_POLICY,
+				promptVersion: PROMPT_VERSION,
+				coverage,
+			}),
+			imageAi: createImageAiStage({
+				holder,
+				ai: imageAi,
+				policy: MODERATION_POLICY,
+				promptVersion: PROMPT_VERSION,
+				coverage,
+			}),
+			history: createHistoryStage({ db: testEnv.DB, src: LABELER_DID }),
+		};
+
+		const result = await (await buildOrchestrator(stages, { coverage })).runAssessment(run.id);
+
+		expect(result.state).toBe("passed");
+		expect(imageModelCalled).toBe(false);
+		expect(JSON.parse(result.coverageJson).images).toBe("not-present");
+	});
+
+	it("keeps a code-stage block when the image stage transient-exhausts (not discarded to error)", async () => {
+		const run = await pendingRun("image-block-preserved");
+		const bytes = await canonicalBundle([file("icon.png", pngBytes(128, 128))]);
+		const holder: AcquisitionHolder = {};
+		const coverage: CoverageAccumulator = {};
+		const codeAi = fakeAi(() => Promise.resolve(findingResponse([BLOCK_FINDING])));
+		const imageAi = imageFakeAi(() => Promise.reject(new Error("vision model overloaded")));
+		const stages: OrchestratorStages = {
+			...stubStages,
+			acquire: acquireStage(bytes, await checksumOf(bytes), holder),
+			codeAi: createCodeAiStage({
+				holder,
+				ai: codeAi,
+				policy: MODERATION_POLICY,
+				promptVersion: PROMPT_VERSION,
+				coverage,
+			}),
+			imageAi: createImageAiStage({
+				holder,
+				ai: imageAi,
+				policy: MODERATION_POLICY,
+				promptVersion: PROMPT_VERSION,
+				coverage,
+			}),
+			history: createHistoryStage({ db: testEnv.DB, src: LABELER_DID }),
+		};
+
+		const result = await (
+			await buildOrchestrator(stages, { coverage, maxStageRetries: 1 })
+		).runAssessment(run.id);
+
+		expect(result.state).toBe("blocked");
+		expect(await labelNeg(run.uri, run.cid, "malware")).toBe(0);
+		expect(await labelNeg(run.uri, run.cid, "assessment-error")).toBeUndefined();
+		expect(await labelNeg(run.uri, run.cid, "assessment-passed")).toBeUndefined();
+	});
+
+	it("finalizes error on a transient image model failure and reports code complete, images unavailable", async () => {
+		const run = await pendingRun("image-transient");
+		const bytes = await canonicalBundle([file("icon.png", pngBytes(128, 128))]);
+		const holder: AcquisitionHolder = {};
+		const coverage: CoverageAccumulator = {};
+		const imageAi = imageFakeAi(() => Promise.reject(new Error("vision model overloaded")));
+		const stages: OrchestratorStages = {
+			...stubStages,
+			acquire: acquireStage(bytes, await checksumOf(bytes), holder),
+			codeAi: createCodeAiStage({
+				holder,
+				ai: fakeAi(() => Promise.resolve(findingResponse([]))),
+				policy: MODERATION_POLICY,
+				promptVersion: PROMPT_VERSION,
+				coverage,
+			}),
+			imageAi: createImageAiStage({
+				holder,
+				ai: imageAi,
+				policy: MODERATION_POLICY,
+				promptVersion: PROMPT_VERSION,
+				coverage,
+			}),
+			history: createHistoryStage({ db: testEnv.DB, src: LABELER_DID }),
+		};
+
+		const result = await (
+			await buildOrchestrator(stages, { coverage, maxStageRetries: 1 })
+		).runAssessment(run.id);
+
+		expect(result.state).toBe("error");
+		const parsed = JSON.parse(result.coverageJson);
+		expect(parsed.code).toBe("complete");
+		expect(parsed.images).toBe("unavailable");
+	});
+});
+
+describe("analysis stages: release description threading", () => {
+	it("passes the resolved release description into the code model input", async () => {
+		const run = await pendingRun("desc-thread");
+		const bytes = await canonicalBundle();
+		const holder: AcquisitionHolder = {};
+		const coverage: CoverageAccumulator = {};
+		const description = "Imports your contacts and posts on your behalf.";
+		let capturedInput = "";
+		const codeAi = fakeAi((_model, inputs) => {
+			capturedInput = JSON.stringify(inputs);
+			return Promise.resolve(findingResponse([]));
+		});
+		const stages: OrchestratorStages = {
+			...stubStages,
+			acquire: acquireStageWithDescription(bytes, await checksumOf(bytes), holder, description),
+			codeAi: createCodeAiStage({
+				holder,
+				ai: codeAi,
+				policy: MODERATION_POLICY,
+				promptVersion: PROMPT_VERSION,
+				coverage,
+			}),
+			history: createHistoryStage({ db: testEnv.DB, src: LABELER_DID }),
+		};
+
+		const result = await (await buildOrchestrator(stages, { coverage })).runAssessment(run.id);
+
+		expect(result.state).toBe("passed");
+		expect(capturedInput).toContain(description);
 	});
 });
 
