@@ -60,13 +60,7 @@ function isUnsafeMethod(method: string): boolean {
 }
 
 function csrfRejectedResponse(): Response {
-	return new Response(
-		JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
-		{
-			status: 403,
-			headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-		},
-	);
+	return apiError("CSRF_REJECTED", "Missing required header", 403);
 }
 
 function mcpUnauthorizedResponse(
@@ -224,15 +218,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
 			const csrfHeader = context.request.headers.get("X-EmDash-Request");
 			if (csrfHeader !== "1") {
-				return new Response(
-					JSON.stringify({
-						error: { code: "CSRF_REJECTED", message: "Missing required header" },
-					}),
-					{
-						status: 403,
-						headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-					},
-				);
+				return apiError("CSRF_REJECTED", "Missing required header", 403);
 			}
 		}
 		return next();
@@ -418,13 +404,7 @@ async function handlePluginRouteAuth(
 		if (bearerResult === "invalid") {
 			// A token was presented but is invalid/expired — return 401 so the
 			// caller knows their token is bad (don't silently downgrade to no-auth).
-			return new Response(
-				JSON.stringify({ error: { code: "INVALID_TOKEN", message: "Invalid or expired token" } }),
-				{
-					status: 401,
-					headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-				},
-			);
+			return apiError("INVALID_TOKEN", "Invalid or expired token", 401);
 		}
 		// "none" — no token presented, try external/session auth below.
 	} catch (error) {
@@ -701,10 +681,7 @@ async function handlePasskeyAuth(
 
 		if (!sessionUser?.id) {
 			if (isApiRoute) {
-				return Response.json(
-					{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
-					{ status: 401, headers: MW_CACHE_HEADERS },
-				);
+				return apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			loginUrl.searchParams.set("redirect", url.pathname);
@@ -719,10 +696,7 @@ async function handlePasskeyAuth(
 			// User no longer exists - clear session
 			session?.destroy();
 			if (isApiRoute) {
-				return Response.json(
-					{ error: { code: "NOT_FOUND", message: "User not found" } },
-					{ status: 401, headers: MW_CACHE_HEADERS },
-				);
+				return apiError("NOT_FOUND", "User not found", 401);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			return context.redirect(loginUrl.toString());
@@ -834,28 +808,12 @@ function enforceTokenScope(
 		if (ruleMethod === "*" || (ruleMethod === "WRITE" && isWrite) || ruleMethod === method) {
 			if (hasScope(tokenScopes, scope)) return null;
 
-			return new Response(
-				JSON.stringify({
-					error: {
-						code: "INSUFFICIENT_SCOPE",
-						message: `Token lacks required scope: ${scope}`,
-					},
-				}),
-				{ status: 403, headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS } },
-			);
+			return apiError("INSUFFICIENT_SCOPE", `Token lacks required scope: ${scope}`, 403);
 		}
 	}
 
 	// No rule matched — default to admin scope (fail-closed)
 	if (hasScope(tokenScopes, "admin")) return null;
 
-	return new Response(
-		JSON.stringify({
-			error: {
-				code: "INSUFFICIENT_SCOPE",
-				message: "Token lacks required scope: admin",
-			},
-		}),
-		{ status: 403, headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS } },
-	);
+	return apiError("INSUFFICIENT_SCOPE", "Token lacks required scope: admin", 403);
 }
