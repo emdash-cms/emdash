@@ -201,6 +201,36 @@ function emergencyNoticeContent(
 			};
 }
 
+/** The two reconsideration outcomes that notify. `withdrawn` fires nothing, so
+ * it is deliberately absent from this union. */
+export type ReconsiderationNoticeOutcome = "granted" | "denied";
+
+function reconsiderationOutcomeNoticeContent(
+	urls: NoticeUrls,
+	input: { uri: string; cid?: string; outcome: ReconsiderationNoticeOutcome },
+): NoticeContent {
+	const granted = input.outcome === "granted";
+	const shared = {
+		assessmentUrl: assessmentUrl(urls.serviceUrl, input.uri, input.cid),
+		reconsiderationUrl: urls.reconsiderationUrl,
+	};
+	return granted
+		? {
+				subject: "Your reconsideration request was granted",
+				publicSummary:
+					"After reviewing your reconsideration request, the labeler revised its assessment of this release.",
+				effect: "Any resulting label changes are reflected in the current assessment.",
+				...shared,
+			}
+		: {
+				subject: "Your reconsideration request was reviewed",
+				publicSummary:
+					"After reviewing your reconsideration request, the labeler upheld its assessment of this release.",
+				effect: "The assessment stands unchanged.",
+				...shared,
+			};
+}
+
 // ── Live trigger entry points ───────────────────────────────────────────────
 
 /** Automated block/warning notice from a finalized assessment run. Source is the
@@ -279,6 +309,23 @@ export async function notifyEmergencyTakedown(
 	);
 }
 
+/** Reconsideration outcome notice (console `reconsiderations/:id/resolve`). Fired
+ * only for `granted`/`denied`; the caller never invokes it for `withdrawn`. Source
+ * is the resolve operator action, so a mutation replay dedups on it. */
+export async function notifyReconsiderationOutcome(
+	deps: NotifyDeps,
+	input: { actionId: string; uri: string; cid?: string; outcome: ReconsiderationNoticeOutcome },
+): Promise<void> {
+	const target = contactTargetFromUri(input.uri);
+	if (!target) return;
+	await runTrigger(
+		deps,
+		{ type: "operator", id: input.actionId },
+		target,
+		reconsiderationOutcomeNoticeContent(deps, input),
+	);
+}
+
 /**
  * Rebuild a NOTICE's public content from its source row, for the retry sweep.
  * Nothing about the notice is persisted (plaintext minimization), so a retry
@@ -321,9 +368,28 @@ export async function resolveNoticeForSource(
 			return overrideRetractNoticeContent(deps, { uri, cid });
 		case "takedown":
 			return emergencyNoticeContent(deps, { uri, neg: operatorActionNeg(action.metadataJson) });
+		case "reconsideration-resolve": {
+			const outcome = reconsiderationNoticeOutcome(action.metadataJson);
+			return outcome ? reconsiderationOutcomeNoticeContent(deps, { uri, cid, outcome }) : null;
+		}
 		default:
 			return null;
 	}
+}
+
+/** The notifying outcome a resolve action stored in its metadata, or null when it
+ * is `withdrawn` (no notice) or unreadable — the sweep then abandons the row. */
+function reconsiderationNoticeOutcome(metadataJson: string): ReconsiderationNoticeOutcome | null {
+	try {
+		const parsed: unknown = JSON.parse(metadataJson);
+		if (typeof parsed === "object" && parsed !== null) {
+			const outcome = (parsed as { outcome?: unknown }).outcome;
+			if (outcome === "granted" || outcome === "denied") return outcome;
+		}
+	} catch {
+		return null;
+	}
+	return null;
 }
 
 /** `getAssessment` throws `TypeError` only for a malformed id — which a stored

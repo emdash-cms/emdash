@@ -16,7 +16,10 @@ export type OperatorActionType =
 	| "pause-issuance"
 	| "resume-issuance"
 	| "dlq-retry"
-	| "dlq-quarantine";
+	| "dlq-quarantine"
+	| "reconsideration-open"
+	| "reconsideration-note"
+	| "reconsideration-resolve";
 
 export interface StoredOperatorAction {
 	id: string;

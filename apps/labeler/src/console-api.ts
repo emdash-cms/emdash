@@ -41,6 +41,8 @@ import {
 	serializeOperatorActionView,
 	serializeOperatorFinding,
 	serializePublisherHistory,
+	serializeReconsideration,
+	serializeReconsiderationNote,
 	serializeSubjectLabel,
 	serializeSubjectRecord,
 	type Page,
@@ -51,6 +53,11 @@ import { computeEffectPreview, computeOverrideEffectPreview } from "./label-effe
 import { MutationGuardError } from "./mutation-guard.js";
 import { getOperatorActionsPage } from "./operator-actions.js";
 import { guardRead, ReadGuardError, type ReadGuardDeps } from "./operator-read-guard.js";
+import {
+	getNotesForReconsideration,
+	getReconsiderationById,
+	getReconsiderationsPage,
+} from "./reconsiderations.js";
 import { assertNegatableBlockSet, NegatableBlockSetError, parseSubjectKind } from "./service.js";
 
 const DEFAULT_LIMIT = 50;
@@ -132,6 +139,11 @@ function matchRoute(
 		return () => handleListAuditLog(request, url, deps);
 	} else if (segments[0] === "dead-letters" && segments.length === 1) {
 		return () => handleListDeadLetters(request, url, deps);
+	} else if (segments[0] === "reconsiderations") {
+		if (segments.length === 1) return () => handleListReconsiderations(request, url, deps);
+		const id = segments[1];
+		if (id !== undefined && segments.length === 2)
+			return () => handleGetReconsideration(request, deps, id);
 	} else if (segments[0] === "status" && segments.length === 1) {
 		return () => handleGetStatus(request, deps);
 	} else if (segments[0] === "whoami" && segments.length === 1) {
@@ -389,6 +401,47 @@ function parseCursorId(raw: string): number {
 	const id = Number(raw);
 	if (!Number.isSafeInteger(id) || id <= 0) throw new ReadGuardError("INVALID_CURSOR");
 	return id;
+}
+
+/** Lists reconsideration cases newest-first for the operator console (plan
+ * W10.6). Keyset pagination on `opened_at`, mirroring the audit log. */
+async function handleListReconsiderations(
+	request: Request,
+	url: URL,
+	deps: ConsoleApiDeps,
+): Promise<Response> {
+	requireGet(request);
+	const limit = parseLimit(url.searchParams);
+	const filterHash = await computeFilterHash({});
+	const keyset = decodeReadCursor(url.searchParams.get("cursor"), filterHash);
+
+	const rows = await getReconsiderationsPage(deps.db, keyset, limit);
+	const hasMore = rows.length > limit;
+	const page = hasMore ? rows.slice(0, limit) : rows;
+	const last = page.at(-1);
+	const body: Page<ReturnType<typeof serializeReconsideration>> = {
+		items: page.map(serializeReconsideration),
+		...(hasMore && last
+			? { nextCursor: encodeCursor({ createdAt: last.openedAt, id: last.id }, filterHash) }
+			: {}),
+	};
+	return jsonData(body);
+}
+
+/** One reconsideration case plus its private note thread (oldest-first). */
+async function handleGetReconsideration(
+	request: Request,
+	deps: ConsoleApiDeps,
+	id: string,
+): Promise<Response> {
+	requireGet(request);
+	const reconsideration = await getReconsiderationById(deps.db, id);
+	if (!reconsideration) throw new ReadGuardError("NOT_FOUND");
+	const notes = await getNotesForReconsideration(deps.db, id);
+	return jsonData({
+		reconsideration: serializeReconsideration(reconsideration),
+		notes: notes.map(serializeReconsiderationNote),
+	});
 }
 
 async function handleGetStatus(request: Request, deps: ConsoleApiDeps): Promise<Response> {

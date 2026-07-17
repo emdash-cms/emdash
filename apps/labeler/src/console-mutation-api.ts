@@ -15,7 +15,12 @@
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
 import { ulid } from "ulidx";
 
-import type { AccessAuthConfig, AccessKeyResolver } from "./access-auth.js";
+import type {
+	AccessAuthConfig,
+	AccessKeyResolver,
+	OperatorIdentity,
+	OperatorRole,
+} from "./access-auth.js";
 import {
 	automatedIdempotencyKey,
 	computeRunKey,
@@ -50,6 +55,7 @@ import {
 	notifyOperatorLabel,
 	notifyOverride,
 	notifyOverrideRetract,
+	notifyReconsiderationOutcome,
 	type NotifyDeps,
 } from "./notification-triggers.js";
 import {
@@ -60,6 +66,17 @@ import {
 } from "./operational-events.js";
 import { ReadGuardError } from "./operator-read-guard.js";
 import { getLabelDefinition, MODERATION_POLICY } from "./policy.js";
+import {
+	buildReconsiderationInsert,
+	buildReconsiderationNoteInsert,
+	buildReconsiderationResolveUpdate,
+	getOpenCaseForSubject,
+	getReconsiderationById,
+	isOpenReconsiderationConflict,
+	newReconsiderationId,
+	newReconsiderationNoteId,
+	type ReconsiderationOutcome,
+} from "./reconsiderations.js";
 import {
 	assertNegatableBlockSet,
 	LabelIssuanceUnavailableError,
@@ -205,6 +222,15 @@ export async function handleConsoleMutation(
 			if (segments[2] === "quarantine")
 				return await runDeadLetterAction(request, deps, id, "quarantined");
 		}
+		if (segments[0] === "reconsiderations") {
+			if (segments.length === 2 && segments[1] === "open")
+				return await runReconsiderationOpen(request, deps);
+			if (segments.length === 3 && segments[1] !== undefined) {
+				const id = segments[1];
+				if (segments[2] === "note") return await runReconsiderationNote(request, deps, id);
+				if (segments[2] === "resolve") return await runReconsiderationResolve(request, deps, id);
+			}
+		}
 		throw new ReadGuardError("NOT_FOUND");
 	} catch (error) {
 		if (
@@ -212,7 +238,8 @@ export async function handleConsoleMutation(
 			error instanceof ReadGuardError ||
 			error instanceof LabelMutationError ||
 			error instanceof DeadLetterResolvedError ||
-			error instanceof NoActiveLabelError
+			error instanceof NoActiveLabelError ||
+			error instanceof ReconsiderationStateError
 		)
 			return error.toResponse();
 		// A submitted override negation set that isn't exactly the live automated
@@ -587,6 +614,24 @@ function deferTakedownNotify(deps: ConsoleMutationDeps, d: EmergencyDescriptor):
 	if (!deps.notify) return;
 	deps.defer(
 		notifyEmergencyTakedown(deps.notify, { actionId: d.actionId, uri: d.uri, neg: d.neg }),
+	);
+}
+
+/** A resolve fires an outcome notice only for `granted`/`denied`; `withdrawn`
+ * notifies nothing. Keyed on the resolve action id so a replay dedups. */
+function deferReconsiderationNotify(
+	deps: ConsoleMutationDeps,
+	d: ReconsiderationResolveDescriptor,
+): void {
+	if (!deps.notify) return;
+	if (d.outcome !== "granted" && d.outcome !== "denied") return;
+	deps.defer(
+		notifyReconsiderationOutcome(deps.notify, {
+			actionId: d.actionId,
+			uri: d.uri,
+			cid: d.cid,
+			outcome: d.outcome,
+		}),
 	);
 }
 
@@ -1335,4 +1380,382 @@ function parseDeadLetterId(raw: string): number {
 	const id = Number(raw);
 	if (!Number.isSafeInteger(id)) throw new ReadGuardError("NOT_FOUND");
 	return id;
+}
+
+// ─── W10.6: reconsideration case management + outcome notice ──────────────────
+
+const NOTE_MAX_LENGTH = 10_000;
+const RECONSIDERATION_OUTCOMES: ReadonlySet<string> = new Set(["granted", "denied", "withdrawn"]);
+
+type ReconsiderationStateCode = "RECONSIDERATION_OPEN_EXISTS" | "RECONSIDERATION_RESOLVED";
+
+/** A case-state conflict: a second open for a subject that already has an open
+ * case, or a resolve of an already-resolved case. A 409 rather than a spurious
+ * success. Static messages; neither echoes operator-supplied content. */
+class ReconsiderationStateError extends Error {
+	override readonly name = "ReconsiderationStateError";
+	readonly code: ReconsiderationStateCode;
+	readonly status = 409;
+
+	constructor(code: ReconsiderationStateCode) {
+		super(
+			code === "RECONSIDERATION_OPEN_EXISTS"
+				? "An open reconsideration already exists for this subject"
+				: "Reconsideration is already resolved",
+		);
+		this.code = code;
+	}
+
+	toResponse(): Response {
+		return Response.json(
+			{ error: { code: this.code, message: this.message } },
+			{ status: this.status },
+		);
+	}
+}
+
+interface ReconsiderationOpenBody {
+	assessmentId: string;
+	note: string;
+}
+
+/** `:id` folded into the parsed body so it joins the request fingerprint — a
+ * replayed key must target the same case. */
+interface ReconsiderationNoteBody {
+	reconsiderationId: string;
+	note: string;
+}
+
+interface ReconsiderationResolveBody {
+	reconsiderationId: string;
+	outcome: ReconsiderationOutcome;
+	note?: string;
+}
+
+interface ReconsiderationOpenDescriptor {
+	actionId: string;
+	reconsiderationId: string;
+	uri: string;
+	cid: string;
+	triggeringAssessmentId: string;
+	cts: string;
+}
+
+interface ReconsiderationNoteDescriptor {
+	actionId: string;
+	reconsiderationId: string;
+	noteId: string;
+	cts: string;
+}
+
+interface ReconsiderationResolveDescriptor {
+	actionId: string;
+	reconsiderationId: string;
+	outcome: ReconsiderationOutcome;
+	uri: string;
+	cid: string;
+	cts: string;
+}
+
+/** The actor provenance columns shared by the case and its notes, derived like
+ * `commitMutation`'s audit actor: a human carries an email, a service a common name. */
+function reconsiderationActor(ctx: { identity: OperatorIdentity; role: OperatorRole }): {
+	id: string;
+	email: string | null;
+	commonName: string | null;
+	role: OperatorRole;
+} {
+	return {
+		id: ctx.identity.sub,
+		email: ctx.identity.kind === "human" ? ctx.identity.email : null,
+		commonName: ctx.identity.kind === "service" ? ctx.identity.commonName : null,
+		role: ctx.role,
+	};
+}
+
+function requireNote(value: unknown): string {
+	if (typeof value !== "string" || value.trim().length === 0 || value.length > NOTE_MAX_LENGTH)
+		throw new MutationGuardError("INVALID_BODY");
+	return value;
+}
+
+function parseOutcome(value: unknown): ReconsiderationOutcome {
+	if (typeof value !== "string" || !RECONSIDERATION_OUTCOMES.has(value))
+		throw new MutationGuardError("INVALID_BODY");
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated against the set above
+	return value as ReconsiderationOutcome;
+}
+
+/**
+ * `POST /admin/api/reconsiderations/open` — opens a case for the subject of the
+ * quoted assessment (uri + cid, stable across reruns) with its first private
+ * note, and emits a `reconsideration-opened` event, all in one atomic
+ * `commitMutation` batch with the audit row. Issues no label and sends no notice.
+ * A subject that already has an open case is a 409: the pre-check handles the
+ * common path, and the partial unique index closes the race between it and the
+ * commit (mapped back to the same 409 via `isOpenReconsiderationConflict`).
+ */
+async function runReconsiderationOpen(
+	request: Request,
+	deps: ConsoleMutationDeps,
+): Promise<Response> {
+	const spec: MutationSpec<ReconsiderationOpenBody> = {
+		action: "reconsideration-open",
+		requiredRole: "reviewer",
+		parseBody: (raw) => ({
+			assessmentId: requireString(raw.assessmentId),
+			note: requireNote(raw.note),
+		}),
+		auditFields: () => ({}),
+	};
+
+	const outcome = await guardMutation(request, spec, guardDepsOf(deps));
+	if (outcome.outcome === "replay")
+		return jsonData(storedDescriptor<ReconsiderationOpenDescriptor>(outcome.result));
+
+	const { ctx } = outcome;
+	const assessment = await loadAssessment(deps.db, ctx.body.assessmentId);
+	if (await getOpenCaseForSubject(deps.db, assessment.uri, assessment.cid))
+		throw new ReconsiderationStateError("RECONSIDERATION_OPEN_EXISTS");
+
+	const reconsiderationId = newReconsiderationId();
+	const actor = reconsiderationActor(ctx);
+	const caseInsert = buildReconsiderationInsert(deps.db, {
+		id: reconsiderationId,
+		subjectUri: assessment.uri,
+		subjectCid: assessment.cid,
+		triggeringAssessmentId: assessment.id,
+		openedById: actor.id,
+		openedByEmail: actor.email,
+		openedByCommonName: actor.commonName,
+		openedByRole: actor.role,
+		openedAt: ctx.now.toISOString(),
+		openedAtEpochMs: ctx.now.getTime(),
+	});
+	const noteInsert = buildReconsiderationNoteInsert(deps.db, {
+		id: newReconsiderationNoteId(),
+		reconsiderationId,
+		authorId: actor.id,
+		authorEmail: actor.email,
+		authorCommonName: actor.commonName,
+		authorRole: actor.role,
+		note: ctx.body.note,
+		createdAt: ctx.now.toISOString(),
+		createdAtEpochMs: ctx.now.getTime(),
+	});
+	const eventInsert = buildOperationalEventInsert(deps.db, {
+		id: newOperationalEventId(),
+		eventType: "reconsideration-opened",
+		severity: "info",
+		actionId: ctx.actionId,
+		subjectUri: assessment.uri,
+		payload: { reason: ctx.reason },
+		now: ctx.now,
+	});
+
+	const descriptor: ReconsiderationOpenDescriptor = {
+		actionId: ctx.actionId,
+		reconsiderationId,
+		uri: assessment.uri,
+		cid: assessment.cid,
+		triggeringAssessmentId: assessment.id,
+		cts: ctx.now.toISOString(),
+	};
+	const commitSpec: MutationSpec<ReconsiderationOpenBody> = {
+		...spec,
+		auditFields: () => ({
+			subjectUri: assessment.uri,
+			subjectCid: assessment.cid,
+			metadata: { reconsiderationId },
+		}),
+	};
+	try {
+		return jsonData(
+			await commitMutation(
+				deps.db,
+				ctx,
+				commitSpec,
+				[caseInsert, noteInsert, eventInsert],
+				descriptor,
+			),
+		);
+	} catch (error) {
+		if (isOpenReconsiderationConflict(error))
+			throw new ReconsiderationStateError("RECONSIDERATION_OPEN_EXISTS");
+		throw error;
+	}
+}
+
+/**
+ * `POST /admin/api/reconsiderations/:id/note` — appends one private note. A note
+ * is allowed in any state (a resolved case still accepts post-hoc audit notes),
+ * so the only gate is that the case exists (404). Commits the note INSERT with
+ * the audit row; no event, no notice.
+ */
+async function runReconsiderationNote(
+	request: Request,
+	deps: ConsoleMutationDeps,
+	id: string,
+): Promise<Response> {
+	const spec: MutationSpec<ReconsiderationNoteBody> = {
+		action: "reconsideration-note",
+		requiredRole: "reviewer",
+		parseBody: (raw) => ({ reconsiderationId: id, note: requireNote(raw.note) }),
+		auditFields: () => ({}),
+	};
+
+	const outcome = await guardMutation(request, spec, guardDepsOf(deps));
+	if (outcome.outcome === "replay")
+		return jsonData(storedDescriptor<ReconsiderationNoteDescriptor>(outcome.result));
+
+	const { ctx } = outcome;
+	const existing = await getReconsiderationById(deps.db, id);
+	if (!existing) throw new ReadGuardError("NOT_FOUND");
+
+	const actor = reconsiderationActor(ctx);
+	const noteId = newReconsiderationNoteId();
+	const noteInsert = buildReconsiderationNoteInsert(deps.db, {
+		id: noteId,
+		reconsiderationId: id,
+		authorId: actor.id,
+		authorEmail: actor.email,
+		authorCommonName: actor.commonName,
+		authorRole: actor.role,
+		note: ctx.body.note,
+		createdAt: ctx.now.toISOString(),
+		createdAtEpochMs: ctx.now.getTime(),
+	});
+
+	const descriptor: ReconsiderationNoteDescriptor = {
+		actionId: ctx.actionId,
+		reconsiderationId: id,
+		noteId,
+		cts: ctx.now.toISOString(),
+	};
+	const commitSpec: MutationSpec<ReconsiderationNoteBody> = {
+		...spec,
+		auditFields: () => ({
+			subjectUri: existing.subjectUri,
+			subjectCid: existing.subjectCid,
+			metadata: { reconsiderationId: id },
+		}),
+	};
+	return jsonData(await commitMutation(deps.db, ctx, commitSpec, [noteInsert], descriptor));
+}
+
+/**
+ * `POST /admin/api/reconsiderations/:id/resolve` — sets the outcome + state,
+ * emits a `reconsideration-resolved` event, and (for `granted`/`denied`) fires
+ * the outcome notice through the W10.5 pipeline. Issues no label. The resolve is
+ * a `state = 'open'`-guarded UPDATE (like `runDeadLetterAction`): a double-resolve
+ * is a zero-row UPDATE, and the pre-check reports it as a 409. The notice fires
+ * only when this action actually won the UPDATE, so a losing concurrent resolve
+ * does not re-notify under its own action id.
+ */
+async function runReconsiderationResolve(
+	request: Request,
+	deps: ConsoleMutationDeps,
+	id: string,
+): Promise<Response> {
+	const spec: MutationSpec<ReconsiderationResolveBody> = {
+		action: "reconsideration-resolve",
+		requiredRole: "reviewer",
+		parseBody: (raw) => ({
+			reconsiderationId: id,
+			outcome: parseOutcome(raw.outcome),
+			...(raw.note === undefined ? {} : { note: requireNote(raw.note) }),
+		}),
+		auditFields: () => ({}),
+	};
+
+	const outcome = await guardMutation(request, spec, guardDepsOf(deps));
+	if (outcome.outcome === "replay") {
+		const stored = storedDescriptor<ReconsiderationResolveDescriptor>(outcome.result);
+		// Gate the replay notice on the same win check as the fresh path: a resolve
+		// that lost the guarded UPDATE (a concurrent distinct-key resolve) committed
+		// its audit row but never resolved the case, so replaying its key must not
+		// fire a second, possibly contradictory outcome notice under its own source id.
+		if (await resolveWon(deps.db, stored.reconsiderationId, stored.actionId))
+			deferReconsiderationNotify(deps, stored);
+		return jsonData(stored);
+	}
+
+	const { ctx } = outcome;
+	const existing = await getReconsiderationById(deps.db, id);
+	if (!existing) throw new ReadGuardError("NOT_FOUND");
+	if (existing.state !== "open") throw new ReconsiderationStateError("RECONSIDERATION_RESOLVED");
+
+	const actor = reconsiderationActor(ctx);
+	const resolveUpdate = buildReconsiderationResolveUpdate(deps.db, {
+		id,
+		outcome: ctx.body.outcome,
+		resolvedById: actor.id,
+		resolvedByEmail: actor.email,
+		resolvedByCommonName: actor.commonName,
+		resolvedAt: ctx.now.toISOString(),
+		resolvedAtEpochMs: ctx.now.getTime(),
+		outcomeActionId: ctx.actionId,
+	});
+	const statements: D1PreparedStatement[] = [resolveUpdate];
+	if (ctx.body.note !== undefined) {
+		statements.push(
+			buildReconsiderationNoteInsert(deps.db, {
+				id: newReconsiderationNoteId(),
+				reconsiderationId: id,
+				authorId: actor.id,
+				authorEmail: actor.email,
+				authorCommonName: actor.commonName,
+				authorRole: actor.role,
+				note: ctx.body.note,
+				createdAt: ctx.now.toISOString(),
+				createdAtEpochMs: ctx.now.getTime(),
+			}),
+		);
+	}
+	// The event is gated on this action winning the `state = 'open'` UPDATE, so a
+	// losing concurrent resolve (distinct idempotency key) commits its audit row but
+	// emits no phantom resolved-event. That loser still echoes its own requested
+	// outcome in its 200 descriptor; the authoritative case state, the resolved
+	// event, and the outcome notice all reflect only the race winner.
+	statements.push(
+		buildOperationalEventInsert(deps.db, {
+			id: newOperationalEventId(),
+			eventType: "reconsideration-resolved",
+			severity: "info",
+			actionId: ctx.actionId,
+			subjectUri: existing.subjectUri,
+			payload: { reason: ctx.reason },
+			now: ctx.now,
+			gateOnResolvedReconsideration: { reconsiderationId: id, actionId: ctx.actionId },
+		}),
+	);
+
+	const descriptor: ReconsiderationResolveDescriptor = {
+		actionId: ctx.actionId,
+		reconsiderationId: id,
+		outcome: ctx.body.outcome,
+		uri: existing.subjectUri,
+		cid: existing.subjectCid,
+		cts: ctx.now.toISOString(),
+	};
+	const commitSpec: MutationSpec<ReconsiderationResolveBody> = {
+		...spec,
+		auditFields: () => ({
+			subjectUri: existing.subjectUri,
+			subjectCid: existing.subjectCid,
+			metadata: { reconsiderationId: id, outcome: ctx.body.outcome },
+		}),
+	};
+	const returned = await commitMutation(deps.db, ctx, commitSpec, statements, descriptor);
+	if (await resolveWon(deps.db, id, returned.actionId)) deferReconsiderationNotify(deps, returned);
+	return jsonData(returned);
+}
+
+/** Whether this action won the `state = 'open'` resolve race: the case's
+ * `outcome_action_id` is ours. A loser that committed its audit row yet matched
+ * zero rows reads back the winner's id and skips its notice, so the outcome
+ * notice fires exactly once. */
+async function resolveWon(db: D1Database, id: string, actionId: string): Promise<boolean> {
+	const current = await getReconsiderationById(db, id);
+	return current?.outcomeActionId === actionId;
 }

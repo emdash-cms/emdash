@@ -30,6 +30,12 @@ import type { FindingSeverity } from "./evidence.js";
 import type { FindingSource } from "./findings.js";
 import type { StoredOperatorAction } from "./operator-actions.js";
 import { derivePublicState } from "./public-assessment.js";
+import type {
+	ReconsiderationOutcome,
+	ReconsiderationState,
+	StoredReconsideration,
+	StoredReconsiderationNote,
+} from "./reconsiderations.js";
 
 export interface AssessmentRun {
 	id: string;
@@ -165,6 +171,38 @@ export interface DeadLetter {
 	resolvedByActionId: string | null;
 }
 
+/** A reconsideration case for the operator console. */
+export interface ReconsiderationView {
+	id: string;
+	subjectUri: string;
+	subjectCid: string;
+	triggeringAssessmentId: string;
+	state: ReconsiderationState;
+	outcome: ReconsiderationOutcome | null;
+	openedById: string;
+	openedByEmail: string | null;
+	openedByCommonName: string | null;
+	openedByRole: OperatorRole;
+	openedAt: string;
+	resolvedById: string | null;
+	resolvedByEmail: string | null;
+	resolvedByCommonName: string | null;
+	resolvedAt: string | null;
+	outcomeActionId: string | null;
+}
+
+/** A private reconsideration note for the operator console. */
+export interface ReconsiderationNoteView {
+	id: string;
+	reconsiderationId: string;
+	authorId: string;
+	authorEmail: string | null;
+	authorCommonName: string | null;
+	authorRole: OperatorRole;
+	note: string;
+	createdAt: string;
+}
+
 export interface Page<T> {
 	items: T[];
 	nextCursor?: string;
@@ -293,6 +331,46 @@ export function serializeOperatorActionView(action: StoredOperatorAction): Opera
 		labelValue: action.labelValue,
 		reason: action.reason,
 		createdAt: action.createdAt,
+	};
+}
+
+/** A reconsideration case for the reviewer console. Every field is operator-only
+ * (Access-edge + reviewer gated), including the actor provenance. */
+export function serializeReconsideration(row: StoredReconsideration): ReconsiderationView {
+	return {
+		id: row.id,
+		subjectUri: row.subjectUri,
+		subjectCid: row.subjectCid,
+		triggeringAssessmentId: row.triggeringAssessmentId,
+		state: row.state,
+		outcome: row.outcome,
+		openedById: row.openedById,
+		openedByEmail: row.openedByEmail,
+		openedByCommonName: row.openedByCommonName,
+		openedByRole: row.openedByRole,
+		openedAt: row.openedAt,
+		resolvedById: row.resolvedById,
+		resolvedByEmail: row.resolvedByEmail,
+		resolvedByCommonName: row.resolvedByCommonName,
+		resolvedAt: row.resolvedAt,
+		outcomeActionId: row.outcomeActionId,
+	};
+}
+
+/** A private reconsideration note. The `note` text is operator-only and NEVER
+ * enters publisher notice copy. */
+export function serializeReconsiderationNote(
+	row: StoredReconsiderationNote,
+): ReconsiderationNoteView {
+	return {
+		id: row.id,
+		reconsiderationId: row.reconsiderationId,
+		authorId: row.authorId,
+		authorEmail: row.authorEmail,
+		authorCommonName: row.authorCommonName,
+		authorRole: row.authorRole,
+		note: row.note,
+		createdAt: row.createdAt,
 	};
 }
 
