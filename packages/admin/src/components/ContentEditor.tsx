@@ -513,11 +513,11 @@ export function ContentEditor({
 
 	const urlPattern = manifest?.collections[collection]?.urlPattern;
 
-	// When the collection configures a displayField (#1133), the editor header
+	// When the collection configures a titleField (#1133), the editor header
 	// shows the entry's title for existing entries; otherwise it keeps the
 	// generic "Edit <label>".
-	const displayField = manifest?.collections[collection]?.displayField;
-	const entryTitle = item && displayField ? getEntryTitle(item, displayField) : "";
+	const titleField = manifest?.collections[collection]?.titleField;
+	const entryTitle = item && titleField ? getEntryTitle(item, titleField) : "";
 
 	const handlePreview = async () => {
 		if (!item?.id) return;

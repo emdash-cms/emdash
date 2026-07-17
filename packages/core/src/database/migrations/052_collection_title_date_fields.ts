@@ -4,9 +4,9 @@ import { sql } from "kysely";
 import { columnExists } from "../dialect-helpers.js";
 
 /**
- * Migration: configurable display and date fields for collections
+ * Migration: configurable title and date fields for collections
  *
- * Adds `display_field` and `date_field` columns to `_emdash_collections` so a
+ * Adds `title_field` and `date_field` columns to `_emdash_collections` so a
  * collection can override which field powers the Title column and which field
  * powers the Date column in the admin content list. Both are nullable — NULL
  * preserves the current defaults (title-style display, last-updated date).
@@ -15,10 +15,10 @@ import { columnExists } from "../dialect-helpers.js";
  * migration can partially apply without being recorded and later re-run.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
-	if (!(await columnExists(db, "_emdash_collections", "display_field"))) {
+	if (!(await columnExists(db, "_emdash_collections", "title_field"))) {
 		await sql`
 			ALTER TABLE _emdash_collections
-			ADD COLUMN display_field TEXT
+			ADD COLUMN title_field TEXT
 		`.execute(db);
 	}
 	if (!(await columnExists(db, "_emdash_collections", "date_field"))) {
@@ -36,10 +36,10 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 			DROP COLUMN date_field
 		`.execute(db);
 	}
-	if (await columnExists(db, "_emdash_collections", "display_field")) {
+	if (await columnExists(db, "_emdash_collections", "title_field")) {
 		await sql`
 			ALTER TABLE _emdash_collections
-			DROP COLUMN display_field
+			DROP COLUMN title_field
 		`.execute(db);
 	}
 }

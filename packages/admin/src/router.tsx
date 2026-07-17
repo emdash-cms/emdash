@@ -603,7 +603,7 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
-			displayField={collectionConfig.displayField}
+			titleField={collectionConfig.titleField}
 			dateField={collectionConfig.dateField}
 			sort={sort}
 			onSortChange={setSortOverride}

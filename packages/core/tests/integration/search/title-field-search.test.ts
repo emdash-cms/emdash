@@ -10,10 +10,10 @@ import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js"
 
 /**
  * #1133: search results should show the same title as the content list. When a
- * collection sets `displayField`, the result title comes from that field's
+ * collection sets `titleField`, the result title comes from that field's
  * column, not the physical `title` column.
  */
-describe("search: displayField drives the result title (#1133)", () => {
+describe("search: titleField drives the result title (#1133)", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
@@ -38,7 +38,7 @@ describe("search: displayField drives the result title (#1133)", () => {
 			type: "string",
 			searchable: true,
 		});
-		await registry.updateCollection("employees", { displayField: "name" });
+		await registry.updateCollection("employees", { titleField: "name" });
 		await fts.enableSearch("employees");
 
 		const repo = new ContentRepository(db);
@@ -54,7 +54,7 @@ describe("search: displayField drives the result title (#1133)", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("returns the displayField value as the result title, not the title column", async () => {
+	it("returns the titleField value as the result title, not the title column", async () => {
 		const res = await searchWithDb(db, "Amy");
 		const hit = res.items.find((i) => i.collection === "employees");
 		expect(hit?.title).toBe("Amy Morse");

@@ -285,7 +285,7 @@ export class FTSManager {
 	async getSearchConfig(collectionSlug: string): Promise<SearchConfig | null> {
 		const result = await this.db
 			.selectFrom("_emdash_collections")
-			.select(["search_config", "display_field"])
+			.select(["search_config", "title_field"])
 			.where("slug", "=", collectionSlug)
 			.executeTakeFirst();
 
@@ -304,7 +304,7 @@ export class FTSManager {
 				return null;
 			}
 			const config: SearchConfig = { enabled: parsed.enabled };
-			if (result.display_field) config.displayField = result.display_field;
+			if (result.title_field) config.titleField = result.title_field;
 			if ("weights" in parsed && typeof parsed.weights === "object" && parsed.weights !== null) {
 				// weights is a JSON-parsed object — safe to treat as Record<string, number>
 				const weights: Record<string, number> = {};

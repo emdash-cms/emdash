@@ -39,13 +39,13 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 	});
 
 	// Reuse the cached manifest (same query key as the rest of the admin) to
-	// resolve the selected collection's displayField for entry titles (#1133).
+	// resolve the selected collection's titleField for entry titles (#1133).
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
 		enabled: open,
 	});
-	const displayField = manifest?.collections[selectedCollection]?.displayField;
+	const titleField = manifest?.collections[selectedCollection]?.titleField;
 
 	// Default to first collection when collections load
 	React.useEffect(() => {
@@ -86,10 +86,8 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 	const filteredItems = React.useMemo(() => {
 		if (!debouncedSearch) return allItems;
 		const query = debouncedSearch.toLowerCase();
-		return allItems.filter((item) =>
-			getEntryTitle(item, displayField).toLowerCase().includes(query),
-		);
-	}, [allItems, debouncedSearch, displayField]);
+		return allItems.filter((item) => getEntryTitle(item, titleField).toLowerCase().includes(query));
+	}, [allItems, debouncedSearch, titleField]);
 
 	// Reset state when modal opens or collection changes
 	React.useEffect(() => {
@@ -105,7 +103,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 		onSelect({
 			collection: selectedCollection,
 			id: item.id,
-			title: getEntryTitle(item, displayField),
+			title: getEntryTitle(item, titleField),
 		});
 		onOpenChange(false);
 	};
@@ -194,7 +192,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 											"focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2",
 										)}
 									>
-										<div className="font-medium">{getEntryTitle(item, displayField)}</div>
+										<div className="font-medium">{getEntryTitle(item, titleField)}</div>
 										<div className="text-sm text-kumo-subtle flex items-center gap-2">
 											<span
 												className={cn(

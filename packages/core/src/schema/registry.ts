@@ -40,8 +40,8 @@ const WORD_BOUNDARY_PATTERN = /\b\w/g;
 /** Valid column types for runtime validation */
 const COLUMN_TYPES: ReadonlySet<string> = new Set(["TEXT", "REAL", "INTEGER", "JSON"]);
 
-/** Field types usable as a `displayField` (#1133) — plain text that reads well as a title. */
-const DISPLAY_FIELD_TYPES: ReadonlySet<string> = new Set(["string", "text", "slug"]);
+/** Field types usable as a `titleField` (#1133) — plain text that reads well as a title. */
+const TITLE_FIELD_TYPES: ReadonlySet<string> = new Set(["string", "text", "slug"]);
 
 /** Valid collection source prefixes/values */
 const VALID_SOURCES: ReadonlySet<string> = new Set(["manual", "discovered", "seed"]);
@@ -207,16 +207,16 @@ export class SchemaRegistry {
 	}
 
 	/**
-	 * Validate `displayField`/`dateField` against the collection's fields:
-	 * `displayField` must be a text-like field; `dateField` must be a `datetime` field.
+	 * Validate `titleField`/`dateField` against the collection's fields:
+	 * `titleField` must be a text-like field; `dateField` must be a `datetime` field.
 	 * Only truthy values are checked (undefined = unchanged, null/"" = cleared).
 	 */
-	private async validateDisplayDateFields(
+	private async validateTitleDateFields(
 		collectionId: string,
 		collectionSlug: string,
-		input: { displayField?: string | null; dateField?: string | null },
+		input: { titleField?: string | null; dateField?: string | null },
 	): Promise<void> {
-		const slugs = [input.displayField, input.dateField].filter((slug): slug is string => !!slug);
+		const slugs = [input.titleField, input.dateField].filter((slug): slug is string => !!slug);
 		if (slugs.length === 0) return;
 
 		const rows = await this.db
@@ -227,18 +227,18 @@ export class SchemaRegistry {
 			.execute();
 		const typeBySlug = new Map(rows.map((row) => [row.slug, row.type]));
 
-		if (input.displayField) {
-			const type = typeBySlug.get(input.displayField);
+		if (input.titleField) {
+			const type = typeBySlug.get(input.titleField);
 			if (type === undefined) {
 				throw new SchemaError(
-					`displayField "${input.displayField}" is not a field on "${collectionSlug}"`,
-					"INVALID_DISPLAY_FIELD",
+					`titleField "${input.titleField}" is not a field on "${collectionSlug}"`,
+					"INVALID_TITLE_FIELD",
 				);
 			}
-			if (!DISPLAY_FIELD_TYPES.has(type)) {
+			if (!TITLE_FIELD_TYPES.has(type)) {
 				throw new SchemaError(
-					`displayField "${input.displayField}" must be a text field (got "${type}")`,
-					"INVALID_DISPLAY_FIELD",
+					`titleField "${input.titleField}" must be a text field (got "${type}")`,
+					"INVALID_TITLE_FIELD",
 				);
 			}
 		}
@@ -330,10 +330,10 @@ export class SchemaRegistry {
 			throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
 		}
 
-		// Fields exist by update time, so this is where display/date fields are
+		// Fields exist by update time, so this is where title/date fields are
 		// strictly validated (fail fast, before opening the transaction).
-		await this.validateDisplayDateFields(existing.id, slug, {
-			displayField: input.displayField,
+		await this.validateTitleDateFields(existing.id, slug, {
+			titleField: input.titleField,
 			dateField: input.dateField,
 		});
 
@@ -364,10 +364,10 @@ export class SchemaRegistry {
 							? (input.urlPattern ?? null)
 							: (existing.urlPattern ?? null),
 					// `|| null` (not `?? null`): "" clears back to the default.
-					display_field:
-						input.displayField !== undefined
-							? input.displayField || null
-							: (existing.displayField ?? null),
+					title_field:
+						input.titleField !== undefined
+							? input.titleField || null
+							: (existing.titleField ?? null),
 					date_field:
 						input.dateField !== undefined ? input.dateField || null : (existing.dateField ?? null),
 					has_seo: hasSeo ? 1 : 0,
@@ -654,14 +654,14 @@ export class SchemaRegistry {
 				);
 			}
 
-			// A same-column-type change can still break the displayField/dateField
+			// A same-column-type change can still break the titleField/dateField
 			// type invariants (#1133). Read the collection only when a type change
 			// is actually requested, so the common path pays nothing.
 			const collection = await this.getCollection(collectionSlug);
-			if (collection?.displayField === fieldSlug && !DISPLAY_FIELD_TYPES.has(input.type)) {
+			if (collection?.titleField === fieldSlug && !TITLE_FIELD_TYPES.has(input.type)) {
 				throw new SchemaError(
-					`displayField "${fieldSlug}" must stay a text field, not "${input.type}"`,
-					"INVALID_DISPLAY_FIELD",
+					`titleField "${fieldSlug}" must stay a text field, not "${input.type}"`,
+					"INVALID_TITLE_FIELD",
 				);
 			}
 			if (collection?.dateField === fieldSlug && input.type !== "datetime") {
@@ -813,11 +813,11 @@ export class SchemaRegistry {
 			);
 		}
 
-		// If this field powers the collection's displayField/dateField (#1133),
+		// If this field powers the collection's titleField/dateField (#1133),
 		// clear that reference in the same transaction — otherwise the metadata
 		// would point at a dropped column and later crash the content list sort.
 		const collection = await this.getCollection(collectionSlug);
-		const clearDisplay = collection?.displayField === fieldSlug;
+		const clearTitle = collection?.titleField === fieldSlug;
 		const clearDate = collection?.dateField === fieldSlug;
 
 		let schemaMutated = false;
@@ -831,11 +831,11 @@ export class SchemaRegistry {
 				await trx.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
 				schemaMutated = true;
 
-				if (clearDisplay || clearDate) {
+				if (clearTitle || clearDate) {
 					await trx
 						.updateTable("_emdash_collections")
 						.set({
-							...(clearDisplay ? { display_field: null } : {}),
+							...(clearTitle ? { title_field: null } : {}),
 							...(clearDate ? { date_field: null } : {}),
 							updated_at: new Date().toISOString(),
 						})
@@ -1201,7 +1201,7 @@ export class SchemaRegistry {
 			hasSeo: row.has_seo === 1,
 			// Raw value; undefined when unset. The admin list resolves the
 			// default (title fallback chain / updatedAt) at the point of use.
-			displayField: row.display_field ?? undefined,
+			titleField: row.title_field ?? undefined,
 			dateField: row.date_field ?? undefined,
 			urlPattern: row.url_pattern ?? undefined,
 			commentsEnabled: row.comments_enabled === 1,

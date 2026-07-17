@@ -447,17 +447,17 @@ export async function handleContentList(
 			where.useFts = await canUseFtsForListFilter(db, collection, where.searchColumns);
 		}
 
-		// Sorting by a non-system field (a collection's displayField/dateField,
+		// Sorting by a non-system field (a collection's titleField/dateField,
 		// #1133) needs the collection's *actual* sort fields resolved server-side,
 		// so the orderBy set stays closed. Only query when it's not a system field.
 		let sortableExtras: string[] | undefined;
 		if (params.orderBy && !isSystemOrderField(params.orderBy)) {
 			const coll = await db
 				.selectFrom("_emdash_collections")
-				.select(["display_field", "date_field"])
+				.select(["title_field", "date_field"])
 				.where("slug", "=", collection)
 				.executeTakeFirst();
-			sortableExtras = [coll?.display_field, coll?.date_field].filter(
+			sortableExtras = [coll?.title_field, coll?.date_field].filter(
 				(slug): slug is string => !!slug,
 			);
 		}

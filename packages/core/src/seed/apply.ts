@@ -39,16 +39,16 @@ import type {
 } from "./types.js";
 
 /**
- * Set a collection's `displayField`/`dateField`: a separate write run after the
+ * Set a collection's `titleField`/`dateField`: a separate write run after the
  * fields exist, so `updateCollection` can validate them. No-op when neither is set.
  */
 async function applyDisplayDateFields(
 	registry: SchemaRegistry,
 	collection: SeedCollection,
 ): Promise<void> {
-	if (collection.displayField === undefined && collection.dateField === undefined) return;
+	if (collection.titleField === undefined && collection.dateField === undefined) return;
 	await registry.updateCollection(collection.slug, {
-		displayField: collection.displayField,
+		titleField: collection.titleField,
 		dateField: collection.dateField,
 	});
 }

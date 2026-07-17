@@ -1673,7 +1673,7 @@ export class ContentRepository {
 		const mapped = ORDER_FIELD_COLUMNS[field];
 		if (mapped) return mapped;
 
-		// A collection's configured displayField/dateField (#1133) are allowed as
+		// A collection's configured titleField/dateField (#1133) are allowed as
 		// sort columns. The caller passes the collection's *actual* values (resolved
 		// server-side, never client-supplied), so this stays a closed set per
 		// request and doesn't reopen the column-enumeration hole. The slug is a

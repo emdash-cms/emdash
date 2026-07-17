@@ -38,7 +38,7 @@ import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /**
  * Sortable content list columns. The named values map to the server's system
- * order fields; a collection's configured displayField/dateField slug is also
+ * order fields; a collection's configured titleField/dateField slug is also
  * accepted (#1133), which the server validates against the collection.
  */
 export type ContentListSortField = "title" | "status" | "locale" | "updatedAt" | (string & {});
@@ -89,7 +89,7 @@ export interface ContentListProps {
 	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
 	urlPattern?: string;
 	/** Collection field slug powering the Title column (falls back to the title chain). */
-	displayField?: string;
+	titleField?: string;
 	/** Collection field slug (datetime) powering the Date column (falls back to updated date). */
 	dateField?: string;
 	/**
@@ -186,7 +186,7 @@ export function ContentList({
 	activeLocale,
 	onLocaleChange,
 	urlPattern,
-	displayField,
+	titleField,
 	dateField,
 	sort,
 	onSortChange,
@@ -232,8 +232,8 @@ export function ContentList({
 	const filteredItems = React.useMemo(() => {
 		if (serverSearch || !searchQuery) return items;
 		const query = searchQuery.toLowerCase();
-		return items.filter((item) => getEntryTitle(item, displayField).toLowerCase().includes(query));
-	}, [items, searchQuery, serverSearch, displayField]);
+		return items.filter((item) => getEntryTitle(item, titleField).toLowerCase().includes(query));
+	}, [items, searchQuery, serverSearch, titleField]);
 
 	// The query the current `items` reflect: server-side filtering lags behind
 	// typing by the debounce, so the empty-state message must use the debounced
@@ -514,9 +514,9 @@ export function ContentList({
 										</th>
 									)}
 									{/* The Title/Date columns sort by the collection's configured
-									    displayField/dateField when set (#1133) */}
+									    titleField/dateField when set (#1133) */}
 									<SortableTh
-										field={displayField ?? "title"}
+										field={titleField ?? "title"}
 										sort={sort}
 										onSortChange={onSortChange}
 										label={t`Title`}
@@ -592,7 +592,7 @@ export function ContentList({
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
 											urlPattern={urlPattern}
-											displayField={displayField}
+											titleField={titleField}
 											dateField={dateField}
 											selectable={bulkEnabled}
 											selected={selectedIds.has(item.id)}
@@ -690,7 +690,7 @@ export function ContentList({
 										<TrashedListItem
 											key={item.id}
 											item={item}
-											displayField={displayField}
+											titleField={titleField}
 											onRestore={onRestore}
 											onPermanentDelete={onPermanentDelete}
 										/>
@@ -963,7 +963,7 @@ interface ContentListItemProps {
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	urlPattern?: string;
-	displayField?: string;
+	titleField?: string;
 	dateField?: string;
 	selectable?: boolean;
 	selected?: boolean;
@@ -977,14 +977,14 @@ function ContentListItem({
 	onDuplicate,
 	showLocale,
 	urlPattern,
-	displayField,
+	titleField,
 	dateField,
 	selectable,
 	selected,
 	onToggleSelect,
 }: ContentListItemProps) {
 	const { t } = useLingui();
-	const title = getEntryTitle(item, displayField);
+	const title = getEntryTitle(item, titleField);
 	// A configured dateField drives the Date column; fall back to the
 	// last-updated / created date when it's unset, empty, or unparseable.
 	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
@@ -1098,19 +1098,14 @@ function ContentListItem({
 
 interface TrashedListItemProps {
 	item: TrashedContentItem;
-	displayField?: string;
+	titleField?: string;
 	onRestore?: (id: string) => void;
 	onPermanentDelete?: (id: string) => void;
 }
 
-function TrashedListItem({
-	item,
-	displayField,
-	onRestore,
-	onPermanentDelete,
-}: TrashedListItemProps) {
+function TrashedListItem({ item, titleField, onRestore, onPermanentDelete }: TrashedListItemProps) {
 	const { t } = useLingui();
-	const title = getEntryTitle(item, displayField);
+	const title = getEntryTitle(item, titleField);
 	const deletedDate = new Date(item.deletedAt);
 
 	return (

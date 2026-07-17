@@ -170,7 +170,7 @@ export interface Collection {
 	/** Whether this collection has SEO metadata fields enabled */
 	hasSeo: boolean;
 	/** Field slug powering the admin list Title column. Defaults to the standard title display. */
-	displayField?: string;
+	titleField?: string;
 	/** Field slug powering the admin list Date column. Must be a `datetime` field. Defaults to last-updated. */
 	dateField?: string;
 	/** URL pattern with {slug} placeholder (e.g. "/{slug}", "/blog/{slug}") */
@@ -242,7 +242,7 @@ export interface UpdateCollectionInput {
 	commentsClosedAfterDays?: number;
 	commentsAutoApproveUsers?: boolean;
 	/** Field slug for the Title column; `null`/`""` clears back to the default. */
-	displayField?: string | null;
+	titleField?: string | null;
 	/** Datetime field slug for the Date column; `null`/`""` clears back to the default. */
 	dateField?: string | null;
 }

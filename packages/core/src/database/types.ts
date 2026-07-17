@@ -295,7 +295,7 @@ export interface CollectionTable {
 	source: string | null;
 	search_config: string | null; // JSON: { enabled: boolean, weights: Record<string, number> }
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
-	display_field: string | null; // field slug for the admin list Title column (NULL = default)
+	title_field: string | null; // field slug for the admin list Title column (NULL = default)
 	date_field: string | null; // field slug (datetime) for the admin list Date column (NULL = default)
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
 	comments_enabled: Generated<number>; // 0 or 1

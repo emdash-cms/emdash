@@ -1,13 +1,13 @@
 /**
- * The title to show for a content entry. Uses the collection's `displayField`
+ * The title to show for a content entry. Uses the collection's `titleField`
  * (#1133) if set and non-empty, otherwise falls back to `title → name → slug → id`.
  * Shared so every surface (list, picker, editor) shows the same title.
  */
 export function getEntryTitle(
 	item: { data: Record<string, unknown>; slug: string | null; id: string },
-	displayField?: string,
+	titleField?: string,
 ): string {
-	const preferred = displayField ? item.data[displayField] : undefined;
+	const preferred = titleField ? item.data[titleField] : undefined;
 	const rawTitle = item.data.title;
 	const rawName = item.data.name;
 	return (

@@ -175,7 +175,7 @@ export interface FindManyOptions {
 	};
 	/**
 	 * Extra field slugs allowed as `orderBy` beyond the system columns — the
-	 * collection's configured displayField/dateField (#1133). Resolved by the
+	 * collection's configured titleField/dateField (#1133). Resolved by the
 	 * handler server-side so `orderBy` stays a closed set per request.
 	 */
 	sortableExtras?: string[];
