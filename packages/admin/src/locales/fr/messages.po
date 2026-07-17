@@ -8545,7 +8545,7 @@ msgstr "Le nom d'utilisateur de votre compte LinkedIn"
 #: packages/admin/src/components/MediaLibrary.tsx:504
 #: packages/admin/src/components/MediaLibrary.tsx:528
 msgid "Your media library is empty"
-msgstr "Votre bibliothèque multimédia est vide"
+msgstr "Votre bibliothèque de fichiers multimédias est vide"
 
 #: packages/admin/src/components/SetupWizard.tsx:209
 msgid "Your Name"
