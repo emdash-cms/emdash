@@ -33,6 +33,7 @@ export type {
 	ContentEditorDraftState,
 	ContentEditorPanelActions,
 	ContentEditorPanelExtension,
+	ContentEditorNativeSlot,
 	ContentListColumnCellContext,
 	ContentListColumnExtension,
 	ContentListColumnHeaderContext,

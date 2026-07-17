@@ -9,6 +9,7 @@ Native plugins can extend two content-focused admin surfaces with typed React co
 
 - **Content list columns** — extra columns in a collection's content list
 - **Editor panels** — extra sections in the main editor or its settings sidebar
+- **Native editor slots** — plugin-owned bodies inside explicitly exposed core sections, without duplicate host chrome
 
 Contributions travel the same trusted path as [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/): your `admin` entry point exports them, EmDash bundles that module into the admin at build time, and the host screens render them. There are no DOM queries, mutation observers, or global hooks involved — the host owns placement, semantics, and error isolation.
 
@@ -147,7 +148,7 @@ Panels render for saved entries and new entries. `entry` is the last saved snaps
 
 ### Placement and user arrangement
 
-`placement` is only the initial preference. Every panel gets an accessible arrangement menu for moving it up or down within its surface or between the main editor and settings sidebar. EmDash stores the resulting order per authenticated user and collection in that browser. Preferences are versioned and reconciled against the live registry, so disabled or removed panels disappear and newly installed panels append to their declared default. This browser preference is intentionally not server-synced.
+`placement` is only the initial preference. Every panel gets a drag handle with pointer and keyboard support plus an accessible arrangement menu for moving it up or down within its surface or between the main editor and settings sidebar. EmDash stores the resulting order per authenticated user and collection in that browser. Preferences are versioned and reconciled against the live registry, so disabled or removed panels disappear and newly installed panels append to their declared default. This browser preference is intentionally not server-synced.
 
 Sidebar panels appear after the core SEO section and before the document outline, revisions, and trash action. Main panels appear after the collection fields. When a Portable Text block takes over the sidebar (for example the image detail panel), core sidebar sections and contributed sidebar panels are both replaced until it closes; main panels remain in place.
 
@@ -157,6 +158,31 @@ Sidebar panels appear after the core SEO section and before the document outline
 	assume a wide viewport — a sidebar panel must not force horizontal overflow. Use
 	`placement: "main"` when the workflow genuinely needs more horizontal space.
 </Aside>
+
+### Owning a native editor section
+
+Use a named slot when a plugin should enhance an existing EmDash section instead of adding a second titled panel. The first named slot is `"seo"`, available on saved entries in collections with SEO enabled. EmDash continues to own the section heading, border, placement, and responsive behavior; the plugin renders only the section body:
+
+```tsx title="src/admin.tsx"
+import type { ContentEditorPanelExtension } from "@emdash-cms/admin";
+
+import { AdvancedSeoBody } from "./components/AdvancedSeoBody";
+
+export const contentEditorPanels: ContentEditorPanelExtension[] = [
+	{
+		id: "my-plugin:seo",
+		title: "Advanced SEO",
+		collections: ["posts", "pages"],
+		slot: "seo",
+		mode: "replace",
+		panel: AdvancedSeoBody,
+	},
+];
+```
+
+`mode: "replace"` replaces the native body. If the plugin is disabled, does not apply to the collection, or throws while rendering, EmDash restores the native SEO body automatically. When more than one replacement applies, the first contribution in deterministic `order`/`id` order owns the slot; later replacements are ignored. `mode: "append"` (the default for a named slot) renders after the selected body, including after a replacement.
+
+Named-slot contributions are intentionally not draggable and do not accept `placement`: their section belongs to the host's editor structure. Use a regular panel when the user should be able to move the whole workflow.
 
 ## Error isolation
 

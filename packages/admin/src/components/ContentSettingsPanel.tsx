@@ -28,7 +28,10 @@ import { fetchBylines } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
-import { ContentEditorExtensionPanels } from "./ContentEditorExtensionPanels.js";
+import {
+	ContentEditorExtensionPanels,
+	ContentEditorExtensionSlot,
+} from "./ContentEditorExtensionPanels.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
@@ -564,10 +567,15 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					<Text bold as="h3" DANGEROUS_className="mb-4">
 						{t`SEO`}
 					</Text>
-					<SeoPanel
-						contentKey={item?.id ?? `new:${collection}`}
-						seo={item?.seo}
-						onChange={onSeoChange}
+					<ContentEditorExtensionSlot
+						name="seo"
+						fallback={
+							<SeoPanel
+								contentKey={item?.id ?? `new:${collection}`}
+								seo={item?.seo}
+								onChange={onSeoChange}
+							/>
+						}
 					/>
 				</div>
 			)}

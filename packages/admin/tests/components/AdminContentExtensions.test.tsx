@@ -420,7 +420,9 @@ describe("ContentSettingsPanel extension panels", () => {
 		await expect.element(screen.getByText("panel:posts:item-1:en:My Post")).toBeInTheDocument();
 
 		// Deterministic placement: after the SEO section, before the outline —
-		// and Move to Trash stays the very last section.
+		// and Move to Trash stays the very last section. DndContext inserts
+		// screen-reader helper nodes between sortable content and later sections,
+		// so assert semantic order rather than direct DOM adjacency there.
 		const root = screen.container.firstElementChild;
 		const sections = [...(root?.children ?? [])];
 		const seoIndex = sections.findIndex((s) => s.querySelector('[data-testid="seo-panel"]'));
@@ -428,7 +430,7 @@ describe("ContentSettingsPanel extension panels", () => {
 		const outlineIndex = sections.findIndex((s) => s.querySelector('[data-testid="doc-outline"]'));
 		expect(seoIndex).toBeGreaterThan(-1);
 		expect(extIndex).toBe(seoIndex + 1);
-		expect(outlineIndex).toBe(extIndex + 1);
+		expect(outlineIndex).toBeGreaterThan(extIndex);
 		expect(root?.lastElementChild?.textContent).toContain("Move to Trash");
 		// Narrow-sidebar guard: the section must not force horizontal overflow.
 		expect(sections[extIndex]?.className).toContain("min-w-0");
@@ -453,6 +455,180 @@ describe("ContentSettingsPanel extension panels", () => {
 			.element(screen.getByRole("heading", { name: "Editorial Status" }))
 			.toBeInTheDocument();
 		await expect.element(screen.getByText("panel:posts:new:nl:Draft")).toBeInTheDocument();
+	});
+
+	it("lets a trusted plugin replace the native SEO body without duplicating section chrome", async () => {
+		function SeoReplacement() {
+			return <div data-testid="seo-replacement">Advanced SEO workspace</div>;
+		}
+		function LaterReplacement() {
+			return <div data-testid="seo-later-replacement">Later replacement</div>;
+		}
+		function SeoAppend() {
+			return <div data-testid="seo-append">SEO helper</div>;
+		}
+		const registry: PluginAdmins = {
+			p: {
+				contentEditorPanels: [
+					{
+						id: "p:seo",
+						title: "Advanced SEO",
+						order: 10,
+						slot: "seo",
+						mode: "replace",
+						panel: SeoReplacement,
+					},
+					{
+						id: "p:seo-helper",
+						title: "SEO helper",
+						order: 20,
+						slot: "seo",
+						mode: "append",
+						panel: SeoAppend,
+					},
+					{
+						id: "p:seo-later",
+						title: "Later SEO",
+						order: 30,
+						slot: "seo",
+						mode: "replace",
+						panel: LaterReplacement,
+					},
+				],
+			},
+		};
+		const screen = await render(<HostedSettingsPanel />, {
+			wrapper: withPlugins(registry),
+		});
+
+		await expect.element(screen.getByRole("heading", { name: "SEO" })).toBeInTheDocument();
+		await expect.element(screen.getByTestId("seo-replacement")).toBeInTheDocument();
+		await expect.element(screen.getByTestId("seo-append")).toBeInTheDocument();
+		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
+		expect(screen.container.querySelector('[data-testid="seo-later-replacement"]')).toBeNull();
+	});
+
+	it("falls back to the native SEO body when a replacement fails", async () => {
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+		function BrokenSeoReplacement(): React.ReactNode {
+			throw new Error("broken replacement");
+		}
+		const registry: PluginAdmins = {
+			p: {
+				contentEditorPanels: [
+					{
+						id: "p:seo",
+						title: "Broken SEO",
+						slot: "seo",
+						mode: "replace",
+						panel: BrokenSeoReplacement,
+					},
+				],
+			},
+		};
+		const screen = await render(<HostedSettingsPanel />, {
+			wrapper: withPlugins(registry),
+		});
+
+		await expect.element(screen.getByTestId("seo-panel")).toBeInTheDocument();
+		expect(consoleError).toHaveBeenCalled();
+	});
+
+	it("keeps the native SEO body when a replacement plugin is disabled", async () => {
+		function SeoReplacement() {
+			return <div data-testid="seo-replacement">Advanced SEO workspace</div>;
+		}
+		manifestState.disabledPluginIds = ["p"];
+		const registry: PluginAdmins = {
+			p: {
+				contentEditorPanels: [
+					{
+						id: "p:seo",
+						title: "Advanced SEO",
+						slot: "seo",
+						mode: "replace",
+						panel: SeoReplacement,
+					},
+				],
+			},
+		};
+		const screen = await render(<HostedSettingsPanel />, {
+			wrapper: withPlugins(registry),
+		});
+
+		await expect.element(screen.getByTestId("seo-panel")).toBeInTheDocument();
+		expect(screen.container.querySelector('[data-testid="seo-replacement"]')).toBeNull();
+	});
+
+	it("keeps the native SEO body when a replacement does not apply to the collection", async () => {
+		function SeoReplacement() {
+			return <div data-testid="seo-replacement">Advanced SEO workspace</div>;
+		}
+		const registry: PluginAdmins = {
+			p: {
+				contentEditorPanels: [
+					{
+						id: "p:seo",
+						title: "Advanced SEO",
+						collections: ["pages"],
+						slot: "seo",
+						mode: "replace",
+						panel: SeoReplacement,
+					},
+				],
+			},
+		};
+		const screen = await render(<HostedSettingsPanel />, {
+			wrapper: withPlugins(registry),
+		});
+
+		await expect.element(screen.getByTestId("seo-panel")).toBeInTheDocument();
+		expect(screen.container.querySelector('[data-testid="seo-replacement"]')).toBeNull();
+	});
+
+	it("preserves named-slot panel state while the host draft context updates", async () => {
+		function StatefulSeoReplacement({ draft }: ContentEditorPanelContext) {
+			const [editing, setEditing] = React.useState(false);
+			return (
+				<div>
+					<button type="button" onClick={() => setEditing((current) => !current)}>
+						{editing ? "Close snippet editor" : "Edit snippet"}
+					</button>
+					<span data-testid="draft-title">{String(draft.data.title)}</span>
+				</div>
+			);
+		}
+		const registry: PluginAdmins = {
+			p: {
+				contentEditorPanels: [
+					{
+						id: "p:seo",
+						title: "Advanced SEO",
+						slot: "seo",
+						mode: "replace",
+						panel: StatefulSeoReplacement,
+					},
+				],
+			},
+		};
+		const screen = await render(
+			<HostedSettingsPanel draftData={{ title: "Initial title" }} />,
+			{ wrapper: withPlugins(registry) },
+		);
+
+		await screen.getByRole("button", { name: "Edit snippet" }).click();
+		await expect
+			.element(screen.getByRole("button", { name: "Close snippet editor" }))
+			.toBeInTheDocument();
+
+		await screen.rerender(
+			<HostedSettingsPanel draftData={{ title: "Updated title" }} />,
+		);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Close snippet editor" }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByTestId("draft-title")).toHaveTextContent("Updated title");
 	});
 
 	it("places wide panels in the main editor while keeping sidebar panels in settings", async () => {

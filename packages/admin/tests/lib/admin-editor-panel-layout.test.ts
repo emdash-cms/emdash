@@ -4,6 +4,7 @@ import {
 	moveContentEditorPanel,
 	parseContentEditorPanelLayout,
 	placeContentEditorPanel,
+	reorderContentEditorPanel,
 	resolveContentEditorPanelLayout,
 	type ContentEditorPanelLayout,
 } from "../../src/lib/admin-editor-panel-layout";
@@ -65,5 +66,12 @@ describe("panel layout moves", () => {
 		expect(placeContentEditorPanel(layout(["a", "b"], ["c"]), "a", "sidebar")).toEqual(
 			layout(["b"], ["c", "a"]),
 		);
+	});
+
+	it("reorders panels from a drag target without crossing surfaces", () => {
+		const start = layout(["a", "b", "c"], ["side"]);
+		expect(reorderContentEditorPanel(start, "c", "a")).toEqual(layout(["c", "a", "b"], ["side"]));
+		expect(reorderContentEditorPanel(start, "a", "side")).toBe(start);
+		expect(reorderContentEditorPanel(start, "missing", "a")).toBe(start);
 	});
 });

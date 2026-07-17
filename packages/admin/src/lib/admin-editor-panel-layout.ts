@@ -88,6 +88,31 @@ export function moveContentEditorPanel(
 	return { ...layout, [placement]: next };
 }
 
+/** Reorder a panel relative to another panel on the same editor surface. */
+export function reorderContentEditorPanel(
+	layout: ContentEditorPanelLayout,
+	id: string,
+	overId: string,
+): ContentEditorPanelLayout {
+	const placement: ContentEditorPanelPlacement | null = layout.main.includes(id)
+		? "main"
+		: layout.sidebar.includes(id)
+			? "sidebar"
+			: null;
+	if (!placement || id === overId) return layout;
+
+	const current = layout[placement];
+	const from = current.indexOf(id);
+	const to = current.indexOf(overId);
+	if (from < 0 || to < 0) return layout;
+
+	const next = [...current];
+	const [moved] = next.splice(from, 1);
+	if (!moved) return layout;
+	next.splice(to, 0, moved);
+	return { ...layout, [placement]: next };
+}
+
 export function placeContentEditorPanel(
 	layout: ContentEditorPanelLayout,
 	id: string,

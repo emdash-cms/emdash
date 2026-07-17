@@ -291,6 +291,26 @@ describe("zero extensions and malformed contributions", () => {
 		expect(selectContentEditorPanels(registry, posts).map((item) => item.id)).toEqual(["p:good"]);
 		expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining("placement"));
 	});
+
+	it("accepts named editor slots and rejects conflicting panel options", () => {
+		const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const registry = source({
+			p: {
+				contentEditorPanels: [
+					panel({ id: "p:seo", slot: "seo", mode: "replace" }),
+					panel({ id: "p:bad-slot", slot: "publish" as "seo" }),
+					panel({ id: "p:bad-mode", slot: "seo", mode: "takeover" as "replace" }),
+					panel({ id: "p:bad-placement", slot: "seo", placement: "sidebar" }),
+					panel({ id: "p:bad-panel-mode", mode: "replace" }),
+				],
+			},
+		});
+
+		expect(selectContentEditorPanels(registry, posts).map((item) => item.id)).toEqual(["p:seo"]);
+		expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining("slot"));
+		expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining("mode"));
+		expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining("named slots"));
+	});
 });
 
 describe("disabled plugins", () => {

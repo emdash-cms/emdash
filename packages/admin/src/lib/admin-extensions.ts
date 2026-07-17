@@ -154,14 +154,40 @@ export interface ContentListColumnExtension extends AdminExtensionBase {
  * sheet below the `lg` breakpoint: sidebar panels must wrap instead of
  * forcing horizontal overflow and must not assume a wide viewport.
  */
-export interface ContentEditorPanelExtension extends AdminExtensionBase {
+interface ContentEditorPanelExtensionBase extends AdminExtensionBase {
 	/** Section title. Strings render as-is; descriptors are translated. */
 	title: string | MessageDescriptor;
-	/** Preferred initial surface. Users may move it later. @default "sidebar" */
-	placement?: "main" | "sidebar";
 	/** Panel body component. */
 	panel: React.ComponentType<ContentEditorPanelContext>;
 }
+
+/** Native editor sections that trusted plugins may extend without duplicating host chrome. */
+export type ContentEditorNativeSlot = "seo";
+
+/**
+ * A movable editor panel or a contribution to a named native editor section.
+ *
+ * Movable panels may declare an initial `placement`. Named-slot contributions
+ * instead declare `mode`; the discriminated union prevents combining the two
+ * contracts in typed plugins, while runtime validation protects untyped builds.
+ */
+export type ContentEditorPanelExtension = ContentEditorPanelExtensionBase &
+	(
+		| {
+				/** Movable, user-positioned panel. @default "panel" */
+				slot?: "panel";
+				mode?: never;
+				/** Preferred initial surface. Users may move it later. @default "sidebar" */
+				placement?: "main" | "sidebar";
+		  }
+		| {
+				/** Native editor section whose host-owned body this contribution extends. */
+				slot: ContentEditorNativeSlot;
+				/** Append after the native body, or replace it with automatic fallback. @default "append" */
+				mode?: "append" | "replace";
+				placement?: never;
+		  }
+	);
 
 /**
  * Structural view of the plugin admin registry consumed by the selectors —
@@ -301,6 +327,22 @@ function isContentEditorPanelExtension(
 		value.placement !== "sidebar"
 	) {
 		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): placement must be "main" or "sidebar".`);
+		return false;
+	}
+	if (value.slot !== undefined && value.slot !== "panel" && value.slot !== "seo") {
+		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): slot must be "panel" or "seo".`);
+		return false;
+	}
+	if (value.mode !== undefined && value.mode !== "append" && value.mode !== "replace") {
+		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): mode must be "append" or "replace".`);
+		return false;
+	}
+	if ((value.slot === undefined || value.slot === "panel") && value.mode !== undefined) {
+		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): mode requires a named slot.`);
+		return false;
+	}
+	if (value.slot !== undefined && value.slot !== "panel" && value.placement !== undefined) {
+		warn(`Ignoring "${value.id}" (plugin "${pluginId}"): named slots do not accept placement.`);
 		return false;
 	}
 	return true;
