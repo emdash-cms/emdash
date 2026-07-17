@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
-	"policyVersion": "2026-07-15.experimental.1",
-	"effectiveAt": "2026-07-15T00:00:00Z",
+	"policyVersion": "2026-07-17.experimental.1",
+	"effectiveAt": "2026-07-17T00:00:00Z",
 	"labelerDid": "did:web:labels.emdashcms.com",
 	"assessmentSchemaVersion": 1,
 	"supportedSubjects": {
@@ -219,8 +219,8 @@
 		},
 		{
 			"value": "undeclared-access",
-			"category": "automated-block",
-			"officialEffect": "block",
+			"category": "warning",
+			"officialEffect": "warn",
 			"subjectRules": [
 				{ "subject": "release", "cidRule": "required", "issuanceModes": ["automated", "reviewer"] }
 			],
