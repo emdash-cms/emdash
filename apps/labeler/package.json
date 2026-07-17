@@ -30,6 +30,7 @@
 		"@atcute/lexicons": "catalog:",
 		"@atcute/repo": "catalog:",
 		"@atcute/xrpc-server": "catalog:",
+		"@emdash-cms/plugin-types": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
 		"@emdash-cms/registry-moderation": "workspace:*",
 		"@emdash-cms/registry-verification": "workspace:*",
