@@ -7,13 +7,10 @@
  * run executes as one Workflow instance whose id is the run's runKey, so a
  * redelivered discovery event dedups onto the same instance rather than starting
  * a duplicate (see assessment-dispatch.ts). The Workflow constructs this
- * orchestrator per run and calls `runAssessment`. Until the acquire-consumer
- * slice assembles the real stage adapters (acquire, code/metadata AI, image
- * AI, history), that wiring runs `stubStages` — every stage resolves with no findings, so
- * `resolvePolicyOutcome` returns `passed` and finalization issues a real signed
- * `assessment-passed` label for EVERY subject (not merely clearing its own
- * `assessment-pending`). That is a hard deploy gate — see the DEPLOY GATE note
- * in assessment-workflow.ts.
+ * orchestrator per run and calls `runAssessment` with the real stage adapters
+ * that `assessment-workflow.ts` `buildStages` assembles (acquire, code AI, image
+ * AI, history). `stubStages` remains exported only for tests that need an
+ * empty-findings pass; production never runs it.
  */
 
 import type { LabelSigner } from "@emdash-cms/registry-moderation";

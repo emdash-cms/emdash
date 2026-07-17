@@ -11,7 +11,11 @@ import { describe, expect, it } from "vitest";
 
 import { StageTransientError } from "../src/assessment-orchestrator.js";
 import type { Assessment } from "../src/assessment-store.js";
-import { createReleaseResolver, type ReleaseReader } from "../src/release-resolution.js";
+import {
+	createReleaseResolver,
+	MAX_RELEASE_DESCRIPTION_CHARS,
+	type ReleaseReader,
+} from "../src/release-resolution.js";
 
 const PUBLISHER_DID = "did:plc:publisher000000000000000000";
 const RELEASE_URI = `at://${PUBLISHER_DID}/com.emdashcms.experimental.package.release/test-plugin:1.0.0`;
@@ -166,6 +170,20 @@ describe("createReleaseResolver", () => {
 		const targetResult = await resolve(assessment());
 
 		expect(targetResult.description).toBe("A friendly plugin that does one thing well.");
+	});
+
+	it("truncates an over-cap publisher description to the ingestion cap", async () => {
+		const resolve = createReleaseResolver(
+			reader({
+				getLatestRelease: async () => releaseView({ cid: "bafyPinnedCid" }),
+				getPackage: async () => packageView("x".repeat(MAX_RELEASE_DESCRIPTION_CHARS * 4)),
+			}),
+		);
+
+		const targetResult = await resolve(assessment());
+
+		expect(targetResult.description).toHaveLength(MAX_RELEASE_DESCRIPTION_CHARS);
+		expect(targetResult.description?.endsWith("…")).toBe(true);
 	});
 
 	it("leaves the description absent when the profile fetch fails, still resolving the artifact", async () => {

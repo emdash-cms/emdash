@@ -33,6 +33,14 @@ import { parseAtUri, RecordVerificationError } from "./record-verification.js";
  * pages classifies as aggregator lag (transient), same as an absent release. */
 const MAX_RELEASE_SCAN_PAGES = 20;
 
+/** Cap on the publisher-supplied release description threaded into the AI
+ * stages' metadata. The description is best-effort context, but it is
+ * publisher-controlled and reaches both models' fixed prompt overhead; an
+ * uncapped padded description could exceed `MAX_MODEL_INPUT_CHARS` and make the
+ * adapter throw a non-transient error that stalls the run — a block-suppression
+ * vector. Truncating at ingestion (far under the model budget) closes it. */
+export const MAX_RELEASE_DESCRIPTION_CHARS = 4096;
+
 /** The aggregator reads this resolver needs, narrowed so tests inject a plain
  * object. `AggregatorClient` satisfies it structurally. */
 export interface ReleaseReader {
@@ -162,7 +170,10 @@ function extractPackageArtifact(release: unknown): PackageArtifact | null {
 
 function extractProfileDescription(profile: unknown): string | undefined {
 	if (!isRecord(profile)) return undefined;
-	return typeof profile.description === "string" ? profile.description : undefined;
+	if (typeof profile.description !== "string") return undefined;
+	const description = profile.description;
+	if (description.length <= MAX_RELEASE_DESCRIPTION_CHARS) return description;
+	return `${description.slice(0, MAX_RELEASE_DESCRIPTION_CHARS - 1)}…`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
