@@ -12,6 +12,7 @@
  */
 
 import { Button, Dialog, Input, Popover, Select, Switch } from "@cloudflare/kumo";
+import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -30,7 +31,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Element } from "@emdash-cms/blocks";
-import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -91,7 +91,6 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Suggestion, { exitSuggestion } from "@tiptap/suggestion";
 import * as React from "react";
-import { createPortal } from "react-dom";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
@@ -1208,14 +1207,14 @@ function createSlashCommandsExtension(options: {
 								}));
 							},
 							onKeyDown: (props) => {
-								if (props.event.key === "Escape") {
+								if (props.event.key === "Escape" || props.event.key === "Tab") {
 									onStateChange((prev) => ({
 										...prev,
 										isOpen: false,
 										dismissedSlashFrom: props.range.from,
 									}));
 									exitSuggestion(props.view);
-									return true;
+									return props.event.key === "Escape";
 								}
 
 								if (props.event.key === "ArrowUp") {
@@ -1260,9 +1259,7 @@ function createSlashCommandsExtension(options: {
 	});
 }
 
-/**
- * Slash command menu component using Floating UI
- */
+/** Slash command menu anchored to the TipTap caret. */
 function SlashCommandMenu({
 	state,
 	onCommand,
@@ -1276,23 +1273,13 @@ function SlashCommandMenu({
 }) {
 	const { t } = useLingui();
 	const containerRef = React.useRef<HTMLDivElement>(null);
-
-	const { refs, floatingStyles } = useFloating({
-		open: state.isOpen,
-		placement: "bottom-start",
-		middleware: [offset(8), flip(), shift({ padding: 8 })],
-		whileElementsMounted: autoUpdate,
-	});
-
-	// Sync virtual reference from TipTap's clientRect
-	React.useEffect(() => {
-		if (state.clientRect) {
-			const clientRectFn = state.clientRect;
-			refs.setReference({
-				getBoundingClientRect: () => clientRectFn() ?? new DOMRect(),
-			});
-		}
-	}, [state.clientRect, refs]);
+	const popupRef = React.useRef<HTMLDivElement>(null);
+	const virtualAnchor = React.useMemo(
+		() => ({
+			getBoundingClientRect: () => state.clientRect?.() ?? new DOMRect(),
+		}),
+		[state.clientRect],
+	);
 
 	// Scroll selected item into view
 	React.useEffect(() => {
@@ -1327,7 +1314,7 @@ function SlashCommandMenu({
 
 		const handlePointerDown = (event: PointerEvent) => {
 			const target = event.target as Node | null;
-			if (target && containerRef.current?.contains(target)) return;
+			if (target && popupRef.current?.contains(target)) return;
 			onClose();
 		};
 
@@ -1335,7 +1322,6 @@ function SlashCommandMenu({
 		return () => document.removeEventListener("pointerdown", handlePointerDown, true);
 	}, [onClose, state.isOpen]);
 
-	if (!state.isOpen) return null;
 	const selectedItem = state.items[state.selectedIndex];
 	const selectedItemTitle = selectedItem
 		? typeof selectedItem.title === "string"
@@ -1343,62 +1329,100 @@ function SlashCommandMenu({
 			: t(selectedItem.title)
 		: "";
 
-	return createPortal(
-		<div
-			ref={(node) => {
-				containerRef.current = node;
-				refs.setFloating(node);
-			}}
-			style={floatingStyles}
-			className="z-[100] rounded-lg border bg-kumo-overlay p-1 shadow-lg min-w-[220px] max-h-[300px] overflow-y-auto"
-			onPointerMove={() => {
-				hasMouseMovedRef.current = true;
+	return (
+		<PopoverPrimitive.Root
+			open={state.isOpen}
+			modal={false}
+			onOpenChange={(open) => {
+				if (!open && state.isOpen) onClose();
 			}}
 		>
-			{selectedItem && (
-				<span className="sr-only" role="status">
-					{t`Selected ${selectedItemTitle}`}
-				</span>
-			)}
-			{state.items.length === 0 ? (
-				<p className="text-sm text-kumo-subtle px-3 py-2">{t`No results`}</p>
-			) : (
-				state.items.map((item, index) => (
-					<button
-						key={item.id}
-						type="button"
-						data-index={index}
-						aria-current={index === state.selectedIndex ? "true" : undefined}
+			<PopoverPrimitive.Portal>
+				{/* TipTap owns focus, so Base UI's portal guards must stay out of the Tab order. */}
+				<PopoverPrimitive.Positioner
+					anchor={virtualAnchor}
+					side="bottom"
+					align="start"
+					sideOffset={8}
+					positionMethod="fixed"
+					collisionPadding={8}
+					collisionAvoidance={{ side: "flip", align: "shift", fallbackAxisSide: "none" }}
+					className="slash-command-menu-positioner z-[100]"
+				>
+					<PopoverPrimitive.Popup
+						ref={popupRef}
+						initialFocus={false}
+						finalFocus={false}
+						aria-label={t`Insert block`}
+						data-slash-command-menu
 						className={cn(
-							"flex items-center gap-3 w-full px-3 py-2 text-sm rounded text-start",
-							index === state.selectedIndex
-								? "bg-kumo-interact text-kumo-default"
-								: "hover:bg-kumo-interact",
+							"min-w-[220px] overflow-hidden rounded-lg bg-kumo-base text-sm text-kumo-default",
+							"shadow-lg shadow-kumo-tip-shadow outline outline-kumo-fill",
+							"origin-(--transform-origin) transition-[transform,scale,opacity] duration-150 ease-out",
+							"data-starting-style:scale-90 data-starting-style:opacity-0",
+							"data-ending-style:scale-90 data-ending-style:opacity-0 data-instant:duration-0",
+							"motion-reduce:transition-none",
 						)}
-						onClick={() => onCommand(item)}
-						onMouseEnter={() => {
-							// Only react if the user has actually moved the
-							// mouse since the menu opened -- not when items
-							// appear under a stationary pointer.
-							if (hasMouseMovedRef.current) {
-								setSelectedIndex(index);
-							}
+						onPointerMove={() => {
+							hasMouseMovedRef.current = true;
 						}}
 					>
-						<item.icon className="h-4 w-4 text-kumo-subtle flex-shrink-0" />
-						<div className="flex flex-col">
-							<span className="font-medium">
-								{typeof item.title === "string" ? item.title : t(item.title)}
+						{selectedItem && (
+							<span className="sr-only" role="status">
+								{t`Selected ${selectedItemTitle}`}
 							</span>
-							<span className="text-xs text-kumo-subtle">
-								{typeof item.description === "string" ? item.description : t(item.description)}
-							</span>
+						)}
+						<div
+							ref={containerRef}
+							data-slash-menu-scroll-viewport
+							className="max-h-[300px] overflow-y-auto overscroll-contain scroll-py-1 p-1"
+						>
+							{state.items.length === 0 ? (
+								<p className="px-3 py-2 text-sm text-kumo-subtle">{t`No results`}</p>
+							) : (
+								state.items.map((item, index) => (
+									<button
+										key={item.id}
+										type="button"
+										tabIndex={-1}
+										data-index={index}
+										aria-current={index === state.selectedIndex ? "true" : undefined}
+										className={cn(
+											"flex w-full items-center gap-3 rounded px-3 py-2 text-start text-sm",
+											index === state.selectedIndex
+												? "bg-kumo-interact text-kumo-default"
+												: "hover:bg-kumo-interact",
+										)}
+										onPointerDown={(event) => event.preventDefault()}
+										onClick={() => onCommand(item)}
+										onMouseEnter={() => {
+											// Only react if the user has actually moved the
+											// mouse since the menu opened -- not when items
+											// appear under a stationary pointer.
+											if (hasMouseMovedRef.current) {
+												setSelectedIndex(index);
+											}
+										}}
+									>
+										<item.icon className="h-4 w-4 flex-shrink-0 text-kumo-subtle" />
+										<div className="flex flex-col">
+											<span className="font-medium">
+												{typeof item.title === "string" ? item.title : t(item.title)}
+											</span>
+											<span className="text-xs text-kumo-subtle">
+												{typeof item.description === "string"
+													? item.description
+													: t(item.description)}
+											</span>
+										</div>
+									</button>
+								))
+							)}
 						</div>
-					</button>
-				))
-			)}
-		</div>,
-		document.body,
+					</PopoverPrimitive.Popup>
+				</PopoverPrimitive.Positioner>
+			</PopoverPrimitive.Portal>
+		</PopoverPrimitive.Root>
 	);
 }
 
@@ -2538,6 +2562,11 @@ export function PortableTextEditor({
 		const handleKeyDown = (event: KeyboardEvent) => {
 			const state = slashMenuStateRef.current;
 			if (!state.isOpen || state.trigger !== "gutter") return;
+
+			if (event.key === "Tab") {
+				closeSlashMenu();
+				return;
+			}
 
 			if (event.key === "Escape") {
 				event.preventDefault();

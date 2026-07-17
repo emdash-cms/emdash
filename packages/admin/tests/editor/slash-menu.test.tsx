@@ -181,13 +181,7 @@ async function focusEditor(pm: HTMLElement) {
 
 /** Get the slash menu portal element from document.body */
 function getSlashMenu(): HTMLElement | null {
-	const portals = document.querySelectorAll("body > div");
-	for (const el of portals) {
-		if (el.querySelector("[data-index]") || el.textContent?.includes("No results")) {
-			return el as HTMLElement;
-		}
-	}
-	return null;
+	return document.querySelector<HTMLElement>("[data-slash-command-menu]");
 }
 
 /** Wait for the slash menu to appear */
@@ -237,6 +231,77 @@ function isSlashSuggestionActive(editor: Editor): boolean {
 // =============================================================================
 
 describe("Slash Command Menu", () => {
+	it("keeps focus in the editor when the menu opens", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		expect(document.activeElement).toBe(pm);
+
+		const focusGuards = menu.parentElement?.querySelectorAll("[data-base-ui-focus-guard]");
+		expect(focusGuards).toHaveLength(2);
+		expect(menu.parentElement?.classList.contains("slash-command-menu-positioner")).toBe(true);
+	});
+
+	it("uses a contained scroll viewport inside the menu shell", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		const scrollViewport = menu.querySelector<HTMLElement>("[data-slash-menu-scroll-viewport]");
+
+		expect(scrollViewport).toBeTruthy();
+		expect(scrollViewport).not.toBe(menu);
+		expect(scrollViewport!.className.split(WHITESPACE_SPLIT_REGEX)).toEqual(
+			expect.arrayContaining(["overflow-y-auto", "overscroll-contain"]),
+		);
+		expect(menu.className.split(WHITESPACE_SPLIT_REGEX)).not.toContain("overflow-y-auto");
+	});
+
+	it("closes on Tab and lets focus leave the editor", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+		const nextFocusable = screen.getByRole("button", { name: "Test gutter insert" }).element();
+
+		await userEvent.keyboard("{Tab}");
+
+		await waitForSlashMenuClosed();
+		expect(document.activeElement).toBe(nextFocusable);
+		expect(editor.getText()).toBe("/");
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+	});
+
+	it("closes on Shift+Tab and lets focus leave the editor", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+
+		await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+
+		await waitForSlashMenuClosed();
+		expect(document.activeElement).not.toBe(pm);
+		expect(editor.getText()).toBe("/");
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+	});
+
+	it("closes a gutter-triggered menu on Tab without inserting content", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		const before = editor.getJSON();
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		await userEvent.keyboard("{Tab}");
+
+		await waitForSlashMenuClosed();
+		expect(editor.getJSON()).toEqual(before);
+	});
+
 	it("opens from the gutter and cancels without inserting a slash", async () => {
 		const { screen, editor, pm } = await renderEditor();
 		await focusEditor(pm);

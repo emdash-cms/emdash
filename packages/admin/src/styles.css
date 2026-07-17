@@ -319,6 +319,11 @@ body {
 	cursor: col-resize;
 }
 
+/* TipTap owns slash-menu focus, so Base UI's portal guards must not enter the Tab order. */
+.slash-command-menu-positioner > [data-base-ui-focus-guard] {
+	display: none;
+}
+
 /**
  * Prevent dialogs from overflowing the viewport on small screens.
  * Kumo's size variants set min-width (e.g. min-w-[32rem] for "lg")
