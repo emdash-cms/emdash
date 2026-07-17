@@ -1298,11 +1298,13 @@ Decisions (2026-07-16, ratified): **Requirements 1 and 2 are already satisfied**
 
 ### `W10.7` Decide/implement optional ATProto decision notice
 
-Only if `W0.1` ratifies it:
+Decision (2026-07-17, ratified — DROPPED): the optional ATProto decision-notice record is NOT built. It was always conditional ("only if `W0.1` ratifies it"), and it is declined: it has no known consumer, and everything it would offer already exists — labels distribute over the standard `com.atproto.label` subscription (built), publisher notification is the W10.5 double-opt-in email pipeline plus the reconsideration inbox, and public lookup is the current/historical assessment API. Publishing human-decision-level records as durable, replicated, subscribable repo records would add a broadcast surface (amplifying every block into a network event, with retraction/reach and right-to-be-forgotten concerns) for no demand. If a concrete transparency-feed consumer emerges later, revisit via a Discussion. Email remains the active notification channel; the label stream remains the transparency channel.
 
-- Publish a repository record referencing subject and public assessment.
-- Make clear it is subscribable transparency, not guaranteed delivery.
-- Keep email as the active notification channel.
+Superseded requirements (not built):
+
+- ~~Publish a repository record referencing subject and public assessment.~~
+- ~~Make clear it is subscribable transparency, not guaranteed delivery.~~
+- ~~Keep email as the active notification channel.~~ (Email is the active channel regardless.)
 
 Dependencies: `W1.2`, `W3.1`, `W10.2`.
 
