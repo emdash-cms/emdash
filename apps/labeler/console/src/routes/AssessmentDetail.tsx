@@ -8,6 +8,7 @@ import type { IssuableLabel } from "../api/types.js";
 import { AssessmentActionDialog } from "../components/AssessmentActionDialog.js";
 import { FindingCard } from "../components/FindingCard.js";
 import { LabelActionDialog } from "../components/LabelActionDialog.js";
+import { OpenReconsiderationDialog } from "../components/OpenReconsiderationDialog.js";
 import { OverrideDialog } from "../components/OverrideDialog.js";
 import { QueryError } from "../components/QueryError.js";
 import { StateBadge } from "../components/StateBadge.js";
@@ -76,6 +77,7 @@ function AssessmentDetail() {
 	const [rerunOpen, setRerunOpen] = useState(false);
 	const [overrideOpen, setOverrideOpen] = useState(false);
 	const [overrideRetractOpen, setOverrideRetractOpen] = useState(false);
+	const [openReconOpen, setOpenReconOpen] = useState(false);
 
 	if (isAssessmentError) {
 		return <QueryError title="Failed to load assessment" error={assessmentError} />;
@@ -164,6 +166,9 @@ function AssessmentDetail() {
 				<div className="flex flex-wrap gap-2">
 					<Button variant="secondary" onClick={() => setRerunOpen(true)}>
 						Rerun
+					</Button>
+					<Button variant="secondary" onClick={() => setOpenReconOpen(true)}>
+						Open reconsideration
 					</Button>
 					{activeBlocks.length > 0 && (
 						<Button variant="secondary" onClick={() => setOverrideOpen(true)}>
@@ -283,6 +288,13 @@ function AssessmentDetail() {
 						subjectUri={assessment.uri}
 						subjectCid={assessment.cid}
 						invalidateKeys={actionInvalidateKeys}
+					/>
+					<OpenReconsiderationDialog
+						open={openReconOpen}
+						onOpenChange={setOpenReconOpen}
+						assessmentId={id}
+						subjectUri={assessment.uri}
+						invalidateKeys={[["reconsiderations"]]}
 					/>
 				</>
 			)}

@@ -48,6 +48,27 @@ describe("fixture client", () => {
 		expect(ids).toEqual(ids.toSorted((a, b) => b - a));
 		expect(page.items.some((d) => d.status === "new")).toBe(true);
 	});
+
+	it("lists reconsiderations with an open and a resolved case", async () => {
+		const page = await apiClient.listReconsiderations();
+		expect(page.items.length).toBeGreaterThan(0);
+		expect(page.items.some((r) => r.state === "open")).toBe(true);
+		expect(page.items.some((r) => r.state === "resolved" && r.outcome !== null)).toBe(true);
+	});
+
+	it("returns a reconsideration case with its oldest-first note thread", async () => {
+		const [first] = (await apiClient.listReconsiderations()).items;
+		expect(first).toBeDefined();
+		const detail = await apiClient.getReconsideration(first!.id);
+		expect(detail?.reconsideration.id).toBe(first!.id);
+		expect(detail!.notes.length).toBeGreaterThan(0);
+		const timestamps = detail!.notes.map((n) => Date.parse(n.createdAt));
+		expect(timestamps).toEqual(timestamps.toSorted((a, b) => a - b));
+	});
+
+	it("returns null for an unknown reconsideration id", async () => {
+		expect(await apiClient.getReconsideration("recon_missing")).toBeNull();
+	});
 });
 
 describe("fetch client label actions", () => {
@@ -278,5 +299,111 @@ describe("fetch client label actions", () => {
 				negate: ["malware"],
 			}),
 		).rejects.toThrow("key already used");
+	});
+
+	it("GETs the reconsideration list", async () => {
+		stubFetch(() => Response.json({ data: { items: [{ id: "recon_1", state: "open" }] } }));
+		const page = await fetchClient.listReconsiderations({ cursor: "c1", limit: 25 });
+		expect(page.items).toEqual([{ id: "recon_1", state: "open" }]);
+		const url = calls[0]!.url;
+		expect(url).toContain("/admin/api/reconsiderations?");
+		expect(url).toContain("cursor=c1");
+		expect(url).toContain("limit=25");
+	});
+
+	it("GETs one reconsideration, mapping 404 to null", async () => {
+		stubFetch(() => new Response(null, { status: 404 }));
+		expect(await fetchClient.getReconsideration("recon_missing")).toBeNull();
+		expect(calls[0]!.url).toBe("/admin/api/reconsiderations/recon_missing");
+	});
+
+	it("POSTs an open with the CSRF header, JSON content type, and threaded key", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", reconsiderationId: "recon_1" } }));
+		const result = await fetchClient.openReconsideration({
+			assessmentId: "asmt_target",
+			note: "publisher appealed",
+			reason: "opening",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(result).toMatchObject({ reconsiderationId: "recon_1" });
+		const call = calls[0]!;
+		expect(call.url).toBe("/admin/api/reconsiderations/open");
+		expect(call.init.method).toBe("POST");
+		const headers = new Headers(call.init.headers);
+		expect(headers.get("X-EmDash-Request")).toBe("1");
+		expect(headers.get("Content-Type")).toBe("application/json");
+		expect(JSON.parse(call.init.body as string)).toMatchObject({
+			assessmentId: "asmt_target",
+			note: "publisher appealed",
+			reason: "opening",
+			idempotencyKey: input.idempotencyKey,
+		});
+	});
+
+	it("POSTs a note to the case note route", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", noteId: "rnote_1" } }));
+		await fetchClient.addReconsiderationNote("recon_1", {
+			note: "another note",
+			reason: "context",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(calls[0]!.url).toBe("/admin/api/reconsiderations/recon_1/note");
+		expect(calls[0]!.init.method).toBe("POST");
+		expect(JSON.parse(calls[0]!.init.body as string)).toMatchObject({ note: "another note" });
+	});
+
+	it("POSTs a resolve to the resolve route with the outcome", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", outcome: "granted" } }));
+		await fetchClient.resolveReconsideration("recon_1", {
+			outcome: "granted",
+			reason: "false positive",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(calls[0]!.url).toBe("/admin/api/reconsiderations/recon_1/resolve");
+		expect(calls[0]!.init.method).toBe("POST");
+		expect(JSON.parse(calls[0]!.init.body as string).outcome).toBe("granted");
+	});
+
+	it("surfaces the server 409 open-exists message", async () => {
+		stubFetch(() =>
+			Response.json(
+				{
+					error: {
+						code: "RECONSIDERATION_OPEN_EXISTS",
+						message: "An open reconsideration already exists for this subject",
+					},
+				},
+				{ status: 409 },
+			),
+		);
+		await expect(
+			fetchClient.openReconsideration({
+				assessmentId: "asmt_target",
+				note: "n",
+				reason: "r",
+				idempotencyKey: input.idempotencyKey,
+			}),
+		).rejects.toThrow("An open reconsideration already exists for this subject");
+	});
+
+	it("surfaces the server 409 already-resolved message on a resolve", async () => {
+		stubFetch(() =>
+			Response.json(
+				{
+					error: {
+						code: "RECONSIDERATION_RESOLVED",
+						message: "Reconsideration is already resolved",
+					},
+				},
+				{ status: 409 },
+			),
+		);
+		await expect(
+			fetchClient.resolveReconsideration("recon_1", {
+				outcome: "denied",
+				reason: "r",
+				idempotencyKey: input.idempotencyKey,
+			}),
+		).rejects.toThrow("Reconsideration is already resolved");
 	});
 });

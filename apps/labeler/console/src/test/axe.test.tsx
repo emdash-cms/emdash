@@ -9,7 +9,9 @@ import { DeadLetterActions } from "../components/DeadLetterActions.js";
 import { EmergencyActionDialog } from "../components/EmergencyActionDialog.js";
 import { LabelActionDialog } from "../components/LabelActionDialog.js";
 import { OverrideDialog } from "../components/OverrideDialog.js";
-import { ASSESSMENT_GAMMA, SUBJECT_ALPHA } from "../fixtures/index.js";
+import { ReconsiderationNoteDialog } from "../components/ReconsiderationNoteDialog.js";
+import { ReconsiderationResolveDialog } from "../components/ReconsiderationResolveDialog.js";
+import { ASSESSMENT_GAMMA, RECONSIDERATION_GAMMA_OPEN, SUBJECT_ALPHA } from "../fixtures/index.js";
 import { RELEASE_ISSUABLE_LABELS } from "../labels.js";
 import { ADMIN_IDENTITY, renderRoute, renderWithClient } from "./harness.js";
 
@@ -76,6 +78,20 @@ describe("axe: routes", () => {
 		const { container } = renderRoute("/dead-letters");
 		await screen.findByRole("heading", { name: "Dead-letter queue", level: 1 });
 		await screen.findByRole("button", { name: "Retry" });
+		expect(await axe(container)).toHaveNoViolations();
+	});
+
+	it("Reconsiderations", async () => {
+		const { container } = renderRoute("/reconsiderations");
+		await screen.findByRole("heading", { name: "Reconsiderations", level: 1 });
+		await screen.findByRole("table");
+		expect(await axe(container)).toHaveNoViolations();
+	});
+
+	it("ReconsiderationDetail", async () => {
+		const { container } = renderRoute(`/reconsiderations/${RECONSIDERATION_GAMMA_OPEN.id}`);
+		await screen.findByRole("heading", { name: "Reconsideration", level: 1 });
+		await screen.findByRole("button", { name: "Resolve" });
 		expect(await axe(container)).toHaveNoViolations();
 	});
 
@@ -159,5 +175,31 @@ describe("axe: dialogs", () => {
 		const panel = await screen.findByRole("alertdialog");
 		await within(panel).findByText("Retry dead letter");
 		expect(await axe(panel)).toHaveNoViolations();
+	});
+
+	it("ReconsiderationNoteDialog", async () => {
+		renderWithClient(
+			<ReconsiderationNoteDialog
+				open
+				onOpenChange={() => {}}
+				reconsiderationId="recon_1"
+				subjectUri={RELEASE_URI}
+				invalidateKeys={[]}
+			/>,
+		);
+		await expectDialogClean("alertdialog");
+	});
+
+	it("ReconsiderationResolveDialog", async () => {
+		renderWithClient(
+			<ReconsiderationResolveDialog
+				open
+				onOpenChange={() => {}}
+				reconsiderationId="recon_1"
+				subjectUri={RELEASE_URI}
+				invalidateKeys={[]}
+			/>,
+		);
+		await expectDialogClean("alertdialog");
 	});
 });

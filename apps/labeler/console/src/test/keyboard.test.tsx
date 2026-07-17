@@ -10,6 +10,8 @@ import { DeadLetterActions } from "../components/DeadLetterActions.js";
 import { EmergencyActionDialog } from "../components/EmergencyActionDialog.js";
 import { LabelActionDialog } from "../components/LabelActionDialog.js";
 import { OverrideDialog } from "../components/OverrideDialog.js";
+import { ReconsiderationNoteDialog } from "../components/ReconsiderationNoteDialog.js";
+import { ReconsiderationResolveDialog } from "../components/ReconsiderationResolveDialog.js";
 import { RELEASE_ISSUABLE_LABELS } from "../labels.js";
 import { renderWithClient } from "./harness.js";
 
@@ -111,6 +113,30 @@ const CASES: {
 				subjectUri={RELEASE_URI}
 				subjectCid="bafyfixture"
 				issuable={RELEASE_ISSUABLE_LABELS}
+				invalidateKeys={[]}
+			/>
+		),
+	},
+	{
+		name: "ReconsiderationNoteDialog",
+		role: "alertdialog",
+		build: (props) => (
+			<ReconsiderationNoteDialog
+				{...props}
+				reconsiderationId="recon_1"
+				subjectUri={RELEASE_URI}
+				invalidateKeys={[]}
+			/>
+		),
+	},
+	{
+		name: "ReconsiderationResolveDialog",
+		role: "alertdialog",
+		build: (props) => (
+			<ReconsiderationResolveDialog
+				{...props}
+				reconsiderationId="recon_1"
+				subjectUri={RELEASE_URI}
 				invalidateKeys={[]}
 			/>
 		),

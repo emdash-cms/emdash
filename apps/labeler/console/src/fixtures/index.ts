@@ -17,6 +17,12 @@ export {
 export { FIXTURE_DEAD_LETTERS } from "./dead-letters.js";
 export { FIXTURE_LABELS_BY_ASSESSMENT } from "./labels.js";
 export { FIXTURE_OPERATOR_ACTIONS } from "./operator-actions.js";
+export {
+	FIXTURE_RECONSIDERATION_DETAIL,
+	FIXTURE_RECONSIDERATIONS,
+	RECONSIDERATION_BETA_GRANTED,
+	RECONSIDERATION_GAMMA_OPEN,
+} from "./reconsiderations.js";
 export { FIXTURE_SUBJECT_HISTORY } from "./subject-history.js";
 export {
 	FIXTURE_SUBJECTS,

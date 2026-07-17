@@ -7,6 +7,8 @@ import { auditLogRoute } from "./routes/AuditLog.js";
 import { dashboardRoute } from "./routes/Dashboard.js";
 import { deadLetterQueueRoute } from "./routes/DeadLetterQueue.js";
 import { notFoundRoute } from "./routes/NotFound.js";
+import { reconsiderationDetailRoute } from "./routes/ReconsiderationDetail.js";
+import { reconsiderationsRoute } from "./routes/Reconsiderations.js";
 import { rootRoute, shellRoute } from "./routes/root.js";
 import { subjectHistoryRoute } from "./routes/SubjectHistory.js";
 
@@ -17,6 +19,8 @@ const shellRoutes = shellRoute.addChildren([
 	subjectHistoryRoute,
 	auditLogRoute,
 	deadLetterQueueRoute,
+	reconsiderationsRoute,
+	reconsiderationDetailRoute,
 	notFoundRoute,
 ]);
 
