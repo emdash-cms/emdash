@@ -172,7 +172,6 @@ const AUTOMATED_BLOCKS = new Set<string>([
 	"critical-vulnerability",
 	"artifact-integrity-failure",
 	"invalid-bundle",
-	"undeclared-access",
 	"impersonation",
 ]);
 
@@ -184,6 +183,7 @@ const WARNINGS = new Set<string>([
 	"low-quality",
 	"broken-release",
 	"package-disputed",
+	"undeclared-access",
 ]);
 
 const RELEASE_VALUES = new Set<string>([

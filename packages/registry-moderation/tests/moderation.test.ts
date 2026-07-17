@@ -197,6 +197,18 @@ describe("release moderation", () => {
 		});
 	});
 
+	it("surfaces undeclared-access as a warning, keeping the release eligible", () => {
+		expect(RELEASE_BLOCK_VALUES).not.toContain("undeclared-access");
+		expect(
+			evaluate([label({ val: "assessment-passed" }), label({ val: "undeclared-access" })]),
+		).toMatchObject({
+			eligibility: "eligible",
+			blockingLabels: [],
+			warningLabels: ["undeclared-access"],
+			reasonCodes: ["eligible-assessment-pass", "warning-labels"],
+		});
+	});
+
 	it("suppresses only its source's automated findings with a valid override", () => {
 		const result = evaluate([
 			label({ val: "assessment-passed" }),
