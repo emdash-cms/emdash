@@ -1081,46 +1081,6 @@ importers:
         specifier: 'catalog:'
         version: 4.100.0(@cloudflare/workers-types@4.20260305.1)
 
-  infra/flue2-durability-spike:
-    dependencies:
-      '@cloudflare/sandbox':
-        specifier: 0.12.1
-        version: 0.12.1
-      '@flue/runtime':
-        specifier: 0.4.0-nightly.202605171039
-        version: 0.4.0-nightly.202605171039(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(typebox@1.1.38)(typescript@6.0.3)(ws@8.21.0)(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1)
-      agents:
-        specifier: 0.14.5
-        version: 0.14.5(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260305.1)(@x402/core@2.8.0)(@x402/evm@2.8.0(typescript@6.0.3))(ai@6.0.172(zod@4.4.1))(react@19.2.4)(rolldown@1.0.3)(vite@8.0.11(@types/node@25.9.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(zod@4.4.1)
-      hono:
-        specifier: 4.12.27
-        version: 4.12.27
-      valibot:
-        specifier: 1.4.1
-        version: 1.4.1(typescript@6.0.3)
-    devDependencies:
-      '@cloudflare/vite-plugin':
-        specifier: 1.36.3
-        version: 1.36.3(vite@8.0.11(@types/node@25.9.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(workerd@1.20260609.1)(wrangler@4.99.0(@cloudflare/workers-types@4.20260305.1))
-      '@flue/sdk':
-        specifier: 0.4.0-nightly.202605171039
-        version: 0.4.0-nightly.202605171039
-      '@flue/vite':
-        specifier: 0.4.0-nightly.202605171039
-        version: 0.4.0-nightly.202605171039(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(hono@4.12.27)(typebox@1.1.38)(typescript@6.0.3)(vite@8.0.11(@types/node@25.9.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(ws@8.21.0)(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1)
-      tsx:
-        specifier: 4.21.0
-        version: 4.21.0
-      typescript:
-        specifier: 6.0.3
-        version: 6.0.3
-      vite:
-        specifier: 8.0.11
-        version: 8.0.11(@types/node@25.9.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
-      wrangler:
-        specifier: 4.99.0
-        version: 4.99.0(@cloudflare/workers-types@4.20260305.1)
-
   infra/perf-monitor:
     devDependencies:
       '@cloudflare/vite-plugin':
@@ -3755,20 +3715,6 @@ packages:
     resolution: {integrity: sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg==}
     engines: {node: '>=22.0.0'}
 
-  '@cloudflare/sandbox@0.12.1':
-    resolution: {integrity: sha512-P1ZmNDLYtuEY1ZUcAx0OgTol98VqS617LGd4nf1RTOjSV2yHLDAp59NI36/gg3/pxkHPgmAEyFIjH/ie8FoA7g==}
-    peerDependencies:
-      '@openai/agents': ^0.3.3
-      '@opencode-ai/sdk': ^1.1.40
-      '@xterm/xterm': '>=5.0.0'
-    peerDependenciesMeta:
-      '@openai/agents':
-        optional: true
-      '@opencode-ai/sdk':
-        optional: true
-      '@xterm/xterm':
-        optional: true
-
   '@cloudflare/sandbox@0.12.3':
     resolution: {integrity: sha512-4yx+PtBCZBrS3eZteefwBfGOm+8MTZahLH8/fG/qsvqoNflzno9780FsM6HZf02gGuoDy+s9jQrXbg/h5gEvgw==}
     peerDependencies:
@@ -4656,9 +4602,6 @@ packages:
   '@flue/runtime@1.0.0-beta.9':
     resolution: {integrity: sha512-ksh0ZkTVyqQnGvU3OnbVX6luAJwe6tt8q7O0vn99b7Cx6XcPTXzY/YEkXrOtCHzV6ZwfSdO9ZfaWbhTD1tdQuQ==}
     engines: {node: '>=22.19.0'}
-
-  '@flue/sdk@0.4.0-nightly.202605171039':
-    resolution: {integrity: sha512-TED0g6cWpTZrDQ7wC3kACT2dPsG3+rSQpRTySoKvpQXFArwa1wB9Xh4mGvEFf9xCXg9dox2as5ChHi7YjHEQ2g==}
 
   '@flue/sdk@1.0.0-beta.9':
     resolution: {integrity: sha512-EkGWF1Yw6baM4ekmp+3xFkc+LmDKcIAA0KQSZSpaSqQRYyixXB+IwEbhePS83HCgrR0/jup9l8rgld4Q2IGNOw==}
@@ -12088,16 +12031,6 @@ packages:
       '@cloudflare/workers-types':
         optional: true
 
-  wrangler@4.99.0:
-    resolution: {integrity: sha512-i7GA2mZETTyq3ljWdEzM908FjLaMWZ1AaAHKaOJ8pFA/tonf2VqIWDyBGzKleIVBbNQxOTIY2wnbv0iaK3rC6g==}
-    engines: {node: '>=22.0.0'}
-    hasBin: true
-    peerDependencies:
-      '@cloudflare/workers-types': ^4.20260609.1
-    peerDependenciesMeta:
-      '@cloudflare/workers-types':
-        optional: true
-
   wrap-ansi@7.0.0:
     resolution: {integrity: sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==}
     engines: {node: '>=10'}
@@ -14100,13 +14033,6 @@ snapshots:
 
   '@cloudflare/kv-asset-handler@0.5.0': {}
 
-  '@cloudflare/sandbox@0.12.1':
-    dependencies:
-      '@cloudflare/containers': 0.3.7
-      aws4fetch: 1.0.20
-      capnweb: 0.8.0
-      hono: 4.12.30
-
   '@cloudflare/sandbox@0.12.3':
     dependencies:
       '@cloudflare/containers': 0.3.7
@@ -14148,12 +14074,6 @@ snapshots:
     optionalDependencies:
       workerd: 1.20260507.1
 
-  '@cloudflare/unenv-preset@2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260609.1)':
-    dependencies:
-      unenv: 2.0.0-rc.24
-    optionalDependencies:
-      workerd: 1.20260609.1
-
   '@cloudflare/unenv-preset@2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260611.1)':
     dependencies:
       unenv: 2.0.0-rc.24
@@ -14193,19 +14113,6 @@ snapshots:
       unenv: 2.0.0-rc.24
       vite: 8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
       wrangler: 4.100.0(@cloudflare/workers-types@4.20260305.1)
-      ws: 8.18.0
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-      - workerd
-
-  '@cloudflare/vite-plugin@1.36.3(vite@8.0.11(@types/node@25.9.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(workerd@1.20260609.1)(wrangler@4.99.0(@cloudflare/workers-types@4.20260305.1))':
-    dependencies:
-      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260609.1)
-      miniflare: 4.20260507.1
-      unenv: 2.0.0-rc.24
-      vite: 8.0.11(@types/node@25.9.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
-      wrangler: 4.99.0(@cloudflare/workers-types@4.20260305.1)
       ws: 8.18.0
     transitivePeerDependencies:
       - bufferutil
@@ -14953,10 +14860,6 @@ snapshots:
       - zod
       - zod-openapi
       - zod-to-json-schema
-
-  '@flue/sdk@0.4.0-nightly.202605171039':
-    dependencies:
-      '@durable-streams/client': 0.2.6
 
   '@flue/sdk@1.0.0-beta.9':
     dependencies:
@@ -22805,6 +22708,7 @@ snapshots:
       get-tsconfig: 4.13.6
     optionalDependencies:
       fsevents: 2.3.3
+    optional: true
 
   tunnel-agent@0.6.0:
     dependencies:
@@ -23587,23 +23491,6 @@ snapshots:
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.24
       workerd: 1.20260507.1
-    optionalDependencies:
-      '@cloudflare/workers-types': 4.20260305.1
-      fsevents: 2.3.3
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
-  wrangler@4.99.0(@cloudflare/workers-types@4.20260305.1):
-    dependencies:
-      '@cloudflare/kv-asset-handler': 0.5.0
-      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260609.1)
-      blake3-wasm: 2.1.5
-      esbuild: 0.27.3
-      miniflare: 4.20260609.0
-      path-to-regexp: 6.3.0
-      unenv: 2.0.0-rc.24
-      workerd: 1.20260609.1
     optionalDependencies:
       '@cloudflare/workers-types': 4.20260305.1
       fsevents: 2.3.3
