@@ -2,9 +2,8 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "emdash-bot",
 	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
-	"compatibility_date": "2026-04-01",
+	"compatibility_date": "2026-07-17",
 	"compatibility_flags": ["nodejs_compat"],
-	"main": "./.flue/wrangler-main.ts",
 
 	// Workers AI: structural binding, no API key. Every model the bot uses
 	// (classify, investigate, fix) resolves through `cloudflare/@cf/...`
@@ -24,9 +23,8 @@
 		},
 	],
 
-	// Durable Objects. We declare the user-owned classes (Sandbox); Flue auto-
-	// adds bindings for its own workflow DOs and FlueRegistry via the generated
-	// .flue-vite.wrangler.jsonc -- we DON'T re-list those here.
+	// User-owned Durable Objects. Flue's Vite plugin adds its generated agent
+	// bindings to the redirected deployment config.
 	"durable_objects": {
 		"bindings": [
 			{
@@ -60,6 +58,11 @@
 		{
 			"tag": "v2",
 			"deleted_classes": ["FlueSandboxProbeWorkflow"],
+		},
+		{
+			"tag": "v3",
+			"new_sqlite_classes": ["FlueClassifyCommandAgent", "FlueInvestigateAgent"],
+			"deleted_classes": ["FlueRegistry", "FlueClassifyCommandWorkflow", "FlueInvestigateWorkflow"],
 		},
 	],
 

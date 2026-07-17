@@ -30,9 +30,7 @@ async function sign(body: string): Promise<string> {
 		["sign"],
 	);
 	const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(body)));
-	const hex = Array.from(mac)
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
+	const hex = Array.from(mac, (b) => b.toString(16).padStart(2, "0")).join("");
 	return `sha256=${hex}`;
 }
 
@@ -80,9 +78,7 @@ describe("verifyWebhookSignature (workers-pool)", () => {
 			["sign"],
 		);
 		const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(body)));
-		const hex = Array.from(mac)
-			.map((b) => b.toString(16).padStart(2, "0"))
-			.join("");
+		const hex = Array.from(mac, (b) => b.toString(16).padStart(2, "0")).join("");
 		expect(await verifyWebhookSignature(SECRET, body, `sha256=${hex}`)).toBe(true);
 	});
 
@@ -96,9 +92,7 @@ describe("verifyWebhookSignature (workers-pool)", () => {
 			["sign"],
 		);
 		const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode("a")));
-		const hex = Array.from(mac)
-			.map((b) => b.toString(16).padStart(2, "0"))
-			.join("");
+		const hex = Array.from(mac, (b) => b.toString(16).padStart(2, "0")).join("");
 		expect(await verifyWebhookSignature(SECRET, "b", `sha256=${hex}`)).toBe(false);
 	});
 
@@ -157,21 +151,23 @@ describe("POST /webhook/github (workers-pool)", () => {
 			},
 		});
 		expect(res.status).toBe(202);
-		const json = (await res.json()) as { anchor: string; outcome: { kind: string } };
+		const json = (await res.json()) as { anchor: string; admission: { kind: string } };
 		expect(json.anchor).toBe(`issue-${issueNumber}`);
-		expect(json.outcome.kind).toBe("transition");
+		expect(json.admission.kind).toBe("admitted");
 
-		// Verify the DO actually persisted the new state.
+		// Webhook admission is intentionally decoupled from processing. Drive the
+		// alarm path explicitly before checking the state transition.
 		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await stub.tick();
 		const persisted = await stub.getPersistedState();
 		// retry from `blocked` goes to `working` per the machine.
 		expect(persisted.state).toBe("working");
 	});
 
-	test("issue_comment.created with free text invokes classifier; noops here (no workflow route in test)", async () => {
-		// The test entry mounts core routes only -- no /workflows/classify-command
-		// route. The orchestrator's classifier call hits 404, the client returns
-		// an error, and the DO returns a noop without persisting state.
+	test("classifier failure remains retryable and does not persist state", async () => {
+		// The webhook acknowledges durable admission before classifier work. The
+		// test entry has no Flue runtime, so processing fails and leaves the item
+		// queued for retry without persisting state.
 		const issueNumber = uniqueIssueNumber();
 		const res = await postWebhook({
 			eventType: "issue_comment",
@@ -192,13 +188,11 @@ describe("POST /webhook/github (workers-pool)", () => {
 			},
 		});
 		expect(res.status).toBe(202);
-		const json = (await res.json()) as { outcome: { kind: string; reason?: string } };
-		expect(json.outcome.kind).toBe("noop");
-		expect(json.outcome.reason).toMatch(/classifier error/);
 
 		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
 		const persisted = await stub.getPersistedState();
 		expect(persisted.state).toBe(null);
+		expect(await stub.getInboxDepth()).toBe(1);
 	});
 
 	test("issue_comment without an @emdashbot mention is skipped", async () => {
@@ -237,13 +231,13 @@ describe("POST /webhook/github (workers-pool)", () => {
 		};
 		const delivery = `dup-${issueNumber}`;
 		const first = await postWebhook({ eventType: "issue_comment", delivery, payload });
-		expect(((await first.json()) as { outcome: { kind: string } }).outcome.kind).toBe(
-			"transition",
+		expect(((await first.json()) as { admission: { kind: string } }).admission.kind).toBe(
+			"admitted",
 		);
 
 		const second = await postWebhook({ eventType: "issue_comment", delivery, payload });
-		const secondJson = (await second.json()) as { outcome: { kind: string } };
-		expect(secondJson.outcome.kind).toBe("duplicate");
+		const secondJson = (await second.json()) as { admission: { kind: string } };
+		expect(secondJson.admission.kind).toBe("duplicate");
 	});
 
 	test("invalid JSON returns 400", async () => {

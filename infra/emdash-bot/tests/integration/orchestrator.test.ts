@@ -41,6 +41,7 @@ function makeEvent(overrides: Partial<NormalizedEvent> = {}): NormalizedEvent {
 		actor: "maintainer",
 		labels: [],
 		needsClassify: false,
+		dryRun: true,
 		...overrides,
 	};
 }
@@ -53,6 +54,8 @@ describe("OrchestratorDO (workers-pool)", () => {
 			state: null,
 			kind: null,
 			currentRunId: null,
+			currentAgentId: null,
+			currentDispatchId: null,
 			prNumber: null,
 		});
 		expect(await stub.getEventLog()).toEqual([]);
@@ -127,6 +130,26 @@ describe("OrchestratorDO (workers-pool)", () => {
 		}
 	});
 
+	test("applyAgentResult commits the transition before clearing run markers", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent());
+		await stub.debugSetStaleRun("active-run", Date.now());
+
+		const outcome = await stub.applyAgentResult({
+			runId: "active-run",
+			result: { reproduced: true, fixed: false, summary: "The issue reproduces." },
+			pushed: false,
+			ok: true,
+		});
+		expect(outcome.kind).toBe("transition");
+
+		const persisted = await stub.getPersistedState();
+		expect(persisted.state).not.toBe("working");
+		expect(persisted.currentRunId).toBe(null);
+		expect(persisted.currentAgentId).toBe(null);
+		expect(persisted.currentDispatchId).toBe(null);
+	});
+
 	test("tick recovers a stale run", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		// Run() the DO with a synthetic stale run set in storage. The stale-
@@ -135,13 +158,129 @@ describe("OrchestratorDO (workers-pool)", () => {
 		await stub.event(makeEvent({ anchorNumber: 999 }));
 
 		// Inject a stale run via a helper we expose for tests.
-		await stub.debugSetStaleRun("ghost-run", Date.now() - 60 * 60 * 1000);
+		await stub.debugSetStaleRun(
+			"ghost-run",
+			Date.now() - 60 * 60 * 1000,
+			"investigate-999-ghost-run",
+		);
 
 		const outcome = await stub.tick();
 		expect(outcome.droppedStaleRun).toBe(true);
 
 		const persisted = await stub.getPersistedState();
 		expect(persisted.currentRunId).toBe(null);
+		expect(persisted.state).toBe("failed");
+	});
+
+	test("a failing inbox head does not block stale-run recovery", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ anchorNumber: 999 }));
+		await stub.enqueue(
+			makeEvent({
+				event: null,
+				needsClassify: true,
+				classifyText: "please investigate this",
+				deliveryId: "classifier-failure",
+				anchorNumber: 999,
+			}),
+		);
+		await stub.debugSetStaleRun(
+			"stale-run",
+			Date.now() - 60 * 60 * 1000,
+			"investigate-999-stale-run",
+		);
+
+		const outcome = await stub.tick();
+		expect(outcome.inboxError).toMatch(/classifier failed/);
+		expect((await stub.getPersistedState()).state).toBe("failed");
+		expect(await stub.getInboxDepth()).toBe(1);
+	});
+
+	test("dead-letters a persistently failing classifier entry", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.enqueue(
+			makeEvent({
+				event: null,
+				needsClassify: true,
+				classifyText: "please investigate this",
+				deliveryId: "poison-classifier-entry",
+				anchorNumber: 999,
+			}),
+		);
+		await stub.enqueue(
+			makeEvent({
+				event: "confirm",
+				arg: null,
+				deliveryId: "later-valid-entry",
+			}),
+		);
+
+		for (let attempt = 0; attempt < 3; attempt += 1) await stub.tick();
+		expect(await stub.getInboxDepth()).toBe(0);
+	});
+
+	test("drains a bounded batch of successful inbox entries per tick", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.enqueue(makeEvent({ event: "confirm", arg: null, deliveryId: "batch-entry-1" }));
+		await stub.enqueue(makeEvent({ event: "confirm", arg: null, deliveryId: "batch-entry-2" }));
+
+		await stub.tick();
+
+		expect(await stub.getInboxDepth()).toBe(0);
+	});
+
+	test("failed abort retains stale-run markers", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ anchorNumber: 999 }));
+		await stub.debugSetStaleRun(
+			"stale-run",
+			Date.now() - 60 * 60 * 1000,
+			"investigate-999-abort-false",
+		);
+
+		const outcome = await stub.tick();
+		expect(outcome.droppedStaleRun).toBe(false);
+		expect(outcome.recoveryError).toMatch(/did not settle/);
+		expect((await stub.getPersistedState()).currentRunId).toBe("stale-run");
+	});
+
+	test("a definitive dispatch rejection fails the run and consumes its delivery", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.enqueue(makeEvent({ deliveryId: "rejected-dispatch", anchorNumber: 999 }));
+		await stub.debugSetPendingDispatch({
+			runId: "rejected-run",
+			agentId: "investigate-999-rejected-run",
+			deliveryId: "rejected-dispatch",
+			startedAt: Date.now(),
+			dispatchError: "admission rejected",
+		});
+
+		await stub.tick();
+
+		const persisted = await stub.getPersistedState();
+		expect(persisted.state).toBe("failed");
+		expect(persisted.currentRunId).toBeNull();
+		expect(await stub.getInboxDepth()).toBe(0);
+	});
+
+	test("stale recovery fails a dispatch that never admitted an agent", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.enqueue(makeEvent({ deliveryId: "missing-dispatch", anchorNumber: 999 }));
+		await stub.debugSetPendingDispatch({
+			runId: "missing-run",
+			agentId: "investigate-999-abort-false-missing",
+			deliveryId: "missing-dispatch",
+			startedAt: Date.now() - 60 * 60 * 1000,
+			dispatchAttempt: "uncertain-attempt",
+		});
+
+		await stub.tick();
+
+		const persisted = await stub.getPersistedState();
+		expect(persisted.state).toBe("failed");
+		expect(persisted.currentRunId).toBeNull();
+		await stub.tick();
+		expect(await stub.getInboxDepth()).toBe(0);
 	});
 
 	test("concurrent events on the same DO yield a deterministic end state", async () => {

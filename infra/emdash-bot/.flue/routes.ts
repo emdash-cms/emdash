@@ -43,23 +43,22 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			return c.text(`skipped: ${result.reason}`, 202);
 		}
 
-		// Dispatch into the per-anchor OrchestratorDO. DO message processing is
-		// single-threaded per instance, so concurrent webhook deliveries for the
-		// same issue queue here -- the PR-comment race from PR #1606 cycle 4
-		// cannot occur.
+		// Persist into the per-anchor OrchestratorDO inbox before acknowledging.
+		// Classification, dispatch, and GitHub effects run from the DO alarm so
+		// GitHub does not time out while the bot performs external work.
 		// `x-emdash-dry-run: 1` lets local smoke tests exercise the full
 		// pipeline (LLM, sandbox, push) without leaving labels/comments on
 		// the GitHub issue. Production webhooks never send this header.
 		const dryRun = c.req.header("x-emdash-dry-run") === "1";
 		const stub = c.env.Orchestrator.getByName(result.anchor);
-		const outcome = await stub.event({ ...result.event, dryRun });
-		console.log("[webhook] dispatched", {
+		const admission = await stub.enqueue({ ...result.event, dryRun });
+		console.log("[webhook] admitted", {
 			event: eventType,
 			delivery: deliveryId,
 			anchor: result.anchor,
-			outcome: outcome.kind,
+			admission: admission.kind,
 		});
-		return c.json({ anchor: result.anchor, outcome }, 202);
+		return c.json({ anchor: result.anchor, admission }, 202);
 	});
 
 	return app;

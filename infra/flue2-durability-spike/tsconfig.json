@@ -3,15 +3,13 @@
 		"target": "ES2023",
 		"module": "preserve",
 		"moduleResolution": "bundler",
-		"lib": ["ES2023"],
-		"types": ["@cloudflare/vitest-pool-workers/types", "vite/client"],
+		"lib": ["ES2023", "DOM"],
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
 		"noImplicitOverride": true,
 		"verbatimModuleSyntax": true,
-		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"noEmit": true
 	},
-	"include": [".flue/**/*.ts", "tests/**/*.ts", "worker-configuration.d.ts"]
+	"include": ["src/**/*.ts", "scripts/**/*.ts", "vite.config.ts", "worker-configuration.d.ts"]
 }

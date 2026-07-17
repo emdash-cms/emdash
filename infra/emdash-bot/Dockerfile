@@ -99,3 +99,17 @@ ENV NODE_OPTIONS="--max-old-space-size=6144"
 
 # The agent operates under /workspace; the workflow clones into /workspace/repo.
 WORKDIR /workspace
+
+# Trust the per-container ephemeral CA that Cloudflare's outbound interception
+# generates at /etc/cloudflare/certs/cloudflare-containers-ca.crt. Without
+# this, TLS handshakes from inside the container fail (or fall through
+# the proxy entirely), so outboundByHost handlers in cloudflare.ts never
+# see traffic. Required because we set `interceptHttps = true`.
+#
+# The CA only exists at container runtime, not at build time, so we copy it
+# from the entrypoint before the sandbox process starts. NODE_EXTRA_CA_CERTS
+# points node at it directly so the agent process trusts it too.
+ENV NODE_EXTRA_CA_CERTS=/etc/cloudflare/certs/cloudflare-containers-ca.crt
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

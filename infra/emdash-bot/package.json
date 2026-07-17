@@ -5,9 +5,9 @@
 	"type": "module",
 	"description": "Cloudflare-deployed orchestrator + agent for emdashbot. Webhook ingress, per-issue state machine (Durable Object), classifier, and container-sandboxed investigate agent in one Worker.",
 	"scripts": {
-		"dev": "flue dev --target cloudflare",
-		"build": "flue build --target cloudflare",
-		"deploy": "flue build --target cloudflare && wrangler deploy",
+		"dev": "vite dev",
+		"build": "vite build",
+		"deploy": "vite build && wrangler deploy",
 		"cf-typegen": "wrangler types",
 		"typecheck": "tsc --noEmit",
 		"test": "pnpm test:unit && pnpm test:workers",
@@ -16,17 +16,19 @@
 		"test:watch": "vitest --config vitest.config.ts"
 	},
 	"devDependencies": {
+		"@cloudflare/vite-plugin": "1.36.3",
 		"@cloudflare/vitest-pool-workers": "catalog:",
-		"@flue/cli": "1.0.0-beta.5",
+		"@flue/vite": "0.4.0-nightly.202605171039",
 		"typescript": "catalog:",
+		"vite": "8.0.11",
 		"vitest": "catalog:",
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
 		"@cloudflare/sandbox": "^0.12.1",
-		"@flue/runtime": "1.0.0-beta.5",
+		"@flue/runtime": "0.4.0-nightly.202605171039",
 		"agents": "^0.14.5",
-		"hono": "^4.12.23",
+		"hono": "4.12.27",
 		"valibot": "^1.4.1"
 	}
 }

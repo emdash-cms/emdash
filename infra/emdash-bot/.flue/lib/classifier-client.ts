@@ -1,12 +1,13 @@
-// Synchronous classifier dispatch from the OrchestratorDO.
-//
-// The classifier itself runs as a Flue workflow at /workflows/classify-command.
-// To get a result back in-process we hit that route via the SELF service binding
-// with ?wait=result. The DO blocks for the classifier turn (~1-2s) and then
-// re-enters event() with the resolved verb.
+// Synchronous classifier dispatch from the OrchestratorDO through a fresh
+// Flue 2 agent instance. The awaited handle returns the durable response's
+// structured data part.
 
-import { classifierCommands } from "./router.js";
+import { init } from "@flue/runtime";
+import * as v from "valibot";
+
+import { ClassifyCommand, classifyResultSchema } from "../agents/classify-command.js";
 import type { EventId, StateId } from "./machine.js";
+import { classifierCommands } from "./router.js";
 
 const CLASSIFY_TIMEOUT_MS = 10_000;
 
@@ -30,46 +31,51 @@ interface ClassifyResponse {
 	reasoning?: string;
 }
 
-export async function classifyComment(self: Fetcher, input: ClassifyInput): Promise<ClassifyResult> {
+export async function classifyComment(input: ClassifyInput): Promise<ClassifyResult> {
 	const commands = classifierCommands(input.state);
 	if (commands.length === 0) return { kind: "no-commands" };
 
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), CLASSIFY_TIMEOUT_MS);
-
-	let res: Response;
+	let reply;
 	try {
-		res = await self.fetch("https://self/workflows/classify-command?wait=result", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({
-				issueNumber: input.issueNumber,
-				state: input.state ?? "unmanaged",
-				comment: input.comment,
-				...(input.botContext ? { botContext: input.botContext } : {}),
-				commands: commands.map((c) => ({
-					event: c.event,
-					description: c.description,
-					...(c.arg ? { arg: c.arg } : {}),
-				})),
-			}),
-			signal: controller.signal,
-		});
+		reply = await init(ClassifyCommand, {
+			id: `classify-${crypto.randomUUID()}`,
+			uid: null,
+		}).dispatch(
+			{
+				message: {
+					kind: "signal",
+					type: "github.comment",
+					body: `Classify this comment: ${input.comment}`,
+				},
+				initialData: {
+					issueNumber: input.issueNumber,
+					state: input.state ?? "unmanaged",
+					comment: input.comment,
+					...(input.botContext ? { botContext: input.botContext } : {}),
+					commands: commands.map((command) => ({
+						event: command.event,
+						description: command.description,
+						...(command.arg ? { arg: command.arg } : {}),
+					})),
+				},
+			},
+			{ signal: AbortSignal.timeout(CLASSIFY_TIMEOUT_MS) },
+		);
 	} catch (err) {
 		return { kind: "error", error: (err as Error).message };
-	} finally {
-		clearTimeout(timer);
 	}
 
-	if (!res.ok) {
-		return { kind: "error", error: `classify HTTP ${res.status}: ${await res.text()}` };
-	}
+	const writes = reply.data.classification;
+	return resolveClassification(writes?.at(-1), commands);
+}
 
-	const json = (await res.json()) as { result?: ClassifyResponse } | ClassifyResponse;
-	// `?wait=result` may wrap the result in { result: ... } or return it
-	// directly depending on Flue version; handle both.
-	const result: ClassifyResponse =
-		"result" in json && json.result ? json.result : (json as ClassifyResponse);
+export function resolveClassification(
+	value: unknown,
+	commands: ReturnType<typeof classifierCommands>,
+): ClassifyResult {
+	const parsed = v.safeParse(classifyResultSchema, value);
+	if (!parsed.success) return { kind: "error", error: "classifier returned no structured result" };
+	const result: ClassifyResponse = parsed.output;
 
 	const reasoning = result.reasoning ?? "";
 	if (!result.event || result.event === "none") {

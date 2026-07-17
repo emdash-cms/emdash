@@ -3,6 +3,14 @@
 
 const GITHUB_API = "https://api.github.com";
 const USER_AGENT = "emdash-bot";
+const GITHUB_REQUEST_TIMEOUT_MS = 30_000;
+
+function githubFetch(input: string, init: RequestInit = {}): Promise<Response> {
+	return fetch(input, {
+		...init,
+		signal: init.signal ?? AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
+	});
+}
 
 export interface GitHubAppCreds {
 	appId: string;
@@ -81,15 +89,18 @@ async function signAppJwt(creds: GitHubAppCreds): Promise<string> {
 
 export async function mintInstallationToken(creds: GitHubAppCreds): Promise<string> {
 	const jwt = await signAppJwt(creds);
-	const res = await fetch(`${GITHUB_API}/app/installations/${creds.installationId}/access_tokens`, {
-		method: "POST",
-		headers: {
-			authorization: `Bearer ${jwt}`,
-			accept: "application/vnd.github+json",
-			"user-agent": USER_AGENT,
-			"x-github-api-version": "2022-11-28",
+	const res = await githubFetch(
+		`${GITHUB_API}/app/installations/${creds.installationId}/access_tokens`,
+		{
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${jwt}`,
+				accept: "application/vnd.github+json",
+				"user-agent": USER_AGENT,
+				"x-github-api-version": "2022-11-28",
+			},
 		},
-	});
+	);
 	if (!res.ok) {
 		throw new Error(`installation token mint failed: ${res.status} ${await res.text()}`);
 	}
@@ -120,7 +131,7 @@ export async function getIssue(
 	ctx: RepoContext,
 	issueNumber: number,
 ): Promise<IssueSummary> {
-	const res = await fetch(
+	const res = await githubFetch(
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}`,
 		{ headers: authHeaders(token) },
 	);
@@ -146,7 +157,7 @@ export async function getIssueLabels(
 	ctx: RepoContext,
 	issueNumber: number,
 ): Promise<string[]> {
-	const res = await fetch(
+	const res = await githubFetch(
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/labels?per_page=100`,
 		{ headers: authHeaders(token) },
 	);
@@ -157,6 +168,21 @@ export async function getIssueLabels(
 	return out;
 }
 
+export async function getBranchSha(
+	token: string,
+	ctx: RepoContext,
+	branch: string,
+): Promise<string | null> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/branches/${encodeURIComponent(branch)}`,
+		{ headers: authHeaders(token) },
+	);
+	if (res.status === 404) return null;
+	if (!res.ok) throw new Error(`getBranchSha failed: ${res.status} ${await res.text()}`);
+	const json = await res.json<{ commit?: { sha?: string } }>();
+	return json.commit?.sha ?? null;
+}
+
 export async function addLabels(
 	token: string,
 	ctx: RepoContext,
@@ -164,7 +190,7 @@ export async function addLabels(
 	labels: readonly string[],
 ): Promise<void> {
 	if (labels.length === 0) return;
-	const res = await fetch(
+	const res = await githubFetch(
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/labels`,
 		{
 			method: "POST",
@@ -183,7 +209,7 @@ export async function removeLabel(
 	label: string,
 ): Promise<void> {
 	const url = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/labels/${encodeURIComponent(label)}`;
-	const res = await fetch(url, { method: "DELETE", headers: authHeaders(token) });
+	const res = await githubFetch(url, { method: "DELETE", headers: authHeaders(token) });
 	if (res.status === 404) return;
 	if (!res.ok) throw new Error(`removeLabel(${label}) failed: ${res.status} ${await res.text()}`);
 }
@@ -204,12 +230,31 @@ export interface CreatedPullRequest {
 	htmlUrl: string;
 }
 
+export async function getOpenPullRequest(
+	token: string,
+	ctx: RepoContext,
+	headBranch: string,
+): Promise<CreatedPullRequest | null> {
+	const head = encodeURIComponent(`${ctx.owner}:${headBranch}`);
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls?state=open&head=${head}&per_page=1`,
+		{ headers: authHeaders(token) },
+	);
+	if (!res.ok) {
+		throw new Error(`getOpenPullRequest failed: ${res.status} ${await res.text()}`);
+	}
+	const json = await res.json<Array<{ number?: number; html_url?: string }>>();
+	const pull = json[0];
+	if (!pull?.number) return null;
+	return { number: pull.number, htmlUrl: pull.html_url ?? "" };
+}
+
 export async function createPullRequest(
 	token: string,
 	ctx: RepoContext,
 	args: { headBranch: string; baseBranch: string; title: string; body: string },
 ): Promise<CreatedPullRequest> {
-	const res = await fetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls`, {
+	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls`, {
 		method: "POST",
 		headers: authHeaders(token, { "content-type": "application/json" }),
 		body: JSON.stringify({
@@ -232,7 +277,7 @@ export async function closePullRequest(
 	ctx: RepoContext,
 	prNumber: number,
 ): Promise<void> {
-	const res = await fetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`, {
+	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`, {
 		method: "PATCH",
 		headers: authHeaders(token, { "content-type": "application/json" }),
 		body: JSON.stringify({ state: "closed" }),
@@ -248,7 +293,7 @@ export async function postIssueComment(
 	issueNumber: number,
 	body: string,
 ): Promise<void> {
-	const res = await fetch(
+	const res = await githubFetch(
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments`,
 		{
 			method: "POST",
@@ -257,4 +302,24 @@ export async function postIssueComment(
 		},
 	);
 	if (!res.ok) throw new Error(`postIssueComment failed: ${res.status} ${await res.text()}`);
+}
+
+export async function hasIssueCommentMarker(
+	token: string,
+	ctx: RepoContext,
+	issueNumber: number,
+	marker: string,
+): Promise<boolean> {
+	for (let page = 1; ; page++) {
+		const res = await githubFetch(
+			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments?per_page=100&page=${page}`,
+			{ headers: authHeaders(token) },
+		);
+		if (!res.ok) {
+			throw new Error(`listIssueComments failed: ${res.status} ${await res.text()}`);
+		}
+		const comments = await res.json<Array<{ body?: string | null }>>();
+		if (comments.some((comment) => comment.body?.includes(marker))) return true;
+		if (comments.length < 100) return false;
+	}
 }
