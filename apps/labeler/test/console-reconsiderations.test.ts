@@ -148,6 +148,10 @@ function mutationDeps(overrides: Partial<ConsoleMutationDeps> = {}): {
 			deferred.push(work);
 		},
 		sendDiscoveryJob: async () => {},
+		assessmentWorkflow: {
+			create: (options) => Promise.resolve({ id: options.id }),
+			get: (id) => Promise.resolve({ id }),
+		},
 		...overrides,
 	};
 	return { deps, settle: async () => void (await Promise.allSettled(deferred)) };

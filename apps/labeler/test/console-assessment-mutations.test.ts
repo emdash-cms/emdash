@@ -9,6 +9,10 @@ import { generateKeyPair, SignJWT } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import type { AccessKeyResolver } from "../src/access-auth.js";
+import type {
+	AssessmentWorkflowBinding,
+	AssessmentWorkflowParams,
+} from "../src/assessment-dispatch.js";
 import { computeRunKey, initialTriggerId } from "../src/assessment-lifecycle.js";
 import {
 	createAssessmentRun,
@@ -91,6 +95,37 @@ function testSigner() {
 	});
 }
 
+interface FakeInstance {
+	id: string;
+	params: AssessmentWorkflowParams;
+}
+
+/** In-memory stand-in for the assessment Workflow binding, mirroring the
+ * discovery consumer test's fake: `create` throws when the id is already taken
+ * (the run-key instance-id lock), `get` resolves it, and `createError`
+ * simulates an infrastructure failure. */
+class FakeAssessmentWorkflow implements AssessmentWorkflowBinding {
+	readonly instances = new Map<string, FakeInstance>();
+	readonly created: FakeInstance[] = [];
+	createError: Error | undefined;
+
+	create(options: { id: string; params: AssessmentWorkflowParams }): Promise<{ id: string }> {
+		if (this.createError) return Promise.reject(this.createError);
+		if (this.instances.has(options.id))
+			return Promise.reject(new Error(`instance ${options.id} already exists`));
+		const instance = { id: options.id, params: options.params };
+		this.instances.set(options.id, instance);
+		this.created.push(instance);
+		return Promise.resolve({ id: options.id });
+	}
+
+	get(id: string): Promise<{ id: string }> {
+		const instance = this.instances.get(id);
+		if (!instance) return Promise.reject(new Error(`instance ${id} not found`));
+		return Promise.resolve({ id });
+	}
+}
+
 function mutationDeps(overrides: Partial<ConsoleMutationDeps> = {}): ConsoleMutationDeps {
 	return {
 		db: testEnv.DB,
@@ -109,8 +144,28 @@ function mutationDeps(overrides: Partial<ConsoleMutationDeps> = {}): ConsoleMuta
 			void work;
 		},
 		sendDiscoveryJob: async () => {},
+		assessmentWorkflow: new FakeAssessmentWorkflow(),
 		...overrides,
 	};
+}
+
+/** Captures deferred tail work so a test can settle it and observe the rerun's
+ * Workflow dispatch — the default `mutationDeps` drops deferred work. */
+function captureDeferred(overrides: Partial<ConsoleMutationDeps> = {}): {
+	deps: ConsoleMutationDeps;
+	workflow: FakeAssessmentWorkflow;
+	settle: () => Promise<unknown>;
+} {
+	const workflow = new FakeAssessmentWorkflow();
+	const deferred: Promise<unknown>[] = [];
+	const deps = mutationDeps({
+		assessmentWorkflow: workflow,
+		defer: (work) => {
+			deferred.push(work);
+		},
+		...overrides,
+	});
+	return { deps, workflow, settle: () => Promise.all(deferred.splice(0)) };
 }
 
 function readDeps(overrides: Partial<ConsoleApiDeps> = {}): ConsoleApiDeps {
@@ -424,6 +479,89 @@ describe("rerun", () => {
 			mutationDeps(),
 		);
 		expect(response.status).toBe(404);
+	});
+
+	it("dispatches the rerun's fresh run to its own Workflow instance", async () => {
+		const { id } = await seedRun("rerun-dispatch");
+		const { deps, workflow, settle } = captureDeferred();
+		const response = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/rerun`, {
+				confirmation: CID,
+				reason: "re-assess this release",
+				idempotencyKey: nextKey(),
+			}),
+			deps,
+		);
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<{ runId: string }>(response);
+
+		// Dispatch is off the response path; the deferred tail carries it.
+		expect(workflow.created).toHaveLength(0);
+		await settle();
+
+		const run = await getAssessment(testEnv.DB, descriptor.runId);
+		// The tail advances the fresh run to pending, then hands it to a Workflow
+		// instance whose id is the run's runKey — distinct from the original run.
+		expect(run?.state).toBe("pending");
+		expect(workflow.created).toHaveLength(1);
+		expect(workflow.created[0]).toMatchObject({
+			id: run!.runKey,
+			params: { assessmentId: descriptor.runId },
+		});
+	});
+
+	it("re-dispatches the same run-key idempotently on replay", async () => {
+		const { id } = await seedRun("rerun-dispatch-replay");
+		const workflow = new FakeAssessmentWorkflow();
+		const deferred: Promise<unknown>[] = [];
+		const deps = mutationDeps({
+			assessmentWorkflow: workflow,
+			defer: (work) => {
+				deferred.push(work);
+			},
+		});
+		const body = { confirmation: CID, reason: "replay me", idempotencyKey: nextKey() };
+
+		const first = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/rerun`, body),
+			deps,
+		);
+		expect(first.status).toBe(200);
+		const second = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/rerun`, body),
+			deps,
+		);
+		expect(second.status).toBe(200);
+
+		// Both the proceed tail and the replay tail dispatch the same runKey; the
+		// instance-id lock dedups the second onto the existing instance.
+		await Promise.all(deferred.splice(0));
+		expect(workflow.created).toHaveLength(1);
+	});
+
+	it("keeps the rerun a success when the Workflow dispatch fails in the tail", async () => {
+		const { id } = await seedRun("rerun-dispatch-fail");
+		const { deps, workflow, settle } = captureDeferred();
+		workflow.createError = new Error("workflow binding unavailable");
+		const response = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/rerun`, {
+				confirmation: CID,
+				reason: "re-assess this release",
+				idempotencyKey: nextKey(),
+			}),
+			deps,
+		);
+		// The label committed and the response is a success; a dispatch failure lives
+		// only in the deferred tail and must not surface or throw.
+		expect(response.status).toBe(200);
+		const descriptor = await bodyData<{ runId: string }>(response);
+		await expect(settle()).resolves.not.toThrow();
+
+		// The run advanced to pending but nothing dispatched — it is stranded until
+		// the reconciliation stuck-run sweep surfaces it.
+		const run = await getAssessment(testEnv.DB, descriptor.runId);
+		expect(run?.state).toBe("pending");
+		expect(workflow.created).toHaveLength(0);
 	});
 });
 

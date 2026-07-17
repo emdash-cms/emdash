@@ -206,6 +206,7 @@ async function handleConsoleApiRequest(
 			sendDiscoveryJob: async (job) => {
 				await env.DISCOVERY_QUEUE.send(job);
 			},
+			assessmentWorkflow: env.ASSESSMENT_WORKFLOW,
 			notify: await safeCreateNotifyDeps(env),
 		});
 	}

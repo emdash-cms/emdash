@@ -22,6 +22,10 @@ import type {
 	OperatorRole,
 } from "./access-auth.js";
 import {
+	type AssessmentWorkflowBinding,
+	dispatchAssessmentWorkflow,
+} from "./assessment-dispatch.js";
+import {
 	automatedIdempotencyKey,
 	computeRunKey,
 	operatorTriggerId,
@@ -162,6 +166,10 @@ export interface ConsoleMutationDeps {
 	 * cannot join the D1 batch, so it runs in the deferred tail; the discovery
 	 * consumer's `runKey` dedup absorbs a duplicate re-drive. */
 	sendDiscoveryJob: (job: DiscoveryJob) => Promise<void>;
+	/** Dispatches a rerun's fresh assessment run to its Workflow instance (the same
+	 * binding discovery uses). The instance id is the run's `runKey`, so a
+	 * redelivered or replayed rerun dedups onto the same instance. */
+	assessmentWorkflow: AssessmentWorkflowBinding;
 	/** Publisher-notification deps (plan W10.5). When present, a label-affecting
 	 * operator action fires a post-commit publisher notice in the deferred tail
 	 * (never blocking or failing the label). Omitted in tests that don't exercise
@@ -569,7 +577,19 @@ function deferRerunTail(deps: ConsoleMutationDeps, runId: string, pendingKey: st
 		(async () => {
 			try {
 				const run = await getAssessment(deps.db, runId);
-				if (run) await advanceAssessmentToPending(deps.db, run, deps.now());
+				if (run) {
+					await advanceAssessmentToPending(deps.db, run, deps.now());
+					// The run's runKey is its Workflow instance id, so a re-driven tail
+					// (defer retry or replay branch) dedups onto the same instance. A
+					// dispatch failure here is logged and dropped — unlike discovery,
+					// which retries the queue message, this deferred tail has no retry
+					// lever, so a dropped dispatch strands the run `pending` until the
+					// reconciliation stuck-run sweep surfaces it for a manual re-trigger.
+					await dispatchAssessmentWorkflow(deps.assessmentWorkflow, {
+						runKey: run.runKey,
+						assessmentId: runId,
+					});
+				}
 			} catch (error) {
 				console.error("[console-mutation] rerun advance failed", error);
 			}
@@ -639,11 +659,11 @@ function deferReconsiderationNotify(
  * `POST /admin/api/assessments/:id/rerun` — mints the immutable operator trigger
  * (`operator:<actionId>`), creates a fresh run for the assessment's exact URI+CID
  * anchored to that trigger, and re-issues `assessment-pending`, all in one atomic
- * batch with the audit row (spec §10/§11.2). Initial discovery now dispatches an
- * assessment Workflow after `pending`; this rerun path still stops at `pending`
- * (its own Workflow dispatch is a follow-on). The operator trigger yields a
- * distinct `runKey`, so the rerun maps to its own Workflow instance id rather
- * than colliding with the prior run's — the re-assessment is not stranded.
+ * batch with the audit row (spec §10/§11.2). The deferred tail then advances the
+ * fresh run to `pending` and dispatches its assessment Workflow, mirroring
+ * discovery. The operator trigger yields a distinct `runKey`, so the rerun maps
+ * to its own Workflow instance id rather than colliding with the prior run's —
+ * the re-assessment runs rather than stranding `pending`.
  */
 async function runRerun(
 	request: Request,

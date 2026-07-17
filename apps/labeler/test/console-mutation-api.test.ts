@@ -127,6 +127,10 @@ function mutationDeps(overrides: Partial<ConsoleMutationDeps> = {}): ConsoleMuta
 			void work;
 		},
 		sendDiscoveryJob: async () => {},
+		assessmentWorkflow: {
+			create: (options) => Promise.resolve({ id: options.id }),
+			get: (id) => Promise.resolve({ id }),
+		},
 		...overrides,
 	};
 }
