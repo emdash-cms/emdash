@@ -208,18 +208,15 @@ export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
 
 	switch (ctx.eventType) {
 		case "issues":
-			return normalizeIssues(ctx.payload as IssuesEvent, ctx.deliveryId);
+			return normalizeIssues(asRecord(ctx.payload), ctx.deliveryId);
 		case "issue_comment":
-			return normalizeIssueComment(ctx.payload as IssueCommentEvent, ctx.deliveryId);
+			return normalizeIssueComment(asRecord(ctx.payload), ctx.deliveryId);
 		case "pull_request":
-			return normalizePullRequest(ctx.payload as PullRequestEvent, ctx.deliveryId);
+			return normalizePullRequest(asRecord(ctx.payload), ctx.deliveryId);
 		case "pull_request_review":
-			return normalizePullRequestReview(ctx.payload as PullRequestReviewEvent, ctx.deliveryId);
+			return normalizePullRequestReview(asRecord(ctx.payload), ctx.deliveryId);
 		case "pull_request_review_comment":
-			return normalizePullRequestReviewComment(
-				ctx.payload as PullRequestReviewCommentEvent,
-				ctx.deliveryId,
-			);
+			return normalizePullRequestReviewComment(asRecord(ctx.payload), ctx.deliveryId);
 		default:
 			return { kind: "skip", reason: `event "${ctx.eventType}" is not handled` };
 	}
@@ -232,13 +229,16 @@ export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
  * `labeled` / `unlabeled` are skipped because the DO is the source of truth
  * for state; label drift is reconciled by the cron tick, not by webhooks.
  */
-function normalizeIssues(event: IssuesEvent, deliveryId?: string): NormalizeResult {
-	const action = event.action ?? "";
+function normalizeIssues(
+	event: Record<string, unknown> | undefined,
+	deliveryId?: string,
+): NormalizeResult {
+	const action = readString(event?.action) ?? "";
 	if (action !== "opened" && action !== "reopened") {
 		return { kind: "skip", reason: `issues.${action} not handled` };
 	}
-	const issue = event.issue;
-	const number = issue?.number;
+	const issue = asRecord(event?.issue);
+	const number = readNumber(issue?.number);
 	if (!number) return { kind: "skip", reason: "issues event missing issue.number" };
 	// Issues opening currently produces no event by itself -- the bot waits
 	// for a mention. This is intentional: we don't want every new issue to
@@ -259,22 +259,28 @@ function normalizeIssues(event: IssuesEvent, deliveryId?: string): NormalizeResu
  * delivery has a different id than the original `.created`, so we filter
  * here.
  */
-function normalizeIssueComment(event: IssueCommentEvent, deliveryId?: string): NormalizeResult {
-	if (event.action !== "created") {
-		return { kind: "skip", reason: `issue_comment.${event.action} not handled` };
+function normalizeIssueComment(
+	event: Record<string, unknown> | undefined,
+	deliveryId?: string,
+): NormalizeResult {
+	const action = readString(event?.action);
+	if (action !== "created") {
+		return { kind: "skip", reason: `issue_comment.${action} not handled` };
 	}
-	const issue = event.issue;
-	const number = issue?.number;
+	const issue = asRecord(event?.issue);
+	const number = readNumber(issue?.number);
 	if (!number) return { kind: "skip", reason: "issue_comment missing issue.number" };
-	const body = event.comment?.body ?? "";
+	const comment = asRecord(event?.comment);
+	const body = readString(comment?.body) ?? "";
 	const mentionText = parseMention(body);
 	if (mentionText === null) return { kind: "skip", reason: "no @emdashbot mention" };
 
-	const senderLogin = event.sender?.login;
+	const sender = asRecord(event?.sender);
+	const issueUser = asRecord(issue?.user);
 	const actor = classifyActor({
-		senderLogin,
-		authorAssociation: event.comment?.author_association,
-		issueOpenerLogin: issue?.user?.login,
+		senderLogin: readString(sender?.login),
+		authorAssociation: readString(comment?.author_association),
+		issueOpenerLogin: readString(issueUser?.login),
 	});
 	const labels = collectLabels(issue?.labels);
 
@@ -331,13 +337,16 @@ function normalizeIssueComment(event: IssueCommentEvent, deliveryId?: string): N
  * `[bot]`). The PR anchor is the PR number itself; full anchor-to-issue
  * linking lands when the orchestrator's PR-opening side effects land.
  */
-function normalizePullRequest(event: PullRequestEvent, deliveryId?: string): NormalizeResult {
-	const action = event.action ?? "";
-	const pr = event.pull_request;
-	const number = pr?.number;
+function normalizePullRequest(
+	event: Record<string, unknown> | undefined,
+	deliveryId?: string,
+): NormalizeResult {
+	const action = readString(event?.action) ?? "";
+	const pr = asRecord(event?.pull_request);
+	const number = readNumber(pr?.number);
 	if (!number) return { kind: "skip", reason: "pull_request event missing pr.number" };
 
-	const authorLogin = pr?.user?.login ?? "";
+	const authorLogin = readString(asRecord(pr?.user)?.login) ?? "";
 	const isBotAuthored = authorLogin.endsWith("[bot]");
 	if (!isBotAuthored) {
 		return { kind: "skip", reason: `pull_request from non-bot author "${authorLogin}"` };
@@ -380,17 +389,18 @@ function normalizePullRequest(event: PullRequestEvent, deliveryId?: string): Nor
  * who submitted on GitHub.
  */
 function normalizePullRequestReview(
-	event: PullRequestReviewEvent,
+	event: Record<string, unknown> | undefined,
 	deliveryId?: string,
 ): NormalizeResult {
-	if (event.action !== "submitted") {
-		return { kind: "skip", reason: `pull_request_review.${event.action} not handled` };
+	const action = readString(event?.action);
+	if (action !== "submitted") {
+		return { kind: "skip", reason: `pull_request_review.${action} not handled` };
 	}
-	const pr = event.pull_request;
-	const number = pr?.number;
+	const pr = asRecord(event?.pull_request);
+	const number = readNumber(pr?.number);
 	if (!number) return { kind: "skip", reason: "pull_request_review missing pr.number" };
 
-	const reviewState = (event.review?.state ?? "").toLowerCase();
+	const reviewState = (readString(asRecord(event?.review)?.state) ?? "").toLowerCase();
 	let machineEvent: NormalizedEvent["event"];
 	if (reviewState === "approved") machineEvent = "pr.approved";
 	else if (reviewState === "changes_requested") machineEvent = "pr.changes_requested";
@@ -412,24 +422,27 @@ function normalizePullRequestReview(
  * mention → classifier on the bot's PR; bare verb → deterministic.
  */
 function normalizePullRequestReviewComment(
-	event: PullRequestReviewCommentEvent,
+	event: Record<string, unknown> | undefined,
 	deliveryId?: string,
 ): NormalizeResult {
-	if (event.action !== "created") {
-		return { kind: "skip", reason: `pull_request_review_comment.${event.action} not handled` };
+	const action = readString(event?.action);
+	if (action !== "created") {
+		return { kind: "skip", reason: `pull_request_review_comment.${action} not handled` };
 	}
-	const pr = event.pull_request;
-	const number = pr?.number;
+	const pr = asRecord(event?.pull_request);
+	const number = readNumber(pr?.number);
 	if (!number) return { kind: "skip", reason: "pr_review_comment missing pr.number" };
-	const body = event.comment?.body ?? "";
+	const comment = asRecord(event?.comment);
+	const body = readString(comment?.body) ?? "";
 	const mentionText = parseMention(body);
 	if (mentionText === null) return { kind: "skip", reason: "no @emdashbot mention" };
 
-	const senderLogin = event.sender?.login ?? event.comment?.user?.login;
+	const senderLogin =
+		readString(asRecord(event?.sender)?.login) ?? readString(asRecord(comment?.user)?.login);
 	const actor = classifyActor({
 		senderLogin,
-		authorAssociation: event.comment?.author_association,
-		issueOpenerLogin: pr?.user?.login,
+		authorAssociation: readString(comment?.author_association),
+		issueOpenerLogin: readString(asRecord(pr?.user)?.login),
 	});
 	const labels = collectLabels(pr?.labels);
 
@@ -494,11 +507,28 @@ function dispatchFor(
 	};
 }
 
-function collectLabels(labels: Label[] | undefined): readonly string[] {
-	if (!labels) return [];
+function collectLabels(labels: unknown): readonly string[] {
+	if (!Array.isArray(labels)) return [];
 	const out: string[] = [];
 	for (const l of labels) {
-		if (l?.name) out.push(l.name);
+		const name = readString(asRecord(l)?.name);
+		if (name) out.push(name);
 	}
 	return out;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+	return isRecord(value) ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+function readNumber(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }

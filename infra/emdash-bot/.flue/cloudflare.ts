@@ -87,7 +87,7 @@ async function handleAuthenticatedGithub(
 	try {
 		token = await mintInstallationToken(creds);
 	} catch (err) {
-		console.error("[sandbox/outbound] token mint failed", { error: (err as Error).message });
+		console.error("[sandbox/outbound] token mint failed", { error: errorMessage(err) });
 		return new Response("token mint failed", { status: 502 });
 	}
 	const authed = new Request(request);
@@ -101,9 +101,13 @@ async function handleAuthenticatedGithub(
 		});
 		return res;
 	} catch (err) {
-		console.error("[sandbox/outbound] forward failed", { error: (err as Error).message });
+		console.error("[sandbox/outbound] forward failed", { error: errorMessage(err) });
 		return new Response("forward failed", { status: 502 });
 	}
+}
+
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 function issueNumberFromContainerId(containerId: string): number | undefined {

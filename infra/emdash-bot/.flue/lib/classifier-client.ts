@@ -62,7 +62,7 @@ export async function classifyComment(input: ClassifyInput): Promise<ClassifyRes
 			{ signal: AbortSignal.timeout(CLASSIFY_TIMEOUT_MS) },
 		);
 	} catch (err) {
-		return { kind: "error", error: (err as Error).message };
+		return { kind: "error", error: errorMessage(err) };
 	}
 
 	const writes = reply.data.classification;
@@ -82,19 +82,19 @@ export function resolveClassification(
 		return { kind: "none", reasoning };
 	}
 
-	if (!isKnownEvent(result.event, commands)) {
+	const matched = commands.find((c) => c.event === result.event);
+	if (!matched) {
 		return { kind: "error", error: `classifier returned unknown event "${result.event}"` };
 	}
 
 	return {
 		kind: "event",
-		event: result.event as EventId,
+		event: matched.event,
 		arg: result.arg ?? null,
 		reasoning,
 	};
 }
 
-function isKnownEvent(event: string, commands: ReturnType<typeof classifierCommands>): boolean {
-	for (const c of commands) if (c.event === event) return true;
-	return false;
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }

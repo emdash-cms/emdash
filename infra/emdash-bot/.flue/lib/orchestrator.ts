@@ -737,7 +737,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 			});
 			return import.meta.env.DEV ? null : "GitHub credentials or repository context missing";
 		}
-		const mode = decision.action.slice("investigate.".length) as "repro" | "implement" | "revise";
+		const mode = parseInvestigateMode(decision.action.slice("investigate.".length));
+		if (!mode) return `unknown investigation mode "${decision.action}"`;
 		const token = await this.getInstallationToken(creds);
 		try {
 			const [issue, previousBranchSha] = await Promise.all([
@@ -757,7 +758,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				previousBranchSha,
 			};
 		} catch (err) {
-			return `prepare investigation failed: ${(err as Error).message}`;
+			return `prepare investigation failed: ${errorMessage(err)}`;
 		}
 	}
 
@@ -926,7 +927,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.ctx.storage.put(STORAGE.prNumber, created.number);
 			return null;
 		} catch (err) {
-			return `openPr failed: ${(err as Error).message}`;
+			return `openPr failed: ${errorMessage(err)}`;
 		}
 	}
 
@@ -943,7 +944,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await closePullRequest(token, repo, prNumber);
 			return null;
 		} catch (err) {
-			return `closePr failed: ${(err as Error).message}`;
+			return `closePr failed: ${errorMessage(err)}`;
 		}
 	}
 
@@ -1057,8 +1058,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const kindLabel = decision.addLabels.find(
 				(label) => label.startsWith("bot:") && label !== decision.addLabel,
 			);
-			if (kindLabel)
-				puts.push(transaction.put(STORAGE.kind, kindLabel.slice("bot:".length) as Kind));
+			if (kindLabel) {
+				const kind = parseKind(kindLabel.slice("bot:".length));
+				if (kind) puts.push(transaction.put(STORAGE.kind, kind));
+			}
 			if (preparedInvestigation) {
 				puts.push(
 					transaction.put(STORAGE.currentRunId, preparedInvestigation.runId),
@@ -1443,9 +1446,25 @@ function renderReadonlyReply(state: StateId | null): string {
 			return "I declined this. Reopen with `@emdashbot reopen` if circumstances change.";
 		case "failed":
 			return "My last attempt failed. A maintainer can `@emdashbot retry` or take it over.";
-		default:
-			return `State: \`${state}\`.`;
+		default: {
+			const _exhaustive: never = state;
+			return `State: \`${String(_exhaustive)}\`.`;
+		}
 	}
+}
+
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function parseInvestigateMode(value: string): "repro" | "implement" | "revise" | null {
+	if (value === "repro" || value === "implement" || value === "revise") return value;
+	return null;
+}
+
+function parseKind(value: string): Kind | null {
+	if (value === "bug" || value === "enhancement" || value === "task") return value;
+	return null;
 }
 
 /**

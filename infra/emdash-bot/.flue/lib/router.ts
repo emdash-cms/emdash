@@ -18,20 +18,32 @@ import {
 	type EventId,
 	type Kind,
 	type StateId,
-	type Transition,
 } from "./machine.js";
 
 const KIND_LABELS: string[] = KINDS.map((k) => `bot:${k}`);
 const KIND_LABEL_SET = new Set(KIND_LABELS);
-const STATE_LABEL_TO_ID: Record<string, StateId> = Object.fromEntries(
-	(Object.entries(STATES) as [StateId, (typeof STATES)[StateId]][])
-		.map(([id, meta]) => [meta.label, id] as const)
-		.filter(([label]) => label !== ""),
-) as Record<string, StateId>;
+const STATE_LABEL_TO_ID = new Map<string, StateId>();
+for (const [id, meta] of Object.entries(STATES)) {
+	if (meta.label !== "" && isStateId(id)) {
+		STATE_LABEL_TO_ID.set(meta.label, id);
+	}
+}
 const STATE_LABELS: string[] = Object.values(STATES)
 	.map((s) => s.label)
 	.filter((l) => l !== "");
 const STATE_LABEL_SET = new Set(STATE_LABELS);
+
+function isStateId(value: string): value is StateId {
+	return Object.hasOwn(STATES, value);
+}
+
+function isKind(value: string): value is Kind {
+	return (KINDS as readonly string[]).includes(value);
+}
+
+function isMachineActor(value: string): value is Actor {
+	return value === "reporter" || value === "maintainer" || value === "system";
+}
 
 // MENTION_RE matches an `@emdashbot` mention at the START of any line and
 // captures EVERYTHING that follows it through end-of-input (across newlines).
@@ -55,18 +67,23 @@ const UNDERSCORE_RE = /_/g;
  *   - >1             -> null (invalid; the linter will flag it)
  */
 export function currentState(labelNames: readonly string[]): StateId | null {
-	const found = labelNames
-		.filter((l) => STATE_LABEL_SET.has(l))
-		.map((l) => STATE_LABEL_TO_ID[l] as StateId);
+	const found: StateId[] = [];
+	for (const label of labelNames) {
+		const id = STATE_LABEL_TO_ID.get(label);
+		if (id !== undefined) found.push(id);
+	}
 	if (found.length === 0) return "unmanaged";
 	return found.length === 1 ? (found[0] ?? null) : null;
 }
 
 /** The single kind ("bug"/...) encoded in a label set, or null. */
 export function currentKind(labelNames: readonly string[]): Kind | null {
-	const found = labelNames
-		.filter((l) => KIND_LABEL_SET.has(l))
-		.map((l) => l.slice("bot:".length) as Kind);
+	const found: Kind[] = [];
+	for (const label of labelNames) {
+		if (!KIND_LABEL_SET.has(label)) continue;
+		const kind = label.slice("bot:".length);
+		if (isKind(kind)) found.push(kind);
+	}
 	return found.length === 1 ? (found[0] ?? null) : null;
 }
 
@@ -106,15 +123,15 @@ export function parseCommand(body: string | null | undefined): ParsedCommand | n
 	if (text === null) return null;
 	const normalized = text.trim().toLowerCase().replace(WS_RE, " ");
 	const aliased = VERB_ALIASES[normalized];
-	const event = aliased ?? (isKnownEvent(normalized) ? (normalized as EventId) : null);
+	const event = aliased ?? (isKnownEvent(normalized) ? normalized : null);
 	if (!event) return null;
 	return { event, arg: null };
 }
 
 /** True for hard-to-undo events excluded from free-text classification. */
 export function isDestructive(event: string): boolean {
-	const meta = EVENTS[event as EventId];
-	return Boolean(meta && meta.destructive);
+	if (!isKnownEvent(event)) return false;
+	return Boolean(EVENTS[event].destructive);
 }
 
 export interface ClassifierCommand {
@@ -133,9 +150,9 @@ export function classifierCommands(state: StateId | null): ClassifierCommand[] {
 	return STATES[state].offeredCommands
 		.filter((e) => !isDestructive(e))
 		.map((e) => ({
-			event: e as EventId,
-			description: EVENTS[e as EventId]?.description ?? "",
-			arg: EVENTS[e as EventId]?.arg ?? null,
+			event: e,
+			description: EVENTS[e]?.description ?? "",
+			arg: EVENTS[e]?.arg ?? null,
 		}));
 }
 
@@ -184,7 +201,7 @@ export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
 	// Actor check FIRST -- including for readonly events. Otherwise a drive-by
 	// `@emdashbot status` from any GitHub user on a public issue would make
 	// the bot post status replies it shouldn't.
-	if (actor && !meta.actors.includes(actor as Actor)) {
+	if (actor && (!isMachineActor(actor) || !meta.actors.includes(actor))) {
 		return { kind: "noop", reason: `actor "${actor}" may not fire "${event}"` };
 	}
 	if (meta.readOnly) return { kind: "readonly", state: from, event };
@@ -284,7 +301,7 @@ export function resolveComment({
 	if (text === null) return { kind: "noop", reason: "no @emdashbot mention" };
 	if (text === "") {
 		const statusMeta = EVENTS.status;
-		if (actor && statusMeta && !statusMeta.actors.includes(actor as Actor)) {
+		if (actor && statusMeta && (!isMachineActor(actor) || !statusMeta.actors.includes(actor))) {
 			return { kind: "noop", reason: `actor "${actor}" may not request status` };
 		}
 		return { kind: "readonly", state: currentState(labels), event: "status" };
@@ -314,7 +331,7 @@ export interface AgentResult {
 	skipped?: boolean;
 	reproduced?: boolean;
 	fixed?: boolean;
-	verdict?: "bug" | "intended-behavior" | "unclear" | "" | string;
+	verdict?: string;
 	[key: string]: unknown;
 }
 

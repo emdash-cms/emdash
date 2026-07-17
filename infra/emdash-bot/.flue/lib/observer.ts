@@ -55,27 +55,29 @@ export function installAgentObserver(): void {
 
 function summarizeAssistant(message: unknown): string {
 	if (typeof message !== "object" || message === null) return "";
-	const m = message as { content?: unknown };
-	if (typeof m.content === "string") return `text=${JSON.stringify(m.content.slice(0, 200))}`;
-	if (!Array.isArray(m.content)) return "";
+	if (!("content" in message)) return "";
+	const content = message.content;
+	if (typeof content === "string") return `text=${JSON.stringify(content.slice(0, 200))}`;
+	if (!Array.isArray(content)) return "";
 
 	const texts: string[] = [];
 	const thinks: string[] = [];
 	const toolCalls: string[] = [];
-	for (const part of m.content) {
+	for (const part of content) {
 		if (typeof part !== "object" || part === null || !("type" in part)) continue;
-		const p = part as { type: string };
-		if (p.type === "text" && "text" in p && typeof (p as { text: unknown }).text === "string") {
-			texts.push((p as { text: string }).text);
-		} else if (
-			p.type === "thinking" &&
-			"thinking" in p &&
-			typeof (p as { thinking: unknown }).thinking === "string"
-		) {
-			thinks.push((p as { thinking: string }).thinking);
-		} else if (p.type === "tool_call" || p.type === "toolCall") {
+		const type = part.type;
+		if (typeof type !== "string") continue;
+		if (type === "text" && "text" in part && typeof part.text === "string") {
+			texts.push(part.text);
+		} else if (type === "thinking" && "thinking" in part && typeof part.thinking === "string") {
+			thinks.push(part.thinking);
+		} else if (type === "tool_call" || type === "toolCall") {
 			const name =
-				(p as { toolName?: string; name?: string }).toolName ?? (p as { name?: string }).name;
+				"toolName" in part && typeof part.toolName === "string"
+					? part.toolName
+					: "name" in part && typeof part.name === "string"
+						? part.name
+						: undefined;
 			if (name) toolCalls.push(name);
 		}
 	}
