@@ -232,6 +232,12 @@ export async function formsDuplicateHandler(ctx: RouteContext<FormDuplicateInput
 		updatedAt: now,
 	};
 
+	// Re-validate like the other save paths — the target collection may have
+	// changed since the original form was saved.
+	if (duplicate.settings.contentMapping) {
+		await validateContentMapping(ctx, duplicate.settings.contentMapping, duplicate.pages);
+	}
+
 	await forms(ctx).put(id, duplicate);
 
 	return { id, ...duplicate };

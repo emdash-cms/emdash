@@ -17,6 +17,7 @@ import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxo
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
+import { getI18nConfig } from "../i18n/config.js";
 import {
 	resolveAndValidateExternalUrl,
 	SsrfError,
@@ -435,16 +436,21 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 					// Same slug generation as the REST create path: the slug
 					// source — the reserved `slug` key, falling back to the
 					// entry's title/name — is slugified and de-duplicated by
-					// ContentRepository.generateUniqueSlug.
+					// ContentRepository.generateUniqueSlug. Entries default to
+					// the site's configured default locale, and slug
+					// uniqueness is scoped to it, again matching the REST
+					// path.
+					const effectiveLocale = getI18nConfig()?.defaultLocale;
 					const slugSource = slugInput ?? getSlugSource(fields);
 					const slug = slugSource
-						? await trxContentRepo.generateUniqueSlug(collection, slugSource)
+						? await trxContentRepo.generateUniqueSlug(collection, slugSource, effectiveLocale)
 						: null;
 
 					const item = await trxContentRepo.create({
 						type: collection,
 						slug,
 						data: fields,
+						locale: effectiveLocale,
 					});
 					contentMutated = true;
 

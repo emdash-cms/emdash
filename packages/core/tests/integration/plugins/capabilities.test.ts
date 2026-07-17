@@ -14,6 +14,7 @@ import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
 	PluginContextFactory,
 	createContentAccess,
@@ -537,6 +538,22 @@ describe("Capability Enforcement Integration (v2)", () => {
 				await expect(access.create("posts", { title: "X", slug: 42 as never })).rejects.toThrow(
 					/content\.slug must be a non-empty string/,
 				);
+			});
+
+			it("creates entries in the configured default locale with locale-scoped slugs", async () => {
+				setI18nConfig({ defaultLocale: "fr", locales: ["fr", "en"] });
+				try {
+					const access = createContentAccessWithWrite(db);
+
+					// "hello-world" exists only in locale "en" (fixture post-1),
+					// so the French entry can take the plain slug.
+					const created = await access.create("posts", { title: "Hello World" });
+
+					expect(created.locale).toBe("fr");
+					expect(created.slug).toBe("hello-world");
+				} finally {
+					setI18nConfig(null);
+				}
 			});
 		});
 

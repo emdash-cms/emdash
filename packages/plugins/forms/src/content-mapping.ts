@@ -39,12 +39,16 @@ export async function validateContentMapping(
 		);
 	}
 
-	const formFieldNames = new Set(pages.flatMap((page) => page.fields.map((field) => field.name)));
+	const formFields = new Map(
+		pages.flatMap((page) => page.fields.map((field) => [field.name, field] as const)),
+	);
 	const collectionFields = new Map(collection.fields.map((field) => [field.slug, field]));
 
 	const mappedTargets = new Set<string>();
+	const targetsWithRequiredSource = new Set<string>();
 	for (const [formField, target] of Object.entries(mapping.fieldMappings)) {
-		if (!formFieldNames.has(formField)) {
+		const source = formFields.get(formField);
+		if (!source) {
 			throw PluginRouteError.badRequest(
 				`Content mapping references unknown form field "${formField}"`,
 			);
@@ -56,32 +60,50 @@ export async function validateContentMapping(
 			);
 		}
 		mappedTargets.add(targetField);
+		if (source.required) {
+			targetsWithRequiredSource.add(targetField);
+		}
 	}
 
-	if (mapping.slugFrom && !formFieldNames.has(mapping.slugFrom)) {
+	if (mapping.slugFrom && !formFields.has(mapping.slugFrom)) {
 		throw PluginRouteError.badRequest(
 			`Content mapping slugFrom references unknown form field "${mapping.slugFrom}"`,
 		);
 	}
 
 	// Metadata keys become entry fields, so an unknown key would make every
-	// submit-time create fail against the collection table.
-	const metadataKeys = new Set(Object.keys(mapping.metadata ?? {}));
+	// submit-time create fail against the collection table — and a nullish
+	// constant cannot satisfy a required field.
+	const metadata = mapping.metadata ?? {};
+	const metadataKeys = new Set(Object.keys(metadata));
 	for (const key of metadataKeys) {
-		if (!collectionFields.has(key)) {
+		const collectionField = collectionFields.get(key);
+		if (!collectionField) {
 			throw PluginRouteError.badRequest(
 				`Content mapping metadata targets unknown field "${key}" in collection "${mapping.collection}"`,
 			);
 		}
+		if (collectionField.required && (metadata[key] === undefined || metadata[key] === null)) {
+			throw PluginRouteError.badRequest(
+				`Content mapping metadata for required field "${key}" in collection "${mapping.collection}" must not be null`,
+			);
+		}
 	}
 
-	// Every required field of the target collection must be covered by a
-	// field mapping or a metadata constant — otherwise created entries would
-	// always be missing data the collection declares as required.
+	// Every required field of the target collection must receive a value at
+	// submit time: either a metadata constant (checked non-null above) or a
+	// mapping whose source form field is itself required — an optional form
+	// field left empty would create an entry missing required data.
 	for (const field of collection.fields) {
-		if (field.required && !mappedTargets.has(field.slug) && !metadataKeys.has(field.slug)) {
+		if (!field.required || metadataKeys.has(field.slug)) continue;
+		if (!mappedTargets.has(field.slug)) {
 			throw PluginRouteError.badRequest(
 				`Content mapping does not map required field "${field.slug}" in collection "${mapping.collection}"`,
+			);
+		}
+		if (!targetsWithRequiredSource.has(field.slug)) {
+			throw PluginRouteError.badRequest(
+				`Content mapping maps required field "${field.slug}" in collection "${mapping.collection}" from an optional form field — mark the form field as required or cover the field with metadata`,
 			);
 		}
 	}
@@ -180,10 +202,16 @@ export function textToPortableText(text: string): unknown[] {
 	}));
 }
 
-let keyCounter = 0;
+// The `_key` counter lives on `globalThis` because Vite can duplicate this
+// module across SSR chunks — a plain module-scope variable would become two
+// independent counters.
+const KEY_COUNTER = Symbol.for("emdash-forms:content-mapping-key-counter");
+const g = globalThis as Record<symbol, unknown>;
 
 /** Generate a Portable Text `_key`, unique within this process */
 function generateKey(): string {
-	keyCounter += 1;
-	return `form-${keyCounter.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+	const current = g[KEY_COUNTER];
+	const next = (typeof current === "number" ? current : 0) + 1;
+	g[KEY_COUNTER] = next;
+	return `form-${next.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }

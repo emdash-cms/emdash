@@ -16,9 +16,18 @@ import {
 	textToPortableText,
 	validateContentMapping,
 } from "../src/content-mapping.js";
-import { formsCreateHandler, formsUpdateHandler } from "../src/handlers/forms.js";
+import {
+	formsCreateHandler,
+	formsDuplicateHandler,
+	formsUpdateHandler,
+} from "../src/handlers/forms.js";
 import { submitHandler } from "../src/handlers/submit.js";
-import type { FormCreateInput, FormUpdateInput, SubmitInput } from "../src/schemas.js";
+import type {
+	FormCreateInput,
+	FormDuplicateInput,
+	FormUpdateInput,
+	SubmitInput,
+} from "../src/schemas.js";
 import type { ContentMapping, FormDefinition, FormField, FormPage } from "../src/types.js";
 
 // ─── Fixtures ────────────────────────────────────────────────────
@@ -403,6 +412,38 @@ describe("validateContentMapping", () => {
 			),
 		).resolves.toBeUndefined();
 	});
+
+	it("rejects a nullish metadata constant for a required collection field", async () => {
+		const { ctx } = createTestContext(undefined);
+
+		await expect(
+			validateContentMapping(
+				ctx,
+				{
+					collection: "events",
+					fieldMappings: { event_details: "body" },
+					metadata: { title: null },
+				},
+				formPages,
+			),
+		).rejects.toThrow(
+			/metadata for required field "title" in collection "events" must not be null/,
+		);
+	});
+
+	it("rejects a required collection field mapped from an optional form field", async () => {
+		const { ctx } = createTestContext(undefined);
+
+		// event_details is optional — an empty submission would leave the
+		// required "title" field without a value.
+		await expect(
+			validateContentMapping(
+				ctx,
+				{ collection: "events", fieldMappings: { event_details: "title" } },
+				formPages,
+			),
+		).rejects.toThrow(/from an optional form field/);
+	});
 });
 
 // ─── Form Save Handlers ──────────────────────────────────────────
@@ -474,6 +515,21 @@ describe("formsUpdateHandler with content mapping", () => {
 		const result = await formsUpdateHandler(ctx);
 
 		expect(result.settings.contentMapping).toBeUndefined();
+	});
+});
+
+describe("formsDuplicateHandler with content mapping", () => {
+	it("re-validates the mapping when duplicating a form", async () => {
+		const input: FormDuplicateInput = { id: "form-1" };
+		// The target collection no longer exists, so the stale mapping must
+		// be rejected instead of copied into the duplicate.
+		const { ctx, forms } = createTestContext(input, { collections: {} });
+		await forms.put(
+			"form-1",
+			makeForm({ settings: { ...makeForm().settings, contentMapping: validMapping } }),
+		);
+
+		await expect(formsDuplicateHandler(ctx)).rejects.toThrow(/unknown collection "events"/);
 	});
 });
 
