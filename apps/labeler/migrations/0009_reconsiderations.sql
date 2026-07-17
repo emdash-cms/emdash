@@ -37,8 +37,11 @@ CREATE TABLE reconsiderations (
 	resolved_at_epoch_ms INTEGER,
 	outcome_action_id TEXT REFERENCES operator_actions(id),
 	CHECK (
-		(state = 'open' AND outcome IS NULL AND resolved_at IS NULL AND outcome_action_id IS NULL)
-		OR (state = 'resolved' AND outcome IS NOT NULL AND resolved_at IS NOT NULL)
+		(state = 'open' AND outcome IS NULL AND resolved_at IS NULL AND resolved_at_epoch_ms IS NULL
+			AND resolved_by_id IS NULL AND outcome_action_id IS NULL)
+		OR (state = 'resolved' AND outcome IS NOT NULL AND resolved_at IS NOT NULL
+			AND resolved_at_epoch_ms IS NOT NULL AND resolved_by_id IS NOT NULL
+			AND outcome_action_id IS NOT NULL)
 	)
 );
 

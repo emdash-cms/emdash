@@ -794,3 +794,40 @@ describe("reconsideration read API", () => {
 		expect(response.status).toBe(404);
 	});
 });
+
+describe("reconsideration schema invariants", () => {
+	function insertCase(id: string, uri: string, triggeringId: string, columns: string, values: string) {
+		return testEnv.DB.prepare(
+			`INSERT INTO reconsiderations
+				(id, subject_uri, subject_cid, triggering_assessment_id,
+				 opened_by_id, opened_by_role, opened_at, opened_at_epoch_ms, ${columns})
+			 VALUES (?, ?, ?, ?, 'op', 'reviewer', '2026-07-16T00:00:00.000Z', 1, ${values})`,
+		).bind(id, uri, CID, triggeringId);
+	}
+
+	it("rejects a resolved row missing its resolve provenance", async () => {
+		const { id: triggeringId, uri } = await seedRun("schema-partial-resolved");
+		await expect(
+			insertCase(
+				"rcn_schema_partial_res",
+				uri,
+				triggeringId,
+				"state, outcome, resolved_at, resolved_at_epoch_ms, resolved_by_id",
+				"'resolved', 'granted', '2026-07-16T01:00:00.000Z', 2, 'op'",
+			).run(),
+		).rejects.toThrow();
+	});
+
+	it("rejects an open row carrying resolve provenance", async () => {
+		const { id: triggeringId, uri } = await seedRun("schema-open-provenance");
+		await expect(
+			insertCase(
+				"rcn_schema_open_prov",
+				uri,
+				triggeringId,
+				"state, resolved_by_id",
+				"'open', 'op'",
+			).run(),
+		).rejects.toThrow();
+	});
+});
