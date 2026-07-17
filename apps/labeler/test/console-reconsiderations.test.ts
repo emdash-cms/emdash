@@ -796,7 +796,13 @@ describe("reconsideration read API", () => {
 });
 
 describe("reconsideration schema invariants", () => {
-	function insertCase(id: string, uri: string, triggeringId: string, columns: string, values: string) {
+	function insertCase(
+		id: string,
+		uri: string,
+		triggeringId: string,
+		columns: string,
+		values: string,
+	) {
 		return testEnv.DB.prepare(
 			`INSERT INTO reconsiderations
 				(id, subject_uri, subject_cid, triggering_assessment_id,
