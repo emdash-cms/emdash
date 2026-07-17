@@ -1357,6 +1357,8 @@ Dependencies: component metrics from `W2` through `W10`.
 
 ### `W11.4` Write key-management runbooks
 
+Decision (2026-07-17, ratified): the runbooks landed in #2100 and surfaced the key gap — the signing-key rotation state machine (`signing-rotation.ts`: `beginRoutineKeyRotation`/`activateRoutineKeyRotation`/`abortRoutineKeyRotation`/`initializeSigningState`) is implemented + tested but has ZERO production callers (no console route, no CLI, no cron). Matt's decision: build a **CLI break-glass command** (not a console route) — rotation is a rare, high-stakes op that shouldn't be a routine console button; the out-of-band tool fits, and its lack of an `operator_actions` row is acceptable because `signing_events` already records rotation phase transitions + `ROTATION_*` alerts. Design crux for the build (flagged, not yet resolved): `activate` verifies the DEPLOYED signer holds the new key, so the CLI needs prod D1 AND the `LABEL_SIGNING_PRIVATE_KEY` secret to construct the signer identically to the Worker — the intended path is `getPlatformProxy` (wrangler) with REMOTE bindings for D1 + Secrets Store (net-new; not used in the repo yet), NOT local private-key handling. If activate cannot reach the deployed signer cleanly without the operator pasting the private key locally, stop and reconsider rather than ship an insecure key path. Follows the existing `scripts/keygen.mjs` node-CLI precedent.
+
 - Begin from the ratified `W0.4` key-lifecycle contract and the implemented `W3.7` behavior.
 - Initial generation and custody: the offline copy of the production scalar lives in the maintainer's Keeper vault.
 - Routine rotation.
