@@ -24,12 +24,18 @@ export const mediaListQuery = cursorPaginationQuery
 		mimeType: mimeTypeFilter,
 		/** Case-insensitive filename substring search (also matches extensions). */
 		q: z.string().trim().min(1).max(200).optional(),
-		includeUsage: z.literal("1").optional(),
+		includeUsage: z.literal("1").optional().meta({
+			description: "Include a coverage-aware usage summary on each media item",
+		}),
 	})
 	.meta({ id: "MediaListQuery" });
 
 export const mediaGetQuery = z
-	.object({ includeUsage: z.literal("1").optional() })
+	.object({
+		includeUsage: z.literal("1").optional().meta({
+			description: "Include a coverage-aware usage summary on the media item",
+		}),
+	})
 	.meta({ id: "MediaGetQuery" });
 
 export const mediaUpdateBody = z

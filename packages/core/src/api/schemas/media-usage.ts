@@ -21,8 +21,12 @@ export const mediaUsageSummarySchema = z
 	.meta({ id: "MediaUsageSummary" });
 
 export const mediaUsageDetailsQuery = z.object({
-	cursor: z.string().min(1).max(2048).optional(),
-	limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+	cursor: z.string().min(1).max(2048).optional().meta({
+		description: "Opaque content-entry-group cursor",
+	}),
+	limit: z.coerce.number().int().min(1).max(100).optional().default(50).meta({
+		description: "Maximum number of content entry groups to return (1-100, default 50)",
+	}),
 });
 
 export const mediaUsageOccurrenceDetailSchema = z
