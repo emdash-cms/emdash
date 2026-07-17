@@ -55,6 +55,14 @@ export interface OperationalEventInsert {
 	 * `issued_labels` row) inserts neither the event nor its outbox row.
 	 */
 	gateOnIssuedLabelActionKey?: string;
+	/**
+	 * Gates the event on this reconsideration having been resolved by this action:
+	 * `EXISTS (SELECT 1 FROM reconsiderations WHERE id = ? AND outcome_action_id = ?)`.
+	 * Batched after the resolve UPDATE (which guards on `state = 'open'`), so a
+	 * losing concurrent resolve — whose UPDATE matched zero rows — inserts no
+	 * phantom resolved-event while its audit row still commits for replay.
+	 */
+	gateOnResolvedReconsideration?: { reconsiderationId: string; actionId: string };
 }
 
 export interface OutboxInsert {
@@ -160,6 +168,22 @@ export function buildOperationalEventInsert(
 				 )`,
 			)
 			.bind(...values, input.gateOnIssuedLabelActionKey);
+	}
+
+	if (input.gateOnResolvedReconsideration !== undefined) {
+		return db
+			.prepare(
+				`INSERT INTO operational_events (${columns})
+				 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+				 WHERE EXISTS (
+					SELECT 1 FROM reconsiderations WHERE id = ? AND outcome_action_id = ?
+				 )`,
+			)
+			.bind(
+				...values,
+				input.gateOnResolvedReconsideration.reconsiderationId,
+				input.gateOnResolvedReconsideration.actionId,
+			);
 	}
 
 	if (input.gateOnIssuedLabelActionId !== undefined) {

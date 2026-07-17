@@ -629,7 +629,7 @@ describe("reconsideration resolve", () => {
 
 	it("does not re-notify when a losing concurrent resolve's key is replayed", async () => {
 		await seedConfirmedContact();
-		const { id } = await seedRun("resolve-concurrent-loser");
+		const { id, uri } = await seedRun("resolve-concurrent-loser");
 		const sender = recordingSender();
 		const { deps, settle } = mutationDeps({ notify: notifyDeps(sender) });
 		const { reconsiderationId } = await openCase(id, deps);
@@ -651,6 +651,7 @@ describe("reconsideration resolve", () => {
 		);
 		expect(winner.status).toBe(200);
 		await settle();
+		const winnerActionId = (await bodyData<{ actionId: string }>(winner)).actionId;
 		expect(sender.notices).toHaveLength(1);
 		expect(sender.notices[0]!.subject).toBe("Your reconsideration request was granted");
 
@@ -676,6 +677,14 @@ describe("reconsideration resolve", () => {
 		expect(caseRow?.outcome).toBe("granted");
 		expect(caseRow?.outcome_action_id).not.toBe(loserDescriptor.actionId);
 		expect(sender.notices).toHaveLength(1);
+		// Exactly one resolved-event, the winner's — the loser's is gated out.
+		const events = await testEnv.DB.prepare(
+			`SELECT action_id FROM operational_events WHERE event_type = 'reconsideration-resolved' AND subject_uri = ?`,
+		)
+			.bind(uri)
+			.all<{ action_id: string }>();
+		expect(events.results).toHaveLength(1);
+		expect(events.results![0]!.action_id).toBe(winnerActionId);
 
 		// Replaying B's key must NOT fire a second (contradictory 'denied') notice.
 		const replayDeps = mutationDeps({ notify: notifyDeps(sender) });

@@ -1712,6 +1712,11 @@ async function runReconsiderationResolve(
 			}),
 		);
 	}
+	// The event is gated on this action winning the `state = 'open'` UPDATE, so a
+	// losing concurrent resolve (distinct idempotency key) commits its audit row but
+	// emits no phantom resolved-event. That loser still echoes its own requested
+	// outcome in its 200 descriptor; the authoritative case state, the resolved
+	// event, and the outcome notice all reflect only the race winner.
 	statements.push(
 		buildOperationalEventInsert(deps.db, {
 			id: newOperationalEventId(),
@@ -1721,6 +1726,7 @@ async function runReconsiderationResolve(
 			subjectUri: existing.subjectUri,
 			payload: { reason: ctx.reason },
 			now: ctx.now,
+			gateOnResolvedReconsideration: { reconsiderationId: id, actionId: ctx.actionId },
 		}),
 	);
 
