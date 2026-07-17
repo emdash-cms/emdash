@@ -14,13 +14,18 @@ function isStringArray(value: unknown): value is string[] {
 	return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
 /** Parse an untrusted browser preference without letting it break the editor. */
 export function parseContentEditorPanelLayout(raw: string | null): ContentEditorPanelLayout | null {
 	if (!raw) return null;
 	try {
-		const value = JSON.parse(raw) as Partial<ContentEditorPanelLayout> | null;
+		const value: unknown = JSON.parse(raw);
 		if (
-			value?.version !== CONTENT_EDITOR_PANEL_LAYOUT_VERSION ||
+			!isRecord(value) ||
+			value.version !== CONTENT_EDITOR_PANEL_LAYOUT_VERSION ||
 			!isStringArray(value.main) ||
 			!isStringArray(value.sidebar)
 		) {
@@ -84,7 +89,11 @@ export function moveContentEditorPanel(
 	if (target < 0 || target >= current.length) return layout;
 
 	const next = [...current];
-	[next[index], next[target]] = [next[target] as string, next[index] as string];
+	const currentValue = next[index];
+	const targetValue = next[target];
+	if (currentValue === undefined || targetValue === undefined) return layout;
+	next[index] = targetValue;
+	next[target] = currentValue;
 	return { ...layout, [placement]: next };
 }
 

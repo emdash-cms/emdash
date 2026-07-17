@@ -399,8 +399,9 @@ describe("ContentList extension columns", () => {
 
 describe("ContentSettingsPanel extension panels", () => {
 	function ctxPanel({ collection, entry, locale, draft }: ContentEditorPanelContext) {
+		const draftTitle = typeof draft.data.title === "string" ? draft.data.title : "untitled";
 		return (
-			<div data-testid="ext-panel">{`panel:${collection}:${entry?.id ?? "new"}:${locale ?? "none"}:${String(draft.data.title ?? "untitled")}`}</div>
+			<div data-testid="ext-panel">{`panel:${collection}:${entry?.id ?? "new"}:${locale ?? "none"}:${draftTitle}`}</div>
 		);
 	}
 

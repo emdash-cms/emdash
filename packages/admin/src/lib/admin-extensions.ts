@@ -238,7 +238,11 @@ const REACT_COMPONENT_SYMBOLS = new Set([
 
 function isReactComponent(value: unknown): boolean {
 	if (typeof value === "function") return true;
-	return isRecord(value) && REACT_COMPONENT_SYMBOLS.has(value.$$typeof as symbol);
+	return (
+		isRecord(value) &&
+		typeof value.$$typeof === "symbol" &&
+		REACT_COMPONENT_SYMBOLS.has(value.$$typeof)
+	);
 }
 
 function isDisplayText(value: unknown): value is string | MessageDescriptor {
