@@ -69,7 +69,8 @@ async function getAiSearch(): Promise<AiSearchNamespace | null> {
 		const { env } = await import("cloudflare:workers");
 		const binding: unknown = Reflect.get(env, "AI_SEARCH");
 		return isAiSearchNamespace(binding) ? binding : null;
-	} catch {
+	} catch (error) {
+		console.error("[ai-search] Failed to resolve the AI_SEARCH binding:", error);
 		return null;
 	}
 }
@@ -115,6 +116,7 @@ export const POST: APIRoute = async ({ request }) => {
 						max_num_results: limit,
 						// The plugin gates scheduled content behind `visible_after`.
 						filters: { visible_after: { $lte: nowSeconds }, locale: { $eq: localeCode } },
+						metadata_only: true,
 					},
 				},
 			});
@@ -142,7 +144,6 @@ export const POST: APIRoute = async ({ request }) => {
 			const meta = chunk.item.metadata ?? {};
 			const slug = str(meta.slug) || id;
 			const { title, description } = unpackTitleDescription(str(meta.title_desc));
-			const text = chunk.text?.trim();
 			return {
 				id: chunk.item.key,
 				score: chunk.score,
@@ -150,7 +151,7 @@ export const POST: APIRoute = async ({ request }) => {
 					key: `/${collection}/${slug}?lang=${encodeURIComponent(locale)}`,
 					metadata: {
 						title: title || slug,
-						description: text || description,
+						description,
 						...(str(meta.image) ? { image: str(meta.image) } : {}),
 					},
 				},
@@ -158,7 +159,8 @@ export const POST: APIRoute = async ({ request }) => {
 		});
 
 		return Response.json({ success: true, result: { chunks: resultChunks } });
-	} catch {
+	} catch (error) {
+		console.error("[ai-search] Search request failed:", error);
 		return Response.json(
 			{ success: false, error: "Search is temporarily unavailable" },
 			{ status: 503 },

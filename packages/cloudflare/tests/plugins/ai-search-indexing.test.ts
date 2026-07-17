@@ -396,7 +396,7 @@ describe("ai-search content:afterSave indexing", () => {
 		// Regression: before flattening the hook payload, `title` came back empty
 		// and the body was never indexed.
 		expect(title).toBe("Hello World");
-		expect(description).toContain("quick brown fox");
+		expect(description).toBe("");
 		expect(uploaded!.content).toContain("Hello World");
 		expect(uploaded!.content).toContain("quick brown fox");
 		expect(uploaded!.metadata.locale).toBe("fr");

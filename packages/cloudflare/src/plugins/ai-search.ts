@@ -304,23 +304,12 @@ function contentToMarkdown(content: Record<string, unknown>, collection: string)
 }
 
 /**
- * Build a short plain-text description (article preview) from a content entry,
- * used as searchable/returnable metadata so metadata-only retrieval can render
- * a snippet without fetching the full document. Prefers an explicit excerpt,
- * then falls back to other indexable content fields. Excludes system metadata
- * and truncates to `DESCRIPTION_MAX_LENGTH` at a word boundary.
+ * Build a short plain-text description (article preview) from the content's
+ * explicit excerpt. Returns an empty description when no excerpt is present.
  */
 function contentToDescription(content: Record<string, unknown>): string {
 	const excerpt = extractIndexableText(content.excerpt);
-	if (excerpt) return truncateDescription(excerpt);
-
-	const parts: string[] = [];
-	for (const [key, value] of Object.entries(content)) {
-		if (key === "title" || key === "excerpt" || isSystemContentKey(key)) continue;
-		const text = extractIndexableText(value);
-		if (text) parts.push(text);
-	}
-	return truncateDescription(parts.join(" "));
+	return excerpt ? truncateDescription(excerpt) : "";
 }
 
 function imageUrlFromValue(value: unknown): string {
