@@ -21,6 +21,7 @@ declare module "virtual:emdash/config" {
 		authProviders?: AuthProviderDescriptor[];
 		i18n?: I18nConfig | null;
 		toolbar?: "server" | "client" | false;
+		astroCspEnabled?: boolean;
 	}
 
 	const config: VirtualConfig;

@@ -381,6 +381,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				if (astroVersion !== undefined) {
 					serializableConfig.astroVersion = astroVersion;
 				}
+				// EmDashHead must not access Astro.csp when the host has disabled
+				// Astro's built-in CSP runtime; Astro logs a warning for that access.
+				serializableConfig.astroCspEnabled = Boolean(astroConfig.security.csp);
 				// Extract i18n config from Astro config
 				// Astro locales can be strings OR { path, codes } objects — normalize to paths
 				if (astroConfig.i18n) {
