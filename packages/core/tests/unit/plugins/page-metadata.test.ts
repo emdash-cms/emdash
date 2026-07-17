@@ -335,11 +335,13 @@ describe("registerJsonLdCspHashes", () => {
 		const scripts = [{ json: '{"@type":"WebSite"}' }, { json: '{"@type":"Organization"}' }];
 
 		await registerJsonLdCspHashes(true, getCsp, scripts);
+		const hash0 = await createSha256CspHash(scripts[0].json);
+		const hash1 = await createSha256CspHash(scripts[1].json);
 
 		expect(getCsp).toHaveBeenCalledOnce();
 		expect(insertScriptHash).toHaveBeenCalledTimes(2);
-		expect(insertScriptHash).toHaveBeenNthCalledWith(1, await createSha256CspHash(scripts[0].json));
-		expect(insertScriptHash).toHaveBeenNthCalledWith(2, await createSha256CspHash(scripts[1].json));
+		expect(insertScriptHash).toHaveBeenCalledWith(hash0);
+		expect(insertScriptHash).toHaveBeenCalledWith(hash1);
 	});
 });
 
