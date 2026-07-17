@@ -47,7 +47,7 @@ import {
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
-import type { SandboxRunner } from "../plugins/sandbox/types.js";
+import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
 import {
@@ -200,19 +200,7 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
 		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
-		createSandboxRunner: sandboxModule.createSandboxRunner as
-			| ((opts: {
-					db: Kysely<Database>;
-					mediaStorage?: {
-						upload(options: {
-							key: string;
-							body: Uint8Array;
-							contentType: string;
-						}): Promise<unknown>;
-						delete(key: string): Promise<unknown>;
-					};
-			  }) => SandboxRunner)
-			| null,
+		createSandboxRunner: sandboxModule.createSandboxRunner as SandboxRunnerFactory | null,
 		mediaProviderEntries: (virtualMediaProviders as MediaProviderEntry[]) || [],
 	};
 	/* eslint-enable typescript-eslint/no-unsafe-type-assertion */
