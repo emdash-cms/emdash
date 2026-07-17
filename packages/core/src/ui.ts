@@ -75,3 +75,14 @@ export {
 	EmDashBodyStart,
 	EmDashBodyEnd,
 } from "./components/index.js";
+
+/**
+ * @deprecated Import from `emdash/ui/comments` instead. Barrel re-exports pull
+ * comment CSS into every page that imports `emdash/ui` (#2039). Will be removed in 1.0.
+ */
+export { Comments } from "./components/index.js";
+/**
+ * @deprecated Import from `emdash/ui/comments` instead. Barrel re-exports pull
+ * comment CSS into every page that imports `emdash/ui` (#2039). Will be removed in 1.0.
+ */
+export { CommentForm } from "./components/index.js";

@@ -2,6 +2,4 @@
 "emdash": minor
 ---
 
-Moves the `Comments` and `CommentForm` components from `emdash/ui` to a dedicated `emdash/ui/comments` entry point so their CSS is no longer loaded on pages that don't render comments. Previously, importing anything from `emdash/ui` (such as `PortableText`) pulled the comment styles into a shared, render-blocking stylesheet on every page.
-
-Migration: update comment imports from `import { Comments, CommentForm } from "emdash/ui"` to `import { Comments, CommentForm } from "emdash/ui/comments"`.
+Adds `emdash/ui/comments` for `Comments` and `CommentForm` so their CSS only loads on pages that import them. Importing from `emdash/ui` still works but is deprecated and will be removed in 1.0 — prefer `import { Comments, CommentForm } from "emdash/ui/comments"`.
