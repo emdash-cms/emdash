@@ -68,16 +68,13 @@ function mcpUnauthorizedResponse(
 	config?: Parameters<typeof getPublicOrigin>[1],
 ): Response {
 	const origin = getPublicOrigin(url, config);
-	return Response.json(
-		{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
-		{
-			status: 401,
-			headers: {
-				"WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
-				...MW_CACHE_HEADERS,
-			},
-		},
+	const response = apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
+	// Preserve the OAuth discovery header so MCP clients can find the auth server.
+	response.headers.set(
+		"WWW-Authenticate",
+		`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
 	);
+	return response;
 }
 
 /**
@@ -236,20 +233,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const bearerResult = await handleBearerAuth(context);
 
 	if (bearerResult === "invalid") {
-		const headers: Record<string, string> = {
-			"Content-Type": "application/json",
-			...MW_CACHE_HEADERS,
-		};
+		const response = apiError("INVALID_TOKEN", "Invalid or expired token", 401);
 		// Add WWW-Authenticate header on MCP endpoint 401s to trigger OAuth discovery
 		if (url.pathname === "/_emdash/api/mcp") {
 			const origin = getPublicOrigin(url, context.locals.emdash?.config);
-			headers["WWW-Authenticate"] =
-				`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`;
+			response.headers.set(
+				"WWW-Authenticate",
+				`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+			);
 		}
-		return new Response(
-			JSON.stringify({ error: { code: "INVALID_TOKEN", message: "Invalid or expired token" } }),
-			{ status: 401, headers },
-		);
+		return response;
 	}
 
 	const isTokenAuth = bearerResult === "authenticated";
