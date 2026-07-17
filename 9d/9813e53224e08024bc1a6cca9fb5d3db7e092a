@@ -1,0 +1,21 @@
+packages/core/src/client/index.ts
+  s_bf7b2c7251dbc2::t_f3ed2e01c08a0b 130-185,199,738,744,751-759,763-778
+packages/core/tests/unit/client/client.test.ts
+  s_bf7b2c7251dbc2::t_cdf3c980cbe0df 684-887
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9d9813e53224e08024bc1a6cca9fb5d3db7e092a",
+  "prompts": {},
+  "sessions": {
+    "s_bf7b2c7251dbc2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6f60-e849-71d2-8384-912c642e1b60",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
