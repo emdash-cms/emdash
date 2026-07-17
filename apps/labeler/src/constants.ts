@@ -40,3 +40,18 @@ export const NOTIFICATION_MAX_SEND_ATTEMPTS = 5;
 export const NOTIFICATION_STUCK_PENDING_MS = 15 * 60 * 1000;
 export const NOTIFICATION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 export const NOTIFICATION_SWEEP_BATCH = 200;
+
+/**
+ * Prolonged-error escalation thresholds (plan W10.5 follow-up). Versioned as a
+ * set: bump together if the ladder is retuned. A terminal `error` assessment
+ * (retries exhausted) that no newer run has superseded escalates in two stages
+ * measured from `completed_at_epoch_ms`: at {@link PROLONGED_ERROR_OPERATOR_THRESHOLD_MS}
+ * (24h) an operator alert so operators can triage an infra-vs-publisher cause;
+ * at {@link PROLONGED_ERROR_PUBLISHER_THRESHOLD_MS} (72h) the publisher notice,
+ * only if the error is still live. {@link PROLONGED_ERROR_SCAN_BATCH} caps one
+ * cron pass's scan of escalatable errors.
+ */
+export const PROLONGED_ERROR_ESCALATION_VERSION = 1;
+export const PROLONGED_ERROR_OPERATOR_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+export const PROLONGED_ERROR_PUBLISHER_THRESHOLD_MS = 72 * 60 * 60 * 1000;
+export const PROLONGED_ERROR_SCAN_BATCH = 200;

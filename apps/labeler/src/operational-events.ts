@@ -13,7 +13,8 @@ export type OperationalEventType =
 	| "dead-letter-retried"
 	| "dead-letter-quarantined"
 	| "reconsideration-opened"
-	| "reconsideration-resolved";
+	| "reconsideration-resolved"
+	| "assessment-prolonged-error";
 
 export type OperationalEventSeverity = "critical" | "high" | "info";
 
@@ -26,6 +27,11 @@ export type OperationalEventSeverity = "critical" | "high" | "info";
  */
 export interface OperationalEventPayload {
 	reason?: string;
+	/** The escalated run and its release CID for `assessment-prolonged-error`.
+	 * Both are public identifiers (the assessment id the public API returns, the
+	 * record's content hash) — no findings or private detail. */
+	assessmentId?: string;
+	cid?: string;
 }
 
 export interface OperationalEventInsert {
@@ -63,6 +69,16 @@ export interface OperationalEventInsert {
 	 * phantom resolved-event while its audit row still commits for replay.
 	 */
 	gateOnResolvedReconsideration?: { reconsiderationId: string; actionId: string };
+	/**
+	 * When set, the INSERT is gated on the `assessment_error_escalations` row for
+	 * this assessment still being un-alerted. Batched atomically with the
+	 * `operator_alerted_at` mark, it makes the prolonged-error operator alert
+	 * at-most-once even under overlapping cron ticks: a second pass that read the
+	 * row unalerted before the first committed still inserts no event, because its
+	 * EXISTS sees the committed mark (the app-level null read alone cannot — cron
+	 * ticks are not serialized against each other).
+	 */
+	gateOnUnalertedEscalation?: { assessmentId: string };
 }
 
 export interface OutboxInsert {
@@ -194,6 +210,19 @@ export function buildOperationalEventInsert(
 				 WHERE EXISTS (SELECT 1 FROM issued_labels WHERE action_id = ?)`,
 			)
 			.bind(...values, input.gateOnIssuedLabelActionId);
+	}
+
+	if (input.gateOnUnalertedEscalation !== undefined) {
+		return db
+			.prepare(
+				`INSERT INTO operational_events (${columns})
+				 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+				 WHERE EXISTS (
+					SELECT 1 FROM assessment_error_escalations
+					WHERE assessment_id = ? AND operator_alerted_at_epoch_ms IS NULL
+				 )`,
+			)
+			.bind(...values, input.gateOnUnalertedEscalation.assessmentId);
 	}
 
 	return db
