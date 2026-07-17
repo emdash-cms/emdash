@@ -69,6 +69,8 @@ export async function handleMediaUsageSummaries(
 	mediaIds: readonly string[],
 	options: { includeCount: boolean },
 ): Promise<ApiResult<Record<string, MediaUsageSummary>>> {
+	if (mediaIds.length === 0) return { success: true, data: {} };
+
 	try {
 		const repository = new MediaUsageRepository(db);
 		const coverage = await loadMediaUsageCoverage(repository);

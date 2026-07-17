@@ -198,6 +198,13 @@ describe("media usage summary handler and routes", () => {
 		await db.destroy();
 	});
 
+	it.each([false, true])("skips usage queries for an empty media page", async (includeCount) => {
+		const result = await handleMediaUsageSummaries(db, [], { includeCount });
+
+		expect(result).toEqual({ success: true, data: {} });
+		expect(queries).toHaveLength(0);
+	});
+
 	it("loads coverage once and skips count SQL when counts are redacted", async () => {
 		const result = await handleMediaUsageSummaries(db, [usedMedia.id, unusedMedia.id], {
 			includeCount: false,
