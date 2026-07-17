@@ -89,6 +89,23 @@ const autoresponderSchema = z
 	})
 	.optional();
 
+const contentFieldMappingSchema = z.union([
+	z.string().min(1),
+	z.object({
+		field: z.string().min(1),
+		transform: z.enum(["portableText", "string", "number", "date"]).optional(),
+	}),
+]);
+
+const contentMappingSchema = z.object({
+	collection: z.string().min(1),
+	fieldMappings: z
+		.record(z.string().min(1), contentFieldMappingSchema)
+		.refine((m) => Object.keys(m).length > 0, "At least one field mapping is required"),
+	slugFrom: z.string().min(1).optional(),
+	metadata: z.record(z.string().min(1), z.unknown()).optional(),
+});
+
 const formSettingsSchema = z.object({
 	confirmationMessage: z.string().min(1).default("Thank you for your submission."),
 	redirectUrl: httpUrl.optional().or(z.literal("")),
@@ -102,6 +119,8 @@ const formSettingsSchema = z.object({
 	submitLabel: z.string().min(1).default("Submit"),
 	nextLabel: z.string().optional(),
 	prevLabel: z.string().optional(),
+	// null clears the mapping on update
+	contentMapping: contentMappingSchema.nullable().optional(),
 });
 
 // ─── Form CRUD Schemas ──────────────────────────────────────────

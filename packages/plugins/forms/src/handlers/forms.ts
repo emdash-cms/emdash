@@ -8,13 +8,14 @@ import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
+import { validateContentMapping } from "../content-mapping.js";
 import type {
 	FormCreateInput,
 	FormDeleteInput,
 	FormDuplicateInput,
 	FormUpdateInput,
 } from "../schemas.js";
-import type { FormDefinition } from "../types.js";
+import type { FormDefinition, FormSettings } from "../types.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
@@ -57,6 +58,13 @@ export async function formsCreateHandler(ctx: RouteContext<FormCreateInput>) {
 	// Validate field names are unique across all pages
 	validateFieldNames(input.pages);
 
+	// Validate the content mapping against the target collection at save
+	// time — not only at submit time — so misconfigurations surface to the
+	// editor immediately.
+	if (input.settings.contentMapping) {
+		await validateContentMapping(ctx, input.settings.contentMapping, input.pages);
+	}
+
 	const now = new Date().toISOString();
 	const id = ulid();
 	const form: FormDefinition = {
@@ -76,6 +84,7 @@ export async function formsCreateHandler(ctx: RouteContext<FormCreateInput>) {
 			submitLabel: input.settings.submitLabel ?? "Submit",
 			nextLabel: input.settings.nextLabel,
 			prevLabel: input.settings.prevLabel,
+			contentMapping: input.settings.contentMapping ?? undefined,
 		},
 		status: "active",
 		submissionCount: 0,
@@ -126,7 +135,7 @@ export async function formsUpdateHandler(ctx: RouteContext<FormUpdateInput>) {
 		name: input.name ?? existing.name,
 		slug: input.slug ?? existing.slug,
 		pages: input.pages ?? existing.pages,
-		settings: input.settings ? { ...existing.settings, ...input.settings } : existing.settings,
+		settings: mergeSettings(existing.settings, input.settings),
 		status: input.status ?? existing.status,
 		updatedAt: new Date().toISOString(),
 	};
@@ -134,6 +143,12 @@ export async function formsUpdateHandler(ctx: RouteContext<FormUpdateInput>) {
 	// Clean up empty strings
 	if (updated.settings.redirectUrl === "") updated.settings.redirectUrl = undefined;
 	if (updated.settings.webhookUrl === "") updated.settings.webhookUrl = undefined;
+
+	// Validate the merged result so page edits that break an existing
+	// mapping (e.g. renaming a mapped form field) are caught at save time.
+	if (updated.settings.contentMapping) {
+		await validateContentMapping(ctx, updated.settings.contentMapping, updated.pages);
+	}
 
 	await forms(ctx).put(input.id, updated);
 
@@ -223,6 +238,20 @@ export async function formsDuplicateHandler(ctx: RouteContext<FormDuplicateInput
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────
+
+/**
+ * Merge a partial settings update into existing settings. `contentMapping`
+ * accepts an explicit `null` to clear the mapping (undefined keeps it).
+ */
+function mergeSettings(existing: FormSettings, input: FormUpdateInput["settings"]): FormSettings {
+	if (!input) return existing;
+	const { contentMapping, ...rest } = input;
+	const merged: FormSettings = { ...existing, ...rest };
+	if (contentMapping !== undefined) {
+		merged.contentMapping = contentMapping ?? undefined;
+	}
+	return merged;
+}
 
 function validateFieldNames(pages: Array<{ fields: Array<{ name: string }> }>) {
 	const names = new Set<string>();

@@ -241,10 +241,40 @@ export interface ContentListOptions {
  * key is extracted and routed to the core SEO panel (the `_emdash_seo`
  * table), matching the shape accepted by the REST API. Passing `seo` for a
  * collection that does not have SEO enabled throws a validation error.
+ *
+ * The reserved `slug` key is honored by `create` only: it is treated as
+ * slug source text and run through the same slug generation the admin/REST
+ * create path uses (slugified, de-duplicated with a numeric suffix). When
+ * omitted, the slug is derived from the entry's `title` or `name` field,
+ * again matching the REST create path. `update` ignores the key.
  */
 export type ContentWriteInput = Record<string, unknown> & {
 	seo?: ContentItemSeoInput;
+	slug?: string;
 };
+
+/**
+ * A content collection field definition, as exposed to plugins via
+ * `content.getCollection`.
+ */
+export interface CollectionFieldInfo {
+	slug: string;
+	label: string;
+	/** Field type slug (e.g. "text", "number", "portableText"). */
+	type: string;
+	required: boolean;
+}
+
+/**
+ * A content collection definition, as exposed to plugins via
+ * `content.getCollection`.
+ */
+export interface CollectionInfo {
+	slug: string;
+	label: string;
+	labelSingular: string | null;
+	fields: CollectionFieldInfo[];
+}
 
 /**
  * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").
@@ -292,6 +322,8 @@ export interface ContentAccess {
 	// Read operations (requires read:content)
 	get(collection: string, id: string): Promise<ContentItem | null>;
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
+	/** Look up a collection definition (with its fields) by slug. */
+	getCollection(collection: string): Promise<CollectionInfo | null>;
 
 	// Write operations (requires write:content) - optional on interface
 	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;

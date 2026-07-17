@@ -265,6 +265,46 @@ describe("Capability Enforcement Integration (v2)", () => {
 			});
 		});
 
+		describe("getCollection", () => {
+			beforeEach(async () => {
+				await sql`
+					INSERT INTO _emdash_collections (id, slug, label, label_singular)
+					VALUES ('col-events', 'events', 'Events', 'Event')
+				`.execute(db);
+				await sql`
+					INSERT INTO _emdash_fields (id, collection_id, slug, label, type, column_type, required, sort_order)
+					VALUES
+						('field-title', 'col-events', 'title', 'Title', 'text', 'TEXT', 1, 0),
+						('field-body', 'col-events', 'body', 'Body', 'portableText', 'JSON', 0, 1)
+				`.execute(db);
+			});
+
+			it("returns the collection definition with its fields", async () => {
+				const access = createContentAccess(db);
+				const collection = await access.getCollection("events");
+
+				expect(collection).toEqual({
+					slug: "events",
+					label: "Events",
+					labelSingular: "Event",
+					fields: [
+						{ slug: "title", label: "Title", type: "text", required: true },
+						{ slug: "body", label: "Body", type: "portableText", required: false },
+					],
+				});
+			});
+
+			it("returns null for an unknown collection", async () => {
+				const access = createContentAccess(db);
+				expect(await access.getCollection("nonexistent")).toBeNull();
+			});
+
+			it("is available on write access too", async () => {
+				const access = createContentAccessWithWrite(db);
+				expect((await access.getCollection("events"))?.slug).toBe("events");
+			});
+		});
+
 		describe("taxonomy read access", () => {
 			beforeEach(async () => {
 				// Migrations seed the default `category`/`tag` defs — clear them
@@ -438,6 +478,65 @@ describe("Capability Enforcement Integration (v2)", () => {
 				// Verify it was created
 				const found = await access.get("posts", created.id);
 				expect(found).not.toBeNull();
+			});
+
+			it("creates drafts by default", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "Draft Check" });
+
+				expect(created.status).toBe("draft");
+			});
+
+			it("generates a unique slug from the title, matching the REST create path", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				// "Hello World" slugifies to "hello-world", which the fixture
+				// post-1 already uses — the generator appends a suffix.
+				const created = await access.create("posts", {
+					title: "Hello World",
+					content: "Body",
+				});
+
+				expect(created.slug).toBe("hello-world-1");
+			});
+
+			it("derives the slug from the reserved slug key when provided", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", {
+					title: "Ignored For Slug",
+					slug: "My Custom Slug!",
+				});
+
+				expect(created.slug).toBe("my-custom-slug");
+			});
+
+			it("de-duplicates slugs provided via the reserved key", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", {
+					title: "Whatever",
+					slug: "hello-world",
+				});
+
+				expect(created.slug).toBe("hello-world-1");
+			});
+
+			it("creates content without a slug when no source is available", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { content: "no title or name" });
+
+				expect(created.slug).toBeNull();
+			});
+
+			it("rejects non-string slug values", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				await expect(access.create("posts", { title: "X", slug: 42 as never })).rejects.toThrow(
+					/content\.slug must be a non-empty string/,
+				);
 			});
 		});
 
