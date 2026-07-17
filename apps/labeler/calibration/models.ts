@@ -24,7 +24,6 @@ export interface CalibrationModel {
 // so a wall-clock kill costs the cheapest, fastest-to-redo calls at the tail
 // rather than the expensive reasoning-model data captured up front.
 export const MODELS: readonly CalibrationModel[] = [
-	{ modelId: "@cf/moonshotai/kimi-k2.6", lanes: ["code", "image"], reasoning: true },
 	{ modelId: "@cf/moonshotai/kimi-k2.7-code", lanes: ["code", "image"] },
 	{ modelId: "@cf/zai-org/glm-5.2", lanes: ["code"] },
 	{
