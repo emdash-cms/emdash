@@ -118,12 +118,12 @@ So a short outage is absorbed by the retries and the run completes once the mode
 
 **Diagnose — the classification is the key.** Acquisition sorts every failure into four categories, and the category determines whether it's a transient error or a public block:
 
-| Category | Cause | Disposition |
-| --- | --- | --- |
-| `mirror-miss` | No mirror object (always, in v1) | Retry → falls through to declared URL |
-| `transient` | Network/timeout/5xx, size cap tripped mid-fetch, malformed _declared_ checksum | Retry → `assessment-error`. **Never a public block** — a transport failure is not evidence the plugin is bad (spec §9.4) |
-| `permanent-mismatch` | `CHECKSUM_MISMATCH` on fetched bytes, or pinned-vs-declared `COORDINATE_MISMATCH` | Permanent blocking `artifact-integrity-failure` finding |
-| `policy-rejection` | A checksum-verified bundle that is structurally invalid, or a non-UTF-8 code file | Permanent blocking `invalid-bundle` finding, or (for URL-safety refusals) retry |
+| Category             | Cause                                                                             | Disposition                                                                                                              |
+| -------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `mirror-miss`        | No mirror object (always, in v1)                                                  | Retry → falls through to declared URL                                                                                    |
+| `transient`          | Network/timeout/5xx, size cap tripped mid-fetch, malformed _declared_ checksum    | Retry → `assessment-error`. **Never a public block** — a transport failure is not evidence the plugin is bad (spec §9.4) |
+| `permanent-mismatch` | `CHECKSUM_MISMATCH` on fetched bytes, or pinned-vs-declared `COORDINATE_MISMATCH` | Permanent blocking `artifact-integrity-failure` finding                                                                  |
+| `policy-rejection`   | A checksum-verified bundle that is structurally invalid, or a non-UTF-8 code file | Permanent blocking `invalid-bundle` finding, or (for URL-safety refusals) retry                                          |
 
 Also transient: **a release the aggregator hasn't indexed yet.** `release-resolution` throws `StageTransientError` for an absent release — that's aggregator lag, not a deletion (reconciliation owns true deletions). A broad "not indexed by the aggregator yet" spike points at the aggregator lagging or down, not the publishers' origins.
 
@@ -203,11 +203,11 @@ These are security-critical. The signing key is the labeler's authority — anyo
 
 **Where it lives (config vs. secret).**
 
-| Piece | Where | Consumed by |
-| --- | --- | --- |
-| `LABEL_SIGNING_KEY_VERSION` | `wrangler.jsonc` var (e.g. `v1`) | Config; stamped on issued labels; gates issuance against the DB active version |
-| `LABEL_SIGNING_PUBLIC_KEY` | `wrangler.jsonc` var (P-256 Multikey) | The served DID document; validated canonical |
-| `LABEL_SIGNING_PRIVATE_KEY` | **Secret** (Secrets Store), read via `getRuntimeSigningSecret` | Builds the runtime signer (`signing-runtime.ts`) |
+| Piece                       | Where                                                          | Consumed by                                                                    |
+| --------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `LABEL_SIGNING_KEY_VERSION` | `wrangler.jsonc` var (e.g. `v1`)                               | Config; stamped on issued labels; gates issuance against the DB active version |
+| `LABEL_SIGNING_PUBLIC_KEY`  | `wrangler.jsonc` var (P-256 Multikey)                          | The served DID document; validated canonical                                   |
+| `LABEL_SIGNING_PRIVATE_KEY` | **Secret** (Secrets Store), read via `getRuntimeSigningSecret` | Builds the runtime signer (`signing-runtime.ts`)                               |
 
 The runtime signer is built from the config public key + version and the secret private key. The DB (`signing_state`) is the _authoritative gate_: `buildIssuanceStatements` refuses to issue if the config's key version doesn't match the DB's active key version, or if the phase is `paused`.
 
