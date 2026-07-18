@@ -15,6 +15,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import { metaString } from "../lib/media-utils";
+import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 
 /**
@@ -104,7 +105,13 @@ export function ImageFieldRenderer({
 
 	return (
 		<div id={id} className="grid gap-2">
-			<Label>{label}</Label>
+			{description ? (
+				<FieldHelpLabel help={description} helpLabel={t`More information about ${label}`}>
+					{label}
+				</FieldHelpLabel>
+			) : (
+				<Label>{label}</Label>
+			)}
 			{displayUrl ? (
 				imageBroken ? (
 					<div className="relative group">
@@ -186,7 +193,6 @@ export function ImageFieldRenderer({
 				fieldId={fieldId}
 				title={t`Select ${label}`}
 			/>
-			{description && <p className="-mt-1 text-xs text-kumo-subtle">{description}</p>}
 			{required && !displayUrl && (
 				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
 			)}

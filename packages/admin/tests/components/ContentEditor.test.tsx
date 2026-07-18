@@ -247,9 +247,32 @@ describe("ContentEditor", () => {
 		expect(contentLabel.tagName).toBe("LABEL");
 		expect(contentLabel).toHaveClass("text-base", "font-medium");
 		expect(contentLabel.parentElement).toHaveClass("grid", "gap-2");
-		expect(featuredLabel.parentElement).toHaveClass("grid", "gap-2");
+		expect(featuredLabel.parentElement).toHaveClass("flex", "items-center", "gap-1.5");
+		expect(featuredLabel.parentElement?.parentElement).toHaveClass("grid", "gap-2");
 		expect(attachmentLabel.parentElement).toHaveClass("grid", "gap-2");
 		expect(fieldStack).toHaveClass("space-y-6");
+	});
+
+	it("shows featured image guidance in the shared instant help tooltip", async () => {
+		const screen = await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: {
+				featured_image: { kind: "image", label: "Featured Image" },
+			},
+		});
+		const helpTrigger = screen.getByRole("button", {
+			name: "More information about Featured Image",
+		});
+
+		await userEvent.hover(helpTrigger.element());
+		await expect
+			.element(
+				screen.getByText(
+					"Used as the main visual for this post on listing pages and at the top of the post",
+				),
+			)
+			.toBeVisible();
 	});
 
 	describe("block panel + mobile sheet sync", () => {
