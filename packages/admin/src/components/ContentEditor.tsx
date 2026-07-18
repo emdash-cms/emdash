@@ -687,6 +687,7 @@ export function ContentEditor({
 												</LinkButton>
 											)}
 											<PublishActions
+												collectionLabel={collectionLabel}
 												isNew={isNew}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
@@ -739,6 +740,7 @@ export function ContentEditor({
 												<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
 											)}
 											<PublishActions
+												collectionLabel={collectionLabel}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
 												onPublish={onPublish}
@@ -802,6 +804,7 @@ export function ContentEditor({
 					    isSaving, isAutosaving) so they never reach the memoized panel. */}
 					{!isBelowLg && (
 						<SettingsActionBar
+							collectionLabel={collectionLabel}
 							isNew={isNew}
 							isDirty={isDirty}
 							isSaving={Boolean(saveFeedbackActive)}
