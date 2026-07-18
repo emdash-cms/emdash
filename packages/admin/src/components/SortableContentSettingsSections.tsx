@@ -5,6 +5,7 @@ import {
 	type DragStartEvent,
 	KeyboardSensor,
 	MeasuringStrategy,
+	type Modifier,
 	PointerSensor,
 	useSensor,
 	useSensors,
@@ -30,6 +31,11 @@ import {
 import { cn } from "../lib/utils.js";
 
 const STORAGE_PREFIX = "emdash:content-settings-layout:v1";
+
+const restrictToVerticalAxis: Modifier = ({ transform }) => ({
+	...transform,
+	x: 0,
+});
 
 export interface SortableContentSettingsSectionProps {
 	id: ContentSettingsSectionId;
@@ -126,6 +132,7 @@ export function SortableContentSettingsSections({
 		<DndContext
 			sensors={sensors}
 			collisionDetection={closestCenter}
+			modifiers={[restrictToVerticalAxis]}
 			measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
 			onDragStart={handleDragStart}
 			onDragCancel={() => setActiveId(null)}
@@ -155,9 +162,10 @@ export function SortableContentSettingsSection({
 		id,
 	});
 	const style: React.CSSProperties = {
-		transform: CSS.Transform.toString(transform),
+		transform: transform ? CSS.Transform.toString({ ...transform, x: 0 }) : undefined,
 		transition,
 		zIndex: isDragging ? 10 : undefined,
+		inlineSize: "100%",
 	};
 
 	return (
@@ -165,10 +173,10 @@ export function SortableContentSettingsSection({
 			ref={setNodeRef}
 			style={style}
 			data-sorting={isSorting ? "true" : "false"}
+			data-disclosure={disclosure ? "true" : "false"}
 			className={cn(
 				"relative min-w-0 border-t bg-kumo-base first:border-t-0",
-				isSorting &&
-					"[&>*:not([data-sortable-heading]):not([data-sortable-handle])]:hidden",
+				isSorting && "[&>*:not([data-sortable-heading]):not([data-sortable-handle])]:hidden",
 				isDragging && "bg-kumo-tint opacity-60",
 			)}
 		>
@@ -190,7 +198,7 @@ export function SortableContentSettingsSection({
 				className={cn(
 					"absolute z-10 grid size-7 touch-none cursor-grab place-items-center rounded-md text-kumo-subtle hover:bg-kumo-tint hover:text-kumo-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-accent active:cursor-grabbing",
 					isSorting ? "end-3 top-1/2 -translate-y-1/2" : "top-3",
-					!isSorting && (disclosure ? "end-10" : "end-3"),
+					!isSorting && "end-3",
 				)}
 				aria-label={t`Drag to reorder ${label}`}
 				title={t`Drag to reorder ${label}`}

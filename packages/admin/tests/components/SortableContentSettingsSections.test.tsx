@@ -71,6 +71,26 @@ describe("SortableContentSettingsSections", () => {
 		expect(visibleSections.map((section) => section.textContent)).toEqual(["Publish", "SEO"]);
 	});
 
+	it("keeps sortable rows full-width and exposes disclosure spacing", () => {
+		const { container } = render(
+			<I18nProvider i18n={i18n}>
+				<SortableContentSettingsSections collection="posts" userId="user-1">
+					<SortableContentSettingsSection id="outline" label="Outline" disclosure>
+						<div>Outline</div>
+					</SortableContentSettingsSection>
+				</SortableContentSettingsSections>
+			</I18nProvider>,
+		);
+
+		const section = container.querySelector<HTMLElement>("section");
+		const handle = screen.getByRole("button", { name: "Drag to reorder Outline" });
+
+		expect(section?.style.inlineSize).toBe("100%");
+		expect(section?.dataset.disclosure).toBe("true");
+		expect(handle.classList.contains("end-3")).toBe(true);
+		expect(handle.classList.contains("end-10")).toBe(false);
+	});
+
 	it("collapses every section to its heading while keyboard sorting is active", async () => {
 		const { container } = renderSections();
 		const handle = screen.getByRole("button", { name: "Drag to reorder Publish" });

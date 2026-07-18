@@ -108,12 +108,18 @@ export interface DocumentOutlineProps {
 	editor: Editor | null;
 	/** Additional CSS classes */
 	className?: string;
+	/** Reserve the inline end of the disclosure header for an external control. */
+	reserveHeaderEnd?: boolean;
 }
 
 /**
  * Document outline component showing heading tree structure
  */
-export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
+export function DocumentOutline({
+	editor,
+	className,
+	reserveHeaderEnd = false,
+}: DocumentOutlineProps) {
 	const { t } = useLingui();
 	const [isExpanded, setIsExpanded] = React.useState(true);
 	const [headings, setHeadings] = React.useState<HeadingItem[]>([]);
@@ -173,7 +179,7 @@ export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 				render={
 					<Button
 						variant="ghost"
-						className="relative justify-between"
+						className={cn("relative justify-between", reserveHeaderEnd && "pe-10")}
 						style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
 					/>
 				}

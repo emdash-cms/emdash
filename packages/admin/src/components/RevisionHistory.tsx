@@ -71,6 +71,8 @@ interface RevisionHistoryProps {
 	entryId: string;
 	/** Called when a revision is successfully restored */
 	onRestored?: () => void;
+	/** Reserve the inline end of the disclosure header for an external control. */
+	reserveHeaderEnd?: boolean;
 }
 
 /**
@@ -91,7 +93,12 @@ function formatFullDate(dateString: string): string {
  * RevisionHistory component - displays revision history for a content item
  * with ability to restore previous versions.
  */
-export function RevisionHistory({ collection, entryId, onRestored }: RevisionHistoryProps) {
+export function RevisionHistory({
+	collection,
+	entryId,
+	onRestored,
+	reserveHeaderEnd = false,
+}: RevisionHistoryProps) {
 	const { t } = useLingui();
 	const [isExpanded, setIsExpanded] = React.useState(false);
 	const [selectedRevision, setSelectedRevision] = React.useState<Revision | null>(null);
@@ -148,7 +155,7 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 						<Button
 							type="button"
 							variant="ghost"
-							className="relative justify-between"
+							className={cn("relative justify-between", reserveHeaderEnd && "pe-10")}
 							style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
 						/>
 					}

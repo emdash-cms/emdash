@@ -630,7 +630,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{portableTextEditor && (
 					<SortableContentSettingsSection id="outline" label={t`Outline`} disclosure>
 						<div className="p-4">
-							<DocumentOutline editor={portableTextEditor} />
+							<DocumentOutline editor={portableTextEditor} reserveHeaderEnd />
 						</div>
 					</SortableContentSettingsSection>
 				)}
@@ -638,7 +638,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{!isNew && item && supportsRevisions && (
 					<SortableContentSettingsSection id="revisions" label={t`Revisions`} disclosure>
 						<div className="p-4">
-							<RevisionHistory collection={collection} entryId={item.id} />
+							<RevisionHistory collection={collection} entryId={item.id} reserveHeaderEnd />
 						</div>
 					</SortableContentSettingsSection>
 				)}
