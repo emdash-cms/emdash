@@ -291,6 +291,11 @@ async function runLabelMutation(
 	const outcome = await guardMutation(request, spec, guardDeps);
 	if (outcome.outcome === "replay") {
 		await assertIssuancePersisted(deps.db, [outcome.actionId]);
+		// Redrive the subscription-DO notify: the original request's afterCommit may
+		// have failed, leaving the committed label `publication_pending = 1`. Replay
+		// is the cheap latency path back to a live broadcast; the reconciliation
+		// sweep is the durable backstop.
+		deps.defer(deps.afterCommit(outcome.actionId));
 		deferLabelNotify(deps, storedDescriptor<IssuedLabelDescriptor>(outcome.result));
 		return jsonData(outcome.result);
 	}
@@ -1040,6 +1045,9 @@ async function runEmergencyAction(
 	if (outcome.outcome === "replay") {
 		const stored = storedDescriptor<EmergencyDescriptor>(outcome.result);
 		await assertIssuancePersisted(deps.db, [stored.actionId]);
+		// Redrive the subscription-DO notify in case the original afterCommit dropped
+		// it (see runLabelMutation's replay branch).
+		deps.defer(deps.afterCommit(stored.actionId));
 		if (action === "takedown") deferTakedownNotify(deps, stored);
 		return jsonData(stored);
 	}
