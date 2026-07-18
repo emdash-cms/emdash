@@ -237,6 +237,7 @@ export function ContentEditor({
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
+	const itemLabel = collectionLabel.toLocaleLowerCase(uiLocale);
 	// Kumo Sidebar's `side` is physical, not logical.
 	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
 	// Mirrors the Sidebar's mobileBreakpoint; `contained` flips with it.
@@ -626,7 +627,7 @@ export function ContentEditor({
 									),
 						)}
 					>
-						<div className="flex items-center gap-4">
+						<div className="flex min-w-0 items-center gap-3">
 							{!isDistractionFree && (
 								<RouterLinkButton
 									to="/content/$collection"
@@ -648,8 +649,8 @@ export function ContentEditor({
 									<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
 								</Button>
 							)}
-							<h1 className="text-2xl font-bold">
-								{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
+							<h1 className="min-w-0 truncate text-lg font-semibold">
+								{isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`}
 							</h1>
 							{i18n && item?.locale && (
 								<Badge variant="outline" className="uppercase text-xs">

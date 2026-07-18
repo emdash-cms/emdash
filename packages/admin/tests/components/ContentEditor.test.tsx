@@ -1117,7 +1117,7 @@ describe("ContentEditor", () => {
 			const media = installMatchMedia(true);
 			try {
 				const screen = await renderEditor({ isNew: false, item: makeItem() });
-				const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+				const heading = screen.getByRole("heading", { name: "Edit post" }).element();
 				const header = heading.parentElement?.parentElement;
 
 				expect(header).not.toHaveClass("sticky", "top-0", "z-20");
@@ -1309,7 +1309,7 @@ describe("ContentEditor", () => {
 
 			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
 
-			const heading = screen.getByRole("heading", { name: "New Post" }).element();
+			const heading = screen.getByRole("heading", { name: "New post" }).element();
 			const header = heading.parentElement?.parentElement;
 			expect(form).toHaveClass("bg-kumo-elevated");
 			expect(header).toHaveClass("bg-kumo-elevated/95");
@@ -1445,15 +1445,22 @@ describe("ContentEditor", () => {
 	});
 
 	describe("heading", () => {
-		it("shows 'New Post' heading for new items", async () => {
+		it("shows a quiet sentence-case heading for new items", async () => {
 			const screen = await renderEditor({ isNew: true, collectionLabel: "Post" });
-			await expect.element(screen.getByText("New Post")).toBeInTheDocument();
+			const heading = screen.getByRole("heading", { name: "New post" });
+
+			await expect.element(heading).toBeInTheDocument();
+			await expect.element(heading).toHaveClass("text-lg", "font-semibold", "truncate");
+			expect(heading.element().parentElement).toHaveClass("min-w-0", "items-center", "gap-3");
 		});
 
-		it("shows 'Edit Post' heading for existing items", async () => {
+		it("shows a quiet sentence-case heading for existing items", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item, collectionLabel: "Post" });
-			await expect.element(screen.getByText("Edit Post")).toBeInTheDocument();
+			const heading = screen.getByRole("heading", { name: "Edit post" });
+
+			await expect.element(heading).toBeInTheDocument();
+			await expect.element(heading).toHaveClass("text-lg", "font-semibold", "truncate");
 		});
 	});
 

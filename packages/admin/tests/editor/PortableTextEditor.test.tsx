@@ -588,6 +588,25 @@ describe("Editor component behaviour", () => {
 		expect(surface).toHaveClass("bg-kumo-base");
 	});
 
+	it("shrinks the editor surface to fit a narrow grid column", async () => {
+		const screen = await render(
+			<div data-testid="editor-column" style={{ display: "grid", width: 320 }}>
+				<PortableTextEditor value={[textBlock("Contained editor")]} />
+			</div>,
+		);
+		await waitForEditor();
+		const column = screen.getByTestId("editor-column").element();
+		const floatingRoot = screen.container.querySelector<HTMLElement>(
+			"[data-emdash-editor-floating-root]",
+		);
+
+		expect(floatingRoot).toBeTruthy();
+		expect(floatingRoot).toHaveClass("min-w-0");
+		expect(floatingRoot!.getBoundingClientRect().width).toBeLessThanOrEqual(
+			column.getBoundingClientRect().width,
+		);
+	});
+
 	it("calls onEditorReady with Editor instance", async () => {
 		const onEditorReady = vi.fn();
 		await render(<PortableTextEditor onEditorReady={onEditorReady} value={[textBlock("Ready")]} />);
