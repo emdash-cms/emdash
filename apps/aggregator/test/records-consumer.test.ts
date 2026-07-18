@@ -564,7 +564,15 @@ function buildDeps(opts: { fetch: typeof fetch }): {
 		now: () => NOW,
 	});
 	return {
-		deps: { db: testEnv.DB, resolver, fetch: opts.fetch, now: () => NOW },
+		deps: {
+			db: testEnv.DB,
+			resolver,
+			fetch: opts.fetch,
+			// pds.test.example resolves public so the SSRF egress guard in
+			// `fetchAndVerifyRecord` passes and these tests reach the fetch stub.
+			resolveHostname: async () => ["93.184.216.34"],
+			now: () => NOW,
+		},
 		cache,
 	};
 }

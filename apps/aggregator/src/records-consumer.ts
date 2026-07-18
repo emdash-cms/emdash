@@ -43,6 +43,7 @@ import {
 	PublisherProfile,
 	PublisherVerification,
 } from "@emdash-cms/registry-lexicons";
+import { cloudflareDohResolver, type DnsResolver } from "emdash/security/ssrf";
 
 import { createD1DidDocCache, DidResolver } from "./did-resolver.js";
 import type { RecordsJob } from "./env.js";
@@ -63,6 +64,12 @@ export interface ConsumerDeps {
 	db: D1Database;
 	resolver: DidResolver;
 	fetch?: typeof fetch;
+	/**
+	 * SSRF-safe hostname resolver handed to `fetchAndVerifyRecord` so it can
+	 * validate the publisher-controlled PDS endpoint (and any redirect) before
+	 * connecting. Production wires `cloudflareDohResolver`.
+	 */
+	resolveHostname?: DnsResolver;
 	now?: () => Date;
 	/**
 	 * Optional override for the PDS-verification step. Used by tests to inject
@@ -78,6 +85,7 @@ export interface ConsumerDeps {
 		rkey: string;
 		publicKey: import("@atcute/crypto").PublicKey;
 		fetch?: typeof fetch;
+		resolveHostname?: DnsResolver;
 	}) => Promise<VerifiedPdsRecord>;
 }
 
@@ -102,6 +110,7 @@ export type DeadLetterReason =
 	| "RESPONSE_TOO_LARGE"
 	| "INVALID_PROOF"
 	| "PDS_HTTP_ERROR"
+	| "PDS_ADDRESS_BLOCKED"
 	// structural checks (consumer-enforced)
 	| "LEXICON_VALIDATION_FAILED"
 	| "RKEY_MISMATCH"
@@ -311,6 +320,7 @@ async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<voi
 		rkey: job.rkey,
 		publicKey: resolved.publicKey,
 		fetch: deps.fetch,
+		resolveHostname: deps.resolveHostname,
 	});
 
 	// Cross-check vs Jetstream copy intentionally omitted: the verified PDS
@@ -970,6 +980,9 @@ function createProductionDeps(env: Env): ConsumerDeps {
 		// the bound wrapper rather than letting `pds-verify.ts` fall
 		// back to bare global `fetch`.
 		fetch: boundFetch,
+		// DoH-backed resolver `pds-verify.ts` validates the publisher's PDS
+		// endpoint (and any redirect) against the SSRF blocklist before fetching.
+		resolveHostname: cloudflareDohResolver,
 	};
 }
 
@@ -989,6 +1002,7 @@ function mapPdsReason(reason: VerificationFailureReason): DeadLetterReason {
 		case "RESPONSE_TOO_LARGE":
 		case "INVALID_PROOF":
 		case "PDS_HTTP_ERROR":
+		case "PDS_ADDRESS_BLOCKED":
 			return reason;
 		case "PDS_NETWORK_ERROR":
 			throw new Error(

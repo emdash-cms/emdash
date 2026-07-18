@@ -14,7 +14,7 @@
 
 import { NSID } from "@emdash-cms/registry-lexicons";
 import { applyD1Migrations, env, SELF } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 interface TestEnv {
 	DB: D1Database;
@@ -1143,6 +1143,44 @@ describe("XRPC dispatcher", () => {
 	it("returns 404 on unknown XRPC NSIDs", async () => {
 		const res = await SELF.fetch("https://test/xrpc/com.example.notARealEndpoint");
 		expect(res.status).toBe(404);
+	});
+});
+
+describe("XRPC dispatcher — unexpected policy-resolution failure", () => {
+	// A non-XRPC throw before dispatch (here: a D1 error because `labelers`
+	// is gone) must still take the CORS + `no-store` wrapper, not escape to
+	// workerd's bare 500. Capture the table's schema so the shared beforeEach
+	// (`DELETE FROM labelers`) keeps working after a test drops it.
+	let labelersSchema: string;
+	beforeAll(async () => {
+		const row = await testEnv.DB.prepare(
+			"SELECT sql FROM sqlite_master WHERE type='table' AND name='labelers'",
+		).first<{ sql: string }>();
+		labelersSchema = row!.sql;
+	});
+	afterEach(async () => {
+		const exists = await testEnv.DB.prepare(
+			"SELECT 1 FROM sqlite_master WHERE type='table' AND name='labelers'",
+		).first();
+		if (!exists) await testEnv.DB.prepare(labelersSchema).run();
+	});
+
+	it("wraps a non-XRPC failure in a 500 carrying CORS + no-store and no leaked internals", async () => {
+		await seedPackage({ slug: "demo" });
+		// Resolving the default policy runs `SELECT did FROM labelers`; dropping
+		// the table makes that throw a non-XRPC D1 error before dispatch.
+		await testEnv.DB.prepare("DROP TABLE labelers").run();
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(res.status).toBe(500);
+		expect(res.headers.get("cache-control")).toBe("private, no-store");
+		expect(res.headers.get("access-control-allow-origin")).toBe("*");
+		const body = (await res.json()) as { error: string; message?: string };
+		expect(body.error).toBe("InternalServerError");
+		// No internal detail (SQL text, table name, stack) leaks to the client.
+		expect(JSON.stringify(body)).not.toMatch(/labelers|no such table|SQL|SELECT/i);
 	});
 });
 

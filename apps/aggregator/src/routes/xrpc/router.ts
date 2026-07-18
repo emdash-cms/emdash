@@ -21,7 +21,7 @@
  *     (immutable bytes).
  */
 
-import { XRPCError, XRPCRouter } from "@atcute/xrpc-server";
+import { InternalServerError, XRPCError, XRPCRouter } from "@atcute/xrpc-server";
 import {
 	AggregatorGetLatestRelease,
 	AggregatorGetPackage,
@@ -76,6 +76,21 @@ function applyCorsHeaders(headers: Headers): void {
 }
 
 /**
+ * Generic 500 for an unexpected pre-dispatch failure (e.g. a D1 error resolving
+ * the labeler policy). Logs the internal error for operators but returns the
+ * router's own opaque envelope, so no internal detail (SQL text, stack) reaches
+ * the client. Matches the body the router itself produces for a handler throw.
+ */
+function internalErrorResponse(err: unknown): Response {
+	console.error("[aggregator] xrpc policy resolution failed", {
+		error: err instanceof Error ? (err.stack ?? err.message) : String(err),
+	});
+	return new InternalServerError({
+		message: "an exception happened whilst processing this request",
+	}).toResponse();
+}
+
+/**
  * Dispatch any `/xrpc/*` request. Returns null when the path isn't an
  * XRPC route (caller falls through to other route matching).
  */
@@ -107,14 +122,17 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 	// handler sees the same policy the response's `atproto-content-labelers`
 	// header reports below. A malformed header 400s in the same envelope
 	// shape the router itself produces for InvalidRequest; any other failure
-	// (e.g. a D1 error) propagates so the caller 500s instead of the request
-	// silently falling open to an empty policy.
+	// (e.g. a D1 error) is wrapped as a 500 below so the caller fails closed
+	// rather than the request silently falling open to an empty policy.
 	let policy: Awaited<ReturnType<typeof resolveRequestLabelerPolicy>>;
 	try {
 		policy = await resolveRequestLabelerPolicy(env, request);
 	} catch (err) {
-		if (!(err instanceof XRPCError)) throw err;
-		const errorResponse = err.toResponse();
+		// Both branches take the same wrapper as a normal response so the
+		// CORS + `no-store` cache invariant holds on the error path too — an
+		// unwrapped throw would escape to workerd's bare 500, dropping both
+		// and leaving a takedown-relevant response cacheable.
+		const errorResponse = err instanceof XRPCError ? err.toResponse() : internalErrorResponse(err);
 		const headers = new Headers(errorResponse.headers);
 		headers.set("cache-control", NO_STORE);
 		applyCorsHeaders(headers);
