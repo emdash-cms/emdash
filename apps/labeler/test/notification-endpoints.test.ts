@@ -145,6 +145,24 @@ describe("confirm", () => {
 		expect((await getContactState(db(), hash))?.confirmState).toBe("confirmed");
 	});
 
+	it("does NOT confirm when the credentials are only in the query (no form body)", async () => {
+		const token = "confirm-token-query-only";
+		const hash = await seedPending(token);
+
+		// A scanner POSTing the confirmation link URL with c/t in the query and no
+		// form body must not confirm — confirm has no query fallback.
+		const response = await SELF.fetch(
+			`https://labeler.test/notifications/confirm?c=${hash}&t=${encodeURIComponent(token)}`,
+			{
+				method: "POST",
+				headers: { "content-type": "application/x-www-form-urlencoded" },
+				body: "",
+			},
+		);
+		expect(response.status).toBe(200);
+		expect((await getContactState(db(), hash))?.confirmState).toBe("unconfirmed");
+	});
+
 	it("never confirms a suppressed contact even with a matching token", async () => {
 		const token = "confirm-token-suppressed";
 		const hash = await seedPending(token);

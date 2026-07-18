@@ -15,9 +15,9 @@
  *   - GET renders a confirmation page with a POST form; only POST mutates. An
  *     email scanner's or link-prefetcher's automated GET therefore never
  *     confirms, unsubscribes, or suppresses. The browser POST carries the
- *     token/hash in hidden form fields; an RFC 8058 one-click unsubscribe POST
- *     carries `c` in the header URL's query instead, so the POST parser reads the
- *     body first and falls back to the query.
+ *     token/hash in hidden form fields; only the RFC 8058 one-click UNSUBSCRIBE
+ *     POST carries `c` in the header URL's query, so the query fallback is scoped
+ *     to that path — confirm and not-me require their capability from the body.
  *   - CSRF: a cross-site POST cannot supply a valid recipient hash (or confirm
  *     token) for a victim, so possession of the capability is the CSRF defense;
  *     a custom header (unsendable from a plain email-client form) is not used.
@@ -116,11 +116,6 @@ async function readPostParams(
 	request: Request,
 	action: NotificationAction,
 ): Promise<RequestParams> {
-	// The capability travels in the header URL's query string. An RFC 8058
-	// one-click POST (`List-Unsubscribe=One-Click` in the body) carries `c` ONLY
-	// there, so the query is the fallback when the body omits it; a browser form
-	// POST supplies `c` in the body, which wins.
-	const query = new URL(request.url).searchParams;
 	let form: FormData | null = null;
 	try {
 		form = await request.formData();
@@ -128,12 +123,17 @@ async function readPostParams(
 		form = null;
 	}
 	const bodyHash = form?.get("c");
-	const recipientHash =
-		typeof bodyHash === "string" && bodyHash.length > 0 ? bodyHash : (query.get("c") ?? "");
-	if (action !== "confirm") return { recipientHash, token: "" };
+	let recipientHash = typeof bodyHash === "string" ? bodyHash : "";
+	// RFC 8058 one-click unsubscribe POSTs to the List-Unsubscribe header URL with
+	// `c` only in its query string and `List-Unsubscribe=One-Click` in the body.
+	// That query fallback is scoped to unsubscribe ONLY: confirm and not-me require
+	// their capability from the POST body, so a scanner cannot confirm (or suppress
+	// via not-me) an address by POSTing a link URL without the rendered form.
+	if (action === "unsubscribe" && recipientHash.length === 0) {
+		recipientHash = new URL(request.url).searchParams.get("c") ?? "";
+	}
 	const bodyToken = form?.get("t");
-	const token =
-		typeof bodyToken === "string" && bodyToken.length > 0 ? bodyToken : (query.get("t") ?? "");
+	const token = action === "confirm" && typeof bodyToken === "string" ? bodyToken : "";
 	return { recipientHash, token };
 }
 
