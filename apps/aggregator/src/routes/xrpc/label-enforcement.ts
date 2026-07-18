@@ -124,6 +124,7 @@ export function buildPackageEnforcementSql(
 	alias = "p.",
 ): EnforcementSql {
 	if (accepted.length === 0) return { sql: "", bindings: [] };
+	assertAlias(alias);
 	const srcs = accepted.map((policy) => policy.did);
 	const sql = `
 		AND NOT EXISTS (
