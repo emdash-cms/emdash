@@ -1,0 +1,23 @@
+packages/admin/src/components/ContentEditor.tsx
+  s_059817ae7c63f3::t_c775afca047dcc 622
+.changeset/neat-badgers-scroll.md
+  s_059817ae7c63f3::t_96ddc61f5e21a1 1-5
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_059817ae7c63f3::t_0e7caeb7d621af 1077-1090
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "89da94efef587e9415f9243893c7033232844ff8",
+  "prompts": {},
+  "sessions": {
+    "s_059817ae7c63f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f7575-6878-7af2-b84b-8a6bd6a92e37",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
