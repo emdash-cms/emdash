@@ -1,0 +1,23 @@
+packages/core/tests/unit/astro/admin-boot-theme.test.ts
+  s_059817ae7c63f3::t_d9293d160e7c3c 1-70
+.changeset/calm-bats-load.md
+  s_059817ae7c63f3::t_b8a845f107672b 1-5
+packages/core/src/astro/routes/admin.astro
+  s_059817ae7c63f3::t_73933241263c65 63,67-85,107,116-117,130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2f004c4cbb7e2e843bcfd6665c3d16224b475675",
+  "prompts": {},
+  "sessions": {
+    "s_059817ae7c63f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f7575-6878-7af2-b84b-8a6bd6a92e37",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
