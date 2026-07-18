@@ -104,14 +104,14 @@ describe("SortableContentSettingsSections", () => {
 		expect(screen.getByTestId("seo-section").parentElement).toBe(sections[1]);
 		for (const section of sections) {
 			const heading = section.querySelector<HTMLElement>("[data-sortable-heading]");
-			const handle = section.querySelector<HTMLElement>("[data-sortable-handle]");
+			const sectionHandle = section.querySelector<HTMLElement>("[data-sortable-handle]");
 
 			expect(heading?.style.minHeight).toBe("48px");
 			expect(section.className).toContain(
 				"[&>*:not([data-sortable-heading]):not([data-sortable-handle])]:hidden",
 			);
-			expect(handle?.classList.contains("top-1/2")).toBe(true);
-			expect(handle?.classList.contains("-translate-y-1/2")).toBe(true);
+			expect(sectionHandle?.classList.contains("top-1/2")).toBe(true);
+			expect(sectionHandle?.classList.contains("-translate-y-1/2")).toBe(true);
 		}
 
 		await pressKey(document, "Escape", "Escape");

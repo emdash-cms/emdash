@@ -85,6 +85,7 @@ vi.mock("../../src/components/RevisionHistory", () => ({
 
 vi.mock("../../src/components/TaxonomySidebar", () => ({
 	TaxonomySidebar: () => <div data-testid="taxonomy-sidebar">Taxonomy</div>,
+	useHasApplicableTaxonomies: () => true,
 }));
 
 vi.mock("../../src/components/MediaPickerModal", () => ({
@@ -450,7 +451,7 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({
 				fields: { order: { kind: "number", label: "Order" } },
 			});
-			const input = screen.getByLabelText("Order");
+			const input = screen.getByLabelText("Order", { exact: true });
 			await expect.element(input).toHaveAttribute("type", "number");
 		});
 
@@ -926,7 +927,7 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({ isNew: false, item });
 			const saveBtn = screen.getByRole("button", { name: "Saved" }).first();
 			await expect.element(saveBtn).toBeDisabled();
-			expect(screen.getByRole("status").element().textContent).toBe("Saved");
+			expect(saveBtn.getByRole("status").element().textContent).toBe("Saved");
 		});
 
 		// Strict per-locale hydration (migration 040) can return
