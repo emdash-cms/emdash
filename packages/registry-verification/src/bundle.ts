@@ -106,7 +106,7 @@ export async function validatePluginBundle(
 		manifest,
 		declaredAccess: manifest.declaredAccess ?? {},
 		backend: backend.data,
-		files: [...files.value.values()].map((file) => ({ path: file.name, bytes: file.data })),
+		files: Array.from(files.value.values(), (file) => ({ path: file.name, bytes: file.data })),
 	};
 	const admin = files.value.get("admin.js");
 	if (admin) result.admin = admin.data;

@@ -25,7 +25,7 @@ describe("RestAiBinding", () => {
 			accountId: "acct",
 			apiToken: "tok",
 			fetchImpl: async (url, init) => {
-				seenUrl = String(url);
+				if (typeof url === "string") seenUrl = url;
 				seenInit = init;
 				return jsonResponse({ result, success: true });
 			},
@@ -33,7 +33,8 @@ describe("RestAiBinding", () => {
 
 		expect(await binding.run("@cf/x/model", RUN_INPUTS)).toEqual(result);
 		expect(seenUrl).toBe("https://api.cloudflare.com/client/v4/accounts/acct/ai/run/@cf/x/model");
-		expect((seenInit?.headers as Record<string, string>).Authorization).toBe("Bearer tok");
+		const headers = seenInit?.headers as Record<string, string>;
+		expect(headers.Authorization).toBe("Bearer tok");
 		expect(seenInit?.body).toBe(JSON.stringify(RUN_INPUTS));
 	});
 

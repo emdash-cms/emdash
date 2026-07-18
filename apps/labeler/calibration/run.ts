@@ -33,6 +33,9 @@ import type { CallRecord, Lane, LoadedRun, RecordedFinding, RunManifest } from "
 
 export const CALIBRATION_PROMPT_VERSION = "w8.6-calibration.v2";
 
+const LICENSE_HINT_PATTERN = /licen[cs]e|agree|consent/i;
+const SUBSECOND_SUFFIX = /\.\d+Z$/;
+
 interface Credentials {
 	readonly accountId: string;
 	readonly apiToken: string;
@@ -77,7 +80,7 @@ function recordFindings(
 }
 
 function licenseHint(modelId: string, message: string): void {
-	if (!/licen[cs]e|agree|consent/i.test(message)) return;
+	if (!LICENSE_HINT_PATTERN.test(message)) return;
 	console.warn(
 		`\n[calibration] ${modelId} appears to require a one-time license acceptance.\n` +
 			`Accept it once (this is a deliberate human action, not auto-agreed by the harness):\n` +
@@ -190,7 +193,7 @@ export async function runCalibration(label: string): Promise<LoadedRun> {
 	}
 
 	const records: CallRecord[] = [];
-	const timestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+	const timestamp = new Date().toISOString().replace(SUBSECOND_SUFFIX, "Z");
 	const runDir = createRunDir(timestamp, label);
 	const baseManifest = {
 		label,

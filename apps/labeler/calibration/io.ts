@@ -31,9 +31,8 @@ export interface LoadedFixture {
 
 function parseManifest(raw: string, name: string): FixtureManifest {
 	const value: unknown = JSON.parse(raw);
-	if (typeof value !== "object" || value === null)
-		throw new TypeError(`fixture ${name}: manifest.json is not an object`);
-	const record = value as Record<string, unknown>;
+	if (!isRecord(value)) throw new TypeError(`fixture ${name}: manifest.json is not an object`);
+	const record = value;
 	if (typeof record.id !== "string" || typeof record.version !== "string")
 		throw new TypeError(`fixture ${name}: manifest.json needs string id and version`);
 	const capabilities = Array.isArray(record.capabilities)
@@ -46,7 +45,7 @@ export function loadFixtures(): LoadedFixture[] {
 	const entries = readdirSync(FIXTURES_DIR, { withFileTypes: true })
 		.filter((entry) => entry.isDirectory())
 		.map((entry) => entry.name)
-		.sort();
+		.toSorted();
 
 	return entries.map((name) => {
 		const dir = join(FIXTURES_DIR, name);
@@ -114,14 +113,18 @@ export function loadRun(runDir: string): LoadedRun {
 		throw new Error(
 			`calibration: incomplete run at ${runDir} (no run-manifest.json — sweep interrupted?)`,
 		);
-	const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as RunManifest;
+	const manifest: RunManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 	const records = readdirSync(runDir)
 		.filter((file) => file.endsWith(".json") && file !== "run-manifest.json")
-		.sort()
-		.map((file) => JSON.parse(readFileSync(join(runDir, file), "utf8")) as CallRecord);
+		.toSorted()
+		.map((file): CallRecord => JSON.parse(readFileSync(join(runDir, file), "utf8")));
 	if (records.length !== manifest.recordCount)
 		throw new Error(
 			`calibration: run at ${runDir} has ${records.length} record files but manifest.recordCount is ${manifest.recordCount}`,
 		);
 	return { manifest, records };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
 }

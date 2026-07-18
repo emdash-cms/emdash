@@ -96,7 +96,9 @@ function mapLane(
 			note: "legacy verdict 'warn'; labeler outcome depends on the severity the model assigns",
 		};
 
-	const mapped = legacyCategories.map((category) => LEGACY_CATEGORY_MAP[category] as string);
+	const mapped = legacyCategories
+		.map((category) => LEGACY_CATEGORY_MAP[category])
+		.filter((label): label is string => label !== undefined);
 	const blockCategories = automatedBlockCategories(policy);
 	const blockingLabels = mapped.filter((label) => blockCategories.has(label));
 	if (blockingLabels.length > 0)
@@ -153,7 +155,7 @@ function parseLaneExpectation(value: unknown, lane: string): LaneExpectation {
 		// warn-positive fixture asserts a scored `warned` — see LaneExpectation.
 		if (value.toState !== "passed" && value.toState !== "blocked" && value.toState !== "warned")
 			throw new TypeError(
-				`expect.${lane}.toState must be "passed", "blocked", or "warned" (use review for legacy warn-zone priors), got: ${String(value.toState)}`,
+				`expect.${lane}.toState must be "passed", "blocked", or "warned" (use review for legacy warn-zone priors), got: ${JSON.stringify(value.toState)}`,
 			);
 		result.toState = value.toState;
 	}

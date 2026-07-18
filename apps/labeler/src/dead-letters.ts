@@ -128,15 +128,18 @@ function decodeDiscoveryJob(payload: ArrayBuffer | Uint8Array | number[]): Disco
 }
 
 function isDiscoveryJob(value: unknown): value is DiscoveryJob {
-	if (typeof value !== "object" || value === null) return false;
-	const job = value as Record<string, unknown>;
+	if (!isRecord(value)) return false;
 	return (
-		typeof job.did === "string" &&
-		typeof job.collection === "string" &&
-		typeof job.rkey === "string" &&
-		typeof job.cid === "string" &&
-		(job.operation === "create" || job.operation === "update" || job.operation === "delete")
+		typeof value.did === "string" &&
+		typeof value.collection === "string" &&
+		typeof value.rkey === "string" &&
+		typeof value.cid === "string" &&
+		(value.operation === "create" || value.operation === "update" || value.operation === "delete")
 	);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
 }
 
 function rowToStored(row: DeadLetterRow): StoredDeadLetter {
