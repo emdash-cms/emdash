@@ -20,6 +20,7 @@ import {
 import { getAssessmentByRunKey, getCurrentAssessment } from "../src/assessment-store.js";
 import { buildAutomationPauseUpdate } from "../src/automation-state.js";
 import {
+	bestEffortPublisher,
 	type DiscoveryConsumerDeps,
 	type MessageController,
 	processDiscoveryMessage,
@@ -27,12 +28,14 @@ import {
 import type { DiscoveryJob } from "../src/env.js";
 import { PdsVerificationError, type VerifiedPdsRecord } from "../src/pds-verify.js";
 import { MODERATION_POLICY } from "../src/policy.js";
+import { sweepPendingPublications } from "../src/reconciliation.js";
 import {
 	RecordVerificationError,
 	type DidDocumentResolverLike,
 } from "../src/record-verification.js";
 import { issueAutomatedAssessmentLabel } from "../src/service.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
+import type { LabelPublisher } from "../src/subscribe-labels.js";
 
 interface TestEnv {
 	DB: D1Database;
@@ -803,5 +806,105 @@ describe("processDiscoveryMessage: automation kill-switch", () => {
 			.bind(uriFor(job))
 			.first<{ neg: number }>();
 		expect(negated?.neg).toBe(1);
+	});
+});
+
+describe("processDiscoveryMessage: live publication (Sol follow-up)", () => {
+	function recordingPublisher(): { publisher: LabelPublisher; published: number[] } {
+		const published: number[] = [];
+		return {
+			published,
+			publisher: {
+				managesPublicationState: true,
+				async publish(issued) {
+					published.push(issued.sequence);
+				},
+			},
+		};
+	}
+
+	async function pendingLabelRow(
+		assessmentId: string,
+		neg: number,
+	): Promise<{ sequence: number; publication_pending: number }> {
+		const row = await testEnv.DB.prepare(
+			`SELECT l.sequence, l.publication_pending FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ? AND l.val = 'assessment-pending' AND l.neg = ?`,
+		)
+			.bind(assessmentId, neg)
+			.first<{ sequence: number; publication_pending: number }>();
+		if (!row) throw new Error("assessment-pending label not found");
+		return row;
+	}
+
+	it("issues the discovery pending label publication_pending=1 and broadcasts it live", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const { publisher, published } = recordingPublisher();
+		const deps = { ...(await buildDeps()), publisher, verify: verifiedFor(job) };
+
+		await processDiscoveryMessage(job, new FakeMessage(), deps);
+
+		const assessment = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		const row = await pendingLabelRow(assessment!.id, 0);
+		// Committed publication_pending=1 (pre-fix: 0, so the sweep could never
+		// recover it) and broadcast to the subscription DO.
+		expect(row.publication_pending).toBe(1);
+		expect(published).toContain(row.sequence);
+	});
+
+	it("survives a dropped broadcast and leaves the pending label for the sweep", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const failing: LabelPublisher = {
+			managesPublicationState: true,
+			publish: () => Promise.reject(new Error("subscription DO unreachable")),
+		};
+		const deps = {
+			...(await buildDeps()),
+			publisher: bestEffortPublisher(failing),
+			verify: verifiedFor(job),
+		};
+		const msg = new FakeMessage();
+
+		await processDiscoveryMessage(job, msg, deps);
+
+		// Best-effort: a failed live broadcast never fails/retries the message.
+		expect(msg.acked).toBe(1);
+		expect(msg.retried).toBe(0);
+
+		const assessment = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		const row = await pendingLabelRow(assessment!.id, 0);
+		expect(row.publication_pending).toBe(1);
+
+		// The reconciliation sweep re-drives the stranded row.
+		const swept: number[] = [];
+		await sweepPendingPublications({
+			db: testEnv.DB,
+			notify: async (sequence) => {
+				swept.push(sequence);
+			},
+			now: new Date(Date.now() + 60_000),
+			thresholdMs: 0,
+		});
+		expect(swept).toContain(row.sequence);
+	});
+
+	it("issues the deletion negation publication_pending=1 and broadcasts it", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const { publisher, published } = recordingPublisher();
+		const deps = { ...(await buildDeps()), publisher };
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+		const assessment = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		published.length = 0;
+
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		await processDiscoveryMessage(deleteJob, new FakeMessage(), {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		const row = await pendingLabelRow(assessment!.id, 1);
+		expect(row.publication_pending).toBe(1);
+		expect(published).toContain(row.sequence);
 	});
 });

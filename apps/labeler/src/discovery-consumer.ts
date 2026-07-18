@@ -72,6 +72,7 @@ import {
 } from "./record-verification.js";
 import { issueAutomatedAssessmentLabel, LabelIssuanceUnavailableError } from "./service.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
+import { createLabelPublisher, type LabelPublisher } from "./subscribe-labels.js";
 
 /**
  * Stub identifiers for the model/prompt/scanner-set components of the run
@@ -93,6 +94,13 @@ export interface DiscoveryConsumerDeps {
 	 * runKey, so a redelivered event dedups onto the same instance
 	 * (assessment-dispatch.ts). */
 	assessmentWorkflow: AssessmentWorkflowBinding;
+	/** Live broadcast for the pending-label and deletion-negation issuances. When
+	 * present they commit `publication_pending = 1` and notify the subscription DO
+	 * post-commit (the same publisher the orchestrator path uses); the
+	 * reconciliation sweep is the durable backstop for a dropped notify. Omitted in
+	 * tests that don't exercise publication (labels then commit already-published,
+	 * matching the orchestrator's no-publisher behaviour). */
+	publisher?: LabelPublisher;
 	fetch?: typeof fetch;
 	now?: () => Date;
 	/**
@@ -399,6 +407,7 @@ async function verifyAndCreateRun(
 		},
 		{ uri, cid: job.cid, val: "assessment-pending" },
 		now,
+		deps.publisher,
 	);
 
 	// Hand the run to its Workflow instance. The instance id is the run's runKey,
@@ -500,6 +509,7 @@ async function negatePendingForDeletedRuns(
 			},
 			{ uri: run.uri, cid: run.cid, val: "assessment-pending", neg: true },
 			now,
+			deps.publisher,
 		);
 	}
 }
@@ -543,6 +553,7 @@ async function createProductionDiscoveryDeps(env: Env): Promise<DiscoveryConsume
 		config: identityConfig,
 		signer: versioned.signer,
 		assessmentWorkflow: env.ASSESSMENT_WORKFLOW,
+		publisher: bestEffortPublisher(createLabelPublisher(env)),
 		didDocumentResolver: new CompositeDidDocumentResolver({
 			methods: {
 				plc: new PlcDidDocumentResolver({ fetch: boundFetch }),
@@ -558,6 +569,29 @@ async function createProductionDiscoveryDeps(env: Env): Promise<DiscoveryConsume
 }
 
 const boundFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+
+/**
+ * Wraps the subscription-DO publisher so a failed live broadcast never fails the
+ * discovery message: the label has already committed `publication_pending = 1`,
+ * so a dropped notify is recovered by the reconciliation sweep. Mirrors the
+ * orchestrator's best-effort post-commit publication. Keeps `managesPublicationState`
+ * so `issueLabel` leaves the flag set (the DO clears it on a successful notify).
+ */
+export function bestEffortPublisher(base: LabelPublisher): LabelPublisher {
+	return {
+		managesPublicationState: base.managesPublicationState,
+		async publish(issued) {
+			try {
+				await base.publish(issued);
+			} catch (error) {
+				console.error("[labeler] discovery label publication failed", {
+					sequence: issued.sequence,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		},
+	};
+}
 
 async function writeDeadLetter(
 	db: D1Database,
