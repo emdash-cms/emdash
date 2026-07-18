@@ -19,6 +19,7 @@
 
 import { NSID } from "@emdash-cms/registry-lexicons";
 import {
+	AUTOMATED_BLOCKS,
 	PACKAGE_SCOPE_BLOCK_VALUES,
 	RELEASE_BLOCK_VALUES,
 	type AcceptedLabelerPolicy,
@@ -31,6 +32,15 @@ const HYDRATION_CHUNK_SIZE = 50;
  * `releaseView`. Applied only at the view boundary (`capLabels`), never to
  * hydration results — redaction decisions must see the full label set. */
 export const LABELS_MAX_LENGTH = 64;
+
+/** Release-scope automated-block values (`RELEASE_BLOCK_VALUES` minus the
+ * manual `security-yanked` / `!takedown`). The override exception below
+ * applies only to these — the manual values are never suppressed. */
+const AUTOMATED_BLOCK_VALUES: readonly string[] = [...AUTOMATED_BLOCKS];
+/** The manual release blocks the reviewer override pair never suppresses. */
+const MANUAL_RELEASE_BLOCK_VALUES: readonly string[] = RELEASE_BLOCK_VALUES.filter(
+	(value) => !AUTOMATED_BLOCKS.has(value),
+);
 
 export interface EnforcementSql {
 	sql: string;
@@ -117,6 +127,17 @@ export interface ReleaseEnforcementAliases {
  * carries a `PACKAGE_SCOPE_BLOCK_VALUES` label (cascade), from an accepted
  * source. Requires the `packages` row joined under `aliases.package` — the
  * package-scope branch's CID comparison reads its `signature_metadata`.
+ *
+ * Mirrors the hydrated evaluator's §10 override rule (see
+ * `evaluateReleaseModerationCore` in `@emdash-cms/registry-moderation`): a
+ * source's exact-CID `assessment-passed` + `assessment-overridden` pair
+ * suppresses that same source's automated blocks for the release. Without
+ * this, a post-override re-assessment that re-issues a live automated block
+ * would keep the release out of latest-selection even though the evaluator
+ * treats it as eligible. The exception is scoped exactly as the evaluator
+ * scopes it: automated blocks on the release URI only — the manual
+ * `security-yanked` / `!takedown` release blocks and the package/publisher
+ * cascade are never suppressed by the pair.
  */
 export function buildReleaseEnforcementSql(
 	accepted: AcceptedLabelerPolicy[],
@@ -127,6 +148,8 @@ export function buildReleaseEnforcementSql(
 	const releaseAlias = aliases.release ?? "r.";
 	const packageAlias = aliases.package ?? "p.";
 	const srcs = accepted.map((policy) => policy.did);
+	const releaseUriExpr = `'at://' || ${releaseAlias}did || '/${NSID.packageRelease}/' || ${releaseAlias}rkey`;
+	const releaseCidExpr = `json_extract(${releaseAlias}signature_metadata, '$.cid')`;
 	const sql = `
 		AND NOT EXISTS (
 			SELECT 1 FROM label_state ls
@@ -135,9 +158,35 @@ export function buildReleaseEnforcementSql(
 			  AND (ls.exp_epoch_ms IS NULL OR ls.exp_epoch_ms > ?)
 			  AND (
 					(
-						ls.uri = 'at://' || ${releaseAlias}did || '/${NSID.packageRelease}/' || ${releaseAlias}rkey
-						AND ls.val IN (${inClause(RELEASE_BLOCK_VALUES)})
-						AND (ls.cid IS NULL OR ls.cid = json_extract(${releaseAlias}signature_metadata, '$.cid'))
+						ls.uri = ${releaseUriExpr}
+						AND ls.val IN (${inClause(AUTOMATED_BLOCK_VALUES)})
+						AND (ls.cid IS NULL OR ls.cid = ${releaseCidExpr})
+						AND NOT (
+							EXISTS (
+								SELECT 1 FROM label_state pass
+								WHERE pass.src = ls.src
+								  AND pass.uri = ${releaseUriExpr}
+								  AND pass.val = 'assessment-passed'
+								  AND pass.cid = ${releaseCidExpr}
+								  AND pass.neg = 0
+								  AND (pass.exp_epoch_ms IS NULL OR pass.exp_epoch_ms > ?)
+							)
+							AND EXISTS (
+								SELECT 1 FROM label_state ovr
+								WHERE ovr.src = ls.src
+								  AND ovr.uri = ${releaseUriExpr}
+								  AND ovr.val = 'assessment-overridden'
+								  AND ovr.cid = ${releaseCidExpr}
+								  AND ovr.neg = 0
+								  AND (ovr.exp_epoch_ms IS NULL OR ovr.exp_epoch_ms > ?)
+							)
+						)
+					)
+					OR
+					(
+						ls.uri = ${releaseUriExpr}
+						AND ls.val IN (${inClause(MANUAL_RELEASE_BLOCK_VALUES)})
+						AND (ls.cid IS NULL OR ls.cid = ${releaseCidExpr})
 					)
 					OR
 					(
@@ -150,7 +199,15 @@ export function buildReleaseEnforcementSql(
 	`;
 	return {
 		sql,
-		bindings: [...srcs, nowMs, ...RELEASE_BLOCK_VALUES, ...PACKAGE_SCOPE_BLOCK_VALUES],
+		bindings: [
+			...srcs,
+			nowMs,
+			...AUTOMATED_BLOCK_VALUES,
+			nowMs,
+			nowMs,
+			...MANUAL_RELEASE_BLOCK_VALUES,
+			...PACKAGE_SCOPE_BLOCK_VALUES,
+		],
 	};
 }
 
