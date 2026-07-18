@@ -213,32 +213,48 @@ export async function processDiscoveryMessage(
 	const uri = jobUri(job);
 
 	if (job.operation === "delete") {
+		// A delete suppresses assessment work (tombstone + cancel runs), so it gets
+		// the same distrust as a create: confirm the record is genuinely gone at the
+		// PDS before acting. A still-present record means a forged or premature
+		// delete — dead-letter it, suppress nothing. A verification failure here
+		// classifies like the create path (transient retries, permanent dead-letters).
+		let absent: boolean;
 		try {
-			// A delete suppresses assessment work (tombstone + cancel runs), so it
-			// gets the same distrust as a create: confirm the record is genuinely
-			// gone at the PDS before acting. A still-present record means a forged
-			// or premature delete — dead-letter it, suppress nothing.
 			const confirmAbsent = deps.confirmDeleted ?? confirmRecordAbsent;
-			const absent = await confirmAbsent({
+			absent = await confirmAbsent({
 				uri,
 				didDocumentResolver: deps.didDocumentResolver,
 				...(deps.fetch ? { fetch: deps.fetch } : {}),
 			});
-			if (!absent) {
-				await writeDeadLetter(
-					deps.db,
-					job,
-					"DELETE_RECORD_PRESENT",
-					"record still resolves",
-					now(),
-				);
-				controller.ack();
-				return;
-			}
+		} catch (err) {
+			await classifyDiscoveryError(err, job, deps, controller, now());
+			return;
+		}
+		if (!absent) {
+			await writeDeadLetter(deps.db, job, "DELETE_RECORD_PRESENT", "record still resolves", now());
+			controller.ack();
+			return;
+		}
+		try {
 			await applyDiscoveryDelete(deps, uri, now());
 			controller.ack();
 		} catch (err) {
-			await classifyDiscoveryError(err, job, deps, controller, now());
+			// The mutation phase (tombstone → pending-negation → cancellation) can
+			// leave a run's `assessment-pending` label live on a now-deleted subject
+			// if it fails partway. Acking here — as the create path's unexpected-error
+			// policy would — strands that label forever, so ALWAYS retry. Redelivery
+			// re-attempts idempotently; a genuinely permanent failure exhausts to the
+			// DLQ, which is acceptable versus acking a live label on a deleted subject.
+			console.error(
+				"[labeler] discovery delete mutation failed; retrying to avoid a stranded label",
+				{
+					did: job.did,
+					collection: job.collection,
+					rkey: job.rkey,
+					error: err instanceof Error ? err.message : String(err),
+				},
+			);
+			controller.retry();
 		}
 		return;
 	}

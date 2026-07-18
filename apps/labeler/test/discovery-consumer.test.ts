@@ -658,6 +658,59 @@ describe("processDiscoveryMessage: delete", () => {
 		expect((await latestPending())?.neg).toBe(1);
 	});
 
+	it("retries (never dead-letter+acks) an unexpected issuance error during delete negation, leaving no acked live label", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+		const runKey = await runKeyFor(job);
+
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const latestPending = () =>
+			testEnv.DB.prepare(
+				`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+				 ORDER BY sequence DESC LIMIT 1`,
+			)
+				.bind(uriFor(job))
+				.first<{ neg: number }>();
+
+		// An UNEXPECTED (not issuance-unavailable) failure during the negation — a
+		// signer that throws a plain error, standing in for an HSM/D1 fault.
+		const brokenSigner: LabelSigner = {
+			issuerDid: LABELER_DID,
+			sign: () => Promise.reject(new Error("HSM offline")),
+		};
+		const first = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, first, {
+			...deps,
+			signer: brokenSigner,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		// The delete path RETRIES rather than dead-letter+acking (the create path's
+		// unexpected-error policy) — acking would strand the live pending label on a
+		// deleted subject.
+		expect(first.retried).toBe(1);
+		expect(first.acked).toBe(0);
+		const dl = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM dead_letters WHERE rkey = ?`)
+			.bind(job.rkey)
+			.first<{ n: number }>();
+		expect(dl?.n).toBe(0);
+		// The pending label is still live and the run non-terminal — recoverable.
+		expect((await latestPending())?.neg).toBe(0);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("pending");
+
+		// Redelivery with a working signer completes the delete and negates the label.
+		const second = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, second, {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+		expect(second.acked).toBe(1);
+		expect(second.retried).toBe(0);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("cancelled");
+		expect((await latestPending())?.neg).toBe(1);
+	});
+
 	it("dead-letters a forged/premature delete whose record still resolves, suppressing nothing", async () => {
 		const job = await jobFor({ rkey: rkey() });
 		const deps = await buildDeps();
