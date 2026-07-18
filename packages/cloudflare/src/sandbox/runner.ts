@@ -102,7 +102,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	private plugins = new Map<string, CloudflareSandboxedPlugin>();
 	private options: SandboxOptions;
 	private resolvedLimits: ResolvedLimits;
-	private siteInfo?: { name: string; url: string; locale: string };
+	private siteInfo?: { name: string; url: string; locale: string; trailingSlash?: "always" | "never" | "ignore" };
 
 	constructor(options: SandboxOptions) {
 		this.options = options;
@@ -203,7 +203,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	private code: string;
 	private wrapperCode: string | null = null;
 	private limits: ResolvedLimits;
-	private siteInfo?: { name: string; url: string; locale: string };
+	private siteInfo?: { name: string; url: string; locale: string; trailingSlash?: "always" | "never" | "ignore" };
 
 	constructor(
 		manifest: PluginManifest,
@@ -211,7 +211,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		loader: WorkerLoader,
 		createBridge: (opts: { props: PluginBridgeProps }) => PluginBridgeBinding,
 		limits: ResolvedLimits,
-		siteInfo?: { name: string; url: string; locale: string },
+		siteInfo?: { name: string; url: string; locale: string; trailingSlash?: "always" | "never" | "ignore" },
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
 		this.manifest = manifest;

@@ -27,7 +27,7 @@ const COMMENT_CLOSE_RE = /\*\//g;
  */
 export interface WrapperOptions {
 	/** Site info to inject into the context (no RPC needed) */
-	site?: { name: string; url: string; locale: string };
+	site?: { name: string; url: string; locale: string; trailingSlash?: "always" | "never" | "ignore" };
 }
 
 export function generatePluginWrapper(manifest: PluginManifest, options?: WrapperOptions): string {

@@ -72,7 +72,7 @@ export interface SandboxOptions {
 	/** Default resource limits */
 	limits?: ResourceLimits;
 	/** Site info for plugin context (injected into wrapper at generation time) */
-	siteInfo?: { name: string; url: string; locale: string };
+	siteInfo?: { name: string; url: string; locale: string; trailingSlash?: "always" | "never" | "ignore" };
 	/** Email send callback, wired from the EmailPipeline by the runtime */
 	emailSend?: SandboxEmailSendCallback;
 	/**
