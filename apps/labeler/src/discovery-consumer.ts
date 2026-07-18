@@ -126,8 +126,10 @@ export interface DiscoveryConsumerDeps {
 /** Subset of `cloudflare:workers` `Message` we use; defining inline so tests
  * don't need to import workerd types. */
 export interface MessageController {
+	/** 1 on first delivery, incremented on each redelivery. */
+	readonly attempts: number;
 	ack(): void;
-	retry(): void;
+	retry(options?: { delaySeconds?: number }): void;
 }
 
 /** Subset of a `MessageBatch`. Workers' real batch object satisfies this. */
@@ -301,7 +303,10 @@ async function classifyDiscoveryError(
 	}
 	if (err instanceof PdsVerificationError) {
 		if (isTransient(err.reason, err.status)) {
-			controller.retry();
+			// Back off so a DNS-propagation or PDS blip has time to clear before
+			// max_retries is exhausted; an immediate re-delivery would burn every
+			// attempt in a couple of batches.
+			controller.retry({ delaySeconds: transientRetryDelaySeconds(controller.attempts) });
 			return;
 		}
 		let mapped: DiscoveryDeadLetterReason;
@@ -515,6 +520,20 @@ async function negatePendingForDeletedRuns(
 
 function jobUri(job: DiscoveryJob): string {
 	return `at://${job.did}/${job.collection}/${job.rkey}`;
+}
+
+/** Capped exponential backoff for a transient PDS failure. The queue has no
+ * `retry_delay`, so a bare `retry()` re-delivers in the next batch — with only
+ * `max_retries` attempts, an immediate loop can exhaust every attempt before
+ * ordinary DNS propagation completes (the empty-answer/resolver-failure path
+ * routes propagation lag here). Delaying each retry gives the host time to
+ * resolve without an unbounded backlog. */
+const RETRY_BASE_DELAY_SECONDS = 15;
+const RETRY_MAX_DELAY_SECONDS = 300;
+
+function transientRetryDelaySeconds(attempts: number): number {
+	const exponent = Math.max(0, attempts - 1);
+	return Math.min(RETRY_BASE_DELAY_SECONDS * 2 ** exponent, RETRY_MAX_DELAY_SECONDS);
 }
 
 /**

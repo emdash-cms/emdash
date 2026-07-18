@@ -1743,6 +1743,7 @@ describe("console mutation: automation replay and idempotency", () => {
 class KillSwitchMessage implements MessageController {
 	acked = 0;
 	retried = 0;
+	readonly attempts = 1;
 	ack() {
 		this.acked += 1;
 	}
