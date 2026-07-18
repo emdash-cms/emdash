@@ -374,11 +374,12 @@ export class AssessmentOrchestrator {
 		// of `running` in this gap therefore no-ops the CAS AND every label — nothing
 		// leaks — and the lost race raises AssessmentFinalizationConflictError.
 		//
+		// A signing-state flip mid-batch is closed the same way: the CAS carries the
+		// same signing-state guard as every label insert (buildFinalizationStatements'
+		// signingGuard), so a flip no-ops the CAS too and the batch commits nothing —
+		// the run stays `running` for the Workflow retry.
+		//
 		// Narrower gaps remain, tracked with the real-stage wiring:
-		//   - a signing-state flip mid-batch: the label inserts are guarded on active
-		//     signing state and no-op if it flips, but the CAS is not, so a flip could
-		//     commit the terminal state with its labels suppressed (the CAS still
-		//     changed a row, so the postCommit below surfaces it as a signing error);
 		//   - a CID supersession landing in this gap does not move the run out of
 		//     `running`, so the CAS succeeds and this run finalizes labels for its own
 		//     CID (the pointer upsert is guarded on created-at ordering);
