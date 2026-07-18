@@ -110,7 +110,10 @@ export async function verifyAccessRequest(
 	}
 
 	const sub = payload.sub;
-	if (typeof sub !== "string" || sub.length === 0)
+	// Cloudflare Access sets sub: "" for non-identity (service-token) JWTs, so
+	// only reject a non-string sub here; the human path below additionally
+	// requires it to be non-empty.
+	if (typeof sub !== "string")
 		throw new AccessAuthError("invalid-token", "Access assertion is missing sub");
 
 	const commonName = payload.common_name;
@@ -120,6 +123,8 @@ export async function verifyAccessRequest(
 	if (typeof commonName === "string" && commonName.length > 0) {
 		identity = { kind: "service", commonName, sub, roles: [] };
 	} else if (typeof email === "string" && email.length > 0) {
+		if (sub.length === 0)
+			throw new AccessAuthError("invalid-token", "Access assertion is missing sub");
 		identity = { kind: "human", email, sub, roles: [] };
 	} else {
 		throw new AccessAuthError(

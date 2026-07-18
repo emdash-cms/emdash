@@ -88,8 +88,10 @@ describe("verifyAccessRequest", () => {
 		});
 	});
 
-	it("accepts a valid service token identified by common_name", async () => {
-		const token = await mintToken({ common_name: "ci-automation" }, signKey);
+	it("accepts a valid service token identified by common_name (empty sub)", async () => {
+		// Cloudflare Access sets sub: "" for non-identity (service-token) JWTs and
+		// identifies the token via common_name (the CF-Access-Client-Id).
+		const token = await mintToken({ common_name: "ci-automation", sub: "" }, signKey);
 		const identity = await verifyAccessRequest(
 			requestWith({ "Cf-Access-Jwt-Assertion": token }),
 			baseConfig({ admins: ["ci-automation"] }),
@@ -98,9 +100,22 @@ describe("verifyAccessRequest", () => {
 		expect(identity).toEqual<OperatorIdentity>({
 			kind: "service",
 			commonName: "ci-automation",
-			sub: "user-sub-1",
+			sub: "",
 			roles: ["admin"],
 		});
+	});
+
+	it("rejects a human token with an empty sub", async () => {
+		// An empty sub is only legitimate for a service token (common_name path);
+		// a human/email identity must carry a non-empty subject.
+		const token = await mintToken({ email: "admin@example.com", sub: "" }, signKey);
+		await expect(
+			verifyAccessRequest(
+				requestWith({ "Cf-Access-Jwt-Assertion": token }),
+				baseConfig(),
+				resolver,
+			),
+		).rejects.toMatchObject({ reason: "invalid-token" });
 	});
 
 	it("maps roles from a groups claim nested under the verified custom object", async () => {
@@ -409,7 +424,7 @@ describe("verifyAccessRequest", () => {
 		// happens to match an allowlist entry must NOT confer a role — otherwise
 		// moving the group claim under `custom` opens a fail-open path.
 		const unauthorized = await mintToken(
-			{ common_name: "unknown-service", custom: { groups: ["emdash-labeler-admins"] } },
+			{ common_name: "unknown-service", sub: "", custom: { groups: ["emdash-labeler-admins"] } },
 			signKey,
 		);
 		const identityA = await verifyAccessRequest(
@@ -422,7 +437,7 @@ describe("verifyAccessRequest", () => {
 		// A service token authorized by common_name keeps exactly that role; a
 		// reviewer group in its custom object adds nothing.
 		const authorized = await mintToken(
-			{ common_name: "ci-automation", custom: { groups: ["emdash-labeler-reviewers"] } },
+			{ common_name: "ci-automation", sub: "", custom: { groups: ["emdash-labeler-reviewers"] } },
 			signKey,
 		);
 		const identityB = await verifyAccessRequest(
@@ -433,7 +448,7 @@ describe("verifyAccessRequest", () => {
 		expect(identityB).toEqual<OperatorIdentity>({
 			kind: "service",
 			commonName: "ci-automation",
-			sub: "user-sub-1",
+			sub: "",
 			roles: ["admin"],
 		});
 	});
