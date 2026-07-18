@@ -570,12 +570,22 @@ describe("Editor component behaviour", () => {
 	it("hides toolbar and footer in minimal mode", async () => {
 		await render(<PortableTextEditor minimal={true} value={[textBlock("Minimal")]} />);
 		await waitForEditor();
+		const surface = document.querySelector("[data-emdash-editor-surface]");
+		expect(surface).not.toHaveClass("bg-kumo-base");
 		// Toolbar has role="toolbar" — should not exist
 		const toolbar = document.querySelector('[role="toolbar"]');
 		expect(toolbar).toBeNull();
 		// Footer shows word count — should not exist
 		const footer = document.querySelector(".border-t");
 		expect(footer).toBeNull();
+	});
+
+	it("raises the non-minimal writing surface above the editor canvas", async () => {
+		await render(<PortableTextEditor value={[textBlock("Raised surface")]} />);
+		await waitForEditor();
+		const surface = document.querySelector("[data-emdash-editor-surface]");
+
+		expect(surface).toHaveClass("bg-kumo-base");
 	});
 
 	it("calls onEditorReady with Editor instance", async () => {

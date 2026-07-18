@@ -1034,6 +1034,16 @@ describe("ContentEditor", () => {
 	});
 
 	describe("publish actions", () => {
+		it("uses the elevated surface for the full-bleed canvas and settings panel", async () => {
+			await renderEditor({ isNew: false, item: makeItem() });
+			const form = document.querySelector("form");
+			const provider = document.querySelector<HTMLElement>('[style*="--sidebar-width"]');
+
+			expect(form).toHaveClass("bg-kumo-elevated");
+			expect(form).not.toHaveClass("bg-kumo-base");
+			expect(provider?.style.getPropertyValue("--sidebar-bg")).toBe("var(--color-kumo-elevated)");
+		});
+
 		it("shows Publish button for draft items", async () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
@@ -1082,7 +1092,7 @@ describe("ContentEditor", () => {
 				const header = heading.parentElement?.parentElement;
 
 				expect(header).not.toHaveClass("sticky", "top-0", "z-20");
-				expect(header).toHaveClass("bg-kumo-base/95", "py-3", "backdrop-blur");
+				expect(header).toHaveClass("bg-kumo-elevated/95", "py-3", "backdrop-blur");
 			} finally {
 				media.restore();
 			}
@@ -1251,6 +1261,21 @@ describe("ContentEditor", () => {
 	});
 
 	describe("distraction-free mode", () => {
+		it("keeps the editor canvas and header overlay on the elevated surface", async () => {
+			const screen = await renderEditor({ isNew: true });
+			const form = document.querySelector("form");
+
+			expect(form).toHaveClass("bg-kumo-elevated");
+			expect(form).not.toHaveClass("bg-kumo-base");
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+
+			const heading = screen.getByRole("heading", { name: "New Post" }).element();
+			const header = heading.parentElement?.parentElement;
+			expect(form).toHaveClass("bg-kumo-elevated");
+			expect(header).toHaveClass("bg-kumo-elevated/95");
+		});
+
 		it("toggle adds fixed class for distraction-free mode", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const enterBtn = screen.getByRole("button", { name: "Enter distraction-free mode" });

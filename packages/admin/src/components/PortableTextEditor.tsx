@@ -2873,6 +2873,7 @@ export function PortableTextEditor({
 			<div
 				className={cn(
 					"border rounded-lg overflow-clip",
+					!minimal && "bg-kumo-base",
 					minimal && "border-0 rounded-none -mx-4",
 					focusMode === "spotlight" && "spotlight-mode",
 					className,

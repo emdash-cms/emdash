@@ -592,8 +592,8 @@ export function ContentEditor({
 			className={cn(
 				"transition-all duration-300",
 				isDistractionFree
-					? "space-y-6 fixed inset-0 z-50 bg-kumo-base p-8 overflow-auto"
-					: "flex h-full bg-kumo-base",
+					? "space-y-6 fixed inset-0 z-50 bg-kumo-elevated p-8 overflow-auto"
+					: "flex h-full bg-kumo-elevated",
 			)}
 		>
 			{/* Wraps the whole layout so the strip's Settings button and the
@@ -609,6 +609,7 @@ export function ContentEditor({
 				style={
 					{
 						"--sidebar-width": isBelowLg ? "20rem" : "23rem",
+						"--sidebar-bg": "var(--color-kumo-elevated)",
 					} as React.CSSProperties
 				}
 			>
@@ -618,8 +619,11 @@ export function ContentEditor({
 						className={cn(
 							"flex flex-wrap items-center justify-between gap-y-2",
 							isDistractionFree
-								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10"
-								: cn("mx-auto mb-6 max-w-3xl", isBelowLg && "bg-kumo-base/95 py-3 backdrop-blur"),
+								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-elevated/95 backdrop-blur p-4 z-10"
+								: cn(
+										"mx-auto mb-6 max-w-3xl",
+										isBelowLg && "bg-kumo-elevated/95 py-3 backdrop-blur",
+									),
 						)}
 					>
 						<div className="flex items-center gap-4">
