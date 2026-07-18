@@ -58,6 +58,12 @@ export interface ContentItem {
 	liveRevisionId: string | null;
 	draftRevisionId: string | null;
 	seo?: ContentSeo;
+	/**
+	 * Opaque optimistic-concurrency token returned by the content API on
+	 * reads. Echo it back on writes so the server can reject a save that is
+	 * based on a stale read (#2121). Undefined if the server didn't send one.
+	 */
+	_rev?: string;
 }
 
 export interface CreateContentInput {
@@ -112,6 +118,13 @@ export interface UpdateContentInput {
 	/** Skip revision creation (used by autosave) */
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	/**
+	 * Optimistic-concurrency token from the last read. When present, the
+	 * server rejects the write with 409 if the entry changed since that read,
+	 * preventing a stale editor from silently overwriting a newer draft
+	 * (#2121). Omit for a blind write (backwards-compatible).
+	 */
+	_rev?: string;
 }
 
 /**
@@ -214,8 +227,13 @@ export async function fetchContent(
 	if (options?.locale) params.set("locale", options.locale);
 	const query = params.toString() ? `?${params}` : "";
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}${query}`);
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to fetch content");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to fetch content",
+	);
+	// The server returns `_rev` at the envelope level, not inside `item`.
+	// Lift it onto the item so the editor can echo it back on save (#2121).
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -237,8 +255,11 @@ export async function createContent(
 			translationOf: input.translationOf,
 		}),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to create content");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to create content",
+	);
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -258,8 +279,11 @@ export async function updateContent(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to update content");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to update content",
+	);
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
