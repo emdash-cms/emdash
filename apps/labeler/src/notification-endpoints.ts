@@ -14,8 +14,10 @@
  * Safety properties:
  *   - GET renders a confirmation page with a POST form; only POST mutates. An
  *     email scanner's or link-prefetcher's automated GET therefore never
- *     confirms, unsubscribes, or suppresses. The token/hash live in hidden form
- *     fields, so the mutating POST carries them in the body, not the URL.
+ *     confirms, unsubscribes, or suppresses. The browser POST carries the
+ *     token/hash in hidden form fields; an RFC 8058 one-click unsubscribe POST
+ *     carries `c` in the header URL's query instead, so the POST parser reads the
+ *     body first and falls back to the query.
  *   - CSRF: a cross-site POST cannot supply a valid recipient hash (or confirm
  *     token) for a victim, so possession of the capability is the CSRF defense;
  *     a custom header (unsendable from a plain email-client form) is not used.
@@ -114,18 +116,25 @@ async function readPostParams(
 	request: Request,
 	action: NotificationAction,
 ): Promise<RequestParams> {
-	let form: FormData;
+	// The capability travels in the header URL's query string. An RFC 8058
+	// one-click POST (`List-Unsubscribe=One-Click` in the body) carries `c` ONLY
+	// there, so the query is the fallback when the body omits it; a browser form
+	// POST supplies `c` in the body, which wins.
+	const query = new URL(request.url).searchParams;
+	let form: FormData | null = null;
 	try {
 		form = await request.formData();
 	} catch {
-		return { recipientHash: "", token: "" };
+		form = null;
 	}
-	const recipientHash = form.get("c");
-	const token = form.get("t");
-	return {
-		recipientHash: typeof recipientHash === "string" ? recipientHash : "",
-		token: action === "confirm" && typeof token === "string" ? token : "",
-	};
+	const bodyHash = form?.get("c");
+	const recipientHash =
+		typeof bodyHash === "string" && bodyHash.length > 0 ? bodyHash : (query.get("c") ?? "");
+	if (action !== "confirm") return { recipientHash, token: "" };
+	const bodyToken = form?.get("t");
+	const token =
+		typeof bodyToken === "string" && bodyToken.length > 0 ? bodyToken : (query.get("t") ?? "");
+	return { recipientHash, token };
 }
 
 /**
