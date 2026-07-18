@@ -384,6 +384,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// EmDashHead must not access Astro.csp when the host has disabled
 				// Astro's built-in CSP runtime; Astro logs a warning for that access.
 				serializableConfig.astroCspEnabled = Boolean(astroConfig.security.csp);
+				// Expose Astro's trailingSlash routing policy so plugins can build
+				// URLs (sitemap/canonical/hreflang) that match what the site serves.
+				serializableConfig.trailingSlash = astroConfig.trailingSlash;
 				// Extract i18n config from Astro config
 				// Astro locales can be strings OR { path, codes } objects — normalize to paths
 				if (astroConfig.i18n) {

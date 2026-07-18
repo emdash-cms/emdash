@@ -22,6 +22,7 @@ declare module "virtual:emdash/config" {
 		i18n?: I18nConfig | null;
 		toolbar?: "server" | "client" | false;
 		astroCspEnabled?: boolean;
+		trailingSlash?: "always" | "never" | "ignore";
 	}
 
 	const config: VirtualConfig;

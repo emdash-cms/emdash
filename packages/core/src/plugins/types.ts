@@ -419,6 +419,14 @@ export interface SiteInfo {
 	url: string;
 	/** Site locale (from settings, defaults to "en") */
 	locale: string;
+	/**
+	 * Astro's `trailingSlash` routing policy, from the host's Astro config.
+	 * Plugins that build absolute URLs (sitemap, canonical, hreflang) should
+	 * honor this so the URLs they emit match what the site serves. `createSiteInfo`
+	 * always populates it (defaulting to `"ignore"`, Astro's default); it is
+	 * optional on the type so pre-existing `SiteInfo` construction stays valid.
+	 */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
