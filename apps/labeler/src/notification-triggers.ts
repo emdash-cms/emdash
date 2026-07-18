@@ -16,10 +16,15 @@
  *     `notifications` row is skipped, so a Workflow-step retry or a mutation
  *     replay does not re-notify. `sendNotification`'s notice claim closes the
  *     residual concurrent race atomically.
- *   - Verified-publisher skip: a publisher with an in-force verification claim
- *     bypasses double opt-in (the notice goes out directly). The verification read
- *     fails CLOSED — any error leaves the publisher on the normal confirmation
- *     path, never looser.
+ *   - Verified-publisher skip: a publisher whose CURRENT identity is vouched for
+ *     by an in-force verification claim from a TRUSTED issuer bypasses double
+ *     opt-in (the notice goes out directly). A self-issued or otherwise untrusted
+ *     claim carries no authority — verification claims are self-assertable and the
+ *     aggregator indexes any issuer — so only a claim whose issuer is in the
+ *     configured trust set AND whose bound displayName still matches the
+ *     publisher's current identity upgrades a contact. The read fails CLOSED, and
+ *     with no trusted issuer configured (the default) NOTHING upgrades: every
+ *     address stays on the normal confirmation path.
  *
  * All notice copy is public-safe: subject line, label effect, the assessment's
  * public summary, and the public assessment + reconsideration URLs. No findings,
@@ -66,8 +71,17 @@ export interface NotifyDeps {
 	serviceUrl: string;
 	/** The monitored reconsideration URL from the moderation policy. */
 	reconsiderationUrl: string;
+	/** DIDs whose verification claims may upgrade a contact past double opt-in.
+	 * Verification claims are self-assertable (the aggregator indexes any issuer),
+	 * so a claim upgrades only when its issuer is in this set. Empty (the default)
+	 * trusts no issuer, so every address stays on the confirmation path. */
+	trustedVerificationIssuers?: ReadonlySet<string>;
 	now?: () => Date;
 }
+
+/** No verification issuer is trusted — the conservative default for
+ * {@link NotifyDeps.trustedVerificationIssuers}. */
+const NO_TRUSTED_ISSUERS: ReadonlySet<string> = new Set();
 
 /**
  * Build the production {@link NotifyDeps} from the Worker env: the real Cloudflare
@@ -88,6 +102,10 @@ export async function createNotifyDeps(env: Env): Promise<NotifyDeps> {
 		pepper,
 		serviceUrl: env.LABELER_SERVICE_URL,
 		reconsiderationUrl: moderationPolicy.contact.reconsiderationUrl,
+		// No verification issuer is trusted to bypass double opt-in: the labeler
+		// issues no first-party verification and the aggregator indexes any
+		// self-asserted claim, so every address goes through confirmation.
+		trustedVerificationIssuers: NO_TRUSTED_ISSUERS,
 	};
 }
 
@@ -551,7 +569,12 @@ async function runTrigger(
 			logTrigger(source, target.did, "deduped");
 			return { terminal: true };
 		}
-		const verifiedPublisher = await isVerifiedPublisher(deps.aggregator, target.did, now());
+		const verifiedPublisher = await isVerifiedPublisher(
+			deps.aggregator,
+			deps.trustedVerificationIssuers ?? NO_TRUSTED_ISSUERS,
+			target.did,
+			now(),
+		);
 		const ctx: SendContext = {
 			db: deps.db,
 			aggregator: deps.aggregator,
@@ -591,21 +614,45 @@ async function sourceAlreadyProcessed(
 }
 
 /**
- * Whether the publisher holds an IN-FORCE verification claim — reuses the
- * history-context notion of "in force" (a claim whose `expiresAt` is absent or in
- * the future). FAILS CLOSED: a `null` view (redacted / unverified), an empty
- * claim set, or ANY read error returns `false`, so the address stays on the
- * stricter double-opt-in path.
+ * Whether the publisher may bypass double opt-in on the strength of a TRUSTED
+ * verification claim. A claim upgrades a contact only when it is
+ *   (a) issued by a DID in `trustedIssuers` — verification claims are
+ *       self-assertable and the aggregator indexes any issuer, so an untrusted or
+ *       self-issued claim carries no authority;
+ *   (b) in force — no expiry, or an expiry still in the future; and
+ *   (c) bound to the publisher's CURRENT identity — its `displayName` still
+ *       matches `getPublisher`'s live value, so a displayName drift since the
+ *       verification does not carry trust. The claim also binds a `handle`, but
+ *       the publisher view carries no current handle to compare it against (the
+ *       aggregator's identity-event ingestion is unbuilt), so handle-binding is
+ *       deferred until it does.
+ * Note this vouches for the publisher's identity, not that they own the contact
+ * address — the trust set is the operator's explicit decision to accept that.
+ *
+ * FAILS CLOSED: an empty trust set (the default), a `null` verification/publisher
+ * view, an empty claim set, unknown current handle/displayName, or ANY read error
+ * returns `false`, so the address stays on the stricter double-opt-in path.
  */
 export async function isVerifiedPublisher(
-	aggregator: Pick<AggregatorClient, "getPublisherVerification">,
+	aggregator: Pick<AggregatorClient, "getPublisherVerification" | "getPublisher">,
+	trustedIssuers: ReadonlySet<string>,
 	did: string,
 	now: Date,
 ): Promise<boolean> {
+	if (trustedIssuers.size === 0) return false;
 	try {
 		const state = await aggregator.getPublisherVerification(did);
 		if (!state || state.verifications.length === 0) return false;
-		return state.verifications.some((claim) => isInForce(claim.expiresAt, now));
+		const trustedInForce = state.verifications.filter(
+			(claim) => trustedIssuers.has(claim.issuer) && isInForce(claim.expiresAt, now),
+		);
+		if (trustedInForce.length === 0) return false;
+
+		const publisher = await aggregator.getPublisher(did);
+		if (!publisher) return false;
+		const displayName = readDisplayName(publisher.profile);
+		if (displayName === undefined) return false;
+		return trustedInForce.some((claim) => claim.displayName === displayName);
 	} catch (error) {
 		console.error("[notifications] verification read failed, using double opt-in", {
 			did,
@@ -613,6 +660,14 @@ export async function isVerifiedPublisher(
 		});
 		return false;
 	}
+}
+
+/** The `displayName` a publisher-profile record carries, or undefined when the
+ * profile is not a `{ displayName: string }`-shaped object. */
+function readDisplayName(profile: unknown): string | undefined {
+	if (typeof profile !== "object" || profile === null) return undefined;
+	const value = (profile as { displayName?: unknown }).displayName;
+	return typeof value === "string" ? value : undefined;
 }
 
 /** A claim is in force when it has no expiry or its expiry is still in the future

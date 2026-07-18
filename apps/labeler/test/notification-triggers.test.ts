@@ -46,6 +46,10 @@ interface AggregatorOpts {
 	email?: string;
 	verifications?: unknown[];
 	verifyStatus?: number;
+	/** The publisher's current displayName, served by getPublisher — the live
+	 * identity the verification binding is checked against. The publisher view
+	 * carries no handle, so none is served. */
+	displayName?: string;
 	/** A package `security[]` contact served by getPackage for a specific slug. */
 	packageSecurity?: { slug: string; email: string };
 }
@@ -69,7 +73,10 @@ function aggregatorFor(opts: AggregatorOpts): AggregatorClient {
 			if (url.includes("getPublisher") && opts.email !== undefined) {
 				return Response.json({
 					did: DID,
-					profile: { contact: [{ kind: "security", email: opts.email }] },
+					profile: {
+						contact: [{ kind: "security", email: opts.email }],
+						...(opts.displayName !== undefined ? { displayName: opts.displayName } : {}),
+					},
 				});
 			}
 			return new Response(JSON.stringify({ error: "NotFound" }), {
@@ -118,7 +125,11 @@ function throwingSender(): RecordingSender {
 	};
 }
 
-function deps(aggregator: AggregatorClient, sender: RecordingSender): NotifyDeps {
+function deps(
+	aggregator: AggregatorClient,
+	sender: RecordingSender,
+	trustedVerificationIssuers?: ReadonlySet<string>,
+): NotifyDeps {
 	return {
 		db: db(),
 		aggregator,
@@ -126,6 +137,7 @@ function deps(aggregator: AggregatorClient, sender: RecordingSender): NotifyDeps
 		pepper: PEPPER,
 		serviceUrl: SERVICE,
 		reconsiderationUrl: RECON,
+		...(trustedVerificationIssuers ? { trustedVerificationIssuers } : {}),
 	};
 }
 
@@ -157,15 +169,47 @@ async function notificationRows(sourceId: string): Promise<{ kind: string; state
 	return r.results ?? [];
 }
 
-const IN_FORCE = [
-	{ issuer: "did:plc:issuer", handle: "x.test", createdAt: "2026-01-01T00:00:00.000Z" },
-];
-const EXPIRED = [
+const TRUSTED_ISSUER = "did:plc:trusted";
+const TRUSTED = new Set([TRUSTED_ISSUER]);
+const HANDLE = "acme.test";
+const DISPLAY_NAME = "Acme";
+
+/** A trusted, in-force claim whose bound displayName matches the publisher's
+ * current displayName. */
+const TRUSTED_CLAIM = [
 	{
-		issuer: "did:plc:issuer",
-		handle: "x.test",
+		issuer: TRUSTED_ISSUER,
+		handle: HANDLE,
+		displayName: DISPLAY_NAME,
+		createdAt: "2026-01-01T00:00:00.000Z",
+	},
+];
+/** An in-force claim from an issuer NOT in the trust set (self-assertable). */
+const UNTRUSTED_CLAIM = [
+	{
+		issuer: "did:plc:attacker",
+		handle: HANDLE,
+		displayName: DISPLAY_NAME,
+		createdAt: "2026-01-01T00:00:00.000Z",
+	},
+];
+const EXPIRED_TRUSTED_CLAIM = [
+	{
+		issuer: TRUSTED_ISSUER,
+		handle: HANDLE,
+		displayName: DISPLAY_NAME,
 		createdAt: "2020-01-01T00:00:00.000Z",
 		expiresAt: "2021-01-01T00:00:00.000Z",
+	},
+];
+/** Trusted + in-force but bound to a stale displayName (the publisher's
+ * displayName has drifted since verification). */
+const STALE_BINDING_CLAIM = [
+	{
+		issuer: TRUSTED_ISSUER,
+		handle: HANDLE,
+		displayName: "Acme (old name)",
+		createdAt: "2026-01-01T00:00:00.000Z",
 	},
 ];
 
@@ -292,35 +336,123 @@ describe("dedup", () => {
 	});
 });
 
-describe("verified-publisher skip", () => {
-	it("an in-force verification claim delivers the notice without a confirmation mail", async () => {
-		const email = uniq("vok") + "@x.test";
-		const sender = recordingSender();
-		const a = assessmentRow({ state: "blocked" });
-
-		// The contact is UNCONFIRMED; verification upgrades it in place.
-		await notifyAssessmentOutcome(
-			deps(aggregatorFor({ email, verifications: IN_FORCE }), sender),
-			a,
-		);
-
-		expect(sender.notices).toHaveLength(1);
-		expect(sender.confirmations).toHaveLength(0);
+describe("verified-publisher skip (trusted issuer only)", () => {
+	async function confirmStateOf(email: string): Promise<string | undefined> {
 		const hash = await recipientHash(PEPPER, email);
 		const contact = await db()
 			.prepare(`SELECT confirm_state FROM notification_contacts WHERE recipient_hash = ?`)
 			.bind(hash)
 			.first<{ confirm_state: string }>();
-		expect(contact?.confirm_state).toBe("confirmed");
+		return contact?.confirm_state;
+	}
+
+	it("a trusted issuer claim with current bindings delivers the notice and upgrades the contact", async () => {
+		const email = uniq("vok") + "@x.test";
+		const sender = recordingSender();
+		const a = assessmentRow({ state: "blocked" });
+
+		// The contact is UNCONFIRMED; the trusted, current-binding claim upgrades it.
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email,
+					verifications: TRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(1);
+		expect(sender.confirmations).toHaveLength(0);
+		expect(await confirmStateOf(email)).toBe("confirmed");
 	});
 
-	it("an EXPIRED claim falls back to double opt-in", async () => {
+	it("a self-issued / untrusted-issuer claim does NOT bypass double opt-in", async () => {
+		const email = uniq("vself") + "@x.test";
+		const sender = recordingSender();
+		const a = assessmentRow({ state: "blocked" });
+
+		// A claim naming an arbitrary address, issued by an untrusted DID, even with
+		// a trust set configured for a DIFFERENT issuer.
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email,
+					verifications: UNTRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(0);
+		expect(sender.confirmations).toHaveLength(1);
+	});
+
+	it("with no trusted issuer configured (the default), an in-force claim does NOT bypass", async () => {
+		const email = uniq("vnodef") + "@x.test";
+		const sender = recordingSender();
+		const a = assessmentRow({ state: "blocked" });
+
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email,
+					verifications: TRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(0);
+		expect(sender.confirmations).toHaveLength(1);
+	});
+
+	it("an EXPIRED trusted claim falls back to double opt-in", async () => {
 		const email = uniq("vexp") + "@x.test";
 		const sender = recordingSender();
 		const a = assessmentRow({ state: "blocked" });
 
 		await notifyAssessmentOutcome(
-			deps(aggregatorFor({ email, verifications: EXPIRED }), sender),
+			deps(
+				aggregatorFor({
+					email,
+					verifications: EXPIRED_TRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(0);
+		expect(sender.confirmations).toHaveLength(1);
+	});
+
+	it("a trusted claim with a STALE identity binding does NOT bypass", async () => {
+		const email = uniq("vstale") + "@x.test";
+		const sender = recordingSender();
+		const a = assessmentRow({ state: "blocked" });
+
+		// Claim's bound displayName has drifted from the publisher's current one.
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email,
+					verifications: STALE_BINDING_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
 			a,
 		);
 
@@ -333,13 +465,16 @@ describe("verified-publisher skip", () => {
 		const sender = recordingSender();
 		const a = assessmentRow({ state: "blocked" });
 
-		await notifyAssessmentOutcome(deps(aggregatorFor({ email, verifyStatus: 500 }), sender), a);
+		await notifyAssessmentOutcome(
+			deps(aggregatorFor({ email, verifyStatus: 500 }), sender, TRUSTED),
+			a,
+		);
 
 		expect(sender.notices).toHaveLength(0);
 		expect(sender.confirmations).toHaveLength(1);
 	});
 
-	it("a suppressed address gets NOTHING even when the publisher is verified", async () => {
+	it("a suppressed address gets NOTHING even when the publisher is trusted-verified", async () => {
 		const email = uniq("vsupp") + "@x.test";
 		const hash = await recipientHash(PEPPER, email);
 		await suppress(db(), hash, "not_me", "2026-07-16T00:00:00.000Z", 1_000);
@@ -347,7 +482,15 @@ describe("verified-publisher skip", () => {
 		const a = assessmentRow({ state: "blocked" });
 
 		await notifyAssessmentOutcome(
-			deps(aggregatorFor({ email, verifications: IN_FORCE }), sender),
+			deps(
+				aggregatorFor({
+					email,
+					verifications: TRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
 			a,
 		);
 
