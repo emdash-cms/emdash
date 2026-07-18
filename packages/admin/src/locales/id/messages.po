@@ -86,7 +86,7 @@ msgstr "{0, plural, other {# koleksi}}"
 #. placeholder {0}: result.comments.imported
 #: packages/admin/src/components/WordPressImport.tsx:2263
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
-msgstr ""
+msgstr "{0, plural, one {# komentar diimpor} other {# komentar diimpor}}"
 
 #. placeholder {0}: result.affected
 #: packages/admin/src/router.tsx:1464
@@ -128,7 +128,7 @@ msgstr "{0, plural, other {# file media diimpor}}"
 #. placeholder {0}: result.menus.created
 #: packages/admin/src/components/WordPressImport.tsx:2255
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
-msgstr ""
+msgstr "{0, plural, one {# menu diimpor} other {# menu diimpor}}"
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1903
@@ -164,12 +164,12 @@ msgstr "{0, plural, other {# dilewati (sudah ada)}}"
 #. placeholder {0}: result.taxonomyAssignments
 #: packages/admin/src/components/WordPressImport.tsx:2247
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
-msgstr ""
+msgstr "{0, plural, one {# penetapan taksonomi} other {# penetapan taksonomi}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
 #: packages/admin/src/components/WordPressImport.tsx:2239
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
-msgstr ""
+msgstr "{0, plural, one {# taksonomi dibuat} other {# taksonomi dibuat}}"
 
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:585
@@ -179,12 +179,12 @@ msgstr "{0} bidang"
 #. placeholder {0}: stats.mediaCount
 #: packages/admin/src/components/Dashboard.tsx:160
 msgid "{0, plural, one {Media file} other {Media files}}"
-msgstr ""
+msgstr "{0, plural, one {Berkas media} other {Berkas media}}"
 
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:165
 msgid "{0, plural, one {User} other {Users}}"
-msgstr ""
+msgstr "{0, plural, one {Pengguna} other {Pengguna}}"
 
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
@@ -248,17 +248,17 @@ msgstr "{0} item akan diimpor"
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:534
 msgid "{0} of {total} could not be deleted"
-msgstr ""
+msgstr "{0} dari {total} tidak dapat dihapus"
 
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:490
 msgid "{0} of {total} could not be published"
-msgstr ""
+msgstr "{0} dari {total} tidak dapat diterbitkan"
 
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:513
 msgid "{0} of {total} could not be updated"
-msgstr ""
+msgstr "{0} dari {total} tidak dapat diperbarui"
 
 #. placeholder {0}: plugins?.length ?? 0
 #: packages/admin/src/components/PluginManager.tsx:170
@@ -365,15 +365,15 @@ msgstr "{pluginName} memerlukan izin berikut:"
 
 #: packages/admin/src/components/MediaLibrary.tsx:298
 msgid "{resultCount, plural, one {# item} other {# items}}"
-msgstr ""
+msgstr "{resultCount, plural, one {# item} other {# item}}"
 
 #: packages/admin/src/components/ContentList.tsx:405
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {# dipilih} other {# dipilih}}"
 
 #: packages/admin/src/components/ContentList.tsx:446
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {Pindahkan # item ke tempat sampah? Anda dapat memulihkannya nanti.} other {Pindahkan # item ke tempat sampah? Anda dapat memulihkannya nanti.}}"
 
 #: packages/admin/src/components/ContentList.tsx:928
 msgid "{total, plural, one {# item} other {# items}}"
@@ -395,11 +395,11 @@ msgstr "{total, plural, other {Semua # unggahan gagal}}"
 
 #: packages/admin/src/components/Dashboard.tsx:146
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
-msgstr ""
+msgstr "{totalDrafts, plural, one {Draf} other {Draf}}"
 
 #: packages/admin/src/components/Dashboard.tsx:153
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
-msgstr ""
+msgstr "{totalScheduled, plural, one {Terjadwal} other {Terjadwal}}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:357
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
@@ -580,7 +580,7 @@ msgstr "Info Akun"
 
 #: packages/admin/src/components/WordPressImport.tsx:1158
 msgid "ACF Fields"
-msgstr ""
+msgstr "Bidang ACF"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:299
 #: packages/admin/src/components/ContentList.tsx:528
@@ -757,7 +757,7 @@ msgstr "Data tambahan untuk diimpor."
 
 #: packages/admin/src/components/WordPressImport.tsx:1483
 msgid "admin"
-msgstr ""
+msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
 #: packages/admin/src/components/Sidebar.tsx:469
@@ -1124,11 +1124,11 @@ msgstr "Dibuat otomatis dari nama (dapat diedit)"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 msgid "Automatic Backups"
-msgstr ""
+msgstr "Pencadangan Otomatis"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:207
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
-msgstr ""
+msgstr "Pencadangan otomatis memerlukan backend penyimpanan (R2, S3, atau penyimpanan lokal). Konfigurasikan penyimpanan dalam konfigurasi EmDash Anda untuk mengaktifkannya."
 
 #: packages/admin/src/router.tsx:994
 msgid "Autosave failed"
@@ -1199,30 +1199,30 @@ msgstr "Kembali ke Tema"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:199
 msgid "Back up now"
-msgstr ""
+msgstr "Cadangkan sekarang"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:199
 msgid "Backing up..."
-msgstr ""
+msgstr "Mencadangkan..."
 
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:97
 msgid "Backup created: {0}"
-msgstr ""
+msgstr "Cadangan dibuat: {0}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:80
 msgid "Backup settings saved"
-msgstr ""
+msgstr "Pengaturan cadangan disimpan"
 
 #: packages/admin/src/components/Settings.tsx:122
 #: packages/admin/src/components/settings/BackupSettings.tsx:133
 #: packages/admin/src/components/settings/BackupSettings.tsx:148
 msgid "Backups"
-msgstr ""
+msgstr "Cadangan"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:182
 msgid "Backups to keep"
-msgstr ""
+msgstr "Cadangan yang disimpan"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:29
 msgid "Bash"
@@ -1423,7 +1423,7 @@ msgstr "Kategori ({0})"
 
 #: packages/admin/src/components/WordPressImport.tsx:1146
 msgid "Categories & Tags"
-msgstr ""
+msgstr "Kategori & Tag"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:161
 msgid "Center"
@@ -1507,7 +1507,7 @@ msgstr "Pilih bahasa admin pilihan Anda"
 
 #: packages/admin/src/components/ContentList.tsx:481
 msgid "Clear"
-msgstr ""
+msgstr "Bersihkan"
 
 #: packages/admin/src/components/ContentList.tsx:825
 #: packages/admin/src/components/MediaLibrary.tsx:497
@@ -1518,7 +1518,7 @@ msgstr "Bersihkan filter"
 #: packages/admin/src/components/MediaLibrary.tsx:497
 #: packages/admin/src/components/MediaLibrary.tsx:521
 msgid "Clear search"
-msgstr ""
+msgstr "Bersihkan pencarian"
 
 #: packages/admin/src/components/SignupPage.tsx:138
 msgid "Click the link in the email to continue setting up your account."
@@ -1599,7 +1599,7 @@ msgstr "Tutup panel"
 
 #: packages/admin/src/components/ContentEditor.tsx:1019
 msgid "Close settings"
-msgstr ""
+msgstr "Tutup pengaturan"
 
 #: packages/admin/src/components/ContentTypeList.tsx:242
 #: packages/admin/src/components/PortableTextEditor.tsx:3113
@@ -1837,7 +1837,7 @@ msgstr "Tidak dapat menyalin otomatis. Silakan pilih URL di atas dan salin secar
 
 #: packages/admin/src/components/Dashboard.tsx:84
 msgid "Could not load dashboard data"
-msgstr ""
+msgstr "Tidak dapat memuat data dasbor"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:438
 msgid "Could not load image from URL"
@@ -2097,11 +2097,11 @@ msgstr "Bagian Kustom"
 
 #: packages/admin/src/components/WordPressImport.tsx:1147
 msgid "Custom Taxonomies"
-msgstr ""
+msgstr "Taksonomi Kustom"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:176
 msgid "Daily automatic backups"
-msgstr ""
+msgstr "Pencadangan otomatis harian"
 
 #: packages/admin/src/components/ThemeToggle.tsx:22
 msgid "dark"
@@ -2245,7 +2245,7 @@ msgstr "Hapus {0}?"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:282
 msgid "Delete backup?"
-msgstr ""
+msgstr "Hapus cadangan?"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
@@ -2492,7 +2492,7 @@ msgstr "Menonaktifkan..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:438
 msgid "Discard"
-msgstr ""
+msgstr "Abaikan"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:71
 #: packages/admin/src/components/ContentSettingsPanel.tsx:91
@@ -2501,7 +2501,7 @@ msgstr "Buang perubahan"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:436
 msgid "Discard changes?"
-msgstr ""
+msgstr "Abaikan perubahan?"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:76
 msgid "Discard draft changes?"
@@ -2509,7 +2509,7 @@ msgstr "Buang perubahan draf?"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:439
 msgid "Discarding..."
-msgstr ""
+msgstr "Mengabaikan..."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:231
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
@@ -2518,7 +2518,7 @@ msgstr "Abaikan"
 
 #: packages/admin/src/components/Widgets.tsx:125
 msgid "Display a list of recent posts"
-msgstr ""
+msgstr "Tampilkan daftar pos terbaru"
 
 #: packages/admin/src/components/Widgets.tsx:103
 msgid "Display a navigation menu"
@@ -2526,7 +2526,7 @@ msgstr "Tampilkan menu navigasi"
 
 #: packages/admin/src/components/Widgets.tsx:134
 msgid "Display category list"
-msgstr ""
+msgstr "Tampilkan daftar kategori"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:890
 #: packages/admin/src/components/ContentSettingsPanel.tsx:952
@@ -2545,7 +2545,7 @@ msgstr "Ukuran Tampilan"
 
 #: packages/admin/src/components/Widgets.tsx:142
 msgid "Display tag cloud"
-msgstr ""
+msgstr "Tampilkan awan tag"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:356
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:545
@@ -2601,23 +2601,23 @@ msgstr "Turun"
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:238
 msgid "Download {0}"
-msgstr ""
+msgstr "Unduh {0}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:158
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
-msgstr ""
+msgstr "Unduh cadangan lengkap situs Anda: semua konten (termasuk draf dan tempat sampah), koleksi, taksonomi, menu, widget, metadata media, dan pengaturan situs. Akun pengguna dan rahasia tidak pernah disertakan."
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:160
 msgid "Download backup"
-msgstr ""
+msgstr "Unduh cadangan"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:155
 msgid "Download Backup"
-msgstr ""
+msgstr "Unduh Cadangan"
 
 #: packages/admin/src/components/Settings.tsx:123
 msgid "Download backups and schedule automatic backups to storage"
-msgstr ""
+msgstr "Unduh cadangan dan jadwalkan pencadangan otomatis ke penyimpanan"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:479
 msgid "Download SBOM"
@@ -2649,7 +2649,7 @@ msgstr "Draf"
 
 #: packages/admin/src/components/WordPressImport.tsx:1166
 msgid "Drafts & Private"
-msgstr ""
+msgstr "Draf & Privat"
 
 #: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "Drag and drop or click to browse (.xml)"
@@ -2813,7 +2813,7 @@ msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1044
 msgid "em1.…"
-msgstr ""
+msgstr "em1.…"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:61
 #: packages/admin/src/components/Settings.tsx:116
@@ -3046,7 +3046,7 @@ msgstr "Gagal menambah domain"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:188
 msgid "Failed to add passkey"
-msgstr ""
+msgstr "Gagal menambahkan passkey"
 
 #: packages/admin/src/components/WordPressImport.tsx:413
 msgid "Failed to analyze WordPress site"
@@ -3067,7 +3067,7 @@ msgstr "Gagal membuat admin"
 #: packages/admin/src/components/settings/BackupSettings.tsx:104
 #: packages/admin/src/lib/api/backups.ts:51
 msgid "Failed to create backup"
-msgstr ""
+msgstr "Gagal membuat cadangan"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:933
 msgid "Failed to create byline"
@@ -3110,7 +3110,7 @@ msgstr "Gagal menghapus domain yang diizinkan"
 
 #: packages/admin/src/lib/api/backups.ts:58
 msgid "Failed to delete backup"
-msgstr ""
+msgstr "Gagal menghapus cadangan"
 
 #: packages/admin/src/lib/api/bylines.ts:143
 msgid "Failed to delete byline"
@@ -3226,7 +3226,7 @@ msgstr "Gagal mengambil mode autentikasi"
 
 #: packages/admin/src/lib/api/backups.ts:37
 msgid "Failed to fetch backup settings"
-msgstr ""
+msgstr "Gagal mengambil pengaturan cadangan"
 
 #: packages/admin/src/lib/api/schema.ts:170
 #: packages/admin/src/lib/api/schema.ts:174
@@ -3355,7 +3355,7 @@ msgstr "Gagal memuat domain yang diizinkan"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:135
 msgid "Failed to load backup settings"
-msgstr ""
+msgstr "Gagal memuat pengaturan cadangan"
 
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:366
@@ -3483,7 +3483,7 @@ msgstr "Gagal menyimpan"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:84
 msgid "Failed to save backup settings"
-msgstr ""
+msgstr "Gagal menyimpan pengaturan cadangan"
 
 #: packages/admin/src/routes/byline-schema.tsx:122
 msgid "Failed to save field"
@@ -3536,7 +3536,7 @@ msgstr "Gagal membatalkan penjadwalan"
 
 #: packages/admin/src/router.tsx:512
 msgid "Failed to update"
-msgstr ""
+msgstr "Gagal memperbarui"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:351
@@ -3545,7 +3545,7 @@ msgstr "Gagal memperbarui {0}"
 
 #: packages/admin/src/lib/api/backups.ts:46
 msgid "Failed to update backup settings"
-msgstr ""
+msgstr "Gagal memperbarui pengaturan cadangan"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:983
 msgid "Failed to update byline"
@@ -3615,7 +3615,7 @@ msgstr "Fitur"
 
 #: packages/admin/src/components/WordPressImport.tsx:1148
 msgid "Featured Images"
-msgstr ""
+msgstr "Gambar Unggulan"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:440
 #: packages/admin/src/components/ContentTypeList.tsx:103
@@ -3808,7 +3808,7 @@ msgstr "Grup (opsional)"
 
 #: packages/admin/src/components/Widgets.tsx:160
 msgid "Group by"
-msgstr ""
+msgstr "Kelompokkan berdasarkan"
 
 #: packages/admin/src/routes/bylines.tsx:556
 msgid "Guest byline"
@@ -3838,19 +3838,19 @@ msgstr "Judul 3"
 
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
 msgid "Heading 4"
-msgstr ""
+msgstr "Tajuk 4"
 
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
 msgid "Heading 5"
-msgstr ""
+msgstr "Tajuk 5"
 
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
 msgid "Heading 6"
-msgstr ""
+msgstr "Tajuk 6"
 
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:154
 msgid "Headings"
-msgstr ""
+msgstr "Tajuk"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:308
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:497
@@ -3912,7 +3912,7 @@ msgstr "Sumber HTML"
 #: packages/admin/src/components/PortableTextEditor.tsx:3048
 #: packages/admin/src/components/PortableTextEditor.tsx:3557
 msgid "https://..."
-msgstr ""
+msgstr "https://..."
 
 #: packages/admin/src/components/MenuEditor.tsx:424
 msgid "https://example.com or /about"
@@ -3924,7 +3924,7 @@ msgstr "https://example.com/image.jpg"
 
 #: packages/admin/src/components/WordPressImport.tsx:1089
 msgid "https://yoursite.com"
-msgstr ""
+msgstr "https://situsanda.com"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:241
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:142
@@ -4051,7 +4051,7 @@ msgstr "Diimpor per Koleksi"
 #. placeholder {0}: wpImportProgress.comments
 #: packages/admin/src/components/WordPressImport.tsx:903
 msgid "Importing comments... {0}"
-msgstr ""
+msgstr "Mengimpor komentar... {0}"
 
 #: packages/admin/src/components/WordPressImport.tsx:920
 msgid "Importing content..."
@@ -4060,12 +4060,12 @@ msgstr "Mengimpor konten..."
 #. placeholder {0}: wpImportProgress.processed
 #: packages/admin/src/components/WordPressImport.tsx:901
 msgid "Importing content... {0}"
-msgstr ""
+msgstr "Mengimpor konten... {0}"
 
 #. placeholder {0}: wpImportProgress.processed
 #: packages/admin/src/components/WordPressImport.tsx:900
 msgid "Importing content... {0} of {totalSelectedPosts}"
-msgstr ""
+msgstr "Mengimpor konten... {0} dari {totalSelectedPosts}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2139
 msgid "Importing Media"
@@ -4073,7 +4073,7 @@ msgstr "Mengimpor Media"
 
 #: packages/admin/src/components/WordPressImport.tsx:904
 msgid "Importing menus and site settings..."
-msgstr ""
+msgstr "Mengimpor menu dan pengaturan situs..."
 
 #: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Include sample content (recommended for new sites)"
@@ -4127,15 +4127,15 @@ msgstr "Sisipkan gambar"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1356
 msgid "Insert block"
-msgstr ""
+msgstr "Sisipkan blok"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3411
 msgid "Insert block after current block"
-msgstr ""
+msgstr "Sisipkan blok setelah blok saat ini"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:170
 msgid "Insert block below"
-msgstr ""
+msgstr "Sisipkan blok di bawah"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:501
 msgid "Insert from URL"
@@ -4172,7 +4172,7 @@ msgstr "Pemasangan diblokir"
 
 #: packages/admin/src/components/WordPressImport.tsx:1039
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
-msgstr ""
+msgstr "Instal plugin EmDash Exporter di situs WordPress Anda dan buat kunci melalui Alat → Migrasi EmDash."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:791
 msgid "Installation"
@@ -4291,7 +4291,7 @@ msgstr "JSX"
 
 #: packages/admin/src/components/WordPressImport.tsx:916
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
-msgstr ""
+msgstr "Biarkan tab ini tetap terbuka. Impor berjalan dalam langkah-langkah kecil dan dapat dijalankan ulang dengan aman jika terhenti."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:812
 msgid "Keep typing to narrow down more bylines."
@@ -4371,7 +4371,7 @@ msgstr "Terakhir digunakan {0}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:274
 msgid "Learn more"
-msgstr ""
+msgstr "Pelajari selengkapnya"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:339
 msgid "Leave blank to use a discoverable passkey."
@@ -4407,7 +4407,7 @@ msgstr "Terang"
 
 #: packages/admin/src/components/Widgets.tsx:163
 msgid "Limit"
-msgstr ""
+msgstr "Batas"
 
 #: packages/admin/src/components/SignupPage.tsx:257
 msgid "Link expired"
@@ -4645,11 +4645,11 @@ msgstr "Kelola passkey dan autentikasi Anda"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:317
 msgid "Managed by {providerName}"
-msgstr ""
+msgstr "Dikelola oleh {providerName}"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:318
 msgid "Managed by an external media provider"
-msgstr ""
+msgstr "Dikelola oleh penyedia media eksternal"
 
 #: packages/admin/src/components/Redirects.tsx:424
 msgid "Manual"
@@ -4706,7 +4706,7 @@ msgstr "Nilai Maks"
 
 #: packages/admin/src/components/Widgets.tsx:145
 msgid "Maximum tags"
-msgstr ""
+msgstr "Tag maksimum"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:45
 msgid "MDX"
@@ -4837,7 +4837,7 @@ msgstr "Judul meta, deskripsi, dan gambar sosial"
 
 #: packages/admin/src/components/WordPressImport.tsx:1051
 msgid "Migration key"
-msgstr ""
+msgstr "Kunci migrasi"
 
 #: packages/admin/src/components/FieldEditor.tsx:620
 msgid "Min Items"
@@ -4869,11 +4869,11 @@ msgstr "Ubah skema koleksi"
 
 #: packages/admin/src/components/Widgets.tsx:161
 msgid "Monthly"
-msgstr ""
+msgstr "Bulanan"
 
 #: packages/admin/src/components/Widgets.tsx:157
 msgid "Monthly/yearly archives"
-msgstr ""
+msgstr "Arsip bulanan/tahunan"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:42
 msgid "Most Popular"
@@ -4903,7 +4903,7 @@ msgstr "Turunkan"
 
 #: packages/admin/src/components/ContentList.tsx:439
 msgid "Move to trash"
-msgstr ""
+msgstr "Pindahkan ke tempat sampah"
 
 #: packages/admin/src/components/ContentList.tsx:466
 #: packages/admin/src/components/ContentList.tsx:1059
@@ -4924,11 +4924,11 @@ msgstr "Naikkan"
 
 #: packages/admin/src/router.tsx:509
 msgid "Moved {total} items to draft"
-msgstr ""
+msgstr "{total} item dipindahkan ke draf"
 
 #: packages/admin/src/router.tsx:530
 msgid "Moved {total} items to trash"
-msgstr ""
+msgstr "{total} item dipindahkan ke tempat sampah"
 
 #: packages/admin/src/components/FieldEditor.tsx:192
 msgid "Multi Select"
@@ -5216,7 +5216,7 @@ msgstr "Tidak ada byline yang cocok."
 #: packages/admin/src/components/MediaLibrary.tsx:489
 #: packages/admin/src/components/MediaLibrary.tsx:517
 msgid "No matching media"
-msgstr ""
+msgstr "Tidak ada media yang cocok"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:264
 msgid "No matching passkey found for this account."
@@ -5233,7 +5233,7 @@ msgstr "Tidak ada media yang tersedia dari penyedia ini"
 
 #: packages/admin/src/components/MediaLibrary.tsx:540
 msgid "No media available from this provider."
-msgstr ""
+msgstr "Tidak ada media yang tersedia dari penyedia ini."
 
 #: packages/admin/src/components/MediaLibrary.tsx:539
 #: packages/admin/src/components/MediaPickerModal.tsx:639
@@ -5259,7 +5259,7 @@ msgstr "Tanpa moderasi (setujui otomatis semua)"
 
 #: packages/admin/src/components/MenuEditor.tsx:329
 msgid "No parent (top level)"
-msgstr ""
+msgstr "Tidak ada induk (tingkat teratas)"
 
 #: packages/admin/src/components/users/UserDetail.tsx:248
 msgid "No passkeys registered"
@@ -5291,7 +5291,7 @@ msgstr "Tidak ada pratinjau"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:304
 msgid "No public URL available"
-msgstr ""
+msgstr "Tidak ada URL publik yang tersedia"
 
 #: packages/admin/src/components/Dashboard.tsx:304
 msgid "No recent activity"
@@ -5377,7 +5377,7 @@ msgstr "Angka"
 
 #: packages/admin/src/components/Widgets.tsx:127
 msgid "Number of posts"
-msgstr ""
+msgstr "Jumlah pos"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Number of posts to show per page on list views"
@@ -5391,7 +5391,7 @@ msgstr "Daftar Bernomor"
 
 #: packages/admin/src/components/WordPressImport.tsx:494
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
-msgstr ""
+msgstr "Otorisasi OAuth memerlukan HTTPS. Gunakan kredensial manual."
 
 #: packages/admin/src/components/SeoImageField.tsx:46
 msgid "OG Image"
@@ -5478,7 +5478,7 @@ msgstr "Atau klik untuk menelusuri. Menerima file .xml yang diekspor dari WordPr
 
 #: packages/admin/src/components/WordPressImport.tsx:1071
 msgid "or connect by URL"
-msgstr ""
+msgstr "atau hubungkan dengan URL"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:261
@@ -5544,7 +5544,7 @@ msgstr "Bagian dari loop pengalihan"
 
 #: packages/admin/src/components/WordPressImport.tsx:1153
 msgid "Partial"
-msgstr ""
+msgstr "Sebagian"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:322
 msgid "Pass"
@@ -5609,7 +5609,7 @@ msgstr "Passkey memerlukan HTTPS atau http://localhost (dengan port Anda); hostn
 
 #: packages/admin/src/components/WordPressImport.tsx:1037
 msgid "Paste your migration key"
-msgstr ""
+msgstr "Tempel kunci migrasi Anda"
 
 #: packages/admin/src/components/Redirects.tsx:224
 msgid "Path"
@@ -5669,7 +5669,7 @@ msgstr "Pilih metode apa pun untuk membuat akun admin Anda."
 
 #: packages/admin/src/components/Widgets.tsx:152
 msgid "Placeholder text"
-msgstr ""
+msgstr "Teks placeholder"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:311
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
@@ -5778,7 +5778,7 @@ msgstr "Plugin"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:264
 msgid "Point-in-Time Restore"
-msgstr ""
+msgstr "Pemulihan Titik Waktu"
 
 #: packages/admin/src/components/SeoPanel.tsx:208
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
@@ -5795,7 +5795,7 @@ msgstr "Pos"
 
 #: packages/admin/src/components/WordPressImport.tsx:1144
 msgid "Posts & Pages"
-msgstr ""
+msgstr "Pos & Halaman"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:272
 msgid "Posts Per Page"
@@ -5851,7 +5851,7 @@ msgstr "Navigasi Utama"
 
 #: packages/admin/src/components/Dashboard.tsx:349
 msgid "Private"
-msgstr ""
+msgstr "Privat"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:174
 msgid "Provider:"
@@ -5888,7 +5888,7 @@ msgstr "Dipublikasikan {0}"
 
 #: packages/admin/src/router.tsx:486
 msgid "Published {total} items"
-msgstr ""
+msgstr "{total} item diterbitkan"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 msgid "Published At"
@@ -5919,7 +5919,7 @@ msgstr "Kutipan"
 
 #: packages/admin/src/components/WordPressImport.tsx:1162
 msgid "Raw meta"
-msgstr ""
+msgstr "Meta mentah"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:66
 msgid "Read collection schemas"
@@ -5949,7 +5949,7 @@ msgstr "Membaca konten Anda"
 
 #: packages/admin/src/lib/api/marketplace.ts:224
 msgid "Read your taxonomies and terms"
-msgstr ""
+msgstr "Membaca taksonomi dan term Anda"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:269
 msgid "Reading"
@@ -5965,7 +5965,7 @@ msgstr "Aktivitas Terbaru"
 
 #: packages/admin/src/components/Widgets.tsx:124
 msgid "Recent Posts"
-msgstr ""
+msgstr "Pos Terbaru"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:43
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:35
@@ -6009,7 +6009,7 @@ msgstr "Favicon yang dirujuk tidak tersedia."
 
 #: packages/admin/src/components/Dashboard.tsx:85
 msgid "Refresh the page or try again."
-msgstr ""
+msgstr "Muat ulang halaman atau coba lagi."
 
 #: packages/admin/src/components/ContentTypeList.tsx:78
 msgid "Register"
@@ -6564,7 +6564,7 @@ msgstr "Optimisasi dan verifikasi mesin pencari"
 
 #: packages/admin/src/components/Widgets.tsx:150
 msgid "Search form"
-msgstr ""
+msgstr "Formulir pencarian"
 
 #: packages/admin/src/components/MediaLibrary.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:578
@@ -6722,7 +6722,7 @@ msgstr "Pilih {label}"
 
 #: packages/admin/src/components/ContentList.tsx:973
 msgid "Select {title}"
-msgstr ""
+msgstr "Pilih {title}"
 
 #: packages/admin/src/components/Widgets.tsx:939
 msgid "Select a component..."
@@ -6738,7 +6738,7 @@ msgstr "Pilih semua"
 
 #: packages/admin/src/components/ContentList.tsx:497
 msgid "Select all on this page"
-msgstr ""
+msgstr "Pilih semua di halaman ini"
 
 #. placeholder {0}: comment.authorName
 #: packages/admin/src/components/comments/CommentInbox.tsx:456
@@ -6805,7 +6805,7 @@ msgstr "Pilih..."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1372
 msgid "Selected {selectedItemTitle}"
-msgstr ""
+msgstr "{selectedItemTitle} dipilih"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:733
 msgid "Selected:"
@@ -6897,7 +6897,7 @@ msgstr "Atur ke 0 untuk tidak pernah menutup komentar otomatis."
 
 #: packages/admin/src/components/ContentList.tsx:425
 msgid "Set to draft"
-msgstr ""
+msgstr "Atur sebagai draf"
 
 #: packages/admin/src/components/SetupWizard.tsx:559
 msgid "Set up your site"
@@ -6954,23 +6954,23 @@ msgstr "Teks Pendek"
 
 #: packages/admin/src/components/Widgets.tsx:144
 msgid "Show count"
-msgstr ""
+msgstr "Tampilkan jumlah"
 
 #: packages/admin/src/components/Widgets.tsx:129
 msgid "Show date"
-msgstr ""
+msgstr "Tampilkan tanggal"
 
 #: packages/admin/src/components/Widgets.tsx:137
 msgid "Show hierarchy"
-msgstr ""
+msgstr "Tampilkan hierarki"
 
 #: packages/admin/src/components/Widgets.tsx:136
 msgid "Show post count"
-msgstr ""
+msgstr "Tampilkan jumlah pos"
 
 #: packages/admin/src/components/Widgets.tsx:128
 msgid "Show thumbnails"
-msgstr ""
+msgstr "Tampilkan gambar mini"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Show token"
@@ -7041,7 +7041,7 @@ msgstr "Identitas Situs"
 
 #: packages/admin/src/components/WordPressImport.tsx:2270
 msgid "site identity applied (title, tagline, logo)"
-msgstr ""
+msgstr "identitas situs diterapkan (judul, slogan, logo)"
 
 #: packages/admin/src/components/Settings.tsx:71
 msgid "Site identity, logo, favicon, and reading preferences"
@@ -7071,7 +7071,7 @@ msgstr "URL Situs"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:267
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
-msgstr ""
+msgstr "Situs di Cloudflare D1 juga dapat memulihkan basis data ke menit mana pun dalam 30 hari terakhir menggunakan D1 Time Travel — selalu aktif, tanpa perlu penyiapan."
 
 #: packages/admin/src/components/MediaLibrary.tsx:588
 msgid "Size"
@@ -7197,7 +7197,7 @@ msgstr "Mulai Impor"
 #: packages/admin/src/components/PortableTextEditor.tsx:2201
 #: packages/admin/src/components/PortableTextEditor.tsx:2202
 msgid "Start writing, or type '/' for commands"
-msgstr ""
+msgstr "Mulai menulis, atau ketik '/' untuk perintah"
 
 #: packages/admin/src/components/ContentList.tsx:511
 #: packages/admin/src/components/ContentSettingsPanel.tsx:401
@@ -7213,15 +7213,15 @@ msgstr "Kode status"
 
 #: packages/admin/src/components/Dashboard.tsx:357
 msgid "Status: {status}"
-msgstr ""
+msgstr "Status: {status}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:173
 msgid "Store a daily backup in your site's storage bucket. Old backups are removed automatically."
-msgstr ""
+msgstr "Simpan cadangan harian di bucket penyimpanan situs Anda. Cadangan lama dihapus secara otomatis."
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:218
 msgid "Stored Backups"
-msgstr ""
+msgstr "Cadangan Tersimpan"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
 msgid "Stored per locale — each translation of a byline gets its own value."
@@ -7238,7 +7238,7 @@ msgstr "Struktur"
 
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Structured"
-msgstr ""
+msgstr "Terstruktur"
 
 #: packages/admin/src/components/FieldEditor.tsx:523
 msgid "Sub-Fields"
@@ -7283,7 +7283,7 @@ msgstr "Tabel"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3180
 msgid "Table controls"
-msgstr ""
+msgstr "Kontrol tabel"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:139
 #: packages/admin/src/components/SetupWizard.tsx:127
@@ -7450,7 +7450,7 @@ msgstr "Koleksi ini didefinisikan dalam kode. Beberapa pengaturan tidak dapat di
 
 #: packages/admin/src/components/WordPressImport.tsx:1059
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
-msgstr ""
+msgstr "Ini tidak tampak seperti kunci migrasi yang valid. Buat yang baru di plugin dan tempel string lengkap yang diawali dengan \"em1.\"."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:417
 msgid "This field does not accept {sniffedMime} files."
@@ -7484,7 +7484,7 @@ msgstr "Passkey ini sudah terdaftar di perangkat ini."
 #. placeholder {0}: archiveToDelete?.name ?? ""
 #: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "This permanently deletes {0} from storage."
-msgstr ""
+msgstr "Tindakan ini menghapus {0} secara permanen dari penyimpanan."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:276
 msgid "This plugin requires no special permissions."
@@ -7693,7 +7693,7 @@ msgstr "Toggle benar/salah"
 
 #: packages/admin/src/components/MediaLibrary.tsx:493
 msgid "Try a broader media type or clear your filters."
-msgstr ""
+msgstr "Coba jenis media yang lebih luas atau bersihkan filter Anda."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:642
 msgid "Try a different search term"
@@ -7722,11 +7722,11 @@ msgstr "Coba kode lain"
 
 #: packages/admin/src/components/MediaLibrary.tsx:518
 msgid "Try another filename or clear your search."
-msgstr ""
+msgstr "Coba nama berkas lain atau bersihkan pencarian Anda."
 
 #: packages/admin/src/components/MediaLibrary.tsx:492
 msgid "Try another filename, or clear your search and filters."
-msgstr ""
+msgstr "Coba nama berkas lain, atau bersihkan pencarian dan filter Anda."
 
 #: packages/admin/src/components/WordPressImport.tsx:1286
 #: packages/admin/src/components/WordPressImport.tsx:1408
@@ -7985,7 +7985,7 @@ msgstr "Unggah Gambar"
 
 #: packages/admin/src/components/MediaLibrary.tsx:505
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
-msgstr ""
+msgstr "Unggah gambar, video, dan dokumen agar aset yang dapat digunakan kembali tersimpan di satu tempat."
 
 #: packages/admin/src/components/Dashboard.tsx:111
 msgid "Upload Media"
@@ -7993,7 +7993,7 @@ msgstr "Unggah Media"
 
 #: packages/admin/src/components/MediaLibrary.tsx:529
 msgid "Upload media to keep reusable assets in one place."
-msgstr ""
+msgstr "Unggah media agar aset yang dapat digunakan kembali tersimpan di satu tempat."
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
 #: packages/admin/src/components/MediaLibrary.tsx:356
@@ -8299,31 +8299,31 @@ msgstr "Bilangan bulat"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:121
 msgid "Why can't this be changed?"
-msgstr ""
+msgstr "Mengapa ini tidak dapat diubah?"
 
 #: packages/admin/src/components/SeoPanel.tsx:209
 msgid "Why is this important for duplicate pages?"
-msgstr ""
+msgstr "Mengapa ini penting untuk halaman duplikat?"
 
 #: packages/admin/src/components/SeoPanel.tsx:185
 msgid "Why is this important for search result summaries?"
-msgstr ""
+msgstr "Mengapa ini penting untuk ringkasan hasil pencarian?"
 
 #: packages/admin/src/components/SeoPanel.tsx:165
 msgid "Why is this important for search result titles?"
-msgstr ""
+msgstr "Mengapa ini penting untuk judul hasil pencarian?"
 
 #: packages/admin/src/components/SeoPanel.tsx:228
 msgid "Why is this important for search visibility?"
-msgstr ""
+msgstr "Mengapa ini penting untuk visibilitas pencarian?"
 
 #: packages/admin/src/components/SeoImageField.tsx:44
 msgid "Why is this important for social sharing?"
-msgstr ""
+msgstr "Mengapa ini penting untuk berbagi di media sosial?"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:123
 msgid "Why is this important?"
-msgstr ""
+msgstr "Mengapa ini penting?"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:163
 msgid "Wide"
@@ -8385,7 +8385,7 @@ msgstr "Tanpa penyedia email, tautan undangan harus dibagikan secara manual."
 
 #: packages/admin/src/components/WordPressImport.tsx:210
 msgid "WordPress authorization was rejected"
-msgstr ""
+msgstr "Otorisasi WordPress ditolak"
 
 #: packages/admin/src/components/WordPressImport.tsx:1476
 msgid "WordPress Username"
@@ -8393,7 +8393,7 @@ msgstr "Nama Pengguna WordPress"
 
 #: packages/admin/src/components/ContentList.tsx:404
 msgid "Working on {selectedCount} items…"
-msgstr ""
+msgstr "Memproses {selectedCount} item…"
 
 #: packages/admin/src/components/Widgets.tsx:887
 msgid "Write widget content..."
@@ -8409,7 +8409,7 @@ msgstr "XML"
 
 #: packages/admin/src/components/WordPressImport.tsx:1497
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
-msgstr ""
+msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:59
 msgid "YAML"
@@ -8417,7 +8417,7 @@ msgstr "YAML"
 
 #: packages/admin/src/components/Widgets.tsx:161
 msgid "Yearly"
-msgstr ""
+msgstr "Tahunan"
 
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
@@ -8427,7 +8427,7 @@ msgstr "Ya"
 
 #: packages/admin/src/components/WordPressImport.tsx:1160
 msgid "Yoast/RankMath"
-msgstr ""
+msgstr "Yoast/RankMath"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "You can close this page and return to your terminal."
@@ -8545,7 +8545,7 @@ msgstr "Nama pengguna profil LinkedIn Anda"
 #: packages/admin/src/components/MediaLibrary.tsx:504
 #: packages/admin/src/components/MediaLibrary.tsx:528
 msgid "Your media library is empty"
-msgstr ""
+msgstr "Pustaka media Anda kosong"
 
 #: packages/admin/src/components/SetupWizard.tsx:209
 msgid "Your Name"
@@ -8571,7 +8571,7 @@ msgstr "Handle Twitter/X Anda (mis., @namapengguna)"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:437
 msgid "Your unsaved media changes will be lost."
-msgstr ""
+msgstr "Perubahan media Anda yang belum disimpan akan hilang."
 
 #. placeholder {0}: attachments.count
 #: packages/admin/src/components/WordPressImport.tsx:2062
