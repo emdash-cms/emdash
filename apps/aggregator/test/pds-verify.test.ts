@@ -180,11 +180,17 @@ describe("fetchAndVerifyRecord — SSRF egress hardening", () => {
 		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
 	});
 
-	it("rejects when the resolver returns no addresses", async () => {
+	it("maps an empty DNS answer to the transient PDS_NETWORK_ERROR", async () => {
+		// An empty resolver answer (NXDOMAIN / NOERROR-NODATA / CNAME-only) is a
+		// host mid-propagation, not a disallowed address — it must retry, not
+		// dead-letter. A genuinely-gone host dead-letters via retry exhaustion.
+		// Keyed on the shared helper's `Hostname resolved to no addresses` wording;
+		// this breaks if that wording changes rather than silently mis-classifying.
 		const err = await captureRejection(
 			fetchAndVerifyRecord(buildOpts({ fetch: rejectFetch, resolveHostname: async () => [] })),
 		);
-		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
+		expect(err.reason).toBe("PDS_NETWORK_ERROR");
+		expect(isTransient(err.reason, err.status)).toBe(true);
 	});
 
 	it("maps a resolver infrastructure failure to the transient PDS_NETWORK_ERROR", async () => {

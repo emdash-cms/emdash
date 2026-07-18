@@ -35,6 +35,11 @@ const MAX_PDS_REDIRECTS = 3;
  * infrastructure failure, distinct from a disallowed address. Keyed on here to
  * classify those as retryable; see `assertFetchableUrl`. */
 const RESOLVER_FAILURE_PREFIX = "Could not resolve hostname:";
+/** Message `resolveAndValidateExternalUrl` uses for an empty DNS answer
+ * (NXDOMAIN / NOERROR-NODATA / CNAME-only). Transient: a host mid-propagation
+ * would otherwise be permanently dead-lettered; a genuinely-gone host instead
+ * dead-letters via retry exhaustion. Not a disallowed address. */
+const EMPTY_ANSWER_MESSAGE = "Hostname resolved to no addresses";
 
 export type VerificationFailureReason =
 	| "PDS_NETWORK_ERROR"
@@ -151,6 +156,16 @@ function isRedirectStatus(status: number): boolean {
 }
 
 /**
+ * True when an `SsrfError` message denotes a transient resolution failure (the
+ * resolver threw, or the DNS answer was empty) rather than a disallowed address.
+ * Keyed on the shared helper's messages; guarded by tests so a wording change
+ * there fails loudly instead of silently re-classifying.
+ */
+function isTransientResolutionFailure(message: string): boolean {
+	return message.startsWith(RESOLVER_FAILURE_PREFIX) || message === EMPTY_ANSWER_MESSAGE;
+}
+
+/**
  * Reject the URL unless it's HTTPS and resolves to a public address. The PDS
  * endpoint (and every redirect target) is publisher-controlled, so this is the
  * SSRF boundary: HTTP is refused (no plaintext downgrade to an internal
@@ -173,15 +188,16 @@ async function assertFetchableUrl(url: string, resolver: DnsResolver): Promise<v
 	} catch (err) {
 		if (err instanceof SsrfError) {
 			// `resolveAndValidateExternalUrl` throws `SsrfError` for two very
-			// different situations: a disallowed address (permanent — dead-letter)
-			// and a resolver infrastructure failure such as a DoH network error,
-			// SERVFAIL, or timeout (transient — retry). `SsrfError.code` is the
-			// same constant for both, so the only discriminator is the message:
-			// the resolver-threw path is uniquely prefixed by
-			// `RESOLVER_FAILURE_PREFIX`. A test asserts the transient mapping so a
-			// future wording change in the shared helper breaks loudly here rather
-			// than silently dead-lettering legitimate records during a DoH blip.
-			if (err.message.startsWith(RESOLVER_FAILURE_PREFIX)) {
+			// different classes of situation: a disallowed address (permanent —
+			// dead-letter) and a resolution failure (transient — retry). The
+			// transient class is a DoH network error / SERVFAIL / timeout (the
+			// resolver threw, prefixed `RESOLVER_FAILURE_PREFIX`) or an empty DNS
+			// answer (`EMPTY_ANSWER_MESSAGE` — a host mid-propagation). `SsrfError.code`
+			// is the same constant for all, so the only discriminator is the message.
+			// Tests assert both transient mappings so a future wording change in the
+			// shared helper breaks loudly here rather than silently dead-lettering
+			// legitimate records during a DoH blip or DNS propagation.
+			if (isTransientResolutionFailure(err.message)) {
 				throw new PdsVerificationError(
 					"PDS_NETWORK_ERROR",
 					`PDS host resolution failed: ${err.message}`,
