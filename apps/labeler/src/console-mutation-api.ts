@@ -730,6 +730,16 @@ async function runRerun(
 		},
 		{ uri: assessment.uri, cid: assessment.cid, val: "assessment-pending" },
 		ctx.now,
+		// Gate the rerun's positive assessment-pending on the run (created `observed`
+		// in this batch) and the subject still being undeleted at commit time, so a
+		// concurrent discovery-delete that tombstoned the subject makes the positive
+		// no-op instead of resurrecting a live label on a deleted release. On a miss
+		// the label does not persist -> `assertIssuancePersisted` below aborts before
+		// `deferRerunTail`, so nothing is published, dispatched, or advanced.
+		{
+			requireAssessmentState: "observed",
+			requireSubjectNotDeleted: { uri: assessment.uri, cid: assessment.cid },
+		},
 	);
 
 	const descriptor: RerunDescriptor = {

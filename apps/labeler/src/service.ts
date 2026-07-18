@@ -463,13 +463,14 @@ export async function prepareAutomatedLabelIssuance(
 	action: AutomatedIssuanceAction,
 	proposal: AutomatedLabelProposal,
 	now: Date,
+	options: BuildIssuanceOptions = {},
 ): Promise<IssuanceStatements> {
 	if (signer.issuerDid !== config.labelerDid)
 		throw new TypeError("signer issuer does not match the configured labeler DID");
 	validateKeyVersion(config.signingKeyVersion);
 	validateAutomatedAction(action);
 	validateAutomatedProposal(proposal);
-	return buildIssuanceStatements(db, config, signer, action, proposal, now, true);
+	return buildIssuanceStatements(db, config, signer, action, proposal, now, true, options);
 }
 
 export interface OverrideIssuanceSpec {

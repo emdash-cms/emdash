@@ -16,8 +16,14 @@ import {
 	automatedIdempotencyKey,
 	computeRunKey,
 	initialTriggerId,
+	operatorTriggerId,
 } from "../src/assessment-lifecycle.js";
-import { getAssessmentByRunKey, getCurrentAssessment } from "../src/assessment-store.js";
+import {
+	createAssessmentRun,
+	createSubject,
+	getAssessmentByRunKey,
+	getCurrentAssessment,
+} from "../src/assessment-store.js";
 import { buildAutomationPauseUpdate } from "../src/automation-state.js";
 import {
 	bestEffortPublisher,
@@ -625,14 +631,88 @@ describe("processDiscoveryMessage: create racing delete (Blocker 1 create-path)"
 			),
 		).toBe(false);
 
-		// The active label state carries no live pending — only the delete's negation.
+		// No active positive assessment-pending survives. Here the positive never
+		// committed (guarded no-op) and the delete issued no negation — it correctly
+		// negates only runs that committed a positive — so the stream winner is either
+		// absent or a negation, never a live positive.
 		const winner = await testEnv.DB.prepare(
 			`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
 			 ORDER BY sequence DESC LIMIT 1`,
 		)
 			.bind(uriFor(job))
 			.first<{ neg: number }>();
-		expect(winner?.neg).toBe(1);
+		expect(winner === null || winner.neg === 1).toBe(true);
+	});
+
+	it("negates an operator rerun's live positive pending even while its run is still observed (rerun observed-state gap)", async () => {
+		// Reconstruct the rerun's committed state: an `observed` run already carrying
+		// a live positive assessment-pending (the rerun issues its positive before the
+		// deferred advance to `pending`).
+		const job = await jobFor({ rkey: rkey() });
+		const uri = uriFor(job);
+		await createSubject(testEnv.DB, {
+			uri,
+			cid: job.cid,
+			did: PUBLISHER_DID,
+			collection: RELEASE_COLLECTION,
+			rkey: job.rkey,
+		});
+		const triggerId = operatorTriggerId("op-observed-gap");
+		const runKey = await computeRunKey({
+			uri,
+			cid: job.cid,
+			policyVersion: MODERATION_POLICY.policyVersion,
+			modelId: "unassigned",
+			promptHash: "unassigned",
+			scannerSetVersion: "unassigned",
+			triggerId,
+		});
+		const { assessment } = await createAssessmentRun(testEnv.DB, {
+			runKey,
+			uri,
+			cid: job.cid,
+			trigger: "operator",
+			triggerId,
+			policyVersion: MODERATION_POLICY.policyVersion,
+			coverageJson: "{}",
+		});
+		expect(assessment.state).toBe("observed");
+		await issueAutomatedAssessmentLabel(
+			testEnv.DB,
+			config,
+			await signer(),
+			{
+				actor: LABELER_DID,
+				type: "automated-assessment",
+				assessmentId: assessment.id,
+				reason: "operator rerun",
+				idempotencyKey: automatedIdempotencyKey(runKey, "assessment-pending", false),
+			},
+			{ uri, cid: job.cid, val: "assessment-pending" },
+		);
+
+		const latestPending = () =>
+			testEnv.DB.prepare(
+				`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+				 ORDER BY sequence DESC LIMIT 1`,
+			)
+				.bind(uri)
+				.first<{ neg: number }>();
+		expect((await latestPending())?.neg).toBe(0);
+
+		// A discovery delete arrives while the run is still `observed`.
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const msg = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, msg, {
+			...(await buildDeps()),
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		expect(msg.acked).toBe(1);
+		// The observed run is cancelled AND its live positive is negated — no stale
+		// positive survives (pre-fix the state-based negation skipped observed runs).
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("cancelled");
+		expect((await latestPending())?.neg).toBe(1);
 	});
 });
 

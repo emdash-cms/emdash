@@ -555,16 +555,22 @@ async function transitionOrObserve(
 
 /**
  * Tombstones the subject and retires its non-terminal runs. For each run that
- * reached `pending`/`running` — and therefore carries an active
- * `assessment-pending` label — the negation is issued BEFORE the terminal
- * cancellation, so a failed or paused negation (signing mid-rotation) leaves the
- * run non-terminal and re-discoverable by `listNonTerminalAssessmentsForUri` on
- * redelivery. Cancelling first would drop the run from that set, stranding the
- * pending label live forever once the message acks. The invariant: a run is
- * cancelled only after its pending negation has committed, and the message
- * cannot ack while any pending/running run is still un-negated (a throw
- * propagates to the delete handler's mutation-phase catch, which always retries),
- * so no active `assessment-pending` survives an acked delete.
+ * committed a positive `assessment-pending` label, the negation is issued BEFORE
+ * the terminal cancellation, so a failed or paused negation (signing
+ * mid-rotation) leaves the run non-terminal and re-discoverable by
+ * `listNonTerminalAssessmentsForUri` on redelivery. Cancelling first would drop
+ * the run from that set, stranding the pending label live forever once the
+ * message acks.
+ *
+ * The negation is keyed on the run having committed a live positive — NOT on its
+ * lifecycle state — because an operator rerun issues its positive
+ * `assessment-pending` while the run is still `observed` (the advance to `pending`
+ * is deferred). Keying on state would let a delete cancel that `observed` run
+ * without negating its already-live positive. The invariant: a run is cancelled
+ * only after any positive it committed has been negated, and the message cannot
+ * ack while a negation is still owed (a throw propagates to the delete handler's
+ * mutation-phase catch, which always retries), so no active `assessment-pending`
+ * survives an acked delete.
  */
 async function applyDiscoveryDelete(
 	deps: DiscoveryConsumerDeps,
@@ -581,11 +587,13 @@ async function applyDiscoveryDelete(
 			run.state !== "running"
 		)
 			continue;
-		// observed/verifying runs never issued a pending label (it is issued once a
-		// run reaches `pending`); pending/running runs carry one, so negate before
-		// the cancellation retires the run out of the recovery set.
-		if (run.state === "pending" || run.state === "running")
-			await negateRunPendingLabel(deps, run, now);
+		// Negate before cancelling any run that committed a positive pending,
+		// regardless of lifecycle state (a rerun's is live while `observed`).
+		const positive = await readIssuedLabelByActionKey(
+			deps.db,
+			automatedIdempotencyKey(run.runKey, "assessment-pending", false),
+		);
+		if (positive) await negateRunPendingLabel(deps, run, now);
 		try {
 			await transitionAssessmentState(deps.db, {
 				id: run.id,
