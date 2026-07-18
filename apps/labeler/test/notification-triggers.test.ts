@@ -21,6 +21,11 @@ import {
 	notifyOverrideRetract,
 	type NotifyDeps,
 } from "../src/notification-triggers.js";
+import {
+	buildOperationalEventInsert,
+	buildOutboxInsert,
+	newOperationalEventId,
+} from "../src/operational-events.js";
 
 interface TestEnv {
 	DB: D1Database;
@@ -578,6 +583,45 @@ describe("package slug parse", () => {
 		expect(sender.notices).toHaveLength(1);
 		expect(sender.notices[0]?.to).toBe(email);
 	});
+
+	it("does not strip a colon-bearing rkey under a non-release collection", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.profile/gallery:evil`,
+		);
+		expect(target).toEqual({ did: DID, slug: "gallery:evil" });
+	});
+
+	it("does not strip a release rkey whose slug is malformed", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/1bad:2.0.0`,
+		);
+		expect(target).toEqual({ did: DID, slug: "1bad:2.0.0" });
+	});
+
+	it("a malformed colon-bearing subject degrades to the publisher contact, not a wrong package", async () => {
+		const publisherEmail = uniq("pub") + "@x.test";
+		const galleryEmail = uniq("gal") + "@x.test";
+		await seedConfirmed(publisherEmail);
+		const sender = recordingSender();
+		// Colon-bearing rkey under a non-release collection: must NOT resolve the
+		// gallery package's security contact by stripping to "gallery".
+		const uri = `at://${DID}/com.emdashcms.experimental.package.profile/gallery:evil`;
+		const a = assessmentRow({ state: "blocked", uri });
+
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email: publisherEmail,
+					packageSecurity: { slug: "gallery", email: galleryEmail },
+				}),
+				sender,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(1);
+		expect(sender.notices[0]?.to).toBe(publisherEmail);
+	});
 });
 
 describe("emergency takedown with no resolvable contact", () => {
@@ -678,6 +722,51 @@ describe("emergency takedown with no resolvable contact", () => {
 		await notifyEmergencyTakedown(d, { actionId, uri: RELEASE_URI, neg: false });
 
 		expect(await takedownEvents(actionId)).toHaveLength(1);
+	});
+
+	it("converges to one event when two replays both emit (unique index + ON CONFLICT)", async () => {
+		const actionId = uniq("oact");
+		await seedTakedownAction(actionId);
+		const database = db();
+		const now = new Date("2026-07-18T00:00:00.000Z");
+
+		// Two replays that both passed the existence check each build their own
+		// event+outbox batch for the same (action_id, event_type). The unique index
+		// + ON CONFLICT DO NOTHING must collapse them to a single event with no throw.
+		const build = () => {
+			const eventId = newOperationalEventId();
+			return [
+				buildOperationalEventInsert(database, {
+					id: eventId,
+					eventType: "takedown-no-contact",
+					severity: "high",
+					actionId,
+					subjectUri: RELEASE_URI,
+					labelValue: "!takedown",
+					payload: { reason: "manual outreach required" },
+					now,
+					idempotentOnActionType: true,
+				}),
+				buildOutboxInsert(database, {
+					eventId,
+					channel: "deployment-alert",
+					now,
+					gateOnEventPresent: true,
+				}),
+			];
+		};
+		await database.batch(build());
+		await database.batch(build());
+
+		expect(await takedownEvents(actionId)).toHaveLength(1);
+		const outbox = await database
+			.prepare(
+				`SELECT COUNT(*) n FROM notification_outbox nob
+				 JOIN operational_events oe ON oe.id = nob.event_id WHERE oe.action_id = ?`,
+			)
+			.bind(actionId)
+			.first<{ n: number }>();
+		expect(outbox?.n).toBe(1);
 	});
 
 	it("recovers the alert on a replay after a transient first-pass emit failure", async () => {

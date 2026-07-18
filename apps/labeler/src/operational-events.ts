@@ -80,6 +80,14 @@ export interface OperationalEventInsert {
 	 * ticks are not serialized against each other).
 	 */
 	gateOnUnalertedEscalation?: { assessmentId: string };
+	/**
+	 * Appends `ON CONFLICT (action_id, event_type) DO NOTHING` to a plain insert so
+	 * a concurrent replay converges to one row against the `(action_id, event_type)`
+	 * unique index (migration 0012). Only valid with a non-null `actionId` and no
+	 * gate. Pair the outbox with {@link OutboxInsert.gateOnEventPresent} so a
+	 * conflicted (no-op) event does not orphan an outbox row.
+	 */
+	idempotentOnActionType?: boolean;
 }
 
 export interface OutboxInsert {
@@ -90,6 +98,10 @@ export interface OutboxInsert {
 	gateOnIssuedLabelActionId?: number;
 	/** Same in-batch label gating as {@link OperationalEventInsert.gateOnIssuedLabelActionKey}. */
 	gateOnIssuedLabelActionKey?: string;
+	/** Insert only if the event row was actually written — `WHERE EXISTS (event
+	 * with this id)`. Pairs with {@link OperationalEventInsert.idempotentOnActionType}
+	 * so an ON CONFLICT no-op event leaves no orphan outbox row in the same batch. */
+	gateOnEventPresent?: boolean;
 }
 
 export interface StoredOperationalEvent {
@@ -226,10 +238,13 @@ export function buildOperationalEventInsert(
 			.bind(...values, input.gateOnUnalertedEscalation.assessmentId);
 	}
 
+	const onConflict = input.idempotentOnActionType
+		? ` ON CONFLICT (action_id, event_type) DO NOTHING`
+		: "";
 	return db
 		.prepare(
 			`INSERT INTO operational_events (${columns})
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)${onConflict}`,
 		)
 		.bind(...values);
 }
@@ -270,6 +285,16 @@ export function buildOutboxInsert(db: D1Database, input: OutboxInsert): D1Prepar
 				 WHERE EXISTS (SELECT 1 FROM issued_labels WHERE action_id = ?)`,
 			)
 			.bind(...values, input.gateOnIssuedLabelActionId);
+	}
+
+	if (input.gateOnEventPresent) {
+		return db
+			.prepare(
+				`INSERT INTO notification_outbox (id, event_id, channel, created_at, created_at_epoch_ms)
+				 SELECT ?, ?, ?, ?, ?
+				 WHERE EXISTS (SELECT 1 FROM operational_events WHERE id = ?)`,
+			)
+			.bind(...values, input.eventId);
 	}
 
 	return db

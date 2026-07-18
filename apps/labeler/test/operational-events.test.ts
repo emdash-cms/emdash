@@ -113,8 +113,14 @@ describe("operational_events store", () => {
 		const otherId = `oact_other${counter}`;
 		await insertOperatorAction(actionId);
 		await insertOperatorAction(otherId);
+		// One action can raise events of DIFFERENT types (a takedown emits both
+		// `emergency-takedown` and the deferred `takedown-no-contact`); the
+		// (action_id, event_type) unique index forbids the SAME type twice.
 		await buildOperationalEventInsert(testEnv.DB, eventInput({ actionId })).run();
-		await buildOperationalEventInsert(testEnv.DB, eventInput({ actionId })).run();
+		await buildOperationalEventInsert(
+			testEnv.DB,
+			eventInput({ actionId, eventType: "takedown-no-contact" }),
+		).run();
 		await buildOperationalEventInsert(testEnv.DB, eventInput({ actionId: otherId })).run();
 
 		const rows = await getOperationalEventsByActionId(testEnv.DB, actionId);

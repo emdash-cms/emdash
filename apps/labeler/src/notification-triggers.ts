@@ -369,9 +369,12 @@ const OPERATOR_ALERT_CHANNEL = "deployment-alert";
  * takedown issuance resolved no contact and the alert is not already recorded.
  * Idempotent and recoverable: the operational_events row (not the notifications
  * row) is the dedup key, so a first pass whose event batch failed re-emits on a
- * later replay, while a normal replay does not duplicate. Fire-and-forget — an
- * error is swallowed and logged, never propagated into the deferred tail (a later
- * replay retries anyway, since the event row is still absent).
+ * later replay, while a normal replay does not duplicate. The insert is guarded
+ * by the `(action_id, event_type)` unique index + ON CONFLICT DO NOTHING, so two
+ * concurrent replays that both pass the existence check still converge to one
+ * event (the outbox is gated on the event being written, so a conflict leaves no
+ * orphan). Fire-and-forget — an error is swallowed and logged, never propagated
+ * into the deferred tail (a later replay retries anyway, the event still absent).
  */
 async function ensureTakedownNoContactAlert(
 	deps: NotifyDeps,
@@ -396,8 +399,14 @@ async function ensureTakedownNoContactAlert(
 						"Emergency takedown has no resolvable publisher contact; manual outreach required.",
 				},
 				now,
+				idempotentOnActionType: true,
 			}),
-			buildOutboxInsert(deps.db, { eventId, channel: OPERATOR_ALERT_CHANNEL, now }),
+			buildOutboxInsert(deps.db, {
+				eventId,
+				channel: OPERATOR_ALERT_CHANNEL,
+				now,
+				gateOnEventPresent: true,
+			}),
 		]);
 	} catch (error) {
 		console.error("[notifications] takedown no-contact alert failed", {
@@ -719,8 +728,8 @@ function assessmentUrl(serviceUrl: string, uri: string, cid?: string): string {
 /**
  * The `{ did, slug }` a notice's contact resolution needs, parsed from the
  * subject URI. A record URI (`at://did/collection/rkey`) yields the DID and the
- * parent package slug: a package rkey IS the slug, and a release rkey is
- * `slug:version`, so the slug is the part before the first `:`. That lets
+ * parent package slug: a package rkey IS the slug, and a canonical release rkey
+ * is `slug:version`, so the slug is the part before the first `:`. That lets
  * `getPackage` reach the package's `security[]`/`authors[]` contacts (tier-1/2)
  * for a release subject instead of falling straight through to the DID-keyed
  * publisher profile (tier 3). A bare DID subject (publisher-level action)
@@ -729,9 +738,9 @@ function assessmentUrl(serviceUrl: string, uri: string, cid?: string): string {
  */
 export function contactTargetFromUri(uri: string): ContactTarget | null {
 	if (uri.startsWith("at://")) {
-		const [did, , rkey] = uri.slice("at://".length).split("/");
+		const [did, collection, rkey] = uri.slice("at://".length).split("/");
 		if (did === undefined || did.length === 0) return null;
-		return { did, slug: packageSlugFromRkey(rkey ?? "") };
+		return { did, slug: packageSlugFromRecord(collection, rkey ?? "") };
 	}
 	if (uri.startsWith("did:")) {
 		return { did: uri, slug: uri.split(":").at(-1) ?? uri };
@@ -739,13 +748,25 @@ export function contactTargetFromUri(uri: string): ContactTarget | null {
 	return null;
 }
 
-/** The parent package slug from a record rkey: the part before the `:` version
- * delimiter for a release (`gallery:1.2.0` → `gallery`), or the rkey verbatim for
- * a package (no delimiter) or any rkey whose delimiter is leading (no slug to
- * take — left as-is so resolution degrades to the publisher tier). */
-function packageSlugFromRkey(rkey: string): string {
+/** Canonical package-slug shape, mirroring the aggregator's release-rkey ingest
+ * validation (`records-consumer`'s PACKAGE_SLUG_RE). */
+const PACKAGE_SLUG_RE = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+
+/**
+ * The parent package slug a subject resolves against. Only a CANONICAL release
+ * record — the release collection AND a `slug:version` rkey whose slug is
+ * well-formed — is stripped to its package slug (`gallery:1.2.0` → `gallery`).
+ * Every other subject keeps its rkey verbatim: a package rkey IS the slug, and a
+ * non-release collection or a malformed colon-bearing rkey stays whole so it can
+ * never strip to a DIFFERENT package's slug — it misses at `getPackage` and
+ * resolution degrades to the publisher tier.
+ */
+function packageSlugFromRecord(collection: string | undefined, rkey: string): string {
+	if (collection !== NSID.packageRelease) return rkey;
 	const delimiter = rkey.indexOf(":");
-	return delimiter > 0 ? rkey.slice(0, delimiter) : rkey;
+	if (delimiter <= 0 || delimiter === rkey.length - 1) return rkey;
+	const slug = rkey.slice(0, delimiter);
+	return PACKAGE_SLUG_RE.test(slug) ? slug : rkey;
 }
 
 function logTrigger(source: NotificationSource, did: string, outcome: string): void {
