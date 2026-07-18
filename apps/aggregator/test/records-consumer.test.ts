@@ -543,15 +543,20 @@ class MapDidDocCache implements DidDocCache {
 class FakeMessage implements MessageController {
 	acked = 0;
 	retried = 0;
+	retryDelaySeconds: number | undefined = undefined;
 	ack() {
 		this.acked += 1;
 	}
-	retry() {
+	retry(options?: { delaySeconds?: number }) {
 		this.retried += 1;
+		this.retryDelaySeconds = options?.delaySeconds;
 	}
 }
 
-function buildDeps(opts: { fetch: typeof fetch }): {
+function buildDeps(opts: {
+	fetch: typeof fetch;
+	resolveHostname?: ConsumerDeps["resolveHostname"];
+}): {
 	deps: ConsumerDeps;
 	cache: MapDidDocCache;
 } {
@@ -564,7 +569,15 @@ function buildDeps(opts: { fetch: typeof fetch }): {
 		now: () => NOW,
 	});
 	return {
-		deps: { db: testEnv.DB, resolver, fetch: opts.fetch, now: () => NOW },
+		deps: {
+			db: testEnv.DB,
+			resolver,
+			fetch: opts.fetch,
+			// pds.test.example resolves public so the SSRF egress guard in
+			// `fetchAndVerifyRecord` passes and these tests reach the fetch stub.
+			resolveHostname: opts.resolveHostname ?? (async () => ["93.184.216.34"]),
+			now: () => NOW,
+		},
 		cache,
 	};
 }
@@ -608,6 +621,8 @@ describe("processMessage dispatcher", () => {
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
 		expect(await deadLetterCount()).toBe(0);
+		// A 5xx retries immediately — the propagation delay is DNS-only.
+		expect(msg.retryDelaySeconds).toBeUndefined();
 	});
 
 	it("retries on a network error", async () => {
@@ -621,6 +636,45 @@ describe("processMessage dispatcher", () => {
 
 		expect(msg.retried).toBe(1);
 		expect(await deadLetterCount()).toBe(0);
+		expect(msg.retryDelaySeconds).toBeUndefined();
+	});
+
+	it("retries when the SSRF host resolver fails (transient DoH outage, not dead-lettered)", async () => {
+		const { deps, cache } = buildDeps({
+			// Reached only if the resolver somehow passed — it must not.
+			fetch: () => Promise.reject(new Error("fetch must not run when resolution fails")),
+			resolveHostname: () => Promise.reject(new Error("DoH 503")),
+		});
+		cache.seed(DID_A);
+		const msg = new FakeMessage();
+
+		await processMessage(jobFor(DID_A, NSID.packageProfile, "demo"), msg, deps);
+
+		expect(msg.retried).toBe(1);
+		expect(msg.acked).toBe(0);
+		expect(await deadLetterCount()).toBe(0);
+		// Re-delivery is delayed so retries span the DNS-propagation window
+		// instead of burning max_retries before the record's host resolves.
+		expect(msg.retryDelaySeconds).toBeGreaterThan(0);
+	});
+
+	it("acks and dead-letters PDS_ADDRESS_BLOCKED when the endpoint resolves to a private address", async () => {
+		const { deps, cache } = buildDeps({
+			fetch: () => Promise.reject(new Error("fetch must not run for a blocked address")),
+			resolveHostname: async () => ["10.0.0.5"],
+		});
+		cache.seed(DID_A);
+		const msg = new FakeMessage();
+
+		await processMessage(jobFor(DID_A, NSID.packageProfile, "demo"), msg, deps);
+
+		expect(msg.acked).toBe(1);
+		expect(msg.retried).toBe(0);
+		expect(await deadLetterCount()).toBe(1);
+		const row = await testEnv.DB.prepare(`SELECT reason FROM dead_letters`).first<{
+			reason: string;
+		}>();
+		expect(row?.reason).toBe("PDS_ADDRESS_BLOCKED");
 	});
 
 	it("forensics + acks on garbage CAR bytes (verifyRecord rejects → INVALID_PROOF)", async () => {
