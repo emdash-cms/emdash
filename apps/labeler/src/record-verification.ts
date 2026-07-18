@@ -22,6 +22,7 @@ import {
 } from "@atcute/crypto";
 import { type DidDocument, getAtprotoVerificationMaterial, getPdsEndpoint } from "@atcute/identity";
 import { type Did, isDid } from "@atcute/lexicons/syntax";
+import type { DnsResolver } from "emdash/security/ssrf";
 
 import {
 	fetchAndVerifyRecord,
@@ -77,6 +78,9 @@ export interface FetchAndVerifyExactRecordOptions {
 	didDocumentResolver: DidDocumentResolverLike;
 	/** Inject for tests; defaults to `globalThis.fetch`. */
 	fetch?: typeof fetch;
+	/** Inject for tests; defaults to the DoH resolver used by artifact
+	 * acquisition. Threaded into the SSRF egress guard around the PDS fetch. */
+	resolveHostname?: DnsResolver;
 	timeoutMs?: number;
 	maxResponseBytes?: number;
 }
@@ -178,6 +182,7 @@ async function fetchAndVerifyLatestRecord(
 		rkey,
 		publicKey,
 		...(opts.fetch ? { fetch: opts.fetch } : {}),
+		...(opts.resolveHostname ? { resolveHostname: opts.resolveHostname } : {}),
 		...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
 		...(opts.maxResponseBytes !== undefined ? { maxResponseBytes: opts.maxResponseBytes } : {}),
 	});

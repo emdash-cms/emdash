@@ -32,6 +32,7 @@ import {
 	PlcDidDocumentResolver,
 } from "@atcute/identity-resolver";
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
+import { cloudflareDohResolver, type DnsResolver } from "emdash/security/ssrf";
 
 import {
 	AssessmentDispatchError,
@@ -94,6 +95,9 @@ export interface DiscoveryConsumerDeps {
 	 * (assessment-dispatch.ts). */
 	assessmentWorkflow: AssessmentWorkflowBinding;
 	fetch?: typeof fetch;
+	/** Resolves each PDS hop's hostname for the SSRF egress guard; defaults to
+	 * the DoH resolver used by artifact acquisition. */
+	resolveHostname?: DnsResolver;
 	now?: () => Date;
 	/**
 	 * Optional override for the record-verification step. Used by tests to
@@ -107,6 +111,7 @@ export interface DiscoveryConsumerDeps {
 		cid: string;
 		didDocumentResolver: DidDocumentResolverLike;
 		fetch?: typeof fetch;
+		resolveHostname?: DnsResolver;
 	}) => Promise<VerifiedPdsRecord>;
 	/** Override for the delete-path absence check; defaults to
 	 * `confirmRecordAbsent`. Returns `true` when the record is verifiably gone. */
@@ -114,6 +119,7 @@ export interface DiscoveryConsumerDeps {
 		uri: string;
 		didDocumentResolver: DidDocumentResolverLike;
 		fetch?: typeof fetch;
+		resolveHostname?: DnsResolver;
 	}) => Promise<boolean>;
 }
 
@@ -137,6 +143,7 @@ export type DiscoveryDeadLetterReason =
 	| "RESPONSE_TOO_LARGE"
 	| "INVALID_PROOF"
 	| "PDS_HTTP_ERROR"
+	| "PDS_HOST_BLOCKED"
 	| "DELETE_RECORD_PRESENT"
 	| RecordVerificationFailureReason
 	| "UNEXPECTED_ERROR";
@@ -215,6 +222,7 @@ export async function processDiscoveryMessage(
 				uri,
 				didDocumentResolver: deps.didDocumentResolver,
 				...(deps.fetch ? { fetch: deps.fetch } : {}),
+				...(deps.resolveHostname ? { resolveHostname: deps.resolveHostname } : {}),
 			});
 			if (!absent) {
 				await writeDeadLetter(
@@ -349,6 +357,7 @@ async function verifyAndCreateRun(
 		cid: job.cid,
 		didDocumentResolver: deps.didDocumentResolver,
 		...(deps.fetch ? { fetch: deps.fetch } : {}),
+		...(deps.resolveHostname ? { resolveHostname: deps.resolveHostname } : {}),
 	});
 
 	await createSubject(deps.db, {
@@ -521,6 +530,7 @@ function mapPdsReason(reason: VerificationFailureReason): DiscoveryDeadLetterRea
 		case "RESPONSE_TOO_LARGE":
 		case "INVALID_PROOF":
 		case "PDS_HTTP_ERROR":
+		case "PDS_HOST_BLOCKED":
 			return reason;
 		case "PDS_NETWORK_ERROR":
 			throw new Error(
@@ -554,6 +564,9 @@ async function createProductionDiscoveryDeps(env: Env): Promise<DiscoveryConsume
 		// bound wrapper rather than letting pds-verify.ts fall back to bare
 		// global `fetch`.
 		fetch: boundFetch,
+		// SSRF egress guard for the publisher-controlled PDS endpoint and any
+		// redirect it serves — the same DoH resolver artifact acquisition uses.
+		resolveHostname: cloudflareDohResolver,
 	};
 }
 
