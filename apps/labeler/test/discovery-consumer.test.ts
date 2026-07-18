@@ -601,6 +601,63 @@ describe("processDiscoveryMessage: delete", () => {
 		expect(dl?.n).toBe(0);
 	});
 
+	it("negates the pending label on redelivery after a paused first delivery — no stale pending survives", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+		const runKey = await runKeyFor(job);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("pending");
+
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const latestPending = () =>
+			testEnv.DB.prepare(
+				`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+				 ORDER BY sequence DESC LIMIT 1`,
+			)
+				.bind(uriFor(job))
+				.first<{ neg: number }>();
+
+		// First delivery: signing paused mid-rotation, so the pending-negation throws
+		// and the message retries.
+		const first = new FakeMessage();
+		await testEnv.DB.prepare(
+			`UPDATE signing_state SET phase = 'paused', pending_key_version = 'v2',
+			 pending_public_multikey = ?, rotation_id = 'rot-redeliver' WHERE id = 1`,
+		)
+			.bind(MULTIKEY)
+			.run();
+		try {
+			await processDiscoveryMessage(deleteJob, first, {
+				...deps,
+				confirmDeleted: () => Promise.resolve(true),
+			});
+		} finally {
+			await testEnv.DB.prepare(
+				`UPDATE signing_state SET phase = 'active', pending_key_version = NULL,
+				 pending_public_multikey = NULL, rotation_id = NULL WHERE id = 1`,
+			).run();
+		}
+		expect(first.retried).toBe(1);
+		expect(first.acked).toBe(0);
+		// The crux of the fix: negating BEFORE cancelling means the throw leaves the
+		// run non-terminal (still `pending`), so the redelivery can re-discover it.
+		// Pre-fix the run was cancelled here and the redelivery found nothing to negate.
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("pending");
+		expect((await latestPending())?.neg).toBe(0);
+
+		// Redelivery with signing resumed: the negation now commits and the run is
+		// retired, so no active assessment-pending survives the delete.
+		const second = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, second, {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+		expect(second.acked).toBe(1);
+		expect(second.retried).toBe(0);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("cancelled");
+		expect((await latestPending())?.neg).toBe(1);
+	});
+
 	it("dead-letters a forged/premature delete whose record still resolves, suppressing nothing", async () => {
 		const job = await jobFor({ rkey: rkey() });
 		const deps = await buildDeps();

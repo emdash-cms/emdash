@@ -235,8 +235,7 @@ export async function processDiscoveryMessage(
 				controller.ack();
 				return;
 			}
-			const cancelled = await applyDiscoveryDelete(deps.db, uri, now());
-			await negatePendingForDeletedRuns(deps, cancelled, now());
+			await applyDiscoveryDelete(deps, uri, now());
 			controller.ack();
 		} catch (err) {
 			await classifyDiscoveryError(err, job, deps, controller, now());
@@ -455,13 +454,26 @@ async function transitionOrObserve(
 	}
 }
 
-/** Tombstones the subject, cancels non-terminal runs, and returns the runs
- * that had already reached `pending` (so they carry an active
- * `assessment-pending` label the caller must negate). */
-async function applyDiscoveryDelete(db: D1Database, uri: string, now: Date): Promise<Assessment[]> {
-	await deleteSubjectsByUri(db, { uri, now });
-	const runs = await listNonTerminalAssessmentsForUri(db, uri);
-	const hadPending: Assessment[] = [];
+/**
+ * Tombstones the subject and retires its non-terminal runs. For each run that
+ * reached `pending`/`running` — and therefore carries an active
+ * `assessment-pending` label — the negation is issued BEFORE the terminal
+ * cancellation, so a failed or paused negation (signing mid-rotation) leaves the
+ * run non-terminal and re-discoverable by `listNonTerminalAssessmentsForUri` on
+ * redelivery. Cancelling first would drop the run from that set, stranding the
+ * pending label live forever once the message acks. The invariant: a run is
+ * cancelled only after its pending negation has committed, and the message
+ * cannot ack while any pending/running run is still un-negated (a throw
+ * propagates to `classifyDiscoveryError` → retry), so no active
+ * `assessment-pending` survives an acked delete.
+ */
+async function applyDiscoveryDelete(
+	deps: DiscoveryConsumerDeps,
+	uri: string,
+	now: Date,
+): Promise<void> {
+	await deleteSubjectsByUri(deps.db, { uri, now });
+	const runs = await listNonTerminalAssessmentsForUri(deps.db, uri);
 	for (const run of runs) {
 		if (
 			run.state !== "observed" &&
@@ -470,9 +482,18 @@ async function applyDiscoveryDelete(db: D1Database, uri: string, now: Date): Pro
 			run.state !== "running"
 		)
 			continue;
-		if (run.state === "pending" || run.state === "running") hadPending.push(run);
+		// observed/verifying runs never issued a pending label (it is issued once a
+		// run reaches `pending`); pending/running runs carry one, so negate before
+		// the cancellation retires the run out of the recovery set.
+		if (run.state === "pending" || run.state === "running")
+			await negateRunPendingLabel(deps, run, now);
 		try {
-			await transitionAssessmentState(db, { id: run.id, from: run.state, to: "cancelled", now });
+			await transitionAssessmentState(deps.db, {
+				id: run.id,
+				from: run.state,
+				to: "cancelled",
+				now,
+			});
 		} catch (err) {
 			// A concurrent invocation already moved this run past `from` —
 			// harmless, the delete's intent (no non-terminal run survives) is
@@ -480,38 +501,36 @@ async function applyDiscoveryDelete(db: D1Database, uri: string, now: Date): Pro
 			if (!(err instanceof AssessmentTransitionConflictError)) throw err;
 		}
 	}
-	return hadPending;
 }
 
 /**
- * Negates the `assessment-pending` label each cancelled run issued, so a
- * deleted release stops advertising an in-progress assessment. Uses the
- * run's own assessment id and a deterministic idempotency key, so a
- * redelivered delete converges. Idempotent and best-effort per run: a run
- * whose pending is already negated (finalized) no-ops.
+ * Negates one run's `assessment-pending` label so a deleted release stops
+ * advertising an in-progress assessment. Deterministic idempotency key (the
+ * run's runKey), so a redelivered delete converges and a run whose pending is
+ * already negated (finalized) no-ops. Publishes best-effort with the sweep as
+ * backstop. Throws `LabelIssuanceUnavailableError` when signing is paused — the
+ * caller must let that propagate so the delete retries.
  */
-async function negatePendingForDeletedRuns(
+async function negateRunPendingLabel(
 	deps: DiscoveryConsumerDeps,
-	runs: Assessment[],
+	run: Assessment,
 	now: Date,
 ): Promise<void> {
-	for (const run of runs) {
-		await issueAutomatedAssessmentLabel(
-			deps.db,
-			deps.config,
-			deps.signer,
-			{
-				actor: deps.config.labelerDid,
-				type: "automated-assessment",
-				assessmentId: run.id,
-				reason: "subject deleted",
-				idempotencyKey: automatedIdempotencyKey(run.runKey, "assessment-pending", true),
-			},
-			{ uri: run.uri, cid: run.cid, val: "assessment-pending", neg: true },
-			now,
-			deps.publisher,
-		);
-	}
+	await issueAutomatedAssessmentLabel(
+		deps.db,
+		deps.config,
+		deps.signer,
+		{
+			actor: deps.config.labelerDid,
+			type: "automated-assessment",
+			assessmentId: run.id,
+			reason: "subject deleted",
+			idempotencyKey: automatedIdempotencyKey(run.runKey, "assessment-pending", true),
+		},
+		{ uri: run.uri, cid: run.cid, val: "assessment-pending", neg: true },
+		now,
+		deps.publisher,
+	);
 }
 
 function jobUri(job: DiscoveryJob): string {
