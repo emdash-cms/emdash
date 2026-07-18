@@ -51,6 +51,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
 	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)
 	{ code: "es-ES", label: "Español (España)", enabled: true }, // Spanish (Spain) - BCP 47
+	{ code: "sv", label: "Svenska", enabled: true }, // Swedish
 	{ code: "th", label: "ไทย", enabled: true }, // Thai
 	{ code: "tr", label: "Türkçe", enabled: true }, // Turkish
 	// Pseudo-locale for i18n testing - never enabled in the admin UI by default.
