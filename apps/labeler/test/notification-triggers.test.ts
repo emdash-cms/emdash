@@ -416,6 +416,107 @@ describe("package slug parse", () => {
 	});
 });
 
+describe("emergency takedown with no resolvable contact", () => {
+	/** The committed operator action the takedown notify references — the
+	 * operational_events.action_id FK requires it (satisfied in production because
+	 * the emergency action commits before the deferred notify). */
+	async function seedTakedownAction(actionId: string): Promise<void> {
+		await db()
+			.prepare(
+				`INSERT INTO operator_actions
+				 (id, actor_type, actor_id, role, action, subject_uri, label_value, reason,
+				  idempotency_key, request_fingerprint, created_at, created_at_epoch_ms)
+				 VALUES (?, 'human', 'op', 'admin', 'takedown', ?, '!takedown', 'r', ?, 'fp', ?, ?)`,
+			)
+			.bind(actionId, RELEASE_URI, actionId, "2026-07-16T00:00:00.000Z", 1_000)
+			.run();
+	}
+
+	async function takedownEvents(
+		actionId: string,
+	): Promise<{ eventType: string; severity: string; subjectUri: string | null }[]> {
+		const r = await db()
+			.prepare(
+				`SELECT event_type, severity, subject_uri FROM operational_events WHERE action_id = ?`,
+			)
+			.bind(actionId)
+			.all<{ event_type: string; severity: string; subject_uri: string | null }>();
+		return (r.results ?? []).map((row) => ({
+			eventType: row.event_type,
+			severity: row.severity,
+			subjectUri: row.subject_uri,
+		}));
+	}
+
+	it("emits a takedown-no-contact operational event and outbox row", async () => {
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+		await seedTakedownAction(actionId);
+
+		// aggregatorFor with no email/package resolves no contact.
+		await notifyEmergencyTakedown(deps(aggregatorFor({}), sender), {
+			actionId,
+			uri: RELEASE_URI,
+			neg: false,
+		});
+
+		expect(sender.notices).toHaveLength(0);
+		expect(await takedownEvents(actionId)).toEqual([
+			{ eventType: "takedown-no-contact", severity: "high", subjectUri: RELEASE_URI },
+		]);
+		const event = await db()
+			.prepare(`SELECT id FROM operational_events WHERE action_id = ?`)
+			.bind(actionId)
+			.first<{ id: string }>();
+		const outbox = await db()
+			.prepare(`SELECT channel FROM notification_outbox WHERE event_id = ?`)
+			.bind(event?.id)
+			.first<{ channel: string }>();
+		expect(outbox?.channel).toBe("deployment-alert");
+	});
+
+	it("does not emit the event on a takedown RETRACT with no contact", async () => {
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+
+		await notifyEmergencyTakedown(deps(aggregatorFor({}), sender), {
+			actionId,
+			uri: RELEASE_URI,
+			neg: true,
+		});
+
+		expect(await takedownEvents(actionId)).toEqual([]);
+	});
+
+	it("does not emit the event when a contact resolves", async () => {
+		const email = uniq("tdok") + "@x.test";
+		await seedConfirmed(email);
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+
+		await notifyEmergencyTakedown(deps(aggregatorFor({ email }), sender), {
+			actionId,
+			uri: RELEASE_URI,
+			neg: false,
+		});
+
+		expect(sender.notices).toHaveLength(1);
+		expect(await takedownEvents(actionId)).toEqual([]);
+	});
+
+	it("does not re-emit on a deduped replay", async () => {
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+		await seedTakedownAction(actionId);
+		const d = deps(aggregatorFor({}), sender);
+
+		await notifyEmergencyTakedown(d, { actionId, uri: RELEASE_URI, neg: false });
+		await notifyEmergencyTakedown(d, { actionId, uri: RELEASE_URI, neg: false });
+
+		expect(await takedownEvents(actionId)).toHaveLength(1);
+	});
+});
+
 describe("failure isolation", () => {
 	it("a sender that THROWS never propagates out of the trigger (the label is safe)", async () => {
 		const email = uniq("throw") + "@x.test";

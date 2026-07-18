@@ -14,7 +14,8 @@ export type OperationalEventType =
 	| "dead-letter-quarantined"
 	| "reconsideration-opened"
 	| "reconsideration-resolved"
-	| "assessment-prolonged-error";
+	| "assessment-prolonged-error"
+	| "takedown-no-contact";
 
 export type OperationalEventSeverity = "critical" | "high" | "info";
 

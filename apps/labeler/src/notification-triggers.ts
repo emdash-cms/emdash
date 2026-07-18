@@ -39,8 +39,14 @@ import type {
 	NotificationSender,
 	NotificationSource,
 	SendContext,
+	SendOutcome,
 } from "./notification-send.js";
 import { sendNotification } from "./notification-send.js";
+import {
+	buildOperationalEventInsert,
+	buildOutboxInsert,
+	newOperationalEventId,
+} from "./operational-events.js";
 import { getOperatorActionById } from "./operator-actions.js";
 import { getLabelDefinition } from "./policy.js";
 import type { ContactTarget } from "./publisher-contact.js";
@@ -321,12 +327,57 @@ export async function notifyEmergencyTakedown(
 ): Promise<void> {
 	const target = contactTargetFromUri(input.uri);
 	if (!target) return;
-	await runTrigger(
+	const result = await runTrigger(
 		deps,
 		{ type: "operator", id: input.actionId },
 		target,
 		emergencyNoticeContent(deps, input),
 	);
+	// A takedown ISSUANCE (not a retract) that resolves no contact is the most
+	// consequential delivery failure: the undeliverable audit row alone is easy to
+	// miss, so raise a dedicated operator signal that manual outreach is needed.
+	if (!input.neg && result.outcome === "no_contact") {
+		await emitTakedownNoContactEvent(deps, input.actionId, input.uri);
+	}
+}
+
+/** The operator-alert channel for the emergency no-contact signal — mirrors the
+ * emergency-action alert channel in `console-mutation-api`. */
+const OPERATOR_ALERT_CHANNEL = "deployment-alert";
+
+/** Raise the `takedown-no-contact` operational event + its outbox row so the
+ * failed takedown notice surfaces to operators. Fire-and-forget: an insert
+ * failure is swallowed and logged, never propagated into the deferred tail. */
+async function emitTakedownNoContactEvent(
+	deps: NotifyDeps,
+	actionId: string,
+	uri: string,
+): Promise<void> {
+	const now = (deps.now ?? (() => new Date()))();
+	try {
+		const eventId = newOperationalEventId();
+		await deps.db.batch([
+			buildOperationalEventInsert(deps.db, {
+				id: eventId,
+				eventType: "takedown-no-contact",
+				severity: "high",
+				actionId,
+				subjectUri: uri,
+				labelValue: "!takedown",
+				payload: {
+					reason:
+						"Emergency takedown has no resolvable publisher contact; manual outreach required.",
+				},
+				now,
+			}),
+			buildOutboxInsert(deps.db, { eventId, channel: OPERATOR_ALERT_CHANNEL, now }),
+		]);
+	} catch (error) {
+		console.error("[notifications] takedown no-contact event failed", {
+			actionId,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
 }
 
 /** Reconsideration outcome notice (console `reconsiderations/:id/resolve`). Fired
@@ -362,12 +413,13 @@ export async function notifyProlongedError(
 	// An unparseable URI is terminal, not transient (the URI never changes), so it
 	// counts as processed — the cron marks it rather than re-attempting forever.
 	if (!target) return true;
-	return runTrigger(
+	const result = await runTrigger(
 		deps,
 		{ type: "issuance", id: assessment.id },
 		target,
 		prolongedErrorNoticeContent(deps, { uri: assessment.uri, cid: assessment.cid }),
 	);
+	return result.terminal;
 }
 
 /**
@@ -466,30 +518,38 @@ function operatorActionNeg(metadataJson: string): boolean {
 	}
 }
 
+/** The outcome of a trigger. `terminal` is false only when a TRANSIENT error was
+ * thrown before any row was claimed (the prolonged-error cron uses it to decide
+ * whether to stamp its fire-once mark). `outcome` is the `sendNotification`
+ * status when a send actually ran — undefined on a dedup hit or a thrown error —
+ * so a caller can react to a specific delivery result (e.g. `no_contact`). */
+interface TriggerResult {
+	terminal: boolean;
+	outcome?: SendOutcome["status"];
+}
+
 /**
  * Dedup, resolve verification (fail-closed), send, swallow+log. Shared by every
  * trigger so the dedup and verified-skip policy is applied uniformly and a
  * notification failure can never escape into the label path.
  *
- * Returns whether the trigger reached a TERMINAL outcome — a dedup hit or a
- * normal `sendNotification` return (sent, confirmation-sent, undeliverable, or a
- * claimed-then-failed row the sweep now owns) — versus a thrown TRANSIENT error
- * (an aggregator read or a pre-claim D1 write that failed before any row was
- * claimed). The prolonged-error cron uses this to decide whether to stamp its
- * fire-once mark: a transient failure returns `false` so the next tick retries
- * instead of being silently swallowed. Fire-and-forget callers ignore it.
+ * A TERMINAL result is a dedup hit or a normal `sendNotification` return (sent,
+ * confirmation-sent, undeliverable, or a claimed-then-failed row the sweep now
+ * owns); a non-terminal result is a thrown TRANSIENT error (an aggregator read or
+ * a pre-claim D1 write that failed before any row was claimed). Fire-and-forget
+ * callers ignore the result.
  */
 async function runTrigger(
 	deps: NotifyDeps,
 	source: NotificationSource,
 	target: ContactTarget,
 	notice: NoticeContent,
-): Promise<boolean> {
+): Promise<TriggerResult> {
 	const now = deps.now ?? (() => new Date());
 	try {
 		if (await sourceAlreadyProcessed(deps.db, source)) {
 			logTrigger(source, target.did, "deduped");
-			return true;
+			return { terminal: true };
 		}
 		const verifiedPublisher = await isVerifiedPublisher(deps.aggregator, target.did, now());
 		const ctx: SendContext = {
@@ -504,7 +564,7 @@ async function runTrigger(
 		const request: NotificationRequest = { source, target, notice };
 		const outcome = await sendNotification(ctx, request);
 		logTrigger(source, target.did, outcome.status);
-		return true;
+		return { terminal: true, outcome: outcome.status };
 	} catch (error) {
 		console.error("[notifications] trigger failed", {
 			sourceType: source.type,
@@ -512,7 +572,7 @@ async function runTrigger(
 			did: target.did,
 			error: error instanceof Error ? error.message : String(error),
 		});
-		return false;
+		return { terminal: false };
 	}
 }
 
