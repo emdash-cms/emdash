@@ -226,4 +226,21 @@ describe("sweepPendingPublications", () => {
 			.first<{ publication_pending: number }>();
 		expect(stillPending?.publication_pending).toBe(1);
 	});
+
+	it("plans the sweep query through the partial index, not a full table scan", async () => {
+		// Guards against the sweep degrading to a full scan of the monotonically
+		// growing issued_labels table (a D1 query-timeout would strand pending rows
+		// and block the rotation drain). The query and the 0011 partial index must
+		// stay in sync.
+		const plan = await testEnv.DB.prepare(
+			`EXPLAIN QUERY PLAN SELECT sequence FROM issued_labels
+			 WHERE publication_pending = 1 AND sequence IS NOT NULL AND cts <= ?
+			 ORDER BY sequence ASC LIMIT ?`,
+		)
+			.bind(new Date().toISOString(), 200)
+			.all<{ detail: string }>();
+		const detail = (plan.results ?? []).map((row) => row.detail).join(" | ");
+		expect(detail).toContain("idx_issued_labels_publication_pending");
+		expect(detail).not.toContain("SCAN issued_labels");
+	});
 });
