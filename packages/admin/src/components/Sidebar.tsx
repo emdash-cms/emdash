@@ -480,11 +480,14 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				)}
 			</KumoSidebar.Content>
 
-			<KumoSidebar.Footer>
-				<p className="px-3 py-2 text-[11px] text-kumo-subtle group-data-[state=collapsed]/sidebar:hidden">
-					{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-					{manifest.commit && ` (${manifest.commit})`}
-				</p>
+			<KumoSidebar.Footer className="gap-0">
+				<KumoSidebar.Trigger className="rtl:rotate-180" />
+				<div className="min-w-0 flex-1 overflow-hidden">
+					<p className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle">
+						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
+						{manifest.commit && ` (${manifest.commit})`}
+					</p>
+				</div>
 			</KumoSidebar.Footer>
 		</KumoSidebar>
 	);
