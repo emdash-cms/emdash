@@ -225,13 +225,23 @@ describe("SettingsActionBar", () => {
 		vi.clearAllMocks();
 	});
 
-	it("shows Publish post for an unpublished draft", async () => {
+	it("shows Publish Post for an unpublished draft", async () => {
 		const screen = await render(<SettingsActionBar {...makeBarProps()} />);
-		const publish = screen.getByRole("button", { name: "Publish post" });
+		const publish = screen.getByRole("button", { name: "Publish Post" });
 
 		await expect.element(publish).toBeInTheDocument();
 		expect(publish.element().className).toContain("button-emphasis-bg");
-		expect(screen.container.textContent).not.toContain("Unpublish post");
+		expect(screen.container.textContent).not.toContain("Unpublish Post");
+	});
+
+	it("preserves configured collection label casing", async () => {
+		const screen = await render(
+			<SettingsActionBar {...makeBarProps({ collectionLabel: "API Docs" })} />,
+		);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Publish API Docs", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("shows Publish updates for a live item with edits", async () => {
@@ -246,11 +256,11 @@ describe("SettingsActionBar", () => {
 		expect(props.onPublish).toHaveBeenCalled();
 	});
 
-	it("shows Unpublish post for a clean live item", async () => {
+	it("shows Unpublish Post for a clean live item", async () => {
 		const props = makeBarProps({ isLive: true });
 		const screen = await render(<SettingsActionBar {...props} />);
 
-		const unpublish = screen.getByRole("button", { name: "Unpublish post" });
+		const unpublish = screen.getByRole("button", { name: "Unpublish Post" });
 		await expect.element(unpublish).toBeInTheDocument();
 
 		await unpublish.click();

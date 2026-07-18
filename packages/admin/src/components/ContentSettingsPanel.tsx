@@ -173,8 +173,8 @@ export function PublishActions({
 	onUnpublish,
 	size,
 }: PublishActionsProps) {
-	const { t, i18n } = useLingui();
-	const itemLabel = collectionLabel?.toLocaleLowerCase(i18n.locale) ?? t`content`;
+	const { t } = useLingui();
+	const itemLabel = collectionLabel ?? t`content`;
 
 	if (isNew) return null;
 	if (!isLive) {

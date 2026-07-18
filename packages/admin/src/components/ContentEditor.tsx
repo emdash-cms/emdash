@@ -237,7 +237,7 @@ export function ContentEditor({
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
-	const itemLabel = collectionLabel.toLocaleLowerCase(uiLocale);
+	const itemLabel = collectionLabel;
 	// Kumo Sidebar's `side` is physical, not logical.
 	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
 	// Mirrors the Sidebar's mobileBreakpoint; `contained` flips with it.

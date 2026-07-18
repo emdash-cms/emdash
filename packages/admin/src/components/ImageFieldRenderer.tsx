@@ -106,7 +106,11 @@ export function ImageFieldRenderer({
 	return (
 		<div id={id} className="grid gap-2">
 			{description ? (
-				<FieldHelpLabel help={description} helpLabel={t`More information about ${label}`}>
+				<FieldHelpLabel
+					help={description}
+					helpLabel={t`More information about ${label}`}
+					labelClassName="text-base font-medium text-kumo-default"
+				>
 					{label}
 				</FieldHelpLabel>
 			) : (

@@ -5,7 +5,7 @@
  *   1. After saving an edit to a published post, no "Publish updates" button appears
  *      until the page is refreshed.
  *   2. After refreshing and publishing, the button stays active ("Publish updates")
- *      instead of flipping to "Unpublish post".
+ *      instead of flipping to "Unpublish Post".
  *
  * Root cause (hypothesis under test):
  *   The editor reads the content item with the query key
@@ -22,7 +22,7 @@
  * button click — but it exercises the exact same mismatched invalidation key as the
  * save flow (symptom #1).
  *
- * Expected: after publishing, the button becomes "Unpublish post".
+ * Expected: after publishing, the button becomes "Unpublish Post".
  * Actual (bug): the stale cache is never refetched, so it stays "Publish updates".
  *
  * NOTE: this file deliberately does NOT mock ContentEditor (unlike router.test.tsx),
@@ -159,7 +159,7 @@ describe("ContentEditPage – publish button stays in sync after publishing (#15
 		mockFetch.restore();
 	});
 
-	it("flips 'Publish updates' to 'Unpublish post' after a successful publish", async () => {
+	it("flips 'Publish updates' to 'Unpublish Post' after a successful publish", async () => {
 		const { router, TestApp } = buildRouter();
 
 		await router.navigate({
@@ -190,9 +190,9 @@ describe("ContentEditPage – publish button stays in sync after publishing (#15
 		// The button must now reflect the published state. With the locale-key
 		// mismatch the invalidation matches nothing, the stale item is never
 		// refetched, and this assertion fails because "Publish updates" is still
-		// shown instead of "Unpublish post".
+		// shown instead of "Unpublish Post".
 		await expect
-			.element(screen.getByRole("button", { name: "Unpublish post" }))
+			.element(screen.getByRole("button", { name: "Unpublish Post" }))
 			.toBeInTheDocument();
 	});
 });
@@ -240,7 +240,7 @@ describe("ContentEditPage – publish button appears after saving an edit (#1557
 			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 30 } })
 			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
 			.on("GET", "/_emdash/api/users", { data: { items: [] } })
-			// Initial state: published, no pending changes -> "Unpublish post" shows, no
+			// Initial state: published, no pending changes -> "Unpublish Post" shows, no
 			// "Publish updates" button.
 			.on("GET", "/_emdash/api/content/posts/post_1", { data: { item: publishedClean() } })
 			.on("GET", "/_emdash/api/revisions/rev_1", {
@@ -287,9 +287,9 @@ describe("ContentEditPage – publish button appears after saving an edit (#1557
 
 		const screen = await render(<TestApp />);
 
-		// Loads in the clean published state: "Unpublish post" present, no "Publish updates".
+		// Loads in the clean published state: "Unpublish Post" present, no "Publish updates".
 		await expect
-			.element(screen.getByRole("button", { name: "Unpublish post" }))
+			.element(screen.getByRole("button", { name: "Unpublish Post" }))
 			.toBeInTheDocument();
 
 		// Edit the title so the form is dirty and Save becomes enabled.

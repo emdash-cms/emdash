@@ -247,6 +247,8 @@ describe("ContentEditor", () => {
 		expect(contentLabel.tagName).toBe("LABEL");
 		expect(contentLabel).toHaveClass("text-base", "font-medium");
 		expect(contentLabel.parentElement).toHaveClass("grid", "gap-2");
+		expect(featuredLabel).toHaveClass("text-base", "font-medium");
+		expect(featuredLabel).not.toHaveClass("text-sm");
 		expect(featuredLabel.parentElement).toHaveClass("flex", "items-center", "gap-1.5");
 		expect(featuredLabel.parentElement?.parentElement).toHaveClass("grid", "gap-2");
 		expect(attachmentLabel.parentElement).toHaveClass("grid", "gap-2");
@@ -1098,7 +1100,7 @@ describe("ContentEditor", () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1106,7 +1108,7 @@ describe("ContentEditor", () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});
@@ -1127,7 +1129,7 @@ describe("ContentEditor", () => {
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
 				const publishButtons = screen
-					.getByRole("button", { name: "Publish post", exact: true })
+					.getByRole("button", { name: "Publish Post", exact: true })
 					.all();
 				expect(publishButtons).toHaveLength(1);
 				await expect.element(publishButtons[0]!).toBeVisible();
@@ -1140,7 +1142,7 @@ describe("ContentEditor", () => {
 			const media = installMatchMedia(true);
 			try {
 				const screen = await renderEditor({ isNew: false, item: makeItem() });
-				const heading = screen.getByRole("heading", { name: "Edit post" }).element();
+				const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
 				const header = heading.parentElement?.parentElement;
 
 				expect(header).not.toHaveClass("sticky", "top-0", "z-20");
@@ -1247,7 +1249,7 @@ describe("ContentEditor", () => {
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("link", { name: "Live View" })).toBeVisible();
 				const unpublishButtons = screen
-					.getByRole("button", { name: "Unpublish post", exact: true })
+					.getByRole("button", { name: "Unpublish Post", exact: true })
 					.all();
 				expect(unpublishButtons).toHaveLength(1);
 				await expect.element(unpublishButtons[0]!).toBeVisible();
@@ -1273,7 +1275,7 @@ describe("ContentEditor", () => {
 					.element(screen.getByRole("button", { name: "Settings" }))
 					.not.toBeInTheDocument();
 				await expect
-					.element(screen.getByRole("button", { name: "Publish post", exact: true }))
+					.element(screen.getByRole("button", { name: "Publish Post", exact: true }))
 					.toBeVisible();
 			} finally {
 				media.restore();
@@ -1294,7 +1296,7 @@ describe("ContentEditor", () => {
 				supportsDrafts: true,
 			});
 			const unpublishBtn = screen.getByRole("button", {
-				name: "Unpublish post",
+				name: "Unpublish Post",
 				exact: true,
 			});
 			await expect.element(unpublishBtn).toBeInTheDocument();
@@ -1314,7 +1316,7 @@ describe("ContentEditor", () => {
 				supportsDrafts: true,
 			});
 			const unpublishBtn = screen.getByRole("button", {
-				name: "Unpublish post",
+				name: "Unpublish Post",
 				exact: true,
 			});
 			await unpublishBtn.click();
@@ -1332,7 +1334,7 @@ describe("ContentEditor", () => {
 
 			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
 
-			const heading = screen.getByRole("heading", { name: "New post" }).element();
+			const heading = screen.getByRole("heading", { name: "New Post" }).element();
 			const header = heading.parentElement?.parentElement;
 			expect(form).toHaveClass("bg-kumo-elevated");
 			expect(header).toHaveClass("bg-kumo-elevated/95");
@@ -1432,7 +1434,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1441,7 +1443,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});
@@ -1468,19 +1470,28 @@ describe("ContentEditor", () => {
 	});
 
 	describe("heading", () => {
-		it("shows a quiet sentence-case heading for new items", async () => {
+		it("preserves configured collection label casing", async () => {
+			const item = makeItem();
+			const screen = await renderEditor({ isNew: false, item, collectionLabel: "API Docs" });
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Edit API Docs", exact: true }))
+				.toBeInTheDocument();
+		});
+
+		it("shows a quiet heading for new items", async () => {
 			const screen = await renderEditor({ isNew: true, collectionLabel: "Post" });
-			const heading = screen.getByRole("heading", { name: "New post" });
+			const heading = screen.getByRole("heading", { name: "New Post" });
 
 			await expect.element(heading).toBeInTheDocument();
 			await expect.element(heading).toHaveClass("text-lg", "font-semibold", "truncate");
 			expect(heading.element().parentElement).toHaveClass("min-w-0", "items-center", "gap-3");
 		});
 
-		it("shows a quiet sentence-case heading for existing items", async () => {
+		it("shows a quiet heading for existing items", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item, collectionLabel: "Post" });
-			const heading = screen.getByRole("heading", { name: "Edit post" });
+			const heading = screen.getByRole("heading", { name: "Edit Post" });
 
 			await expect.element(heading).toBeInTheDocument();
 			await expect.element(heading).toHaveClass("text-lg", "font-semibold", "truncate");
