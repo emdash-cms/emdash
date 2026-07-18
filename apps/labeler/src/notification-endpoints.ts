@@ -14,8 +14,10 @@
  * Safety properties:
  *   - GET renders a confirmation page with a POST form; only POST mutates. An
  *     email scanner's or link-prefetcher's automated GET therefore never
- *     confirms, unsubscribes, or suppresses. The token/hash live in hidden form
- *     fields, so the mutating POST carries them in the body, not the URL.
+ *     confirms, unsubscribes, or suppresses. The browser POST carries the
+ *     token/hash in hidden form fields; only the RFC 8058 one-click UNSUBSCRIBE
+ *     POST carries `c` in the header URL's query, so the query fallback is scoped
+ *     to that path — confirm and not-me require their capability from the body.
  *   - CSRF: a cross-site POST cannot supply a valid recipient hash (or confirm
  *     token) for a victim, so possession of the capability is the CSRF defense;
  *     a custom header (unsendable from a plain email-client form) is not used.
@@ -114,18 +116,25 @@ async function readPostParams(
 	request: Request,
 	action: NotificationAction,
 ): Promise<RequestParams> {
-	let form: FormData;
+	let form: FormData | null = null;
 	try {
 		form = await request.formData();
 	} catch {
-		return { recipientHash: "", token: "" };
+		form = null;
 	}
-	const recipientHash = form.get("c");
-	const token = form.get("t");
-	return {
-		recipientHash: typeof recipientHash === "string" ? recipientHash : "",
-		token: action === "confirm" && typeof token === "string" ? token : "",
-	};
+	const bodyHash = form?.get("c");
+	let recipientHash = typeof bodyHash === "string" ? bodyHash : "";
+	// RFC 8058 one-click unsubscribe POSTs to the List-Unsubscribe header URL with
+	// `c` only in its query string and `List-Unsubscribe=One-Click` in the body.
+	// That query fallback is scoped to unsubscribe ONLY: confirm and not-me require
+	// their capability from the POST body, so a scanner cannot confirm (or suppress
+	// via not-me) an address by POSTing a link URL without the rendered form.
+	if (action === "unsubscribe" && recipientHash.length === 0) {
+		recipientHash = new URL(request.url).searchParams.get("c") ?? "";
+	}
+	const bodyToken = form?.get("t");
+	const token = action === "confirm" && typeof bodyToken === "string" ? bodyToken : "";
+	return { recipientHash, token };
 }
 
 /**

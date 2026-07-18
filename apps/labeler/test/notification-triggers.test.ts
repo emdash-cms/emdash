@@ -13,6 +13,7 @@ import {
 } from "../src/notification-contacts.js";
 import type { ConfirmationPayload, NoticePayload, SendResult } from "../src/notification-send.js";
 import {
+	contactTargetFromUri,
 	notifyAssessmentOutcome,
 	notifyEmergencyTakedown,
 	notifyOperatorLabel,
@@ -20,6 +21,11 @@ import {
 	notifyOverrideRetract,
 	type NotifyDeps,
 } from "../src/notification-triggers.js";
+import {
+	buildOperationalEventInsert,
+	buildOutboxInsert,
+	newOperationalEventId,
+} from "../src/operational-events.js";
 
 interface TestEnv {
 	DB: D1Database;
@@ -45,6 +51,12 @@ interface AggregatorOpts {
 	email?: string;
 	verifications?: unknown[];
 	verifyStatus?: number;
+	/** The publisher's current displayName, served by getPublisher — the live
+	 * identity the verification binding is checked against. The publisher view
+	 * carries no handle, so none is served. */
+	displayName?: string;
+	/** A package `security[]` contact served by getPackage for a specific slug. */
+	packageSecurity?: { slug: string; email: string };
 }
 
 function aggregatorFor(opts: AggregatorOpts): AggregatorClient {
@@ -55,10 +67,21 @@ function aggregatorFor(opts: AggregatorOpts): AggregatorClient {
 					return new Response("err", { status: opts.verifyStatus });
 				return Response.json({ did: DID, verifications: opts.verifications ?? [], labels: [] });
 			}
+			if (url.includes("getPackage") && opts.packageSecurity !== undefined) {
+				const slug = new URL(url).searchParams.get("slug");
+				if (slug === opts.packageSecurity.slug) {
+					return Response.json({
+						profile: { security: [{ email: opts.packageSecurity.email }] },
+					});
+				}
+			}
 			if (url.includes("getPublisher") && opts.email !== undefined) {
 				return Response.json({
 					did: DID,
-					profile: { contact: [{ kind: "security", email: opts.email }] },
+					profile: {
+						contact: [{ kind: "security", email: opts.email }],
+						...(opts.displayName !== undefined ? { displayName: opts.displayName } : {}),
+					},
 				});
 			}
 			return new Response(JSON.stringify({ error: "NotFound" }), {
@@ -94,6 +117,27 @@ function recordingSender(result: SendResult = { ok: true, providerId: "p" }): Re
 	};
 }
 
+/** Wraps a D1 database so its FIRST `batch()` throws (a transient failure),
+ * delegating every other call — and later batches — to the real db. */
+function dbThrowingFirstBatch(real: D1Database): D1Database {
+	let thrown = false;
+	return new Proxy(real, {
+		get(target, prop, receiver) {
+			if (prop === "batch") {
+				return async (statements: D1PreparedStatement[]) => {
+					if (!thrown) {
+						thrown = true;
+						throw new Error("transient batch failure");
+					}
+					return target.batch(statements);
+				};
+			}
+			const value = Reflect.get(target, prop, receiver);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+}
+
 function throwingSender(): RecordingSender {
 	return {
 		confirmations: [],
@@ -107,7 +151,11 @@ function throwingSender(): RecordingSender {
 	};
 }
 
-function deps(aggregator: AggregatorClient, sender: RecordingSender): NotifyDeps {
+function deps(
+	aggregator: AggregatorClient,
+	sender: RecordingSender,
+	trustedVerificationIssuers?: ReadonlySet<string>,
+): NotifyDeps {
 	return {
 		db: db(),
 		aggregator,
@@ -115,6 +163,7 @@ function deps(aggregator: AggregatorClient, sender: RecordingSender): NotifyDeps
 		pepper: PEPPER,
 		serviceUrl: SERVICE,
 		reconsiderationUrl: RECON,
+		...(trustedVerificationIssuers ? { trustedVerificationIssuers } : {}),
 	};
 }
 
@@ -146,15 +195,47 @@ async function notificationRows(sourceId: string): Promise<{ kind: string; state
 	return r.results ?? [];
 }
 
-const IN_FORCE = [
-	{ issuer: "did:plc:issuer", handle: "x.test", createdAt: "2026-01-01T00:00:00.000Z" },
-];
-const EXPIRED = [
+const TRUSTED_ISSUER = "did:plc:trusted";
+const TRUSTED = new Set([TRUSTED_ISSUER]);
+const HANDLE = "acme.test";
+const DISPLAY_NAME = "Acme";
+
+/** A trusted, in-force claim whose bound displayName matches the publisher's
+ * current displayName. */
+const TRUSTED_CLAIM = [
 	{
-		issuer: "did:plc:issuer",
-		handle: "x.test",
+		issuer: TRUSTED_ISSUER,
+		handle: HANDLE,
+		displayName: DISPLAY_NAME,
+		createdAt: "2026-01-01T00:00:00.000Z",
+	},
+];
+/** An in-force claim from an issuer NOT in the trust set (self-assertable). */
+const UNTRUSTED_CLAIM = [
+	{
+		issuer: "did:plc:attacker",
+		handle: HANDLE,
+		displayName: DISPLAY_NAME,
+		createdAt: "2026-01-01T00:00:00.000Z",
+	},
+];
+const EXPIRED_TRUSTED_CLAIM = [
+	{
+		issuer: TRUSTED_ISSUER,
+		handle: HANDLE,
+		displayName: DISPLAY_NAME,
 		createdAt: "2020-01-01T00:00:00.000Z",
 		expiresAt: "2021-01-01T00:00:00.000Z",
+	},
+];
+/** Trusted + in-force but bound to a stale displayName (the publisher's
+ * displayName has drifted since verification). */
+const STALE_BINDING_CLAIM = [
+	{
+		issuer: TRUSTED_ISSUER,
+		handle: HANDLE,
+		displayName: "Acme (old name)",
+		createdAt: "2026-01-01T00:00:00.000Z",
 	},
 ];
 
@@ -281,35 +362,123 @@ describe("dedup", () => {
 	});
 });
 
-describe("verified-publisher skip", () => {
-	it("an in-force verification claim delivers the notice without a confirmation mail", async () => {
-		const email = uniq("vok") + "@x.test";
-		const sender = recordingSender();
-		const a = assessmentRow({ state: "blocked" });
-
-		// The contact is UNCONFIRMED; verification upgrades it in place.
-		await notifyAssessmentOutcome(
-			deps(aggregatorFor({ email, verifications: IN_FORCE }), sender),
-			a,
-		);
-
-		expect(sender.notices).toHaveLength(1);
-		expect(sender.confirmations).toHaveLength(0);
+describe("verified-publisher skip (trusted issuer only)", () => {
+	async function confirmStateOf(email: string): Promise<string | undefined> {
 		const hash = await recipientHash(PEPPER, email);
 		const contact = await db()
 			.prepare(`SELECT confirm_state FROM notification_contacts WHERE recipient_hash = ?`)
 			.bind(hash)
 			.first<{ confirm_state: string }>();
-		expect(contact?.confirm_state).toBe("confirmed");
+		return contact?.confirm_state;
+	}
+
+	it("a trusted issuer claim with current bindings delivers the notice and upgrades the contact", async () => {
+		const email = uniq("vok") + "@x.test";
+		const sender = recordingSender();
+		const a = assessmentRow({ state: "blocked" });
+
+		// The contact is UNCONFIRMED; the trusted, current-binding claim upgrades it.
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email,
+					verifications: TRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(1);
+		expect(sender.confirmations).toHaveLength(0);
+		expect(await confirmStateOf(email)).toBe("confirmed");
 	});
 
-	it("an EXPIRED claim falls back to double opt-in", async () => {
+	it("a self-issued / untrusted-issuer claim does NOT bypass double opt-in", async () => {
+		const email = uniq("vself") + "@x.test";
+		const sender = recordingSender();
+		const a = assessmentRow({ state: "blocked" });
+
+		// A claim naming an arbitrary address, issued by an untrusted DID, even with
+		// a trust set configured for a DIFFERENT issuer.
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email,
+					verifications: UNTRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(0);
+		expect(sender.confirmations).toHaveLength(1);
+	});
+
+	it("with no trusted issuer configured (the default), an in-force claim does NOT bypass", async () => {
+		const email = uniq("vnodef") + "@x.test";
+		const sender = recordingSender();
+		const a = assessmentRow({ state: "blocked" });
+
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email,
+					verifications: TRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(0);
+		expect(sender.confirmations).toHaveLength(1);
+	});
+
+	it("an EXPIRED trusted claim falls back to double opt-in", async () => {
 		const email = uniq("vexp") + "@x.test";
 		const sender = recordingSender();
 		const a = assessmentRow({ state: "blocked" });
 
 		await notifyAssessmentOutcome(
-			deps(aggregatorFor({ email, verifications: EXPIRED }), sender),
+			deps(
+				aggregatorFor({
+					email,
+					verifications: EXPIRED_TRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(0);
+		expect(sender.confirmations).toHaveLength(1);
+	});
+
+	it("a trusted claim with a STALE identity binding does NOT bypass", async () => {
+		const email = uniq("vstale") + "@x.test";
+		const sender = recordingSender();
+		const a = assessmentRow({ state: "blocked" });
+
+		// Claim's bound displayName has drifted from the publisher's current one.
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email,
+					verifications: STALE_BINDING_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
 			a,
 		);
 
@@ -322,13 +491,16 @@ describe("verified-publisher skip", () => {
 		const sender = recordingSender();
 		const a = assessmentRow({ state: "blocked" });
 
-		await notifyAssessmentOutcome(deps(aggregatorFor({ email, verifyStatus: 500 }), sender), a);
+		await notifyAssessmentOutcome(
+			deps(aggregatorFor({ email, verifyStatus: 500 }), sender, TRUSTED),
+			a,
+		);
 
 		expect(sender.notices).toHaveLength(0);
 		expect(sender.confirmations).toHaveLength(1);
 	});
 
-	it("a suppressed address gets NOTHING even when the publisher is verified", async () => {
+	it("a suppressed address gets NOTHING even when the publisher is trusted-verified", async () => {
 		const email = uniq("vsupp") + "@x.test";
 		const hash = await recipientHash(PEPPER, email);
 		await suppress(db(), hash, "not_me", "2026-07-16T00:00:00.000Z", 1_000);
@@ -336,7 +508,15 @@ describe("verified-publisher skip", () => {
 		const a = assessmentRow({ state: "blocked" });
 
 		await notifyAssessmentOutcome(
-			deps(aggregatorFor({ email, verifications: IN_FORCE }), sender),
+			deps(
+				aggregatorFor({
+					email,
+					verifications: TRUSTED_CLAIM,
+					displayName: DISPLAY_NAME,
+				}),
+				sender,
+				TRUSTED,
+			),
 			a,
 		);
 
@@ -365,6 +545,293 @@ describe("provider hard-bounce", () => {
 			.bind(hash)
 			.first<{ reason: string }>();
 		expect(supp?.reason).toBe("bounce");
+	});
+});
+
+describe("package slug parse", () => {
+	it("parses the parent package slug from a release rkey (slug:version)", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/gallery:1.2.0`,
+		);
+		expect(target).toEqual({ did: DID, slug: "gallery" });
+	});
+
+	it("keeps a package rkey (no version) as the slug", () => {
+		const target = contactTargetFromUri(`at://${DID}/com.emdashcms.experimental.package/gallery`);
+		expect(target).toEqual({ did: DID, slug: "gallery" });
+	});
+
+	it("degrades safely on an rkey with no slug before the version delimiter", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/:1.2.0`,
+		);
+		expect(target).toEqual({ did: DID, slug: ":1.2.0" });
+	});
+
+	it("resolves the package's security contact for a release URI", async () => {
+		const email = uniq("pkgsec") + "@x.test";
+		await seedConfirmed(email);
+		const sender = recordingSender();
+		const releaseUri = `at://${DID}/com.emdashcms.experimental.package.release/gallery:1.2.0`;
+		const a = assessmentRow({ state: "blocked", uri: releaseUri });
+
+		await notifyAssessmentOutcome(
+			deps(aggregatorFor({ packageSecurity: { slug: "gallery", email } }), sender),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(1);
+		expect(sender.notices[0]?.to).toBe(email);
+	});
+
+	it("does not strip a colon-bearing rkey under a non-release collection", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.profile/gallery:evil`,
+		);
+		expect(target).toEqual({ did: DID, slug: "gallery:evil" });
+	});
+
+	it("does not strip a release rkey whose slug is malformed", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/1bad:2.0.0`,
+		);
+		expect(target).toEqual({ did: DID, slug: "1bad:2.0.0" });
+	});
+
+	it("does not strip a release rkey whose version is not valid semver", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/gallery:not-semver`,
+		);
+		expect(target).toEqual({ did: DID, slug: "gallery:not-semver" });
+	});
+
+	it("strips a release rkey with a valid prerelease semver version", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/gallery:1.2.0-beta.1`,
+		);
+		expect(target).toEqual({ did: DID, slug: "gallery" });
+	});
+
+	it("a release rkey with a non-semver version degrades to the publisher contact", async () => {
+		const publisherEmail = uniq("pubsem") + "@x.test";
+		const galleryEmail = uniq("galsem") + "@x.test";
+		await seedConfirmed(publisherEmail);
+		const sender = recordingSender();
+		const uri = `at://${DID}/com.emdashcms.experimental.package.release/gallery:not-semver`;
+		const a = assessmentRow({ state: "blocked", uri });
+
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email: publisherEmail,
+					packageSecurity: { slug: "gallery", email: galleryEmail },
+				}),
+				sender,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(1);
+		expect(sender.notices[0]?.to).toBe(publisherEmail);
+	});
+
+	it("a malformed colon-bearing subject degrades to the publisher contact, not a wrong package", async () => {
+		const publisherEmail = uniq("pub") + "@x.test";
+		const galleryEmail = uniq("gal") + "@x.test";
+		await seedConfirmed(publisherEmail);
+		const sender = recordingSender();
+		// Colon-bearing rkey under a non-release collection: must NOT resolve the
+		// gallery package's security contact by stripping to "gallery".
+		const uri = `at://${DID}/com.emdashcms.experimental.package.profile/gallery:evil`;
+		const a = assessmentRow({ state: "blocked", uri });
+
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email: publisherEmail,
+					packageSecurity: { slug: "gallery", email: galleryEmail },
+				}),
+				sender,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(1);
+		expect(sender.notices[0]?.to).toBe(publisherEmail);
+	});
+});
+
+describe("emergency takedown with no resolvable contact", () => {
+	/** The committed operator action the takedown notify references — the
+	 * operational_events.action_id FK requires it (satisfied in production because
+	 * the emergency action commits before the deferred notify). */
+	async function seedTakedownAction(actionId: string): Promise<void> {
+		await db()
+			.prepare(
+				`INSERT INTO operator_actions
+				 (id, actor_type, actor_id, role, action, subject_uri, label_value, reason,
+				  idempotency_key, request_fingerprint, created_at, created_at_epoch_ms)
+				 VALUES (?, 'human', 'op', 'admin', 'takedown', ?, '!takedown', 'r', ?, 'fp', ?, ?)`,
+			)
+			.bind(actionId, RELEASE_URI, actionId, "2026-07-16T00:00:00.000Z", 1_000)
+			.run();
+	}
+
+	async function takedownEvents(
+		actionId: string,
+	): Promise<{ eventType: string; severity: string; subjectUri: string | null }[]> {
+		const r = await db()
+			.prepare(
+				`SELECT event_type, severity, subject_uri FROM operational_events WHERE action_id = ?`,
+			)
+			.bind(actionId)
+			.all<{ event_type: string; severity: string; subject_uri: string | null }>();
+		return (r.results ?? []).map((row) => ({
+			eventType: row.event_type,
+			severity: row.severity,
+			subjectUri: row.subject_uri,
+		}));
+	}
+
+	it("emits a takedown-no-contact operational event and outbox row", async () => {
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+		await seedTakedownAction(actionId);
+
+		// aggregatorFor with no email/package resolves no contact.
+		await notifyEmergencyTakedown(deps(aggregatorFor({}), sender), {
+			actionId,
+			uri: RELEASE_URI,
+			neg: false,
+		});
+
+		expect(sender.notices).toHaveLength(0);
+		expect(await takedownEvents(actionId)).toEqual([
+			{ eventType: "takedown-no-contact", severity: "high", subjectUri: RELEASE_URI },
+		]);
+		const event = await db()
+			.prepare(`SELECT id FROM operational_events WHERE action_id = ?`)
+			.bind(actionId)
+			.first<{ id: string }>();
+		const outbox = await db()
+			.prepare(`SELECT channel FROM notification_outbox WHERE event_id = ?`)
+			.bind(event?.id)
+			.first<{ channel: string }>();
+		expect(outbox?.channel).toBe("deployment-alert");
+	});
+
+	it("does not emit the event on a takedown RETRACT with no contact", async () => {
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+
+		await notifyEmergencyTakedown(deps(aggregatorFor({}), sender), {
+			actionId,
+			uri: RELEASE_URI,
+			neg: true,
+		});
+
+		expect(await takedownEvents(actionId)).toEqual([]);
+	});
+
+	it("does not emit the event when a contact resolves", async () => {
+		const email = uniq("tdok") + "@x.test";
+		await seedConfirmed(email);
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+
+		await notifyEmergencyTakedown(deps(aggregatorFor({ email }), sender), {
+			actionId,
+			uri: RELEASE_URI,
+			neg: false,
+		});
+
+		expect(sender.notices).toHaveLength(1);
+		expect(await takedownEvents(actionId)).toEqual([]);
+	});
+
+	it("does not re-emit on a deduped replay", async () => {
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+		await seedTakedownAction(actionId);
+		const d = deps(aggregatorFor({}), sender);
+
+		await notifyEmergencyTakedown(d, { actionId, uri: RELEASE_URI, neg: false });
+		await notifyEmergencyTakedown(d, { actionId, uri: RELEASE_URI, neg: false });
+
+		expect(await takedownEvents(actionId)).toHaveLength(1);
+	});
+
+	it("converges to one event when two replays both emit (unique index + ON CONFLICT)", async () => {
+		const actionId = uniq("oact");
+		await seedTakedownAction(actionId);
+		const database = db();
+		const now = new Date("2026-07-18T00:00:00.000Z");
+
+		// Two replays that both passed the existence check each build their own
+		// event+outbox batch for the same (action_id, event_type). The unique index
+		// + ON CONFLICT DO NOTHING must collapse them to a single event with no throw.
+		const build = () => {
+			const eventId = newOperationalEventId();
+			return [
+				buildOperationalEventInsert(database, {
+					id: eventId,
+					eventType: "takedown-no-contact",
+					severity: "high",
+					actionId,
+					subjectUri: RELEASE_URI,
+					labelValue: "!takedown",
+					payload: { reason: "manual outreach required" },
+					now,
+					idempotentTakedownNoContact: true,
+				}),
+				buildOutboxInsert(database, {
+					eventId,
+					channel: "deployment-alert",
+					now,
+					gateOnEventPresent: true,
+				}),
+			];
+		};
+		await database.batch(build());
+		await database.batch(build());
+
+		expect(await takedownEvents(actionId)).toHaveLength(1);
+		const outbox = await database
+			.prepare(
+				`SELECT COUNT(*) n FROM notification_outbox nob
+				 JOIN operational_events oe ON oe.id = nob.event_id WHERE oe.action_id = ?`,
+			)
+			.bind(actionId)
+			.first<{ n: number }>();
+		expect(outbox?.n).toBe(1);
+	});
+
+	it("recovers the alert on a replay after a transient first-pass emit failure", async () => {
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+		await seedTakedownAction(actionId);
+
+		// First pass: the undeliverable notifications row commits, but the alert
+		// batch fails transiently, so no event is recorded.
+		const firstPass: NotifyDeps = {
+			db: dbThrowingFirstBatch(db()),
+			aggregator: aggregatorFor({}),
+			sender,
+			pepper: PEPPER,
+			serviceUrl: SERVICE,
+			reconsiderationUrl: RECON,
+		};
+		await notifyEmergencyTakedown(firstPass, { actionId, uri: RELEASE_URI, neg: false });
+		expect(await takedownEvents(actionId)).toEqual([]);
+
+		// Replay on a healthy db: the notifications row already exists (runTrigger
+		// dedups), but the alert is keyed on its own event row, so it recovers.
+		await notifyEmergencyTakedown(deps(aggregatorFor({}), sender), {
+			actionId,
+			uri: RELEASE_URI,
+			neg: false,
+		});
+		expect(await takedownEvents(actionId)).toHaveLength(1);
 	});
 });
 
