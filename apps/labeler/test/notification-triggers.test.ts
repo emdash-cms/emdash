@@ -598,6 +598,43 @@ describe("package slug parse", () => {
 		expect(target).toEqual({ did: DID, slug: "1bad:2.0.0" });
 	});
 
+	it("does not strip a release rkey whose version is not valid semver", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/gallery:not-semver`,
+		);
+		expect(target).toEqual({ did: DID, slug: "gallery:not-semver" });
+	});
+
+	it("strips a release rkey with a valid prerelease semver version", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/gallery:1.2.0-beta.1`,
+		);
+		expect(target).toEqual({ did: DID, slug: "gallery" });
+	});
+
+	it("a release rkey with a non-semver version degrades to the publisher contact", async () => {
+		const publisherEmail = uniq("pubsem") + "@x.test";
+		const galleryEmail = uniq("galsem") + "@x.test";
+		await seedConfirmed(publisherEmail);
+		const sender = recordingSender();
+		const uri = `at://${DID}/com.emdashcms.experimental.package.release/gallery:not-semver`;
+		const a = assessmentRow({ state: "blocked", uri });
+
+		await notifyAssessmentOutcome(
+			deps(
+				aggregatorFor({
+					email: publisherEmail,
+					packageSecurity: { slug: "gallery", email: galleryEmail },
+				}),
+				sender,
+			),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(1);
+		expect(sender.notices[0]?.to).toBe(publisherEmail);
+	});
+
 	it("a malformed colon-bearing subject degrades to the publisher contact, not a wrong package", async () => {
 		const publisherEmail = uniq("pub") + "@x.test";
 		const galleryEmail = uniq("gal") + "@x.test";
@@ -745,7 +782,7 @@ describe("emergency takedown with no resolvable contact", () => {
 					labelValue: "!takedown",
 					payload: { reason: "manual outreach required" },
 					now,
-					idempotentOnActionType: true,
+					idempotentTakedownNoContact: true,
 				}),
 				buildOutboxInsert(database, {
 					eventId,

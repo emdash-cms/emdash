@@ -399,7 +399,7 @@ async function ensureTakedownNoContactAlert(
 						"Emergency takedown has no resolvable publisher contact; manual outreach required.",
 				},
 				now,
-				idempotentOnActionType: true,
+				idempotentTakedownNoContact: true,
 			}),
 			buildOutboxInsert(deps.db, {
 				eventId,
@@ -748,25 +748,35 @@ export function contactTargetFromUri(uri: string): ContactTarget | null {
 	return null;
 }
 
-/** Canonical package-slug shape, mirroring the aggregator's release-rkey ingest
- * validation (`records-consumer`'s PACKAGE_SLUG_RE). */
+// Canonical release-rkey shape, mirroring the aggregator's ingest validation
+// (`records-consumer`'s `parseReleaseRkey`): `<slug>:<semver>` with the version
+// percent-decoded before the semver check. Kept in sync by the pinned tests.
 const PACKAGE_SLUG_RE = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
 
 /**
  * The parent package slug a subject resolves against. Only a CANONICAL release
  * record — the release collection AND a `slug:version` rkey whose slug is
- * well-formed — is stripped to its package slug (`gallery:1.2.0` → `gallery`).
- * Every other subject keeps its rkey verbatim: a package rkey IS the slug, and a
- * non-release collection or a malformed colon-bearing rkey stays whole so it can
- * never strip to a DIFFERENT package's slug — it misses at `getPackage` and
- * resolution degrades to the publisher tier.
+ * well-formed AND whose version is valid semver — is stripped to its package slug
+ * (`gallery:1.2.0` → `gallery`). Every other subject keeps its rkey verbatim: a
+ * package rkey IS the slug, and a non-release collection or a malformed
+ * colon-bearing rkey (`gallery:not-semver`) stays whole so it can never strip to
+ * a DIFFERENT package's slug — it misses at `getPackage` and resolution degrades
+ * to the publisher tier.
  */
 function packageSlugFromRecord(collection: string | undefined, rkey: string): string {
 	if (collection !== NSID.packageRelease) return rkey;
 	const delimiter = rkey.indexOf(":");
 	if (delimiter <= 0 || delimiter === rkey.length - 1) return rkey;
 	const slug = rkey.slice(0, delimiter);
-	return PACKAGE_SLUG_RE.test(slug) ? slug : rkey;
+	if (!PACKAGE_SLUG_RE.test(slug)) return rkey;
+	let version: string;
+	try {
+		version = decodeURIComponent(rkey.slice(delimiter + 1));
+	} catch {
+		return rkey;
+	}
+	return SEMVER_RE.test(version) ? slug : rkey;
 }
 
 function logTrigger(source: NotificationSource, did: string, outcome: string): void {

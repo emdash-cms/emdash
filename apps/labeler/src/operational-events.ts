@@ -81,13 +81,14 @@ export interface OperationalEventInsert {
 	 */
 	gateOnUnalertedEscalation?: { assessmentId: string };
 	/**
-	 * Appends `ON CONFLICT (action_id, event_type) DO NOTHING` to a plain insert so
-	 * a concurrent replay converges to one row against the `(action_id, event_type)`
-	 * unique index (migration 0012). Only valid with a non-null `actionId` and no
+	 * Appends `ON CONFLICT ... DO NOTHING` targeting the partial unique index on
+	 * `(action_id, event_type) WHERE event_type = 'takedown-no-contact'` (migration
+	 * 0012), so a concurrent replay of the `takedown-no-contact` alert converges to
+	 * one row. Only valid for that event type with a non-null `actionId` and no
 	 * gate. Pair the outbox with {@link OutboxInsert.gateOnEventPresent} so a
 	 * conflicted (no-op) event does not orphan an outbox row.
 	 */
-	idempotentOnActionType?: boolean;
+	idempotentTakedownNoContact?: boolean;
 }
 
 export interface OutboxInsert {
@@ -99,7 +100,7 @@ export interface OutboxInsert {
 	/** Same in-batch label gating as {@link OperationalEventInsert.gateOnIssuedLabelActionKey}. */
 	gateOnIssuedLabelActionKey?: string;
 	/** Insert only if the event row was actually written — `WHERE EXISTS (event
-	 * with this id)`. Pairs with {@link OperationalEventInsert.idempotentOnActionType}
+	 * with this id)`. Pairs with {@link OperationalEventInsert.idempotentTakedownNoContact}
 	 * so an ON CONFLICT no-op event leaves no orphan outbox row in the same batch. */
 	gateOnEventPresent?: boolean;
 }
@@ -238,8 +239,10 @@ export function buildOperationalEventInsert(
 			.bind(...values, input.gateOnUnalertedEscalation.assessmentId);
 	}
 
-	const onConflict = input.idempotentOnActionType
-		? ` ON CONFLICT (action_id, event_type) DO NOTHING`
+	// The conflict target repeats the partial index's predicate so SQLite resolves
+	// it to `idx_operational_events_takedown_no_contact` (migration 0012).
+	const onConflict = input.idempotentTakedownNoContact
+		? ` ON CONFLICT (action_id, event_type) WHERE event_type = 'takedown-no-contact' DO NOTHING`
 		: "";
 	return db
 		.prepare(

@@ -128,6 +128,37 @@ describe("operational_events store", () => {
 		expect(rows.every((r) => r.actionId === actionId)).toBe(true);
 	});
 
+	it("allows duplicate (action_id, event_type) for a non-takedown event type", async () => {
+		// The 0012 unique index is PARTIAL to `takedown-no-contact`, so historical
+		// duplicates of other types are unconstrained — this is what keeps the
+		// migration safe on existing data.
+		const actionId = `oact_dup${counter}`;
+		await insertOperatorAction(actionId);
+		await buildOperationalEventInsert(
+			testEnv.DB,
+			eventInput({ actionId, eventType: "emergency-takedown" }),
+		).run();
+		await buildOperationalEventInsert(
+			testEnv.DB,
+			eventInput({ actionId, eventType: "emergency-takedown" }),
+		).run();
+
+		const rows = await getOperationalEventsByActionId(testEnv.DB, actionId);
+		expect(rows).toHaveLength(2);
+	});
+
+	it("collapses a second takedown-no-contact for the same action to a no-op", async () => {
+		const actionId = `oact_tnc${counter}`;
+		await insertOperatorAction(actionId);
+		const input = () =>
+			eventInput({ actionId, eventType: "takedown-no-contact", idempotentTakedownNoContact: true });
+		await buildOperationalEventInsert(testEnv.DB, input()).run();
+		await buildOperationalEventInsert(testEnv.DB, input()).run();
+
+		const rows = await getOperationalEventsByActionId(testEnv.DB, actionId);
+		expect(rows).toHaveLength(1);
+	});
+
 	it("rejects UPDATE on a recorded event (immutable log)", async () => {
 		const input = eventInput();
 		await buildOperationalEventInsert(testEnv.DB, input).run();
