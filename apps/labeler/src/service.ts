@@ -120,6 +120,16 @@ export interface BuildIssuanceOptions {
 	 * automated-assessment action (it carries the assessmentId to check).
 	 */
 	requireAssessmentState?: AssessmentState;
+	/**
+	 * Gate the action insert (and thus its label) additionally on the subject
+	 * `(uri, cid)` still being non-tombstoned at commit time. The initial discovery
+	 * issuance pairs this with `requireAssessmentState: "pending"` so a concurrent
+	 * delete that tombstones the subject or cancels the run in the gap before this
+	 * commit makes the positive `assessment-pending` no-op — no live label is
+	 * resurrected for a deleted release. Gating the action (not the label) leaves no
+	 * orphan label, same as the state guard.
+	 */
+	requireSubjectNotDeleted?: { uri: string; cid: string };
 }
 
 /**
@@ -214,6 +224,11 @@ export async function buildIssuanceStatements(
 		requireState === undefined
 			? ""
 			: `\n\t\t\t\t AND EXISTS (SELECT 1 FROM assessments WHERE id = ? AND state = ?)`;
+	const requireSubject = options.requireSubjectNotDeleted;
+	const subjectGuardSql =
+		requireSubject === undefined
+			? ""
+			: `\n\t\t\t\t AND EXISTS (SELECT 1 FROM subjects WHERE uri = ? AND cid = ? AND deleted_at IS NULL)`;
 	const actionBinds: unknown[] = [
 		action.actor,
 		action.type,
@@ -233,6 +248,7 @@ export async function buildIssuanceStatements(
 		proposal.val,
 	];
 	if (requireState !== undefined) actionBinds.push(assessmentId, requireState);
+	if (requireSubject !== undefined) actionBinds.push(requireSubject.uri, requireSubject.cid);
 
 	const statements: D1PreparedStatement[] = [
 		db
@@ -257,7 +273,7 @@ export async function buildIssuanceStatements(
 						  )
 						  AND l2.neg = 0 AND a2.type <> 'automated-assessment'
 					)
-				 )${stateGuardSql}
+				 )${stateGuardSql}${subjectGuardSql}
 				 ON CONFLICT(idempotency_key) DO NOTHING`,
 			)
 			.bind(...actionBinds),

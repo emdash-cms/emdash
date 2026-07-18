@@ -33,7 +33,7 @@ import {
 	RecordVerificationError,
 	type DidDocumentResolverLike,
 } from "../src/record-verification.js";
-import { issueAutomatedAssessmentLabel } from "../src/service.js";
+import { issueAutomatedAssessmentLabel, type IssuedLabel } from "../src/service.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
 import type { LabelPublisher } from "../src/subscribe-labels.js";
 
@@ -558,6 +558,81 @@ describe("processDiscoveryMessage: verification failures", () => {
 			.bind(job.rkey)
 			.first<{ n: number }>();
 		expect(dl?.n).toBe(0);
+	});
+});
+
+describe("processDiscoveryMessage: create racing delete (Blocker 1 create-path)", () => {
+	it("commits no live pending label and does not dispatch when a delete completes before the create's positive commits", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const workflow = new FakeAssessmentWorkflow();
+		const published: IssuedLabel[] = [];
+		const publisher: LabelPublisher = {
+			managesPublicationState: true,
+			async publish(issued) {
+				published.push(issued);
+			},
+		};
+		const baseDeps = { ...(await buildDeps()), assessmentWorkflow: workflow, publisher };
+		const runKey = await runKeyFor(job);
+
+		// Barrier: the create's positive issuance signs its label right before the
+		// commit batch. Hook that seam to let a full delete complete first —
+		// tombstone + negate + cancel + ack — exactly the concurrent-delete window.
+		const realSigner = await signer();
+		let deleteDone = false;
+		const barrierSigner: LabelSigner = {
+			issuerDid: realSigner.issuerDid,
+			async sign(label) {
+				if (!deleteDone) {
+					deleteDone = true;
+					const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+					await processDiscoveryMessage(deleteJob, new FakeMessage(), {
+						...baseDeps,
+						confirmDeleted: () => Promise.resolve(true),
+					});
+				}
+				return realSigner.sign(label);
+			},
+		};
+
+		const create = new FakeMessage();
+		await processDiscoveryMessage(job, create, {
+			...baseDeps,
+			signer: barrierSigner,
+			verify: verifiedFor(job),
+		});
+
+		// The create acked (the run is obsolete), never dispatched a Workflow, and
+		// committed no positive assessment-pending — the guarded issuance no-op'd.
+		expect(create.acked).toBe(1);
+		expect(create.retried).toBe(0);
+		expect(workflow.created.length).toBe(0);
+
+		const assessment = await getAssessmentByRunKey(testEnv.DB, runKey);
+		expect(assessment?.state).toBe("cancelled");
+		const positive = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ? AND l.val = 'assessment-pending' AND l.neg = 0`,
+		)
+			.bind(assessment!.id)
+			.first<{ n: number }>();
+		expect(positive?.n).toBe(0);
+
+		// No positive assessment-pending was ever broadcast.
+		expect(
+			published.some(
+				(entry) => entry.label.val === "assessment-pending" && entry.label.neg !== true,
+			),
+		).toBe(false);
+
+		// The active label state carries no live pending — only the delete's negation.
+		const winner = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uriFor(job))
+			.first<{ neg: number }>();
+		expect(winner?.neg).toBe(1);
 	});
 });
 

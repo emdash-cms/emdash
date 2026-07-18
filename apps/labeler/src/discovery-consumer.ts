@@ -51,6 +51,7 @@ import {
 	deleteSubjectsByUri,
 	getAssessment,
 	listNonTerminalAssessmentsForUri,
+	subjectIsUndeleted,
 	transitionAssessmentState,
 	type Assessment,
 } from "./assessment-store.js";
@@ -71,7 +72,14 @@ import {
 	RecordVerificationError,
 	type RecordVerificationFailureReason,
 } from "./record-verification.js";
-import { issueAutomatedAssessmentLabel, LabelIssuanceUnavailableError } from "./service.js";
+import {
+	buildIssuanceStatements,
+	issueAutomatedAssessmentLabel,
+	LabelIssuanceUnavailableError,
+	readIssuedLabelByActionKey,
+	type AutomatedIssuanceAction,
+	type AutomatedLabelProposal,
+} from "./service.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
 import { createLabelPublisher, type LabelPublisher } from "./subscribe-labels.js";
 
@@ -423,21 +431,15 @@ async function verifyAndCreateRun(
 
 	await advanceToPending(deps.db, assessment, now);
 
-	await issueAutomatedAssessmentLabel(
-		deps.db,
-		deps.config,
-		deps.signer,
-		{
-			actor: deps.config.labelerDid,
-			type: "automated-assessment",
-			assessmentId: assessment.id,
-			reason: "initial discovery",
-			idempotencyKey: automatedIdempotencyKey(runKey, "assessment-pending", false),
-		},
-		{ uri, cid: job.cid, val: "assessment-pending" },
-		now,
-		deps.publisher,
-	);
+	const outcome = await issueInitialPendingLabel(deps, assessment.id, runKey, uri, job.cid, now);
+	if (outcome === "obsolete") {
+		// A concurrent delete tombstoned the subject (or cancelled the run) before
+		// the positive assessment-pending could commit — the run is moot. The
+		// issuance no-op'd, so there is nothing to publish and nothing to assess;
+		// the delete owns tombstone + cancel + negation. Do not dispatch a Workflow
+		// for a label that never committed.
+		return;
+	}
 
 	// Hand the run to its Workflow instance. The instance id is the run's runKey,
 	// so a redelivered event (same runKey) converges on the same instance rather
@@ -448,6 +450,73 @@ async function verifyAndCreateRun(
 		runKey,
 		assessmentId: assessment.id,
 	});
+}
+
+/**
+ * Issues the initial positive `assessment-pending` label, atomically gated at
+ * commit on BOTH the run still being `pending` AND the subject `(uri, cid)` still
+ * undeleted (`buildIssuanceStatements`' `requireAssessmentState` +
+ * `requireSubjectNotDeleted`). A concurrent delete that tombstones the subject or
+ * cancels the run in the gap after `advanceToPending` makes the guarded insert
+ * match no row: the issuance is obsolete — no label commits, so this returns
+ * without publishing or signalling a dispatch, and the delete's negation owns the
+ * stream. A non-persist NOT explained by the guard (a signing flip mid-batch)
+ * throws `LabelIssuanceUnavailableError` so the message retries. Reuses the same
+ * guarded-issuance machinery as finalization and the console path (no second SQL
+ * path); `readIssuedLabelByActionKey` tolerates a legitimate no-op without the
+ * signing-diagnosis throw `issueLabel`'s post-commit applies.
+ */
+async function issueInitialPendingLabel(
+	deps: DiscoveryConsumerDeps,
+	assessmentId: string,
+	runKey: string,
+	uri: string,
+	cid: string,
+	now: Date,
+): Promise<"issued" | "obsolete"> {
+	const idempotencyKey = automatedIdempotencyKey(runKey, "assessment-pending", false);
+	const action: AutomatedIssuanceAction = {
+		actor: deps.config.labelerDid,
+		type: "automated-assessment",
+		assessmentId,
+		reason: "initial discovery",
+		idempotencyKey,
+	};
+	const proposal: AutomatedLabelProposal = { uri, cid, val: "assessment-pending" };
+
+	// A redelivery whose first attempt already committed the label converges here:
+	// re-drive the live notify (best-effort) and treat it as issued.
+	const existing = await readIssuedLabelByActionKey(deps.db, idempotencyKey);
+	if (existing) {
+		if (deps.publisher) await deps.publisher.publish(existing);
+		return "issued";
+	}
+
+	const { statements } = await buildIssuanceStatements(
+		deps.db,
+		deps.config,
+		deps.signer,
+		action,
+		proposal,
+		now,
+		deps.publisher !== undefined,
+		{ requireAssessmentState: "pending", requireSubjectNotDeleted: { uri, cid } },
+	);
+	await deps.db.batch(statements);
+
+	const issued = await readIssuedLabelByActionKey(deps.db, idempotencyKey);
+	if (issued) {
+		if (deps.publisher) await deps.publisher.publish(issued);
+		return "issued";
+	}
+
+	// The guarded insert matched no row. If the run is no longer `pending` or the
+	// subject was tombstoned, a concurrent delete won — a benign no-op. Anything
+	// else (the signing guard no-op'ing on a mid-batch pause/rotation) is retryable.
+	const run = await getAssessment(deps.db, assessmentId);
+	if (!run || run.state !== "pending" || !(await subjectIsUndeleted(deps.db, { uri, cid })))
+		return "obsolete";
+	throw new LabelIssuanceUnavailableError("initial pending label did not persist");
 }
 
 /**

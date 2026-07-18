@@ -139,6 +139,24 @@ export async function deleteSubjectsByUri(
 }
 
 /**
+ * True when a non-tombstoned subject row exists for this exact `(uri, cid)` — the
+ * same condition the `requireSubjectNotDeleted` issuance guard checks. Distinct
+ * from `isSubjectCurrent`: this ignores CID-supersession, so it classifies a
+ * guarded-issuance miss precisely (a superseded-but-undeleted subject would not
+ * miss the guard, so it must not read as deleted here).
+ */
+export async function subjectIsUndeleted(
+	db: D1Database,
+	input: { uri: string; cid: string },
+): Promise<boolean> {
+	const row = await db
+		.prepare(`SELECT 1 FROM subjects WHERE uri = ? AND cid = ? AND deleted_at IS NULL`)
+		.bind(input.uri, input.cid)
+		.first();
+	return row !== null;
+}
+
+/**
  * A subject is current when its row isn't tombstoned and no later-observed,
  * non-deleted subject at the same URI carries a different CID. Used
  * immediately before finalization (spec §10): a deleted or superseded
