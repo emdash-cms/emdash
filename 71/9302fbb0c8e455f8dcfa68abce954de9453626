@@ -1,0 +1,19 @@
+packages/admin/src/components/Sidebar.tsx
+  s_059817ae7c63f3::t_81b497dfc9bb60 420,423,431-436
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "719302fbb0c8e455f8dcfa68abce954de9453626",
+  "prompts": {},
+  "sessions": {
+    "s_059817ae7c63f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f7575-6878-7af2-b84b-8a6bd6a92e37",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
