@@ -15,6 +15,7 @@ COPY e2e/fixture/package.json e2e/fixture/package.json
 COPY patches/ patches/
 
 RUN sed -i '/slidev/d' pnpm-workspace.yaml
+RUN apt update;  apt install -y python3 build-essential
 RUN pnpm install --frozen-lockfile
 
 # ---- Build ----
@@ -24,7 +25,8 @@ COPY . .
 RUN sed -i '/slidev/d' pnpm-workspace.yaml
 RUN sed -i 's|file:./data.db|file:./data/data.db|' templates/blog/astro.config.mjs
 
-RUN pnpm build && pnpm --filter @emdash-cms/template-blog build
+RUN pnpm build
+RUN pnpm --filter @emdash-cms/template-blog build
 
 # Bundle the blog template into a standalone deployment
 RUN pnpm --filter @emdash-cms/template-blog deploy /deploy --prod --legacy
