@@ -188,10 +188,14 @@ export class DiscoveryClient {
 		const acceptLabelers = this.acceptLabelers;
 		const onResponseMeta = options.onResponseMeta;
 		const handler: typeof baseHandler =
-			acceptLabelers || onResponseMeta
+			acceptLabelers !== undefined || onResponseMeta !== undefined
 				? async (pathname, init) => {
 						const headers = new Headers(init.headers);
-						if (acceptLabelers) headers.set("atproto-accept-labelers", acceptLabelers);
+						// An explicit empty string means "accept no labelers" and must
+						// still go on the wire; only an omitted option (`undefined`)
+						// leaves the header off so the aggregator applies its defaults.
+						if (acceptLabelers !== undefined)
+							headers.set("atproto-accept-labelers", acceptLabelers);
 						const response = await baseHandler(pathname, { ...init, headers });
 						onResponseMeta?.({
 							contentLabelers: response.headers.get("atproto-content-labelers") ?? undefined,
