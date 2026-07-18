@@ -487,7 +487,7 @@ describe("sweep parity and finalization invariant", () => {
 
 		expect(notice).not.toBeNull();
 		expect(notice?.subject).toContain("couldn't complete");
-		expect(notice?.assessmentUrl.startsWith(SERVICE)).toBe(true);
+		expect(new URL(notice!.assessmentUrl).origin).toBe(SERVICE);
 	});
 
 	it("notifyAssessmentOutcome never notifies on an error assessment (finalization stays silent)", async () => {
