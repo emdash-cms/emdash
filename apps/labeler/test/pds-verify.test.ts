@@ -123,15 +123,25 @@ describe("fetchAndVerifyRecord — SSRF egress guard", () => {
 		expect(called).toBe(false);
 	});
 
-	it("rejects when the resolver returns no addresses (fails closed)", async () => {
-		const fetchImpl: typeof fetch = () =>
-			Promise.resolve(new Response(new Uint8Array([1]), { status: 200 }));
+	it("classifies an empty DNS answer (NXDOMAIN/NODATA) as transient, not a permanent block", async () => {
+		let called = false;
+		const fetchImpl: typeof fetch = () => {
+			called = true;
+			return Promise.resolve(new Response(new Uint8Array([1]), { status: 200 }));
+		};
+		// An empty resolver answer is what a host mid-DNS-propagation yields.
+		// `resolveAndValidateExternalUrl` raises the pinned "Hostname resolved to
+		// no addresses" SsrfError; it must retry (so the record survives a
+		// temporary negative answer) rather than dead-letter. A core wording
+		// change would fail this test instead of silently mis-classifying.
 		const err = await captureRejection(
 			fetchAndVerifyRecord(
 				buildOpts({ fetch: fetchImpl, resolveHostname: () => Promise.resolve([]) }),
 			),
 		);
-		expect(err.reason).toBe("PDS_HOST_BLOCKED");
+		expect(err.reason).toBe("PDS_NETWORK_ERROR");
+		expect(isTransient(err.reason, err.status)).toBe(true);
+		expect(called).toBe(false);
 	});
 
 	it("rejects a redirect that points at a private address (per-hop re-resolution)", async () => {

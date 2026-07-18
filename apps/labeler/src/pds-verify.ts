@@ -41,6 +41,11 @@ const MAX_PDS_REDIRECTS = 3;
  * case from the permanent one. A test pins it so a core wording change fails
  * loudly instead of silently mis-classifying. */
 const SSRF_RESOLVER_FAILURE_PREFIX = "Could not resolve hostname:";
+/** `resolveAndValidateExternalUrl` raises this exact `SsrfError` when the
+ * resolver returns no addresses (NXDOMAIN / NODATA). A host mid-DNS-propagation
+ * produces a temporary negative answer, so this is retryable — not a permanent
+ * block. Pinned by a test so a core wording change fails loudly. */
+const SSRF_EMPTY_ANSWER_MESSAGE = "Hostname resolved to no addresses";
 
 export type VerificationFailureReason =
 	| "PDS_NETWORK_ERROR"
@@ -163,11 +168,15 @@ async function assertAllowedPdsUrl(url: string, resolveHostname: DnsResolver): P
 		await resolveAndValidateExternalUrl(url, { resolver: resolveHostname });
 	} catch (err) {
 		if (err instanceof SsrfError) {
-			// A resolver failure (DoH network error, SERVFAIL, timeout) is
-			// transient infrastructure — retry it rather than permanently
-			// dead-lettering a legitimate record. A true address/scheme block is
-			// permanent.
-			if (err.message.startsWith(SSRF_RESOLVER_FAILURE_PREFIX)) {
+			// Two transient resolver outcomes: the resolver itself failed (DoH
+			// network error, SERVFAIL, timeout), or it returned an empty answer
+			// (NXDOMAIN / NODATA, which a host mid-DNS-propagation produces).
+			// Both retry rather than permanently dead-lettering a legitimate
+			// record. A true private/reserved-address or scheme block is permanent.
+			if (
+				err.message.startsWith(SSRF_RESOLVER_FAILURE_PREFIX) ||
+				err.message === SSRF_EMPTY_ANSWER_MESSAGE
+			) {
 				throw new PdsVerificationError(
 					"PDS_NETWORK_ERROR",
 					`PDS host resolution failed: ${err.message}`,
