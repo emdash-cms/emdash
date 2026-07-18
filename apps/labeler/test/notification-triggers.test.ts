@@ -112,6 +112,27 @@ function recordingSender(result: SendResult = { ok: true, providerId: "p" }): Re
 	};
 }
 
+/** Wraps a D1 database so its FIRST `batch()` throws (a transient failure),
+ * delegating every other call — and later batches — to the real db. */
+function dbThrowingFirstBatch(real: D1Database): D1Database {
+	let thrown = false;
+	return new Proxy(real, {
+		get(target, prop, receiver) {
+			if (prop === "batch") {
+				return async (statements: D1PreparedStatement[]) => {
+					if (!thrown) {
+						thrown = true;
+						throw new Error("transient batch failure");
+					}
+					return target.batch(statements);
+				};
+			}
+			const value = Reflect.get(target, prop, receiver);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+}
+
 function throwingSender(): RecordingSender {
 	return {
 		confirmations: [],
@@ -656,6 +677,34 @@ describe("emergency takedown with no resolvable contact", () => {
 		await notifyEmergencyTakedown(d, { actionId, uri: RELEASE_URI, neg: false });
 		await notifyEmergencyTakedown(d, { actionId, uri: RELEASE_URI, neg: false });
 
+		expect(await takedownEvents(actionId)).toHaveLength(1);
+	});
+
+	it("recovers the alert on a replay after a transient first-pass emit failure", async () => {
+		const sender = recordingSender();
+		const actionId = uniq("oact");
+		await seedTakedownAction(actionId);
+
+		// First pass: the undeliverable notifications row commits, but the alert
+		// batch fails transiently, so no event is recorded.
+		const firstPass: NotifyDeps = {
+			db: dbThrowingFirstBatch(db()),
+			aggregator: aggregatorFor({}),
+			sender,
+			pepper: PEPPER,
+			serviceUrl: SERVICE,
+			reconsiderationUrl: RECON,
+		};
+		await notifyEmergencyTakedown(firstPass, { actionId, uri: RELEASE_URI, neg: false });
+		expect(await takedownEvents(actionId)).toEqual([]);
+
+		// Replay on a healthy db: the notifications row already exists (runTrigger
+		// dedups), but the alert is keyed on its own event row, so it recovers.
+		await notifyEmergencyTakedown(deps(aggregatorFor({}), sender), {
+			actionId,
+			uri: RELEASE_URI,
+			neg: false,
+		});
 		expect(await takedownEvents(actionId)).toHaveLength(1);
 	});
 });
