@@ -21,6 +21,7 @@ vi.mock("../../src/components/RevisionHistory", () => ({
 
 vi.mock("../../src/components/TaxonomySidebar", () => ({
 	TaxonomySidebar: () => <div data-testid="taxonomy-sidebar">Taxonomy</div>,
+	useHasApplicableTaxonomies: () => true,
 }));
 
 vi.mock("../../src/components/editor/DocumentOutline", () => ({
