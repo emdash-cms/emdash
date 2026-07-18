@@ -494,8 +494,8 @@ async function transitionOrObserve(
  * pending label live forever once the message acks. The invariant: a run is
  * cancelled only after its pending negation has committed, and the message
  * cannot ack while any pending/running run is still un-negated (a throw
- * propagates to `classifyDiscoveryError` → retry), so no active
- * `assessment-pending` survives an acked delete.
+ * propagates to the delete handler's mutation-phase catch, which always retries),
+ * so no active `assessment-pending` survives an acked delete.
  */
 async function applyDiscoveryDelete(
 	deps: DiscoveryConsumerDeps,
