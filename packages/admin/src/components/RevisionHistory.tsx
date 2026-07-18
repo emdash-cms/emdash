@@ -155,8 +155,11 @@ export function RevisionHistory({
 						<Button
 							type="button"
 							variant="ghost"
-							className={cn("relative justify-between", reserveHeaderEnd && "pe-10")}
-							style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
+							className="relative justify-between"
+							style={{
+								width: reserveHeaderEnd ? "calc(100% - 1.5rem)" : "calc(100% + 1.5rem)",
+								insetInlineStart: "-0.75rem",
+							}}
 						/>
 					}
 				>
