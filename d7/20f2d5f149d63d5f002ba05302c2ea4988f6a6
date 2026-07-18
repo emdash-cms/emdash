@@ -1,0 +1,27 @@
+.changeset/neat-editor-rhythm.md
+  s_059817ae7c63f3::t_7bc35075798dd1 5
+packages/admin/src/components/ContentEditor.tsx
+  s_059817ae7c63f3::t_e47d923b12a16d 240,630,652-653
+packages/admin/src/components/PortableTextEditor.tsx
+  s_059817ae7c63f3::t_2315dc2525ebda 2862
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_059817ae7c63f3::t_cadc17782506dc 1120,1312,1448,1450-1454,1457,1460-1463
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_059817ae7c63f3::t_ae809973814aaa 591-609
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d720f2d5f149d63d5f002ba05302c2ea4988f6a6",
+  "prompts": {},
+  "sessions": {
+    "s_059817ae7c63f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f7575-6878-7af2-b84b-8a6bd6a92e37",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
