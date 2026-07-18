@@ -26,7 +26,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import type { AdminManifest } from "../src/lib/api";
-import { createAdminRouter } from "../src/router";
+import { ConfigurationLoadingScreen, createAdminRouter } from "../src/router";
 import { render } from "./utils/render.tsx";
 import { createTestQueryClient, createMockFetch, waitFor } from "./utils/test-helpers";
 
@@ -150,6 +150,21 @@ function buildRouter() {
 	}
 	return { router, queryClient, TestApp };
 }
+
+describe("ConfigurationLoadingScreen", () => {
+	it("matches the centered EmDash boot loading view", async () => {
+		const screen = await render(<ConfigurationLoadingScreen />);
+		const loader = screen.getByRole("status", { name: "Loading" });
+		const label = screen.getByText("Loading configuration...");
+		const loadingView = label.element().parentElement?.parentElement;
+
+		expect(loadingView).toHaveClass("emdash-configuration-loader");
+		expect(loader.element().tagName).toBe("DIV");
+		await expect.element(loader).toHaveClass("emdash-configuration-spinner");
+		await expect.element(label).toHaveClass("emdash-configuration-label");
+		expect(label.element().parentElement).toHaveClass("loader-inner");
+	});
+});
 
 // ---------------------------------------------------------------------------
 // Tests: ContentListPage – locale forwarded to "Add New" link
