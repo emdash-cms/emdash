@@ -103,11 +103,11 @@ export function ImageFieldRenderer({
 	};
 
 	return (
-		<div id={id}>
+		<div id={id} className="grid gap-2">
 			<Label>{label}</Label>
 			{displayUrl ? (
 				imageBroken ? (
-					<div className="mt-2 relative group">
+					<div className="relative group">
 						<div className="min-h-20 rounded-lg border bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">
 							<ImageBroken className="h-5 w-5" />
 							<span className="text-sm">{t`Image not found`}</span>
@@ -134,7 +134,7 @@ export function ImageFieldRenderer({
 						</div>
 					</div>
 				) : (
-					<div className="mt-2 relative group">
+					<div className="relative group">
 						<img
 							src={displayUrl}
 							alt=""
@@ -167,7 +167,7 @@ export function ImageFieldRenderer({
 				<Button
 					type="button"
 					variant="outline"
-					className="mt-2 w-full h-32 justify-center border-dashed"
+					className="w-full h-32 justify-center border-dashed"
 					onClick={() => setPickerOpen(true)}
 				>
 					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
@@ -186,9 +186,9 @@ export function ImageFieldRenderer({
 				fieldId={fieldId}
 				title={t`Select ${label}`}
 			/>
-			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
+			{description && <p className="-mt-1 text-xs text-kumo-subtle">{description}</p>}
 			{required && !displayUrl && (
-				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
+				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
 			)}
 		</div>
 	);

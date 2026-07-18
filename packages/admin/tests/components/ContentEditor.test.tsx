@@ -225,6 +225,33 @@ describe("ContentEditor", () => {
 		expect(portableTextProps.current?.placeholder).toBe("Start writing, or type '/' for commands");
 	});
 
+	it("uses one label and spacing rhythm across editor field types", async () => {
+		const screen = await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: {
+				title: { kind: "string", label: "Title" },
+				featured_image: { kind: "image", label: "Featured Image" },
+				content: { kind: "portableText", label: "Content" },
+				attachment: { kind: "file", label: "Attachment" },
+			},
+		});
+		const contentLabelText = document.getElementById("field-content-label");
+		expect(contentLabelText).not.toBeNull();
+		const contentLabel = contentLabelText!.parentElement!;
+		const featuredLabel = screen.getByText("Featured Image", { exact: true }).element();
+		const attachmentLabel = screen.getByText("Attachment", { exact: true }).element();
+		const fieldStack = contentLabel.parentElement?.parentElement;
+
+		expect(contentLabelText).toHaveTextContent("Content");
+		expect(contentLabel.tagName).toBe("LABEL");
+		expect(contentLabel).toHaveClass("text-base", "font-medium");
+		expect(contentLabel.parentElement).toHaveClass("grid", "gap-2");
+		expect(featuredLabel.parentElement).toHaveClass("grid", "gap-2");
+		expect(attachmentLabel.parentElement).toHaveClass("grid", "gap-2");
+		expect(fieldStack).toHaveClass("space-y-6");
+	});
+
 	describe("block panel + mobile sheet sync", () => {
 		const ptFields: Record<string, FieldDescriptor> = {
 			content: { kind: "portableText", label: "Content" },

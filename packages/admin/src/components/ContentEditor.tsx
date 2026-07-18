@@ -758,7 +758,7 @@ export function ContentEditor({
 							isDistractionFree ? "max-w-4xl mx-auto pt-16" : "mx-auto max-w-3xl space-y-6",
 						)}
 					>
-						<div className="space-y-4">
+						<div className="space-y-6">
 							{Object.entries(fields).map(([name, field]) => {
 								// Key by item id so all field editors remount cleanly when the
 								// underlying content item changes (e.g. switching translations).
@@ -1166,14 +1166,11 @@ function FieldRenderer({
 		case "portableText": {
 			const labelId = `${id}-label`;
 			return (
-				<div id={id}>
+				<div id={id} className={cn(!minimal && "grid gap-2")}>
 					{!minimal && (
-						<span
-							id={labelId}
-							className={cn("text-sm font-medium leading-none text-kumo-default", labelClass)}
-						>
-							{label}
-						</span>
+						<Label>
+							<span id={labelId}>{label}</span>
+						</Label>
 					)}
 					<PortableTextEditor
 						value={Array.isArray(value) ? value : []}
@@ -1618,10 +1615,10 @@ function FileFieldRenderer({
 	const hasSize = size !== undefined;
 
 	return (
-		<div id={id}>
+		<div id={id} className="grid gap-2">
 			<Label>{label}</Label>
 			{normalized ? (
-				<div className="mt-2 flex items-center gap-3 rounded-lg border p-3">
+				<div className="flex items-center gap-3 rounded-lg border p-3">
 					<span className="text-3xl" aria-hidden="true">
 						{getFileIcon(normalized.mimeType)}
 					</span>
@@ -1666,7 +1663,7 @@ function FileFieldRenderer({
 				<Button
 					type="button"
 					variant="outline"
-					className="mt-2 w-full h-32 justify-center border-dashed"
+					className="w-full h-32 justify-center border-dashed"
 					onClick={() => setPickerOpen(true)}
 					aria-label={t`Select ${label}`}
 				>
@@ -1687,7 +1684,7 @@ function FileFieldRenderer({
 				title={t`Select ${label}`}
 			/>
 			{required && !normalized && (
-				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
+				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
 			)}
 		</div>
 	);
