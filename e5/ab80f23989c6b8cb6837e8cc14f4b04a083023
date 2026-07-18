@@ -1,0 +1,33 @@
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_059817ae7c63f3::t_4cb1693f079105 1037-1046,1095,1264-1278
+.changeset/calm-editors-rest.md
+  s_059817ae7c63f3::t_865da2d99d096c 1-5
+packages/admin/src/components/ContentEditor.tsx
+  s_059817ae7c63f3::t_70e4aace61f213 595-596,612,622-626
+packages/admin/src/components/PortableTextEditor.tsx
+  s_059817ae7c63f3::t_8e0f50c5f3a157 2876
+packages/admin/src/components/Shell.tsx
+  s_059817ae7c63f3::t_ecfe8243242942 103-109
+packages/admin/tests/components/Shell.test.tsx
+  s_059817ae7c63f3::t_6c4ab8a28abf27 1-47
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_059817ae7c63f3::t_97c19bdcc14399 573-574,583-590
+packages/admin/tests/editor/bubble-menu.test.tsx
+  s_059817ae7c63f3::t_3fac5837491f17 225-226,229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e5ab80f23989c6b8cb6837e8cc14f4b04a083023",
+  "prompts": {},
+  "sessions": {
+    "s_059817ae7c63f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f7575-6878-7af2-b84b-8a6bd6a92e37",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
