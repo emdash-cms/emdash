@@ -7,6 +7,11 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: uk\n"
 "Plural-Forms: nplurals=4; plural=((n % 10 == 1 && n % 100 != 11) ? 0 : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 1 : ((n % 10 == 0 || (n % 10 >= 5 && n % 10 <= 9) || (n % 100 >= 11 && n % 100 <= 14)) ? 2 : 3)));\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
 
 #: packages/admin/src/routes/bylines.tsx:447
 msgid " - Guest"
@@ -2797,8 +2802,14 @@ msgid "Editor"
 msgstr "Редактор"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:305
-msgid "Editor\nReporter\nPhotographer"
-msgstr "Редактор\nРепортер\nФотограф"
+msgid ""
+"Editor\n"
+"Reporter\n"
+"Photographer"
+msgstr ""
+"Редактор\n"
+"Репортер\n"
+"Фотограф"
 
 #: packages/admin/src/components/WordPressImport.tsx:1044
 msgid "em1.…"
@@ -5425,8 +5436,14 @@ msgid "Open WordPress Profile"
 msgstr "Відкрити профіль WordPress"
 
 #: packages/admin/src/components/FieldEditor.tsx:515
-msgid "Option 1\nOption 2\nOption 3"
-msgstr "Варіант 1\nВаріант 2\nВаріант 3"
+msgid ""
+"Option 1\n"
+"Option 2\n"
+"Option 3"
+msgstr ""
+"Варіант 1\n"
+"Варіант 2\n"
+"Варіант 3"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:355
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:544
