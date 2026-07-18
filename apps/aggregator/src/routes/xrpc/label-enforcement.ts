@@ -41,6 +41,32 @@ const AUTOMATED_BLOCK_VALUES: readonly string[] = [...AUTOMATED_BLOCKS];
 const MANUAL_RELEASE_BLOCK_VALUES: readonly string[] = RELEASE_BLOCK_VALUES.filter(
 	(value) => !AUTOMATED_BLOCKS.has(value),
 );
+/** Assessment-state label values: `assessment-pending` / `assessment-error`
+ * steer eligibility, and `assessment-passed` / `assessment-overridden` form
+ * the reviewer override pair. Enforcement-relevant for view truncation. */
+const ASSESSMENT_STATE_VALUES: readonly string[] = [
+	"assessment-pending",
+	"assessment-passed",
+	"assessment-overridden",
+	"assessment-error",
+];
+
+const ENFORCEMENT_HARD_BLOCK_VALUES: ReadonlySet<string> = new Set([
+	...RELEASE_BLOCK_VALUES,
+	...PACKAGE_SCOPE_BLOCK_VALUES,
+]);
+const ENFORCEMENT_STATE_VALUES: ReadonlySet<string> = new Set(ASSESSMENT_STATE_VALUES);
+
+/** Truncation priority for a view's `labels`: hard blocks (0) rank ahead of
+ * assessment states (1) ahead of informational labels (2). Blocks decide a
+ * client's install/serve refusal, so the lexicon `maxLength` cap must never
+ * drop one in favour of a display-only label; states change eligibility and
+ * complete the override pair. Used by `capLabels`. */
+export function labelTruncationPriority(val: string): 0 | 1 | 2 {
+	if (ENFORCEMENT_HARD_BLOCK_VALUES.has(val)) return 0;
+	if (ENFORCEMENT_STATE_VALUES.has(val)) return 1;
+	return 2;
+}
 
 export interface EnforcementSql {
 	sql: string;
