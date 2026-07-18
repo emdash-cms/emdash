@@ -147,6 +147,16 @@ export interface ReleaseEnforcementAliases {
 	package?: string;
 }
 
+/** A SQL row alias with its trailing dot (e.g. `"r."`). */
+const ALIAS_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*\.$/;
+
+/** Guards a caller-supplied alias before it is interpolated into raw SQL.
+ * Callers pass compile-time constants today, but the builders are exported. */
+function assertAlias(alias: string): void {
+	if (!ALIAS_PATTERN.test(alias))
+		throw new TypeError("SQL alias must be an identifier followed by '.'");
+}
+
 /**
  * `NOT EXISTS` clause excluding a release whose own URI carries a
  * `RELEASE_BLOCK_VALUES` label, or whose parent package URI / publisher DID
@@ -173,6 +183,8 @@ export function buildReleaseEnforcementSql(
 	if (accepted.length === 0) return { sql: "", bindings: [] };
 	const releaseAlias = aliases.release ?? "r.";
 	const packageAlias = aliases.package ?? "p.";
+	assertAlias(releaseAlias);
+	assertAlias(packageAlias);
 	const srcs = accepted.map((policy) => policy.did);
 	const releaseUriExpr = `'at://' || ${releaseAlias}did || '/${NSID.packageRelease}/' || ${releaseAlias}rkey`;
 	const releaseCidExpr = `json_extract(${releaseAlias}signature_metadata, '$.cid')`;
