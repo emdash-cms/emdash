@@ -36,6 +36,7 @@ import {
 	type AutomatedLabelProposal,
 	type IssuedLabel,
 } from "./service.js";
+import { getSigningStatusIfInitialized } from "./signing-rotation.js";
 import type { LabelPublisher } from "./subscribe-labels.js";
 
 /**
@@ -270,6 +271,12 @@ export class AssessmentOrchestrator {
 		const positiveLabels: readonly OutcomeLabel[] = outcome?.labels ?? [];
 
 		const coverageJson = this.resolveCoverageJson?.();
+		// Read the signing status once so the CAS transition carries the same
+		// signing-state predicate as every label issuance below: a signing pause
+		// landing between prep and the batch then no-ops the CAS too, keeping the run
+		// `running` for the Workflow retry rather than committing terminal state with
+		// its labels suppressed.
+		const signingStatus = await getSigningStatusIfInitialized(this.db);
 		const finalization = buildFinalizationStatements(this.db, {
 			assessmentId: assessment.id,
 			fromState: "running",
@@ -279,6 +286,10 @@ export class AssessmentOrchestrator {
 			cid: assessment.cid,
 			now,
 			...(coverageJson !== undefined ? { coverageJson } : {}),
+			signingGuard: {
+				isPrebootstrap: signingStatus === null,
+				activeKeyVersion: this.config.signingKeyVersion,
+			},
 		});
 
 		const statements = [...finalization.statements];

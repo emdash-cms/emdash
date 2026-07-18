@@ -474,6 +474,16 @@ export interface FinalizationInput {
 	publicSummary?: string;
 	coverageJson?: string;
 	supersedesAssessmentId?: string;
+	/**
+	 * Gate the CAS transition on the same signing-state predicate the finalization
+	 * label issuances use (`buildIssuanceStatements`). A signing pause landing
+	 * between statement preparation and the batch commit otherwise no-ops every
+	 * guarded label INSERT while the unguarded CAS still commits terminal state,
+	 * stranding the run terminal with its labels missing. Sharing the predicate
+	 * makes the batch all-or-nothing: a mid-batch pause no-ops the CAS too, the run
+	 * stays `running`, and the Workflow retry re-runs finalization after resume.
+	 */
+	signingGuard?: { isPrebootstrap: boolean; activeKeyVersion: string };
 }
 
 export interface FinalizationStatements {
@@ -502,6 +512,32 @@ export function buildFinalizationStatements(
 			`buildFinalizationStatements is for decision outcomes; use transitionAssessmentState for ${input.toState}`,
 		);
 	const now = (input.now ?? new Date()).toISOString();
+	// Mirror of `buildIssuanceStatements`' signing guard so the CAS shares the
+	// batch's all-or-nothing behaviour under a mid-batch signing pause.
+	const signingGuardSql =
+		input.signingGuard === undefined
+			? ""
+			: `\n\t\t\t\t AND (
+				(? = 1 AND NOT EXISTS (SELECT 1 FROM signing_state))
+				OR (? = 0 AND EXISTS (
+					SELECT 1 FROM signing_state
+					WHERE id = 1 AND phase = 'active' AND active_key_version = ?
+				))
+			 )`;
+	const casBinds: unknown[] = [
+		input.toState,
+		now,
+		Date.parse(now),
+		input.publicSummary ?? null,
+		input.coverageJson ?? null,
+		input.supersedesAssessmentId ?? null,
+		input.assessmentId,
+		input.fromState,
+	];
+	if (input.signingGuard !== undefined) {
+		const prebootstrap = input.signingGuard.isPrebootstrap ? 1 : 0;
+		casBinds.push(prebootstrap, prebootstrap, input.signingGuard.activeKeyVersion);
+	}
 	const statements: D1PreparedStatement[] = [
 		db
 			.prepare(
@@ -510,18 +546,9 @@ export function buildFinalizationStatements(
 				     public_summary = COALESCE(?, public_summary),
 				     coverage_json = COALESCE(?, coverage_json),
 				     supersedes_assessment_id = COALESCE(?, supersedes_assessment_id)
-				 WHERE id = ? AND state = ?`,
+				 WHERE id = ? AND state = ?${signingGuardSql}`,
 			)
-			.bind(
-				input.toState,
-				now,
-				Date.parse(now),
-				input.publicSummary ?? null,
-				input.coverageJson ?? null,
-				input.supersedesAssessmentId ?? null,
-				input.assessmentId,
-				input.fromState,
-			),
+			.bind(...casBinds),
 	];
 	let pointerUpdateIndex: number | null = null;
 	if (CURRENT_POINTER_STATES.has(input.toState)) {

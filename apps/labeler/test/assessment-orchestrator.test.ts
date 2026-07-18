@@ -34,7 +34,11 @@ import { FindingValidationError, HISTORY_FINDING_CATEGORIES } from "../src/findi
 import { analyzeHistory } from "../src/history-context.js";
 import { MODERATION_POLICY } from "../src/policy.js";
 import { issueManualLabel, type IssuedLabel } from "../src/service.js";
-import { initializeSigningState } from "../src/signing-rotation.js";
+import {
+	abortRoutineKeyRotation,
+	beginRoutineKeyRotation,
+	initializeSigningState,
+} from "../src/signing-rotation.js";
 import type { LabelPublisher } from "../src/subscribe-labels.js";
 import { canonicalBundle, checksumOf, file } from "./bundle-fixture.js";
 
@@ -48,6 +52,7 @@ const LABELER_DID = "did:web:labels.emdashcms.com";
 const PUBLISHER_DID = "did:plc:publisher000000000000000000";
 const PRIVATE_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE";
 const MULTIKEY = "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
+const ROTATED_MULTIKEY = "zDnaer52RTwabaBeMkKYYwZmEFqPabLW78cRK62iovMUQhFif";
 const config = { labelerDid: LABELER_DID, signingKeyVersion: "v1" };
 
 /** Records every label handed to `publish`, mimicking the console/DO publisher. */
@@ -67,6 +72,27 @@ function recordingPublisher(managesPublicationState: boolean): {
 	};
 }
 
+/** A D1 wrapper that runs `onFirstBatch` immediately before the first
+ * `db.batch` call — the seam between finalization prep and commit. Everything
+ * else delegates to the real database. */
+function pauseBeforeFirstBatch(db: D1Database, onFirstBatch: () => Promise<void>): D1Database {
+	let triggered = false;
+	return new Proxy(db, {
+		get(target, prop, receiver) {
+			if (prop === "batch") {
+				return async (statements: D1PreparedStatement[]) => {
+					if (!triggered) {
+						triggered = true;
+						await onFirstBatch();
+					}
+					return target.batch(statements);
+				};
+			}
+			const value = Reflect.get(target, prop, receiver) as unknown;
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+}
 
 beforeAll(async () => {
 	await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);
@@ -1235,5 +1261,69 @@ describe("AssessmentOrchestrator: live publication (Finding 4)", () => {
 			.bind(run.uri, run.cid)
 			.first<{ n: number }>();
 		expect(pending?.n).toBe(0);
+	});
+});
+
+describe("AssessmentOrchestrator: signing pause between prep and commit (Finding 6)", () => {
+	it("leaves the run running and issues no labels when signing pauses before the batch commits", async () => {
+		const run = await pendingRun({ name: "pause-race", cidValue: await cid("pause-race") });
+		const rotationId = "finding6-pause";
+		// Pause signing in the seam between finalization prep (statements built while
+		// active) and the batch commit.
+		const db = pauseBeforeFirstBatch(testEnv.DB, async () => {
+			await beginRoutineKeyRotation(testEnv.DB, {
+				rotationId,
+				expectedActiveKeyVersion: "v1",
+				nextKeyVersion: "v2-finding6",
+				nextPublicKeyMultibase: ROTATED_MULTIKEY,
+			});
+		});
+		const orchestrator = new AssessmentOrchestrator({
+			db,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+		});
+
+		// The CAS shares the issuance signing guard, so the whole batch no-ops: the
+		// finalization conflict is raised rather than a suppressed-label signing error.
+		await expect(orchestrator.runAssessment(run.id)).rejects.toBeInstanceOf(
+			AssessmentFinalizationConflictError,
+		);
+
+		// The run is still running (not stranded terminal) and NO label leaked.
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("running");
+		const labels = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?`,
+		)
+			.bind(run.id)
+			.first<{ n: number }>();
+		expect(labels?.n).toBe(0);
+
+		// Resume signing and re-run (as the Workflow retry does): finalization now
+		// completes and issues the labels the paused attempt withheld.
+		await abortRoutineKeyRotation(testEnv.DB, {
+			rotationId,
+			expectedPendingKeyVersion: "v2-finding6",
+		});
+		const resumed = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+		});
+		const finalized = await resumed.runAssessment(run.id);
+		expect(finalized.state).toBe("passed");
+		const pendingNeg = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-pending'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(pendingNeg?.neg).toBe(1);
 	});
 });
