@@ -12,6 +12,7 @@ COPY templates/ templates/
 COPY demos/ demos/
 COPY docs/package.json docs/package.json
 COPY e2e/fixture/package.json e2e/fixture/package.json
+COPY patches/ patches/
 
 RUN sed -i '/slidev/d' pnpm-workspace.yaml
 RUN pnpm install --frozen-lockfile
