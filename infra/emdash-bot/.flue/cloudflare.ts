@@ -3,7 +3,7 @@
 
 import { Sandbox as BaseSandbox } from "@cloudflare/sandbox";
 
-import { gateGithubRequest } from "./lib/github-proxy.js";
+import { gateGithubRequest, githubAuthHeader } from "./lib/github-proxy.js";
 import { mintInstallationToken, readAppCreds } from "./lib/github.js";
 
 const INVESTIGATE_CONTAINER_ID = /^investigate-(\d+)-/;
@@ -91,7 +91,7 @@ async function handleAuthenticatedGithub(
 		return new Response("token mint failed", { status: 502 });
 	}
 	const authed = new Request(request);
-	authed.headers.set("authorization", `Basic ${btoa(`x-access-token:${token}`)}`);
+	authed.headers.set("authorization", githubAuthHeader(url.host, token));
 	authed.headers.set("user-agent", "emdash-bot");
 	try {
 		const res = await fetch(authed, { signal: AbortSignal.timeout(2 * 60_000) });

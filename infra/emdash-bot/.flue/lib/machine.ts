@@ -200,7 +200,12 @@ export type AgentEvent =
 	| "agent.failed"; // nonzero exit / no result file
 
 // GitHub PR lifecycle events that propagate onto the anchoring issue.
-export type PrEvent = "pr.opened" | "pr.merged" | "pr.changes_requested" | "pr.approved";
+export type PrEvent =
+	| "pr.opened"
+	| "pr.merged"
+	| "pr.closed"
+	| "pr.changes_requested"
+	| "pr.approved";
 
 export type EventId = CommandVerb | AgentEvent | PrEvent;
 
@@ -328,6 +333,10 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	// --- PR lifecycle ---
 	"pr.opened": { description: "A bot PR was opened for this item.", actors: ["system"] },
 	"pr.merged": { description: "The bot PR was merged.", actors: ["system"] },
+	"pr.closed": {
+		description: "The bot PR was closed without merging.",
+		actors: ["system"],
+	},
 	"pr.changes_requested": {
 		description: "A reviewer requested changes (review sub-state).",
 		actors: ["system"],
@@ -460,6 +469,18 @@ export const TRANSITIONS: Transition[] = [
 	// arrive after the merge no-op via investigate-run.yml's terminal guard.
 	{ from: "working", event: "pr.merged", to: "done", note: "merged mid-revise" },
 	{ from: "awaiting_feedback", event: "pr.merged", to: "done", note: "merged before confirm" },
+
+	// Closed without merge is not done. Return to blocked so a human can
+	// re-open the PR path, re-run, or take over. Mirror pr.merged's coverage
+	// of states where a bot PR may still be open.
+	{ from: "in_review", event: "pr.closed", to: "blocked", note: "PR closed without merge" },
+	{ from: "working", event: "pr.closed", to: "blocked", note: "PR closed mid-revise" },
+	{
+		from: "awaiting_feedback",
+		event: "pr.closed",
+		to: "blocked",
+		note: "PR closed while awaiting confirm",
+	},
 
 	// reset: maintainer recovery from every state, including conflicting/null.
 	// resolve() has a special path for `reset` that ignores currentState.

@@ -13,6 +13,7 @@ import {
 	isDestructive,
 	outcomeFromResult,
 	parseCommand,
+	parseMention,
 	replyFooter,
 	resolve,
 	resolveComment,
@@ -155,6 +156,29 @@ describe("router", () => {
 			assertTransition(d);
 			expect(d.to).toBe("triage");
 		}
+	});
+
+	test("resolve: pr.closed moves in_review / working / awaiting_feedback to blocked", () => {
+		for (const label of ["bot:in-review", "bot:working", "bot:awaiting-feedback"] as const) {
+			const d = resolve({
+				labels: ["bot:bug", label],
+				event: "pr.closed",
+				actor: "system",
+			});
+			assertTransition(d);
+			expect(d.to).toBe("blocked");
+			expect(d.action).toBe(null);
+		}
+	});
+
+	test("resolve: pr.merged still goes to done from in_review", () => {
+		const d = resolve({
+			labels: ["bot:bug", "bot:in-review"],
+			event: "pr.merged",
+			actor: "system",
+		});
+		assertTransition(d);
+		expect(d.to).toBe("done");
 	});
 
 	test("resolve: authorization is enforced per event", () => {
@@ -308,6 +332,23 @@ describe("router", () => {
 		});
 		assertReadonly(d);
 		expect(d.state).toBe("blocked");
+	});
+
+	test("resolveComment: bare @emdashbot without trailing whitespace yields status", () => {
+		expect(parseMention("@emdashbot")).toBe("");
+		const d = resolveComment({
+			labels: ["bot:bug", "bot:blocked"],
+			body: "@emdashbot",
+			actor: "maintainer",
+			allowDefault: false,
+		});
+		assertReadonly(d);
+		expect(d.event).toBe("status");
+		expect(d.state).toBe("blocked");
+	});
+
+	test("parseMention captures text beginning on the following line", () => {
+		expect(parseMention("@emdashbot\nplease investigate this")).toBe("please investigate this");
 	});
 
 	test("resolveComment: bare destructive verb still fires deterministically", () => {

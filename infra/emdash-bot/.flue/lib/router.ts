@@ -45,18 +45,9 @@ function isMachineActor(value: string): value is Actor {
 	return value === "reporter" || value === "maintainer" || value === "system";
 }
 
-// MENTION_RE matches an `@emdashbot` mention at the START of any line and
-// captures EVERYTHING that follows it through end-of-input (across newlines).
-//
-// The `m` flag is on `^` only -- we want the mention to start a line so prose
-// containing `@emdashbot` in the middle of a sentence doesn't fire. The
-// CAPTURE group then greedily eats `[\s\S]*` (any char including newline) to
-// the end of the input, NOT to the end of the line. This is load-bearing for
-// `parseCommand`'s strict bare-verb check: a comment like
-// `@emdashbot decline\nplease don't` would otherwise be treated as a bare
-// `decline` (an `$` end-of-line anchor with the `m` flag matches after the
-// verb word), bypassing the destructive-event guard.
-const MENTION_RE = /^[ \t]*@emdashbot[ \t]+([\s\S]*)/m;
+// Capture everything after a mention at the start of a line. The lookahead
+// rejects longer handles while allowing a bare mention to resolve to status.
+const MENTION_RE = /^[ \t]*@emdashbot(?=\s|$)([\s\S]*)/m;
 const WS_RE = /\s+/g;
 const UNDERSCORE_RE = /_/g;
 
@@ -105,7 +96,9 @@ const VERB_ALIASES: Record<string, EventId> = {
 export function parseMention(body: string | null | undefined): string | null {
 	if (!body) return null;
 	const m = body.match(MENTION_RE);
-	return m && m[1] !== undefined ? m[1].trim() : null;
+	if (!m) return null;
+	// Missing capture group means bare `@emdashbot` with no trailing text.
+	return (m[1] ?? "").trim();
 }
 
 export interface ParsedCommand {

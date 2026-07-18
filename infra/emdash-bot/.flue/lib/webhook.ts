@@ -138,6 +138,8 @@ interface PullRequest {
 	user?: User;
 	labels?: Label[];
 	draft?: boolean;
+	/** True when closed via merge; false when closed without merging. */
+	merged?: boolean;
 	author_association?: string;
 }
 
@@ -359,18 +361,13 @@ function normalizePullRequest(
 			machineEvent = "pr.opened";
 			break;
 		case "closed":
-			machineEvent = "pr.merged"; // refined to merged-vs-closed via pr.merged below
+			// Same GitHub action for merge and close-without-merge; the payload
+			// field `pull_request.merged` distinguishes them.
+			machineEvent = pr?.merged === true ? "pr.merged" : "pr.closed";
 			break;
 		default:
 			return { kind: "skip", reason: `pull_request.${action} not handled` };
 	}
-
-	// `pull_request.closed` is the same action whether the PR was merged or
-	// just closed; the machine distinguishes via pr.merged on the payload.
-	// We don't have that field on the trimmed type yet, so for now both
-	// terminal close states map to pr.merged; a follow-up commit will read
-	// `pull_request.merged: boolean` and route to a `pr.closed` event for
-	// the non-merged path.
 
 	return dispatchFor(number, {
 		event: machineEvent,

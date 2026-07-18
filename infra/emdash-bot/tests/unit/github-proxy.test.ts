@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { gateGithubRequest } from "../../.flue/lib/github-proxy.js";
+import { gateGithubRequest, githubAuthHeader } from "../../.flue/lib/github-proxy.js";
 
 const OWNER = "emdash-cms";
 const REPO = "emdash";
@@ -9,6 +9,24 @@ function gate(url: string, init?: RequestInit) {
 	const request = new Request(url, init);
 	return gateGithubRequest(request, new URL(url), OWNER, REPO, 123);
 }
+
+describe("githubAuthHeader", () => {
+	test("uses Bearer for api.github.com", () => {
+		expect(githubAuthHeader("api.github.com", "tok_abc")).toBe("Bearer tok_abc");
+	});
+
+	test("uses Basic x-access-token for git hosts", () => {
+		expect(githubAuthHeader("github.com", "tok_abc")).toBe(
+			`Basic ${btoa("x-access-token:tok_abc")}`,
+		);
+		expect(githubAuthHeader("codeload.github.com", "tok_abc")).toBe(
+			`Basic ${btoa("x-access-token:tok_abc")}`,
+		);
+		expect(githubAuthHeader("raw.githubusercontent.com", "tok_abc")).toBe(
+			`Basic ${btoa("x-access-token:tok_abc")}`,
+		);
+	});
+});
 
 function pktLine(payload: string): string {
 	return `${(payload.length + 4).toString(16).padStart(4, "0")}${payload}`;

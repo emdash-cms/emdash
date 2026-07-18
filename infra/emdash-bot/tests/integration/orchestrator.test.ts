@@ -283,6 +283,22 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(await stub.getInboxDepth()).toBe(0);
 	});
 
+	test("dryRun readonly status does not enqueue a GitHub side effect", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const outcome = await stub.event(
+			makeEvent({
+				event: "status",
+				arg: null,
+				actor: "maintainer",
+				dryRun: true,
+				anchorNumber: 42,
+				deliveryId: "dry-status-1",
+			}),
+		);
+		expect(outcome.kind).toBe("readonly");
+		expect(await stub.getPendingSideEffectCount()).toBe(0);
+	});
+
 	test("concurrent events on the same DO yield a deterministic end state", async () => {
 		// workerd single-threads DO message processing; this test pins that
 		// two events fired in parallel observe each other's effects rather

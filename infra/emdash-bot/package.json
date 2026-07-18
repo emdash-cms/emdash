@@ -9,6 +9,7 @@
 		"build": "vite build",
 		"deploy": "vite build && wrangler deploy",
 		"cf-typegen": "wrangler types",
+		"pretypecheck": "wrangler types",
 		"typecheck": "tsc --noEmit",
 		"test": "pnpm test:unit && pnpm test:workers",
 		"test:unit": "vitest run --config vitest.config.ts",

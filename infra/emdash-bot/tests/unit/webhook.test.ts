@@ -255,6 +255,38 @@ describe("normalizeWebhook", () => {
 			const r = normalizeWebhook({ eventType: "pull_request", payload });
 			expect(r.kind).toBe("skip");
 		});
+
+		test("closed with merged=true dispatches pr.merged", () => {
+			const payload: PullRequestEvent = {
+				action: "closed",
+				pull_request: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					merged: true,
+				},
+				sender: { login: "emdashbot[bot]" },
+			};
+			const r = normalizeWebhook({ eventType: "pull_request", payload });
+			expect(r.kind).toBe("dispatch");
+			if (r.kind !== "dispatch") return;
+			expect(r.event.event).toBe("pr.merged");
+		});
+
+		test("closed with merged=false dispatches pr.closed", () => {
+			const payload: PullRequestEvent = {
+				action: "closed",
+				pull_request: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					merged: false,
+				},
+				sender: { login: "emdashbot[bot]" },
+			};
+			const r = normalizeWebhook({ eventType: "pull_request", payload });
+			expect(r.kind).toBe("dispatch");
+			if (r.kind !== "dispatch") return;
+			expect(r.event.event).toBe("pr.closed");
+		});
 	});
 
 	describe("pull_request_review", () => {

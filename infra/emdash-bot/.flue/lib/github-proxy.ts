@@ -2,6 +2,16 @@ const GIT_REF = /refs\/(?:heads|tags)\/\S+/g;
 const PKT_LINE_HEADER = /^[0-9a-fA-F]{4}$/;
 const MAX_RECEIVE_PACK_COMMAND_BYTES = 64 * 1024;
 
+/**
+ * Auth scheme for the sandbox outbound GitHub proxy.
+ * - api.github.com expects `Authorization: Bearer <installation_token>`
+ * - git HTTPS hosts (github.com, codeload, raw) expect Basic x-access-token
+ */
+export function githubAuthHeader(host: string, token: string): string {
+	if (host === "api.github.com") return `Bearer ${token}`;
+	return `Basic ${btoa(`x-access-token:${token}`)}`;
+}
+
 export async function gateGithubRequest(
 	request: Request,
 	url: URL,

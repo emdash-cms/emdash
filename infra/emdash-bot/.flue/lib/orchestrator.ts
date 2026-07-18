@@ -9,6 +9,7 @@ import { DurableObject } from "cloudflare:workers";
 
 import { Investigate } from "../agents/investigate.js";
 import { classifyComment, type ClassifyResult } from "./classifier-client.js";
+import { renderAgentComment, renderReadonlyReply, shouldPostReadonlyReply } from "./comments.js";
 import {
 	addLabels,
 	closePullRequest,
@@ -308,7 +309,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return { kind: "noop", reason: decision.reason };
 		}
 		if (decision.kind === "readonly") {
-			await this.postReadonlyReply(decision, input);
+			if (shouldPostReadonlyReply(input.dryRun)) await this.postReadonlyReply(decision, input);
 			if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 			return { kind: "readonly", state: decision.state, event: decision.event };
 		}
@@ -1346,6 +1347,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return ((await this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox)) ?? []).length;
 	}
 
+	/** Test-only: pending GitHub projection queue depth. */
+	async getPendingSideEffectCount(): Promise<number> {
+		return ((await this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? [])
+			.length;
+	}
+
 	/** Test-only: inject a synthetic in-flight run for tick() recovery tests. */
 	async debugSetStaleRun(runId: string, startedAt: number, agentId?: string): Promise<void> {
 		await Promise.all([
@@ -1424,35 +1431,6 @@ class ClassifierProcessingError extends Error {
 	}
 }
 
-function renderReadonlyReply(state: StateId | null): string {
-	switch (state) {
-		case "unmanaged":
-		case null:
-		case "triage":
-			return "Not currently working on this. Try `@emdashbot repro` (for a bug), `@emdashbot implement <directive>` (for a change), or `@emdashbot decline`.";
-		case "working":
-			return "Investigating now. I'll comment again when I have something to share.";
-		case "blocked":
-			return "I got stuck. A maintainer can `@emdashbot retry` or `@emdashbot implement <directive>` to give me a steer.";
-		case "awaiting_feedback":
-			return "Waiting for you to verify the preview from my last comment. Reply `@emdashbot confirm` if it works, or describe what's still wrong.";
-		case "in_review":
-			return "PR is open and under review.";
-		case "human_owned":
-			return "A maintainer has taken this over. Hand it back with `@emdashbot hand back`.";
-		case "done":
-			return "Done. Reopen with `@emdashbot reopen` if something else comes up.";
-		case "declined":
-			return "I declined this. Reopen with `@emdashbot reopen` if circumstances change.";
-		case "failed":
-			return "My last attempt failed. A maintainer can `@emdashbot retry` or take it over.";
-		default: {
-			const _exhaustive: never = state;
-			return `State: \`${String(_exhaustive)}\`.`;
-		}
-	}
-}
-
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
@@ -1467,40 +1445,10 @@ function parseKind(value: string): Kind | null {
 	return null;
 }
 
-/**
- * Decide what to post on a transition. For user-driven events (someone typed
- * `@emdashbot repro` etc.) we say nothing -- the verb is already on the
- * thread and echoing it adds noise. For agent.* events the comment IS the
- * agent's own summary, with a structural call-to-action appended where
- * appropriate. If the agent didn't return a summary, we skip the post.
- */
 function renderComment(
 	decision: Extract<Decision, { kind: "transition" }>,
 	anchorNumber: number,
 	agentSummary?: string,
 ): string {
-	const summary = agentSummary?.trim();
-	if (!decision.event.startsWith("agent.")) return "";
-	if (!summary) return "";
-
-	switch (decision.event) {
-		case "agent.fix_ready":
-			return [
-				summary,
-				"",
-				"Try it:",
-				"",
-				"```sh",
-				`pnpm add https://pkg.pr.new/emdash@bot/fix-${anchorNumber}`,
-				"```",
-				"",
-				"Reply `@emdashbot confirm` if it works and I'll open the PR, or `@emdashbot revise <feedback>` to push changes.",
-			].join("\n");
-		case "agent.reproduced":
-			return `${summary}\n\nReply \`@emdashbot implement <directive>\` if you want me to take another swing with guidance.`;
-		case "agent.not_reproduced":
-			return `${summary}\n\nReply with steps that fail for you, or close if it's no longer relevant.`;
-		default:
-			return summary;
-	}
+	return renderAgentComment(decision, anchorNumber, agentSummary);
 }

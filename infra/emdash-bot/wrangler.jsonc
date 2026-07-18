@@ -5,6 +5,11 @@
 	"compatibility_date": "2026-07-17",
 	"compatibility_flags": ["nodejs_compat"],
 
+	// Type-only entry for `wrangler types` / `pretypecheck`. Flue's Vite plugin
+	// owns the real deploy entry; this file only exports DO classes so Env
+	// namespaces get the right generics on a fresh checkout.
+	"main": "./.flue/wrangler-main.ts",
+
 	// Workers AI: structural binding, no API key. Every model the bot uses
 	// (classify, investigate, fix) resolves through `cloudflare/@cf/...`
 	// specifiers in Pi, which calls env.AI.run() under the hood.
