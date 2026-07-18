@@ -187,6 +187,19 @@ describe("fetchAndVerifyRecord — SSRF egress hardening", () => {
 		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
 	});
 
+	it("maps a resolver infrastructure failure to the transient PDS_NETWORK_ERROR", async () => {
+		// A throwing resolver models a DoH network error / SERVFAIL / timeout —
+		// transient infrastructure, not a disallowed address. It must NOT dead-letter.
+		// If the shared helper's `Could not resolve hostname:` wording ever changes,
+		// this assertion breaks instead of silently mis-classifying as permanent.
+		const throwingResolver: DnsResolver = () => Promise.reject(new Error("DoH 503"));
+		const err = await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: rejectFetch, resolveHostname: throwingResolver })),
+		);
+		expect(err.reason).toBe("PDS_NETWORK_ERROR");
+		expect(isTransient(err.reason, err.status)).toBe(true);
+	});
+
 	it("rejects when the endpoint resolves to a private address", async () => {
 		const err = await captureRejection(
 			fetchAndVerifyRecord(
@@ -265,6 +278,29 @@ describe("fetchAndVerifyRecord — SSRF egress hardening", () => {
 		const err = await captureRejection(fetchAndVerifyRecord(buildOpts({ fetch: fetchImpl })));
 		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
 		expect(hops).toBe(1);
+	});
+
+	it("rejects with PDS_ADDRESS_BLOCKED when redirects exceed the hop limit", async () => {
+		// Every hop redirects to a fresh public host. After MAX_PDS_REDIRECTS
+		// followed hops the next redirect is refused (permanent — dead-letter).
+		let hops = 0;
+		const fetchImpl: typeof fetch = () => {
+			hops += 1;
+			return Promise.resolve(
+				new Response(null, {
+					status: 302,
+					headers: { location: `https://hop-${hops}.test.example/x` },
+				}),
+			);
+		};
+		const err = await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: fetchImpl, resolveHostname: publicResolver })),
+		);
+		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
+		expect(err.message).toMatch(/exceeded 3 redirects/);
+		// Initial hop + 3 followed redirects are fetched; the 4th is refused
+		// before a fetch is issued.
+		expect(hops).toBe(4);
 	});
 
 	it("bounds a slow-drip body by the wall-clock deadline", async () => {

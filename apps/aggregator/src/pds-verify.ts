@@ -30,6 +30,11 @@ const DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
  * publisher-controlled, so redirects are an SSRF pivot: every hop is
  * re-validated, and this caps the chain. */
 const MAX_PDS_REDIRECTS = 3;
+/** Message prefix `resolveAndValidateExternalUrl` uses when the injected DNS
+ * resolver itself throws (DoH network error / SERVFAIL / timeout) — a transient
+ * infrastructure failure, distinct from a disallowed address. Keyed on here to
+ * classify those as retryable; see `assertFetchableUrl`. */
+const RESOLVER_FAILURE_PREFIX = "Could not resolve hostname:";
 
 export type VerificationFailureReason =
 	| "PDS_NETWORK_ERROR"
@@ -167,6 +172,23 @@ async function assertFetchableUrl(url: string, resolver: DnsResolver): Promise<v
 		await resolveAndValidateExternalUrl(url, { resolver });
 	} catch (err) {
 		if (err instanceof SsrfError) {
+			// `resolveAndValidateExternalUrl` throws `SsrfError` for two very
+			// different situations: a disallowed address (permanent — dead-letter)
+			// and a resolver infrastructure failure such as a DoH network error,
+			// SERVFAIL, or timeout (transient — retry). `SsrfError.code` is the
+			// same constant for both, so the only discriminator is the message:
+			// the resolver-threw path is uniquely prefixed by
+			// `RESOLVER_FAILURE_PREFIX`. A test asserts the transient mapping so a
+			// future wording change in the shared helper breaks loudly here rather
+			// than silently dead-lettering legitimate records during a DoH blip.
+			if (err.message.startsWith(RESOLVER_FAILURE_PREFIX)) {
+				throw new PdsVerificationError(
+					"PDS_NETWORK_ERROR",
+					`PDS host resolution failed: ${err.message}`,
+					undefined,
+					err,
+				);
+			}
 			throw new PdsVerificationError(
 				"PDS_ADDRESS_BLOCKED",
 				`PDS address rejected: ${err.message}`,
