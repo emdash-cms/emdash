@@ -1,0 +1,29 @@
+packages/admin/tests/publish-button-locale.test.tsx
+  s_059817ae7c63f3::t_0d59f69364e398 5,7-8,25-26,138,162,173,192-196,243-244,280,290-293,307,310
+.changeset/fair-actions-align.md
+  s_059817ae7c63f3::t_cfdeda40bfdd9e 1-5
+packages/admin/src/components/ContentEditor.tsx
+  s_059817ae7c63f3::t_c78a84456e172f 690,743,807
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_059817ae7c63f3::t_0d55618f78690e 102,121-128,158,168,176-177,182-183,190,196,211,230-233,235-252,255-275
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_059817ae7c63f3::t_b5d55880b31050 1051,1059,1079-1081,1199-1201,1225-1227,1246-1249,1266-1269,1385,1394
+packages/admin/tests/components/ContentSettingsPanel.test.tsx
+  s_059817ae7c63f3::t_671a42dc527350 206,228,230,232-234,237,241,243,249,253,280-305
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f0e9a64dc104586c97ceed135047825b657e8621",
+  "prompts": {},
+  "sessions": {
+    "s_059817ae7c63f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f7575-6878-7af2-b84b-8a6bd6a92e37",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
