@@ -18,9 +18,13 @@ export type ModerationLabelValue =
 	| "assessment-pending"
 	| "artifact-integrity-failure"
 	| "broken-release"
+	| "content-warning"
 	| "credential-harvesting"
 	| "critical-vulnerability"
 	| "data-exfiltration"
+	| "explicit-imagery"
+	| "graphic-violence"
+	| "hateful-imagery"
 	| "impersonation"
 	| "invalid-bundle"
 	| "low-quality"
@@ -164,7 +168,11 @@ export interface ReleaseModeration {
 	redacted: boolean;
 }
 
-const AUTOMATED_BLOCKS = new Set<string>([
+/** Label values the labeler policy classifies as `automated-block`; each
+ * hard-blocks a release. MUST stay in lock-step with the labeler policy
+ * fixture's `automated-block` category (`apps/labeler/fixtures/moderation-policy.json`) --
+ * a value the labeler can issue but this set omits is not enforced. */
+export const AUTOMATED_BLOCKS: ReadonlySet<string> = new Set<string>([
 	"malware",
 	"data-exfiltration",
 	"credential-harvesting",
@@ -173,15 +181,22 @@ const AUTOMATED_BLOCKS = new Set<string>([
 	"artifact-integrity-failure",
 	"invalid-bundle",
 	"impersonation",
+	"hateful-imagery",
+	"explicit-imagery",
+	"graphic-violence",
 ]);
 
-const WARNINGS = new Set<string>([
+/** Label values the labeler policy classifies with `officialEffect: "warn"`;
+ * non-blocking. MUST stay in lock-step with the labeler policy fixture's
+ * warn-effect labels. */
+export const WARNINGS: ReadonlySet<string> = new Set<string>([
 	"suspicious-code",
 	"obfuscated-code",
 	"privacy-risk",
 	"misleading-metadata",
 	"low-quality",
 	"broken-release",
+	"content-warning",
 	"package-disputed",
 	"undeclared-access",
 ]);

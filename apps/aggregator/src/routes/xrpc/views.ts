@@ -21,7 +21,7 @@
 import { type AggregatorDefs, NSID } from "@emdash-cms/registry-lexicons";
 
 import { isPlainObject, parseSignatureMetadataCid } from "../../utils.js";
-import { LABELS_MAX_LENGTH, type LabelView } from "./label-enforcement.js";
+import { LABELS_MAX_LENGTH, labelTruncationPriority, type LabelView } from "./label-enforcement.js";
 
 /** Subset of columns from `packages` we read for `packageView`. Selecting
  * exactly these columns keeps the SQL query auditable and cheap. */
@@ -166,15 +166,42 @@ export function publisherUri(row: Pick<PublisherRow, "did">) {
  * labels are the union of multiple hydrated subjects (e.g. a release's own
  * URI plus its parent package and publisher DID). Hydration returns
  * untruncated per-subject sets so redaction decisions see every label;
- * this boundary cap trims only the final view array. */
+ * this boundary cap trims only the final view array.
+ *
+ * The trim is enforcement-preserving: a plain slice can drop the only hard
+ * block when a subject carries more than `LABELS_MAX_LENGTH` labels, and a
+ * client evaluating the truncated view would then treat the release as
+ * installable. Labels are ordered by `labelTruncationPriority` (blocks, then
+ * assessment states, then informational) before slicing, so blocks survive.
+ * Hydrated labels never carry negations (`hydrateLabels` returns only
+ * `neg = 0` rows), so ordering can't split a label from its negation. In the
+ * pathological case of more than `LABELS_MAX_LENGTH` hard blocks the kept
+ * slice is still all blocks — the release stays blocked, only the exact set
+ * is lossy — and we log an error. */
 function capLabels(labels: LabelView[], uri: string): LabelView[] {
 	if (labels.length <= LABELS_MAX_LENGTH) return labels;
-	console.warn("[aggregator] view labels truncated to maxLength", {
-		uri,
-		count: labels.length,
-		cap: LABELS_MAX_LENGTH,
-	});
-	return labels.slice(0, LABELS_MAX_LENGTH);
+	const ordered = labels.toSorted(
+		(left, right) => labelTruncationPriority(left.val) - labelTruncationPriority(right.val),
+	);
+	const kept = ordered.slice(0, LABELS_MAX_LENGTH);
+	const droppedBlocks = ordered
+		.slice(LABELS_MAX_LENGTH)
+		.filter((label) => labelTruncationPriority(label.val) === 0).length;
+	if (droppedBlocks > 0) {
+		console.error("[aggregator] view label cap dropped hard-block labels", {
+			uri,
+			count: labels.length,
+			cap: LABELS_MAX_LENGTH,
+			droppedBlocks,
+		});
+	} else {
+		console.warn("[aggregator] view labels truncated to maxLength", {
+			uri,
+			count: labels.length,
+			cap: LABELS_MAX_LENGTH,
+		});
+	}
+	return kept;
 }
 
 /** `LabelView.src` is `string`; the lexicon's `Label.src` is a branded DID

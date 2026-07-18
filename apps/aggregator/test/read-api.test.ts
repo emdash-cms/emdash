@@ -850,6 +850,115 @@ describe("getLatestRelease", () => {
 		const body = (await res.json()) as Record<string, unknown>;
 		expect(body["version"]).toBe("1.0.0");
 	});
+
+	// §10 override rule: a source's exact-CID assessment-passed +
+	// assessment-overridden pair suppresses that source's automated blocks for
+	// the release, mirroring `evaluateReleaseModerationCore`. The enforcement
+	// SQL must not exclude a release whose only live block is so suppressed.
+	const OVERRIDE_CID = "bafoverridecid";
+
+	it("includes a release whose re-issued automated block is suppressed by a same-source exact-CID override pair", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "assessment-passed", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "assessment-overridden", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "malware", cid: OVERRIDE_CID });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body["version"]).toBe("1.0.0");
+	});
+
+	it("includes a release carrying an override pair and no block", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "assessment-passed", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "assessment-overridden", cid: OVERRIDE_CID });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body["version"]).toBe("1.0.0");
+	});
+
+	it("excludes a release with an automated block and no override pair", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		await seedLabelState({ uri: releaseUri("demo", "1.0.0"), val: "malware", cid: OVERRIDE_CID });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("still excludes when the override pair is from a different source than the block", async () => {
+		const OTHER_LABELER_DID = "did:web:other-labels.example";
+		await seedLabeler(LABELER_DID, true);
+		await seedLabeler(OTHER_LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "malware", cid: OVERRIDE_CID });
+		await seedLabelState({
+			uri,
+			val: "assessment-passed",
+			cid: OVERRIDE_CID,
+			src: OTHER_LABELER_DID,
+		});
+		await seedLabelState({
+			uri,
+			val: "assessment-overridden",
+			cid: OVERRIDE_CID,
+			src: OTHER_LABELER_DID,
+		});
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("still excludes when the override pair CID does not match the release", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "malware", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "assessment-passed", cid: "bafstalecid" });
+		await seedLabelState({ uri, val: "assessment-overridden", cid: "bafstalecid" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("never suppresses a security-yanked release block, even with an override pair", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "assessment-passed", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "assessment-overridden", cid: OVERRIDE_CID });
+		// `security-yanked` is issued CID-less (policy cidRule: forbidden).
+		await seedLabelState({ uri, val: "security-yanked" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
 });
 
 describe("searchPackages", () => {
