@@ -84,6 +84,14 @@ describe("aggregator scaffold smoke test", () => {
 		expect(result?.slug).toBe("searchable");
 	});
 
+	it("exposes a queryable labelers table under the name src queries", async () => {
+		// `0001_init.sql` creates the table as `labellers`; `0004` renames it to
+		// `labelers`, the spelling every query in `src/` uses. A fresh install
+		// must land on `labelers`.
+		const result = await testEnv.DB.prepare(`SELECT did FROM labelers`).all();
+		expect(result.success).toBe(true);
+	});
+
 	it("rejects a release whose did/package does not match an existing profile (FK)", async () => {
 		// Releases reference packages via composite FK; SQLite enforces this when
 		// FK checks are enabled. workers-pool's miniflare D1 has FK checks on by

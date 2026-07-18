@@ -1,3 +1,10 @@
+-- Frozen snapshot of `migrations/0001_init.sql` as it shipped on `main`
+-- (with the `labellers` table spelling). The upgrade test in
+-- `migration-upgrade.test.ts` applies this directory (main's shipped migration
+-- set) to reproduce a database provisioned before the `labellers` ->
+-- `labelers` rename, then applies the live migration set on top. Do not "fix"
+-- the spelling here: this file must keep reproducing the historical schema.
+--
 -- EmDash plugin registry aggregator: initial schema.
 --
 -- Lands every table that the v1 read API + ingest pipeline + label hydration
