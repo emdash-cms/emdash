@@ -599,7 +599,7 @@ export async function issueAutomatedAssessmentLabel(
 	return issueLabel(db, config, signer, action, proposal, now, publisher);
 }
 
-async function markPublicationAccepted(db: D1Database, issued: IssuedLabel): Promise<void> {
+export async function markPublicationAccepted(db: D1Database, issued: IssuedLabel): Promise<void> {
 	await db
 		.prepare(
 			`UPDATE issued_labels SET publication_pending = 0

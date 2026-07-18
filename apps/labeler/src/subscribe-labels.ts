@@ -46,18 +46,26 @@ export interface LabelPublisher {
 	publish(issued: IssuedLabel): Promise<void>;
 }
 
-export function createLabelPublisher(env: Env): LabelPublisher {
+/**
+ * Notifies the subscription DO of a committed label sequence. The DO broadcasts
+ * it and clears the row's `publication_pending` flag. Shared by the live
+ * publisher and the reconciliation `publication_pending` sweep so both drive the
+ * exact same DO endpoint.
+ */
+export async function notifyLabelSubscription(env: Env, sequence: number): Promise<void> {
 	const subscription = env.LABEL_SUBSCRIPTION.getByName(LABEL_SUBSCRIPTION_DO_NAME);
+	const response = await subscription.fetch("https://labeler.internal/notify", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ sequence }),
+	});
+	if (!response.ok) throw new Error(`label notification failed with ${response.status}`);
+}
+
+export function createLabelPublisher(env: Env): LabelPublisher {
 	return {
 		managesPublicationState: true,
-		async publish(issued) {
-			const response = await subscription.fetch("https://labeler.internal/notify", {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ sequence: issued.sequence }),
-			});
-			if (!response.ok) throw new Error(`label notification failed with ${response.status}`);
-		},
+		publish: (issued) => notifyLabelSubscription(env, issued.sequence),
 	};
 }
 

@@ -33,8 +33,9 @@ import {
 import { FindingValidationError, HISTORY_FINDING_CATEGORIES } from "../src/findings.js";
 import { analyzeHistory } from "../src/history-context.js";
 import { MODERATION_POLICY } from "../src/policy.js";
-import { issueManualLabel } from "../src/service.js";
+import { issueManualLabel, type IssuedLabel } from "../src/service.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
+import type { LabelPublisher } from "../src/subscribe-labels.js";
 import { canonicalBundle, checksumOf, file } from "./bundle-fixture.js";
 
 interface TestEnv {
@@ -48,6 +49,24 @@ const PUBLISHER_DID = "did:plc:publisher000000000000000000";
 const PRIVATE_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE";
 const MULTIKEY = "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
 const config = { labelerDid: LABELER_DID, signingKeyVersion: "v1" };
+
+/** Records every label handed to `publish`, mimicking the console/DO publisher. */
+function recordingPublisher(managesPublicationState: boolean): {
+	publisher: LabelPublisher;
+	published: IssuedLabel[];
+} {
+	const published: IssuedLabel[] = [];
+	return {
+		published,
+		publisher: {
+			managesPublicationState,
+			async publish(issued) {
+				published.push(issued);
+			},
+		},
+	};
+}
+
 
 beforeAll(async () => {
 	await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);
@@ -1117,5 +1136,104 @@ describe("AssessmentOrchestrator: real acquire stage (W7.2)", () => {
 			.bind(run.uri, run.cid)
 			.first<{ neg: number }>();
 		expect(error?.neg).toBe(0);
+	});
+});
+
+describe("AssessmentOrchestrator: live publication (Finding 4)", () => {
+	it("issues finalization labels publication_pending and broadcasts each to the publisher", async () => {
+		const run = await pendingRun({ name: "publish-live", cidValue: await cid("publish-live") });
+		const { publisher, published } = recordingPublisher(true);
+		const orchestrator = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+			publisher,
+		});
+
+		const result = await orchestrator.runAssessment(run.id);
+		expect(result.state).toBe("passed");
+
+		// Every label this run committed was broadcast: the assessment-pending
+		// negation and the assessment-passed positive.
+		const publishedVals = published.map((p) => p.label.val).toSorted();
+		expect(publishedVals).toEqual(["assessment-passed", "assessment-pending"]);
+
+		// A publisher that manages publication state (the real DO clears the flag on
+		// /notify) leaves the rows pending here — the fake never cleared them.
+		const pending = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND cid = ? AND publication_pending = 1`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ n: number }>();
+		expect(pending?.n).toBe(2);
+	});
+
+	it("clears publication_pending via markPublicationAccepted for a non-managing publisher", async () => {
+		const run = await pendingRun({ name: "publish-accept", cidValue: await cid("publish-accept") });
+		const { publisher, published } = recordingPublisher(false);
+		const orchestrator = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+			publisher,
+		});
+
+		await orchestrator.runAssessment(run.id);
+		expect(published.length).toBe(2);
+
+		const pending = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND cid = ? AND publication_pending = 1`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ n: number }>();
+		expect(pending?.n).toBe(0);
+	});
+
+	it("finalizes and leaves rows publication_pending when the notify fails — the sweep backstops", async () => {
+		const run = await pendingRun({ name: "publish-fail", cidValue: await cid("publish-fail") });
+		const failing: LabelPublisher = {
+			managesPublicationState: true,
+			publish: () => Promise.reject(new Error("subscription DO unreachable")),
+		};
+		const orchestrator = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+			publisher: failing,
+		});
+
+		// A dropped notify never fails the run: the batch already committed.
+		const result = await orchestrator.runAssessment(run.id);
+		expect(result.state).toBe("passed");
+
+		const pending = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND cid = ? AND publication_pending = 1`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ n: number }>();
+		expect(pending?.n).toBe(2);
+	});
+
+	it("issues finalization labels already-published (publication_pending = 0) when no publisher is wired", async () => {
+		const run = await pendingRun({ name: "publish-none", cidValue: await cid("publish-none") });
+		const orchestrator = await buildOrchestrator();
+
+		await orchestrator.runAssessment(run.id);
+
+		const pending = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND cid = ? AND publication_pending = 1`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ n: number }>();
+		expect(pending?.n).toBe(0);
 	});
 });

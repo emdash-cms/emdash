@@ -31,9 +31,12 @@ import { resolvePolicyOutcome, type OutcomeLabel, type PolicyOutcome } from "./p
 import type { ModerationPolicy } from "./policy.js";
 import {
 	buildIssuanceStatements,
+	markPublicationAccepted,
 	type AutomatedIssuanceAction,
 	type AutomatedLabelProposal,
+	type IssuedLabel,
 } from "./service.js";
+import type { LabelPublisher } from "./subscribe-labels.js";
 
 /**
  * A stage's finding is the canonical normalized contract (`findings.ts`).
@@ -106,6 +109,13 @@ export interface AssessmentOrchestratorOptions {
 	 * AI stages accumulate (`assessment-stages.ts`); `undefined` (or an undefined
 	 * return) leaves the stored value unchanged. */
 	resolveCoverageJson?: () => string | undefined;
+	/** Broadcasts each finalized label to the subscription DO after the batch
+	 * commits (the same publisher the console path uses via `createLabelPublisher`).
+	 * When present, finalization labels are issued `publication_pending = 1` and
+	 * this drives the live notify; the reconciliation `publication_pending` sweep is
+	 * the durable backstop for a notify that fails here. Omitted in tests that don't
+	 * exercise publication. */
+	publisher?: LabelPublisher;
 }
 
 export class AssessmentOrchestrator {
@@ -119,6 +129,7 @@ export class AssessmentOrchestrator {
 	private readonly sleep: (ms: number) => Promise<void>;
 	private readonly retryDelayMs: number;
 	private readonly resolveCoverageJson: (() => string | undefined) | undefined;
+	private readonly publisher: LabelPublisher | undefined;
 
 	constructor(opts: AssessmentOrchestratorOptions) {
 		this.db = opts.db;
@@ -131,6 +142,7 @@ export class AssessmentOrchestrator {
 		this.sleep = opts.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
 		this.retryDelayMs = opts.retryDelayMs ?? 0;
 		this.resolveCoverageJson = opts.resolveCoverageJson;
+		this.publisher = opts.publisher;
 	}
 
 	async runAssessment(runId: string): Promise<Assessment> {
@@ -270,7 +282,7 @@ export class AssessmentOrchestrator {
 		});
 
 		const statements = [...finalization.statements];
-		const postCommits: Array<() => Promise<unknown>> = [];
+		const postCommits: Array<() => Promise<IssuedLabel>> = [];
 
 		const issue = async (
 			val: string,
@@ -298,7 +310,11 @@ export class AssessmentOrchestrator {
 					...proposal,
 				},
 				now,
-				false,
+				// Mark for publication only when a publisher is wired: the post-commit
+				// notify (below) drains it, the reconciliation sweep backstops a failed
+				// notify, and rotation waits for the drain. With no publisher (tests),
+				// the label commits already-published so nothing strands.
+				this.publisher !== undefined,
 				// Gate every finalization label on the run reaching `toState`, so a
 				// concurrent cancel/delete that no-ops the CAS also no-ops the labels.
 				{ requireAssessmentState: toState },
@@ -382,11 +398,39 @@ export class AssessmentOrchestrator {
 			const raced = await getAssessment(this.db, assessment.id);
 			throw new AssessmentFinalizationConflictError(assessment.id, toState, raced?.state ?? null);
 		}
-		for (const postCommit of postCommits) await postCommit();
+		const issued: IssuedLabel[] = [];
+		for (const postCommit of postCommits) issued.push(await postCommit());
+		await this.publishLabels(issued);
 
 		const finalised = await getAssessment(this.db, assessment.id);
 		if (!finalised) throw new Error(`assessment ${assessment.id} disappeared after finalization`);
 		return finalised;
+	}
+
+	/**
+	 * Live broadcast of the finalized labels to the subscription DO, best-effort:
+	 * the batch has already committed, so a notify failure must never fail the run.
+	 * A dropped notify leaves the row `publication_pending = 1` for the
+	 * reconciliation sweep to re-drive (which also unblocks a rotation waiting on
+	 * the drain). Mirrors `service.ts` `issueLabel`: when the publisher manages
+	 * publication state (the DO clears the flag on `/notify`) the caller does not.
+	 */
+	private async publishLabels(issued: readonly IssuedLabel[]): Promise<void> {
+		const publisher = this.publisher;
+		if (!publisher) return;
+		for (const label of issued) {
+			try {
+				await publisher.publish(label);
+				if (!publisher.managesPublicationState) await markPublicationAccepted(this.db, label);
+			} catch (error) {
+				console.error("[assessment-orchestrator] label publication failed", {
+					assessmentId:
+						label.action.type === "automated-assessment" ? label.action.assessmentId : undefined,
+					sequence: label.sequence,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
 	}
 }
 

@@ -7,7 +7,7 @@ import {
 	createSubject,
 	transitionAssessmentState,
 } from "../src/assessment-store.js";
-import { reconcileAssessments } from "../src/reconciliation.js";
+import { reconcileAssessments, sweepPendingPublications } from "../src/reconciliation.js";
 
 interface TestEnv {
 	DB: D1Database;
@@ -136,5 +136,94 @@ describe("reconcileAssessments", () => {
 
 		const withTightThreshold = await reconcileAssessments(testEnv.DB, new Date(), 5 * 60 * 1000);
 		expect(withTightThreshold.stuckRuns.some((run) => run.id === id)).toBe(true);
+	});
+});
+
+let seedCounter = 0;
+
+/** Inserts a signed-label row directly with a chosen `cts` and pending flag,
+ * returning its trigger-assigned sequence. */
+async function seedPendingLabel(opts: {
+	cts: string;
+	publicationPending: boolean;
+}): Promise<number> {
+	seedCounter++;
+	const idempotencyKey = `sweep-seed-${seedCounter}`;
+	await testEnv.DB.prepare(
+		`INSERT INTO issuance_actions (actor, type, reason, idempotency_key, created_at)
+		 VALUES (?, 'manual-label', 'sweep seed', ?, ?)`,
+	)
+		.bind("did:example:seed", idempotencyKey, opts.cts)
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO issued_labels
+		 (action_id, ver, src, uri, cid, val, neg, cts, exp, sig, signing_key_id,
+		  signing_key_version, publication_pending)
+		 SELECT id, 1, 'did:example:seed', ?, NULL, 'security-yanked', 0, ?, NULL, ?,
+		  'did:example:seed#atproto_label', 'v1', ?
+		 FROM issuance_actions WHERE idempotency_key = ?`,
+	)
+		.bind(
+			`at://did:example:seed/com.emdashcms.experimental.package.release/sweep-${seedCounter}:1.0.0`,
+			opts.cts,
+			new Uint8Array([1, 2, 3]),
+			opts.publicationPending ? 1 : 0,
+			idempotencyKey,
+		)
+		.run();
+	const row = await testEnv.DB.prepare(
+		`SELECT sequence FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+		 WHERE a.idempotency_key = ?`,
+	)
+		.bind(idempotencyKey)
+		.first<{ sequence: number }>();
+	return row!.sequence;
+}
+
+describe("sweepPendingPublications", () => {
+	const now = new Date("2026-07-18T12:00:00.000Z");
+	const oldCts = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
+	const recentCts = new Date(now.getTime() - 60 * 1000).toISOString();
+
+	it("re-drives only pending rows older than the threshold", async () => {
+		const stale = await seedPendingLabel({ cts: oldCts, publicationPending: true });
+		const recent = await seedPendingLabel({ cts: recentCts, publicationPending: true });
+		const settled = await seedPendingLabel({ cts: oldCts, publicationPending: false });
+
+		const notified: number[] = [];
+		const report = await sweepPendingPublications({
+			db: testEnv.DB,
+			notify: async (sequence) => {
+				notified.push(sequence);
+			},
+			now,
+		});
+
+		expect(notified).toContain(stale);
+		expect(notified).not.toContain(recent);
+		expect(notified).not.toContain(settled);
+		expect(report.redriven).toBeGreaterThanOrEqual(1);
+		expect(report.failed).toBe(0);
+	});
+
+	it("counts a failed notify without throwing, leaving the row for a later pass", async () => {
+		const stuck = await seedPendingLabel({ cts: oldCts, publicationPending: true });
+
+		const report = await sweepPendingPublications({
+			db: testEnv.DB,
+			notify: (sequence) =>
+				sequence === stuck ? Promise.reject(new Error("DO unreachable")) : Promise.resolve(),
+			now,
+		});
+
+		expect(report.failed).toBeGreaterThanOrEqual(1);
+		// The row is untouched (still pending) — the sweep never clears the flag
+		// itself; only a successful DO notify does.
+		const stillPending = await testEnv.DB.prepare(
+			`SELECT publication_pending FROM issued_labels WHERE sequence = ?`,
+		)
+			.bind(stuck)
+			.first<{ publication_pending: number }>();
+		expect(stillPending?.publication_pending).toBe(1);
 	});
 });

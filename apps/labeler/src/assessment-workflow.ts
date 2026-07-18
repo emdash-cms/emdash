@@ -52,6 +52,7 @@ import { createNotifyDeps, notifyAssessmentOutcome } from "./notification-trigge
 import { MODERATION_POLICY, type ModerationPolicy } from "./policy.js";
 import { createReleaseResolver, type ReleaseReader } from "./release-resolution.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
+import { createLabelPublisher } from "./subscribe-labels.js";
 
 const RUN_STEP_CONFIG = {
 	retries: { limit: 3, delay: "10 seconds" as const, backoff: "exponential" as const },
@@ -118,6 +119,9 @@ export async function executeAssessmentInstance(
 			ai: env.AI,
 		}),
 		resolveCoverageJson: () => serializeCoverage(coverage),
+		// Same subscription-DO publisher the console path uses: finalized labels
+		// broadcast live post-commit, with the reconciliation sweep as the backstop.
+		publisher: createLabelPublisher(env),
 	});
 	const finalized = await orchestrator.runAssessment(assessmentId);
 	await notifyOutcome(env, finalized);
