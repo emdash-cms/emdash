@@ -13,6 +13,7 @@ import {
 } from "../src/notification-contacts.js";
 import type { ConfirmationPayload, NoticePayload, SendResult } from "../src/notification-send.js";
 import {
+	contactTargetFromUri,
 	notifyAssessmentOutcome,
 	notifyEmergencyTakedown,
 	notifyOperatorLabel,
@@ -45,6 +46,8 @@ interface AggregatorOpts {
 	email?: string;
 	verifications?: unknown[];
 	verifyStatus?: number;
+	/** A package `security[]` contact served by getPackage for a specific slug. */
+	packageSecurity?: { slug: string; email: string };
 }
 
 function aggregatorFor(opts: AggregatorOpts): AggregatorClient {
@@ -54,6 +57,14 @@ function aggregatorFor(opts: AggregatorOpts): AggregatorClient {
 				if (opts.verifyStatus !== undefined && opts.verifyStatus !== 200)
 					return new Response("err", { status: opts.verifyStatus });
 				return Response.json({ did: DID, verifications: opts.verifications ?? [], labels: [] });
+			}
+			if (url.includes("getPackage") && opts.packageSecurity !== undefined) {
+				const slug = new URL(url).searchParams.get("slug");
+				if (slug === opts.packageSecurity.slug) {
+					return Response.json({
+						profile: { security: [{ email: opts.packageSecurity.email }] },
+					});
+				}
 			}
 			if (url.includes("getPublisher") && opts.email !== undefined) {
 				return Response.json({
@@ -365,6 +376,43 @@ describe("provider hard-bounce", () => {
 			.bind(hash)
 			.first<{ reason: string }>();
 		expect(supp?.reason).toBe("bounce");
+	});
+});
+
+describe("package slug parse", () => {
+	it("parses the parent package slug from a release rkey (slug:version)", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/gallery:1.2.0`,
+		);
+		expect(target).toEqual({ did: DID, slug: "gallery" });
+	});
+
+	it("keeps a package rkey (no version) as the slug", () => {
+		const target = contactTargetFromUri(`at://${DID}/com.emdashcms.experimental.package/gallery`);
+		expect(target).toEqual({ did: DID, slug: "gallery" });
+	});
+
+	it("degrades safely on an rkey with no slug before the version delimiter", () => {
+		const target = contactTargetFromUri(
+			`at://${DID}/com.emdashcms.experimental.package.release/:1.2.0`,
+		);
+		expect(target).toEqual({ did: DID, slug: ":1.2.0" });
+	});
+
+	it("resolves the package's security contact for a release URI", async () => {
+		const email = uniq("pkgsec") + "@x.test";
+		await seedConfirmed(email);
+		const sender = recordingSender();
+		const releaseUri = `at://${DID}/com.emdashcms.experimental.package.release/gallery:1.2.0`;
+		const a = assessmentRow({ state: "blocked", uri: releaseUri });
+
+		await notifyAssessmentOutcome(
+			deps(aggregatorFor({ packageSecurity: { slug: "gallery", email } }), sender),
+			a,
+		);
+
+		expect(sender.notices).toHaveLength(1);
+		expect(sender.notices[0]?.to).toBe(email);
 	});
 });
 

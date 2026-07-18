@@ -577,22 +577,33 @@ function assessmentUrl(serviceUrl: string, uri: string, cid?: string): string {
 /**
  * The `{ did, slug }` a notice's contact resolution needs, parsed from the
  * subject URI. A record URI (`at://did/collection/rkey`) yields the DID and the
- * rkey as the slug — for a package record the rkey IS the package slug (tier-1/2
- * resolve); for a release the rkey misses the package tiers and resolution falls
- * through to the DID-keyed publisher-profile contact (tier 3), which is the
- * reliable channel. A bare DID subject (publisher-level action) resolves by DID
- * alone. Anything unparseable returns null and the notice is skipped.
+ * parent package slug: a package rkey IS the slug, and a release rkey is
+ * `slug:version`, so the slug is the part before the first `:`. That lets
+ * `getPackage` reach the package's `security[]`/`authors[]` contacts (tier-1/2)
+ * for a release subject instead of falling straight through to the DID-keyed
+ * publisher profile (tier 3). A bare DID subject (publisher-level action)
+ * resolves by DID alone. Anything unparseable returns null and the notice is
+ * skipped.
  */
 export function contactTargetFromUri(uri: string): ContactTarget | null {
 	if (uri.startsWith("at://")) {
 		const [did, , rkey] = uri.slice("at://".length).split("/");
 		if (did === undefined || did.length === 0) return null;
-		return { did, slug: rkey ?? "" };
+		return { did, slug: packageSlugFromRkey(rkey ?? "") };
 	}
 	if (uri.startsWith("did:")) {
 		return { did: uri, slug: uri.split(":").at(-1) ?? uri };
 	}
 	return null;
+}
+
+/** The parent package slug from a record rkey: the part before the `:` version
+ * delimiter for a release (`gallery:1.2.0` → `gallery`), or the rkey verbatim for
+ * a package (no delimiter) or any rkey whose delimiter is leading (no slug to
+ * take — left as-is so resolution degrades to the publisher tier). */
+function packageSlugFromRkey(rkey: string): string {
+	const delimiter = rkey.indexOf(":");
+	return delimiter > 0 ? rkey.slice(0, delimiter) : rkey;
 }
 
 function logTrigger(source: NotificationSource, did: string, outcome: string): void {
