@@ -43,6 +43,7 @@ import {
 	PublisherProfile,
 	PublisherVerification,
 } from "@emdash-cms/registry-lexicons";
+import { cloudflareDohResolver, type DnsResolver } from "emdash/security/ssrf";
 
 import { createD1DidDocCache, DidResolver } from "./did-resolver.js";
 import type { RecordsJob } from "./env.js";
@@ -63,6 +64,12 @@ export interface ConsumerDeps {
 	db: D1Database;
 	resolver: DidResolver;
 	fetch?: typeof fetch;
+	/**
+	 * SSRF-safe hostname resolver handed to `fetchAndVerifyRecord` so it can
+	 * validate the publisher-controlled PDS endpoint (and any redirect) before
+	 * connecting. Production wires `cloudflareDohResolver`.
+	 */
+	resolveHostname?: DnsResolver;
 	now?: () => Date;
 	/**
 	 * Optional override for the PDS-verification step. Used by tests to inject
@@ -78,6 +85,7 @@ export interface ConsumerDeps {
 		rkey: string;
 		publicKey: import("@atcute/crypto").PublicKey;
 		fetch?: typeof fetch;
+		resolveHostname?: DnsResolver;
 	}) => Promise<VerifiedPdsRecord>;
 }
 
@@ -85,7 +93,7 @@ export interface ConsumerDeps {
  * don't need to import workerd types. */
 export interface MessageController {
 	ack(): void;
-	retry(): void;
+	retry(options?: { delaySeconds?: number }): void;
 }
 
 /** Subset of a `MessageBatch`. Workers' real batch object satisfies this. */
@@ -102,6 +110,7 @@ export type DeadLetterReason =
 	| "RESPONSE_TOO_LARGE"
 	| "INVALID_PROOF"
 	| "PDS_HTTP_ERROR"
+	| "PDS_ADDRESS_BLOCKED"
 	// structural checks (consumer-enforced)
 	| "LEXICON_VALIDATION_FAILED"
 	| "RKEY_MISMATCH"
@@ -241,7 +250,12 @@ export async function processMessage(
 	} catch (err) {
 		if (err instanceof PdsVerificationError) {
 			if (isTransient(err.reason, err.status)) {
-				controller.retry();
+				// A transient DNS-resolution failure carries a re-delivery delay so
+				// retries span the DNS-propagation window instead of firing back to
+				// back; other transient failures (network, 5xx, timeout) retry now.
+				controller.retry(
+					err.retryAfterSeconds !== undefined ? { delaySeconds: err.retryAfterSeconds } : undefined,
+				);
 				return;
 			}
 			// Compute the mapped reason in its own try/catch — `mapPdsReason`
@@ -311,6 +325,7 @@ async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<voi
 		rkey: job.rkey,
 		publicKey: resolved.publicKey,
 		fetch: deps.fetch,
+		resolveHostname: deps.resolveHostname,
 	});
 
 	// Cross-check vs Jetstream copy intentionally omitted: the verified PDS
@@ -970,6 +985,9 @@ function createProductionDeps(env: Env): ConsumerDeps {
 		// the bound wrapper rather than letting `pds-verify.ts` fall
 		// back to bare global `fetch`.
 		fetch: boundFetch,
+		// DoH-backed resolver `pds-verify.ts` validates the publisher's PDS
+		// endpoint (and any redirect) against the SSRF blocklist before fetching.
+		resolveHostname: cloudflareDohResolver,
 	};
 }
 
@@ -989,6 +1007,7 @@ function mapPdsReason(reason: VerificationFailureReason): DeadLetterReason {
 		case "RESPONSE_TOO_LARGE":
 		case "INVALID_PROOF":
 		case "PDS_HTTP_ERROR":
+		case "PDS_ADDRESS_BLOCKED":
 			return reason;
 		case "PDS_NETWORK_ERROR":
 			throw new Error(

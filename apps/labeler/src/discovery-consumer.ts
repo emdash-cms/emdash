@@ -32,6 +32,7 @@ import {
 	PlcDidDocumentResolver,
 } from "@atcute/identity-resolver";
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
+import { cloudflareDohResolver, type DnsResolver } from "emdash/security/ssrf";
 
 import {
 	AssessmentDispatchError,
@@ -102,6 +103,9 @@ export interface DiscoveryConsumerDeps {
 	 * matching the orchestrator's no-publisher behaviour). */
 	publisher?: LabelPublisher;
 	fetch?: typeof fetch;
+	/** Resolves each PDS hop's hostname for the SSRF egress guard; defaults to
+	 * the DoH resolver used by artifact acquisition. */
+	resolveHostname?: DnsResolver;
 	now?: () => Date;
 	/**
 	 * Optional override for the record-verification step. Used by tests to
@@ -115,6 +119,7 @@ export interface DiscoveryConsumerDeps {
 		cid: string;
 		didDocumentResolver: DidDocumentResolverLike;
 		fetch?: typeof fetch;
+		resolveHostname?: DnsResolver;
 	}) => Promise<VerifiedPdsRecord>;
 	/** Override for the delete-path absence check; defaults to
 	 * `confirmRecordAbsent`. Returns `true` when the record is verifiably gone. */
@@ -122,14 +127,17 @@ export interface DiscoveryConsumerDeps {
 		uri: string;
 		didDocumentResolver: DidDocumentResolverLike;
 		fetch?: typeof fetch;
+		resolveHostname?: DnsResolver;
 	}) => Promise<boolean>;
 }
 
 /** Subset of `cloudflare:workers` `Message` we use; defining inline so tests
  * don't need to import workerd types. */
 export interface MessageController {
+	/** 1 on first delivery, incremented on each redelivery. */
+	readonly attempts: number;
 	ack(): void;
-	retry(): void;
+	retry(options?: { delaySeconds?: number }): void;
 }
 
 /** Subset of a `MessageBatch`. Workers' real batch object satisfies this. */
@@ -145,6 +153,7 @@ export type DiscoveryDeadLetterReason =
 	| "RESPONSE_TOO_LARGE"
 	| "INVALID_PROOF"
 	| "PDS_HTTP_ERROR"
+	| "PDS_HOST_BLOCKED"
 	| "DELETE_RECORD_PRESENT"
 	| RecordVerificationFailureReason
 	| "UNEXPECTED_ERROR";
@@ -225,6 +234,7 @@ export async function processDiscoveryMessage(
 				uri,
 				didDocumentResolver: deps.didDocumentResolver,
 				...(deps.fetch ? { fetch: deps.fetch } : {}),
+				...(deps.resolveHostname ? { resolveHostname: deps.resolveHostname } : {}),
 			});
 		} catch (err) {
 			await classifyDiscoveryError(err, job, deps, controller, now());
@@ -316,7 +326,10 @@ async function classifyDiscoveryError(
 	}
 	if (err instanceof PdsVerificationError) {
 		if (isTransient(err.reason, err.status)) {
-			controller.retry();
+			// Back off so a DNS-propagation or PDS blip has time to clear before
+			// max_retries is exhausted; an immediate re-delivery would burn every
+			// attempt in a couple of batches.
+			controller.retry({ delaySeconds: transientRetryDelaySeconds(controller.attempts) });
 			return;
 		}
 		let mapped: DiscoveryDeadLetterReason;
@@ -372,6 +385,7 @@ async function verifyAndCreateRun(
 		cid: job.cid,
 		didDocumentResolver: deps.didDocumentResolver,
 		...(deps.fetch ? { fetch: deps.fetch } : {}),
+		...(deps.resolveHostname ? { resolveHostname: deps.resolveHostname } : {}),
 	});
 
 	await createSubject(deps.db, {
@@ -553,6 +567,20 @@ function jobUri(job: DiscoveryJob): string {
 	return `at://${job.did}/${job.collection}/${job.rkey}`;
 }
 
+/** Capped exponential backoff for a transient PDS failure. The queue has no
+ * `retry_delay`, so a bare `retry()` re-delivers in the next batch — with only
+ * `max_retries` attempts, an immediate loop can exhaust every attempt before
+ * ordinary DNS propagation completes (the empty-answer/resolver-failure path
+ * routes propagation lag here). Delaying each retry gives the host time to
+ * resolve without an unbounded backlog. */
+const RETRY_BASE_DELAY_SECONDS = 15;
+const RETRY_MAX_DELAY_SECONDS = 300;
+
+function transientRetryDelaySeconds(attempts: number): number {
+	const exponent = Math.max(0, attempts - 1);
+	return Math.min(RETRY_BASE_DELAY_SECONDS * 2 ** exponent, RETRY_MAX_DELAY_SECONDS);
+}
+
 /**
  * Translate a permanent `PdsVerificationError.reason` to its
  * `DiscoveryDeadLetterReason` counterpart. Transient reasons
@@ -566,6 +594,7 @@ function mapPdsReason(reason: VerificationFailureReason): DiscoveryDeadLetterRea
 		case "RESPONSE_TOO_LARGE":
 		case "INVALID_PROOF":
 		case "PDS_HTTP_ERROR":
+		case "PDS_HOST_BLOCKED":
 			return reason;
 		case "PDS_NETWORK_ERROR":
 			throw new Error(
@@ -600,6 +629,9 @@ async function createProductionDiscoveryDeps(env: Env): Promise<DiscoveryConsume
 		// bound wrapper rather than letting pds-verify.ts fall back to bare
 		// global `fetch`.
 		fetch: boundFetch,
+		// SSRF egress guard for the publisher-controlled PDS endpoint and any
+		// redirect it serves — the same DoH resolver artifact acquisition uses.
+		resolveHostname: cloudflareDohResolver,
 	};
 }
 

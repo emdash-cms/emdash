@@ -14,7 +14,7 @@
 
 import { NSID } from "@emdash-cms/registry-lexicons";
 import { applyD1Migrations, env, SELF } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 interface TestEnv {
 	DB: D1Database;
@@ -850,6 +850,115 @@ describe("getLatestRelease", () => {
 		const body = (await res.json()) as Record<string, unknown>;
 		expect(body["version"]).toBe("1.0.0");
 	});
+
+	// §10 override rule: a source's exact-CID assessment-passed +
+	// assessment-overridden pair suppresses that source's automated blocks for
+	// the release, mirroring `evaluateReleaseModerationCore`. The enforcement
+	// SQL must not exclude a release whose only live block is so suppressed.
+	const OVERRIDE_CID = "bafoverridecid";
+
+	it("includes a release whose re-issued automated block is suppressed by a same-source exact-CID override pair", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "assessment-passed", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "assessment-overridden", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "malware", cid: OVERRIDE_CID });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body["version"]).toBe("1.0.0");
+	});
+
+	it("includes a release carrying an override pair and no block", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "assessment-passed", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "assessment-overridden", cid: OVERRIDE_CID });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body["version"]).toBe("1.0.0");
+	});
+
+	it("excludes a release with an automated block and no override pair", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		await seedLabelState({ uri: releaseUri("demo", "1.0.0"), val: "malware", cid: OVERRIDE_CID });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("still excludes when the override pair is from a different source than the block", async () => {
+		const OTHER_LABELER_DID = "did:web:other-labels.example";
+		await seedLabeler(LABELER_DID, true);
+		await seedLabeler(OTHER_LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "malware", cid: OVERRIDE_CID });
+		await seedLabelState({
+			uri,
+			val: "assessment-passed",
+			cid: OVERRIDE_CID,
+			src: OTHER_LABELER_DID,
+		});
+		await seedLabelState({
+			uri,
+			val: "assessment-overridden",
+			cid: OVERRIDE_CID,
+			src: OTHER_LABELER_DID,
+		});
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("still excludes when the override pair CID does not match the release", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "malware", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "assessment-passed", cid: "bafstalecid" });
+		await seedLabelState({ uri, val: "assessment-overridden", cid: "bafstalecid" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("never suppresses a security-yanked release block, even with an override pair", async () => {
+		await seedLabeler(LABELER_DID, true);
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0", cid: OVERRIDE_CID });
+		const uri = releaseUri("demo", "1.0.0");
+		await seedLabelState({ uri, val: "assessment-passed", cid: OVERRIDE_CID });
+		await seedLabelState({ uri, val: "assessment-overridden", cid: OVERRIDE_CID });
+		// `security-yanked` is issued CID-less (policy cidRule: forbidden).
+		await seedLabelState({ uri, val: "security-yanked" });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(404);
+	});
 });
 
 describe("searchPackages", () => {
@@ -1143,6 +1252,44 @@ describe("XRPC dispatcher", () => {
 	it("returns 404 on unknown XRPC NSIDs", async () => {
 		const res = await SELF.fetch("https://test/xrpc/com.example.notARealEndpoint");
 		expect(res.status).toBe(404);
+	});
+});
+
+describe("XRPC dispatcher — unexpected policy-resolution failure", () => {
+	// A non-XRPC throw before dispatch (here: a D1 error because `labelers`
+	// is gone) must still take the CORS + `no-store` wrapper, not escape to
+	// workerd's bare 500. Capture the table's schema so the shared beforeEach
+	// (`DELETE FROM labelers`) keeps working after a test drops it.
+	let labelersSchema: string;
+	beforeAll(async () => {
+		const row = await testEnv.DB.prepare(
+			"SELECT sql FROM sqlite_master WHERE type='table' AND name='labelers'",
+		).first<{ sql: string }>();
+		labelersSchema = row!.sql;
+	});
+	afterEach(async () => {
+		const exists = await testEnv.DB.prepare(
+			"SELECT 1 FROM sqlite_master WHERE type='table' AND name='labelers'",
+		).first();
+		if (!exists) await testEnv.DB.prepare(labelersSchema).run();
+	});
+
+	it("wraps a non-XRPC failure in a 500 carrying CORS + no-store and no leaked internals", async () => {
+		await seedPackage({ slug: "demo" });
+		// Resolving the default policy runs `SELECT did FROM labelers`; dropping
+		// the table makes that throw a non-XRPC D1 error before dispatch.
+		await testEnv.DB.prepare("DROP TABLE labelers").run();
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(res.status).toBe(500);
+		expect(res.headers.get("cache-control")).toBe("private, no-store");
+		expect(res.headers.get("access-control-allow-origin")).toBe("*");
+		const body = (await res.json()) as { error: string; message?: string };
+		expect(body.error).toBe("InternalServerError");
+		// No internal detail (SQL text, table name, stack) leaks to the client.
+		expect(JSON.stringify(body)).not.toMatch(/labelers|no such table|SQL|SELECT/i);
 	});
 });
 

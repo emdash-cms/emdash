@@ -20,18 +20,40 @@
 import type { PublicKey } from "@atcute/crypto";
 import { type AtprotoDid, isDid } from "@atcute/lexicons/syntax";
 import { verifyRecord } from "@atcute/repo";
+import {
+	cloudflareDohResolver,
+	type DnsResolver,
+	resolveAndValidateExternalUrl,
+	SsrfError,
+} from "emdash/security/ssrf";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 /** 5 MB ceiling. Records and their proofs are tiny (sub-KB typical); this is
  * a defence against a hostile or broken PDS streaming an unbounded body. */
 const DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+/** Redirect hops we'll follow before giving up. Each hop is independently
+ * re-validated against the SSRF egress rules before it is fetched. */
+const MAX_PDS_REDIRECTS = 3;
+/** `resolveAndValidateExternalUrl` raises `SsrfError` both for a permanent
+ * address/scheme block and for a transient resolver failure (DoH network error,
+ * SERVFAIL, timeout). Core exposes no structured discriminator, so this prefix
+ * — the exact wording it wraps a thrown resolver in — separates the retryable
+ * case from the permanent one. A test pins it so a core wording change fails
+ * loudly instead of silently mis-classifying. */
+const SSRF_RESOLVER_FAILURE_PREFIX = "Could not resolve hostname:";
+/** `resolveAndValidateExternalUrl` raises this exact `SsrfError` when the
+ * resolver returns no addresses (NXDOMAIN / NODATA). A host mid-DNS-propagation
+ * produces a temporary negative answer, so this is retryable — not a permanent
+ * block. Pinned by a test so a core wording change fails loudly. */
+const SSRF_EMPTY_ANSWER_MESSAGE = "Hostname resolved to no addresses";
 
 export type VerificationFailureReason =
 	| "PDS_NETWORK_ERROR"
 	| "PDS_HTTP_ERROR"
 	| "RECORD_NOT_FOUND"
 	| "RESPONSE_TOO_LARGE"
-	| "INVALID_PROOF";
+	| "INVALID_PROOF"
+	| "PDS_HOST_BLOCKED";
 
 export class PdsVerificationError extends Error {
 	override readonly name = "PdsVerificationError";
@@ -57,6 +79,10 @@ export interface FetchAndVerifyOptions {
 	maxResponseBytes?: number;
 	/** Inject for tests; defaults to `globalThis.fetch`. */
 	fetch?: typeof fetch;
+	/** Resolves each hop's hostname so its addresses can be checked against the
+	 * private/reserved-IP blocklist before the request is made. Inject for
+	 * tests; defaults to the DoH resolver used by artifact acquisition. */
+	resolveHostname?: DnsResolver;
 }
 
 export interface VerifiedPdsRecord {
@@ -73,6 +99,7 @@ export async function fetchAndVerifyRecord(
 	const fetchImpl = opts.fetch ?? fetch;
 	const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 	const maxResponseBytes = opts.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
+	const resolveHostname = opts.resolveHostname ?? cloudflareDohResolver;
 
 	if (!isAtprotoDid(opts.did)) {
 		// Caller is expected to have validated this upstream (the resolver
@@ -84,7 +111,7 @@ export async function fetchAndVerifyRecord(
 		);
 	}
 	const url = buildGetRecordUrl(opts.pds, opts.did, opts.collection, opts.rkey);
-	const carBytes = await fetchCar(fetchImpl, url, timeoutMs, maxResponseBytes);
+	const carBytes = await fetchCar(fetchImpl, url, timeoutMs, maxResponseBytes, resolveHostname);
 
 	try {
 		const result = await verifyRecord({
@@ -117,31 +144,143 @@ function buildGetRecordUrl(pds: string, did: string, collection: string, rkey: s
 	return url.toString();
 }
 
+/**
+ * Reject a PDS URL that is not HTTPS or whose host resolves to a
+ * private/reserved address. The publisher controls the PDS endpoint (and any
+ * redirect it serves), so this validates every hop through core's DNS-aware
+ * `resolveAndValidateExternalUrl` (private/reserved-address rejection) rather
+ * than duplicating any address logic.
+ */
+async function assertAllowedPdsUrl(url: string, resolveHostname: DnsResolver): Promise<void> {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		throw new PdsVerificationError("PDS_HOST_BLOCKED", `PDS URL is not a valid URL: ${url}`);
+	}
+	if (parsed.protocol !== "https:") {
+		throw new PdsVerificationError(
+			"PDS_HOST_BLOCKED",
+			`PDS URL must use https, got ${parsed.protocol}`,
+		);
+	}
+	try {
+		await resolveAndValidateExternalUrl(url, { resolver: resolveHostname });
+	} catch (err) {
+		if (err instanceof SsrfError) {
+			// Two transient resolver outcomes: the resolver itself failed (DoH
+			// network error, SERVFAIL, timeout), or it returned an empty answer
+			// (NXDOMAIN / NODATA, which a host mid-DNS-propagation produces).
+			// Both retry rather than permanently dead-lettering a legitimate
+			// record. A true private/reserved-address or scheme block is permanent.
+			if (
+				err.message.startsWith(SSRF_RESOLVER_FAILURE_PREFIX) ||
+				err.message === SSRF_EMPTY_ANSWER_MESSAGE
+			) {
+				throw new PdsVerificationError(
+					"PDS_NETWORK_ERROR",
+					`PDS host resolution failed: ${err.message}`,
+					undefined,
+					err,
+				);
+			}
+			throw new PdsVerificationError(
+				"PDS_HOST_BLOCKED",
+				`PDS host rejected: ${err.message}`,
+				undefined,
+				err,
+			);
+		}
+		throw err;
+	}
+}
+
+/**
+ * Fetch `initialUrl`, following redirects manually so every hop — the
+ * publisher-controlled PDS endpoint and any `Location` it names — is
+ * re-validated against the SSRF egress rules before the request is made. A
+ * hop pointing at a forbidden scheme or address rejects with
+ * `PDS_HOST_BLOCKED`.
+ */
+async function fetchWithRedirectGuard(
+	fetchImpl: typeof fetch,
+	initialUrl: string,
+	signal: AbortSignal,
+	timeoutMs: number,
+	resolveHostname: DnsResolver,
+): Promise<Response> {
+	let currentUrl = initialUrl;
+	for (let hop = 0; ; hop++) {
+		await assertAllowedPdsUrl(currentUrl, resolveHostname);
+
+		let response: Response;
+		try {
+			response = await fetchImpl(currentUrl, {
+				signal,
+				redirect: "manual",
+				headers: { accept: "application/vnd.ipld.car" },
+			});
+		} catch (err) {
+			// Whether the fetch threw because we aborted (timeout) or because the
+			// network failed at the OS layer, the right caller behaviour is the
+			// same: retry. Lump them under PDS_NETWORK_ERROR.
+			throw new PdsVerificationError(
+				"PDS_NETWORK_ERROR",
+				err instanceof Error && err.name === "AbortError"
+					? `PDS fetch aborted after ${timeoutMs}ms`
+					: `PDS fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+				undefined,
+				err,
+			);
+		}
+
+		if (response.status < 300 || response.status >= 400) return response;
+
+		if (hop >= MAX_PDS_REDIRECTS) {
+			throw new PdsVerificationError(
+				"PDS_HTTP_ERROR",
+				`PDS exceeded ${MAX_PDS_REDIRECTS} redirects`,
+				response.status,
+			);
+		}
+		const location = response.headers.get("location");
+		if (location === null) {
+			throw new PdsVerificationError(
+				"PDS_HTTP_ERROR",
+				`PDS redirect ${response.status} without a location header`,
+				response.status,
+			);
+		}
+		try {
+			currentUrl = new URL(location, currentUrl).toString();
+		} catch {
+			throw new PdsVerificationError(
+				"PDS_HOST_BLOCKED",
+				`PDS redirect location is not a valid URL: ${location}`,
+				response.status,
+			);
+		}
+	}
+}
+
 async function fetchCar(
 	fetchImpl: typeof fetch,
 	url: string,
 	timeoutMs: number,
 	maxBytes: number,
+	resolveHostname: DnsResolver,
 ): Promise<Uint8Array> {
+	const deadline = Date.now() + timeoutMs;
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), timeoutMs);
 	let response: Response;
 	try {
-		response = await fetchImpl(url, {
-			signal: controller.signal,
-			headers: { accept: "application/vnd.ipld.car" },
-		});
-	} catch (err) {
-		// Whether the fetch threw because we aborted (timeout) or because the
-		// network failed at the OS layer, the right caller behaviour is the
-		// same: retry. Lump them under PDS_NETWORK_ERROR.
-		throw new PdsVerificationError(
-			"PDS_NETWORK_ERROR",
-			err instanceof Error && err.name === "AbortError"
-				? `PDS fetch aborted after ${timeoutMs}ms`
-				: `PDS fetch failed: ${err instanceof Error ? err.message : String(err)}`,
-			undefined,
-			err,
+		response = await fetchWithRedirectGuard(
+			fetchImpl,
+			url,
+			controller.signal,
+			timeoutMs,
+			resolveHostname,
 		);
 	} finally {
 		clearTimeout(timer);
@@ -172,12 +311,34 @@ async function fetchCar(
 	if (!reader) {
 		throw new PdsVerificationError("INVALID_PROOF", "PDS response body is null");
 	}
+	return readCarBody(reader, maxBytes, deadline, timeoutMs);
+}
+
+/**
+ * Buffer the CAR body, bounding both its size (`maxBytes`) and its total wall
+ * time (`deadline`) — the header-phase abort timer is already cleared by the
+ * time we stream, so without this a slow-drip PDS could hold the read open
+ * indefinitely. Each read is raced against the remaining budget; exhausting it
+ * rejects as a transient `PDS_NETWORK_ERROR` so the consumer retries.
+ */
+async function readCarBody(
+	reader: ReadableStreamDefaultReader<Uint8Array>,
+	maxBytes: number,
+	deadline: number,
+	timeoutMs: number,
+): Promise<Uint8Array> {
 	const chunks: Uint8Array[] = [];
 	let total = 0;
 	try {
-		// biome-ignore lint/correctness/noConstantCondition: drains the stream
-		while (true) {
-			const { done, value } = await reader.read();
+		for (;;) {
+			const remaining = deadline - Date.now();
+			if (remaining <= 0) {
+				throw new PdsVerificationError(
+					"PDS_NETWORK_ERROR",
+					`PDS body read exceeded ${timeoutMs}ms`,
+				);
+			}
+			const { done, value } = await readWithDeadline(reader, remaining, timeoutMs);
 			if (done) break;
 			total += value.byteLength;
 			if (total > maxBytes) {
@@ -193,10 +354,11 @@ async function fetchCar(
 		await reader.cancel().catch(() => {
 			/* swallow — we already have a primary error to surface */
 		});
-		// A read error after headers (socket drop, stream abort) is transient —
-		// re-wrap it so the consumer retries rather than dead-lettering it as an
-		// unexpected failure. Our own PdsVerificationErrors (e.g. too-large)
-		// carry their own classification and pass through.
+		// A read error after headers (socket drop, stream abort, stall) is
+		// transient — re-wrap it so the consumer retries rather than
+		// dead-lettering it as an unexpected failure. Our own
+		// PdsVerificationErrors (too-large, budget exceeded) carry their own
+		// classification and pass through.
 		if (err instanceof PdsVerificationError) throw err;
 		throw new PdsVerificationError(
 			"PDS_NETWORK_ERROR",
@@ -215,6 +377,44 @@ async function fetchCar(
 		offset += chunk.byteLength;
 	}
 	return out;
+}
+
+/**
+ * Race a single `reader.read()` against a per-read timeout. Handlers are
+ * attached to the read promise so a read that loses the race cannot later
+ * surface as an unhandled rejection.
+ */
+function readWithDeadline(
+	reader: ReadableStreamDefaultReader<Uint8Array>,
+	remainingMs: number,
+	timeoutMs: number,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+	return new Promise((resolve, reject) => {
+		let settled = false;
+		const timer = setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			reject(
+				new PdsVerificationError("PDS_NETWORK_ERROR", `PDS body read exceeded ${timeoutMs}ms`),
+			);
+		}, remainingMs);
+		void reader.read().then(
+			(result) => {
+				if (settled) return undefined;
+				settled = true;
+				clearTimeout(timer);
+				resolve(result);
+				return undefined;
+			},
+			(err: unknown) => {
+				if (settled) return undefined;
+				settled = true;
+				clearTimeout(timer);
+				reject(err);
+				return undefined;
+			},
+		);
+	});
 }
 
 /**

@@ -16,10 +16,15 @@
  *     `notifications` row is skipped, so a Workflow-step retry or a mutation
  *     replay does not re-notify. `sendNotification`'s notice claim closes the
  *     residual concurrent race atomically.
- *   - Verified-publisher skip: a publisher with an in-force verification claim
- *     bypasses double opt-in (the notice goes out directly). The verification read
- *     fails CLOSED — any error leaves the publisher on the normal confirmation
- *     path, never looser.
+ *   - Verified-publisher skip: a publisher whose CURRENT identity is vouched for
+ *     by an in-force verification claim from a TRUSTED issuer bypasses double
+ *     opt-in (the notice goes out directly). A self-issued or otherwise untrusted
+ *     claim carries no authority — verification claims are self-assertable and the
+ *     aggregator indexes any issuer — so only a claim whose issuer is in the
+ *     configured trust set AND whose bound displayName still matches the
+ *     publisher's current identity upgrades a contact. The read fails CLOSED, and
+ *     with no trusted issuer configured (the default) NOTHING upgrades: every
+ *     address stays on the normal confirmation path.
  *
  * All notice copy is public-safe: subject line, label effect, the assessment's
  * public summary, and the public assessment + reconsideration URLs. No findings,
@@ -41,6 +46,11 @@ import type {
 	SendContext,
 } from "./notification-send.js";
 import { sendNotification } from "./notification-send.js";
+import {
+	buildOperationalEventInsert,
+	buildOutboxInsert,
+	newOperationalEventId,
+} from "./operational-events.js";
 import { getOperatorActionById } from "./operator-actions.js";
 import { getLabelDefinition } from "./policy.js";
 import type { ContactTarget } from "./publisher-contact.js";
@@ -60,8 +70,17 @@ export interface NotifyDeps {
 	serviceUrl: string;
 	/** The monitored reconsideration URL from the moderation policy. */
 	reconsiderationUrl: string;
+	/** DIDs whose verification claims may upgrade a contact past double opt-in.
+	 * Verification claims are self-assertable (the aggregator indexes any issuer),
+	 * so a claim upgrades only when its issuer is in this set. Empty (the default)
+	 * trusts no issuer, so every address stays on the confirmation path. */
+	trustedVerificationIssuers?: ReadonlySet<string>;
 	now?: () => Date;
 }
+
+/** No verification issuer is trusted — the conservative default for
+ * {@link NotifyDeps.trustedVerificationIssuers}. */
+const NO_TRUSTED_ISSUERS: ReadonlySet<string> = new Set();
 
 /**
  * Build the production {@link NotifyDeps} from the Worker env: the real Cloudflare
@@ -82,6 +101,10 @@ export async function createNotifyDeps(env: Env): Promise<NotifyDeps> {
 		pepper,
 		serviceUrl: env.LABELER_SERVICE_URL,
 		reconsiderationUrl: moderationPolicy.contact.reconsiderationUrl,
+		// No verification issuer is trusted to bypass double opt-in: the labeler
+		// issues no first-party verification and the aggregator indexes any
+		// self-asserted claim, so every address goes through confirmation.
+		trustedVerificationIssuers: NO_TRUSTED_ISSUERS,
 	};
 }
 
@@ -327,6 +350,97 @@ export async function notifyEmergencyTakedown(
 		target,
 		emergencyNoticeContent(deps, input),
 	);
+	// A takedown ISSUANCE (not a retract) that resolves no contact is the most
+	// consequential delivery failure — the undeliverable audit row alone is easy to
+	// miss. Raise a dedicated operator alert, keyed on ITS OWN operational_events
+	// row rather than the notifications-row dedup: this runs on every issuance,
+	// including a replay that `runTrigger` short-circuited on the existing
+	// notifications row, so a first pass whose event write failed transiently
+	// recovers on the next replay instead of losing the signal forever.
+	if (!input.neg) await ensureTakedownNoContactAlert(deps, input.actionId, input.uri);
+}
+
+/** The operator-alert channel for the emergency no-contact signal — mirrors the
+ * emergency-action alert channel in `console-mutation-api`. */
+const OPERATOR_ALERT_CHANNEL = "deployment-alert";
+
+/**
+ * Raise the `takedown-no-contact` operational event + its outbox row when a
+ * takedown issuance resolved no contact and the alert is not already recorded.
+ * Idempotent and recoverable: the operational_events row (not the notifications
+ * row) is the dedup key, so a first pass whose event batch failed re-emits on a
+ * later replay, while a normal replay does not duplicate. The insert is guarded
+ * by the `(action_id, event_type)` unique index + ON CONFLICT DO NOTHING, so two
+ * concurrent replays that both pass the existence check still converge to one
+ * event (the outbox is gated on the event being written, so a conflict leaves no
+ * orphan). Fire-and-forget — an error is swallowed and logged, never propagated
+ * into the deferred tail (a later replay retries anyway, the event still absent).
+ */
+async function ensureTakedownNoContactAlert(
+	deps: NotifyDeps,
+	actionId: string,
+	uri: string,
+): Promise<void> {
+	try {
+		if (!(await sourceResolvedNoContact(deps.db, actionId))) return;
+		if (await takedownNoContactAlertExists(deps.db, actionId)) return;
+		const now = (deps.now ?? (() => new Date()))();
+		const eventId = newOperationalEventId();
+		await deps.db.batch([
+			buildOperationalEventInsert(deps.db, {
+				id: eventId,
+				eventType: "takedown-no-contact",
+				severity: "high",
+				actionId,
+				subjectUri: uri,
+				labelValue: "!takedown",
+				payload: {
+					reason:
+						"Emergency takedown has no resolvable publisher contact; manual outreach required.",
+				},
+				now,
+				idempotentTakedownNoContact: true,
+			}),
+			buildOutboxInsert(deps.db, {
+				eventId,
+				channel: OPERATOR_ALERT_CHANNEL,
+				now,
+				gateOnEventPresent: true,
+			}),
+		]);
+	} catch (error) {
+		console.error("[notifications] takedown no-contact alert failed", {
+			actionId,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
+/** Whether this operator action's notification resolved to NO contact: the send
+ * path records that (and only that) undeliverable case with a NULL
+ * `recipient_hash` (suppressed/declined carry a hash). */
+async function sourceResolvedNoContact(db: D1Database, actionId: string): Promise<boolean> {
+	const row = await db
+		.prepare(
+			`SELECT 1 FROM notifications
+			 WHERE source_type = 'operator' AND source_id = ? AND recipient_hash IS NULL LIMIT 1`,
+		)
+		.bind(actionId)
+		.first<{ 1: number }>();
+	return row !== null;
+}
+
+/** Whether a `takedown-no-contact` alert already exists for this action — the
+ * event's dedup key, decoupled from the notifications-row dedup. */
+async function takedownNoContactAlertExists(db: D1Database, actionId: string): Promise<boolean> {
+	const row = await db
+		.prepare(
+			`SELECT 1 FROM operational_events
+			 WHERE action_id = ? AND event_type = 'takedown-no-contact' LIMIT 1`,
+		)
+		.bind(actionId)
+		.first<{ 1: number }>();
+	return row !== null;
 }
 
 /** Reconsideration outcome notice (console `reconsiderations/:id/resolve`). Fired
@@ -491,7 +605,12 @@ async function runTrigger(
 			logTrigger(source, target.did, "deduped");
 			return true;
 		}
-		const verifiedPublisher = await isVerifiedPublisher(deps.aggregator, target.did, now());
+		const verifiedPublisher = await isVerifiedPublisher(
+			deps.aggregator,
+			deps.trustedVerificationIssuers ?? NO_TRUSTED_ISSUERS,
+			target.did,
+			now(),
+		);
 		const ctx: SendContext = {
 			db: deps.db,
 			aggregator: deps.aggregator,
@@ -531,21 +650,45 @@ async function sourceAlreadyProcessed(
 }
 
 /**
- * Whether the publisher holds an IN-FORCE verification claim — reuses the
- * history-context notion of "in force" (a claim whose `expiresAt` is absent or in
- * the future). FAILS CLOSED: a `null` view (redacted / unverified), an empty
- * claim set, or ANY read error returns `false`, so the address stays on the
- * stricter double-opt-in path.
+ * Whether the publisher may bypass double opt-in on the strength of a TRUSTED
+ * verification claim. A claim upgrades a contact only when it is
+ *   (a) issued by a DID in `trustedIssuers` — verification claims are
+ *       self-assertable and the aggregator indexes any issuer, so an untrusted or
+ *       self-issued claim carries no authority;
+ *   (b) in force — no expiry, or an expiry still in the future; and
+ *   (c) bound to the publisher's CURRENT identity — its `displayName` still
+ *       matches `getPublisher`'s live value, so a displayName drift since the
+ *       verification does not carry trust. The claim also binds a `handle`, but
+ *       the publisher view carries no current handle to compare it against (the
+ *       aggregator's identity-event ingestion is unbuilt), so handle-binding is
+ *       deferred until it does.
+ * Note this vouches for the publisher's identity, not that they own the contact
+ * address — the trust set is the operator's explicit decision to accept that.
+ *
+ * FAILS CLOSED: an empty trust set (the default), a `null` verification/publisher
+ * view, an empty claim set, unknown current handle/displayName, or ANY read error
+ * returns `false`, so the address stays on the stricter double-opt-in path.
  */
 export async function isVerifiedPublisher(
-	aggregator: Pick<AggregatorClient, "getPublisherVerification">,
+	aggregator: Pick<AggregatorClient, "getPublisherVerification" | "getPublisher">,
+	trustedIssuers: ReadonlySet<string>,
 	did: string,
 	now: Date,
 ): Promise<boolean> {
+	if (trustedIssuers.size === 0) return false;
 	try {
 		const state = await aggregator.getPublisherVerification(did);
 		if (!state || state.verifications.length === 0) return false;
-		return state.verifications.some((claim) => isInForce(claim.expiresAt, now));
+		const trustedInForce = state.verifications.filter(
+			(claim) => trustedIssuers.has(claim.issuer) && isInForce(claim.expiresAt, now),
+		);
+		if (trustedInForce.length === 0) return false;
+
+		const publisher = await aggregator.getPublisher(did);
+		if (!publisher) return false;
+		const displayName = readDisplayName(publisher.profile);
+		if (displayName === undefined) return false;
+		return trustedInForce.some((claim) => claim.displayName === displayName);
 	} catch (error) {
 		console.error("[notifications] verification read failed, using double opt-in", {
 			did,
@@ -553,6 +696,14 @@ export async function isVerifiedPublisher(
 		});
 		return false;
 	}
+}
+
+/** The `displayName` a publisher-profile record carries, or undefined when the
+ * profile is not a `{ displayName: string }`-shaped object. */
+function readDisplayName(profile: unknown): string | undefined {
+	if (typeof profile !== "object" || profile === null) return undefined;
+	const value = (profile as { displayName?: unknown }).displayName;
+	return typeof value === "string" ? value : undefined;
 }
 
 /** A claim is in force when it has no expiry or its expiry is still in the future
@@ -577,22 +728,55 @@ function assessmentUrl(serviceUrl: string, uri: string, cid?: string): string {
 /**
  * The `{ did, slug }` a notice's contact resolution needs, parsed from the
  * subject URI. A record URI (`at://did/collection/rkey`) yields the DID and the
- * rkey as the slug — for a package record the rkey IS the package slug (tier-1/2
- * resolve); for a release the rkey misses the package tiers and resolution falls
- * through to the DID-keyed publisher-profile contact (tier 3), which is the
- * reliable channel. A bare DID subject (publisher-level action) resolves by DID
- * alone. Anything unparseable returns null and the notice is skipped.
+ * parent package slug: a package rkey IS the slug, and a canonical release rkey
+ * is `slug:version`, so the slug is the part before the first `:`. That lets
+ * `getPackage` reach the package's `security[]`/`authors[]` contacts (tier-1/2)
+ * for a release subject instead of falling straight through to the DID-keyed
+ * publisher profile (tier 3). A bare DID subject (publisher-level action)
+ * resolves by DID alone. Anything unparseable returns null and the notice is
+ * skipped.
  */
 export function contactTargetFromUri(uri: string): ContactTarget | null {
 	if (uri.startsWith("at://")) {
-		const [did, , rkey] = uri.slice("at://".length).split("/");
+		const [did, collection, rkey] = uri.slice("at://".length).split("/");
 		if (did === undefined || did.length === 0) return null;
-		return { did, slug: rkey ?? "" };
+		return { did, slug: packageSlugFromRecord(collection, rkey ?? "") };
 	}
 	if (uri.startsWith("did:")) {
 		return { did: uri, slug: uri.split(":").at(-1) ?? uri };
 	}
 	return null;
+}
+
+// Canonical release-rkey shape, mirroring the aggregator's ingest validation
+// (`records-consumer`'s `parseReleaseRkey`): `<slug>:<semver>` with the version
+// percent-decoded before the semver check. Kept in sync by the pinned tests.
+const PACKAGE_SLUG_RE = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
+
+/**
+ * The parent package slug a subject resolves against. Only a CANONICAL release
+ * record — the release collection AND a `slug:version` rkey whose slug is
+ * well-formed AND whose version is valid semver — is stripped to its package slug
+ * (`gallery:1.2.0` → `gallery`). Every other subject keeps its rkey verbatim: a
+ * package rkey IS the slug, and a non-release collection or a malformed
+ * colon-bearing rkey (`gallery:not-semver`) stays whole so it can never strip to
+ * a DIFFERENT package's slug — it misses at `getPackage` and resolution degrades
+ * to the publisher tier.
+ */
+function packageSlugFromRecord(collection: string | undefined, rkey: string): string {
+	if (collection !== NSID.packageRelease) return rkey;
+	const delimiter = rkey.indexOf(":");
+	if (delimiter <= 0 || delimiter === rkey.length - 1) return rkey;
+	const slug = rkey.slice(0, delimiter);
+	if (!PACKAGE_SLUG_RE.test(slug)) return rkey;
+	let version: string;
+	try {
+		version = decodeURIComponent(rkey.slice(delimiter + 1));
+	} catch {
+		return rkey;
+	}
+	return SEMVER_RE.test(version) ? slug : rkey;
 }
 
 function logTrigger(source: NotificationSource, did: string, outcome: string): void {

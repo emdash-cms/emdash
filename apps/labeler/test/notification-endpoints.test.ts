@@ -145,6 +145,24 @@ describe("confirm", () => {
 		expect((await getContactState(db(), hash))?.confirmState).toBe("confirmed");
 	});
 
+	it("does NOT confirm when the credentials are only in the query (no form body)", async () => {
+		const token = "confirm-token-query-only";
+		const hash = await seedPending(token);
+
+		// A scanner POSTing the confirmation link URL with c/t in the query and no
+		// form body must not confirm — confirm has no query fallback.
+		const response = await SELF.fetch(
+			`https://labeler.test/notifications/confirm?c=${hash}&t=${encodeURIComponent(token)}`,
+			{
+				method: "POST",
+				headers: { "content-type": "application/x-www-form-urlencoded" },
+				body: "",
+			},
+		);
+		expect(response.status).toBe(200);
+		expect((await getContactState(db(), hash))?.confirmState).toBe("unconfirmed");
+	});
+
 	it("never confirms a suppressed contact even with a matching token", async () => {
 		const token = "confirm-token-suppressed";
 		const hash = await seedPending(token);
@@ -203,6 +221,39 @@ describe("unsubscribe", () => {
 			.bind("bogus")
 			.first<{ n: number }>();
 		expect(count?.n).toBe(0);
+	});
+
+	it("suppresses on an RFC 8058 one-click POST carrying c in the query and the marker in the body", async () => {
+		const hash = await freshHash();
+		await ensureContact(db(), hash, "2026-07-16T00:00:00.000Z");
+
+		const response = await SELF.fetch(`https://labeler.test/notifications/unsubscribe?c=${hash}`, {
+			method: "POST",
+			headers: { "content-type": "application/x-www-form-urlencoded" },
+			body: "List-Unsubscribe=One-Click",
+		});
+		expect(response.status).toBe(200);
+		expect(await isSuppressed(db(), hash)).toBe(true);
+		expect(await reasonFor(hash)).toBe("unsubscribe");
+	});
+
+	it("prefers the body hash over the query hash when both are present", async () => {
+		const bodyHash = await freshHash();
+		const queryHash = await freshHash();
+		await ensureContact(db(), bodyHash, "2026-07-16T00:00:00.000Z");
+		await ensureContact(db(), queryHash, "2026-07-16T00:00:00.000Z");
+
+		const response = await SELF.fetch(
+			`https://labeler.test/notifications/unsubscribe?c=${queryHash}`,
+			{
+				method: "POST",
+				headers: { "content-type": "application/x-www-form-urlencoded" },
+				body: new URLSearchParams({ c: bodyHash }).toString(),
+			},
+		);
+		expect(response.status).toBe(200);
+		expect(await isSuppressed(db(), bodyHash)).toBe(true);
+		expect(await isSuppressed(db(), queryHash)).toBe(false);
 	});
 });
 

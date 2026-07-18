@@ -118,11 +118,14 @@ class StubResolver implements DidDocumentResolverLike {
 class FakeMessage implements MessageController {
 	acked = 0;
 	retried = 0;
+	retryDelaySeconds: number | undefined;
+	constructor(readonly attempts = 1) {}
 	ack() {
 		this.acked += 1;
 	}
-	retry() {
+	retry(options?: { delaySeconds?: number }) {
 		this.retried += 1;
+		this.retryDelaySeconds = options?.delaySeconds;
 	}
 }
 
@@ -397,6 +400,8 @@ describe("processDiscoveryMessage: verification failures", () => {
 
 		expect(msg.acked).toBe(1);
 		expect(msg.retried).toBe(0);
+		// A permanent failure dead-letters immediately — no retry, so no delay.
+		expect(msg.retryDelaySeconds).toBeUndefined();
 
 		const dl = await testEnv.DB.prepare(`SELECT reason FROM dead_letters WHERE rkey = ?`)
 			.bind(job.rkey)
@@ -480,10 +485,38 @@ describe("processDiscoveryMessage: verification failures", () => {
 
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
+		// The transient retry must carry a backoff delay so DNS propagation / PDS
+		// blips have time to clear before max_retries is exhausted.
+		expect(msg.retryDelaySeconds).toBeGreaterThan(0);
 		const dl = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM dead_letters WHERE rkey = ?`)
 			.bind(job.rkey)
 			.first<{ n: number }>();
 		expect(dl?.n).toBe(0);
+	});
+
+	it("scales the transient retry backoff with delivery attempts", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		const transient = {
+			...deps,
+			verify: () =>
+				Promise.reject(
+					new PdsVerificationError(
+						"PDS_NETWORK_ERROR",
+						"PDS host resolution failed: Hostname resolved to no addresses",
+					),
+				),
+		};
+
+		const first = new FakeMessage(1);
+		const later = new FakeMessage(4);
+		await processDiscoveryMessage(job, first, transient);
+		await processDiscoveryMessage(job, later, transient);
+
+		expect(first.retryDelaySeconds).toBeGreaterThan(0);
+		// A later delivery attempt backs off longer (capped), giving slow
+		// propagation more time before the DLQ.
+		expect(later.retryDelaySeconds).toBeGreaterThan(first.retryDelaySeconds!);
 	});
 
 	it("transient PDS 5xx retries, no dead letter", async () => {

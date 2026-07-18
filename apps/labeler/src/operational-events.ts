@@ -14,7 +14,8 @@ export type OperationalEventType =
 	| "dead-letter-quarantined"
 	| "reconsideration-opened"
 	| "reconsideration-resolved"
-	| "assessment-prolonged-error";
+	| "assessment-prolonged-error"
+	| "takedown-no-contact";
 
 export type OperationalEventSeverity = "critical" | "high" | "info";
 
@@ -79,6 +80,15 @@ export interface OperationalEventInsert {
 	 * ticks are not serialized against each other).
 	 */
 	gateOnUnalertedEscalation?: { assessmentId: string };
+	/**
+	 * Appends `ON CONFLICT ... DO NOTHING` targeting the partial unique index on
+	 * `(action_id, event_type) WHERE event_type = 'takedown-no-contact'` (migration
+	 * 0012), so a concurrent replay of the `takedown-no-contact` alert converges to
+	 * one row. Only valid for that event type with a non-null `actionId` and no
+	 * gate. Pair the outbox with {@link OutboxInsert.gateOnEventPresent} so a
+	 * conflicted (no-op) event does not orphan an outbox row.
+	 */
+	idempotentTakedownNoContact?: boolean;
 }
 
 export interface OutboxInsert {
@@ -89,6 +99,10 @@ export interface OutboxInsert {
 	gateOnIssuedLabelActionId?: number;
 	/** Same in-batch label gating as {@link OperationalEventInsert.gateOnIssuedLabelActionKey}. */
 	gateOnIssuedLabelActionKey?: string;
+	/** Insert only if the event row was actually written — `WHERE EXISTS (event
+	 * with this id)`. Pairs with {@link OperationalEventInsert.idempotentTakedownNoContact}
+	 * so an ON CONFLICT no-op event leaves no orphan outbox row in the same batch. */
+	gateOnEventPresent?: boolean;
 }
 
 export interface StoredOperationalEvent {
@@ -225,10 +239,15 @@ export function buildOperationalEventInsert(
 			.bind(...values, input.gateOnUnalertedEscalation.assessmentId);
 	}
 
+	// The conflict target repeats the partial index's predicate so SQLite resolves
+	// it to `idx_operational_events_takedown_no_contact` (migration 0012).
+	const onConflict = input.idempotentTakedownNoContact
+		? ` ON CONFLICT (action_id, event_type) WHERE event_type = 'takedown-no-contact' DO NOTHING`
+		: "";
 	return db
 		.prepare(
 			`INSERT INTO operational_events (${columns})
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)${onConflict}`,
 		)
 		.bind(...values);
 }
@@ -269,6 +288,16 @@ export function buildOutboxInsert(db: D1Database, input: OutboxInsert): D1Prepar
 				 WHERE EXISTS (SELECT 1 FROM issued_labels WHERE action_id = ?)`,
 			)
 			.bind(...values, input.gateOnIssuedLabelActionId);
+	}
+
+	if (input.gateOnEventPresent) {
+		return db
+			.prepare(
+				`INSERT INTO notification_outbox (id, event_id, channel, created_at, created_at_epoch_ms)
+				 SELECT ?, ?, ?, ?, ?
+				 WHERE EXISTS (SELECT 1 FROM operational_events WHERE id = ?)`,
+			)
+			.bind(...values, input.eventId);
 	}
 
 	return db

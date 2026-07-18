@@ -113,13 +113,50 @@ describe("operational_events store", () => {
 		const otherId = `oact_other${counter}`;
 		await insertOperatorAction(actionId);
 		await insertOperatorAction(otherId);
+		// One action can raise events of DIFFERENT types (a takedown emits both
+		// `emergency-takedown` and the deferred `takedown-no-contact`); the
+		// (action_id, event_type) unique index forbids the SAME type twice.
 		await buildOperationalEventInsert(testEnv.DB, eventInput({ actionId })).run();
-		await buildOperationalEventInsert(testEnv.DB, eventInput({ actionId })).run();
+		await buildOperationalEventInsert(
+			testEnv.DB,
+			eventInput({ actionId, eventType: "takedown-no-contact" }),
+		).run();
 		await buildOperationalEventInsert(testEnv.DB, eventInput({ actionId: otherId })).run();
 
 		const rows = await getOperationalEventsByActionId(testEnv.DB, actionId);
 		expect(rows).toHaveLength(2);
 		expect(rows.every((r) => r.actionId === actionId)).toBe(true);
+	});
+
+	it("allows duplicate (action_id, event_type) for a non-takedown event type", async () => {
+		// The 0012 unique index is PARTIAL to `takedown-no-contact`, so historical
+		// duplicates of other types are unconstrained — this is what keeps the
+		// migration safe on existing data.
+		const actionId = `oact_dup${counter}`;
+		await insertOperatorAction(actionId);
+		await buildOperationalEventInsert(
+			testEnv.DB,
+			eventInput({ actionId, eventType: "emergency-takedown" }),
+		).run();
+		await buildOperationalEventInsert(
+			testEnv.DB,
+			eventInput({ actionId, eventType: "emergency-takedown" }),
+		).run();
+
+		const rows = await getOperationalEventsByActionId(testEnv.DB, actionId);
+		expect(rows).toHaveLength(2);
+	});
+
+	it("collapses a second takedown-no-contact for the same action to a no-op", async () => {
+		const actionId = `oact_tnc${counter}`;
+		await insertOperatorAction(actionId);
+		const input = () =>
+			eventInput({ actionId, eventType: "takedown-no-contact", idempotentTakedownNoContact: true });
+		await buildOperationalEventInsert(testEnv.DB, input()).run();
+		await buildOperationalEventInsert(testEnv.DB, input()).run();
+
+		const rows = await getOperationalEventsByActionId(testEnv.DB, actionId);
+		expect(rows).toHaveLength(1);
 	});
 
 	it("rejects UPDATE on a recorded event (immutable log)", async () => {

@@ -92,6 +92,22 @@ describe("DiscoveryClient", () => {
 		expect(headers.get("atproto-accept-labelers")).toBeNull();
 	});
 
+	it("sends an explicitly empty atproto-accept-labelers header (accept no labelers)", async () => {
+		const { fetch, calls } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {
+				status: 200,
+				body: { packages: [] },
+			},
+		});
+
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, acceptLabelers: "", fetch });
+		await client.searchPackages({ q: "x" });
+
+		const headers = new Headers(calls[0]!.init?.headers);
+		expect(headers.has("atproto-accept-labelers")).toBe(true);
+		expect(headers.get("atproto-accept-labelers")).toBe("");
+	});
+
 	it("reports the atproto-content-labelers response header via onResponseMeta", async () => {
 		const { fetch } = buildFetchStub({
 			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {

@@ -110,7 +110,10 @@ export async function verifyAccessRequest(
 	}
 
 	const sub = payload.sub;
-	if (typeof sub !== "string" || sub.length === 0)
+	// Cloudflare Access sets sub: "" for non-identity (service-token) JWTs, so
+	// only reject a non-string sub here; the human path below additionally
+	// requires it to be non-empty.
+	if (typeof sub !== "string")
 		throw new AccessAuthError("invalid-token", "Access assertion is missing sub");
 
 	const commonName = payload.common_name;
@@ -120,6 +123,8 @@ export async function verifyAccessRequest(
 	if (typeof commonName === "string" && commonName.length > 0) {
 		identity = { kind: "service", commonName, sub, roles: [] };
 	} else if (typeof email === "string" && email.length > 0) {
+		if (sub.length === 0)
+			throw new AccessAuthError("invalid-token", "Access assertion is missing sub");
 		identity = { kind: "human", email, sub, roles: [] };
 	} else {
 		throw new AccessAuthError(
@@ -129,7 +134,13 @@ export async function verifyAccessRequest(
 	}
 
 	const principal = identity.kind === "service" ? identity.commonName : identity.email;
-	const principals = new Set<string>([principal, ...groupPrincipals(payload.groups)]);
+	// Group membership authorizes humans only. A service token carries no IdP
+	// identity — it is authorized solely by common_name — so a `custom.groups`
+	// on a service token must never confer a role.
+	const principals = new Set<string>([
+		principal,
+		...(identity.kind === "human" ? groupPrincipals(payload.custom) : []),
+	]);
 	const roles: OperatorRole[] = [];
 	if (config.admins.some((admin) => principals.has(admin))) roles.push("admin");
 	if (config.reviewers.some((reviewer) => principals.has(reviewer))) roles.push("reviewer");
@@ -137,7 +148,12 @@ export async function verifyAccessRequest(
 	return { ...identity, roles };
 }
 
-function groupPrincipals(groups: unknown): readonly string[] {
+// Cloudflare Access surfaces IdP group membership inside the verified token's
+// `custom` object (as a `groups` claim configured on the SAML/OIDC integration),
+// never as a top-level claim. Read the group principals from there.
+function groupPrincipals(custom: unknown): readonly string[] {
+	if (!isRecord(custom)) return [];
+	const groups = custom.groups;
 	if (!Array.isArray(groups)) return [];
 	return groups.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
 }

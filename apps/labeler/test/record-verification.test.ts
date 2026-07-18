@@ -160,6 +160,7 @@ describe("fetchAndVerifyExactRecord: PDS fetch propagation", () => {
 				cid: "bafkreiplaceholder00000000000000000000000000000000000000000",
 				didDocumentResolver: resolver,
 				fetch: () => Promise.resolve(new Response("", { status: 404 })),
+				resolveHostname: () => Promise.resolve(["93.184.216.34"]),
 			}),
 		).rejects.toBeInstanceOf(PdsVerificationError);
 		try {
@@ -168,6 +169,7 @@ describe("fetchAndVerifyExactRecord: PDS fetch propagation", () => {
 				cid: "bafkreiplaceholder00000000000000000000000000000000000000000",
 				didDocumentResolver: resolver,
 				fetch: () => Promise.resolve(new Response("", { status: 404 })),
+				resolveHostname: () => Promise.resolve(["93.184.216.34"]),
 			});
 			throw new Error("expected rejection");
 		} catch (err) {
