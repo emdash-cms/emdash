@@ -36,6 +36,23 @@ const OCCURRENCE_INSERT_BATCH_SIZE = Math.max(
 	1,
 	Math.floor(SQL_BATCH_SIZE / OCCURRENCE_BIND_COLUMNS),
 );
+const CONTENT_SOURCE_ELIGIBILITY = sql<boolean>`(
+	s.source_variant = 'draft_overlay'
+	OR (
+		s.source_variant = 'columns'
+		AND (
+			s.content_status = 'published'
+			OR NOT EXISTS (
+				SELECT 1
+				FROM _emdash_media_usage_sources AS overlay
+				WHERE overlay.source_type = 'content'
+					AND overlay.collection_slug = s.collection_slug
+					AND overlay.content_id = s.content_id
+					AND overlay.source_variant = 'draft_overlay'
+			)
+		)
+	)
+)`;
 
 export interface MediaUsageSourceInput {
 	sourceKey: string;
@@ -193,6 +210,24 @@ export interface FindMediaUsageOptions {
 	cursor?: string;
 }
 
+export interface MediaUsageCollectionIndexStatusScope {
+	collectionSlug: string;
+	status: string | null;
+	schemaVersion: number | null;
+}
+
+export interface MediaUsageEntrySource {
+	source: MediaUsageSource;
+	occurrences: MediaUsageOccurrence[];
+}
+
+export interface MediaUsageEntryGroup {
+	collectionSlug: string;
+	contentId: string;
+	contentDeletedAt: string | null;
+	sources: MediaUsageEntrySource[];
+}
+
 interface MediaUsageSourceRow {
 	source_key: string;
 	source_type: string;
@@ -278,6 +313,11 @@ interface JoinedUsageRow {
 	media_kind: string | null;
 	mime_type: string | null;
 	occurrence_created_at: string;
+}
+
+interface GroupedUsageRow extends JoinedUsageRow {
+	entry_deleted_at: string | null;
+	has_more: number;
 }
 
 /** Persistence-only repository for the internal media usage projection tables. */
@@ -418,6 +458,166 @@ export class MediaUsageRepository {
 			attempted,
 			source: attempted ? null : await this.findSource(source.sourceKey),
 		};
+	}
+
+	async findActiveEntryCountsByMediaIds(mediaIds: readonly string[]): Promise<Map<string, number>> {
+		const uniqueMediaIds = [...new Set(mediaIds)];
+		const counts = new Map(uniqueMediaIds.map((mediaId) => [mediaId, 0]));
+
+		for (const mediaIdBatch of chunks(uniqueMediaIds, SQL_BATCH_SIZE)) {
+			const visibleEntries = this.currentContentMediaUsageBaseQuery()
+				.select([
+					"u.media_id as media_id",
+					"s.collection_slug as collection_slug",
+					"s.content_id as content_id",
+				])
+				.where("u.media_id", "in", mediaIdBatch)
+				.where((eb) =>
+					eb.not(
+						eb.exists(
+							eb
+								.selectFrom("_emdash_media_usage_sources as deleted_source")
+								.select("deleted_source.source_key")
+								.where("deleted_source.source_type", "=", "content")
+								.whereRef("deleted_source.collection_slug", "=", "s.collection_slug")
+								.whereRef("deleted_source.content_id", "=", "s.content_id")
+								.where("deleted_source.source_variant", "in", ["columns", "draft_overlay"])
+								.where("deleted_source.content_deleted_at", "is not", null),
+						),
+					),
+				)
+				.distinct()
+				.as("visible_entries");
+
+			const rows = await this.db
+				.selectFrom(visibleEntries)
+				.select("media_id")
+				.select((eb) => eb.fn.countAll<number>().as("usage_count"))
+				.groupBy("media_id")
+				.execute();
+
+			for (const row of rows) {
+				if (row.media_id !== null) counts.set(row.media_id, Number(row.usage_count));
+			}
+		}
+
+		return counts;
+	}
+
+	async findCollectionIndexStatusScopes(
+		identity: Pick<MediaUsageIndexStatusIdentity, "adapterId" | "scopeType">,
+	): Promise<MediaUsageCollectionIndexStatusScope[]> {
+		const rows = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_media_usage_index_status as status", (join) =>
+				join
+					.on("status.adapter_id", "=", identity.adapterId)
+					.on("status.scope_type", "=", identity.scopeType)
+					.onRef("status.scope_key", "=", "collection.slug"),
+			)
+			.select([
+				"collection.slug as collection_slug",
+				"status.status as status",
+				"status.schema_version as schema_version",
+			])
+			.orderBy("collection.slug", "asc")
+			.execute();
+
+		return rows.map((row) => ({
+			collectionSlug: row.collection_slug,
+			status: row.status,
+			schemaVersion: row.schema_version === null ? null : Number(row.schema_version),
+		}));
+	}
+
+	async findCurrentEntryUsagePageByMediaId(
+		mediaId: string,
+		options: FindMediaUsageOptions = {},
+	): Promise<FindManyResult<MediaUsageEntryGroup>> {
+		const requestedLimit = Math.floor(options.limit ?? 50);
+		const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(1, requestedLimit), 100) : 50;
+		const cursor = options.cursor ? decodeCursor(options.cursor) : null;
+		let matchedGroups = this.currentContentMediaUsageBaseQuery()
+			.select(["s.collection_slug as collection_slug", "s.content_id as content_id"])
+			.where("u.media_id", "=", mediaId)
+			.distinct();
+		if (cursor) {
+			matchedGroups = matchedGroups.where((eb) =>
+				eb.or([
+					eb("s.collection_slug", ">", cursor.orderValue),
+					eb.and([
+						eb("s.collection_slug", "=", cursor.orderValue),
+						eb("s.content_id", ">", cursor.id),
+					]),
+				]),
+			);
+		}
+		matchedGroups = matchedGroups
+			.orderBy("s.collection_slug", "asc")
+			.orderBy("s.content_id", "asc")
+			.limit(limit + 1);
+
+		const rows: GroupedUsageRow[] = await this.db
+			.with("matched_groups", () => matchedGroups)
+			.with("page_groups", (db) =>
+				db
+					.selectFrom("matched_groups")
+					.selectAll()
+					.orderBy("collection_slug", "asc")
+					.orderBy("content_id", "asc")
+					.limit(limit),
+			)
+			.with("entry_state", (db) =>
+				db
+					.selectFrom("page_groups as page")
+					.crossJoin("_emdash_media_usage_sources as state")
+					.select(["page.collection_slug", "page.content_id"])
+					.select((eb) =>
+						eb.fn.max<string | null>("state.content_deleted_at").as("entry_deleted_at"),
+					)
+					.whereRef("page.collection_slug", "=", "state.collection_slug")
+					.whereRef("page.content_id", "=", "state.content_id")
+					.where("state.source_type", "=", "content")
+					.where("state.source_variant", "in", ["columns", "draft_overlay"])
+					.groupBy(["page.collection_slug", "page.content_id"]),
+			)
+			.selectFrom("entry_state as page")
+			.crossJoin("_emdash_media_usage_sources as s")
+			.crossJoin("_emdash_media_usage as u")
+			.whereRef("page.collection_slug", "=", "s.collection_slug")
+			.whereRef("page.content_id", "=", "s.content_id")
+			.whereRef("s.source_key", "=", "u.source_key")
+			.whereRef("s.current_generation", "=", "u.generation")
+			.select(currentUsageSelect)
+			.select("page.entry_deleted_at")
+			.select(
+				sql<number>`CASE
+					WHEN (SELECT COUNT(*) FROM matched_groups) > ${limit} THEN 1
+					ELSE 0
+				END`.as("has_more"),
+			)
+			.where("u.media_id", "=", mediaId)
+			.where("s.source_type", "=", "content")
+			.where("s.collection_slug", "is not", null)
+			.where("s.content_id", "is not", null)
+			.where("s.source_variant", "in", ["columns", "draft_overlay"])
+			.where(CONTENT_SOURCE_ELIGIBILITY)
+			.orderBy("s.collection_slug", "asc")
+			.orderBy("s.content_id", "asc")
+			.orderBy("s.source_variant", "asc")
+			.orderBy("s.source_key", "asc")
+			.orderBy("u.field_path", "asc")
+			.orderBy("u.occurrence_index", "asc")
+			.orderBy("u.id", "asc")
+			.execute();
+
+		const items = groupUsageRows(rows);
+		const result: FindManyResult<MediaUsageEntryGroup> = { items };
+		if (Number(rows[0]?.has_more ?? 0) === 1 && items.length > 0) {
+			const last = items.at(-1)!;
+			result.nextCursor = encodeCursor(last.collectionSlug, last.contentId);
+		}
+		return result;
 	}
 
 	async findCurrentUsageByMediaId(mediaId: string): Promise<MediaUsageRecord[]> {
@@ -889,6 +1089,20 @@ export class MediaUsageRepository {
 			.select(currentUsageSelect);
 	}
 
+	private currentContentMediaUsageBaseQuery() {
+		return this.db
+			.selectFrom("_emdash_media_usage as u")
+			.crossJoin("_emdash_media_usage_sources as s")
+			.innerJoin("_emdash_collections as collection", "collection.slug", "s.collection_slug")
+			.whereRef("s.source_key", "=", "u.source_key")
+			.whereRef("s.current_generation", "=", "u.generation")
+			.where("s.source_type", "=", "content")
+			.where("s.collection_slug", "is not", null)
+			.where("s.content_id", "is not", null)
+			.where("s.source_variant", "in", ["columns", "draft_overlay"])
+			.where(CONTENT_SOURCE_ELIGIBILITY);
+	}
+
 	private async deleteSourceKeys(sourceKeys: readonly string[]): Promise<number> {
 		const uniqueSourceKeys = [...new Set(sourceKeys)];
 		if (uniqueSourceKeys.length === 0) return 0;
@@ -1228,6 +1442,38 @@ const currentUsageSelect = [
 	"u.mime_type as mime_type",
 	"u.created_at as occurrence_created_at",
 ] as const;
+
+function groupUsageRows(rows: readonly GroupedUsageRow[]): MediaUsageEntryGroup[] {
+	const groups: MediaUsageEntryGroup[] = [];
+
+	for (const row of rows) {
+		if (row.collection_slug === null || row.content_id === null) continue;
+		const record = rowToUsageRecord(row);
+		let group = groups.at(-1);
+		if (
+			!group ||
+			group.collectionSlug !== row.collection_slug ||
+			group.contentId !== row.content_id
+		) {
+			group = {
+				collectionSlug: row.collection_slug,
+				contentId: row.content_id,
+				contentDeletedAt: row.entry_deleted_at,
+				sources: [],
+			};
+			groups.push(group);
+		}
+
+		let source = group.sources.at(-1);
+		if (!source || source.source.sourceKey !== record.source.sourceKey) {
+			source = { source: record.source, occurrences: [] };
+			group.sources.push(source);
+		}
+		source.occurrences.push(record.occurrence);
+	}
+
+	return groups;
+}
 
 function rowToSource(row: MediaUsageSourceRow): MediaUsageSource {
 	return {
