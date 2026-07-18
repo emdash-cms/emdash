@@ -93,7 +93,7 @@ export interface ConsumerDeps {
  * don't need to import workerd types. */
 export interface MessageController {
 	ack(): void;
-	retry(): void;
+	retry(options?: { delaySeconds?: number }): void;
 }
 
 /** Subset of a `MessageBatch`. Workers' real batch object satisfies this. */
@@ -250,7 +250,12 @@ export async function processMessage(
 	} catch (err) {
 		if (err instanceof PdsVerificationError) {
 			if (isTransient(err.reason, err.status)) {
-				controller.retry();
+				// A transient DNS-resolution failure carries a re-delivery delay so
+				// retries span the DNS-propagation window instead of firing back to
+				// back; other transient failures (network, 5xx, timeout) retry now.
+				controller.retry(
+					err.retryAfterSeconds !== undefined ? { delaySeconds: err.retryAfterSeconds } : undefined,
+				);
 				return;
 			}
 			// Compute the mapped reason in its own try/catch — `mapPdsReason`

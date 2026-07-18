@@ -543,11 +543,13 @@ class MapDidDocCache implements DidDocCache {
 class FakeMessage implements MessageController {
 	acked = 0;
 	retried = 0;
+	retryDelaySeconds: number | undefined = undefined;
 	ack() {
 		this.acked += 1;
 	}
-	retry() {
+	retry(options?: { delaySeconds?: number }) {
 		this.retried += 1;
+		this.retryDelaySeconds = options?.delaySeconds;
 	}
 }
 
@@ -619,6 +621,8 @@ describe("processMessage dispatcher", () => {
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
 		expect(await deadLetterCount()).toBe(0);
+		// A 5xx retries immediately — the propagation delay is DNS-only.
+		expect(msg.retryDelaySeconds).toBeUndefined();
 	});
 
 	it("retries on a network error", async () => {
@@ -632,6 +636,7 @@ describe("processMessage dispatcher", () => {
 
 		expect(msg.retried).toBe(1);
 		expect(await deadLetterCount()).toBe(0);
+		expect(msg.retryDelaySeconds).toBeUndefined();
 	});
 
 	it("retries when the SSRF host resolver fails (transient DoH outage, not dead-lettered)", async () => {
@@ -648,6 +653,9 @@ describe("processMessage dispatcher", () => {
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
 		expect(await deadLetterCount()).toBe(0);
+		// Re-delivery is delayed so retries span the DNS-propagation window
+		// instead of burning max_retries before the record's host resolves.
+		expect(msg.retryDelaySeconds).toBeGreaterThan(0);
 	});
 
 	it("acks and dead-letters PDS_ADDRESS_BLOCKED when the endpoint resolves to a private address", async () => {

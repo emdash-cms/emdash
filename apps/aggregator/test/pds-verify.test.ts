@@ -191,6 +191,8 @@ describe("fetchAndVerifyRecord — SSRF egress hardening", () => {
 		);
 		expect(err.reason).toBe("PDS_NETWORK_ERROR");
 		expect(isTransient(err.reason, err.status)).toBe(true);
+		// Carries a re-delivery delay so retries span the DNS-propagation window.
+		expect(err.retryAfterSeconds).toBeGreaterThan(0);
 	});
 
 	it("maps a resolver infrastructure failure to the transient PDS_NETWORK_ERROR", async () => {
@@ -204,6 +206,7 @@ describe("fetchAndVerifyRecord — SSRF egress hardening", () => {
 		);
 		expect(err.reason).toBe("PDS_NETWORK_ERROR");
 		expect(isTransient(err.reason, err.status)).toBe(true);
+		expect(err.retryAfterSeconds).toBeGreaterThan(0);
 	});
 
 	it("rejects when the endpoint resolves to a private address", async () => {
@@ -328,6 +331,8 @@ describe("fetchAndVerifyRecord — SSRF egress hardening", () => {
 		);
 		expect(err.reason).toBe("PDS_NETWORK_ERROR");
 		expect(err.message).toMatch(/aborted after 30ms/);
+		// A non-resolution transient retries immediately — no propagation delay.
+		expect(err.retryAfterSeconds).toBeUndefined();
 	});
 });
 

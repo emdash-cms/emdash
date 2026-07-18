@@ -40,6 +40,12 @@ const RESOLVER_FAILURE_PREFIX = "Could not resolve hostname:";
  * would otherwise be permanently dead-lettered; a genuinely-gone host instead
  * dead-letters via retry exhaustion. Not a disallowed address. */
 const EMPTY_ANSWER_MESSAGE = "Hostname resolved to no addresses";
+/** Delay, in seconds, before the consumer re-delivers a message that failed on a
+ * transient DNS resolution (empty answer / resolver outage). The records queue
+ * re-delivers immediately by default, so without this a host mid-propagation
+ * burns all `max_retries` in seconds and lands in the DLQ before DNS settles.
+ * A fixed pause spreads the retries across a propagation window. */
+const RESOLUTION_RETRY_DELAY_SECONDS = 60;
 
 export type VerificationFailureReason =
 	| "PDS_NETWORK_ERROR"
@@ -56,6 +62,10 @@ export class PdsVerificationError extends Error {
 		message: string,
 		readonly status?: number,
 		override readonly cause?: unknown,
+		/** When set, the consumer re-delivers the message after this many seconds
+		 * instead of immediately. Set only for transient DNS-resolution failures
+		 * that need time to propagate; other transient retries stay immediate. */
+		readonly retryAfterSeconds?: number,
 	) {
 		super(message);
 	}
@@ -203,6 +213,7 @@ async function assertFetchableUrl(url: string, resolver: DnsResolver): Promise<v
 					`PDS host resolution failed: ${err.message}`,
 					undefined,
 					err,
+					RESOLUTION_RETRY_DELAY_SECONDS,
 				);
 			}
 			throw new PdsVerificationError(
