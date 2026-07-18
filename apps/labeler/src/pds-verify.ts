@@ -34,6 +34,13 @@ const DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 /** Redirect hops we'll follow before giving up. Each hop is independently
  * re-validated against the SSRF egress rules before it is fetched. */
 const MAX_PDS_REDIRECTS = 3;
+/** `resolveAndValidateExternalUrl` raises `SsrfError` both for a permanent
+ * address/scheme block and for a transient resolver failure (DoH network error,
+ * SERVFAIL, timeout). Core exposes no structured discriminator, so this prefix
+ * — the exact wording it wraps a thrown resolver in — separates the retryable
+ * case from the permanent one. A test pins it so a core wording change fails
+ * loudly instead of silently mis-classifying. */
+const SSRF_RESOLVER_FAILURE_PREFIX = "Could not resolve hostname:";
 
 export type VerificationFailureReason =
 	| "PDS_NETWORK_ERROR"
@@ -135,8 +142,9 @@ function buildGetRecordUrl(pds: string, did: string, collection: string, rkey: s
 /**
  * Reject a PDS URL that is not HTTPS or whose host resolves to a
  * private/reserved address. The publisher controls the PDS endpoint (and any
- * redirect it serves), so this reuses the same DNS-aware SSRF validator that
- * guards artifact acquisition rather than duplicating any address logic.
+ * redirect it serves), so this validates every hop through core's DNS-aware
+ * `resolveAndValidateExternalUrl` (private/reserved-address rejection) rather
+ * than duplicating any address logic.
  */
 async function assertAllowedPdsUrl(url: string, resolveHostname: DnsResolver): Promise<void> {
 	let parsed: URL;
@@ -155,6 +163,18 @@ async function assertAllowedPdsUrl(url: string, resolveHostname: DnsResolver): P
 		await resolveAndValidateExternalUrl(url, { resolver: resolveHostname });
 	} catch (err) {
 		if (err instanceof SsrfError) {
+			// A resolver failure (DoH network error, SERVFAIL, timeout) is
+			// transient infrastructure — retry it rather than permanently
+			// dead-lettering a legitimate record. A true address/scheme block is
+			// permanent.
+			if (err.message.startsWith(SSRF_RESOLVER_FAILURE_PREFIX)) {
+				throw new PdsVerificationError(
+					"PDS_NETWORK_ERROR",
+					`PDS host resolution failed: ${err.message}`,
+					undefined,
+					err,
+				);
+			}
 			throw new PdsVerificationError(
 				"PDS_HOST_BLOCKED",
 				`PDS host rejected: ${err.message}`,

@@ -17,7 +17,7 @@ import { P256PrivateKeyExportable, P256PublicKey } from "@atcute/crypto";
 import type { DnsResolver } from "emdash/security/ssrf";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { fetchAndVerifyRecord, PdsVerificationError } from "../src/pds-verify.js";
+import { fetchAndVerifyRecord, isTransient, PdsVerificationError } from "../src/pds-verify.js";
 
 const TEST_DID = "did:plc:test00000000000000000000";
 const TEST_PDS = "https://pds.test.example";
@@ -94,6 +94,32 @@ describe("fetchAndVerifyRecord — SSRF egress guard", () => {
 			),
 		);
 		expect(err.reason).toBe("PDS_HOST_BLOCKED");
+		// A true address block is permanent — the consumer dead-letters it.
+		expect(isTransient(err.reason, err.status)).toBe(false);
+		expect(called).toBe(false);
+	});
+
+	it("classifies a resolver failure (DoH blip) as transient PDS_NETWORK_ERROR, not a permanent block", async () => {
+		let called = false;
+		const fetchImpl: typeof fetch = () => {
+			called = true;
+			return Promise.resolve(new Response(new Uint8Array([1]), { status: 200 }));
+		};
+		// A throwing resolver stands in for a DoH network error / SERVFAIL /
+		// timeout. `resolveAndValidateExternalUrl` wraps it in an SsrfError whose
+		// message prefix we key on; if core changes that wording this test fails
+		// (the mapping would silently fall through to a permanent block instead).
+		const err = await captureRejection(
+			fetchAndVerifyRecord(
+				buildOpts({
+					fetch: fetchImpl,
+					resolveHostname: () => Promise.reject(new Error("DoH request timed out")),
+				}),
+			),
+		);
+		expect(err.reason).toBe("PDS_NETWORK_ERROR");
+		// The consumer retries transient reasons rather than dead-lettering them.
+		expect(isTransient(err.reason, err.status)).toBe(true);
 		expect(called).toBe(false);
 	});
 
