@@ -28,6 +28,7 @@ interface MintOverrides {
 	email?: string;
 	common_name?: string;
 	groups?: unknown;
+	custom?: unknown;
 	issuer?: string;
 	audience?: string;
 	expiresInSeconds?: number;
@@ -87,8 +88,10 @@ describe("verifyAccessRequest", () => {
 		});
 	});
 
-	it("accepts a valid service token identified by common_name", async () => {
-		const token = await mintToken({ common_name: "ci-automation" }, signKey);
+	it("accepts a valid service token identified by common_name (empty sub)", async () => {
+		// Cloudflare Access sets sub: "" for non-identity (service-token) JWTs and
+		// identifies the token via common_name (the CF-Access-Client-Id).
+		const token = await mintToken({ common_name: "ci-automation", sub: "" }, signKey);
 		const identity = await verifyAccessRequest(
 			requestWith({ "Cf-Access-Jwt-Assertion": token }),
 			baseConfig({ admins: ["ci-automation"] }),
@@ -97,14 +100,27 @@ describe("verifyAccessRequest", () => {
 		expect(identity).toEqual<OperatorIdentity>({
 			kind: "service",
 			commonName: "ci-automation",
-			sub: "user-sub-1",
+			sub: "",
 			roles: ["admin"],
 		});
 	});
 
-	it("maps roles from a groups claim", async () => {
+	it("rejects a human token with an empty sub", async () => {
+		// An empty sub is only legitimate for a service token (common_name path);
+		// a human/email identity must carry a non-empty subject.
+		const token = await mintToken({ email: "admin@example.com", sub: "" }, signKey);
+		await expect(
+			verifyAccessRequest(
+				requestWith({ "Cf-Access-Jwt-Assertion": token }),
+				baseConfig(),
+				resolver,
+			),
+		).rejects.toMatchObject({ reason: "invalid-token" });
+	});
+
+	it("maps roles from a groups claim nested under the verified custom object", async () => {
 		const token = await mintToken(
-			{ email: "someone@example.com", groups: ["emdash-labeler-reviewers"] },
+			{ email: "someone@example.com", custom: { groups: ["emdash-labeler-reviewers"] } },
 			signKey,
 		);
 		const identity = await verifyAccessRequest(
@@ -113,6 +129,35 @@ describe("verifyAccessRequest", () => {
 			resolver,
 		);
 		expect(identity.roles).toEqual(["reviewer"]);
+	});
+
+	it("ignores a top-level groups claim (Access places IdP groups under custom)", async () => {
+		const token = await mintToken(
+			{ email: "someone@example.com", groups: ["emdash-labeler-admins"] },
+			signKey,
+		);
+		const identity = await verifyAccessRequest(
+			requestWith({ "Cf-Access-Jwt-Assertion": token }),
+			baseConfig(),
+			resolver,
+		);
+		expect(identity.roles).toEqual([]);
+	});
+
+	it("maps both admin and reviewer when custom.groups lists both", async () => {
+		const token = await mintToken(
+			{
+				email: "someone@example.com",
+				custom: { groups: ["emdash-labeler-admins", "emdash-labeler-reviewers"] },
+			},
+			signKey,
+		);
+		const identity = await verifyAccessRequest(
+			requestWith({ "Cf-Access-Jwt-Assertion": token }),
+			baseConfig(),
+			resolver,
+		);
+		expect(identity.roles).toEqual(["admin", "reviewer"]);
 	});
 
 	it("grants only reviewer role for a reviewer-only principal", async () => {
@@ -330,33 +375,39 @@ describe("verifyAccessRequest", () => {
 		).rejects.toMatchObject({ reason: "invalid-token" });
 	});
 
-	it("ignores a groups claim of the wrong shape without crashing", async () => {
-		const stringShape = await mintToken(
-			{ email: "reviewer@example.com", groups: "emdash-labeler-reviewers" },
-			signKey,
-		);
-		const numberArrayShape = await mintToken(
-			{ email: "reviewer@example.com", groups: [1, 2, 3] },
-			signKey,
-		);
+	it("ignores malformed custom / groups shapes without crashing", async () => {
+		// custom itself is not an object; custom.groups is a string not an array;
+		// custom.groups is a non-string array; custom is absent. None should throw
+		// and none should leak a group principal — the reviewer role here comes
+		// only from the email allowlist.
+		const shapes: unknown[] = [
+			"custom-is-a-string",
+			{ groups: "emdash-labeler-reviewers" },
+			{ groups: [1, 2, 3] },
+			{ groups: { nested: true } },
+		];
+		for (const custom of shapes) {
+			const token = await mintToken({ email: "reviewer@example.com", custom }, signKey);
+			const identity = await verifyAccessRequest(
+				requestWith({ "Cf-Access-Jwt-Assertion": token }),
+				baseConfig(),
+				resolver,
+			);
+			expect(identity.roles).toEqual(["reviewer"]);
+		}
 
-		const identityA = await verifyAccessRequest(
-			requestWith({ "Cf-Access-Jwt-Assertion": stringShape }),
+		const noCustom = await mintToken({ email: "reviewer@example.com" }, signKey);
+		const identity = await verifyAccessRequest(
+			requestWith({ "Cf-Access-Jwt-Assertion": noCustom }),
 			baseConfig(),
 			resolver,
 		);
-		const identityB = await verifyAccessRequest(
-			requestWith({ "Cf-Access-Jwt-Assertion": numberArrayShape }),
-			baseConfig(),
-			resolver,
-		);
-		expect(identityA.roles).toEqual(["reviewer"]);
-		expect(identityB.roles).toEqual(["reviewer"]);
+		expect(identity.roles).toEqual(["reviewer"]);
 	});
 
-	it("does not treat an empty-string group entry as a principal", async () => {
+	it("does not treat an empty-string custom group entry as a principal", async () => {
 		const token = await mintToken(
-			{ email: "nobody@example.com", groups: ["", "not-a-configured-group"] },
+			{ email: "nobody@example.com", custom: { groups: ["", "not-a-configured-group"] } },
 			signKey,
 		);
 		// An empty-string allowlist entry can only match if an empty group leaks in as a principal.
@@ -366,6 +417,40 @@ describe("verifyAccessRequest", () => {
 			resolver,
 		);
 		expect(identity.roles).toEqual([]);
+	});
+
+	it("never lets a service token gain a role from custom.groups (service = common_name only)", async () => {
+		// A service token carries no IdP identity, so a `custom.groups` that
+		// happens to match an allowlist entry must NOT confer a role — otherwise
+		// moving the group claim under `custom` opens a fail-open path.
+		const unauthorized = await mintToken(
+			{ common_name: "unknown-service", sub: "", custom: { groups: ["emdash-labeler-admins"] } },
+			signKey,
+		);
+		const identityA = await verifyAccessRequest(
+			requestWith({ "Cf-Access-Jwt-Assertion": unauthorized }),
+			baseConfig(),
+			resolver,
+		);
+		expect(identityA.roles).toEqual([]);
+
+		// A service token authorized by common_name keeps exactly that role; a
+		// reviewer group in its custom object adds nothing.
+		const authorized = await mintToken(
+			{ common_name: "ci-automation", sub: "", custom: { groups: ["emdash-labeler-reviewers"] } },
+			signKey,
+		);
+		const identityB = await verifyAccessRequest(
+			requestWith({ "Cf-Access-Jwt-Assertion": authorized }),
+			baseConfig({ admins: ["ci-automation"] }),
+			resolver,
+		);
+		expect(identityB).toEqual<OperatorIdentity>({
+			kind: "service",
+			commonName: "ci-automation",
+			sub: "",
+			roles: ["admin"],
+		});
 	});
 
 	it("never includes the raw token in a thrown error message", async () => {
