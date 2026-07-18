@@ -619,10 +619,7 @@ export function ContentEditor({
 							"flex flex-wrap items-center justify-between gap-y-2",
 							isDistractionFree
 								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10"
-								: cn(
-										"mx-auto mb-6 max-w-3xl",
-										isBelowLg && "sticky top-0 z-20 bg-kumo-base/95 py-3 backdrop-blur",
-									),
+								: cn("mx-auto mb-6 max-w-3xl", isBelowLg && "bg-kumo-base/95 py-3 backdrop-blur"),
 						)}
 					>
 						<div className="flex items-center gap-4">

@@ -1074,6 +1074,20 @@ describe("ContentEditor", () => {
 			}
 		});
 
+		it("keeps the editor header in the document flow below lg", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+				const header = heading.parentElement?.parentElement;
+
+				expect(header).not.toHaveClass("sticky", "top-0", "z-20");
+				expect(header).toHaveClass("bg-kumo-base/95", "py-3", "backdrop-blur");
+			} finally {
+				media.restore();
+			}
+		});
+
 		it("labels and closes the settings sheet below lg", async () => {
 			const media = installMatchMedia(true);
 			try {
