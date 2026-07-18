@@ -290,6 +290,10 @@ export class AssessmentOrchestrator {
 				isPrebootstrap: signingStatus === null,
 				activeKeyVersion: this.config.signingKeyVersion,
 			},
+			// Close the delete-vs-finalization TOCTOU: a delete tombstoning the
+			// subject after the currency re-check below no-ops this CAS at commit
+			// time, so no outcome/block label commits for a deleted subject.
+			guardSubjectNotDeleted: true,
 		});
 
 		const statements = [...finalization.statements];
@@ -378,6 +382,14 @@ export class AssessmentOrchestrator {
 		// same signing-state guard as every label insert (buildFinalizationStatements'
 		// signingGuard), so a flip no-ops the CAS too and the batch commits nothing —
 		// the run stays `running` for the Workflow retry.
+		//
+		// A delete tombstoning the subject in this gap is closed likewise: the CAS
+		// carries a not-deleted predicate on this run's subject
+		// (buildFinalizationStatements' guardSubjectNotDeleted). A pure tombstone does
+		// not move the run out of `running` (that only happens via the delete's
+		// separate cancel CAS, which can lose the race), so without this predicate the
+		// CAS would commit outcome/block labels for a subject the delete just removed;
+		// with it, the tombstone no-ops the CAS and the retry stales the run out.
 		//
 		// Narrower gaps remain, tracked with the real-stage wiring:
 		//   - a CID supersession landing in this gap does not move the run out of

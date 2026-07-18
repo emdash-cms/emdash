@@ -484,6 +484,17 @@ export interface FinalizationInput {
 	 * stays `running`, and the Workflow retry re-runs finalization after resume.
 	 */
 	signingGuard?: { isPrebootstrap: boolean; activeKeyVersion: string };
+	/**
+	 * Gate the CAS on the subject `(uri, cid)` still being non-tombstoned at commit
+	 * time, closing the delete-vs-finalization TOCTOU: finalization's
+	 * `isSubjectCurrent` re-check is a separate read from this commit, so a delete
+	 * that tombstones the subject in between would otherwise let the CAS commit
+	 * terminal state with live outcome/block labels for a deleted release. Folding
+	 * the not-deleted predicate into the CAS makes a tombstone landing before the
+	 * batch no-op the CAS (and, transitively, every label gated on `toState`), so
+	 * finalization retries and stales out instead of labelling a deleted subject.
+	 */
+	guardSubjectNotDeleted?: boolean;
 }
 
 export interface FinalizationStatements {
@@ -538,6 +549,13 @@ export function buildFinalizationStatements(
 		const prebootstrap = input.signingGuard.isPrebootstrap ? 1 : 0;
 		casBinds.push(prebootstrap, prebootstrap, input.signingGuard.activeKeyVersion);
 	}
+	// Not-tombstoned predicate on this run's subject, evaluated at commit time in
+	// the same batch — a delete landing after finalization's currency re-check
+	// no-ops the CAS here rather than committing labels for a deleted subject.
+	const subjectGuardSql = input.guardSubjectNotDeleted
+		? `\n\t\t\t\t AND EXISTS (SELECT 1 FROM subjects WHERE uri = ? AND cid = ? AND deleted_at IS NULL)`
+		: "";
+	if (input.guardSubjectNotDeleted) casBinds.push(input.uri, input.cid);
 	const statements: D1PreparedStatement[] = [
 		db
 			.prepare(
@@ -546,7 +564,7 @@ export function buildFinalizationStatements(
 				     public_summary = COALESCE(?, public_summary),
 				     coverage_json = COALESCE(?, coverage_json),
 				     supersedes_assessment_id = COALESCE(?, supersedes_assessment_id)
-				 WHERE id = ? AND state = ?${signingGuardSql}`,
+				 WHERE id = ? AND state = ?${signingGuardSql}${subjectGuardSql}`,
 			)
 			.bind(...casBinds),
 	];

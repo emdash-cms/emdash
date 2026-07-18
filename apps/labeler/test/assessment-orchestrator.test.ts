@@ -1327,3 +1327,63 @@ describe("AssessmentOrchestrator: signing pause between prep and commit (Finding
 		expect(pendingNeg?.neg).toBe(1);
 	});
 });
+
+describe("AssessmentOrchestrator: delete racing finalization (Blocker 1)", () => {
+	it("commits no outcome/block labels when the subject is tombstoned between the currency re-check and the batch", async () => {
+		const run = await pendingRun({ name: "delete-toctou", cidValue: await cid("delete-toctou") });
+		const blockingStages: OrchestratorStages = {
+			...stubStages,
+			codeAi: () => Promise.resolve([finding({ category: "malware", severity: "critical" })]),
+		};
+		// Tombstone the subject in the seam between finalize's currency re-check and
+		// the batch commit — the exact TOCTOU window the CAS subject-guard closes.
+		const db = pauseBeforeFirstBatch(testEnv.DB, async () => {
+			await deleteSubject(testEnv.DB, { uri: run.uri, cid: run.cid });
+		});
+		const orchestrator = new AssessmentOrchestrator({
+			db,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: blockingStages,
+			sleep: () => Promise.resolve(),
+		});
+
+		// The guarded CAS no-ops against the tombstone, so the whole batch commits
+		// nothing and the finalization conflict is raised.
+		await expect(orchestrator.runAssessment(run.id)).rejects.toBeInstanceOf(
+			AssessmentFinalizationConflictError,
+		);
+
+		// The run is still running and NO label — not the block, not even the pending
+		// negation — was committed for the now-deleted subject.
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("running");
+		const labels = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?`,
+		)
+			.bind(run.id)
+			.first<{ n: number }>();
+		expect(labels?.n).toBe(0);
+
+		// The Workflow retry re-runs finalization, sees the deleted subject, and
+		// stales the run out — still never labelling a deleted release.
+		const resumed = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: blockingStages,
+			sleep: () => Promise.resolve(),
+		});
+		const finalized = await resumed.runAssessment(run.id);
+		expect(finalized.state).toBe("stale");
+		const labelsAfter = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?`,
+		)
+			.bind(run.id)
+			.first<{ n: number }>();
+		expect(labelsAfter?.n).toBe(0);
+	});
+});
