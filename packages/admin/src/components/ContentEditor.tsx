@@ -756,7 +756,7 @@ export function ContentEditor({
 
 					<div
 						className={cn(
-							isDistractionFree ? "max-w-4xl mx-auto pt-16" : "mx-auto max-w-3xl space-y-6",
+							isDistractionFree ? "mx-auto max-w-3xl pt-16" : "mx-auto max-w-3xl space-y-6",
 						)}
 					>
 						<div className="space-y-6">
@@ -780,7 +780,6 @@ export function ContentEditor({
 												? setPortableTextEditor
 												: undefined
 										}
-										minimal={isDistractionFree}
 										pluginBlocks={pluginBlocks}
 										onBlockSidebarOpen={
 											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
