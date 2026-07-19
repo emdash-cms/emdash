@@ -20,9 +20,11 @@ export function escapeHtml(s: string): string {
  */
 const RTL_SUBTAGS = new Set(["ar", "fa", "he", "ur", "ps", "sd", "ug", "yi", "ckb", "dv"]);
 
+const SUBTAG_SPLIT_RE = /[-_]/;
+
 /** Text direction for a BCP 47 locale code ("ltr" unless the primary subtag is RTL). */
 export function localeDir(locale: string): "ltr" | "rtl" {
-	const primary = locale.toLowerCase().split(/[-_]/)[0] ?? "";
+	const primary = locale.toLowerCase().split(SUBTAG_SPLIT_RE)[0] ?? "";
 	return RTL_SUBTAGS.has(primary) ? "rtl" : "ltr";
 }
 
