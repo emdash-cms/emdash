@@ -1,27 +1,51 @@
 /**
- * End-to-end wiring for plugin-route `rawBody`.
+ * Trusted plugin routes with `rawBody: true` must receive the delivered
+ * body as a UTF-8 string on `ctx.rawBody`, alongside the parsed `ctx.input`.
  *
- * The route-layer unit tests pass `rawBody` into `PluginRouteHandler.invoke`
- * manually; this test exercises the real path — `EmDashRuntime.
- * handlePluginApiRoute` reading the request stream once, parsing `ctx.input`
- * from the same buffer, and forwarding the raw string only to routes that
- * opted in with `rawBody: true`.
+ * The dispatcher reads `request.text()` once, parses JSON from the same
+ * buffer into `ctx.input`, and only surfaces `rawBody` to opted-in routes —
+ * the behavioral core of the raw-body feature that unit tests invoking
+ * `PluginRouteHandler.invoke` directly do not exercise.
  */
 
 import { randomUUID } from "node:crypto";
 
 import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
+import type { Storage } from "../../../src/storage/types.js";
 
-/** What the handler saw for the last invocation, keyed by route name. */
-const seen = new Map<string, { rawBody?: string; input?: unknown }>();
+const stubStorage: Storage = {
+	async upload() {
+		throw new Error("storage not used by this test");
+	},
+	async download() {
+		throw new Error("storage not used by this test");
+	},
+	async delete() {},
+	async exists() {
+		return false;
+	},
+	async list() {
+		return { items: [] };
+	},
+	async getSignedUploadUrl() {
+		throw new Error("storage not used by this test");
+	},
+	getPublicUrl: (key) => `/media/${key}`,
+};
 
-function createDeps(): RuntimeDependencies {
+interface Captured {
+	hasRawBody: boolean;
+	rawBody: string | undefined;
+	input: unknown;
+}
+
+function createDeps(captured: Captured, rawBodyOptIn: boolean): RuntimeDependencies {
 	const entrypoint = `test-plugin-raw-body-${randomUUID()}`;
 	return {
 		config: {
@@ -30,20 +54,16 @@ function createDeps(): RuntimeDependencies {
 		},
 		plugins: [
 			definePlugin({
-				id: "webhook-demo",
+				id: "webhook-sink",
 				version: "1.0.0",
 				capabilities: [],
 				routes: {
-					webhook: {
-						rawBody: true,
+					hook: {
+						rawBody: rawBodyOptIn,
 						handler: async (ctx) => {
-							seen.set("webhook", { rawBody: ctx.rawBody, input: ctx.input });
-							return { ok: true };
-						},
-					},
-					normal: {
-						handler: async (ctx) => {
-							seen.set("normal", { rawBody: ctx.rawBody, input: ctx.input });
+							captured.hasRawBody = "rawBody" in ctx && ctx.rawBody !== undefined;
+							captured.rawBody = ctx.rawBody;
+							captured.input = ctx.input;
 							return { ok: true };
 						},
 					},
@@ -51,68 +71,80 @@ function createDeps(): RuntimeDependencies {
 			}),
 		],
 		createDialect: () => new SqliteDialect({ database: new Database(":memory:") }),
-		createStorage: null,
+		createStorage: () => stubStorage,
 		sandboxEnabled: false,
 		sandboxedPluginEntries: [],
 		createSandboxRunner: null,
 	};
 }
 
-function post(runtime: EmDashRuntime, route: string, body?: string) {
-	return runtime.handlePluginApiRoute(
-		"webhook-demo",
-		"POST",
-		`/${route}`,
-		new Request(`http://test.local/_emdash/api/plugins/webhook-demo/${route}`, {
-			method: "POST",
-			body,
-		}),
-	);
+function post(json: string): Request {
+	return new Request("http://test.local/_emdash/api/plugin/webhook-sink/hook", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: json,
+	});
 }
 
 describe("EmDashRuntime.handlePluginApiRoute — rawBody", () => {
-	let runtime: EmDashRuntime;
+	it("populates ctx.rawBody with the exact delivered text and ctx.input with parsed JSON", async () => {
+		const captured: Captured = { hasRawBody: false, rawBody: undefined, input: undefined };
+		const runtime = await EmDashRuntime.create(createDeps(captured, true));
+		try {
+			// Whitespace and key order must survive in rawBody even though
+			// ctx.input is the parsed equivalent.
+			const payload = '{  "b": 1,\n  "a": "x"  }';
+			const result = await runtime.handlePluginApiRoute(
+				"webhook-sink",
+				"POST",
+				"/hook",
+				post(payload),
+			);
 
-	beforeAll(async () => {
-		runtime = await EmDashRuntime.create(createDeps());
+			expect(result.success).toBe(true);
+			expect(captured.hasRawBody).toBe(true);
+			expect(captured.rawBody).toBe(payload);
+			expect(captured.input).toEqual({ a: "x", b: 1 });
+		} finally {
+			await runtime.stopCron();
+		}
 	});
 
-	afterAll(async () => {
-		await runtime.stopCron();
+	it("leaves ctx.input undefined for non-JSON payloads but still exposes rawBody", async () => {
+		const captured: Captured = { hasRawBody: false, rawBody: undefined, input: undefined };
+		const runtime = await EmDashRuntime.create(createDeps(captured, true));
+		try {
+			const result = await runtime.handlePluginApiRoute(
+				"webhook-sink",
+				"POST",
+				"/hook",
+				post("not json at all"),
+			);
+
+			expect(result.success).toBe(true);
+			expect(captured.rawBody).toBe("not json at all");
+			expect(captured.input).toBeUndefined();
+		} finally {
+			await runtime.stopCron();
+		}
 	});
 
-	it("delivers the unparsed body string and the parsed input from the same buffer", async () => {
-		// Whitespace and key order must survive: a signature computed over a
-		// re-serialized ctx.input would not match this string.
-		const raw = `{"b": 2,  "a":1}`;
-		const result = await post(runtime, "webhook", raw);
+	it("does not populate ctx.rawBody for routes that did not opt in", async () => {
+		const captured: Captured = { hasRawBody: false, rawBody: undefined, input: undefined };
+		const runtime = await EmDashRuntime.create(createDeps(captured, false));
+		try {
+			const result = await runtime.handlePluginApiRoute(
+				"webhook-sink",
+				"POST",
+				"/hook",
+				post('{"a":1}'),
+			);
 
-		expect(result.success).toBe(true);
-		expect(seen.get("webhook")).toEqual({ rawBody: raw, input: { a: 1, b: 2 } });
-	});
-
-	it("delivers non-JSON bodies with input undefined", async () => {
-		const raw = "event=order.paid&id=42";
-		const result = await post(runtime, "webhook", raw);
-
-		expect(result.success).toBe(true);
-		expect(seen.get("webhook")).toEqual({ rawBody: raw, input: undefined });
-	});
-
-	it("leaves rawBody undefined without a request body", async () => {
-		const result = await post(runtime, "webhook");
-
-		expect(result.success).toBe(true);
-		const call = seen.get("webhook");
-		expect(call?.rawBody).toBeFalsy();
-		expect(call?.input).toBeUndefined();
-	});
-
-	it("does not expose rawBody to routes without the flag", async () => {
-		const raw = `{"a":1}`;
-		const result = await post(runtime, "normal", raw);
-
-		expect(result.success).toBe(true);
-		expect(seen.get("normal")).toEqual({ rawBody: undefined, input: { a: 1 } });
+			expect(result.success).toBe(true);
+			expect(captured.hasRawBody).toBe(false);
+			expect(captured.input).toEqual({ a: 1 });
+		} finally {
+			await runtime.stopCron();
+		}
 	});
 });
