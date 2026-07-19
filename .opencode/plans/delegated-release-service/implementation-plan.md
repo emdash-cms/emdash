@@ -24,20 +24,38 @@ Gates 0A and 0B are deliberately not implementation stages. RFC #1870 is the pro
 
 The integration branch includes these completed merge units:
 
-| Work items                 | Evidence | Result                                                                 |
-| -------------------------- | -------- | ---------------------------------------------------------------------- |
-| `W0.1`, `W0.2`, `W0.7`     | #1915    | RFC acceptance criteria and `emdash-plugin` command decision recorded. |
-| `W1.1` through `W1.3`      | #1918    | Experimental profile and release contracts and generated types landed. |
-| `W1.4`                     | #1920    | Existing profile writers preserve extensions.                          |
-| `W1.5`                     | #1925    | Local profile-policy command landed.                                   |
-| `W2.1`, `W2.2` foundations | #1929    | Shared verification package, checksums, and safe fetching landed.      |
-| `W2.3`                     | #1932    | Canonical plugin bundle validation landed.                             |
-| `W2.4`                     | #1937    | Declared-access canonicalization and escalation landed.                |
-| `W0.5`                     | #1943    | Public Sigstore verification feasibility in workerd proved.            |
-| `W2.5`                     | #1951    | Production public Sigstore provenance verification landed.             |
-| `W0.4`                     | Direct   | Confidential OAuth custody and refresh are compatible with workerd.    |
+| Work items                  | Evidence | Result                                                                          |
+| --------------------------- | -------- | ------------------------------------------------------------------------------- |
+| `W0.1`, `W0.2`, `W0.7`      | #1915    | RFC acceptance criteria and `emdash-plugin` command decision recorded.          |
+| `W1.1` through `W1.3`       | #1918    | Experimental profile and release contracts and generated types landed.          |
+| `W1.4`                      | #1920    | Existing profile writers preserve extensions.                                   |
+| `W1.5`, `W8.3`              | #1925    | Local profile-policy command landed.                                            |
+| `W2.1`, `W2.2` foundations  | #1929    | Shared verification package, checksums, and safe fetching landed.               |
+| `W2.3`                      | #1932    | Canonical plugin bundle validation landed.                                      |
+| `W2.4`                      | #1937    | Declared-access canonicalization and escalation landed.                         |
+| `W0.5`                      | #1943    | Public Sigstore verification feasibility in workerd proved.                     |
+| `W2.5`                      | #1951    | Production public Sigstore provenance verification landed.                      |
+| `W2.6`, `W2.7`              | #1969    | Structured record/policy verification and authoritative direct-PDS reads landed. |
+| `W3.6`                      | #1970    | Required-UV passkey verification and typed challenge contexts landed.           |
+| `W5.1`, `W5.8` foundation   | #1971    | Worker scaffold and versioned API foundation landed with lifecycle routes closed. |
+| `W4.1`, `W4.2`              | #1974    | Issuer-neutral workload contracts and GitHub Actions OIDC verification landed.  |
+| `W5.1a`                     | #1988    | Isolated verifier Worker and bounded service binding landed.                    |
+| `W3.1`                      | #1990    | Versioned envelope encryption landed.                                           |
+| `W1.6`, `W1.7`              | #1993    | Exact create-only scope contract and narrow release publishing helper landed.   |
+| `W0.4`                      | Direct   | Confidential OAuth custody and refresh are compatible with workerd.             |
+| `W0.6`                      | #2011    | `subscribeRepos` `#commit` events selected for historical policy ingest.        |
+| `W3.2`, `W3.3`, `W5.2a`     | #2010    | Confidential metadata, JWKS, encrypted OAuth stores, and custody schema landed. |
+| `W9.1`                      | #2009    | Existing installer checksum and bundle verification moved to shared primitives. |
 
-`W0.6` is complete: `subscribeRepos` `#commit` events selected; see Gate 0B and the Aggregator Changes section of the spec for W10.1 constraints. Deployed-PDS compatibility from `W0.3` moves to conformance and production smoke. The next shared-verification merge unit is combined `W2.6` and `W2.7`; `W1.6` and `W1.7` land together to establish the exact supported scope contract.
+Gate 0A, Gate 0B, and Gate 1 are complete. Deployed-PDS compatibility from `W0.3` remains a conformance and production-smoke requirement in `W12.7`, not a current implementation blocker.
+
+Current workstream state:
+
+| State       | Work items                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| Complete    | `W1.1`-`W1.7`, `W2.1`-`W2.7`, `W3.1`-`W3.3`, `W3.6`, `W4.1`-`W4.2`, `W5.1`, `W5.1a`, `W5.2a`, `W5.8` foundation, `W8.3`, `W9.1` |
+| Partial     | `W3.4` repository lease primitives, `W3.5` console-session persistence, `W11.1`, `W12.1`, `W12.2` |
+| Remaining   | `W3.7`, `W4.3`-`W4.4`, `W5.2b`-`W5.2f`, `W5.3`-`W5.7`, `W6`, `W7`, `W8.1`-`W8.2`, `W8.4`-`W8.6`, `W9.2`-`W9.5`, `W10`, `W11.2`-`W11.6`, `W12.3`-`W12.7` |
 
 ## Outcomes
 
@@ -136,11 +154,15 @@ flowchart TD
 ### Critical Path
 
 ```text
-Service path: W1 -> W2 -> W5 -> W9 -> W12
-Launch-history path: W0B -> W10 -> W12
+Service path: W4.3/W5.2b -> W5.2d/W5.3/W5.7a -> W5.4 -> W5.5 -> W5.6
+Identity path: W3.5 -> W3.7/W5.2c -> W5.5
+Delegation path: W3.5 + W3.4 -> W5.6
+Independent enforcement: W9.2 -> W9.3 -> W9.4; W9.2 -> W9.5
+Launch-history path: W10.1 -> W10.2 -> W10.3 -> W10.5 -> W10.7 -> W12
+Launch-policy inputs: W10.4 -> W10.3; W10.2 + W7/notifier -> W10.6 -> W12
 ```
 
-Historical aggregator work depends on Gate 0B. Service, installer, and most API/UI work proceed independently once their code dependencies are satisfied.
+Gate 0B is complete, so historical aggregator work is unblocked. The service, installer, and aggregator lanes may proceed independently until Gate 2 integration. `W10.1` and `W10.2` must be deployed before any non-disposable publisher registers so event-specific policy history is durably retained; otherwise events lost beyond Queue or relay retention cannot be reconstructed.
 
 ## Integration Gates
 
@@ -507,18 +529,22 @@ Dependencies: `W3.1`, `W3.2`.
 
 ### `W3.4` Session refresh coordination
 
-Implement `PublisherCoordinator` with D1 leases, rotated-session CAS persistence, proactive refresh, jitter, reauthorization state, revocation, and ambiguous refresh recovery.
+Implement `PublisherCoordinator` with session restore, D1 leases, rotated-session CAS persistence, reauthorization state, revocation, and ambiguous refresh recovery. Repository-level lease and state-transition primitives landed in #2010; this item owns the atcute refresh orchestration that uses them. Scheduled proactive refresh and jitter land with `W5.7b` after publication semantics are stable.
 
 Dependencies: `W0.4`, `W3.3`, `W5.2a`.
 
 ### `W3.5` Console and approver identity sessions
 
+- Implement purpose-specific atcute authorization start and callback routes.
+- For release delegation, request and verify the exact create-only scope, then persist the durable delegation and discard callback-only state.
+- For console and approver identity, verify the expected DID and purpose without retaining a release delegation.
+- Enforce the existing fail-closed allowed-publisher configuration before publisher login, delegation, or state creation.
 - Convert successful `atproto` OAuth into short-lived, hashed, same-origin service sessions.
 - Delete unneeded OAuth session material.
 - Bind approver identity proof to invitation or requested DID.
 - Add CSRF and session rotation.
 
-Dependencies: `W3.3`, `W5.1` app scaffold.
+Dependencies: `W3.3`, `W5.1` app scaffold, completed `W5.8` API foundation.
 
 ### `W3.6` Required-UV passkey primitives
 
@@ -857,6 +883,8 @@ Move core artifact checksum, tar, and manifest consistency checks to `@emdash-cm
 
 Dependencies: `W2.2`, `W2.3`, `W2.4`.
 
+Complete in #2009.
+
 ### `W9.2` Fetch signed profile policy and provenance
 
 Extend direct-PDS install resolution to validate profile and release extensions and retain the profile CID used for the decision.
@@ -1057,42 +1085,31 @@ No unresolved critical/high security findings, the `W0.3` compatibility matrix p
 
 ## Recommended Merge Sequence
 
-Completed work is recorded in the implementation baseline instead of remaining in the future queue. The next merge units are:
+Completed work is recorded in the implementation baseline instead of remaining in the future queue. The next service-core merge units are:
 
-| Sequence | Merge unit                                                   | Depends on                                |
-| -------- | ------------------------------------------------------------ | ----------------------------------------- |
-| 1        | `W2.6` + `W2.7` record verification and direct-PDS reads     | Completed W1/W2 contracts                 |
-| 2        | `W1.6` + `W1.7` exact scope and create-only publishing       | Completed W1 contracts                    |
-| 3        | `W3.6` required-UV and typed challenge primitives            | None                                      |
-| 4        | `W5.1` service scaffold and `W5.8` API foundation            | None; sensitive routes remain unreachable |
-| 5        | `W4.1` + `W4.2` issuer contract and GitHub verifier          | `W5.1`                                    |
-| 6        | `W5.1a` dedicated verifier Worker                            | `W2.2`, `W5.1`                            |
-| 7        | `W3.1` encryption                                            | None                                      |
-| 8        | `W3.2` + `W3.3` confidential OAuth and `W5.2a` custody slice | `W1.6`, `W3.1`, `W5.1`                    |
-| 9        | `W4.3` workload policy and `W5.2b` repository slice          | `W4.1`, `W5.1`                            |
-| 10       | `W5.2d` + `W5.3` + `W5.7a` unreachable submission pipeline   | `W4.2`, `W4.3`, API foundation            |
-| 11       | `W5.4` validation consumer, routes remain unreachable        | `W2.6`, `W2.7`, `W5.1a`, `W5.3`, `W5.7a`  |
+| Sequence | Merge unit                                                        | Depends on                                  |
+| -------- | ----------------------------------------------------------------- | ------------------------------------------- |
+| 1        | `W4.3` + `W5.2b` typed workload policy and repository             | Completed `W4.1`, `W5.1`                    |
+| 2        | Expanded `W3.5` OAuth start/callback and service-session vertical   | Completed `W3.2`, `W3.3`, `W5.1`, `W5.8`    |
+| 3        | `W4.4` + `W5.2d` + `W5.3` + `W5.7a` unreachable submission pipeline | Sequence 1, completed API foundation         |
+| 4        | `W5.4` validation consumer, lifecycle routes remain unreachable     | Sequence 3, completed `W2.6`, `W2.7`, `W5.1a` |
+| 5        | `W3.4` refresh/revocation coordinator                               | Completed `W3.3`, `W5.2a`                    |
+| 6        | `W3.7` + `W5.2c` passkey repository and ceremonies                 | Sequence 2, completed `W3.6`                 |
+| 7        | `W5.5` + `W5.2f` approval and rejection lifecycle                  | Sequences 4 and 6                            |
+| 8        | `W5.6` final verification, publication, and reconciliation          | Sequences 4, 5, and 7                        |
+| 9        | `W5.7b` expiry, refresh scheduling, recovery, and maintenance       | Sequence 8                                   |
 
-Later work continues as vertical merge units: passkey storage with ceremonies, approval storage with lifecycle, publication with reconciliation, notification storage with adapters, and API endpoints with their operations. `W10.1` begins only after Gate 0B; minimum current-policy filtering in `W10.4` may proceed earlier.
+Operation-specific API endpoints land with the operation they expose. Public submission and approval routes remain unregistered until sequence 8 activates both validation and publication consumers.
 
 ## Parallelization Map
 
 Current parallel work:
 
-- `W2.6` + `W2.7`, `W3.1`, `W3.6`, and `W5.1` may proceed independently. `W4.1` + `W4.2` and `W5.1a` begin after `W5.1` establishes their app and binding boundaries.
-- `W1.6` + `W1.7` and `W3.2` + `W3.3` close the exact delegation boundary.
-- `W4.3`, then `W5.2d` + `W5.3` + `W5.7a`, establish the unreachable submission pipeline. `W5.4` adds validation while routes remain unreachable until publication lands in `W5.6`.
-- `W0.6` external research may proceed concurrently and commit only conclusions to this branch.
-
-After Gate 0B:
-
-- `W10.1` and historical policy association may proceed independently of service orchestration.
-
-After Gate 1:
-
-- `W5` validation and publication become the main integration path.
-- `W9` installer work can proceed independently against shared fixtures.
-- `W10.3` provenance processing can proceed once event-specific policy association exists.
+- `W4.3` + `W5.2b`, expanded `W3.5`, `W3.4`, and `W9.2` are unblocked; select at most three as active branches.
+- After `W4.3`, the submission pipeline and validation consumer form the main service sequence.
+- After `W3.5`, `W3.7` may proceed independently.
+- `W10.1` may proceed independently now that Gate 0B is complete, followed by `W10.2`. Deploy both before any non-disposable publisher registers so policy history is durably captured from the first supported publisher event.
+- `W10.4` may proceed independently as the conservative current-policy floor.
 
 After Gate 2:
 
@@ -1129,11 +1146,34 @@ After Gate 2:
 
 Start these independently, with at most three implementation branches active at once:
 
-1. `W2.6` + `W2.7`: structured record/policy verification over authoritative direct-PDS reads.
-2. `W1.6` + `W1.7`: implement the typed exact scope and narrow create-only publishing helper.
-3. `W0.6`: complete. Gate 0B is closed.
-4. `W3.6`: required-UV passkey primitives.
-5. `W5.1` + `W5.8`: unreachable service and API foundations.
-6. After `W5.1`, `W4.1` + `W4.2` and `W5.1a`: workload verification and the isolated verifier Worker.
+1. `W4.3` + `W5.2b`: typed workload-policy matcher, D1 repository, ownership constraints, indexes, and real-D1 tests.
+2. Expanded `W3.5`: purpose-specific OAuth start/callback, exact delegation establishment, console sessions, approver identity proof, CSRF, and session rotation.
+3. `W9.2`: direct-PDS installer resolution for signed profile policy, release provenance, and retained decision CID.
 
-Do not implement historical policy association or cooldown claims until Gate 0B passes. Deployed-PDS compatibility remains mandatory in `W12.7` before claiming support or launching production.
+When slot 1 completes, start `W4.4` + `W5.2d` + `W5.3` + `W5.7a`. When slot 2 completes, start `W3.7`; `W3.4` is already unblocked and may replace slot 3 if the publication path takes priority over installer work. Before any non-disposable publisher registers, replace a slot with the `W10.1` then `W10.2` history-ingest vertical and deploy both stages first.
+
+## Current Blockers and Launch Gates
+
+There is no unresolved external feasibility blocker to the current execution set.
+
+Immediate sequencing blockers:
+
+- Intent submission is blocked on `W4.3` + `W5.2b`; a verified GitHub identity cannot authorize a package until the typed workload policy and repository exist.
+- Validation is blocked on `W5.3` + `W5.7a`; the consumer needs an idempotent intent and transactional outbox to consume.
+- Approval is blocked on expanded `W3.5`, `W3.7` + `W5.2c`, and `W5.4`, because approver identity, enrolled passkeys, and a validated intent must exist before approval evidence can be accepted.
+- Publication is blocked on `W3.4`, `W5.4`, and `W5.5`; public lifecycle mutation routes remain unreachable until `W5.6` connects final verification and the idempotent publication consumer.
+
+Deferred beta and production gates:
+
+- `W0.3` will be completed through `W12.7`: every claimed PDS must prove exact create-only authorization, forbidden writes, revocation, and client-key removal behavior. This does not block implementation.
+- Gate 4 requires the console, notifications, official clients, operations, self-hosting, and an external security review with no unresolved critical or high findings.
+- Gate 5 requires event-specific policy history, downgrade behavior, and a real GitHub OIDC to PDS to aggregator to clean-installer production smoke.
+- `W10.1` and `W10.2` must transport and durably persist policy history before any non-disposable publisher registers; events missed beyond Queue or relay retention cannot be reconstructed later.
+
+Known risks, not current blockers:
+
+- Firehose proof retention, per-DID key history, MST verification, and relay gaps make `W10.1` high risk despite Gate 0B feasibility being complete.
+- D1 refresh coordination may require the planned per-publisher Durable Object fallback if real contention invalidates the lease model.
+- The pinned Sigstore dependency and trust-root lifecycle require continuing packed-output and workerd verification.
+- DNS pre-resolution reduces SSRF exposure but cannot eliminate rebinding TOCTOU; verifier egress remains a production configuration concern.
+- Service or encryption-key compromise exposes active delegated capability, so key rotation and incident response remain Gate 4 requirements.

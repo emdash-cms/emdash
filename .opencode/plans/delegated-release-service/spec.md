@@ -25,14 +25,16 @@ This spec covers the complete feature: protocol records, shared verification, th
 
 ## Implementation Baseline
 
-The integration branch has implemented the RFC-derived profile and release contracts, extension-preserving profile writes, the local profile-policy command, and the shared verification foundations through production public Sigstore provenance verification. See implementation PRs #1915, #1918, #1920, #1925, #1929, #1932, #1937, #1943, and #1951.
+The integration branch has completed Gate 0A, Gate 0B, and the Gate 1 protocol and verification foundation. It includes the RFC-derived profile and release contracts, extension-preserving profile writes, exact create-only scope and publishing, the local profile-policy command, authoritative direct-PDS reads, shared record/policy and Sigstore verification, and required-UV passkey primitives.
+
+The service foundation includes the Worker and API scaffold, isolated verifier Worker, GitHub Actions OIDC verification, versioned envelope encryption, confidential OAuth metadata and JWKS, encrypted D1 custody stores, and repository-level delegation lease primitives. Existing installer checksum and bundle verification use the shared package. See implementation PRs #1915, #1918, #1920, #1925, #1929, #1932, #1937, #1943, #1951, #1969, #1970, #1971, #1974, #1988, #1990, #1993, #2009, #2010, and #2011.
 
 The remaining external validation is split by impact:
 
 - Service feasibility: confidential OAuth custody is compatible with workerd. Deployed-PDS compatibility is a conformance and production-smoke requirement, not a pre-implementation gate; the service still has no broad-scope fallback.
-- History feasibility: select an event source that preserves verifiable intermediate profile values. This blocks historical aggregator enforcement and production launch, not the service or installer.
+- History feasibility is complete: `subscribeRepos` `#commit` events are the selected event-specific source. Historical aggregator implementation remains required for production launch.
 
-The next protocol/verification closure is two coherent merge units: exact scope plus create-only publishing (`W1.6` + `W1.7`), and direct-PDS reads plus structured record/policy verification (`W2.6` + `W2.7`).
+The next service-core merge units are typed workload policies plus their D1 repository (`W4.3` + `W5.2b`), purpose-specific OAuth start/callback and service sessions (`W3.5`), and then the unreachable intent submission/outbox pipeline (`W5.2d` + `W5.3` + `W5.7a`). The implementation plan is authoritative for the current sequence and blocker register.
 
 ## Non-Negotiable Security Invariants
 
@@ -1129,22 +1131,21 @@ OAuth custody feasibility is complete. Gate 0B is complete: `subscribeRepos` fir
 ### Phase 1: Protocol and verification foundation
 
 - Complete: land profile and release lexicon additions.
-- In progress: complete `@emdash-cms/registry-verification` with direct-PDS record/policy verification.
+- Complete: implement `@emdash-cms/registry-verification` with direct-PDS record/policy verification.
 - Complete: land declared-access canonical diff.
-- Extend passkey primitives with required UV and bound challenge context.
-- Extract create-only release record construction into `registry-client`.
-- Switch existing installer integrity checks to shared verification where behavior is equivalent.
+- Complete: extend passkey primitives with required UV and bound challenge context.
+- Complete: extract create-only release record construction into `registry-client`.
+- Complete: switch existing installer integrity checks to shared verification where behavior is equivalent.
 
-Exit criterion: records can represent the RFC, and service/installer use identical verification fixtures.
+Phase 1 is complete. Installer policy and provenance enforcement remain Phase 2 work in `W9.2` through `W9.5`; only the behavior-preserving integrity-helper migration is complete.
 
 ### Phase 2: Secure automated vertical slice
 
-- Scaffold `apps/release-service` with D1, OAuth, GitHub OIDC, intent state machine, queues, and publication reconciliation.
-- Implement delegation and minimal publisher console.
-- Implement approver OAuth, multiple passkeys, approval pages, and audit.
-- Implement CLI API client and official GitHub Action.
-- Implement install-time provenance and policy enforcement.
-- Add minimum aggregator policy status and default filtering. Until historical ordering lands, apply the current signed profile as a conservative floor and mark the result accordingly.
+- Complete foundations: scaffold `apps/release-service`, the versioned API foundation, D1 OAuth custody, GitHub OIDC verification, isolated verifier egress, encryption, metadata, and JWKS.
+- Remaining service core: typed workload policies, intent state machine, transactional outbox, validation, OAuth refresh, approver passkeys, approval, publication, and ambiguous-write reconciliation.
+- Remaining user path: delegation and minimal publisher console, CLI API client, and official GitHub Action.
+- Remaining installer path: install-time provenance and policy enforcement.
+- Remaining aggregator floor: minimum policy status and default filtering. Until historical ordering lands, apply the current signed profile as a conservative floor and mark the result accordingly.
 
 Exit criterion: GitHub Actions can publish an attested release without a stored atproto credential, including an escalation requiring passkey approval, and a clean site independently verifies and installs it.
 
