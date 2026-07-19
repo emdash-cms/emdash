@@ -58,15 +58,15 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
 		const baseUrl = await getSiteBaseUrl(emdash.db, request);
 		const siteName = (await options.get<string>("emdash:site_title")) ?? "EmDash";
 
+		// Localized copy following the site locale (#915); the locale also
+		// drives lang/dir on the email HTML so RTL copy renders correctly.
+		const emailLocale = await getEmailLocale(emdash.db, request);
 		const config: MagicLinkConfig = {
 			baseUrl,
 			siteName,
 			email: (message) => emdash.email!.send(message, "system"),
-			// Localized copy following the site locale (#915)
-			emailStrings: await getMagicLinkEmailStrings(
-				await getEmailLocale(emdash.db, request),
-				siteName,
-			),
+			emailStrings: await getMagicLinkEmailStrings(emailLocale, siteName),
+			emailLocale,
 		};
 
 		// Send recovery link

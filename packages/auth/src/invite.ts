@@ -14,6 +14,18 @@ export function escapeHtml(s: string): string {
 		.replaceAll('"', "&quot;");
 }
 
+/**
+ * RTL primary language subtags (BCP 47). Mirrors the admin's
+ * `getLocaleDir` without @emdash-cms/auth depending on the admin package.
+ */
+const RTL_SUBTAGS = new Set(["ar", "fa", "he", "ur", "ps", "sd", "ug", "yi", "ckb", "dv"]);
+
+/** Text direction for a BCP 47 locale code ("ltr" unless the primary subtag is RTL). */
+export function localeDir(locale: string): "ltr" | "rtl" {
+	const primary = locale.toLowerCase().split(/[-_]/)[0] ?? "";
+	return RTL_SUBTAGS.has(primary) ? "rtl" : "ltr";
+}
+
 const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /** Function that sends an email (matches the EmailPipeline.send signature) */
@@ -49,6 +61,8 @@ export interface InviteConfig {
 	email?: EmailSendFn;
 	/** Optional localized email copy. English when omitted. */
 	emailStrings?: InviteEmailStrings;
+	/** Optional BCP 47 locale of the copy; sets lang/dir on the email HTML for RTL. */
+	emailLocale?: string;
 }
 
 /** Result of creating an invite token (without sending email) */
@@ -122,15 +136,19 @@ export function buildInviteEmail(
 	email: string,
 	siteName: string,
 	strings?: InviteEmailStrings,
+	locale?: string,
 ): EmailMessage {
 	const s = strings ?? defaultInviteEmailStrings(siteName);
+	// Localized copy may be RTL — set lang/dir on the root so RTL text renders
+	// correctly. Defaults to ltr when no locale is threaded through (#915).
+	const langAttr = locale ? ` lang="${escapeHtml(locale)}" dir="${localeDir(locale)}"` : "";
 	return {
 		to: email,
 		subject: s.subject,
 		text: `${s.textIntro}\n\n${s.textLinkInstruction}\n${inviteUrl}\n\n${s.expiryNote}`,
 		html: `
 <!DOCTYPE html>
-<html>
+<html${langAttr}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -165,7 +183,13 @@ export async function createInvite(
 
 	// Send email if a sender is configured
 	if (config.email) {
-		const message = buildInviteEmail(result.url, email, config.siteName, config.emailStrings);
+		const message = buildInviteEmail(
+			result.url,
+			email,
+			config.siteName,
+			config.emailStrings,
+			config.emailLocale,
+		);
 		await config.email(message);
 	}
 

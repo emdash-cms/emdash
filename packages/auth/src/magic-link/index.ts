@@ -2,7 +2,7 @@
  * Magic link authentication
  */
 
-import { escapeHtml } from "../invite.js";
+import { escapeHtml, localeDir } from "../invite.js";
 import { generateTokenWithHash, hashToken } from "../tokens.js";
 import type { AuthAdapter, User, EmailMessage } from "../types.js";
 
@@ -39,6 +39,8 @@ export interface MagicLinkConfig {
 	email?: EmailSendFn;
 	/** Optional localized email copy. English when omitted. */
 	emailStrings?: MagicLinkEmailStrings;
+	/** Optional BCP 47 locale of the copy; sets lang/dir on the email HTML for RTL. */
+	emailLocale?: string;
 }
 
 /**
@@ -95,6 +97,7 @@ export async function sendMagicLink(
 		user.email,
 		config.siteName,
 		config.emailStrings,
+		config.emailLocale,
 	);
 	await config.email(message);
 }
@@ -121,15 +124,19 @@ export function buildMagicLinkEmail(
 	email: string,
 	siteName: string,
 	strings?: MagicLinkEmailStrings,
+	locale?: string,
 ): EmailMessage {
 	const s = strings ?? defaultMagicLinkEmailStrings(siteName);
+	// Localized copy may be RTL — set lang/dir on the root so RTL text renders
+	// correctly. Defaults to ltr when no locale is threaded through (#915).
+	const langAttr = locale ? ` lang="${escapeHtml(locale)}" dir="${localeDir(locale)}"` : "";
 	return {
 		to: email,
 		subject: s.subject,
 		text: `${s.textLinkInstruction}\n\n${linkUrl}\n\n${s.expiryNote}\n\n${s.ignoreNote}`,
 		html: `
 <!DOCTYPE html>
-<html>
+<html${langAttr}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

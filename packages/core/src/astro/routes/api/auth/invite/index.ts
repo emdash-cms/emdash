@@ -59,8 +59,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Localize the invite email copy (#915). Only resolved when an
 		// email will actually be sent — the copy-link fallback has no copy.
-		const emailStrings = emailSend
-			? await getInviteEmailStrings(await getEmailLocale(emdash.db, request), siteName)
+		const emailLocale = emailSend ? await getEmailLocale(emdash.db, request) : undefined;
+		const emailStrings = emailLocale
+			? await getInviteEmailStrings(emailLocale, siteName)
 			: undefined;
 
 		const result = await createInvite(
@@ -69,6 +70,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				siteName,
 				email: emailSend,
 				emailStrings,
+				emailLocale,
 			},
 			adapter,
 			body.email,

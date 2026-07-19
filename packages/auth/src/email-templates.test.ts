@@ -5,10 +5,24 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildInviteEmail, type InviteEmailStrings } from "./invite.js";
+import { buildInviteEmail, localeDir, type InviteEmailStrings } from "./invite.js";
 import { buildMagicLinkEmail, type MagicLinkEmailStrings } from "./magic-link/index.js";
 
 const URL = "https://example.com/_emdash/admin/invite/accept?token=abc";
+
+describe("localeDir", () => {
+	it("flags RTL primary subtags as rtl", () => {
+		expect(localeDir("ar")).toBe("rtl");
+		expect(localeDir("fa-IR")).toBe("rtl");
+		expect(localeDir("he")).toBe("rtl");
+	});
+
+	it("treats LTR and empty locales as ltr", () => {
+		expect(localeDir("en")).toBe("ltr");
+		expect(localeDir("de-CH")).toBe("ltr");
+		expect(localeDir("")).toBe("ltr");
+	});
+});
 
 describe("buildInviteEmail", () => {
 	it("defaults to English copy with the site name interpolated", () => {
@@ -45,6 +59,19 @@ describe("buildInviteEmail", () => {
 
 		expect(message.html).toContain("&lt;b&gt;&quot;Acme&quot;&lt;/b&gt;");
 		expect(message.html).not.toContain(`<b>"Acme"</b>`);
+	});
+
+	it("sets lang/dir on the root element when a locale is provided (RTL)", () => {
+		const message = buildInviteEmail(URL, "new@example.com", "Acme", undefined, "ar");
+
+		expect(message.html).toContain('<html lang="ar" dir="rtl">');
+	});
+
+	it("omits lang/dir when no locale is provided (defaults to ltr)", () => {
+		const message = buildInviteEmail(URL, "new@example.com", "Acme");
+
+		expect(message.html).toContain("<html>");
+		expect(message.html).not.toContain("dir=");
 	});
 });
 
