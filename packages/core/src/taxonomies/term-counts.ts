@@ -124,5 +124,19 @@ export async function fetchVisibleTermCounts(
 	const fresh = await getContentTableNames(db);
 	const remaining = present.filter((collection) => fresh.has(`ec_${collection}`));
 	if (remaining.length === 0) return new Map();
-	return runCounts(db, taxonomyName, remaining);
+
+	// A table could still be dropped between the fresh lookup and the count
+	// query (another concurrent isolate). Count each remaining collection
+	// individually so a missing table is skipped rather than failing the request.
+	const counts = new Map<string, number>();
+	for (const collection of remaining) {
+		try {
+			for (const [group, count] of await runCounts(db, taxonomyName, [collection])) {
+				counts.set(group, (counts.get(group) ?? 0) + count);
+			}
+		} catch (error) {
+			if (!isMissingTableError(error)) throw error;
+		}
+	}
+	return counts;
 }
