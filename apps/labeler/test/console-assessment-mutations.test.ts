@@ -17,6 +17,7 @@ import { computeRunKey, initialTriggerId } from "../src/assessment-lifecycle.js"
 import {
 	createAssessmentRun,
 	createSubject,
+	deleteSubjectsByUri,
 	getActiveLabelState,
 	getAssessment,
 	getCurrentAssessment,
@@ -373,6 +374,48 @@ describe("rerun", () => {
 			await countRows(`SELECT COUNT(*) n FROM operator_actions WHERE action = 'assessment-rerun'`),
 		).toBe(1);
 		expect(await getCurrentAssessment(testEnv.DB, { src: LABELER_DID, uri, cid: CID })).toBeNull();
+	});
+
+	it("commits no live pending and does not dispatch when a delete tombstoned the subject first (rerun-path ordering race)", async () => {
+		const { id, uri } = await seedRun("rerun-delete-ordering");
+		// The concurrent discovery-delete already tombstoned the subject (its
+		// non-terminal-run snapshot predates the rerun's run, so it never sees it).
+		await deleteSubjectsByUri(testEnv.DB, { uri });
+
+		const { deps, workflow, settle } = captureDeferred();
+		const response = await handleConsoleMutation(
+			post(`/admin/api/assessments/${id}/rerun`, {
+				confirmation: CID,
+				reason: "rerun races a delete",
+				idempotencyKey: nextKey(),
+			}),
+			deps,
+		);
+
+		// The subject-guarded positive no-op'd, so the phantom-success check fails
+		// (503) and the deferred tail — advance, dispatch, publish — never runs.
+		expect(response.status).toBe(503);
+		await settle();
+		expect(workflow.created.length).toBe(0);
+
+		// No active positive assessment-pending survives on the tombstoned subject,
+		// and no positive row committed at all.
+		const winners = await getActiveLabelState(testEnv.DB, { src: LABELER_DID, uri, cid: CID });
+		expect(winners.get("assessment-pending")?.active ?? false).toBe(false);
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM issued_labels WHERE uri = ? AND val = 'assessment-pending' AND neg = 0`,
+				uri,
+			),
+		).toBe(0);
+		// Seam 3: the generation-guarded run creation left NO orphan `observed`
+		// operator run (reconciliation would ignore an `observed` run forever).
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM assessments WHERE uri = ? AND trigger = 'operator'`,
+				uri,
+			),
+		).toBe(0);
 	});
 
 	it("a second rerun creates another distinct run", async () => {

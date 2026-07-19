@@ -15,9 +15,9 @@ import { runNotificationSweep } from "./notification-sweep.js";
 import { createNotifyDeps, type NotifyDeps } from "./notification-triggers.js";
 import { runProlongedErrorEscalation } from "./prolonged-error.js";
 import { queryLabels } from "./query-labels.js";
-import { reconcileAssessments } from "./reconciliation.js";
+import { reconcileAssessments, sweepPendingPublications } from "./reconciliation.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
-import { LABEL_SUBSCRIPTION_DO_NAME } from "./subscribe-labels.js";
+import { LABEL_SUBSCRIPTION_DO_NAME, notifyLabelSubscription } from "./subscribe-labels.js";
 import { handleAssessmentXrpc } from "./xrpc-router.js";
 import { xrpcError } from "./xrpc.js";
 
@@ -106,6 +106,22 @@ export default {
 		ctx.waitUntil(
 			reconcileAssessments(env.DB, new Date()).catch((err: unknown) => {
 				console.error("[labeler] reconciliation pass failed", {
+					error: err instanceof Error ? err.message : String(err),
+				});
+			}),
+		);
+
+		// Publication-pending sweep: re-drive the subscription-DO notify for labels
+		// whose live post-commit broadcast was dropped, so a stranded row can't block
+		// an aggregator or the next key rotation. Its own branch so a sweep failure
+		// never disturbs the passes around it.
+		ctx.waitUntil(
+			sweepPendingPublications({
+				db: env.DB,
+				notify: (sequence) => notifyLabelSubscription(env, sequence),
+				now: new Date(),
+			}).catch((err: unknown) => {
+				console.error("[labeler] publication sweep failed", {
 					error: err instanceof Error ? err.message : String(err),
 				});
 			}),

@@ -1,7 +1,10 @@
 import { encode, toBytes } from "@atcute/cbor";
 import { DurableObject } from "cloudflare:workers";
 
+import { getLabelerIdentityConfig } from "./config.js";
+import { resignStaleLabels, type LabelRow } from "./query-labels.js";
 import type { IssuedLabel } from "./service.js";
+import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
 
 export const LABEL_SUBSCRIPTION_DO_NAME = "main";
 
@@ -43,18 +46,26 @@ export interface LabelPublisher {
 	publish(issued: IssuedLabel): Promise<void>;
 }
 
-export function createLabelPublisher(env: Env): LabelPublisher {
+/**
+ * Notifies the subscription DO of a committed label sequence. The DO broadcasts
+ * it and clears the row's `publication_pending` flag. Shared by the live
+ * publisher and the reconciliation `publication_pending` sweep so both drive the
+ * exact same DO endpoint.
+ */
+export async function notifyLabelSubscription(env: Env, sequence: number): Promise<void> {
 	const subscription = env.LABEL_SUBSCRIPTION.getByName(LABEL_SUBSCRIPTION_DO_NAME);
+	const response = await subscription.fetch("https://labeler.internal/notify", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ sequence }),
+	});
+	if (!response.ok) throw new Error(`label notification failed with ${response.status}`);
+}
+
+export function createLabelPublisher(env: Env): LabelPublisher {
 	return {
 		managesPublicationState: true,
-		async publish(issued) {
-			const response = await subscription.fetch("https://labeler.internal/notify", {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ sequence: issued.sequence }),
-			});
-			if (!response.ok) throw new Error(`label notification failed with ${response.status}`);
-		},
+		publish: (issued) => notifyLabelSubscription(env, issued.sequence),
 	};
 }
 
@@ -208,15 +219,28 @@ export class LabelSubscriptionDO extends DurableObject {
 
 	private async labelsAfter(cursor: number, through: number): Promise<SubscriptionEvent[]> {
 		const rows = await this.env.DB.prepare(
-			`SELECT sequence, ver, src, uri, cid, val, neg, cts, exp, sig
+			`SELECT id, sequence, ver, src, uri, cid, val, neg, cts, exp, sig,
+			 signing_key_id, signing_key_version
 			 FROM issued_labels
 			 WHERE sequence > ? AND sequence <= ?
 			 ORDER BY sequence ASC
 			 LIMIT ?`,
 		)
 			.bind(cursor, through, REPLAY_PAGE_SIZE)
-			.all<StoredLabelRow>();
-		return (rows.results ?? []).map((row) => ({
+			.all<LabelRow>();
+		// Bring any row signed with a retired key onto the active key before framing
+		// it, the same lazy re-sign the public query reader does — a fresh aggregator
+		// verifies replayed frames against the current published key, so an
+		// un-re-signed retained row would fail verification and stall the stream. The
+		// re-sign preserves sequence and ordering; a signing pause throws (mirroring
+		// queryLabels' 503) rather than serving a still-stale frame.
+		const resigned = await resignStaleLabels(this.env.DB, rows.results ?? [], async () =>
+			createRuntimeSigner(
+				await getLabelerIdentityConfig(this.env),
+				getRuntimeSigningSecret(this.env),
+			),
+		);
+		return resigned.map((row) => ({
 			sequence: row.sequence,
 			label: rowToLabel(row),
 		}));

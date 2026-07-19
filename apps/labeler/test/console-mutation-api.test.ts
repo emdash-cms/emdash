@@ -595,6 +595,36 @@ describe("console mutation: replay and conflict", () => {
 		).toBe(1);
 	});
 
+	it("redrives the subscription-DO notify on replay (Finding 7)", async () => {
+		const uri = await seedReleaseSubject("replay-redrive");
+		const key = nextKey();
+		const request = () =>
+			post("/admin/api/labels/issue", {
+				uri,
+				val: "security-yanked",
+				confirmation: "replay-redrive",
+				reason: "redrive on replay",
+				idempotencyKey: key,
+			});
+		const notified: string[] = [];
+		const deps = mutationDeps({
+			afterCommit: async (actionId) => {
+				notified.push(actionId);
+			},
+		});
+
+		const first = await handleConsoleMutation(request(), deps);
+		expect(first.status).toBe(200);
+		const second = await handleConsoleMutation(request(), deps);
+		expect(second.status).toBe(200);
+
+		// afterCommit (the live subscription-DO notify) fired on the proceed path AND
+		// again on the replay, keyed on the same committed action — so a client retry
+		// re-drives a broadcast the original request may have dropped.
+		expect(notified).toHaveLength(2);
+		expect(new Set(notified).size).toBe(1);
+	});
+
 	it("returns 409 for the same key with a different fingerprint", async () => {
 		const uri = await seedReleaseSubject("conflict");
 		const key = nextKey();

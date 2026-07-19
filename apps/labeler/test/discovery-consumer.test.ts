@@ -16,10 +16,18 @@ import {
 	automatedIdempotencyKey,
 	computeRunKey,
 	initialTriggerId,
+	operatorTriggerId,
 } from "../src/assessment-lifecycle.js";
-import { getAssessmentByRunKey, getCurrentAssessment } from "../src/assessment-store.js";
+import {
+	createAssessmentRun,
+	createSubject,
+	getAssessmentByRunKey,
+	getCurrentAssessment,
+	transitionAssessmentState,
+} from "../src/assessment-store.js";
 import { buildAutomationPauseUpdate } from "../src/automation-state.js";
 import {
+	bestEffortPublisher,
 	type DiscoveryConsumerDeps,
 	type MessageController,
 	processDiscoveryMessage,
@@ -27,12 +35,14 @@ import {
 import type { DiscoveryJob } from "../src/env.js";
 import { PdsVerificationError, type VerifiedPdsRecord } from "../src/pds-verify.js";
 import { MODERATION_POLICY } from "../src/policy.js";
+import { sweepPendingPublications } from "../src/reconciliation.js";
 import {
 	RecordVerificationError,
 	type DidDocumentResolverLike,
 } from "../src/record-verification.js";
-import { issueAutomatedAssessmentLabel } from "../src/service.js";
+import { issueAutomatedAssessmentLabel, type IssuedLabel } from "../src/service.js";
 import { initializeSigningState } from "../src/signing-rotation.js";
+import type { LabelPublisher } from "../src/subscribe-labels.js";
 
 interface TestEnv {
 	DB: D1Database;
@@ -558,6 +568,155 @@ describe("processDiscoveryMessage: verification failures", () => {
 	});
 });
 
+describe("processDiscoveryMessage: create racing delete (Blocker 1 create-path)", () => {
+	it("commits no live pending label and does not dispatch when a delete completes before the create's positive commits", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const workflow = new FakeAssessmentWorkflow();
+		const published: IssuedLabel[] = [];
+		const publisher: LabelPublisher = {
+			managesPublicationState: true,
+			async publish(issued) {
+				published.push(issued);
+			},
+		};
+		const baseDeps = { ...(await buildDeps()), assessmentWorkflow: workflow, publisher };
+		const runKey = await runKeyFor(job);
+
+		// Barrier: the create's positive issuance signs its label right before the
+		// commit batch. Hook that seam to let a full delete complete first —
+		// tombstone + negate + cancel + ack — exactly the concurrent-delete window.
+		const realSigner = await signer();
+		let deleteDone = false;
+		const barrierSigner: LabelSigner = {
+			issuerDid: realSigner.issuerDid,
+			async sign(label) {
+				if (!deleteDone) {
+					deleteDone = true;
+					const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+					await processDiscoveryMessage(deleteJob, new FakeMessage(), {
+						...baseDeps,
+						confirmDeleted: () => Promise.resolve(true),
+					});
+				}
+				return realSigner.sign(label);
+			},
+		};
+
+		const create = new FakeMessage();
+		await processDiscoveryMessage(job, create, {
+			...baseDeps,
+			signer: barrierSigner,
+			verify: verifiedFor(job),
+		});
+
+		// The create acked (the run is obsolete), never dispatched a Workflow, and
+		// committed no positive assessment-pending — the guarded issuance no-op'd.
+		expect(create.acked).toBe(1);
+		expect(create.retried).toBe(0);
+		expect(workflow.created.length).toBe(0);
+
+		const assessment = await getAssessmentByRunKey(testEnv.DB, runKey);
+		expect(assessment?.state).toBe("cancelled");
+		const positive = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ? AND l.val = 'assessment-pending' AND l.neg = 0`,
+		)
+			.bind(assessment!.id)
+			.first<{ n: number }>();
+		expect(positive?.n).toBe(0);
+
+		// No positive assessment-pending was ever broadcast.
+		expect(
+			published.some(
+				(entry) => entry.label.val === "assessment-pending" && entry.label.neg !== true,
+			),
+		).toBe(false);
+
+		// No active positive assessment-pending survives. Here the positive never
+		// committed (guarded no-op) and the delete issued no negation — it correctly
+		// negates only runs that committed a positive — so the stream winner is either
+		// absent or a negation, never a live positive.
+		const winner = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uriFor(job))
+			.first<{ neg: number }>();
+		expect(winner === null || winner.neg === 1).toBe(true);
+	});
+
+	it("negates an operator rerun's live positive pending even while its run is still observed (rerun observed-state gap)", async () => {
+		// Reconstruct the rerun's committed state: an `observed` run already carrying
+		// a live positive assessment-pending (the rerun issues its positive before the
+		// deferred advance to `pending`).
+		const job = await jobFor({ rkey: rkey() });
+		const uri = uriFor(job);
+		await createSubject(testEnv.DB, {
+			uri,
+			cid: job.cid,
+			did: PUBLISHER_DID,
+			collection: RELEASE_COLLECTION,
+			rkey: job.rkey,
+		});
+		const triggerId = operatorTriggerId("op-observed-gap");
+		const runKey = await computeRunKey({
+			uri,
+			cid: job.cid,
+			policyVersion: MODERATION_POLICY.policyVersion,
+			modelId: "unassigned",
+			promptHash: "unassigned",
+			scannerSetVersion: "unassigned",
+			triggerId,
+		});
+		const { assessment } = await createAssessmentRun(testEnv.DB, {
+			runKey,
+			uri,
+			cid: job.cid,
+			trigger: "operator",
+			triggerId,
+			policyVersion: MODERATION_POLICY.policyVersion,
+			coverageJson: "{}",
+		});
+		expect(assessment.state).toBe("observed");
+		await issueAutomatedAssessmentLabel(
+			testEnv.DB,
+			config,
+			await signer(),
+			{
+				actor: LABELER_DID,
+				type: "automated-assessment",
+				assessmentId: assessment.id,
+				reason: "operator rerun",
+				idempotencyKey: automatedIdempotencyKey(runKey, "assessment-pending", false),
+			},
+			{ uri, cid: job.cid, val: "assessment-pending" },
+		);
+
+		const latestPending = () =>
+			testEnv.DB.prepare(
+				`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+				 ORDER BY sequence DESC LIMIT 1`,
+			)
+				.bind(uri)
+				.first<{ neg: number }>();
+		expect((await latestPending())?.neg).toBe(0);
+
+		// A discovery delete arrives while the run is still `observed`.
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const msg = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, msg, {
+			...(await buildDeps()),
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		expect(msg.acked).toBe(1);
+		// The observed run is cancelled AND its live positive is negated — no stale
+		// positive survives (pre-fix the state-based negation skipped observed runs).
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("cancelled");
+		expect((await latestPending())?.neg).toBe(1);
+	});
+});
+
 describe("processDiscoveryMessage: delete", () => {
 	it("tombstones the subject and cancels non-terminal runs", async () => {
 		const job = await jobFor({ rkey: rkey() });
@@ -629,6 +788,116 @@ describe("processDiscoveryMessage: delete", () => {
 			.bind(job.rkey)
 			.first<{ n: number }>();
 		expect(dl?.n).toBe(0);
+	});
+
+	it("negates the pending label on redelivery after a paused first delivery — no stale pending survives", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+		const runKey = await runKeyFor(job);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("pending");
+
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const latestPending = () =>
+			testEnv.DB.prepare(
+				`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+				 ORDER BY sequence DESC LIMIT 1`,
+			)
+				.bind(uriFor(job))
+				.first<{ neg: number }>();
+
+		// First delivery: signing paused mid-rotation, so the pending-negation throws
+		// and the message retries.
+		const first = new FakeMessage();
+		await testEnv.DB.prepare(
+			`UPDATE signing_state SET phase = 'paused', pending_key_version = 'v2',
+			 pending_public_multikey = ?, rotation_id = 'rot-redeliver' WHERE id = 1`,
+		)
+			.bind(MULTIKEY)
+			.run();
+		try {
+			await processDiscoveryMessage(deleteJob, first, {
+				...deps,
+				confirmDeleted: () => Promise.resolve(true),
+			});
+		} finally {
+			await testEnv.DB.prepare(
+				`UPDATE signing_state SET phase = 'active', pending_key_version = NULL,
+				 pending_public_multikey = NULL, rotation_id = NULL WHERE id = 1`,
+			).run();
+		}
+		expect(first.retried).toBe(1);
+		expect(first.acked).toBe(0);
+		// The crux of the fix: negating BEFORE cancelling means the throw leaves the
+		// run non-terminal (still `pending`), so the redelivery can re-discover it.
+		// Pre-fix the run was cancelled here and the redelivery found nothing to negate.
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("pending");
+		expect((await latestPending())?.neg).toBe(0);
+
+		// Redelivery with signing resumed: the negation now commits and the run is
+		// retired, so no active assessment-pending survives the delete.
+		const second = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, second, {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+		expect(second.acked).toBe(1);
+		expect(second.retried).toBe(0);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("cancelled");
+		expect((await latestPending())?.neg).toBe(1);
+	});
+
+	it("retries (never dead-letter+acks) an unexpected issuance error during delete negation, leaving no acked live label", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+		const runKey = await runKeyFor(job);
+
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const latestPending = () =>
+			testEnv.DB.prepare(
+				`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+				 ORDER BY sequence DESC LIMIT 1`,
+			)
+				.bind(uriFor(job))
+				.first<{ neg: number }>();
+
+		// An UNEXPECTED (not issuance-unavailable) failure during the negation — a
+		// signer that throws a plain error, standing in for an HSM/D1 fault.
+		const brokenSigner: LabelSigner = {
+			issuerDid: LABELER_DID,
+			sign: () => Promise.reject(new Error("HSM offline")),
+		};
+		const first = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, first, {
+			...deps,
+			signer: brokenSigner,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		// The delete path RETRIES rather than dead-letter+acking (the create path's
+		// unexpected-error policy) — acking would strand the live pending label on a
+		// deleted subject.
+		expect(first.retried).toBe(1);
+		expect(first.acked).toBe(0);
+		const dl = await testEnv.DB.prepare(`SELECT COUNT(*) AS n FROM dead_letters WHERE rkey = ?`)
+			.bind(job.rkey)
+			.first<{ n: number }>();
+		expect(dl?.n).toBe(0);
+		// The pending label is still live and the run non-terminal — recoverable.
+		expect((await latestPending())?.neg).toBe(0);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("pending");
+
+		// Redelivery with a working signer completes the delete and negates the label.
+		const second = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, second, {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+		expect(second.acked).toBe(1);
+		expect(second.retried).toBe(0);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("cancelled");
+		expect((await latestPending())?.neg).toBe(1);
 	});
 
 	it("dead-letters a forged/premature delete whose record still resolves, suppressing nothing", async () => {
@@ -836,5 +1105,266 @@ describe("processDiscoveryMessage: automation kill-switch", () => {
 			.bind(uriFor(job))
 			.first<{ neg: number }>();
 		expect(negated?.neg).toBe(1);
+	});
+});
+
+describe("processDiscoveryMessage: live publication (Sol follow-up)", () => {
+	function recordingPublisher(): { publisher: LabelPublisher; published: number[] } {
+		const published: number[] = [];
+		return {
+			published,
+			publisher: {
+				managesPublicationState: true,
+				async publish(issued) {
+					published.push(issued.sequence);
+				},
+			},
+		};
+	}
+
+	async function pendingLabelRow(
+		assessmentId: string,
+		neg: number,
+	): Promise<{ sequence: number; publication_pending: number }> {
+		const row = await testEnv.DB.prepare(
+			`SELECT l.sequence, l.publication_pending FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ? AND l.val = 'assessment-pending' AND l.neg = ?`,
+		)
+			.bind(assessmentId, neg)
+			.first<{ sequence: number; publication_pending: number }>();
+		if (!row) throw new Error("assessment-pending label not found");
+		return row;
+	}
+
+	it("issues the discovery pending label publication_pending=1 and broadcasts it live", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const { publisher, published } = recordingPublisher();
+		const deps = { ...(await buildDeps()), publisher, verify: verifiedFor(job) };
+
+		await processDiscoveryMessage(job, new FakeMessage(), deps);
+
+		const assessment = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		const row = await pendingLabelRow(assessment!.id, 0);
+		// Committed publication_pending=1 (pre-fix: 0, so the sweep could never
+		// recover it) and broadcast to the subscription DO.
+		expect(row.publication_pending).toBe(1);
+		expect(published).toContain(row.sequence);
+	});
+
+	it("survives a dropped broadcast and leaves the pending label for the sweep", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const failing: LabelPublisher = {
+			managesPublicationState: true,
+			publish: () => Promise.reject(new Error("subscription DO unreachable")),
+		};
+		const deps = {
+			...(await buildDeps()),
+			publisher: bestEffortPublisher(failing),
+			verify: verifiedFor(job),
+		};
+		const msg = new FakeMessage();
+
+		await processDiscoveryMessage(job, msg, deps);
+
+		// Best-effort: a failed live broadcast never fails/retries the message.
+		expect(msg.acked).toBe(1);
+		expect(msg.retried).toBe(0);
+
+		const assessment = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		const row = await pendingLabelRow(assessment!.id, 0);
+		expect(row.publication_pending).toBe(1);
+
+		// The reconciliation sweep re-drives the stranded row.
+		const swept: number[] = [];
+		await sweepPendingPublications({
+			db: testEnv.DB,
+			notify: async (sequence) => {
+				swept.push(sequence);
+			},
+			now: new Date(Date.now() + 60_000),
+			thresholdMs: 0,
+		});
+		expect(swept).toContain(row.sequence);
+	});
+
+	it("issues the deletion negation publication_pending=1 and broadcasts it", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const { publisher, published } = recordingPublisher();
+		const deps = { ...(await buildDeps()), publisher };
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+		const assessment = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job));
+		published.length = 0;
+
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		await processDiscoveryMessage(deleteJob, new FakeMessage(), {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		const row = await pendingLabelRow(assessment!.id, 1);
+		expect(row.publication_pending).toBe(1);
+		expect(published).toContain(row.sequence);
+	});
+});
+
+describe("processDiscoveryMessage: systemic delete-generation (round-5 close)", () => {
+	const latestPending = (uri: string) =>
+		testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uri)
+			.first<{ neg: number }>();
+
+	it("seam 1: a stale verify cannot resurrect a subject a concurrent delete tombstoned", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const uri = uriFor(job);
+		// The subject already exists, undeleted, at generation 0 (a prior observation).
+		await createSubject(testEnv.DB, {
+			uri,
+			cid: job.cid,
+			did: PUBLISHER_DID,
+			collection: RELEASE_COLLECTION,
+			rkey: job.rkey,
+		});
+
+		const workflow = new FakeAssessmentWorkflow();
+		const baseDeps = { ...(await buildDeps()), assessmentWorkflow: workflow };
+
+		// Barrier: during THIS create's verify (after it captured generation 0), a
+		// full concurrent delete completes — tombstone + generation bump + ack.
+		let deleteRan = false;
+		const barrierVerify = async (): Promise<VerifiedPdsRecord> => {
+			if (!deleteRan) {
+				deleteRan = true;
+				await processDiscoveryMessage({ ...job, operation: "delete", cid: "" }, new FakeMessage(), {
+					...baseDeps,
+					confirmDeleted: () => Promise.resolve(true),
+				});
+			}
+			return verifiedFor(job)();
+		};
+
+		const msg = new FakeMessage();
+		await processDiscoveryMessage(job, msg, { ...baseDeps, verify: barrierVerify });
+
+		expect(msg.acked).toBe(1);
+		// createSubject's generation-guarded undelete no-op'd (captured gen 0, subject
+		// now gen 1): the subject stays tombstoned, no run was created, no positive
+		// issued, nothing dispatched. No resurrection.
+		const subject = await testEnv.DB.prepare(
+			`SELECT deleted_at, delete_generation FROM subjects WHERE uri = ? AND cid = ?`,
+		)
+			.bind(uri, job.cid)
+			.first<{ deleted_at: string | null; delete_generation: number }>();
+		expect(subject?.deleted_at).not.toBeNull();
+		expect(subject?.delete_generation).toBe(1);
+		expect(await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job))).toBeNull();
+		expect(workflow.created.length).toBe(0);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND val = 'assessment-pending' AND neg = 0`,
+			)
+				.bind(uri)
+				.first<{ n: number }>(),
+		).toEqual({ n: 0 });
+	});
+
+	it("seam 2: the delete negates a stale run's stranded positive", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const uri = uriFor(job);
+		await createSubject(testEnv.DB, {
+			uri,
+			cid: job.cid,
+			did: PUBLISHER_DID,
+			collection: RELEASE_COLLECTION,
+			rkey: job.rkey,
+		});
+		const runKey = await runKeyFor(job);
+		const { assessment } = await createAssessmentRun(testEnv.DB, {
+			runKey,
+			uri,
+			cid: job.cid,
+			trigger: "initial",
+			triggerId: initialTriggerId(job.cid),
+			policyVersion: MODERATION_POLICY.policyVersion,
+			coverageJson: "{}",
+		});
+		await issueAutomatedAssessmentLabel(
+			testEnv.DB,
+			config,
+			await signer(),
+			{
+				actor: LABELER_DID,
+				type: "automated-assessment",
+				assessmentId: assessment.id,
+				reason: "initial discovery",
+				idempotencyKey: automatedIdempotencyKey(runKey, "assessment-pending", false),
+			},
+			{ uri, cid: job.cid, val: "assessment-pending" },
+		);
+		// Drive the run to terminal `stale`, as the orchestrator would on detecting a
+		// non-current subject — WITHOUT negating its own pending.
+		for (const [from, to] of [
+			["observed", "verifying"],
+			["verifying", "pending"],
+			["pending", "running"],
+			["running", "stale"],
+		] as const) {
+			await transitionAssessmentState(testEnv.DB, { id: assessment.id, from, to });
+		}
+		expect((await latestPending(uri))?.neg).toBe(0);
+
+		// A delete arrives. The stale run is terminal, so the old non-terminal-only
+		// scan would miss it; the widened scan reaches it and negates its positive.
+		await processDiscoveryMessage({ ...job, operation: "delete", cid: "" }, new FakeMessage(), {
+			...(await buildDeps()),
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		expect((await latestPending(uri))?.neg).toBe(1);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("stale");
+	});
+
+	it("delete-then-republish: a new revision after a delete assesses cleanly (generation does not over-block)", async () => {
+		const job1 = await jobFor({ rkey: rkey() });
+		const uri = uriFor(job1);
+		await processDiscoveryMessage(job1, new FakeMessage(), {
+			...(await buildDeps()),
+			verify: verifiedFor(job1),
+		});
+		await processDiscoveryMessage({ ...job1, operation: "delete", cid: "" }, new FakeMessage(), {
+			...(await buildDeps()),
+			confirmDeleted: () => Promise.resolve(true),
+		});
+		expect((await latestPending(uri))?.neg).toBe(1);
+
+		// A genuine republish: a new revision (same rkey, new cid) discovered AFTER the
+		// delete. Its subject row is fresh (generation 0), so the capture-and-guard
+		// admits it — the delete of the old revision must not block the new one.
+		const job2 = { ...job1, cid: await cid(`${job1.rkey}-v2`) };
+		const workflow = new FakeAssessmentWorkflow();
+		const msg = new FakeMessage();
+		await processDiscoveryMessage(job2, msg, {
+			...(await buildDeps()),
+			assessmentWorkflow: workflow,
+			verify: verifiedFor(job2),
+		});
+
+		expect(msg.acked).toBe(1);
+		const run = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job2));
+		expect(run?.state).toBe("pending");
+		expect(workflow.created.length).toBe(1);
+		const positive = await testEnv.DB.prepare(
+			`SELECT l.neg FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 JOIN assessments r ON r.id = a.assessment_id
+			 WHERE r.run_key = ? AND l.val = 'assessment-pending'
+			 ORDER BY l.sequence DESC LIMIT 1`,
+		)
+			.bind(await runKeyFor(job2))
+			.first<{ neg: number }>();
+		expect(positive?.neg).toBe(0);
 	});
 });

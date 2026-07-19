@@ -14,7 +14,7 @@ const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 250;
 
-interface LabelRow {
+export interface LabelRow {
 	id: number;
 	sequence: number;
 	ver: number;
@@ -100,7 +100,19 @@ export async function queryLabels(
 	});
 }
 
-async function resignStaleLabels(
+/**
+ * Lazily brings a page of retained label rows onto the active signing key: any
+ * row whose `signing_key_version` differs from the active key is re-signed with
+ * the current key and persisted (its prior signature archived in
+ * `label_signature_history`), mutating the passed rows in place. `sequence`,
+ * `cts`, and every label field except the signature are untouched, so ordering
+ * and identity are preserved. Shared by the public `queryLabels` reader and the
+ * WebSocket subscription replay so both serve verifiable frames after a routine
+ * key rotation. Throws when the current signing key is unavailable (paused mid
+ * rotation, or a configuration/state mismatch) — the caller must not serve the
+ * still-stale rows.
+ */
+export async function resignStaleLabels(
 	db: D1Database,
 	labels: LabelRow[],
 	signingInput?: VersionedLabelSigner | (() => Promise<VersionedLabelSigner>),

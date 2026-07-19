@@ -33,6 +33,7 @@ import {
 } from "@atcute/identity-resolver";
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
 import { cloudflareDohResolver, type DnsResolver } from "emdash/security/ssrf";
+import { ulid } from "ulidx";
 
 import {
 	AssessmentDispatchError,
@@ -46,11 +47,14 @@ import {
 	initialTriggerId,
 } from "./assessment-lifecycle.js";
 import {
-	createAssessmentRun,
+	buildAssessmentRunStatement,
 	createSubject,
 	deleteSubjectsByUri,
 	getAssessment,
-	listNonTerminalAssessmentsForUri,
+	getAssessmentByRunKey,
+	listPendingBearingAssessmentsForUri,
+	readDeleteGeneration,
+	subjectMatchesGeneration,
 	transitionAssessmentState,
 	type Assessment,
 } from "./assessment-store.js";
@@ -71,8 +75,16 @@ import {
 	RecordVerificationError,
 	type RecordVerificationFailureReason,
 } from "./record-verification.js";
-import { issueAutomatedAssessmentLabel, LabelIssuanceUnavailableError } from "./service.js";
+import {
+	buildIssuanceStatements,
+	issueAutomatedAssessmentLabel,
+	LabelIssuanceUnavailableError,
+	readIssuedLabelByActionKey,
+	type AutomatedIssuanceAction,
+	type AutomatedLabelProposal,
+} from "./service.js";
 import { createRuntimeSigner, getRuntimeSigningSecret } from "./signing-runtime.js";
+import { createLabelPublisher, type LabelPublisher } from "./subscribe-labels.js";
 
 /**
  * Stub identifiers for the model/prompt/scanner-set components of the run
@@ -94,6 +106,13 @@ export interface DiscoveryConsumerDeps {
 	 * runKey, so a redelivered event dedups onto the same instance
 	 * (assessment-dispatch.ts). */
 	assessmentWorkflow: AssessmentWorkflowBinding;
+	/** Live broadcast for the pending-label and deletion-negation issuances. When
+	 * present they commit `publication_pending = 1` and notify the subscription DO
+	 * post-commit (the same publisher the orchestrator path uses); the
+	 * reconciliation sweep is the durable backstop for a dropped notify. Omitted in
+	 * tests that don't exercise publication (labels then commit already-published,
+	 * matching the orchestrator's no-publisher behaviour). */
+	publisher?: LabelPublisher;
 	fetch?: typeof fetch;
 	/** Resolves each PDS hop's hostname for the SSRF egress guard; defaults to
 	 * the DoH resolver used by artifact acquisition. */
@@ -214,34 +233,49 @@ export async function processDiscoveryMessage(
 	const uri = jobUri(job);
 
 	if (job.operation === "delete") {
+		// A delete suppresses assessment work (tombstone + cancel runs), so it gets
+		// the same distrust as a create: confirm the record is genuinely gone at the
+		// PDS before acting. A still-present record means a forged or premature
+		// delete — dead-letter it, suppress nothing. A verification failure here
+		// classifies like the create path (transient retries, permanent dead-letters).
+		let absent: boolean;
 		try {
-			// A delete suppresses assessment work (tombstone + cancel runs), so it
-			// gets the same distrust as a create: confirm the record is genuinely
-			// gone at the PDS before acting. A still-present record means a forged
-			// or premature delete — dead-letter it, suppress nothing.
 			const confirmAbsent = deps.confirmDeleted ?? confirmRecordAbsent;
-			const absent = await confirmAbsent({
+			absent = await confirmAbsent({
 				uri,
 				didDocumentResolver: deps.didDocumentResolver,
 				...(deps.fetch ? { fetch: deps.fetch } : {}),
 				...(deps.resolveHostname ? { resolveHostname: deps.resolveHostname } : {}),
 			});
-			if (!absent) {
-				await writeDeadLetter(
-					deps.db,
-					job,
-					"DELETE_RECORD_PRESENT",
-					"record still resolves",
-					now(),
-				);
-				controller.ack();
-				return;
-			}
-			const cancelled = await applyDiscoveryDelete(deps.db, uri, now());
-			await negatePendingForDeletedRuns(deps, cancelled, now());
-			controller.ack();
 		} catch (err) {
 			await classifyDiscoveryError(err, job, deps, controller, now());
+			return;
+		}
+		if (!absent) {
+			await writeDeadLetter(deps.db, job, "DELETE_RECORD_PRESENT", "record still resolves", now());
+			controller.ack();
+			return;
+		}
+		try {
+			await applyDiscoveryDelete(deps, uri, now());
+			controller.ack();
+		} catch (err) {
+			// The mutation phase (tombstone → pending-negation → cancellation) can
+			// leave a run's `assessment-pending` label live on a now-deleted subject
+			// if it fails partway. Acking here — as the create path's unexpected-error
+			// policy would — strands that label forever, so ALWAYS retry. Redelivery
+			// re-attempts idempotently; a genuinely permanent failure exhausts to the
+			// DLQ, which is acceptable versus acking a live label on a deleted subject.
+			console.error(
+				"[labeler] discovery delete mutation failed; retrying to avoid a stranded label",
+				{
+					did: job.did,
+					collection: job.collection,
+					rkey: job.rkey,
+					error: err instanceof Error ? err.message : String(err),
+				},
+			);
+			controller.retry();
 		}
 		return;
 	}
@@ -354,6 +388,13 @@ async function verifyAndCreateRun(
 	deps: DiscoveryConsumerDeps,
 	now: Date,
 ): Promise<void> {
+	// Capture the subject's tombstone generation BEFORE verifying. Every commit
+	// below (subject-undelete, run creation, label issuance) is gated on the
+	// generation not having advanced past this — so a delete that lands during the
+	// (slow) verify is seen as a newer generation and the whole create is rejected
+	// obsolete, while a create that captured the post-delete generation proceeds.
+	const generation = await readDeleteGeneration(deps.db, { uri, cid: job.cid });
+
 	const verifyFn = deps.verify ?? fetchAndVerifyExactRecord;
 	// Propagates PdsVerificationError / RecordVerificationError untouched —
 	// the caller classifies retry vs dead-letter.
@@ -365,6 +406,9 @@ async function verifyAndCreateRun(
 		...(deps.resolveHostname ? { resolveHostname: deps.resolveHostname } : {}),
 	});
 
+	// Generation-gated: a re-observation only clears `deleted_at` if no delete has
+	// advanced the generation since the capture. A stale verify cannot resurrect a
+	// subject deleted after it read state.
 	await createSubject(deps.db, {
 		uri,
 		cid: job.cid,
@@ -372,6 +416,7 @@ async function verifyAndCreateRun(
 		collection: job.collection,
 		rkey: job.rkey,
 		now,
+		expectedGeneration: generation,
 	});
 
 	const triggerId = initialTriggerId(job.cid);
@@ -385,7 +430,10 @@ async function verifyAndCreateRun(
 		triggerId,
 	});
 
-	const { assessment } = await createAssessmentRun(deps.db, {
+	// Generation-gated run creation: no orphan run for a subject the delete removed
+	// between the capture and here.
+	await buildAssessmentRunStatement(deps.db, {
+		id: `asmt_${ulid()}`,
 		runKey,
 		uri,
 		cid: job.cid,
@@ -396,24 +444,34 @@ async function verifyAndCreateRun(
 		promptHash: DISCOVERY_PROMPT_HASH,
 		coverageJson: "{}",
 		now,
-	});
+		requireSubjectGeneration: generation,
+	}).run();
+	const assessment = await getAssessmentByRunKey(deps.db, runKey);
+	if (!assessment) {
+		// The run insert matched no row: a delete advanced the generation before it
+		// committed. Obsolete — nothing to advance, issue, or dispatch.
+		return;
+	}
 
 	await advanceToPending(deps.db, assessment, now);
 
-	await issueAutomatedAssessmentLabel(
-		deps.db,
-		deps.config,
-		deps.signer,
-		{
-			actor: deps.config.labelerDid,
-			type: "automated-assessment",
-			assessmentId: assessment.id,
-			reason: "initial discovery",
-			idempotencyKey: automatedIdempotencyKey(runKey, "assessment-pending", false),
-		},
-		{ uri, cid: job.cid, val: "assessment-pending" },
+	const outcome = await issueInitialPendingLabel(
+		deps,
+		assessment.id,
+		runKey,
+		uri,
+		job.cid,
+		generation,
 		now,
 	);
+	if (outcome === "obsolete") {
+		// A concurrent delete tombstoned the subject (advancing the generation) or
+		// cancelled the run before the positive assessment-pending could commit — the
+		// run is moot. The issuance no-op'd, so there is nothing to publish and
+		// nothing to assess; the delete owns tombstone + cancel + negation. Do not
+		// dispatch a Workflow for a label that never committed.
+		return;
+	}
 
 	// Hand the run to its Workflow instance. The instance id is the run's runKey,
 	// so a redelivered event (same runKey) converges on the same instance rather
@@ -424,6 +482,82 @@ async function verifyAndCreateRun(
 		runKey,
 		assessmentId: assessment.id,
 	});
+}
+
+/**
+ * Issues the initial positive `assessment-pending` label, atomically gated at
+ * commit on BOTH the run still being `pending` AND the subject `(uri, cid)` still
+ * undeleted (`buildIssuanceStatements`' `requireAssessmentState` +
+ * `requireSubjectNotDeleted`). A concurrent delete that tombstones the subject or
+ * cancels the run in the gap after `advanceToPending` makes the guarded insert
+ * match no row: the issuance is obsolete — no label commits, so this returns
+ * without publishing or signalling a dispatch, and the delete's negation owns the
+ * stream. A non-persist NOT explained by the guard (a signing flip mid-batch)
+ * throws `LabelIssuanceUnavailableError` so the message retries. Reuses the same
+ * guarded-issuance machinery as finalization and the console path (no second SQL
+ * path); `readIssuedLabelByActionKey` tolerates a legitimate no-op without the
+ * signing-diagnosis throw `issueLabel`'s post-commit applies.
+ */
+async function issueInitialPendingLabel(
+	deps: DiscoveryConsumerDeps,
+	assessmentId: string,
+	runKey: string,
+	uri: string,
+	cid: string,
+	generation: number,
+	now: Date,
+): Promise<"issued" | "obsolete"> {
+	const idempotencyKey = automatedIdempotencyKey(runKey, "assessment-pending", false);
+	const action: AutomatedIssuanceAction = {
+		actor: deps.config.labelerDid,
+		type: "automated-assessment",
+		assessmentId,
+		reason: "initial discovery",
+		idempotencyKey,
+	};
+	const proposal: AutomatedLabelProposal = { uri, cid, val: "assessment-pending" };
+
+	// A redelivery whose first attempt already committed the label converges here:
+	// re-drive the live notify (best-effort) and treat it as issued.
+	const existing = await readIssuedLabelByActionKey(deps.db, idempotencyKey);
+	if (existing) {
+		if (deps.publisher) await deps.publisher.publish(existing);
+		return "issued";
+	}
+
+	const { statements } = await buildIssuanceStatements(
+		deps.db,
+		deps.config,
+		deps.signer,
+		action,
+		proposal,
+		now,
+		deps.publisher !== undefined,
+		{
+			requireAssessmentState: "pending",
+			requireSubjectNotDeleted: { uri, cid, generation },
+		},
+	);
+	await deps.db.batch(statements);
+
+	const issued = await readIssuedLabelByActionKey(deps.db, idempotencyKey);
+	if (issued) {
+		if (deps.publisher) await deps.publisher.publish(issued);
+		return "issued";
+	}
+
+	// The guarded insert matched no row. If the run is no longer `pending` or the
+	// subject was tombstoned / re-deleted (generation advanced), a concurrent delete
+	// won — a benign no-op. Anything else (the signing guard no-op'ing on a mid-batch
+	// pause/rotation) is retryable.
+	const run = await getAssessment(deps.db, assessmentId);
+	if (
+		!run ||
+		run.state !== "pending" ||
+		!(await subjectMatchesGeneration(deps.db, { uri, cid, generation }))
+	)
+		return "obsolete";
+	throw new LabelIssuanceUnavailableError("initial pending label did not persist");
 }
 
 /**
@@ -460,24 +594,54 @@ async function transitionOrObserve(
 	}
 }
 
-/** Tombstones the subject, cancels non-terminal runs, and returns the runs
- * that had already reached `pending` (so they carry an active
- * `assessment-pending` label the caller must negate). */
-async function applyDiscoveryDelete(db: D1Database, uri: string, now: Date): Promise<Assessment[]> {
-	await deleteSubjectsByUri(db, { uri, now });
-	const runs = await listNonTerminalAssessmentsForUri(db, uri);
-	const hadPending: Assessment[] = [];
+/**
+ * Tombstones the subject (advancing its `delete_generation`) and retires every
+ * run that could still carry a live positive `assessment-pending` — including
+ * terminal `stale` runs, which self-transition on detecting a deleted subject and
+ * do NOT negate their own pending. For each such run the negation is issued
+ * BEFORE any cancellation, so a failed or paused negation (signing mid-rotation)
+ * leaves a non-terminal run non-terminal and re-discoverable on redelivery;
+ * cancelling first would drop it from the scan set, stranding the pending live
+ * once the message acks.
+ *
+ * The negation is keyed on the run having committed a live positive — NOT on its
+ * lifecycle state — because an operator rerun issues its positive while the run is
+ * still `observed`, and a stale run keeps its positive after going terminal.
+ * Cancellation applies only to non-terminal runs (a stale run is already
+ * terminal). The invariant: a run is cancelled only after any positive it
+ * committed has been negated, and the message cannot ack while a negation is still
+ * owed (a throw propagates to the delete handler's mutation-phase catch, which
+ * always retries), so no active `assessment-pending` survives an acked delete.
+ */
+async function applyDiscoveryDelete(
+	deps: DiscoveryConsumerDeps,
+	uri: string,
+	now: Date,
+): Promise<void> {
+	await deleteSubjectsByUri(deps.db, { uri, now });
+	const runs = await listPendingBearingAssessmentsForUri(deps.db, uri);
 	for (const run of runs) {
-		if (
-			run.state !== "observed" &&
-			run.state !== "verifying" &&
-			run.state !== "pending" &&
-			run.state !== "running"
-		)
-			continue;
-		if (run.state === "pending" || run.state === "running") hadPending.push(run);
+		// Negate (before any cancel) any run — non-terminal OR terminal `stale` —
+		// that committed a positive pending and has not already been negated.
+		const positive = await readIssuedLabelByActionKey(
+			deps.db,
+			automatedIdempotencyKey(run.runKey, "assessment-pending", false),
+		);
+		if (positive) {
+			const negated = await readIssuedLabelByActionKey(
+				deps.db,
+				automatedIdempotencyKey(run.runKey, "assessment-pending", true),
+			);
+			if (!negated) await negateRunPendingLabel(deps, run, now);
+		}
+		if (run.state === "stale") continue; // already terminal — negated, nothing to cancel
 		try {
-			await transitionAssessmentState(db, { id: run.id, from: run.state, to: "cancelled", now });
+			await transitionAssessmentState(deps.db, {
+				id: run.id,
+				from: run.state,
+				to: "cancelled",
+				now,
+			});
 		} catch (err) {
 			// A concurrent invocation already moved this run past `from` —
 			// harmless, the delete's intent (no non-terminal run survives) is
@@ -485,37 +649,36 @@ async function applyDiscoveryDelete(db: D1Database, uri: string, now: Date): Pro
 			if (!(err instanceof AssessmentTransitionConflictError)) throw err;
 		}
 	}
-	return hadPending;
 }
 
 /**
- * Negates the `assessment-pending` label each cancelled run issued, so a
- * deleted release stops advertising an in-progress assessment. Uses the
- * run's own assessment id and a deterministic idempotency key, so a
- * redelivered delete converges. Idempotent and best-effort per run: a run
- * whose pending is already negated (finalized) no-ops.
+ * Negates one run's `assessment-pending` label so a deleted release stops
+ * advertising an in-progress assessment. Deterministic idempotency key (the
+ * run's runKey), so a redelivered delete converges and a run whose pending is
+ * already negated (finalized) no-ops. Publishes best-effort with the sweep as
+ * backstop. Throws `LabelIssuanceUnavailableError` when signing is paused — the
+ * caller must let that propagate so the delete retries.
  */
-async function negatePendingForDeletedRuns(
+async function negateRunPendingLabel(
 	deps: DiscoveryConsumerDeps,
-	runs: Assessment[],
+	run: Assessment,
 	now: Date,
 ): Promise<void> {
-	for (const run of runs) {
-		await issueAutomatedAssessmentLabel(
-			deps.db,
-			deps.config,
-			deps.signer,
-			{
-				actor: deps.config.labelerDid,
-				type: "automated-assessment",
-				assessmentId: run.id,
-				reason: "subject deleted",
-				idempotencyKey: automatedIdempotencyKey(run.runKey, "assessment-pending", true),
-			},
-			{ uri: run.uri, cid: run.cid, val: "assessment-pending", neg: true },
-			now,
-		);
-	}
+	await issueAutomatedAssessmentLabel(
+		deps.db,
+		deps.config,
+		deps.signer,
+		{
+			actor: deps.config.labelerDid,
+			type: "automated-assessment",
+			assessmentId: run.id,
+			reason: "subject deleted",
+			idempotencyKey: automatedIdempotencyKey(run.runKey, "assessment-pending", true),
+		},
+		{ uri: run.uri, cid: run.cid, val: "assessment-pending", neg: true },
+		now,
+		deps.publisher,
+	);
 }
 
 function jobUri(job: DiscoveryJob): string {
@@ -572,6 +735,7 @@ async function createProductionDiscoveryDeps(env: Env): Promise<DiscoveryConsume
 		config: identityConfig,
 		signer: versioned.signer,
 		assessmentWorkflow: env.ASSESSMENT_WORKFLOW,
+		publisher: bestEffortPublisher(createLabelPublisher(env)),
 		didDocumentResolver: new CompositeDidDocumentResolver({
 			methods: {
 				plc: new PlcDidDocumentResolver({ fetch: boundFetch }),
@@ -590,6 +754,29 @@ async function createProductionDiscoveryDeps(env: Env): Promise<DiscoveryConsume
 }
 
 const boundFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+
+/**
+ * Wraps the subscription-DO publisher so a failed live broadcast never fails the
+ * discovery message: the label has already committed `publication_pending = 1`,
+ * so a dropped notify is recovered by the reconciliation sweep. Mirrors the
+ * orchestrator's best-effort post-commit publication. Keeps `managesPublicationState`
+ * so `issueLabel` leaves the flag set (the DO clears it on a successful notify).
+ */
+export function bestEffortPublisher(base: LabelPublisher): LabelPublisher {
+	return {
+		managesPublicationState: base.managesPublicationState,
+		async publish(issued) {
+			try {
+				await base.publish(issued);
+			} catch (error) {
+				console.error("[labeler] discovery label publication failed", {
+					sequence: issued.sequence,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		},
+	};
+}
 
 async function writeDeadLetter(
 	db: D1Database,

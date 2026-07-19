@@ -33,8 +33,13 @@ import {
 import { FindingValidationError, HISTORY_FINDING_CATEGORIES } from "../src/findings.js";
 import { analyzeHistory } from "../src/history-context.js";
 import { MODERATION_POLICY } from "../src/policy.js";
-import { issueManualLabel } from "../src/service.js";
-import { initializeSigningState } from "../src/signing-rotation.js";
+import { issueManualLabel, type IssuedLabel } from "../src/service.js";
+import {
+	abortRoutineKeyRotation,
+	beginRoutineKeyRotation,
+	initializeSigningState,
+} from "../src/signing-rotation.js";
+import type { LabelPublisher } from "../src/subscribe-labels.js";
 import { canonicalBundle, checksumOf, file } from "./bundle-fixture.js";
 
 interface TestEnv {
@@ -47,7 +52,47 @@ const LABELER_DID = "did:web:labels.emdashcms.com";
 const PUBLISHER_DID = "did:plc:publisher000000000000000000";
 const PRIVATE_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE";
 const MULTIKEY = "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
+const ROTATED_MULTIKEY = "zDnaer52RTwabaBeMkKYYwZmEFqPabLW78cRK62iovMUQhFif";
 const config = { labelerDid: LABELER_DID, signingKeyVersion: "v1" };
+
+/** Records every label handed to `publish`, mimicking the console/DO publisher. */
+function recordingPublisher(managesPublicationState: boolean): {
+	publisher: LabelPublisher;
+	published: IssuedLabel[];
+} {
+	const published: IssuedLabel[] = [];
+	return {
+		published,
+		publisher: {
+			managesPublicationState,
+			async publish(issued) {
+				published.push(issued);
+			},
+		},
+	};
+}
+
+/** A D1 wrapper that runs `onFirstBatch` immediately before the first
+ * `db.batch` call — the seam between finalization prep and commit. Everything
+ * else delegates to the real database. */
+function pauseBeforeFirstBatch(db: D1Database, onFirstBatch: () => Promise<void>): D1Database {
+	let triggered = false;
+	return new Proxy(db, {
+		get(target, prop, receiver) {
+			if (prop === "batch") {
+				return async (statements: D1PreparedStatement[]) => {
+					if (!triggered) {
+						triggered = true;
+						await onFirstBatch();
+					}
+					return target.batch(statements);
+				};
+			}
+			const value = Reflect.get(target, prop, receiver) as unknown;
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+}
 
 beforeAll(async () => {
 	await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);
@@ -1117,5 +1162,228 @@ describe("AssessmentOrchestrator: real acquire stage (W7.2)", () => {
 			.bind(run.uri, run.cid)
 			.first<{ neg: number }>();
 		expect(error?.neg).toBe(0);
+	});
+});
+
+describe("AssessmentOrchestrator: live publication (Finding 4)", () => {
+	it("issues finalization labels publication_pending and broadcasts each to the publisher", async () => {
+		const run = await pendingRun({ name: "publish-live", cidValue: await cid("publish-live") });
+		const { publisher, published } = recordingPublisher(true);
+		const orchestrator = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+			publisher,
+		});
+
+		const result = await orchestrator.runAssessment(run.id);
+		expect(result.state).toBe("passed");
+
+		// Every label this run committed was broadcast: the assessment-pending
+		// negation and the assessment-passed positive.
+		const publishedVals = published.map((p) => p.label.val).toSorted();
+		expect(publishedVals).toEqual(["assessment-passed", "assessment-pending"]);
+
+		// A publisher that manages publication state (the real DO clears the flag on
+		// /notify) leaves the rows pending here — the fake never cleared them.
+		const pending = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND cid = ? AND publication_pending = 1`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ n: number }>();
+		expect(pending?.n).toBe(2);
+	});
+
+	it("clears publication_pending via markPublicationAccepted for a non-managing publisher", async () => {
+		const run = await pendingRun({ name: "publish-accept", cidValue: await cid("publish-accept") });
+		const { publisher, published } = recordingPublisher(false);
+		const orchestrator = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+			publisher,
+		});
+
+		await orchestrator.runAssessment(run.id);
+		expect(published.length).toBe(2);
+
+		const pending = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND cid = ? AND publication_pending = 1`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ n: number }>();
+		expect(pending?.n).toBe(0);
+	});
+
+	it("finalizes and leaves rows publication_pending when the notify fails — the sweep backstops", async () => {
+		const run = await pendingRun({ name: "publish-fail", cidValue: await cid("publish-fail") });
+		const failing: LabelPublisher = {
+			managesPublicationState: true,
+			publish: () => Promise.reject(new Error("subscription DO unreachable")),
+		};
+		const orchestrator = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+			publisher: failing,
+		});
+
+		// A dropped notify never fails the run: the batch already committed.
+		const result = await orchestrator.runAssessment(run.id);
+		expect(result.state).toBe("passed");
+
+		const pending = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND cid = ? AND publication_pending = 1`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ n: number }>();
+		expect(pending?.n).toBe(2);
+	});
+
+	it("issues finalization labels already-published (publication_pending = 0) when no publisher is wired", async () => {
+		const run = await pendingRun({ name: "publish-none", cidValue: await cid("publish-none") });
+		const orchestrator = await buildOrchestrator();
+
+		await orchestrator.runAssessment(run.id);
+
+		const pending = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND cid = ? AND publication_pending = 1`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ n: number }>();
+		expect(pending?.n).toBe(0);
+	});
+});
+
+describe("AssessmentOrchestrator: signing pause between prep and commit (Finding 6)", () => {
+	it("leaves the run running and issues no labels when signing pauses before the batch commits", async () => {
+		const run = await pendingRun({ name: "pause-race", cidValue: await cid("pause-race") });
+		const rotationId = "finding6-pause";
+		// Pause signing in the seam between finalization prep (statements built while
+		// active) and the batch commit.
+		const db = pauseBeforeFirstBatch(testEnv.DB, async () => {
+			await beginRoutineKeyRotation(testEnv.DB, {
+				rotationId,
+				expectedActiveKeyVersion: "v1",
+				nextKeyVersion: "v2-finding6",
+				nextPublicKeyMultibase: ROTATED_MULTIKEY,
+			});
+		});
+		const orchestrator = new AssessmentOrchestrator({
+			db,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+		});
+
+		// The CAS shares the issuance signing guard, so the whole batch no-ops: the
+		// finalization conflict is raised rather than a suppressed-label signing error.
+		await expect(orchestrator.runAssessment(run.id)).rejects.toBeInstanceOf(
+			AssessmentFinalizationConflictError,
+		);
+
+		// The run is still running (not stranded terminal) and NO label leaked.
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("running");
+		const labels = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?`,
+		)
+			.bind(run.id)
+			.first<{ n: number }>();
+		expect(labels?.n).toBe(0);
+
+		// Resume signing and re-run (as the Workflow retry does): finalization now
+		// completes and issues the labels the paused attempt withheld.
+		await abortRoutineKeyRotation(testEnv.DB, {
+			rotationId,
+			expectedPendingKeyVersion: "v2-finding6",
+		});
+		const resumed = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+		});
+		const finalized = await resumed.runAssessment(run.id);
+		expect(finalized.state).toBe("passed");
+		const pendingNeg = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-pending'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(pendingNeg?.neg).toBe(1);
+	});
+});
+
+describe("AssessmentOrchestrator: delete racing finalization (Blocker 1)", () => {
+	it("commits no outcome/block labels when the subject is tombstoned between the currency re-check and the batch", async () => {
+		const run = await pendingRun({ name: "delete-toctou", cidValue: await cid("delete-toctou") });
+		const blockingStages: OrchestratorStages = {
+			...stubStages,
+			codeAi: () => Promise.resolve([finding({ category: "malware", severity: "critical" })]),
+		};
+		// Tombstone the subject in the seam between finalize's currency re-check and
+		// the batch commit — the exact TOCTOU window the CAS subject-guard closes.
+		const db = pauseBeforeFirstBatch(testEnv.DB, async () => {
+			await deleteSubject(testEnv.DB, { uri: run.uri, cid: run.cid });
+		});
+		const orchestrator = new AssessmentOrchestrator({
+			db,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: blockingStages,
+			sleep: () => Promise.resolve(),
+		});
+
+		// The guarded CAS no-ops against the tombstone, so the whole batch commits
+		// nothing and the finalization conflict is raised.
+		await expect(orchestrator.runAssessment(run.id)).rejects.toBeInstanceOf(
+			AssessmentFinalizationConflictError,
+		);
+
+		// The run is still running and NO label — not the block, not even the pending
+		// negation — was committed for the now-deleted subject.
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("running");
+		const labels = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?`,
+		)
+			.bind(run.id)
+			.first<{ n: number }>();
+		expect(labels?.n).toBe(0);
+
+		// The Workflow retry re-runs finalization, sees the deleted subject, and
+		// stales the run out — still never labelling a deleted release.
+		const resumed = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: blockingStages,
+			sleep: () => Promise.resolve(),
+		});
+		const finalized = await resumed.runAssessment(run.id);
+		expect(finalized.state).toBe("stale");
+		const labelsAfter = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?`,
+		)
+			.bind(run.id)
+			.first<{ n: number }>();
+		expect(labelsAfter?.n).toBe(0);
 	});
 });

@@ -31,9 +31,13 @@ import { resolvePolicyOutcome, type OutcomeLabel, type PolicyOutcome } from "./p
 import type { ModerationPolicy } from "./policy.js";
 import {
 	buildIssuanceStatements,
+	markPublicationAccepted,
 	type AutomatedIssuanceAction,
 	type AutomatedLabelProposal,
+	type IssuedLabel,
 } from "./service.js";
+import { getSigningStatusIfInitialized } from "./signing-rotation.js";
+import type { LabelPublisher } from "./subscribe-labels.js";
 
 /**
  * A stage's finding is the canonical normalized contract (`findings.ts`).
@@ -106,6 +110,13 @@ export interface AssessmentOrchestratorOptions {
 	 * AI stages accumulate (`assessment-stages.ts`); `undefined` (or an undefined
 	 * return) leaves the stored value unchanged. */
 	resolveCoverageJson?: () => string | undefined;
+	/** Broadcasts each finalized label to the subscription DO after the batch
+	 * commits (the same publisher the console path uses via `createLabelPublisher`).
+	 * When present, finalization labels are issued `publication_pending = 1` and
+	 * this drives the live notify; the reconciliation `publication_pending` sweep is
+	 * the durable backstop for a notify that fails here. Omitted in tests that don't
+	 * exercise publication. */
+	publisher?: LabelPublisher;
 }
 
 export class AssessmentOrchestrator {
@@ -119,6 +130,7 @@ export class AssessmentOrchestrator {
 	private readonly sleep: (ms: number) => Promise<void>;
 	private readonly retryDelayMs: number;
 	private readonly resolveCoverageJson: (() => string | undefined) | undefined;
+	private readonly publisher: LabelPublisher | undefined;
 
 	constructor(opts: AssessmentOrchestratorOptions) {
 		this.db = opts.db;
@@ -131,6 +143,7 @@ export class AssessmentOrchestrator {
 		this.sleep = opts.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
 		this.retryDelayMs = opts.retryDelayMs ?? 0;
 		this.resolveCoverageJson = opts.resolveCoverageJson;
+		this.publisher = opts.publisher;
 	}
 
 	async runAssessment(runId: string): Promise<Assessment> {
@@ -258,6 +271,12 @@ export class AssessmentOrchestrator {
 		const positiveLabels: readonly OutcomeLabel[] = outcome?.labels ?? [];
 
 		const coverageJson = this.resolveCoverageJson?.();
+		// Read the signing status once so the CAS transition carries the same
+		// signing-state predicate as every label issuance below: a signing pause
+		// landing between prep and the batch then no-ops the CAS too, keeping the run
+		// `running` for the Workflow retry rather than committing terminal state with
+		// its labels suppressed.
+		const signingStatus = await getSigningStatusIfInitialized(this.db);
 		const finalization = buildFinalizationStatements(this.db, {
 			assessmentId: assessment.id,
 			fromState: "running",
@@ -267,10 +286,18 @@ export class AssessmentOrchestrator {
 			cid: assessment.cid,
 			now,
 			...(coverageJson !== undefined ? { coverageJson } : {}),
+			signingGuard: {
+				isPrebootstrap: signingStatus === null,
+				activeKeyVersion: this.config.signingKeyVersion,
+			},
+			// Close the delete-vs-finalization TOCTOU: a delete tombstoning the
+			// subject after the currency re-check below no-ops this CAS at commit
+			// time, so no outcome/block label commits for a deleted subject.
+			guardSubjectNotDeleted: true,
 		});
 
 		const statements = [...finalization.statements];
-		const postCommits: Array<() => Promise<unknown>> = [];
+		const postCommits: Array<() => Promise<IssuedLabel>> = [];
 
 		const issue = async (
 			val: string,
@@ -298,7 +325,11 @@ export class AssessmentOrchestrator {
 					...proposal,
 				},
 				now,
-				false,
+				// Mark for publication only when a publisher is wired: the post-commit
+				// notify (below) drains it, the reconciliation sweep backstops a failed
+				// notify, and rotation waits for the drain. With no publisher (tests),
+				// the label commits already-published so nothing strands.
+				this.publisher !== undefined,
 				// Gate every finalization label on the run reaching `toState`, so a
 				// concurrent cancel/delete that no-ops the CAS also no-ops the labels.
 				{ requireAssessmentState: toState },
@@ -347,11 +378,20 @@ export class AssessmentOrchestrator {
 		// of `running` in this gap therefore no-ops the CAS AND every label — nothing
 		// leaks — and the lost race raises AssessmentFinalizationConflictError.
 		//
+		// A signing-state flip mid-batch is closed the same way: the CAS carries the
+		// same signing-state guard as every label insert (buildFinalizationStatements'
+		// signingGuard), so a flip no-ops the CAS too and the batch commits nothing —
+		// the run stays `running` for the Workflow retry.
+		//
+		// A delete tombstoning the subject in this gap is closed likewise: the CAS
+		// carries a not-deleted predicate on this run's subject
+		// (buildFinalizationStatements' guardSubjectNotDeleted). A pure tombstone does
+		// not move the run out of `running` (that only happens via the delete's
+		// separate cancel CAS, which can lose the race), so without this predicate the
+		// CAS would commit outcome/block labels for a subject the delete just removed;
+		// with it, the tombstone no-ops the CAS and the retry stales the run out.
+		//
 		// Narrower gaps remain, tracked with the real-stage wiring:
-		//   - a signing-state flip mid-batch: the label inserts are guarded on active
-		//     signing state and no-op if it flips, but the CAS is not, so a flip could
-		//     commit the terminal state with its labels suppressed (the CAS still
-		//     changed a row, so the postCommit below surfaces it as a signing error);
 		//   - a CID supersession landing in this gap does not move the run out of
 		//     `running`, so the CAS succeeds and this run finalizes labels for its own
 		//     CID (the pointer upsert is guarded on created-at ordering);
@@ -382,11 +422,39 @@ export class AssessmentOrchestrator {
 			const raced = await getAssessment(this.db, assessment.id);
 			throw new AssessmentFinalizationConflictError(assessment.id, toState, raced?.state ?? null);
 		}
-		for (const postCommit of postCommits) await postCommit();
+		const issued: IssuedLabel[] = [];
+		for (const postCommit of postCommits) issued.push(await postCommit());
+		await this.publishLabels(issued);
 
 		const finalised = await getAssessment(this.db, assessment.id);
 		if (!finalised) throw new Error(`assessment ${assessment.id} disappeared after finalization`);
 		return finalised;
+	}
+
+	/**
+	 * Live broadcast of the finalized labels to the subscription DO, best-effort:
+	 * the batch has already committed, so a notify failure must never fail the run.
+	 * A dropped notify leaves the row `publication_pending = 1` for the
+	 * reconciliation sweep to re-drive (which also unblocks a rotation waiting on
+	 * the drain). Mirrors `service.ts` `issueLabel`: when the publisher manages
+	 * publication state (the DO clears the flag on `/notify`) the caller does not.
+	 */
+	private async publishLabels(issued: readonly IssuedLabel[]): Promise<void> {
+		const publisher = this.publisher;
+		if (!publisher) return;
+		for (const label of issued) {
+			try {
+				await publisher.publish(label);
+				if (!publisher.managesPublicationState) await markPublicationAccepted(this.db, label);
+			} catch (error) {
+				console.error("[assessment-orchestrator] label publication failed", {
+					assessmentId:
+						label.action.type === "automated-assessment" ? label.action.assessmentId : undefined,
+					sequence: label.sequence,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
 	}
 }
 

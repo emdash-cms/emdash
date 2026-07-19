@@ -120,6 +120,18 @@ export interface BuildIssuanceOptions {
 	 * automated-assessment action (it carries the assessmentId to check).
 	 */
 	requireAssessmentState?: AssessmentState;
+	/**
+	 * Gate the action insert (and thus its label) additionally on the subject
+	 * `(uri, cid)` still being non-tombstoned at commit time, at exactly the
+	 * captured `generation`. The initial discovery issuance and the operator rerun
+	 * pair this with `requireAssessmentState` so a concurrent delete that tombstones
+	 * the subject (advancing its `delete_generation`) or cancels the run in the gap
+	 * before this commit makes the positive `assessment-pending` no-op — no live
+	 * label is resurrected for a deleted release, even if the create path itself
+	 * cleared `deleted_at` (a generation bump the create cannot undo). Gating the
+	 * action (not the label) leaves no orphan label, same as the state guard.
+	 */
+	requireSubjectNotDeleted?: { uri: string; cid: string; generation: number };
 }
 
 /**
@@ -214,6 +226,12 @@ export async function buildIssuanceStatements(
 		requireState === undefined
 			? ""
 			: `\n\t\t\t\t AND EXISTS (SELECT 1 FROM assessments WHERE id = ? AND state = ?)`;
+	const requireSubject = options.requireSubjectNotDeleted;
+	const subjectGuardSql =
+		requireSubject === undefined
+			? ""
+			: `\n\t\t\t\t AND EXISTS (SELECT 1 FROM subjects
+				 WHERE uri = ? AND cid = ? AND deleted_at IS NULL AND delete_generation = ?)`;
 	const actionBinds: unknown[] = [
 		action.actor,
 		action.type,
@@ -233,6 +251,8 @@ export async function buildIssuanceStatements(
 		proposal.val,
 	];
 	if (requireState !== undefined) actionBinds.push(assessmentId, requireState);
+	if (requireSubject !== undefined)
+		actionBinds.push(requireSubject.uri, requireSubject.cid, requireSubject.generation);
 
 	const statements: D1PreparedStatement[] = [
 		db
@@ -257,7 +277,7 @@ export async function buildIssuanceStatements(
 						  )
 						  AND l2.neg = 0 AND a2.type <> 'automated-assessment'
 					)
-				 )${stateGuardSql}
+				 )${stateGuardSql}${subjectGuardSql}
 				 ON CONFLICT(idempotency_key) DO NOTHING`,
 			)
 			.bind(...actionBinds),
@@ -447,13 +467,14 @@ export async function prepareAutomatedLabelIssuance(
 	action: AutomatedIssuanceAction,
 	proposal: AutomatedLabelProposal,
 	now: Date,
+	options: BuildIssuanceOptions = {},
 ): Promise<IssuanceStatements> {
 	if (signer.issuerDid !== config.labelerDid)
 		throw new TypeError("signer issuer does not match the configured labeler DID");
 	validateKeyVersion(config.signingKeyVersion);
 	validateAutomatedAction(action);
 	validateAutomatedProposal(proposal);
-	return buildIssuanceStatements(db, config, signer, action, proposal, now, true);
+	return buildIssuanceStatements(db, config, signer, action, proposal, now, true, options);
 }
 
 export interface OverrideIssuanceSpec {
@@ -599,7 +620,7 @@ export async function issueAutomatedAssessmentLabel(
 	return issueLabel(db, config, signer, action, proposal, now, publisher);
 }
 
-async function markPublicationAccepted(db: D1Database, issued: IssuedLabel): Promise<void> {
+export async function markPublicationAccepted(db: D1Database, issued: IssuedLabel): Promise<void> {
 	await db
 		.prepare(
 			`UPDATE issued_labels SET publication_pending = 0
