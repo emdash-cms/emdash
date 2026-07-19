@@ -712,15 +712,9 @@ export function ContentEditor({
 							) : (
 								// Distraction-free: this overlay is the only save/exit surface.
 								<>
-									{!isNew && supportsPreview && (
-										<PreviewButton
-											hasPendingChanges={hasPendingChanges}
-											isLoadingPreview={isLoadingPreview}
-											onPreview={handlePreview}
-										/>
-									)}
 									<SaveButton
 										type="submit"
+										size="sm"
 										isDirty={isDirty}
 										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
 										disabled={isContentOperationPending}
@@ -730,15 +724,28 @@ export function ContentEditor({
 											href={liveViewUrl}
 											external
 											variant="outline"
+											size="sm"
 											icon={<ArrowSquareOut />}
 										>
 											{t`Live View`}
 										</LinkButton>
 									)}
+									{!isNew && supportsPreview && (
+										<PreviewButton
+											size="sm"
+											hasPendingChanges={hasPendingChanges}
+											isLoadingPreview={isLoadingPreview}
+											onPreview={handlePreview}
+										/>
+									)}
 									{!isNew && (
 										<>
 											{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-												<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
+												<DiscardDraftDialog
+													onDiscard={onDiscardDraft}
+													triggerVariant="outline"
+													triggerSize="sm"
+												/>
 											)}
 											<PublishActions
 												collectionLabel={collectionLabel}
@@ -746,6 +753,7 @@ export function ContentEditor({
 												hasPendingChanges={hasPendingChanges}
 												onPublish={onPublish}
 												onUnpublish={onUnpublish}
+												size="sm"
 											/>
 										</>
 									)}

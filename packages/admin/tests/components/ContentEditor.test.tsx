@@ -1345,6 +1345,32 @@ describe("ContentEditor", () => {
 			expect(portableTextProps.current?.minimal).not.toBe(true);
 		});
 
+		it("matches the settings action order and size", async () => {
+			const item = makeItem({
+				status: "published",
+				liveRevisionId: "rev-1",
+				draftRevisionId: "rev-1",
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				supportsDrafts: true,
+				supportsPreview: true,
+			});
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+
+			const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+			const actionContainer = heading.parentElement?.parentElement?.lastElementChild;
+			const actions = [...(actionContainer?.querySelectorAll("button, a") ?? [])];
+			const actionNames = actions.map(
+				(action) => action.getAttribute("aria-label") ?? action.textContent?.trim(),
+			);
+
+			expect(actionNames).toEqual(["Saved", "Live View", "Preview", "Unpublish Post"]);
+			for (const action of actions) expect(action).toHaveClass("h-6.5");
+		});
+
 		it("keeps the editor canvas and header overlay on the elevated surface", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const form = document.querySelector("form");
