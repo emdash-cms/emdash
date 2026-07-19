@@ -1325,6 +1325,26 @@ describe("ContentEditor", () => {
 	});
 
 	describe("distraction-free mode", () => {
+		it("keeps the normal editor width and field chrome", async () => {
+			const screen = await renderEditor({
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					content: { kind: "portableText", label: "Content" },
+				},
+			});
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+
+			const titleInput = screen.getByLabelText("Title").element();
+			const portableTextEditor = screen.getByTestId("portable-text-editor").element();
+			const editorCanvas = portableTextEditor.closest(".mx-auto");
+
+			expect(editorCanvas).toHaveClass("max-w-3xl");
+			expect(editorCanvas).not.toHaveClass("max-w-4xl");
+			expect(titleInput).not.toHaveClass("px-0", "text-lg");
+			expect(portableTextProps.current?.minimal).not.toBe(true);
+		});
+
 		it("keeps the editor canvas and header overlay on the elevated surface", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const form = document.querySelector("form");
