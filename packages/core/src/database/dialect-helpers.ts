@@ -19,12 +19,26 @@ import { validateIdentifier, validateJsonFieldName } from "./validate.js";
 export type { DatabaseDialectType };
 
 /**
- * Detect dialect type from a Kysely instance via the adapter class name.
+ * Detect dialect type from a Kysely instance.
+ *
+ * Primary signal is the adapter class name, but that is unreliable: when the
+ * consuming app bundles and minifies emdash (e.g. an Astro SSR build), the
+ * `PostgresAdapter` class name gets mangled, so the string check fails and a
+ * real Postgres connection is misdetected as SQLite. The dialect helpers then
+ * emit SQLite-only SQL such as `datetime('now')`, which makes the very first
+ * migration fail on Postgres with `function datetime(unknown) does not exist`.
+ *
+ * As a minification-proof fallback we use a behavioral capability of the
+ * adapter: `supportsMultipleConnections` — the same signal this codebase already
+ * uses to tell SQLite from Postgres (see `emdash-runtime.ts`). Kysely reports it
+ * `true` for `PostgresAdapter` and `false` for the SQLite/libSQL/D1 adapters.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function detectDialect(db: Kysely<any>): DatabaseDialectType {
-	const name = db.getExecutor().adapter.constructor.name;
-	if (name === "PostgresAdapter") return "postgres";
+	const adapter = db.getExecutor().adapter;
+	if (adapter.constructor.name === "PostgresAdapter" || adapter.supportsMultipleConnections === true) {
+		return "postgres";
+	}
 	return "sqlite";
 }
 
