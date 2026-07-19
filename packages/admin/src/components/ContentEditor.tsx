@@ -1184,6 +1184,7 @@ function FieldRenderer({
 						onChange={handleChange}
 						placeholder={t`Start writing, or type '/' for commands`}
 						aria-labelledby={labelId}
+						className="bg-kumo-control focus-within:ring-kumo-focus/50 focus-within:ring-[1.5px]"
 						pluginBlocks={pluginBlocks}
 						onEditorReady={onEditorReady}
 						minimal={minimal}

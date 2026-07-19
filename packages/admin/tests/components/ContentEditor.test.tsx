@@ -1329,6 +1329,7 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({
 				fields: {
 					title: { kind: "string", label: "Title", required: true },
+					featured_image: { kind: "image", label: "Featured image" },
 					content: { kind: "portableText", label: "Content" },
 				},
 			});
@@ -1336,13 +1337,18 @@ describe("ContentEditor", () => {
 			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
 
 			const titleInput = screen.getByLabelText("Title").element();
+			const imagePicker = screen.getByRole("button", { name: "Select image" }).element();
 			const portableTextEditor = screen.getByTestId("portable-text-editor").element();
 			const editorCanvas = portableTextEditor.closest(".mx-auto");
 
 			expect(editorCanvas).toHaveClass("max-w-3xl");
 			expect(editorCanvas).not.toHaveClass("max-w-4xl");
 			expect(titleInput).not.toHaveClass("px-0", "text-lg");
+			expect(imagePicker).toHaveClass("bg-kumo-control");
 			expect(portableTextProps.current?.minimal).not.toBe(true);
+			expect(portableTextProps.current?.className).toContain("bg-kumo-control");
+			expect(portableTextProps.current?.className).toContain("focus-within:ring-kumo-focus/50");
+			expect(portableTextProps.current?.className).toContain("focus-within:ring-[1.5px]");
 		});
 
 		it("matches the settings action order and size", async () => {
