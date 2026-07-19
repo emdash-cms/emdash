@@ -36,7 +36,8 @@ function loadManifest(): { capabilities: string[] } {
 		const c = raw[i]!;
 		if (inString) {
 			out += c;
-			if (c === "\\") out += raw[++i] ?? ""; // keep the escaped char verbatim
+			if (c === "\\")
+				out += raw[++i] ?? ""; // keep the escaped char verbatim
 			else if (c === '"') inString = false;
 			i++;
 			continue;
