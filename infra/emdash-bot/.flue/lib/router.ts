@@ -328,6 +328,8 @@ export interface AgentResult {
 	[key: string]: unknown;
 }
 
+export type InvestigationMode = "repro" | "implement" | "revise";
+
 /**
  * Map the investigate agent's flat result to a machine event. Deterministic
  * glue between the agent's structured output and the state machine.
@@ -340,17 +342,20 @@ export function outcomeFromResult({
 	ok,
 	result,
 	pushed,
+	mode,
 }: {
 	ok: boolean;
 	result?: AgentResult | null;
 	pushed?: boolean;
+	mode?: InvestigationMode;
 }): EventId {
 	if (!ok || !result || typeof result !== "object") return "agent.failed";
 	if (result.skipped === true) return "agent.skipped";
 	if (result.verdict === "intended-behavior") return "agent.by_design";
-	if (result.reproduced !== true) return "agent.not_reproduced";
+	const effectiveMode = mode ?? "repro";
+	if (effectiveMode === "repro" && result.reproduced !== true) return "agent.not_reproduced";
 	if (result.fixed === true) return pushed === true ? "agent.fix_ready" : "agent.failed";
-	return "agent.reproduced";
+	return effectiveMode === "repro" ? "agent.reproduced" : "agent.failed";
 }
 
 /** Invariant check: exactly one kind + one state label. */

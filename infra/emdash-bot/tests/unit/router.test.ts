@@ -406,6 +406,18 @@ describe("router", () => {
 		);
 	});
 
+	test("outcomeFromResult allows implement and revise runs to produce a fix", () => {
+		for (const mode of ["implement", "revise"] as const) {
+			const input = {
+				ok: true,
+				result: { fixed: true },
+				pushed: true,
+				mode,
+			};
+			expect(outcomeFromResult(input)).toBe("agent.fix_ready");
+		}
+	});
+
 	test("outcomeFromResult feeds resolve to advance the machine end-to-end", () => {
 		const event = outcomeFromResult({
 			ok: true,

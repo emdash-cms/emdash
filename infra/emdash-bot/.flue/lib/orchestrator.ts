@@ -26,7 +26,13 @@ import {
 	removeLabels,
 } from "./github.js";
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
-import { currentState, type Decision, outcomeFromResult, resolve } from "./router.js";
+import {
+	currentState,
+	type Decision,
+	type InvestigationMode,
+	outcomeFromResult,
+	resolve,
+} from "./router.js";
 import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
 
 /**
@@ -147,6 +153,7 @@ const STORAGE = {
 	state: "o:state",
 	kind: "o:kind",
 	currentRunId: "o:currentRunId",
+	currentRunMode: "o:currentRunMode",
 	currentRunStartedAt: "o:currentRunStartedAt",
 	currentAgentId: "o:currentAgentId",
 	currentDispatchId: "o:currentDispatchId",
@@ -371,7 +378,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 		pushed: boolean;
 		ok: boolean;
 	}): Promise<EventOutcome> {
-		const currentRunId = await this.ctx.storage.get<string>(STORAGE.currentRunId);
+		const [currentRunId, currentRunMode] = await Promise.all([
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+		]);
 		if (currentRunId !== input.runId) {
 			return { kind: "stale-run", runId: input.runId, currentRunId: currentRunId ?? null };
 		}
@@ -389,6 +399,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			ok: input.ok,
 			result: input.result,
 			pushed: input.pushed,
+			mode: currentRunMode,
 		});
 
 		const labels = await this.projectLabels();
@@ -1066,6 +1077,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			if (preparedInvestigation) {
 				puts.push(
 					transaction.put(STORAGE.currentRunId, preparedInvestigation.runId),
+					transaction.put(STORAGE.currentRunMode, preparedInvestigation.mode),
 					transaction.put(STORAGE.currentRunStartedAt, Date.now()),
 					transaction.put(STORAGE.currentAgentId, preparedInvestigation.agentId),
 					transaction.put(STORAGE.pendingDispatch, {
@@ -1146,6 +1158,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			if (currentRunId !== expectedRunId) return;
 			await Promise.all([
 				transaction.delete(STORAGE.currentRunId),
+				transaction.delete(STORAGE.currentRunMode),
 				transaction.delete(STORAGE.currentRunStartedAt),
 				transaction.delete(STORAGE.currentAgentId),
 				transaction.delete(STORAGE.currentDispatchId),
@@ -1296,6 +1309,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			) {
 				await Promise.all([
 					transaction.delete(STORAGE.currentRunId),
+					transaction.delete(STORAGE.currentRunMode),
 					transaction.delete(STORAGE.currentRunStartedAt),
 					transaction.delete(STORAGE.currentAgentId),
 					transaction.delete(STORAGE.currentDispatchId),
@@ -1354,11 +1368,17 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	/** Test-only: inject a synthetic in-flight run for tick() recovery tests. */
-	async debugSetStaleRun(runId: string, startedAt: number, agentId?: string): Promise<void> {
+	async debugSetStaleRun(
+		runId: string,
+		startedAt: number,
+		agentId?: string,
+		mode?: InvestigationMode,
+	): Promise<void> {
 		await Promise.all([
 			this.ctx.storage.put(STORAGE.currentRunId, runId),
 			this.ctx.storage.put(STORAGE.currentRunStartedAt, startedAt),
 			...(agentId ? [this.ctx.storage.put(STORAGE.currentAgentId, agentId)] : []),
+			...(mode ? [this.ctx.storage.put(STORAGE.currentRunMode, mode)] : []),
 		]);
 	}
 

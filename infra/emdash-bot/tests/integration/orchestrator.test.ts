@@ -150,6 +150,22 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(persisted.currentDispatchId).toBe(null);
 	});
 
+	test("an implement run can advance to fix ready without a reproduced result", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent());
+		await stub.debugSetStaleRun("implement-run", Date.now(), undefined, "implement");
+
+		const outcome = await stub.applyAgentResult({
+			runId: "implement-run",
+			result: { fixed: true, summary: "Implemented the requested change." },
+			pushed: true,
+			ok: true,
+		});
+
+		expect(outcome.kind).toBe("transition");
+		expect((await stub.getPersistedState()).state).toBe("awaiting_feedback");
+	});
+
 	test("tick recovers a stale run", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		// Run() the DO with a synthetic stale run set in storage. The stale-
