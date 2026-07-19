@@ -23,6 +23,7 @@ import {
 	createSubject,
 	getAssessmentByRunKey,
 	getCurrentAssessment,
+	transitionAssessmentState,
 } from "../src/assessment-store.js";
 import { buildAutomationPauseUpdate } from "../src/automation-state.js";
 import {
@@ -1204,5 +1205,166 @@ describe("processDiscoveryMessage: live publication (Sol follow-up)", () => {
 		const row = await pendingLabelRow(assessment!.id, 1);
 		expect(row.publication_pending).toBe(1);
 		expect(published).toContain(row.sequence);
+	});
+});
+
+describe("processDiscoveryMessage: systemic delete-generation (round-5 close)", () => {
+	const latestPending = (uri: string) =>
+		testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+			 ORDER BY sequence DESC LIMIT 1`,
+		)
+			.bind(uri)
+			.first<{ neg: number }>();
+
+	it("seam 1: a stale verify cannot resurrect a subject a concurrent delete tombstoned", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const uri = uriFor(job);
+		// The subject already exists, undeleted, at generation 0 (a prior observation).
+		await createSubject(testEnv.DB, {
+			uri,
+			cid: job.cid,
+			did: PUBLISHER_DID,
+			collection: RELEASE_COLLECTION,
+			rkey: job.rkey,
+		});
+
+		const workflow = new FakeAssessmentWorkflow();
+		const baseDeps = { ...(await buildDeps()), assessmentWorkflow: workflow };
+
+		// Barrier: during THIS create's verify (after it captured generation 0), a
+		// full concurrent delete completes — tombstone + generation bump + ack.
+		let deleteRan = false;
+		const barrierVerify = async (): Promise<VerifiedPdsRecord> => {
+			if (!deleteRan) {
+				deleteRan = true;
+				await processDiscoveryMessage({ ...job, operation: "delete", cid: "" }, new FakeMessage(), {
+					...baseDeps,
+					confirmDeleted: () => Promise.resolve(true),
+				});
+			}
+			return verifiedFor(job)();
+		};
+
+		const msg = new FakeMessage();
+		await processDiscoveryMessage(job, msg, { ...baseDeps, verify: barrierVerify });
+
+		expect(msg.acked).toBe(1);
+		// createSubject's generation-guarded undelete no-op'd (captured gen 0, subject
+		// now gen 1): the subject stays tombstoned, no run was created, no positive
+		// issued, nothing dispatched. No resurrection.
+		const subject = await testEnv.DB.prepare(
+			`SELECT deleted_at, delete_generation FROM subjects WHERE uri = ? AND cid = ?`,
+		)
+			.bind(uri, job.cid)
+			.first<{ deleted_at: string | null; delete_generation: number }>();
+		expect(subject?.deleted_at).not.toBeNull();
+		expect(subject?.delete_generation).toBe(1);
+		expect(await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job))).toBeNull();
+		expect(workflow.created.length).toBe(0);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT COUNT(*) AS n FROM issued_labels WHERE uri = ? AND val = 'assessment-pending' AND neg = 0`,
+			)
+				.bind(uri)
+				.first<{ n: number }>(),
+		).toEqual({ n: 0 });
+	});
+
+	it("seam 2: the delete negates a stale run's stranded positive", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const uri = uriFor(job);
+		await createSubject(testEnv.DB, {
+			uri,
+			cid: job.cid,
+			did: PUBLISHER_DID,
+			collection: RELEASE_COLLECTION,
+			rkey: job.rkey,
+		});
+		const runKey = await runKeyFor(job);
+		const { assessment } = await createAssessmentRun(testEnv.DB, {
+			runKey,
+			uri,
+			cid: job.cid,
+			trigger: "initial",
+			triggerId: initialTriggerId(job.cid),
+			policyVersion: MODERATION_POLICY.policyVersion,
+			coverageJson: "{}",
+		});
+		await issueAutomatedAssessmentLabel(
+			testEnv.DB,
+			config,
+			await signer(),
+			{
+				actor: LABELER_DID,
+				type: "automated-assessment",
+				assessmentId: assessment.id,
+				reason: "initial discovery",
+				idempotencyKey: automatedIdempotencyKey(runKey, "assessment-pending", false),
+			},
+			{ uri, cid: job.cid, val: "assessment-pending" },
+		);
+		// Drive the run to terminal `stale`, as the orchestrator would on detecting a
+		// non-current subject — WITHOUT negating its own pending.
+		for (const [from, to] of [
+			["observed", "verifying"],
+			["verifying", "pending"],
+			["pending", "running"],
+			["running", "stale"],
+		] as const) {
+			await transitionAssessmentState(testEnv.DB, { id: assessment.id, from, to });
+		}
+		expect((await latestPending(uri))?.neg).toBe(0);
+
+		// A delete arrives. The stale run is terminal, so the old non-terminal-only
+		// scan would miss it; the widened scan reaches it and negates its positive.
+		await processDiscoveryMessage({ ...job, operation: "delete", cid: "" }, new FakeMessage(), {
+			...(await buildDeps()),
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		expect((await latestPending(uri))?.neg).toBe(1);
+		expect((await getAssessmentByRunKey(testEnv.DB, runKey))?.state).toBe("stale");
+	});
+
+	it("delete-then-republish: a new revision after a delete assesses cleanly (generation does not over-block)", async () => {
+		const job1 = await jobFor({ rkey: rkey() });
+		const uri = uriFor(job1);
+		await processDiscoveryMessage(job1, new FakeMessage(), {
+			...(await buildDeps()),
+			verify: verifiedFor(job1),
+		});
+		await processDiscoveryMessage({ ...job1, operation: "delete", cid: "" }, new FakeMessage(), {
+			...(await buildDeps()),
+			confirmDeleted: () => Promise.resolve(true),
+		});
+		expect((await latestPending(uri))?.neg).toBe(1);
+
+		// A genuine republish: a new revision (same rkey, new cid) discovered AFTER the
+		// delete. Its subject row is fresh (generation 0), so the capture-and-guard
+		// admits it — the delete of the old revision must not block the new one.
+		const job2 = { ...job1, cid: await cid(`${job1.rkey}-v2`) };
+		const workflow = new FakeAssessmentWorkflow();
+		const msg = new FakeMessage();
+		await processDiscoveryMessage(job2, msg, {
+			...(await buildDeps()),
+			assessmentWorkflow: workflow,
+			verify: verifiedFor(job2),
+		});
+
+		expect(msg.acked).toBe(1);
+		const run = await getAssessmentByRunKey(testEnv.DB, await runKeyFor(job2));
+		expect(run?.state).toBe("pending");
+		expect(workflow.created.length).toBe(1);
+		const positive = await testEnv.DB.prepare(
+			`SELECT l.neg FROM issued_labels l
+			 JOIN issuance_actions a ON a.id = l.action_id
+			 JOIN assessments r ON r.id = a.assessment_id
+			 WHERE r.run_key = ? AND l.val = 'assessment-pending'
+			 ORDER BY l.sequence DESC LIMIT 1`,
+		)
+			.bind(await runKeyFor(job2))
+			.first<{ neg: number }>();
+		expect(positive?.neg).toBe(0);
 	});
 });

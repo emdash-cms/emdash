@@ -408,6 +408,14 @@ describe("rerun", () => {
 				uri,
 			),
 		).toBe(0);
+		// Seam 3: the generation-guarded run creation left NO orphan `observed`
+		// operator run (reconciliation would ignore an `observed` run forever).
+		expect(
+			await countRows(
+				`SELECT COUNT(*) n FROM assessments WHERE uri = ? AND trigger = 'operator'`,
+				uri,
+			),
+		).toBe(0);
 	});
 
 	it("a second rerun creates another distinct run", async () => {
