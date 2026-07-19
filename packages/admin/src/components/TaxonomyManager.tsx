@@ -46,6 +46,26 @@ function flattenTerms(terms: TaxonomyTerm[]): TaxonomyTerm[] {
 }
 
 /**
+ * Return valid parent candidates in tree order.
+ *
+ * The current term and its complete subtree are excluded while editing so a
+ * parent change cannot create a taxonomy cycle.
+ */
+export function getAvailableParentTerms(
+	terms: TaxonomyTerm[],
+	currentTerm?: TaxonomyTerm,
+): TaxonomyTerm[] {
+	const flatTerms = flattenTerms(terms);
+	if (!currentTerm) return flatTerms;
+
+	const excludedIds = new Set([
+		currentTerm.id,
+		...flattenTerms(currentTerm.children).map((term) => term.id),
+	]);
+	return flatTerms.filter((term) => !excludedIds.has(term.id));
+}
+
+/**
  * Term row component (recursive for hierarchy)
  */
 function TermRow({
@@ -336,11 +356,7 @@ function TermFormDialog({
 		}
 	};
 
-	// Flatten terms for parent selector (exclude current term and its children)
-	const flatTerms = flattenTerms(allTerms);
-	const availableParents = term
-		? flatTerms.filter((item) => item.id !== term.id && item.parentId !== term.id)
-		: flatTerms;
+	const availableParents = getAvailableParentTerms(allTerms, term);
 
 	return (
 		<Dialog.Root
@@ -787,8 +803,6 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 		);
 	}
 
-	const flatTerms = flattenTerms(terms);
-
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between gap-4 flex-wrap">
@@ -851,7 +865,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				taxonomyName={taxonomyName}
 				taxonomyDef={taxonomyDef}
 				term={editingTerm}
-				allTerms={flatTerms}
+				allTerms={terms}
 				locale={activeLocale}
 				i18n={i18n}
 				onOpenTranslation={(tr) => setActiveLocale(tr.locale)}
