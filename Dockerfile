@@ -7,6 +7,10 @@ WORKDIR /app
 FROM base AS deps
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+# pnpm-workspace.yaml declares patchedDependencies -> patches/, which pnpm
+# reads during install. It must be in the deps stage or --frozen-lockfile
+# fails with ENOENT on the patch file (#2118).
+COPY patches/ patches/
 COPY packages/ packages/
 COPY templates/ templates/
 COPY demos/ demos/
