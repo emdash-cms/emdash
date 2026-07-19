@@ -639,16 +639,6 @@ export function ContentEditor({
 									icon={<ArrowPrev />}
 								/>
 							)}
-							{isDistractionFree && (
-								<Button
-									variant="ghost"
-									shape="square"
-									onClick={() => setIsDistractionFree(false)}
-									aria-label={t`Exit distraction-free mode`}
-								>
-									<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
-								</Button>
-							)}
 							<h1 className="min-w-0 truncate text-lg font-semibold">
 								{isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`}
 							</h1>
@@ -757,6 +747,15 @@ export function ContentEditor({
 											/>
 										</>
 									)}
+									<Button
+										variant="ghost"
+										shape="square"
+										type="button"
+										onClick={() => setIsDistractionFree(false)}
+										aria-label={t`Exit distraction-free mode`}
+									>
+										<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
+									</Button>
 								</>
 							)}
 						</div>
