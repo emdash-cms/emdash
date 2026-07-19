@@ -1,0 +1,27 @@
+.changeset/focused-editors-align.md
+  s_8bd99f89d5c5f7::t_f2405f8f1e8dbc 1-5
+packages/admin/src/components/ContentEditor.tsx
+  s_8bd99f89d5c5f7::t_553b8df649bfc3 759
+packages/admin/src/components/PortableTextEditor.tsx
+  s_8bd99f89d5c5f7::t_9c52466b8df024 2877
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_8bd99f89d5c5f7::t_5fd452c7181970 1328-1347
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_8bd99f89d5c5f7::t_ee58a5dba6c1a7 575
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8d0f37dfb6f454cc6693ce2c6f09811bc8faeeb6",
+  "prompts": {},
+  "sessions": {
+    "s_8bd99f89d5c5f7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f77a0-6271-7380-bb92-efb9e797b817",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
