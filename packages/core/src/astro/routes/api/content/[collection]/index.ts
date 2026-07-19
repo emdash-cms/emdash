@@ -17,15 +17,14 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ params, url, locals }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.handleContentList) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requirePerm(user, "content:read");
 	if (denied) return denied;
 	const collection = params.collection!;
 	const query = parseQuery(url, contentListQuery);
 	if (isParseError(query)) return query;
-
-	if (!emdash?.handleContentList) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
 
 	// Subscribers must only see published content; force the status filter
 	// regardless of caller-supplied value. Any user with content:read_drafts
@@ -41,15 +40,14 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 
 export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.handleContentCreate || !emdash?.handleContentGet) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requirePerm(user, "content:create");
 	if (denied) return denied;
 	const collection = params.collection!;
 	const body = await parseBody(request, contentCreateBody);
 	if (isParseError(body)) return body;
-
-	if (!emdash?.handleContentCreate || !emdash?.handleContentGet) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
 
 	// Creating a translation requires edit permission on the source item
 	if (body.translationOf) {

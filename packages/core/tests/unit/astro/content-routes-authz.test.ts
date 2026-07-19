@@ -137,6 +137,9 @@ function buildEmdash(
 	}));
 
 	return {
+		// Routes treat a missing db as "runtime not initialized" (500 before any
+		// permission check), so the mock carries one to exercise the authz path.
+		db: {},
 		handleContentList,
 		handleContentGet,
 		handleContentTranslations,
@@ -426,5 +429,43 @@ describe("DELETE /content/:collection/:id/permanent", () => {
 		const res = await deletePermanent(permanentCtx(subscriber, emdash));
 		expect(res.status).toBe(403);
 		expect(emdash.handleContentPermanentDelete).not.toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Uninitialized runtime (#2094)
+// ---------------------------------------------------------------------------
+
+describe("uninitialized runtime returns NOT_CONFIGURED, not UNAUTHORIZED", () => {
+	// When runtime init fails, the middleware never sets locals.emdash and the
+	// auth middleware never resolves a user — even for a valid token. The
+	// routes must report the server fault (500) instead of blaming the
+	// caller's credentials (401).
+	const uninitialized = undefined as unknown as ReturnType<typeof buildEmdash>;
+
+	it("GET /content/:collection → 500 NOT_CONFIGURED with no user", async () => {
+		const res = await getList(ctx({ user: null, emdash: uninitialized }));
+		expect(res.status).toBe(500);
+		const body = (await res.json()) as { error: { code: string } };
+		expect(body.error.code).toBe("NOT_CONFIGURED");
+	});
+
+	it("GET /content/:collection → 500 even for an authenticated admin", async () => {
+		const res = await getList(ctx({ user: admin, emdash: uninitialized }));
+		expect(res.status).toBe(500);
+	});
+
+	it("GET /content/:collection/:id → 500 NOT_CONFIGURED", async () => {
+		const res = await getItem(
+			ctx({ user: null, emdash: uninitialized, params: { collection: "post", id: "p1" } }),
+		);
+		expect(res.status).toBe(500);
+		const body = (await res.json()) as { error: { code: string } };
+		expect(body.error.code).toBe("NOT_CONFIGURED");
+	});
+
+	it("GET /content/:collection/trash → 500 NOT_CONFIGURED", async () => {
+		const res = await getTrash(ctx({ user: null, emdash: uninitialized }));
+		expect(res.status).toBe(500);
 	});
 });
