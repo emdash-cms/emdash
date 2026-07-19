@@ -12,10 +12,11 @@ import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleMenuItemDelete, handleMenuItemUpdate } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery, updateMenuItemBody } from "#api/schemas.js";
+import { EDGE_TAG_MENUS, invalidateEdgeTag } from "../../../../../edge-cache-tags.js";
 
 export const prerender = false;
 
-export const PUT: APIRoute = async ({ params, request, locals }) => {
+export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
 	const itemId = params.id;
@@ -37,13 +38,14 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		const result = await handleMenuItemUpdate(emdash.db, name, itemId, body, {
 			locale: localeQ.locale,
 		});
+		if (result.success) await invalidateEdgeTag(cache, EDGE_TAG_MENUS);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to update menu item", "MENU_ITEM_UPDATE_ERROR");
 	}
 };
 
-export const DELETE: APIRoute = async ({ params, request, locals }) => {
+export const DELETE: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
 	const itemId = params.id;
@@ -62,6 +64,7 @@ export const DELETE: APIRoute = async ({ params, request, locals }) => {
 		const result = await handleMenuItemDelete(emdash.db, name, itemId, {
 			locale: localeQ.locale,
 		});
+		if (result.success) await invalidateEdgeTag(cache, EDGE_TAG_MENUS);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to delete menu item", "MENU_ITEM_DELETE_ERROR");

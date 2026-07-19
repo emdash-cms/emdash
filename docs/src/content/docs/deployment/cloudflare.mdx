@@ -154,10 +154,30 @@ Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) (
 - EmDash admin and API responses send `Cache-Control: private, no-store` and are never stored.
 - Your public pages control their own caching through the `Cache-Control` headers they return.
 
-Two things to know before enabling it:
+Three things to know before enabling it:
 
-1. **Responses without a `Cache-Control` header are still cached.** Workers Cache applies RFC 9111 heuristic freshness — a `200` without any header is cached for 2 hours. Give every custom route an explicit `Cache-Control` (use `private, no-store` for anything session-dependent).
-2. **Cached pages are shared with logged-in editors.** The cache runs before your Worker, so it cannot bypass based on request cookies. A logged-in editor may receive the cached anonymous variant of a public page — without the visual editing toolbar — until the entry expires. Editor-rendered responses themselves are never stored (they carry `private, no-store`), so nothing leaks in the other direction.
+1. **A publish does not, by itself, evict rendered HTML.** EmDash's write paths (publish, update, delete, …) call `cache.invalidate()` with the affected entry's **ULID** and its **collection slug**, and Astro's Cloudflare cache provider turns that into a tag purge. But a cached page is only purged if it was **stored with one of those tags** in the first place. Render your pages with the loader's cache hint so the tags line up:
+
+   ```astro
+   ---
+   const { entry, cacheHint } = await getEmDashEntry("pages", slug);
+   Astro.cache.set(cacheHint);
+   ---
+   ```
+
+   If you bypass the hint (or set your own `routeRules` without the content tags), a cached page is **not** invalidated on publish — it is served until its `maxAge` lapses. Treat `maxAge` as your only freshness control for any page you don't tag.
+
+   **Menus and site settings** render on every page but have no per-entry `cacheHint`. EmDash tags them automatically where it can — `<EmDashHead>` adds the reserved `emdash:settings` tag, and menu widgets add `emdash:menus` — and the settings/menu write paths purge those tags. If you call `getMenu()` / `getMenus()` directly in a layout, opt that page into the same invalidation so an edit to the navigation reaches it:
+
+   ```astro
+   ---
+   import { getMenu, EDGE_TAG_MENUS } from "emdash";
+   const menu = await getMenu("primary");
+   Astro.cache.set({ tags: [EDGE_TAG_MENUS] });
+   ---
+   ```
+2. **Responses without a `Cache-Control` header are still cached.** Workers Cache applies RFC 9111 heuristic freshness — a `200` without any header is cached for 2 hours. Give every custom route an explicit `Cache-Control` (use `private, no-store` for anything session-dependent).
+3. **Cached pages are shared with logged-in editors.** The cache runs before your Worker, so it cannot bypass based on request cookies. A logged-in editor may receive the cached anonymous variant of a public page — without the visual editing toolbar — until the entry expires. Editor-rendered responses themselves are never stored (they carry `private, no-store`), so nothing leaks in the other direction.
 
 ## Custom Domain
 

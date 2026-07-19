@@ -12,6 +12,7 @@ import { handleError, unwrapResult } from "#api/error.js";
 import { handleMenuCreate, handleMenuList } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createMenuBody, localeFilterQuery } from "#api/schemas.js";
+import { EDGE_TAG_MENUS, invalidateEdgeTag } from "../../../edge-cache-tags.js";
 
 export const prerender = false;
 
@@ -32,7 +33,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
 	}
 };
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
 
 	const denied = requirePerm(user, "menus:manage");
@@ -43,6 +44,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const result = await handleMenuCreate(emdash.db, body);
+		if (result.success) await invalidateEdgeTag(cache, EDGE_TAG_MENUS);
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create menu", "MENU_CREATE_ERROR");

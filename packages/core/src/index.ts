@@ -430,6 +430,7 @@ export type { GetCommentsOptions, GetCommentsResult } from "./comments/query.js"
 
 // Menus
 export { getMenu, getMenus } from "./menus/index.js";
+export { EDGE_TAG_MENUS, EDGE_TAG_SETTINGS } from "./astro/edge-cache-tags.js";
 export type {
 	Menu,
 	MenuItem,

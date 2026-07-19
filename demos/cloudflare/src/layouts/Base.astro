@@ -1,5 +1,5 @@
 ---
-import { getMenu, getEmDashCollection, getSiteSettings } from "emdash";
+import { getMenu, getEmDashCollection, getSiteSettings, EDGE_TAG_MENUS } from "emdash";
 import {
 	WidgetArea,
 	EmDashHead,
@@ -51,6 +51,11 @@ const menu = await getMenu("primary");
 // it'll render in the footer's "Connect" column. Otherwise that column
 // just shows RSS, avoiding duplication with the "Navigate" column above.
 const socialMenu = await getMenu("social");
+
+// This layout renders menus on every page, so every page must be evicted
+// when any menu changes. Tag with the reserved menus tag so menu write
+// paths purge it (#2042). Settings are tagged by EmDashHead.
+Astro.cache.set({ tags: [EDGE_TAG_MENUS] });
 
 // Fetch pages for footer
 const { entries: pages } = await getEmDashCollection("pages");

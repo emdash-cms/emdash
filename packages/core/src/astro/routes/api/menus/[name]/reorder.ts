@@ -11,10 +11,11 @@ import { handleError, unwrapResult } from "#api/error.js";
 import { handleMenuItemReorder } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery, reorderMenuItemsBody } from "#api/schemas.js";
+import { EDGE_TAG_MENUS, invalidateEdgeTag } from "../../../../edge-cache-tags.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
 
@@ -31,6 +32,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		const result = await handleMenuItemReorder(emdash.db, name, body.items, {
 			locale: localeQ.locale,
 		});
+		if (result.success) await invalidateEdgeTag(cache, EDGE_TAG_MENUS);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to reorder menu items", "MENU_REORDER_ERROR");
