@@ -184,6 +184,10 @@ export function applySeoPanelToPageContext(
 		...page,
 		description: seo.description || page.description,
 		canonical: canonical || page.canonical,
+		// Mirror the resolved image into the top-level field too, so consumers
+		// reading page.image (e.g. page:metadata hooks) agree with og:image and
+		// the JSON-LD graph (#1518).
+		image: image || page.image,
 		seo: {
 			...page.seo,
 			ogTitle: seo.title || page.seo?.ogTitle,
