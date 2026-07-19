@@ -11,34 +11,63 @@
  */
 
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { describe, expect, it, vi } from "vitest";
 
 import { HookPipeline } from "../../../src/plugins/hooks.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
-const PLUGIN_DIR = join(__dirname, "../../../../plugins/audit-log");
+const PLUGIN_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../../plugins/audit-log");
 
 /**
- * Parse the JSONC manifest. Good enough for this manifest's shape
- * (comments and trailing commas, no `//` inside string values other
- * than after `:` as in URLs); the real loader in plugin-cli uses
+ * Strip JSONC comments and trailing commas with a char scanner that
+ * tracks string state, so a `//` or `/*` inside a string value (e.g. a
+ * URL) is never treated as a comment. The real loader in plugin-cli uses
  * jsonc-parser, which isn't a core dependency.
  */
 function loadManifest(): { capabilities: string[] } {
 	const raw = readFileSync(join(PLUGIN_DIR, "emdash-plugin.jsonc"), "utf8");
-	const withoutComments = raw
-		.replace(/\/\*[\s\S]*?\*\//g, "")
-		.replace(/^\s*\/\/.*$/gm, "")
-		.replace(/([^:"])\/\/.*$/gm, "$1")
-		.replace(/,(\s*[}\]])/g, "$1");
-	return JSON.parse(withoutComments) as { capabilities: string[] };
+	let out = "";
+	let i = 0;
+	let inString = false;
+	while (i < raw.length) {
+		const c = raw[i]!;
+		if (inString) {
+			out += c;
+			if (c === "\\") out += raw[++i] ?? ""; // keep the escaped char verbatim
+			else if (c === '"') inString = false;
+			i++;
+			continue;
+		}
+		if (c === '"') {
+			inString = true;
+			out += c;
+			i++;
+			continue;
+		}
+		if (c === "/" && raw[i + 1] === "/") {
+			while (i < raw.length && raw[i] !== "\n") i++;
+			continue;
+		}
+		if (c === "/" && raw[i + 1] === "*") {
+			i += 2;
+			while (i < raw.length && !(raw[i] === "*" && raw[i + 1] === "/")) i++;
+			i += 2;
+			continue;
+		}
+		out += c;
+		i++;
+	}
+	// Trailing commas are safe to drop now that no string content remains.
+	out = out.replace(/,(\s*[}\]])/g, "$1");
+	return JSON.parse(out) as { capabilities: string[] };
 }
 
 /** Hook names the plugin actually registers, from its default export. */
 async function loadHookNames(): Promise<string[]> {
-	const mod = (await import(join(PLUGIN_DIR, "src/plugin.ts"))) as {
+	const mod = (await import(pathToFileURL(join(PLUGIN_DIR, "src/plugin.ts")).href)) as {
 		default: { hooks: Record<string, unknown> };
 	};
 	return Object.keys(mod.default.hooks);
@@ -84,5 +113,12 @@ describe("audit-log manifest capabilities (#1263)", () => {
 		} finally {
 			warn.mockRestore();
 		}
+	});
+
+	it("loadManifest leaves string contents with comment markers intact", () => {
+		// A URL inside a string must survive comment stripping — regression
+		// guard for the scanner misreading `//` in "https://…" as a comment.
+		const parsed = loadManifest();
+		expect(Array.isArray(parsed.capabilities)).toBe(true);
 	});
 });
