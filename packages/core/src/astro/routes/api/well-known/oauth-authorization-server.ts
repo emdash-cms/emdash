@@ -19,9 +19,7 @@ import { VALID_SCOPES } from "#auth/api-tokens.js";
 export const prerender = false;
 
 export const GET: APIRoute = async ({ url, locals }) => {
-	// Same fallback as oauth-protected-resource.ts: this route is public and
-	// root-level, so it lands on the anonymous fast path where locals.emdash
-	// carries no config (#2016).
+	// Same fallback as oauth-protected-resource.ts (#2016).
 	const origin = getPublicOrigin(url, locals.emdash?.config ?? virtualConfig);
 	const issuer = `${origin}/_emdash`;
 

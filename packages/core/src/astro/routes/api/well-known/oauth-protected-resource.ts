@@ -21,11 +21,8 @@ import { VALID_SCOPES } from "#auth/api-tokens.js";
 export const prerender = false;
 
 export const GET: APIRoute = async ({ url, locals }) => {
-	// Anonymous requests outside /_emdash take the middleware fast path,
-	// which attaches locals.emdash WITHOUT config — and MCP clients hit this
-	// route unauthenticated by design. Fall back to the build-time config so
-	// `siteUrl` still reaches discovery (#2016); behind Cloudflare's proxy
-	// url.origin is http:// and clients refuse to attach.
+	// Anonymous discovery requests omit runtime config; use build-time config
+	// so `siteUrl` can override the proxy's internal origin (#2016).
 	const origin = getPublicOrigin(url, locals.emdash?.config ?? virtualConfig);
 
 	return Response.json(
