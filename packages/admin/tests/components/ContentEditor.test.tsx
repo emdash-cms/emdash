@@ -1367,8 +1367,16 @@ describe("ContentEditor", () => {
 				(action) => action.getAttribute("aria-label") ?? action.textContent?.trim(),
 			);
 
-			expect(actionNames).toEqual(["Saved", "Live View", "Preview", "Unpublish Post"]);
-			for (const action of actions) expect(action).toHaveClass("h-6.5");
+			expect(actionNames).toEqual([
+				"Saved",
+				"Live View",
+				"Preview",
+				"Unpublish Post",
+				"Exit distraction-free mode",
+			]);
+			for (const action of actions.slice(0, -1)) expect(action).toHaveClass("h-6.5");
+			expect(actions.at(-1)).toHaveClass("size-9");
+			expect(heading.parentElement?.querySelector("button")).toBeNull();
 		});
 
 		it("keeps the editor canvas and header overlay on the elevated surface", async () => {
