@@ -20,6 +20,7 @@ describe("createSandboxRunnerOptions", () => {
 				name: "Example Site",
 				url: "https://example.com",
 				locale: "nl",
+				trailingSlash: "ignore",
 			},
 		});
 	});
@@ -33,6 +34,6 @@ describe("createSandboxRunnerOptions", () => {
 
 		expect(options.db).toBe(db);
 		expect(options.mediaStorage).toBe(mediaStorage);
-		expect(options.siteInfo).toEqual({ name: "", url: "", locale: "en" });
+		expect(options.siteInfo).toEqual({ name: "", url: "", locale: "en", trailingSlash: "ignore" });
 	});
 });
