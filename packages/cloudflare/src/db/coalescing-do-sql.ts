@@ -143,7 +143,7 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 	 */
 	#scheduleFlush(): void {
 		if (this.#flushScheduled) {
-			if (Date.now() > this.#flushDeadline) this.#flushScheduled = false;
+			this.#reclaimStrandedFlush();
 			if (this.#flushScheduled) return;
 		}
 		this.#flushScheduled = true;
@@ -151,6 +151,17 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 		setTimeout(() => {
 			void this.#flush();
 		}, 0);
+	}
+
+	/**
+	 * If the pending flush is older than its deadline, its timer was dropped
+	 * by a cancelled owner — clear the flag so this caller reschedules rather
+	 * than queueing behind a flush that will never run.
+	 */
+	#reclaimStrandedFlush(): void {
+		if (this.#flushScheduled && Date.now() > this.#flushDeadline) {
+			this.#flushScheduled = false;
+		}
 	}
 
 	async #flush(): Promise<void> {
