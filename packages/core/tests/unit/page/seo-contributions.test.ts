@@ -256,6 +256,8 @@ describe("applySeoPanelToPageContext (#1518)", () => {
 		expect(graph).toMatchObject({
 			headline: "Panel Title",
 			image: "https://example.com/_emdash/api/media/file/01KSMEDIA",
+			url: "https://example.com/posts/other-post",
+			mainEntityOfPage: { "@id": "https://example.com/posts/other-post" },
 		});
 	});
 });
