@@ -122,14 +122,16 @@ export interface BuildIssuanceOptions {
 	requireAssessmentState?: AssessmentState;
 	/**
 	 * Gate the action insert (and thus its label) additionally on the subject
-	 * `(uri, cid)` still being non-tombstoned at commit time. The initial discovery
-	 * issuance pairs this with `requireAssessmentState: "pending"` so a concurrent
-	 * delete that tombstones the subject or cancels the run in the gap before this
-	 * commit makes the positive `assessment-pending` no-op — no live label is
-	 * resurrected for a deleted release. Gating the action (not the label) leaves no
-	 * orphan label, same as the state guard.
+	 * `(uri, cid)` still being non-tombstoned at commit time, at exactly the
+	 * captured `generation`. The initial discovery issuance and the operator rerun
+	 * pair this with `requireAssessmentState` so a concurrent delete that tombstones
+	 * the subject (advancing its `delete_generation`) or cancels the run in the gap
+	 * before this commit makes the positive `assessment-pending` no-op — no live
+	 * label is resurrected for a deleted release, even if the create path itself
+	 * cleared `deleted_at` (a generation bump the create cannot undo). Gating the
+	 * action (not the label) leaves no orphan label, same as the state guard.
 	 */
-	requireSubjectNotDeleted?: { uri: string; cid: string };
+	requireSubjectNotDeleted?: { uri: string; cid: string; generation: number };
 }
 
 /**
@@ -228,7 +230,8 @@ export async function buildIssuanceStatements(
 	const subjectGuardSql =
 		requireSubject === undefined
 			? ""
-			: `\n\t\t\t\t AND EXISTS (SELECT 1 FROM subjects WHERE uri = ? AND cid = ? AND deleted_at IS NULL)`;
+			: `\n\t\t\t\t AND EXISTS (SELECT 1 FROM subjects
+				 WHERE uri = ? AND cid = ? AND deleted_at IS NULL AND delete_generation = ?)`;
 	const actionBinds: unknown[] = [
 		action.actor,
 		action.type,
@@ -248,7 +251,8 @@ export async function buildIssuanceStatements(
 		proposal.val,
 	];
 	if (requireState !== undefined) actionBinds.push(assessmentId, requireState);
-	if (requireSubject !== undefined) actionBinds.push(requireSubject.uri, requireSubject.cid);
+	if (requireSubject !== undefined)
+		actionBinds.push(requireSubject.uri, requireSubject.cid, requireSubject.generation);
 
 	const statements: D1PreparedStatement[] = [
 		db

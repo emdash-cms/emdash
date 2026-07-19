@@ -35,6 +35,7 @@ import {
 	buildAssessmentRunStatement,
 	getActiveLabelState,
 	getAssessment,
+	readDeleteGeneration,
 	type Assessment,
 } from "./assessment-store.js";
 import { buildAutomationPauseUpdate } from "./automation-state.js";
@@ -698,6 +699,15 @@ async function runRerun(
 	const assessment = await loadAssessment(deps.db, id);
 	assertConfirmationCid(ctx.body.confirmation, assessment.cid);
 
+	// Capture the subject's tombstone generation before minting the run, so the run
+	// creation AND the pending issuance below are both gated on no delete having
+	// advanced it — a concurrent discovery-delete makes both no-op (no orphan run,
+	// no resurrected positive) rather than leaving a stranded `observed` run.
+	const generation = await readDeleteGeneration(deps.db, {
+		uri: assessment.uri,
+		cid: assessment.cid,
+	});
+
 	const triggerId = operatorTriggerId(ctx.actionId);
 	const runKey = await rerunRunKey(assessment.uri, assessment.cid, triggerId);
 	const runId = `asmt_${ulid()}`;
@@ -715,6 +725,9 @@ async function runRerun(
 		promptHash: RERUN_PROMPT_HASH,
 		coverageJson: "{}",
 		now: ctx.now,
+		// No orphan `observed` run when a delete removed the subject: the run row
+		// commits only if the subject is undeleted at the captured generation.
+		requireSubjectGeneration: generation,
 	});
 	const signer = await deps.createSigner();
 	const pending = await prepareAutomatedLabelIssuance(
@@ -731,14 +744,15 @@ async function runRerun(
 		{ uri: assessment.uri, cid: assessment.cid, val: "assessment-pending" },
 		ctx.now,
 		// Gate the rerun's positive assessment-pending on the run (created `observed`
-		// in this batch) and the subject still being undeleted at commit time, so a
-		// concurrent discovery-delete that tombstoned the subject makes the positive
-		// no-op instead of resurrecting a live label on a deleted release. On a miss
-		// the label does not persist -> `assertIssuancePersisted` below aborts before
-		// `deferRerunTail`, so nothing is published, dispatched, or advanced.
+		// in this batch) and the subject still being undeleted at the captured
+		// generation, so a concurrent discovery-delete that tombstoned the subject
+		// makes the positive no-op instead of resurrecting a live label on a deleted
+		// release. On a miss the label does not persist -> `assertIssuancePersisted`
+		// below aborts before `deferRerunTail`, so nothing is published, dispatched,
+		// or advanced, and the guarded run row above never committed.
 		{
 			requireAssessmentState: "observed",
-			requireSubjectNotDeleted: { uri: assessment.uri, cid: assessment.cid },
+			requireSubjectNotDeleted: { uri: assessment.uri, cid: assessment.cid, generation },
 		},
 	);
 

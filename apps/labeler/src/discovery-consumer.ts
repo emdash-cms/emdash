@@ -33,6 +33,7 @@ import {
 } from "@atcute/identity-resolver";
 import type { LabelSigner } from "@emdash-cms/registry-moderation";
 import { cloudflareDohResolver, type DnsResolver } from "emdash/security/ssrf";
+import { ulid } from "ulidx";
 
 import {
 	AssessmentDispatchError,
@@ -46,12 +47,14 @@ import {
 	initialTriggerId,
 } from "./assessment-lifecycle.js";
 import {
-	createAssessmentRun,
+	buildAssessmentRunStatement,
 	createSubject,
 	deleteSubjectsByUri,
 	getAssessment,
-	listNonTerminalAssessmentsForUri,
-	subjectIsUndeleted,
+	getAssessmentByRunKey,
+	listPendingBearingAssessmentsForUri,
+	readDeleteGeneration,
+	subjectMatchesGeneration,
 	transitionAssessmentState,
 	type Assessment,
 } from "./assessment-store.js";
@@ -385,6 +388,13 @@ async function verifyAndCreateRun(
 	deps: DiscoveryConsumerDeps,
 	now: Date,
 ): Promise<void> {
+	// Capture the subject's tombstone generation BEFORE verifying. Every commit
+	// below (subject-undelete, run creation, label issuance) is gated on the
+	// generation not having advanced past this — so a delete that lands during the
+	// (slow) verify is seen as a newer generation and the whole create is rejected
+	// obsolete, while a create that captured the post-delete generation proceeds.
+	const generation = await readDeleteGeneration(deps.db, { uri, cid: job.cid });
+
 	const verifyFn = deps.verify ?? fetchAndVerifyExactRecord;
 	// Propagates PdsVerificationError / RecordVerificationError untouched —
 	// the caller classifies retry vs dead-letter.
@@ -396,6 +406,9 @@ async function verifyAndCreateRun(
 		...(deps.resolveHostname ? { resolveHostname: deps.resolveHostname } : {}),
 	});
 
+	// Generation-gated: a re-observation only clears `deleted_at` if no delete has
+	// advanced the generation since the capture. A stale verify cannot resurrect a
+	// subject deleted after it read state.
 	await createSubject(deps.db, {
 		uri,
 		cid: job.cid,
@@ -403,6 +416,7 @@ async function verifyAndCreateRun(
 		collection: job.collection,
 		rkey: job.rkey,
 		now,
+		expectedGeneration: generation,
 	});
 
 	const triggerId = initialTriggerId(job.cid);
@@ -416,7 +430,10 @@ async function verifyAndCreateRun(
 		triggerId,
 	});
 
-	const { assessment } = await createAssessmentRun(deps.db, {
+	// Generation-gated run creation: no orphan run for a subject the delete removed
+	// between the capture and here.
+	await buildAssessmentRunStatement(deps.db, {
+		id: `asmt_${ulid()}`,
 		runKey,
 		uri,
 		cid: job.cid,
@@ -427,17 +444,32 @@ async function verifyAndCreateRun(
 		promptHash: DISCOVERY_PROMPT_HASH,
 		coverageJson: "{}",
 		now,
-	});
+		requireSubjectGeneration: generation,
+	}).run();
+	const assessment = await getAssessmentByRunKey(deps.db, runKey);
+	if (!assessment) {
+		// The run insert matched no row: a delete advanced the generation before it
+		// committed. Obsolete — nothing to advance, issue, or dispatch.
+		return;
+	}
 
 	await advanceToPending(deps.db, assessment, now);
 
-	const outcome = await issueInitialPendingLabel(deps, assessment.id, runKey, uri, job.cid, now);
+	const outcome = await issueInitialPendingLabel(
+		deps,
+		assessment.id,
+		runKey,
+		uri,
+		job.cid,
+		generation,
+		now,
+	);
 	if (outcome === "obsolete") {
-		// A concurrent delete tombstoned the subject (or cancelled the run) before
-		// the positive assessment-pending could commit — the run is moot. The
-		// issuance no-op'd, so there is nothing to publish and nothing to assess;
-		// the delete owns tombstone + cancel + negation. Do not dispatch a Workflow
-		// for a label that never committed.
+		// A concurrent delete tombstoned the subject (advancing the generation) or
+		// cancelled the run before the positive assessment-pending could commit — the
+		// run is moot. The issuance no-op'd, so there is nothing to publish and
+		// nothing to assess; the delete owns tombstone + cancel + negation. Do not
+		// dispatch a Workflow for a label that never committed.
 		return;
 	}
 
@@ -472,6 +504,7 @@ async function issueInitialPendingLabel(
 	runKey: string,
 	uri: string,
 	cid: string,
+	generation: number,
 	now: Date,
 ): Promise<"issued" | "obsolete"> {
 	const idempotencyKey = automatedIdempotencyKey(runKey, "assessment-pending", false);
@@ -500,7 +533,10 @@ async function issueInitialPendingLabel(
 		proposal,
 		now,
 		deps.publisher !== undefined,
-		{ requireAssessmentState: "pending", requireSubjectNotDeleted: { uri, cid } },
+		{
+			requireAssessmentState: "pending",
+			requireSubjectNotDeleted: { uri, cid, generation },
+		},
 	);
 	await deps.db.batch(statements);
 
@@ -511,10 +547,15 @@ async function issueInitialPendingLabel(
 	}
 
 	// The guarded insert matched no row. If the run is no longer `pending` or the
-	// subject was tombstoned, a concurrent delete won — a benign no-op. Anything
-	// else (the signing guard no-op'ing on a mid-batch pause/rotation) is retryable.
+	// subject was tombstoned / re-deleted (generation advanced), a concurrent delete
+	// won — a benign no-op. Anything else (the signing guard no-op'ing on a mid-batch
+	// pause/rotation) is retryable.
 	const run = await getAssessment(deps.db, assessmentId);
-	if (!run || run.state !== "pending" || !(await subjectIsUndeleted(deps.db, { uri, cid })))
+	if (
+		!run ||
+		run.state !== "pending" ||
+		!(await subjectMatchesGeneration(deps.db, { uri, cid, generation }))
+	)
 		return "obsolete";
 	throw new LabelIssuanceUnavailableError("initial pending label did not persist");
 }
@@ -554,23 +595,23 @@ async function transitionOrObserve(
 }
 
 /**
- * Tombstones the subject and retires its non-terminal runs. For each run that
- * committed a positive `assessment-pending` label, the negation is issued BEFORE
- * the terminal cancellation, so a failed or paused negation (signing
- * mid-rotation) leaves the run non-terminal and re-discoverable by
- * `listNonTerminalAssessmentsForUri` on redelivery. Cancelling first would drop
- * the run from that set, stranding the pending label live forever once the
- * message acks.
+ * Tombstones the subject (advancing its `delete_generation`) and retires every
+ * run that could still carry a live positive `assessment-pending` — including
+ * terminal `stale` runs, which self-transition on detecting a deleted subject and
+ * do NOT negate their own pending. For each such run the negation is issued
+ * BEFORE any cancellation, so a failed or paused negation (signing mid-rotation)
+ * leaves a non-terminal run non-terminal and re-discoverable on redelivery;
+ * cancelling first would drop it from the scan set, stranding the pending live
+ * once the message acks.
  *
  * The negation is keyed on the run having committed a live positive — NOT on its
- * lifecycle state — because an operator rerun issues its positive
- * `assessment-pending` while the run is still `observed` (the advance to `pending`
- * is deferred). Keying on state would let a delete cancel that `observed` run
- * without negating its already-live positive. The invariant: a run is cancelled
- * only after any positive it committed has been negated, and the message cannot
- * ack while a negation is still owed (a throw propagates to the delete handler's
- * mutation-phase catch, which always retries), so no active `assessment-pending`
- * survives an acked delete.
+ * lifecycle state — because an operator rerun issues its positive while the run is
+ * still `observed`, and a stale run keeps its positive after going terminal.
+ * Cancellation applies only to non-terminal runs (a stale run is already
+ * terminal). The invariant: a run is cancelled only after any positive it
+ * committed has been negated, and the message cannot ack while a negation is still
+ * owed (a throw propagates to the delete handler's mutation-phase catch, which
+ * always retries), so no active `assessment-pending` survives an acked delete.
  */
 async function applyDiscoveryDelete(
 	deps: DiscoveryConsumerDeps,
@@ -578,22 +619,22 @@ async function applyDiscoveryDelete(
 	now: Date,
 ): Promise<void> {
 	await deleteSubjectsByUri(deps.db, { uri, now });
-	const runs = await listNonTerminalAssessmentsForUri(deps.db, uri);
+	const runs = await listPendingBearingAssessmentsForUri(deps.db, uri);
 	for (const run of runs) {
-		if (
-			run.state !== "observed" &&
-			run.state !== "verifying" &&
-			run.state !== "pending" &&
-			run.state !== "running"
-		)
-			continue;
-		// Negate before cancelling any run that committed a positive pending,
-		// regardless of lifecycle state (a rerun's is live while `observed`).
+		// Negate (before any cancel) any run — non-terminal OR terminal `stale` —
+		// that committed a positive pending and has not already been negated.
 		const positive = await readIssuedLabelByActionKey(
 			deps.db,
 			automatedIdempotencyKey(run.runKey, "assessment-pending", false),
 		);
-		if (positive) await negateRunPendingLabel(deps, run, now);
+		if (positive) {
+			const negated = await readIssuedLabelByActionKey(
+				deps.db,
+				automatedIdempotencyKey(run.runKey, "assessment-pending", true),
+			);
+			if (!negated) await negateRunPendingLabel(deps, run, now);
+		}
+		if (run.state === "stale") continue; // already terminal — negated, nothing to cancel
 		try {
 			await transitionAssessmentState(deps.db, {
 				id: run.id,

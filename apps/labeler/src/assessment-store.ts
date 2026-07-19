@@ -68,6 +68,14 @@ export interface CreateSubjectInput {
 	collection: string;
 	rkey: string;
 	now?: Date;
+	/**
+	 * The delete-generation the caller captured before verifying. When set, a
+	 * re-observation reactivates the tombstoned row ONLY if the generation still
+	 * matches — a delete that advanced it in the meantime leaves the row tombstoned,
+	 * so a stale verify cannot resurrect a subject deleted after it read state. A
+	 * brand-new row is inserted at generation 0 regardless (no prior delete to race).
+	 */
+	expectedGeneration?: number;
 }
 
 /**
@@ -75,10 +83,25 @@ export interface CreateSubjectInput {
  * A verified re-observation reactivates a tombstoned row (the create path
  * only reaches here after the PDS confirms the record exists, so clearing
  * `deleted_at` is correct — it closes the delete-then-recreate race and
- * handles a genuine republish of the same rkey+cid).
+ * handles a genuine republish of the same rkey+cid). When `expectedGeneration`
+ * is supplied the reactivation is gated on the tombstone counter not having
+ * advanced past the captured value, so a delete concurrent with a slow verify
+ * cannot be undone by the verify's re-observation.
  */
 export async function createSubject(db: D1Database, input: CreateSubjectInput): Promise<void> {
 	const now = input.now ?? new Date();
+	const generationGuard =
+		input.expectedGeneration === undefined ? "" : `\n\t\t\t   WHERE subjects.delete_generation = ?`;
+	const binds: unknown[] = [
+		input.uri,
+		input.cid,
+		input.did,
+		input.collection,
+		input.rkey,
+		now.toISOString(),
+		now.getTime(),
+	];
+	if (input.expectedGeneration !== undefined) binds.push(input.expectedGeneration);
 	await db
 		.prepare(
 			`INSERT INTO subjects (uri, cid, did, collection, rkey, observed_at, observed_at_epoch_ms)
@@ -90,17 +113,9 @@ export async function createSubject(db: D1Database, input: CreateSubjectInput): 
 			   observed_at = excluded.observed_at,
 			   observed_at_epoch_ms = excluded.observed_at_epoch_ms,
 			   deleted_at = NULL,
-			   deleted_at_epoch_ms = NULL`,
+			   deleted_at_epoch_ms = NULL${generationGuard}`,
 		)
-		.bind(
-			input.uri,
-			input.cid,
-			input.did,
-			input.collection,
-			input.rkey,
-			now.toISOString(),
-			now.getTime(),
-		)
+		.bind(...binds)
 		.run();
 }
 
@@ -111,7 +126,8 @@ export async function deleteSubject(
 	const now = input.now ?? new Date();
 	await db
 		.prepare(
-			`UPDATE subjects SET deleted_at = ?, deleted_at_epoch_ms = ?
+			`UPDATE subjects SET deleted_at = ?, deleted_at_epoch_ms = ?,
+			   delete_generation = delete_generation + 1
 			 WHERE uri = ? AND cid = ? AND deleted_at IS NULL`,
 		)
 		.bind(now.toISOString(), now.getTime(), input.uri, input.cid)
@@ -131,11 +147,51 @@ export async function deleteSubjectsByUri(
 	const now = input.now ?? new Date();
 	await db
 		.prepare(
-			`UPDATE subjects SET deleted_at = ?, deleted_at_epoch_ms = ?
+			`UPDATE subjects SET deleted_at = ?, deleted_at_epoch_ms = ?,
+			   delete_generation = delete_generation + 1
 			 WHERE uri = ? AND deleted_at IS NULL`,
 		)
 		.bind(now.toISOString(), now.getTime(), input.uri)
 		.run();
+}
+
+/**
+ * The subject's monotonic tombstone counter for `(uri, cid)`, or 0 when the
+ * subject has never been observed. A create/verify/rerun captures this at the
+ * point it reads state / verifies, then CAS-guards its subject-undelete, run
+ * creation, and label issuance on the generation not having advanced — so a
+ * delete landing after the capture rejects the operation as obsolete, while an
+ * operation that captured the post-delete generation still proceeds.
+ */
+export async function readDeleteGeneration(
+	db: D1Database,
+	input: { uri: string; cid: string },
+): Promise<number> {
+	const row = await db
+		.prepare(`SELECT delete_generation FROM subjects WHERE uri = ? AND cid = ?`)
+		.bind(input.uri, input.cid)
+		.first<{ delete_generation: number }>();
+	return row?.delete_generation ?? 0;
+}
+
+/**
+ * True when a non-tombstoned subject row exists for `(uri, cid)` at exactly the
+ * captured `generation` — the same predicate the generation-guarded issuance and
+ * run-creation use. Classifies a guarded-issuance miss precisely: a subject the
+ * caller's generation no longer matches (a newer delete) reads as obsolete.
+ */
+export async function subjectMatchesGeneration(
+	db: D1Database,
+	input: { uri: string; cid: string; generation: number },
+): Promise<boolean> {
+	const row = await db
+		.prepare(
+			`SELECT 1 FROM subjects
+			 WHERE uri = ? AND cid = ? AND deleted_at IS NULL AND delete_generation = ?`,
+		)
+		.bind(input.uri, input.cid, input.generation)
+		.first();
+	return row !== null;
 }
 
 /**
@@ -200,6 +256,13 @@ export interface CreateAssessmentRunInput {
 	promptHash?: string;
 	coverageJson: string;
 	now?: Date;
+	/**
+	 * When set, the run row is created only if the subject `(uri, cid)` is
+	 * undeleted at exactly this captured generation. A delete that advanced the
+	 * generation after the caller verified makes the INSERT match no row (no orphan
+	 * run), the same all-or-nothing guard the issuance uses.
+	 */
+	requireSubjectGeneration?: number;
 }
 
 export interface CreateAssessmentRunResult {
@@ -219,6 +282,30 @@ export function buildAssessmentRunStatement(
 	input: CreateAssessmentRunInput & { id: string },
 ): D1PreparedStatement {
 	const now = input.now ?? new Date();
+	const generationGuard =
+		input.requireSubjectGeneration === undefined
+			? ""
+			: `\n\t\t\t   AND EXISTS (SELECT 1 FROM subjects
+			     WHERE uri = ? AND cid = ? AND deleted_at IS NULL AND delete_generation = ?)`;
+	const binds: unknown[] = [
+		input.id,
+		input.runKey,
+		input.uri,
+		input.cid,
+		input.artifactId ?? null,
+		input.artifactChecksum ?? null,
+		input.trigger,
+		input.triggerId,
+		input.policyVersion,
+		input.modelId ?? null,
+		input.promptHash ?? null,
+		input.coverageJson,
+		now.toISOString(),
+		now.getTime(),
+		input.runKey,
+	];
+	if (input.requireSubjectGeneration !== undefined)
+		binds.push(input.uri, input.cid, input.requireSubjectGeneration);
 	return db
 		.prepare(
 			`INSERT INTO assessments
@@ -226,25 +313,9 @@ export function buildAssessmentRunStatement(
 			  policy_version, model_id, prompt_hash, coverage_json,
 			  created_at, created_at_epoch_ms)
 			 SELECT ?, ?, ?, ?, ?, ?, 'observed', ?, ?, ?, ?, ?, ?, ?, ?
-			 WHERE NOT EXISTS (SELECT 1 FROM assessments WHERE run_key = ?)`,
+			 WHERE NOT EXISTS (SELECT 1 FROM assessments WHERE run_key = ?)${generationGuard}`,
 		)
-		.bind(
-			input.id,
-			input.runKey,
-			input.uri,
-			input.cid,
-			input.artifactId ?? null,
-			input.artifactChecksum ?? null,
-			input.trigger,
-			input.triggerId,
-			input.policyVersion,
-			input.modelId ?? null,
-			input.promptHash ?? null,
-			input.coverageJson,
-			now.toISOString(),
-			now.getTime(),
-			input.runKey,
-		);
+		.bind(...binds);
 }
 
 /**
@@ -312,6 +383,43 @@ export async function listNonTerminalAssessmentsForUri(
 			 WHERE uri = ? AND state NOT IN (${Array.from(TERMINAL_STATES, () => "?").join(", ")})`,
 		)
 		.bind(uri, ...TERMINAL_STATES)
+		.all<AssessmentRow>();
+	return (rows.results ?? []).map(rowToAssessment);
+}
+
+/** States a run can be in and still carry a live, un-negated positive
+ * `assessment-pending`: every non-terminal state, plus terminal `stale` (which,
+ * unlike the other terminals, does not negate its own pending on transition).
+ * `cancelled` is excluded — the delete negates before cancelling; the decision
+ * outcomes negate their own pending at finalization. */
+const PENDING_BEARING_STATES: readonly AssessmentState[] = [
+	"observed",
+	"verifying",
+	"pending",
+	"running",
+	"stale",
+];
+
+/**
+ * Runs for a URI that could still carry a live positive `assessment-pending`
+ * label — the delete cleanup's scan set (spec §9.1). Widens
+ * `listNonTerminalAssessmentsForUri` to include terminal `stale` runs: a run that
+ * self-transitioned to `stale` on detecting a deleted/superseded subject keeps
+ * its committed positive, so the delete must still reach it to negate.
+ */
+export async function listPendingBearingAssessmentsForUri(
+	db: D1Database,
+	uri: string,
+): Promise<Assessment[]> {
+	const rows = await db
+		.prepare(
+			`SELECT id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
+			 policy_version, model_id, prompt_hash, public_summary, coverage_json,
+			 supersedes_assessment_id, started_at, completed_at, created_at
+			 FROM assessments
+			 WHERE uri = ? AND state IN (${PENDING_BEARING_STATES.map(() => "?").join(", ")})`,
+		)
+		.bind(uri, ...PENDING_BEARING_STATES)
 		.all<AssessmentRow>();
 	return (rows.results ?? []).map(rowToAssessment);
 }
