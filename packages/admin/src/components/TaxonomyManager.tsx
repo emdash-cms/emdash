@@ -433,13 +433,19 @@ function TermFormDialog({
 								items={{
 									"": t`None (top level)`,
 									...Object.fromEntries(
-										availableParents.map((parentTerm) => [parentTerm.id, parentTerm.label]),
+										availableParents.map((parentTerm) => [
+											parentTerm.translationGroup ?? parentTerm.id,
+											parentTerm.label,
+										]),
 									),
 								}}
 							>
 								<Select.Option value="">{t`None (top level)`}</Select.Option>
 								{availableParents.map((parentTerm) => (
-									<Select.Option key={parentTerm.id} value={parentTerm.id}>
+									<Select.Option
+										key={parentTerm.id}
+										value={parentTerm.translationGroup ?? parentTerm.id}
+									>
 										{parentTerm.label}
 									</Select.Option>
 								))}

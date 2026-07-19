@@ -243,6 +243,18 @@ describe("TaxonomyManager", () => {
 		expect(labels).toEqual(["Development"]);
 	});
 
+	it("selects the current parent by translation group when editing a nested term", async () => {
+		mockApiFetch(hierarchicalTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		await expect.element(screen.getByText("Test", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Edit Test", exact: true }).click();
+
+		await expect.element(screen.getByLabelText(PARENT_SELECTOR_REGEX)).toHaveTextContent("Design");
+	});
+
 	it("edit button opens dialog", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,
