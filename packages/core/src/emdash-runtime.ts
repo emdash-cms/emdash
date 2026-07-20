@@ -41,7 +41,12 @@ import {
 	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
-import type { SandboxedPluginInstance, SandboxRunner } from "./plugins/sandbox/types.js";
+import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
+import type {
+	SandboxedPluginInstance,
+	SandboxRunner,
+	SandboxRunnerFactory,
+} from "./plugins/sandbox/types.js";
 import type {
 	ResolvedPlugin,
 	MediaItem,
@@ -310,16 +315,8 @@ export interface RuntimeDependencies {
 	/** Media provider entries from virtual module */
 	mediaProviderEntries?: MediaProviderEntry[];
 	sandboxedPluginEntries: SandboxedPluginEntry[];
-	/** Factory function matching SandboxRunnerFactory signature */
-	createSandboxRunner:
-		| ((opts: {
-				db: Kysely<Database>;
-				mediaStorage?: {
-					upload(options: { key: string; body: Uint8Array; contentType: string }): Promise<unknown>;
-					delete(key: string): Promise<unknown>;
-				};
-		  }) => SandboxRunner)
-		| null;
+	/** Factory function supplied by the active platform adapter. */
+	createSandboxRunner: SandboxRunnerFactory | null;
 }
 
 /**
@@ -718,12 +715,11 @@ export class EmDashRuntime {
 			// pipelineFactoryOptions), so the merge only adds emailPipeline.
 			newPipeline.setContextFactory({ emailPipeline: this.email });
 		}
-		if (this.cronScheduler) {
-			const scheduler = this.cronScheduler;
-			newPipeline.setContextFactory({
-				cronReschedule: () => scheduler.reschedule(),
-			});
-		}
+		newPipeline.setContextFactory({
+			// Plugin schedules remain database-backed when no in-process scheduler
+			// exists; an external trigger is responsible for invoking due tasks.
+			cronReschedule: () => this.cronScheduler?.reschedule(),
+		});
 
 		// Update the email pipeline to use the new hook pipeline
 		if (this.email) {
@@ -1390,7 +1386,7 @@ export class EmDashRuntime {
 
 		// Load sandboxed plugins (build-time, sandbox runner path)
 		const sandboxedPlugins = await phase("rt.sandbox", "Sandboxed plugins", () =>
-			EmDashRuntime.loadSandboxedPlugins(deps, db, storage),
+			EmDashRuntime.loadSandboxedPlugins(deps, db, storage, siteInfo),
 		);
 
 		// Cold-start: load marketplace- and registry-installed plugins from
@@ -1408,6 +1404,7 @@ export class EmDashRuntime {
 						storage,
 						deps,
 						sandboxedPlugins,
+						siteInfo,
 					),
 				),
 			);
@@ -1423,6 +1420,7 @@ export class EmDashRuntime {
 						storage,
 						deps,
 						sandboxedPlugins,
+						siteInfo,
 					),
 				),
 			);
@@ -1491,6 +1489,12 @@ export class EmDashRuntime {
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
 				cronExecutor = new CronExecutor(resolveDb, invokeCronHook);
+				// Plugin schedules are always database-backed. On long-lived runtimes this
+				// callback also wakes the timer; on Cloudflare the external Cron Trigger
+				// drives execution, so rescheduling is intentionally a no-op.
+				pipeline.setContextFactory({
+					cronReschedule: () => cronScheduler?.reschedule(),
+				});
 
 				// Recover stale locks from previous crashes. Pure bookkeeping
 				// against the _emdash_cron_tasks table — no request needs the
@@ -1547,11 +1551,6 @@ export class EmDashRuntime {
 						}
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
-					});
-
-					// Add cron reschedule callback (merges with existing factory options)
-					pipeline.setContextFactory({
-						cronReschedule: () => cronScheduler?.reschedule(),
 					});
 
 					// start() is void on the timer scheduler but the interface
@@ -1832,6 +1831,7 @@ export class EmDashRuntime {
 		deps: RuntimeDependencies,
 		db: Kysely<Database>,
 		mediaStorage?: Storage | null,
+		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string },
 	): Promise<Map<string, SandboxedPluginInstance>> {
 		// Return cached plugins if already loaded
 		if (sandboxedPluginCache.size > 0) {
@@ -1845,20 +1845,25 @@ export class EmDashRuntime {
 
 		// Create sandbox runner if not exists
 		if (!sandboxRunner && deps.createSandboxRunner) {
-			sandboxRunner = deps.createSandboxRunner({
-				db,
-				mediaStorage: mediaStorage
-					? {
-							upload: (opts) =>
-								mediaStorage.upload({
-									key: opts.key,
-									body: opts.body,
-									contentType: opts.contentType,
-								}),
-							delete: (key) => mediaStorage.delete(key),
-						}
-					: undefined,
-			});
+			sandboxRunner = deps.createSandboxRunner(
+				createSandboxRunnerOptions(
+					{
+						db,
+						mediaStorage: mediaStorage
+							? {
+									upload: (opts) =>
+										mediaStorage.upload({
+											key: opts.key,
+											body: opts.body,
+											contentType: opts.contentType,
+										}),
+									delete: (key) => mediaStorage.delete(key),
+								}
+							: undefined,
+					},
+					siteInfo,
+				),
+			);
 		}
 
 		if (!sandboxRunner) {
@@ -1941,22 +1946,28 @@ export class EmDashRuntime {
 		storage: Storage,
 		deps: RuntimeDependencies,
 		cache: Map<string, SandboxedPluginInstance>,
+		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string },
 	): Promise<void> {
 		// Ensure sandbox runner exists with media storage wired up.
 		// (storage here is the media Storage adapter from the runtime.)
 		if (!sandboxRunner && deps.createSandboxRunner) {
-			sandboxRunner = deps.createSandboxRunner({
-				db,
-				mediaStorage: {
-					upload: (opts) =>
-						storage.upload({
-							key: opts.key,
-							body: opts.body,
-							contentType: opts.contentType,
-						}),
-					delete: (key) => storage.delete(key),
-				},
-			});
+			sandboxRunner = deps.createSandboxRunner(
+				createSandboxRunnerOptions(
+					{
+						db,
+						mediaStorage: {
+							upload: (opts) =>
+								storage.upload({
+									key: opts.key,
+									body: opts.body,
+									contentType: opts.contentType,
+								}),
+							delete: (key) => storage.delete(key),
+						},
+					},
+					siteInfo,
+				),
+			);
 		}
 		// In sandbox bypass mode, marketplace plugins are loaded in-process
 		// BEFORE pipeline creation by EmDashRuntime.create(). Skip here.
@@ -3333,9 +3344,9 @@ export class EmDashRuntime {
 		const trustedPlugin = this.configuredPlugins.find((p) => p.id === pluginId);
 		if (trustedPlugin && this.enabledPlugins.has(trustedPlugin.id)) {
 			const routeRegistry = new PluginRouteRegistry({
-				db: this.db,
-				storage: this.storage ?? undefined,
+				...this.pipelineFactoryOptions,
 				emailPipeline: this.email ?? undefined,
+				cronReschedule: () => this.cronScheduler?.reschedule(),
 				trustedProxyHeaders: getTrustedProxyHeaders(this.config),
 			});
 			routeRegistry.register(trustedPlugin);

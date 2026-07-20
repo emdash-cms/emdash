@@ -8,17 +8,19 @@
 		"build": "flue build --target cloudflare",
 		"deploy": "flue build --target cloudflare && wrangler deploy",
 		"cf-typegen": "wrangler types",
+		"test": "vitest run",
 		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
-		"@flue/cli": "1.0.0-beta.1",
+		"@flue/cli": "1.0.0-beta.9",
 		"typescript": "catalog:",
+		"vitest": "catalog:",
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
 		"@cloudflare/codemode": "^0.4.1",
 		"@cloudflare/shell": "^0.4.0",
-		"@flue/runtime": "1.0.0-beta.1",
+		"@flue/runtime": "1.0.0-beta.9",
 		"agents": "^0.14.5",
 		"hono": "^4.12.23",
 		"valibot": "^1.4.1"

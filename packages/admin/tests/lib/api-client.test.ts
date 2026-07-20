@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { apiFetch, fetchManifest } from "../../src/lib/api/client";
+import { apiFetch, fetchManifest, throwResponseError } from "../../src/lib/api/client";
 
 describe("apiFetch", () => {
 	let fetchSpy: ReturnType<typeof vi.fn>;
@@ -67,5 +67,75 @@ describe("fetchManifest", () => {
 			.fn()
 			.mockResolvedValue(new Response("", { status: 500, statusText: "Internal Server Error" }));
 		await expect(fetchManifest()).rejects.toThrow("Failed to fetch manifest");
+	});
+});
+
+describe("throwResponseError", () => {
+	it("includes the field-level message for a validation error", async () => {
+		const response = new Response(
+			JSON.stringify({
+				error: {
+					code: "VALIDATION_ERROR",
+					message: "Invalid request data",
+					details: {
+						issues: [{ path: "name", message: "Too big: expected string to have <=63 characters" }],
+					},
+				},
+			}),
+			{ status: 400 },
+		);
+		await expect(throwResponseError(response, "Failed to create taxonomy")).rejects.toThrow(
+			"name: Too big: expected string to have <=63 characters",
+		);
+	});
+
+	it("joins multiple validation issues", async () => {
+		const response = new Response(
+			JSON.stringify({
+				error: {
+					code: "VALIDATION_ERROR",
+					message: "Invalid request data",
+					details: {
+						issues: [
+							{ path: "name", message: "Required" },
+							{ path: "slug", message: "Invalid format" },
+						],
+					},
+				},
+			}),
+			{ status: 400 },
+		);
+		await expect(throwResponseError(response, "fallback")).rejects.toThrow(
+			"name: Required; slug: Invalid format",
+		);
+	});
+
+	it("omits the empty path prefix for top-level issues", async () => {
+		const response = new Response(
+			JSON.stringify({
+				error: {
+					code: "VALIDATION_ERROR",
+					message: "Invalid request data",
+					details: { issues: [{ path: "", message: "Expected an object" }] },
+				},
+			}),
+			{ status: 400 },
+		);
+		await expect(throwResponseError(response, "fallback")).rejects.toThrow("Expected an object");
+	});
+
+	it("falls back to the plain message when there are no issues", async () => {
+		const response = new Response(
+			JSON.stringify({ error: { code: "NOT_FOUND", message: "Not found" } }),
+			{ status: 404 },
+		);
+		await expect(throwResponseError(response, "fallback")).rejects.toThrow("Not found");
+	});
+
+	it("falls back to the generic fallback when the body has no error", async () => {
+		const response = new Response("", { status: 500, statusText: "Internal Server Error" });
+		await expect(throwResponseError(response, "fallback")).rejects.toThrow(
+			"fallback: Internal Server Error",
+		);
 	});
 });
