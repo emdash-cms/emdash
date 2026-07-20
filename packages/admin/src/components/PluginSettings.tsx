@@ -7,7 +7,7 @@
  * server never returns their values, only whether one is set.
  */
 
-import { Button, Input, InputArea, Select, Switch, useKumoToastManager } from "@cloudflare/kumo";
+import { Button, Input, InputArea, Select, Switch, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { FloppyDisk } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,7 +30,7 @@ export interface PluginSettingsProps {
 export function PluginSettings({ pluginId }: PluginSettingsProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = useKumoToastManager();
+	const toastManager = Toast.useToastManager();
 
 	const { data: plugin } = useQuery({
 		queryKey: ["plugins", pluginId],
@@ -66,7 +66,6 @@ export function PluginSettings({ pluginId }: PluginSettingsProps) {
 			void queryClient.invalidateQueries({ queryKey: ["plugin-settings", pluginId] });
 			toastManager.add({
 				title: t`Settings saved successfully`,
-				variant: "success",
 				timeout: 3000,
 			});
 		},
@@ -74,7 +73,7 @@ export function PluginSettings({ pluginId }: PluginSettingsProps) {
 			toastManager.add({
 				title: t`Failed to save settings`,
 				description: err instanceof Error ? err.message : t`An error occurred`,
-				variant: "error",
+				type: "error",
 				timeout: 5000,
 			});
 		},
@@ -304,21 +303,27 @@ function SettingFieldInput({
 				</div>
 			);
 
-		case "select":
-			return (
-				<Select
-					label={field.label}
-					value={typeof value === "string" ? value : (field.default ?? "")}
-					onValueChange={(v) => v !== null && onChange(v)}
-					items={field.options}
-				>
-					{field.options.map((option) => (
-						<Select.Option key={option.value} value={option.value}>
-							{option.label}
-						</Select.Option>
-					))}
-				</Select>
-			);
+	case "select": {
+		// Kumo Select.items is a value->label record, not {value,label}[].
+		const items: Record<string, string> = {};
+		for (const option of field.options) {
+			items[option.value] = option.label;
+		}
+		return (
+			<Select
+				label={field.label}
+				value={typeof value === "string" ? value : (field.default ?? "")}
+				onValueChange={(v) => v !== null && onChange(v)}
+				items={items}
+			>
+				{field.options.map((option) => (
+					<Select.Option key={option.value} value={option.value}>
+						{option.label}
+					</Select.Option>
+				))}
+			</Select>
+		);
+	}
 
 		case "secret":
 			return (
