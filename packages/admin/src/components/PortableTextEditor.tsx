@@ -11,7 +11,16 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input, Popover, Select, Switch } from "@cloudflare/kumo";
+import {
+	Button,
+	Dialog,
+	Input,
+	Popover,
+	Select,
+	Switch,
+	Tooltip,
+	TooltipProvider,
+} from "@cloudflare/kumo";
 import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import {
 	DndContext,
@@ -3394,7 +3403,7 @@ function EditorToolbar({
 		}
 	}, []);
 
-	return (
+	const toolbar = (
 		<div
 			ref={toolbarRef}
 			role="toolbar"
@@ -3405,18 +3414,24 @@ function EditorToolbar({
 		>
 			{/* Text formatting */}
 			<ToolbarGroup>
-				<Button
-					type="button"
-					variant="ghost"
-					shape="square"
-					className="hidden h-8 w-8 flex-none pointer-coarse:flex"
-					onMouseDown={(event) => event.preventDefault()}
-					onClick={onInsertBlock}
-					aria-label={t`Insert block after current block`}
-					data-touch-block-insert
+				<Tooltip
+					content={t`Insert block after current block`}
+					side="bottom"
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							shape="square"
+							className="hidden h-8 w-8 flex-none hover:bg-kumo-interact/50 pointer-coarse:flex"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={onInsertBlock}
+							aria-label={t`Insert block after current block`}
+							data-touch-block-insert
+						/>
+					}
 				>
 					<Plus className="h-4 w-4" aria-hidden="true" />
-				</Button>
+				</Tooltip>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
@@ -3533,25 +3548,30 @@ function EditorToolbar({
 						if (!open) setLinkUrl("");
 					}}
 				>
-					<Popover.Trigger
+					<Tooltip
+						content={t`Insert Link`}
+						side="bottom"
 						render={
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className={cn(
-									"h-8 w-8 flex-none",
-									editorState.isLink &&
-										"bg-kumo-interact/50 text-kumo-default hover:bg-kumo-interact/50",
-								)}
-								onMouseDown={(event) => event.preventDefault()}
-								aria-label={t`Insert Link`}
-								aria-pressed={editorState.isLink}
-							>
-								<LinkIcon className="h-4 w-4" aria-hidden="true" />
-							</Button>
+							<Popover.Trigger
+								render={
+									<Button
+										type="button"
+										variant="ghost"
+										shape="square"
+										className={cn(
+											"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+											editorState.isLink && "bg-kumo-interact/50 text-kumo-default",
+										)}
+										onMouseDown={(event) => event.preventDefault()}
+										aria-label={t`Insert Link`}
+										aria-pressed={editorState.isLink}
+									/>
+								}
+							/>
 						}
-					/>
+					>
+						<LinkIcon className="h-4 w-4" aria-hidden="true" />
+					</Tooltip>
 					<Popover.Content side="bottom" align="start" className="w-auto p-3">
 						<div className="flex flex-col gap-2">
 							<label className="text-xs font-medium text-kumo-subtle">{t`URL`}</label>
@@ -3636,6 +3656,8 @@ function EditorToolbar({
 			</ToolbarGroup>
 		</div>
 	);
+
+	return <TooltipProvider>{toolbar}</TooltipProvider>;
 }
 
 function ToolbarGroup({ children }: { children: React.ReactNode }) {
@@ -3656,23 +3678,29 @@ interface ToolbarButtonProps {
 
 function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarButtonProps) {
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			shape="square"
-			className={cn(
-				"h-8 w-8 flex-none",
-				active && "bg-kumo-interact/50 text-kumo-default hover:bg-kumo-interact/50",
-			)}
-			onMouseDown={(e) => e.preventDefault()}
-			onClick={onClick}
-			disabled={disabled}
-			aria-label={title}
-			aria-pressed={active}
-			tabIndex={0}
+		<Tooltip
+			content={title}
+			side="bottom"
+			render={
+				<Button
+					type="button"
+					variant="ghost"
+					shape="square"
+					className={cn(
+						"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+						active && "bg-kumo-interact/50 text-kumo-default",
+					)}
+					onMouseDown={(e) => e.preventDefault()}
+					onClick={onClick}
+					disabled={disabled}
+					aria-label={title}
+					aria-pressed={active}
+					tabIndex={0}
+				/>
+			}
 		>
 			{children}
-		</Button>
+		</Tooltip>
 	);
 }
 

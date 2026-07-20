@@ -143,7 +143,6 @@ function expectVisibleActiveState(element: HTMLElement) {
 
 function expectNoVisibleActiveState(element: HTMLElement) {
 	expect(element.classList.contains("bg-kumo-interact/50")).toBe(false);
-	expect(element.classList.contains("hover:bg-kumo-interact/50")).toBe(false);
 }
 
 async function getHeadingMenuItem(
@@ -287,6 +286,38 @@ describe("Toolbar Presence and Structure", () => {
 	it("has Spotlight Mode button", async () => {
 		const { screen } = await renderEditor();
 		await expect.element(screen.getByRole("button", { name: "Spotlight Mode" })).toBeVisible();
+	});
+
+	it("gives every fixed-toolbar control visible pointer-hover feedback", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const buttons = [...toolbar.querySelectorAll<HTMLButtonElement>("button")];
+
+		expect(buttons.length).toBeGreaterThan(0);
+		for (const button of buttons) {
+			expect(button.classList.contains("hover:bg-kumo-interact/50")).toBe(true);
+		}
+	});
+
+	it("shows Kumo tooltips on pointer hover and keyboard focus", async () => {
+		const { screen } = await renderEditor();
+		const bold = getToolbarButton(screen, "Bold");
+
+		await userEvent.hover(bold.element());
+		await vi.waitFor(
+			() => expect(document.querySelector(".kumo-tooltip-popup")?.textContent).toBe("Bold"),
+			{ timeout: 2000 },
+		);
+
+		await userEvent.hover(document.body);
+		await vi.waitFor(() => expect(document.querySelector(".kumo-tooltip-popup")).toBeNull());
+
+		const headings = getToolbarButton(screen, "Headings");
+		headings.element().focus();
+		await vi.waitFor(
+			() => expect(document.querySelector(".kumo-tooltip-popup")?.textContent).toBe("Headings"),
+			{ timeout: 2000 },
+		);
 	});
 
 	it("hides toolbar when minimal={true}", async () => {
