@@ -36,6 +36,7 @@ interface SuccessBody<T> {
 }
 
 interface ErrorBody {
+	success: false;
 	error: { code: string; message: string };
 }
 
@@ -425,6 +426,7 @@ describe("media usage summary handler and routes", () => {
 
 		expect(response.status).toBe(500);
 		expect((await response.json()) as ErrorBody).toEqual({
+			success: false,
 			error: { code: "MEDIA_USAGE_READ_ERROR", message: "Failed to read media usage" },
 		});
 		expect(errorSpy).toHaveBeenCalledOnce();
@@ -439,6 +441,7 @@ describe("media usage summary handler and routes", () => {
 
 		expect(response.status).toBe(500);
 		expect((await response.json()) as ErrorBody).toEqual({
+			success: false,
 			error: { code: "MEDIA_USAGE_READ_ERROR", message: "Failed to read media usage" },
 		});
 		// Kysely's query logger records the successful media lookup but not the failed statement.
