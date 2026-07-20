@@ -15,7 +15,11 @@ import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
-import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	setupTestDatabase,
+	setupTestDatabaseWithCollections,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
 
 describe("Content Handlers — auto-slug generation", () => {
 	let db: Kysely<Database>;
@@ -818,5 +822,63 @@ describe("Content Handlers — slug-change auto-redirect on publish", () => {
 		expect(published.error.code).toBe("SLUG_CONFLICT");
 		expect(published.error.message).toContain("eleven");
 		expect(published.error.message).toContain(taken.data!.item.id);
+	});
+});
+
+describe("handleContentList — backing table missing deleted_at column", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		await sql`
+			CREATE TABLE ec_repro_test (
+				id TEXT PRIMARY KEY,
+				slug TEXT NOT NULL,
+				title TEXT NOT NULL,
+				content JSON,
+				excerpt TEXT,
+				status TEXT NOT NULL,
+				locale TEXT NOT NULL DEFAULT 'en',
+				published_at TEXT,
+				created_at TEXT NOT NULL,
+				updated_at TEXT NOT NULL
+			)
+		`.execute(db);
+		await sql`
+			INSERT INTO ec_repro_test (id, slug, title, content, excerpt, status, locale, published_at, created_at, updated_at)
+			VALUES ('01KPQZA8J1E206F60QSNFRX3Y2', 'repro', 'Repro entry', '[]', 'x', 'published', 'en',
+				'2026-05-01T00:00:00.000Z', '2026-05-01T00:00:00.000Z', '2026-05-01T00:00:00.000Z')
+		`.execute(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("reports a schema mismatch instead of a generic list error", async () => {
+		const res = await handleContentList(db, "repro_test", {});
+		expect(res.success).toBe(false);
+		if (res.success) return;
+		expect(res.error.code).toBe("COLLECTION_SCHEMA_MISMATCH");
+		expect(res.error.message).toContain("repro_test");
+	});
+});
+
+describe("handleContentList — unknown orderBy column on a healthy collection", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("does not report a schema mismatch when ordering by a field the collection lacks", async () => {
+		const res = await handleContentList(db, "post", { orderBy: "name" });
+		expect(res.success).toBe(false);
+		if (res.success) return;
+		expect(res.error.code).not.toBe("COLLECTION_SCHEMA_MISMATCH");
 	});
 });
