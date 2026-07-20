@@ -158,14 +158,14 @@ export const HeadingDropdownMenu = React.forwardRef<HTMLButtonElement, HeadingDr
 									aria-label={t`Headings`}
 									aria-haspopup="menu"
 									aria-expanded={open}
-								/>
+								>
+									<Icon className="h-4 w-4" aria-hidden="true" />
+									<CaretDown className="h-3 w-3" aria-hidden="true" />
+								</Button>
 							}
 						/>
 					}
-				>
-					<Icon className="h-4 w-4" aria-hidden="true" />
-					<CaretDown className="h-3 w-3" aria-hidden="true" />
-				</Tooltip>
+				/>
 				<DropdownMenu.Content align="start" className="min-w-44">
 					{levels.map((level) => {
 						const HeadingIcon = HEADING_ICONS[level];

@@ -3280,9 +3280,9 @@ function BubbleButton({
 type TextAlignment = "left" | "center" | "right" | "justify";
 
 function getSelectionTextAlignment(editor: Editor): TextAlignment | null {
-	const window = editor.view.dom.ownerDocument.defaultView;
+	const ownerWindow = editor.view.dom.ownerDocument.defaultView;
 	const defaultAlignment: TextAlignment =
-		window?.getComputedStyle(editor.view.dom).direction === "rtl" ? "right" : "left";
+		ownerWindow?.getComputedStyle(editor.view.dom).direction === "rtl" ? "right" : "left";
 	const alignments = new Set<TextAlignment>();
 
 	const collectAlignment = (node: ProseMirrorNode) => {
@@ -3473,11 +3473,11 @@ function EditorToolbar({
 							onClick={onInsertBlock}
 							aria-label={t`Insert block after current block`}
 							data-touch-block-insert
-						/>
+						>
+							<Plus className="h-4 w-4" aria-hidden="true" />
+						</Button>
 					}
-				>
-					<Plus className="h-4 w-4" aria-hidden="true" />
-				</Tooltip>
+				/>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
@@ -3611,13 +3611,13 @@ function EditorToolbar({
 										onMouseDown={(event) => event.preventDefault()}
 										aria-label={t`Insert Link`}
 										aria-pressed={editorState.isLink}
-									/>
+									>
+										<LinkIcon className="h-4 w-4" aria-hidden="true" />
+									</Button>
 								}
 							/>
 						}
-					>
-						<LinkIcon className="h-4 w-4" aria-hidden="true" />
-					</Tooltip>
+					/>
 					<Popover.Content side="bottom" align="start" className="w-auto p-3">
 						<div className="flex flex-col gap-2">
 							<label className="text-xs font-medium text-kumo-subtle">{t`URL`}</label>
@@ -3742,11 +3742,11 @@ function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarBu
 					aria-label={title}
 					aria-pressed={active}
 					tabIndex={0}
-				/>
+				>
+					{children}
+				</Button>
 			}
-		>
-			{children}
-		</Tooltip>
+		/>
 	);
 }
 

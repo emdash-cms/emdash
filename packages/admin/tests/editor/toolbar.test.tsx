@@ -334,20 +334,14 @@ describe("Toolbar Presence and Structure", () => {
 		const bold = getToolbarButton(screen, "Bold");
 
 		await userEvent.hover(bold.element());
-		await vi.waitFor(
-			() => expect(document.querySelector(".kumo-tooltip-popup")?.textContent).toBe("Bold"),
-			{ timeout: 2000 },
-		);
+		await expect.element(screen.getByText("Bold")).toBeVisible();
 
 		await userEvent.hover(document.body);
-		await vi.waitFor(() => expect(document.querySelector(".kumo-tooltip-popup")).toBeNull());
+		await vi.waitFor(() => expect(screen.getByText("Bold").query()).toBeNull());
 
 		const headings = getToolbarButton(screen, "Headings");
 		headings.element().focus();
-		await vi.waitFor(
-			() => expect(document.querySelector(".kumo-tooltip-popup")?.textContent).toBe("Headings"),
-			{ timeout: 2000 },
-		);
+		await expect.element(screen.getByText("Headings")).toBeVisible();
 	});
 
 	it("hides toolbar when minimal={true}", async () => {
