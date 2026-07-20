@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Unifies distraction-free editor field backgrounds and focus treatment across light and dark themes.
+Aligns the distraction-free editor with the standard editor: consistent width, padding, labels, field surfaces, header alignment, compact action order, and exit placement.
