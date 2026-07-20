@@ -84,13 +84,18 @@ export function generateConfigModule(serializableConfig: Record<string, unknown>
  * the generator re-exports it so middleware can ask for a per-request Kysely
  * (used for D1 Sessions API, bookmark cookies, read-replica routing). Other
  * adapters get a stub that returns null.
+ *
+ * Adapters independently opt into the cold-start coalescing dialect. Keeping
+ * this capability explicit prevents bundlers from probing exports that do not
+ * exist on SQLite, libSQL, PostgreSQL, or other adapters.
  */
 export function generateDialectModule(opts: {
 	entrypoint?: string;
 	type?: string;
 	supportsRequestScope: boolean;
+	supportsCoalescing: boolean;
 }): string {
-	const { entrypoint, supportsRequestScope } = opts;
+	const { entrypoint, supportsRequestScope, supportsCoalescing } = opts;
 	if (!entrypoint) {
 		return [
 			`export const createDialect = undefined;`,
@@ -101,16 +106,16 @@ export function generateDialectModule(opts: {
 	}
 	const type = opts.type ?? "sqlite";
 
-	// Namespace access (not a named re-export) so backends that don't export
-	// createCoalescingDialect yield `undefined` rather than a build error.
-	const coalescingReExport = `import * as _dialectModule from "${entrypoint}";
-export const createCoalescingDialect = _dialectModule.createCoalescingDialect;`;
+	const coalescingExport = supportsCoalescing
+		? `import { createCoalescingDialect as _createCoalescingDialect } from "${entrypoint}";
+export const createCoalescingDialect = _createCoalescingDialect;`
+		: `export const createCoalescingDialect = undefined;`;
 
 	if (supportsRequestScope) {
 		return `
 import { createDialect as _createDialect } from "${entrypoint}";
 export { createRequestScopedDb } from "${entrypoint}";
-${coalescingReExport}
+${coalescingExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 `;
@@ -118,7 +123,7 @@ export const dialectType = ${JSON.stringify(type)};
 
 	return `
 import { createDialect as _createDialect } from "${entrypoint}";
-${coalescingReExport}
+${coalescingExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 export const createRequestScopedDb = (_opts) => null;
@@ -598,12 +603,14 @@ function resolveModulePathFromProject(specifier: string, projectRoot: string): s
 /**
  * Generates the sandboxed plugins module.
  * Resolves plugin entrypoints to files, reads them, and embeds the code.
+ * Notifies the caller about each resolved entry so build tools can watch it.
  *
  * At runtime, middleware uses SandboxRunner to load these into isolates.
  */
 export function generateSandboxedPluginsModule(
 	sandboxed: PluginDescriptor[],
 	projectRoot: string,
+	onEntryResolved?: (filePath: string) => void,
 ): string {
 	if (sandboxed.length === 0) {
 		return `
@@ -629,6 +636,8 @@ export const sandboxedPlugins = [];
 					`and run the plugin's build step before building the site.`,
 			);
 		}
+
+		onEntryResolved?.(filePath);
 
 		const code = readFileSync(filePath, "utf-8");
 

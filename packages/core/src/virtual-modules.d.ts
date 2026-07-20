@@ -23,6 +23,7 @@ declare module "virtual:emdash/config" {
 		toolbar?: "server" | "client" | false;
 		/** Public origin from astro.config.mjs, origin-normalized at startup. */
 		siteUrl?: string;
+		astroCspEnabled?: boolean;
 	}
 
 	const config: VirtualConfig;

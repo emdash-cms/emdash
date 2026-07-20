@@ -60,10 +60,29 @@ const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 ---
 
 <!doctype html>
-<html lang={resolvedLocale} dir={resolvedDir}>
+<html lang={resolvedLocale} dir={resolvedDir} data-theme="classic">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<script is:inline>
+			(() => {
+				let preference = "system";
+
+				try {
+					const storedPreference = localStorage.getItem("emdash-theme");
+					if (storedPreference === "light" || storedPreference === "dark") {
+						preference = storedPreference;
+					}
+				} catch {
+					// Storage can be unavailable in privacy-restricted contexts. Use the system theme.
+				}
+
+				const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+				const mode =
+					preference === "dark" || (preference === "system" && prefersDark) ? "dark" : "light";
+				document.documentElement.setAttribute("data-mode", mode);
+			})();
+		</script>
 		<link rel="stylesheet" href={adminStylesUrl} />
 		<Font cssVariable="--font-emdash" />
 		{favicon ? (
@@ -85,8 +104,7 @@ const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 						align-items: center;
 						justify-content: center;
 						min-height: 100vh;
-						color-scheme: light dark;
-						background: light-dark(hsl(0 0% 100%), hsl(222.2 84% 4.9%));
+						background: var(--color-kumo-elevated);
 					}
 					#emdash-boot-loader .loader-inner {
 						text-align: center;
@@ -95,15 +113,8 @@ const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 						width: 24px;
 						height: 24px;
 						margin: 0 auto;
-						border: 2.5px solid
-							light-dark(
-								hsl(215.4 16.3% 46.9% / 0.3),
-								hsl(215 20.2% 65.1% / 0.3)
-							);
-						border-top-color: light-dark(
-							hsl(215.4 16.3% 46.9%),
-							hsl(215 20.2% 65.1%)
-						);
+						border: 2.5px solid var(--color-kumo-line);
+						border-top-color: var(--text-color-kumo-subtle);
 						border-radius: 50%;
 						animation: emdash-spin 0.8s linear infinite;
 					}
@@ -116,7 +127,7 @@ const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 							sans-serif
 						);
 						font-size: 0.875rem;
-						color: light-dark(hsl(215.4 16.3% 46.9%), hsl(215 20.2% 65.1%));
+						color: var(--text-color-kumo-subtle);
 					}
 					@keyframes emdash-spin {
 						to {

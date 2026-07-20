@@ -32,18 +32,25 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 		// Check if setup is already complete
 		const options = new OptionsRepository(emdash.db);
 		const setupComplete = await options.get("emdash:setup_complete");
-
-		if (setupComplete === true || setupComplete === "true") {
-			return apiError("SETUP_COMPLETE", "Setup already complete", 400);
-		}
+		const isComplete = setupComplete === true || setupComplete === "true";
 
 		// Check if any users exist
 		const adapter = createKyselyAdapter(emdash.db);
 		const userCount = await adapter.countUsers();
 
 		if (userCount > 0) {
+			if (isComplete) {
+				return apiError("SETUP_COMPLETE", "Setup already complete", 400);
+			}
 			return apiError("ADMIN_EXISTS", "Admin user already exists", 400);
 		}
+
+		// `setup_complete` with ZERO users is a recoverable half-state (a
+		// wiped/sanitised users table — e.g. a DB copied between
+		// environments). /api/setup/status already resumes the wizard at
+		// the admin step for exactly this state, so admin creation must be
+		// allowed here too — rejecting on the stale flag alone leaves the
+		// instance with no UI path to an admin account.
 
 		// Parse request body
 		const body = await parseBody(request, setupAdminBody);
