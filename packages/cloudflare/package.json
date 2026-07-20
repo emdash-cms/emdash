@@ -65,6 +65,15 @@
       "types": "./dist/plugins/cloudflare-email.d.mts",
       "default": "./dist/plugins/cloudflare-email.mjs"
     },
+    "./plugins/ai-search": {
+      "types": "./dist/plugins/ai-search.d.mts",
+      "default": "./dist/plugins/ai-search.mjs"
+    },
+    "./plugins/ai-search-admin": {
+      "types": "./dist/plugins/ai-search-admin.d.mts",
+      "default": "./dist/plugins/ai-search-admin.mjs"
+    },
+
     "./media/images-runtime": {
       "types": "./dist/media/images-runtime.d.mts",
       "default": "./dist/media/images-runtime.mjs"
@@ -102,22 +111,38 @@
   },
   "peerDependencies": {
     "@astrojs/cloudflare": ">=12.0.0",
+    "@cloudflare/kumo": "catalog:",
     "@cloudflare/workers-types": ">=4.0.0",
+    "@phosphor-icons/react": "^2.1.10",
     "astro": ">=6.0.0-beta.0",
     "kysely": ">=0.28.17",
-    "pg": ">=8.16.3"
+    "pg": ">=8.16.3",
+    "react": "^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
     "pg": {
+      "optional": true
+    },
+    "@cloudflare/kumo": {
+      "optional": true
+    },
+    "@phosphor-icons/react": {
+      "optional": true
+    },
+    "react": {
       "optional": true
     }
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
     "@astrojs/cloudflare": "catalog:",
+    "@cloudflare/kumo": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "@types/pg": "^8.16.0",
+    "@phosphor-icons/react": "catalog:",
+    "@types/react": "catalog:",
     "publint": "catalog:",
+    "react": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

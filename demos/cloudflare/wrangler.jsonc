@@ -28,6 +28,10 @@
 			"bucket_name": "emdash-media",
 		},
 	],
+	// Cron trigger drives the AI Search reindex queue flush.
+	"triggers": {
+		"crons": ["* * * * *"],
+	},
 	// Observability
 	"observability": {
 		"enabled": true,
@@ -36,6 +40,12 @@
 	"worker_loaders": [
 		{
 			"binding": "LOADER",
+		},
+	],
+	"ai_search_namespaces": [
+		{
+			"binding": "AI_SEARCH",
+			"namespace": "default",
 		},
 	],
 }
