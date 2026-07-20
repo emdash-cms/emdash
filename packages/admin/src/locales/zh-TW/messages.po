@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/routes/bylines.tsx:447
+#: packages/admin/src/routes/bylines.tsx:446
 msgid " - Guest"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:447
+#: packages/admin/src/routes/bylines.tsx:446
 msgid " - Linked"
 msgstr ""
 
@@ -35,7 +35,7 @@ msgstr "（在新視窗中開啟）"
 msgid " (selected)"
 msgstr "（已選擇）"
 
-#: packages/admin/src/routes/bylines.tsx:707
+#: packages/admin/src/routes/bylines.tsx:706
 msgid "-- Select --"
 msgstr ""
 
@@ -94,7 +94,7 @@ msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr ""
 
 #. placeholder {0}: comments.length
-#: packages/admin/src/components/comments/CommentInbox.tsx:344
+#: packages/admin/src/components/comments/CommentInbox.tsx:345
 msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# 條評論} other {# 條評論}}"
 
@@ -111,7 +111,7 @@ msgstr "{0, plural, one {# 個內容項已導入} other {# 個內容項已導入
 #. placeholder {0}: items.length
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MediaPickerModal.tsx:587
-#: packages/admin/src/components/MenuList.tsx:217
+#: packages/admin/src/components/MenuList.tsx:218
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# 個項目} other {# 個項目}}"
 
@@ -147,12 +147,12 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# 篇文章} other {# 篇文章}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:444
+#: packages/admin/src/components/Redirects.tsx:445
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# 個重定向是循環的一部分。} other {# 個重定向是循環的一部分。}}"
 
 #. placeholder {0}: selected.size
-#: packages/admin/src/components/comments/CommentInbox.tsx:228
+#: packages/admin/src/components/comments/CommentInbox.tsx:229
 msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, one {# 個已選擇} other {# 個已選擇}}"
 
@@ -194,8 +194,8 @@ msgid "{0} {1} required — you have {2}."
 msgstr ""
 
 #. placeholder {0}: menu.name
-#. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
-#: packages/admin/src/components/MenuList.tsx:215
+#. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ADMIN_NAV_ICONS.menus className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
+#: packages/admin/src/components/MenuList.tsx:216
 msgid "{0} • {1}"
 msgstr ""
 
@@ -379,7 +379,7 @@ msgstr ""
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:149
+#: packages/admin/src/components/comments/CommentInbox.tsx:150
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {共 # 條} other {共 # 條}}"
 
@@ -414,11 +414,11 @@ msgstr "{unchangedCount, plural, one {顯示 # 個未變更} other {顯示 # 個
 msgid "{uploaded} uploaded, {failed} failed"
 msgstr "{uploaded} 個已上傳，{failed} 個失敗"
 
-#: packages/admin/src/components/Redirects.tsx:141
+#: packages/admin/src/components/Redirects.tsx:142
 msgid "/new-page or /articles/[slug]"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:132
+#: packages/admin/src/components/Redirects.tsx:133
 msgid "/old-page or /blog/[slug]"
 msgstr ""
 
@@ -473,19 +473,19 @@ msgstr "3. 選擇 \"所有內容\""
 msgid "30 days"
 msgstr "30 天"
 
-#: packages/admin/src/components/Redirects.tsx:155
+#: packages/admin/src/components/Redirects.tsx:156
 msgid "301 Permanent"
 msgstr "301 永久重定向"
 
-#: packages/admin/src/components/Redirects.tsx:156
+#: packages/admin/src/components/Redirects.tsx:157
 msgid "302 Temporary"
 msgstr "302 臨時重定向"
 
-#: packages/admin/src/components/Redirects.tsx:157
+#: packages/admin/src/components/Redirects.tsx:158
 msgid "307 Temporary (Strict)"
 msgstr "307 臨時（嚴格）"
 
-#: packages/admin/src/components/Redirects.tsx:158
+#: packages/admin/src/components/Redirects.tsx:159
 msgid "308 Permanent (Strict)"
 msgstr "308 永久（嚴格）"
 
@@ -497,15 +497,15 @@ msgstr "4. 點擊 \"下載導出文件\""
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. 輸入 \"EmDash\" 並點擊 \"添加新密碼\""
 
-#: packages/admin/src/components/Redirects.tsx:394
+#: packages/admin/src/components/Redirects.tsx:395
 msgid "404 Errors"
 msgstr "404 錯誤"
 
-#: packages/admin/src/components/Redirects.tsx:159
+#: packages/admin/src/components/Redirects.tsx:160
 msgid "410 Content Deleted (Gone)"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:160
+#: packages/admin/src/components/Redirects.tsx:161
 msgid "451 Unavailable for legal reasons"
 msgstr ""
 
@@ -582,7 +582,7 @@ msgstr "帳戶資訊"
 msgid "ACF Fields"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:299
+#: packages/admin/src/components/comments/CommentInbox.tsx:300
 #: packages/admin/src/components/ContentList.tsx:528
 #: packages/admin/src/components/ContentList.tsx:649
 #: packages/admin/src/components/ContentTypeList.tsx:106
@@ -760,12 +760,12 @@ msgid "admin"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:491
+#: packages/admin/src/components/Sidebar.tsx:383
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "管理員"
 
-#: packages/admin/src/components/Sidebar.tsx:437
+#: packages/admin/src/components/Sidebar.tsx:329
 msgid "Admin navigation"
 msgstr "管理員導航"
 
@@ -803,7 +803,7 @@ msgstr "全部"
 msgid "All authors"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:413
+#: packages/admin/src/routes/bylines.tsx:412
 msgid "All bylines"
 msgstr ""
 
@@ -811,7 +811,7 @@ msgstr ""
 msgid "All capabilities"
 msgstr "所有權限"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:133
+#: packages/admin/src/components/comments/CommentInbox.tsx:134
 msgid "All collections"
 msgstr "所有合集"
 
@@ -837,12 +837,12 @@ msgid "All Sources"
 msgstr "所有來源"
 
 #: packages/admin/src/components/ContentList.tsx:728
-#: packages/admin/src/components/Redirects.tsx:418
+#: packages/admin/src/components/Redirects.tsx:419
 msgid "All statuses"
 msgstr "所有狀態"
 
 #: packages/admin/src/components/MediaLibrary.tsx:433
-#: packages/admin/src/components/Redirects.tsx:424
+#: packages/admin/src/components/Redirects.tsx:425
 msgid "All types"
 msgstr "所有類型"
 
@@ -980,8 +980,8 @@ msgid "Apply link"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:148
-#: packages/admin/src/components/comments/CommentInbox.tsx:237
-#: packages/admin/src/components/comments/CommentInbox.tsx:489
+#: packages/admin/src/components/comments/CommentInbox.tsx:238
+#: packages/admin/src/components/comments/CommentInbox.tsx:490
 msgid "Approve"
 msgstr "批准"
 
@@ -989,7 +989,7 @@ msgstr "批准"
 msgid "approved"
 msgstr "已批准"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:202
+#: packages/admin/src/components/comments/CommentInbox.tsx:203
 msgid "Approved"
 msgstr "已批准"
 
@@ -1026,7 +1026,7 @@ msgstr "您確定要刪除 \"{0}\" 嗎？這也將刪除該合集中的所有內
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr ""
 
-#: packages/admin/src/components/MenuList.tsx:254
+#: packages/admin/src/components/MenuList.tsx:255
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 msgstr "您確定要刪除此菜單嗎？這也將刪除所有菜單項。此操作無法撤銷。"
 
@@ -1071,7 +1071,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "認證已取消或超時。請重試。"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
-#: packages/admin/src/components/comments/CommentInbox.tsx:287
+#: packages/admin/src/components/comments/CommentInbox.tsx:288
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1035
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
@@ -1106,11 +1106,11 @@ msgstr "授權中..."
 msgid "Authors"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:521
+#: packages/admin/src/components/Redirects.tsx:522
 msgid "auto"
 msgstr "自動"
 
-#: packages/admin/src/components/Redirects.tsx:424
+#: packages/admin/src/components/Redirects.tsx:425
 msgid "Auto (slug change)"
 msgstr "自動（slug 變更）"
 
@@ -1236,7 +1236,7 @@ msgstr "發送前："
 msgid "Bing Verification"
 msgstr "Bing 驗證"
 
-#: packages/admin/src/routes/bylines.tsx:497
+#: packages/admin/src/routes/bylines.tsx:496
 msgid "Bio"
 msgstr ""
 
@@ -1259,7 +1259,7 @@ msgstr "布爾值"
 msgid "Brief summary shown below the title in search results"
 msgstr "在搜索結果中標題下方顯示簡短摘要"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:71
+#: packages/admin/src/components/RegistryBrowse.tsx:72
 msgid "Browse and install plugins published to the decentralized registry."
 msgstr ""
 
@@ -1287,17 +1287,17 @@ msgid "Bullet List"
 msgstr "無序列表"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:384
+#: packages/admin/src/routes/bylines.tsx:383
 msgid "Byline schema"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:370
+#: packages/admin/src/components/Sidebar.tsx:252
 msgid "Byline Schema"
 msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:537
-#: packages/admin/src/components/Sidebar.tsx:365
-#: packages/admin/src/routes/bylines.tsx:376
+#: packages/admin/src/components/Sidebar.tsx:242
+#: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
 msgstr "署名"
 
@@ -1352,11 +1352,11 @@ msgstr "可以查看內容"
 #: packages/admin/src/components/MediaPickerModal.tsx:743
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
-#: packages/admin/src/components/MenuList.tsx:172
+#: packages/admin/src/components/MenuList.tsx:173
 #: packages/admin/src/components/PluginManager.tsx:640
 #: packages/admin/src/components/PortableTextEditor.tsx:3576
-#: packages/admin/src/components/Redirects.tsx:182
-#: packages/admin/src/components/SectionPickerModal.tsx:130
+#: packages/admin/src/components/Redirects.tsx:183
+#: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:280
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:390
@@ -1411,7 +1411,7 @@ msgstr "說明文字"
 msgid "Captions / Subtitles"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:199
+#: packages/admin/src/components/AdminCommandPalette.tsx:192
 #: packages/admin/src/components/Widgets.tsx:133
 msgid "Categories"
 msgstr "分類"
@@ -1554,17 +1554,17 @@ msgstr "點擊郵件中的鏈接即可登錄。"
 #: packages/admin/src/components/MenuEditor.tsx:576
 #: packages/admin/src/components/MenuEditor.tsx:582
 #: packages/admin/src/components/MenuEditor.tsx:586
-#: packages/admin/src/components/MenuList.tsx:136
-#: packages/admin/src/components/MenuList.tsx:142
-#: packages/admin/src/components/MenuList.tsx:146
+#: packages/admin/src/components/MenuList.tsx:137
+#: packages/admin/src/components/MenuList.tsx:143
+#: packages/admin/src/components/MenuList.tsx:147
 #: packages/admin/src/components/PortableTextEditor.tsx:1530
 #: packages/admin/src/components/PortableTextEditor.tsx:1536
 #: packages/admin/src/components/PortableTextEditor.tsx:1540
-#: packages/admin/src/components/Redirects.tsx:114
-#: packages/admin/src/components/Redirects.tsx:120
-#: packages/admin/src/components/SectionPickerModal.tsx:60
-#: packages/admin/src/components/SectionPickerModal.tsx:66
-#: packages/admin/src/components/SectionPickerModal.tsx:70
+#: packages/admin/src/components/Redirects.tsx:115
+#: packages/admin/src/components/Redirects.tsx:121
+#: packages/admin/src/components/SectionPickerModal.tsx:61
+#: packages/admin/src/components/SectionPickerModal.tsx:67
+#: packages/admin/src/components/SectionPickerModal.tsx:71
 #: packages/admin/src/components/Sections.tsx:153
 #: packages/admin/src/components/Sections.tsx:159
 #: packages/admin/src/components/Sections.tsx:163
@@ -1603,7 +1603,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:242
 #: packages/admin/src/components/PortableTextEditor.tsx:3114
-#: packages/admin/src/components/Redirects.tsx:469
+#: packages/admin/src/components/Redirects.tsx:470
 msgid "Code"
 msgstr "代碼"
 
@@ -1646,7 +1646,7 @@ msgid "Comma-separated keywords for search."
 msgstr "逗號分隔的搜索關鍵詞。"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:95
-#: packages/admin/src/components/comments/CommentInbox.tsx:290
+#: packages/admin/src/components/comments/CommentInbox.tsx:291
 msgid "Comment"
 msgstr "評論"
 
@@ -1654,9 +1654,9 @@ msgstr "評論"
 msgid "Comment Detail"
 msgstr "評論詳情"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:146
+#: packages/admin/src/components/comments/CommentInbox.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:485
-#: packages/admin/src/components/Sidebar.tsx:349
+#: packages/admin/src/components/Sidebar.tsx:221
 msgid "Comments"
 msgstr "評論"
 
@@ -1707,13 +1707,13 @@ msgstr "已連接 {0}"
 msgid "content"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:377
+#: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
-#: packages/admin/src/components/comments/CommentInbox.tsx:293
+#: packages/admin/src/components/comments/CommentInbox.tsx:294
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:2326
 #: packages/admin/src/components/SectionEditor.tsx:193
-#: packages/admin/src/components/Sidebar.tsx:473
+#: packages/admin/src/components/Sidebar.tsx:365
 #: packages/admin/src/components/Widgets.tsx:882
 msgid "Content"
 msgstr "內容"
@@ -1771,9 +1771,9 @@ msgstr "內容快照："
 msgid "Content to Import"
 msgstr "要導入的內容"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:191
+#: packages/admin/src/components/AdminCommandPalette.tsx:184
 #: packages/admin/src/components/ContentTypeList.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:369
+#: packages/admin/src/components/Sidebar.tsx:248
 msgid "Content Types"
 msgstr "內容類型"
 
@@ -1855,7 +1855,7 @@ msgstr "無法檢測到 WordPress"
 msgid "Couldn't load byline fields."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:548
+#: packages/admin/src/routes/bylines.tsx:547
 msgid "Couldn't load custom fields."
 msgstr ""
 
@@ -1877,12 +1877,12 @@ msgid "Count"
 msgstr "數量"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:963
-#: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/Redirects.tsx:191
+#: packages/admin/src/components/MenuList.tsx:176
+#: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:501
 #: packages/admin/src/components/Widgets.tsx:449
-#: packages/admin/src/routes/bylines.tsx:580
+#: packages/admin/src/routes/bylines.tsx:579
 msgid "Create"
 msgstr "創建"
 
@@ -1913,7 +1913,7 @@ msgid "Create an account"
 msgstr "創建帳戶"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:911
-#: packages/admin/src/routes/bylines.tsx:477
+#: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "創建署名"
 
@@ -1925,12 +1925,12 @@ msgstr ""
 msgid "Create field"
 msgstr ""
 
-#: packages/admin/src/components/MenuList.tsx:126
-#: packages/admin/src/components/MenuList.tsx:189
+#: packages/admin/src/components/MenuList.tsx:127
+#: packages/admin/src/components/MenuList.tsx:190
 msgid "Create Menu"
 msgstr "創建菜單"
 
-#: packages/admin/src/components/MenuList.tsx:133
+#: packages/admin/src/components/MenuList.tsx:134
 msgid "Create New Menu"
 msgstr "創建新菜單"
 
@@ -1952,15 +1952,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "創建個人訪問令牌以通過程式訪問 API"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:247
+#: packages/admin/src/components/Redirects.tsx:248
 msgid "Create redirect for {0}"
 msgstr "爲 {0} 創建重定向"
 
-#: packages/admin/src/components/Redirects.tsx:246
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Create redirect for this path"
 msgstr "爲此路徑創建重定向"
 
-#: packages/admin/src/components/Redirects.tsx:461
+#: packages/admin/src/components/Redirects.tsx:462
 msgid "Create redirect rules to manage URL changes."
 msgstr "創建重定向規則以管理 URL 更改。"
 
@@ -1973,7 +1973,7 @@ msgstr "創建架構並導入"
 msgid "Create Section"
 msgstr "創建區塊"
 
-#: packages/admin/src/components/SectionPickerModal.tsx:109
+#: packages/admin/src/components/SectionPickerModal.tsx:110
 msgid "Create sections in the Sections library to use them here"
 msgstr "在區塊庫中創建區塊以便在此使用"
 
@@ -1995,7 +1995,7 @@ msgstr ""
 msgid "Create your account"
 msgstr "創建您的帳戶"
 
-#: packages/admin/src/components/MenuList.tsx:187
+#: packages/admin/src/components/MenuList.tsx:188
 msgid "Create your first navigation menu to get started"
 msgstr "創建您的第一個導航菜單以開始使用"
 
@@ -2062,8 +2062,8 @@ msgid "Creating collections and fields..."
 msgstr "正在創建合集和字段..."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:963
-#: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/Redirects.tsx:188
+#: packages/admin/src/components/MenuList.tsx:176
+#: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:448
 #: packages/admin/src/components/TaxonomyManager.tsx:711
@@ -2115,15 +2115,15 @@ msgstr "深色"
 msgid "Dark"
 msgstr "深色"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:137
+#: packages/admin/src/components/AdminCommandPalette.tsx:130
 #: packages/admin/src/components/ContentTypeList.tsx:244
 #: packages/admin/src/components/Dashboard.tsx:50
-#: packages/admin/src/components/Sidebar.tsx:335
-#: packages/admin/src/components/Sidebar.tsx:464
+#: packages/admin/src/components/Sidebar.tsx:206
+#: packages/admin/src/components/Sidebar.tsx:356
 msgid "Dashboard"
 msgstr "儀表板"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:296
+#: packages/admin/src/components/comments/CommentInbox.tsx:297
 #: packages/admin/src/components/ContentList.tsx:525
 msgid "Date"
 msgstr "日期"
@@ -2186,8 +2186,8 @@ msgstr "定義您的內容結構"
 msgid "Defined in code"
 msgstr "程式碼定義"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:267
-#: packages/admin/src/components/comments/CommentInbox.tsx:407
+#: packages/admin/src/components/comments/CommentInbox.tsx:268
+#: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:672
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/editor/BlockMenu.tsx:301
@@ -2196,16 +2196,16 @@ msgstr "程式碼定義"
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:453
 #: packages/admin/src/components/MenuEditor.tsx:549
-#: packages/admin/src/components/MenuList.tsx:255
-#: packages/admin/src/components/Redirects.tsx:582
+#: packages/admin/src/components/MenuList.tsx:256
+#: packages/admin/src/components/Redirects.tsx:583
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/settings/BackupSettings.tsx:284
 #: packages/admin/src/components/TaxonomyManager.tsx:906
 #: packages/admin/src/components/Widgets.tsx:699
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:589
-#: packages/admin/src/routes/bylines.tsx:625
+#: packages/admin/src/routes/bylines.tsx:588
+#: packages/admin/src/routes/bylines.tsx:624
 msgid "Delete"
 msgstr "刪除"
 
@@ -2233,7 +2233,7 @@ msgid "Delete {0} field"
 msgstr ""
 
 #. placeholder {0}: menu.name
-#: packages/admin/src/components/MenuList.tsx:237
+#: packages/admin/src/components/MenuList.tsx:238
 msgid "Delete {0} menu"
 msgstr "刪除 {0} 菜單"
 
@@ -2255,7 +2255,7 @@ msgstr ""
 msgid "Delete byline field?"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:623
+#: packages/admin/src/routes/bylines.tsx:622
 msgid "Delete Byline?"
 msgstr ""
 
@@ -2263,7 +2263,7 @@ msgstr ""
 msgid "Delete column"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:405
+#: packages/admin/src/components/comments/CommentInbox.tsx:406
 msgid "Delete Comment?"
 msgstr "刪除評論？"
 
@@ -2292,11 +2292,11 @@ msgstr ""
 msgid "Delete Media?"
 msgstr "刪除媒體？"
 
-#: packages/admin/src/components/MenuList.tsx:253
+#: packages/admin/src/components/MenuList.tsx:254
 msgid "Delete Menu"
 msgstr "刪除菜單"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:525
+#: packages/admin/src/components/comments/CommentInbox.tsx:526
 msgid "Delete permanently"
 msgstr "永久刪除"
 
@@ -2309,16 +2309,16 @@ msgstr "永久刪除"
 msgid "Delete Permanently?"
 msgstr "永久刪除？"
 
-#: packages/admin/src/components/Redirects.tsx:535
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect"
 msgstr "刪除重定向"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:536
+#: packages/admin/src/components/Redirects.tsx:537
 msgid "Delete redirect {0}"
 msgstr "刪除重定向 {0}"
 
-#: packages/admin/src/components/Redirects.tsx:580
+#: packages/admin/src/components/Redirects.tsx:581
 msgid "Delete Redirect?"
 msgstr "刪除重定向？"
 
@@ -2348,18 +2348,18 @@ msgstr "已刪除"
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:408
+#: packages/admin/src/components/comments/CommentInbox.tsx:409
 #: packages/admin/src/components/ContentTypeEditor.tsx:673
 #: packages/admin/src/components/ContentTypeList.tsx:149
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:454
-#: packages/admin/src/components/MenuList.tsx:256
-#: packages/admin/src/components/Redirects.tsx:583
+#: packages/admin/src/components/MenuList.tsx:257
+#: packages/admin/src/components/Redirects.tsx:584
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/settings/BackupSettings.tsx:285
 #: packages/admin/src/components/TaxonomyManager.tsx:907
 #: packages/admin/src/components/Widgets.tsx:700
-#: packages/admin/src/routes/bylines.tsx:626
+#: packages/admin/src/routes/bylines.tsx:625
 msgid "Deleting..."
 msgstr "刪除中..."
 
@@ -2414,11 +2414,11 @@ msgstr "描述"
 msgid "Description (optional)"
 msgstr "描述（可選）"
 
-#: packages/admin/src/components/Redirects.tsx:468
+#: packages/admin/src/components/Redirects.tsx:469
 msgid "Destination"
 msgstr "目標"
 
-#: packages/admin/src/components/Redirects.tsx:140
+#: packages/admin/src/components/Redirects.tsx:141
 msgid "Destination path"
 msgstr "目標路徑"
 
@@ -2462,7 +2462,7 @@ msgstr "禁用"
 msgid "Disable plugin"
 msgstr "禁用插件"
 
-#: packages/admin/src/components/Redirects.tsx:504
+#: packages/admin/src/components/Redirects.tsx:505
 msgid "Disable redirect"
 msgstr "禁用重定向"
 
@@ -2475,7 +2475,7 @@ msgid "Disable User?"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:354
-#: packages/admin/src/components/Redirects.tsx:418
+#: packages/admin/src/components/Redirects.tsx:419
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
@@ -2534,11 +2534,11 @@ msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:914
 #: packages/admin/src/components/ContentSettingsPanel.tsx:976
-#: packages/admin/src/routes/bylines.tsx:482
+#: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "顯示名稱"
 
-#: packages/admin/src/components/MenuList.tsx:167
+#: packages/admin/src/components/MenuList.tsx:168
 msgid "Display name for admin interface"
 msgstr "管理界面的顯示名稱"
 
@@ -2706,7 +2706,7 @@ msgstr "複製 {title}"
 msgid "e.g. application/zip or .pdf"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:167
+#: packages/admin/src/components/Redirects.tsx:168
 msgid "e.g. import, blog"
 msgstr ""
 
@@ -2722,7 +2722,7 @@ msgstr "例如：MacBook Pro、iPhone"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
-#: packages/admin/src/components/MenuList.tsx:231
+#: packages/admin/src/components/MenuList.tsx:232
 #: packages/admin/src/components/Sections.tsx:392
 #: packages/admin/src/components/TranslationsPanel.tsx:93
 msgid "Edit"
@@ -2737,7 +2737,7 @@ msgstr "編輯"
 #: packages/admin/src/components/TaxonomyManager.tsx:109
 #: packages/admin/src/components/TaxonomyManager.tsx:377
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:477
+#: packages/admin/src/routes/bylines.tsx:476
 msgid "Edit {0}"
 msgstr "編輯 {0}"
 
@@ -2782,16 +2782,16 @@ msgstr "編輯菜單項"
 msgid "Edit menu items"
 msgstr "編輯菜單項"
 
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:528
 msgid "Edit redirect"
 msgstr "編輯重定向"
 
-#: packages/admin/src/components/Redirects.tsx:105
+#: packages/admin/src/components/Redirects.tsx:106
 msgid "Edit Redirect"
 msgstr "編輯重定向"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:529
 msgid "Edit redirect {0}"
 msgstr "編輯重定向 {0}"
 
@@ -2896,12 +2896,12 @@ msgstr "在此合集上啓用全文搜索"
 msgid "Enable plugin"
 msgstr "啓用插件"
 
-#: packages/admin/src/components/Redirects.tsx:504
+#: packages/admin/src/components/Redirects.tsx:505
 msgid "Enable redirect"
 msgstr "啓用重定向"
 
-#: packages/admin/src/components/Redirects.tsx:175
-#: packages/admin/src/components/Redirects.tsx:418
+#: packages/admin/src/components/Redirects.tsx:176
+#: packages/admin/src/components/Redirects.tsx:419
 msgid "Enabled"
 msgstr "已啓用"
 
@@ -3359,7 +3359,7 @@ msgid "Failed to load backup settings"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:366
+#: packages/admin/src/routes/bylines.tsx:365
 msgid "Failed to load bylines: {0}"
 msgstr ""
 
@@ -3384,7 +3384,7 @@ msgstr "加載插件失敗"
 msgid "Failed to load plugins: {0}"
 msgstr "加載插件失敗：{0}"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:95
+#: packages/admin/src/components/RegistryBrowse.tsx:96
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr ""
 
@@ -3698,7 +3698,7 @@ msgstr ""
 msgid "Filter by capability"
 msgstr "按功能篩選"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:177
+#: packages/admin/src/components/comments/CommentInbox.tsx:178
 msgid "Filter by collection"
 msgstr "按合集篩選"
 
@@ -3711,16 +3711,16 @@ msgid "Filter by source"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:754
-#: packages/admin/src/components/Redirects.tsx:419
+#: packages/admin/src/components/Redirects.tsx:420
 msgid "Filter by status"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:439
-#: packages/admin/src/components/Redirects.tsx:425
+#: packages/admin/src/components/Redirects.tsx:426
 msgid "Filter by type"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:409
+#: packages/admin/src/routes/bylines.tsx:408
 msgid "Filter byline type"
 msgstr ""
 
@@ -3803,7 +3803,7 @@ msgstr ""
 msgid "Grid view"
 msgstr "網格視圖"
 
-#: packages/admin/src/components/Redirects.tsx:166
+#: packages/admin/src/components/Redirects.tsx:167
 msgid "Group (optional)"
 msgstr "組（可選）"
 
@@ -3811,11 +3811,11 @@ msgstr "組（可選）"
 msgid "Group by"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:556
+#: packages/admin/src/routes/bylines.tsx:555
 msgid "Guest byline"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:414
+#: packages/admin/src/routes/bylines.tsx:413
 msgid "Guest only"
 msgstr ""
 
@@ -3879,8 +3879,8 @@ msgstr "隱藏令牌"
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "層級式（類似分類，具有父子關係）"
 
-#: packages/admin/src/components/Redirects.tsx:225
-#: packages/admin/src/components/Redirects.tsx:470
+#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:471
 msgid "Hits"
 msgstr "點擊量"
 
@@ -3982,8 +3982,8 @@ msgstr "圖片 URL 已更新於"
 msgid "Images"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:233
-#: packages/admin/src/components/Sidebar.tsx:401
+#: packages/admin/src/components/AdminCommandPalette.tsx:226
+#: packages/admin/src/components/Sidebar.tsx:290
 #: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import"
 msgstr "導入"
@@ -4150,7 +4150,7 @@ msgstr ""
 msgid "Insert raw HTML"
 msgstr ""
 
-#: packages/admin/src/components/SectionPickerModal.tsx:57
+#: packages/admin/src/components/SectionPickerModal.tsx:58
 msgid "Insert Section"
 msgstr "插入區塊"
 
@@ -4181,7 +4181,7 @@ msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:173
-#: packages/admin/src/components/RegistryBrowse.tsx:198
+#: packages/admin/src/components/RegistryBrowse.tsx:199
 #: packages/admin/src/components/RegistryPluginDetail.tsx:533
 msgid "Installed"
 msgstr "已安裝"
@@ -4313,7 +4313,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:416
 #: packages/admin/src/components/MenuEditor.tsx:593
-#: packages/admin/src/components/MenuList.tsx:166
+#: packages/admin/src/components/MenuList.tsx:167
 #: packages/admin/src/components/TaxonomyManager.tsx:645
 #: packages/admin/src/components/Widgets.tsx:431
 #: packages/admin/src/routes/byline-schema.tsx:234
@@ -4351,7 +4351,7 @@ msgstr "最後登錄"
 msgid "Last Login"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:227
 msgid "Last seen"
 msgstr "最後訪問"
 
@@ -4423,11 +4423,11 @@ msgstr "鏈接到另一個內容項"
 msgid "Linked Accounts ({0})"
 msgstr "已關聯帳戶 ({0})"
 
-#: packages/admin/src/routes/bylines.tsx:415
+#: packages/admin/src/routes/bylines.tsx:414
 msgid "Linked only"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:507
+#: packages/admin/src/routes/bylines.tsx:506
 msgid "Linked user"
 msgstr ""
 
@@ -4451,9 +4451,9 @@ msgstr "實時預覽"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:236
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
-#: packages/admin/src/components/RegistryBrowse.tsx:143
+#: packages/admin/src/components/RegistryBrowse.tsx:144
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:469
+#: packages/admin/src/routes/bylines.tsx:468
 msgid "Load more"
 msgstr "加載更多"
 
@@ -4477,7 +4477,7 @@ msgstr ""
 msgid "Loading collections..."
 msgstr "正在加載合集..."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:307
+#: packages/admin/src/components/comments/CommentInbox.tsx:308
 msgid "Loading comments..."
 msgstr "正在加載評論..."
 
@@ -4498,7 +4498,7 @@ msgstr ""
 msgid "Loading menu..."
 msgstr "正在加載菜單..."
 
-#: packages/admin/src/components/MenuList.tsx:94
+#: packages/admin/src/components/MenuList.tsx:95
 msgid "Loading menus..."
 msgstr "正在加載菜單..."
 
@@ -4506,11 +4506,11 @@ msgstr "正在加載菜單..."
 msgid "Loading plugins..."
 msgstr "正在加載插件..."
 
-#: packages/admin/src/components/Redirects.tsx:456
+#: packages/admin/src/components/Redirects.tsx:457
 msgid "Loading redirects..."
 msgstr "正在加載重定向..."
 
-#: packages/admin/src/components/SectionPickerModal.tsx:94
+#: packages/admin/src/components/SectionPickerModal.tsx:95
 #: packages/admin/src/components/Sections.tsx:252
 msgid "Loading sections..."
 msgstr "正在加載區塊..."
@@ -4542,7 +4542,7 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:722
 #: packages/admin/src/components/PortableTextEditor.tsx:2035
-#: packages/admin/src/components/RegistryBrowse.tsx:143
+#: packages/admin/src/components/RegistryBrowse.tsx:144
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:161
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/TaxonomyManager.tsx:801
@@ -4551,7 +4551,7 @@ msgstr ""
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:469
+#: packages/admin/src/routes/bylines.tsx:468
 msgid "Loading..."
 msgstr "加載中..."
 
@@ -4615,7 +4615,7 @@ msgstr ""
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:483
+#: packages/admin/src/components/Sidebar.tsx:375
 msgid "Manage"
 msgstr "管理"
 
@@ -4637,11 +4637,11 @@ msgstr ""
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "管理已安裝的插件。啓用或禁用插件以控制其功能。"
 
-#: packages/admin/src/components/MenuList.tsx:104
+#: packages/admin/src/components/MenuList.tsx:105
 msgid "Manage navigation menus for your site"
 msgstr "管理您站點的導航菜單"
 
-#: packages/admin/src/components/Redirects.tsx:359
+#: packages/admin/src/components/Redirects.tsx:360
 msgid "Manage URL redirects and view 404 errors."
 msgstr "管理 URL 重定向並查看 404 錯誤。"
 
@@ -4657,7 +4657,7 @@ msgstr ""
 msgid "Managed by an external media provider"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:424
+#: packages/admin/src/components/Redirects.tsx:425
 msgid "Manual"
 msgstr "手動"
 
@@ -4671,15 +4671,15 @@ msgid "Map WordPress user {0} to EmDash user"
 msgstr ""
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:255
+#: packages/admin/src/components/Redirects.tsx:256
 msgid "Mark {0} as Gone (410)"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:254
+#: packages/admin/src/components/Redirects.tsx:255
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:501
+#: packages/admin/src/components/comments/CommentInbox.tsx:502
 msgid "Mark as spam"
 msgstr "標記爲垃圾"
 
@@ -4694,7 +4694,7 @@ msgstr "市場"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:167
 #: packages/admin/src/components/PluginManager.tsx:355
-#: packages/admin/src/components/Sidebar.tsx:385
+#: packages/admin/src/components/Sidebar.tsx:272
 msgid "Marketplace"
 msgstr "市場"
 
@@ -4719,7 +4719,7 @@ msgid "MDX"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2311
-#: packages/admin/src/components/Sidebar.tsx:344
+#: packages/admin/src/components/Sidebar.tsx:216
 #: packages/admin/src/components/WordPressImport.tsx:752
 #: packages/admin/src/components/WordPressImport.tsx:1145
 #: packages/admin/src/components/WordPressImport.tsx:1334
@@ -4747,7 +4747,7 @@ msgstr "媒體導入完成"
 msgid "Media import was skipped"
 msgstr "媒體導入已跳過"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:160
+#: packages/admin/src/components/AdminCommandPalette.tsx:153
 #: packages/admin/src/components/MediaLibrary.tsx:322
 msgid "Media Library"
 msgstr "媒體庫"
@@ -4776,15 +4776,15 @@ msgid "Menu \"{0}\" ({1}) created."
 msgstr ""
 
 #. placeholder {0}: menu.label
-#: packages/admin/src/components/MenuList.tsx:55
+#: packages/admin/src/components/MenuList.tsx:56
 msgid "Menu \"{0}\" has been created."
 msgstr "菜單 \"{0}\" 已創建。"
 
-#: packages/admin/src/components/MenuList.tsx:54
+#: packages/admin/src/components/MenuList.tsx:55
 msgid "Menu created"
 msgstr "菜單已創建"
 
-#: packages/admin/src/components/MenuList.tsx:74
+#: packages/admin/src/components/MenuList.tsx:75
 msgid "Menu deleted"
 msgstr "菜單已刪除"
 
@@ -4808,9 +4808,9 @@ msgstr "菜單未找到"
 msgid "Menu order has been updated."
 msgstr "菜單順序已更新。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:167
-#: packages/admin/src/components/MenuList.tsx:103
-#: packages/admin/src/components/Sidebar.tsx:354
+#: packages/admin/src/components/AdminCommandPalette.tsx:160
+#: packages/admin/src/components/MenuList.tsx:104
+#: packages/admin/src/components/Sidebar.tsx:226
 #: packages/admin/src/components/WordPressImport.tsx:1149
 msgid "Menus"
 msgstr "菜單"
@@ -4958,7 +4958,7 @@ msgstr "我的精彩博客"
 
 #: packages/admin/src/components/ContentTypeList.tsx:94
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
-#: packages/admin/src/components/MenuList.tsx:154
+#: packages/admin/src/components/MenuList.tsx:155
 #: packages/admin/src/components/TaxonomyManager.tsx:405
 #: packages/admin/src/components/TaxonomyManager.tsx:654
 #: packages/admin/src/components/TaxonomyManager.tsx:841
@@ -4976,7 +4976,7 @@ msgstr "名稱和標籤爲必填項"
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "名稱必須以字母開頭，且僅包含小寫字母、數字和下劃線"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:347
+#: packages/admin/src/components/AdminCommandPalette.tsx:340
 msgid "Navigation"
 msgstr "導航"
 
@@ -4989,7 +4989,7 @@ msgstr "從未"
 msgid "new"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:427
+#: packages/admin/src/routes/bylines.tsx:426
 msgid "New"
 msgstr ""
 
@@ -5027,8 +5027,8 @@ msgstr ""
 msgid "New public routes"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:105
-#: packages/admin/src/components/Redirects.tsx:362
+#: packages/admin/src/components/Redirects.tsx:106
+#: packages/admin/src/components/Redirects.tsx:363
 msgid "New Redirect"
 msgstr "新重定向"
 
@@ -5036,7 +5036,7 @@ msgstr "新重定向"
 msgid "New Section"
 msgstr "新區塊"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:478
+#: packages/admin/src/components/AdminCommandPalette.tsx:479
 msgid "new tab"
 msgstr "新標籤頁"
 
@@ -5064,7 +5064,7 @@ msgstr ""
 msgid "Next"
 msgstr "下一步"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:371
+#: packages/admin/src/components/comments/CommentInbox.tsx:372
 #: packages/admin/src/components/ContentList.tsx:618
 msgid "Next page"
 msgstr "下一頁"
@@ -5097,7 +5097,7 @@ msgstr "暫無 {0}。"
 msgid "No {0} yet. Create one to get started."
 msgstr "暫無{0}。創建一個以開始使用。"
 
-#: packages/admin/src/components/Redirects.tsx:217
+#: packages/admin/src/components/Redirects.tsx:218
 msgid "No 404 errors recorded yet."
 msgstr "暫無 404 錯誤記錄。"
 
@@ -5110,7 +5110,7 @@ msgstr "無替代文本"
 msgid "No API tokens yet. Create one to get started."
 msgstr "暫無 API 令牌。創建一個以開始使用。"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:547
+#: packages/admin/src/components/comments/CommentInbox.tsx:548
 msgid "No approved comments yet."
 msgstr "暫無已審覈評論。"
 
@@ -5122,7 +5122,7 @@ msgstr ""
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:453
+#: packages/admin/src/routes/bylines.tsx:452
 msgid "No bylines found"
 msgstr ""
 
@@ -5134,11 +5134,11 @@ msgstr "未選擇任何署名。"
 msgid "No collections configured"
 msgstr "未配置任何合集"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:546
+#: packages/admin/src/components/comments/CommentInbox.tsx:547
 msgid "No comments awaiting moderation."
 msgstr "暫無待審覈評論。"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:542
+#: packages/admin/src/components/comments/CommentInbox.tsx:543
 msgid "No comments match your search."
 msgstr "暫無評論符合您的搜索。"
 
@@ -5211,7 +5211,7 @@ msgstr "暫無項目"
 msgid "No limit"
 msgstr "無限制"
 
-#: packages/admin/src/routes/bylines.tsx:518
+#: packages/admin/src/routes/bylines.tsx:517
 msgid "No linked user"
 msgstr ""
 
@@ -5254,7 +5254,7 @@ msgstr "未找到媒體"
 msgid "No menu items yet"
 msgstr "暫無菜單項"
 
-#: packages/admin/src/components/MenuList.tsx:186
+#: packages/admin/src/components/MenuList.tsx:187
 msgid "No menus yet"
 msgstr "暫無菜單"
 
@@ -5287,11 +5287,11 @@ msgstr "未配置插件"
 msgid "No plugins found"
 msgstr "未找到插件"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:117
+#: packages/admin/src/components/RegistryBrowse.tsx:118
 msgid "No plugins have been published to this registry yet."
 msgstr ""
 
-#: packages/admin/src/components/RegistryBrowse.tsx:116
+#: packages/admin/src/components/RegistryBrowse.tsx:117
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr ""
 
@@ -5307,7 +5307,7 @@ msgstr ""
 msgid "No recent activity"
 msgstr "暫無最近活動"
 
-#: packages/admin/src/components/Redirects.tsx:460
+#: packages/admin/src/components/Redirects.tsx:461
 msgid "No redirects yet"
 msgstr "暫無重定向"
 
@@ -5326,7 +5326,7 @@ msgstr ""
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "「{debouncedQuery}」無結果。請嘗試其他搜索詞。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:464
+#: packages/admin/src/components/AdminCommandPalette.tsx:465
 msgid "No results found"
 msgstr "未找到結果"
 
@@ -5334,11 +5334,11 @@ msgstr "未找到結果"
 msgid "No revisions yet"
 msgstr "暫無修訂歷史"
 
-#: packages/admin/src/components/SectionPickerModal.tsx:107
+#: packages/admin/src/components/SectionPickerModal.tsx:108
 msgid "No sections available"
 msgstr "無可用區塊"
 
-#: packages/admin/src/components/SectionPickerModal.tsx:101
+#: packages/admin/src/components/SectionPickerModal.tsx:102
 #: packages/admin/src/components/Sections.tsx:259
 msgid "No sections found"
 msgstr "未找到區塊"
@@ -5347,7 +5347,7 @@ msgstr "未找到區塊"
 msgid "No sections yet"
 msgstr "暫無區塊"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:548
+#: packages/admin/src/components/comments/CommentInbox.tsx:549
 msgid "No spam comments."
 msgstr "無垃圾評論。"
 
@@ -5420,7 +5420,7 @@ msgstr "僅授權您認識的代碼。"
 msgid "Only email addresses from allowed domains can sign up."
 msgstr "僅允許來自允許域名的郵箱註冊。"
 
-#: packages/admin/src/components/MenuList.tsx:159
+#: packages/admin/src/components/MenuList.tsx:160
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "僅限小寫字母、數字和連字符"
 
@@ -5544,8 +5544,8 @@ msgstr "段落"
 msgid "Parent"
 msgstr "父級"
 
-#: packages/admin/src/components/Redirects.tsx:509
-#: packages/admin/src/components/Redirects.tsx:515
+#: packages/admin/src/components/Redirects.tsx:510
+#: packages/admin/src/components/Redirects.tsx:516
 msgid "Part of a redirect loop"
 msgstr "重定向循環的一部分"
 
@@ -5618,7 +5618,7 @@ msgstr "通行密鑰需要 HTTPS 或 http://localhost（帶您的埠）；此主
 msgid "Paste your migration key"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:224
+#: packages/admin/src/components/Redirects.tsx:225
 msgid "Path"
 msgstr "路徑"
 
@@ -5645,7 +5645,7 @@ msgstr ""
 msgid "pending"
 msgstr "待處理"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:197
+#: packages/admin/src/components/comments/CommentInbox.tsx:198
 #: packages/admin/src/components/Dashboard.tsx:348
 msgid "Pending"
 msgstr "待處理"
@@ -5749,7 +5749,7 @@ msgstr "在您的 WordPress 站點上的插件。"
 msgid "Plugin Permissions"
 msgstr "插件權限"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:70
+#: packages/admin/src/components/RegistryBrowse.tsx:71
 msgid "Plugin Registry"
 msgstr ""
 
@@ -5774,12 +5774,12 @@ msgstr "插件已更新"
 msgid "Plugin widget error"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:225
+#: packages/admin/src/components/AdminCommandPalette.tsx:218
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/PluginManager.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:372
-#: packages/admin/src/components/Sidebar.tsx:499
+#: packages/admin/src/components/Sidebar.tsx:256
+#: packages/admin/src/components/Sidebar.tsx:391
 msgid "Plugins"
 msgstr "插件"
 
@@ -5843,7 +5843,7 @@ msgstr "預覽草稿"
 msgid "Previous"
 msgstr "上一步"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:352
+#: packages/admin/src/components/comments/CommentInbox.tsx:353
 #: packages/admin/src/components/ContentList.tsx:606
 msgid "Previous page"
 msgstr "上一頁"
@@ -5852,7 +5852,7 @@ msgstr "上一頁"
 msgid "Previous screenshot"
 msgstr "上一張截圖"
 
-#: packages/admin/src/components/MenuList.tsx:166
+#: packages/admin/src/components/MenuList.tsx:167
 msgid "Primary Navigation"
 msgstr "主導航"
 
@@ -5991,7 +5991,7 @@ msgstr "收件人郵箱"
 msgid "Recovery link sent to {0}"
 msgstr "恢復鏈接已發送至 {0}"
 
-#: packages/admin/src/components/Redirects.tsx:442
+#: packages/admin/src/components/Redirects.tsx:443
 msgid "Redirect loop detected"
 msgstr "檢測到重定向循環"
 
@@ -5999,9 +5999,9 @@ msgstr "檢測到重定向循環"
 msgid "Redirecting to login..."
 msgstr "正在重定向到登錄..."
 
-#: packages/admin/src/components/Redirects.tsx:358
-#: packages/admin/src/components/Redirects.tsx:377
-#: packages/admin/src/components/Sidebar.tsx:355
+#: packages/admin/src/components/Redirects.tsx:359
+#: packages/admin/src/components/Redirects.tsx:378
+#: packages/admin/src/components/Sidebar.tsx:229
 msgid "Redirects"
 msgstr "重定向"
 
@@ -6042,7 +6042,7 @@ msgstr ""
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "註冊已取消或超時。請重試。"
 
-#: packages/admin/src/components/Sidebar.tsx:378
+#: packages/admin/src/components/Sidebar.tsx:265
 msgid "Registry"
 msgstr ""
 
@@ -6344,11 +6344,11 @@ msgstr "同一視窗"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
-#: packages/admin/src/components/Redirects.tsx:190
+#: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/SaveButton.tsx:32
 #: packages/admin/src/components/settings/BackupSettings.tsx:192
 #: packages/admin/src/components/Widgets.tsx:966
-#: packages/admin/src/routes/bylines.tsx:580
+#: packages/admin/src/routes/bylines.tsx:579
 msgid "Save"
 msgstr "保存"
 
@@ -6404,7 +6404,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
-#: packages/admin/src/components/Redirects.tsx:187
+#: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/SaveButton.tsx:33
 #: packages/admin/src/components/settings/BackupSettings.tsx:192
 #: packages/admin/src/components/settings/GeneralSettings.tsx:120
@@ -6416,7 +6416,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:498
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:966
-#: packages/admin/src/routes/bylines.tsx:580
+#: packages/admin/src/routes/bylines.tsx:579
 msgid "Saving..."
 msgstr "保存中..."
 
@@ -6544,7 +6544,7 @@ msgid "Search by name or email..."
 msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:807
-#: packages/admin/src/routes/bylines.tsx:402
+#: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr ""
 
@@ -6552,11 +6552,11 @@ msgstr ""
 msgid "Search bylines to add..."
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:163
+#: packages/admin/src/components/comments/CommentInbox.tsx:164
 msgid "Search comments"
 msgstr "搜索評論"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:162
+#: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Search comments..."
 msgstr "搜索評論..."
 
@@ -6581,26 +6581,26 @@ msgstr ""
 msgid "Search media"
 msgstr "搜索媒體"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:437
+#: packages/admin/src/components/AdminCommandPalette.tsx:438
 msgid "Search pages and content..."
 msgstr "搜索頁面和內容..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:101
-#: packages/admin/src/components/RegistryBrowse.tsx:84
+#: packages/admin/src/components/RegistryBrowse.tsx:85
 msgid "Search plugins"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:97
-#: packages/admin/src/components/RegistryBrowse.tsx:80
+#: packages/admin/src/components/RegistryBrowse.tsx:81
 msgid "Search plugins..."
 msgstr "搜索插件..."
 
-#: packages/admin/src/components/SectionPickerModal.tsx:81
+#: packages/admin/src/components/SectionPickerModal.tsx:82
 #: packages/admin/src/components/Sections.tsx:226
 msgid "Search sections..."
 msgstr "搜索區塊..."
 
-#: packages/admin/src/components/Redirects.tsx:409
+#: packages/admin/src/components/Redirects.tsx:410
 msgid "Search source or destination..."
 msgstr "搜索源或目標..."
 
@@ -6658,9 +6658,9 @@ msgstr "未找到區塊"
 msgid "Section title"
 msgstr "區塊標題"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:183
+#: packages/admin/src/components/AdminCommandPalette.tsx:176
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:357
+#: packages/admin/src/components/Sidebar.tsx:234
 msgid "Sections"
 msgstr "區塊"
 
@@ -6711,7 +6711,7 @@ msgstr ""
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "安全錯誤。請確保您使用的是安全連接。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:249
+#: packages/admin/src/components/AdminCommandPalette.tsx:242
 #: packages/admin/src/components/Header.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:95
 msgid "Security Settings"
@@ -6742,7 +6742,7 @@ msgstr ""
 msgid "Select a menu..."
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:283
+#: packages/admin/src/components/comments/CommentInbox.tsx:284
 msgid "Select all"
 msgstr "全選"
 
@@ -6751,7 +6751,7 @@ msgid "Select all on this page"
 msgstr ""
 
 #. placeholder {0}: comment.authorName
-#: packages/admin/src/components/comments/CommentInbox.tsx:456
+#: packages/admin/src/components/comments/CommentInbox.tsx:457
 msgid "Select comment by {0}"
 msgstr "選擇 {0} 的評論"
 
@@ -6917,14 +6917,14 @@ msgstr "設置您的站點"
 msgid "Setting up..."
 msgstr "正在設置..."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:241
+#: packages/admin/src/components/AdminCommandPalette.tsx:234
 #: packages/admin/src/components/ContentEditor.tsx:809
 #: packages/admin/src/components/ContentEditor.tsx:1016
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:63
-#: packages/admin/src/components/Sidebar.tsx:402
+#: packages/admin/src/components/Sidebar.tsx:294
 #: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
 msgstr "設置"
@@ -7112,7 +7112,7 @@ msgstr "已跳過"
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:414
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:487
+#: packages/admin/src/routes/bylines.tsx:486
 msgid "Slug"
 msgstr "別名"
 
@@ -7168,12 +7168,12 @@ msgstr "排序主題"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:214
 #: packages/admin/src/components/PluginManager.tsx:497
-#: packages/admin/src/components/Redirects.tsx:466
+#: packages/admin/src/components/Redirects.tsx:467
 #: packages/admin/src/components/SectionEditor.tsx:281
 msgid "Source"
 msgstr "來源"
 
-#: packages/admin/src/components/Redirects.tsx:131
+#: packages/admin/src/components/Redirects.tsx:132
 msgid "Source path"
 msgstr "源路徑"
 
@@ -7182,8 +7182,8 @@ msgid "spam"
 msgstr "垃圾"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:159
-#: packages/admin/src/components/comments/CommentInbox.tsx:207
-#: packages/admin/src/components/comments/CommentInbox.tsx:247
+#: packages/admin/src/components/comments/CommentInbox.tsx:208
+#: packages/admin/src/components/comments/CommentInbox.tsx:248
 msgid "Spam"
 msgstr "垃圾"
 
@@ -7212,12 +7212,12 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:511
 #: packages/admin/src/components/ContentSettingsPanel.tsx:425
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
-#: packages/admin/src/components/Redirects.tsx:471
+#: packages/admin/src/components/Redirects.tsx:472
 #: packages/admin/src/components/users/UserList.tsx:104
 msgid "Status"
 msgstr "狀態"
 
-#: packages/admin/src/components/Redirects.tsx:151
+#: packages/admin/src/components/Redirects.tsx:152
 msgid "Status code"
 msgstr "狀態碼"
 
@@ -7300,7 +7300,7 @@ msgstr ""
 msgid "Tagline"
 msgstr "副標題"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:208
+#: packages/admin/src/components/AdminCommandPalette.tsx:201
 #: packages/admin/src/components/Widgets.tsx:141
 msgid "Tags"
 msgstr "標籤"
@@ -7392,7 +7392,7 @@ msgstr "鏈接將在 15 分鐘後過期。"
 msgid "The marketplace is empty. Check back later for new plugins."
 msgstr "市場爲空。請稍後查看新插件。"
 
-#: packages/admin/src/components/MenuList.tsx:75
+#: packages/admin/src/components/MenuList.tsx:76
 msgid "The menu has been deleted."
 msgstr "菜單已刪除。"
 
@@ -7449,7 +7449,7 @@ msgstr "主題提供的區塊無法刪除。編輯區塊以創建自定義副本
 msgid "Theme: {label}"
 msgstr "主題：{label}"
 
-#: packages/admin/src/components/Sidebar.tsx:394
+#: packages/admin/src/components/Sidebar.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "主題"
@@ -7504,7 +7504,7 @@ msgstr "此插件不需要特殊權限。"
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:581
+#: packages/admin/src/components/Redirects.tsx:582
 msgid "This redirect rule will be permanently removed."
 msgstr "此重定向規則將被永久移除。"
 
@@ -7512,7 +7512,7 @@ msgstr "此重定向規則將被永久移除。"
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:624
+#: packages/admin/src/routes/bylines.tsx:623
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr ""
 
@@ -7550,7 +7550,7 @@ msgstr "這將永久刪除「{0}」並將其從所有內容中移除。"
 msgid "This will permanently delete \"{0}\". This action cannot be undone."
 msgstr "這將永久刪除「{0}」。此操作無法撤銷。"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:406
+#: packages/admin/src/components/comments/CommentInbox.tsx:407
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "這將永久刪除此評論。此操作無法撤銷。"
 
@@ -7595,7 +7595,7 @@ msgstr "標題分隔符"
 msgid "to"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:482
+#: packages/admin/src/components/AdminCommandPalette.tsx:483
 msgid "to close"
 msgstr "關閉"
 
@@ -7607,7 +7607,7 @@ msgstr ""
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr "以安裝插件，或將它們添加到您的 astro.config.mjs。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:472
+#: packages/admin/src/components/AdminCommandPalette.tsx:473
 msgid "to select"
 msgstr "選擇"
 
@@ -7682,9 +7682,9 @@ msgid "trash"
 msgstr "回收站"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:170
-#: packages/admin/src/components/comments/CommentInbox.tsx:216
-#: packages/admin/src/components/comments/CommentInbox.tsx:257
-#: packages/admin/src/components/comments/CommentInbox.tsx:513
+#: packages/admin/src/components/comments/CommentInbox.tsx:217
+#: packages/admin/src/components/comments/CommentInbox.tsx:258
+#: packages/admin/src/components/comments/CommentInbox.tsx:514
 #: packages/admin/src/components/ContentList.tsx:375
 msgid "Trash"
 msgstr "回收站"
@@ -7693,7 +7693,7 @@ msgstr "回收站"
 msgid "Trash is empty"
 msgstr "回收站爲空"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:549
+#: packages/admin/src/components/comments/CommentInbox.tsx:550
 msgid "Trash is empty."
 msgstr "回收站爲空。"
 
@@ -7710,7 +7710,7 @@ msgid "Try a different search term"
 msgstr "嘗試其他搜索詞"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:172
-#: packages/admin/src/components/SectionPickerModal.tsx:102
+#: packages/admin/src/components/SectionPickerModal.tsx:103
 msgid "Try adjusting your search"
 msgstr "嘗試調整您的搜索"
 
@@ -7910,7 +7910,7 @@ msgstr "更新網站設置"
 msgid "Update the {0} details"
 msgstr "更新 {0} 詳情"
 
-#: packages/admin/src/components/Redirects.tsx:109
+#: packages/admin/src/components/Redirects.tsx:110
 msgid "Update this redirect rule."
 msgstr "更新此重定向規則。"
 
@@ -8053,7 +8053,7 @@ msgstr ""
 msgid "URL-friendly identifier"
 msgstr "URL 友好的標識符"
 
-#: packages/admin/src/components/MenuList.tsx:162
+#: packages/admin/src/components/MenuList.tsx:163
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 msgstr "URL 友好的標識符（例如：\"primary\"、\"footer\"）"
 
@@ -8061,7 +8061,7 @@ msgstr "URL 友好的標識符（例如：\"primary\"、\"footer\"）"
 msgid "URL:"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:110
+#: packages/admin/src/components/Redirects.tsx:111
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "在路徑中使用 [param] 或 [...rest] 進行模式匹配。"
 
@@ -8118,8 +8118,8 @@ msgstr "用戶詳情"
 msgid "User not found"
 msgstr "未找到用戶"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:217
-#: packages/admin/src/components/Sidebar.tsx:371
+#: packages/admin/src/components/AdminCommandPalette.tsx:210
+#: packages/admin/src/components/Sidebar.tsx:253
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "用戶"
@@ -8142,7 +8142,7 @@ msgstr "v{0} 可用"
 msgid "Validation"
 msgstr "驗證"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:186
+#: packages/admin/src/components/RegistryBrowse.tsx:187
 #: packages/admin/src/components/RegistryPluginDetail.tsx:449
 msgid "Verified publisher"
 msgstr ""
@@ -8215,7 +8215,7 @@ msgstr ""
 msgid "View the {license} license on spdx.org"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:448
+#: packages/admin/src/components/Redirects.tsx:449
 msgid "Visitors hitting these paths will see an error."
 msgstr "訪問這些路徑的訪問者將看到錯誤。"
 
@@ -8267,7 +8267,7 @@ msgstr "此瀏覽器不支持 WebAuthn"
 msgid "Website"
 msgstr "網站"
 
-#: packages/admin/src/routes/bylines.tsx:492
+#: packages/admin/src/routes/bylines.tsx:491
 msgid "Website URL"
 msgstr ""
 
@@ -8368,9 +8368,9 @@ msgstr ""
 msgid "Widget updated"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:175
+#: packages/admin/src/components/AdminCommandPalette.tsx:168
 #: packages/admin/src/components/PluginManager.tsx:379
-#: packages/admin/src/components/Sidebar.tsx:356
+#: packages/admin/src/components/Sidebar.tsx:233
 #: packages/admin/src/components/Widgets.tsx:385
 #: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "Widgets"
@@ -8451,7 +8451,7 @@ msgstr "您可以創建和編輯自己的內容。"
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "您可以管理內容、媒體、菜單和分類。"
 
-#: packages/admin/src/routes/bylines.tsx:550
+#: packages/admin/src/routes/bylines.tsx:549
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr ""
 
