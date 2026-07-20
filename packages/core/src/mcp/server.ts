@@ -17,6 +17,7 @@ import { z } from "zod";
 import {
 	bylineCreateBody,
 	bylineUpdateBody,
+	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
 } from "#api/schemas.js";
@@ -1824,9 +1825,8 @@ export function createMcpServer(): McpServer {
 				"caller is responsible for placing the file at `storageKey` (typically " +
 				"using a signed upload URL obtained from the admin UI or a separate API). " +
 				"This tool persists the metadata record so the file is discoverable via " +
-				"media_list / media_get and can be referenced by content. For binary " +
-				"uploads the MCP transport is not appropriate — use the signed-upload " +
-				"flow instead.",
+				"media_list / media_get and can be referenced by content. To upload the " +
+				"file itself, use media_upload (base64 data or a public URL) instead.",
 			inputSchema: z.object({
 				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
 				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
@@ -1860,6 +1860,70 @@ export function createMcpServer(): McpServer {
 					authorId: userId,
 				}),
 			);
+		},
+	);
+
+	server.registerTool(
+		"media_upload",
+		{
+			title: "Upload Media",
+			description:
+				"Upload a media file from base64-encoded data or an external URL and " +
+				"register it in the media library. Returns the media item with id, " +
+				"storageKey, and url — ready to reference from content fields (e.g. " +
+				"featured_image) via content_create / content_update. Uploads are " +
+				"deduplicated by content hash: re-uploading identical bytes returns " +
+				"the existing item with deduplicated: true. URL fetches must resolve " +
+				"to a public http(s) host (SSRF-guarded). Subject to the global " +
+				"upload MIME allowlist and the configured maximum upload size.",
+			inputSchema: z.object({
+				filename: z.string().min(1).describe("Filename including extension (e.g. 'cover.png')"),
+				base64: z
+					.string()
+					.optional()
+					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
+				url: z
+					.string()
+					.url()
+					.optional()
+					.describe(
+						"Public http(s) URL to fetch the file from. Provide exactly one of base64 / url.",
+					),
+				contentType: z
+					.string()
+					.regex(CONTENT_TYPE_RE, "Invalid content type")
+					.optional()
+					.describe(
+						"MIME type (e.g. 'image/png'). Required with base64; with url it " +
+							"defaults to the response's Content-Type header.",
+					),
+				alt: z.string().optional().describe("Alt text for accessibility"),
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "media:write");
+			requireRole(extra, Role.CONTRIBUTOR);
+			const { emdash, userId } = getExtra(extra);
+			if (!emdash.storage) {
+				return respondError("NO_STORAGE", "Storage not configured");
+			}
+			try {
+				const { handleMediaUpload } = await import("../api/handlers/media-upload.js");
+				return unwrap(
+					await handleMediaUpload(emdash.db, emdash.storage, {
+						filename: args.filename,
+						base64: args.base64,
+						url: args.url,
+						contentType: args.contentType,
+						alt: args.alt,
+						authorId: userId,
+						maxUploadSize: emdash.config.maxUploadSize,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "UPLOAD_ERROR");
+			}
 		},
 	);
 
