@@ -36,6 +36,7 @@ export default defineConfig({
 					items: [
 						{ label: "Introduction", slug: "introduction" },
 						{ label: "Getting Started", slug: "getting-started" },
+						{ label: "Add to an Existing Project", slug: "existing-project" },
 						{ label: "Why EmDash?", slug: "why-emdash" },
 						{ label: "Docs MCP for AI Tools", slug: "docs-mcp" },
 					],
