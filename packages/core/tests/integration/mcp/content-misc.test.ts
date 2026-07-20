@@ -508,6 +508,21 @@ describe("soft-delete visibility", () => {
 		expect(items).toHaveLength(1);
 		expect(items[0]?.id).toBe(extractJson<{ item: { id: string } }>(b).item.id);
 	});
+});
+
+describe("content_list search", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
 
 	it("content_list filters by the q search parameter", async () => {
 		const apple = await harness.client.callTool({
