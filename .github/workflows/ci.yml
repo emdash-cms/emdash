@@ -155,7 +155,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
       - run: pnpm --filter emdash exec vitest run --config vitest.smoke.config.ts
         env:
           DATABASE_URL: postgres://postgres:test@localhost:5432/emdash_smoke
@@ -174,7 +173,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
       - run: pnpm --filter emdash exec vitest run --config vitest.integration.config.ts
 
   test-browser:

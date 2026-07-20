@@ -24,6 +24,14 @@
 			"bucket_name": "emdash-flue-review-workspace",
 		},
 	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "REVIEW_WATCHDOG",
+				"class_name": "ReviewWatchdog",
+			},
+		],
+	},
 	// Migration history must stay append-only and keep every previously applied
 	// tag so Cloudflare can locate the deployed cursor and apply only what's new.
 	// The live worker's cursor is `flue-class-ReviewWorkflow` (it has Sandbox,
@@ -74,6 +82,18 @@
 		{
 			"tag": "v5-remove-sandbox",
 			"deleted_classes": ["Sandbox"],
+		},
+		{
+			"tag": "v6-review-watchdog",
+			"new_sqlite_classes": ["ReviewWatchdog"],
+		},
+		{
+			"tag": "v7-reset-registry-drop-v2",
+			"deleted_classes": ["FlueRegistry"],
+		},
+		{
+			"tag": "v8-reset-registry-new-v2",
+			"new_sqlite_classes": ["FlueRegistry"],
 		},
 	],
 	"vars": {

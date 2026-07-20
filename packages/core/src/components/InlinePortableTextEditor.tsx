@@ -1864,44 +1864,65 @@ export function InlinePortableTextEditor({
 		return pmToPortableText(json);
 	}, []);
 
-	const save = React.useCallback(async () => {
-		if (savingRef.current) return;
+	const save = React.useCallback(
+		async (options?: { keepalive?: boolean }) => {
+			// A pagehide flush must not be skipped: an in-flight blur save is
+			// cancelled by the navigation, so the keepalive request is the only
+			// one that can still land (#1582).
+			if (savingRef.current && !options?.keepalive) return;
 
-		const current = JSON.stringify(getBlocks());
-		const initial = JSON.stringify(initialRef.current);
-		if (current === initial) return;
+			const current = JSON.stringify(getBlocks());
+			const initial = JSON.stringify(initialRef.current);
+			if (current === initial) return;
 
-		savingRef.current = true;
-		try {
-			const res = await fetch(
-				`/_emdash/api/content/${encodeURIComponent(collection)}/${encodeURIComponent(entryId)}`,
-				{
-					method: "PUT",
-					credentials: "same-origin",
-					headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
-					body: JSON.stringify({ data: { [field]: getBlocks() } }),
-				},
-			);
-
-			if (res.ok) {
-				initialRef.current = getBlocks();
-				document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "saved" } }));
-				document.dispatchEvent(
-					new CustomEvent("emdash:content-changed", {
-						detail: { collection, id: entryId },
-					}),
+			savingRef.current = true;
+			try {
+				const res = await fetch(
+					`/_emdash/api/content/${encodeURIComponent(collection)}/${encodeURIComponent(entryId)}`,
+					{
+						method: "PUT",
+						credentials: "same-origin",
+						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+						body: JSON.stringify({ data: { [field]: getBlocks() } }),
+						keepalive: options?.keepalive ?? false,
+					},
 				);
-			} else {
+
+				if (res.ok) {
+					initialRef.current = getBlocks();
+					document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "saved" } }));
+					document.dispatchEvent(
+						new CustomEvent("emdash:content-changed", {
+							detail: { collection, id: entryId },
+						}),
+					);
+				} else {
+					document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "error" } }));
+					console.error("Save failed:", res.status);
+				}
+			} catch (err) {
 				document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "error" } }));
-				console.error("Save failed:", res.status);
+				console.error("Save failed:", err);
+			} finally {
+				savingRef.current = false;
 			}
-		} catch (err) {
-			document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "error" } }));
-			console.error("Save failed:", err);
-		} finally {
-			savingRef.current = false;
-		}
-	}, [collection, entryId, field, getBlocks]);
+		},
+		[collection, entryId, field, getBlocks],
+	);
+
+	// Flush unsaved edits when the page goes away (browser back/forward,
+	// link click, tab close). The blur handler doesn't cover this: unload
+	// doesn't reliably fire React blur, and a plain fetch started during
+	// unload is cancelled by the navigation — edits were silently lost
+	// (#1582). `keepalive` lets the PUT outlive the page.
+	// Caveat: keepalive caps the body at 64KB — a very long document
+	// can still be lost on unload. Upgrade path: debounced autosave
+	// while typing (like the admin editor) so unload flushes are rare.
+	React.useEffect(() => {
+		const flush = () => void save({ keepalive: true });
+		window.addEventListener("pagehide", flush);
+		return () => window.removeEventListener("pagehide", flush);
+	}, [save]);
 
 	// Create slash commands extension once — uses refs to avoid re-render loop
 	const slashCommandsExtension = React.useMemo(
