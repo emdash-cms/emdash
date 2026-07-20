@@ -1,0 +1,23 @@
+.changeset/visible-editor-toolbar-states.md
+  s_0dacf3e2fa197f::t_4dad47780e3a71 5
+packages/admin/src/components/PortableTextEditor.tsx
+  s_0dacf3e2fa197f::t_ba0969a9eeb657 96,3279-3320,3348-3367
+packages/admin/tests/editor/toolbar.test.tsx
+  s_0dacf3e2fa197f::t_29f4e81e85c3e4 2,149-177,581-809
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c90c85bff0c7b7082898b5f42b38ef1d41566b2a",
+  "prompts": {},
+  "sessions": {
+    "s_0dacf3e2fa197f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8113-f0b1-7860-8e34-11d09e5add7e",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
