@@ -172,6 +172,7 @@ import { getDb } from "./loader.js";
 import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
+import { createSmtpEmailDeliver, loadSmtpConfigFromEnv, SMTP_EMAIL_PLUGIN_ID } from "./plugins/email-smtp.js";
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
@@ -1295,6 +1296,33 @@ export class EmDashRuntime {
 				enabledPlugins.add(devConsolePlugin.id);
 			} catch (error) {
 				console.warn("[email] Failed to register dev console email provider:", error);
+			}
+		}
+
+		// Register built-in SMTP email provider when EMAIL_SMTP_* env vars are
+		// present. This is the only transport that works with generic SMTP
+		// credentials (Brevo relay, Office365, Fastmail, self-hosted Postfix)
+		// because sandboxed plugins cannot open TCP sockets. Registered as a
+		// built-in so it participates in exclusive hook resolution like any
+		// other provider — explicitly-selected plugin transports still win.
+		const smtpConfig = loadSmtpConfigFromEnv();
+		if (smtpConfig) {
+			try {
+				const smtpPlugin = definePlugin({
+					id: SMTP_EMAIL_PLUGIN_ID,
+					version: "1.0.0",
+					capabilities: ["hooks.email-transport:register"],
+					hooks: {
+						"email:deliver": {
+							exclusive: true,
+							handler: createSmtpEmailDeliver(smtpConfig),
+						},
+					},
+				});
+				allPipelinePlugins.push(smtpPlugin);
+				enabledPlugins.add(smtpPlugin.id);
+			} catch (error) {
+				console.warn("[email] Failed to register SMTP email provider:", error);
 			}
 		}
 
