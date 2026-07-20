@@ -10,6 +10,7 @@
 import type { Kysely } from "kysely";
 
 import { OptionsRepository } from "../../database/repositories/options.js";
+import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import type { SandboxedPluginEntry } from "../../emdash-runtime.js";
 import type { ResolvedPlugin, SettingField } from "../../plugins/types.js";
@@ -188,16 +189,23 @@ export async function handlePluginSettingsUpdate(
 			}
 		}
 
-		const optionsRepo = new OptionsRepository(db);
-		for (const [key, value] of Object.entries(updates)) {
-			if (value === null) {
-				await optionsRepo.delete(settingsKey(pluginId, key));
-			} else {
-				await optionsRepo.set(settingsKey(pluginId, key), value);
+		// Wrap the writes + read-back in a transaction so a partial failure
+		// can't leave some settings updated and others not. On D1
+		// withTransaction degrades to running the callback directly — D1 is
+		// single-writer, so per-statement atomicity still holds.
+		const data = await withTransaction(db, async (trx) => {
+			const txRepo = new OptionsRepository(trx);
+			for (const [key, value] of Object.entries(updates)) {
+				if (value === null) {
+					await txRepo.delete(settingsKey(pluginId, key));
+				} else {
+					await txRepo.set(settingsKey(pluginId, key), value);
+				}
 			}
-		}
+			return buildSettingsResponse(txRepo, pluginId, schema);
+		});
 
-		return { success: true, data: await buildSettingsResponse(optionsRepo, pluginId, schema) };
+		return { success: true, data };
 	} catch {
 		return {
 			success: false,
