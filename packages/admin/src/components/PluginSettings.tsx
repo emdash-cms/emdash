@@ -303,27 +303,27 @@ function SettingFieldInput({
 				</div>
 			);
 
-	case "select": {
-		// Kumo Select.items is a value->label record, not {value,label}[].
-		const items: Record<string, string> = {};
-		for (const option of field.options) {
-			items[option.value] = option.label;
+		case "select": {
+			// Kumo Select.items is a value->label record, not {value,label}[].
+			const items: Record<string, string> = {};
+			for (const option of field.options) {
+				items[option.value] = option.label;
+			}
+			return (
+				<Select
+					label={field.label}
+					value={typeof value === "string" ? value : (field.default ?? "")}
+					onValueChange={(v) => v !== null && onChange(v)}
+					items={items}
+				>
+					{field.options.map((option) => (
+						<Select.Option key={option.value} value={option.value}>
+							{option.label}
+						</Select.Option>
+					))}
+				</Select>
+			);
 		}
-		return (
-			<Select
-				label={field.label}
-				value={typeof value === "string" ? value : (field.default ?? "")}
-				onValueChange={(v) => v !== null && onChange(v)}
-				items={items}
-			>
-				{field.options.map((option) => (
-					<Select.Option key={option.value} value={option.value}>
-						{option.label}
-					</Select.Option>
-				))}
-			</Select>
-		);
-	}
 
 		case "secret":
 			return (
