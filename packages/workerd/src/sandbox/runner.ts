@@ -292,7 +292,12 @@ function isTokenClaims(value: unknown): value is PluginTokenClaims {
 export class WorkerdSandboxRunner implements SandboxRunner {
 	private options: SandboxOptions;
 	private limits: ResolvedLimits;
-	private siteInfo?: { name: string; url: string; locale: string; trailingSlash?: "always" | "never" | "ignore" };
+	private siteInfo?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 
 	/** Loaded plugins indexed by pluginId (manifest.id:manifest.version) */
 	private plugins = new Map<string, LoadedPlugin>();
