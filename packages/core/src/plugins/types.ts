@@ -1162,6 +1162,15 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 	request: Request;
 	/** Normalized request metadata (IP, user agent, geo) */
 	requestMeta: RequestMeta;
+	/**
+	 * The unparsed request body as a UTF-8 decoded string. Only populated when
+	 * the route sets `rawBody: true` — needed to verify webhook signatures,
+	 * which are computed over the delivered payload (a re-serialized
+	 * `ctx.input` never matches, since whitespace and key order don't survive
+	 * a parse/stringify round-trip). Webhook payloads are UTF-8 text in
+	 * practice; binary bodies are not preserved byte-exactly.
+	 */
+	rawBody?: string;
 }
 
 /**
@@ -1175,6 +1184,12 @@ export interface PluginRoute<TInput = unknown> {
 	 * Public routes skip session/token auth and CSRF checks.
 	 */
 	public?: boolean;
+	/**
+	 * Expose the unparsed request body as `ctx.rawBody`, alongside the parsed
+	 * `ctx.input`. Opt-in so the body string is only retained where a handler
+	 * actually needs it (webhook signature verification, non-JSON payloads).
+	 */
+	rawBody?: boolean;
 	/** Route handler */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
 }

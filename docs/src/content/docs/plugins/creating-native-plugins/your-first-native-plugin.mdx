@@ -151,6 +151,29 @@ Key details of this configuration:
 - **`id`, `version`, and `capabilities` appear twice.** Once on the descriptor, once on `definePlugin()`. They should match. The descriptor's copy is what `astro.config.mjs` sees at build time; the `definePlugin()` copy is what runs at request time.
 - **Native route handlers take a single argument** — `(ctx: RouteContext)` where `ctx.input`, `ctx.request`, and `ctx.requestMeta` are merged with the regular `PluginContext` properties. This is the opposite of standard format's two-argument shape. See [API routes](/plugins/creating-plugins/api-routes/) for the full surface (everything else is identical).
 
+## Raw request bodies (webhook signatures)
+
+The dispatcher parses the request body before your handler runs and exposes it as `ctx.input`; the body stream is consumed, so `ctx.request.text()` is unavailable. That's fine for normal routes — but webhook providers (Stripe, GitHub, Svix, …) sign the payload _exactly as delivered_, and an HMAC computed over a re-serialized `ctx.input` will never match (whitespace and key order don't survive a parse/stringify round-trip).
+
+Routes that need the unparsed body opt in with `rawBody: true`:
+
+```typescript
+routes: {
+	"webhooks/provider": {
+		public: true,
+		rawBody: true,
+		handler: async (ctx) => {
+			const signature = ctx.request.headers.get("X-Signature") ?? "";
+			await verifyHmac(ctx.rawBody ?? "", signature, secret); // throw on mismatch
+			const event = JSON.parse(ctx.rawBody ?? "{}");
+			// ...
+		},
+	},
+},
+```
+
+`ctx.rawBody` is the delivered body as a UTF-8 decoded string — webhook payloads are UTF-8 text in practice, so signature libraries that accept a string (or `new TextEncoder().encode(ctx.rawBody)`) work directly; binary bodies are not preserved byte-exactly. `ctx.input` still works as usual (parsed from the same buffer). Non-JSON payloads — e.g. form-encoded webhook deliveries — arrive with `ctx.input` undefined but `ctx.rawBody` intact, so the handler can parse them itself. The flag is native-format only; sandboxed plugins receive requests across a serialization boundary and don't support it yet.
+
 ## Plugin id rules
 
 The `id` field must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The id is used as a single path segment in plugin route URLs and as part of generated SQL identifiers for plugin storage indexes, so anything outside that pattern fails at runtime. The following values show which ids are accepted:

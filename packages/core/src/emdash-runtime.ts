@@ -3353,14 +3353,20 @@ export class EmDashRuntime {
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
+			// Buffer the body as text so routes with `rawBody: true` can see the
+			// payload exactly as delivered — as a UTF-8 decoded string, which is
+			// what webhook signature verification needs in practice; parse JSON
+			// from the same buffer for `ctx.input`.
 			let body: unknown = undefined;
+			let rawBody: string | undefined;
 			try {
-				body = await request.json();
+				rawBody = await request.text();
+				if (rawBody) body = JSON.parse(rawBody);
 			} catch {
-				// No body or not JSON
+				// No body or not JSON — rawBody (when read) is still passed through
 			}
 
-			return routeRegistry.invoke(pluginId, routeKey, { request, body });
+			return routeRegistry.invoke(pluginId, routeKey, { request, body, rawBody });
 		}
 
 		// Check sandboxed (marketplace) plugins second
