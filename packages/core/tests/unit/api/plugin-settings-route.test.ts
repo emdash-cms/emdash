@@ -108,6 +108,34 @@ describe("plugin settings route", () => {
 		expect("secretKey" in body.values).toBe(false);
 	});
 
+	it("GET resolves a runtime-installed (marketplace) plugin via the runtime schema fallback", async () => {
+		// The plugin is not in configuredPlugins/sandboxedPluginEntries, so the
+		// static lookup misses and the route must fall back to
+		// getRuntimePluginSettingsSchema — the fix for runtime-installed plugins.
+		const runtimeLocals = {
+			emdash: {
+				db,
+				configuredPlugins: [],
+				sandboxedPluginEntries: [],
+				getRuntimePluginSettingsSchema: (id: string) => (id === "emdash-forms" ? SCHEMA : null),
+			},
+			user: { id: "u1", role: Role.ADMIN },
+		};
+		const ctx = {
+			params: { id: "emdash-forms" },
+			request: new Request("http://localhost/_emdash/api/admin/plugins/emdash-forms/settings"),
+			locals: runtimeLocals,
+		} as unknown as Parameters<typeof settingsGet>[0];
+
+		const response = await settingsGet(ctx);
+		expect(response.status).toBe(200);
+		const { data: body } = (await response.json()) as {
+			data: { schema: Record<string, unknown>; secretsSet: Record<string, boolean> };
+		};
+		expect(Object.keys(body.schema)).toEqual(["siteKey", "secretKey"]);
+		expect(body.secretsSet).toEqual({ secretKey: false });
+	});
+
 	it("PUT requires plugins:manage and persists values", async () => {
 		const put = (user: { id: string; role: number } | null) =>
 			settingsPut(
