@@ -51,6 +51,15 @@ export function isStartsWithFilter(value: WhereValue): value is StartsWithFilter
 }
 
 /**
+ * Escape LIKE pattern metacharacters so a startsWith prefix matches
+ * literally. Without this, `%` and `_` in the prefix act as wildcards
+ * (e.g. `{ startsWith: "50%" }` would match "50x off").
+ */
+export function escapeLikePattern(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+
+/**
  * Get the set of indexed fields from index declarations
  */
 export function getIndexedFields(indexes: Array<string | string[]>): Set<string> {
@@ -152,9 +161,10 @@ export function buildCondition(
 	}
 
 	if (isStartsWithFilter(value)) {
+		// ESCAPE '\' works on both SQLite and PostgreSQL.
 		return {
-			sql: `${extract} LIKE ?`,
-			params: [`${value.startsWith}%`],
+			sql: `${extract} LIKE ? ESCAPE '\\'`,
+			params: [`${escapeLikePattern(value.startsWith)}%`],
 		};
 	}
 

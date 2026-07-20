@@ -48,6 +48,15 @@ export interface DatabaseDescriptor {
 	 * the middleware takes its default (singleton) path.
 	 */
 	supportsRequestScope?: boolean;
+	/**
+	 * When true, the adapter's runtime entrypoint MUST export a named
+	 * `createCoalescingDialect` function. The runtime uses this fresh dialect
+	 * only for its cold-start read batch.
+	 *
+	 * When false or absent, the virtual module exports `undefined` without
+	 * inspecting an optional entrypoint export.
+	 */
+	supportsCoalescing?: boolean;
 }
 
 export interface SqliteConfig {

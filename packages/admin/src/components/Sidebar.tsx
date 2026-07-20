@@ -268,6 +268,29 @@ function NavIcon({ icon: Icon, className }: { icon: React.ElementType; className
 	);
 }
 
+/**
+ * Resolve the display label for a plugin admin page (sidebar + command
+ * palette). Declared labels are run through the shared Lingui instance:
+ * plugins that load their own catalog — with the English label as msgid —
+ * get localized nav items. The catalog is shared with the admin, so common
+ * labels like "Settings" pick up the admin's own translations even without
+ * a plugin catalog (deliberate: a localized admin shouldn't show stray
+ * English nav items). Labels with no catalog entry anywhere fall back to
+ * the literal string. Pages without a label prettify the plugin id
+ * ("my-shop" → "My Shop").
+ */
+export function resolvePluginPageLabel(
+	label: string | undefined,
+	pluginId: string,
+	translate: (id: string) => string,
+): string {
+	if (label) return translate(label);
+	return pluginId
+		.split("-")
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+		.join(" ");
+}
+
 /** Resolves a nav item's route path by substituting $param placeholders. */
 function resolveItemPath(item: NavItem): string {
 	let path = item.to;
@@ -290,7 +313,7 @@ function isItemActive(itemPath: string, currentPath: string): boolean {
  * Admin sidebar navigation using kumo's Sidebar compound component.
  */
 export function SidebarNav({ manifest }: SidebarNavProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const location = useLocation();
 	const currentPath = location.pathname;
 	const pluginAdmins = usePluginAdmins();
@@ -387,12 +410,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const isBlocksMode = config.adminMode === "blocks";
 			for (const page of config.adminPages) {
 				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
-				const label =
-					page.label ||
-					pluginId
-						.split("-")
-						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-						.join(" ");
+				const label = resolvePluginPageLabel(page.label, pluginId, (id) => i18n._(id));
 				pluginItems.push({
 					to: `/plugins/${pluginId}${page.path}`,
 					label,
@@ -417,10 +435,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	return (
 		<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
-			<KumoSidebar.Header>
+			<KumoSidebar.Header className="px-[11px] transition-[padding] duration-(--sidebar-animation-duration) motion-reduce:transition-none group-not-data-[state=collapsed]/sidebar:px-3.5">
 				<Link
 					to="/"
-					className="flex w-full min-w-0 items-center gap-2 px-3 py-1 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
+					className="flex w-[calc(var(--sidebar-width)-1.75rem)] shrink-0 items-center gap-2 overflow-hidden py-1 ps-2.5 group-data-[state=collapsed]/sidebar:-translate-x-[3px] rtl:group-data-[state=collapsed]/sidebar:translate-x-[3px]"
 				>
 					<BrandIcon
 						logoUrl={manifest.admin?.logo}
@@ -428,8 +446,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						className="size-5 shrink-0"
 						aria-hidden="true"
 					/>
-					<span className="font-semibold truncate group-data-[state=collapsed]/sidebar:hidden">
-						{manifest.admin?.siteName || "EmDash"}
+					<span className="grid min-w-0 flex-1 grid-cols-[1fr] transition-[grid-template-columns] duration-(--sidebar-animation-duration) ease-(--sidebar-easing) motion-reduce:transition-none group-data-[state=collapsed]/sidebar:grid-cols-[0fr]">
+						<span className="min-w-0 overflow-hidden">
+							<span className="block w-[calc(var(--sidebar-width)-4.5rem)] truncate font-semibold">
+								{manifest.admin?.siteName || "EmDash"}
+							</span>
+						</span>
 					</span>
 				</Link>
 			</KumoSidebar.Header>
@@ -480,11 +502,14 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				)}
 			</KumoSidebar.Content>
 
-			<KumoSidebar.Footer>
-				<p className="px-3 py-2 text-[11px] text-kumo-subtle group-data-[state=collapsed]/sidebar:hidden">
-					{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-					{manifest.commit && ` (${manifest.commit})`}
-				</p>
+			<KumoSidebar.Footer className="gap-0">
+				<KumoSidebar.Trigger className="rtl:rotate-180" />
+				<div className="min-w-0 flex-1 overflow-hidden">
+					<p className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle">
+						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
+						{manifest.commit && ` (${manifest.commit})`}
+					</p>
+				</div>
 			</KumoSidebar.Footer>
 		</KumoSidebar>
 	);

@@ -274,7 +274,7 @@ function RootComponent() {
 	});
 
 	if (isLoading) {
-		return <LoadingScreen />;
+		return <ConfigurationLoadingScreen />;
 	}
 
 	if (error || !manifest) {
@@ -2121,6 +2121,22 @@ declare module "@tanstack/react-router" {
 }
 
 // Shared components
+
+export function ConfigurationLoadingScreen() {
+	const { t } = useLingui();
+	return (
+		<div className="emdash-configuration-loader">
+			<div className="loader-inner">
+				<div
+					className="spinner emdash-configuration-spinner"
+					role="status"
+					aria-label={t`Loading`}
+				/>
+				<p className="emdash-configuration-label">{t`Loading configuration...`}</p>
+			</div>
+		</div>
+	);
+}
 
 function LoadingScreen() {
 	const { t } = useLingui();

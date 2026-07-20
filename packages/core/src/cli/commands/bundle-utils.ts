@@ -9,6 +9,7 @@ import { createWriteStream } from "node:fs";
 import { readdir, stat, access } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { pipeline } from "node:stream/promises";
+import { pathToFileURL } from "node:url";
 
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
@@ -19,6 +20,7 @@ import type {
 	ResolvedPlugin,
 	HookName,
 	ManifestHookEntry,
+	ManifestRouteEntry,
 } from "../../plugins/types.js";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -105,6 +107,11 @@ export async function fileExists(path: string): Promise<boolean> {
 	}
 }
 
+/** Convert an absolute build artifact path into a portable ESM import specifier. */
+export function toFileImportSpecifier(path: string): string {
+	return pathToFileURL(path).href;
+}
+
 // ── Image dimension readers ──────────────────────────────────────────────────
 
 /**
@@ -157,7 +164,15 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		allowedHosts: plugin.allowedHosts,
 		storage: plugin.storage,
 		hooks,
-		routes: Object.keys(plugin.routes),
+		// Emit structured entries when a route carries metadata the host needs
+		// for auth/caching decisions (public, cacheControl); plain names otherwise.
+		routes: Object.entries(plugin.routes).map(([name, route]) => {
+			if (!route.public && !route.cacheControl) return name;
+			const entry: ManifestRouteEntry = { name };
+			if (route.public) entry.public = true;
+			if (route.cacheControl) entry.cacheControl = route.cacheControl;
+			return entry;
+		}),
 		admin: {
 			// Omit entry (it's a module specifier for the host, not relevant in bundles)
 			settingsSchema: plugin.admin.settingsSchema,

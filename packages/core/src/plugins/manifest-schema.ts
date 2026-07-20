@@ -137,6 +137,7 @@ const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
 const manifestRouteEntrySchema = z.object({
 	name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
 	public: z.boolean().optional(),
+	cacheControl: z.string().min(1).optional(),
 });
 
 // ── Sub-schemas ─────────────────────────────────────────────────
@@ -349,9 +350,12 @@ export function normalizeManifestHook(
 /**
  * Normalize a manifest route entry — plain strings become `{ name }` objects.
  */
-export function normalizeManifestRoute(entry: string | { name: string; public?: boolean }): {
+export function normalizeManifestRoute(
+	entry: string | { name: string; public?: boolean; cacheControl?: string },
+): {
 	name: string;
 	public?: boolean;
+	cacheControl?: string;
 } {
 	if (typeof entry === "string") {
 		return { name: entry };

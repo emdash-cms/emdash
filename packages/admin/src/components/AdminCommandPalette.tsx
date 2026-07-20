@@ -8,6 +8,7 @@
 import { CommandPalette } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
+import { useLingui as useLinguiContext } from "@lingui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
 	SquaresFour,
@@ -30,6 +31,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { apiFetch, type AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
+import { resolvePluginPageLabel } from "./Sidebar";
 
 /** Subset of manifest fields used by the palette (matches `Shell` props shape). */
 type CommandPaletteManifest = {
@@ -124,7 +126,11 @@ async function searchContent(query: string): Promise<SearchResponse> {
 	return body.data;
 }
 
-function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavItem[] {
+function buildNavItems(
+	manifest: CommandPaletteManifest,
+	userRole: number,
+	translateLabel: (id: string) => string,
+): NavItem[] {
 	const items: NavItem[] = [
 		{
 			id: "dashboard",
@@ -253,12 +259,9 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		if (config.enabled === false) continue;
 		if (config.adminPages && config.adminPages.length > 0) {
 			for (const page of config.adminPages) {
-				const label =
-					page.label ||
-					pluginId
-						.split("-")
-						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-						.join(" ");
+				// Same treatment as the sidebar: declared labels go through the
+				// shared i18n instance so plugin catalogs can localize them.
+				const label = resolvePluginPageLabel(page.label, pluginId, translateLabel);
 
 				items.push({
 					id: `plugin-${pluginId}-${page.path}`,
@@ -292,6 +295,12 @@ function filterNavItems(
 
 export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const { t } = useLingui();
+	// The runtime hook (the macro useLingui() omits `_`): `_` translates the
+	// dynamic plugin labels, and both it and `i18n.locale` invalidate the
+	// nav-items memo below. `i18n.locale` is the documented signal for locale
+	// switches; the `_` rebind covers catalog merges that arrive without a
+	// locale change (plugins load their catalogs asynchronously).
+	const { _: translateDynamic, i18n } = useLinguiContext();
 	const [open, setOpen] = React.useState(false);
 	const [query, setQuery] = React.useState("");
 	const navigate = useNavigate();
@@ -316,7 +325,10 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const isPendingSearch = isWaitingForDebounce || isSearching;
 
 	// Build navigation items
-	const allNavItems = React.useMemo(() => buildNavItems(manifest, userRole), [manifest, userRole]);
+	const allNavItems = React.useMemo(
+		() => buildNavItems(manifest, userRole, translateDynamic),
+		[manifest, userRole, translateDynamic, i18n.locale],
+	);
 
 	// Filter nav items based on query
 	const filteredNavItems = React.useMemo(

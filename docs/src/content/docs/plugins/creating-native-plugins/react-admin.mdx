@@ -83,6 +83,28 @@ admin: {
 }
 ```
 
+Declare labels in English. The admin runs them through its shared [Lingui](https://lingui.dev/) instance before rendering the sidebar and command palette, so a plugin that loads its own message catalog — with the English label as the message id — gets localized navigation for free. Labels that match one of the admin's own messages (`Settings`, `Dashboard`, …) pick up the admin's translations even without a plugin catalog; labels with no catalog entry anywhere render as declared.
+
+```typescript title="src/admin.tsx"
+import { i18n } from "@lingui/core";
+
+// Merge the plugin's compiled catalog into the admin's i18n instance.
+// "Reports" now renders as "Berichte" when the admin locale is German.
+const catalogs: Record<string, Record<string, string>> = {
+	de: { Reports: "Berichte", Settings: "Einstellungen" },
+};
+
+function mergeCatalog() {
+	const messages = catalogs[i18n.locale];
+	if (messages && !("Reports" in i18n.messages)) i18n.load(i18n.locale, messages);
+}
+
+mergeCatalog();
+// The admin's locale switcher *replaces* the catalog on change, so re-merge.
+// The sentinel check above keeps this from recursing (load() fires "change").
+i18n.on("change", mergeCatalog);
+```
+
 ### Page component
 
 The following component reads and saves settings through the plugin API hook:

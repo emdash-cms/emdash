@@ -789,4 +789,34 @@ describe("Content Handlers — slug-change auto-redirect on publish", () => {
 		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
 		expect(redirects).toHaveLength(0);
 	});
+
+	// #2034: a staged slug colliding with another entry's (slug, locale) used
+	// to surface as an opaque 500 (raw D1/SQLite UNIQUE error). It must be the
+	// same SLUG_CONFLICT (409) as direct slug edits, naming the slug so the
+	// admin can show it inline.
+	it("returns SLUG_CONFLICT naming the slug when the staged slug is taken", async () => {
+		const taken = await handleContentCreate(db, "post", {
+			data: { title: "Owner" },
+			slug: "eleven",
+			status: "published",
+		});
+		expect(taken.success).toBe(true);
+
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Victim" },
+			slug: "victim",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Victim" }, "eleven");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(false);
+		if (published.success) return;
+		expect(published.error.code).toBe("SLUG_CONFLICT");
+		expect(published.error.message).toContain("eleven");
+		expect(published.error.message).toContain(taken.data!.item.id);
+	});
 });
