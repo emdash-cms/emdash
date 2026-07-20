@@ -195,6 +195,34 @@ export function resolveImageEndpoint(opts: {
 	};
 }
 
+/**
+ * Warn when `@astrojs/react` is not registered in the host's `integrations`.
+ *
+ * The admin SPA is a React app hydrated via `client:only="react"`. Without the
+ * React integration the build succeeds and the admin route returns 200, but the
+ * bundle never hydrates -- the page sits on "Loading EmDash..." forever with no
+ * error anywhere (#962). Checked in `astro:config:done` so integrations added
+ * by other integrations are visible too.
+ *
+ * @internal Exported for unit testing.
+ */
+export function missingReactIntegrationWarning(
+	integrations: readonly { name: string }[],
+): string | undefined {
+	if (integrations.some((integration) => integration.name === "@astrojs/react")) {
+		return undefined;
+	}
+	return (
+		`@astrojs/react is not registered in your Astro config. The EmDash admin UI ` +
+		`will not hydrate without it (the page stays on "Loading EmDash..."). ` +
+		`Add it to your integrations:\n\n` +
+		`  import react from "@astrojs/react";\n` +
+		`  export default defineConfig({\n` +
+		`    integrations: [react(), emdash({ ... })],\n` +
+		`  });`
+	);
+}
+
 // Terminal formatting
 const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
@@ -381,6 +409,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				if (astroVersion !== undefined) {
 					serializableConfig.astroVersion = astroVersion;
 				}
+				// EmDashHead must not access Astro.csp when the host has disabled
+				// Astro's built-in CSP runtime; Astro logs a warning for that access.
+				serializableConfig.astroCspEnabled = Boolean(astroConfig.security.csp);
 				// Extract i18n config from Astro config
 				// Astro locales can be strings OR { path, codes } objects — normalize to paths
 				if (astroConfig.i18n) {
@@ -555,6 +586,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Route info is printed with absolute, clickable URLs once the
 				// dev server is listening (see astro:server:setup), since the
 				// port isn't known yet here. Nothing useful to print for build.
+			},
+			"astro:config:done": ({ config: finalConfig, logger }) => {
+				const warning = missingReactIntegrationWarning(finalConfig.integrations);
+				if (warning) logger.warn(warning);
 			},
 			"astro:server:setup": ({ server, logger }) => {
 				// Print route info with absolute, clickable URLs once the server

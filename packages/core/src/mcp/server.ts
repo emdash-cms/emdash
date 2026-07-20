@@ -17,10 +17,12 @@ import { z } from "zod";
 import {
 	bylineCreateBody,
 	bylineUpdateBody,
+	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
 } from "#api/schemas.js";
 
+import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
@@ -75,6 +77,35 @@ const settingsSeoSchema = z.object({
 		.optional()
 		.describe("Bing Webmaster Tools verification token"),
 });
+
+const mediaUsageRepairToolSchema = z
+	.object({
+		scope: z.enum(["collection", "all"]).describe("Repair one collection or all collections"),
+		collection: z
+			.string()
+			.min(1)
+			.max(63)
+			.regex(COLLECTION_SLUG_PATTERN, "Invalid collection slug")
+			.optional()
+			.describe("Collection slug; required only when scope is collection"),
+	})
+	.strict()
+	.superRefine((input, ctx) => {
+		if (input.scope === "collection" && input.collection === undefined) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["collection"],
+				message: "Collection is required when scope is collection",
+			});
+		}
+		if (input.scope === "all" && input.collection !== undefined) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["collection"],
+				message: "Collection must be omitted when scope is all",
+			});
+		}
+	});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -1794,9 +1825,8 @@ export function createMcpServer(): McpServer {
 				"caller is responsible for placing the file at `storageKey` (typically " +
 				"using a signed upload URL obtained from the admin UI or a separate API). " +
 				"This tool persists the metadata record so the file is discoverable via " +
-				"media_list / media_get and can be referenced by content. For binary " +
-				"uploads the MCP transport is not appropriate — use the signed-upload " +
-				"flow instead.",
+				"media_list / media_get and can be referenced by content. To upload the " +
+				"file itself, use media_upload (base64 data or a public URL) instead.",
 			inputSchema: z.object({
 				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
 				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
@@ -1830,6 +1860,70 @@ export function createMcpServer(): McpServer {
 					authorId: userId,
 				}),
 			);
+		},
+	);
+
+	server.registerTool(
+		"media_upload",
+		{
+			title: "Upload Media",
+			description:
+				"Upload a media file from base64-encoded data or an external URL and " +
+				"register it in the media library. Returns the media item with id, " +
+				"storageKey, and url — ready to reference from content fields (e.g. " +
+				"featured_image) via content_create / content_update. Uploads are " +
+				"deduplicated by content hash: re-uploading identical bytes returns " +
+				"the existing item with deduplicated: true. URL fetches must resolve " +
+				"to a public http(s) host (SSRF-guarded). Subject to the global " +
+				"upload MIME allowlist and the configured maximum upload size.",
+			inputSchema: z.object({
+				filename: z.string().min(1).describe("Filename including extension (e.g. 'cover.png')"),
+				base64: z
+					.string()
+					.optional()
+					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
+				url: z
+					.string()
+					.url()
+					.optional()
+					.describe(
+						"Public http(s) URL to fetch the file from. Provide exactly one of base64 / url.",
+					),
+				contentType: z
+					.string()
+					.regex(CONTENT_TYPE_RE, "Invalid content type")
+					.optional()
+					.describe(
+						"MIME type (e.g. 'image/png'). Required with base64; with url it " +
+							"defaults to the response's Content-Type header.",
+					),
+				alt: z.string().optional().describe("Alt text for accessibility"),
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "media:write");
+			requireRole(extra, Role.CONTRIBUTOR);
+			const { emdash, userId } = getExtra(extra);
+			if (!emdash.storage) {
+				return respondError("NO_STORAGE", "Storage not configured");
+			}
+			try {
+				const { handleMediaUpload } = await import("../api/handlers/media-upload.js");
+				return unwrap(
+					await handleMediaUpload(emdash.db, emdash.storage, {
+						filename: args.filename,
+						base64: args.base64,
+						url: args.url,
+						contentType: args.contentType,
+						alt: args.alt,
+						authorId: userId,
+						maxUploadSize: emdash.config.maxUploadSize,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "UPLOAD_ERROR");
+			}
 		},
 	);
 
@@ -1924,6 +2018,42 @@ export function createMcpServer(): McpServer {
 			requireOwnership(extra, authorId, "media:delete_own", "media:delete_any");
 
 			return unwrap(await ec.handleMediaDelete(args.id));
+		},
+	);
+
+	server.registerTool(
+		"media_usage_repair",
+		{
+			title: "Repair Media Usage Index",
+			description:
+				"Repair content media usage indexes for one collection or every collection. " +
+				"Returns complete, partial, failed, or stale status; inspect the structured result.",
+			inputSchema: mediaUsageRepairToolSchema,
+		},
+		async (args, extra) => {
+			requireScope(extra, "admin");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+
+			let input: MediaUsageRepairRequest;
+			if (args.scope === "collection") {
+				if (args.collection === undefined) {
+					return respondError(
+						"VALIDATION_ERROR",
+						"Collection is required when scope is collection",
+					);
+				}
+				input = { scope: "collection", collection: args.collection };
+			} else {
+				input = { scope: "all" };
+			}
+
+			try {
+				const { handleMediaUsageRepair } = await import("../api/handlers/media-usage.js");
+				return unwrap(await handleMediaUsageRepair(ec.db, input));
+			} catch (error) {
+				return respondHandlerError(error, "MEDIA_USAGE_REPAIR_ERROR");
+			}
 		},
 	);
 

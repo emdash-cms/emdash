@@ -1,0 +1,146 @@
+---
+title: Add EmDash to an Existing Astro Project
+description: Wire EmDash into an Astro site you already have, without the starter template.
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+`npm create emdash@latest` ships a pre-wired project, but EmDash also grafts onto an Astro site you already have. This guide walks through every requirement the starter template normally handles for you — each one produces a confusing failure when it's missing, so work through the checklist in order.
+
+## Prerequisites
+
+- **Astro 6 or later** — upgrade first if you're on an older major (`npx @astrojs/upgrade`)
+- **Node.js v22.12.0 or higher** (odd-numbered versions are not supported)
+- **Server output** — EmDash serves content at runtime, so your project needs `output: "server"` and an [adapter](https://docs.astro.build/en/guides/on-demand-rendering/) (Node, Cloudflare, ...)
+
+## Install the Packages
+
+Install EmDash together with its required peer dependencies. React powers the admin UI at `/_emdash/admin`; it is required even if your site itself doesn't use React.
+
+<Tabs>
+<TabItem label="npm">
+```bash
+npm install emdash @astrojs/react react react-dom
+```
+</TabItem>
+<TabItem label="pnpm">
+```bash
+pnpm add emdash @astrojs/react react react-dom
+```
+</TabItem>
+<TabItem label="yarn">
+```bash
+yarn add emdash @astrojs/react react react-dom
+```
+</TabItem>
+</Tabs>
+
+For a local SQLite database (the default for development), also install the driver:
+
+```bash
+npm install better-sqlite3
+```
+
+Deploying to Cloudflare? Add the Cloudflare packages as well — the [Deploy to Cloudflare](/deployment/cloudflare/) guide covers them in detail:
+
+```bash
+npm install @astrojs/cloudflare @emdash-cms/cloudflare
+```
+
+## Register the Integrations
+
+Add both `react()` and `emdash()` to your `integrations` array. Registering `@astrojs/react` is **not optional**: installing the package alone is not enough, and without the integration the admin builds fine but never hydrates — the page sits on "Loading EmDash..." forever.
+
+```js title="astro.config.mjs" ins={3-5,11-18}
+import { defineConfig } from "astro/config";
+import node from "@astrojs/node";
+import react from "@astrojs/react";
+import emdash, { local } from "emdash/astro";
+import { sqlite } from "emdash/db";
+
+export default defineConfig({
+	output: "server",
+	adapter: node({ mode: "standalone" }),
+	integrations: [
+		react(),
+		emdash({
+			database: sqlite({ url: "file:./data.db" }),
+			storage: local({
+				directory: "./uploads",
+				baseUrl: "/_emdash/api/media/file",
+			}),
+		}),
+	],
+});
+```
+
+<Aside>
+	Since the build emits a warning when `@astrojs/react` is missing from your integrations, check
+	your build output if the admin won't load.
+</Aside>
+
+## Add the Live Collections Loader
+
+Create `src/live.config.ts` so Astro's content layer can resolve EmDash content. Without it, `getEmDashCollection` / `getEmDashEntry` have no live collection to route through.
+
+```ts title="src/live.config.ts"
+import { defineLiveCollection } from "astro:content";
+import { emdashLoader } from "emdash/runtime";
+
+export const collections = {
+	_emdash: defineLiveCollection({ loader: emdashLoader() }),
+};
+```
+
+Your existing `src/content.config.ts` (file-based collections) keeps working alongside it — see [EmDash for Astro Developers](/coming-from/astro/) for how the two coexist.
+
+## Verify the Install
+
+<Steps>
+
+1. Start the dev server:
+
+   ```bash
+   npm run dev
+   ```
+
+2. Open `http://localhost:4321/_emdash/admin` and complete the Setup Wizard.
+
+3. Create and publish a post, then query it from a page:
+
+   ```astro title="src/pages/test.astro"
+   ---
+   import { getEmDashCollection } from "emdash";
+
+   const { entries: posts } = await getEmDashCollection("posts", {
+   	status: "published",
+   });
+   ---
+
+   <ul>{posts.map((post) => <li>{post.data.title}</li>)}</ul>
+   ```
+
+</Steps>
+
+## Deploying to Cloudflare
+
+Follow [Deploy to Cloudflare](/deployment/cloudflare/) for the full setup (D1 database, R2 media bucket, cron triggers). Two things trip up existing projects in particular:
+
+- **Use Cloudflare Workers, not Pages.** The `@astrojs/cloudflare` adapter emits a `wrangler.json` that Pages does not accept. If your site currently deploys to Pages, [migrate it to Workers](https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/) first.
+- **Bindings must exist in your `wrangler.jsonc`.** At minimum you need a D1 binding for the database and an R2 binding for media, matching the binding names in your `astro.config.mjs`.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Admin stuck on "Loading EmDash..." | `@astrojs/react` not registered | Add `react()` to `integrations` |
+| `Could not resolve "astro:content"` in `live.config.ts` | Astro older than 6 | Upgrade Astro |
+| `getEmDashCollection` returns an error | Missing `src/live.config.ts` | Add the live collections loader |
+| Build errors about unresolved packages | Peer dependencies not installed | Install `@astrojs/react`, `react`, `react-dom` explicitly |
+| Content changes don't appear | Page is prerendered | Set `export const prerender = false` on dynamic pages |
+
+## Next Steps
+
+- **[EmDash for Astro Developers](/coming-from/astro/)** — How EmDash concepts map onto what you already know
+- **[Working with Content](/guides/working-with-content/)** — Query and render content
+- **[Deploy to Cloudflare](/deployment/cloudflare/)** — Take the site to production
