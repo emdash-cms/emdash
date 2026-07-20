@@ -27,6 +27,7 @@ import type {
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
 import { cn } from "../lib/utils.js";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -456,7 +457,7 @@ export function Redirects() {
 						<div className="py-12 text-center text-kumo-subtle">{t`Loading redirects...`}</div>
 					) : redirects.length === 0 ? (
 						<div className="py-12 text-center text-kumo-subtle">
-							<ArrowsLeftRight size={48} className="mx-auto mb-4 opacity-30" />
+							<ADMIN_NAV_ICONS.redirects size={48} className="mx-auto mb-4 opacity-30" />
 							<p className="text-lg font-medium">{t`No redirects yet`}</p>
 							<p className="text-sm mt-1">{t`Create redirect rules to manage URL changes.`}</p>
 						</div>

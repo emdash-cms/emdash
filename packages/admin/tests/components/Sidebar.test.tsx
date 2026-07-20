@@ -23,7 +23,13 @@
  * the contract, the filter pins the gate.
  */
 
-import { Plug, Gear, Trophy, ClockCounterClockwise } from "@phosphor-icons/react";
+import {
+	Plug,
+	Gear,
+	Trophy,
+	ClockCounterClockwise,
+	IdentificationCard,
+} from "@phosphor-icons/react";
 import * as React from "react";
 import { describe, it, expect } from "vitest";
 
@@ -46,6 +52,7 @@ const ROLE_ADMIN = 50;
 describe("BYLINE_SCHEMA_NAV_ITEM invariants", () => {
 	it("points to the /byline-schema route", () => {
 		expect(BYLINE_SCHEMA_NAV_ITEM.to).toBe("/byline-schema");
+		expect(BYLINE_SCHEMA_NAV_ITEM.icon).toBe(IdentificationCard);
 	});
 
 	it("gates on ROLE_ADMIN — editors and below must not see it", () => {

@@ -9,7 +9,7 @@ import { CommandPalette } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Gear, Upload, Users, MagnifyingGlass } from "@phosphor-icons/react";
+import { Gear, Users, MagnifyingGlass } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
@@ -17,7 +17,12 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { apiFetch, type AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
-import { ADMIN_NAV_ICONS, getTaxonomyNavIcon, resolveNavIcon } from "./admin-navigation-icons.js";
+import {
+	ADMIN_NAV_ICONS,
+	getCollectionNavIcon,
+	getTaxonomyNavIcon,
+	resolveNavIcon,
+} from "./admin-navigation-icons.js";
 
 /** Subset of manifest fields used by the palette (matches `Shell` props shape). */
 type CommandPaletteManifest = {
@@ -130,7 +135,7 @@ export function buildNavItems(manifest: CommandPaletteManifest, userRole: number
 			title: config.label,
 			to: "/content/$collection",
 			params: { collection: name },
-			icon: ADMIN_NAV_ICONS.collection,
+			icon: getCollectionNavIcon(name),
 			keywords: ["content", name],
 		});
 	}
@@ -214,7 +219,7 @@ export function buildNavItems(manifest: CommandPaletteManifest, userRole: number
 			id: "import",
 			title: msg`Import`,
 			to: "/import/wordpress",
-			icon: Upload,
+			icon: ADMIN_NAV_ICONS.import,
 			minRole: ROLE_ADMIN,
 			keywords: ["wordpress", "migrate"],
 		},
@@ -348,7 +353,9 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 					title: result.title || result.slug,
 					to: "/content/$collection/$id",
 					params: { collection: result.collection, id: result.id },
-					icon: <ADMIN_NAV_ICONS.collection className="h-4 w-4" />,
+					icon: React.createElement(getCollectionNavIcon(result.collection), {
+						className: "h-4 w-4",
+					}),
 					description: collectionLabel,
 					collection: result.collection,
 				};

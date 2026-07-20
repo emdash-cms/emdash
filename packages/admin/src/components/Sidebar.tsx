@@ -1,6 +1,6 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { FileText, Gear, Palette, Storefront, Upload, Users } from "@phosphor-icons/react";
+import { Gear, Palette, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
@@ -10,6 +10,7 @@ import { useCurrentUser } from "../lib/api/current-user";
 import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
 import {
 	ADMIN_NAV_ICONS,
+	getCollectionNavIcon,
 	getTaxonomyNavIcon,
 	resolveNavIcon,
 	toPhosphorIconName,
@@ -40,6 +41,7 @@ const ROLE_EDITOR = 40;
 export const BYLINE_SCHEMA_NAV_ITEM = {
 	to: "/byline-schema" as const,
 	minRole: ROLE_ADMIN,
+	icon: ADMIN_NAV_ICONS.bylineSchema,
 } as const;
 
 /**
@@ -184,7 +186,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		contentItems.push({
 			to: "/content/$collection",
 			label: config.label,
-			icon: ADMIN_NAV_ICONS.collection,
+			icon: getCollectionNavIcon(name),
 			params: { collection: name },
 		});
 	}
@@ -224,7 +226,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			icon: ADMIN_NAV_ICONS.contentTypes,
 			minRole: ROLE_ADMIN,
 		},
-		{ ...BYLINE_SCHEMA_NAV_ITEM, label: t`Byline Schema`, icon: FileText },
+		{ ...BYLINE_SCHEMA_NAV_ITEM, label: t`Byline Schema` },
 		{ to: "/users", label: t`Users`, icon: Users, minRole: ROLE_ADMIN },
 		{
 			to: "/plugins-manager",
@@ -260,7 +262,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	}
 
 	adminItems.push(
-		{ to: "/import/wordpress", label: t`Import`, icon: Upload, minRole: ROLE_ADMIN },
+		{
+			to: "/import/wordpress",
+			label: t`Import`,
+			icon: ADMIN_NAV_ICONS.import,
+			minRole: ROLE_ADMIN,
+		},
 		{ to: "/settings", label: t`Settings`, icon: Gear, minRole: ROLE_ADMIN },
 	);
 

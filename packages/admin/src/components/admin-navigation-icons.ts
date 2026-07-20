@@ -1,15 +1,17 @@
 import {
-	ArrowsLeftRight,
 	Bell,
 	BookOpen,
+	Browser,
 	CalendarBlank,
-	ChatsCircle,
+	CardsThree,
+	Chats,
 	ChartBar,
 	ChartLine,
 	ClockCounterClockwise,
 	Code,
 	Crop,
 	Database,
+	Download,
 	FileText,
 	Files,
 	Folder,
@@ -23,11 +25,14 @@ import {
 	List,
 	MagnifyingGlass,
 	Medal,
+	Newspaper,
 	Palette,
+	Path,
 	Plug,
 	PuzzlePiece,
+	Rows,
+	Signature,
 	SquaresFour,
-	Stack,
 	Star,
 	Tag,
 	Trophy,
@@ -41,18 +46,32 @@ import * as React from "react";
 export const ADMIN_NAV_ICONS = {
 	dashboard: SquaresFour,
 	collection: Files,
+	pages: Browser,
+	posts: Newspaper,
 	media: ImagesSquare,
-	comments: ChatsCircle,
-	menus: List,
-	redirects: ArrowsLeftRight,
+	comments: Chats,
+	menus: Rows,
+	redirects: Path,
 	widgets: PuzzlePiece,
-	sections: Stack,
+	sections: CardsThree,
 	taxonomy: Folders,
 	tags: Tag,
-	bylines: IdentificationCard,
+	bylines: Signature,
+	bylineSchema: IdentificationCard,
 	contentTypes: Database,
 	plugins: Plug,
+	import: Download,
 } as const satisfies Record<string, Icon>;
+
+const COLLECTION_NAV_ICON_OVERRIDES: Record<string, Icon> = {
+	pages: ADMIN_NAV_ICONS.pages,
+	posts: ADMIN_NAV_ICONS.posts,
+};
+
+/** Use distinct icons for built-in collections and the default for custom collections. */
+export function getCollectionNavIcon(name: string): Icon {
+	return COLLECTION_NAV_ICON_OVERRIDES[name] ?? ADMIN_NAV_ICONS.collection;
+}
 
 /** Tags have a distinct meaning; other taxonomies are collections of terms. */
 export function getTaxonomyNavIcon(name: string): Icon {
