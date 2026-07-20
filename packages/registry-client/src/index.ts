@@ -41,9 +41,27 @@ export {
 	defaultCredentialStore,
 } from "./credentials/index.js";
 
-export { type PublishingClientFromHandlerOptions, PublishingClient } from "./publishing/index.js";
+export {
+	type CreateDelegatedReleaseOptions,
+	type PublishingClientFromHandlerOptions,
+	PublishingClient,
+	createDelegatedRelease,
+} from "./publishing/index.js";
 
 export { type DiscoveryClientOptions, DiscoveryClient } from "./discovery/index.js";
+
+export {
+	type DirectPdsClientOptions,
+	type DirectPdsEnumerationOptions,
+	type DirectPdsProfileRecord,
+	type DirectPdsReadErrorCode,
+	type DirectPdsReleaseRecord,
+	DEFAULT_DIRECT_PDS_MAX_RECORDS,
+	DEFAULT_DIRECT_PDS_PAGE_SIZE,
+	DirectPdsClient,
+	DirectPdsReadError,
+	selectSemverBaseline,
+} from "./direct-pds/index.js";
 
 export {
 	type EnvMismatch,

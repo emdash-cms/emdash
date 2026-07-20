@@ -254,6 +254,39 @@ describe("publishRelease", () => {
 			expect(profileOp?.$type).toBe("com.atproto.repo.applyWrites#update");
 		});
 
+		it("preserves profile extensions when publishing a later release", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			const extensions = {
+				[NSID.packageProfileExtension]: {
+					$type: NSID.packageProfileExtension,
+					repository: "https://github.com/example/test-plugin",
+					releasePolicy: {
+						requireProvenance: true,
+						confirmation: "always",
+						approvers: ["did:plc:approver"],
+					},
+				},
+				"com.example.unknown.extension": {
+					$type: "com.example.unknown.extension",
+					value: { preserve: ["this", "exactly"] },
+				},
+			};
+			pds.seedRecord(NSID.packageProfile, "test-plugin", {
+				...wellShapedProfile,
+				extensions,
+			});
+
+			await publishRelease(
+				buildOptions(pds, {
+					manifest: buildManifest({ version: "1.1.0" }),
+					url: "https://example.com/test-plugin-1.1.0.tar.gz",
+				}),
+			);
+
+			const profile = pds.records.get(`at://${TEST_DID}/${NSID.packageProfile}/test-plugin`);
+			expect((profile!.value as { extensions?: unknown }).extensions).toEqual(extensions);
+		});
+
 		it("does not touch a malformed existing profile (just writes the release)", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			// Existing profile is missing required fields. We refuse to update

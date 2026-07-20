@@ -1,8 +1,10 @@
+import { encode } from "@atcute/cbor";
+import * as CID from "@atcute/cid";
 import { ClientResponseError } from "@atcute/client";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Did } from "../src/credentials/index.js";
-import { PublishingClient } from "../src/publishing/index.js";
+import { PublishingClient, createDelegatedRelease } from "../src/publishing/index.js";
 
 function buildHandler(responses: Record<string, { status: number; body: unknown }>): {
 	handler: (pathname: string, init: RequestInit) => Promise<Response>;
@@ -219,3 +221,190 @@ describe("PublishingClient", () => {
 		expect(body.writes).toHaveLength(2);
 	});
 });
+
+describe("createDelegatedRelease", () => {
+	const did = "did:plc:abc123" as Did;
+	const release = {
+		$type: "com.emdashcms.experimental.package.release" as const,
+		package: "gallery",
+		version: "1.0.0",
+		artifacts: {
+			package: {
+				url: "https://example.com/gallery-1.0.0.tgz",
+				checksum: "bciqkkpvkbtfcwq6kjkbq3kgjxe5j6ihzkxlfxkzqhwzaaaa3wkbq3a",
+			},
+		},
+	};
+
+	it("creates exactly one deterministic release record", async () => {
+		const uri = "at://did:plc:abc123/com.emdashcms.experimental.package.release/gallery:1.0.0";
+		const cid = await recordCid(release);
+		const { handler, calls } = buildHandler({
+			"/xrpc/com.atproto.repo.createRecord": {
+				status: 200,
+				body: { uri, cid },
+			},
+		});
+
+		await expect(createDelegatedRelease({ handler, did, release })).resolves.toEqual({
+			uri,
+			cid,
+		});
+		expect(calls).toHaveLength(1);
+		expect(calls[0]!.pathname).toBe("/xrpc/com.atproto.repo.createRecord");
+		expect(JSON.parse(calls[0]!.init.body as string)).toEqual({
+			repo: did,
+			collection: "com.emdashcms.experimental.package.release",
+			rkey: "gallery:1.0.0",
+			record: release,
+			validate: false,
+		});
+	});
+
+	it.each([
+		["invalid lexicon", { ...release, artifacts: {} }],
+		["invalid package slug", { ...release, package: "Gallery" }],
+		["non-canonical version", { ...release, version: "1.0.0+build" }],
+	])("rejects %s before making a request", async (_name, candidate) => {
+		const { handler, calls } = buildHandler({});
+
+		await expect(
+			createDelegatedRelease({ handler, did, release: candidate as typeof release }),
+		).rejects.toBeInstanceOf(TypeError);
+		expect(calls).toHaveLength(0);
+	});
+
+	it("rejects an invalid publisher DID before making a request", async () => {
+		const { handler, calls } = buildHandler({});
+
+		await expect(
+			createDelegatedRelease({ handler, did: "not-a-did" as Did, release }),
+		).rejects.toThrow("Invalid delegated release publisher DID");
+		expect(calls).toHaveLength(0);
+	});
+
+	it("captures accessor-backed options exactly once", async () => {
+		let didReads = 0;
+		const calls: Array<{ repo: string }> = [];
+		const handler = async (_pathname: string, init: RequestInit): Promise<Response> => {
+			const input = JSON.parse(init.body as string);
+			calls.push({ repo: input.repo });
+			return new Response(
+				JSON.stringify({
+					uri: `at://${input.repo}/${input.collection}/${input.rkey}`,
+					cid: await recordCid(input.record),
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			);
+		};
+		const options = {
+			handler,
+			get did(): Did {
+				didReads += 1;
+				return (didReads === 1 ? did : "not-a-did") as Did;
+			},
+			release,
+		};
+
+		await expect(createDelegatedRelease(options)).resolves.toMatchObject({
+			uri: "at://did:plc:abc123/com.emdashcms.experimental.package.release/gallery:1.0.0",
+		});
+		expect(didReads).toBe(1);
+		expect(calls).toEqual([{ repo: did }]);
+	});
+
+	it("binds validation, serialization, and CID verification to one snapshot", async () => {
+		const mutableRelease = structuredClone(release);
+		const handler = async (_pathname: string, init: RequestInit): Promise<Response> => {
+			const input = JSON.parse(init.body as string);
+			mutableRelease.version = "2.0.0";
+			return new Response(
+				JSON.stringify({
+					uri: "at://did:plc:abc123/com.emdashcms.experimental.package.release/gallery:1.0.0",
+					cid: await recordCid(input.record),
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			);
+		};
+
+		await expect(
+			createDelegatedRelease({ handler, did, release: mutableRelease }),
+		).resolves.toEqual({
+			uri: "at://did:plc:abc123/com.emdashcms.experimental.package.release/gallery:1.0.0",
+			cid: await recordCid(release),
+		});
+	});
+
+	it("does not fall back when create conflicts", async () => {
+		const { handler, calls } = buildHandler({
+			"/xrpc/com.atproto.repo.createRecord": {
+				status: 400,
+				body: { error: "RecordAlreadyExists" },
+			},
+		});
+
+		await expect(createDelegatedRelease({ handler, did, release })).rejects.toBeInstanceOf(
+			ClientResponseError,
+		);
+		expect(calls).toHaveLength(1);
+	});
+
+	it("rejects a response for a different record identity", async () => {
+		const cid = await recordCid(release);
+		const { handler } = buildHandler({
+			"/xrpc/com.atproto.repo.createRecord": {
+				status: 200,
+				body: {
+					uri: "at://did:plc:other/com.emdashcms.experimental.package.release/gallery:1.0.0",
+					cid,
+				},
+			},
+		});
+
+		await expect(createDelegatedRelease({ handler, did, release })).rejects.toThrow(
+			"invalid delegated release identity",
+		);
+	});
+
+	it("rejects a fragment-bearing record URI", async () => {
+		const cid = await recordCid(release);
+		const { handler } = buildHandler({
+			"/xrpc/com.atproto.repo.createRecord": {
+				status: 200,
+				body: {
+					uri: "at://did:plc:abc123/com.emdashcms.experimental.package.release/gallery:1.0.0#/other",
+					cid,
+				},
+			},
+		});
+
+		await expect(createDelegatedRelease({ handler, did, release })).rejects.toThrow(
+			"invalid delegated release identity",
+		);
+	});
+
+	it.each([
+		["malformed", "not-a-cid", "invalid delegated release CID"],
+		[
+			"mismatched",
+			"bafyreihyrpefhacm6kkp4ql6j6udakdit7g3dmkzfriqfykhjw6cad5lrm",
+			"mismatched delegated release CID",
+		],
+	])("rejects a %s response CID", async (_name, cid, message) => {
+		const { handler } = buildHandler({
+			"/xrpc/com.atproto.repo.createRecord": {
+				status: 200,
+				body: {
+					uri: "at://did:plc:abc123/com.emdashcms.experimental.package.release/gallery:1.0.0",
+					cid,
+				},
+			},
+		});
+
+		await expect(createDelegatedRelease({ handler, did, release })).rejects.toThrow(message);
+	});
+});
+
+async function recordCid(value: unknown): Promise<string> {
+	return CID.toString(await CID.create(CID.CODEC_DCBOR, encode(value)));
+}

@@ -9,10 +9,13 @@
  * - reportInstall (fire-and-forget)
  */
 
+import { createHash } from "node:crypto";
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
 	createMarketplaceClient,
+	extractBundle,
 	MarketplaceError,
 	MarketplaceUnavailableError,
 	type MarketplaceClient,
@@ -20,7 +23,6 @@ import {
 	type MarketplaceSearchResult,
 } from "../../../src/plugins/marketplace.js";
 
-const HEX_64_PATTERN = /^[a-f0-9]{64}$/;
 const HEX_16_PATTERN = /^[a-f0-9]{16}$/;
 
 // ── Helpers ───────────���────────────────────────────────────────────
@@ -319,7 +321,7 @@ describe("MarketplaceClient", () => {
 			expect(bundle.manifest.id).toBe("test-seo");
 			expect(bundle.manifest.version).toBe("1.0.0");
 			expect(bundle.backendCode).toContain("hello");
-			expect(bundle.checksum).toMatch(HEX_64_PATTERN);
+			expect(bundle.checksum).toBe(createHash("sha256").update(gzipped).digest("hex"));
 		});
 
 		it("extracts optional admin.js", async () => {
@@ -392,7 +394,28 @@ describe("MarketplaceClient", () => {
 			fetchSpy.mockResolvedValueOnce(new Response(gzipped, { status: 200 }));
 
 			await expect(client.downloadBundle("test-seo", "1.0.0")).rejects.toThrow(
-				"malformed manifest.json",
+				"manifest is not valid JSON",
+			);
+		});
+
+		it("requires the manifest to match the requested plugin and version", async () => {
+			const tarData = createTar({
+				"manifest.json": JSON.stringify({
+					id: "other-plugin",
+					version: "2.0.0",
+					capabilities: [],
+					allowedHosts: [],
+					storage: {},
+					hooks: [],
+					routes: [],
+					admin: {},
+				}),
+				"backend.js": "export default {};",
+			});
+			fetchSpy.mockResolvedValueOnce(new Response(await gzip(tarData), { status: 200 }));
+
+			await expect(client.downloadBundle("test-seo", "1.0.0")).rejects.toThrow(
+				"manifest id does not match",
 			);
 		});
 
@@ -484,6 +507,17 @@ describe("MarketplaceClient", () => {
 });
 
 describe("tar parser", () => {
+	it("uses canonical path validation", async () => {
+		const tarData = createTar({
+			"../manifest.json": "{}",
+			"backend.js": "export default {};",
+		});
+		await expect(extractBundle(await gzip(tarData))).rejects.toMatchObject({
+			code: "INVALID_BUNDLE",
+			message: "The plugin bundle contains an unsafe path.",
+		});
+	});
+
 	it("handles files with ./ prefix in paths", async () => {
 		// Create tar with ./ prefixed paths (common from tar tools)
 		const manifest = {

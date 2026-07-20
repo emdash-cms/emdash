@@ -60,14 +60,34 @@ describe("extractManifestFromTarball (publish CLI)", () => {
 		expect(manifest.version).toBe("1.0.0");
 	});
 
+	it("rejects a bundle whose slug differs from the loaded manifest", async () => {
+		const bytes = await buildTarball({
+			"manifest.json": minimalManifest,
+			"backend.js": "export default {};\n",
+		});
+
+		await expect(
+			extractManifestFromTarballForTest(bytes, { expectedSlug: "other-plugin" }),
+		).rejects.toThrow(/manifest id does not match the expected plugin/);
+	});
+
+	it("rejects a bundle whose version differs from the loaded manifest", async () => {
+		const bytes = await buildTarball({
+			"manifest.json": minimalManifest,
+			"backend.js": "export default {};\n",
+		});
+
+		await expect(
+			extractManifestFromTarballForTest(bytes, { expectedVersion: "2.0.0" }),
+		).rejects.toThrow(/manifest version does not match the expected version/);
+	});
+
 	it("rejects a tarball with a single file over the per-file cap", async () => {
 		const bytes = await buildTarball({
 			"manifest.json": minimalManifest,
 			"backend.js": "x".repeat(MAX_FILE_SIZE + 1),
 		});
-		await expect(extractManifestFromTarballForTest(bytes)).rejects.toThrow(
-			/violates bundle size caps[\s\S]*backend\.js/,
-		);
+		await expect(extractManifestFromTarballForTest(bytes)).rejects.toThrow(/per-file size limit/);
 	});
 
 	it("rejects a tarball whose total decompressed size exceeds the bundle cap", async () => {
@@ -80,7 +100,7 @@ describe("extractManifestFromTarball (publish CLI)", () => {
 			"c.js": "c".repeat(MAX_FILE_SIZE),
 		});
 		await expect(extractManifestFromTarballForTest(bytes)).rejects.toThrow(
-			/violates bundle size caps[\s\S]*Bundle size/,
+			/decompressed plugin bundle exceeds the size limit/,
 		);
 	});
 
@@ -88,12 +108,10 @@ describe("extractManifestFromTarball (publish CLI)", () => {
 		const files: Record<string, string> = { "manifest.json": minimalManifest };
 		for (let i = 0; i < 25; i++) files[`f-${String(i).padStart(2, "0")}.js`] = "x";
 		const bytes = await buildTarball(files);
-		await expect(extractManifestFromTarballForTest(bytes)).rejects.toThrow(
-			/violates bundle size caps[\s\S]*contains \d+ files/,
-		);
+		await expect(extractManifestFromTarballForTest(bytes)).rejects.toThrow(/too many files/);
 	});
 
-	it("does not count non-file tar entries (symlinks etc.) toward the file cap", async () => {
+	it("rejects non-file tar entries", async () => {
 		// Hand-build a tarball with 25 symlink entries plus one real file.
 		// Symlinks have type "2" and size 0 in USTAR. The file cap is 20, so
 		// counting symlinks would reject this; the filter should only see one
@@ -117,7 +135,8 @@ describe("extractManifestFromTarball (publish CLI)", () => {
 			...symlinkEntries,
 		]);
 		const gzipped = gzipSync(tarBytes);
-		const manifest = await extractManifestFromTarballForTest(new Uint8Array(gzipped));
-		expect(manifest.id).toBe("test-plugin");
+		await expect(extractManifestFromTarballForTest(new Uint8Array(gzipped))).rejects.toThrow(
+			/unsupported archive entry type/,
+		);
 	});
 });

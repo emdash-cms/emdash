@@ -8,8 +8,18 @@ import {
 import { describe, it, expect, vi } from "vitest";
 
 import type { AuthAdapter, Credential } from "../types.js";
-import { authenticateWithPasskey, PasskeyAuthenticationError } from "./authenticate.js";
-import type { ChallengeStore } from "./types.js";
+import {
+	authenticateWithPasskey,
+	generateAuthenticationOptions,
+	PasskeyAuthenticationError,
+	verifyAuthenticationResponse,
+} from "./authenticate.js";
+import {
+	bindChallengeContext,
+	defineChallengeContext,
+	encodeChallengeContext,
+} from "./challenge-context.js";
+import type { AtomicChallengeStore, ChallengeStore } from "./types.js";
 
 const credential: Credential = {
 	id: "registered-credential",
@@ -51,7 +61,9 @@ function base64url(bytes: Uint8Array): string {
 	return Buffer.from(bytes).toString("base64url");
 }
 
-function createValidAssertion(opts: { rpId?: string; origin?: string } = {}) {
+function createValidAssertion(
+	opts: { rpId?: string; origin?: string; userVerified?: boolean; challenge?: string } = {},
+) {
 	const rpId = opts.rpId ?? config.rpId;
 	const origin = opts.origin ?? config.origins[0];
 	if (!origin) throw new Error("origin must be defined for createValidAssertion");
@@ -66,7 +78,7 @@ function createValidAssertion(opts: { rpId?: string; origin?: string } = {}) {
 		Buffer.from(jwk.x, "base64url"),
 		Buffer.from(jwk.y, "base64url"),
 	]);
-	const challenge = base64url(Buffer.from("test-challenge"));
+	const challenge = opts.challenge ?? base64url(Buffer.from("test-challenge"));
 	const clientDataJSON = Buffer.from(
 		JSON.stringify({
 			type: "webauthn.get",
@@ -77,7 +89,8 @@ function createValidAssertion(opts: { rpId?: string; origin?: string } = {}) {
 	const rpIdHash = createHash("sha256").update(rpId).digest();
 	const signatureCounter = Buffer.alloc(4);
 	signatureCounter.writeUInt32BE(1);
-	const authenticatorData = Buffer.concat([rpIdHash, Buffer.from([0x01]), signatureCounter]);
+	const flags = opts.userVerified ? 0x05 : 0x01;
+	const authenticatorData = Buffer.concat([rpIdHash, Buffer.from([flags]), signatureCounter]);
 	const signatureMessage = createAssertionSignatureMessage(authenticatorData, clientDataJSON);
 	const signatureBytes = sign("sha256", signatureMessage, privateKey);
 
@@ -103,6 +116,18 @@ function createValidAssertion(opts: { rpId?: string; origin?: string } = {}) {
 		} satisfies ChallengeStore,
 	};
 }
+
+const approvalContext = defineChallengeContext("release-approval", 1, (value) => {
+	if (
+		typeof value !== "object" ||
+		value === null ||
+		Array.isArray(value) ||
+		typeof (value as Record<string, unknown>).intentId !== "string"
+	) {
+		throw new Error("Invalid approval context");
+	}
+	return { intentId: (value as Record<string, string>).intentId };
+});
 
 function createValidRS256Assertion(opts: { rpId?: string; origin?: string } = {}) {
 	const rpId = opts.rpId ?? config.rpId;
@@ -160,6 +185,159 @@ function createValidRS256Assertion(opts: { rpId?: string; origin?: string } = {}
 }
 
 describe("authenticateWithPasskey", () => {
+	it.each(["preferred", "required", "discouraged"] as const)(
+		"wires %s user verification into authentication options",
+		async (userVerification) => {
+			const options = await generateAuthenticationOptions(
+				{ ...config, userVerification },
+				[],
+				createChallengeStore(),
+			);
+
+			expect(options.userVerification).toBe(userVerification);
+		},
+	);
+
+	it("defaults authentication options to preferred user verification", async () => {
+		const options = await generateAuthenticationOptions(config, [], createChallengeStore());
+
+		expect(options.userVerification).toBe("preferred");
+	});
+
+	it("rejects an assertion without UV when user verification is required", async () => {
+		const { credential: validCredential, response, challengeStore } = createValidAssertion();
+
+		await expect(
+			verifyAuthenticationResponse(
+				{ ...config, userVerification: "required" },
+				response,
+				validCredential,
+				challengeStore,
+			),
+		).rejects.toMatchObject({ code: "user_verification_not_verified" });
+	});
+
+	it("accepts an assertion with UV when user verification is required", async () => {
+		const {
+			credential: validCredential,
+			response,
+			challengeStore,
+		} = createValidAssertion({
+			userVerified: true,
+		});
+
+		await expect(
+			verifyAuthenticationResponse(
+				{ ...config, userVerification: "required" },
+				response,
+				validCredential,
+				challengeStore,
+			),
+		).resolves.toMatchObject({ credentialId: validCredential.id });
+	});
+
+	it("returns typed context after atomic challenge consumption", async () => {
+		const initial = createValidAssertion({ userVerified: true });
+		const generated = await generateAuthenticationOptions(
+			{ ...config, userVerification: "required" },
+			[initial.credential],
+			initial.challengeStore,
+			bindChallengeContext(approvalContext, { intentId: "intent_1" }),
+		);
+		const store: ChallengeStore = initial.challengeStore;
+		const stored = vi.mocked(store.set).mock.calls[0]?.[1];
+		if (!stored) throw new Error("Expected challenge data to be stored");
+		const { credential: validCredential, response } = createValidAssertion({
+			userVerified: true,
+			challenge: generated.challenge,
+		});
+		const atomicStore = {
+			...initial.challengeStore,
+			consume: vi.fn(async () => stored),
+		} satisfies AtomicChallengeStore;
+
+		await expect(
+			verifyAuthenticationResponse(
+				{ ...config, userVerification: "required" },
+				response,
+				validCredential,
+				atomicStore,
+				approvalContext,
+			),
+		).resolves.toMatchObject({ challengeContext: { intentId: "intent_1" } });
+		expect(atomicStore.consume).toHaveBeenCalledWith(generated.challenge);
+		expect(initial.challengeStore.delete).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		["undefined", undefined],
+		["non-callable", "not-a-function"],
+	] as const)("rejects a typed-context store with %s consume", async (_label, consume) => {
+		const initial = createValidAssertion({ userVerified: true });
+		const generated = await generateAuthenticationOptions(
+			{ ...config, userVerification: "required" },
+			[initial.credential],
+			initial.challengeStore,
+			bindChallengeContext(approvalContext, { intentId: "intent_1" }),
+		);
+		const { credential: validCredential, response } = createValidAssertion({
+			userVerified: true,
+			challenge: generated.challenge,
+		});
+		const malformedStore = {
+			...initial.challengeStore,
+			consume,
+		} as unknown as AtomicChallengeStore;
+
+		await expect(
+			verifyAuthenticationResponse(
+				{ ...config, userVerification: "required" },
+				response,
+				validCredential,
+				malformedStore,
+				approvalContext,
+			),
+		).rejects.toMatchObject({
+			code: "invalid_response",
+			message: "Typed challenge context requires an atomic challenge store",
+		});
+		expect(initial.challengeStore.get).not.toHaveBeenCalled();
+		expect(initial.challengeStore.delete).not.toHaveBeenCalled();
+	});
+
+	it("rejects stored context that does not match the signed challenge", async () => {
+		const initial = createValidAssertion({ userVerified: true });
+		const generated = await generateAuthenticationOptions(
+			{ ...config, userVerification: "required" },
+			[initial.credential],
+			initial.challengeStore,
+			bindChallengeContext(approvalContext, { intentId: "intent_1" }),
+		);
+		const store: ChallengeStore = initial.challengeStore;
+		const stored = vi.mocked(store.set).mock.calls[0]?.[1];
+		if (!stored) throw new Error("Expected challenge data to be stored");
+		const { credential: validCredential, response } = createValidAssertion({
+			userVerified: true,
+			challenge: generated.challenge,
+		});
+		const atomicStore = {
+			...initial.challengeStore,
+			consume: vi.fn(async () => ({
+				...stored,
+				context: encodeChallengeContext(approvalContext, { intentId: "intent_2" }),
+			})),
+		} satisfies AtomicChallengeStore;
+
+		await expect(
+			verifyAuthenticationResponse(
+				{ ...config, userVerification: "required" },
+				response,
+				validCredential,
+				atomicStore,
+				approvalContext,
+			),
+		).rejects.toMatchObject({ code: "context_binding_mismatch" });
+	});
 	it("throws a typed passkey auth error for malformed assertion payloads", async () => {
 		try {
 			await authenticateWithPasskey(

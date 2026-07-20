@@ -12,6 +12,11 @@ import { access, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 
+import {
+	MAX_BUNDLE_FILE_BYTES as MAX_FILE_SIZE,
+	MAX_BUNDLE_FILE_COUNT as MAX_FILE_COUNT,
+	MAX_BUNDLE_SIZE,
+} from "@emdash-cms/registry-verification";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 
@@ -22,9 +27,7 @@ import type { ManifestHookEntry, PluginManifest, ResolvedPlugin } from "./types.
 
 // Bundle size caps per RFC 0001 §"Bundle size limits". These are decompressed
 // sizes; the gzipped tarball is typically a fraction of MAX_BUNDLE_SIZE.
-export const MAX_BUNDLE_SIZE = 256 * 1024;
-export const MAX_FILE_SIZE = 128 * 1024;
-export const MAX_FILE_COUNT = 20;
+export { MAX_BUNDLE_SIZE, MAX_FILE_COUNT, MAX_FILE_SIZE };
 
 export const MAX_SCREENSHOTS = 8;
 export const MAX_SCREENSHOT_WIDTH = 1920;
