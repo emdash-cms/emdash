@@ -223,6 +223,7 @@ export default defineConfig({
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
 						{ label: "Object Cache", slug: "deployment/object-cache" },
+						{ label: "Secrets & Key Management", slug: "deployment/secrets" },
 					],
 				},
 				{

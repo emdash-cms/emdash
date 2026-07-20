@@ -13,6 +13,7 @@
  * are configured, in which case those origins are allowed too.
  */
 import type { RegistryConfigInput } from "../../registry/types.js";
+import type { Storage } from "../../storage/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
 /** Entrypoint constant used by the `s3()` adapter (see `astro/storage/adapters.ts`). */
@@ -28,10 +29,12 @@ const S3_ADAPTER_ENTRYPOINT = "emdash/storage/s3";
  * `endpoint` -- from the matching `S3_*` env var at runtime (see
  * `storage/s3.ts`'s `resolveS3Config`). A site configured as `s3({ ... })`
  * with only `S3_ENDPOINT` set has no `endpoint` in the descriptor's config,
- * so fall back to that env var for S3-adapter storage before giving up.
+ * so fall back to that env var for S3-adapter storage. Custom adapters can
+ * expose their runtime upload origin through `getClientUploadOrigin()`.
  */
 export function getConfiguredStorageEndpoint(
 	storage: StorageDescriptor | undefined,
+	runtimeStorage?: Pick<Storage, "getClientUploadOrigin"> | null,
 ): string | undefined {
 	const config = storage?.config;
 	if (typeof config === "object" && config !== null && "endpoint" in config) {
@@ -45,7 +48,7 @@ export function getConfiguredStorageEndpoint(
 		if (envEndpoint) return envEndpoint;
 	}
 
-	return undefined;
+	return runtimeStorage?.getClientUploadOrigin?.();
 }
 
 function getRegistryAggregatorOrigin(

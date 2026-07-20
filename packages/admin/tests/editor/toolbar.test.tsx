@@ -136,6 +136,17 @@ function getToolbarButton(screen: Awaited<ReturnType<typeof render>>, name: stri
 	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name });
 }
 
+async function getHeadingMenuItem(
+	screen: Awaited<ReturnType<typeof render>>,
+	name: "Heading 1" | "Heading 2" | "Heading 3",
+) {
+	const trigger = getToolbarButton(screen, "Headings");
+	trigger.element().click();
+	const item = screen.getByRole("menuitem", { name });
+	await expect.element(item).toBeVisible();
+	return { trigger, item };
+}
+
 // =============================================================================
 // 1. Toolbar Presence and Structure
 // =============================================================================
@@ -147,6 +158,14 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(toolbar).toHaveAttribute("aria-label", "Text formatting");
 	});
 
+	it("centers controls when they fit and preserves horizontal overflow", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+
+		expect(toolbar.className).toContain("overflow-x-auto");
+		expect(getComputedStyle(toolbar).justifyContent).toBe("safe center");
+	});
+
 	it("has all formatting buttons", async () => {
 		const { screen } = await renderEditor();
 		await expect.element(screen.getByRole("button", { name: "Bold" })).toBeVisible();
@@ -156,11 +175,28 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeVisible();
 	});
 
-	it("has all heading buttons", async () => {
+	it("collapses the supported heading levels into one menu", async () => {
 		const { screen } = await renderEditor();
-		await expect.element(screen.getByRole("button", { name: "Heading 1" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Heading 2" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Heading 3" })).toBeVisible();
+		const trigger = getToolbarButton(screen, "Headings");
+		await expect.element(trigger).toBeVisible();
+		await expect.element(trigger).toHaveAttribute("aria-haspopup", "menu");
+
+		trigger.element().click();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeVisible();
+		expect(
+			screen
+				.getByRole("menuitem", { name: "Heading 1" })
+				.element()
+				.hasAttribute("data-emdash-heading-item"),
+		).toBe(true);
+
+		const headingLabels = Array.from(
+			document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+			(item) => item.textContent?.trim(),
+		);
+		expect(headingLabels).not.toContain("Heading 4");
 	});
 
 	it("has all list buttons", async () => {
@@ -182,14 +218,54 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeVisible();
 	});
 
-	it("has all insert buttons", async () => {
+	it("keeps insertion-only actions in the block menu", async () => {
 		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Insert Image" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Insert HTML" })).toBeVisible();
-		await expect
-			.element(screen.getByRole("button", { name: "Insert Horizontal Rule" }))
-			.toBeVisible();
+		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
+	});
+
+	it("renders the link editor outside the horizontally scrolling toolbar", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		screen.getByRole("button", { name: "Insert Link" }).element().click();
+
+		await vi.waitFor(() => {
+			const input = document.querySelector<HTMLInputElement>('input[placeholder="https://..."]');
+			expect(input).toBeTruthy();
+			expect(toolbar.contains(input)).toBe(false);
+		});
+	});
+
+	it("provides an independent block inserter for coarse pointers", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const touchInsert = toolbar.querySelector<HTMLButtonElement>("[data-touch-block-insert]");
+
+		expect(touchInsert).toBeTruthy();
+		expect(touchInsert?.className).toContain("pointer-coarse:flex");
+		expect(touchInsert?.getAttribute("aria-label")).toBe("Insert block after current block");
+		expect(touchInsert?.tabIndex).toBe(0);
+		touchInsert?.click();
+		await vi.waitFor(() => {
+			expect(document.querySelector("body > div [data-index]")).toBeTruthy();
+		});
+	});
+
+	it("includes the coarse-pointer inserter in toolbar arrow navigation when visible", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const touchInsert = toolbar.querySelector<HTMLButtonElement>("[data-touch-block-insert]")!;
+		const bold = screen.getByRole("button", { name: "Bold" });
+		touchInsert.style.display = "flex";
+		bold.element().focus();
+
+		await userEvent.keyboard("{ArrowLeft}");
+
+		await vi.waitFor(() => expect(document.activeElement).toBe(touchInsert));
 	});
 
 	it("has history buttons", async () => {
@@ -280,42 +356,45 @@ describe("Formatting Button Toggle States", () => {
 		});
 	});
 
-	it("Heading 1: click toggles aria-pressed to true and changes to h1", async () => {
+	it("Heading 1: click changes to h1 without exposing toggle semantics", async () => {
 		const { screen, editor } = await renderEditor();
 		// Focus editor and place cursor (block commands need cursor in a paragraph)
 		editor.commands.focus();
 
-		const btn = screen.getByRole("button", { name: "Heading 1" });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
-		btn.element().click();
+		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 1");
+		expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
+		await expect.element(trigger).toHaveAttribute("aria-expanded", "true");
+		item.element().click();
 
 		await vi.waitFor(() => {
-			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
+			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
 			expect(editor.isActive("heading", { level: 1 })).toBe(true);
 		});
 	});
 
-	it("Heading 2: click toggles aria-pressed to true", async () => {
+	it("Heading 2: click changes to h2", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
-		const btn = screen.getByRole("button", { name: "Heading 2" });
-		btn.element().click();
+		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 2");
+		item.element().click();
 
 		await vi.waitFor(() => {
-			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
+			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
+			expect(editor.isActive("heading", { level: 2 })).toBe(true);
 		});
 	});
 
-	it("Heading 3: click toggles aria-pressed to true", async () => {
+	it("Heading 3: click changes to h3", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
-		const btn = screen.getByRole("button", { name: "Heading 3" });
-		btn.element().click();
+		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 3");
+		item.element().click();
 
 		await vi.waitFor(() => {
-			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
+			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
+			expect(editor.isActive("heading", { level: 3 })).toBe(true);
 		});
 	});
 
@@ -543,26 +622,7 @@ describe("Undo/Redo", () => {
 });
 
 // =============================================================================
-// 5. HTML Block Insertion
-// =============================================================================
-
-describe("HTML Block Insertion", () => {
-	it("clicking Insert HTML inserts an empty HTML block", async () => {
-		const { screen, editor } = await renderEditor();
-		editor.commands.focus("end");
-
-		getToolbarButton(screen, "Insert HTML").element().click();
-
-		await vi.waitFor(() => {
-			const htmlBlock = editor.getJSON().content?.find((node) => node.type === "htmlBlock");
-			expect(htmlBlock).toBeDefined();
-			expect((htmlBlock as { attrs?: { html?: string } }).attrs?.html).toBe("");
-		});
-	});
-});
-
-// =============================================================================
-// 6. Link Insertion (Toolbar Popover)
+// 5. Link Insertion (Toolbar Popover)
 // =============================================================================
 
 describe("Link Insertion", () => {
@@ -574,7 +634,7 @@ describe("Link Insertion", () => {
 		linkBtn.element().click();
 
 		await vi.waitFor(() => {
-			const input = screen.container.querySelector('input[type="url"]');
+			const input = document.querySelector('input[type="url"]');
 			expect(input).toBeTruthy();
 		});
 	});
@@ -598,10 +658,10 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(screen.container.querySelector('input[type="url"]')).toBeTruthy();
+			expect(document.querySelector('input[type="url"]')).toBeTruthy();
 		});
 
-		const input = screen.container.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = document.querySelector('input[type="url"]') as HTMLInputElement;
 		// Focus input and type URL
 		input.focus();
 		// Use native input value setter to trigger React's onChange
@@ -627,13 +687,13 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(screen.container.querySelector('input[type="url"]')).toBeTruthy();
+			expect(document.querySelector('input[type="url"]')).toBeTruthy();
 		});
 
 		screen.getByRole("button", { name: "Cancel" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(screen.container.querySelector('input[type="url"]')).toBeNull();
+			expect(document.querySelector('input[type="url"]')).toBeNull();
 		});
 	});
 
@@ -772,10 +832,27 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 		});
 	});
 
+	it("inverts horizontal arrow navigation in RTL", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const bold = screen.getByRole("button", { name: "Bold" });
+		const italic = screen.getByRole("button", { name: "Italic" });
+		toolbar.style.direction = "rtl";
+		italic.element().focus();
+
+		await userEvent.keyboard("{ArrowRight}");
+
+		await vi.waitFor(() => {
+			expect(document.activeElement).toBe(bold.element());
+		});
+	});
+
 	it("Home moves focus to first button", async () => {
 		const { screen } = await renderEditor();
-
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const firstButton = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
+			(button) => !button.disabled && button.getClientRects().length > 0,
+		)!;
 		const alignCenter = screen.getByRole("button", { name: "Align Center" });
 
 		// Focus a button in the middle
@@ -785,7 +862,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 		await userEvent.keyboard("{Home}");
 
 		await vi.waitFor(() => {
-			expect(document.activeElement).toBe(bold.element());
+			expect(document.activeElement).toBe(firstButton);
 		});
 	});
 
@@ -809,9 +886,11 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 
 	it("ArrowRight wraps from last to first button", async () => {
 		const { screen } = await renderEditor();
-
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
 		const spotlightBtn = screen.getByRole("button", { name: "Spotlight Mode" });
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const firstButton = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
+			(button) => !button.disabled && button.getClientRects().length > 0,
+		)!;
 
 		// Focus the last button
 		spotlightBtn.element().focus();
@@ -820,17 +899,19 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 		await userEvent.keyboard("{ArrowRight}");
 
 		await vi.waitFor(() => {
-			expect(document.activeElement).toBe(bold.element());
+			expect(document.activeElement).toBe(firstButton);
 		});
 	});
 
 	it("ArrowLeft wraps from first to last button", async () => {
 		const { screen } = await renderEditor();
-
-		const bold = screen.getByRole("button", { name: "Bold" });
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const firstButton = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
+			(button) => !button.disabled && button.getClientRects().length > 0,
+		)!;
 
 		// Focus the first button
-		bold.element().focus();
+		firstButton.focus();
 
 		// Press ArrowLeft - should wrap to last
 		await userEvent.keyboard("{ArrowLeft}");

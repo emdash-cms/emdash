@@ -213,6 +213,8 @@ export interface ContentItem {
 	createdAt: string;
 	updatedAt: string;
 	publishedAt: string | null;
+	/** Scheduled publication time, if set (e.g. scheduled items or scheduled draft changes). */
+	scheduledAt?: string | null;
 }
 
 export interface ContentListWhere {
