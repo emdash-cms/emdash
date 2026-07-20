@@ -1,0 +1,23 @@
+packages/admin/src/components/ContentEditor.tsx
+  s_8bd99f89d5c5f7::t_abf25e5a15421e 1187
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_8bd99f89d5c5f7::t_1d4de58aa9fff2 181
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_8bd99f89d5c5f7::t_2720417ccdbe34 1332,1340,1347,1349-1351
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "11a7bdd103e7f32f2c16447d6570831565895540",
+  "prompts": {},
+  "sessions": {
+    "s_8bd99f89d5c5f7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f77a0-6271-7380-bb92-efb9e797b817",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}

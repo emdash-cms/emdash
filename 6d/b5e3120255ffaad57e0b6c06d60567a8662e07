@@ -1,0 +1,23 @@
+.changeset/focused-actions-align.md
+  s_8bd99f89d5c5f7::t_886af73319e145 1-5
+packages/admin/src/components/ContentEditor.tsx
+  s_8bd99f89d5c5f7::t_eecc3c3fdaa2a6 717,727,733-740,744-748,756
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_8bd99f89d5c5f7::t_e3bdd6fd850d6d 1348-1373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6db5e3120255ffaad57e0b6c06d60567a8662e07",
+  "prompts": {},
+  "sessions": {
+    "s_8bd99f89d5c5f7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f77a0-6271-7380-bb92-efb9e797b817",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}

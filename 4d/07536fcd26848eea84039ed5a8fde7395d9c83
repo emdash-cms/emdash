@@ -1,0 +1,23 @@
+.changeset/focused-exit-align.md
+  s_8bd99f89d5c5f7::t_edfcdea5fa28d9 1-5
+packages/admin/src/components/ContentEditor.tsx
+  s_8bd99f89d5c5f7::t_6b0de0819177aa 750-758
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_8bd99f89d5c5f7::t_77f20a5ee5baf2 1370-1379
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4d07536fcd26848eea84039ed5a8fde7395d9c83",
+  "prompts": {},
+  "sessions": {
+    "s_8bd99f89d5c5f7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f77a0-6271-7380-bb92-efb9e797b817",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
