@@ -1,0 +1,23 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_0dacf3e2fa197f::t_9517192294da9e 3282,3284,3475-3477,3479,3613-3615,3619,3744-3746,3748
+packages/admin/src/components/editor/HeadingDropdownMenu.tsx
+  s_0dacf3e2fa197f::t_de9db049ee702e 161-164,168
+packages/admin/tests/editor/toolbar.test.tsx
+  s_0dacf3e2fa197f::t_fbd24c0e4ac02a 337,340,344
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0e803ec35b2c1da530b17cc0399ffc2a206b04ed",
+  "prompts": {},
+  "sessions": {
+    "s_0dacf3e2fa197f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8113-f0b1-7860-8e34-11d09e5add7e",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
