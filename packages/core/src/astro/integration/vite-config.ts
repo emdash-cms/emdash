@@ -46,9 +46,12 @@ import {
 	RESOLVED_VIRTUAL_WAIT_UNTIL_ID,
 	VIRTUAL_SCHEDULER_ID,
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
+	VIRTUAL_ENV_ID,
+	RESOLVED_VIRTUAL_ENV_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
+	generateEnvModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
@@ -227,6 +230,9 @@ export function createVirtualModulesPlugin(
 			if (id === VIRTUAL_SCHEDULER_ID) {
 				return RESOLVED_VIRTUAL_SCHEDULER_ID;
 			}
+			if (id === VIRTUAL_ENV_ID) {
+				return RESOLVED_VIRTUAL_ENV_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -321,6 +327,11 @@ export function createVirtualModulesPlugin(
 			if (id === RESOLVED_VIRTUAL_SCHEDULER_ID) {
 				const schedulerCommand = astroCommand === "dev" ? "serve" : "build";
 				return generateSchedulerModule(astroConfig.adapter?.name, schedulerCommand);
+			}
+			// Generate env module — re-exports cloudflare:workers' env under
+			// the Cloudflare adapter, undefined otherwise (#1736).
+			if (id === RESOLVED_VIRTUAL_ENV_ID) {
+				return generateEnvModule(astroConfig.adapter?.name);
 			}
 		},
 	};

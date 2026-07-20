@@ -69,6 +69,18 @@ export class CoalescingD1Connection implements DatabaseConnection {
 	#buffer: PendingQuery[] = [];
 	#flushScheduled = false;
 	/**
+	 * Time by which the currently-scheduled flush must have run. If it hasn't
+	 * (its timer was dropped by a cancelled owner), the next caller reclaims
+	 * the flag and reschedules. See #scheduleFlush.
+	 */
+	#flushDeadline = 0;
+	/**
+	 * How long a scheduled flush may go unfired before a later caller treats
+	 * it as stranded. Generous — a live setTimeout(0) fires within a turn —
+	 * so reclaim only ever trips on a genuinely dropped timer, never a slow one.
+	 */
+	static readonly #FLUSH_RECLAIM_MS = 1_000;
+	/**
 	 * Tail of a promise chain that serializes every physical call against the
 	 * shared D1DatabaseSession (direct-path statements and batch flushes
 	 * alike). See #enqueue.
@@ -127,19 +139,43 @@ export class CoalescingD1Connection implements DatabaseConnection {
 	/**
 	 * Schedule a flush of buffered SELECTs unless one is already pending.
 	 *
-	 * setTimeout(0) (macrotask), not queueMicrotask: Kysely awaits internally
-	 * between acquiring the connection and executing each query, so a
-	 * microtask window would close before sibling queries issued in the same
-	 * turn reach the connection. Queries that arrive after the buffer is
-	 * drained (flag already cleared) simply schedule the next window; physical
-	 * ordering against any in-flight call is handled by #enqueue.
+	 * Cancellation-safe on workerd (#1927). A request cancelled after queueing
+	 * a query drops its pending timers, so if that request owned the scheduled
+	 * flush the timer would never fire — leaving `#flushScheduled` stuck `true`
+	 * and every later query awaiting a flush that never runs. Two defences:
+	 *
+	 * 1. The scheduled timer runs `setTimeout(0)` (macrotask — a microtask
+	 *    window would close before sibling queries issued in the same turn
+	 *    reach the connection, since Kysely awaits internally between
+	 *    acquiring the connection and executing each query).
+	 * 2. The flush flag is **reclaimable**: each schedule stamps a deadline,
+	 *    and if that deadline lapses with the flag still set (the timer was
+	 *    dropped by a cancelled owner), the next caller clears the stale flag
+	 *    and reschedules instead of queueing behind a dead timer. A live flush
+	 *    fires within a turn, well under the deadline, so reclaim only ever
+	 *    trips on a genuinely stranded flush.
 	 */
 	#scheduleFlush(): void {
-		if (this.#flushScheduled) return;
+		if (this.#flushScheduled) {
+			this.#reclaimStrandedFlush();
+			if (this.#flushScheduled) return;
+		}
 		this.#flushScheduled = true;
+		this.#flushDeadline = Date.now() + CoalescingD1Connection.#FLUSH_RECLAIM_MS;
 		setTimeout(() => {
 			void this.#flush();
 		}, 0);
+	}
+
+	/**
+	 * If the pending flush is older than its deadline, its timer was dropped
+	 * by a cancelled owner — clear the flag so this caller reschedules rather
+	 * than queueing behind a flush that will never run.
+	 */
+	#reclaimStrandedFlush(): void {
+		if (this.#flushScheduled && Date.now() > this.#flushDeadline) {
+			this.#flushScheduled = false;
+		}
 	}
 
 	async #flush(): Promise<void> {

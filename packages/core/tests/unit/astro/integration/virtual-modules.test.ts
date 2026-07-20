@@ -10,6 +10,7 @@ import type { PluginDescriptor } from "../../../../src/astro/integration/runtime
 import {
 	generateConfigModule,
 	generateDialectModule,
+	generateEnvModule,
 	generateSchedulerModule,
 	generateSeedModule,
 	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
@@ -119,7 +120,25 @@ describe("generateSchedulerModule", () => {
 	});
 });
 
-describe("createVirtualModulesPlugin", () => {
+describe("generateEnvModule", () => {
+	it("re-exports cloudflare:workers' env under the Cloudflare adapter", () => {
+		const out = generateEnvModule("@astrojs/cloudflare");
+		expect(out).toBe('export { env } from "cloudflare:workers";');
+	});
+
+	it("exports undefined for non-Cloudflare adapters (#1736)", () => {
+		const out = generateEnvModule("@astrojs/node");
+		expect(out).toBe("export const env = undefined;");
+		expect(out).not.toContain("cloudflare:workers");
+	});
+
+	it("exports undefined when no adapter is configured", () => {
+		const out = generateEnvModule(undefined);
+		expect(out).toBe("export const env = undefined;");
+	});
+});
+
+describe("createVirtualModulesPlugin scheduler wiring", () => {
 	// Invoke a Vite plugin hook that may be a function or { handler } object.
 	function callHook<T>(hook: unknown, ...args: unknown[]): T {
 		const fn = typeof hook === "function" ? hook : (hook as { handler: unknown }).handler;

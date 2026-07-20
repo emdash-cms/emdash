@@ -31,6 +31,7 @@ import {
 	BYLINE_SCHEMA_NAV_ITEM,
 	filterNavItemsByRole,
 	resolveNavIcon,
+	resolvePluginPageLabel,
 	toPhosphorIconName,
 } from "../../src/components/Sidebar";
 import { render } from "../utils/render.tsx";
@@ -94,6 +95,30 @@ describe("filterNavItemsByRole", () => {
 		// must strip every gated entry at role=0.
 		const visible = filterNavItemsByRole(items, 0).map((i) => i.to);
 		expect(visible).toEqual(["/"]);
+	});
+});
+
+describe("resolvePluginPageLabel", () => {
+	// Simulates a plugin that loaded its Lingui catalog into the shared i18n
+	// instance: known msgids translate, unknown ones return the msgid itself
+	// (exactly i18n._'s fallback behavior).
+	const translate = (id: string) => (id === "Orders" ? "Bestellungen" : id);
+
+	it("translates a declared label through the shared i18n instance", () => {
+		expect(resolvePluginPageLabel("Orders", "my-shop", translate)).toBe("Bestellungen");
+	});
+
+	it("falls back to the literal label when no catalog entry exists", () => {
+		// Plugins without a Lingui catalog must render exactly what they
+		// declared — the identity lookup keeps this fully backwards compatible.
+		expect(resolvePluginPageLabel("Products", "my-shop", translate)).toBe("Products");
+	});
+
+	it("prettifies the plugin id when no label is declared (untranslated)", () => {
+		// The fallback is derived from the package id, not author-provided
+		// English — never run it through the catalog.
+		expect(resolvePluginPageLabel(undefined, "my-shop", translate)).toBe("My Shop");
+		expect(resolvePluginPageLabel(undefined, "orders", translate)).toBe("Orders");
 	});
 });
 

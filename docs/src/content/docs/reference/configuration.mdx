@@ -224,9 +224,21 @@ emdash({
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
 
+On **Cloudflare Workers**, the env-var fallback reads `process.env`, which is empty unless the `nodejs_compat_populate_process_env` compatibility flag is enabled. To use the env var instead of the config option there, set both:
+
+```jsonc
+// wrangler.jsonc
+{
+	"compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+	"vars": { "EMDASH_SITE_URL": "https://cms.example.com" },
+}
+```
+
 <Aside type="tip">
 	`siteUrl` is the single option for the public origin. It covers passkeys and all other
-	origin-dependent features.
+	origin-dependent features. It does not change `Astro.url` in your own templates — set Astro's
+	[`site`](https://docs.astro.build/en/reference/configuration-reference/#site) option for
+	canonical/OG URLs you build yourself.
 </Aside>
 
 #### Multi-origin passkey verification

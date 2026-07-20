@@ -203,6 +203,7 @@ describe("ContentSettingsPanel", () => {
 
 function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): SettingsActionBarProps {
 	return {
+		collectionLabel: "Post",
 		isNew: false,
 		isDirty: false,
 		isSaving: false,
@@ -224,29 +225,42 @@ describe("SettingsActionBar", () => {
 		vi.clearAllMocks();
 	});
 
-	it("shows Publish for an unpublished draft", async () => {
+	it("shows Publish Post for an unpublished draft", async () => {
 		const screen = await render(<SettingsActionBar {...makeBarProps()} />);
+		const publish = screen.getByRole("button", { name: "Publish Post" });
 
-		await expect.element(screen.getByRole("button", { name: "Publish" })).toBeInTheDocument();
-		expect(screen.container.textContent).not.toContain("Unpublish");
+		await expect.element(publish).toBeInTheDocument();
+		expect(publish.element().className).toContain("button-emphasis-bg");
+		expect(screen.container.textContent).not.toContain("Unpublish Post");
 	});
 
-	it("shows Publish changes for a live item with edits", async () => {
+	it("preserves configured collection label casing", async () => {
+		const screen = await render(
+			<SettingsActionBar {...makeBarProps({ collectionLabel: "API Docs" })} />,
+		);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Publish API Docs", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it("shows Publish updates for a live item with edits", async () => {
 		const props = makeBarProps({ isLive: true, hasPendingChanges: true });
 		const screen = await render(<SettingsActionBar {...props} />);
 
-		const publishChanges = screen.getByRole("button", { name: "Publish changes" });
+		const publishChanges = screen.getByRole("button", { name: "Publish updates" });
 		await expect.element(publishChanges).toBeInTheDocument();
+		expect(publishChanges.element().className).toContain("button-emphasis-bg");
 
 		await publishChanges.click();
 		expect(props.onPublish).toHaveBeenCalled();
 	});
 
-	it("shows Unpublish for a clean live item", async () => {
+	it("shows Unpublish Post for a clean live item", async () => {
 		const props = makeBarProps({ isLive: true });
 		const screen = await render(<SettingsActionBar {...props} />);
 
-		const unpublish = screen.getByRole("button", { name: "Unpublish" });
+		const unpublish = screen.getByRole("button", { name: "Unpublish Post" });
 		await expect.element(unpublish).toBeInTheDocument();
 
 		await unpublish.click();
@@ -271,6 +285,32 @@ describe("SettingsActionBar", () => {
 
 		await preview.click();
 		expect(props.onPreview).toHaveBeenCalled();
+	});
+
+	it("gives every action an intrinsic flexible layout slot", async () => {
+		const screen = await render(
+			<SettingsActionBar
+				{...makeBarProps({
+					isLive: true,
+					hasPendingChanges: true,
+					liveViewUrl: "https://example.com/my-post",
+					supportsPreview: true,
+				})}
+			/>,
+		);
+		const actions = [
+			screen.getByRole("button", { name: "Saved" }).element(),
+			screen.getByRole("link", { name: "Live View" }).element(),
+			screen.getByRole("button", { name: "Preview draft" }).element(),
+			screen.getByRole("button", { name: "Publish updates" }).element(),
+		];
+		const slots = actions.map((action) => action.parentElement);
+
+		expect(new Set(slots)).toHaveLength(actions.length);
+		for (const slot of slots) {
+			expect(slot).toHaveClass("min-w-max", "flex-[1_1_auto]");
+		}
+		expect(slots[0]?.parentElement).toHaveClass("items-stretch");
 	});
 
 	it("hides the publish cluster for new items", async () => {

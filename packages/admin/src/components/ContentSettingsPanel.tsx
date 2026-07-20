@@ -99,6 +99,7 @@ export function DiscardDraftDialog({
 }
 
 export interface SettingsActionBarProps {
+	collectionLabel?: string;
 	isNew?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
@@ -115,6 +116,14 @@ export interface SettingsActionBarProps {
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	announceSaveStatus?: boolean;
+}
+
+function SettingsActionSlot({ children }: React.PropsWithChildren) {
+	return (
+		<div className="flex min-w-max flex-[1_1_auto] [&>*]:w-full [&>*]:justify-center">
+			{children}
+		</div>
+	);
 }
 
 export interface PreviewButtonProps {
@@ -146,6 +155,7 @@ export function PreviewButton({
 }
 
 export interface PublishActionsProps {
+	collectionLabel?: string;
 	isNew?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
@@ -155,6 +165,7 @@ export interface PublishActionsProps {
 }
 
 export function PublishActions({
+	collectionLabel,
 	isNew,
 	isLive,
 	hasPendingChanges,
@@ -163,25 +174,26 @@ export function PublishActions({
 	size,
 }: PublishActionsProps) {
 	const { t } = useLingui();
+	const itemLabel = collectionLabel ?? t`content`;
 
 	if (isNew) return null;
 	if (!isLive) {
 		return (
-			<Button type="button" variant="secondary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish`}
+			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
+				{t`Publish ${itemLabel}`}
 			</Button>
 		);
 	}
 	if (hasPendingChanges) {
 		return (
 			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish changes`}
+				{t`Publish updates`}
 			</Button>
 		);
 	}
 	return (
 		<Button type="button" variant="outline" size={size} onClick={onUnpublish} icon={<EyeSlash />}>
-			{t`Unpublish`}
+			{t`Unpublish ${itemLabel}`}
 		</Button>
 	);
 }
@@ -196,6 +208,7 @@ export function PublishActions({
  * memoized panel body below it.
  */
 export function SettingsActionBar({
+	collectionLabel,
 	isNew,
 	isDirty,
 	isSaving,
@@ -214,42 +227,53 @@ export function SettingsActionBar({
 	const { t } = useLingui();
 
 	return (
-		<div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3">
-			<SaveButton
-				type="submit"
-				size="sm"
-				isDirty={isDirty}
-				isSaving={isSaving || Boolean(isAutosaving)}
-				announce={announceSaveStatus}
-				disabled={saveDisabled}
-			/>
-			{liveViewUrl && (
-				<LinkButton
-					href={liveViewUrl}
-					external
-					variant="outline"
+		<div className="flex shrink-0 flex-wrap items-stretch gap-2 border-b px-4 py-3">
+			<SettingsActionSlot>
+				<SaveButton
+					type="submit"
 					size="sm"
-					icon={<ArrowSquareOut />}
-				>
-					{t`Live View`}
-				</LinkButton>
+					isDirty={isDirty}
+					isSaving={isSaving || Boolean(isAutosaving)}
+					announce={announceSaveStatus}
+					disabled={saveDisabled}
+				/>
+			</SettingsActionSlot>
+			{liveViewUrl && (
+				<SettingsActionSlot>
+					<LinkButton
+						href={liveViewUrl}
+						external
+						variant="outline"
+						size="sm"
+						icon={<ArrowSquareOut />}
+					>
+						{t`Live View`}
+					</LinkButton>
+				</SettingsActionSlot>
 			)}
 			{!isNew && supportsPreview && (
-				<PreviewButton
-					size="sm"
-					hasPendingChanges={hasPendingChanges}
-					isLoadingPreview={isLoadingPreview}
-					onPreview={onPreview}
-				/>
+				<SettingsActionSlot>
+					<PreviewButton
+						size="sm"
+						hasPendingChanges={hasPendingChanges}
+						isLoadingPreview={isLoadingPreview}
+						onPreview={onPreview}
+					/>
+				</SettingsActionSlot>
 			)}
-			<PublishActions
-				isNew={isNew}
-				isLive={isLive}
-				hasPendingChanges={hasPendingChanges}
-				onPublish={onPublish}
-				onUnpublish={onUnpublish}
-				size="sm"
-			/>
+			{!isNew && (
+				<SettingsActionSlot>
+					<PublishActions
+						collectionLabel={collectionLabel}
+						isNew={isNew}
+						isLive={isLive}
+						hasPendingChanges={hasPendingChanges}
+						onPublish={onPublish}
+						onUnpublish={onUnpublish}
+						size="sm"
+					/>
+				</SettingsActionSlot>
+			)}
 		</div>
 	);
 }
