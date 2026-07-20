@@ -151,7 +151,17 @@ jobs:
             git rm -rfq --cached . 2>/dev/null || true
           fi
           rm -rf "$DEST"; mkdir -p "$DEST"
+          # Normal drift: publish the diff/expected/actual triptychs.
           cp "$RUNNER_TEMP/va/diff/"*.png "$DEST/" 2>/dev/null || true
+          # Bootstrap (no committed baselines yet): Playwright writes only the
+          # new baselines, no triptych. Publish the candidate baselines so the
+          # comment has something to show. Strip the -chromium-<platform> suffix
+          # so the screen name matches the diff naming (e.g. dashboard-ltr).
+          for f in "$RUNNER_TEMP/va/candidates/"*.png; do
+            [ -e "$f" ] || continue
+            screen=$(basename "$f" | sed -E 's/-chromium-(linux|darwin|win32)\.png$//')
+            cp "$f" "$DEST/${screen}-baseline.png"
+          done
           git add "$DEST"
           if git diff --staged --quiet; then
             echo "No images to publish."
@@ -178,27 +188,50 @@ jobs:
             const prNumber = Number(process.env.PR_NUMBER);
             const headSha = process.env.HEAD_SHA;
 
-            const diffDir = path.join(process.env.RUNNER_TEMP, 'va', 'diff');
-            const files = fs.existsSync(diffDir) ? fs.readdirSync(diffDir) : [];
-            const names = files
+            const dir = path.join(process.env.RUNNER_TEMP, 'va');
+            const diffDir = path.join(dir, 'diff');
+            const candDir = path.join(dir, 'candidates');
+            const diffFiles = fs.existsSync(diffDir) ? fs.readdirSync(diffDir) : [];
+            const diffNames = diffFiles
               .filter((f) => f.endsWith('-diff.png'))
               .map((f) => f.slice(0, -'-diff.png'.length))
               .sort();
 
-            const rows = names.map((n) => {
-              const diff = `${baseUrl}/${n}-diff.png`;
-              const expected = `${baseUrl}/${n}-expected.png`;
-              const actual = `${baseUrl}/${n}-actual.png`;
-              return `| \`${n}\` | <img src="${diff}" width="320"> | [expected](${expected}) · [actual](${actual}) |`;
-            });
+            let heading;
+            let intro;
+            let rows;
+            if (diffNames.length > 0) {
+              // Normal drift: prior baselines exist, show the triptych.
+              heading = `## Visual regression: ${diffNames.length} screen${diffNames.length === 1 ? '' : 's'} changed`;
+              intro = 'These admin screens render differently on this PR. Confirm every change below is intended before accepting.';
+              rows = diffNames.map((n) => {
+                const diff = `${baseUrl}/${n}-diff.png`;
+                const expected = `${baseUrl}/${n}-expected.png`;
+                const actual = `${baseUrl}/${n}-actual.png`;
+                return `| \`${n}\` | <img src="${diff}" width="320"> | [expected](${expected}) · [actual](${actual}) |`;
+              });
+            } else {
+              // Bootstrap: no prior baselines, show the new candidate baselines.
+              const candFiles = fs.existsSync(candDir) ? fs.readdirSync(candDir) : [];
+              const newNames = candFiles
+                .filter((f) => /-chromium-(linux|darwin|win32)\.png$/.test(f))
+                .map((f) => f.replace(/-chromium-(linux|darwin|win32)\.png$/, ''))
+                .sort();
+              heading = `## Visual regression: ${newNames.length} new screen${newNames.length === 1 ? '' : 's'} (no baseline yet)`;
+              intro = 'No baselines exist for these admin screens yet. Review the proposed baselines below, then accept them to start tracking visual drift.';
+              rows = newNames.map((n) => {
+                const baseline = `${baseUrl}/${n}-baseline.png`;
+                return `| \`${n}\` | <img src="${baseline}" width="320"> | new screen (no prior baseline) |`;
+              });
+            }
 
             const body = [
               marker,
-              `## Visual regression: ${names.length} screen${names.length === 1 ? '' : 's'} changed`,
+              heading,
               '',
-              'These admin screens render differently on this PR. Confirm every change below is intended before accepting.',
+              intro,
               '',
-              '| Screen | Diff | Compare |',
+              '| Screen | Image | Compare |',
               '| --- | --- | --- |',
               ...rows,
               '',

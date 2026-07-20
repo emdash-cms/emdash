@@ -21,7 +21,7 @@
 
 import type { Locator } from "@playwright/test";
 
-import { test, expect, type AdminPage } from "../fixtures";
+import { test, expect, type AdminPage, type ServerInfo } from "../fixtures";
 
 const VISUAL_ENABLED = process.env.EMDASH_VISUAL === "1";
 
@@ -45,10 +45,6 @@ const LOCALES = [
 	{ name: "ltr", code: "en", dir: "ltr" },
 	{ name: "rtl", code: "ar", dir: "rtl" },
 ] as const;
-
-interface ServerInfo {
-	contentIds: Record<string, string[]>;
-}
 
 /**
  * A screen to snapshot.
@@ -114,7 +110,11 @@ async function openAdmin(admin: AdminPage, path: string, dir: string): Promise<v
 /** Settle fonts and freeze animation before capturing. */
 async function stabilize(admin: AdminPage): Promise<void> {
 	await admin.page.addStyleTag({ content: FREEZE_CSS });
-	await admin.page.evaluate(() => document.fonts.ready);
+	// Await font loading without returning the FontFaceSet that
+	// document.fonts.ready fulfils with -- Playwright cannot serialize it.
+	await admin.page.evaluate(async () => {
+		await document.fonts.ready;
+	});
 }
 
 test.describe("visual regression", () => {

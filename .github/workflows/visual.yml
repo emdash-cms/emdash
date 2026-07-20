@@ -20,8 +20,11 @@ on:
     paths:
       - "packages/admin/**"
       - "packages/core/**"
-      - "e2e/tests/visual-regression.spec.ts"
-      - "e2e/tests/visual-regression.spec.ts-snapshots/**"
+      # The whole e2e tree feeds the screenshots: the spec, the committed
+      # baselines, the fixtures/page objects, global setup, and the seed data
+      # under e2e/fixture/** all determine what renders and how it's captured.
+      - "e2e/**"
+      - "playwright.config.ts"
       - ".github/workflows/visual.yml"
 
 permissions:
