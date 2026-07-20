@@ -8,6 +8,8 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { RouteMeta } from "../plugins/routes.js";
+
 // Re-export core types
 export type {
 	ContentItem,
@@ -410,11 +412,8 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
-	// Plugin route metadata (for auth decisions before dispatch)
-	getPluginRouteMeta: (
-		pluginId: string,
-		path: string,
-	) => { public: boolean; permission?: string } | null;
+	// Plugin route metadata (for auth/caching decisions before dispatch)
+	getPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
 	getEnabledPluginMcpTools: () => Promise<
 		Array<{
 			pluginId: string;

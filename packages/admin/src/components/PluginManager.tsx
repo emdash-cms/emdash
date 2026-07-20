@@ -10,7 +10,6 @@ import { Badge, Button, Checkbox, Switch, Toast } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	PuzzlePiece,
 	Gear,
 	FileText,
 	SquaresFour,
@@ -51,6 +50,7 @@ import {
 } from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -195,7 +195,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 
 			{plugins?.length === 0 && (
 				<div className="rounded-lg border bg-kumo-base p-8 text-center">
-					<PuzzlePiece className="mx-auto h-12 w-12 text-kumo-subtle" />
+					<ADMIN_NAV_ICONS.plugins className="mx-auto h-12 w-12 text-kumo-subtle" />
 					<h3 className="mt-4 text-lg font-medium">{t`No plugins configured`}</h3>
 					<p className="mt-2 text-sm text-kumo-subtle">
 						{hasMarketplace ? (
@@ -368,7 +368,7 @@ function PluginCard({
 								plugin.enabled ? "bg-kumo-brand/10" : "bg-kumo-tint",
 							)}
 						>
-							<PuzzlePiece
+							<ADMIN_NAV_ICONS.plugins
 								className={cn("h-5 w-5", plugin.enabled ? "text-kumo-brand" : "text-kumo-subtle")}
 							/>
 						</div>

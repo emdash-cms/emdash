@@ -214,6 +214,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/media/[id]/usage",
+		entrypoint: resolveRoute("api/media/[id]/usage.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/media/[id]/confirm",
 		entrypoint: resolveRoute("api/media/[id]/confirm.ts"),
 	});

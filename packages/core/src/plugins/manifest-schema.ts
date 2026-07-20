@@ -142,6 +142,7 @@ const manifestRouteEntrySchema = z.object({
 		.string()
 		.refine((permission) => permission in Permissions)
 		.optional(),
+	cacheControl: z.string().min(1).optional(),
 });
 
 const pluginJsonSchema = z.record(z.string(), z.unknown());
@@ -372,11 +373,12 @@ export function normalizeManifestHook(
  * Normalize a manifest route entry — plain strings become `{ name }` objects.
  */
 export function normalizeManifestRoute(
-	entry: string | { name: string; public?: boolean; permission?: string },
+	entry: string | { name: string; public?: boolean; permission?: string; cacheControl?: string },
 ): {
 	name: string;
 	public?: boolean;
 	permission?: string;
+	cacheControl?: string;
 } {
 	if (typeof entry === "string") {
 		return { name: entry };

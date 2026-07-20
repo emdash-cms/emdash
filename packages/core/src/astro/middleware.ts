@@ -67,6 +67,9 @@ import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js
 import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
+// Public type for withEmDashRuntime() consumers (queue/scheduled handlers).
+export type { EmDashRuntime } from "../emdash-runtime.js";
+
 /**
  * Runtime init lock reclaim deadline. Must be strictly larger than the db
  * init deadline: this lock wraps EmDashRuntime.create() → getDatabase() →
@@ -273,22 +276,81 @@ export async function runScheduledTasks(
 ): Promise<{ published: PublishedRef[] }> {
 	const config = getConfig();
 	if (!config) return { published: [] };
+	return runOutsideRequest(config, (runtime) => runtime.runScheduledTasks(options));
+}
+
+/**
+ * Run a callback against the EmDash runtime outside any HTTP request — from a
+ * Cloudflare Queue consumer, a `scheduled()` handler, or any other
+ * platform-event handler that has no request and therefore no `locals.emdash`.
+ *
+ * Resolves the same cached runtime singleton request handlers use, so hooks,
+ * plugin state, and storage all behave exactly as they do during a request.
+ * A typical queue consumer finishes a job by calling back into a plugin route:
+ *
+ * ```ts
+ * import { withEmDashRuntime } from "emdash/middleware";
+ *
+ * async function queue(batch: MessageBatch) {
+ * 	await withEmDashRuntime(async (runtime) => {
+ * 		for (const message of batch.messages) {
+ * 			await runtime.handlePluginApiRoute(
+ * 				"my-plugin",
+ * 				"POST",
+ * 				"/finishJob",
+ * 				new Request("https://internal/", {
+ * 					method: "POST",
+ * 					body: JSON.stringify(message.body),
+ * 				}),
+ * 			);
+ * 		}
+ * 	});
+ * }
+ * ```
+ *
+ * Server-only and fully trusted: the callback gets the raw runtime with no
+ * auth or CSRF checks, same trust level as plugin cron. Never expose it to
+ * user input without validating that input yourself.
+ *
+ * Throws when EmDash is not configured (no `emdash()` Astro integration).
+ */
+export async function withEmDashRuntime<T>(
+	run: (runtime: EmDashRuntime) => T | Promise<T>,
+): Promise<T> {
+	const config = getConfig();
+	if (!config) {
+		throw new Error(
+			"EmDash is not configured — withEmDashRuntime() requires the emdash() Astro integration.",
+		);
+	}
+	return runOutsideRequest(config, async (runtime) => run(runtime));
+}
+
+/**
+ * Shared plumbing for request-free entry points (`runScheduledTasks`,
+ * `withEmDashRuntime`): resolve the runtime singleton, then run the callback
+ * under an event-scoped db connection when the adapter needs one.
+ *
+ * Connection-backed adapters (e.g. Postgres over Hyperdrive) cannot reuse
+ * the per-isolate singleton from a platform event: its socket belongs to the
+ * request that opened it, and workerd rejects cross-event I/O. Open an
+ * event-scoped connection and run the callback under it in ALS — the
+ * runtime's db getter, the cron executor, and plugin contexts all resolve
+ * the connection from ALS — then close it. Gated on the adapter being
+ * connection-backed (it exposes `close()`); stateless adapters (D1, Node
+ * SQLite) return null or a close-less scope and keep using the singleton.
+ */
+async function runOutsideRequest<T>(
+	config: EmDashConfig,
+	fn: (runtime: EmDashRuntime) => Promise<T>,
+): Promise<T> {
 	const runtime = await getRuntime(config);
 
-	// Connection-backed adapters (e.g. Postgres over Hyperdrive) cannot reuse
-	// the per-isolate singleton from a Cron Trigger: its socket belongs to the
-	// request that opened it, and workerd rejects cross-event I/O. Open an
-	// event-scoped connection for the sweep and run the batch under it in ALS —
-	// the runtime's db getter, the cron executor, and plugin cron contexts all
-	// resolve the connection from ALS — then close it. Gated on the adapter
-	// being connection-backed (it exposes `close()`); stateless adapters (D1,
-	// Node SQLite) return null or a close-less scope and keep using the
-	// singleton, so their cron path is unchanged.
 	const scoped = createRequestScopedDb({
 		config: config.database?.config,
 		isAuthenticated: false,
-		// The sweep publishes and cleans up — a write workload — so a
-		// connection-backed adapter routes it to the primary.
+		// Event handlers publish, clean up, or run jobs — a write workload —
+		// so a connection-backed adapter routes them to the primary.
 		isWrite: true,
 		cookies: NOOP_COOKIE_JAR,
 		url: CRON_EVENT_URL,
@@ -296,7 +358,7 @@ export async function runScheduledTasks(
 	if (!scoped?.close) {
 		// Stateless adapter (or no per-request scoping): the singleton is safe
 		// outside a request. Any close-less scope created above is discarded.
-		return runtime.runScheduledTasks(options);
+		return fn(runtime);
 	}
 
 	const parent = getRequestContext();
@@ -304,19 +366,19 @@ export async function runScheduledTasks(
 		? { ...parent, db: scoped.db }
 		: { editMode: false, db: scoped.db, metrics: createRequestMetrics(performance.now()) };
 	try {
-		return await runWithContext(ctx, () => runtime.runScheduledTasks(options));
+		return await runWithContext(ctx, () => fn(runtime));
 	} finally {
-		// Guard both so a throw in teardown can't mask the sweep result or skip
-		// close() and leak the connection. Mirrors closeSafely() in scoped-db.ts.
+		// Guard both so a throw in teardown can't mask the callback result or
+		// skip close() and leak the connection. Mirrors closeSafely() in scoped-db.ts.
 		try {
 			scoped.commit();
 		} catch (error) {
-			console.error("[scheduled] request-scoped db commit failed:", error);
+			console.error("[emdash] event-scoped db commit failed:", error);
 		}
 		try {
 			scoped.close();
 		} catch (error) {
-			console.error("[scheduled] request-scoped db close failed:", error);
+			console.error("[emdash] event-scoped db close failed:", error);
 		}
 	}
 }

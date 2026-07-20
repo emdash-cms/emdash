@@ -730,6 +730,65 @@ describe("MCP Authorization", () => {
 	});
 
 	// -----------------------------------------------------------------------
+	// media_upload guards
+	// -----------------------------------------------------------------------
+
+	describe("media_upload guards", () => {
+		const uploadArgs = {
+			filename: "x.png",
+			base64: "aGVsbG8=",
+			contentType: "image/png",
+		};
+
+		it("SUBSCRIBER cannot upload media", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({ name: "media_upload", arguments: uploadArgs });
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(INSUFFICIENT_PERMISSIONS_RE);
+		});
+
+		it("rejects media_upload without media:write scope", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.ADMIN,
+				handlers,
+				tokenScopes: ["media:read"],
+			}));
+
+			const result = await client.callTool({ name: "media_upload", arguments: uploadArgs });
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(INSUFFICIENT_SCOPE_RE);
+		});
+
+		it("returns NO_STORAGE when storage is not configured", async () => {
+			// createMockHandlers has no storage adapter attached
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({ name: "media_upload", arguments: uploadArgs });
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toContain("NO_STORAGE");
+		});
+	});
+
+	// -----------------------------------------------------------------------
 	// Token scope enforcement
 	// -----------------------------------------------------------------------
 

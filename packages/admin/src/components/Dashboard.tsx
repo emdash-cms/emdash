@@ -8,7 +8,6 @@ import {
 	CheckCircle,
 	PencilSimple,
 	CalendarBlank,
-	Image,
 	Users,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +18,7 @@ import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/das
 import { fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
 import { formatRelativeTime } from "../lib/utils";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
@@ -156,7 +156,7 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 				]
 			: []),
 		{
-			icon: Image,
+			icon: ADMIN_NAV_ICONS.media,
 			label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
 			value: stats.mediaCount,
 		},

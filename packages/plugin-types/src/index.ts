@@ -314,6 +314,11 @@ export interface ManifestRouteEntry {
 	public?: boolean;
 	/** RBAC permission required to invoke this route. */
 	permission?: string;
+	/**
+	 * Cache-Control value for successful GET responses. Only honored on
+	 * routes that are also `public: true`.
+	 */
+	cacheControl?: string;
 }
 
 /** JSON Schema persisted in plugin manifests for cross-isolate discovery. */

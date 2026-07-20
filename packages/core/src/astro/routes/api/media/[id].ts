@@ -8,17 +8,18 @@
 
 import type { APIRoute } from "astro";
 
-import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
-import { apiError, handleError, unwrapResult } from "#api/error.js";
-import { isParseError, parseBody } from "#api/parse.js";
-import { mediaUpdateBody } from "#api/schemas.js";
+import { canReadMediaUsageCount, requireOwnerPerm, requirePerm } from "#api/authorize.js";
+import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
+import { handleMediaUsageSummaries } from "#api/handlers/media-usage.js";
+import { isParseError, parseBody, parseQuery } from "#api/parse.js";
+import { mediaGetQuery, mediaUpdateBody } from "#api/schemas.js";
 
 export const prerender = false;
 
 /**
  * Get media item
  */
-export const GET: APIRoute = async ({ params, locals }) => {
+export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { id } = params;
 
@@ -32,9 +33,19 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	if (!emdash?.handleMediaGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	const query = parseQuery(new URL(request.url), mediaGetQuery);
+	if (isParseError(query)) return query;
 
 	const result = await emdash.handleMediaGet(id);
-	return unwrapResult(result);
+	if (!result.success || query.includeUsage !== "1") return unwrapResult(result);
+
+	const includeCount = canReadMediaUsageCount(user, locals.tokenScopes);
+	const usageResult = await handleMediaUsageSummaries(emdash.db, [id], { includeCount });
+	if (!usageResult.success) return unwrapResult(usageResult);
+	const usage = usageResult.data[id];
+	if (!usage) return apiError("MEDIA_USAGE_READ_ERROR", "Failed to read media usage", 500);
+
+	return apiSuccess({ item: { ...result.data.item, usage } });
 };
 
 /**

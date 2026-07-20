@@ -21,12 +21,11 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	// not be reachable by subscribers (content:read). content:read_drafts is
 	// the same tier the list route requires before it stops forcing
 	// status=published, so the visibility surfaces line up.
-	const denied = requirePerm(user, "content:read_drafts");
-	if (denied) return denied;
-
 	if (!emdash?.handleContentAuthors) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	const denied = requirePerm(user, "content:read_drafts");
+	if (denied) return denied;
 
 	const result = await emdash.handleContentAuthors(collection);
 

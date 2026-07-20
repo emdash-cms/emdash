@@ -203,6 +203,12 @@ export type RouteEntry =
 	| {
 			handler: RouteHandler;
 			public?: boolean;
+			/**
+			 * Cache-Control value for successful GET responses. Only honored on
+			 * routes that are also `public: true` — authenticated responses
+			 * always keep `private, no-store`.
+			 */
+			cacheControl?: string;
 			input?: unknown;
 			permission?: Permission;
 	  };

@@ -72,6 +72,22 @@ describe("pluginManifestSchema — route entries", () => {
 		expect(result.success).toBe(true);
 	});
 
+	it("should accept route objects with cacheControl", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "catalog", public: true, cacheControl: "public, max-age=60" }],
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should reject route objects with empty cacheControl", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "catalog", public: true, cacheControl: "" }],
+		});
+		expect(result.success).toBe(false);
+	});
+
 	it("should accept route names with slashes and hyphens", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
