@@ -1172,6 +1172,25 @@ describe("ContentEditor", () => {
 			}
 		});
 
+		it("keeps the settings sheet open when a sortable handle restores focus after drop", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				handle.focus();
+				handle.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
+
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+				});
+			} finally {
+				media.restore();
+			}
+		});
+
 		it("keeps nested dialogs above the settings sheet and dismisses only the dialog", async () => {
 			const media = installMatchMedia(true);
 			try {
