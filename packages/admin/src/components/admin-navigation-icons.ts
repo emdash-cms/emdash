@@ -144,9 +144,7 @@ export function resolveNavIcon(name?: string): React.ElementType {
 	if (!icon) {
 		icon = React.lazy(async () => {
 			const mod = await import("@phosphor-icons/react");
-			const candidate: unknown = Object.entries(mod).find(
-				([exportName]) => exportName === componentName,
-			)?.[1];
+			const candidate: unknown = (mod as Record<string, unknown>)[componentName];
 			return { default: isIconComponent(candidate) ? candidate : ADMIN_NAV_ICONS.plugins };
 		});
 		lazyIconCache.set(componentName, icon);
