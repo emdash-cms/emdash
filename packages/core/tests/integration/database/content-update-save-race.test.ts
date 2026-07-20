@@ -75,20 +75,18 @@ describeEachDialect("concurrent draft-revision saves (issue #1158 follow-up)", (
 			releaseFirst = resolve;
 		});
 		const originalCreate = RevisionRepository.prototype.create;
-		const spy = vi
-			.spyOn(RevisionRepository.prototype, "create")
-			.mockImplementation(async function (
-				this: RevisionRepository,
-				...args: Parameters<typeof originalCreate>
-			) {
-				arrivals++;
-				if (arrivals === 1) {
-					await gate;
-				} else {
-					releaseFirst?.();
-				}
-				return originalCreate.apply(this, args);
-			});
+		const spy = vi.spyOn(RevisionRepository.prototype, "create").mockImplementation(async function (
+			this: RevisionRepository,
+			...args: Parameters<typeof originalCreate>
+		) {
+			arrivals++;
+			if (arrivals === 1) {
+				await gate;
+			} else {
+				releaseFirst?.();
+			}
+			return originalCreate.apply(this, args);
+		});
 
 		let resultA: Awaited<ReturnType<typeof runtime.handleContentUpdate>>;
 		let resultB: Awaited<ReturnType<typeof runtime.handleContentUpdate>>;
