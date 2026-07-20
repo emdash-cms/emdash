@@ -9,6 +9,7 @@ import { createWriteStream } from "node:fs";
 import { readdir, stat, access } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { pipeline } from "node:stream/promises";
+import { pathToFileURL } from "node:url";
 
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
@@ -103,6 +104,11 @@ export async function fileExists(path: string): Promise<boolean> {
 	} catch {
 		return false;
 	}
+}
+
+/** Convert an absolute build artifact path into a portable ESM import specifier. */
+export function toFileImportSpecifier(path: string): string {
+	return pathToFileURL(path).href;
 }
 
 // ── Image dimension readers ──────────────────────────────────────────────────

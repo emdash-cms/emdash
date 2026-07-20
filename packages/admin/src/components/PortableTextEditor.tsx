@@ -2859,7 +2859,7 @@ export function PortableTextEditor({
 	}
 
 	return (
-		<div ref={floatingRootRef} className="relative" data-emdash-editor-floating-root>
+		<div ref={floatingRootRef} className="relative min-w-0" data-emdash-editor-floating-root>
 			<EditorBubbleMenu
 				editor={editor}
 				appendTo={appendBubbleMenu}
@@ -2873,6 +2873,7 @@ export function PortableTextEditor({
 			<div
 				className={cn(
 					"border rounded-lg overflow-clip",
+					!minimal && "bg-kumo-base",
 					minimal && "border-0 rounded-none -mx-4",
 					focusMode === "spotlight" && "spotlight-mode",
 					className,

@@ -570,12 +570,41 @@ describe("Editor component behaviour", () => {
 	it("hides toolbar and footer in minimal mode", async () => {
 		await render(<PortableTextEditor minimal={true} value={[textBlock("Minimal")]} />);
 		await waitForEditor();
+		const surface = document.querySelector("[data-emdash-editor-surface]");
+		expect(surface).not.toHaveClass("bg-kumo-base");
 		// Toolbar has role="toolbar" — should not exist
 		const toolbar = document.querySelector('[role="toolbar"]');
 		expect(toolbar).toBeNull();
 		// Footer shows word count — should not exist
 		const footer = document.querySelector(".border-t");
 		expect(footer).toBeNull();
+	});
+
+	it("raises the non-minimal writing surface above the editor canvas", async () => {
+		await render(<PortableTextEditor value={[textBlock("Raised surface")]} />);
+		await waitForEditor();
+		const surface = document.querySelector("[data-emdash-editor-surface]");
+
+		expect(surface).toHaveClass("bg-kumo-base");
+	});
+
+	it("shrinks the editor surface to fit a narrow grid column", async () => {
+		const screen = await render(
+			<div data-testid="editor-column" style={{ display: "grid", width: 320 }}>
+				<PortableTextEditor value={[textBlock("Contained editor")]} />
+			</div>,
+		);
+		await waitForEditor();
+		const column = screen.getByTestId("editor-column").element();
+		const floatingRoot = screen.container.querySelector<HTMLElement>(
+			"[data-emdash-editor-floating-root]",
+		);
+
+		expect(floatingRoot).toBeTruthy();
+		expect(floatingRoot).toHaveClass("min-w-0");
+		expect(floatingRoot!.getBoundingClientRect().width).toBeLessThanOrEqual(
+			column.getBoundingClientRect().width,
+		);
 	});
 
 	it("calls onEditorReady with Editor instance", async () => {

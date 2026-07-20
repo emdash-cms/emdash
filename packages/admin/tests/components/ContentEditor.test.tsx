@@ -225,6 +225,58 @@ describe("ContentEditor", () => {
 		expect(portableTextProps.current?.placeholder).toBe("Start writing, or type '/' for commands");
 	});
 
+	it("uses one label and spacing rhythm across editor field types", async () => {
+		const screen = await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: {
+				title: { kind: "string", label: "Title" },
+				featured_image: { kind: "image", label: "Featured Image" },
+				content: { kind: "portableText", label: "Content" },
+				attachment: { kind: "file", label: "Attachment" },
+			},
+		});
+		const contentLabelText = document.getElementById("field-content-label");
+		expect(contentLabelText).not.toBeNull();
+		const contentLabel = contentLabelText!.parentElement!;
+		const featuredLabel = screen.getByText("Featured Image", { exact: true }).element();
+		const attachmentLabel = screen.getByText("Attachment", { exact: true }).element();
+		const fieldStack = contentLabel.parentElement?.parentElement;
+
+		expect(contentLabelText).toHaveTextContent("Content");
+		expect(contentLabel.tagName).toBe("LABEL");
+		expect(contentLabel).toHaveClass("text-base", "font-medium");
+		expect(contentLabel.parentElement).toHaveClass("grid", "gap-2");
+		expect(featuredLabel).toHaveClass("text-base", "font-medium");
+		expect(featuredLabel).not.toHaveClass("text-sm");
+		expect(featuredLabel.parentElement).toHaveClass("flex", "items-center", "gap-1.5");
+		expect(featuredLabel.parentElement?.parentElement).toHaveClass("grid", "gap-2");
+		expect(attachmentLabel.parentElement).toHaveClass("grid", "gap-2");
+		expect(fieldStack).toHaveClass("space-y-6");
+	});
+
+	it("shows featured image guidance in the shared instant help tooltip", async () => {
+		const screen = await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: {
+				featured_image: { kind: "image", label: "Featured Image" },
+			},
+		});
+		const helpTrigger = screen.getByRole("button", {
+			name: "More information about Featured Image",
+		});
+
+		await userEvent.hover(helpTrigger.element());
+		await expect
+			.element(
+				screen.getByText(
+					"Used as the main visual for this post on listing pages and at the top of the post",
+				),
+			)
+			.toBeVisible();
+	});
+
 	describe("block panel + mobile sheet sync", () => {
 		const ptFields: Record<string, FieldDescriptor> = {
 			content: { kind: "portableText", label: "Content" },
@@ -1034,11 +1086,21 @@ describe("ContentEditor", () => {
 	});
 
 	describe("publish actions", () => {
+		it("uses the elevated surface for the full-bleed canvas and settings panel", async () => {
+			await renderEditor({ isNew: false, item: makeItem() });
+			const form = document.querySelector("form");
+			const provider = document.querySelector<HTMLElement>('[style*="--sidebar-width"]');
+
+			expect(form).toHaveClass("bg-kumo-elevated");
+			expect(form).not.toHaveClass("bg-kumo-base");
+			expect(provider?.style.getPropertyValue("--sidebar-bg")).toBe("var(--color-kumo-elevated)");
+		});
+
 		it("shows Publish button for draft items", async () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish" });
+			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1046,7 +1108,7 @@ describe("ContentEditor", () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish" });
+			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});
@@ -1066,9 +1128,25 @@ describe("ContentEditor", () => {
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
-				const publishButtons = screen.getByRole("button", { name: "Publish" }).all();
+				const publishButtons = screen
+					.getByRole("button", { name: "Publish Post", exact: true })
+					.all();
 				expect(publishButtons).toHaveLength(1);
 				await expect.element(publishButtons[0]!).toBeVisible();
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps the editor header in the document flow below lg", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+				const header = heading.parentElement?.parentElement;
+
+				expect(header).not.toHaveClass("sticky", "top-0", "z-20");
+				expect(header).toHaveClass("bg-kumo-elevated/95", "py-3", "backdrop-blur");
 			} finally {
 				media.restore();
 			}
@@ -1170,7 +1248,9 @@ describe("ContentEditor", () => {
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("link", { name: "Live View" })).toBeVisible();
-				const unpublishButtons = screen.getByRole("button", { name: "Unpublish" }).all();
+				const unpublishButtons = screen
+					.getByRole("button", { name: "Unpublish Post", exact: true })
+					.all();
 				expect(unpublishButtons).toHaveLength(1);
 				await expect.element(unpublishButtons[0]!).toBeVisible();
 			} finally {
@@ -1194,7 +1274,9 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("button", { name: "Settings" }))
 					.not.toBeInTheDocument();
-				await expect.element(screen.getByRole("button", { name: "Publish" })).toBeVisible();
+				await expect
+					.element(screen.getByRole("button", { name: "Publish Post", exact: true }))
+					.toBeVisible();
 			} finally {
 				media.restore();
 			}
@@ -1213,7 +1295,10 @@ describe("ContentEditor", () => {
 				onUnpublish,
 				supportsDrafts: true,
 			});
-			const unpublishBtn = screen.getByRole("button", { name: "Unpublish" });
+			const unpublishBtn = screen.getByRole("button", {
+				name: "Unpublish Post",
+				exact: true,
+			});
 			await expect.element(unpublishBtn).toBeInTheDocument();
 		});
 
@@ -1230,13 +1315,31 @@ describe("ContentEditor", () => {
 				onUnpublish,
 				supportsDrafts: true,
 			});
-			const unpublishBtn = screen.getByRole("button", { name: "Unpublish" });
+			const unpublishBtn = screen.getByRole("button", {
+				name: "Unpublish Post",
+				exact: true,
+			});
 			await unpublishBtn.click();
 			expect(onUnpublish).toHaveBeenCalled();
 		});
 	});
 
 	describe("distraction-free mode", () => {
+		it("keeps the editor canvas and header overlay on the elevated surface", async () => {
+			const screen = await renderEditor({ isNew: true });
+			const form = document.querySelector("form");
+
+			expect(form).toHaveClass("bg-kumo-elevated");
+			expect(form).not.toHaveClass("bg-kumo-base");
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+
+			const heading = screen.getByRole("heading", { name: "New Post" }).element();
+			const header = heading.parentElement?.parentElement;
+			expect(form).toHaveClass("bg-kumo-elevated");
+			expect(header).toHaveClass("bg-kumo-elevated/95");
+		});
+
 		it("toggle adds fixed class for distraction-free mode", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const enterBtn = screen.getByRole("button", { name: "Enter distraction-free mode" });
@@ -1331,7 +1434,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish" });
+			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1340,7 +1443,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish" });
+			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});
@@ -1367,15 +1470,31 @@ describe("ContentEditor", () => {
 	});
 
 	describe("heading", () => {
-		it("shows 'New Post' heading for new items", async () => {
-			const screen = await renderEditor({ isNew: true, collectionLabel: "Post" });
-			await expect.element(screen.getByText("New Post")).toBeInTheDocument();
+		it("preserves configured collection label casing", async () => {
+			const item = makeItem();
+			const screen = await renderEditor({ isNew: false, item, collectionLabel: "API Docs" });
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Edit API Docs", exact: true }))
+				.toBeInTheDocument();
 		});
 
-		it("shows 'Edit Post' heading for existing items", async () => {
+		it("shows a quiet heading for new items", async () => {
+			const screen = await renderEditor({ isNew: true, collectionLabel: "Post" });
+			const heading = screen.getByRole("heading", { name: "New Post" });
+
+			await expect.element(heading).toBeInTheDocument();
+			await expect.element(heading).toHaveClass("text-lg", "font-semibold", "truncate");
+			expect(heading.element().parentElement).toHaveClass("min-w-0", "items-center", "gap-3");
+		});
+
+		it("shows a quiet heading for existing items", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item, collectionLabel: "Post" });
-			await expect.element(screen.getByText("Edit Post")).toBeInTheDocument();
+			const heading = screen.getByRole("heading", { name: "Edit Post" });
+
+			await expect.element(heading).toBeInTheDocument();
+			await expect.element(heading).toHaveClass("text-lg", "font-semibold", "truncate");
 		});
 	});
 

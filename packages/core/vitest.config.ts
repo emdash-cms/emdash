@@ -13,6 +13,9 @@ const virtualStubs: Record<string, string> = {
 	// (e.g. `virtualConfig?.i18n?.defaultLocale`) don't blow up on import.
 	// Tests that need real config still `vi.mock(...)` their own.
 	"virtual:emdash/config": "export default {};",
+	// No Cloudflare bindings under test — like a Node build. Callers fall
+	// back to `import.meta.env`.
+	"virtual:emdash/env": "export const env = undefined;",
 };
 
 export default defineConfig({
