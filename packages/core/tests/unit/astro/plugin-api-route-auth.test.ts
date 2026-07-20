@@ -100,3 +100,33 @@ describe("plugin API catch-all auth (#1853)", () => {
 		expect(handlePluginApiRoute).toHaveBeenCalledOnce();
 	});
 });
+
+describe("plugin API catch-all caller forwarding (#812)", () => {
+	it("forwards the authenticated caller for private routes", async () => {
+		const { locals, handlePluginApiRoute } = createLocals(Role.ADMIN, false);
+		const res = await invoke(POST, "POST", locals);
+		expect(res.status).toBe(200);
+		expect(handlePluginApiRoute).toHaveBeenCalledWith(
+			"demo",
+			"POST",
+			"/updateHomeConfig",
+			expect.any(Request),
+			expect.objectContaining({ id: "u1", role: Role.ADMIN }),
+		);
+	});
+
+	it("does not forward a caller on public routes, even with an ambient session", async () => {
+		// Public routes skip auth entirely — a logged-in user browsing the site
+		// must not be bound as the caller of a public plugin route.
+		const { locals, handlePluginApiRoute } = createLocals(Role.ADMIN, true);
+		const res = await invoke(GET, "GET", locals, { csrf: false });
+		expect(res.status).toBe(200);
+		expect(handlePluginApiRoute).toHaveBeenCalledWith(
+			"demo",
+			"GET",
+			"/updateHomeConfig",
+			expect.any(Request),
+			undefined,
+		);
+	});
+});

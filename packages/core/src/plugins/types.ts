@@ -1162,6 +1162,18 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 	request: Request;
 	/** Normalized request metadata (IP, user agent, geo) */
 	requestMeta: RequestMeta;
+	/**
+	 * Authenticated caller, if the route is private. The host has already
+	 * authenticated and authorized this user before dispatch, so the value
+	 * is trustworthy — unlike a user id read from the request body.
+	 *
+	 * `undefined` for public routes (which skip auth entirely) and for
+	 * token-authed requests where no user is bound to the token.
+	 *
+	 * Not gated by the `read:users` capability: this is the caller's own
+	 * identity for the current request, not a user directory lookup.
+	 */
+	user?: UserInfo;
 }
 
 /**

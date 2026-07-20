@@ -8,6 +8,8 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { RouteCallerInput } from "../plugins/routes.js";
+
 // Re-export core types
 export type {
 	ContentItem,
@@ -394,12 +396,14 @@ export interface EmDashHandlers {
 
 	handleRevisionRestore: (revisionId: string, callerUserId: string) => Promise<HandlerResponse>;
 
-	// Plugin API route handler
+	// Plugin API route handler. `user` is the authenticated caller for
+	// private routes, exposed to plugin handlers as `ctx.user` (#812).
 	handlePluginApiRoute: (
 		pluginId: string,
 		method: string,
 		path: string,
 		request: Request,
+		user?: RouteCallerInput | null,
 	) => Promise<HandlerResponse>;
 
 	// Public-only plugin API route handler for SSR page components.

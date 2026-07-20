@@ -19,6 +19,7 @@ import {
 	PluginRouteRegistry,
 	PluginRouteError,
 	createRouteRegistry,
+	toRouteCallerInfo,
 } from "../../../src/plugins/routes.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
@@ -125,6 +126,48 @@ describe("PluginRouteError", () => {
 			expect(error.code).toBe("INTERNAL_ERROR");
 			expect(error.status).toBe(500);
 			expect(error.message).toBe("Something broke");
+		});
+	});
+});
+
+describe("toRouteCallerInfo (#812)", () => {
+	it("maps the host user to the plugin-facing UserInfo shape", () => {
+		const info = toRouteCallerInfo({
+			id: "u1",
+			email: "a@b.c",
+			name: null,
+			role: 4,
+			createdAt: new Date("2026-01-02T03:04:05.000Z"),
+		});
+
+		expect(info).toEqual({
+			id: "u1",
+			email: "a@b.c",
+			name: null,
+			role: 4,
+			createdAt: "2026-01-02T03:04:05.000Z",
+		});
+	});
+
+	it("passes string createdAt through and strips extra fields", () => {
+		// Extra host-side fields (avatarUrl, data, …) must not leak to plugins.
+		const hostUser = {
+			id: "u1",
+			email: "a@b.c",
+			name: "A",
+			role: 2,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			avatarUrl: "https://x/y.png",
+			data: { secret: true },
+		};
+		const info = toRouteCallerInfo(hostUser);
+
+		expect(info).toEqual({
+			id: "u1",
+			email: "a@b.c",
+			name: "A",
+			role: 2,
+			createdAt: "2026-01-01T00:00:00.000Z",
 		});
 	});
 });
@@ -332,6 +375,50 @@ describe("PluginRouteHandler", () => {
 
 			expect(result.success).toBe(true);
 			expect(result.data).toEqual({ hasEmail: true, hasSend: true });
+		});
+
+		it("exposes the authenticated caller as ctx.user (#812)", async () => {
+			const plugin = createTestPlugin({
+				routes: {
+					whoami: {
+						handler: async (ctx) => ({ user: ctx.user ?? null }),
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const caller = {
+				id: "user-1",
+				email: "author@example.com",
+				name: "Author",
+				role: 2,
+				createdAt: "2026-01-01T00:00:00.000Z",
+			};
+			const result = await handler.invoke("whoami", {
+				request: new Request("http://test.com/whoami"),
+				user: caller,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data).toEqual({ user: caller });
+		});
+
+		it("leaves ctx.user undefined when no caller is provided (#812)", async () => {
+			const plugin = createTestPlugin({
+				routes: {
+					whoami: {
+						handler: async (ctx) => ({ user: ctx.user ?? null }),
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("whoami", {
+				request: new Request("http://test.com/whoami"),
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data).toEqual({ user: null });
 		});
 
 		it("surfaces an actionable error when a handler reads the consumed request body (#1293)", async () => {

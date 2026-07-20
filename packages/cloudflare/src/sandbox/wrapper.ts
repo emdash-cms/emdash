@@ -232,8 +232,9 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 			throw new Error(\`Route \${routeName} handler is not a function\`);
 		}
 		
-		// Execute the route handler with input, request metadata, and context
-		return handler({ input, request: serializedRequest, requestMeta: serializedRequest.meta }, ctx);
+		// Execute the route handler with input, request metadata, the
+		// authenticated caller (private routes only, #812), and context
+		return handler({ input, request: serializedRequest, requestMeta: serializedRequest.meta, user: serializedRequest.user }, ctx);
 	}
 }
 `;
