@@ -558,6 +558,7 @@ export function createMcpServer(): McpServer {
 				q: z
 					.string()
 					.trim()
+					.min(1)
 					.max(200)
 					.optional()
 					.describe("Case-insensitive substring search across title, name, and slug."),
