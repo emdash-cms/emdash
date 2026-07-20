@@ -54,6 +54,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "sv", label: "Svenska", enabled: true }, // Swedish
 	{ code: "th", label: "ไทย", enabled: true }, // Thai
 	{ code: "tr", label: "Türkçe", enabled: true }, // Turkish
+	{ code: "uk", label: "Українська", enabled: true }, // Ukrainian
 	// Pseudo-locale for i18n testing - never enabled in the admin UI by default.
 	// Set EMDASH_PSEUDO_LOCALE=1 in .env to expose it in the locale switcher (dev only).
 	{ code: "pseudo", label: "Pseudo", enabled: false },
