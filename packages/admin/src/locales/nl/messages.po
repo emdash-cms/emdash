@@ -13,11 +13,11 @@ msgstr ""
 "Last-Translator: \n"
 "Language-Team: \n"
 
-#: packages/admin/src/routes/bylines.tsx:447
+#: packages/admin/src/routes/bylines.tsx:446
 msgid " - Guest"
 msgstr " - Gast"
 
-#: packages/admin/src/routes/bylines.tsx:447
+#: packages/admin/src/routes/bylines.tsx:446
 msgid " - Linked"
 msgstr " - Gekoppeld"
 
@@ -35,7 +35,7 @@ msgstr " (opent in nieuw venster)"
 msgid " (selected)"
 msgstr " (geselecteerd)"
 
-#: packages/admin/src/routes/bylines.tsx:707
+#: packages/admin/src/routes/bylines.tsx:706
 msgid "-- Select --"
 msgstr "-- Selecteer --"
 
@@ -94,7 +94,7 @@ msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# reactie bijgewerkt} other {# reacties bijgewerkt}}"
 
 #. placeholder {0}: comments.length
-#: packages/admin/src/components/comments/CommentInbox.tsx:344
+#: packages/admin/src/components/comments/CommentInbox.tsx:345
 msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# reactie} other {# reacties}}"
 
@@ -111,7 +111,7 @@ msgstr "{0, plural, one {# content-item geïmporteerd} other {# content-items ge
 #. placeholder {0}: items.length
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MediaPickerModal.tsx:587
-#: packages/admin/src/components/MenuList.tsx:217
+#: packages/admin/src/components/MenuList.tsx:218
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# item} other {# items}}"
 
@@ -147,12 +147,12 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# bericht} other {# berichten}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:444
+#: packages/admin/src/components/Redirects.tsx:445
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# omleiding maakt deel uit van een lus.} other {# omleidingen maken deel uit van een lus.}}"
 
 #. placeholder {0}: selected.size
-#: packages/admin/src/components/comments/CommentInbox.tsx:228
+#: packages/admin/src/components/comments/CommentInbox.tsx:229
 msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, one {# geselecteerd} other {# geselecteerd}}"
 
@@ -194,8 +194,8 @@ msgid "{0} {1} required — you have {2}."
 msgstr "{0} {1} vereist — je hebt {2}."
 
 #. placeholder {0}: menu.name
-#. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
-#: packages/admin/src/components/MenuList.tsx:215
+#. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ADMIN_NAV_ICONS.menus className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
+#: packages/admin/src/components/MenuList.tsx:216
 msgid "{0} • {1}"
 msgstr "{0} • {1}"
 
@@ -379,7 +379,7 @@ msgstr "{selectedCount, plural, one {# item naar de prullenbak verplaatsen? Je k
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# item} other {# items}}"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:149
+#: packages/admin/src/components/comments/CommentInbox.tsx:150
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {# in totaal} other {# in totaal}}"
 
@@ -414,11 +414,11 @@ msgstr "{unchangedCount, plural, one {# ongewijzigde weergeven} other {# ongewij
 msgid "{uploaded} uploaded, {failed} failed"
 msgstr "{uploaded} geüpload, {failed} mislukt"
 
-#: packages/admin/src/components/Redirects.tsx:141
+#: packages/admin/src/components/Redirects.tsx:142
 msgid "/new-page or /articles/[slug]"
 msgstr "/nieuwe-pagina of /artikelen/[slug]"
 
-#: packages/admin/src/components/Redirects.tsx:132
+#: packages/admin/src/components/Redirects.tsx:133
 msgid "/old-page or /blog/[slug]"
 msgstr "/oude-pagina of /blog/[slug]"
 
@@ -473,19 +473,19 @@ msgstr "3. Selecteer \"Alle content\""
 msgid "30 days"
 msgstr "30 dagen"
 
-#: packages/admin/src/components/Redirects.tsx:155
+#: packages/admin/src/components/Redirects.tsx:156
 msgid "301 Permanent"
 msgstr "301 Permanent"
 
-#: packages/admin/src/components/Redirects.tsx:156
+#: packages/admin/src/components/Redirects.tsx:157
 msgid "302 Temporary"
 msgstr "302 Tijdelijk"
 
-#: packages/admin/src/components/Redirects.tsx:157
+#: packages/admin/src/components/Redirects.tsx:158
 msgid "307 Temporary (Strict)"
 msgstr "307 Tijdelijk (strikt)"
 
-#: packages/admin/src/components/Redirects.tsx:158
+#: packages/admin/src/components/Redirects.tsx:159
 msgid "308 Permanent (Strict)"
 msgstr "308 Permanent (strikt)"
 
@@ -497,15 +497,15 @@ msgstr "4. Klik op \"Exportbestand downloaden\""
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Voer \"EmDash\" in en klik op \"Nieuwe toevoegen\""
 
-#: packages/admin/src/components/Redirects.tsx:394
+#: packages/admin/src/components/Redirects.tsx:395
 msgid "404 Errors"
 msgstr "404-fouten"
 
-#: packages/admin/src/components/Redirects.tsx:159
+#: packages/admin/src/components/Redirects.tsx:160
 msgid "410 Content Deleted (Gone)"
 msgstr "410 Content verwijderd (Gone)"
 
-#: packages/admin/src/components/Redirects.tsx:160
+#: packages/admin/src/components/Redirects.tsx:161
 msgid "451 Unavailable for legal reasons"
 msgstr "451 Niet beschikbaar om juridische redenen"
 
@@ -582,7 +582,7 @@ msgstr "Accountgegevens"
 msgid "ACF Fields"
 msgstr "ACF-velden"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:299
+#: packages/admin/src/components/comments/CommentInbox.tsx:300
 #: packages/admin/src/components/ContentList.tsx:528
 #: packages/admin/src/components/ContentList.tsx:649
 #: packages/admin/src/components/ContentTypeList.tsx:106
@@ -760,12 +760,12 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:491
+#: packages/admin/src/components/Sidebar.tsx:383
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/Sidebar.tsx:437
+#: packages/admin/src/components/Sidebar.tsx:329
 msgid "Admin navigation"
 msgstr "Adminnavigatie"
 
@@ -803,7 +803,7 @@ msgstr "Alle"
 msgid "All authors"
 msgstr "Alle auteurs"
 
-#: packages/admin/src/routes/bylines.tsx:413
+#: packages/admin/src/routes/bylines.tsx:412
 msgid "All bylines"
 msgstr "Alle auteursvermeldingen"
 
@@ -811,7 +811,7 @@ msgstr "Alle auteursvermeldingen"
 msgid "All capabilities"
 msgstr "Alle mogelijkheden"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:133
+#: packages/admin/src/components/comments/CommentInbox.tsx:134
 msgid "All collections"
 msgstr "Alle collecties"
 
@@ -837,12 +837,12 @@ msgid "All Sources"
 msgstr "Alle bronnen"
 
 #: packages/admin/src/components/ContentList.tsx:728
-#: packages/admin/src/components/Redirects.tsx:418
+#: packages/admin/src/components/Redirects.tsx:419
 msgid "All statuses"
 msgstr "Alle statussen"
 
 #: packages/admin/src/components/MediaLibrary.tsx:433
-#: packages/admin/src/components/Redirects.tsx:424
+#: packages/admin/src/components/Redirects.tsx:425
 msgid "All types"
 msgstr "Alle types"
 
@@ -980,8 +980,8 @@ msgid "Apply link"
 msgstr "Link toepassen"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:148
-#: packages/admin/src/components/comments/CommentInbox.tsx:237
-#: packages/admin/src/components/comments/CommentInbox.tsx:489
+#: packages/admin/src/components/comments/CommentInbox.tsx:238
+#: packages/admin/src/components/comments/CommentInbox.tsx:490
 msgid "Approve"
 msgstr "Goedkeuren"
 
@@ -989,7 +989,7 @@ msgstr "Goedkeuren"
 msgid "approved"
 msgstr "goedgekeurd"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:202
+#: packages/admin/src/components/comments/CommentInbox.tsx:203
 msgid "Approved"
 msgstr "Goedgekeurd"
 
@@ -1026,7 +1026,7 @@ msgstr "Weet je zeker dat je \"{0}\" wilt verwijderen? Hiermee wordt ook alle co
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr "Weet je zeker dat je het veld \"{0}\" wilt verwijderen?"
 
-#: packages/admin/src/components/MenuList.tsx:254
+#: packages/admin/src/components/MenuList.tsx:255
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 msgstr "Weet je zeker dat je dit menu wilt verwijderen? Hiermee worden ook alle menu-items verwijderd. Deze actie kan niet ongedaan worden gemaakt."
 
@@ -1071,7 +1071,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "Authenticatie is geannuleerd of verlopen. Probeer het opnieuw."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
-#: packages/admin/src/components/comments/CommentInbox.tsx:287
+#: packages/admin/src/components/comments/CommentInbox.tsx:288
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1035
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
@@ -1106,11 +1106,11 @@ msgstr "Autoriseren..."
 msgid "Authors"
 msgstr "Auteurs"
 
-#: packages/admin/src/components/Redirects.tsx:521
+#: packages/admin/src/components/Redirects.tsx:522
 msgid "auto"
 msgstr "automatisch"
 
-#: packages/admin/src/components/Redirects.tsx:424
+#: packages/admin/src/components/Redirects.tsx:425
 msgid "Auto (slug change)"
 msgstr "Automatisch (wijziging van slug)"
 
@@ -1236,7 +1236,7 @@ msgstr "Voor verzenden:"
 msgid "Bing Verification"
 msgstr "Bing-verificatie"
 
-#: packages/admin/src/routes/bylines.tsx:497
+#: packages/admin/src/routes/bylines.tsx:496
 msgid "Bio"
 msgstr "Bio"
 
@@ -1259,7 +1259,7 @@ msgstr "Boolean"
 msgid "Brief summary shown below the title in search results"
 msgstr "Korte samenvatting die in zoekresultaten onder de titel wordt getoond"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:71
+#: packages/admin/src/components/RegistryBrowse.tsx:72
 msgid "Browse and install plugins published to the decentralized registry."
 msgstr "Blader door en installeer plugins die in de gedecentraliseerde registry zijn gepubliceerd."
 
@@ -1287,17 +1287,17 @@ msgid "Bullet List"
 msgstr "Opsommingslijst"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:384
+#: packages/admin/src/routes/bylines.tsx:383
 msgid "Byline schema"
 msgstr "Schema voor auteursvermeldingen"
 
-#: packages/admin/src/components/Sidebar.tsx:370
+#: packages/admin/src/components/Sidebar.tsx:252
 msgid "Byline Schema"
 msgstr "Schema voor auteursvermeldingen"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:537
-#: packages/admin/src/components/Sidebar.tsx:365
-#: packages/admin/src/routes/bylines.tsx:376
+#: packages/admin/src/components/Sidebar.tsx:242
+#: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
 msgstr "Auteursvermeldingen"
 
@@ -1352,11 +1352,11 @@ msgstr "Kan content bekijken"
 #: packages/admin/src/components/MediaPickerModal.tsx:743
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
-#: packages/admin/src/components/MenuList.tsx:172
+#: packages/admin/src/components/MenuList.tsx:173
 #: packages/admin/src/components/PluginManager.tsx:640
 #: packages/admin/src/components/PortableTextEditor.tsx:3576
-#: packages/admin/src/components/Redirects.tsx:182
-#: packages/admin/src/components/SectionPickerModal.tsx:130
+#: packages/admin/src/components/Redirects.tsx:183
+#: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:280
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:390
@@ -1411,7 +1411,7 @@ msgstr "Bijschrift"
 msgid "Captions / Subtitles"
 msgstr "Bijschriften / ondertitels"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:199
+#: packages/admin/src/components/AdminCommandPalette.tsx:192
 #: packages/admin/src/components/Widgets.tsx:133
 msgid "Categories"
 msgstr "Categorieën"
@@ -1554,17 +1554,17 @@ msgstr "Klik op de link in de e-mail om in te loggen."
 #: packages/admin/src/components/MenuEditor.tsx:576
 #: packages/admin/src/components/MenuEditor.tsx:582
 #: packages/admin/src/components/MenuEditor.tsx:586
-#: packages/admin/src/components/MenuList.tsx:136
-#: packages/admin/src/components/MenuList.tsx:142
-#: packages/admin/src/components/MenuList.tsx:146
+#: packages/admin/src/components/MenuList.tsx:137
+#: packages/admin/src/components/MenuList.tsx:143
+#: packages/admin/src/components/MenuList.tsx:147
 #: packages/admin/src/components/PortableTextEditor.tsx:1530
 #: packages/admin/src/components/PortableTextEditor.tsx:1536
 #: packages/admin/src/components/PortableTextEditor.tsx:1540
-#: packages/admin/src/components/Redirects.tsx:114
-#: packages/admin/src/components/Redirects.tsx:120
-#: packages/admin/src/components/SectionPickerModal.tsx:60
-#: packages/admin/src/components/SectionPickerModal.tsx:66
-#: packages/admin/src/components/SectionPickerModal.tsx:70
+#: packages/admin/src/components/Redirects.tsx:115
+#: packages/admin/src/components/Redirects.tsx:121
+#: packages/admin/src/components/SectionPickerModal.tsx:61
+#: packages/admin/src/components/SectionPickerModal.tsx:67
+#: packages/admin/src/components/SectionPickerModal.tsx:71
 #: packages/admin/src/components/Sections.tsx:153
 #: packages/admin/src/components/Sections.tsx:159
 #: packages/admin/src/components/Sections.tsx:163
@@ -1603,7 +1603,7 @@ msgstr "Instellingen sluiten"
 
 #: packages/admin/src/components/ContentTypeList.tsx:242
 #: packages/admin/src/components/PortableTextEditor.tsx:3114
-#: packages/admin/src/components/Redirects.tsx:469
+#: packages/admin/src/components/Redirects.tsx:470
 msgid "Code"
 msgstr "Code"
 
@@ -1646,7 +1646,7 @@ msgid "Comma-separated keywords for search."
 msgstr "Door komma's gescheiden trefwoorden voor zoeken."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:95
-#: packages/admin/src/components/comments/CommentInbox.tsx:290
+#: packages/admin/src/components/comments/CommentInbox.tsx:291
 msgid "Comment"
 msgstr "Reactie"
 
@@ -1654,9 +1654,9 @@ msgstr "Reactie"
 msgid "Comment Detail"
 msgstr "Reactiedetails"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:146
+#: packages/admin/src/components/comments/CommentInbox.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:485
-#: packages/admin/src/components/Sidebar.tsx:349
+#: packages/admin/src/components/Sidebar.tsx:221
 msgid "Comments"
 msgstr "Reacties"
 
@@ -1707,13 +1707,13 @@ msgstr "Verbonden op {0}"
 msgid "content"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:377
+#: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
-#: packages/admin/src/components/comments/CommentInbox.tsx:293
+#: packages/admin/src/components/comments/CommentInbox.tsx:294
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:2326
 #: packages/admin/src/components/SectionEditor.tsx:193
-#: packages/admin/src/components/Sidebar.tsx:473
+#: packages/admin/src/components/Sidebar.tsx:365
 #: packages/admin/src/components/Widgets.tsx:882
 msgid "Content"
 msgstr "Content"
@@ -1771,9 +1771,9 @@ msgstr "Snapshot van content:"
 msgid "Content to Import"
 msgstr "Te importeren content"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:191
+#: packages/admin/src/components/AdminCommandPalette.tsx:184
 #: packages/admin/src/components/ContentTypeList.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:369
+#: packages/admin/src/components/Sidebar.tsx:248
 msgid "Content Types"
 msgstr "Contenttypes"
 
@@ -1855,7 +1855,7 @@ msgstr "Kan WordPress niet detecteren"
 msgid "Couldn't load byline fields."
 msgstr "Kan auteursvermeldingsvelden niet laden."
 
-#: packages/admin/src/routes/bylines.tsx:548
+#: packages/admin/src/routes/bylines.tsx:547
 msgid "Couldn't load custom fields."
 msgstr "Kan aangepaste velden niet laden."
 
@@ -1877,12 +1877,12 @@ msgid "Count"
 msgstr "Aantal"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:963
-#: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/Redirects.tsx:191
+#: packages/admin/src/components/MenuList.tsx:176
+#: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:501
 #: packages/admin/src/components/Widgets.tsx:449
-#: packages/admin/src/routes/bylines.tsx:580
+#: packages/admin/src/routes/bylines.tsx:579
 msgid "Create"
 msgstr "Aanmaken"
 
@@ -1913,7 +1913,7 @@ msgid "Create an account"
 msgstr "Een account aanmaken"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:911
-#: packages/admin/src/routes/bylines.tsx:477
+#: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "Auteursvermelding aanmaken"
 
@@ -1925,12 +1925,12 @@ msgstr "Contenttype aanmaken"
 msgid "Create field"
 msgstr "Veld aanmaken"
 
-#: packages/admin/src/components/MenuList.tsx:126
-#: packages/admin/src/components/MenuList.tsx:189
+#: packages/admin/src/components/MenuList.tsx:127
+#: packages/admin/src/components/MenuList.tsx:190
 msgid "Create Menu"
 msgstr "Menu aanmaken"
 
-#: packages/admin/src/components/MenuList.tsx:133
+#: packages/admin/src/components/MenuList.tsx:134
 msgid "Create New Menu"
 msgstr "Nieuw menu aanmaken"
 
@@ -1952,15 +1952,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "Maak persoonlijke toegangstokens aan voor programmatische API-toegang"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:247
+#: packages/admin/src/components/Redirects.tsx:248
 msgid "Create redirect for {0}"
 msgstr "Omleiding aanmaken voor {0}"
 
-#: packages/admin/src/components/Redirects.tsx:246
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Create redirect for this path"
 msgstr "Omleiding aanmaken voor dit pad"
 
-#: packages/admin/src/components/Redirects.tsx:461
+#: packages/admin/src/components/Redirects.tsx:462
 msgid "Create redirect rules to manage URL changes."
 msgstr "Maak omleidingsregels aan om URL-wijzigingen te beheren."
 
@@ -1973,7 +1973,7 @@ msgstr "Schema aanmaken & importeren"
 msgid "Create Section"
 msgstr "Sectie aanmaken"
 
-#: packages/admin/src/components/SectionPickerModal.tsx:109
+#: packages/admin/src/components/SectionPickerModal.tsx:110
 msgid "Create sections in the Sections library to use them here"
 msgstr "Maak secties aan in de sectiebibliotheek om ze hier te gebruiken"
 
@@ -1995,7 +1995,7 @@ msgstr "Widgetgebied aanmaken"
 msgid "Create your account"
 msgstr "Maak je account aan"
 
-#: packages/admin/src/components/MenuList.tsx:187
+#: packages/admin/src/components/MenuList.tsx:188
 msgid "Create your first navigation menu to get started"
 msgstr "Maak je eerste navigatiemenu aan om te beginnen"
 
@@ -2062,8 +2062,8 @@ msgid "Creating collections and fields..."
 msgstr "Collecties en velden aanmaken..."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:963
-#: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/Redirects.tsx:188
+#: packages/admin/src/components/MenuList.tsx:176
+#: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:448
 #: packages/admin/src/components/TaxonomyManager.tsx:711
@@ -2115,15 +2115,15 @@ msgstr "donker"
 msgid "Dark"
 msgstr "Donker"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:137
+#: packages/admin/src/components/AdminCommandPalette.tsx:130
 #: packages/admin/src/components/ContentTypeList.tsx:244
 #: packages/admin/src/components/Dashboard.tsx:50
-#: packages/admin/src/components/Sidebar.tsx:335
-#: packages/admin/src/components/Sidebar.tsx:464
+#: packages/admin/src/components/Sidebar.tsx:206
+#: packages/admin/src/components/Sidebar.tsx:356
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:296
+#: packages/admin/src/components/comments/CommentInbox.tsx:297
 #: packages/admin/src/components/ContentList.tsx:525
 msgid "Date"
 msgstr "Datum"
@@ -2186,8 +2186,8 @@ msgstr "Definieer de structuur van je content"
 msgid "Defined in code"
 msgstr "Gedefinieerd in code"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:267
-#: packages/admin/src/components/comments/CommentInbox.tsx:407
+#: packages/admin/src/components/comments/CommentInbox.tsx:268
+#: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:672
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/editor/BlockMenu.tsx:301
@@ -2196,16 +2196,16 @@ msgstr "Gedefinieerd in code"
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:453
 #: packages/admin/src/components/MenuEditor.tsx:549
-#: packages/admin/src/components/MenuList.tsx:255
-#: packages/admin/src/components/Redirects.tsx:582
+#: packages/admin/src/components/MenuList.tsx:256
+#: packages/admin/src/components/Redirects.tsx:583
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/settings/BackupSettings.tsx:284
 #: packages/admin/src/components/TaxonomyManager.tsx:906
 #: packages/admin/src/components/Widgets.tsx:699
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:589
-#: packages/admin/src/routes/bylines.tsx:625
+#: packages/admin/src/routes/bylines.tsx:588
+#: packages/admin/src/routes/bylines.tsx:624
 msgid "Delete"
 msgstr "Verwijderen"
 
@@ -2233,7 +2233,7 @@ msgid "Delete {0} field"
 msgstr "Veld {0} verwijderen"
 
 #. placeholder {0}: menu.name
-#: packages/admin/src/components/MenuList.tsx:237
+#: packages/admin/src/components/MenuList.tsx:238
 msgid "Delete {0} menu"
 msgstr "Menu {0} verwijderen"
 
@@ -2255,7 +2255,7 @@ msgstr "Back-up verwijderen?"
 msgid "Delete byline field?"
 msgstr "Auteursvermeldingsveld verwijderen?"
 
-#: packages/admin/src/routes/bylines.tsx:623
+#: packages/admin/src/routes/bylines.tsx:622
 msgid "Delete Byline?"
 msgstr "Auteursvermelding verwijderen?"
 
@@ -2263,7 +2263,7 @@ msgstr "Auteursvermelding verwijderen?"
 msgid "Delete column"
 msgstr "Kolom verwijderen"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:405
+#: packages/admin/src/components/comments/CommentInbox.tsx:406
 msgid "Delete Comment?"
 msgstr "Reactie verwijderen?"
 
@@ -2292,11 +2292,11 @@ msgstr "Afbeelding verwijderen"
 msgid "Delete Media?"
 msgstr "Media verwijderen?"
 
-#: packages/admin/src/components/MenuList.tsx:253
+#: packages/admin/src/components/MenuList.tsx:254
 msgid "Delete Menu"
 msgstr "Menu verwijderen"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:525
+#: packages/admin/src/components/comments/CommentInbox.tsx:526
 msgid "Delete permanently"
 msgstr "Definitief verwijderen"
 
@@ -2309,16 +2309,16 @@ msgstr "Definitief verwijderen"
 msgid "Delete Permanently?"
 msgstr "Definitief verwijderen?"
 
-#: packages/admin/src/components/Redirects.tsx:535
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect"
 msgstr "Omleiding verwijderen"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:536
+#: packages/admin/src/components/Redirects.tsx:537
 msgid "Delete redirect {0}"
 msgstr "Omleiding {0} verwijderen"
 
-#: packages/admin/src/components/Redirects.tsx:580
+#: packages/admin/src/components/Redirects.tsx:581
 msgid "Delete Redirect?"
 msgstr "Omleiding verwijderen?"
 
@@ -2348,18 +2348,18 @@ msgstr "Verwijderd"
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Het verwijderen van \"{0}\" verwijdert ook {1, plural, one {# opgeslagen waarde} other {# opgeslagen waarden}} in alle auteursvermeldingen. Dit kan niet ongedaan worden gemaakt."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:408
+#: packages/admin/src/components/comments/CommentInbox.tsx:409
 #: packages/admin/src/components/ContentTypeEditor.tsx:673
 #: packages/admin/src/components/ContentTypeList.tsx:149
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:454
-#: packages/admin/src/components/MenuList.tsx:256
-#: packages/admin/src/components/Redirects.tsx:583
+#: packages/admin/src/components/MenuList.tsx:257
+#: packages/admin/src/components/Redirects.tsx:584
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/settings/BackupSettings.tsx:285
 #: packages/admin/src/components/TaxonomyManager.tsx:907
 #: packages/admin/src/components/Widgets.tsx:700
-#: packages/admin/src/routes/bylines.tsx:626
+#: packages/admin/src/routes/bylines.tsx:625
 msgid "Deleting..."
 msgstr "Verwijderen..."
 
@@ -2414,11 +2414,11 @@ msgstr "Beschrijving"
 msgid "Description (optional)"
 msgstr "Beschrijving (optioneel)"
 
-#: packages/admin/src/components/Redirects.tsx:468
+#: packages/admin/src/components/Redirects.tsx:469
 msgid "Destination"
 msgstr "Bestemming"
 
-#: packages/admin/src/components/Redirects.tsx:140
+#: packages/admin/src/components/Redirects.tsx:141
 msgid "Destination path"
 msgstr "Bestemmingspad"
 
@@ -2462,7 +2462,7 @@ msgstr "Uitschakelen"
 msgid "Disable plugin"
 msgstr "Plugin uitschakelen"
 
-#: packages/admin/src/components/Redirects.tsx:504
+#: packages/admin/src/components/Redirects.tsx:505
 msgid "Disable redirect"
 msgstr "Omleiding uitschakelen"
 
@@ -2475,7 +2475,7 @@ msgid "Disable User?"
 msgstr "Gebruiker uitschakelen?"
 
 #: packages/admin/src/components/PluginManager.tsx:354
-#: packages/admin/src/components/Redirects.tsx:418
+#: packages/admin/src/components/Redirects.tsx:419
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
@@ -2534,11 +2534,11 @@ msgstr "Een lijst met categorieën weergeven"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:914
 #: packages/admin/src/components/ContentSettingsPanel.tsx:976
-#: packages/admin/src/routes/bylines.tsx:482
+#: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "Weergavenaam"
 
-#: packages/admin/src/components/MenuList.tsx:167
+#: packages/admin/src/components/MenuList.tsx:168
 msgid "Display name for admin interface"
 msgstr "Weergavenaam voor de admin-interface"
 
@@ -2706,7 +2706,7 @@ msgstr "{title} dupliceren"
 msgid "e.g. application/zip or .pdf"
 msgstr "bijv. application/zip of .pdf"
 
-#: packages/admin/src/components/Redirects.tsx:167
+#: packages/admin/src/components/Redirects.tsx:168
 msgid "e.g. import, blog"
 msgstr "bijv. import, blog"
 
@@ -2722,7 +2722,7 @@ msgstr "bijv. MacBook Pro, iPhone"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
-#: packages/admin/src/components/MenuList.tsx:231
+#: packages/admin/src/components/MenuList.tsx:232
 #: packages/admin/src/components/Sections.tsx:392
 #: packages/admin/src/components/TranslationsPanel.tsx:93
 msgid "Edit"
@@ -2737,7 +2737,7 @@ msgstr "Bewerken"
 #: packages/admin/src/components/TaxonomyManager.tsx:109
 #: packages/admin/src/components/TaxonomyManager.tsx:377
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:477
+#: packages/admin/src/routes/bylines.tsx:476
 msgid "Edit {0}"
 msgstr "{0} bewerken"
 
@@ -2782,16 +2782,16 @@ msgstr "Menu-item bewerken"
 msgid "Edit menu items"
 msgstr "Menu-items bewerken"
 
-#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:528
 msgid "Edit redirect"
 msgstr "Omleiding bewerken"
 
-#: packages/admin/src/components/Redirects.tsx:105
+#: packages/admin/src/components/Redirects.tsx:106
 msgid "Edit Redirect"
 msgstr "Omleiding bewerken"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:529
 msgid "Edit redirect {0}"
 msgstr "Omleiding {0} bewerken"
 
@@ -2899,12 +2899,12 @@ msgstr "Zoeken in volledige tekst inschakelen voor deze collectie"
 msgid "Enable plugin"
 msgstr "Plugin inschakelen"
 
-#: packages/admin/src/components/Redirects.tsx:504
+#: packages/admin/src/components/Redirects.tsx:505
 msgid "Enable redirect"
 msgstr "Omleiding inschakelen"
 
-#: packages/admin/src/components/Redirects.tsx:175
-#: packages/admin/src/components/Redirects.tsx:418
+#: packages/admin/src/components/Redirects.tsx:176
+#: packages/admin/src/components/Redirects.tsx:419
 msgid "Enabled"
 msgstr "Ingeschakeld"
 
@@ -3362,7 +3362,7 @@ msgid "Failed to load backup settings"
 msgstr "Laden van back-upinstellingen mislukt"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:366
+#: packages/admin/src/routes/bylines.tsx:365
 msgid "Failed to load bylines: {0}"
 msgstr "Laden van auteursvermeldingen mislukt: {0}"
 
@@ -3387,7 +3387,7 @@ msgstr "Laden van plugin mislukt"
 msgid "Failed to load plugins: {0}"
 msgstr "Laden van plugins mislukt: {0}"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:95
+#: packages/admin/src/components/RegistryBrowse.tsx:96
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "Laden van plugins mislukt. De registry-aggregator is mogelijk niet bereikbaar."
 
@@ -3701,7 +3701,7 @@ msgstr "Filteren op auteur"
 msgid "Filter by capability"
 msgstr "Filteren op mogelijkheid"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:177
+#: packages/admin/src/components/comments/CommentInbox.tsx:178
 msgid "Filter by collection"
 msgstr "Filteren op collectie"
 
@@ -3714,16 +3714,16 @@ msgid "Filter by source"
 msgstr "Filteren op bron"
 
 #: packages/admin/src/components/ContentList.tsx:754
-#: packages/admin/src/components/Redirects.tsx:419
+#: packages/admin/src/components/Redirects.tsx:420
 msgid "Filter by status"
 msgstr "Filteren op status"
 
 #: packages/admin/src/components/MediaLibrary.tsx:439
-#: packages/admin/src/components/Redirects.tsx:425
+#: packages/admin/src/components/Redirects.tsx:426
 msgid "Filter by type"
 msgstr "Filteren op type"
 
-#: packages/admin/src/routes/bylines.tsx:409
+#: packages/admin/src/routes/bylines.tsx:408
 msgid "Filter byline type"
 msgstr "Filteren op type auteursvermelding"
 
@@ -3806,7 +3806,7 @@ msgstr "GraphQL"
 msgid "Grid view"
 msgstr "Rasterweergave"
 
-#: packages/admin/src/components/Redirects.tsx:166
+#: packages/admin/src/components/Redirects.tsx:167
 msgid "Group (optional)"
 msgstr "Groep (optioneel)"
 
@@ -3814,11 +3814,11 @@ msgstr "Groep (optioneel)"
 msgid "Group by"
 msgstr "Groeperen op"
 
-#: packages/admin/src/routes/bylines.tsx:556
+#: packages/admin/src/routes/bylines.tsx:555
 msgid "Guest byline"
 msgstr "Auteursvermelding voor gast"
 
-#: packages/admin/src/routes/bylines.tsx:414
+#: packages/admin/src/routes/bylines.tsx:413
 msgid "Guest only"
 msgstr "Alleen gasten"
 
@@ -3882,8 +3882,8 @@ msgstr "Token verbergen"
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Hiërarchisch (zoals categorieën, met bovenliggende/onderliggende relaties)"
 
-#: packages/admin/src/components/Redirects.tsx:225
-#: packages/admin/src/components/Redirects.tsx:470
+#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:471
 msgid "Hits"
 msgstr "Hits"
 
@@ -3985,8 +3985,8 @@ msgstr "afbeeldings-URL's bijgewerkt in"
 msgid "Images"
 msgstr "Afbeeldingen"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:233
-#: packages/admin/src/components/Sidebar.tsx:401
+#: packages/admin/src/components/AdminCommandPalette.tsx:226
+#: packages/admin/src/components/Sidebar.tsx:290
 #: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import"
 msgstr "Importeren"
@@ -4153,7 +4153,7 @@ msgstr "Link invoegen"
 msgid "Insert raw HTML"
 msgstr "Onbewerkte HTML invoegen"
 
-#: packages/admin/src/components/SectionPickerModal.tsx:57
+#: packages/admin/src/components/SectionPickerModal.tsx:58
 msgid "Insert Section"
 msgstr "Sectie invoegen"
 
@@ -4184,7 +4184,7 @@ msgstr "Installatie"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:173
-#: packages/admin/src/components/RegistryBrowse.tsx:198
+#: packages/admin/src/components/RegistryBrowse.tsx:199
 #: packages/admin/src/components/RegistryPluginDetail.tsx:533
 msgid "Installed"
 msgstr "Geïnstalleerd"
@@ -4316,7 +4316,7 @@ msgstr "Kotlin"
 #: packages/admin/src/components/FieldEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:416
 #: packages/admin/src/components/MenuEditor.tsx:593
-#: packages/admin/src/components/MenuList.tsx:166
+#: packages/admin/src/components/MenuList.tsx:167
 #: packages/admin/src/components/TaxonomyManager.tsx:645
 #: packages/admin/src/components/Widgets.tsx:431
 #: packages/admin/src/routes/byline-schema.tsx:234
@@ -4354,7 +4354,7 @@ msgstr "Laatst ingelogd"
 msgid "Last Login"
 msgstr "Laatst ingelogd"
 
-#: packages/admin/src/components/Redirects.tsx:226
+#: packages/admin/src/components/Redirects.tsx:227
 msgid "Last seen"
 msgstr "Laatst gezien"
 
@@ -4426,11 +4426,11 @@ msgstr "Link naar een ander content-item"
 msgid "Linked Accounts ({0})"
 msgstr "Gekoppelde accounts ({0})"
 
-#: packages/admin/src/routes/bylines.tsx:415
+#: packages/admin/src/routes/bylines.tsx:414
 msgid "Linked only"
 msgstr "Alleen gekoppeld"
 
-#: packages/admin/src/routes/bylines.tsx:507
+#: packages/admin/src/routes/bylines.tsx:506
 msgid "Linked user"
 msgstr "Gekoppelde gebruiker"
 
@@ -4454,9 +4454,9 @@ msgstr "Live weergave"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:236
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
-#: packages/admin/src/components/RegistryBrowse.tsx:143
+#: packages/admin/src/components/RegistryBrowse.tsx:144
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:469
+#: packages/admin/src/routes/bylines.tsx:468
 msgid "Load more"
 msgstr "Meer laden"
 
@@ -4480,7 +4480,7 @@ msgstr "Auteursvermeldingsvelden laden…"
 msgid "Loading collections..."
 msgstr "Collecties laden..."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:307
+#: packages/admin/src/components/comments/CommentInbox.tsx:308
 msgid "Loading comments..."
 msgstr "Reacties laden..."
 
@@ -4501,7 +4501,7 @@ msgstr "Editor laden..."
 msgid "Loading menu..."
 msgstr "Menu laden..."
 
-#: packages/admin/src/components/MenuList.tsx:94
+#: packages/admin/src/components/MenuList.tsx:95
 msgid "Loading menus..."
 msgstr "Menu's laden..."
 
@@ -4509,11 +4509,11 @@ msgstr "Menu's laden..."
 msgid "Loading plugins..."
 msgstr "Plugins laden..."
 
-#: packages/admin/src/components/Redirects.tsx:456
+#: packages/admin/src/components/Redirects.tsx:457
 msgid "Loading redirects..."
 msgstr "Omleidingen laden..."
 
-#: packages/admin/src/components/SectionPickerModal.tsx:94
+#: packages/admin/src/components/SectionPickerModal.tsx:95
 #: packages/admin/src/components/Sections.tsx:252
 msgid "Loading sections..."
 msgstr "Secties laden..."
@@ -4545,7 +4545,7 @@ msgstr "Widgets laden..."
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:722
 #: packages/admin/src/components/PortableTextEditor.tsx:2035
-#: packages/admin/src/components/RegistryBrowse.tsx:143
+#: packages/admin/src/components/RegistryBrowse.tsx:144
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:161
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/TaxonomyManager.tsx:801
@@ -4554,7 +4554,7 @@ msgstr "Widgets laden..."
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:469
+#: packages/admin/src/routes/bylines.tsx:468
 msgid "Loading..."
 msgstr "Laden..."
 
@@ -4618,7 +4618,7 @@ msgstr "Netwerkverzoeken uitvoeren"
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Netwerkverzoeken uitvoeren naar elke host (onbeperkt)"
 
-#: packages/admin/src/components/Sidebar.tsx:483
+#: packages/admin/src/components/Sidebar.tsx:375
 msgid "Manage"
 msgstr "Beheren"
 
@@ -4640,11 +4640,11 @@ msgstr "Beheer contentwidgets in je widgetgebieden"
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "Beheer geïnstalleerde plugins. Schakel plugins in of uit om hun functionaliteit te regelen."
 
-#: packages/admin/src/components/MenuList.tsx:104
+#: packages/admin/src/components/MenuList.tsx:105
 msgid "Manage navigation menus for your site"
 msgstr "Beheer navigatiemenu's voor je site"
 
-#: packages/admin/src/components/Redirects.tsx:359
+#: packages/admin/src/components/Redirects.tsx:360
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Beheer URL-omleidingen en bekijk 404-fouten."
 
@@ -4660,7 +4660,7 @@ msgstr "Beheerd door {providerName}"
 msgid "Managed by an external media provider"
 msgstr "Beheerd door een externe mediaprovider"
 
-#: packages/admin/src/components/Redirects.tsx:424
+#: packages/admin/src/components/Redirects.tsx:425
 msgid "Manual"
 msgstr "Handmatig"
 
@@ -4674,15 +4674,15 @@ msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPress-gebruiker {0} koppelen aan EmDash-gebruiker"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:255
+#: packages/admin/src/components/Redirects.tsx:256
 msgid "Mark {0} as Gone (410)"
 msgstr "{0} markeren als Gone (410)"
 
-#: packages/admin/src/components/Redirects.tsx:254
+#: packages/admin/src/components/Redirects.tsx:255
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr "Markeren als Gone (410) — vertelt zoekmachines dat het permanent verwijderd is"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:501
+#: packages/admin/src/components/comments/CommentInbox.tsx:502
 msgid "Mark as spam"
 msgstr "Markeren als spam"
 
@@ -4697,7 +4697,7 @@ msgstr "marketplace"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:167
 #: packages/admin/src/components/PluginManager.tsx:355
-#: packages/admin/src/components/Sidebar.tsx:385
+#: packages/admin/src/components/Sidebar.tsx:272
 msgid "Marketplace"
 msgstr "Marketplace"
 
@@ -4722,7 +4722,7 @@ msgid "MDX"
 msgstr "MDX"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2311
-#: packages/admin/src/components/Sidebar.tsx:344
+#: packages/admin/src/components/Sidebar.tsx:216
 #: packages/admin/src/components/WordPressImport.tsx:752
 #: packages/admin/src/components/WordPressImport.tsx:1145
 #: packages/admin/src/components/WordPressImport.tsx:1334
@@ -4750,7 +4750,7 @@ msgstr "Media-import voltooid"
 msgid "Media import was skipped"
 msgstr "Media-import is overgeslagen"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:160
+#: packages/admin/src/components/AdminCommandPalette.tsx:153
 #: packages/admin/src/components/MediaLibrary.tsx:322
 msgid "Media Library"
 msgstr "Mediabibliotheek"
@@ -4779,15 +4779,15 @@ msgid "Menu \"{0}\" ({1}) created."
 msgstr "Menu \"{0}\" ({1}) aangemaakt."
 
 #. placeholder {0}: menu.label
-#: packages/admin/src/components/MenuList.tsx:55
+#: packages/admin/src/components/MenuList.tsx:56
 msgid "Menu \"{0}\" has been created."
 msgstr "Menu \"{0}\" is aangemaakt."
 
-#: packages/admin/src/components/MenuList.tsx:54
+#: packages/admin/src/components/MenuList.tsx:55
 msgid "Menu created"
 msgstr "Menu aangemaakt"
 
-#: packages/admin/src/components/MenuList.tsx:74
+#: packages/admin/src/components/MenuList.tsx:75
 msgid "Menu deleted"
 msgstr "Menu verwijderd"
 
@@ -4811,9 +4811,9 @@ msgstr "Menu niet gevonden"
 msgid "Menu order has been updated."
 msgstr "Menuvolgorde is bijgewerkt."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:167
-#: packages/admin/src/components/MenuList.tsx:103
-#: packages/admin/src/components/Sidebar.tsx:354
+#: packages/admin/src/components/AdminCommandPalette.tsx:160
+#: packages/admin/src/components/MenuList.tsx:104
+#: packages/admin/src/components/Sidebar.tsx:226
 #: packages/admin/src/components/WordPressImport.tsx:1149
 msgid "Menus"
 msgstr "Menu's"
@@ -4961,7 +4961,7 @@ msgstr "Mijn geweldige blog"
 
 #: packages/admin/src/components/ContentTypeList.tsx:94
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
-#: packages/admin/src/components/MenuList.tsx:154
+#: packages/admin/src/components/MenuList.tsx:155
 #: packages/admin/src/components/TaxonomyManager.tsx:405
 #: packages/admin/src/components/TaxonomyManager.tsx:654
 #: packages/admin/src/components/TaxonomyManager.tsx:841
@@ -4979,7 +4979,7 @@ msgstr "Naam en label zijn verplicht"
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "Naam moet beginnen met een letter en mag alleen kleine letters, cijfers en underscores bevatten"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:347
+#: packages/admin/src/components/AdminCommandPalette.tsx:340
 msgid "Navigation"
 msgstr "Navigatie"
 
@@ -4992,7 +4992,7 @@ msgstr "Nooit"
 msgid "new"
 msgstr "nieuw"
 
-#: packages/admin/src/routes/bylines.tsx:427
+#: packages/admin/src/routes/bylines.tsx:426
 msgid "New"
 msgstr "Nieuw"
 
@@ -5030,8 +5030,8 @@ msgstr "Nieuw veld"
 msgid "New public routes"
 msgstr "Nieuwe openbare routes"
 
-#: packages/admin/src/components/Redirects.tsx:105
-#: packages/admin/src/components/Redirects.tsx:362
+#: packages/admin/src/components/Redirects.tsx:106
+#: packages/admin/src/components/Redirects.tsx:363
 msgid "New Redirect"
 msgstr "Nieuwe omleiding"
 
@@ -5039,7 +5039,7 @@ msgstr "Nieuwe omleiding"
 msgid "New Section"
 msgstr "Nieuwe sectie"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:478
+#: packages/admin/src/components/AdminCommandPalette.tsx:479
 msgid "new tab"
 msgstr "nieuw tabblad"
 
@@ -5067,7 +5067,7 @@ msgstr "Nieuws"
 msgid "Next"
 msgstr "Volgende"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:371
+#: packages/admin/src/components/comments/CommentInbox.tsx:372
 #: packages/admin/src/components/ContentList.tsx:618
 msgid "Next page"
 msgstr "Volgende pagina"
@@ -5100,7 +5100,7 @@ msgstr "Nog geen {0}."
 msgid "No {0} yet. Create one to get started."
 msgstr "Nog geen {0}. Maak er een aan om te beginnen."
 
-#: packages/admin/src/components/Redirects.tsx:217
+#: packages/admin/src/components/Redirects.tsx:218
 msgid "No 404 errors recorded yet."
 msgstr "Nog geen 404-fouten geregistreerd."
 
@@ -5113,7 +5113,7 @@ msgstr "Geen alt-tekst"
 msgid "No API tokens yet. Create one to get started."
 msgstr "Nog geen API-tokens. Maak er een aan om te beginnen."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:547
+#: packages/admin/src/components/comments/CommentInbox.tsx:548
 msgid "No approved comments yet."
 msgstr "Nog geen goedgekeurde reacties."
 
@@ -5125,7 +5125,7 @@ msgstr "Nog geen auteursvermeldingsvelden."
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "Geen auteursvermeldingen beschikbaar in {entryLocale}. Maak een variant aan via de pagina Auteursvermeldingen voordat je er een aan dit item toekent."
 
-#: packages/admin/src/routes/bylines.tsx:453
+#: packages/admin/src/routes/bylines.tsx:452
 msgid "No bylines found"
 msgstr "Geen auteursvermeldingen gevonden"
 
@@ -5137,11 +5137,11 @@ msgstr "Geen auteursvermeldingen geselecteerd."
 msgid "No collections configured"
 msgstr "Geen collecties geconfigureerd"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:546
+#: packages/admin/src/components/comments/CommentInbox.tsx:547
 msgid "No comments awaiting moderation."
 msgstr "Geen reacties in afwachting van moderatie."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:542
+#: packages/admin/src/components/comments/CommentInbox.tsx:543
 msgid "No comments match your search."
 msgstr "Geen reacties gevonden voor je zoekopdracht."
 
@@ -5214,7 +5214,7 @@ msgstr "Nog geen items"
 msgid "No limit"
 msgstr "Geen limiet"
 
-#: packages/admin/src/routes/bylines.tsx:518
+#: packages/admin/src/routes/bylines.tsx:517
 msgid "No linked user"
 msgstr "Geen gekoppelde gebruiker"
 
@@ -5257,7 +5257,7 @@ msgstr "Geen media gevonden"
 msgid "No menu items yet"
 msgstr "Nog geen menu-items"
 
-#: packages/admin/src/components/MenuList.tsx:186
+#: packages/admin/src/components/MenuList.tsx:187
 msgid "No menus yet"
 msgstr "Nog geen menu's"
 
@@ -5290,11 +5290,11 @@ msgstr "Geen plugins geconfigureerd"
 msgid "No plugins found"
 msgstr "Geen plugins gevonden"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:117
+#: packages/admin/src/components/RegistryBrowse.tsx:118
 msgid "No plugins have been published to this registry yet."
 msgstr "Er zijn nog geen plugins gepubliceerd in deze registry."
 
-#: packages/admin/src/components/RegistryBrowse.tsx:116
+#: packages/admin/src/components/RegistryBrowse.tsx:117
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "Geen plugins komen overeen met \"{debouncedQuery}\"."
 
@@ -5310,7 +5310,7 @@ msgstr "Geen openbare URL beschikbaar"
 msgid "No recent activity"
 msgstr "Geen recente activiteit"
 
-#: packages/admin/src/components/Redirects.tsx:460
+#: packages/admin/src/components/Redirects.tsx:461
 msgid "No redirects yet"
 msgstr "Nog geen omleidingen"
 
@@ -5329,7 +5329,7 @@ msgstr "Geen resultaten voor \"{activeSearch}\""
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "Geen resultaten voor \"{debouncedQuery}\". Probeer een andere zoekterm."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:464
+#: packages/admin/src/components/AdminCommandPalette.tsx:465
 msgid "No results found"
 msgstr "Geen resultaten gevonden"
 
@@ -5337,11 +5337,11 @@ msgstr "Geen resultaten gevonden"
 msgid "No revisions yet"
 msgstr "Nog geen revisies"
 
-#: packages/admin/src/components/SectionPickerModal.tsx:107
+#: packages/admin/src/components/SectionPickerModal.tsx:108
 msgid "No sections available"
 msgstr "Geen secties beschikbaar"
 
-#: packages/admin/src/components/SectionPickerModal.tsx:101
+#: packages/admin/src/components/SectionPickerModal.tsx:102
 #: packages/admin/src/components/Sections.tsx:259
 msgid "No sections found"
 msgstr "Geen secties gevonden"
@@ -5350,7 +5350,7 @@ msgstr "Geen secties gevonden"
 msgid "No sections yet"
 msgstr "Nog geen secties"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:548
+#: packages/admin/src/components/comments/CommentInbox.tsx:549
 msgid "No spam comments."
 msgstr "Geen spamreacties."
 
@@ -5423,7 +5423,7 @@ msgstr "Autoriseer alleen codes die je herkent."
 msgid "Only email addresses from allowed domains can sign up."
 msgstr "Alleen e-mailadressen van toegestane domeinen kunnen zich registreren."
 
-#: packages/admin/src/components/MenuList.tsx:159
+#: packages/admin/src/components/MenuList.tsx:160
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "Alleen kleine letters, cijfers en koppeltekens"
 
@@ -5550,8 +5550,8 @@ msgstr "Alinea"
 msgid "Parent"
 msgstr "Bovenliggend item"
 
-#: packages/admin/src/components/Redirects.tsx:509
-#: packages/admin/src/components/Redirects.tsx:515
+#: packages/admin/src/components/Redirects.tsx:510
+#: packages/admin/src/components/Redirects.tsx:516
 msgid "Part of a redirect loop"
 msgstr "Onderdeel van een omleidingslus"
 
@@ -5624,7 +5624,7 @@ msgstr "Passkeys vereisen HTTPS of http://localhost (met je poort); deze hostnam
 msgid "Paste your migration key"
 msgstr "Plak je migratiesleutel"
 
-#: packages/admin/src/components/Redirects.tsx:224
+#: packages/admin/src/components/Redirects.tsx:225
 msgid "Path"
 msgstr "Pad"
 
@@ -5651,7 +5651,7 @@ msgstr "PDF"
 msgid "pending"
 msgstr "in afwachting"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:197
+#: packages/admin/src/components/comments/CommentInbox.tsx:198
 #: packages/admin/src/components/Dashboard.tsx:348
 msgid "Pending"
 msgstr "In afwachting"
@@ -5755,7 +5755,7 @@ msgstr "plugin op je WordPress-site."
 msgid "Plugin Permissions"
 msgstr "Rechten van de plugin"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:70
+#: packages/admin/src/components/RegistryBrowse.tsx:71
 msgid "Plugin Registry"
 msgstr "Plugin Registry"
 
@@ -5780,12 +5780,12 @@ msgstr "Plugin bijgewerkt"
 msgid "Plugin widget error"
 msgstr "Fout in plugin-widget"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:225
+#: packages/admin/src/components/AdminCommandPalette.tsx:218
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/PluginManager.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:372
-#: packages/admin/src/components/Sidebar.tsx:499
+#: packages/admin/src/components/Sidebar.tsx:256
+#: packages/admin/src/components/Sidebar.tsx:391
 msgid "Plugins"
 msgstr "Plugins"
 
@@ -5849,7 +5849,7 @@ msgstr "Voorbeeld van concept bekijken"
 msgid "Previous"
 msgstr "Vorige"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:352
+#: packages/admin/src/components/comments/CommentInbox.tsx:353
 #: packages/admin/src/components/ContentList.tsx:606
 msgid "Previous page"
 msgstr "Vorige pagina"
@@ -5858,7 +5858,7 @@ msgstr "Vorige pagina"
 msgid "Previous screenshot"
 msgstr "Vorige screenshot"
 
-#: packages/admin/src/components/MenuList.tsx:166
+#: packages/admin/src/components/MenuList.tsx:167
 msgid "Primary Navigation"
 msgstr "Primaire navigatie"
 
@@ -5997,7 +5997,7 @@ msgstr "E-mailadres ontvanger"
 msgid "Recovery link sent to {0}"
 msgstr "Herstellink verzonden naar {0}"
 
-#: packages/admin/src/components/Redirects.tsx:442
+#: packages/admin/src/components/Redirects.tsx:443
 msgid "Redirect loop detected"
 msgstr "Omleidingslus gedetecteerd"
 
@@ -6005,9 +6005,9 @@ msgstr "Omleidingslus gedetecteerd"
 msgid "Redirecting to login..."
 msgstr "Je wordt doorgestuurd naar de inlogpagina..."
 
-#: packages/admin/src/components/Redirects.tsx:358
-#: packages/admin/src/components/Redirects.tsx:377
-#: packages/admin/src/components/Sidebar.tsx:355
+#: packages/admin/src/components/Redirects.tsx:359
+#: packages/admin/src/components/Redirects.tsx:378
+#: packages/admin/src/components/Sidebar.tsx:229
 msgid "Redirects"
 msgstr "Omleidingen"
 
@@ -6048,7 +6048,7 @@ msgstr "Registratie mislukt"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Registratie is geannuleerd of verlopen. Probeer het opnieuw."
 
-#: packages/admin/src/components/Sidebar.tsx:378
+#: packages/admin/src/components/Sidebar.tsx:265
 msgid "Registry"
 msgstr "Registry"
 
@@ -6350,11 +6350,11 @@ msgstr "Zelfde venster"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
-#: packages/admin/src/components/Redirects.tsx:190
+#: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/SaveButton.tsx:32
 #: packages/admin/src/components/settings/BackupSettings.tsx:192
 #: packages/admin/src/components/Widgets.tsx:966
-#: packages/admin/src/routes/bylines.tsx:580
+#: packages/admin/src/routes/bylines.tsx:579
 msgid "Save"
 msgstr "Opslaan"
 
@@ -6410,7 +6410,7 @@ msgstr "\"{0}\" opgeslagen."
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
-#: packages/admin/src/components/Redirects.tsx:187
+#: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/SaveButton.tsx:33
 #: packages/admin/src/components/settings/BackupSettings.tsx:192
 #: packages/admin/src/components/settings/GeneralSettings.tsx:120
@@ -6422,7 +6422,7 @@ msgstr "\"{0}\" opgeslagen."
 #: packages/admin/src/components/TaxonomyManager.tsx:498
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:966
-#: packages/admin/src/routes/bylines.tsx:580
+#: packages/admin/src/routes/bylines.tsx:579
 msgid "Saving..."
 msgstr "Opslaan..."
 
@@ -6550,7 +6550,7 @@ msgid "Search by name or email..."
 msgstr "Zoeken op naam of e-mailadres..."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:807
-#: packages/admin/src/routes/bylines.tsx:402
+#: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr "Auteursvermeldingen zoeken"
 
@@ -6558,11 +6558,11 @@ msgstr "Auteursvermeldingen zoeken"
 msgid "Search bylines to add..."
 msgstr "Zoek auteursvermeldingen om toe te voegen..."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:163
+#: packages/admin/src/components/comments/CommentInbox.tsx:164
 msgid "Search comments"
 msgstr "Reacties zoeken"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:162
+#: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Search comments..."
 msgstr "Reacties zoeken..."
 
@@ -6587,26 +6587,26 @@ msgstr "Zoekformulier"
 msgid "Search media"
 msgstr "Media zoeken"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:437
+#: packages/admin/src/components/AdminCommandPalette.tsx:438
 msgid "Search pages and content..."
 msgstr "Pagina's en content zoeken..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:101
-#: packages/admin/src/components/RegistryBrowse.tsx:84
+#: packages/admin/src/components/RegistryBrowse.tsx:85
 msgid "Search plugins"
 msgstr "Plugins zoeken"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:97
-#: packages/admin/src/components/RegistryBrowse.tsx:80
+#: packages/admin/src/components/RegistryBrowse.tsx:81
 msgid "Search plugins..."
 msgstr "Plugins zoeken..."
 
-#: packages/admin/src/components/SectionPickerModal.tsx:81
+#: packages/admin/src/components/SectionPickerModal.tsx:82
 #: packages/admin/src/components/Sections.tsx:226
 msgid "Search sections..."
 msgstr "Secties zoeken..."
 
-#: packages/admin/src/components/Redirects.tsx:409
+#: packages/admin/src/components/Redirects.tsx:410
 msgid "Search source or destination..."
 msgstr "Zoeken op bron of bestemming..."
 
@@ -6664,9 +6664,9 @@ msgstr "Sectie niet gevonden"
 msgid "Section title"
 msgstr "Sectietitel"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:183
+#: packages/admin/src/components/AdminCommandPalette.tsx:176
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:357
+#: packages/admin/src/components/Sidebar.tsx:234
 msgid "Sections"
 msgstr "Secties"
 
@@ -6717,7 +6717,7 @@ msgstr "Beveiligingscontacten"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Beveiligingsfout. Zorg dat je een beveiligde verbinding gebruikt."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:249
+#: packages/admin/src/components/AdminCommandPalette.tsx:242
 #: packages/admin/src/components/Header.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:95
 msgid "Security Settings"
@@ -6748,7 +6748,7 @@ msgstr "Selecteer een component..."
 msgid "Select a menu..."
 msgstr "Selecteer een menu..."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:283
+#: packages/admin/src/components/comments/CommentInbox.tsx:284
 msgid "Select all"
 msgstr "Alles selecteren"
 
@@ -6757,7 +6757,7 @@ msgid "Select all on this page"
 msgstr "Alles op deze pagina selecteren"
 
 #. placeholder {0}: comment.authorName
-#: packages/admin/src/components/comments/CommentInbox.tsx:456
+#: packages/admin/src/components/comments/CommentInbox.tsx:457
 msgid "Select comment by {0}"
 msgstr "Reactie van {0} selecteren"
 
@@ -6923,14 +6923,14 @@ msgstr "Stel je site in"
 msgid "Setting up..."
 msgstr "Instellen..."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:241
+#: packages/admin/src/components/AdminCommandPalette.tsx:234
 #: packages/admin/src/components/ContentEditor.tsx:809
 #: packages/admin/src/components/ContentEditor.tsx:1016
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:63
-#: packages/admin/src/components/Sidebar.tsx:402
+#: packages/admin/src/components/Sidebar.tsx:294
 #: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
 msgstr "Instellingen"
@@ -7118,7 +7118,7 @@ msgstr "Overgeslagen"
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:414
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:487
+#: packages/admin/src/routes/bylines.tsx:486
 msgid "Slug"
 msgstr "Slug"
 
@@ -7174,12 +7174,12 @@ msgstr "Thema's sorteren"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:214
 #: packages/admin/src/components/PluginManager.tsx:497
-#: packages/admin/src/components/Redirects.tsx:466
+#: packages/admin/src/components/Redirects.tsx:467
 #: packages/admin/src/components/SectionEditor.tsx:281
 msgid "Source"
 msgstr "Bron"
 
-#: packages/admin/src/components/Redirects.tsx:131
+#: packages/admin/src/components/Redirects.tsx:132
 msgid "Source path"
 msgstr "Bronpad"
 
@@ -7188,8 +7188,8 @@ msgid "spam"
 msgstr "spam"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:159
-#: packages/admin/src/components/comments/CommentInbox.tsx:207
-#: packages/admin/src/components/comments/CommentInbox.tsx:247
+#: packages/admin/src/components/comments/CommentInbox.tsx:208
+#: packages/admin/src/components/comments/CommentInbox.tsx:248
 msgid "Spam"
 msgstr "Spam"
 
@@ -7218,12 +7218,12 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:511
 #: packages/admin/src/components/ContentSettingsPanel.tsx:425
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
-#: packages/admin/src/components/Redirects.tsx:471
+#: packages/admin/src/components/Redirects.tsx:472
 #: packages/admin/src/components/users/UserList.tsx:104
 msgid "Status"
 msgstr "Status"
 
-#: packages/admin/src/components/Redirects.tsx:151
+#: packages/admin/src/components/Redirects.tsx:152
 msgid "Status code"
 msgstr "Statuscode"
 
@@ -7306,7 +7306,7 @@ msgstr ""
 msgid "Tagline"
 msgstr "Tagline"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:208
+#: packages/admin/src/components/AdminCommandPalette.tsx:201
 #: packages/admin/src/components/Widgets.tsx:141
 msgid "Tags"
 msgstr "Tags"
@@ -7398,7 +7398,7 @@ msgstr "De link verloopt over 15 minuten."
 msgid "The marketplace is empty. Check back later for new plugins."
 msgstr "De marketplace is leeg. Kom later terug voor nieuwe plugins."
 
-#: packages/admin/src/components/MenuList.tsx:75
+#: packages/admin/src/components/MenuList.tsx:76
 msgid "The menu has been deleted."
 msgstr "Het menu is verwijderd."
 
@@ -7455,7 +7455,7 @@ msgstr "Secties uit het thema kunnen niet worden verwijderd. Bewerk de sectie om
 msgid "Theme: {label}"
 msgstr "Thema: {label}"
 
-#: packages/admin/src/components/Sidebar.tsx:394
+#: packages/admin/src/components/Sidebar.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "Thema's"
@@ -7510,7 +7510,7 @@ msgstr "Deze plugin vereist geen speciale rechten."
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr "Deze uitgever claimt een naam waarvan niet kon worden aangetoond dat die van hem is — mogelijk doet iemand zich voor als een ander. Installeren is uitgeschakeld. Als je de uitgever kent en vertrouwt, vraag dan om de identiteitsconfiguratie te herstellen voordat je het opnieuw probeert."
 
-#: packages/admin/src/components/Redirects.tsx:581
+#: packages/admin/src/components/Redirects.tsx:582
 msgid "This redirect rule will be permanently removed."
 msgstr "Deze omleidingsregel wordt permanent verwijderd."
 
@@ -7518,7 +7518,7 @@ msgstr "Deze omleidingsregel wordt permanent verwijderd."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Deze release vereist een nieuwere omgeving dan waar je site momenteel op draait. Voer eerst een upgrade uit voordat je installeert."
 
-#: packages/admin/src/routes/bylines.tsx:624
+#: packages/admin/src/routes/bylines.tsx:623
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "Dit verwijdert het profiel van de auteursvermelding. Auteursvermeldingskoppelingen in content worden verwijderd en leadverwijzingen worden gewist."
 
@@ -7556,7 +7556,7 @@ msgstr "Dit verwijdert \"{0}\" permanent en haalt het uit alle content."
 msgid "This will permanently delete \"{0}\". This action cannot be undone."
 msgstr "Dit verwijdert \"{0}\" permanent. Deze actie kan niet ongedaan worden gemaakt."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:406
+#: packages/admin/src/components/comments/CommentInbox.tsx:407
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Dit verwijdert deze reactie permanent. Deze actie kan niet ongedaan worden gemaakt."
 
@@ -7601,7 +7601,7 @@ msgstr "Titelscheidingsteken"
 msgid "to"
 msgstr "tot"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:482
+#: packages/admin/src/components/AdminCommandPalette.tsx:483
 msgid "to close"
 msgstr "om te sluiten"
 
@@ -7613,7 +7613,7 @@ msgstr "Einddatum"
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr "om plugins te installeren, of voeg ze toe aan je astro.config.mjs."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:472
+#: packages/admin/src/components/AdminCommandPalette.tsx:473
 msgid "to select"
 msgstr "om te selecteren"
 
@@ -7688,9 +7688,9 @@ msgid "trash"
 msgstr "prullenbak"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:170
-#: packages/admin/src/components/comments/CommentInbox.tsx:216
-#: packages/admin/src/components/comments/CommentInbox.tsx:257
-#: packages/admin/src/components/comments/CommentInbox.tsx:513
+#: packages/admin/src/components/comments/CommentInbox.tsx:217
+#: packages/admin/src/components/comments/CommentInbox.tsx:258
+#: packages/admin/src/components/comments/CommentInbox.tsx:514
 #: packages/admin/src/components/ContentList.tsx:375
 msgid "Trash"
 msgstr "Prullenbak"
@@ -7699,7 +7699,7 @@ msgstr "Prullenbak"
 msgid "Trash is empty"
 msgstr "Prullenbak is leeg"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:549
+#: packages/admin/src/components/comments/CommentInbox.tsx:550
 msgid "Trash is empty."
 msgstr "Prullenbak is leeg."
 
@@ -7716,7 +7716,7 @@ msgid "Try a different search term"
 msgstr "Probeer een andere zoekterm"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:172
-#: packages/admin/src/components/SectionPickerModal.tsx:102
+#: packages/admin/src/components/SectionPickerModal.tsx:103
 msgid "Try adjusting your search"
 msgstr "Pas je zoekopdracht aan"
 
@@ -7916,7 +7916,7 @@ msgstr "Site-instellingen bijwerken"
 msgid "Update the {0} details"
 msgstr "Werk de gegevens van de {0} bij"
 
-#: packages/admin/src/components/Redirects.tsx:109
+#: packages/admin/src/components/Redirects.tsx:110
 msgid "Update this redirect rule."
 msgstr "Werk deze omleidingsregel bij."
 
@@ -8059,7 +8059,7 @@ msgstr "URL-patroon"
 msgid "URL-friendly identifier"
 msgstr "URL-vriendelijke identifier"
 
-#: packages/admin/src/components/MenuList.tsx:162
+#: packages/admin/src/components/MenuList.tsx:163
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 msgstr "URL-vriendelijke identifier (bijv. \"primary\", \"footer\")"
 
@@ -8067,7 +8067,7 @@ msgstr "URL-vriendelijke identifier (bijv. \"primary\", \"footer\")"
 msgid "URL:"
 msgstr "URL:"
 
-#: packages/admin/src/components/Redirects.tsx:110
+#: packages/admin/src/components/Redirects.tsx:111
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Gebruik [param] of [...rest] in paden voor patroonherkenning."
 
@@ -8124,8 +8124,8 @@ msgstr "Gebruikersgegevens"
 msgid "User not found"
 msgstr "Gebruiker niet gevonden"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:217
-#: packages/admin/src/components/Sidebar.tsx:371
+#: packages/admin/src/components/AdminCommandPalette.tsx:210
+#: packages/admin/src/components/Sidebar.tsx:253
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "Gebruikers"
@@ -8148,7 +8148,7 @@ msgstr "v{0} beschikbaar"
 msgid "Validation"
 msgstr "Validatie"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:186
+#: packages/admin/src/components/RegistryBrowse.tsx:187
 #: packages/admin/src/components/RegistryPluginDetail.tsx:449
 msgid "Verified publisher"
 msgstr "Geverifieerde uitgever"
@@ -8221,7 +8221,7 @@ msgstr "Bron bekijken"
 msgid "View the {license} license on spdx.org"
 msgstr "De {license}-licentie op spdx.org bekijken"
 
-#: packages/admin/src/components/Redirects.tsx:448
+#: packages/admin/src/components/Redirects.tsx:449
 msgid "Visitors hitting these paths will see an error."
 msgstr "Bezoekers van deze paden krijgen een fout te zien."
 
@@ -8273,7 +8273,7 @@ msgstr "WebAuthn wordt niet ondersteund in deze browser"
 msgid "Website"
 msgstr "Website"
 
-#: packages/admin/src/routes/bylines.tsx:492
+#: packages/admin/src/routes/bylines.tsx:491
 msgid "Website URL"
 msgstr "Website-URL"
 
@@ -8374,9 +8374,9 @@ msgstr "Titel van de widget"
 msgid "Widget updated"
 msgstr "Widget bijgewerkt"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:175
+#: packages/admin/src/components/AdminCommandPalette.tsx:168
 #: packages/admin/src/components/PluginManager.tsx:379
-#: packages/admin/src/components/Sidebar.tsx:356
+#: packages/admin/src/components/Sidebar.tsx:233
 #: packages/admin/src/components/Widgets.tsx:385
 #: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "Widgets"
@@ -8457,7 +8457,7 @@ msgstr "Je kunt je eigen content aanmaken en bewerken."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Je kunt content, media, menu's en taxonomieën beheren."
 
-#: packages/admin/src/routes/bylines.tsx:550
+#: packages/admin/src/routes/bylines.tsx:549
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "Je kunt de vaste velden hierboven nog steeds bewerken. Opslaan wijzigt geen opgeslagen waarden van aangepaste velden."
 

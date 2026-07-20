@@ -6,6 +6,16 @@ WORKDIR /app
 # ---- Install dependencies ----
 FROM base AS deps
 
+# Toolchain for the node-gyp fallback of native deps. better-sqlite3 installs
+# via `prebuild-install || node-gyp rebuild`; the prebuilt binary comes from
+# GitHub Releases, which corporate proxies and offline mirrors commonly block.
+# The fallback then compiles from source and needs python3/make/g++, which
+# node:22-slim doesn't ship. Build stages only -- the runtime image below
+# starts from a fresh node:22-slim and is unaffected.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 # pnpm-workspace.yaml declares patchedDependencies -> patches/, which pnpm
 # reads during install. It must be in the deps stage or --frozen-lockfile
