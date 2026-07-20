@@ -32,6 +32,9 @@
 import type { ContentSeo } from "../database/repositories/types.js";
 import { buildSeoImageUrl } from "./media-url.js";
 
+export { getHreflangAlternates, getHreflangAlternatesWithDb } from "./hreflang.js";
+export type { HreflangAlternate, HreflangOptions } from "./hreflang.js";
+
 const TRAILING_SLASH_RE = /\/$/;
 const ABSOLUTE_URL_RE = /^https?:\/\//i;
 

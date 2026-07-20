@@ -1,0 +1,7 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-registry-verification-test",
+	"main": "./tests/workerd/worker.ts",
+	"compatibility_date": "2026-05-14",
+	"compatibility_flags": ["nodejs_compat"],
+}

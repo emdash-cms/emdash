@@ -417,10 +417,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	return (
 		<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
-			<KumoSidebar.Header>
+			<KumoSidebar.Header className="px-[11px] transition-[padding] duration-(--sidebar-animation-duration) motion-reduce:transition-none group-not-data-[state=collapsed]/sidebar:px-3.5">
 				<Link
 					to="/"
-					className="flex w-full min-w-0 items-center gap-2 px-3 py-1 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
+					className="flex w-[calc(var(--sidebar-width)-1.75rem)] shrink-0 items-center gap-2 overflow-hidden py-1 ps-2.5 group-data-[state=collapsed]/sidebar:-translate-x-[3px] rtl:group-data-[state=collapsed]/sidebar:translate-x-[3px]"
 				>
 					<BrandIcon
 						logoUrl={manifest.admin?.logo}
@@ -428,8 +428,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						className="size-5 shrink-0"
 						aria-hidden="true"
 					/>
-					<span className="font-semibold truncate group-data-[state=collapsed]/sidebar:hidden">
-						{manifest.admin?.siteName || "EmDash"}
+					<span className="grid min-w-0 flex-1 grid-cols-[1fr] transition-[grid-template-columns] duration-(--sidebar-animation-duration) ease-(--sidebar-easing) motion-reduce:transition-none group-data-[state=collapsed]/sidebar:grid-cols-[0fr]">
+						<span className="min-w-0 overflow-hidden">
+							<span className="block w-[calc(var(--sidebar-width)-4.5rem)] truncate font-semibold">
+								{manifest.admin?.siteName || "EmDash"}
+							</span>
+						</span>
 					</span>
 				</Link>
 			</KumoSidebar.Header>
@@ -480,11 +484,14 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				)}
 			</KumoSidebar.Content>
 
-			<KumoSidebar.Footer>
-				<p className="px-3 py-2 text-[11px] text-kumo-subtle group-data-[state=collapsed]/sidebar:hidden">
-					{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-					{manifest.commit && ` (${manifest.commit})`}
-				</p>
+			<KumoSidebar.Footer className="gap-0">
+				<KumoSidebar.Trigger className="rtl:rotate-180" />
+				<div className="min-w-0 flex-1 overflow-hidden">
+					<p className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle">
+						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
+						{manifest.commit && ` (${manifest.commit})`}
+					</p>
+				</div>
 			</KumoSidebar.Footer>
 		</KumoSidebar>
 	);

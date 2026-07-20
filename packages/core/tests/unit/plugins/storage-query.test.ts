@@ -229,8 +229,14 @@ describe("storage-query", () => {
 
 		it("should handle startsWith filters", () => {
 			const result = buildCondition(db, "name", { startsWith: "foo" });
-			expect(result.sql).toBe("json_extract(data, '$.name') LIKE ?");
+			expect(result.sql).toBe("json_extract(data, '$.name') LIKE ? ESCAPE '\\'");
 			expect(result.params).toEqual(["foo%"]);
+		});
+
+		it("should escape LIKE metacharacters in startsWith prefixes", () => {
+			expect(buildCondition(db, "name", { startsWith: "50%" }).params).toEqual(["50\\%%"]);
+			expect(buildCondition(db, "name", { startsWith: "a_b" }).params).toEqual(["a\\_b%"]);
+			expect(buildCondition(db, "name", { startsWith: "c:\\dir" }).params).toEqual(["c:\\\\dir%"]);
 		});
 
 		it("should handle range filters with gt", () => {
@@ -297,7 +303,7 @@ describe("storage-query", () => {
 				count: { gte: 5 },
 			});
 			expect(result.sql).toContain("IN (?, ?)");
-			expect(result.sql).toContain("LIKE ?");
+			expect(result.sql).toContain("LIKE ? ESCAPE");
 			expect(result.sql).toContain(">= ?");
 			expect(result.params).toEqual(["active", "pending", "test%", 5]);
 		});

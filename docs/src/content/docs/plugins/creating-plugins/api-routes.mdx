@@ -370,6 +370,7 @@ interface PluginContext {
 	url(path: string): string;
 	cron?: CronAccess;
 	content?: ContentAccess;       // when content:read or content:write declared
+	taxonomies?: TaxonomyAccess;   // when taxonomies:read declared
 	media?: MediaAccess;           // when media:read or media:write declared
 	http?: HttpAccess;             // when network:request declared
 	users?: UserAccess;            // when users:read declared

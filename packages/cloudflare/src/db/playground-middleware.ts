@@ -79,8 +79,7 @@ function getStub(binding: string, token: string): PreviewDBStub {
 	const namespace = ns as DurableObjectNamespace<EmDashPreviewDB>;
 	const doId = namespace.idFromName(token);
 	const stub = namespace.get(doId);
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- RPC type limitation
-	return stub as unknown as PreviewDBStub;
+	return stub;
 }
 
 /**

@@ -1617,7 +1617,7 @@ interface NavMenuItem {
 
 function getNavMenus(analysis: ImportAnalysis): NavMenuItem[] | undefined {
 	if ("navMenus" in analysis && Array.isArray(analysis.navMenus)) {
-		return analysis.navMenus as NavMenuItem[];
+		return analysis.navMenus;
 	}
 	return undefined;
 }

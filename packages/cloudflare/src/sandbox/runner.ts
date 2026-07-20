@@ -254,15 +254,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 				capabilities: normalizeCapabilities(this.manifest.capabilities || []),
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
-				storageConfig: this.manifest.storage as
-					| Record<
-							string,
-							{
-								indexes?: Array<string | string[]>;
-								uniqueIndexes?: Array<string | string[]>;
-							}
-					  >
-					| undefined,
+				storageConfig: this.manifest.storage,
 			},
 		});
 

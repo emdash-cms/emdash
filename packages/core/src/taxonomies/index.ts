@@ -24,6 +24,7 @@ import { peekRequestCache, requestCached, setRequestCacheEntry } from "../reques
 import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
+import { fetchVisibleTermCounts } from "./term-counts.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
 export interface TaxonomyQueryOptions {
@@ -215,6 +216,18 @@ export async function getTaxonomyDef(
 }
 
 /**
+ * Object-cache namespaces for values that embed visible term counts: the
+ * taxonomy epoch (term/assignment writes) plus each counted collection's
+ * content epoch, so publishing, unpublishing, or trashing an entry
+ * invalidates the cached count promptly. A scheduled entry becoming due
+ * flips visibility without a write, so that staleness stays bounded by the
+ * cache entry's TTL.
+ */
+function termCountNamespaces(collections: string[]): string[] {
+	return [...Array.from(new Set(collections), contentNamespace), CacheNamespace.TAXONOMIES];
+}
+
+/**
  * All terms of a taxonomy in a specific locale (flat for non-hierarchical,
  * tree for hierarchical).
  */
@@ -223,37 +236,38 @@ export async function getTaxonomyTerms(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm[]> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}`, () =>
-		cachedQuery({
-			namespace: CacheNamespace.TAXONOMIES,
+	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}`, async () => {
+		const def = await getTaxonomyDef(taxonomyName, options);
+		if (!def) return [];
+		return cachedQuery({
+			namespace: termCountNamespaces(def.collections),
 			key: `terms:${taxonomyName}:${locale ?? "*"}`,
-			load: () => loadTaxonomyTerms(taxonomyName, locale, options),
-		}),
-	);
+			load: () => loadTaxonomyTerms(def, locale),
+		});
+	});
 }
 
 async function loadTaxonomyTerms(
-	taxonomyName: string,
+	def: TaxonomyDef,
 	locale: string | undefined,
-	options: TaxonomyQueryOptions,
 ): Promise<TaxonomyTerm[]> {
 	const db = await getDb();
-
-	const def = await getTaxonomyDef(taxonomyName, options);
-	if (!def) return [];
 
 	let termsQuery = db
 		.selectFrom("taxonomies")
 		.selectAll()
-		.where("name", "=", taxonomyName)
+		.where("name", "=", def.name)
 		.orderBy("label", "asc");
 	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
-	const rows = await termsQuery.execute();
 
 	// Counts are keyed by translation_group (what the pivot stores) and are
-	// locale-independent, so the aggregate is shared across every taxonomy
-	// rendered in this request (Categories + Tags widgets, etc.).
-	const counts = await getTaxonomyTermCounts();
+	// locale-independent. Only publicly visible entries are counted (#581);
+	// the map is request-cached so a term detail rendered on the same page
+	// reuses it. Independent of the terms query, so run both concurrently.
+	const [rows, counts] = await Promise.all([
+		termsQuery.execute(),
+		getVisibleTermCounts(def.name, def.collections),
+	]);
 
 	const flatTerms: TaxonomyTermRow[] = rows.map((row) => ({
 		id: row.id,
@@ -282,23 +296,24 @@ async function loadTaxonomyTerms(
 }
 
 /**
- * Per-translation-group usage counts across all taxonomies, in one aggregate
- * scan of `content_taxonomies`. Counts are locale-independent (the pivot stores
- * translation_group), so a single request-cached entry serves every taxonomy
- * that renders during the request.
+ * Per-translation-group visible-usage counts for one taxonomy, in a single
+ * round-trip (see `fetchVisibleTermCounts`). Counts are locale-independent
+ * (the pivot stores translation_group), and the request-cached map is shared
+ * by every consumer in the render — the widget (`getTaxonomyTerms`) and the
+ * single-term page (`getTerm`) never issue separate count queries.
  */
-function getTaxonomyTermCounts(): Promise<Map<string, number>> {
-	return requestCached("taxonomy-term-counts", async () => {
+function getVisibleTermCounts(
+	taxonomyName: string,
+	collections: string[],
+): Promise<Map<string, number>> {
+	// The collection scope is part of the key: per-locale rows of the same def
+	// can drift in their declared collections, and a caller may pass a narrower
+	// scope. Identical inputs (the widget + term-page hot path) still share one
+	// entry.
+	const scope = [...new Set(collections)].toSorted().join(",");
+	return requestCached(`taxonomy-term-counts:${taxonomyName}:${scope}`, async () => {
 		const db = await getDb();
-		const countsResult = await db
-			.selectFrom("content_taxonomies")
-			.select(["taxonomy_id"])
-			.select((eb) => eb.fn.count<number>("entry_id").as("count"))
-			.groupBy("taxonomy_id")
-			.execute();
-		const counts = new Map<string, number>();
-		for (const row of countsResult) counts.set(row.taxonomy_id, row.count);
-		return counts;
+		return fetchVisibleTermCounts(db, taxonomyName, collections);
 	});
 }
 
@@ -313,13 +328,16 @@ export async function getTerm(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm | null> {
 	const chain = resolveLocaleChain(options.locale);
-	// Cached under the shared taxonomies epoch (bumped on any taxonomy / term
-	// assignment write). The `count` reflects content_taxonomies rows; a stale
-	// count after a bare content delete is bounded by the entry's TTL.
+	// The def supplies the collections the visible count is scoped to. It is
+	// resolved before cachedQuery so the entry lives under each collection's
+	// content namespace — publishing or unpublishing an entry invalidates the
+	// embedded count (see termCountNamespaces).
+	const def = await getTaxonomyDef(taxonomyName, options);
+	const collections = def?.collections ?? [];
 	return cachedQuery({
-		namespace: CacheNamespace.TAXONOMIES,
+		namespace: termCountNamespaces(collections),
 		key: `term:${taxonomyName}:${slug}:${chain.join(",")}`,
-		load: () => loadTerm(taxonomyName, slug, chain),
+		load: () => loadTerm(taxonomyName, slug, chain, collections),
 	});
 }
 
@@ -327,6 +345,7 @@ async function loadTerm(
 	taxonomyName: string,
 	slug: string,
 	chain: string[],
+	collections: string[],
 ): Promise<TaxonomyTerm | null> {
 	const db = await getDb();
 
@@ -360,17 +379,15 @@ async function loadTerm(
 	const termLocale = row.locale;
 	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);
 
-	// The usage-count and children queries both depend only on the term row,
-	// so run them concurrently to save a round trip on remote databases.
-	const [countResult, childRows] = await Promise.all([
-		db
-			.selectFrom("content_taxonomies")
-			.select((eb) => eb.fn.count<number>("entry_id").as("count"))
-			.where("taxonomy_id", "=", row.translation_group ?? row.id)
-			.executeTakeFirst(),
+	// The visible-usage counts and children queries both depend only on the
+	// term row, so run them concurrently to save a round trip on remote
+	// databases. The counts map is request-cached per taxonomy — on a page
+	// that also renders the taxonomy widget it's a free Map lookup.
+	const [counts, childRows] = await Promise.all([
+		getVisibleTermCounts(taxonomyName, collections),
 		childrenQuery.execute(),
 	]);
-	const count = countResult?.count ?? 0;
+	const count = counts.get(row.translation_group ?? row.id) ?? 0;
 
 	const children = childRows.map<TaxonomyTerm>((child) => ({
 		id: child.id,
