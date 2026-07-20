@@ -1,0 +1,23 @@
+packages/admin/src/components/editor/HeadingDropdownMenu.tsx
+  s_0dacf3e2fa197f::t_0d6bd04539375c 149
+packages/admin/tests/editor/bubble-menu.test.tsx
+  s_0dacf3e2fa197f::t_5e25bfe4749fcf 245-251,294-301,379
+packages/admin/tests/editor/toolbar.test.tsx
+  s_0dacf3e2fa197f::t_cde42f13f3af04 139-148,304-338,417,726-728
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "97edabe7ed504ab6f11b56689839bc8e460ae8ee",
+  "prompts": {},
+  "sessions": {
+    "s_0dacf3e2fa197f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8113-f0b1-7860-8e34-11d09e5add7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
