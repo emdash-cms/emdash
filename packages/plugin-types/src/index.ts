@@ -312,6 +312,11 @@ export interface ManifestHookEntry {
 export interface ManifestRouteEntry {
 	name: string;
 	public?: boolean;
+	/**
+	 * Cache-Control value for successful GET responses. Only honored on
+	 * routes that are also `public: true`.
+	 */
+	cacheControl?: string;
 }
 
 /**

@@ -215,17 +215,23 @@ export function binaryType(db: Kysely<any>): ColumnDataType {
 }
 
 /**
- * SQL expression for extracting a field from a JSON/JSONB column.
+ * SQL expression for extracting a field from a JSON column stored as text.
  *
  * sqlite:   json_extract(column, '$.path')
- * postgres: column->>'path'
+ * postgres: (column)::jsonb->>'path'
+ *
+ * The Postgres cast is required because JSON columns (e.g.
+ * `_plugin_storage.data`) are `text`, and `text ->> unknown` is not an
+ * operator. The cast is immutable, so the same expression works in
+ * expression indexes — queries and indexes must build it through this
+ * helper so the planner can match them.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function jsonExtractExpr(db: Kysely<any>, column: string, path: string): string {
 	validateIdentifier(column, "JSON column name");
 	validateJsonFieldName(path, "JSON path");
 	if (isPostgres(db)) {
-		return `${column}->>'${path}'`;
+		return `(${column})::jsonb->>'${path}'`;
 	}
 	return `json_extract(${column}, '$.${path}')`;
 }

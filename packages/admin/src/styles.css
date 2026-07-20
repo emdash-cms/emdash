@@ -110,6 +110,49 @@ body {
 	color: var(--text-color-kumo-default);
 }
 
+/*
+ * Mirrors the pre-React EmDash boot loader exactly. Keep these values in sync
+ * with packages/core/src/astro/routes/admin.astro so the two loading stages do
+ * not visibly shift or change animation as React takes over.
+ */
+.emdash-configuration-loader {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	width: 100%;
+	background: var(--color-kumo-elevated);
+}
+
+.emdash-configuration-loader .loader-inner {
+	text-align: center;
+}
+
+.emdash-configuration-loader .spinner {
+	width: 24px;
+	height: 24px;
+	margin: 0 auto;
+	border: 2.5px solid var(--color-kumo-line);
+	border-top-color: var(--text-color-kumo-subtle);
+	border-radius: 50%;
+	animation: emdash-configuration-spin 0.8s linear infinite;
+}
+
+.emdash-configuration-loader p {
+	margin-top: 1rem;
+	font-family: var(--font-emdash, ui-sans-serif, system-ui, sans-serif);
+	font-size: 0.875rem;
+	color: var(--text-color-kumo-subtle);
+}
+
+@keyframes emdash-configuration-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
 /* Keep heading choices visibly distinct from the dropdown surface. */
 [data-emdash-heading-item][data-highlighted] {
 	background-color: var(--color-kumo-interact) !important;

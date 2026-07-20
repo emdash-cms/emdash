@@ -180,7 +180,7 @@ import {
 } from "./plugins/hooks.js";
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
-import { PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
+import { buildRouteMeta, PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
@@ -873,7 +873,7 @@ export class EmDashRuntime {
 					const routeMetaMap = new Map<string, RouteMeta>();
 					for (const entry of bundle.manifest.routes) {
 						const normalized = normalizeManifestRoute(entry);
-						routeMetaMap.set(normalized.name, { public: normalized.public === true });
+						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
 					}
 					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
 				} else {
@@ -985,7 +985,7 @@ export class EmDashRuntime {
 					const routeMetaMap = new Map<string, RouteMeta>();
 					for (const entry of bundle.manifest.routes) {
 						const normalized = normalizeManifestRoute(entry);
-						routeMetaMap.set(normalized.name, { public: normalized.public === true });
+						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
 					}
 					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
 				} else {
@@ -2021,7 +2021,7 @@ export class EmDashRuntime {
 						const routeMeta = new Map<string, RouteMeta>();
 						for (const entry of bundle.manifest.routes) {
 							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, { public: normalized.public === true });
+							routeMeta.set(normalized.name, buildRouteMeta(normalized));
 						}
 						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
 					}
@@ -2090,7 +2090,7 @@ export class EmDashRuntime {
 						const routeMeta = new Map<string, RouteMeta>();
 						for (const entry of bundle.manifest.routes) {
 							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, { public: normalized.public === true });
+							routeMeta.set(normalized.name, buildRouteMeta(normalized));
 						}
 						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
 					}
@@ -2798,13 +2798,14 @@ export class EmDashRuntime {
 								authorId: bodyWithoutRev.authorId ?? undefined,
 							});
 
-							// Update entry to point to new draft (metadata only, not data columns)
+							// Update entry to point to new draft (metadata only, not data columns).
+							// No updated_at stamp: draft staging leaves live content untouched,
+							// so public "last modified" consumers must not see a change (#2143).
 							validateIdentifier(collection, "collection");
 							const tableName = `ec_${collection}`;
 							await sql`
 								UPDATE ${sql.ref(tableName)}
-								SET draft_revision_id = ${revision.id},
-									updated_at = ${new Date().toISOString()}
+								SET draft_revision_id = ${revision.id}
 								WHERE id = ${resolvedId}
 							`.execute(this.db);
 							draftStorageChanged = true;
@@ -3196,7 +3197,10 @@ export class EmDashRuntime {
 
 		// Revision-capable collections: restore is "make this revision the
 		// current draft". The live row's data columns are left untouched
-		// (only `draft_revision_id` and `updated_at` change). The caller
+		// (only `draft_revision_id` changes — no `updated_at` stamp, since
+		// restoring to draft is the same kind of draft-only staging as
+		// Save/Autosave and must not register a phantom modification for
+		// sitemap <lastmod> / JSON-LD dateModified, #2143). The caller
 		// must then `content_publish` to promote the restored draft to
 		// live, matching the documented tool contract.
 		try {
@@ -3211,8 +3215,7 @@ export class EmDashRuntime {
 			const tableName = `ec_${revision.collection}`;
 			await sql`
 				UPDATE ${sql.ref(tableName)}
-				SET draft_revision_id = ${newDraft.id},
-					updated_at = ${new Date().toISOString()}
+				SET draft_revision_id = ${newDraft.id}
 				WHERE id = ${revision.entryId}
 			`.execute(this.db);
 
@@ -3297,7 +3300,7 @@ export class EmDashRuntime {
 		if (trustedPlugin) {
 			const route = trustedPlugin.routes[routeKey];
 			if (!route) return null;
-			return { public: route.public === true };
+			return buildRouteMeta(route);
 		}
 
 		// Check sandboxed plugin route metadata cache
