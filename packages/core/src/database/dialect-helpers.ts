@@ -36,7 +36,10 @@ export type { DatabaseDialectType };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function detectDialect(db: Kysely<any>): DatabaseDialectType {
 	const adapter = db.getExecutor().adapter;
-	if (adapter.constructor.name === "PostgresAdapter" || adapter.supportsMultipleConnections === true) {
+	if (
+		adapter.constructor.name === "PostgresAdapter" ||
+		adapter.supportsMultipleConnections === true
+	) {
 		return "postgres";
 	}
 	return "sqlite";
