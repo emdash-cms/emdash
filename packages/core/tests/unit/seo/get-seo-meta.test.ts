@@ -47,3 +47,46 @@ describe("getSeoMeta ogImage URL building", () => {
 		expect(meta.ogImage).toBe("https://example.com/_emdash/api/media/file/01KS.svg");
 	});
 });
+
+describe("getSeoMeta defaultTitle / defaultDescription (#1518)", () => {
+	const entry = {
+		data: { title: "Raw Title", excerpt: "Raw excerpt" },
+	};
+
+	it("uses computed defaults over data.title / data.excerpt", () => {
+		const meta = getSeoMeta(entry, {
+			defaultTitle: "Raw Title (cover of Artist)",
+			defaultDescription: "A computed description",
+		});
+		expect(meta.title).toBe("Raw Title (cover of Artist)");
+		expect(meta.description).toBe("A computed description");
+	});
+
+	it("lets an editor-set SEO panel value win over the caller default", () => {
+		const meta = getSeoMeta(
+			{
+				data: {
+					...entry.data,
+					seo: { title: "Panel Title", description: "Panel description" },
+				},
+			},
+			{
+				defaultTitle: "Computed default",
+				defaultDescription: "Computed description",
+			},
+		);
+		expect(meta.title).toBe("Panel Title");
+		expect(meta.description).toBe("Panel description");
+	});
+
+	it("still falls back to data.title / data.excerpt without defaults", () => {
+		const meta = getSeoMeta(entry, {});
+		expect(meta.title).toBe("Raw Title");
+		expect(meta.description).toBe("Raw excerpt");
+	});
+
+	it("applies the siteTitle suffix to the default title", () => {
+		const meta = getSeoMeta(entry, { defaultTitle: "Computed", siteTitle: "My Site" });
+		expect(meta.title).toBe("Computed | My Site");
+	});
+});

@@ -1,0 +1,98 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-bot",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-07-17",
+	"compatibility_flags": ["nodejs_compat"],
+
+	// Type-only entry for `wrangler types` / `pretypecheck`. Flue's Vite plugin
+	// owns the real deploy entry; this file only exports DO classes so Env
+	// namespaces get the right generics on a fresh checkout.
+	"main": "./.flue/wrangler-main.ts",
+
+	// Workers AI: structural binding, no API key. Every model the bot uses
+	// (classify, investigate, fix) resolves through `cloudflare/@cf/...`
+	// specifiers in Pi, which calls env.AI.run() under the hood.
+	"ai": {
+		"binding": "AI",
+	},
+
+	// Container-backed Linux sandbox for the investigate agent. Wraps the
+	// Dockerfile at the project root. The agent's process tree runs entirely
+	// inside this container; no string-shaped credentials are reachable from it.
+	"containers": [
+		{
+			"class_name": "Sandbox",
+			"image": "./Dockerfile",
+			"instance_type": "standard-3",
+		},
+	],
+
+	// User-owned Durable Objects. Flue's Vite plugin adds its generated agent
+	// bindings to the redirected deployment config.
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "Sandbox",
+				"name": "Sandbox",
+			},
+			{
+				"class_name": "OrchestratorDO",
+				"name": "Orchestrator",
+			},
+		],
+	},
+
+	// Every Durable Object class the worker uses must be declared sqlite-enabled.
+	// Flue's run-index (FlueRegistry) and per-workflow DOs (FlueClassifyCommand-
+	// Workflow, FlueInvestigateWorkflow) all use SQL storage internally, so they
+	// need to land in `new_sqlite_classes`. The workflow class names follow
+	// Flue's convention: `Flue<PascalCase(workflow-name)>Workflow`.
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"Sandbox",
+				"OrchestratorDO",
+				"FlueRegistry",
+				"FlueClassifyCommandWorkflow",
+				"FlueInvestigateWorkflow",
+				"FlueSandboxProbeWorkflow",
+			],
+		},
+		{
+			"tag": "v2",
+			"deleted_classes": ["FlueSandboxProbeWorkflow"],
+		},
+		{
+			"tag": "v3",
+			"new_sqlite_classes": ["FlueClassifyCommandAgent", "FlueInvestigateAgent"],
+			"deleted_classes": ["FlueRegistry", "FlueClassifyCommandWorkflow", "FlueInvestigateWorkflow"],
+		},
+	],
+
+	// Workspace storage for the sandbox (repo clone, build cache, agent files
+	// larger than the DO inline blob limit).
+	"r2_buckets": [
+		{
+			"binding": "BOT_WORKSPACE",
+			"bucket_name": "emdash-bot-workspace",
+		},
+	],
+
+	"vars": {
+		"GITHUB_APP_ID": "3255304",
+		"GITHUB_APP_INSTALLATION_ID": "120963314",
+		"GITHUB_OWNER": "emdash-cms",
+		"GITHUB_REPO": "emdash",
+	},
+
+	// `wrangler secret put <NAME>` for production. Local dev reads .env.
+	"secrets": {
+		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"],
+	},
+
+	"observability": {
+		"enabled": true,
+	},
+}

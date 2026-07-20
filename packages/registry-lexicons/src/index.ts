@@ -29,6 +29,7 @@ export * as AggregatorResolvePackage from "./generated/types/com/emdashcms/exper
 export * as AggregatorSearchPackages from "./generated/types/com/emdashcms/experimental/aggregator/searchPackages.js";
 
 export * as PackageProfile from "./generated/types/com/emdashcms/experimental/package/profile.js";
+export * as PackageProfileExtension from "./generated/types/com/emdashcms/experimental/package/profileExtension.js";
 export * as PackageRelease from "./generated/types/com/emdashcms/experimental/package/release.js";
 export * as PackageReleaseExtension from "./generated/types/com/emdashcms/experimental/package/releaseExtension.js";
 
@@ -42,6 +43,7 @@ export * as PublisherVerification from "./generated/types/com/emdashcms/experime
  */
 export const NSID = {
 	packageProfile: "com.emdashcms.experimental.package.profile",
+	packageProfileExtension: "com.emdashcms.experimental.package.profileExtension",
 	packageRelease: "com.emdashcms.experimental.package.release",
 	packageReleaseExtension: "com.emdashcms.experimental.package.releaseExtension",
 	publisherProfile: "com.emdashcms.experimental.publisher.profile",
@@ -56,9 +58,22 @@ export const NSID = {
 
 export type NSIDValue = (typeof NSID)[keyof typeof NSID];
 
+const DELEGATED_RELEASE_PERMISSION = Object.freeze({
+	collection: NSID.packageRelease,
+	scope: `atproto repo:${NSID.packageRelease}?action=create`,
+} as const);
+
+/**
+ * Return the exact collection and OAuth scope used by delegated publishing.
+ * A collection change requires every publisher to authorize a new grant.
+ */
+export function getDelegatedReleasePermission(): typeof DELEGATED_RELEASE_PERMISSION {
+	return DELEGATED_RELEASE_PERMISSION;
+}
+
 /**
  * NSIDs of record-shaped lexicons in this package (one row per NSID in the
- * publisher's repo). Embedded objects (`releaseExtension`) and shared defs
+ * publisher's repo). Embedded objects (`profileExtension`, `releaseExtension`) and shared defs
  * (`aggregator.defs`) are excluded — they don't address their own collection.
  *
  * Useful for consumers building OAuth `repo:` scopes or enumerating writable
@@ -96,7 +111,7 @@ import type * as PublisherVerificationNs from "./generated/types/com/emdashcms/e
  * to its PDS. Used by `PublishingClient.putRecord` (and any other typed-write
  * helper) to ensure callers pass a record matching the collection's lexicon.
  *
- * Embedded objects (`releaseExtension`, which lives inside a release record's
+ * Embedded objects (`profileExtension`, `releaseExtension`, which live inside profile and release records'
  * `extensions` map) and query/procedure NSIDs (the `aggregator.*` ones) are
  * deliberately absent -- they aren't standalone repo collections.
  */

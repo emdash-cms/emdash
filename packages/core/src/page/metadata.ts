@@ -80,6 +80,33 @@ export async function createSha256CspHash(value: string): Promise<string> {
 	return `sha256-${btoa(binary)}`;
 }
 
+interface CspScriptHashSink {
+	insertScriptHash(hash: string): void;
+}
+
+/**
+ * Register JSON-LD hashes with Astro's CSP runtime when CSP is enabled.
+ *
+ * The getter stays lazy because Astro warns when `Astro.csp` is accessed on a
+ * project that has not enabled its built-in CSP support.
+ */
+export async function registerJsonLdCspHashes(
+	enabled: boolean,
+	getCsp: () => CspScriptHashSink | undefined,
+	scripts: ReadonlyArray<{ json: string }>,
+): Promise<void> {
+	if (!enabled || scripts.length === 0) return;
+
+	const csp = getCsp();
+	if (!csp) return;
+
+	await Promise.all(
+		scripts.map(async ({ json }) => {
+			csp.insertScriptHash(await createSha256CspHash(json));
+		}),
+	);
+}
+
 // ── Merge / dedupe ──────────────────────────────────────────────
 
 /**

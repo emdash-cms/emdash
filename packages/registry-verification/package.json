@@ -1,0 +1,73 @@
+{
+	"name": "@emdash-cms/registry-verification",
+	"version": "0.0.0",
+	"description": "Runtime-neutral verification primitives for the EmDash plugin registry.",
+	"type": "module",
+	"main": "dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./bundle": {
+			"types": "./dist/bundle.d.ts",
+			"default": "./dist/bundle.js"
+		},
+		"./checksum": {
+			"types": "./dist/checksum.d.ts",
+			"default": "./dist/checksum.js"
+		},
+		"./fetch": {
+			"types": "./dist/fetch-entry.d.ts",
+			"default": "./dist/fetch-entry.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"prepublishOnly": "node --run build",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run && pnpm run test:workerd",
+		"test:package": "node scripts/check-packed-output.mjs",
+		"test:workerd": "pnpm run build && pnpm run test:package && vitest run --config vitest.workerd.config.ts",
+		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@sigstore/bundle": "5.0.0",
+		"@sigstore/core": "4.0.1",
+		"@sigstore/protobuf-specs": "0.5.1",
+		"@sigstore/verify": "4.1.0",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin-registry",
+		"verification",
+		"multihash"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/registry-verification"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash",
+	"engines": {
+		"node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+	},
+	"dependencies": {
+		"@emdash-cms/plugin-types": "workspace:*",
+		"@emdash-cms/registry-lexicons": "workspace:*",
+		"modern-tar": "^0.7.6"
+	}
+}
