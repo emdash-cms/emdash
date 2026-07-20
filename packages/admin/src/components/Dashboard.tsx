@@ -320,7 +320,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 										{item.collectionLabel}
 									</span>
 								</div>
-								<span className="shrink-0 text-xs text-kumo-subtle">
+								<span data-testid="activity-time" className="shrink-0 text-xs text-kumo-subtle">
 									{formatRelativeTime(item.updatedAt)}
 								</span>
 							</Link>

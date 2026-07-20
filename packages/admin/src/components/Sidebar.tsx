@@ -487,7 +487,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			<KumoSidebar.Footer className="gap-0">
 				<KumoSidebar.Trigger className="rtl:rotate-180" />
 				<div className="min-w-0 flex-1 overflow-hidden">
-					<p className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle">
+					<p
+						data-testid="admin-version"
+						className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle"
+					>
 						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
 						{manifest.commit && ` (${manifest.commit})`}
 					</p>
