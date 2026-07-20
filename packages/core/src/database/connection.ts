@@ -1,6 +1,6 @@
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 
+import { openNodeSqliteDatabase } from "../db/node-sqlite-compat.js";
 import { EmDashDatabaseError } from "./errors.js";
 import { kyselyLogOption } from "./instrumentation.js";
 import type { Database } from "./types.js";
@@ -10,23 +10,6 @@ export { EmDashDatabaseError };
 export interface DatabaseConfig {
 	url: string;
 	authToken?: string;
-}
-
-/**
- * Returns a helpful, actionable message when better-sqlite3's native binary
- * was compiled against a different Node.js version than the one running. This
- * happens after upgrading Node without rebuilding native deps.
- *
- * Returns null if the error is not a NODE_MODULE_VERSION mismatch.
- */
-export function formatNativeModuleVersionError(error: unknown): string | null {
-	const message = error instanceof Error ? error.message : String(error);
-	if (!message.includes("NODE_MODULE_VERSION")) return null;
-	return (
-		"better-sqlite3's native binary was compiled against a different Node.js version. " +
-		"Rebuild it with `pnpm rebuild better-sqlite3` (or `npm rebuild better-sqlite3`), " +
-		"or reinstall dependencies with your current Node.js version."
-	);
 }
 
 /**
@@ -42,15 +25,9 @@ export function createDatabase(config: DatabaseConfig): Kysely<Database> {
 		if (config.url.startsWith("file:") || config.url === ":memory:") {
 			const dbPath = config.url === ":memory:" ? ":memory:" : config.url.replace("file:", "");
 
-			const sqlite = new BetterSqlite3(dbPath);
-
-			// Enable WAL mode for crash safety — writes go to a write-ahead log
-			// before being applied, preventing FTS5 shadow table corruption on
-			// process kill during content writes. No-op for :memory: databases.
-			sqlite.pragma("journal_mode = WAL");
-
-			// Enable foreign key constraints
-			sqlite.pragma("foreign_keys = ON");
+			// Connection pragmas (WAL, busy_timeout, foreign_keys) are applied by
+			// openNodeSqliteDatabase so every SQLite entry point gets them.
+			const sqlite = openNodeSqliteDatabase(dbPath);
 
 			const dialect = new SqliteDialect({
 				database: sqlite,
@@ -72,10 +49,6 @@ export function createDatabase(config: DatabaseConfig): Kysely<Database> {
 	} catch (error) {
 		if (error instanceof EmDashDatabaseError) {
 			throw error;
-		}
-		const nativeVersionHint = formatNativeModuleVersionError(error);
-		if (nativeVersionHint) {
-			throw new EmDashDatabaseError(nativeVersionHint, error);
 		}
 		throw new EmDashDatabaseError("Failed to create database", error);
 	}

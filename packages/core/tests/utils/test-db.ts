@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { Pool } from "pg";
 import { describe } from "vitest";
@@ -9,6 +8,7 @@ import { getMigrationStatus, runMigrations } from "../../src/database/migrations
 import type { MigrationStatus } from "../../src/database/migrations/runner.js";
 import { FailFastPostgresDialect } from "../../src/database/pg-migration-lock.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
+import { openNodeSqliteDatabase } from "../../src/db/node-sqlite-compat.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
 
@@ -51,7 +51,9 @@ export const hasPgTestDatabase = PG_CONNECTION_STRING.length > 0;
  */
 export function createTestDatabase(): Kysely<DatabaseSchema> {
 	resetSchemaCachesForTests();
-	const sqlite = new Database(":memory:");
+	// Create test databases through the same wrapper the package ships, so the
+	// suite exercises the production node:sqlite driver rather than a dev-only one.
+	const sqlite = openNodeSqliteDatabase(":memory:");
 
 	return new Kysely<DatabaseSchema>({
 		dialect: new SqliteDialect({
