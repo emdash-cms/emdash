@@ -172,7 +172,11 @@ import { getDb } from "./loader.js";
 import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
-import { createSmtpEmailDeliver, loadSmtpConfigFromEnv, SMTP_EMAIL_PLUGIN_ID } from "./plugins/email-smtp.js";
+import {
+	createSmtpEmailDeliver,
+	loadSmtpConfigFromEnv,
+	SMTP_EMAIL_PLUGIN_ID,
+} from "./plugins/email-smtp.js";
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,

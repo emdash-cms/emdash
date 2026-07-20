@@ -8,7 +8,12 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { createSmtpEmailDeliver, deliverSmtp, loadSmtpConfigFromEnv, type SmtpConfig } from "../../../src/plugins/email-smtp.js";
+import {
+	createSmtpEmailDeliver,
+	deliverSmtp,
+	loadSmtpConfigFromEnv,
+	type SmtpConfig,
+} from "../../../src/plugins/email-smtp.js";
 import type { EmailDeliverEvent, PluginContext } from "../../../src/plugins/types.js";
 
 // ---------------------------------------------------------------------------

@@ -42,11 +42,7 @@ export interface SmtpSocket {
 	close(): Promise<void>;
 }
 
-type ConnectFn = (
-	host: string,
-	port: number,
-	secure: "starttls" | "tls",
-) => Promise<SmtpSocket>;
+type ConnectFn = (host: string, port: number, secure: "starttls" | "tls") => Promise<SmtpSocket>;
 
 function encodeUtf8(input: string): Uint8Array {
 	return new TextEncoder().encode(input);
@@ -92,7 +88,10 @@ async function readLine(reader: SocketReader, buffered: Uint8Array[]): Promise<s
 }
 
 /** Read a full SMTP reply (possibly multi-line: "250-...", "250 ..."). */
-async function readReply(reader: SocketReader, buffered: Uint8Array[]): Promise<{ code: number; lines: string[] }> {
+async function readReply(
+	reader: SocketReader,
+	buffered: Uint8Array[],
+): Promise<{ code: number; lines: string[] }> {
 	const lines: string[] = [];
 	while (true) {
 		const line = await readLine(reader, buffered);
@@ -105,10 +104,16 @@ async function readReply(reader: SocketReader, buffered: Uint8Array[]): Promise<
 }
 
 /** Assert reply code matches expectation; throw with server message otherwise. */
-function expectCode(reply: { code: number; lines: string[] }, expected: number | number[], context: string): void {
+function expectCode(
+	reply: { code: number; lines: string[] },
+	expected: number | number[],
+	context: string,
+): void {
 	const codes = Array.isArray(expected) ? expected : [expected];
 	if (!codes.includes(reply.code)) {
-		throw new Error(`SMTP ${context} failed: expected ${codes.join("/")}, got ${reply.code} — ${reply.lines.join(" | ")}`);
+		throw new Error(
+			`SMTP ${context} failed: expected ${codes.join("/")}, got ${reply.code} — ${reply.lines.join(" | ")}`,
+		);
 	}
 }
 
@@ -187,7 +192,11 @@ function buildMime(params: {
 // Runtime-specific connect implementations
 // ---------------------------------------------------------------------------
 
-async function connectCloudflare(host: string, port: number, secure: "starttls" | "tls"): Promise<SmtpSocket> {
+async function connectCloudflare(
+	host: string,
+	port: number,
+	secure: "starttls" | "tls",
+): Promise<SmtpSocket> {
 	// @ts-expect-error — virtual module only available on Cloudflare Workers
 	const { connect } = await import("cloudflare:sockets");
 
@@ -230,7 +239,11 @@ async function connectCloudflare(host: string, port: number, secure: "starttls" 
 	};
 }
 
-async function connectNode(host: string, port: number, secure: "starttls" | "tls"): Promise<SmtpSocket> {
+async function connectNode(
+	host: string,
+	port: number,
+	secure: "starttls" | "tls",
+): Promise<SmtpSocket> {
 	if (secure === "tls") {
 		const { connect: tlsConnect } = await import("node:tls");
 		return new Promise((resolve, reject) => {
@@ -246,18 +259,18 @@ async function connectNode(host: string, port: number, secure: "starttls" | "tls
 						chunks.push(u8);
 					}
 				});
-			sock.on("end", () => resolveRead?.({ done: true }));
-			sock.on("error", reject);
-			// eslint-disable-next-line promise/no-multiple-resolved -- resolve happens once in connect callback
-			resolve({
-				writer: {
-					write: (data) =>
-						new Promise((res, rej) =>
-							sock.write(data, (e: Error | null | undefined) => (e ? rej(e) : res())),
-						),
-					close: () => new Promise((res) => sock.end(res)),
-				},
-				reader: {
+				sock.on("end", () => resolveRead?.({ done: true }));
+				sock.on("error", reject);
+				// eslint-disable-next-line promise/no-multiple-resolved -- resolve happens once in connect callback
+				resolve({
+					writer: {
+						write: (data) =>
+							new Promise((res, rej) =>
+								sock.write(data, (e: Error | null | undefined) => (e ? rej(e) : res())),
+							),
+						close: () => new Promise((res) => sock.end(res)),
+					},
+					reader: {
 						read: () =>
 							new Promise((res) => {
 								if (chunks.length > 0) return res({ value: chunks.shift()!, done: false });
@@ -363,7 +376,9 @@ export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 				"Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
 		);
 	}
-	const secure = (process.env.EMAIL_SMTP_SECURE ?? (port === 465 ? "tls" : "starttls")) as "starttls" | "tls";
+	const secure = (process.env.EMAIL_SMTP_SECURE ?? (port === 465 ? "tls" : "starttls")) as
+		| "starttls"
+		| "tls";
 	if (secure !== "starttls" && secure !== "tls") {
 		throw new Error(`EMAIL_SMTP_SECURE must be "starttls" or "tls", got "${secure}"`);
 	}
@@ -402,14 +417,14 @@ export async function deliverSmtp(
 				// Fall back to Node sockets (astro dev, Node deployments)
 				try {
 					return await connectNode(host, port, secure);
-			} catch (nodeError) {
-				throw new Error(
-					`Failed to connect to SMTP server ${host}:${port} — ` +
-						`Cloudflare sockets: ${cfError instanceof Error ? cfError.message : String(cfError)}; ` +
-						`Node sockets: ${nodeError instanceof Error ? nodeError.message : String(nodeError)}`,
-					{ cause: nodeError },
-				);
-			}
+				} catch (nodeError) {
+					throw new Error(
+						`Failed to connect to SMTP server ${host}:${port} — ` +
+							`Cloudflare sockets: ${cfError instanceof Error ? cfError.message : String(cfError)}; ` +
+							`Node sockets: ${nodeError instanceof Error ? nodeError.message : String(nodeError)}`,
+						{ cause: nodeError },
+					);
+				}
 			}
 		});
 
@@ -436,7 +451,8 @@ export async function deliverSmtp(
 
 		// STARTTLS upgrade
 		if (config.secure === "starttls") {
-			if (!socket.startTls) throw new Error("STARTTLS requested but socket does not support upgrade");
+			if (!socket.startTls)
+				throw new Error("STARTTLS requested but socket does not support upgrade");
 			await send("STARTTLS");
 			expectCode(await readReply(socket.reader, buffered), 220, "STARTTLS");
 			socket = await socket.startTls();
