@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
-import { InvalidCursorError } from "../../../src/database/repositories/types.js";
+import { encodeCursor, InvalidCursorError } from "../../../src/database/repositories/types.js";
 import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
@@ -185,6 +185,21 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 		});
 	});
 
+	it("returns trashed entries in details while excluding them from active counts", async () => {
+		await registerCollection(ctx, "posts");
+		const deletedAt = "2026-01-01T00:00:00.000Z";
+		await repo.replaceSource(contentSource("trash", "columns", { contentDeletedAt: deletedAt }), [
+			occurrence("hero", "media-trash"),
+		]);
+
+		const counts = await repo.findActiveEntryCountsByMediaIds(["media-trash"]);
+		const page = await repo.findCurrentEntryUsagePageByMediaId("media-trash");
+
+		expect(counts.get("media-trash")).toBe(0);
+		expect(page.items.map(entryIdentity)).toEqual([["posts", "trash"]]);
+		expect(page.items[0]?.contentDeletedAt).toBe(deletedAt);
+	});
+
 	it("returns zero-filled counts across multiple D1-sized batches", async () => {
 		const mediaIds = Array.from({ length: SQL_BATCH_SIZE + 1 }, (_, index) => `media-${index}`);
 
@@ -286,6 +301,15 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			repo.findCurrentEntryUsagePageByMediaId("media-shared", { cursor: "not-a-cursor" }),
 		).rejects.toBeInstanceOf(InvalidCursorError);
 	});
+
+	it.each([encodeCursor("", "entry-a"), encodeCursor("posts", "")])(
+		"rejects structurally empty entry-group cursor components",
+		async (cursor) => {
+			await expect(
+				repo.findCurrentEntryUsagePageByMediaId("media-shared", { cursor }),
+			).rejects.toBeInstanceOf(InvalidCursorError);
+		},
+	);
 
 	it("defaults non-finite entry-group limits", async () => {
 		await registerCollection(ctx, "posts");

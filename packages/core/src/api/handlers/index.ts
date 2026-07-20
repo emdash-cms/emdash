@@ -62,9 +62,19 @@ export {
 } from "./media.js";
 
 export {
+	aggregateMediaUsageCoverageStatus,
+	handleMediaUsageDetails,
+	handleMediaUsageSummaries,
 	handleMediaUsageRepair,
 	toMediaUsageRepairResponse,
+	type MediaUsageCoverage,
+	type MediaUsageCoverageStatus,
+	type MediaUsageDetailsResponse,
+	type MediaUsageEntryDetail,
+	type MediaUsageOccurrenceDetail,
 	type MediaUsageRepairResponse,
+	type MediaUsageSourceDetail,
+	type MediaUsageSummary,
 } from "./media-usage.js";
 
 // Schema handlers
