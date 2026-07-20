@@ -24,9 +24,17 @@
 export * as AggregatorDefs from "./generated/types/com/emdashcms/experimental/aggregator/defs.js";
 export * as AggregatorGetLatestRelease from "./generated/types/com/emdashcms/experimental/aggregator/getLatestRelease.js";
 export * as AggregatorGetPackage from "./generated/types/com/emdashcms/experimental/aggregator/getPackage.js";
+export * as AggregatorGetPublisher from "./generated/types/com/emdashcms/experimental/aggregator/getPublisher.js";
+export * as AggregatorGetPublisherVerification from "./generated/types/com/emdashcms/experimental/aggregator/getPublisherVerification.js";
 export * as AggregatorListReleases from "./generated/types/com/emdashcms/experimental/aggregator/listReleases.js";
 export * as AggregatorResolvePackage from "./generated/types/com/emdashcms/experimental/aggregator/resolvePackage.js";
 export * as AggregatorSearchPackages from "./generated/types/com/emdashcms/experimental/aggregator/searchPackages.js";
+
+export * as LabelerDefs from "./generated/types/com/emdashcms/experimental/labeler/defs.js";
+export * as LabelerGetAssessment from "./generated/types/com/emdashcms/experimental/labeler/getAssessment.js";
+export * as LabelerGetCurrentAssessment from "./generated/types/com/emdashcms/experimental/labeler/getCurrentAssessment.js";
+export * as LabelerGetPolicy from "./generated/types/com/emdashcms/experimental/labeler/getPolicy.js";
+export * as LabelerListAssessments from "./generated/types/com/emdashcms/experimental/labeler/listAssessments.js";
 
 export * as PackageProfile from "./generated/types/com/emdashcms/experimental/package/profile.js";
 export * as PackageProfileExtension from "./generated/types/com/emdashcms/experimental/package/profileExtension.js";
@@ -51,9 +59,17 @@ export const NSID = {
 	aggregatorDefs: "com.emdashcms.experimental.aggregator.defs",
 	aggregatorGetLatestRelease: "com.emdashcms.experimental.aggregator.getLatestRelease",
 	aggregatorGetPackage: "com.emdashcms.experimental.aggregator.getPackage",
+	aggregatorGetPublisher: "com.emdashcms.experimental.aggregator.getPublisher",
+	aggregatorGetPublisherVerification:
+		"com.emdashcms.experimental.aggregator.getPublisherVerification",
 	aggregatorListReleases: "com.emdashcms.experimental.aggregator.listReleases",
 	aggregatorResolvePackage: "com.emdashcms.experimental.aggregator.resolvePackage",
 	aggregatorSearchPackages: "com.emdashcms.experimental.aggregator.searchPackages",
+	labelerDefs: "com.emdashcms.experimental.labeler.defs",
+	labelerGetAssessment: "com.emdashcms.experimental.labeler.getAssessment",
+	labelerGetCurrentAssessment: "com.emdashcms.experimental.labeler.getCurrentAssessment",
+	labelerGetPolicy: "com.emdashcms.experimental.labeler.getPolicy",
+	labelerListAssessments: "com.emdashcms.experimental.labeler.listAssessments",
 } as const;
 
 export type NSIDValue = (typeof NSID)[keyof typeof NSID];
@@ -96,9 +112,15 @@ export const RECORD_NSIDS = [
 export const QUERY_NSIDS = [
 	NSID.aggregatorGetLatestRelease,
 	NSID.aggregatorGetPackage,
+	NSID.aggregatorGetPublisher,
+	NSID.aggregatorGetPublisherVerification,
 	NSID.aggregatorListReleases,
 	NSID.aggregatorResolvePackage,
 	NSID.aggregatorSearchPackages,
+	NSID.labelerGetAssessment,
+	NSID.labelerGetCurrentAssessment,
+	NSID.labelerGetPolicy,
+	NSID.labelerListAssessments,
 ] as const;
 
 import type * as PackageProfileNs from "./generated/types/com/emdashcms/experimental/package/profile.js";

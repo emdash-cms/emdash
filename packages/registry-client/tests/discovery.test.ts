@@ -6,7 +6,9 @@ import { DiscoveryClient } from "../src/discovery/index.js";
 /**
  * Builds a fetch stub that records every call and returns canned responses.
  */
-function buildFetchStub(responses: Record<string, { status: number; body: unknown }>): {
+function buildFetchStub(
+	responses: Record<string, { status: number; body: unknown; headers?: Record<string, string> }>,
+): {
 	fetch: typeof fetch;
 	calls: Array<{ url: string; init: RequestInit | undefined }>;
 } {
@@ -24,7 +26,7 @@ function buildFetchStub(responses: Record<string, { status: number; body: unknow
 		}
 		return new Response(JSON.stringify(match.body), {
 			status: match.status,
-			headers: { "content-type": "application/json" },
+			headers: { "content-type": "application/json", ...match.headers },
 		});
 	});
 	return { fetch: fetchStub, calls };
@@ -66,13 +68,13 @@ describe("DiscoveryClient", () => {
 
 		const client = new DiscoveryClient({
 			aggregatorUrl: aggregator,
-			acceptLabelers: "did:plc:labeller-a, did:plc:labeller-b",
+			acceptLabelers: "did:plc:labeler-a, did:plc:labeler-b",
 			fetch,
 		});
 		await client.searchPackages({ q: "x" });
 
 		const headers = new Headers(calls[0]!.init?.headers);
-		expect(headers.get("atproto-accept-labelers")).toBe("did:plc:labeller-a, did:plc:labeller-b");
+		expect(headers.get("atproto-accept-labelers")).toBe("did:plc:labeler-a, did:plc:labeler-b");
 	});
 
 	it("does not set atproto-accept-labelers when the option is omitted", async () => {
@@ -88,6 +90,75 @@ describe("DiscoveryClient", () => {
 
 		const headers = new Headers(calls[0]!.init?.headers);
 		expect(headers.get("atproto-accept-labelers")).toBeNull();
+	});
+
+	it("sends an explicitly empty atproto-accept-labelers header (accept no labelers)", async () => {
+		const { fetch, calls } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {
+				status: 200,
+				body: { packages: [] },
+			},
+		});
+
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, acceptLabelers: "", fetch });
+		await client.searchPackages({ q: "x" });
+
+		const headers = new Headers(calls[0]!.init?.headers);
+		expect(headers.has("atproto-accept-labelers")).toBe(true);
+		expect(headers.get("atproto-accept-labelers")).toBe("");
+	});
+
+	it("reports the atproto-content-labelers response header via onResponseMeta", async () => {
+		const { fetch } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {
+				status: 200,
+				body: { packages: [] },
+				headers: { "atproto-content-labelers": "did:plc:labeler-a;redact" },
+			},
+		});
+		const onResponseMeta = vi.fn();
+
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch, onResponseMeta });
+		await client.searchPackages({ q: "x" });
+
+		expect(onResponseMeta).toHaveBeenCalledExactlyOnceWith({
+			contentLabelers: "did:plc:labeler-a;redact",
+		});
+	});
+
+	it("reports contentLabelers as undefined when the response header is absent", async () => {
+		const { fetch } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {
+				status: 200,
+				body: { packages: [] },
+			},
+		});
+		const onResponseMeta = vi.fn();
+
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch, onResponseMeta });
+		await client.searchPackages({ q: "x" });
+
+		expect(onResponseMeta).toHaveBeenCalledExactlyOnceWith({ contentLabelers: undefined });
+	});
+
+	it("still forwards atproto-accept-labelers when onResponseMeta is also configured", async () => {
+		const { fetch, calls } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {
+				status: 200,
+				body: { packages: [] },
+			},
+		});
+
+		const client = new DiscoveryClient({
+			aggregatorUrl: aggregator,
+			acceptLabelers: "did:plc:labeler-a",
+			fetch,
+			onResponseMeta: vi.fn(),
+		});
+		await client.searchPackages({ q: "x" });
+
+		const headers = new Headers(calls[0]!.init?.headers);
+		expect(headers.get("atproto-accept-labelers")).toBe("did:plc:labeler-a");
 	});
 
 	it("throws ClientResponseError on non-2xx responses with the structured payload", async () => {

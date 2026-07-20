@@ -25,8 +25,10 @@ import {
 import { json, XRPCError } from "@atcute/xrpc-server";
 import { type AggregatorResolvePackage } from "@emdash-cms/registry-lexicons";
 
-import { boundFetch } from "../../utils.js";
-import { type PackageRow, packageColumns, packageView } from "./views.js";
+import { boundFetch, parseSignatureMetadataCid } from "../../utils.js";
+import { hydrateLabels, isRedacted } from "./label-enforcement.js";
+import { getRequestLabelerPolicy } from "./request-policy.js";
+import { type PackageRow, packageColumns, packageUri, packageView } from "./views.js";
 
 /** Cache the resolver per worker isolate. Construction is allocation-only
  * (no I/O), but reusing a single instance avoids per-request setup. */
@@ -50,6 +52,7 @@ function getHandleResolver(): CompositeHandleResolver {
 export async function resolvePackage(
 	env: Env,
 	params: AggregatorResolvePackage.$params,
+	request: Request,
 ): Promise<Response> {
 	let did: string;
 	try {
@@ -77,7 +80,28 @@ export async function resolvePackage(
 			message: `No package indexed under resolved (${did}, ${params.slug}).`,
 		});
 	}
-	const view = packageView(row);
+
+	const { accepted } = getRequestLabelerPolicy(request);
+	const uri = packageUri(row);
+	const labelsByUri = await hydrateLabels(
+		session,
+		accepted,
+		[
+			{ uri, currentCid: parseSignatureMetadataCid(row.signature_metadata) ?? undefined },
+			{ uri: row.did },
+		],
+		Date.now(),
+	);
+	const labels = [...(labelsByUri.get(uri) ?? []), ...(labelsByUri.get(row.did) ?? [])];
+	if (isRedacted(labels, accepted)) {
+		throw new XRPCError({
+			status: 404,
+			error: "NotFound",
+			message: `No package indexed under resolved (${did}, ${params.slug}).`,
+		});
+	}
+
+	const view = packageView(row, labels);
 	// Surface the handle we resolved — the lexicon's view has an optional
 	// `handle` field for exactly this case (best-effort current handle).
 	view.handle = params.handle;

@@ -96,9 +96,9 @@ catalog:
   # prebuilt CSS, rendering controls invisible. Keep build-time and runtime
   # Kumo identical: bump this version deliberately and rebuild admin.
   "@cloudflare/kumo": 2.6.0
-  "@cloudflare/vite-plugin": ^1.36.3
-  "@cloudflare/vitest-pool-workers": ^0.16.3
-  "@cloudflare/workers-types": ^4.20260305.1
+  "@cloudflare/vite-plugin": ^1.44.0
+  "@cloudflare/vitest-pool-workers": ^0.18.4
+  "@cloudflare/workers-types": ^5.20260712.1
   "@iconify-json/ph": ^1.2.2
   "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4
@@ -156,7 +156,7 @@ catalog:
   typescript: ^6.0.3
   vite: ^8.0.11
   vitest: ^4.1.5
-  wrangler: ^4.99.0
+  wrangler: ^4.110.0
   "y-protocols": ^1.0.7
   yjs: ^13.6.0
   zod: ^4.4.1

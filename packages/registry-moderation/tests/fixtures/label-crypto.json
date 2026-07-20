@@ -1,0 +1,15 @@
+{
+	"privateKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE",
+	"multikey": "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
+	"otherMultikey": "zDnaer52RTwabaBeMkKYYwZmEFqPabLW78cRK62iovMUQhFif",
+	"nonP256Multikey": "zQ3shVc2UkAfJCdc1TR8E66J85h48P43r93q8jGPkPpjF9Ef9",
+	"label": {
+		"ver": 1,
+		"src": "did:example:labeler",
+		"uri": "at://did:example:publisher/com.example.release/1",
+		"cid": "bafkreif4oaymum54i5qefbwoblrt5zasfjhpyhyvacpseqtehi3queew5m",
+		"val": "assessment-passed",
+		"neg": false,
+		"cts": "2026-07-10T12:00:00.000Z"
+	}
+}

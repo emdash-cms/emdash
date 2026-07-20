@@ -10,12 +10,17 @@
  */
 
 import { isDid, isHandle } from "@atcute/lexicons/syntax";
-import { DiscoveryClient } from "@emdash-cms/registry-client";
+import {
+	DiscoveryClient,
+	evaluateReleaseViews,
+	resolveAcceptedPolicy,
+} from "@emdash-cms/registry-client";
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import pc from "picocolors";
 
 import { resolveAggregatorUrl } from "../config.js";
+import { evaluatePackageModeration, renderModerationLines } from "../moderation.js";
 
 export const infoCommand = defineCommand({
 	meta: {
@@ -44,7 +49,16 @@ export const infoCommand = defineCommand({
 	},
 	async run({ args }) {
 		const aggregatorUrl = resolveAggregatorUrl(args["registry-url"]);
-		const client = new DiscoveryClient({ aggregatorUrl });
+		// No configured `acceptLabelers` here (the CLI has no persisted
+		// registry config) -- the accepted policy comes from the aggregator's
+		// response header, once a response arrives.
+		let contentLabelersHeader: string | undefined;
+		const client = new DiscoveryClient({
+			aggregatorUrl,
+			onResponseMeta: (meta) => {
+				contentLabelersHeader = meta.contentLabelers ?? contentLabelersHeader;
+			},
+		});
 
 		let result;
 		if (isDid(args.publisher)) {
@@ -95,11 +109,28 @@ export const infoCommand = defineCommand({
 		console.log(`  AT URI:    ${pc.dim(result.uri)}`);
 		console.log();
 
-		if (result.labels && result.labels.length > 0) {
-			consola.info(`Labels (${result.labels.length}):`);
-			for (const label of result.labels) {
-				console.log(`  ${pc.yellow(label.val)} ${pc.dim(`(by ${label.src})`)}`);
-			}
+		const accepted = resolveAcceptedPolicy({ contentLabelersHeader });
+
+		// Evaluate against the latest release for the full label cascade (a
+		// prospective installer wants to know about the release they'd
+		// actually get, not just the package record). Falls back to a
+		// package/publisher-only evaluation when the package has no releases
+		// yet, or the aggregator lookup fails.
+		let moderation;
+		try {
+			const releaseView = await client.getLatestRelease({ did: result.did, package: result.slug });
+			moderation = evaluateReleaseViews({
+				packageView: result,
+				releaseView,
+				publisherDid: result.did,
+				accepted,
+			});
+		} catch {
+			moderation = evaluatePackageModeration(result, accepted);
+		}
+
+		for (const line of renderModerationLines(moderation)) {
+			console.log(line);
 		}
 	},
 });

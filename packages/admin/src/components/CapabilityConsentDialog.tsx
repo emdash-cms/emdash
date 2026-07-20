@@ -15,6 +15,15 @@ import { describeCapability } from "../lib/api/marketplace.js";
 import { cn } from "../lib/utils.js";
 import { DialogError } from "./DialogError.js";
 
+/** A moderation label, pre-resolved to localized display text by the caller. */
+export interface ModerationLabelEntry {
+	value: string;
+	name: string;
+	description: string | null;
+	/** DID of the labeler that issued this label. */
+	issuerDid: string;
+}
+
 export interface CapabilityConsentDialogProps {
 	/** Dialog mode */
 	mode?: "install" | "update";
@@ -22,6 +31,13 @@ export interface CapabilityConsentDialogProps {
 	pluginName: string;
 	/** Capabilities the plugin requests */
 	capabilities: string[];
+	/**
+	 * Active moderation warning labels on the release being installed/updated.
+	 * Shown above the capabilities list whenever non-empty -- including when
+	 * `capabilities` is empty, in which case the dialog shows only this
+	 * section.
+	 */
+	moderationWarnings?: ModerationLabelEntry[];
 	/** Allowed network hosts (for network:fetch capability) */
 	allowedHosts?: string[];
 	/** New capabilities added in an update (highlighted differently) */
@@ -44,6 +60,7 @@ export function CapabilityConsentDialog({
 	mode,
 	pluginName,
 	capabilities,
+	moderationWarnings = [],
 	allowedHosts,
 	newCapabilities = [],
 	newlyPublicRoutes = [],
@@ -80,6 +97,32 @@ export function CapabilityConsentDialog({
 							: t`${pluginName} requires the following permissions:`}
 					</p>
 				</div>
+
+				{/* Moderation warnings */}
+				{moderationWarnings.length > 0 && (
+					<div className="px-6 pt-4">
+						<div
+							className="rounded-md border border-kumo-warning bg-kumo-warning/10 p-3"
+							role="status"
+						>
+							<div className="flex items-center gap-2 text-sm font-medium text-kumo-warning">
+								<Warning className="h-4 w-4 shrink-0" />
+								{t`Moderation warnings`}
+							</div>
+							<ul className="mt-2 space-y-2 text-sm">
+								{moderationWarnings.map((warning) => (
+									<li key={`${warning.value}-${warning.issuerDid}`}>
+										<p className="font-medium text-kumo-default">{warning.name}</p>
+										{warning.description ? (
+											<p className="text-kumo-subtle">{warning.description}</p>
+										) : null}
+										<p className="text-xs text-kumo-subtle">{t`Issued by ${warning.issuerDid}`}</p>
+									</li>
+								))}
+							</ul>
+						</div>
+					</div>
+				)}
 
 				{/* Capabilities list */}
 				<div className="px-6 py-4 space-y-3">

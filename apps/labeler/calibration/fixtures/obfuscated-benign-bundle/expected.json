@@ -1,0 +1,9 @@
+{
+	"expect": {
+		"code": {
+			"toState": "warned",
+			"categories": ["obfuscated-code"],
+			"note": "content:afterSave hook whose name, label map, and default string are base64 blobs decoded at runtime via atob through a hex-named lookup array; benign (logs a status-badge label, no network, no dynamic code execution) but materially hard to inspect, so warning-tier obfuscated-code, not a block"
+		}
+	}
+}

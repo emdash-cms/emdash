@@ -394,7 +394,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 			"RELEASE_ALREADY_PUBLISHED",
 			`Release ${slug}@${options.manifest.version} is already published. ` +
 				"FAIR specifies that version records are immutable; aggregators and " +
-				"labellers may treat any change as a takedown event. " +
+				"labelers may treat any change as a takedown event. " +
 				"Pass allowOverwrite: true to overwrite anyway.",
 			{ slug, version: options.manifest.version },
 		);

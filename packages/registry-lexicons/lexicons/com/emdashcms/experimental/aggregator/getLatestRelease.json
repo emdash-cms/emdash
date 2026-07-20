@@ -5,7 +5,7 @@
 	"defs": {
 		"main": {
 			"type": "query",
-			"description": "Returns the aggregator's view of the latest release for a package, including the signed release record, mirror URLs, and hydrated labels. The latest release is the highest semver version (full precedence rules, not lexicographic) excluding any release tombstoned by the publisher or labelled with a hard-enforcement label by a trusted labeller the request accepts. Returns NotFound if there are no eligible releases.",
+			"description": "Returns the aggregator's view of the latest release for a package, including the signed release record, mirror URLs, and hydrated labels. The latest release is the highest semver version (full precedence rules, not lexicographic) excluding any release tombstoned by the publisher or labeled with a hard-enforcement label by a trusted labeler the request accepts. Returns NotFound if there are no eligible releases.",
 			"parameters": {
 				"type": "params",
 				"required": ["did", "package"],

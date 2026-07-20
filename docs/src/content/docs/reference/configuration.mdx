@@ -406,7 +406,7 @@ In every mode, the toolbar can be dismissed in the browser via its × button (pe
 
 **Optional.** Point the admin dashboard's plugin browse and install flows at a federated [plugin registry](/plugins/registry/) instead of the central marketplace. Requires `sandboxRunner`, because registry plugins run sandboxed.
 
-Pass a bare aggregator URL string, or an object when you need a labeller or a release-age policy. The following example uses the object form:
+Pass a bare aggregator URL string, or an object when you need a labeler or a release-age policy. The following example uses the object form:
 
 ```js title="astro.config.mjs"
 emdash({
@@ -427,7 +427,7 @@ emdash({
 | Option                            | Type                   | Description                                                                                   |
 | --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
 | `aggregatorUrl`                   | `string`               | Aggregator origin where the registry's XRPC endpoints are mounted. HTTPS in production.        |
-| `acceptLabelers`                  | `string`               | Comma-separated labeller DIDs forwarded to the aggregator for takedown and verification labels. |
+| `acceptLabelers`                  | `string`               | Comma-separated labeler DIDs forwarded to the aggregator for takedown and verification labels. |
 | `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
 | `policy.minimumReleaseAgeExclude` | `string[]`             | DIDs (or `<did>/<slug>` pairs) exempt from the holdback.                                        |
 

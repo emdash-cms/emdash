@@ -13,8 +13,11 @@
 import { InvalidRequestError, json, XRPCError } from "@atcute/xrpc-server";
 import { type AggregatorDefs, type AggregatorListReleases } from "@emdash-cms/registry-lexicons";
 
+import { parseSignatureMetadataCid } from "../../utils.js";
 import { decodeListCursor, encodeListCursor, InvalidCursorError } from "./cursor.js";
-import { type ReleaseRow, releaseColumns, releaseView } from "./views.js";
+import { type HydrationSubject, hydrateLabels, isRedacted } from "./label-enforcement.js";
+import { getRequestLabelerPolicy } from "./request-policy.js";
+import { type ReleaseRow, packageUri, releaseColumns, releaseUri, releaseView } from "./views.js";
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -22,20 +25,24 @@ const MAX_LIMIT = 100;
 export async function listReleases(
 	env: Env,
 	params: AggregatorListReleases.$params,
+	request: Request,
 ): Promise<Response> {
 	const limit = clampLimit(params.limit);
 	const session = env.DB.withSession("first-primary");
+	const { accepted } = getRequestLabelerPolicy(request);
+	const nowMs = Date.now();
 
-	// Confirm parent package exists. One extra D1 read per request — could be
-	// folded into a JOIN, but the explicit existence check keeps the NotFound
-	// signal cheap and unambiguous (the empty-list response shape would
-	// otherwise mean "package exists, no releases" or "package doesn't exist"
-	// indistinguishably).
-	const parentExists = await session
-		.prepare(`SELECT 1 AS hit FROM packages WHERE did = ? AND slug = ?`)
+	// Confirm parent package exists, fetching its `signature_metadata` too —
+	// package-scope hydration below needs the current CID. One extra D1 read
+	// per request — could be folded into a JOIN, but the explicit existence
+	// check keeps the NotFound signal cheap and unambiguous (the empty-list
+	// response shape would otherwise mean "package exists, no releases" or
+	// "package doesn't exist" indistinguishably).
+	const parent = await session
+		.prepare(`SELECT signature_metadata FROM packages WHERE did = ? AND slug = ?`)
 		.bind(params.did, params.package)
-		.first<{ hit: number }>();
-	if (!parentExists) {
+		.first<{ signature_metadata: string | null }>();
+	if (!parent) {
 		throw new XRPCError({
 			status: 404,
 			error: "NotFound",
@@ -84,14 +91,57 @@ export async function listReleases(
 	// Read limit+1 to detect a next page without a trailing COUNT query.
 	const hasMore = items.length > limit;
 	const page = hasMore ? items.slice(0, limit) : items;
+	// Cursor derives from the last FETCHED row, before label-redaction
+	// filtering below — a page shortened by redacted omissions must still
+	// advance the cursor past every row the caller saw, not just the ones
+	// it returned.
 	const last = page.at(-1);
+
+	const parentPackageUri = packageUri({ did: params.did, slug: params.package });
+	const parentPackageCid = parseSignatureMetadataCid(parent.signature_metadata) ?? undefined;
+	const subjects: HydrationSubject[] = [
+		{ uri: parentPackageUri, currentCid: parentPackageCid },
+		{ uri: params.did },
+	];
+	for (const row of page) {
+		subjects.push({
+			uri: releaseUri(row),
+			currentCid: parseSignatureMetadataCid(row.signature_metadata) ?? undefined,
+		});
+	}
+	const labelsByUri = await hydrateLabels(session, accepted, subjects, nowMs);
+
+	// A redacted parent package must be indistinguishable from an absent one,
+	// matching getPackage — a 200 with an empty list would leak that the
+	// package exists but was taken down.
+	const parentLabels = [
+		...(labelsByUri.get(parentPackageUri) ?? []),
+		...(labelsByUri.get(params.did) ?? []),
+	];
+	if (isRedacted(parentLabels, accepted)) {
+		throw new XRPCError({
+			status: 404,
+			error: "NotFound",
+			message: `No package indexed under (${params.did}, ${params.package}).`,
+		});
+	}
+
+	const releases: AggregatorDefs.ReleaseView[] = [];
+	for (const row of page) {
+		const uri = releaseUri(row);
+		const labels = [
+			...(labelsByUri.get(uri) ?? []),
+			...(labelsByUri.get(parentPackageUri) ?? []),
+			...(labelsByUri.get(params.did) ?? []),
+		];
+		if (isRedacted(labels, accepted)) continue;
+		releases.push(releaseView(row, labels));
+	}
 
 	const response: {
 		releases: AggregatorDefs.ReleaseView[];
 		cursor?: string;
-	} = {
-		releases: page.map(releaseView),
-	};
+	} = { releases };
 	if (hasMore && last) {
 		// Cursor encodes the internal `version_sort` format. If the
 		// `computeVersionSort` encoding ever changes, in-flight cursors
@@ -99,6 +149,12 @@ export async function listReleases(
 		// 400 (per the strict-cursor policy) and fall back to fetching
 		// page 1. Acceptable for the experimental NSID; revisit if/when
 		// we stabilise.
+		//
+		// An all-redacted page returns an empty list WITH a cursor, which
+		// lets a caller infer hidden rows exist. Accepted trade-off: the
+		// alternatives either stop pagination early (cursor only when a row
+		// survived) or re-page server-side until the page fills. Package-
+		// level redaction — the sensitive case — 404s above instead.
 		response.cursor = encodeListCursor({ versionSort: last.version_sort, version: last.version });
 	}
 	return json(response);

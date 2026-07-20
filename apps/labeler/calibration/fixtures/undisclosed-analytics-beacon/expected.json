@@ -1,0 +1,9 @@
+{
+	"expect": {
+		"code": {
+			"toState": "warned",
+			"categories": ["misleading-metadata", "privacy-risk"],
+			"note": "manifest describes only a weather widget but the code also beacons per-save usage telemetry to a third-party analytics host; the host is declared in allowedHosts (so not undeclared-access) and the payload is non-sensitive telemetry (so not data-exfiltration), leaving a warning-tier gap between the stated purpose and actual behavior"
+		}
+	}
+}

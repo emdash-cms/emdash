@@ -5,7 +5,7 @@
 	"defs": {
 		"packageView": {
 			"type": "object",
-			"description": "An aggregator's view of a package, hydrating a profile record with denormalised metadata, mirror URLs for the latest release's primary artifact, and any labels applied by trusted labellers the aggregator hydrates.",
+			"description": "An aggregator's view of a package, hydrating a profile record with denormalized metadata, mirror URLs for the latest release's primary artifact, and any labels applied by trusted labelers the aggregator hydrates.",
 			"required": ["uri", "cid", "did", "slug", "profile", "indexedAt"],
 			"properties": {
 				"uri": {
@@ -50,7 +50,52 @@
 				},
 				"labels": {
 					"type": "array",
-					"description": "Hydrated labels applying to this package, per the labellers the request asked for via the atproto-accept-labelers header.",
+					"description": "Hydrated labels applying to this package, per the labelers the request asked for via the atproto-accept-labelers header.",
+					"maxLength": 64,
+					"items": {
+						"type": "ref",
+						"ref": "com.atproto.label.defs#label"
+					}
+				}
+			}
+		},
+		"publisherView": {
+			"type": "object",
+			"description": "An aggregator's view of a publisher: the signed publisher.profile record verbatim (identity-level contact channels, display name), denormalised metadata for display, and any labels applied to the publisher DID by trusted labelers the aggregator hydrates.",
+			"required": ["uri", "cid", "did", "profile", "indexedAt"],
+			"properties": {
+				"uri": {
+					"type": "string",
+					"format": "at-uri",
+					"description": "AT URI of the publisher.profile record the aggregator indexed (rkey is always 'self'). Pins exactly which record version this view describes."
+				},
+				"cid": {
+					"type": "string",
+					"format": "cid",
+					"description": "CID of the profile record content the aggregator indexed. Lets clients confirm they're working with the same bytes the aggregator did."
+				},
+				"did": {
+					"type": "string",
+					"format": "did",
+					"description": "Publisher DID. Denormalised convenience; equivalent to the DID portion of `uri`."
+				},
+				"handle": {
+					"type": "string",
+					"format": "handle",
+					"description": "Publisher's current handle, if known. Best-effort: handles are mutable and may be stale at the moment of read."
+				},
+				"profile": {
+					"type": "unknown",
+					"description": "The signed publisher.profile record verbatim, passed through from the publisher's repo (carrying its $type, displayName, contact channels, etc.)."
+				},
+				"indexedAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "When the aggregator first indexed this publisher."
+				},
+				"labels": {
+					"type": "array",
+					"description": "Hydrated labels applying to this publisher DID, per the labelers the request asked for via the atproto-accept-labelers header.",
 					"maxLength": 64,
 					"items": {
 						"type": "ref",
@@ -112,7 +157,75 @@
 				},
 				"labels": {
 					"type": "array",
-					"description": "Hydrated labels applying to this release, per the labellers the request asked for.",
+					"description": "Hydrated labels applying to this release, per the labelers the request asked for.",
+					"maxLength": 64,
+					"items": {
+						"type": "ref",
+						"ref": "com.atproto.label.defs#label"
+					}
+				}
+			}
+		},
+		"verificationClaimView": {
+			"type": "object",
+			"description": "One verification claim the aggregator has indexed for a subject: an issuer DID vouching for the subject as a trusted publisher, bound to the subject's handle and publisher-profile displayName at issuance. Whether the claim is currently in force (handle and displayName still match, and it has not expired) is a read-time concern; this view reports the facts as indexed.",
+			"required": ["issuer", "handle", "displayName", "createdAt", "indexedAt"],
+			"properties": {
+				"issuer": {
+					"type": "string",
+					"format": "did",
+					"description": "DID of the repo that issued the verification."
+				},
+				"handle": {
+					"type": "string",
+					"format": "handle",
+					"description": "Subject handle bound at issuance."
+				},
+				"displayName": {
+					"type": "string",
+					"description": "Subject publisher-profile displayName bound at issuance.",
+					"maxLength": 1024,
+					"maxGraphemes": 100
+				},
+				"createdAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "When the verification was issued."
+				},
+				"expiresAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "Optional expiry. Absent means no automatic expiry."
+				},
+				"indexedAt": {
+					"type": "string",
+					"format": "datetime",
+					"description": "When the aggregator first indexed this verification."
+				}
+			}
+		},
+		"publisherVerificationView": {
+			"type": "object",
+			"description": "An aggregator's view of the verification state indexed for a publisher DID: the non-tombstoned verification claims naming it as subject. Claims are returned regardless of expiry — the caller evaluates in-force state from each claim's `expiresAt`. An empty `verifications` array means the DID has no indexed claims (an unverified publisher), or every claim's issuer is redacted for this caller — distinct from NotFound, which means the subject DID itself is redacted.",
+			"required": ["did", "verifications"],
+			"properties": {
+				"did": {
+					"type": "string",
+					"format": "did",
+					"description": "Subject publisher DID the verification state is for."
+				},
+				"verifications": {
+					"type": "array",
+					"description": "Non-tombstoned verification claims naming this DID as subject, newest issuance first.",
+					"maxLength": 100,
+					"items": {
+						"type": "ref",
+						"ref": "com.emdashcms.experimental.aggregator.defs#verificationClaimView"
+					}
+				},
+				"labels": {
+					"type": "array",
+					"description": "Hydrated labels applying to this publisher DID, per the labelers the request asked for via the atproto-accept-labelers header.",
 					"maxLength": 64,
 					"items": {
 						"type": "ref",

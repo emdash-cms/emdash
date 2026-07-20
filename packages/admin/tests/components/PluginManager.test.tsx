@@ -389,4 +389,107 @@ describe("PluginManager", () => {
 		// The empty state links to the marketplace
 		await expect.element(screen.getByText("marketplace", { exact: true })).toBeInTheDocument();
 	});
+
+	// -----------------------------------------------------------------------
+	// Registry update moderation
+	// -----------------------------------------------------------------------
+
+	it("shows a blocked badge and disables the update action when the update is moderation-blocked", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "reg-plugin",
+				name: "Registry Plugin",
+				version: "1.0.0",
+				source: "registry",
+			}),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "reg-plugin",
+				installed: "1.0.0",
+				latest: "1.1.0",
+				hasCapabilityChanges: false,
+				moderation: { eligibility: "blocked", blockingLabels: ["malware"], warningLabels: [] },
+			},
+		]);
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("Registry Plugin")).toBeInTheDocument();
+		await screen.getByText("Check for updates").click();
+
+		await expect.element(screen.getByText("Update blocked")).toBeInTheDocument();
+		expect(screen.getByText("v1.1.0 available").query()).toBeNull();
+		await expect.element(screen.getByRole("button", { name: "Update to v1.1.0" })).toBeDisabled();
+	});
+
+	it("shows a warning badge and keeps the update action enabled for a warning-only update", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "reg-plugin",
+				name: "Registry Plugin",
+				version: "1.0.0",
+				source: "registry",
+			}),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "reg-plugin",
+				installed: "1.0.0",
+				latest: "1.1.0",
+				hasCapabilityChanges: false,
+				moderation: {
+					eligibility: "eligible",
+					blockingLabels: [],
+					warningLabels: ["suspicious-code"],
+				},
+			},
+		]);
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("Registry Plugin")).toBeInTheDocument();
+		await screen.getByText("Check for updates").click();
+
+		await expect.element(screen.getByText("v1.1.0 available")).toBeInTheDocument();
+		await expect.element(screen.getByText("Update has warnings")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Update to v1.1.0" }))
+			.not.toBeDisabled();
+	});
+
+	it("renders exactly as before when the update has no moderation field", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "reg-plugin",
+				name: "Registry Plugin",
+				version: "1.0.0",
+				source: "registry",
+			}),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{ pluginId: "reg-plugin", installed: "1.0.0", latest: "1.1.0", hasCapabilityChanges: false },
+		]);
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("Registry Plugin")).toBeInTheDocument();
+		await screen.getByText("Check for updates").click();
+
+		await expect.element(screen.getByText("v1.1.0 available")).toBeInTheDocument();
+		expect(screen.getByText("Update blocked").query()).toBeNull();
+		expect(screen.getByText("Update has warnings").query()).toBeNull();
+		await expect
+			.element(screen.getByRole("button", { name: "Update to v1.1.0" }))
+			.not.toBeDisabled();
+	});
 });

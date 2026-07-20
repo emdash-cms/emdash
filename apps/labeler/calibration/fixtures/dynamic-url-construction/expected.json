@@ -1,0 +1,8 @@
+{
+	"expect": {
+		"code": {
+			"review": true,
+			"note": "legacy verdict 'warn'; labeler outcome depends on the severity the model assigns a data-exfiltration finding"
+		}
+	}
+}

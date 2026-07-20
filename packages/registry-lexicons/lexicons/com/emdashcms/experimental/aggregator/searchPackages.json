@@ -5,7 +5,7 @@
 	"defs": {
 		"main": {
 			"type": "query",
-			"description": "Returns a paginated list of packages matching the query and filters. Results that are subject to a hard-enforcement label (e.g. !takedown, security:yanked) from a trusted labeller the request accepts are filtered out; other label state is hydrated on each result.",
+			"description": "Returns a paginated list of packages matching the query and filters. Results carrying a hard-block label (e.g. !takedown, publisher-compromised) from a source the request's accepted-labeler policy covers are excluded; other label state is hydrated on each result.",
 			"parameters": {
 				"type": "params",
 				"properties": {

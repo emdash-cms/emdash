@@ -1,0 +1,11 @@
+{
+	"id": "status-badge",
+	"version": "2.1.0",
+	"description": "Shows a friendly status badge label after content is saved.",
+	"capabilities": ["read:content"],
+	"allowedHosts": [],
+	"storage": {},
+	"hooks": ["content:afterSave"],
+	"routes": [],
+	"admin": {}
+}

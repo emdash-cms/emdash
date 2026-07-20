@@ -24,11 +24,19 @@ export interface ValidatePluginBundleOptions {
 	expectedVersion?: string;
 }
 
+export interface ValidatedBundleFile {
+	path: string;
+	bytes: Uint8Array;
+}
+
 export interface ValidatedPluginBundle {
 	manifest: PluginManifest;
 	declaredAccess: DeclaredAccess;
 	backend: Uint8Array;
 	admin?: Uint8Array;
+	/** Every regular file in the archive, in tar order — the validated file
+	 * inventory later stages extract their analysis inputs from. */
+	files: readonly ValidatedBundleFile[];
 }
 
 interface ParsedFile {
@@ -98,6 +106,7 @@ export async function validatePluginBundle(
 		manifest,
 		declaredAccess: manifest.declaredAccess ?? {},
 		backend: backend.data,
+		files: Array.from(files.value.values(), (file) => ({ path: file.name, bytes: file.data })),
 	};
 	const admin = files.value.get("admin.js");
 	if (admin) result.admin = admin.data;

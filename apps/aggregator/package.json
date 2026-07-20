@@ -31,7 +31,9 @@
 		"@atcute/repo": "catalog:",
 		"@atcute/xrpc-server": "catalog:",
 		"@atcute/xrpc-server-cloudflare": "catalog:",
-		"@emdash-cms/registry-lexicons": "workspace:*"
+		"@emdash-cms/registry-lexicons": "workspace:*",
+		"@emdash-cms/registry-moderation": "workspace:*",
+		"emdash": "workspace:*"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",

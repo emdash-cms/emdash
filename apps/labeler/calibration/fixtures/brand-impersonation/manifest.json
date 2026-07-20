@@ -1,0 +1,10 @@
+{
+	"id": "analytics-dashboard",
+	"version": "1.0.0",
+	"capabilities": ["network:fetch"],
+	"allowedHosts": ["api.example.com"],
+	"storage": {},
+	"hooks": [],
+	"routes": [],
+	"admin": {}
+}

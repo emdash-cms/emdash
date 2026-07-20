@@ -5,7 +5,7 @@
 	"defs": {
 		"main": {
 			"type": "query",
-			"description": "Returns a paginated list of releases for the named package. Results that are subject to a hard-enforcement label from a trusted labeller the request accepts are filtered out; other label state is hydrated on each result. Results are ordered by descending semver version.",
+			"description": "Returns a paginated list of releases for the named package. Results that are subject to a hard-enforcement label from a trusted labeler the request accepts are filtered out; other label state is hydrated on each result. Results are ordered by descending semver version.",
 			"parameters": {
 				"type": "params",
 				"required": ["did", "package"],

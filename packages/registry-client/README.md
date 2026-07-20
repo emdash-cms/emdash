@@ -6,7 +6,7 @@ Atproto-aware client for the EmDash plugin registry.
 
 ## Layers
 
-This package is split into three independent surfaces. Import only the one you need.
+This package is split into four independent surfaces. Import only the one you need.
 
 ### Credentials (`@emdash-cms/registry-client/credentials`)
 
@@ -28,7 +28,14 @@ The interactive OAuth flow lives in the CLI, not here. This module accepts a pre
 
 Read-only XRPC client over an aggregator. No authentication. Used by the CLI (`emdash-plugin search`, `emdash-plugin info`) and the EmDash admin UI's install flow.
 
-The `acceptLabelers` option threads the `atproto-accept-labelers` request header through every call so callers can configure which labellers' hard-takedown labels the aggregator should apply.
+The `acceptLabelers` option threads the `atproto-accept-labelers` request header through every call so callers can configure which labelers' hard-takedown labels the aggregator should apply. The `onResponseMeta` option reports the `atproto-content-labelers` response header per call -- the labeler policy the aggregator actually applied -- for use with `resolveAcceptedPolicy` below.
+
+### Moderation (`@emdash-cms/registry-client/moderation`)
+
+Evaluates the typed moderation state -- `eligible` / `pending` / `error` / `blocked`, plus warning and suppressed labels -- of a package's release from the labels a discovery response hydrates onto its package and release views. Built on `@emdash-cms/registry-moderation`'s hydrated (structurally validated, not cryptographically verified) evaluation path, since the aggregator relays labels it does not sign for this client.
+
+- `evaluateReleaseViews({ packageView, releaseView, publisherDid, accepted, evaluatedAt? })` merges the package and release views' hydrated labels and evaluates them. A label that fails structural validation is skipped with a console warning rather than failing the whole evaluation.
+- `resolveAcceptedPolicy({ configuredAcceptLabelers?, contentLabelersHeader? })` picks the accepted-labeler policy to evaluate against: the response header when present (what the aggregator actually applied), else the configured `acceptLabelers` value, else no client-side enforcement.
 
 ## Stability
 

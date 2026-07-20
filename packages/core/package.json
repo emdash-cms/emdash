@@ -25,6 +25,10 @@
     "./plugin": {
       "types": "./dist/plugin-types.d.mts"
     },
+    "./security/ssrf": {
+      "types": "./dist/security/ssrf.d.mts",
+      "default": "./dist/security/ssrf.mjs"
+    },
     "./middleware": {
       "types": "./dist/astro/middleware.d.mts",
       "default": "./dist/astro/middleware.mjs"

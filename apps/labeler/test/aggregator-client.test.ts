@@ -1,0 +1,263 @@
+import { env } from "cloudflare:test";
+import { describe, expect, it } from "vitest";
+
+import { AggregatorClient } from "../src/aggregator-client.js";
+
+/** Records every URL and request init the client fetches and returns a
+ * caller-supplied Response (or throws, to simulate a transport failure). */
+function mockFetcher(handler: (url: string) => Response) {
+	const urls: string[] = [];
+	const inits: (RequestInit | undefined)[] = [];
+	const fetcher = {
+		fetch: (input: string, init?: RequestInit) => {
+			urls.push(input);
+			inits.push(init);
+			return Promise.resolve(handler(input));
+		},
+	} as unknown as Fetcher;
+	return { fetcher, urls, inits };
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: { "content-type": "application/json" },
+	});
+}
+
+function notFoundResponse(): Response {
+	return jsonResponse({ error: "NotFound", message: "No package indexed." }, 404);
+}
+
+const BASE = "https://aggregator/xrpc";
+
+const PACKAGE_VIEW = {
+	uri: "at://did:plc:abc123/com.emdashcms.experimental.package.profile/my-plugin",
+	cid: "bafyreib2rxk3rybk3examplecidvalue",
+	did: "did:plc:abc123",
+	slug: "my-plugin",
+	profile: {
+		$type: "com.emdashcms.experimental.package.profile",
+		id: "at://did:plc:abc123/com.emdashcms.experimental.package.profile/my-plugin",
+		type: "plugin",
+		license: "MIT",
+		authors: [{ name: "Ada", handle: "ada.example" }],
+		security: [{ contact: "security@example.test" }],
+		slug: "my-plugin",
+	},
+	indexedAt: "2026-07-01T00:00:00.000Z",
+	labels: [],
+	latestVersion: "1.2.0",
+};
+
+const RELEASE_VIEW = {
+	uri: "at://did:plc:abc123/com.emdashcms.experimental.package.release/1.2.0",
+	cid: "bafyreirelease123examplecidvalue",
+	did: "did:plc:abc123",
+	package: "my-plugin",
+	version: "1.2.0",
+	release: {
+		$type: "com.emdashcms.experimental.package.release",
+		package: "my-plugin",
+		version: "1.2.0",
+		artifacts: {
+			tarball: {
+				url: "https://cdn.example/my-plugin-1.2.0.tgz",
+				checksum: "sha256-0123456789abcdef",
+			},
+		},
+	},
+	mirrors: [],
+	indexedAt: "2026-07-01T00:00:00.000Z",
+	labels: [],
+};
+
+const PUBLISHER_VERIFICATION_VIEW = {
+	did: "did:plc:abc123",
+	verifications: [
+		{
+			issuer: "did:plc:issuer0000000000000000000",
+			handle: "ada.example",
+			displayName: "Ada",
+			createdAt: "2026-03-01T00:00:00.000Z",
+			expiresAt: "2027-03-01T00:00:00.000Z",
+			indexedAt: "2026-03-01T00:00:00.000Z",
+		},
+	],
+	labels: [],
+};
+
+describe("AggregatorClient.getPackage", () => {
+	it("builds the getPackage URL with URL-encoded params and parses the view", async () => {
+		const { fetcher, urls } = mockFetcher(() => jsonResponse(PACKAGE_VIEW));
+		const view = await new AggregatorClient(fetcher).getPackage("did:plc:abc123", "my-plugin");
+
+		expect(urls).toEqual([
+			`${BASE}/com.emdashcms.experimental.aggregator.getPackage?did=did%3Aplc%3Aabc123&slug=my-plugin`,
+		]);
+		expect(view).toEqual(PACKAGE_VIEW);
+	});
+
+	it("returns null on a NotFound (404) error", async () => {
+		const { fetcher } = mockFetcher(() => notFoundResponse());
+		const view = await new AggregatorClient(fetcher).getPackage("did:plc:abc123", "missing");
+		expect(view).toBeNull();
+	});
+
+	it("sends a blank atproto-accept-labelers header to opt out of default redaction", async () => {
+		const { fetcher, inits } = mockFetcher(() => jsonResponse(PACKAGE_VIEW));
+		await new AggregatorClient(fetcher).getPackage("did:plc:abc123", "my-plugin");
+
+		const headers = new Headers(inits[0]?.headers);
+		expect(headers.get("atproto-accept-labelers")).toBe("");
+	});
+
+	it("throws on a 5xx response", async () => {
+		const { fetcher } = mockFetcher(() => new Response("upstream boom", { status: 500 }));
+		await expect(
+			new AggregatorClient(fetcher).getPackage("did:plc:abc123", "my-plugin"),
+		).rejects.toThrow(/getPackage failed: 500/);
+	});
+
+	it("throws when the binding fetch rejects (transport failure)", async () => {
+		const fetcher = {
+			fetch: () => Promise.reject(new Error("binding unreachable")),
+		} as unknown as Fetcher;
+		await expect(
+			new AggregatorClient(fetcher).getPackage("did:plc:abc123", "my-plugin"),
+		).rejects.toThrow("binding unreachable");
+	});
+});
+
+describe("AggregatorClient.getLatestRelease", () => {
+	it("builds the getLatestRelease URL with a `package` param and parses the view", async () => {
+		const { fetcher, urls } = mockFetcher(() => jsonResponse(RELEASE_VIEW));
+		const view = await new AggregatorClient(fetcher).getLatestRelease(
+			"did:plc:abc123",
+			"my-plugin",
+		);
+
+		expect(urls).toEqual([
+			`${BASE}/com.emdashcms.experimental.aggregator.getLatestRelease?did=did%3Aplc%3Aabc123&package=my-plugin`,
+		]);
+		expect(view).toEqual(RELEASE_VIEW);
+	});
+
+	it("returns null on a NotFound (404) error", async () => {
+		const { fetcher } = mockFetcher(() => notFoundResponse());
+		const view = await new AggregatorClient(fetcher).getLatestRelease("did:plc:abc123", "missing");
+		expect(view).toBeNull();
+	});
+});
+
+describe("AggregatorClient.listReleases", () => {
+	it("omits the cursor param when none is given and parses the page", async () => {
+		const page = { releases: [RELEASE_VIEW], cursor: "next-page-cursor" };
+		const { fetcher, urls } = mockFetcher(() => jsonResponse(page));
+		const result = await new AggregatorClient(fetcher).listReleases("did:plc:abc123", "my-plugin");
+
+		expect(urls).toEqual([
+			`${BASE}/com.emdashcms.experimental.aggregator.listReleases?did=did%3Aplc%3Aabc123&package=my-plugin`,
+		]);
+		expect(result).toEqual(page);
+	});
+
+	it("appends a URL-encoded cursor param when given", async () => {
+		const { fetcher, urls } = mockFetcher(() => jsonResponse({ releases: [] }));
+		await new AggregatorClient(fetcher).listReleases("did:plc:abc123", "my-plugin", "abc==");
+
+		expect(urls).toEqual([
+			`${BASE}/com.emdashcms.experimental.aggregator.listReleases?did=did%3Aplc%3Aabc123&package=my-plugin&cursor=abc%3D%3D`,
+		]);
+	});
+
+	it("omits the cursor param for an empty-string cursor (first page, not a 400)", async () => {
+		const { fetcher, urls } = mockFetcher(() => jsonResponse({ releases: [] }));
+		await new AggregatorClient(fetcher).listReleases("did:plc:abc123", "my-plugin", "");
+
+		expect(urls).toEqual([
+			`${BASE}/com.emdashcms.experimental.aggregator.listReleases?did=did%3Aplc%3Aabc123&package=my-plugin`,
+		]);
+	});
+
+	it("returns null when the parent package is NotFound", async () => {
+		const { fetcher } = mockFetcher(() => notFoundResponse());
+		const result = await new AggregatorClient(fetcher).listReleases("did:plc:abc123", "missing");
+		expect(result).toBeNull();
+	});
+});
+
+describe("AggregatorClient.getPublisherVerification", () => {
+	it("builds the getPublisherVerification URL and parses the view", async () => {
+		const { fetcher, urls } = mockFetcher(() => jsonResponse(PUBLISHER_VERIFICATION_VIEW));
+		const view = await new AggregatorClient(fetcher).getPublisherVerification("did:plc:abc123");
+
+		expect(urls).toEqual([
+			`${BASE}/com.emdashcms.experimental.aggregator.getPublisherVerification?did=did%3Aplc%3Aabc123`,
+		]);
+		expect(view).toEqual(PUBLISHER_VERIFICATION_VIEW);
+	});
+
+	it("returns null on a NotFound (404) error (redacted DID)", async () => {
+		const { fetcher } = mockFetcher(() => notFoundResponse());
+		const view = await new AggregatorClient(fetcher).getPublisherVerification("did:plc:redacted");
+		expect(view).toBeNull();
+	});
+
+	it("sends a blank atproto-accept-labelers header to opt out of default redaction", async () => {
+		const { fetcher, inits } = mockFetcher(() => jsonResponse(PUBLISHER_VERIFICATION_VIEW));
+		await new AggregatorClient(fetcher).getPublisherVerification("did:plc:abc123");
+
+		const headers = new Headers(inits[0]?.headers);
+		expect(headers.get("atproto-accept-labelers")).toBe("");
+	});
+
+	it("throws on a 5xx response", async () => {
+		const { fetcher } = mockFetcher(() => new Response("upstream boom", { status: 500 }));
+		await expect(
+			new AggregatorClient(fetcher).getPublisherVerification("did:plc:abc123"),
+		).rejects.toThrow(/getPublisherVerification failed: 500/);
+	});
+});
+
+describe("AggregatorClient param encoding", () => {
+	it("percent-encodes reserved characters so they cannot alter the query", async () => {
+		const { fetcher, urls } = mockFetcher(() => jsonResponse(PACKAGE_VIEW));
+		await new AggregatorClient(fetcher).getPackage("did:plc:a&b c", "s/l&ug");
+
+		expect(urls).toEqual([
+			`${BASE}/com.emdashcms.experimental.aggregator.getPackage?did=did%3Aplc%3Aa%26b%20c&slug=s%2Fl%26ug`,
+		]);
+	});
+});
+
+describe("AGGREGATOR binding transport", () => {
+	// The unfiltered-read contract depends on the blank atproto-accept-labelers
+	// header surviving the service-binding hop: if workerd dropped an
+	// empty-valued header, the aggregator would fall back to default redaction
+	// and return NotFound for redacted subjects, silently blinding analysis.
+	// The vitest AGGREGATOR stub echoes the inbound header as a marker.
+	it("delivers a blank accept-labelers header across the service binding", async () => {
+		const response = await env.AGGREGATOR.fetch("https://aggregator/xrpc/probe", {
+			headers: { "atproto-accept-labelers": "" },
+		});
+		expect(response.headers.get("x-test-accept-labelers")).toBe("empty");
+	});
+
+	// Drives the real binding through AggregatorClient (not an injected mock
+	// Fetcher): proves the getPublisherVerification method reaches the bound
+	// Worker, sends the blank accept-labelers header across the hop, and parses
+	// the view. The vitest AGGREGATOR stub serves the canned view.
+	it("reads publisher verification state through the real AGGREGATOR binding", async () => {
+		const view = await new AggregatorClient(env.AGGREGATOR).getPublisherVerification(
+			"did:plc:abc123",
+		);
+		expect(view).not.toBeNull();
+		expect(view?.did).toBe("did:plc:abc123");
+		expect(view?.verifications).toHaveLength(1);
+		expect(view?.verifications[0]).toMatchObject({
+			issuer: "did:plc:issuerstub00000000000000",
+			handle: "stub.example",
+		});
+	});
+});

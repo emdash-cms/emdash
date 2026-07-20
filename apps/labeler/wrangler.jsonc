@@ -1,0 +1,141 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-labeler",
+	"main": "./src/index.ts",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-labeler",
+			// Omitted intentionally: Wrangler auto-provisions this D1 database on first deploy.
+			"migrations_dir": "./migrations",
+		},
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "LABEL_SUBSCRIPTION",
+				"class_name": "LabelSubscriptionDO",
+			},
+			{
+				"name": "LABELER_DISCOVERY_DO",
+				"class_name": "LabelerDiscoveryDO",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["LabelSubscriptionDO"],
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["LabelerDiscoveryDO"],
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "EVIDENCE",
+			"bucket_name": "emdash-labeler-evidence",
+		},
+	],
+	"ai": {
+		"binding": "AI",
+	},
+	// Cloudflare Email Sending for publisher notifications (plan W10.5). The
+	// unrestricted binding form (no destination_address) permits arbitrary
+	// external recipients, which requires the emdashcms.com sending domain to be
+	// onboarded for Email Sending (`wrangler email sending enable`, operator
+	// prereq). Consumed via src/notification-email.ts.
+	"send_email": [{ "name": "EMAIL" }],
+	// Read-only service binding to the aggregator Worker's XRPC surface
+	// (fetch-over-binding; the aggregator is HTTP/XRPC-only, no RPC entrypoint).
+	// Consumed via src/aggregator-client.ts.
+	"services": [
+		{
+			"binding": "AGGREGATOR",
+			"service": "emdash-aggregator",
+		},
+	],
+	// One Workflow instance per assessment run drives it to finalization (a
+	// durable shell over AssessmentOrchestrator). The instance id is the run's
+	// runKey, so a redelivered discovery event dedups onto the same instance
+	// while a re-assessment (distinct trigger → distinct runKey) gets its own.
+	// See src/assessment-workflow.ts and src/assessment-dispatch.ts.
+	"workflows": [
+		{
+			"name": "emdash-labeler-assessment",
+			"binding": "ASSESSMENT_WORKFLOW",
+			"class_name": "AssessmentWorkflow",
+		},
+	],
+	// Operator console SPA (apps/labeler/console), built to ./dist/console by
+	// `console:build`. `run_worker_first: true` keeps the Worker the sole
+	// router: the SPA fallback only fires where index.ts explicitly calls
+	// env.ASSETS.fetch (the /admin branch), so the public XRPC/well-known
+	// surface and the root 404 are unaffected. See W9.3 design.
+	"assets": {
+		"directory": "./dist/console",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": true,
+	},
+	"queues": {
+		"producers": [
+			{
+				"binding": "DISCOVERY_QUEUE",
+				"queue": "emdash-labeler-discovery",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "emdash-labeler-discovery",
+				"max_batch_size": 25,
+				"max_batch_timeout": 5,
+				"max_retries": 5,
+				"dead_letter_queue": "emdash-labeler-discovery-dlq",
+			},
+			{
+				// Drains the discovery DLQ: logs + writes a `dead_letters` row,
+				// then acks. Same posture as the aggregator's records DLQ
+				// (see apps/aggregator/wrangler.jsonc).
+				"queue": "emdash-labeler-discovery-dlq",
+				"max_batch_size": 25,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+			},
+		],
+	},
+	"triggers": {
+		// Liveness ping for the discovery DO (same rationale as the
+		// aggregator's records DO: it holds an outbound Jetstream WebSocket
+		// and can be evicted mid-backoff during an outage) and the
+		// reconciliation pass (plan W6.8).
+		"crons": ["*/5 * * * *"],
+	},
+	"vars": {
+		"LABELER_DID": "did:web:labels.emdashcms.com",
+		"LABELER_SERVICE_URL": "https://labels.emdashcms.com",
+		// From-address for publisher notifications, on the onboarded Email Sending
+		// domain (plan W10.5). Consumed via src/notification-email.ts.
+		"NOTIFICATION_FROM_ADDRESS": "notifications@emdashcms.com",
+		"LABEL_SIGNING_KEY_VERSION": "v1",
+		"LABEL_SIGNING_PUBLIC_KEY": "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
+		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
+		// Operator console Access config (parsed via parseAccessAuthConfig).
+		// Group names / audience tag are not secrets. Replace `audience` with the
+		// Access application's AUD tag and the group names with the deployment's.
+		"OPERATOR_ACCESS_CONFIG": "{\"teamDomain\":\"https://emdash.cloudflareaccess.com\",\"audience\":\"REPLACE_WITH_ACCESS_APP_AUD_TAG\",\"admins\":[\"emdash-labeler-admins\"],\"reviewers\":[\"emdash-labeler-reviewers\"]}",
+	},
+	// Required secrets, declared in config so `wrangler types` generates the
+	// typed bindings and `wrangler deploy` validates each secret is set on the
+	// target Worker before publishing. Set in production with
+	// `wrangler secret put <NAME>`; tests bind stubs via miniflare in
+	// vitest.config.ts. NOTIFICATION_HASH_PEPPER keys publisher-notification
+	// recipient hashes (src/notification-contacts.ts).
+	"secrets": {
+		"required": ["LABEL_SIGNING_PRIVATE_KEY", "NOTIFICATION_HASH_PEPPER"],
+	},
+	"observability": { "enabled": true },
+}

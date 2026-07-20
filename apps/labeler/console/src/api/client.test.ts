@@ -1,0 +1,409 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createFetchClient, createFixtureClient } from "./client.js";
+import type { LabelActionInput } from "./types.js";
+
+const apiClient = createFixtureClient();
+
+describe("fixture client", () => {
+	it("lists assessments newest first", async () => {
+		const page = await apiClient.listAssessments();
+		expect(page.items.length).toBeGreaterThan(0);
+		const timestamps = page.items.map((a) => Date.parse(a.createdAt));
+		expect(timestamps).toEqual(timestamps.toSorted((a, b) => b - a));
+	});
+
+	it("filters assessments by public state", async () => {
+		const page = await apiClient.listAssessments({ state: "blocked" });
+		expect(page.items.length).toBeGreaterThan(0);
+		expect(page.items.every((a) => a.publicState === "blocked")).toBe(true);
+	});
+
+	it("returns findings for a blocked assessment", async () => {
+		const [blocked] = (await apiClient.listAssessments({ state: "blocked" })).items;
+		expect(blocked).toBeDefined();
+		const findings = await apiClient.listFindings(blocked!.id);
+		expect(findings.length).toBeGreaterThan(0);
+		for (const finding of findings) {
+			expect(finding.assessmentId).toBe(blocked!.id);
+		}
+	});
+
+	it("returns null for an unknown assessment id", async () => {
+		expect(await apiClient.getAssessment("asmt_does_not_exist")).toBeNull();
+	});
+
+	it("returns subject history keyed by the exact URI", async () => {
+		const [assessment] = (await apiClient.listAssessments()).items;
+		expect(assessment).toBeDefined();
+		const history = await apiClient.getSubjectHistory(assessment!.uri);
+		expect(history?.subject.uri).toBe(assessment!.uri);
+		expect(history?.assessments.some((a) => a.id === assessment!.id)).toBe(true);
+	});
+
+	it("lists dead letters newest-first with a new (actionable) row", async () => {
+		const page = await apiClient.listDeadLetters();
+		expect(page.items.length).toBeGreaterThan(0);
+		const ids = page.items.map((d) => d.id);
+		expect(ids).toEqual(ids.toSorted((a, b) => b - a));
+		expect(page.items.some((d) => d.status === "new")).toBe(true);
+	});
+
+	it("lists reconsiderations with an open and a resolved case", async () => {
+		const page = await apiClient.listReconsiderations();
+		expect(page.items.length).toBeGreaterThan(0);
+		expect(page.items.some((r) => r.state === "open")).toBe(true);
+		expect(page.items.some((r) => r.state === "resolved" && r.outcome !== null)).toBe(true);
+	});
+
+	it("returns a reconsideration case with its oldest-first note thread", async () => {
+		const [first] = (await apiClient.listReconsiderations()).items;
+		expect(first).toBeDefined();
+		const detail = await apiClient.getReconsideration(first!.id);
+		expect(detail?.reconsideration.id).toBe(first!.id);
+		expect(detail!.notes.length).toBeGreaterThan(0);
+		const timestamps = detail!.notes.map((n) => Date.parse(n.createdAt));
+		expect(timestamps).toEqual(timestamps.toSorted((a, b) => a - b));
+	});
+
+	it("returns null for an unknown reconsideration id", async () => {
+		expect(await apiClient.getReconsideration("recon_missing")).toBeNull();
+	});
+});
+
+describe("fetch client label actions", () => {
+	const fetchClient = createFetchClient();
+	let calls: { url: string; init: RequestInit }[];
+
+	function stubFetch(response: () => Response) {
+		calls = [];
+		vi.stubGlobal(
+			"fetch",
+			vi.fn((url: string, init: RequestInit) => {
+				calls.push({ url, init });
+				return Promise.resolve(response());
+			}),
+		);
+	}
+
+	const input: LabelActionInput = {
+		uri: "at://did:plc:x/com.emdashcms.experimental.package.release/rk1",
+		val: "security-yanked",
+		confirmation: "rk1",
+		reason: "withdrawing",
+		idempotencyKey: "01HZY9K0ULIDXULIDXULIDX00",
+	};
+
+	beforeEach(() => {
+		stubFetch(() =>
+			Response.json({ data: { actionId: "oact_1", val: "security-yanked", neg: false } }),
+		);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it("POSTs an issue with the CSRF header, JSON content type, and threaded key", async () => {
+		const result = await fetchClient.issueLabel(input);
+		expect(result).toMatchObject({ actionId: "oact_1", val: "security-yanked" });
+		expect(calls).toHaveLength(1);
+		const call = calls[0]!;
+		expect(call.url).toBe("/admin/api/labels/issue");
+		expect(call.init.method).toBe("POST");
+		const headers = new Headers(call.init.headers);
+		expect(headers.get("X-EmDash-Request")).toBe("1");
+		expect(headers.get("Content-Type")).toBe("application/json");
+		expect(JSON.parse(call.init.body as string)).toMatchObject({
+			uri: input.uri,
+			val: input.val,
+			confirmation: input.confirmation,
+			reason: input.reason,
+			idempotencyKey: input.idempotencyKey,
+		});
+	});
+
+	it("POSTs a retract to the retract route", async () => {
+		await fetchClient.retractLabel(input);
+		expect(calls[0]!.url).toBe("/admin/api/labels/retract");
+		expect(calls[0]!.init.method).toBe("POST");
+	});
+
+	it("surfaces the server error message on a failed action", async () => {
+		stubFetch(() =>
+			Response.json(
+				{ error: { code: "CONFIRMATION_MISMATCH", message: "does not match" } },
+				{
+					status: 400,
+				},
+			),
+		);
+		await expect(fetchClient.issueLabel(input)).rejects.toThrow("does not match");
+	});
+
+	it("surfaces a retryable 503 as an error, not a false success", async () => {
+		stubFetch(() =>
+			Response.json(
+				{
+					error: {
+						code: "LABEL_ISSUANCE_UNAVAILABLE",
+						message: "Label issuance is temporarily unavailable; retry.",
+					},
+				},
+				{ status: 503 },
+			),
+		);
+		await expect(fetchClient.issueLabel(input)).rejects.toThrow(
+			"Label issuance is temporarily unavailable; retry.",
+		);
+	});
+
+	it("builds the effect-preview query string", async () => {
+		stubFetch(() =>
+			Response.json({ data: { labelEffect: "block", scope: "cid-bound", supersedes: [] } }),
+		);
+		await fetchClient.previewEffect({ uri: input.uri, val: "malware", cid: "bafy", neg: true });
+		const url = calls[0]!.url;
+		expect(url).toContain("/admin/api/labels/effect-preview?");
+		expect(url).toContain(`uri=${encodeURIComponent(input.uri)}`);
+		expect(url).toContain("val=malware");
+		expect(url).toContain("cid=bafy");
+		expect(url).toContain("neg=true");
+	});
+
+	it("POSTs a rerun with the CSRF header, JSON content type, and threaded key", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", runId: "asmt_1" } }));
+		const action = {
+			confirmation: "bafy",
+			reason: "reassess",
+			idempotencyKey: input.idempotencyKey,
+		};
+		const result = await fetchClient.rerunAssessment("asmt_target", action);
+		expect(result).toMatchObject({ actionId: "oact_1", runId: "asmt_1" });
+		const call = calls[0]!;
+		expect(call.url).toBe("/admin/api/assessments/asmt_target/rerun");
+		expect(call.init.method).toBe("POST");
+		const headers = new Headers(call.init.headers);
+		expect(headers.get("X-EmDash-Request")).toBe("1");
+		expect(headers.get("Content-Type")).toBe("application/json");
+		expect(JSON.parse(call.init.body as string)).toMatchObject(action);
+	});
+
+	it("POSTs an override to the override route with the negate set", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", negated: ["malware"] } }));
+		await fetchClient.overrideAssessment("asmt_target", {
+			confirmation: "bafy",
+			reason: "false positive",
+			idempotencyKey: input.idempotencyKey,
+			negate: ["malware", "data-exfiltration"],
+		});
+		expect(calls[0]!.url).toBe("/admin/api/assessments/asmt_target/override");
+		expect(JSON.parse(calls[0]!.init.body as string).negate).toEqual([
+			"malware",
+			"data-exfiltration",
+		]);
+	});
+
+	it("POSTs an override-retract to the override-retract route", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1" } }));
+		await fetchClient.retractOverride("asmt_target", {
+			confirmation: "bafy",
+			reason: "override was wrong",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(calls[0]!.url).toBe("/admin/api/assessments/asmt_target/override-retract");
+		expect(calls[0]!.init.method).toBe("POST");
+	});
+
+	it("GETs subject labels with the CID", async () => {
+		stubFetch(() => Response.json({ data: [{ val: "assessment-overridden", active: true }] }));
+		const labels = await fetchClient.getSubjectLabels(input.uri, "bafy");
+		expect(labels).toEqual([{ val: "assessment-overridden", active: true }]);
+		const url = calls[0]!.url;
+		expect(url).toContain(`/admin/api/subjects/${encodeURIComponent(input.uri)}/labels?`);
+		expect(url).toContain("cid=bafy");
+	});
+
+	it("builds the override-effect-preview query with repeated negate params", async () => {
+		stubFetch(() =>
+			Response.json({ data: { labelEffect: "pass", scope: "cid-bound", supersedes: [] } }),
+		);
+		await fetchClient.previewOverrideEffect({
+			uri: input.uri,
+			cid: "bafy",
+			negate: ["malware", "impersonation"],
+		});
+		const url = calls[0]!.url;
+		expect(url).toContain("/admin/api/labels/override-effect-preview?");
+		expect(url).toContain("negate=malware");
+		expect(url).toContain("negate=impersonation");
+	});
+
+	it("POSTs a dead-letter retry to the retry route with the threaded key", async () => {
+		stubFetch(() =>
+			Response.json({ data: { actionId: "oact_1", deadLetterId: 42, status: "retried" } }),
+		);
+		const result = await fetchClient.retryDeadLetter(42, {
+			reason: "re-drive",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(result).toMatchObject({ deadLetterId: 42, status: "retried" });
+		const call = calls[0]!;
+		expect(call.url).toBe("/admin/api/dead-letters/42/retry");
+		expect(call.init.method).toBe("POST");
+		const headers = new Headers(call.init.headers);
+		expect(headers.get("X-EmDash-Request")).toBe("1");
+		expect(headers.get("Content-Type")).toBe("application/json");
+		expect(JSON.parse(call.init.body as string)).toMatchObject({
+			reason: "re-drive",
+			idempotencyKey: input.idempotencyKey,
+		});
+	});
+
+	it("POSTs a dead-letter quarantine to the quarantine route", async () => {
+		stubFetch(() =>
+			Response.json({ data: { actionId: "oact_1", deadLetterId: 42, status: "quarantined" } }),
+		);
+		await fetchClient.quarantineDeadLetter(42, {
+			reason: "reviewed",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(calls[0]!.url).toBe("/admin/api/dead-letters/42/quarantine");
+		expect(calls[0]!.init.method).toBe("POST");
+	});
+
+	it("surfaces the server 409 already-resolved message on a dead-letter retry", async () => {
+		stubFetch(() =>
+			Response.json(
+				{ error: { code: "DEAD_LETTER_RESOLVED", message: "Dead letter is already resolved" } },
+				{ status: 409 },
+			),
+		);
+		await expect(
+			fetchClient.retryDeadLetter(42, { reason: "x", idempotencyKey: input.idempotencyKey }),
+		).rejects.toThrow("Dead letter is already resolved");
+	});
+
+	it("surfaces a 409 idempotency conflict message", async () => {
+		stubFetch(() =>
+			Response.json(
+				{ error: { code: "IDEMPOTENCY_KEY_CONFLICT", message: "key already used" } },
+				{ status: 409 },
+			),
+		);
+		await expect(
+			fetchClient.overrideAssessment("asmt_target", {
+				confirmation: "bafy",
+				reason: "x",
+				idempotencyKey: input.idempotencyKey,
+				negate: ["malware"],
+			}),
+		).rejects.toThrow("key already used");
+	});
+
+	it("GETs the reconsideration list", async () => {
+		stubFetch(() => Response.json({ data: { items: [{ id: "recon_1", state: "open" }] } }));
+		const page = await fetchClient.listReconsiderations({ cursor: "c1", limit: 25 });
+		expect(page.items).toEqual([{ id: "recon_1", state: "open" }]);
+		const url = calls[0]!.url;
+		expect(url).toContain("/admin/api/reconsiderations?");
+		expect(url).toContain("cursor=c1");
+		expect(url).toContain("limit=25");
+	});
+
+	it("GETs one reconsideration, mapping 404 to null", async () => {
+		stubFetch(() => new Response(null, { status: 404 }));
+		expect(await fetchClient.getReconsideration("recon_missing")).toBeNull();
+		expect(calls[0]!.url).toBe("/admin/api/reconsiderations/recon_missing");
+	});
+
+	it("POSTs an open with the CSRF header, JSON content type, and threaded key", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", reconsiderationId: "recon_1" } }));
+		const result = await fetchClient.openReconsideration({
+			assessmentId: "asmt_target",
+			note: "publisher appealed",
+			reason: "opening",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(result).toMatchObject({ reconsiderationId: "recon_1" });
+		const call = calls[0]!;
+		expect(call.url).toBe("/admin/api/reconsiderations/open");
+		expect(call.init.method).toBe("POST");
+		const headers = new Headers(call.init.headers);
+		expect(headers.get("X-EmDash-Request")).toBe("1");
+		expect(headers.get("Content-Type")).toBe("application/json");
+		expect(JSON.parse(call.init.body as string)).toMatchObject({
+			assessmentId: "asmt_target",
+			note: "publisher appealed",
+			reason: "opening",
+			idempotencyKey: input.idempotencyKey,
+		});
+	});
+
+	it("POSTs a note to the case note route", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", noteId: "rnote_1" } }));
+		await fetchClient.addReconsiderationNote("recon_1", {
+			note: "another note",
+			reason: "context",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(calls[0]!.url).toBe("/admin/api/reconsiderations/recon_1/note");
+		expect(calls[0]!.init.method).toBe("POST");
+		expect(JSON.parse(calls[0]!.init.body as string)).toMatchObject({ note: "another note" });
+	});
+
+	it("POSTs a resolve to the resolve route with the outcome", async () => {
+		stubFetch(() => Response.json({ data: { actionId: "oact_1", outcome: "granted" } }));
+		await fetchClient.resolveReconsideration("recon_1", {
+			outcome: "granted",
+			reason: "false positive",
+			idempotencyKey: input.idempotencyKey,
+		});
+		expect(calls[0]!.url).toBe("/admin/api/reconsiderations/recon_1/resolve");
+		expect(calls[0]!.init.method).toBe("POST");
+		expect(JSON.parse(calls[0]!.init.body as string).outcome).toBe("granted");
+	});
+
+	it("surfaces the server 409 open-exists message", async () => {
+		stubFetch(() =>
+			Response.json(
+				{
+					error: {
+						code: "RECONSIDERATION_OPEN_EXISTS",
+						message: "An open reconsideration already exists for this subject",
+					},
+				},
+				{ status: 409 },
+			),
+		);
+		await expect(
+			fetchClient.openReconsideration({
+				assessmentId: "asmt_target",
+				note: "n",
+				reason: "r",
+				idempotencyKey: input.idempotencyKey,
+			}),
+		).rejects.toThrow("An open reconsideration already exists for this subject");
+	});
+
+	it("surfaces the server 409 already-resolved message on a resolve", async () => {
+		stubFetch(() =>
+			Response.json(
+				{
+					error: {
+						code: "RECONSIDERATION_RESOLVED",
+						message: "Reconsideration is already resolved",
+					},
+				},
+				{ status: 409 },
+			),
+		);
+		await expect(
+			fetchClient.resolveReconsideration("recon_1", {
+				outcome: "denied",
+				reason: "r",
+				idempotencyKey: input.idempotencyKey,
+			}),
+		).rejects.toThrow("Reconsideration is already resolved");
+	});
+});

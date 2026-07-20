@@ -28,6 +28,14 @@ import { defineConfig } from "vitest/config";
 const migrationsPath = fileURLToPath(new URL("./migrations", import.meta.url));
 const migrations = await readD1Migrations(migrationsPath);
 
+// Frozen copy of the schema `main` shipped (pre `labellers` -> `labelers`
+// rename), exposed so the upgrade test can provision a database the way an
+// already-deployed instance was before applying the live migration set.
+const mainMigrationsPath = fileURLToPath(
+	new URL("./test/fixtures/main-migrations", import.meta.url),
+);
+const mainMigrations = await readD1Migrations(mainMigrationsPath);
+
 export default defineConfig({
 	plugins: [
 		cloudflareTest({
@@ -35,6 +43,7 @@ export default defineConfig({
 			miniflare: {
 				bindings: {
 					TEST_MIGRATIONS: migrations,
+					MAIN_MIGRATIONS: mainMigrations,
 					// Stub admin auth token so tests can exercise the auth-gated
 					// admin routes without needing a real secret in the test
 					// environment. Production deploys pull from

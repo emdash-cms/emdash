@@ -17,10 +17,11 @@ import { Badge, Button, LinkButton, Select, Tabs, Tooltip } from "@cloudflare/ku
 import type { TabsItem } from "@cloudflare/kumo";
 import { declaredAccessToCapabilities, type DeclaredAccess } from "@emdash-cms/plugin-types";
 import { checkEnvCompatibility } from "@emdash-cms/registry-client/env";
+import { i18n } from "@lingui/core";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { ShieldCheck, Warning } from "@phosphor-icons/react";
+import { ShieldCheck, ShieldWarning, Warning } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -29,23 +30,30 @@ import { fetchManifest } from "../lib/api/client.js";
 import {
 	artifactProxyUrl,
 	canonicalCapabilitiesForDriftCheck,
+	describeModerationLabel,
+	describeRegistryModerationError,
+	evaluateReleaseViews,
 	extractMediaArtifacts,
 	extractSbom,
 	getRegistryPackage,
 	hostEnvFromManifest,
 	installRegistryPlugin,
+	isModerationBlocking,
 	listRegistryReleases,
 	presentSections,
 	releasePassesPolicy,
+	resolveAcceptedPolicy,
+	unionAcceptedPolicies,
 	resolveRegistryPackage,
 	sbomDownloadHref,
+	type ReleaseModeration,
 	type RegistryClientConfig,
 	type RegistryReleaseView,
 	type SectionKey,
 } from "../lib/api/registry.js";
 import { renderMarkdown } from "../lib/markdown.js";
 import { ArrowPrev } from "./ArrowIcons.js";
-import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
+import { CapabilityConsentDialog, type ModerationLabelEntry } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
 import { PublisherHandle, usePublisherHandle } from "./PublisherHandle.js";
 
@@ -98,7 +106,15 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// When linked by DID, go straight to `getPackage(did, slug)`. Either
 	// way we end up with the same `RegistryPackageView` shape.
 	const { data: pkg, isLoading: isLoadingPkg } = useQuery({
-		queryKey: ["registry", "package", config.aggregatorUrl, publisher, slug, isDid],
+		queryKey: [
+			"registry",
+			"package",
+			config.aggregatorUrl,
+			config.acceptLabelers,
+			publisher,
+			slug,
+			isDid,
+		],
 		queryFn: () =>
 			isDid
 				? getRegistryPackage(config, publisher, slug)
@@ -112,13 +128,13 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// DID, because that's an impersonation risk).
 	const handleResult = usePublisherHandle(pkg?.did ?? "", pkg?.handle);
 
-	// `listReleases` returns releases in descending semver order. The aggregator
-	// strips yanked releases server-side when `acceptLabelers` includes a labeller
-	// applying the `security:yanked` label, but sites with no labeller config
-	// receive yanked releases interleaved by version. Filter them out client-side
-	// as defense in depth so the picker never offers an actively-yanked install.
-	// Lexicon-invalid records (`release === null`) are also filtered: they carry
-	// no actionable metadata and can't be installed.
+	// `listReleases` returns releases in descending semver order. Every
+	// release renders in the picker, including a moderation-blocked one
+	// (`security-yanked`, `!takedown`, etc.) -- blocking is surfaced via the
+	// moderation panel and a disabled Install button below, not by hiding the
+	// release from the list. Only lexicon-invalid records (`release ===
+	// null`) are filtered here: they carry no actionable metadata and can't
+	// be installed regardless of moderation state.
 	// `limit: 100` is the lexicon ceiling; one page covers the long tail of
 	// real packages without needing cursor follow-up. Packages with more than
 	// 100 releases would still lose access to the oldest, but that's far past
@@ -130,10 +146,49 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	});
 
 	const releases = React.useMemo<RegistryReleaseView[]>(
-		() => (releasesData?.releases ?? []).filter((r) => r.release !== null && !isYanked(r)),
+		() => (releasesData?.releases ?? []).filter((r) => r.release !== null),
 		[releasesData],
 	);
 	const hasFilteredAllReleases = (releasesData?.releases.length ?? 0) > 0 && releases.length === 0;
+
+	// Moderation, evaluated per release against the accepted policy that
+	// actually produced each response's labels -- the aggregator reports what
+	// it applied per request via `atproto-content-labelers`, and package-scope
+	// labels ride on the package response while release-scope labels ride on
+	// the releases response. Both header-derived policies are unioned (a
+	// labeler either response honored is honored here) so a package/publisher
+	// block filtered out of the releases policy is still surfaced; a union can
+	// only add applicable labels' sources, never drop a real block.
+	const acceptedForReleases = React.useMemo(
+		() =>
+			unionAcceptedPolicies(
+				resolveAcceptedPolicy({
+					configuredAcceptLabelers: config.acceptLabelers,
+					contentLabelersHeader: pkg?.contentLabelers,
+				}),
+				resolveAcceptedPolicy({
+					configuredAcceptLabelers: config.acceptLabelers,
+					contentLabelersHeader: releasesData?.contentLabelers,
+				}),
+			),
+		[config.acceptLabelers, pkg?.contentLabelers, releasesData?.contentLabelers],
+	);
+	const moderationByVersion = React.useMemo(() => {
+		const map = new Map<string, ReleaseModeration>();
+		if (!pkg) return map;
+		for (const r of releases) {
+			map.set(
+				r.version,
+				evaluateReleaseViews({
+					packageView: pkg,
+					releaseView: r,
+					publisherDid: pkg.did,
+					accepted: acceptedForReleases,
+				}),
+			);
+		}
+		return map;
+	}, [pkg, releases, acceptedForReleases]);
 
 	// Default to the highest semver that passes the policy holdback. When every
 	// release is still inside the holdback window, fall back to the highest
@@ -160,7 +215,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		setSelectedVersion(undefined);
 	}
 	// Reconcile when the release list changes underneath an explicit selection
-	// (the selected version got yanked between visits, the labeller config
+	// (the selected version got yanked between visits, the labeler config
 	// changed, etc.). Dropping back to the default avoids the Select trigger
 	// rendering a value with no matching option.
 	if (
@@ -177,6 +232,31 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		[releases, effectiveVersion],
 	);
 	const isPreRelease = release ? isPreReleaseVersion(release.version) : false;
+
+	// Moderation state of the selected release. Consumers must key off
+	// `isModerationBlocking(...)` / `warningLabels`, never `eligibility`
+	// directly -- see the JSDoc on `RegistryUpdateCheck.moderation` in
+	// packages/core's registry handler for why.
+	const selectedModeration = release ? moderationByVersion.get(release.version) : undefined;
+	const isModerationBlocked = selectedModeration ? isModerationBlocking(selectedModeration) : false;
+	const moderationWarningEntries = React.useMemo<ModerationLabelEntry[]>(() => {
+		if (!selectedModeration) return [];
+		return selectedModeration.applicableLabels
+			.filter((l) => selectedModeration.warningLabels.includes(l.val))
+			.map((l) => {
+				const { name, description } = describeModerationLabel(l.val);
+				return { value: l.val, name, description, issuerDid: l.src };
+			});
+	}, [selectedModeration]);
+	const moderationBlockingEntries = React.useMemo<ModerationLabelEntry[]>(() => {
+		if (!selectedModeration) return [];
+		return selectedModeration.applicableLabels
+			.filter((l) => selectedModeration.blockingLabels.includes(l.val))
+			.map((l) => {
+				const { name, description } = describeModerationLabel(l.val);
+				return { value: l.val, name, description, issuerDid: l.src };
+			});
+	}, [selectedModeration]);
 
 	// `release.extensions[com.emdashcms.experimental.package.releaseExtension]`
 	// carries the structured `declaredAccess` -- the trust contract. The sandbox
@@ -233,14 +313,14 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// `repo` is a release-level field (`release.repo`), not a profile field.
 	const repoHref = safeExternalHref(release?.release?.repo);
 
-	// Verified-publisher label. `src` is the labeller DID that issued it — shown
+	// Verified-publisher label. `src` is the labeler DID that issued it — shown
 	// in the shield tooltip so the admin can judge who is vouching for the
 	// publisher, not just that *someone* did.
 	const verifiedLabel = (pkg?.labels ?? []).find((l: { val?: string }) => l.val === "verified") as
 		| { val?: string; src?: string }
 		| undefined;
 	const verified = Boolean(verifiedLabel);
-	const verifiedLabeller = typeof verifiedLabel?.src === "string" ? verifiedLabel.src : null;
+	const verifiedLabeler = typeof verifiedLabel?.src === "string" ? verifiedLabel.src : null;
 
 	// Long-form profile sections (description / installation / faq / changelog /
 	// security). Empty / whitespace-only entries are dropped by `presentSections`;
@@ -435,17 +515,17 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						{verified ? (
 							<Tooltip
 								content={
-									verifiedLabeller
-										? t`Verified publisher. A labeller (${verifiedLabeller}) has confirmed this publisher's identity.`
-										: t`Verified publisher. A labeller has confirmed this publisher's identity.`
+									verifiedLabeler
+										? t`Verified publisher. A labeler (${verifiedLabeler}) has confirmed this publisher's identity.`
+										: t`Verified publisher. A labeler has confirmed this publisher's identity.`
 								}
 								render={
 									<button
 										type="button"
 										className="inline-flex shrink-0 cursor-help rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
 										aria-label={
-											verifiedLabeller
-												? t`Verified publisher, confirmed by labeller ${verifiedLabeller}`
+											verifiedLabeler
+												? t`Verified publisher, confirmed by labeler ${verifiedLabeler}`
 												: t`Verified publisher`
 										}
 									>
@@ -512,6 +592,10 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 									{ did: pkg.did, slug },
 									config.policy,
 								);
+								const releaseModeration = moderationByVersion.get(r.version);
+								const moderationBlocked = releaseModeration
+									? isModerationBlocking(releaseModeration)
+									: false;
 								return (
 									<Select.Option key={r.version} value={r.version}>
 										<span className="flex items-center gap-2">
@@ -521,6 +605,9 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 											) : null}
 											{policyBlocked ? (
 												<span className="text-xs text-kumo-subtle">{t`(too new)`}</span>
+											) : null}
+											{moderationBlocked ? (
+												<span className="text-xs text-kumo-error">{t`(blocked)`}</span>
 											) : null}
 										</span>
 									</Select.Option>
@@ -535,7 +622,13 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					) : (
 						<Button
 							variant="primary"
-							disabled={!release || !policyOk || !envOk || handleResult.status === "invalid"}
+							disabled={
+								!release ||
+								!policyOk ||
+								!envOk ||
+								handleResult.status === "invalid" ||
+								isModerationBlocked
+							}
 							onClick={() => setShowConsent(true)}
 						>
 							{t`Install`}
@@ -569,8 +662,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				</div>
 			) : null}
 
-			{/* All releases withdrawn or malformed — the aggregator returned
-			    records but none survived the yanked + lexicon-validity filter. */}
+			{/* All releases malformed — the aggregator returned records but none
+			    survived the lexicon-validity filter. */}
 			{hasFilteredAllReleases ? (
 				<div
 					className="flex items-start gap-3 rounded-md border border-kumo-warning bg-kumo-warning/10 p-4 text-kumo-warning"
@@ -622,6 +715,52 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 								<li key={m.key}>
 									{t`${envLabel(m.key)} ${m.required} required — you have ${m.host}.`}
 								</li>
+							))}
+						</ul>
+					</div>
+				</div>
+			) : null}
+
+			{/* Moderation panel for the selected release. Distinguishes a hard
+			    block (error styling, install disabled -- already enforced above)
+			    from warning-only labels (which stay installable behind the
+			    consent dialog's warnings section). `suppressedLabels` / override
+			    display is deferred until overrides exist. */}
+			{release && selectedModeration && isModerationBlocked ? (
+				<div
+					className="flex items-start gap-3 rounded-md border border-kumo-error bg-kumo-error/10 p-4 text-kumo-error"
+					role="alert"
+				>
+					<Warning className="mt-0.5 h-5 w-5 shrink-0" />
+					<div className="min-w-0 flex-1">
+						<p className="font-medium">{t`This release is blocked`}</p>
+						<p className="mt-1 text-sm text-kumo-default">
+							{t`A moderation label prevents this release from being installed.`}
+						</p>
+						<ul className="mt-3 space-y-2 text-sm text-kumo-default">
+							{moderationBlockingEntries.map((entry) => (
+								<ModerationLabelRow key={`${entry.value}-${entry.issuerDid}`} entry={entry} />
+							))}
+						</ul>
+					</div>
+				</div>
+			) : null}
+
+			{release &&
+			selectedModeration &&
+			!isModerationBlocked &&
+			moderationWarningEntries.length > 0 ? (
+				<div
+					className="flex items-start gap-3 rounded-md border border-kumo-warning bg-kumo-warning/10 p-4 text-kumo-warning"
+					role="status"
+				>
+					<Warning className="mt-0.5 h-5 w-5 shrink-0" />
+					<div className="min-w-0 flex-1">
+						<p className="font-medium">{t`This release has moderation warnings`}</p>
+						<p className="mt-1 text-sm text-kumo-default">{t`Review these before installing.`}</p>
+						<ul className="mt-3 space-y-2 text-sm text-kumo-default">
+							{moderationWarningEntries.map((entry) => (
+								<ModerationLabelRow key={`${entry.value}-${entry.issuerDid}`} entry={entry} />
 							))}
 						</ul>
 					</div>
@@ -773,8 +912,12 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					mode="install"
 					pluginName={displayName ?? slug}
 					capabilities={capabilities}
+					moderationWarnings={moderationWarningEntries}
 					isPending={installMutation.isPending}
-					error={getMutationError(installMutation.error)}
+					error={
+						describeRegistryModerationError(installMutation.error) ??
+						getMutationError(installMutation.error)
+					}
 					onConfirm={() => installMutation.mutate()}
 					onCancel={() => {
 						setShowConsent(false);
@@ -793,6 +936,36 @@ const SECTION_LABELS: Record<SectionKey, MessageDescriptor> = {
 	changelog: msg`Changelog`,
 	security: msg`Security`,
 };
+
+/**
+ * One row in the moderation panel: label name, description, and a tooltip
+ * trigger naming the issuing labeler DID -- the same icon-plus-tooltip
+ * pattern the verified-publisher shield uses above, so the admin can judge
+ * who issued the label, not just that some labeler did.
+ */
+function ModerationLabelRow({ entry }: { entry: ModerationLabelEntry }) {
+	const { t } = useLingui();
+	return (
+		<li className="flex items-start gap-2">
+			<Tooltip
+				content={t`Issued by labeler ${entry.issuerDid}`}
+				render={
+					<button
+						type="button"
+						className="mt-0.5 inline-flex shrink-0 cursor-help rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
+						aria-label={t`Issued by labeler ${entry.issuerDid}`}
+					>
+						<ShieldWarning className="h-4 w-4" aria-hidden />
+					</button>
+				}
+			/>
+			<div>
+				<p className="font-medium">{entry.name}</p>
+				{entry.description ? <p className="text-kumo-default">{entry.description}</p> : null}
+			</div>
+		</li>
+	);
+}
 
 function BackLink() {
 	const { t } = useLingui();
@@ -828,25 +1001,6 @@ function envLabel(key: string): string {
 	if (key === "env:emdash") return "EmDash";
 	if (key === "env:astro") return "Astro";
 	return key.startsWith("env:") ? key.slice("env:".length) : key;
-}
-
-const YANKED_LABEL_VALUE = "security:yanked";
-
-/**
- * Aggregators forward labels applied by their configured labellers. `security:yanked`
- * is a hard-enforcement label that publishers can self-apply (or that a labeller
- * applies on their behalf) to retract a release after publication. Sites whose
- * `acceptLabelers` config includes the labeller never see yanked releases at all
- * (server filtering), but sites without it receive yanked releases interleaved
- * with installable ones — filter them out so they never reach the picker.
- *
- * `neg` (negated labels) is intentionally ignored to match the server install
- * handler, which only checks `l.val === "security:yanked"`. Diverging here would
- * let the UI surface an install affordance the server will reject with
- * `RELEASE_YANKED`. Honoring `neg` on both sides is a separate follow-up.
- */
-function isYanked(release: RegistryReleaseView): boolean {
-	return (release.labels ?? []).some((l) => l.val === YANKED_LABEL_VALUE);
 }
 
 function formatDate(iso: string): string {
@@ -922,8 +1076,15 @@ function LicenseBadge({ license }: { license: string }) {
 }
 
 function formatHoldback(seconds: number): string {
-	if (seconds <= 0) return "0s";
-	if (seconds < 60 * 60) return `${Math.round(seconds / 60)} min`;
-	if (seconds < 24 * 60 * 60) return `${Math.round(seconds / 60 / 60)} h`;
-	return `${Math.round(seconds / 60 / 60 / 24)} d`;
+	if (seconds <= 0) return i18n._(msg`0 seconds`);
+	if (seconds < 60 * 60) {
+		const minutes = Math.round(seconds / 60);
+		return i18n._(plural(minutes, { one: "# minute", other: "# minutes" }));
+	}
+	if (seconds < 24 * 60 * 60) {
+		const hours = Math.round(seconds / 60 / 60);
+		return i18n._(plural(hours, { one: "# hour", other: "# hours" }));
+	}
+	const days = Math.round(seconds / 60 / 60 / 24);
+	return i18n._(plural(days, { one: "# day", other: "# days" }));
 }

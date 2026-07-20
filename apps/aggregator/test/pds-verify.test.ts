@@ -15,12 +15,21 @@
  */
 
 import { P256PublicKey, P256PrivateKeyExportable } from "@atcute/crypto";
+import type { DnsResolver } from "emdash/security/ssrf";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { fetchAndVerifyRecord, isTransient, PdsVerificationError } from "../src/pds-verify.js";
 
 const TEST_DID = "did:plc:test00000000000000000000";
 const TEST_PDS = "https://pds.test.example";
+const TEST_PDS_HOST = "pds.test.example";
+/** A public, non-reserved address so the default resolver stub passes the
+ * SSRF blocklist. Real production uses `cloudflareDohResolver`. */
+const PUBLIC_IP = "93.184.216.34";
+
+/** Default resolver stub: every hostname maps to one public address. Tests that
+ * exercise the SSRF boundary pass their own. */
+const publicResolver: DnsResolver = async () => [PUBLIC_IP];
 
 let publicKey: P256PublicKey;
 
@@ -44,6 +53,8 @@ function buildOpts(overrides: {
 	fetch: typeof fetch;
 	timeoutMs?: number;
 	maxResponseBytes?: number;
+	pds?: string;
+	resolveHostname?: DnsResolver;
 }) {
 	return {
 		pds: TEST_PDS,
@@ -51,6 +62,7 @@ function buildOpts(overrides: {
 		collection: "com.emdashcms.experimental.package.profile",
 		rkey: "demo",
 		publicKey,
+		resolveHostname: publicResolver,
 		...overrides,
 	};
 }
@@ -146,6 +158,181 @@ describe("fetchAndVerifyRecord — HTTP path", () => {
 		const err = await captureRejection(fetchAndVerifyRecord(buildOpts({ fetch: fetchImpl })));
 		expect(err.reason).toBe("INVALID_PROOF");
 		expect(err.cause).toBeDefined();
+	});
+});
+
+describe("fetchAndVerifyRecord — SSRF egress hardening", () => {
+	const rejectFetch: typeof fetch = () => {
+		throw new Error("fetch must not be reached when the URL is blocked");
+	};
+
+	it("fails closed with PDS_ADDRESS_BLOCKED when no resolver is provided", async () => {
+		const err = await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: rejectFetch, resolveHostname: undefined })),
+		);
+		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
+	});
+
+	it("rejects a non-HTTPS PDS endpoint with PDS_ADDRESS_BLOCKED", async () => {
+		const err = await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: rejectFetch, pds: "http://pds.test.example" })),
+		);
+		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
+	});
+
+	it("maps an empty DNS answer to the transient PDS_NETWORK_ERROR", async () => {
+		// An empty resolver answer (NXDOMAIN / NOERROR-NODATA / CNAME-only) is a
+		// host mid-propagation, not a disallowed address — it must retry, not
+		// dead-letter. A genuinely-gone host dead-letters via retry exhaustion.
+		// Keyed on the shared helper's `Hostname resolved to no addresses` wording;
+		// this breaks if that wording changes rather than silently mis-classifying.
+		const err = await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: rejectFetch, resolveHostname: async () => [] })),
+		);
+		expect(err.reason).toBe("PDS_NETWORK_ERROR");
+		expect(isTransient(err.reason, err.status)).toBe(true);
+		// Carries a re-delivery delay so retries span the DNS-propagation window.
+		expect(err.retryAfterSeconds).toBeGreaterThan(0);
+	});
+
+	it("maps a resolver infrastructure failure to the transient PDS_NETWORK_ERROR", async () => {
+		// A throwing resolver models a DoH network error / SERVFAIL / timeout —
+		// transient infrastructure, not a disallowed address. It must NOT dead-letter.
+		// If the shared helper's `Could not resolve hostname:` wording ever changes,
+		// this assertion breaks instead of silently mis-classifying as permanent.
+		const throwingResolver: DnsResolver = () => Promise.reject(new Error("DoH 503"));
+		const err = await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: rejectFetch, resolveHostname: throwingResolver })),
+		);
+		expect(err.reason).toBe("PDS_NETWORK_ERROR");
+		expect(isTransient(err.reason, err.status)).toBe(true);
+		expect(err.retryAfterSeconds).toBeGreaterThan(0);
+	});
+
+	it("rejects when the endpoint resolves to a private address", async () => {
+		const err = await captureRejection(
+			fetchAndVerifyRecord(
+				buildOpts({ fetch: rejectFetch, resolveHostname: async () => ["10.0.0.5"] }),
+			),
+		);
+		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
+	});
+
+	it("re-validates a redirect target and blocks one resolving to a reserved address", async () => {
+		// Initial host resolves public; the redirect target resolves to the
+		// cloud-metadata address. The private target must never be fetched.
+		const resolver: DnsResolver = async (host) =>
+			host === TEST_PDS_HOST ? [PUBLIC_IP] : ["169.254.169.254"];
+		let evilFetched = false;
+		const redirectModes: RequestInit["redirect"][] = [];
+		const fetchImpl: typeof fetch = (input, init) => {
+			redirectModes.push(init?.redirect);
+			const href =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (href.includes(TEST_PDS_HOST)) {
+				return Promise.resolve(
+					new Response(null, {
+						status: 302,
+						headers: { location: "https://metadata.evil.example/x" },
+					}),
+				);
+			}
+			evilFetched = true;
+			return Promise.resolve(new Response(new Uint8Array([0]), { status: 200 }));
+		};
+		const err = await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: fetchImpl, resolveHostname: resolver })),
+		);
+		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
+		expect(evilFetched).toBe(false);
+		// `redirect: "manual"` is load-bearing: it's what forces our own per-hop
+		// re-validation instead of fetch auto-following unchecked.
+		expect(redirectModes).toEqual(["manual"]);
+	});
+
+	it("follows a redirect to a public target under redirect:manual on every hop", async () => {
+		// Both hosts resolve public; the redirect is followed to the second host,
+		// which returns garbage bytes (verifyRecord then rejects). The point is
+		// that each hop was issued with `redirect: "manual"`.
+		const redirectModes: RequestInit["redirect"][] = [];
+		const fetchImpl: typeof fetch = (input, init) => {
+			redirectModes.push(init?.redirect);
+			const href =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (href.includes(TEST_PDS_HOST)) {
+				return Promise.resolve(
+					new Response(null, {
+						status: 302,
+						headers: { location: "https://mirror.test.example/x" },
+					}),
+				);
+			}
+			return Promise.resolve(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+		};
+		await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: fetchImpl, resolveHostname: publicResolver })),
+		);
+		expect(redirectModes).toEqual(["manual", "manual"]);
+	});
+
+	it("rejects a malformed redirect Location with PDS_ADDRESS_BLOCKED", async () => {
+		// `http://` has an empty authority — `new URL` throws. A hostile publisher
+		// controls this header, so the parse failure must be a blocked redirect,
+		// not an escaping UNEXPECTED_ERROR, and the next hop must not be fetched.
+		let hops = 0;
+		const fetchImpl: typeof fetch = () => {
+			hops += 1;
+			return Promise.resolve(new Response(null, { status: 302, headers: { location: "http://" } }));
+		};
+		const err = await captureRejection(fetchAndVerifyRecord(buildOpts({ fetch: fetchImpl })));
+		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
+		expect(hops).toBe(1);
+	});
+
+	it("rejects with PDS_ADDRESS_BLOCKED when redirects exceed the hop limit", async () => {
+		// Every hop redirects to a fresh public host. After MAX_PDS_REDIRECTS
+		// followed hops the next redirect is refused (permanent — dead-letter).
+		let hops = 0;
+		const fetchImpl: typeof fetch = () => {
+			hops += 1;
+			return Promise.resolve(
+				new Response(null, {
+					status: 302,
+					headers: { location: `https://hop-${hops}.test.example/x` },
+				}),
+			);
+		};
+		const err = await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: fetchImpl, resolveHostname: publicResolver })),
+		);
+		expect(err.reason).toBe("PDS_ADDRESS_BLOCKED");
+		expect(err.message).toMatch(/exceeded 3 redirects/);
+		// Initial hop + 3 followed redirects are fetched; the 4th is refused
+		// before a fetch is issued.
+		expect(hops).toBe(4);
+	});
+
+	it("bounds a slow-drip body by the wall-clock deadline", async () => {
+		// One byte then silence; the read only unblocks when the deadline aborts
+		// the fetch signal, which errors the stream.
+		const fetchImpl: typeof fetch = (_input, init) => {
+			const stream = new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(new Uint8Array([1]));
+					init?.signal?.addEventListener("abort", () => {
+						controller.error(new DOMException("aborted", "AbortError"));
+					});
+				},
+			});
+			return Promise.resolve(new Response(stream, { status: 200 }));
+		};
+		const err = await captureRejection(
+			fetchAndVerifyRecord(buildOpts({ fetch: fetchImpl, timeoutMs: 30 })),
+		);
+		expect(err.reason).toBe("PDS_NETWORK_ERROR");
+		expect(err.message).toMatch(/aborted after 30ms/);
+		// A non-resolution transient retries immediately — no propagation delay.
+		expect(err.retryAfterSeconds).toBeUndefined();
 	});
 });
 
