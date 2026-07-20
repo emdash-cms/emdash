@@ -1,0 +1,21 @@
+.changeset/calm-focus-surfaces.md
+  s_8bd99f89d5c5f7::t_b170183870f3a5 5
+packages/admin/src/components/ContentEditor.tsx
+  s_8bd99f89d5c5f7::t_f1a8b1de28ab18 1187-1190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "249385f07cdaa727579d3bc0ea3a2c9f11132e09",
+  "prompts": {},
+  "sessions": {
+    "s_8bd99f89d5c5f7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f77a0-6271-7380-bb92-efb9e797b817",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
