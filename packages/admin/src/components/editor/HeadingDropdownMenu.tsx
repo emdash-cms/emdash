@@ -146,7 +146,7 @@ export const HeadingDropdownMenu = React.forwardRef<HTMLButtonElement, HeadingDr
 							variant="ghost"
 							className={cn(
 								"h-8 min-w-11 flex-none gap-0.5 px-2",
-								isActive && "bg-kumo-tint text-kumo-default",
+								isActive && "bg-kumo-interact/50 text-kumo-default hover:bg-kumo-interact/50",
 								className,
 							)}
 							disabled={!canToggle}

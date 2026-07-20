@@ -136,6 +136,16 @@ function getToolbarButton(screen: Awaited<ReturnType<typeof render>>, name: stri
 	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name });
 }
 
+function expectVisibleActiveState(element: HTMLElement) {
+	expect(element.classList.contains("bg-kumo-interact/50")).toBe(true);
+	expect(element.classList.contains("hover:bg-kumo-interact/50")).toBe(true);
+}
+
+function expectNoVisibleActiveState(element: HTMLElement) {
+	expect(element.classList.contains("bg-kumo-interact/50")).toBe(false);
+	expect(element.classList.contains("hover:bg-kumo-interact/50")).toBe(false);
+}
+
 async function getHeadingMenuItem(
 	screen: Awaited<ReturnType<typeof render>>,
 	name: "Heading 1" | "Heading 2" | "Heading 3",
@@ -291,6 +301,41 @@ describe("Toolbar Presence and Structure", () => {
 // =============================================================================
 
 describe("Formatting Button Toggle States", () => {
+	it("shows existing bold formatting and clears the state for mixed or plain selections", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [
+						{ _type: "span", _key: "s1", text: "Bold", marks: ["strong"] },
+						{ _type: "span", _key: "s2", text: " plain" },
+					],
+				},
+			],
+		});
+		const bold = getToolbarButton(screen, "Bold").element();
+
+		editor.chain().focus().setTextSelection({ from: 1, to: 5 }).run();
+		await vi.waitFor(() => {
+			expect(bold.getAttribute("aria-pressed")).toBe("true");
+			expectVisibleActiveState(bold);
+		});
+
+		editor.chain().focus().setTextSelection({ from: 1, to: 11 }).run();
+		await vi.waitFor(() => {
+			expect(bold.getAttribute("aria-pressed")).toBe("false");
+			expectNoVisibleActiveState(bold);
+		});
+
+		editor.chain().focus().setTextSelection({ from: 5, to: 11 }).run();
+		await vi.waitFor(() => {
+			expect(bold.getAttribute("aria-pressed")).toBe("false");
+			expectNoVisibleActiveState(bold);
+		});
+	});
+
 	it("Bold: click toggles aria-pressed to true", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
@@ -369,6 +414,7 @@ describe("Formatting Button Toggle States", () => {
 		await vi.waitFor(() => {
 			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
 			expect(editor.isActive("heading", { level: 1 })).toBe(true);
+			expectVisibleActiveState(trigger.element());
 		});
 	});
 
@@ -677,6 +723,9 @@ describe("Link Insertion", () => {
 
 		await vi.waitFor(() => {
 			expect(editor.isActive("link")).toBe(true);
+			const link = getToolbarButton(screen, "Insert Link").element();
+			expect(link.getAttribute("aria-pressed")).toBe("true");
+			expectVisibleActiveState(link);
 		});
 	});
 

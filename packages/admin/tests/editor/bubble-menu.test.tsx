@@ -242,6 +242,13 @@ async function waitForBubbleMenu(): Promise<HTMLElement> {
 	return menu!;
 }
 
+function expectRoundedFloatingWrapper(menu: HTMLElement) {
+	const wrapper = menu.parentElement;
+	expect(wrapper).toBeTruthy();
+	expect(wrapper!.style.overflowX).toBe("auto");
+	expect(wrapper!.style.borderRadius).toBe("var(--radius-lg)");
+}
+
 /** Get a bubble menu button by aria-label */
 function getBubbleButton(menu: HTMLElement, label: string): HTMLButtonElement | null {
 	return menu.querySelector(`[aria-label="${label}"]`);
@@ -282,6 +289,14 @@ describe("Bubble Menu", () => {
 
 		const menu = await waitForBubbleMenu();
 		expect(menu).toBeTruthy();
+	});
+
+	it("rounds the scrollable positioning wrapper to preserve every menu corner", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		await vi.waitFor(() => expectRoundedFloatingWrapper(menu));
 	});
 
 	it("flips below a top-line selection when the sticky toolbar blocks the preferred position", async () => {
@@ -361,6 +376,7 @@ describe("Bubble Menu", () => {
 			expect(menuRect.top).toBeGreaterThanOrEqual(
 				formattingToolbar!.getBoundingClientRect().bottom,
 			);
+			expectRoundedFloatingWrapper(tableToolbar);
 		});
 	});
 

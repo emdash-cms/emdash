@@ -3027,6 +3027,7 @@ function EditorBubbleMenu({
 					apply: ({ availableWidth, elements }) => {
 						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
 					},
 				}),
 			}}
@@ -3165,6 +3166,7 @@ function TableBubbleMenu({
 					apply: ({ availableWidth, elements }) => {
 						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
 					},
 				}),
 			}}
@@ -3539,7 +3541,8 @@ function EditorToolbar({
 								shape="square"
 								className={cn(
 									"h-8 w-8 flex-none",
-									editorState.isLink && "bg-kumo-tint text-kumo-default",
+									editorState.isLink &&
+										"bg-kumo-interact/50 text-kumo-default hover:bg-kumo-interact/50",
 								)}
 								onMouseDown={(event) => event.preventDefault()}
 								aria-label={t`Insert Link`}
@@ -3657,7 +3660,10 @@ function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarBu
 			type="button"
 			variant="ghost"
 			shape="square"
-			className={cn("h-8 w-8 flex-none", active && "bg-kumo-tint text-kumo-default")}
+			className={cn(
+				"h-8 w-8 flex-none",
+				active && "bg-kumo-interact/50 text-kumo-default hover:bg-kumo-interact/50",
+			)}
 			onMouseDown={(e) => e.preventDefault()}
 			onClick={onClick}
 			disabled={disabled}
