@@ -15,6 +15,7 @@ describe("buildNavItems", () => {
 				plugins: {},
 			},
 			50,
+			(id) => id,
 		);
 
 		expect(items.find((item) => item.id === "collection-pages")?.icon).toBe(Browser);
@@ -35,6 +36,7 @@ describe("buildNavItems", () => {
 				},
 			},
 			50,
+			(id) => id,
 		);
 
 		expect(items.find((item) => item.id === "plugin-audit-log-/history")?.icon).toBe(

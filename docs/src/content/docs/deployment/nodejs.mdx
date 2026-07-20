@@ -117,6 +117,30 @@ CMD ["node", "./dist/server/entry.mjs"]
 
 The seed file is read at build time and inlined into the bundle, so it does not need to be copied into the runtime image. Migrations run on the first request after a deploy; the seed applies only when the database has no collections and setup hasn't been completed — existing data is never overwritten.
 
+<Aside>
+	This Dockerfile builds **your own EmDash site** — a project that has `emdash` as a dependency. It is
+	not interchangeable with the `Dockerfile` in the root of the EmDash repository, which builds the whole
+	pnpm monorepo and packages the blog template from source.
+</Aside>
+
+<Aside type="caution" title="Native dependencies behind restrictive networks">
+	EmDash's SQLite driver (`better-sqlite3`) installs a prebuilt binary downloaded from GitHub Releases.
+	If your build environment blocks that download (corporate proxy, offline mirror), the install falls
+	back to compiling from source and fails with a `gyp ERR! find Python` error, because slim/alpine Node
+	images ship no compiler toolchain.
+</Aside>
+
+If you hit that error, install the toolchain in the builder stage before `npm ci`:
+
+```dockerfile
+# Alpine-based images (node:22-alpine)
+RUN apk add --no-cache python3 make g++
+
+# Debian-based images (node:22-slim)
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+```
+
 Build the image and run the container:
 
 ```bash

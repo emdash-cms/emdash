@@ -26,3 +26,8 @@
 
 :root {
 }
+
+/* Keep the signed-in Admin link separated from the primary navigation. */
+.nav-admin {
+	margin-inline-start: var(--spacing-5);
+}

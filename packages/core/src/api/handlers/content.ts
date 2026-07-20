@@ -1487,11 +1487,36 @@ export async function handleContentPublish(
 			};
 		}
 		if (error instanceof EmDashValidationError) {
+			// The staged-slug pre-check tags its error so it maps to the same
+			// 409 SLUG_CONFLICT as direct slug edits in create/update.
+			const details: unknown = error.details;
+			const isSlugConflict =
+				typeof details === "object" &&
+				details !== null &&
+				"code" in details &&
+				details.code === "SLUG_CONFLICT";
 			return {
 				success: false,
 				error: {
-					code: "VALIDATION_ERROR",
+					code: isSlugConflict ? "SLUG_CONFLICT" : "VALIDATION_ERROR",
 					message: error.message,
+				},
+			};
+		}
+		// Backstop for the pre-check inside repo.publish(): a concurrent write
+		// can still take the slug between the check and the UPDATE, in which
+		// case the `(slug, locale)` unique constraint fires. Same fingerprint
+		// mapping as create/update — never a raw SQLite error to the client.
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (
+			(message.includes("unique constraint failed") || message.includes("duplicate key")) &&
+			message.includes("slug")
+		) {
+			return {
+				success: false,
+				error: {
+					code: "SLUG_CONFLICT",
+					message: `The staged slug is already used by another entry in collection '${collection}'`,
 				},
 			};
 		}

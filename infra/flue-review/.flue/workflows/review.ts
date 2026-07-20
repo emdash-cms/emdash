@@ -32,12 +32,19 @@ import {
 	readAppCreds,
 	mintInstallationToken,
 	fetchUnifiedDiff,
+	fetchPullRequestHeadSha,
 	fetchPriorReview,
 	postReview,
 	addEyesReaction,
 	removeReaction,
+	updateReviewCheck,
 } from "../lib/github.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
+import {
+	getReviewWatchdog,
+	type ReviewStage,
+	type ReviewTerminal,
+} from "../lib/review-watchdog.js";
 import { getDefaultWorkspace, getShellSandbox } from "../sandboxes/cloudflare-shell.js";
 import review from "../skills/review/SKILL.md" with { type: "skill" };
 
@@ -46,9 +53,16 @@ const reviewPayloadSchema = v.object({
 	prTitle: v.string(),
 	prBody: v.string(),
 	headRef: v.string(),
+	// Optional only so persisted pre-observability runs remain readable; run() fails closed without them.
+	headSha: v.optional(v.string()),
 	baseRef: v.string(),
+	baseSha: v.optional(v.string()),
 	owner: v.string(),
 	repo: v.string(),
+	attemptId: v.optional(v.string()),
+	expectedRunId: v.optional(v.string()),
+	deliveryId: v.optional(v.string()),
+	checkRunId: v.optional(v.number()),
 });
 
 type ReviewPayload = v.InferOutput<typeof reviewPayloadSchema>;
@@ -59,6 +73,7 @@ const HYDRATED = `${REPO_DIR}/.flue-hydrated`;
 
 const NAME = /^[A-Za-z0-9._-]+$/;
 const REF = /^[A-Za-z0-9._][A-Za-z0-9._-]*(?:\/[A-Za-z0-9._][A-Za-z0-9._-]*)*$/;
+const SHA = /^[0-9a-f]{40}$/i;
 
 function assertSafe(payload: ReviewPayload): void {
 	if (!Number.isInteger(payload.prNumber) || payload.prNumber <= 0) {
@@ -79,6 +94,13 @@ function assertSafe(payload: ReviewPayload): void {
 			throw new Error(`payload.${key} missing or not a safe git ref`);
 		}
 	}
+	for (const [key, value] of [
+		["baseSha", payload.baseSha],
+		["headSha", payload.headSha],
+	] as const) {
+		if (value !== undefined && !SHA.test(value))
+			throw new Error(`payload.${key} is not a full SHA`);
+	}
 }
 
 // Stable per-run Workspace name shared by the agent initializer (sandbox) and
@@ -93,6 +115,10 @@ function workspaceName(): string {
 	return `review-${getDurableObjectIdentity().id}`;
 }
 
+function workflowRunId(): string {
+	return getDurableObjectIdentity().name;
+}
+
 // The agent: execution policy (model, reasoning effort) plus the cf-shell
 // sandbox built from the platform bindings. Repo hydration cannot live here --
 // the initializer has no access to the PR payload -- so it moves into the
@@ -100,11 +126,8 @@ function workspaceName(): string {
 const reviewAgent = defineAgent<Env>(({ env }) => {
 	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
 	return {
-		// GLM-5.2 via the Workers AI binding: no model API key needed. A reasoning
-		// model, so `thinkingLevel` maps to `reasoning_effort` on the call; "low"
-		// keeps it from over-deliberating on straightforward diffs.
-		model: "cloudflare/@cf/zai-org/glm-5.2",
-		thinkingLevel: "low",
+		// Kimi K2.7 Code via the Workers AI binding: no model API key needed.
+		model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
 		sandbox: getShellSandbox({ workspace, loader: env.LOADER }),
 		cwd: REPO_DIR,
 		instructions: [
@@ -158,20 +181,101 @@ async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
 		depth: 1,
 		dir: REPO_DIR,
 	});
-	if (fetched.fetchHead) {
-		await git.checkout({ ref: fetched.fetchHead, dir: REPO_DIR, force: true });
+	if (!fetched.fetchHead) throw new Error("PR head fetch did not return a commit");
+	if (payload.headSha && fetched.fetchHead.toLowerCase() !== payload.headSha.toLowerCase()) {
+		throw new Error("PR head changed after the review was requested");
 	}
+	await git.checkout({ ref: fetched.fetchHead, dir: REPO_DIR, force: true });
 	await workspace.writeFile(HYDRATED, new Date().toISOString());
+}
+
+function logReviewEvent(
+	level: "log" | "error",
+	payload: ReviewPayload,
+	runId: string,
+	message: string,
+	extra: Record<string, unknown> = {},
+): void {
+	console[level](
+		JSON.stringify({
+			message,
+			attemptId: payload.attemptId,
+			runId,
+			deliveryId: payload.deliveryId,
+			prNumber: payload.prNumber,
+			headSha: payload.headSha,
+			checkRunId: payload.checkRunId,
+			...extra,
+		}),
+	);
+}
+
+async function reportStage(
+	env: Env,
+	token: string | undefined,
+	payload: ReviewPayload,
+	runId: string,
+	stage: ReviewStage,
+	detail: string,
+): Promise<boolean> {
+	logReviewEvent("log", payload, runId, "review stage changed", { stage });
+	if (payload.checkRunId === undefined || !payload.attemptId) return true;
+
+	const active = await getReviewWatchdog(env, payload.attemptId).heartbeat(
+		payload.attemptId,
+		runId,
+		stage,
+	);
+	if (!active) return false;
+	if (token) {
+		try {
+			await updateReviewCheck(token, payload.owner, payload.repo, payload.checkRunId, {
+				prNumber: payload.prNumber,
+				runId,
+				stage,
+				detail,
+			});
+		} catch (error) {
+			logReviewEvent("error", payload, runId, "review stage reporting failed", {
+				stage,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+	return true;
+}
+
+async function finishReviewCheck(
+	env: Env,
+	payload: ReviewPayload,
+	runId: string,
+	terminal: ReviewTerminal,
+): Promise<void> {
+	if (payload.checkRunId === undefined || !payload.attemptId) return;
+	try {
+		const finished = await getReviewWatchdog(env, payload.attemptId).finish(
+			payload.attemptId,
+			runId,
+			terminal,
+		);
+		if (!finished) {
+			logReviewEvent("error", payload, runId, "review attempt was already terminal");
+		}
+	} catch (error) {
+		logReviewEvent("error", payload, runId, "review completion reporting failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
 }
 
 async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<ReviewResult> {
 	const payload = context.input;
-	assertSafe(payload);
 
 	// ActionContext intentionally excludes platform bindings; read them back
 	// through the Cloudflare context established for this workflow run.
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 	const env = getCloudflareContext().env as unknown as Env;
+	let runId = payload.attemptId ?? "unidentified";
 
 	// GitHub access lives only in this trusted Action code, never in the agent's
 	// workspace. Without app creds (local dev) we skip posting and return.
@@ -179,23 +283,79 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 	let token: string | undefined;
 	let priorReview: string | undefined;
 	let reactionId: number | undefined;
-	if (creds) {
-		token = await mintInstallationToken(creds);
-		reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
-		priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
-	}
-
+	let stage: ReviewStage = "admitted";
 	try {
+		assertSafe(payload);
+		if (!payload.headSha || !payload.baseSha) {
+			throw new Error("Review payload does not include immutable base and head SHAs");
+		}
+		runId = workflowRunId();
+		if (
+			payload.attemptId &&
+			payload.checkRunId !== undefined &&
+			!(await getReviewWatchdog(env, payload.attemptId).identify(
+				payload.attemptId,
+				payload.expectedRunId ?? payload.attemptId,
+				runId,
+			))
+		) {
+			throw new Error("Review attempt is no longer active");
+		}
+		if (creds) {
+			token = await mintInstallationToken(creds);
+			reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
+			priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
+		}
+
 		// Hydrate the Workspace (clone + checkout the PR head) into the same DO
 		// SQLite + R2 namespace the agent's sandbox reads from.
+		stage = "hydrating";
+		if (
+			!(await reportStage(env, token, payload, runId, "hydrating", "Preparing the PR workspace."))
+		) {
+			throw new Error("Review attempt is no longer active");
+		}
 		await hydrate(env, payload);
 
 		const session = await context.harness.session();
 
 		// Stage the canonical unified diff into the Workspace (no `git` in cf-shell).
-		const diff = await fetchUnifiedDiff(payload.owner, payload.repo, payload.prNumber, token);
+		stage = "fetching_diff";
+		if (
+			!(await reportStage(
+				env,
+				token,
+				payload,
+				runId,
+				"fetching_diff",
+				"Fetching the canonical PR diff.",
+			))
+		) {
+			throw new Error("Review attempt is no longer active");
+		}
+		const diff = await fetchUnifiedDiff(
+			payload.owner,
+			payload.repo,
+			payload.prNumber,
+			token,
+			payload.baseSha,
+			payload.headSha,
+		);
 		await context.harness.fs.writeFile(DIFF_PATH, diff);
 
+		stage = "model_review";
+		if (
+			!(await reportStage(
+				env,
+				token,
+				payload,
+				runId,
+				"model_review",
+				"The model is reviewing the diff.",
+			))
+		) {
+			throw new Error("Review attempt is no longer active");
+		}
 		const { data } = await withCapacityRetry(
 			(signal) =>
 				session.skill("review", {
@@ -226,28 +386,67 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			},
 		);
 
-		console.log("[review] result", {
-			prNumber: payload.prNumber,
+		logReviewEvent("log", payload, runId, "review model result received", {
 			hasToken: Boolean(token),
 			verdict: data.verdict,
-			summaryLen: data.summary.length,
-			findings: data.findings.length,
+			summaryLength: data.summary.length,
+			findingCount: data.findings.length,
 		});
 
 		if (token) {
-			try {
-				await postReview(token, payload.owner, payload.repo, payload.prNumber, data);
-			} catch (err) {
-				console.error("[review] postReview failed", {
-					error: err instanceof Error ? err.message : String(err),
-					prNumber: payload.prNumber,
-				});
+			stage = "posting_review";
+			if (
+				!(await reportStage(
+					env,
+					token,
+					payload,
+					runId,
+					"posting_review",
+					"Posting the review to GitHub.",
+				))
+			) {
+				throw new Error("Review attempt is no longer active");
 			}
+			if (payload.headSha) {
+				const currentHeadSha = await fetchPullRequestHeadSha(
+					token,
+					payload.owner,
+					payload.repo,
+					payload.prNumber,
+				);
+				if (currentHeadSha.toLowerCase() !== payload.headSha.toLowerCase()) {
+					throw new Error("PR head changed before the review could be posted");
+				}
+			}
+			await postReview(
+				token,
+				payload.owner,
+				payload.repo,
+				payload.prNumber,
+				data,
+				payload.headSha,
+				payload.attemptId,
+			);
 		} else {
-			console.log("[review] no GitHub App creds; skipping post", { prNumber: payload.prNumber });
+			logReviewEvent("log", payload, runId, "GitHub App credentials unavailable; skipping post");
 		}
 
+		await finishReviewCheck(env, payload, runId, {
+			conclusion: "success",
+			summary: `The automated review completed with verdict \`${data.verdict}\` and ${data.findings.length} finding(s).`,
+		});
+
 		return data;
+	} catch (error) {
+		logReviewEvent("error", payload, runId, "review run failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+		const errorName = error instanceof Error ? error.name : "Error";
+		await finishReviewCheck(env, payload, runId, {
+			conclusion: "failure",
+			summary: `The review failed during the \`${stage}\` stage (\`${errorName}\`). Reapply the \`bot:review\` label to retry.`,
+		});
+		throw error;
 	} finally {
 		if (token && reactionId !== undefined) {
 			await removeReaction(token, payload.owner, payload.repo, payload.prNumber, reactionId);
