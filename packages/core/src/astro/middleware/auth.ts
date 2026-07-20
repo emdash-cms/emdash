@@ -308,7 +308,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				"Content-Security-Policy",
 				buildEmDashCsp(
 					context.locals.emdash?.config.experimental?.registry,
-					getConfiguredStorageEndpoint(context.locals.emdash?.config.storage),
+					getConfiguredStorageEndpoint(
+						context.locals.emdash?.config.storage,
+						context.locals.emdash?.storage,
+					),
 				),
 			);
 		}
@@ -323,7 +326,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			"Content-Security-Policy",
 			buildEmDashCsp(
 				context.locals.emdash?.config.experimental?.registry,
-				getConfiguredStorageEndpoint(context.locals.emdash?.config.storage),
+				getConfiguredStorageEndpoint(
+					context.locals.emdash?.config.storage,
+					context.locals.emdash?.storage,
+				),
 			),
 		);
 	}
@@ -378,15 +384,28 @@ async function handleEmDashAuth(
 }
 
 /**
- * Soft auth for plugin routes: resolve user from Bearer token or session if present,
- * but never block unauthenticated requests. The catch-all handler checks route
- * metadata to decide whether auth is required (public vs private routes).
+ * Plugin-route auth. Resolves the user in three steps, stopping at the first that
+ * applies:
+ *
+ * 1. Bearer token (all modes). A valid token authenticates; an invalid/expired one
+ *    returns 401 (we never silently downgrade a bad token to anonymous).
+ * 2. External provider — only for a *private* route in production external-auth
+ *    mode. Here `handleExternalAuth` is the sole authority: the provider (e.g.
+ *    Cloudflare Access) is re-verified on every request, so it hard-blocks with
+ *    401 on failure. It does persist an EmDash session (so public pages can
+ *    identify the user), but on these routes that session is deliberately NOT
+ *    consulted as a fallback — the provider check is authoritative every time.
+ * 3. Session — everything else (non-external mode, DEV, and all public routes).
+ *    This is soft: it sets `locals.user` if a session exists but never blocks.
+ *
+ * Public routes are always allowed through. The catch-all handler still enforces
+ * the `plugins:manage` permission and CSRF for private invocations.
  */
 async function handlePluginRouteAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 ): Promise<Response> {
-	const { locals } = context;
+	const { locals, url } = context;
 	const { emdash } = locals;
 
 	try {
@@ -407,9 +426,18 @@ async function handlePluginRouteAuth(
 				},
 			);
 		}
-		// "none" — no token presented, try session auth below.
+		// "none" — no token presented, try external/session auth below.
 	} catch (error) {
 		console.error("Plugin route bearer auth error:", error);
+	}
+
+	const authMode = getAuthMode(emdash?.config);
+	if (
+		authMode.type === "external" &&
+		!import.meta.env.DEV &&
+		!isPublicPluginApiRoute(url.pathname, emdash)
+	) {
+		return handleExternalAuth(context, next, authMode, true);
 	}
 
 	try {
@@ -429,6 +457,17 @@ async function handlePluginRouteAuth(
 	}
 
 	return next();
+}
+
+function isPublicPluginApiRoute(pathname: string, emdash: EmDashHandlers | undefined): boolean {
+	const prefix = "/_emdash/api/plugins/";
+	const route = pathname.slice(prefix.length);
+	const slashIndex = route.indexOf("/");
+	if (slashIndex <= 0 || !emdash?.getPluginRouteMeta) return false;
+
+	return (
+		emdash.getPluginRouteMeta(route.slice(0, slashIndex), route.slice(slashIndex))?.public === true
+	);
 }
 
 /**

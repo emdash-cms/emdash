@@ -126,6 +126,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 				created_at TEXT DEFAULT (datetime('now')),
 				updated_at TEXT DEFAULT (datetime('now')),
 				published_at TEXT,
+				scheduled_at TEXT,
 				deleted_at TEXT,
 				version INTEGER DEFAULT 1,
 				locale TEXT NOT NULL DEFAULT 'en',
@@ -167,6 +168,21 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 				expect(result.items).toHaveLength(2);
 				expect(result.hasMore).toBe(false);
+			});
+
+			it("includes the scheduled publication time", async () => {
+				await sql`
+					UPDATE ec_posts
+					SET status = 'scheduled', scheduled_at = '2026-12-01T12:00:00.000Z'
+					WHERE id = 'post-1'
+				`.execute(db);
+				const access = createContentAccess(db);
+				const result = await access.list("posts");
+
+				expect(result.items.find((item) => item.id === "post-1")?.scheduledAt).toBe(
+					"2026-12-01T12:00:00.000Z",
+				);
+				expect((await access.get("posts", "post-1"))?.scheduledAt).toBe("2026-12-01T12:00:00.000Z");
 			});
 
 			it("narrows list results by where.status", async () => {

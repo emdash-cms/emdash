@@ -425,6 +425,48 @@ describe("RedirectRepository", () => {
 			expect(fromA).toHaveLength(1);
 			expect(fromA[0]!.destination).toBe("/blog/c");
 		});
+
+		it("does not create a loop when a slug rename is reverted (#1986)", async () => {
+			// Rename A -> B, then revert B -> A
+			await repo.createAutoRedirect("posts", "a", "b", "id1", "/blog/{slug}");
+			await repo.createAutoRedirect("posts", "b", "a", "id1", "/blog/{slug}");
+
+			// The restored slug A must not be shadowed by any redirect
+			expect(await repo.findBySource("/blog/a")).toBeNull();
+
+			// The old slug B still redirects to A
+			const fromB = await repo.findBySource("/blog/b");
+			expect(fromB!.destination).toBe("/blog/a");
+
+			// No redirect anywhere is a self-redirect
+			const all = await repo.findMany({});
+			for (const r of all.items) {
+				expect(r.source).not.toBe(r.destination);
+			}
+		});
+
+		it("does not create a loop when reverting after a rename chain", async () => {
+			// A -> B -> C, then revert C -> A
+			await repo.createAutoRedirect("posts", "a", "b", "id1", "/blog/{slug}");
+			await repo.createAutoRedirect("posts", "b", "c", "id1", "/blog/{slug}");
+			await repo.createAutoRedirect("posts", "c", "a", "id1", "/blog/{slug}");
+
+			expect(await repo.findBySource("/blog/a")).toBeNull();
+
+			const fromB = await repo.findBySource("/blog/b");
+			expect(fromB!.destination).toBe("/blog/a");
+
+			const fromC = await repo.findBySource("/blog/c");
+			expect(fromC!.destination).toBe("/blog/a");
+		});
+
+		it("is a no-op when old and new slug resolve to the same URL", async () => {
+			const redirect = await repo.createAutoRedirect("posts", "a", "a", "id1", "/blog/{slug}");
+
+			expect(redirect).toBeNull();
+			const all = await repo.findMany({});
+			expect(all.items).toHaveLength(0);
+		});
 	});
 
 	// --- 404 log ------------------------------------------------------------

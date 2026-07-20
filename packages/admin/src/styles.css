@@ -110,6 +110,11 @@ body {
 	color: var(--text-color-kumo-default);
 }
 
+/* Keep heading choices visibly distinct from the dropdown surface. */
+[data-emdash-heading-item][data-highlighted] {
+	background-color: var(--color-kumo-interact) !important;
+}
+
 /* Transitions.dev — Text states swap */
 :root {
 	--text-swap-dur: 150ms;
@@ -224,11 +229,6 @@ body {
 	transition: opacity 0.2s ease;
 }
 
-/* Add left padding to accommodate block handles */
-.ProseMirror {
-	padding-left: 2.5rem;
-}
-
 /* Block dragging styles */
 .ProseMirror .dragging {
 	opacity: 0.5;
@@ -317,6 +317,11 @@ body {
 
 .ProseMirror.resize-cursor {
 	cursor: col-resize;
+}
+
+/* TipTap owns slash-menu focus, so Base UI's portal guards must not enter the Tab order. */
+.slash-command-menu-positioner > [data-base-ui-focus-guard] {
+	display: none;
 }
 
 /**

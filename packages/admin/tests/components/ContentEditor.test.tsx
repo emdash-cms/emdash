@@ -215,6 +215,16 @@ describe("ContentEditor", () => {
 		portableTextProps.current = null;
 	});
 
+	it("uses a task-oriented placeholder for portable text fields", async () => {
+		await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: { content: { kind: "portableText", label: "Content" } },
+		});
+
+		expect(portableTextProps.current?.placeholder).toBe("Start writing, or type '/' for commands");
+	});
+
 	describe("block panel + mobile sheet sync", () => {
 		const ptFields: Record<string, FieldDescriptor> = {
 			content: { kind: "portableText", label: "Content" },

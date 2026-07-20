@@ -105,6 +105,66 @@ const BUILTIN_WIDGETS: Array<{
 	},
 ];
 
+/**
+ * Localized labels/descriptions for built-in core widget components. The server
+ * (packages/core/src/widgets/components.ts) ships these in English as stable
+ * data; the admin maps them to translated strings client-side, the same way
+ * error codes are localized. Plugin-provided components fall back to their
+ * server-provided strings.
+ */
+interface CoreWidgetMeta {
+	label: MessageDescriptor;
+	description: MessageDescriptor;
+	/** Prop-field labels keyed by prop key; `options` localizes select choices by option value. */
+	props?: Record<string, { label: MessageDescriptor; options?: Record<string, MessageDescriptor> }>;
+}
+
+const CORE_WIDGET_META: Record<string, CoreWidgetMeta> = {
+	"core:recent-posts": {
+		label: msg`Recent Posts`,
+		description: msg`Display a list of recent posts`,
+		props: {
+			count: { label: msg`Number of posts` },
+			showThumbnails: { label: msg`Show thumbnails` },
+			showDate: { label: msg`Show date` },
+		},
+	},
+	"core:categories": {
+		label: msg`Categories`,
+		description: msg`Display category list`,
+		props: {
+			showCount: { label: msg`Show post count` },
+			hierarchical: { label: msg`Show hierarchy` },
+		},
+	},
+	"core:tags": {
+		label: msg`Tags`,
+		description: msg`Display tag cloud`,
+		props: {
+			showCount: { label: msg`Show count` },
+			limit: { label: msg`Maximum tags` },
+		},
+	},
+	"core:search": {
+		label: msg`Search`,
+		description: msg`Search form`,
+		props: {
+			placeholder: { label: msg`Placeholder text` },
+		},
+	},
+	"core:archives": {
+		label: msg`Archives`,
+		description: msg`Monthly/yearly archives`,
+		props: {
+			type: {
+				label: msg`Group by`,
+				options: { monthly: msg`Monthly`, yearly: msg`Yearly` },
+			},
+			limit: { label: msg`Limit` },
+		},
+	},
+};
+
 export function Widgets() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
@@ -410,19 +470,24 @@ export function Widgets() {
 										widgetInput={{ ...item.input, title: t(item.label) }}
 									/>
 								))}
-								{components.map((comp) => (
-									<DraggablePaletteItem
-										key={`palette-comp-${comp.id}`}
-										id={`palette-comp-${comp.id}`}
-										label={comp.label}
-										description={comp.description}
-										widgetInput={{
-											type: "component",
-											title: comp.label,
-											componentId: comp.id,
-										}}
-									/>
-								))}
+								{components.map((comp) => {
+									const meta = CORE_WIDGET_META[comp.id];
+									const label = meta ? t(meta.label) : comp.label;
+									const description = meta ? t(meta.description) : comp.description;
+									return (
+										<DraggablePaletteItem
+											key={`palette-comp-${comp.id}`}
+											id={`palette-comp-${comp.id}`}
+											label={label}
+											description={description}
+											widgetInput={{
+												type: "component",
+												title: label,
+												componentId: comp.id,
+											}}
+										/>
+									);
+								})}
 							</div>
 						</div>
 					</div>
@@ -864,20 +929,29 @@ function WidgetEditor({
 								}
 							}
 						}}
-						items={Object.fromEntries(components.map((c) => [c.id, c.label]))}
+						items={Object.fromEntries(
+							components.map((c) => {
+								const meta = CORE_WIDGET_META[c.id];
+								return [c.id, meta ? t(meta.label) : c.label];
+							}),
+						)}
 					>
 						<Select.Option value="">{t`Select a component...`}</Select.Option>
-						{components.map((c) => (
-							<Select.Option key={c.id} value={c.id}>
-								{c.label}
-							</Select.Option>
-						))}
+						{components.map((c) => {
+							const meta = CORE_WIDGET_META[c.id];
+							return (
+								<Select.Option key={c.id} value={c.id}>
+									{meta ? t(meta.label) : c.label}
+								</Select.Option>
+							);
+						})}
 					</Select>
 
 					{selectedComponent &&
 						Object.entries(selectedComponent.props).map(([key, def]) => (
 							<ComponentPropField
 								key={key}
+								componentId={selectedComponent.id}
 								propKey={key}
 								def={def}
 								value={componentProps[key] ?? def.default ?? ""}
@@ -898,20 +972,32 @@ function WidgetEditor({
 
 /** Renders a single prop field for a component widget based on PropDef type */
 function ComponentPropField({
+	componentId,
+	propKey,
 	def,
 	value,
 	onChange,
 }: {
+	componentId: string;
 	propKey: string;
 	def: WidgetComponent["props"][string];
 	value: unknown;
 	onChange: (value: unknown) => void;
 }) {
+	const { t } = useLingui();
+	// Localize built-in core widget prop labels/options; fall back to the
+	// server-provided string for plugin-registered components.
+	const propMeta = CORE_WIDGET_META[componentId]?.props?.[propKey];
+	const label = propMeta ? t(propMeta.label) : def.label;
+	const optionLabel = (optValue: string, fallback: string) => {
+		const descriptor = propMeta?.options?.[optValue];
+		return descriptor ? t(descriptor) : fallback;
+	};
 	switch (def.type) {
 		case "string":
 			return (
 				<Input
-					label={def.label}
+					label={label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
 				/>
@@ -919,29 +1005,29 @@ function ComponentPropField({
 		case "number":
 			return (
 				<Input
-					label={def.label}
+					label={label}
 					type="number"
 					value={typeof value === "number" ? value : ""}
 					onChange={(e) => onChange(Number(e.target.value))}
 				/>
 			);
 		case "boolean":
-			return <Switch label={def.label} checked={Boolean(value)} onCheckedChange={onChange} />;
+			return <Switch label={label} checked={Boolean(value)} onCheckedChange={onChange} />;
 		case "select": {
 			const items: Record<string, string> = {};
 			for (const opt of def.options ?? []) {
-				items[opt.value] = opt.label;
+				items[opt.value] = optionLabel(opt.value, opt.label);
 			}
 			return (
 				<Select
-					label={def.label}
+					label={label}
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(v ?? "")}
 					items={items}
 				>
 					{def.options?.map((opt) => (
 						<Select.Option key={opt.value} value={opt.value}>
-							{opt.label}
+							{optionLabel(opt.value, opt.label)}
 						</Select.Option>
 					))}
 				</Select>
@@ -950,7 +1036,7 @@ function ComponentPropField({
 		default:
 			return (
 				<Input
-					label={def.label}
+					label={label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
 				/>

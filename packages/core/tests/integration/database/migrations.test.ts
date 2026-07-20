@@ -138,7 +138,8 @@ describe("Database Migrations (Integration)", () => {
 			"049_taxonomies_name_locale_index",
 			"050_media_usage_index_status",
 			"051_content_taxonomies_denorm",
-			"052_plugin_mcp_tools",
+			"052_media_usage_read_index",
+			"053_plugin_mcp_tools",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

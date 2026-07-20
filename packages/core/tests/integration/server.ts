@@ -15,14 +15,11 @@
  *   await ctx.cleanup();
  */
 
-import { execFile, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { promisify } from "node:util";
 
 import { EmDashClient } from "../../src/client/index.js";
-
-const execAsync = promisify(execFile);
 
 // Test regex patterns
 const SESSION_COOKIE_REGEX = /^([^;]+)/;
@@ -97,32 +94,15 @@ export function assertNodeVersion(): void {
 // Build guard
 // ---------------------------------------------------------------------------
 
-const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../..");
 const CLI_BINARY = resolve(import.meta.dirname, "../../dist/cli/index.mjs");
 
-let buildPromise: Promise<void> | null = null;
-
 /**
- * Ensure the workspace is built before starting integration tests.
- * Runs `pnpm build` once (cached across test suites via module-level promise).
- * Skips if the CLI binary already exists.
+ * Assert the integration global setup produced the CLI binary.
  */
-export function ensureBuilt(): Promise<void> {
-	if (!buildPromise) {
-		buildPromise = doBuild();
+export async function ensureBuilt(): Promise<void> {
+	if (!existsSync(CLI_BINARY)) {
+		throw new Error("CLI binary missing after integration global setup");
 	}
-	return buildPromise;
-}
-
-async function doBuild(): Promise<void> {
-	if (existsSync(CLI_BINARY)) return;
-
-	console.log("[integration] Built artifacts missing — running pnpm build...");
-	await execAsync("pnpm", ["build"], {
-		cwd: WORKSPACE_ROOT,
-		timeout: 120_000,
-	});
-	console.log("[integration] Build complete.");
 }
 
 // ---------------------------------------------------------------------------
