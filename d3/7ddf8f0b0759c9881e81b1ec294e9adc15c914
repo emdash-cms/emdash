@@ -1,0 +1,47 @@
+packages/admin/src/routes/bylines.tsx
+  s_dfd96f7fa4f0e3::t_23c9b4ddcff981 381
+packages/admin/tests/components/Sidebar.test.tsx
+  s_c56e2b7a31503d::t_449a3b1dfe4d68 26-32,55
+.changeset/admin-navigation-icons.md
+  s_c56e2b7a31503d::t_33eb4e95473b45 5
+packages/admin/src/components/AdminCommandPalette.tsx
+  s_c56e2b7a31503d::t_fc860c815dca5c 12,20-25,138,222,356-358
+packages/admin/src/components/MenuList.tsx
+  s_c56e2b7a31503d::t_dd6ea3dbf3d5d0 11,19,186
+packages/admin/src/components/Redirects.tsx
+  s_c56e2b7a31503d::t_5145c9d5816b83 30,460
+packages/admin/src/components/SectionPickerModal.tsx
+  s_c56e2b7a31503d::t_5a8a4bc7069133 9,17,57,159
+packages/admin/src/components/Sidebar.tsx
+  s_c56e2b7a31503d::t_4958169939cc68 3,13,44,189,229,265-270
+packages/admin/src/components/admin-navigation-icons.ts
+  s_c56e2b7a31503d::t_eb85ac1029d5ee 4,6-7,14,28,30,33-34,49-50,52-54,56,59-60,63,66-75
+packages/admin/tests/components/AdminCommandPalette.test.ts
+  s_c56e2b7a31503d::t_ebcc9b8cac1b11 1,7-25
+packages/admin/tests/components/admin-navigation-icons.test.ts
+  s_c56e2b7a31503d::t_89c268714e0025 2-4,6,11-12,15-16,22-26,33-34,36-38,40,43-44,47,52-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d37ddf8f0b0759c9881e81b1ec294e9adc15c914",
+  "prompts": {},
+  "sessions": {
+    "s_c56e2b7a31503d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6afb-be76-7d40-aef7-5e3e5526cffb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    },
+    "s_dfd96f7fa4f0e3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_07fa2b2c7ffeBj9cFA6xmI1K16",
+        "model": "grok-4.5"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
