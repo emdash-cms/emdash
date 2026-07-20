@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import { CellSelection } from "@tiptap/pm/tables";
 import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
 
@@ -143,6 +144,35 @@ function expectVisibleActiveState(element: HTMLElement) {
 
 function expectNoVisibleActiveState(element: HTMLElement) {
 	expect(element.classList.contains("bg-kumo-interact/50")).toBe(false);
+}
+
+function getTextPosition(editor: Editor, text: string): number {
+	let position: number | undefined;
+	editor.state.doc.descendants((node, pos) => {
+		if (position !== undefined) return false;
+		if (node.isTextblock && node.textContent.includes(text)) {
+			position = pos + 1;
+			return false;
+		}
+		return true;
+	});
+	if (position === undefined) throw new Error(`Could not find text: ${text}`);
+	return position;
+}
+
+function expectAlignmentState(
+	screen: Awaited<ReturnType<typeof render>>,
+	active: "left" | "center" | "right" | null,
+) {
+	const buttons = {
+		left: getToolbarButton(screen, "Align Left").element(),
+		center: getToolbarButton(screen, "Align Center").element(),
+		right: getToolbarButton(screen, "Align Right").element(),
+	};
+
+	for (const [alignment, button] of Object.entries(buttons)) {
+		expect(button.getAttribute("aria-pressed")).toBe(String(alignment === active));
+	}
 }
 
 async function getHeadingMenuItem(
@@ -548,6 +578,235 @@ describe("Formatting Button Toggle States", () => {
 // =============================================================================
 
 describe("Text Alignment", () => {
+	it("tracks default and explicit alignment whenever the cursor changes paragraphs", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [{ _type: "span", _key: "s1", text: "Default left" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					textAlign: "center",
+					children: [{ _type: "span", _key: "s2", text: "Centered" }],
+				},
+				{
+					_type: "block",
+					_key: "3",
+					style: "normal",
+					textAlign: "right",
+					children: [{ _type: "span", _key: "s3", text: "Right aligned" }],
+				},
+			],
+		});
+
+		for (const [text, alignment] of [
+			["Default left", "left"],
+			["Centered", "center"],
+			["Right aligned", "right"],
+			["Default left", "left"],
+		] as const) {
+			editor.chain().focus().setTextSelection(getTextPosition(editor, text)).run();
+			await vi.waitFor(() => expectAlignmentState(screen, alignment));
+		}
+	});
+
+	it("treats unannotated headings, list paragraphs, and newly split empty blocks as left aligned", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "h2",
+					children: [{ _type: "span", _key: "s1", text: "A heading" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					listItem: "bullet",
+					level: 1,
+					children: [{ _type: "span", _key: "s2", text: "A list item" }],
+				},
+			],
+		});
+
+		for (const text of ["A heading", "A list item"]) {
+			editor.chain().focus().setTextSelection(getTextPosition(editor, text)).run();
+			await vi.waitFor(() => expectAlignmentState(screen, "left"));
+		}
+
+		const listPosition = getTextPosition(editor, "A list item") + "A list item".length;
+		editor.chain().focus().setTextSelection(listPosition).splitBlock().run();
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+	});
+
+	it("reports a shared alignment for uniform multi-block selections and none for mixed selections", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [{ _type: "span", _key: "s1", text: "Left one" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					children: [{ _type: "span", _key: "s2", text: "Left two" }],
+				},
+				{
+					_type: "block",
+					_key: "3",
+					style: "normal",
+					textAlign: "center",
+					children: [{ _type: "span", _key: "s3", text: "Center three" }],
+				},
+			],
+		});
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({
+				from: getTextPosition(editor, "Left one"),
+				to: getTextPosition(editor, "Left two") + "Left two".length,
+			})
+			.run();
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({
+				from: getTextPosition(editor, "Left two"),
+				to: getTextPosition(editor, "Center three") + "Center three".length,
+			})
+			.run();
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+	});
+
+	it("updates an entire mixed selection and follows alignment undo and redo history", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [{ _type: "span", _key: "s1", text: "Default block" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					textAlign: "center",
+					children: [{ _type: "span", _key: "s2", text: "Centered block" }],
+				},
+			],
+		});
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({
+				from: getTextPosition(editor, "Default block"),
+				to: getTextPosition(editor, "Centered block") + "Centered block".length,
+			})
+			.run();
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+
+		getToolbarButton(screen, "Align Right").element().click();
+		await vi.waitFor(() => expectAlignmentState(screen, "right"));
+
+		editor.commands.undo();
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+
+		editor.commands.redo();
+		await vi.waitFor(() => expectAlignmentState(screen, "right"));
+
+		getToolbarButton(screen, "Align Left").element().click();
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+	});
+
+	it("shows no alignment for a selection containing no alignable text block", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.chain().focus().setTextSelection(1).toggleCodeBlock().run();
+
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+	});
+
+	it("resolves uniform and mixed table cell selections from their selected ranges", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+
+		const cellPositions: number[] = [];
+		editor.state.doc.descendants((node, pos) => {
+			if (node.type.name === "tableCell") cellPositions.push(pos);
+		});
+		expect(cellPositions).toHaveLength(4);
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(cellPositions[0]! + 2)
+			.setTextAlign("center")
+			.run();
+		editor.view.dispatch(
+			editor.state.tr.setSelection(
+				CellSelection.create(editor.state.doc, cellPositions[0]!, cellPositions[1]!),
+			),
+		);
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+
+		editor.view.dispatch(
+			editor.state.tr.setSelection(
+				CellSelection.create(editor.state.doc, cellPositions[2]!, cellPositions[3]!),
+			),
+		);
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+	});
+
+	it("uses the writing direction for unannotated text without masking explicit or unsupported alignment", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [{ _type: "span", _key: "s1", text: "مرحبا بالعالم" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					textAlign: "left",
+					children: [{ _type: "span", _key: "s2", text: "Explicit left" }],
+				},
+				{
+					_type: "block",
+					_key: "3",
+					style: "normal",
+					textAlign: "justify",
+					children: [{ _type: "span", _key: "s3", text: "Justified" }],
+				},
+			],
+		});
+		expect(getComputedStyle(editor.view.dom).direction).toBe("rtl");
+
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "مرحبا بالعالم")).run();
+		await vi.waitFor(() => expectAlignmentState(screen, "right"));
+
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "Explicit left")).run();
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "Justified")).run();
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+	});
+
 	it("Align Center becomes pressed, Align Left becomes unpressed", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);

@@ -93,6 +93,7 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { AllSelection, TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
@@ -3276,6 +3277,48 @@ function BubbleButton({
 	);
 }
 
+type TextAlignment = "left" | "center" | "right" | "justify";
+
+function getSelectionTextAlignment(editor: Editor): TextAlignment | null {
+	const window = editor.view.dom.ownerDocument.defaultView;
+	const defaultAlignment: TextAlignment =
+		window?.getComputedStyle(editor.view.dom).direction === "rtl" ? "right" : "left";
+	const alignments = new Set<TextAlignment>();
+
+	const collectAlignment = (node: ProseMirrorNode) => {
+		if (node.type.name !== "paragraph" && node.type.name !== "heading") return;
+		const textAlign = node.attrs.textAlign;
+		alignments.add(
+			textAlign === "left" ||
+				textAlign === "center" ||
+				textAlign === "right" ||
+				textAlign === "justify"
+				? textAlign
+				: defaultAlignment,
+		);
+	};
+
+	for (const { $from, $to } of editor.state.selection.ranges) {
+		if ($from.pos === $to.pos) {
+			for (let depth = $from.depth; depth >= 0; depth -= 1) {
+				const node = $from.node(depth);
+				if (node.type.name === "paragraph" || node.type.name === "heading") {
+					collectAlignment(node);
+					break;
+				}
+			}
+			continue;
+		}
+
+		editor.state.doc.nodesBetween($from.pos, $to.pos, (node) => {
+			collectAlignment(node);
+			return node.type.name !== "paragraph" && node.type.name !== "heading";
+		});
+	}
+
+	return alignments.size === 1 ? (alignments.values().next().value ?? null) : null;
+}
+
 /**
  * Editor Toolbar
  *
@@ -3303,23 +3346,26 @@ function EditorToolbar({
 	// Subscribe to editor state changes for reactive button states
 	const editorState = useEditorState({
 		editor,
-		selector: (ctx) => ({
-			isBold: ctx.editor.isActive("bold"),
-			isItalic: ctx.editor.isActive("italic"),
-			isUnderline: ctx.editor.isActive("underline"),
-			isStrike: ctx.editor.isActive("strike"),
-			isCode: ctx.editor.isActive("code"),
-			isBulletList: ctx.editor.isActive("bulletList"),
-			isOrderedList: ctx.editor.isActive("orderedList"),
-			isBlockquote: ctx.editor.isActive("blockquote"),
-			isCodeBlock: ctx.editor.isActive("codeBlock"),
-			isAlignLeft: ctx.editor.isActive({ textAlign: "left" }),
-			isAlignCenter: ctx.editor.isActive({ textAlign: "center" }),
-			isAlignRight: ctx.editor.isActive({ textAlign: "right" }),
-			isLink: ctx.editor.isActive("link"),
-			canUndo: ctx.editor.can().undo(),
-			canRedo: ctx.editor.can().redo(),
-		}),
+		selector: (ctx) => {
+			const textAlignment = getSelectionTextAlignment(ctx.editor);
+			return {
+				isBold: ctx.editor.isActive("bold"),
+				isItalic: ctx.editor.isActive("italic"),
+				isUnderline: ctx.editor.isActive("underline"),
+				isStrike: ctx.editor.isActive("strike"),
+				isCode: ctx.editor.isActive("code"),
+				isBulletList: ctx.editor.isActive("bulletList"),
+				isOrderedList: ctx.editor.isActive("orderedList"),
+				isBlockquote: ctx.editor.isActive("blockquote"),
+				isCodeBlock: ctx.editor.isActive("codeBlock"),
+				isAlignLeft: textAlignment === "left",
+				isAlignCenter: textAlignment === "center",
+				isAlignRight: textAlignment === "right",
+				isLink: ctx.editor.isActive("link"),
+				canUndo: ctx.editor.can().undo(),
+				canRedo: ctx.editor.can().redo(),
+			};
+		},
 	});
 
 	// Populate link URL when opening popover
