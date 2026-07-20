@@ -22,7 +22,6 @@
     "@emdash-cms/plugin-color": "workspace:*",
     "@emdash-cms/plugin-cli": "workspace:*",
     "astro": "catalog:",
-    "better-sqlite3": "catalog:",
     "emdash": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"

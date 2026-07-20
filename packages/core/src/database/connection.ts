@@ -25,15 +25,9 @@ export function createDatabase(config: DatabaseConfig): Kysely<Database> {
 		if (config.url.startsWith("file:") || config.url === ":memory:") {
 			const dbPath = config.url === ":memory:" ? ":memory:" : config.url.replace("file:", "");
 
+			// Connection pragmas (WAL, busy_timeout, foreign_keys) are applied by
+			// openNodeSqliteDatabase so every SQLite entry point gets them.
 			const sqlite = openNodeSqliteDatabase(dbPath);
-
-			// Enable WAL mode for crash safety — writes go to a write-ahead log
-			// before being applied, preventing FTS5 shadow table corruption on
-			// process kill during content writes. No-op for :memory: databases.
-			sqlite.pragma("journal_mode = WAL");
-
-			// Enable foreign key constraints
-			sqlite.pragma("foreign_keys = ON");
 
 			const dialect = new SqliteDialect({
 				database: sqlite,
