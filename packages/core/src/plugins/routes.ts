@@ -105,7 +105,7 @@ export async function parseRouteInput(request: Request): Promise<unknown> {
 	const input: Record<string, string | string[]> = {};
 	for (const key of new Set(params.keys())) {
 		const values = params.getAll(key);
-		input[key] = values.length > 1 ? values : values[0]!;
+		input[key] = values.length > 1 ? values : values[0];
 	}
 	return input;
 }
