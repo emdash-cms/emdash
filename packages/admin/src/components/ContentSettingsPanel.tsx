@@ -29,6 +29,8 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
@@ -100,6 +102,7 @@ export function DiscardDraftDialog({
 }
 
 export interface SettingsActionBarProps {
+	collectionLabel?: string;
 	isNew?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
@@ -116,6 +119,14 @@ export interface SettingsActionBarProps {
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	announceSaveStatus?: boolean;
+}
+
+function SettingsActionSlot({ children }: React.PropsWithChildren) {
+	return (
+		<div className="flex min-w-max flex-[1_1_auto] [&>*]:w-full [&>*]:justify-center">
+			{children}
+		</div>
+	);
 }
 
 export interface PreviewButtonProps {
@@ -147,6 +158,7 @@ export function PreviewButton({
 }
 
 export interface PublishActionsProps {
+	collectionLabel?: string;
 	isNew?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
@@ -156,6 +168,7 @@ export interface PublishActionsProps {
 }
 
 export function PublishActions({
+	collectionLabel,
 	isNew,
 	isLive,
 	hasPendingChanges,
@@ -164,25 +177,26 @@ export function PublishActions({
 	size,
 }: PublishActionsProps) {
 	const { t } = useLingui();
+	const itemLabel = collectionLabel ?? t`content`;
 
 	if (isNew) return null;
 	if (!isLive) {
 		return (
-			<Button type="button" variant="secondary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish`}
+			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
+				{t`Publish ${itemLabel}`}
 			</Button>
 		);
 	}
 	if (hasPendingChanges) {
 		return (
 			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish changes`}
+				{t`Publish updates`}
 			</Button>
 		);
 	}
 	return (
 		<Button type="button" variant="outline" size={size} onClick={onUnpublish} icon={<EyeSlash />}>
-			{t`Unpublish`}
+			{t`Unpublish ${itemLabel}`}
 		</Button>
 	);
 }
@@ -197,6 +211,7 @@ export function PublishActions({
  * memoized panel body below it.
  */
 export function SettingsActionBar({
+	collectionLabel,
 	isNew,
 	isDirty,
 	isSaving,
@@ -215,42 +230,53 @@ export function SettingsActionBar({
 	const { t } = useLingui();
 
 	return (
-		<div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3">
-			<SaveButton
-				type="submit"
-				size="sm"
-				isDirty={isDirty}
-				isSaving={isSaving || Boolean(isAutosaving)}
-				announce={announceSaveStatus}
-				disabled={saveDisabled}
-			/>
-			{liveViewUrl && (
-				<LinkButton
-					href={liveViewUrl}
-					external
-					variant="outline"
+		<div className="flex shrink-0 flex-wrap items-stretch gap-2 border-b px-4 py-3">
+			<SettingsActionSlot>
+				<SaveButton
+					type="submit"
 					size="sm"
-					icon={<ArrowSquareOut />}
-				>
-					{t`Live View`}
-				</LinkButton>
+					isDirty={isDirty}
+					isSaving={isSaving || Boolean(isAutosaving)}
+					announce={announceSaveStatus}
+					disabled={saveDisabled}
+				/>
+			</SettingsActionSlot>
+			{liveViewUrl && (
+				<SettingsActionSlot>
+					<LinkButton
+						href={liveViewUrl}
+						external
+						variant="outline"
+						size="sm"
+						icon={<ArrowSquareOut />}
+					>
+						{t`Live View`}
+					</LinkButton>
+				</SettingsActionSlot>
 			)}
 			{!isNew && supportsPreview && (
-				<PreviewButton
-					size="sm"
-					hasPendingChanges={hasPendingChanges}
-					isLoadingPreview={isLoadingPreview}
-					onPreview={onPreview}
-				/>
+				<SettingsActionSlot>
+					<PreviewButton
+						size="sm"
+						hasPendingChanges={hasPendingChanges}
+						isLoadingPreview={isLoadingPreview}
+						onPreview={onPreview}
+					/>
+				</SettingsActionSlot>
 			)}
-			<PublishActions
-				isNew={isNew}
-				isLive={isLive}
-				hasPendingChanges={hasPendingChanges}
-				onPublish={onPublish}
-				onUnpublish={onUnpublish}
-				size="sm"
-			/>
+			{!isNew && (
+				<SettingsActionSlot>
+					<PublishActions
+						collectionLabel={collectionLabel}
+						isNew={isNew}
+						isLive={isLive}
+						hasPendingChanges={hasPendingChanges}
+						onPublish={onPublish}
+						onUnpublish={onUnpublish}
+						size="sm"
+					/>
+				</SettingsActionSlot>
+			)}
 		</div>
 	);
 }
@@ -379,6 +405,16 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					inline
 				/>
 			</div>
+		) : blockSidebarPanel.type === "gallery" ? (
+			<div className="p-4">
+				<GalleryDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
+					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
+					onDelete={onBlockSidebarDelete}
+					onClose={onBlockSidebarClose}
+					inline
+				/>
+			</div>
 		) : null;
 	}
 
@@ -482,7 +518,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				</div>
 
 				{item && (
-					<dl className="mt-4 border-t pt-4 space-y-1 text-xs text-kumo-subtle">
+					<dl
+						data-testid="content-timestamps"
+						className="mt-4 border-t pt-4 space-y-1 text-xs text-kumo-subtle"
+					>
 						<div className="flex items-center justify-between gap-2">
 							<dt>{t`Created`}</dt>
 							<dd>{new Date(item.createdAt).toLocaleString()}</dd>
@@ -833,15 +872,12 @@ function BylineCreditsEditor({
 						if (!byline) return null;
 						return (
 							<div key={`${credit.bylineId}-${index}`} className="rounded-lg border p-2 space-y-2">
-								<div
-									className="grid items-start gap-2"
-									style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}
-								>
+								<div className="grid min-w-0 items-start gap-2">
 									<div className="min-w-0">
 										<p className="truncate text-sm font-medium">{byline.displayName}</p>
 										<p className="truncate text-xs text-kumo-subtle">{byline.slug}</p>
 									</div>
-									<div className="flex shrink-0 gap-1">
+									<div className="flex min-w-0 flex-wrap gap-1">
 										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, -1)}>
 											{t`Up`}
 										</Button>

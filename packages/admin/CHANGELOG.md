@@ -1,5 +1,77 @@
 # @emdash-cms/admin
 
+## 0.30.0
+
+### Minor Changes
+
+- [#1890](https://github.com/emdash-cms/emdash/pull/1890) [`82827d3`](https://github.com/emdash-cms/emdash/commit/82827d3f8ffdaa4fae688b89cdcc139aa6c25810) Thanks [@swissky](https://github.com/swissky)! - Adds a Backups page to admin settings: download a complete content backup (all content including drafts and trash, schema, taxonomies, menus, widgets, media metadata, and site settings — never user accounts or secrets) with one click, and optionally enable daily automatic backups to the site's storage bucket with configurable retention. A new `backups:manage` permission gates the feature to admins.
+
+- [#1924](https://github.com/emdash-cms/emdash/pull/1924) [`1c15097`](https://github.com/emdash-cms/emdash/commit/1c150977628d729c7b501f24c60a9f65fbb02123) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Redesigns the content editor layout. The editor now fills the viewport with a distraction-lighter writing column, and all publish actions live in a structural settings panel on the end side: a single Save control transitions between Save, Saving, and Saved alongside Live View, Preview, and publish controls in an action bar pinned above the panel's sections. Publish-state badges now live in the Publish section with slug, scheduling, ownership, bylines, translations, taxonomies, SEO, outline, and revisions, with Move to Trash isolated at the bottom. Below the `lg` breakpoint the panel becomes a slide-in sheet behind a Settings button, while Save, preview/live-view access, and publish controls stay visible in the editor header. The layout mirrors correctly in RTL locales.
+
+- [#2013](https://github.com/emdash-cms/emdash/pull/2013) [`64b2e73`](https://github.com/emdash-cms/emdash/commit/64b2e739949e0f370b4e7b82072c7a99f1baa3cb) Thanks [@swissky](https://github.com/swissky)! - Plugin admin page labels in the sidebar and command palette are now run through the admin's Lingui instance. Plugins that load a message catalog (with the English label as the message id) get localized navigation, and labels matching one of the admin's own messages (such as "Settings") follow the admin locale automatically. Labels without a catalog entry render unchanged.
+
+- [#1868](https://github.com/emdash-cms/emdash/pull/1868) [`4c57ee2`](https://github.com/emdash-cms/emdash/commit/4c57ee216f242ef163ae269ec6ff6abfba716e6f) Thanks [@afonsojramos](https://github.com/afonsojramos)! - Invited users can now accept their invite by signing in with Google or GitHub, instead of only creating a passkey.
+
+- [#2002](https://github.com/emdash-cms/emdash/pull/2002) [`e52dea9`](https://github.com/emdash-cms/emdash/commit/e52dea9b72b043d62348f8d01eefade2ce66484c) Thanks [@jcheese1](https://github.com/jcheese1)! - Adds explicitly declared, administrator-enabled plugin MCP tools with per-route permissions, plugin-scoped token access, install and update consent, structured output schemas, and invocation auditing.
+
+- [#1893](https://github.com/emdash-cms/emdash/pull/1893) [`d4c565e`](https://github.com/emdash-cms/emdash/commit/d4c565ef99dde5f0a5fafa55b3ca4353dd6d3168) Thanks [@swissky](https://github.com/swissky)! - Adds the auto-generated admin settings form for plugins that declare `admin.settingsSchema`. A gear icon on the plugin's card in Plugins opens a form generated from the schema (string, number, boolean, select, secret, url, and email fields), persisted to the plugin's KV store under `settings:` keys. Secret fields are write-only: the admin shows whether a value is set but never returns it. Editing plugin settings requires the `plugins:manage` permission.
+
+### Patch Changes
+
+- [#2056](https://github.com/emdash-cms/emdash/pull/2056) [`2cb8dd3`](https://github.com/emdash-cms/emdash/commit/2cb8dd3cb6af04e1f0f8dbb825ade372c52cac05) Thanks [@vhscom](https://github.com/vhscom)! - Editor image figcaption no longer falls back to alt text. The editor previously showed alt text below images as if it were a caption, while the published renderer shows only an explicit caption. The editor now mirrors the live output.
+
+- [#2151](https://github.com/emdash-cms/emdash/pull/2151) [`f961f6e`](https://github.com/emdash-cms/emdash/commit/f961f6ec6dcd0bcebc24cffe96705c145f2886af) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates admin icons so pages, posts, media, comments, menus, redirects, widgets, sections, taxonomies, bylines, imports, and plugins are easier to distinguish across navigation and related views.
+
+- [#2137](https://github.com/emdash-cms/emdash/pull/2137) [`aa7ef09`](https://github.com/emdash-cms/emdash/commit/aa7ef096c9ab6628920469fb6a4a75bc9b13395f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates admin editor surfaces to use a consistent layered background hierarchy in light and dark mode.
+
+- [#2141](https://github.com/emdash-cms/emdash/pull/2141) [`1329cc0`](https://github.com/emdash-cms/emdash/commit/1329cc0ac7e71e06e9626427d2d03dd0375c6fbf) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Aligns the distraction-free editor with the standard editor: consistent width, padding, labels, field surfaces, header alignment, compact action order, and exit placement.
+
+- [#2134](https://github.com/emdash-cms/emdash/pull/2134) [`a6b7424`](https://github.com/emdash-cms/emdash/commit/a6b7424aab4a7016bda15776b26e4f6e3e0fe416) Thanks [@logelog](https://github.com/logelog)! - Fixes duplicate terms in hierarchical taxonomy parent selectors and prevents moving a term beneath its own descendants.
+
+- [#1940](https://github.com/emdash-cms/emdash/pull/1940) [`44e2685`](https://github.com/emdash-cms/emdash/commit/44e268560d145f2367093f9b4028e9b7f312c7a9) Thanks [@dchaudhari7177](https://github.com/dchaudhari7177)! - Centers the empty-state placeholder labels in Image, File, and media picker fields.
+
+- [#2035](https://github.com/emdash-cms/emdash/pull/2035) [`3176f4f`](https://github.com/emdash-cms/emdash/commit/3176f4fff3e93cbe52d49b9c7293aeccefa9e512) Thanks [@mikepage](https://github.com/mikepage)! - Adds Dutch (Nederlands) translations for the admin UI.
+
+- [#2137](https://github.com/emdash-cms/emdash/pull/2137) [`aa7ef09`](https://github.com/emdash-cms/emdash/commit/aa7ef096c9ab6628920469fb6a4a75bc9b13395f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Improves content editor action alignment and makes forward publishing actions visually consistent across content states, types, and translations.
+
+- [#2137](https://github.com/emdash-cms/emdash/pull/2137) [`aa7ef09`](https://github.com/emdash-cms/emdash/commit/aa7ef096c9ab6628920469fb6a4a75bc9b13395f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Displays featured image guidance in an instant help tooltip consistent with SEO fields.
+
+- [#2057](https://github.com/emdash-cms/emdash/pull/2057) [`a272e58`](https://github.com/emdash-cms/emdash/commit/a272e58fab994046ba214659328dbf9674fc26ad) Thanks [@mikepage](https://github.com/mikepage)! - Localizes the built-in widget UI in the admin. The core widget labels, descriptions, editor component-select options, and prop-field labels/options (Recent Posts, Categories, Tags, Search, Archives — including fields like "Placeholder text", "Show post count", "Group by") now follow the selected admin language instead of always showing English. Plugin-registered widgets fall back to their server-provided strings.
+
+- [#1902](https://github.com/emdash-cms/emdash/pull/1902) [`7ff08db`](https://github.com/emdash-cms/emdash/commit/7ff08dbea6407b566dd5ea7c159510fd871e01b9) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes the login, signup, and invite-accept pages showing the stock EmDash mark and name even when a custom `admin.logo`/`admin.siteName` is configured for white-labeling. These pre-authentication pages now render the configured logo and site name (completing the scope approved in [#639](https://github.com/emdash-cms/emdash/issues/639)/PR [#705](https://github.com/emdash-cms/emdash/issues/705), which wired branding into the sidebar and setup wizard but missed the pages users see before signing in), falling back to the default EmDash mark when no custom branding is configured.
+
+- [#2137](https://github.com/emdash-cms/emdash/pull/2137) [`aa7ef09`](https://github.com/emdash-cms/emdash/commit/aa7ef096c9ab6628920469fb6a4a75bc9b13395f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the content editor header to scroll with the page on narrower admin layouts.
+
+- [#2137](https://github.com/emdash-cms/emdash/pull/2137) [`aa7ef09`](https://github.com/emdash-cms/emdash/commit/aa7ef096c9ab6628920469fb6a4a75bc9b13395f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Standardizes content editor headings, field labels, and spacing while keeping the writing surface contained at narrower widths.
+
+- [#2114](https://github.com/emdash-cms/emdash/pull/2114) [`c80cab6`](https://github.com/emdash-cms/emdash/commit/c80cab66758c97216ca72f278c0eb24c782c96f8) Thanks [@mikepage](https://github.com/mikepage)! - Completes the Dutch (Nederlands) translations for the built-in widget UI labels, descriptions, and prop-field options in the admin.
+
+- [#2160](https://github.com/emdash-cms/emdash/pull/2160) [`2da4a40`](https://github.com/emdash-cms/emdash/commit/2da4a40c7ee57f5c243dceb1bacaf8c2aa985fe5) Thanks [@saariuslystoned](https://github.com/saariuslystoned)! - Fixes plugin block edits being overwritten when saving from the block modal.
+
+- [#2089](https://github.com/emdash-cms/emdash/pull/2089) [`b871de2`](https://github.com/emdash-cms/emdash/commit/b871de20c4389514c761b6db8c3c3d36f2a1d991) Thanks [@logelog](https://github.com/logelog)! - Keep byline identity and action controls contained within narrow content editor settings panels.
+
+- [#2120](https://github.com/emdash-cms/emdash/pull/2120) [`9c858b1`](https://github.com/emdash-cms/emdash/commit/9c858b1b3387aa174bb8c982609c7ef97d3eb7fa) Thanks [@gornostay25](https://github.com/gornostay25)! - Completes Ukrainian (Українська) translations for the admin UI, including labels, descriptions, dialogs, and form fields.
+
+- [#2064](https://github.com/emdash-cms/emdash/pull/2064) [`1d7550b`](https://github.com/emdash-cms/emdash/commit/1d7550bba157b114d54c6df95d5e11e1903e54f3) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Improves portable text editing with a centered writing column, a responsive toolbar, clearer empty-state guidance, direct block insertion controls, and floating controls that avoid clipping and toolbar overlap.
+
+- [#2109](https://github.com/emdash-cms/emdash/pull/2109) [`2da14cc`](https://github.com/emdash-cms/emdash/commit/2da14cc9fff44a761df44114b2f1da273a9a69d1) Thanks [@ahliweb](https://github.com/ahliweb)! - Fixes missing Indonesian admin translations for the latest UI strings.
+
+- [#2137](https://github.com/emdash-cms/emdash/pull/2137) [`aa7ef09`](https://github.com/emdash-cms/emdash/commit/aa7ef096c9ab6628920469fb6a4a75bc9b13395f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the admin sidebar collapse control to sit beside the site version in the footer while remaining accessible from the mobile header.
+
+- [#2137](https://github.com/emdash-cms/emdash/pull/2137) [`aa7ef09`](https://github.com/emdash-cms/emdash/commit/aa7ef096c9ab6628920469fb6a4a75bc9b13395f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Aligns the configuration loading screen with the centered EmDash boot experience.
+
+- [#2145](https://github.com/emdash-cms/emdash/pull/2145) [`22b96e5`](https://github.com/emdash-cms/emdash/commit/22b96e5581dd5fcf24dfbbf2392448842c0f350c) Thanks [@gornostay25](https://github.com/gornostay25)! - Completes Serbian (Srpski) translations for the admin UI, including labels, descriptions, dialogs, and form fields.
+
+- [#2107](https://github.com/emdash-cms/emdash/pull/2107) [`8903aef`](https://github.com/emdash-cms/emdash/commit/8903aef771f98fb505911ac8c7c655f3ff9103e4) Thanks [@kegren](https://github.com/kegren)! - Adds Swedish (Svenska) translations for the admin UI.
+
+- [#2158](https://github.com/emdash-cms/emdash/pull/2158) [`b5a60c1`](https://github.com/emdash-cms/emdash/commit/b5a60c130e55c4d16004eb357513e601e15c72ad) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the rich-text toolbar so alignment always reflects the selected blocks and active or hovered controls remain visible. Adds icon tooltips and preserves rounded corners on floating formatting controls.
+
+- Updated dependencies [[`07c9f21`](https://github.com/emdash-cms/emdash/commit/07c9f210db300803f49ecf2b8a18fe173e459a28), [`e52dea9`](https://github.com/emdash-cms/emdash/commit/e52dea9b72b043d62348f8d01eefade2ce66484c), [`3f8b778`](https://github.com/emdash-cms/emdash/commit/3f8b77822bf8e89b065884c53c7e8b7676788c48), [`07c9f21`](https://github.com/emdash-cms/emdash/commit/07c9f210db300803f49ecf2b8a18fe173e459a28)]:
+  - @emdash-cms/registry-lexicons@0.3.0
+  - @emdash-cms/plugin-types@0.3.0
+  - @emdash-cms/registry-client@0.3.4
+  - @emdash-cms/blocks@0.30.0
+
 ## 0.29.0
 
 ### Minor Changes

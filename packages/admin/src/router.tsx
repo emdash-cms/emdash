@@ -42,6 +42,7 @@ import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
 import { PluginManager } from "./components/PluginManager";
+import { PluginSettings } from "./components/PluginSettings";
 import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
@@ -51,6 +52,7 @@ import { Sections } from "./components/Sections";
 import { Settings } from "./components/Settings";
 import { AllowedDomainsSettings } from "./components/settings/AllowedDomainsSettings";
 import { ApiTokenSettings } from "./components/settings/ApiTokenSettings";
+import { BackupSettings } from "./components/settings/BackupSettings";
 import { EmailSettings } from "./components/settings/EmailSettings";
 import { GeneralSettings } from "./components/settings/GeneralSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
@@ -274,7 +276,7 @@ function RootComponent() {
 	});
 
 	if (isLoading) {
-		return <LoadingScreen />;
+		return <ConfigurationLoadingScreen />;
 	}
 
 	if (error || !manifest) {
@@ -1570,6 +1572,13 @@ const emailSettingsRoute = createRoute({
 	component: EmailSettings,
 });
 
+// Backup settings route
+const backupSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/backups",
+	component: BackupSettings,
+});
+
 // General settings route
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -2033,6 +2042,20 @@ function ContentTypesEditPage() {
 	);
 }
 
+// Auto-generated plugin settings route (from admin.settingsSchema).
+// Lives under /plugins-manager so it can never shadow a plugin's own
+// admin pages (which own the /plugins/$pluginId/* namespace).
+const pluginSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/plugins-manager/$pluginId/settings",
+	component: PluginSettingsPage,
+});
+
+function PluginSettingsPage() {
+	const { pluginId } = useParams({ from: "/_admin/plugins-manager/$pluginId/settings" });
+	return <PluginSettings pluginId={pluginId} />;
+}
+
 // Plugin page route
 const pluginRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -2077,6 +2100,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	menuListRoute,
 	menuEditorRoute,
 	pluginManagerRoute,
+	pluginSettingsRoute,
 	marketplaceDetailRoute,
 	marketplaceBrowseRoute,
 	themeMarketplaceBrowseRoute,
@@ -2098,6 +2122,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	allowedDomainsSettingsRoute,
 	apiTokenSettingsRoute,
 	emailSettingsRoute,
+	backupSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);
@@ -2129,6 +2154,22 @@ declare module "@tanstack/react-router" {
 }
 
 // Shared components
+
+export function ConfigurationLoadingScreen() {
+	const { t } = useLingui();
+	return (
+		<div className="emdash-configuration-loader">
+			<div className="loader-inner">
+				<div
+					className="spinner emdash-configuration-spinner"
+					role="status"
+					aria-label={t`Loading`}
+				/>
+				<p className="emdash-configuration-label">{t`Loading configuration...`}</p>
+			</div>
+		</div>
+	);
+}
 
 function LoadingScreen() {
 	const { t } = useLingui();

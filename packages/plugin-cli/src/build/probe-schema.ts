@@ -89,6 +89,8 @@ export const HookEntrySchema = z.preprocess(normaliseEntry, HookEntryConfigSchem
 const RouteEntryConfigSchema = z.looseObject({
 	handler: FunctionSchema,
 	public: z.boolean().optional(),
+	input: z.unknown().optional(),
+	permission: z.string().optional(),
 });
 
 export const RouteEntrySchema = z.preprocess(normaliseEntry, RouteEntryConfigSchema);
@@ -122,6 +124,20 @@ function coerceOptionalRecord(value: unknown): unknown {
 export const ProbedDefaultSchema = z.looseObject({
 	hooks: z.preprocess(coerceOptionalRecord, z.record(z.string(), HookEntrySchema)).optional(),
 	routes: z.preprocess(coerceOptionalRecord, z.record(z.string(), RouteEntrySchema)).optional(),
+	mcp: z
+		.object({
+			tools: z.record(
+				z.string(),
+				z.object({
+					description: z.string().min(1),
+					route: z.string().min(1),
+					input: z.unknown(),
+					output: z.unknown().optional(),
+					destructive: z.boolean().optional(),
+				}),
+			),
+		})
+		.optional(),
 });
 
 export type ProbedDefault = z.infer<typeof ProbedDefaultSchema>;

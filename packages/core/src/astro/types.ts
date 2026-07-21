@@ -8,6 +8,8 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { RouteMeta } from "../plugins/routes.js";
+
 // Re-export core types
 export type {
 	ContentItem,
@@ -411,8 +413,52 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
-	// Plugin route metadata (for auth decisions before dispatch)
-	getPluginRouteMeta: (pluginId: string, path: string) => { public: boolean } | null;
+	// Plugin route metadata (for auth/caching decisions before dispatch)
+	getPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
+	getEnabledPluginMcpTools: () => Promise<
+		Array<{
+			pluginId: string;
+			name: string;
+			description: string;
+			route: string;
+			permission: string;
+			destructive: boolean;
+			inputSchema: import("zod").ZodType;
+			outputSchema?: import("zod").ZodType;
+		}>
+	>;
+	getPluginMcpTools: (pluginId?: string) => Promise<
+		Array<{
+			pluginId: string;
+			name: string;
+			description: string;
+			route: string;
+			permission: string;
+			destructive: boolean;
+			inputSchema: import("zod").ZodType;
+			outputSchema?: import("zod").ZodType;
+		}>
+	>;
+	serializePluginMcpConsent: (
+		tools: Awaited<ReturnType<EmDashHandlers["getPluginMcpTools"]>>,
+		pluginId: string,
+	) => string;
+	handlePluginMcpTool: (
+		pluginId: string,
+		toolName: string,
+		route: string,
+		input: unknown,
+		actorId: string,
+		request: Request,
+	) => Promise<HandlerResponse>;
+	handlePluginMcpDenied: (
+		pluginId: string,
+		toolName: string,
+		route: string,
+		actorId: string,
+		request: Request,
+		reason: string,
+	) => Promise<void>;
 
 	// Media provider handlers
 	getMediaProvider: (providerId: string) => import("../media/types.js").MediaProvider | undefined;

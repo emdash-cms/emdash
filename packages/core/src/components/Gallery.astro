@@ -2,11 +2,17 @@
 /**
  * Portable Text Gallery block component
  *
- * Renders image galleries from WordPress imports.
- * Uses Astro's Image component for optimization when dimensions are available.
+ * Renders image galleries from WordPress imports and EmDash media.
+ * Uses the provider's getEmbed/getSrc functions for external media (mirrors
+ * Image.astro), falling back to Astro's Image component when dimensions are
+ * available for locally-stored media.
  */
 import { Image as AstroImage } from "astro:assets";
+import type { ImageEmbed } from "../media/types.js";
+import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
+import { toAbsoluteMediaUrl, RESPONSIVE_BREAKPOINTS } from "../media/responsive.js";
+import { getPublicOrigin } from "../api/public-url.js";
 
 export interface Props {
 	node: {
@@ -18,50 +24,159 @@ export interface Props {
 			asset: {
 				_ref: string;
 				url?: string;
+				/** Provider ID for external media (e.g., "cloudflare-images") */
+				provider?: string;
 			};
 			alt?: string;
 			caption?: string;
 			width?: number;
 			height?: number;
+			/** LQIP blurhash placeholder (images only) */
+			blurhash?: string;
+			/** LQIP dominant-color placeholder, as a CSS color (images only) */
+			dominantColor?: string;
 		}>;
 		columns?: number;
 	};
+	/** Render the LQIP placeholder as an inline background. Disable for strict CSP. */
+	placeholder?: boolean;
 }
 
-const { node } = Astro.props;
+/**
+ * Generate srcset using provider's getSrc function
+ */
+function generateSrcset(
+	getSrc: NonNullable<ImageEmbed["getSrc"]>,
+	maxWidth: number,
+	aspectRatio?: number,
+): string {
+	return RESPONSIVE_BREAKPOINTS.filter((w) => w <= maxWidth * 2)
+		.map((w) => {
+			const h = aspectRatio ? Math.round(w / aspectRatio) : undefined;
+			return `${getSrc({ width: w, height: h })} ${w}w`;
+		})
+		.join(", ");
+}
+
+const { node, placeholder = true } = Astro.props;
 const images = node?.images ?? [];
 const columns = node?.columns ?? 3;
 
 if (!images.length) {
 	return null;
 }
+
+// Resolve provider embeds up front (async), keeping the template's `.map()`
+// synchronous over the resolved data — mirrors Image.astro's per-image logic.
+const resolvedImages = await Promise.all(
+	images.map(async (image) => {
+		const { asset, alt = "", width, height } = image;
+		const aspectRatio = width && height ? width / height : undefined;
+
+		let src = "";
+		let srcset: string | undefined;
+		let sizes: string | undefined;
+		let astroImageSrc = "";
+		const providerId = asset.provider;
+
+		if (providerId && providerId !== "local") {
+			const provider = await getMediaProvider(providerId);
+			if (provider) {
+				try {
+					const mediaValue = {
+						provider: providerId,
+						id: asset._ref,
+						width,
+						height,
+						alt,
+					};
+					const result = provider.getEmbed(mediaValue, { width, height });
+					const embed = result instanceof Promise ? await result : result;
+					if (embed.type === "image") {
+						src = embed.src;
+
+						if (embed.getSrc) {
+							const maxWidth = width || 1200;
+							srcset = generateSrcset(embed.getSrc, maxWidth, aspectRatio);
+							sizes = width ? `(min-width: ${width}px) ${width}px, 100vw` : "100vw";
+						}
+					}
+				} catch (error) {
+					console.warn(`Failed to get embed for image ${asset._ref}:`, error);
+				}
+			}
+		}
+
+		// Fallback for local provider. `asset.url` carries the storage key with
+		// extension when present; `asset._ref` is a bare ULID that only the
+		// internal `/file/{id}` route can resolve. `buildRenderMediaUrl` picks
+		// the right shape.
+		if (!src) {
+			src = buildRenderMediaUrl(Astro.locals.emdash?.getPublicMediaUrl, {
+				url: asset.url,
+				id: asset._ref,
+			});
+			if (width && height) {
+				astroImageSrc = toAbsoluteMediaUrl(
+					src,
+					getPublicOrigin(Astro.url, Astro.locals.emdash?.config),
+				);
+			}
+		}
+
+		// Prefer blurhash over dominant color for the LQIP placeholder, like
+		// Image.astro.
+		let placeholderStyle = "";
+		if (placeholder && image.blurhash) {
+			const { blurhashToImageCssString } = await import("@unpic/placeholder");
+			placeholderStyle = blurhashToImageCssString(image.blurhash);
+		} else if (placeholder && image.dominantColor) {
+			placeholderStyle = `background-color: ${image.dominantColor};`;
+		}
+
+		return {
+			key: image._key,
+			alt,
+			caption: image.caption,
+			width,
+			height,
+			src,
+			srcset,
+			sizes,
+			astroImageSrc,
+			placeholderStyle,
+		};
+	}),
+);
 ---
 
 <div class="emdash-gallery" style={`--columns: ${columns}`}>
 	{
-		images.map((image) => {
-			const src = buildRenderMediaUrl(Astro.locals.emdash?.getPublicMediaUrl, {
-				url: image.asset.url,
-				id: image.asset._ref,
-			});
-			const hasSize = image.width && image.height;
-			return (
-				<figure class="emdash-gallery-item">
-					{hasSize ? (
-						<AstroImage
-							src={src}
-							alt={image.alt || ""}
-							width={image.width!}
-							height={image.height!}
-							layout="constrained"
-						/>
-					) : (
-						<img src={src} alt={image.alt || ""} loading="lazy" decoding="async" />
-					)}
-					{image.caption && <figcaption>{image.caption}</figcaption>}
-				</figure>
-			);
-		})
+		resolvedImages.map((image) => (
+			<figure class="emdash-gallery-item" style={image.placeholderStyle || undefined}>
+				{image.astroImageSrc ? (
+					<AstroImage
+						src={image.astroImageSrc}
+						alt={image.alt}
+						width={image.width!}
+						height={image.height!}
+						layout="constrained"
+					/>
+				) : (
+					<img
+						src={image.src}
+						srcset={image.srcset}
+						sizes={image.sizes}
+						alt={image.alt}
+						width={image.width}
+						height={image.height}
+						loading="lazy"
+						decoding="async"
+					/>
+				)}
+				{image.caption && <figcaption>{image.caption}</figcaption>}
+			</figure>
+		))
 	}
 </div>
 

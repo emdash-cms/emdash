@@ -14,7 +14,8 @@ export type AuditAction =
 	| "logout"
 	| "password_change"
 	| "settings_update"
-	| "schema_change";
+	| "schema_change"
+	| "plugin_tool_invoke";
 
 export type AuditStatus = "success" | "failure" | "denied";
 

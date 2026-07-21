@@ -8,21 +8,9 @@
 import { CommandPalette } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
+import { useLingui as useLinguiContext } from "@lingui/react";
 import { useLingui } from "@lingui/react/macro";
-import {
-	SquaresFour,
-	FileText,
-	Image,
-	Gear,
-	PuzzlePiece,
-	Upload,
-	Database,
-	List,
-	GridFour,
-	Users,
-	Stack,
-	MagnifyingGlass,
-} from "@phosphor-icons/react";
+import { Gear, Users, MagnifyingGlass } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
@@ -30,6 +18,13 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { apiFetch, type AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
+import {
+	ADMIN_NAV_ICONS,
+	getCollectionNavIcon,
+	getTaxonomyNavIcon,
+	resolveNavIcon,
+} from "./admin-navigation-icons.js";
+import { resolvePluginPageLabel } from "./Sidebar.js";
 
 /** Subset of manifest fields used by the palette (matches `Shell` props shape). */
 type CommandPaletteManifest = {
@@ -124,13 +119,17 @@ async function searchContent(query: string): Promise<SearchResponse> {
 	return body.data;
 }
 
-function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavItem[] {
+export function buildNavItems(
+	manifest: CommandPaletteManifest,
+	userRole: number,
+	translateLabel: (id: string) => string,
+): NavItem[] {
 	const items: NavItem[] = [
 		{
 			id: "dashboard",
 			title: msg`Dashboard`,
 			to: "/",
-			icon: SquaresFour,
+			icon: ADMIN_NAV_ICONS.dashboard,
 			keywords: ["home", "overview"],
 		},
 	];
@@ -142,7 +141,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 			title: config.label,
 			to: "/content/$collection",
 			params: { collection: name },
-			icon: FileText,
+			icon: getCollectionNavIcon(name),
 			keywords: ["content", name],
 		});
 	}
@@ -153,14 +152,14 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 			id: "media",
 			title: msg`Media Library`,
 			to: "/media",
-			icon: Image,
+			icon: ADMIN_NAV_ICONS.media,
 			keywords: ["images", "files", "uploads"],
 		},
 		{
 			id: "menus",
 			title: msg`Menus`,
 			to: "/menus",
-			icon: List,
+			icon: ADMIN_NAV_ICONS.menus,
 			minRole: ROLE_EDITOR,
 			keywords: ["navigation"],
 		},
@@ -168,7 +167,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 			id: "widgets",
 			title: msg`Widgets`,
 			to: "/widgets",
-			icon: GridFour,
+			icon: ADMIN_NAV_ICONS.widgets,
 			minRole: ROLE_EDITOR,
 			keywords: ["sidebar", "footer"],
 		},
@@ -176,7 +175,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 			id: "sections",
 			title: msg`Sections`,
 			to: "/sections",
-			icon: Stack,
+			icon: ADMIN_NAV_ICONS.sections,
 			minRole: ROLE_EDITOR,
 			keywords: ["page builder", "blocks"],
 		},
@@ -184,7 +183,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 			id: "content-types",
 			title: msg`Content Types`,
 			to: "/content-types",
-			icon: Database,
+			icon: ADMIN_NAV_ICONS.contentTypes,
 			minRole: ROLE_ADMIN,
 			keywords: ["schema", "collections"],
 		},
@@ -193,7 +192,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 			title: msg`Categories`,
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "category" },
-			icon: FileText,
+			icon: getTaxonomyNavIcon("category"),
 			minRole: ROLE_EDITOR,
 			keywords: ["taxonomy"],
 		},
@@ -202,7 +201,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 			title: msg`Tags`,
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "tag" },
-			icon: FileText,
+			icon: getTaxonomyNavIcon("tag"),
 			minRole: ROLE_EDITOR,
 			keywords: ["taxonomy"],
 		},
@@ -218,7 +217,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 			id: "plugins",
 			title: msg`Plugins`,
 			to: "/plugins-manager",
-			icon: PuzzlePiece,
+			icon: ADMIN_NAV_ICONS.plugins,
 			minRole: ROLE_ADMIN,
 			keywords: ["extensions", "add-ons"],
 		},
@@ -226,7 +225,7 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 			id: "import",
 			title: msg`Import`,
 			to: "/import/wordpress",
-			icon: Upload,
+			icon: ADMIN_NAV_ICONS.import,
 			minRole: ROLE_ADMIN,
 			keywords: ["wordpress", "migrate"],
 		},
@@ -253,18 +252,15 @@ function buildNavItems(manifest: CommandPaletteManifest, userRole: number): NavI
 		if (config.enabled === false) continue;
 		if (config.adminPages && config.adminPages.length > 0) {
 			for (const page of config.adminPages) {
-				const label =
-					page.label ||
-					pluginId
-						.split("-")
-						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-						.join(" ");
+				// Same treatment as the sidebar: declared labels go through the
+				// shared i18n instance so plugin catalogs can localize them.
+				const label = resolvePluginPageLabel(page.label, pluginId, translateLabel);
 
 				items.push({
 					id: `plugin-${pluginId}-${page.path}`,
 					title: label,
 					to: `/plugins/${pluginId}${page.path}`,
-					icon: PuzzlePiece,
+					icon: resolveNavIcon(page.icon),
 					keywords: ["plugin", pluginId],
 				});
 			}
@@ -292,6 +288,12 @@ function filterNavItems(
 
 export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const { t } = useLingui();
+	// The runtime hook (the macro useLingui() omits `_`): `_` translates the
+	// dynamic plugin labels, and both it and `i18n.locale` invalidate the
+	// nav-items memo below. `i18n.locale` is the documented signal for locale
+	// switches; the `_` rebind covers catalog merges that arrive without a
+	// locale change (plugins load their catalogs asynchronously).
+	const { _: translateDynamic, i18n } = useLinguiContext();
 	const [open, setOpen] = React.useState(false);
 	const [query, setQuery] = React.useState("");
 	const navigate = useNavigate();
@@ -316,7 +318,10 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 	const isPendingSearch = isWaitingForDebounce || isSearching;
 
 	// Build navigation items
-	const allNavItems = React.useMemo(() => buildNavItems(manifest, userRole), [manifest, userRole]);
+	const allNavItems = React.useMemo(
+		() => buildNavItems(manifest, userRole, translateDynamic),
+		[manifest, userRole, translateDynamic, i18n.locale],
+	);
 
 	// Filter nav items based on query
 	const filteredNavItems = React.useMemo(
@@ -338,7 +343,13 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 					title: typeof item.title === "string" ? item.title : t(item.title),
 					to: item.to,
 					params: item.params,
-					icon: <item.icon className="h-4 w-4" />,
+					icon: (
+						<React.Suspense
+							fallback={<ADMIN_NAV_ICONS.plugins className="h-4 w-4" aria-hidden="true" />}
+						>
+							<item.icon className="h-4 w-4" />
+						</React.Suspense>
+					),
 				})),
 			});
 		}
@@ -354,7 +365,9 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 					title: result.title || result.slug,
 					to: "/content/$collection/$id",
 					params: { collection: result.collection, id: result.id },
-					icon: <FileText className="h-4 w-4" />,
+					icon: React.createElement(getCollectionNavIcon(result.collection), {
+						className: "h-4 w-4",
+					}),
 					description: collectionLabel,
 					collection: result.collection,
 				};

@@ -24,11 +24,12 @@ import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
-import { SchemaRegistry } from "../schema/registry.js";
+import { SchemaError, SchemaRegistry } from "../schema/registry.js";
 import type { Field } from "../schema/types.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { setSiteSettings } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
+import { chunks } from "../utils/chunks.js";
 import type {
 	SeedFile,
 	SeedField,
@@ -42,6 +43,8 @@ import type {
 } from "./types.js";
 
 const FILE_EXTENSION_PATTERN = /\.([a-z0-9]+)(?:\?|$)/i;
+const SEED_RELATION_NAME_MAX_ATTEMPTS = 5;
+const SEED_RELATION_INSERT_BATCH_SIZE = 10;
 import { validateSeed } from "./validate.js";
 
 /** Pattern to remove file extensions */
@@ -165,6 +168,20 @@ export async function applySeed(
 	// 2-3. Collections and Fields
 	if (seed.collections) {
 		const registry = new SchemaRegistry(db);
+		const seedCollectionSlugs = new Set(seed.collections.map((collection) => collection.slug));
+		const relationNames = new Set(
+			(await db.selectFrom("_emdash_relations").select("name").execute()).map((row) => row.name),
+		);
+		const externalTargetExists = new Map<string, boolean>();
+		const pendingRelations: Array<{
+			id: string;
+			name: string;
+			parent_collection: string;
+			child_collection: string;
+			parent_label: string;
+			child_label: string;
+			translation_group: string;
+		}> = [];
 
 		for (const collection of seed.collections) {
 			// Check if collection exists
@@ -203,25 +220,81 @@ export async function applySeed(
 				continue;
 			}
 
-			// Create collection
-			await registry.createCollection({
-				slug: collection.slug,
-				label: collection.label,
-				labelSingular: collection.labelSingular,
-				description: collection.description,
-				icon: collection.icon,
-				supports: collection.supports || [],
-				source: "seed",
-				urlPattern: collection.urlPattern,
-				commentsEnabled: collection.commentsEnabled,
-			});
-			result.collections.created++;
-
-			// Create fields
+			const fields = [];
 			for (const field of collection.fields) {
-				await upsertSeedField(db, collection.slug, field, null);
-				result.fields.created++;
+				let fieldValidation = field.validation;
+				const targetCollection =
+					field.type === "reference" && typeof fieldValidation?.targetCollection === "string"
+						? fieldValidation.targetCollection
+						: undefined;
+				if (targetCollection) {
+					let targetExists = seedCollectionSlugs.has(targetCollection);
+					if (!targetExists) {
+						targetExists = externalTargetExists.get(targetCollection) ?? false;
+						if (!externalTargetExists.has(targetCollection)) {
+							targetExists = Boolean(await registry.getCollection(targetCollection));
+							externalTargetExists.set(targetCollection, targetExists);
+						}
+					}
+					if (!targetExists) {
+						throw new SchemaError(
+							`Target collection "${targetCollection}" not found`,
+							"COLLECTION_NOT_FOUND",
+						);
+					}
+
+					const relationId = ulid();
+					const relationName = allocateSeedRelationName(
+						collection.slug,
+						field.slug,
+						relationNames,
+					);
+					pendingRelations.push({
+						id: relationId,
+						name: relationName,
+						parent_collection: collection.slug,
+						child_collection: targetCollection,
+						parent_label: collection.labelSingular ?? collection.label,
+						child_label: field.label,
+						translation_group: relationId,
+					});
+					fieldValidation = { ...fieldValidation, relation: relationId };
+				}
+
+				fields.push({
+					slug: field.slug,
+					label: field.label,
+					type: field.type,
+					required: field.required || false,
+					unique: field.unique || false,
+					searchable: field.searchable || false,
+					defaultValue: field.defaultValue,
+					validation: fieldValidation,
+					widget: field.widget,
+					options: field.options,
+				});
 			}
+
+			// Create a fresh seed schema in bulk to stay within D1's query budget.
+			await registry.createSeedCollection(
+				{
+					slug: collection.slug,
+					label: collection.label,
+					labelSingular: collection.labelSingular,
+					description: collection.description,
+					icon: collection.icon,
+					supports: collection.supports || [],
+					urlPattern: collection.urlPattern,
+					commentsEnabled: collection.commentsEnabled,
+				},
+				fields,
+			);
+			result.collections.created++;
+			result.fields.created += collection.fields.length;
+		}
+
+		for (const relationBatch of chunks(pendingRelations, SEED_RELATION_INSERT_BATCH_SIZE)) {
+			await db.insertInto("_emdash_relations").values(relationBatch).execute();
 		}
 	}
 
@@ -836,6 +909,23 @@ export async function applySeed(
 	invalidateUrlPatternCache();
 
 	return result;
+}
+
+function allocateSeedRelationName(
+	collectionSlug: string,
+	fieldSlug: string,
+	usedNames: Set<string>,
+): string {
+	const baseName = `${collectionSlug}_${fieldSlug}`.slice(0, 63);
+	for (let attempt = 0; attempt < SEED_RELATION_NAME_MAX_ATTEMPTS; attempt++) {
+		const suffix = attempt === 0 ? "" : `_${attempt + 1}`;
+		const name = attempt === 0 ? baseName : `${baseName.slice(0, 63 - suffix.length)}${suffix}`;
+		if (!usedNames.has(name)) {
+			usedNames.add(name);
+			return name;
+		}
+	}
+	throw new SchemaError("Could not allocate a unique relation name", "RELATION_NAME_CONFLICT");
 }
 
 /**

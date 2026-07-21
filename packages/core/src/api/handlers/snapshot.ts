@@ -218,10 +218,19 @@ interface ColumnInfo {
 }
 
 export interface GenerateSnapshotOptions {
-	/** Include draft and trashed content (default: false) */
+	/** Include draft and scheduled content (default: false) */
 	includeDrafts?: boolean;
+	/** Include trashed content (deleted_at set). Used by backups (default: false) */
+	includeTrashed?: boolean;
 	/** Origin URL for absolutizing local media URLs (e.g. "https://mysite.com") */
 	origin?: string;
+	/**
+	 * Allowlist of options-table key prefixes to include (default:
+	 * `SAFE_OPTIONS_PREFIXES`). Callers widening this must never include a
+	 * prefix that matches secrets (`emdash:preview_secret`, `plugin:`,
+	 * `emdash:passkey_pending:`) — the output may be user-downloadable.
+	 */
+	optionPrefixes?: string[];
 }
 
 /**
@@ -235,6 +244,8 @@ export async function generateSnapshot(
 	options?: GenerateSnapshotOptions,
 ): Promise<Snapshot> {
 	const includeDrafts = options?.includeDrafts ?? false;
+	const includeTrashed = options?.includeTrashed ?? false;
+	const optionPrefixes = options?.optionPrefixes ?? SAFE_OPTIONS_PREFIXES;
 
 	// Discover all ec_* content tables
 	const tableResult = await sql<{ name: string }>`
@@ -280,7 +291,14 @@ export async function generateSnapshot(
 			let rows: Record<string, unknown>[];
 
 			if (tableName.startsWith("ec_")) {
-				if (includeDrafts) {
+				if (includeTrashed) {
+					// Everything, including trash — full-fidelity backup export
+					rows = (
+						await sql<Record<string, unknown>>`
+						SELECT * FROM ${sql.raw(`"${tableName}"`)}
+					`.execute(db)
+					).rows;
+				} else if (includeDrafts) {
 					// Include all non-deleted content (published, draft, scheduled)
 					rows = (
 						await sql<Record<string, unknown>>`
@@ -307,7 +325,7 @@ export async function generateSnapshot(
 				`.execute(db)
 				).rows.filter((row) => {
 					const name = typeof row.name === "string" ? row.name : "";
-					return SAFE_OPTIONS_PREFIXES.some((prefix) => name.startsWith(prefix));
+					return optionPrefixes.some((prefix) => name.startsWith(prefix));
 				});
 			} else {
 				rows = (

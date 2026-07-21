@@ -4,6 +4,7 @@
  * Converts Portable Text to TipTap's ProseMirror JSON format for editing.
  */
 
+import { sanitizeGalleryImages } from "./gallery.js";
 import type {
 	ProseMirrorDocument,
 	ProseMirrorNode,
@@ -13,6 +14,7 @@ import type {
 	PortableTextSpan,
 	PortableTextMarkDef,
 	PortableTextImageBlock,
+	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
 } from "./types.js";
 
@@ -129,6 +131,14 @@ function isImageBlock(block: PortableTextBlock): block is PortableTextImageBlock
 }
 
 /**
+ * Type guard for gallery blocks. Requires an `images` array — a gallery
+ * without one is malformed and falls through to the unknown-block path.
+ */
+function isGalleryBlock(block: PortableTextBlock): block is PortableTextGalleryBlock {
+	return block._type === "gallery" && "images" in block && Array.isArray(block.images);
+}
+
+/**
  * Type guard for code blocks
  */
 function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
@@ -148,6 +158,15 @@ function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
 	if (block._type === "image") {
 		// Malformed image block (no asset wrapper) — extract url from top level
 		return convertMalformedImage(block);
+	}
+	if (isGalleryBlock(block)) {
+		return {
+			type: "gallery",
+			attrs: {
+				images: sanitizeGalleryImages(block.images),
+				columns: typeof block.columns === "number" ? block.columns : undefined,
+			},
+		};
 	}
 	if (isCodeBlock(block)) {
 		return convertCodeBlock(block);

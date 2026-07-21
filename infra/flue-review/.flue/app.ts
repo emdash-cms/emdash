@@ -9,12 +9,22 @@
 // inside the workflow's Durable Object, which is not bound by that budget.
 
 import { getRun, listRuns } from "@flue/runtime";
-import { flue } from "@flue/runtime/routing";
 import { Hono } from "hono";
 
-import { verifyWebhookSignature, gatePullRequestEvent } from "./lib/webhook.js";
-
-const flueApp = flue();
+import {
+	completeReviewCheck,
+	createReviewCheck,
+	findReviewCheck,
+	mintInstallationToken,
+	readAppCreds,
+} from "./lib/github.js";
+import { getReviewWatchdog, type ReviewAttempt } from "./lib/review-watchdog.js";
+import {
+	verifyWebhookSignature,
+	gatePullRequestEvent,
+	getWebhookDeliveryId,
+} from "./lib/webhook.js";
+import { admitReviewWorkflow } from "./lib/workflow-admission.js";
 
 // Extract a short, displayable message from an unknown run error without
 // risking an "[object Object]" stringification.
@@ -54,18 +64,18 @@ app.get("/webhook/admin/runs", async (c) => {
 		else summary.other++;
 	}
 
-	// ?detail=1: pull the full RunRecord (payload/result/error) for each run via
+	// ?detail=1: pull the full RunRecord (input/result/error) for each run via
 	// getRun, to see whether the Cloudflare registry persists those (needed to
 	// map a run -> PR and to read the failure reason).
 	if (c.req.query("detail") === "1") {
 		const detailed = await Promise.all(
 			runs.slice(0, 25).map(async (r) => {
 				const rec = (await getRun(r.runId).catch(() => null)) as {
-					payload?: unknown;
+					input?: unknown;
 					error?: unknown;
 					result?: unknown;
 				} | null;
-				const payload = rec?.payload;
+				const payload = rec?.input;
 				const prNumber =
 					typeof payload === "object" &&
 					payload !== null &&
@@ -75,10 +85,14 @@ app.get("/webhook/admin/runs", async (c) => {
 						: undefined;
 				return {
 					runId: r.runId,
+					workflowName: r.workflowName,
 					status: r.status,
+					startedAt: r.startedAt,
+					endedAt: r.endedAt,
 					durationMs: r.durationMs,
+					isError: r.isError,
 					prNumber,
-					hasPayload: rec?.payload !== undefined,
+					hasInput: rec?.input !== undefined,
 					hasResult: rec?.result !== undefined,
 					error: formatRunError(rec?.error),
 				};
@@ -121,25 +135,216 @@ app.post("/webhook/github", async (c) => {
 	});
 	if (!decision.review) return c.text(`skipped: ${decision.reason}`, 202);
 
+	const deliveryId = getWebhookDeliveryId(c.req.header("x-github-delivery"));
+	if (!deliveryId) return c.text("missing delivery id", 400);
+	const attemptId = deliveryId;
+	const setupLease = crypto.randomUUID();
+	const watchdog = getReviewWatchdog(c.env, attemptId);
+	const reservedAttempt: ReviewAttempt = {
+		attemptId,
+		runId: attemptId,
+		deliveryId,
+		owner: decision.pr.owner,
+		repo: decision.pr.repo,
+		prNumber: decision.pr.prNumber,
+		headSha: decision.pr.headSha,
+		workflowInput: decision.pr,
+		stage: "admitted",
+		lastProgressAt: Date.now(),
+	};
+	const reservation = await watchdog.reserve(reservedAttempt, setupLease);
+	if (reservation.status === "busy") {
+		return c.text("review setup already in progress", 503);
+	}
+	if (reservation.status === "complete") {
+		return c.text("duplicate delivery", 200);
+	}
+
+	const creds = readAppCreds(c.env);
+	if (!creds) {
+		return c.text("GitHub App credentials not configured", 500);
+	}
+
+	let token: string;
+	let checkRunId = reservation.attempt.checkRunId;
+	try {
+		token = await mintInstallationToken(creds);
+		if (checkRunId === undefined) {
+			checkRunId = await findReviewCheck(
+				token,
+				decision.pr.owner,
+				decision.pr.repo,
+				decision.pr.headSha,
+				attemptId,
+			);
+		}
+		if (checkRunId === undefined) {
+			try {
+				checkRunId = await createReviewCheck(token, decision.pr.owner, decision.pr.repo, {
+					headSha: decision.pr.headSha,
+					attemptId,
+					prNumber: decision.pr.prNumber,
+				});
+			} catch (error) {
+				checkRunId = await findReviewCheck(
+					token,
+					decision.pr.owner,
+					decision.pr.repo,
+					decision.pr.headSha,
+					attemptId,
+				);
+				if (checkRunId === undefined) throw error;
+			}
+		}
+	} catch (error) {
+		console.error(
+			JSON.stringify({
+				message: "review check creation failed",
+				error: error instanceof Error ? error.message : String(error),
+				attemptId,
+				deliveryId,
+				prNumber: decision.pr.prNumber,
+				headSha: decision.pr.headSha,
+			}),
+		);
+		return c.text("failed to create review check", 502);
+	}
+
+	try {
+		await watchdog.arm({ ...reservedAttempt, checkRunId }, setupLease);
+	} catch (error) {
+		console.error(
+			JSON.stringify({
+				message: "review watchdog arm failed",
+				error: error instanceof Error ? error.message : String(error),
+				attemptId,
+				deliveryId,
+				prNumber: decision.pr.prNumber,
+				checkRunId,
+			}),
+		);
+		await completeReviewCheck(token, decision.pr.owner, decision.pr.repo, checkRunId, {
+			conclusion: "failure",
+			prNumber: decision.pr.prNumber,
+			runId: attemptId,
+			summary: "The review watchdog could not be armed. Reapply the `bot:review` label to retry.",
+		})
+			.then(() => watchdog.complete(attemptId))
+			.catch(() => undefined);
+		return c.text("failed to arm review watchdog", 502);
+	}
+	if (!(await watchdog.beginAdmission(attemptId, setupLease))) {
+		return c.text("duplicate delivery", 200);
+	}
+
 	// Admit the durable workflow run (fast). The review + post run in the
 	// workflow DO independently of this request. No ?wait=result: we don't
 	// block the webhook on the (minutes-long) review.
-	const admit = await flueApp.fetch(
-		new Request("https://flue.internal/workflows/review", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify(decision.pr),
-		}),
-		c.env,
-		c.executionCtx,
-	);
+	let admit: Response;
+	try {
+		admit = await admitReviewWorkflow(
+			{ ...decision.pr, attemptId, expectedRunId: attemptId, deliveryId, checkRunId },
+			c.env,
+			c.executionCtx,
+		);
+	} catch (error) {
+		console.error(
+			JSON.stringify({
+				message: "review workflow admission threw",
+				error: error instanceof Error ? error.message : String(error),
+				attemptId,
+				deliveryId,
+				prNumber: decision.pr.prNumber,
+				headSha: decision.pr.headSha,
+				checkRunId,
+			}),
+		);
+		await watchdog
+			.finish(attemptId, attemptId, {
+				conclusion: "failure",
+				summary: "The review could not be admitted. Reapply the `bot:review` label to retry.",
+			})
+			.catch(() => undefined);
+		return c.text("failed to admit review", 502);
+	}
 	if (!admit.ok) {
-		console.error("[webhook] workflow admission failed:", admit.status, await admit.text());
+		const admissionError = await admit.text();
+		console.error(
+			JSON.stringify({
+				message: "review workflow admission failed",
+				status: admit.status,
+				error: admissionError,
+				attemptId,
+				deliveryId,
+				prNumber: decision.pr.prNumber,
+				headSha: decision.pr.headSha,
+				checkRunId,
+			}),
+		);
+		await watchdog
+			.finish(attemptId, attemptId, {
+				conclusion: "failure",
+				summary: "The review could not be admitted. Reapply the `bot:review` label to retry.",
+			})
+			.catch((error) => {
+				console.error(
+					JSON.stringify({
+						message: "review admission failure check update failed",
+						error: error instanceof Error ? error.message : String(error),
+						attemptId,
+						checkRunId,
+					}),
+				);
+			});
 		return c.text("failed to admit review", 502);
 	}
 
-	console.log("[webhook] admitted", { prNumber: decision.pr.prNumber, status: admit.status });
-	return c.text(`review queued for PR #${decision.pr.prNumber}`, 202);
+	let admission: { runId?: string } = {};
+	try {
+		admission = await admit.json<{ runId?: string }>();
+	} catch {
+		// The workflow is already admitted; report the missing correlation below.
+	}
+	const runId = admission.runId;
+	if (!runId) {
+		console.error(
+			JSON.stringify({
+				message: "review workflow admission returned no run id",
+				attemptId,
+				deliveryId,
+				prNumber: decision.pr.prNumber,
+				checkRunId,
+			}),
+		);
+	} else {
+		await watchdog.identify(attemptId, attemptId, runId).catch((error) => {
+			console.error(
+				JSON.stringify({
+					message: "review watchdog correlation failed",
+					error: error instanceof Error ? error.message : String(error),
+					attemptId,
+					runId,
+					checkRunId,
+				}),
+			);
+		});
+	}
+
+	console.log(
+		JSON.stringify({
+			message: "review workflow admitted",
+			attemptId,
+			runId,
+			deliveryId,
+			prNumber: decision.pr.prNumber,
+			headSha: decision.pr.headSha,
+			checkRunId,
+		}),
+	);
+	return c.json(
+		{ message: `review queued for PR #${decision.pr.prNumber}`, attemptId, runId },
+		202,
+	);
 });
 
 export default app;
