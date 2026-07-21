@@ -41,15 +41,19 @@ Tokens are scoped to limit what operations a client can perform. Scopes are requ
 | `menus:manage` | Create, update, and delete navigation menus and their items. |
 | `settings:read` | Read site-wide settings. |
 | `settings:manage` | Update site-wide settings. |
+| `mcp:tools` | Invoke explicitly enabled MCP tools from any plugin. |
+| `mcp:tools:<pluginId>` | Invoke explicitly enabled MCP tools from one plugin. |
 | `admin` | Full access to all operations. |
 
-The `admin` scope grants access to everything. Session-based auth (no token) also has full access based on the user's role.
+The `admin` scope grants access to core operations, but it does not grant plugin MCP access. Plugin tools always require `mcp:tools` or the matching plugin-specific scope. Session-based auth has access based on the user's role and the plugin's explicit admin enablement.
 
 `content:write` implicitly grants `taxonomies:manage` and `menus:manage` so personal access tokens issued before those scopes were split out continue to work without re-issue. New tokens should request the granular scopes.
 
 ### Role Requirements
 
 In addition to scopes, some tools require a minimum RBAC role. Both must be satisfied -- a token with the right scope still fails if the calling user's role is too low.
+
+Plugin tools use the permission declared by their underlying route. They are absent from `tools/list` until an administrator enables that plugin's MCP surface. Tool names use the deterministic `<pluginId>__<localName>` form, and invocations are recorded in the audit log with plugin, tool, route, and actor provenance.
 
 | Operation | Minimum role |
 | --- | --- |

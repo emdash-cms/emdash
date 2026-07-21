@@ -19,6 +19,7 @@ import {
 	Storefront,
 	Trash,
 	ShieldCheck,
+	Robot,
 } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -28,15 +29,18 @@ import {
 	fetchPlugins,
 	enablePlugin,
 	disablePlugin,
+	setPluginMcpEnabled,
 	type PluginInfo,
 	type AdminManifest,
 	CAPABILITY_LABELS,
 } from "../lib/api";
 import {
 	checkPluginUpdates,
+	PluginMcpConsentRequiredError,
 	updateMarketplacePlugin,
 	uninstallMarketplacePlugin,
 	type PluginUpdateInfo,
+	type PluginMcpConsentTool,
 } from "../lib/api/marketplace.js";
 import {
 	RegistryUpdateEscalationError,
@@ -233,6 +237,7 @@ function PluginCard({
 	const { t } = useLingui();
 	const [expanded, setExpanded] = React.useState(false);
 	const [showUpdateConsent, setShowUpdateConsent] = React.useState(false);
+	const [mcpUpdateTools, setMcpUpdateTools] = React.useState<PluginMcpConsentTool[]>([]);
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
 	const [registryEscalation, setRegistryEscalation] =
 		React.useState<RegistryUpdateEscalationError | null>(null);
@@ -242,15 +247,20 @@ function PluginCard({
 	const isMarketplace = plugin.source === "marketplace";
 	const isRegistry = plugin.source === "registry";
 	const hasUpdate = !!updateInfo && updateInfo.installed !== updateInfo.latest;
+	const mcpTools = plugin.mcpTools ?? [];
 
 	const updateMutation = useMutation({
 		mutationFn: (opts: RegistryUpdateOpts) =>
 			isRegistry
 				? updateRegistryPlugin(plugin.id, opts)
-				: updateMarketplacePlugin(plugin.id, { confirmCapabilities: true }),
+				: updateMarketplacePlugin(plugin.id, {
+						confirmCapabilityChanges: true,
+						confirmMcpTools: mcpUpdateTools.length > 0,
+					}),
 		onSuccess: () => {
 			setShowUpdateConsent(false);
 			setRegistryEscalation(null);
+			setMcpUpdateTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
@@ -262,6 +272,10 @@ function PluginCard({
 		onError: (err) => {
 			if (err instanceof RegistryUpdateEscalationError) {
 				setRegistryEscalation(err);
+				setShowUpdateConsent(true);
+			}
+			if (err instanceof PluginMcpConsentRequiredError) {
+				setMcpUpdateTools(err.tools);
 				setShowUpdateConsent(true);
 			}
 		},
@@ -282,7 +296,10 @@ function PluginCard({
 
 	const handleUpdateConfirm = () => {
 		if (isRegistry) {
-			const opts: RegistryUpdateOpts = { confirmCapabilityChanges: true };
+			const opts: RegistryUpdateOpts = {
+				confirmCapabilityChanges: true,
+				confirmMcpTools: mcpUpdateTools.length > 0,
+			};
 			if (registryEscalation?.code === "ROUTE_VISIBILITY_ESCALATION") {
 				opts.confirmRouteVisibilityChanges = true;
 			}
@@ -304,6 +321,17 @@ function PluginCard({
 			toastManager.add({
 				title: t`Plugin uninstalled`,
 				description: t`${plugin.name} has been removed`,
+			});
+		},
+	});
+
+	const mcpMutation = useMutation({
+		mutationFn: (enabled: boolean) => setPluginMcpEnabled(plugin.id, enabled),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
+			toastManager.add({
+				title: t`Plugin MCP access updated`,
+				description: t`Agent access for ${plugin.name} has been updated`,
 			});
 		},
 	});
@@ -383,6 +411,12 @@ function PluginCard({
 								<span className="flex items-center gap-1">
 									<WebhooksLogo className="h-3 w-3" />
 									{t`Hooks`}
+								</span>
+							)}
+							{mcpTools.length > 0 && (
+								<span className="flex items-center gap-1">
+									<Robot className="h-3 w-3" />
+									{plural(mcpTools.length, { one: "# MCP tool", other: "# MCP tools" })}
 								</span>
 							)}
 							{plugin.capabilities.length > 0 && (
@@ -501,6 +535,43 @@ function PluginCard({
 							</div>
 						)}
 
+						{mcpTools.length > 0 && (
+							<div className="space-y-2 border-t pt-3">
+								<div className="flex items-center justify-between gap-4">
+									<div>
+										<h4 className="text-sm font-medium">{t`Agent access`}</h4>
+										<p className="text-xs text-kumo-subtle">
+											{t`Allow MCP tokens with plugin-tool scope to invoke these routes.`}
+										</p>
+									</div>
+									<Switch
+										checked={plugin.mcpToolsEnabled ?? false}
+										onCheckedChange={(enabled) => mcpMutation.mutate(enabled)}
+										disabled={mcpMutation.isPending || !plugin.enabled}
+										aria-label={
+											(plugin.mcpToolsEnabled ?? false)
+												? t`Disable plugin MCP tools`
+												: t`Enable plugin MCP tools`
+										}
+									/>
+								</div>
+								<ul className="space-y-2">
+									{mcpTools.map((tool) => (
+										<li key={tool.name} className="rounded-md bg-kumo-tint p-2 text-xs">
+											<div className="flex flex-wrap items-center gap-2">
+												<code>{`${plugin.id}__${tool.name}`}</code>
+												{tool.destructive && <Badge variant="destructive">{t`Destructive`}</Badge>}
+											</div>
+											<p className="mt-1 text-kumo-subtle">{tool.description}</p>
+											<p className="mt-1 text-kumo-subtle">
+												{t`Route: ${tool.route} · Permission: ${tool.permission}`}
+											</p>
+										</li>
+									))}
+								</ul>
+							</div>
+						)}
+
 						{/* Source */}
 						{isMarketplace && (
 							<div>
@@ -571,6 +642,7 @@ function PluginCard({
 					capabilities={plugin.capabilities}
 					newCapabilities={registryEscalation?.capabilityChanges.added ?? []}
 					newlyPublicRoutes={registryEscalation?.routeVisibilityChanges?.newlyPublic ?? []}
+					mcpTools={mcpUpdateTools}
 					isPending={updateMutation.isPending}
 					error={
 						updateMutation.error instanceof RegistryUpdateEscalationError
@@ -581,6 +653,7 @@ function PluginCard({
 					onCancel={() => {
 						setShowUpdateConsent(false);
 						setRegistryEscalation(null);
+						setMcpUpdateTools([]);
 						updateMutation.reset();
 					}}
 				/>

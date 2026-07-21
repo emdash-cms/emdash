@@ -672,6 +672,7 @@ export const sandboxedPlugins = [];
     capabilities: ${JSON.stringify(descriptor.capabilities ?? [])},
     allowedHosts: ${JSON.stringify(descriptor.allowedHosts ?? [])},
     storage: ${JSON.stringify(descriptor.storage ?? {})},
+    mcp: ${JSON.stringify(descriptor.mcp)},
     adminPages: ${JSON.stringify(descriptor.adminPages ?? [])},
     adminWidgets: ${JSON.stringify(descriptor.adminWidgets ?? [])},
     settingsSchema: ${JSON.stringify(descriptor.settingsSchema)},

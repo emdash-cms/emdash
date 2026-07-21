@@ -10,7 +10,7 @@
  */
 
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
-import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
+import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
@@ -119,6 +119,7 @@ type HandlerResult = {
 
 type SuccessEnvelope = {
 	content: Array<{ type: "text"; text: string }>;
+	structuredContent?: Record<string, unknown>;
 	_meta?: Record<string, unknown>;
 };
 
@@ -481,7 +482,21 @@ function extractContentId(data: unknown): string | undefined {
 // Server factory
 // ---------------------------------------------------------------------------
 
-export function createMcpServer(): McpServer {
+export interface PluginMcpRegistration {
+	pluginId: string;
+	name: string;
+	description: string;
+	route: string;
+	permission: string;
+	destructive: boolean;
+	inputSchema: z.ZodType;
+	outputSchema?: z.ZodType;
+}
+
+export function createMcpServer(
+	pluginTools: PluginMcpRegistration[] = [],
+	request?: Request,
+): McpServer {
 	const server = new McpServer(
 		{ name: "emdash", version: "0.1.0" },
 		{ capabilities: { logging: {} } },
@@ -514,6 +529,78 @@ export function createMcpServer(): McpServer {
 			originalRegisterTool as unknown as (n: string, c: unknown, cb: typeof wrapped) => unknown
 		)(name, config, wrapped);
 	}) as typeof server.registerTool;
+
+	for (const tool of pluginTools) {
+		if (!(tool.permission in Permissions)) continue;
+		server.registerTool(
+			`${tool.pluginId}__${tool.name}`,
+			{
+				description: tool.description,
+				inputSchema: tool.inputSchema,
+				outputSchema: tool.outputSchema,
+				annotations: { destructiveHint: tool.destructive },
+			},
+			async (input, extra) => {
+				const payload = getExtra(extra);
+				const requiredScope = `mcp:tools:${tool.pluginId}`;
+				if (payload.tokenScopes && !hasScope(payload.tokenScopes, requiredScope)) {
+					if (request) {
+						await payload.emdash.handlePluginMcpDenied(
+							tool.pluginId,
+							tool.name,
+							tool.route,
+							payload.userId,
+							request,
+							`Missing scope: ${requiredScope}`,
+						);
+					}
+					throw new EmDashAuthError(
+						`Insufficient scope: requires ${requiredScope}`,
+						"INSUFFICIENT_SCOPE",
+					);
+				}
+				if (!hasPermission({ role: payload.userRole }, tool.permission as Permission)) {
+					if (request) {
+						await payload.emdash.handlePluginMcpDenied(
+							tool.pluginId,
+							tool.name,
+							tool.route,
+							payload.userId,
+							request,
+							`Missing permission: ${tool.permission}`,
+						);
+					}
+					throw new EmDashAuthError(
+						`Insufficient permission: requires ${tool.permission}`,
+						"INSUFFICIENT_PERMISSIONS",
+					);
+				}
+				if (!request) return respondError("INTERNAL_ERROR", "Missing MCP request context");
+				const result = await payload.emdash.handlePluginMcpTool(
+					tool.pluginId,
+					tool.name,
+					tool.route,
+					input,
+					payload.userId,
+					request,
+				);
+				if (!result.success) return unwrap(result);
+				if (tool.outputSchema) {
+					if (!result.data || typeof result.data !== "object" || Array.isArray(result.data)) {
+						return respondError(
+							"INVALID_PLUGIN_OUTPUT",
+							"Plugin tool output must be an object when outputSchema is declared",
+						);
+					}
+					return {
+						content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }],
+						structuredContent: result.data as Record<string, unknown>,
+					};
+				}
+				return respondData(result.data);
+			},
+		);
+	}
 
 	// =====================================================================
 	// Content tools

@@ -38,6 +38,9 @@
  * per-hook return contracts so misuse fails at compile time.
  */
 
+import type { Permission } from "@emdash-cms/auth";
+import type { ZodType } from "zod";
+
 import type {
 	CommentAfterCreateEvent,
 	CommentAfterCreateHandler,
@@ -207,7 +210,16 @@ export type RouteEntry =
 			 */
 			cacheControl?: string;
 			input?: unknown;
+			permission?: Permission;
 	  };
+
+export interface SandboxedMcpTool {
+	description: string;
+	route: string;
+	input: ZodType;
+	output?: ZodType;
+	destructive?: boolean;
+}
 
 /**
  * The shape of a sandboxed plugin's default export.
@@ -223,6 +235,7 @@ export interface SandboxedPlugin {
 		[K in keyof HookHandlers]?: HookEntry<K>;
 	};
 	routes?: Record<string, RouteEntry>;
+	mcp?: { tools: Record<string, SandboxedMcpTool> };
 }
 
 /**

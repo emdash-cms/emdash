@@ -89,6 +89,22 @@ describe("hashApiToken", () => {
 });
 
 describe("validateScopes", () => {
+	it("accepts broad and plugin-specific MCP tool scopes", () => {
+		expect(validateScopes(["mcp:tools", "mcp:tools:calendar-plugin"])).toEqual([]);
+		expect(
+			validateScopes([
+				"mcp:tools:",
+				"mcp:tools:@acme/calendar",
+				"mcp:tools:Calendar",
+				"mcp:tools:-calendar",
+			]),
+		).toEqual([
+			"mcp:tools:",
+			"mcp:tools:@acme/calendar",
+			"mcp:tools:Calendar",
+			"mcp:tools:-calendar",
+		]);
+	});
 	it("returns empty array for valid scopes", () => {
 		const invalid = validateScopes(["content:read", "media:write"]);
 		expect(invalid).toEqual([]);
@@ -110,6 +126,12 @@ describe("validateScopes", () => {
 });
 
 describe("hasScope", () => {
+	it("keeps plugin MCP scopes independent from admin", () => {
+		expect(hasScope(["admin"], "mcp:tools:calendar")).toBe(false);
+		expect(hasScope(["mcp:tools"], "mcp:tools:calendar")).toBe(true);
+		expect(hasScope(["mcp:tools:calendar"], "mcp:tools:calendar")).toBe(true);
+		expect(hasScope(["mcp:tools:forms"], "mcp:tools:calendar")).toBe(false);
+	});
 	it("returns true when scope is present", () => {
 		expect(hasScope(["content:read", "media:write"], "content:read")).toBe(true);
 	});

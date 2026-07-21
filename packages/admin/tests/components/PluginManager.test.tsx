@@ -319,6 +319,43 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("Check for updates")).toBeInTheDocument();
 	});
 
+	it("confirms marketplace capability changes with the server contract field", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "mp-plugin",
+				name: "MP Plugin",
+				source: "marketplace",
+				version: "1.0.0",
+			}),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "mp-plugin",
+				installed: "1.0.0",
+				latest: "2.0.0",
+				hasCapabilityChanges: true,
+			},
+		]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+
+		await screen.getByText("Check for updates").click();
+		const updateButton = screen.getByText("Update to v2.0.0");
+		await expect.element(updateButton).toBeInTheDocument();
+		await updateButton.click();
+		await screen.getByText("Accept & Update").click();
+
+		await vi.waitFor(() => {
+			expect(mockUpdateMarketplacePlugin).toHaveBeenCalledWith("mp-plugin", {
+				confirmCapabilityChanges: true,
+				confirmMcpTools: false,
+			});
+		});
+	});
+
 	it("hides 'Check for updates' button when no marketplace plugins", async () => {
 		mockFetchPlugins.mockResolvedValue([
 			makePlugin({ id: "config-plugin", name: "Config Plugin", source: "config" }),

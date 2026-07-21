@@ -38,6 +38,14 @@ export interface PluginInfo {
 	description?: string;
 	/** URL to the plugin icon on the marketplace */
 	iconUrl?: string;
+	mcpToolsEnabled: boolean;
+	mcpTools: Array<{
+		name: string;
+		description: string;
+		route: string;
+		permission: string;
+		destructive: boolean;
+	}>;
 }
 
 export interface PluginListResponse {
@@ -87,6 +95,21 @@ function buildPluginInfo(
 		description: state?.description ?? undefined,
 		iconUrl:
 			isMarketplace && marketplaceUrl ? marketplaceIconUrl(marketplaceUrl, plugin.id) : undefined,
+		mcpToolsEnabled: state?.mcpToolsEnabled ?? false,
+		mcpTools: Object.entries(plugin.mcp?.tools ?? {}).flatMap(([name, tool]) => {
+			const permission = plugin.routes[tool.route]?.permission;
+			return permission
+				? [
+						{
+							name,
+							description: tool.description,
+							route: tool.route,
+							permission,
+							destructive: tool.destructive ?? false,
+						},
+					]
+				: [];
+		}),
 	};
 }
 
@@ -118,6 +141,8 @@ function buildSandboxedPluginInfo(
 		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
 		description: state?.description ?? undefined,
+		mcpToolsEnabled: state?.mcpToolsEnabled ?? false,
+		mcpTools: entry.mcp?.tools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool) ?? [],
 	};
 }
 
@@ -185,6 +210,8 @@ export async function handlePluginList(
 					state.source === "marketplace" && marketplaceUrl
 						? marketplaceIconUrl(marketplaceUrl, state.pluginId)
 						: undefined,
+				mcpToolsEnabled: state.mcpToolsEnabled,
+				mcpTools: [],
 			});
 		}
 
@@ -282,6 +309,8 @@ function buildStateOnlyPluginInfo(
 		activatedAt: state.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
 		description: state.description ?? undefined,
+		mcpToolsEnabled: state.mcpToolsEnabled,
+		mcpTools: [],
 	};
 }
 

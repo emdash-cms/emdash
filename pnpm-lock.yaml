@@ -651,6 +651,9 @@ importers:
       '@emdash-cms/plugin-color':
         specifier: workspace:*
         version: link:../../packages/plugins/color
+      '@emdash-cms/plugin-mcp-smoke':
+        specifier: workspace:*
+        version: link:../../packages/plugins/mcp-smoke
       astro:
         specifier: 'catalog:'
         version: 7.0.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(rollup@4.55.2)(tsx@4.21.0)(yaml@2.9.0)
@@ -2182,6 +2185,15 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+
+  packages/plugins/mcp-smoke:
+    dependencies:
+      emdash:
+        specifier: workspace:*
+        version: link:../../core
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.1
 
   packages/plugins/sandboxed-test:
     dependencies:

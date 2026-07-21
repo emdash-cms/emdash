@@ -770,9 +770,6 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	// settings:manage are not rejected at the middleware level.
 	["/_emdash/api/settings", "GET", "settings:read"],
 	["/_emdash/api/settings", "WRITE", "settings:manage"],
-
-	// MCP endpoint — scopes enforced per-tool inside mcp/server.ts
-	["/_emdash/api/mcp", "*", "content:read"],
 ];
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -790,6 +787,11 @@ function enforceTokenScope(
 ): Response | null {
 	// Session auth — implicit full access, no scope restrictions
 	if (!tokenScopes) return null;
+
+	// MCP is authenticated here, but each tool enforces its own scope. A
+	// blanket content:read/admin requirement would prevent plugin-scoped tokens
+	// from reaching `mcp/server.ts`, where the actual tool policy lives.
+	if (pathname === MCP_ENDPOINT_PATH) return null;
 
 	const isWrite = WRITE_METHODS.has(method);
 

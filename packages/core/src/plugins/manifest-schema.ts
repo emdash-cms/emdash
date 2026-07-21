@@ -8,6 +8,7 @@
  * - Marketplace ingest extends this with publishing-specific fields
  */
 
+import { Permissions } from "@emdash-cms/auth";
 import {
 	capabilitiesToDeclaredAccess,
 	declaredAccessToCapabilities,
@@ -137,7 +138,27 @@ const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
 const manifestRouteEntrySchema = z.object({
 	name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
 	public: z.boolean().optional(),
+	permission: z
+		.string()
+		.refine((permission) => permission in Permissions)
+		.optional(),
 	cacheControl: z.string().min(1).optional(),
+});
+
+const pluginJsonSchema = z.record(z.string(), z.unknown());
+const mcpToolNamePattern = /^[a-zA-Z0-9_-]+$/;
+const pluginMcpConfigSchema = z.object({
+	tools: z.array(
+		z.object({
+			name: z.string().min(1).max(64).regex(mcpToolNamePattern, "Invalid MCP tool name"),
+			description: z.string().min(1),
+			route: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
+			permission: z.string().refine((permission) => permission in Permissions),
+			destructive: z.boolean(),
+			inputSchema: pluginJsonSchema,
+			outputSchema: pluginJsonSchema.optional(),
+		}),
+	),
 });
 
 // ── Sub-schemas ─────────────────────────────────────────────────
@@ -308,6 +329,7 @@ export const pluginManifestSchema = z.object({
 			manifestRouteEntrySchema,
 		]),
 	),
+	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema,
 });
 
@@ -351,10 +373,11 @@ export function normalizeManifestHook(
  * Normalize a manifest route entry — plain strings become `{ name }` objects.
  */
 export function normalizeManifestRoute(
-	entry: string | { name: string; public?: boolean; cacheControl?: string },
+	entry: string | { name: string; public?: boolean; permission?: string; cacheControl?: string },
 ): {
 	name: string;
 	public?: boolean;
+	permission?: string;
 	cacheControl?: string;
 } {
 	if (typeof entry === "string") {

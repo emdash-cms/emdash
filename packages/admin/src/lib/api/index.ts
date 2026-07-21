@@ -108,6 +108,7 @@ export {
 	updatePluginSettings,
 	enablePlugin,
 	disablePlugin,
+	setPluginMcpEnabled,
 } from "./plugins.js";
 
 // Settings
