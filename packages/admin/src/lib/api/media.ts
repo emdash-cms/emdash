@@ -5,6 +5,7 @@
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
+import { prepareMediaUploadFile } from "../media-upload.js";
 import {
 	API_BASE,
 	apiFetch,
@@ -227,6 +228,8 @@ async function uploadMediaDirect(file: File, opts?: { fieldId?: string }): Promi
  * (for local storage) if signed URLs are not supported.
  */
 export async function uploadMedia(file: File, opts?: { fieldId?: string }): Promise<MediaItem> {
+	file = await prepareMediaUploadFile(file);
+
 	// Try to get a signed upload URL
 	const uploadInfo = await getUploadUrl(file, opts);
 

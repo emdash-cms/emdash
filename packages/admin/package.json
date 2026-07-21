@@ -72,6 +72,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.3.2",
+    "heic-to": "^1.5.2",
     "marked": "^17.0.3",
     "react-hotkeys-hook": "^5.2.4",
     "tailwind-merge": "^3.3.0",
