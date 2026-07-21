@@ -44,6 +44,5 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(_db: Kysely<unknown>): Promise<void> {
-	// Not reversible: the original (incorrectly lowercased) casing is not
-	// recoverable, and re-lowercasing would reintroduce the bug this fixes.
+	// Not reversible: the original casing is not recoverable.
 }

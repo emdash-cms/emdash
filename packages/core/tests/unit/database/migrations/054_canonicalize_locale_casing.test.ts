@@ -29,7 +29,7 @@ describe("migration 054: canonicalize locale casing", () => {
 		const post = await repo.create(
 			createPostFixture({ slug: "guide", status: "published", data: { title: "Guide" } }),
 		);
-		// Simulate a pre-fix row: written under the lowercased locale.
+		// Simulate a row saved under the lowercased locale.
 		await sql`UPDATE ec_post SET locale = 'zh-tw' WHERE slug = 'guide'`.execute(db);
 		await db
 			.insertInto("taxonomies")

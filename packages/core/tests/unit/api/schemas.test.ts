@@ -125,10 +125,8 @@ describe("contentUpdateBody schema", () => {
 });
 
 describe("localeCode validator", () => {
-	// Config `locales`/`defaultLocale`, the `locale` column default, and the
-	// public query path all keep the raw BCP-47 casing (e.g. "zh-TW"). The API
-	// schema must do the same — lowercasing the `?locale=` filter (or a create
-	// body's locale) made it miss every row stored under an uppercase subtag.
+	// The site config, stored locale columns, and public query path keep raw
+	// BCP-47 casing, so the schema must preserve it instead of normalizing it.
 	it("preserves region/script subtag casing", () => {
 		expect(localeCode.parse("zh-TW")).toBe("zh-TW");
 		expect(localeCode.parse("pt-BR")).toBe("pt-BR");

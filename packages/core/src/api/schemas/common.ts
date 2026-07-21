@@ -55,9 +55,8 @@ export const httpUrl = z
 
 /**
  * BCP 47 locale code — language with optional script/region subtags (e.g. en, en-US, pt-BR, es-419, zh-Hant).
- * Validation is case-insensitive, but the value is preserved verbatim: config `locales`/`defaultLocale`, the
- * stored `locale` column, and the public query path all keep the raw casing, so lowercasing the `?locale=`
- * filter here made it match zero rows for locales with uppercase subtags.
+ * Validation is case-insensitive, but the value is preserved verbatim because the site config, stored
+ * `locale` columns, and public query path all keep the raw BCP-47 casing.
  */
 export const localeCode = z.string().regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code");
 
