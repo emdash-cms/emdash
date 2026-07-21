@@ -56,7 +56,7 @@ msgstr ": از"
 msgid "(from {0})"
 msgstr "(از {0})"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:520
+#: packages/admin/src/components/RegistryPluginDetail.tsx:533
 msgid "(pre-release)"
 msgstr ""
 
@@ -64,7 +64,7 @@ msgstr ""
 msgid "(synced)"
 msgstr "(همگام‌شده)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:523
+#: packages/admin/src/components/RegistryPluginDetail.tsx:536
 msgid "(too new)"
 msgstr ""
 
@@ -117,6 +117,11 @@ msgstr "{0, plural, one {# مورد محتوا درون‌ریزی شد} other {
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# مورد} other {# مورد}}"
 
+#. placeholder {0}: mcpTools.length
+#: packages/admin/src/components/PluginManager.tsx:419
+msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
+msgstr ""
+
 #. placeholder {0}: mediaResult.failed.length
 #: packages/admin/src/components/WordPressImport.tsx:2279
 msgid "{0, plural, one {# media error} other {# media errors}}"
@@ -139,7 +144,7 @@ msgstr "{0, plural, one {# فهرست درون‌ریزی خواهد شد} other
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:288
-#: packages/admin/src/components/PluginManager.tsx:399
+#: packages/admin/src/components/PluginManager.tsx:433
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# مجوز} other {# مجوز}}"
 
@@ -191,7 +196,7 @@ msgstr ""
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host
-#: packages/admin/src/components/RegistryPluginDetail.tsx:623
+#: packages/admin/src/components/RegistryPluginDetail.tsx:636
 msgid "{0} {1} required — you have {2}."
 msgstr ""
 
@@ -202,7 +207,7 @@ msgid "{0} • {1}"
 msgstr ""
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:412
+#: packages/admin/src/components/RegistryPluginDetail.tsx:425
 msgid "{0} banner"
 msgstr ""
 
@@ -212,27 +217,27 @@ msgid "{0} detected"
 msgstr "{0} شناسایی شد"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:111
+#: packages/admin/src/components/PluginManager.tsx:115
 msgid "{0} has been deactivated"
 msgstr "{0} غیرفعال شد"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:306
+#: packages/admin/src/components/PluginManager.tsx:323
 msgid "{0} has been removed"
 msgstr "{0} حذف شد"
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:424
+#: packages/admin/src/components/RegistryPluginDetail.tsx:437
 msgid "{0} icon"
 msgstr ""
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:202
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:213
 msgid "{0} installs"
 msgstr "{0} نصب"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:92
+#: packages/admin/src/components/PluginManager.tsx:96
 msgid "{0} is now active"
 msgstr "{0} اکنون فعال است"
 
@@ -263,7 +268,7 @@ msgid "{0} of {total} could not be updated"
 msgstr ""
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:170
+#: packages/admin/src/components/PluginManager.tsx:174
 msgid "{0} plugins"
 msgstr "{0} افزونه"
 
@@ -286,7 +291,7 @@ msgstr "{0} به‌روزرسانی شد"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:259
+#: packages/admin/src/components/PluginManager.tsx:269
 msgid "{0} updated to v{1}"
 msgstr "{0} به نسخه v{1} به‌روزرسانی شد"
 
@@ -303,7 +308,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/۱۶۰ حرف"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:256
+#: packages/admin/src/lib/api/marketplace.ts:313
 msgid "{base} to: {0}"
 msgstr ""
 
@@ -357,11 +362,11 @@ msgstr "{needsNewCollections, plural, one {# مجموعه جدید ساخته خ
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {فیلدها به # مجموعه موجود افزوده خواهد شد} other {فیلدها به # مجموعه موجود افزوده خواهد شد}}"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:79
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:83
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} مجوزهای اضافی درخواست می‌کند:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:80
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:84
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} به مجوزهای زیر نیاز دارد:"
 
@@ -449,7 +454,7 @@ msgstr "• آدرس‌ها در محتوای شما به‌صورت خودکا�
 msgid "← Back"
 msgstr "← بازگشت"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:35
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:36
 msgid "1 year"
 msgstr "۱ سال"
 
@@ -477,7 +482,7 @@ msgstr "۳. به بخش «گذرواژه‌های برنامه» بروید"
 msgid "3. Select \"All content\""
 msgstr "۳. «همه محتوا» را انتخاب کنید"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:34
 msgid "30 days"
 msgstr "۳۰ روز"
 
@@ -525,11 +530,11 @@ msgstr "۵. گذرواژه تولیدشده را کپی کنید"
 msgid "5. Upload the file here"
 msgstr "۵. فایل را اینجا بارگذاری کنید"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:32
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
 msgid "7 days"
 msgstr "۷ روز"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:34
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:35
 msgid "90 days"
 msgstr "۹۰ روز"
 
@@ -545,11 +550,11 @@ msgstr ""
 msgid "A short description of your site"
 msgstr "توضیح کوتاهی درباره وبسایت شما"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:172
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:201
 msgid "Accept & Install"
 msgstr "پذیرش و نصب"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:171
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:200
 msgid "Accept & Update"
 msgstr "پذیرش و به‌روزرسانی"
 
@@ -565,8 +570,8 @@ msgstr ""
 msgid "Access Denied"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:225
-#: packages/admin/src/lib/api/marketplace.ts:233
+#: packages/admin/src/lib/api/marketplace.ts:282
+#: packages/admin/src/lib/api/marketplace.ts:290
 msgid "Access your media library"
 msgstr ""
 
@@ -722,7 +727,7 @@ msgstr "افزودن تگ متای noindex"
 msgid "Add Passkey"
 msgstr "افزودن شاه‌کلید"
 
-#: packages/admin/src/components/PluginManager.tsx:206
+#: packages/admin/src/components/PluginManager.tsx:210
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "افزونه‌ها را به astro.config.mjs خود بیفزایید تا قابلیت‌های EmDash را گسترش دهید."
 
@@ -767,7 +772,7 @@ msgstr "داده‌های اضافی برای درون‌ریزی."
 msgid "admin"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:101
 #: packages/admin/src/components/Sidebar.tsx:383
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -784,6 +789,19 @@ msgstr "مدیر"
 #: packages/admin/src/components/settings/EmailSettings.tsx:196
 msgid "After send:"
 msgstr "پس از ارسال:"
+
+#: packages/admin/src/components/PluginManager.tsx:542
+msgid "Agent access"
+msgstr ""
+
+#. placeholder {0}: plugin.name
+#: packages/admin/src/components/PluginManager.tsx:334
+msgid "Agent access for {0} has been updated"
+msgstr ""
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
+msgid "Agent-callable MCP tools"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3510
 msgid "Align Center"
@@ -854,6 +872,10 @@ msgstr "همه وضعیت‌ها"
 msgid "All types"
 msgstr "همه انواع"
 
+#: packages/admin/src/components/PluginManager.tsx:544
+msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:100
 msgid "Allow users from specific domains to sign up"
 msgstr "اجازه ثبت‌نام کاربران از دامنه‌های خاص"
@@ -874,7 +896,7 @@ msgstr ""
 msgid "Already have an account?"
 msgstr "آیا از قبل حساب کاربری دارید؟"
 
-#: packages/admin/src/components/PluginManager.tsx:645
+#: packages/admin/src/components/PluginManager.tsx:718
 msgid "Also delete plugin storage data"
 msgstr "داده‌های ذخیره‌سازی افزونه نیز حذف شود"
 
@@ -901,8 +923,8 @@ msgstr "همچنین می‌توانید از وردپرس برون‌ریزی �
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
-#: packages/admin/src/components/PluginManager.tsx:98
-#: packages/admin/src/components/PluginManager.tsx:117
+#: packages/admin/src/components/PluginManager.tsx:102
+#: packages/admin/src/components/PluginManager.tsx:121
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:95
@@ -962,7 +984,7 @@ msgid "Any media type allowed (subject to global limits)."
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:183
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
 msgid "API Tokens"
 msgstr "توکن‌های API"
 
@@ -1111,7 +1133,7 @@ msgstr "مجوز دادن به دستگاه"
 msgid "Authorizing..."
 msgstr "در حال صدور مجوز..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:672
+#: packages/admin/src/components/RegistryPluginDetail.tsx:685
 msgid "Authors"
 msgstr ""
 
@@ -1183,13 +1205,13 @@ msgstr ""
 msgid "Back to login"
 msgstr "بازگشت به ورود"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:115
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:391
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:126
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:404
 msgid "Back to marketplace"
 msgstr "بازگشت به فروشگاه"
 
 #: packages/admin/src/components/PluginSettings.tsx:118
-#: packages/admin/src/components/RegistryPluginDetail.tsx:805
+#: packages/admin/src/components/RegistryPluginDetail.tsx:820
 msgid "Back to plugins"
 msgstr ""
 
@@ -1282,7 +1304,7 @@ msgstr "با انتخاب و نصب افزونه‌ها وبسایت خود را
 msgid "Browse Files"
 msgstr "انتخاب فایل‌ها"
 
-#: packages/admin/src/components/PluginManager.tsx:199
+#: packages/admin/src/components/PluginManager.tsx:203
 msgid "Browse the"
 msgstr "انتخاب"
 
@@ -1340,7 +1362,7 @@ msgid "Can view content"
 msgstr "می‌تواند محتوا را مشاهده کند"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:163
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:192
 #: packages/admin/src/components/ConfirmDialog.tsx:57
 #: packages/admin/src/components/ContentList.tsx:455
 #: packages/admin/src/components/ContentList.tsx:1054
@@ -1363,15 +1385,15 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:173
-#: packages/admin/src/components/PluginManager.tsx:651
+#: packages/admin/src/components/PluginManager.tsx:724
 #: packages/admin/src/components/PortableTextEditor.tsx:3577
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:280
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:390
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:323
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:451
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:336
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:480
 #: packages/admin/src/components/settings/SecuritySettings.tsx:179
 #: packages/admin/src/components/TaxonomyManager.tsx:207
 #: packages/admin/src/components/TaxonomyManager.tsx:494
@@ -1403,11 +1425,11 @@ msgstr ""
 msgid "Canonical URL"
 msgstr "آدرس کانونیکال"
 
-#: packages/admin/src/components/PluginManager.tsx:484
+#: packages/admin/src/components/PluginManager.tsx:518
 msgid "Capabilities"
 msgstr "قابلیت‌ها"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:65
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:69
 msgid "Capability consent"
 msgstr "رضایت قابلیت"
 
@@ -1468,7 +1490,7 @@ msgstr ""
 msgid "Change Logo"
 msgstr "تغییر لوگو"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:793
+#: packages/admin/src/components/RegistryPluginDetail.tsx:808
 msgid "Changelog"
 msgstr ""
 
@@ -1480,7 +1502,7 @@ msgstr ""
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "حرف جداکننده‌ی بین عنوان صفحه و نام وبسایت (مثلاً «نوشته من | وبسایت من»)"
 
-#: packages/admin/src/components/PluginManager.tsx:162
+#: packages/admin/src/components/PluginManager.tsx:166
 msgid "Check for updates"
 msgstr "بررسی به‌روزرسانی‌ها"
 
@@ -1560,7 +1582,7 @@ msgstr "روی لینک ایمیل کلیک کنید تا وارد شوید."
 #: packages/admin/src/components/FieldEditor.tsx:345
 #: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/FieldEditor.tsx:355
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:436
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:449
 #: packages/admin/src/components/MediaDetailPanel.tsx:229
 #: packages/admin/src/components/MediaDetailPanel.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:481
@@ -1631,11 +1653,11 @@ msgstr "کد"
 msgid "Code Block"
 msgstr "بلوک کد"
 
-#: packages/admin/src/components/PluginManager.tsx:471
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "Collapse"
 msgstr "بستن"
 
-#: packages/admin/src/components/PluginManager.tsx:465
+#: packages/admin/src/components/PluginManager.tsx:499
 msgid "Collapse details"
 msgstr "بستن جزئیات"
 
@@ -1694,7 +1716,7 @@ msgstr ""
 msgid "Configure Field"
 msgstr "پیکربندی فیلد"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:313
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
 msgid "Confirm"
 msgstr "تأیید"
 
@@ -1769,7 +1791,7 @@ msgstr ""
 msgid "content items"
 msgstr "موارد محتوا"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:45
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:46
 msgid "Content Read"
 msgstr "خواندن محتوا"
 
@@ -1799,7 +1821,7 @@ msgstr "انواع محتوا"
 msgid "Content was skipped because it already exists"
 msgstr "محتوا رد شد زیرا از قبل وجود دارد"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:50
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:51
 msgid "Content Write"
 msgstr "نوشتن محتوا"
 
@@ -1821,7 +1843,7 @@ msgstr "ادامه درون‌ریزی"
 msgid "Contributor"
 msgstr "مشارکت‌کننده"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:224
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:234
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
 msgid "Copied to clipboard"
 msgstr "در کلیپ‌بورد کپی شد"
@@ -1839,11 +1861,11 @@ msgstr "کپی لینک دعوت"
 msgid "Copy slug"
 msgstr "کپی نامک"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:200
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Copy this token now — it won't be shown again."
 msgstr "این توکن را الان کپی کنید — دیگر نمایش داده نخواهد شد."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
 msgid "Copy token"
 msgstr "کپی توکن"
 
@@ -1952,7 +1974,7 @@ msgstr "ساخت فهرست"
 msgid "Create New Menu"
 msgstr "ساخت فهرستی جدید"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Create New Token"
 msgstr "ساخت توکن جدید"
 
@@ -1965,7 +1987,7 @@ msgid "Create Passkey"
 msgstr "ساخت شاه‌کلید"
 
 #: packages/admin/src/components/Settings.tsx:111
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:185
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:195
 msgid "Create personal access tokens for programmatic API access"
 msgstr "توکن‌های دسترسی شخصی برای دسترسی برنامه‌نویسی به API بسازید"
 
@@ -2000,8 +2022,8 @@ msgstr "بخش‌ها را در کتابخانه بخش‌ها بسازید تا
 msgid "Create Taxonomy"
 msgstr "ساخت دسته‌بندی"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:256
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:448
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:269
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
 msgid "Create Token"
 msgstr "ساخت توکن"
 
@@ -2031,20 +2053,20 @@ msgstr "اولین بخش محتوای قابل استفاده مجدد خود �
 msgid "Create your passkey"
 msgstr "شاه‌کلید خود را بسازید"
 
-#: packages/admin/src/lib/api/marketplace.ts:223
-#: packages/admin/src/lib/api/marketplace.ts:232
+#: packages/admin/src/lib/api/marketplace.ts:280
+#: packages/admin/src/lib/api/marketplace.ts:289
 msgid "Create, update, and delete content"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:81
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:82
 msgid "Create, update, and delete navigation menus"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:76
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:77
 msgid "Create, update, and delete taxonomy terms"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:51
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:52
 msgid "Create, update, delete content"
 msgstr "ساخت، به‌روزرسانی، حذف محتوا"
 
@@ -2061,7 +2083,7 @@ msgstr ""
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr "ساخته شده در {0}"
@@ -2083,7 +2105,7 @@ msgstr "در حال ساخت مجموعه‌ها و فیلدها..."
 #: packages/admin/src/components/MenuList.tsx:176
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:448
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
 #: packages/admin/src/components/TaxonomyManager.tsx:711
 #: packages/admin/src/components/TaxonomySidebar.tsx:292
 msgid "Creating..."
@@ -2171,7 +2193,7 @@ msgstr "قالب تاریخ"
 msgid "Decimal number"
 msgstr "عدد اعشاری"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:737
+#: packages/admin/src/components/RegistryPluginDetail.tsx:750
 msgid "Declared permissions"
 msgstr ""
 
@@ -2425,7 +2447,7 @@ msgid "Describe what this section is for..."
 msgstr "توضیح دهید این بخش برای چیست..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:413
-#: packages/admin/src/components/RegistryPluginDetail.tsx:790
+#: packages/admin/src/components/RegistryPluginDetail.tsx:805
 #: packages/admin/src/components/SectionEditor.tsx:261
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:433
@@ -2444,7 +2466,12 @@ msgstr "مقصد"
 msgid "Destination path"
 msgstr "مسیر مقصد"
 
-#: packages/admin/src/components/PluginManager.tsx:471
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:153
+#: packages/admin/src/components/PluginManager.tsx:563
+msgid "Destructive"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "details"
 msgstr "جزئیات"
 
@@ -2480,9 +2507,13 @@ msgstr "ابعاد:"
 msgid "Disable"
 msgstr "غیرفعال‌سازی"
 
-#: packages/admin/src/components/PluginManager.tsx:459
+#: packages/admin/src/components/PluginManager.tsx:493
 msgid "Disable plugin"
 msgstr "غیرفعال‌سازی افزونه"
+
+#: packages/admin/src/components/PluginManager.tsx:553
+msgid "Disable plugin MCP tools"
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:505
 msgid "Disable redirect"
@@ -2496,14 +2527,14 @@ msgstr ""
 msgid "Disable User?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:354
+#: packages/admin/src/components/PluginManager.tsx:382
 #: packages/admin/src/components/Redirects.tsx:419
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr "غیرفعال"
 
-#: packages/admin/src/components/PluginManager.tsx:542
+#: packages/admin/src/components/PluginManager.tsx:613
 msgid "Disabled:"
 msgstr "غیرفعال:"
 
@@ -2537,8 +2568,8 @@ msgstr "صرف‌نظر از تغییرات پیش‌نویس؟"
 msgid "Discarding..."
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:231
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:241
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:243
 msgid "Dismiss"
 msgstr "رد کردن"
 
@@ -2645,7 +2676,7 @@ msgstr ""
 msgid "Download backups and schedule automatic backups to storage"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:479
+#: packages/admin/src/components/RegistryPluginDetail.tsx:492
 msgid "Download SBOM"
 msgstr ""
 
@@ -2732,7 +2763,7 @@ msgstr ""
 msgid "e.g. import, blog"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:408
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
 msgid "e.g., CI/CD Pipeline"
 msgstr "مثلاً CI/CD Pipeline"
 
@@ -2914,9 +2945,13 @@ msgstr ""
 msgid "Enable full-text search on this collection"
 msgstr "فعال‌سازی جستجوی تمام‌متن روی این مجموعه"
 
-#: packages/admin/src/components/PluginManager.tsx:459
+#: packages/admin/src/components/PluginManager.tsx:493
 msgid "Enable plugin"
 msgstr "فعال‌سازی افزونه"
+
+#: packages/admin/src/components/PluginManager.tsx:554
+msgid "Enable plugin MCP tools"
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:505
 msgid "Enable redirect"
@@ -3006,7 +3041,7 @@ msgstr "خطا در ذخیره بخش"
 msgid "Error updating widget"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:583
+#: packages/admin/src/components/RegistryPluginDetail.tsx:596
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr ""
 
@@ -3022,20 +3057,20 @@ msgstr "خروج از حالت بدون حواس‌پرتی"
 msgid "Exit Spotlight Mode"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:471
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "Expand"
 msgstr "باز کردن"
 
-#: packages/admin/src/components/PluginManager.tsx:465
+#: packages/admin/src/components/PluginManager.tsx:499
 msgid "Expand details"
 msgstr "باز کردن جزئیات"
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:285
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Expires {0}"
 msgstr "انقضا در {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:434
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 msgid "Expiry"
 msgstr "انقضا"
 
@@ -3059,7 +3094,7 @@ msgstr "ناموفق"
 msgid "Failed"
 msgstr "ناموفق"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:188
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:199
 msgid "Failed security audit"
 msgstr "بررسی امنیتی ناموفق"
 
@@ -3201,8 +3236,8 @@ msgstr ""
 msgid "Failed to delete widget area"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:116
-#: packages/admin/src/lib/api/plugins.ts:151
+#: packages/admin/src/components/PluginManager.tsx:120
+#: packages/admin/src/lib/api/plugins.ts:160
 msgid "Failed to disable plugin"
 msgstr "غیرفعال‌سازی افزونه ناموفق بود"
 
@@ -3226,8 +3261,8 @@ msgstr ""
 msgid "Failed to duplicate"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:97
-#: packages/admin/src/lib/api/plugins.ts:137
+#: packages/admin/src/components/PluginManager.tsx:101
+#: packages/admin/src/lib/api/plugins.ts:146
 msgid "Failed to enable plugin"
 msgstr "فعال‌سازی افزونه ناموفق بود"
 
@@ -3284,16 +3319,16 @@ msgstr ""
 msgid "Failed to fetch media providers"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:61
-#: packages/admin/src/lib/api/plugins.ts:65
+#: packages/admin/src/lib/api/plugins.ts:70
+#: packages/admin/src/lib/api/plugins.ts:74
 msgid "Failed to fetch plugin"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:105
+#: packages/admin/src/lib/api/plugins.ts:114
 msgid "Failed to fetch plugin settings"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:47
+#: packages/admin/src/lib/api/plugins.ts:56
 msgid "Failed to fetch plugins"
 msgstr ""
 
@@ -3363,8 +3398,8 @@ msgstr ""
 msgid "Failed to import media"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:160
-#: packages/admin/src/lib/api/registry.ts:692
+#: packages/admin/src/lib/api/marketplace.ts:208
+#: packages/admin/src/lib/api/registry.ts:702
 msgid "Failed to install plugin"
 msgstr ""
 
@@ -3401,7 +3436,7 @@ msgstr ""
 msgid "Failed to load passkeys"
 msgstr "بارگذاری شاه‌کلیدها ناموفق بود"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:110
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:121
 msgid "Failed to load plugin"
 msgstr "بارگذاری افزونه ناموفق بود"
 
@@ -3410,7 +3445,7 @@ msgid "Failed to load plugin settings"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:145
+#: packages/admin/src/components/PluginManager.tsx:149
 msgid "Failed to load plugins: {0}"
 msgstr "بارگذاری افزونه‌ها ناموفق بود: {0}"
 
@@ -3499,7 +3534,7 @@ msgstr ""
 msgid "Failed to restore revision"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:98
+#: packages/admin/src/lib/api/api-tokens.ts:99
 msgid "Failed to revoke API token"
 msgstr ""
 
@@ -3553,8 +3588,8 @@ msgstr ""
 msgid "Failed to set entry terms"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:192
-#: packages/admin/src/lib/api/registry.ts:831
+#: packages/admin/src/lib/api/marketplace.ts:249
+#: packages/admin/src/lib/api/registry.ts:858
 msgid "Failed to uninstall plugin"
 msgstr ""
 
@@ -3595,12 +3630,16 @@ msgstr "به‌روزرسانی دامنه ناموفق بود"
 msgid "Failed to update media"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:176
-#: packages/admin/src/lib/api/registry.ts:763
+#: packages/admin/src/lib/api/marketplace.ts:232
+#: packages/admin/src/lib/api/registry.ts:776
 msgid "Failed to update plugin"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:124
+#: packages/admin/src/lib/api/plugins.ts:172
+msgid "Failed to update plugin MCP access"
+msgstr ""
+
+#: packages/admin/src/lib/api/plugins.ts:133
 msgid "Failed to update plugin settings"
 msgstr ""
 
@@ -3636,7 +3675,7 @@ msgstr ""
 msgid "Failed to verify registration"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:792
+#: packages/admin/src/components/RegistryPluginDetail.tsx:807
 msgid "FAQ"
 msgstr ""
 
@@ -3788,7 +3827,7 @@ msgstr ""
 msgid "Full access"
 msgstr "دسترسی کامل"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:96
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
 msgid "Full admin access"
 msgstr "دسترسی مدیریتی کامل"
 
@@ -3906,7 +3945,7 @@ msgstr ""
 msgid "Hide from search engines"
 msgstr "مخفی‌کردن از موتورهای جستجو"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:220
 msgid "Hide token"
 msgstr "مخفی‌کردن توکن"
 
@@ -3927,7 +3966,7 @@ msgstr "خانه"
 msgid "Homepage"
 msgstr "صفحه اصلی"
 
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:413
 msgid "Hooks"
 msgstr "هوک‌ها"
 
@@ -3963,7 +4002,7 @@ msgid "https://yoursite.com"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:241
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:142
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:153
 msgid "Icon blurred due to image audit"
 msgstr "آیکون به دلیل بررسی تصویر محو شده"
 
@@ -4119,7 +4158,7 @@ msgstr "شامل محتوای نمونه (توصیه‌شده برای وبسا�
 msgid "Incompatible"
 msgstr "ناسازگار"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:493
+#: packages/admin/src/components/RegistryPluginDetail.tsx:506
 msgid "Indexed"
 msgstr ""
 
@@ -4193,8 +4232,8 @@ msgstr "درج بخش"
 msgid "Instagram"
 msgstr "اینستاگرام"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:192
-#: packages/admin/src/components/RegistryPluginDetail.tsx:541
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:203
+#: packages/admin/src/components/RegistryPluginDetail.tsx:554
 msgid "Install"
 msgstr "نصب"
 
@@ -4202,7 +4241,7 @@ msgstr "نصب"
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "افزونه ارائه‌دهنده ایمیل را نصب و فعال کنید تا قابلیت‌های ایمیلی مانند دعوت‌ها، لینک‌های جادویی و بازیابی گذرواژه فعال شوند."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:186
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:197
 msgid "Install blocked"
 msgstr "نصب مسدود شد"
 
@@ -4210,27 +4249,27 @@ msgstr "نصب مسدود شد"
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:791
+#: packages/admin/src/components/RegistryPluginDetail.tsx:806
 msgid "Installation"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:173
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:184
 #: packages/admin/src/components/RegistryBrowse.tsx:199
-#: packages/admin/src/components/RegistryPluginDetail.tsx:533
+#: packages/admin/src/components/RegistryPluginDetail.tsx:546
 msgid "Installed"
 msgstr "نصب‌شده"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:511
+#: packages/admin/src/components/PluginManager.tsx:582
 msgid "Installed from marketplace (v{0})"
 msgstr "نصب‌شده از فروشگاه (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:530
+#: packages/admin/src/components/PluginManager.tsx:601
 msgid "Installed:"
 msgstr "نصب شد:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:169
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:198
 msgid "Installing..."
 msgstr "در حال نصب..."
 
@@ -4270,6 +4309,14 @@ msgstr "دعوت کاربر"
 
 #: packages/admin/src/components/users/UserList.tsx:140
 msgid "Invite your first team member"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
+msgid "Invoke MCP tools from all enabled plugins"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:454
+msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3094
@@ -4333,7 +4380,7 @@ msgstr ""
 msgid "Keep typing to narrow down more bylines."
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:293
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:304
 #: packages/admin/src/components/SectionEditor.tsx:270
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:189
 msgid "Keywords"
@@ -4374,7 +4421,7 @@ msgstr "زبان"
 msgid "Large section heading"
 msgstr "سرتیتر بزرگ بخش"
 
-#: packages/admin/src/components/PluginManager.tsx:536
+#: packages/admin/src/components/PluginManager.tsx:607
 msgid "Last enabled:"
 msgstr "آخرین فعال‌سازی:"
 
@@ -4400,7 +4447,7 @@ msgstr "آخرین استفاده"
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:290
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:303
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "آخرین استفاده {0}"
@@ -4537,7 +4584,7 @@ msgstr "در حال بارگذاری فهرست..."
 msgid "Loading menus..."
 msgstr "در حال بارگذاری فهرستها..."
 
-#: packages/admin/src/components/PluginManager.tsx:136
+#: packages/admin/src/components/PluginManager.tsx:140
 msgid "Loading plugins..."
 msgstr "در حال بارگذاری افزونه‌ها..."
 
@@ -4641,13 +4688,13 @@ msgstr "فقط حروف کوچک، اعداد و زیرخط، شروع با حر
 msgid "Main Sidebar"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:228
-#: packages/admin/src/lib/api/marketplace.ts:236
+#: packages/admin/src/lib/api/marketplace.ts:285
+#: packages/admin/src/lib/api/marketplace.ts:293
 msgid "Make network requests"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:229
-#: packages/admin/src/lib/api/marketplace.ts:237
+#: packages/admin/src/lib/api/marketplace.ts:286
+#: packages/admin/src/lib/api/marketplace.ts:294
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
@@ -4669,7 +4716,7 @@ msgstr ""
 msgid "Manage content widgets in your widget areas"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:175
+#: packages/admin/src/components/PluginManager.tsx:179
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "افزونه‌های نصب‌شده را مدیریت کنید. افزونه‌ها را فعال یا غیرفعال کنید تا عملکرد آن‌ها را کنترل کنید."
 
@@ -4723,13 +4770,13 @@ msgstr "علامت‌گذاری به‌عنوان هرزنامه"
 msgid "Markdown"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:201
+#: packages/admin/src/components/PluginManager.tsx:205
 msgid "marketplace"
 msgstr "فروشگاه"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:167
-#: packages/admin/src/components/PluginManager.tsx:355
+#: packages/admin/src/components/PluginManager.tsx:171
+#: packages/admin/src/components/PluginManager.tsx:383
 #: packages/admin/src/components/Sidebar.tsx:272
 msgid "Marketplace"
 msgstr "فروشگاه"
@@ -4788,11 +4835,11 @@ msgstr "درون‌ریزی رسانه رد شد"
 msgid "Media Library"
 msgstr "کتابخانه رسانه"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:55
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:56
 msgid "Media Read"
 msgstr "خواندن رسانه"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:61
 msgid "Media Write"
 msgstr "نوشتن رسانه"
 
@@ -4856,7 +4903,7 @@ msgstr "فهرستها"
 msgid "Menus ({0})"
 msgstr "فهرستها ({0})"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:80
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:81
 msgid "Menus Manage"
 msgstr ""
 
@@ -4905,7 +4952,7 @@ msgstr "سیگنال‌های تعدیل"
 msgid "Modified"
 msgstr "تغییریافته"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:71
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:72
 msgid "Modify collection schemas"
 msgstr "تغییر طرح‌های مجموعه"
 
@@ -5029,7 +5076,7 @@ msgstr ""
 msgid "New"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:107
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:111
 msgid "NEW"
 msgstr "جدید"
 
@@ -5059,7 +5106,7 @@ msgstr "نوع محتوای جدید"
 msgid "New field"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:118
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:122
 msgid "New public routes"
 msgstr ""
 
@@ -5105,7 +5152,7 @@ msgstr "بعدی"
 msgid "Next page"
 msgstr "صفحه بعدی"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:463
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:476
 msgid "Next screenshot"
 msgstr "تصویر بعدی"
 
@@ -5142,7 +5189,7 @@ msgstr "هنوز خطای ۴۰۴ ثبت نشده است."
 msgid "No alt text"
 msgstr "بدون متن جایگزین"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:268
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:281
 msgid "No API tokens yet. Create one to get started."
 msgstr "هنوز توکن API موجود نیست. برای شروع یکی بسازید."
 
@@ -5198,7 +5245,7 @@ msgstr "هنوز نوع محتوایی وجود ندارد."
 msgid "No custom fields yet"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:264
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:275
 msgid "No detailed description available."
 msgstr "توضیحات تفصیلی موجود نیست."
 
@@ -5218,7 +5265,7 @@ msgstr "ارائه‌دهنده ایمیلی پیکربندی نشده. این �
 msgid "No EmDash users found"
 msgstr "کاربر EmDash یافت نشد"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:31
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:32
 msgid "No expiry"
 msgstr "بدون انقضا"
 
@@ -5230,7 +5277,7 @@ msgstr "فیلدی برای مقایسه وجود ندارد"
 msgid "No headings in document"
 msgstr "سرتیتری در سند نیست"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:581
+#: packages/admin/src/components/RegistryPluginDetail.tsx:594
 msgid "No installable releases"
 msgstr ""
 
@@ -5315,7 +5362,7 @@ msgstr "شاه‌کلیدی ثبت نشده"
 msgid "No passkeys registered yet."
 msgstr "هنوز شاه‌کلیدی ثبت نشده."
 
-#: packages/admin/src/components/PluginManager.tsx:195
+#: packages/admin/src/components/PluginManager.tsx:199
 msgid "No plugins configured"
 msgstr "افزونه‌ای پیکربندی نشده"
 
@@ -5412,7 +5459,7 @@ msgstr ""
 msgid "None (top level)"
 msgstr "هیچ‌کدام (سطح بالا)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:616
+#: packages/admin/src/components/RegistryPluginDetail.tsx:629
 msgid "Not compatible with this environment"
 msgstr ""
 
@@ -5562,7 +5609,7 @@ msgstr "عنوان صفحه را در نتایج موتورهای جستجو ب�
 msgid "Ownership"
 msgstr "مالکیت"
 
-#: packages/admin/src/components/PluginManager.tsx:520
+#: packages/admin/src/components/PluginManager.tsx:591
 msgid "Package"
 msgstr "بسته"
 
@@ -5570,7 +5617,7 @@ msgstr "بسته"
 msgid "Page Not Found"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:373
+#: packages/admin/src/components/PluginManager.tsx:401
 #: packages/admin/src/components/WordPressImport.tsx:1328
 msgid "Pages"
 msgstr "صفحات"
@@ -5702,7 +5749,7 @@ msgstr "حذف دائمی «{title}»؟ این عمل قابل بازگشت نی
 msgid "Permanently delete {title}"
 msgstr "حذف دائمی {title}"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:273
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:284
 msgid "Permissions"
 msgstr "مجوزها"
 
@@ -5748,19 +5795,19 @@ msgstr "لطفاً یک آدرس معتبر وارد کنید"
 msgid "Plugin"
 msgstr "پلاگین"
 
-#: packages/admin/src/lib/api/plugins.ts:59
+#: packages/admin/src/lib/api/plugins.ts:68
 msgid "Plugin \"{pluginId}\" not found"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:749
+#: packages/admin/src/components/RegistryPluginDetail.tsx:762
 msgid "Plugin details"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:110
+#: packages/admin/src/components/PluginManager.tsx:114
 msgid "Plugin disabled"
 msgstr "افزونه غیرفعال شد"
 
-#: packages/admin/src/components/PluginManager.tsx:91
+#: packages/admin/src/components/PluginManager.tsx:95
 msgid "Plugin enabled"
 msgstr "افزونه فعال شد"
 
@@ -5773,11 +5820,23 @@ msgstr ""
 msgid "Plugin error ({0})"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:112
+#: packages/admin/src/components/PluginManager.tsx:333
+msgid "Plugin MCP access updated"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:96
+msgid "Plugin MCP Tools"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:108
+msgid "Plugin MCP tools require explicit consent"
+msgstr ""
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:123
 msgid "Plugin not found"
 msgstr "افزونه یافت نشد"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:398
+#: packages/admin/src/components/RegistryPluginDetail.tsx:411
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
 msgstr ""
 
@@ -5785,11 +5844,11 @@ msgstr ""
 msgid "plugin on your WordPress site."
 msgstr "افزونه در وبسایت وردپرس شما."
 
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:482
 msgid "Plugin pages"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "Plugin Permissions"
 msgstr "مجوزهای افزونه"
 
@@ -5802,15 +5861,20 @@ msgstr ""
 msgid "Plugin responded with {0}: {text}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:305
+#. placeholder {0}: plugin.name
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:452
+msgid "Plugin tools: {0}"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:322
 msgid "Plugin uninstalled"
 msgstr "افزونه حذف نصب شد"
 
-#: packages/admin/src/lib/api/registry.ts:783
+#: packages/admin/src/lib/api/registry.ts:810
 msgid "Plugin update requires re-consent"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:258
+#: packages/admin/src/components/PluginManager.tsx:268
 msgid "Plugin updated"
 msgstr "افزونه به‌روزرسانی شد"
 
@@ -5819,9 +5883,9 @@ msgid "Plugin widget error"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:218
-#: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/components/PluginManager.tsx:144
-#: packages/admin/src/components/PluginManager.tsx:153
+#: packages/admin/src/components/PluginManager.tsx:139
+#: packages/admin/src/components/PluginManager.tsx:148
+#: packages/admin/src/components/PluginManager.tsx:157
 #: packages/admin/src/components/Sidebar.tsx:256
 #: packages/admin/src/components/Sidebar.tsx:391
 msgid "Plugins"
@@ -5852,7 +5916,7 @@ msgstr ""
 msgid "Posts Per Page"
 msgstr "نوشته در هر صفحه"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:465
+#: packages/admin/src/components/RegistryPluginDetail.tsx:478
 msgid "Pre-release"
 msgstr ""
 
@@ -5892,7 +5956,7 @@ msgstr "قبلی"
 msgid "Previous page"
 msgstr "صفحه قبلی"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:445
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:458
 msgid "Previous screenshot"
 msgstr "تصویر قبلی"
 
@@ -5936,7 +6000,7 @@ msgid "Published"
 msgstr "منتشرشده"
 
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:326
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:337
 msgid "Published {0}"
 msgstr "منتشرشده در {0}"
 
@@ -5948,7 +6012,7 @@ msgstr ""
 msgid "Published At"
 msgstr "تاریخ انتشار"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:459
+#: packages/admin/src/components/RegistryPluginDetail.tsx:472
 msgid "Published by"
 msgstr ""
 
@@ -5975,33 +6039,33 @@ msgstr "نقل‌قول"
 msgid "Raw meta"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:66
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:67
 msgid "Read collection schemas"
 msgstr "خواندن طرح‌های مجموعه"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:46
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:47
 msgid "Read content entries"
 msgstr "خواندن ورودی‌های محتوا"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:56
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:57
 msgid "Read media files"
 msgstr "خواندن فایل‌های رسانه"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:86
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:87
 msgid "Read site settings"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:227
-#: packages/admin/src/lib/api/marketplace.ts:235
+#: packages/admin/src/lib/api/marketplace.ts:284
+#: packages/admin/src/lib/api/marketplace.ts:292
 msgid "Read user accounts"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:222
-#: packages/admin/src/lib/api/marketplace.ts:231
+#: packages/admin/src/lib/api/marketplace.ts:279
+#: packages/admin/src/lib/api/marketplace.ts:288
 msgid "Read your content"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:224
+#: packages/admin/src/lib/api/marketplace.ts:281
 msgid "Read your taxonomies and terms"
 msgstr ""
 
@@ -6090,7 +6154,7 @@ msgstr "ثبت‌نام لغو شد یا زمان آن به پایان رسید.
 msgid "Registry"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:597
+#: packages/admin/src/components/RegistryPluginDetail.tsx:610
 msgid "Release is too new to install"
 msgstr ""
 
@@ -6238,7 +6302,7 @@ msgid "Required for accessibility. Describes the image for screen readers."
 msgstr "برای دسترسی‌پذیری الزامی است. تصویر را برای صفحه‌خوان‌ها توصیف می‌کند."
 
 #. placeholder {0}: latest.minEmDashVersion
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:324
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:335
 msgid "Requires EmDash {0}"
 msgstr "نیاز به EmDash {0}"
 
@@ -6305,7 +6369,7 @@ msgstr ""
 msgid "Review"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "Review New Permissions"
 msgstr "بررسی مجوزهای جدید"
 
@@ -6318,15 +6382,15 @@ msgstr "بازبینی بازیابی شد"
 msgid "Revisions"
 msgstr "بازبینی‌ها"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:331
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:344
 msgid "Revoke token"
 msgstr "لغو توکن"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:306
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:319
 msgid "Revoke?"
 msgstr "لغو؟"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:313
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
 msgid "Revoking..."
 msgstr "در حال لغو..."
 
@@ -6347,7 +6411,7 @@ msgid "Right"
 msgstr ""
 
 #. placeholder {0}: latest.audit.riskScore
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:311
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:322
 msgid "Risk score: {0}/100"
 msgstr "امتیاز ریسک: {0}/۱۰۰"
 
@@ -6365,6 +6429,13 @@ msgstr "نقش {role}"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:883
 msgid "Role label"
 msgstr "برچسب نقش"
+
+#. placeholder {0}: tool.route
+#. placeholder {1}: tool.permission
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:149
+#: packages/admin/src/components/PluginManager.tsx:567
+msgid "Route: {0} · Permission: {1}"
+msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:48
 msgid "Ruby"
@@ -6472,12 +6543,12 @@ msgstr "درحال ذخیره‌سازی …"
 msgid "Saving…"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:469
+#: packages/admin/src/components/RegistryPluginDetail.tsx:482
 msgid "SBOM"
 msgstr ""
 
 #. placeholder {0}: sbom.format
-#: packages/admin/src/components/RegistryPluginDetail.tsx:467
+#: packages/admin/src/components/RegistryPluginDetail.tsx:480
 msgid "SBOM · {0}"
 msgstr ""
 
@@ -6517,27 +6588,27 @@ msgstr "تغییرات طرح"
 msgid "Schema preparation failed"
 msgstr "آماده‌سازی طرح ناموفق بود"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:66
 msgid "Schema Read"
 msgstr "خواندن طرح"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:70
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:71
 msgid "Schema Write"
 msgstr "نوشتن طرح"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:414
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Scopes"
 msgstr "محدوده‌ها"
 
 #. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
 msgid "Scopes: {0}"
 msgstr "محدوده‌ها: {0}"
 
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:243
-#: packages/admin/src/components/RegistryPluginDetail.tsx:642
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:254
+#: packages/admin/src/components/RegistryPluginDetail.tsx:655
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -6545,20 +6616,20 @@ msgstr "تصویر {0}"
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: screenshots.length
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:453
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:466
 msgid "Screenshot {0} of {1}"
 msgstr "تصویر {0} از {1}"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:246
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:257
 msgid "Screenshot blurred due to image audit"
 msgstr "تصویر به دلیل بررسی تصویر محو شده"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:431
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:444
 msgid "Screenshot viewer"
 msgstr "نمایشگر تصویر"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:233
-#: packages/admin/src/components/RegistryPluginDetail.tsx:636
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:244
+#: packages/admin/src/components/RegistryPluginDetail.tsx:649
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr "تصاویر"
@@ -6721,12 +6792,12 @@ msgstr "محیط امن"
 msgid "Secure your account"
 msgstr "حساب کاربری خود را ایمن کنید"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:794
+#: packages/admin/src/components/RegistryPluginDetail.tsx:809
 #: packages/admin/src/components/Settings.tsx:93
 msgid "Security"
 msgstr "امنیت"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:307
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:318
 msgid "Security Audit"
 msgstr "بررسی امنیتی"
 
@@ -6738,11 +6809,11 @@ msgstr "بررسی امنیتی ناموفق بود"
 msgid "Security audit flagged concerns"
 msgstr "بررسی امنیتی نگرانی‌هایی را مشخص کرد"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:150
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:179
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr "بررسی امنیتی نگرانی‌های احتمالی را با این افزونه مشخص کرد."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:151
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:180
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "بررسی امنیتی این افزونه را به‌عنوان احتمالاً ناامن مشخص کرد."
 
@@ -6750,7 +6821,7 @@ msgstr "بررسی امنیتی این افزونه را به‌عنوان اح�
 msgid "Security audit passed"
 msgstr "بررسی امنیتی موفق بود"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:705
+#: packages/admin/src/components/RegistryPluginDetail.tsx:718
 msgid "Security contacts"
 msgstr ""
 
@@ -6970,18 +7041,18 @@ msgstr "در حال راه‌اندازی..."
 #: packages/admin/src/components/ContentEditor.tsx:1016
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
-#: packages/admin/src/components/PluginManager.tsx:437
+#: packages/admin/src/components/PluginManager.tsx:471
 #: packages/admin/src/components/Settings.tsx:63
 #: packages/admin/src/components/Sidebar.tsx:294
 #: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
 msgstr "تنظیمات"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:90
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:91
 msgid "Settings Manage"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:86
 msgid "Settings Read"
 msgstr ""
 
@@ -7031,7 +7102,7 @@ msgstr ""
 msgid "Show thumbnails"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:220
 msgid "Show token"
 msgstr "نمایش توکن"
 
@@ -7215,8 +7286,8 @@ msgstr "مرتب‌سازی قالب‌ها"
 #: packages/admin/src/components/ContentTypeList.tsx:100
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:214
-#: packages/admin/src/components/PluginManager.tsx:508
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:225
+#: packages/admin/src/components/PluginManager.tsx:579
 #: packages/admin/src/components/Redirects.tsx:467
 #: packages/admin/src/components/SectionEditor.tsx:281
 msgid "Source"
@@ -7372,7 +7443,7 @@ msgstr ""
 msgid "Taxonomies"
 msgstr "دسته‌بندی‌ها"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:75
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:76
 msgid "Taxonomies Manage"
 msgstr ""
 
@@ -7503,6 +7574,10 @@ msgstr "قالب: {label}"
 msgid "Themes"
 msgstr "پوسته‌ها"
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:141
+msgid "These tools remain disabled after installation until you explicitly enable agent access."
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:370
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr ""
@@ -7549,11 +7624,11 @@ msgstr ""
 msgid "This plugin has no configurable settings."
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:276
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:287
 msgid "This plugin requires no special permissions."
 msgstr "این افزونه نیاز به مجوز خاصی ندارد."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:566
+#: packages/admin/src/components/RegistryPluginDetail.tsx:579
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr ""
 
@@ -7561,7 +7636,7 @@ msgstr ""
 msgid "This redirect rule will be permanently removed."
 msgstr "این قانون    تغییر مسیر برای همیشه حذف خواهد شد."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:618
+#: packages/admin/src/components/RegistryPluginDetail.tsx:631
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr ""
 
@@ -7577,7 +7652,7 @@ msgstr "این بخش توسط قالب ارائه شده. ویرایش یک ک�
 msgid "This section was imported from another system."
 msgstr "این بخش از سیستم دیگری درون‌ریزی شده است."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:121
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:125
 msgid "This update exposes the following routes without authentication:"
 msgstr ""
 
@@ -7607,7 +7682,7 @@ msgstr "این «{0}» را برای همیشه حذف می‌کند. این ع�
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "این دیدگاه برای همیشه حذف خواهد شد. این عمل قابل بازگشت نیست."
 
-#: packages/admin/src/components/PluginManager.tsx:640
+#: packages/admin/src/components/PluginManager.tsx:713
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "این افزونه و بسته آن را از وبسایت شما حذف می‌کند."
 
@@ -7656,7 +7731,7 @@ msgstr "برای بستن"
 msgid "To date"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:203
+#: packages/admin/src/components/PluginManager.tsx:207
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr "برای نصب افزونه‌ها، یا آن‌ها را به astro.config.mjs خود بیفزایید."
 
@@ -7674,11 +7749,11 @@ msgid "Toggle theme (current: {label})"
 msgstr "تغییر قالب (فعلی: {label})"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:197
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:207
 msgid "Token created: {0}"
 msgstr "توکن ساخته شد: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:405
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
 msgid "Token Name"
 msgstr "نام توکن"
 
@@ -7848,21 +7923,21 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:180
-#: packages/admin/src/components/PluginManager.tsx:558
-#: packages/admin/src/components/PluginManager.tsx:654
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:191
+#: packages/admin/src/components/PluginManager.tsx:629
+#: packages/admin/src/components/PluginManager.tsx:727
 msgid "Uninstall"
 msgstr "حذف نصب"
 
-#: packages/admin/src/components/PluginManager.tsx:638
+#: packages/admin/src/components/PluginManager.tsx:711
 msgid "Uninstall {pluginName}?"
 msgstr "حذف نصب {pluginName}؟"
 
-#: packages/admin/src/components/PluginManager.tsx:633
+#: packages/admin/src/components/PluginManager.tsx:706
 msgid "Uninstall confirmation"
 msgstr "تأیید حذف نصب"
 
-#: packages/admin/src/components/PluginManager.tsx:654
+#: packages/admin/src/components/PluginManager.tsx:727
 msgid "Uninstalling..."
 msgstr "در حال حذف نصب..."
 
@@ -7954,7 +8029,7 @@ msgstr "به‌روزرسانی فیلد"
 msgid "Update settings for {0}"
 msgstr "به‌روزرسانی تنظیمات برای {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:91
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:92
 msgid "Update site settings"
 msgstr ""
 
@@ -7968,13 +8043,13 @@ msgid "Update this redirect rule."
 msgstr "این قانون    تغییر مسیر را به‌روزرسانی کنید."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:417
+#: packages/admin/src/components/PluginManager.tsx:451
 msgid "Update to v{0}"
 msgstr "به‌روزرسانی به v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:737
 #: packages/admin/src/components/ContentSettingsPanel.tsx:517
-#: packages/admin/src/components/RegistryPluginDetail.tsx:488
+#: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
 msgstr ""
 
@@ -7986,8 +8061,8 @@ msgstr "تاریخ به‌روزرسانی"
 msgid "Updating content URLs..."
 msgstr "در حال به‌روزرسانی آدرس‌های محتوا..."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:168
-#: packages/admin/src/components/PluginManager.tsx:417
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:197
+#: packages/admin/src/components/PluginManager.tsx:451
 msgid "Updating..."
 msgstr "در حال به‌روزرسانی..."
 
@@ -8007,12 +8082,12 @@ msgstr "بارگذاری فایل برون‌ریزی"
 msgid "Upload an image to get started"
 msgstr "یک تصویر بارگذاری کنید تا شروع شود"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:61
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:62
 msgid "Upload and delete media"
 msgstr "بارگذاری و حذف رسانه"
 
-#: packages/admin/src/lib/api/marketplace.ts:226
-#: packages/admin/src/lib/api/marketplace.ts:234
+#: packages/admin/src/lib/api/marketplace.ts:283
+#: packages/admin/src/lib/api/marketplace.ts:291
 msgid "Upload and manage media"
 msgstr ""
 
@@ -8186,7 +8261,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "کاربران با آدرس ایمیل از این دامنه‌ها می‌توانند بدون دعوت ثبت‌نام کنند. به‌صورت خودکار نقش مشخص‌شده به آن‌ها اختصاص داده خواهد شد."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:358
+#: packages/admin/src/components/PluginManager.tsx:386
 msgid "v{0} available"
 msgstr "v{0} در دسترس"
 
@@ -8196,19 +8271,19 @@ msgid "Validation"
 msgstr "اعتبارسنجی"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:187
-#: packages/admin/src/components/RegistryPluginDetail.tsx:449
+#: packages/admin/src/components/RegistryPluginDetail.tsx:462
 msgid "Verified publisher"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:448
+#: packages/admin/src/components/RegistryPluginDetail.tsx:461
 msgid "Verified publisher, confirmed by labeller {verifiedLabeller}"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:439
+#: packages/admin/src/components/RegistryPluginDetail.tsx:452
 msgid "Verified publisher. A labeller ({verifiedLabeller}) has confirmed this publisher's identity."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:440
+#: packages/admin/src/components/RegistryPluginDetail.tsx:453
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
 msgstr ""
 
@@ -8225,13 +8300,13 @@ msgstr "در حال تأیید لینک شما..."
 msgid "Verifying..."
 msgstr "در حال تأیید..."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:320
-#: packages/admin/src/components/RegistryPluginDetail.tsx:502
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:331
+#: packages/admin/src/components/RegistryPluginDetail.tsx:515
 msgid "Version"
 msgstr "نسخه"
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:464
+#: packages/admin/src/components/RegistryPluginDetail.tsx:477
 msgid "Version {0}"
 msgstr ""
 
@@ -8244,7 +8319,7 @@ msgstr ""
 msgid "View email provider status and send test emails"
 msgstr "مشاهده وضعیت ارائه‌دهنده ایمیل و ارسال ایمیل‌های آزمایشی"
 
-#: packages/admin/src/components/PluginManager.tsx:429
+#: packages/admin/src/components/PluginManager.tsx:463
 msgid "View in Marketplace"
 msgstr "مشاهده در فروشگاه"
 
@@ -8260,11 +8335,11 @@ msgstr "مشاهده {title} منتشرشده"
 msgid "View Site"
 msgstr "مشاهده وبسایت"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:663
+#: packages/admin/src/components/RegistryPluginDetail.tsx:676
 msgid "View source"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:916
+#: packages/admin/src/components/RegistryPluginDetail.tsx:931
 msgid "View the {license} license on spdx.org"
 msgstr ""
 
@@ -8290,7 +8365,7 @@ msgstr "هشدار"
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "نتوانستیم به وبسایت وردپرس در {0} متصل شویم. ممکن است وبسایت وردپرس نباشد، API REST غیرفعال باشد، یا وبسایت قابل دسترس نباشد."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:564
+#: packages/admin/src/components/RegistryPluginDetail.tsx:577
 msgid "We couldn't verify this publisher's identity"
 msgstr ""
 
@@ -8315,8 +8390,8 @@ msgstr "آدرس وب"
 msgid "WebAuthn is not supported in this browser"
 msgstr "WebAuthn در این مرورگر پشتیبانی نمی‌شود"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:225
-#: packages/admin/src/components/RegistryPluginDetail.tsx:688
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:236
+#: packages/admin/src/components/RegistryPluginDetail.tsx:701
 msgid "Website"
 msgstr "وبسایت"
 
@@ -8422,7 +8497,7 @@ msgid "Widget updated"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:168
-#: packages/admin/src/components/PluginManager.tsx:379
+#: packages/admin/src/components/PluginManager.tsx:407
 #: packages/admin/src/components/Sidebar.tsx:233
 #: packages/admin/src/components/Widgets.tsx:385
 #: packages/admin/src/components/WordPressImport.tsx:1157
@@ -8628,7 +8703,7 @@ msgid "Your Role"
 msgstr "نقش شما"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:599
+#: packages/admin/src/components/RegistryPluginDetail.tsx:612
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr ""
 

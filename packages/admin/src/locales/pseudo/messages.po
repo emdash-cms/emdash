@@ -54,7 +54,7 @@ msgstr ""
 msgid "(from {0})"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:520
+#: packages/admin/src/components/RegistryPluginDetail.tsx:533
 msgid "(pre-release)"
 msgstr ""
 
@@ -62,7 +62,7 @@ msgstr ""
 msgid "(synced)"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:523
+#: packages/admin/src/components/RegistryPluginDetail.tsx:536
 msgid "(too new)"
 msgstr ""
 
@@ -115,6 +115,11 @@ msgstr ""
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr ""
 
+#. placeholder {0}: mcpTools.length
+#: packages/admin/src/components/PluginManager.tsx:419
+msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
+msgstr ""
+
 #. placeholder {0}: mediaResult.failed.length
 #: packages/admin/src/components/WordPressImport.tsx:2279
 msgid "{0, plural, one {# media error} other {# media errors}}"
@@ -137,7 +142,7 @@ msgstr ""
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:288
-#: packages/admin/src/components/PluginManager.tsx:399
+#: packages/admin/src/components/PluginManager.tsx:433
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr ""
 
@@ -189,7 +194,7 @@ msgstr ""
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host
-#: packages/admin/src/components/RegistryPluginDetail.tsx:623
+#: packages/admin/src/components/RegistryPluginDetail.tsx:636
 msgid "{0} {1} required — you have {2}."
 msgstr ""
 
@@ -200,7 +205,7 @@ msgid "{0} • {1}"
 msgstr ""
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:412
+#: packages/admin/src/components/RegistryPluginDetail.tsx:425
 msgid "{0} banner"
 msgstr ""
 
@@ -210,27 +215,27 @@ msgid "{0} detected"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:111
+#: packages/admin/src/components/PluginManager.tsx:115
 msgid "{0} has been deactivated"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:306
+#: packages/admin/src/components/PluginManager.tsx:323
 msgid "{0} has been removed"
 msgstr ""
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:424
+#: packages/admin/src/components/RegistryPluginDetail.tsx:437
 msgid "{0} icon"
 msgstr ""
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:202
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:213
 msgid "{0} installs"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:92
+#: packages/admin/src/components/PluginManager.tsx:96
 msgid "{0} is now active"
 msgstr ""
 
@@ -261,7 +266,7 @@ msgid "{0} of {total} could not be updated"
 msgstr ""
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:170
+#: packages/admin/src/components/PluginManager.tsx:174
 msgid "{0} plugins"
 msgstr ""
 
@@ -284,7 +289,7 @@ msgstr ""
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:259
+#: packages/admin/src/components/PluginManager.tsx:269
 msgid "{0} updated to v{1}"
 msgstr ""
 
@@ -301,7 +306,7 @@ msgid "{0}/160 characters"
 msgstr ""
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:256
+#: packages/admin/src/lib/api/marketplace.ts:313
 msgid "{base} to: {0}"
 msgstr ""
 
@@ -355,11 +360,11 @@ msgstr ""
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:79
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:83
 msgid "{pluginName} is requesting additional permissions:"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:80
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:84
 msgid "{pluginName} requires the following permissions:"
 msgstr ""
 
@@ -447,7 +452,7 @@ msgstr ""
 msgid "← Back"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:35
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:36
 msgid "1 year"
 msgstr ""
 
@@ -475,7 +480,7 @@ msgstr ""
 msgid "3. Select \"All content\""
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:34
 msgid "30 days"
 msgstr ""
 
@@ -523,11 +528,11 @@ msgstr ""
 msgid "5. Upload the file here"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:32
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
 msgid "7 days"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:34
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:35
 msgid "90 days"
 msgstr ""
 
@@ -543,11 +548,11 @@ msgstr ""
 msgid "A short description of your site"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:172
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:201
 msgid "Accept & Install"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:171
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:200
 msgid "Accept & Update"
 msgstr ""
 
@@ -563,8 +568,8 @@ msgstr ""
 msgid "Access Denied"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:225
-#: packages/admin/src/lib/api/marketplace.ts:233
+#: packages/admin/src/lib/api/marketplace.ts:282
+#: packages/admin/src/lib/api/marketplace.ts:290
 msgid "Access your media library"
 msgstr ""
 
@@ -720,7 +725,7 @@ msgstr ""
 msgid "Add Passkey"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:206
+#: packages/admin/src/components/PluginManager.tsx:210
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr ""
 
@@ -765,7 +770,7 @@ msgstr ""
 msgid "admin"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:101
 #: packages/admin/src/components/Sidebar.tsx:383
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -781,6 +786,19 @@ msgstr ""
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:196
 msgid "After send:"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:542
+msgid "Agent access"
+msgstr ""
+
+#. placeholder {0}: plugin.name
+#: packages/admin/src/components/PluginManager.tsx:334
+msgid "Agent access for {0} has been updated"
+msgstr ""
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
+msgid "Agent-callable MCP tools"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3510
@@ -852,6 +870,10 @@ msgstr ""
 msgid "All types"
 msgstr ""
 
+#: packages/admin/src/components/PluginManager.tsx:544
+msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:100
 msgid "Allow users from specific domains to sign up"
 msgstr ""
@@ -872,7 +894,7 @@ msgstr ""
 msgid "Already have an account?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:645
+#: packages/admin/src/components/PluginManager.tsx:718
 msgid "Also delete plugin storage data"
 msgstr ""
 
@@ -899,8 +921,8 @@ msgstr ""
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
-#: packages/admin/src/components/PluginManager.tsx:98
-#: packages/admin/src/components/PluginManager.tsx:117
+#: packages/admin/src/components/PluginManager.tsx:102
+#: packages/admin/src/components/PluginManager.tsx:121
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:95
@@ -960,7 +982,7 @@ msgid "Any media type allowed (subject to global limits)."
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:183
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
 msgid "API Tokens"
 msgstr ""
 
@@ -1109,7 +1131,7 @@ msgstr ""
 msgid "Authorizing..."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:672
+#: packages/admin/src/components/RegistryPluginDetail.tsx:685
 msgid "Authors"
 msgstr ""
 
@@ -1181,13 +1203,13 @@ msgstr ""
 msgid "Back to login"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:115
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:391
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:126
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:404
 msgid "Back to marketplace"
 msgstr ""
 
 #: packages/admin/src/components/PluginSettings.tsx:118
-#: packages/admin/src/components/RegistryPluginDetail.tsx:805
+#: packages/admin/src/components/RegistryPluginDetail.tsx:820
 msgid "Back to plugins"
 msgstr ""
 
@@ -1280,7 +1302,7 @@ msgstr ""
 msgid "Browse Files"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:199
+#: packages/admin/src/components/PluginManager.tsx:203
 msgid "Browse the"
 msgstr ""
 
@@ -1338,7 +1360,7 @@ msgid "Can view content"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:163
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:192
 #: packages/admin/src/components/ConfirmDialog.tsx:57
 #: packages/admin/src/components/ContentList.tsx:455
 #: packages/admin/src/components/ContentList.tsx:1054
@@ -1361,15 +1383,15 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:173
-#: packages/admin/src/components/PluginManager.tsx:651
+#: packages/admin/src/components/PluginManager.tsx:724
 #: packages/admin/src/components/PortableTextEditor.tsx:3577
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:280
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:390
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:323
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:451
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:336
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:480
 #: packages/admin/src/components/settings/SecuritySettings.tsx:179
 #: packages/admin/src/components/TaxonomyManager.tsx:207
 #: packages/admin/src/components/TaxonomyManager.tsx:494
@@ -1401,11 +1423,11 @@ msgstr ""
 msgid "Canonical URL"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:484
+#: packages/admin/src/components/PluginManager.tsx:518
 msgid "Capabilities"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:65
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:69
 msgid "Capability consent"
 msgstr ""
 
@@ -1466,7 +1488,7 @@ msgstr ""
 msgid "Change Logo"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:793
+#: packages/admin/src/components/RegistryPluginDetail.tsx:808
 msgid "Changelog"
 msgstr ""
 
@@ -1478,7 +1500,7 @@ msgstr ""
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:162
+#: packages/admin/src/components/PluginManager.tsx:166
 msgid "Check for updates"
 msgstr ""
 
@@ -1558,7 +1580,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:345
 #: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/FieldEditor.tsx:355
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:436
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:449
 #: packages/admin/src/components/MediaDetailPanel.tsx:229
 #: packages/admin/src/components/MediaDetailPanel.tsx:416
 #: packages/admin/src/components/MediaPickerModal.tsx:481
@@ -1629,11 +1651,11 @@ msgstr ""
 msgid "Code Block"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:471
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "Collapse"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:465
+#: packages/admin/src/components/PluginManager.tsx:499
 msgid "Collapse details"
 msgstr ""
 
@@ -1692,7 +1714,7 @@ msgstr ""
 msgid "Configure Field"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:313
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
 msgid "Confirm"
 msgstr ""
 
@@ -1767,7 +1789,7 @@ msgstr ""
 msgid "content items"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:45
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:46
 msgid "Content Read"
 msgstr ""
 
@@ -1797,7 +1819,7 @@ msgstr ""
 msgid "Content was skipped because it already exists"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:50
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:51
 msgid "Content Write"
 msgstr ""
 
@@ -1819,7 +1841,7 @@ msgstr ""
 msgid "Contributor"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:224
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:234
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
 msgid "Copied to clipboard"
 msgstr ""
@@ -1837,11 +1859,11 @@ msgstr ""
 msgid "Copy slug"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:200
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Copy this token now — it won't be shown again."
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
 msgid "Copy token"
 msgstr ""
 
@@ -1950,7 +1972,7 @@ msgstr ""
 msgid "Create New Menu"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Create New Token"
 msgstr ""
 
@@ -1963,7 +1985,7 @@ msgid "Create Passkey"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:111
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:185
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:195
 msgid "Create personal access tokens for programmatic API access"
 msgstr ""
 
@@ -1998,8 +2020,8 @@ msgstr ""
 msgid "Create Taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:256
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:448
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:269
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
 msgid "Create Token"
 msgstr ""
 
@@ -2029,20 +2051,20 @@ msgstr ""
 msgid "Create your passkey"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:223
-#: packages/admin/src/lib/api/marketplace.ts:232
+#: packages/admin/src/lib/api/marketplace.ts:280
+#: packages/admin/src/lib/api/marketplace.ts:289
 msgid "Create, update, and delete content"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:81
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:82
 msgid "Create, update, and delete navigation menus"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:76
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:77
 msgid "Create, update, and delete taxonomy terms"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:51
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:52
 msgid "Create, update, delete content"
 msgstr ""
 
@@ -2059,7 +2081,7 @@ msgstr ""
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr ""
@@ -2081,7 +2103,7 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:176
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:448
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
 #: packages/admin/src/components/TaxonomyManager.tsx:711
 #: packages/admin/src/components/TaxonomySidebar.tsx:292
 msgid "Creating..."
@@ -2169,7 +2191,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:737
+#: packages/admin/src/components/RegistryPluginDetail.tsx:750
 msgid "Declared permissions"
 msgstr ""
 
@@ -2423,7 +2445,7 @@ msgid "Describe what this section is for..."
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:413
-#: packages/admin/src/components/RegistryPluginDetail.tsx:790
+#: packages/admin/src/components/RegistryPluginDetail.tsx:805
 #: packages/admin/src/components/SectionEditor.tsx:261
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:433
@@ -2442,7 +2464,12 @@ msgstr ""
 msgid "Destination path"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:471
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:153
+#: packages/admin/src/components/PluginManager.tsx:563
+msgid "Destructive"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "details"
 msgstr ""
 
@@ -2478,8 +2505,12 @@ msgstr ""
 msgid "Disable"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:459
+#: packages/admin/src/components/PluginManager.tsx:493
 msgid "Disable plugin"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:553
+msgid "Disable plugin MCP tools"
 msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:505
@@ -2494,14 +2525,14 @@ msgstr ""
 msgid "Disable User?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:354
+#: packages/admin/src/components/PluginManager.tsx:382
 #: packages/admin/src/components/Redirects.tsx:419
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:542
+#: packages/admin/src/components/PluginManager.tsx:613
 msgid "Disabled:"
 msgstr ""
 
@@ -2535,8 +2566,8 @@ msgstr ""
 msgid "Discarding..."
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:231
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:241
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:243
 msgid "Dismiss"
 msgstr ""
 
@@ -2643,7 +2674,7 @@ msgstr ""
 msgid "Download backups and schedule automatic backups to storage"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:479
+#: packages/admin/src/components/RegistryPluginDetail.tsx:492
 msgid "Download SBOM"
 msgstr ""
 
@@ -2730,7 +2761,7 @@ msgstr ""
 msgid "e.g. import, blog"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:408
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
 msgid "e.g., CI/CD Pipeline"
 msgstr ""
 
@@ -2912,8 +2943,12 @@ msgstr ""
 msgid "Enable full-text search on this collection"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:459
+#: packages/admin/src/components/PluginManager.tsx:493
 msgid "Enable plugin"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:554
+msgid "Enable plugin MCP tools"
 msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:505
@@ -3004,7 +3039,7 @@ msgstr ""
 msgid "Error updating widget"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:583
+#: packages/admin/src/components/RegistryPluginDetail.tsx:596
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr ""
 
@@ -3020,20 +3055,20 @@ msgstr ""
 msgid "Exit Spotlight Mode"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:471
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "Expand"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:465
+#: packages/admin/src/components/PluginManager.tsx:499
 msgid "Expand details"
 msgstr ""
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:285
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Expires {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:434
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
 msgid "Expiry"
 msgstr ""
 
@@ -3057,7 +3092,7 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:188
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:199
 msgid "Failed security audit"
 msgstr ""
 
@@ -3199,8 +3234,8 @@ msgstr ""
 msgid "Failed to delete widget area"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:116
-#: packages/admin/src/lib/api/plugins.ts:151
+#: packages/admin/src/components/PluginManager.tsx:120
+#: packages/admin/src/lib/api/plugins.ts:160
 msgid "Failed to disable plugin"
 msgstr ""
 
@@ -3224,8 +3259,8 @@ msgstr ""
 msgid "Failed to duplicate"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:97
-#: packages/admin/src/lib/api/plugins.ts:137
+#: packages/admin/src/components/PluginManager.tsx:101
+#: packages/admin/src/lib/api/plugins.ts:146
 msgid "Failed to enable plugin"
 msgstr ""
 
@@ -3282,16 +3317,16 @@ msgstr ""
 msgid "Failed to fetch media providers"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:61
-#: packages/admin/src/lib/api/plugins.ts:65
+#: packages/admin/src/lib/api/plugins.ts:70
+#: packages/admin/src/lib/api/plugins.ts:74
 msgid "Failed to fetch plugin"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:105
+#: packages/admin/src/lib/api/plugins.ts:114
 msgid "Failed to fetch plugin settings"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:47
+#: packages/admin/src/lib/api/plugins.ts:56
 msgid "Failed to fetch plugins"
 msgstr ""
 
@@ -3361,8 +3396,8 @@ msgstr ""
 msgid "Failed to import media"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:160
-#: packages/admin/src/lib/api/registry.ts:692
+#: packages/admin/src/lib/api/marketplace.ts:208
+#: packages/admin/src/lib/api/registry.ts:702
 msgid "Failed to install plugin"
 msgstr ""
 
@@ -3399,7 +3434,7 @@ msgstr ""
 msgid "Failed to load passkeys"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:110
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:121
 msgid "Failed to load plugin"
 msgstr ""
 
@@ -3408,7 +3443,7 @@ msgid "Failed to load plugin settings"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:145
+#: packages/admin/src/components/PluginManager.tsx:149
 msgid "Failed to load plugins: {0}"
 msgstr ""
 
@@ -3497,7 +3532,7 @@ msgstr ""
 msgid "Failed to restore revision"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:98
+#: packages/admin/src/lib/api/api-tokens.ts:99
 msgid "Failed to revoke API token"
 msgstr ""
 
@@ -3551,8 +3586,8 @@ msgstr ""
 msgid "Failed to set entry terms"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:192
-#: packages/admin/src/lib/api/registry.ts:831
+#: packages/admin/src/lib/api/marketplace.ts:249
+#: packages/admin/src/lib/api/registry.ts:858
 msgid "Failed to uninstall plugin"
 msgstr ""
 
@@ -3593,12 +3628,16 @@ msgstr ""
 msgid "Failed to update media"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:176
-#: packages/admin/src/lib/api/registry.ts:763
+#: packages/admin/src/lib/api/marketplace.ts:232
+#: packages/admin/src/lib/api/registry.ts:776
 msgid "Failed to update plugin"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:124
+#: packages/admin/src/lib/api/plugins.ts:172
+msgid "Failed to update plugin MCP access"
+msgstr ""
+
+#: packages/admin/src/lib/api/plugins.ts:133
 msgid "Failed to update plugin settings"
 msgstr ""
 
@@ -3634,7 +3673,7 @@ msgstr ""
 msgid "Failed to verify registration"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:792
+#: packages/admin/src/components/RegistryPluginDetail.tsx:807
 msgid "FAQ"
 msgstr ""
 
@@ -3786,7 +3825,7 @@ msgstr ""
 msgid "Full access"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:96
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
 msgid "Full admin access"
 msgstr ""
 
@@ -3904,7 +3943,7 @@ msgstr ""
 msgid "Hide from search engines"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:220
 msgid "Hide token"
 msgstr ""
 
@@ -3925,7 +3964,7 @@ msgstr ""
 msgid "Homepage"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:413
 msgid "Hooks"
 msgstr ""
 
@@ -3961,7 +4000,7 @@ msgid "https://yoursite.com"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:241
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:142
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:153
 msgid "Icon blurred due to image audit"
 msgstr ""
 
@@ -4117,7 +4156,7 @@ msgstr ""
 msgid "Incompatible"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:493
+#: packages/admin/src/components/RegistryPluginDetail.tsx:506
 msgid "Indexed"
 msgstr ""
 
@@ -4191,8 +4230,8 @@ msgstr ""
 msgid "Instagram"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:192
-#: packages/admin/src/components/RegistryPluginDetail.tsx:541
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:203
+#: packages/admin/src/components/RegistryPluginDetail.tsx:554
 msgid "Install"
 msgstr ""
 
@@ -4200,7 +4239,7 @@ msgstr ""
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:186
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:197
 msgid "Install blocked"
 msgstr ""
 
@@ -4208,27 +4247,27 @@ msgstr ""
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:791
+#: packages/admin/src/components/RegistryPluginDetail.tsx:806
 msgid "Installation"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:173
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:184
 #: packages/admin/src/components/RegistryBrowse.tsx:199
-#: packages/admin/src/components/RegistryPluginDetail.tsx:533
+#: packages/admin/src/components/RegistryPluginDetail.tsx:546
 msgid "Installed"
 msgstr ""
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:511
+#: packages/admin/src/components/PluginManager.tsx:582
 msgid "Installed from marketplace (v{0})"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:530
+#: packages/admin/src/components/PluginManager.tsx:601
 msgid "Installed:"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:169
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:198
 msgid "Installing..."
 msgstr ""
 
@@ -4268,6 +4307,14 @@ msgstr ""
 
 #: packages/admin/src/components/users/UserList.tsx:140
 msgid "Invite your first team member"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
+msgid "Invoke MCP tools from all enabled plugins"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:454
+msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3094
@@ -4331,7 +4378,7 @@ msgstr ""
 msgid "Keep typing to narrow down more bylines."
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:293
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:304
 #: packages/admin/src/components/SectionEditor.tsx:270
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:189
 msgid "Keywords"
@@ -4372,7 +4419,7 @@ msgstr ""
 msgid "Large section heading"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:536
+#: packages/admin/src/components/PluginManager.tsx:607
 msgid "Last enabled:"
 msgstr ""
 
@@ -4398,7 +4445,7 @@ msgstr ""
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:290
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:303
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr ""
@@ -4535,7 +4582,7 @@ msgstr ""
 msgid "Loading menus..."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:136
+#: packages/admin/src/components/PluginManager.tsx:140
 msgid "Loading plugins..."
 msgstr ""
 
@@ -4639,13 +4686,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:228
-#: packages/admin/src/lib/api/marketplace.ts:236
+#: packages/admin/src/lib/api/marketplace.ts:285
+#: packages/admin/src/lib/api/marketplace.ts:293
 msgid "Make network requests"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:229
-#: packages/admin/src/lib/api/marketplace.ts:237
+#: packages/admin/src/lib/api/marketplace.ts:286
+#: packages/admin/src/lib/api/marketplace.ts:294
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
@@ -4667,7 +4714,7 @@ msgstr ""
 msgid "Manage content widgets in your widget areas"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:175
+#: packages/admin/src/components/PluginManager.tsx:179
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr ""
 
@@ -4721,13 +4768,13 @@ msgstr ""
 msgid "Markdown"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:201
+#: packages/admin/src/components/PluginManager.tsx:205
 msgid "marketplace"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:167
-#: packages/admin/src/components/PluginManager.tsx:355
+#: packages/admin/src/components/PluginManager.tsx:171
+#: packages/admin/src/components/PluginManager.tsx:383
 #: packages/admin/src/components/Sidebar.tsx:272
 msgid "Marketplace"
 msgstr ""
@@ -4786,11 +4833,11 @@ msgstr ""
 msgid "Media Library"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:55
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:56
 msgid "Media Read"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:61
 msgid "Media Write"
 msgstr ""
 
@@ -4854,7 +4901,7 @@ msgstr ""
 msgid "Menus ({0})"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:80
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:81
 msgid "Menus Manage"
 msgstr ""
 
@@ -4903,7 +4950,7 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:71
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:72
 msgid "Modify collection schemas"
 msgstr ""
 
@@ -5027,7 +5074,7 @@ msgstr ""
 msgid "New"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:107
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:111
 msgid "NEW"
 msgstr ""
 
@@ -5057,7 +5104,7 @@ msgstr ""
 msgid "New field"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:118
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:122
 msgid "New public routes"
 msgstr ""
 
@@ -5103,7 +5150,7 @@ msgstr ""
 msgid "Next page"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:463
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:476
 msgid "Next screenshot"
 msgstr ""
 
@@ -5140,7 +5187,7 @@ msgstr ""
 msgid "No alt text"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:268
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:281
 msgid "No API tokens yet. Create one to get started."
 msgstr ""
 
@@ -5196,7 +5243,7 @@ msgstr ""
 msgid "No custom fields yet"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:264
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:275
 msgid "No detailed description available."
 msgstr ""
 
@@ -5216,7 +5263,7 @@ msgstr ""
 msgid "No EmDash users found"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:31
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:32
 msgid "No expiry"
 msgstr ""
 
@@ -5228,7 +5275,7 @@ msgstr ""
 msgid "No headings in document"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:581
+#: packages/admin/src/components/RegistryPluginDetail.tsx:594
 msgid "No installable releases"
 msgstr ""
 
@@ -5313,7 +5360,7 @@ msgstr ""
 msgid "No passkeys registered yet."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:195
+#: packages/admin/src/components/PluginManager.tsx:199
 msgid "No plugins configured"
 msgstr ""
 
@@ -5410,7 +5457,7 @@ msgstr ""
 msgid "None (top level)"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:616
+#: packages/admin/src/components/RegistryPluginDetail.tsx:629
 msgid "Not compatible with this environment"
 msgstr ""
 
@@ -5560,7 +5607,7 @@ msgstr ""
 msgid "Ownership"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:520
+#: packages/admin/src/components/PluginManager.tsx:591
 msgid "Package"
 msgstr ""
 
@@ -5568,7 +5615,7 @@ msgstr ""
 msgid "Page Not Found"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:373
+#: packages/admin/src/components/PluginManager.tsx:401
 #: packages/admin/src/components/WordPressImport.tsx:1328
 msgid "Pages"
 msgstr ""
@@ -5700,7 +5747,7 @@ msgstr ""
 msgid "Permanently delete {title}"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:273
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:284
 msgid "Permissions"
 msgstr ""
 
@@ -5746,19 +5793,19 @@ msgstr ""
 msgid "Plugin"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:59
+#: packages/admin/src/lib/api/plugins.ts:68
 msgid "Plugin \"{pluginId}\" not found"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:749
+#: packages/admin/src/components/RegistryPluginDetail.tsx:762
 msgid "Plugin details"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:110
+#: packages/admin/src/components/PluginManager.tsx:114
 msgid "Plugin disabled"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:91
+#: packages/admin/src/components/PluginManager.tsx:95
 msgid "Plugin enabled"
 msgstr ""
 
@@ -5771,11 +5818,23 @@ msgstr ""
 msgid "Plugin error ({0})"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:112
+#: packages/admin/src/components/PluginManager.tsx:333
+msgid "Plugin MCP access updated"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:96
+msgid "Plugin MCP Tools"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:108
+msgid "Plugin MCP tools require explicit consent"
+msgstr ""
+
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:123
 msgid "Plugin not found"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:398
+#: packages/admin/src/components/RegistryPluginDetail.tsx:411
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
 msgstr ""
 
@@ -5783,11 +5842,11 @@ msgstr ""
 msgid "plugin on your WordPress site."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:482
 msgid "Plugin pages"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "Plugin Permissions"
 msgstr ""
 
@@ -5800,15 +5859,20 @@ msgstr ""
 msgid "Plugin responded with {0}: {text}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:305
+#. placeholder {0}: plugin.name
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:452
+msgid "Plugin tools: {0}"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:322
 msgid "Plugin uninstalled"
 msgstr ""
 
-#: packages/admin/src/lib/api/registry.ts:783
+#: packages/admin/src/lib/api/registry.ts:810
 msgid "Plugin update requires re-consent"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:258
+#: packages/admin/src/components/PluginManager.tsx:268
 msgid "Plugin updated"
 msgstr ""
 
@@ -5817,9 +5881,9 @@ msgid "Plugin widget error"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:218
-#: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/components/PluginManager.tsx:144
-#: packages/admin/src/components/PluginManager.tsx:153
+#: packages/admin/src/components/PluginManager.tsx:139
+#: packages/admin/src/components/PluginManager.tsx:148
+#: packages/admin/src/components/PluginManager.tsx:157
 #: packages/admin/src/components/Sidebar.tsx:256
 #: packages/admin/src/components/Sidebar.tsx:391
 msgid "Plugins"
@@ -5850,7 +5914,7 @@ msgstr ""
 msgid "Posts Per Page"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:465
+#: packages/admin/src/components/RegistryPluginDetail.tsx:478
 msgid "Pre-release"
 msgstr ""
 
@@ -5890,7 +5954,7 @@ msgstr ""
 msgid "Previous page"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:445
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:458
 msgid "Previous screenshot"
 msgstr ""
 
@@ -5934,7 +5998,7 @@ msgid "Published"
 msgstr ""
 
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:326
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:337
 msgid "Published {0}"
 msgstr ""
 
@@ -5946,7 +6010,7 @@ msgstr ""
 msgid "Published At"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:459
+#: packages/admin/src/components/RegistryPluginDetail.tsx:472
 msgid "Published by"
 msgstr ""
 
@@ -5973,33 +6037,33 @@ msgstr ""
 msgid "Raw meta"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:66
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:67
 msgid "Read collection schemas"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:46
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:47
 msgid "Read content entries"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:56
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:57
 msgid "Read media files"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:86
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:87
 msgid "Read site settings"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:227
-#: packages/admin/src/lib/api/marketplace.ts:235
+#: packages/admin/src/lib/api/marketplace.ts:284
+#: packages/admin/src/lib/api/marketplace.ts:292
 msgid "Read user accounts"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:222
-#: packages/admin/src/lib/api/marketplace.ts:231
+#: packages/admin/src/lib/api/marketplace.ts:279
+#: packages/admin/src/lib/api/marketplace.ts:288
 msgid "Read your content"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:224
+#: packages/admin/src/lib/api/marketplace.ts:281
 msgid "Read your taxonomies and terms"
 msgstr ""
 
@@ -6088,7 +6152,7 @@ msgstr ""
 msgid "Registry"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:597
+#: packages/admin/src/components/RegistryPluginDetail.tsx:610
 msgid "Release is too new to install"
 msgstr ""
 
@@ -6236,7 +6300,7 @@ msgid "Required for accessibility. Describes the image for screen readers."
 msgstr ""
 
 #. placeholder {0}: latest.minEmDashVersion
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:324
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:335
 msgid "Requires EmDash {0}"
 msgstr ""
 
@@ -6303,7 +6367,7 @@ msgstr ""
 msgid "Review"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "Review New Permissions"
 msgstr ""
 
@@ -6316,15 +6380,15 @@ msgstr ""
 msgid "Revisions"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:331
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:344
 msgid "Revoke token"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:306
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:319
 msgid "Revoke?"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:313
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
 msgid "Revoking..."
 msgstr ""
 
@@ -6345,7 +6409,7 @@ msgid "Right"
 msgstr ""
 
 #. placeholder {0}: latest.audit.riskScore
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:311
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:322
 msgid "Risk score: {0}/100"
 msgstr ""
 
@@ -6362,6 +6426,13 @@ msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:883
 msgid "Role label"
+msgstr ""
+
+#. placeholder {0}: tool.route
+#. placeholder {1}: tool.permission
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:149
+#: packages/admin/src/components/PluginManager.tsx:567
+msgid "Route: {0} · Permission: {1}"
 msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:48
@@ -6470,12 +6541,12 @@ msgstr ""
 msgid "Saving…"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:469
+#: packages/admin/src/components/RegistryPluginDetail.tsx:482
 msgid "SBOM"
 msgstr ""
 
 #. placeholder {0}: sbom.format
-#: packages/admin/src/components/RegistryPluginDetail.tsx:467
+#: packages/admin/src/components/RegistryPluginDetail.tsx:480
 msgid "SBOM · {0}"
 msgstr ""
 
@@ -6515,27 +6586,27 @@ msgstr ""
 msgid "Schema preparation failed"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:66
 msgid "Schema Read"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:70
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:71
 msgid "Schema Write"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:414
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Scopes"
 msgstr ""
 
 #. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
 msgid "Scopes: {0}"
 msgstr ""
 
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:243
-#: packages/admin/src/components/RegistryPluginDetail.tsx:642
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:254
+#: packages/admin/src/components/RegistryPluginDetail.tsx:655
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -6543,20 +6614,20 @@ msgstr ""
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: screenshots.length
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:453
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:466
 msgid "Screenshot {0} of {1}"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:246
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:257
 msgid "Screenshot blurred due to image audit"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:431
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:444
 msgid "Screenshot viewer"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:233
-#: packages/admin/src/components/RegistryPluginDetail.tsx:636
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:244
+#: packages/admin/src/components/RegistryPluginDetail.tsx:649
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr ""
@@ -6719,12 +6790,12 @@ msgstr ""
 msgid "Secure your account"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:794
+#: packages/admin/src/components/RegistryPluginDetail.tsx:809
 #: packages/admin/src/components/Settings.tsx:93
 msgid "Security"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:307
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:318
 msgid "Security Audit"
 msgstr ""
 
@@ -6736,11 +6807,11 @@ msgstr ""
 msgid "Security audit flagged concerns"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:150
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:179
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:151
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:180
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr ""
 
@@ -6748,7 +6819,7 @@ msgstr ""
 msgid "Security audit passed"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:705
+#: packages/admin/src/components/RegistryPluginDetail.tsx:718
 msgid "Security contacts"
 msgstr ""
 
@@ -6968,18 +7039,18 @@ msgstr ""
 #: packages/admin/src/components/ContentEditor.tsx:1016
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
-#: packages/admin/src/components/PluginManager.tsx:437
+#: packages/admin/src/components/PluginManager.tsx:471
 #: packages/admin/src/components/Settings.tsx:63
 #: packages/admin/src/components/Sidebar.tsx:294
 #: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:90
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:91
 msgid "Settings Manage"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:86
 msgid "Settings Read"
 msgstr ""
 
@@ -7029,7 +7100,7 @@ msgstr ""
 msgid "Show thumbnails"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:220
 msgid "Show token"
 msgstr ""
 
@@ -7213,8 +7284,8 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeList.tsx:100
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:214
-#: packages/admin/src/components/PluginManager.tsx:508
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:225
+#: packages/admin/src/components/PluginManager.tsx:579
 #: packages/admin/src/components/Redirects.tsx:467
 #: packages/admin/src/components/SectionEditor.tsx:281
 msgid "Source"
@@ -7370,7 +7441,7 @@ msgstr ""
 msgid "Taxonomies"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:75
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:76
 msgid "Taxonomies Manage"
 msgstr ""
 
@@ -7501,6 +7572,10 @@ msgstr ""
 msgid "Themes"
 msgstr ""
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:141
+msgid "These tools remain disabled after installation until you explicitly enable agent access."
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:370
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr ""
@@ -7547,11 +7622,11 @@ msgstr ""
 msgid "This plugin has no configurable settings."
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:276
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:287
 msgid "This plugin requires no special permissions."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:566
+#: packages/admin/src/components/RegistryPluginDetail.tsx:579
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr ""
 
@@ -7559,7 +7634,7 @@ msgstr ""
 msgid "This redirect rule will be permanently removed."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:618
+#: packages/admin/src/components/RegistryPluginDetail.tsx:631
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr ""
 
@@ -7575,7 +7650,7 @@ msgstr ""
 msgid "This section was imported from another system."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:121
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:125
 msgid "This update exposes the following routes without authentication:"
 msgstr ""
 
@@ -7605,7 +7680,7 @@ msgstr ""
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:640
+#: packages/admin/src/components/PluginManager.tsx:713
 msgid "This will remove the plugin and its bundle from your site."
 msgstr ""
 
@@ -7654,7 +7729,7 @@ msgstr ""
 msgid "To date"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:203
+#: packages/admin/src/components/PluginManager.tsx:207
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr ""
 
@@ -7672,11 +7747,11 @@ msgid "Toggle theme (current: {label})"
 msgstr ""
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:197
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:207
 msgid "Token created: {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:405
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
 msgid "Token Name"
 msgstr ""
 
@@ -7846,21 +7921,21 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:180
-#: packages/admin/src/components/PluginManager.tsx:558
-#: packages/admin/src/components/PluginManager.tsx:654
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:191
+#: packages/admin/src/components/PluginManager.tsx:629
+#: packages/admin/src/components/PluginManager.tsx:727
 msgid "Uninstall"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:638
+#: packages/admin/src/components/PluginManager.tsx:711
 msgid "Uninstall {pluginName}?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:633
+#: packages/admin/src/components/PluginManager.tsx:706
 msgid "Uninstall confirmation"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:654
+#: packages/admin/src/components/PluginManager.tsx:727
 msgid "Uninstalling..."
 msgstr ""
 
@@ -7952,7 +8027,7 @@ msgstr ""
 msgid "Update settings for {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:91
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:92
 msgid "Update site settings"
 msgstr ""
 
@@ -7966,13 +8041,13 @@ msgid "Update this redirect rule."
 msgstr ""
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:417
+#: packages/admin/src/components/PluginManager.tsx:451
 msgid "Update to v{0}"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:737
 #: packages/admin/src/components/ContentSettingsPanel.tsx:517
-#: packages/admin/src/components/RegistryPluginDetail.tsx:488
+#: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
 msgstr ""
 
@@ -7984,8 +8059,8 @@ msgstr ""
 msgid "Updating content URLs..."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:168
-#: packages/admin/src/components/PluginManager.tsx:417
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:197
+#: packages/admin/src/components/PluginManager.tsx:451
 msgid "Updating..."
 msgstr ""
 
@@ -8005,12 +8080,12 @@ msgstr ""
 msgid "Upload an image to get started"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:61
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:62
 msgid "Upload and delete media"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:226
-#: packages/admin/src/lib/api/marketplace.ts:234
+#: packages/admin/src/lib/api/marketplace.ts:283
+#: packages/admin/src/lib/api/marketplace.ts:291
 msgid "Upload and manage media"
 msgstr ""
 
@@ -8184,7 +8259,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr ""
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:358
+#: packages/admin/src/components/PluginManager.tsx:386
 msgid "v{0} available"
 msgstr ""
 
@@ -8194,19 +8269,19 @@ msgid "Validation"
 msgstr ""
 
 #: packages/admin/src/components/RegistryBrowse.tsx:187
-#: packages/admin/src/components/RegistryPluginDetail.tsx:449
+#: packages/admin/src/components/RegistryPluginDetail.tsx:462
 msgid "Verified publisher"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:448
+#: packages/admin/src/components/RegistryPluginDetail.tsx:461
 msgid "Verified publisher, confirmed by labeller {verifiedLabeller}"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:439
+#: packages/admin/src/components/RegistryPluginDetail.tsx:452
 msgid "Verified publisher. A labeller ({verifiedLabeller}) has confirmed this publisher's identity."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:440
+#: packages/admin/src/components/RegistryPluginDetail.tsx:453
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
 msgstr ""
 
@@ -8223,13 +8298,13 @@ msgstr ""
 msgid "Verifying..."
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:320
-#: packages/admin/src/components/RegistryPluginDetail.tsx:502
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:331
+#: packages/admin/src/components/RegistryPluginDetail.tsx:515
 msgid "Version"
 msgstr ""
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:464
+#: packages/admin/src/components/RegistryPluginDetail.tsx:477
 msgid "Version {0}"
 msgstr ""
 
@@ -8242,7 +8317,7 @@ msgstr ""
 msgid "View email provider status and send test emails"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:429
+#: packages/admin/src/components/PluginManager.tsx:463
 msgid "View in Marketplace"
 msgstr ""
 
@@ -8258,11 +8333,11 @@ msgstr ""
 msgid "View Site"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:663
+#: packages/admin/src/components/RegistryPluginDetail.tsx:676
 msgid "View source"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:916
+#: packages/admin/src/components/RegistryPluginDetail.tsx:931
 msgid "View the {license} license on spdx.org"
 msgstr ""
 
@@ -8288,7 +8363,7 @@ msgstr ""
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:564
+#: packages/admin/src/components/RegistryPluginDetail.tsx:577
 msgid "We couldn't verify this publisher's identity"
 msgstr ""
 
@@ -8313,8 +8388,8 @@ msgstr ""
 msgid "WebAuthn is not supported in this browser"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:225
-#: packages/admin/src/components/RegistryPluginDetail.tsx:688
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:236
+#: packages/admin/src/components/RegistryPluginDetail.tsx:701
 msgid "Website"
 msgstr ""
 
@@ -8420,7 +8495,7 @@ msgid "Widget updated"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:168
-#: packages/admin/src/components/PluginManager.tsx:379
+#: packages/admin/src/components/PluginManager.tsx:407
 #: packages/admin/src/components/Sidebar.tsx:233
 #: packages/admin/src/components/Widgets.tsx:385
 #: packages/admin/src/components/WordPressImport.tsx:1157
@@ -8626,7 +8701,7 @@ msgid "Your Role"
 msgstr ""
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:599
+#: packages/admin/src/components/RegistryPluginDetail.tsx:612
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr ""
 
