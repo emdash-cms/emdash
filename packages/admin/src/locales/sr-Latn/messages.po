@@ -597,7 +597,7 @@ msgid "Active"
 msgstr "Aktivan"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentSettingsPanel.tsx:825
+#: packages/admin/src/components/ContentSettingsPanel.tsx:828
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/TaxonomySidebar.tsx:478
 msgid "Add"
@@ -997,7 +997,7 @@ msgstr "Odobreno"
 msgid "Arbitrary JSON data"
 msgstr "Proizvoljni JSON podaci"
 
-#: packages/admin/src/components/ContentList.tsx:1164
+#: packages/admin/src/components/ContentList.tsx:1166
 msgid "archived"
 msgstr "arhivirano"
 
@@ -1072,7 +1072,7 @@ msgstr "Autentifikacija je otkazana ili je isteklo vreme. Pokušajte ponovo."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:288
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1035
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1038
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1295,7 +1295,7 @@ msgstr "Šema potpisa autora"
 msgid "Byline Schema"
 msgstr "Šema potpisa autora"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:537
+#: packages/admin/src/components/ContentSettingsPanel.tsx:540
 #: packages/admin/src/components/Sidebar.tsx:242
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
@@ -1333,14 +1333,14 @@ msgstr "Može pregledati sadržaj"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:163
 #: packages/admin/src/components/ConfirmDialog.tsx:57
 #: packages/admin/src/components/ContentList.tsx:455
-#: packages/admin/src/components/ContentList.tsx:1052
-#: packages/admin/src/components/ContentList.tsx:1123
+#: packages/admin/src/components/ContentList.tsx:1054
+#: packages/admin/src/components/ContentList.tsx:1125
 #: packages/admin/src/components/ContentPickerModal.tsx:248
 #: packages/admin/src/components/ContentSettingsPanel.tsx:84
 #: packages/admin/src/components/ContentSettingsPanel.tsx:488
-#: packages/admin/src/components/ContentSettingsPanel.tsx:636
-#: packages/admin/src/components/ContentSettingsPanel.tsx:939
-#: packages/admin/src/components/ContentSettingsPanel.tsx:992
+#: packages/admin/src/components/ContentSettingsPanel.tsx:639
+#: packages/admin/src/components/ContentSettingsPanel.tsx:942
+#: packages/admin/src/components/ContentSettingsPanel.tsx:995
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:193
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:194
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
@@ -1863,7 +1863,7 @@ msgstr "Nije moguće učitati prilagođena polja."
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "Nije moguće mapirati \"{draft}\" na MIME tip. Unesite MIME direktno."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:831
+#: packages/admin/src/components/ContentSettingsPanel.tsx:834
 msgid "Couldn't search bylines. Please try again."
 msgstr "Nije moguće pretražiti potpise autora. Pokušajte ponovo."
 
@@ -1876,7 +1876,7 @@ msgstr "Nije moguće proveriti koliko vrednosti referencira \"{0}\". Brisanje ć
 msgid "Count"
 msgstr "Broj"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:963
+#: packages/admin/src/components/ContentSettingsPanel.tsx:966
 #: packages/admin/src/components/MenuList.tsx:176
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
@@ -1912,7 +1912,7 @@ msgstr "Kreiraj nalog"
 msgid "Create an account"
 msgstr "Kreiraj nalog"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:911
+#: packages/admin/src/components/ContentSettingsPanel.tsx:914
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "Kreiraj potpis autora"
@@ -2031,7 +2031,7 @@ msgid "Create, update, delete content"
 msgstr "Kreiraj, ažuriraj, briši sadržaj"
 
 #: packages/admin/src/components/ContentList.tsx:736
-#: packages/admin/src/components/ContentSettingsPanel.tsx:510
+#: packages/admin/src/components/ContentSettingsPanel.tsx:513
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "Kreirano"
@@ -2061,7 +2061,7 @@ msgstr "Kreirano"
 msgid "Creating collections and fields..."
 msgstr "Kreiranje kolekcija i polja..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:963
+#: packages/admin/src/components/ContentSettingsPanel.tsx:966
 #: packages/admin/src/components/MenuList.tsx:176
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
@@ -2301,11 +2301,11 @@ msgid "Delete permanently"
 msgstr "Obriši trajno"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1134
+#: packages/admin/src/components/ContentList.tsx:1136
 msgid "Delete Permanently"
 msgstr "Obriši trajno"
 
-#: packages/admin/src/components/ContentList.tsx:1114
+#: packages/admin/src/components/ContentList.tsx:1116
 msgid "Delete Permanently?"
 msgstr "Obrisati trajno?"
 
@@ -2532,8 +2532,8 @@ msgstr "Prikaži navigacioni meni"
 msgid "Display category list"
 msgstr "Prikaži listu kategorija"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:914
-#: packages/admin/src/components/ContentSettingsPanel.tsx:976
+#: packages/admin/src/components/ContentSettingsPanel.tsx:917
+#: packages/admin/src/components/ContentSettingsPanel.tsx:979
 #: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "Ime za prikaz"
@@ -2598,7 +2598,7 @@ msgstr "Nemate nalog? <0>Registrujte se</0>"
 msgid "Done"
 msgstr "Gotovo"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:857
+#: packages/admin/src/components/ContentSettingsPanel.tsx:860
 msgid "Down"
 msgstr "Dole"
 
@@ -2631,7 +2631,7 @@ msgstr "Preuzmi SBOM"
 msgid "Downloading"
 msgstr "Preuzimanje"
 
-#: packages/admin/src/components/ContentList.tsx:1160
+#: packages/admin/src/components/ContentList.tsx:1162
 msgid "draft"
 msgstr "nacrt"
 
@@ -2698,7 +2698,7 @@ msgstr "Otpustite WordPress izvozni fajl ovde"
 msgid "Duplicate"
 msgstr "Dupliraj"
 
-#: packages/admin/src/components/ContentList.tsx:1025
+#: packages/admin/src/components/ContentList.tsx:1027
 msgid "Duplicate {title}"
 msgstr "Dupliraj {title}"
 
@@ -2718,7 +2718,7 @@ msgstr "npr. CI/CD Pipeline"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "npr. MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:866
+#: packages/admin/src/components/ContentSettingsPanel.tsx:869
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
@@ -2750,11 +2750,11 @@ msgstr "Uredi polje {0}"
 msgid "Edit {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1017
+#: packages/admin/src/components/ContentList.tsx:1019
 msgid "Edit {title}"
 msgstr "Uredi {title}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:973
+#: packages/admin/src/components/ContentSettingsPanel.tsx:976
 msgid "Edit byline"
 msgstr "Uredi potpis autora"
 
@@ -3073,7 +3073,7 @@ msgstr "Kreiranje administratora nije uspelo"
 msgid "Failed to create backup"
 msgstr "Kreiranje rezervne kopije nije uspelo"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:957
+#: packages/admin/src/components/ContentSettingsPanel.tsx:960
 msgid "Failed to create byline"
 msgstr "Kreiranje potpisa autora nije uspelo"
 
@@ -3551,7 +3551,7 @@ msgstr "Ažuriranje {0} nije uspelo"
 msgid "Failed to update backup settings"
 msgstr "Ažuriranje podešavanja rezervnih kopija nije uspelo"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1007
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1010
 msgid "Failed to update byline"
 msgstr "Ažuriranje potpisa autora nije uspelo"
 
@@ -4297,7 +4297,7 @@ msgstr "JSX"
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "Držite ovu karticu otvorenu. Uvoz se izvršava u malim koracima i može se bezbedno ponovo pokrenuti ako se prekine."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:836
+#: packages/admin/src/components/ContentSettingsPanel.tsx:839
 msgid "Keep typing to narrow down more bylines."
 msgstr "Nastavite da kucate da suzite potpise autora."
 
@@ -4628,7 +4628,7 @@ msgstr "Upravljaj"
 msgid "Manage {0} for {1}"
 msgstr "Upravljaj {0} za {1}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:798
+#: packages/admin/src/components/ContentSettingsPanel.tsx:801
 msgid "Manage bylines in {entryLocale}"
 msgstr "Upravljaj potpisima autora na {entryLocale}"
 
@@ -4902,11 +4902,11 @@ msgstr "Pomeri \"{0}\" nadole"
 msgid "Move \"{0}\" up"
 msgstr "Pomeri \"{0}\" nagore"
 
-#: packages/admin/src/components/ContentList.tsx:1046
+#: packages/admin/src/components/ContentList.tsx:1048
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "Premestiti \"{title}\" u otpad? Možete ga kasnije vratiti."
 
-#: packages/admin/src/components/ContentList.tsx:1037
+#: packages/admin/src/components/ContentList.tsx:1039
 msgid "Move {title} to trash"
 msgstr "Premesti {title} u otpad"
 
@@ -4919,15 +4919,15 @@ msgid "Move to trash"
 msgstr "Premesti u otpad"
 
 #: packages/admin/src/components/ContentList.tsx:466
-#: packages/admin/src/components/ContentList.tsx:1059
-#: packages/admin/src/components/ContentSettingsPanel.tsx:623
-#: packages/admin/src/components/ContentSettingsPanel.tsx:643
+#: packages/admin/src/components/ContentList.tsx:1061
+#: packages/admin/src/components/ContentSettingsPanel.tsx:626
+#: packages/admin/src/components/ContentSettingsPanel.tsx:646
 msgid "Move to Trash"
 msgstr "Premesti u otpad"
 
 #: packages/admin/src/components/ContentList.tsx:444
-#: packages/admin/src/components/ContentList.tsx:1044
-#: packages/admin/src/components/ContentSettingsPanel.tsx:628
+#: packages/admin/src/components/ContentList.tsx:1046
+#: packages/admin/src/components/ContentSettingsPanel.tsx:631
 msgid "Move to Trash?"
 msgstr "Premestiti u otpad?"
 
@@ -5121,7 +5121,7 @@ msgstr "Još nema odobrenih komentara."
 msgid "No byline fields yet."
 msgstr "Još nema polja potpisa autora."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:790
+#: packages/admin/src/components/ContentSettingsPanel.tsx:793
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "Nema dostupnih potpisa autora na {entryLocale}. Kreirajte varijantu sa stranice Potpisi autora pre nego što je dodelite ovom unosu."
 
@@ -5129,7 +5129,7 @@ msgstr "Nema dostupnih potpisa autora na {entryLocale}. Kreirajte varijantu sa s
 msgid "No bylines found"
 msgstr "Nema pronađenih potpisa autora"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:898
+#: packages/admin/src/components/ContentSettingsPanel.tsx:901
 msgid "No bylines selected."
 msgstr "Nema izabranih potpisa autora."
 
@@ -5222,7 +5222,7 @@ msgstr "Nema povezanog korisnika"
 msgid "No matches"
 msgstr "Nema podudaranja"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:833
+#: packages/admin/src/components/ContentSettingsPanel.tsx:836
 msgid "No matching bylines."
 msgstr "Nema odgovarajućih potpisa autora."
 
@@ -5524,7 +5524,7 @@ msgstr "Kontura"
 msgid "Overrides the page title in search engine results"
 msgstr "Zamenjuje naslov stranice u rezultatima pretraživača"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:524
+#: packages/admin/src/components/ContentSettingsPanel.tsx:527
 msgid "Ownership"
 msgstr "Vlasništvo"
 
@@ -5647,7 +5647,7 @@ msgid "PDF"
 msgstr "PDF"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:1183
+#: packages/admin/src/components/ContentList.tsx:1185
 msgid "pending"
 msgstr "na čekanju"
 
@@ -5660,11 +5660,11 @@ msgstr "Na čekanju"
 msgid "Pending changes"
 msgstr "Izmene na čekanju"
 
-#: packages/admin/src/components/ContentList.tsx:1117
+#: packages/admin/src/components/ContentList.tsx:1119
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "Trajno obrisati \"{title}\"? Ovo se ne može poništiti."
 
-#: packages/admin/src/components/ContentList.tsx:1106
+#: packages/admin/src/components/ContentList.tsx:1108
 msgid "Permanently delete {title}"
 msgstr "Trajno obriši {title}"
 
@@ -5883,7 +5883,7 @@ msgstr ""
 msgid "Publish updates"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1158
+#: packages/admin/src/components/ContentList.tsx:1160
 msgid "published"
 msgstr "objavljeno"
 
@@ -5918,7 +5918,7 @@ msgstr "Objavio"
 msgid "Python"
 msgstr "Python"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:906
+#: packages/admin/src/components/ContentSettingsPanel.tsx:909
 msgid "Quick create byline"
 msgstr "Brzo kreiraj potpis autora"
 
@@ -6058,7 +6058,7 @@ msgstr "Verzija je previše nova za instalaciju"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentSettingsPanel.tsx:875
+#: packages/admin/src/components/ContentSettingsPanel.tsx:878
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/PortableTextEditor.tsx:3588
 #: packages/admin/src/components/settings/GeneralSettings.tsx:194
@@ -6221,7 +6221,7 @@ msgstr "Vrati na original"
 msgid "Restore"
 msgstr "Vrati"
 
-#: packages/admin/src/components/ContentList.tsx:1094
+#: packages/admin/src/components/ContentList.tsx:1096
 msgid "Restore {title}"
 msgstr "Vrati {title}"
 
@@ -6324,7 +6324,7 @@ msgstr "Uloga"
 msgid "Role {role}"
 msgstr "Uloga {role}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:880
+#: packages/admin/src/components/ContentSettingsPanel.tsx:883
 msgid "Role label"
 msgstr "Oznaka uloge"
 
@@ -6343,7 +6343,7 @@ msgstr "Rust"
 msgid "Same window"
 msgstr "Isti prozor"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1013
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1016
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
@@ -6406,7 +6406,7 @@ msgstr "Sačuvano"
 msgid "Saved \"{0}\"."
 msgstr "Sačuvano \"{0}\"."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1013
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1016
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
@@ -6451,7 +6451,7 @@ msgstr "Zakaži za"
 msgid "Schedule for later"
 msgstr "Zakaži za kasnije"
 
-#: packages/admin/src/components/ContentList.tsx:1162
+#: packages/admin/src/components/ContentList.tsx:1164
 msgid "scheduled"
 msgstr "zakazano"
 
@@ -6549,12 +6549,12 @@ msgstr "Pretraži po nazivu fajla..."
 msgid "Search by name or email..."
 msgstr "Pretraži po imenu ili emailu..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:807
+#: packages/admin/src/components/ContentSettingsPanel.tsx:810
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr "Pretraži potpise autora"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:806
+#: packages/admin/src/components/ContentSettingsPanel.tsx:809
 msgid "Search bylines to add..."
 msgstr "Pretraži potpise autora za dodavanje..."
 
@@ -6632,7 +6632,7 @@ msgstr "Pretraži..."
 msgid "Searchable"
 msgstr "Pretraživo"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:811
+#: packages/admin/src/components/ContentSettingsPanel.tsx:814
 msgid "Searching..."
 msgstr "Pretražuje se..."
 
@@ -6869,7 +6869,7 @@ msgstr "Pošalji test email"
 msgid "Sending..."
 msgstr "Šalje se..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:588
+#: packages/admin/src/components/ContentSettingsPanel.tsx:591
 #: packages/admin/src/components/ContentTypeEditor.tsx:472
 #: packages/admin/src/components/Settings.tsx:82
 msgid "SEO"
@@ -7107,8 +7107,8 @@ msgstr "Preskočeno"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
 #: packages/admin/src/components/ContentSettingsPanel.tsx:418
-#: packages/admin/src/components/ContentSettingsPanel.tsx:922
-#: packages/admin/src/components/ContentSettingsPanel.tsx:984
+#: packages/admin/src/components/ContentSettingsPanel.tsx:925
+#: packages/admin/src/components/ContentSettingsPanel.tsx:987
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:402
 #: packages/admin/src/components/ContentTypeList.tsx:97
@@ -7542,7 +7542,7 @@ msgstr "Ovo će obrisati oblast vidžeta i sve njegove vidžete. Ova radnja se n
 msgid "This will grant CLI access with your permissions."
 msgstr "Ovo će odobriti CLI pristup sa tvojim dozvolama."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:630
+#: packages/admin/src/components/ContentSettingsPanel.tsx:633
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Ovo će premestiti stavku u korpu. Možeš je kasnije vratiti iz korpe."
 
@@ -7787,8 +7787,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Nije moguće pristupiti tržištu"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1027
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1044
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1030
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1047
 msgid "Unassigned"
 msgstr "Nedodeljeno"
 
@@ -7890,7 +7890,7 @@ msgstr "Vidžet bez naslova"
 msgid "Unverified publisher"
 msgstr "Neverifikovani izdavač"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:854
+#: packages/admin/src/components/ContentSettingsPanel.tsx:857
 msgid "Up"
 msgstr "Gore"
 
@@ -7926,7 +7926,7 @@ msgid "Update to v{0}"
 msgstr "Ažuriraj na v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:737
-#: packages/admin/src/components/ContentSettingsPanel.tsx:514
+#: packages/admin/src/components/ContentSettingsPanel.tsx:517
 #: packages/admin/src/components/RegistryPluginDetail.tsx:488
 msgid "Updated"
 msgstr "Ažurirano"
@@ -8205,7 +8205,7 @@ msgstr "Pogledaj na tržištu"
 msgid "View mode"
 msgstr "Režim pregleda"
 
-#: packages/admin/src/components/ContentList.tsx:1009
+#: packages/admin/src/components/ContentList.tsx:1011
 msgid "View published {title}"
 msgstr "Pogledaj objavljeno {title}"
 
