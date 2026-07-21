@@ -214,6 +214,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/media/[id]/usage",
+		entrypoint: resolveRoute("api/media/[id]/usage.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/media/[id]/confirm",
 		entrypoint: resolveRoute("api/media/[id]/confirm.ts"),
 	});
@@ -232,6 +237,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/media/providers/[providerId]/[itemId]",
 		entrypoint: resolveRoute("api/media/providers/[providerId]/[itemId].ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/repair",
+		entrypoint: resolveRoute("api/admin/media-usage/repair.ts"),
 	});
 
 	// Import API routes
@@ -341,6 +351,27 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/settings/email.ts"),
 	});
 
+	// Backup routes
+	injectRoute({
+		pattern: "/_emdash/api/settings/backups",
+		entrypoint: resolveRoute("api/settings/backups/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/settings/backups/export",
+		entrypoint: resolveRoute("api/settings/backups/export.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/settings/backups/archives",
+		entrypoint: resolveRoute("api/settings/backups/archives/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/settings/backups/archives/[name]",
+		entrypoint: resolveRoute("api/settings/backups/archives/[name].ts"),
+	});
+
 	// Snapshot route (for DO preview database population)
 	injectRoute({
 		pattern: "/_emdash/api/snapshot",
@@ -392,6 +423,15 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/[id]/disable",
 		entrypoint: resolveRoute("api/admin/plugins/[id]/disable.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/[id]/mcp",
+		entrypoint: resolveRoute("api/admin/plugins/[id]/mcp.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/[id]/settings",
+		entrypoint: resolveRoute("api/admin/plugins/[id]/settings.ts"),
 	});
 
 	// Marketplace plugin routes

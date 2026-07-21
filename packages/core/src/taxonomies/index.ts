@@ -12,51 +12,155 @@
  */
 
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
-import { getDb } from "../loader.js";
+import { getDb, resetTaxonomyNamesCache } from "../loader.js";
 import {
 	cachedQuery,
 	CacheNamespace,
 	contentNamespace,
 	invalidateTaxonomyObjectCache,
+	isObjectCacheActive,
 } from "../object-cache/index.js";
 import { peekRequestCache, requestCached, setRequestCacheEntry } from "../request-cache.js";
+import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
+import { fetchVisibleTermCounts } from "./term-counts.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
 export interface TaxonomyQueryOptions {
 	locale?: string;
 }
 
-/**
- * Invalidate cached taxonomy data in the distributed object cache (and any
- * content that hydrates taxonomy terms). The legacy in-isolate term cache was
- * removed, so this used to be a no-op; it now drives object-cache invalidation.
- */
+/** Invalidate cached taxonomy term data and any content that hydrates terms. */
 export function invalidateTermCache(): void {
 	invalidateTaxonomyObjectCache();
+}
+
+/**
+ * Worker-isolate cache for taxonomy definitions, keyed by resolved locale.
+ *
+ * Taxonomy *definitions* (the "category"/"tag" taxonomies themselves, not
+ * their terms) are read on every public render that hydrates entry terms —
+ * `getAllTermsForEntries` → `getCollectionTaxonomyNames` → `getTaxonomyDefs` —
+ * but change extremely rarely: they're created via the admin API or applied
+ * from a seed, and there is no edit/delete-def path. Caching them across the
+ * isolate lifetime drops the per-render `SELECT * FROM _emdash_taxonomy_defs`
+ * to once-per-isolate.
+ *
+ * Stored on globalThis behind a Symbol key (same pattern as
+ * `settings/index.ts`) so the bundler duplicating this module across SSR
+ * chunks can't produce two independent caches.
+ *
+ * When the distributed object cache is configured, it is authoritative and this
+ * fallback is bypassed so cross-isolate epoch invalidation cannot be undercut
+ * by stale per-isolate data on an object-cache miss.
+ *
+ * **Isolated databases bypass the cache.** Playground / DO preview requests
+ * set `requestContext.dbIsIsolated`; they point at a divergent schema, so we
+ * skip both reading and writing the global holder and fall back to the
+ * per-request cache (same precedent as `getTaxonomyNames` / byline field defs).
+ */
+interface TaxonomyDefsHolder {
+	version: number;
+	/** locale key ("*" for "all locales") → { version it was fetched at, promise }. */
+	cache: Map<string, { version: number; promise: Promise<TaxonomyDef[]> }>;
+}
+
+const TAXONOMY_DEFS_CACHE_KEY = Symbol.for("emdash:taxonomy-defs");
+const taxonomyDefsStore = globalThis as Record<symbol, unknown>;
+const defsHolder: TaxonomyDefsHolder =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see settings/index.ts)
+	(taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] as TaxonomyDefsHolder | undefined) ??
+	(() => {
+		const h: TaxonomyDefsHolder = { version: 0, cache: new Map() };
+		taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] = h;
+		return h;
+	})();
+
+/**
+ * Invalidate the isolate-wide taxonomy-definitions cache (and the related
+ * loader taxonomy-names cache). Called from every taxonomy-def write path
+ * (`handleTaxonomyCreate`, seed application). Other isolates refresh on their
+ * next recycle — staleness bounded by isolate lifetime.
+ */
+export function invalidateTaxonomyDefsCache(): void {
+	defsHolder.version++;
+	defsHolder.cache.clear();
+	resetTaxonomyNamesCache();
+	invalidateTaxonomyObjectCache();
+}
+
+/**
+ * Test/internal helper: clear the per-isolate taxonomy-defs cache. Useful for
+ * unit tests that insert defs directly and need to force a refetch without
+ * going through a write path. Production code should rely on
+ * `invalidateTaxonomyDefsCache()`.
+ */
+export function resetTaxonomyDefsCacheForTests(): void {
+	defsHolder.version++;
+	defsHolder.cache.clear();
+}
+
+/**
+ * Fetch taxonomy definitions straight from the database (no caching).
+ */
+async function fetchTaxonomyDefs(locale: string | undefined): Promise<TaxonomyDef[]> {
+	const db = await getDb();
+	let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+	if (locale !== undefined) query = query.where("locale", "=", locale);
+	const rows = await query.execute();
+	return rows.map(rowToTaxonomyDef);
+}
+
+/**
+ * Resolve taxonomy defs through the isolate fallback cache, bypassing it for
+ * isolated databases. The returned promise is cached (not the resolved value)
+ * so concurrent cold-isolate readers share one in-flight query; a rejection
+ * evicts the entry so the next caller retries.
+ */
+function loadTaxonomyDefs(localeKey: string, locale: string | undefined): Promise<TaxonomyDef[]> {
+	if (getRequestContext()?.dbIsIsolated === true) {
+		return fetchTaxonomyDefs(locale);
+	}
+	const existing = defsHolder.cache.get(localeKey);
+	if (existing && existing.version === defsHolder.version) {
+		return existing.promise;
+	}
+	const version = defsHolder.version;
+	const promise = fetchTaxonomyDefs(locale).catch((error: unknown) => {
+		const current = defsHolder.cache.get(localeKey);
+		if (current && current.promise === promise) {
+			defsHolder.cache.delete(localeKey);
+		}
+		throw error;
+	});
+	defsHolder.cache.set(localeKey, { version, promise });
+	return promise;
 }
 
 /**
  * Get every taxonomy definition. Definitions are per-locale (one row per
  * locale inside the same translation_group) — by default we resolve to the
  * active locale.
+ *
+ * Two-tier cache: per-request via `requestCached` (so a single render that
+ * hydrates terms for several collections pays at most one call), then
+ * per-isolate via the global holder (so warm renders issue zero queries).
+ * The `requestCached` key is unchanged so `getTaxonomyDef`'s peek still hits.
  */
 export async function getTaxonomyDefs(options: TaxonomyQueryOptions = {}): Promise<TaxonomyDef[]> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`taxonomy-defs:${locale ?? "*"}`, () =>
-		cachedQuery({
-			namespace: CacheNamespace.TAXONOMIES,
-			key: `defs:${locale ?? "*"}`,
-			load: async () => {
-				const db = await getDb();
-				let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
-				if (locale !== undefined) query = query.where("locale", "=", locale);
-				const rows = await query.execute();
-				return rows.map(rowToTaxonomyDef);
-			},
-		}),
-	);
+	const localeKey = locale ?? "*";
+	return requestCached(`taxonomy-defs:${localeKey}`, async () => {
+		if (await isObjectCacheActive()) {
+			return cachedQuery({
+				namespace: CacheNamespace.TAXONOMIES,
+				key: `defs:${localeKey}`,
+				load: () => fetchTaxonomyDefs(locale),
+			});
+		}
+		return loadTaxonomyDefs(localeKey, locale);
+	});
 }
 
 /**
@@ -112,6 +216,18 @@ export async function getTaxonomyDef(
 }
 
 /**
+ * Object-cache namespaces for values that embed visible term counts: the
+ * taxonomy epoch (term/assignment writes) plus each counted collection's
+ * content epoch, so publishing, unpublishing, or trashing an entry
+ * invalidates the cached count promptly. A scheduled entry becoming due
+ * flips visibility without a write, so that staleness stays bounded by the
+ * cache entry's TTL.
+ */
+function termCountNamespaces(collections: string[]): string[] {
+	return [...Array.from(new Set(collections), contentNamespace), CacheNamespace.TAXONOMIES];
+}
+
+/**
  * All terms of a taxonomy in a specific locale (flat for non-hierarchical,
  * tree for hierarchical).
  */
@@ -120,37 +236,38 @@ export async function getTaxonomyTerms(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm[]> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}`, () =>
-		cachedQuery({
-			namespace: CacheNamespace.TAXONOMIES,
+	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}`, async () => {
+		const def = await getTaxonomyDef(taxonomyName, options);
+		if (!def) return [];
+		return cachedQuery({
+			namespace: termCountNamespaces(def.collections),
 			key: `terms:${taxonomyName}:${locale ?? "*"}`,
-			load: () => loadTaxonomyTerms(taxonomyName, locale, options),
-		}),
-	);
+			load: () => loadTaxonomyTerms(def, locale),
+		});
+	});
 }
 
 async function loadTaxonomyTerms(
-	taxonomyName: string,
+	def: TaxonomyDef,
 	locale: string | undefined,
-	options: TaxonomyQueryOptions,
 ): Promise<TaxonomyTerm[]> {
 	const db = await getDb();
-
-	const def = await getTaxonomyDef(taxonomyName, options);
-	if (!def) return [];
 
 	let termsQuery = db
 		.selectFrom("taxonomies")
 		.selectAll()
-		.where("name", "=", taxonomyName)
+		.where("name", "=", def.name)
 		.orderBy("label", "asc");
 	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
-	const rows = await termsQuery.execute();
 
 	// Counts are keyed by translation_group (what the pivot stores) and are
-	// locale-independent, so the aggregate is shared across every taxonomy
-	// rendered in this request (Categories + Tags widgets, etc.).
-	const counts = await getTaxonomyTermCounts();
+	// locale-independent. Only publicly visible entries are counted (#581);
+	// the map is request-cached so a term detail rendered on the same page
+	// reuses it. Independent of the terms query, so run both concurrently.
+	const [rows, counts] = await Promise.all([
+		termsQuery.execute(),
+		getVisibleTermCounts(def.name, def.collections),
+	]);
 
 	const flatTerms: TaxonomyTermRow[] = rows.map((row) => ({
 		id: row.id,
@@ -179,23 +296,24 @@ async function loadTaxonomyTerms(
 }
 
 /**
- * Per-translation-group usage counts across all taxonomies, in one aggregate
- * scan of `content_taxonomies`. Counts are locale-independent (the pivot stores
- * translation_group), so a single request-cached entry serves every taxonomy
- * that renders during the request.
+ * Per-translation-group visible-usage counts for one taxonomy, in a single
+ * round-trip (see `fetchVisibleTermCounts`). Counts are locale-independent
+ * (the pivot stores translation_group), and the request-cached map is shared
+ * by every consumer in the render — the widget (`getTaxonomyTerms`) and the
+ * single-term page (`getTerm`) never issue separate count queries.
  */
-function getTaxonomyTermCounts(): Promise<Map<string, number>> {
-	return requestCached("taxonomy-term-counts", async () => {
+function getVisibleTermCounts(
+	taxonomyName: string,
+	collections: string[],
+): Promise<Map<string, number>> {
+	// The collection scope is part of the key: per-locale rows of the same def
+	// can drift in their declared collections, and a caller may pass a narrower
+	// scope. Identical inputs (the widget + term-page hot path) still share one
+	// entry.
+	const scope = [...new Set(collections)].toSorted().join(",");
+	return requestCached(`taxonomy-term-counts:${taxonomyName}:${scope}`, async () => {
 		const db = await getDb();
-		const countsResult = await db
-			.selectFrom("content_taxonomies")
-			.select(["taxonomy_id"])
-			.select((eb) => eb.fn.count<number>("entry_id").as("count"))
-			.groupBy("taxonomy_id")
-			.execute();
-		const counts = new Map<string, number>();
-		for (const row of countsResult) counts.set(row.taxonomy_id, row.count);
-		return counts;
+		return fetchVisibleTermCounts(db, taxonomyName, collections);
 	});
 }
 
@@ -210,13 +328,16 @@ export async function getTerm(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm | null> {
 	const chain = resolveLocaleChain(options.locale);
-	// Cached under the shared taxonomies epoch (bumped on any taxonomy / term
-	// assignment write). The `count` reflects content_taxonomies rows; a stale
-	// count after a bare content delete is bounded by the entry's TTL.
+	// The def supplies the collections the visible count is scoped to. It is
+	// resolved before cachedQuery so the entry lives under each collection's
+	// content namespace — publishing or unpublishing an entry invalidates the
+	// embedded count (see termCountNamespaces).
+	const def = await getTaxonomyDef(taxonomyName, options);
+	const collections = def?.collections ?? [];
 	return cachedQuery({
-		namespace: CacheNamespace.TAXONOMIES,
+		namespace: termCountNamespaces(collections),
 		key: `term:${taxonomyName}:${slug}:${chain.join(",")}`,
-		load: () => loadTerm(taxonomyName, slug, chain),
+		load: () => loadTerm(taxonomyName, slug, chain, collections),
 	});
 }
 
@@ -224,6 +345,7 @@ async function loadTerm(
 	taxonomyName: string,
 	slug: string,
 	chain: string[],
+	collections: string[],
 ): Promise<TaxonomyTerm | null> {
 	const db = await getDb();
 
@@ -257,17 +379,15 @@ async function loadTerm(
 	const termLocale = row.locale;
 	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);
 
-	// The usage-count and children queries both depend only on the term row,
-	// so run them concurrently to save a round trip on remote databases.
-	const [countResult, childRows] = await Promise.all([
-		db
-			.selectFrom("content_taxonomies")
-			.select((eb) => eb.fn.count<number>("entry_id").as("count"))
-			.where("taxonomy_id", "=", row.translation_group ?? row.id)
-			.executeTakeFirst(),
+	// The visible-usage counts and children queries both depend only on the
+	// term row, so run them concurrently to save a round trip on remote
+	// databases. The counts map is request-cached per taxonomy — on a page
+	// that also renders the taxonomy widget it's a free Map lookup.
+	const [counts, childRows] = await Promise.all([
+		getVisibleTermCounts(taxonomyName, collections),
 		childrenQuery.execute(),
 	]);
-	const count = countResult?.count ?? 0;
+	const count = counts.get(row.translation_group ?? row.id) ?? 0;
 
 	const children = childRows.map<TaxonomyTerm>((child) => ({
 		id: child.id,

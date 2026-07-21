@@ -36,6 +36,7 @@ export default defineConfig({
 					items: [
 						{ label: "Introduction", slug: "introduction" },
 						{ label: "Getting Started", slug: "getting-started" },
+						{ label: "Add to an Existing Project", slug: "existing-project" },
 						{ label: "Why EmDash?", slug: "why-emdash" },
 						{ label: "Docs MCP for AI Tools", slug: "docs-mcp" },
 					],
@@ -78,6 +79,7 @@ export default defineConfig({
 						{ label: "AI Tools", slug: "guides/ai-tools" },
 						{ label: "x402 Payments", slug: "guides/x402-payments" },
 						{ label: "Preview Mode", slug: "guides/preview" },
+						{ label: "Backups", slug: "guides/backups" },
 						{
 							label: "Internationalization (i18n)",
 							slug: "guides/internationalization",
@@ -218,9 +220,11 @@ export default defineConfig({
 					items: [
 						{ label: "Deploy to Cloudflare", slug: "deployment/cloudflare" },
 						{ label: "Deploy to Node.js", slug: "deployment/nodejs" },
+						{ label: "Evolving a Deployed Site", slug: "deployment/schema-evolution" },
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
 						{ label: "Object Cache", slug: "deployment/object-cache" },
+						{ label: "Secrets & Key Management", slug: "deployment/secrets" },
 					],
 				},
 				{

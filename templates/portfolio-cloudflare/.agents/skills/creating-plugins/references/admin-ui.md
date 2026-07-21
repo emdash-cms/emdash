@@ -12,7 +12,7 @@ import { SettingsPage } from "./components/SettingsPage";
 import { ReportsPage } from "./components/ReportsPage";
 import { StatusWidget } from "./components/StatusWidget";
 
-// Pages keyed by path (must match admin.pages paths)
+// Pages keyed by path (trailing slash optional, so /settings and /settings/ both resolve)
 export const pages = {
 	"/settings": SettingsPage,
 	"/reports": ReportsPage,

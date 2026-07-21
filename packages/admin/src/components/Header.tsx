@@ -12,6 +12,12 @@ import { ThemeToggle } from "./ThemeToggle";
 export type { CurrentUser } from "../lib/api/current-user";
 
 async function handleLogout() {
+	// Clear the public-site toolbar-bootstrap flag (see Shell.tsx).
+	try {
+		localStorage.removeItem("emdash-editor");
+	} catch {
+		// ignore — flag is best-effort
+	}
 	const res = await apiFetch("/_emdash/api/auth/logout?redirect=/_emdash/admin/login", {
 		method: "POST",
 		credentials: "same-origin",
@@ -39,9 +45,11 @@ export function Header() {
 	const initials = (initialsSource[0] ?? "U").toUpperCase();
 
 	return (
-		<header className="sticky top-0 z-10 flex h-[58px] items-center justify-between border-b bg-kumo-elevated px-4">
-			{/* Sidebar toggle — collapses to icon mode on desktop, opens drawer on mobile */}
-			<Sidebar.Trigger className="cursor-pointer rtl:rotate-180" />
+		// h-[58px] is mirrored by ADMIN_HEADER_HEIGHT_PX in ContentEditor.tsx
+		// (the settings sheet offsets its body by it) — change both together.
+		<header className="sticky top-0 z-10 flex h-[58px] items-center justify-end border-b bg-kumo-elevated px-4">
+			{/* The desktop trigger lives in the sidebar footer; mobile keeps it here so the closed sheet can reopen. */}
+			<Sidebar.Trigger className="me-auto cursor-pointer md:hidden rtl:rotate-180" />
 
 			{/* Right side actions */}
 			<div className="flex items-center gap-2">
@@ -57,11 +65,11 @@ export function Header() {
 				{/* User menu */}
 				<Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
 					<Popover.Trigger asChild>
-						<Button variant="ghost" size="sm" className="gap-2 py-1 h-auto">
+						<Button variant="ghost" size="sm" className="gap-2">
 							{user?.avatarUrl ? (
-								<img src={user.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+								<img src={user.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
 							) : (
-								<div className="h-6 w-6 rounded-full bg-kumo-brand/10 flex items-center justify-center text-xs font-medium">
+								<div className="h-5 w-5 rounded-full bg-kumo-brand/10 flex items-center justify-center text-[10px] font-medium">
 									{initials}
 								</div>
 							)}

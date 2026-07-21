@@ -212,7 +212,7 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 						{t`Disabled`}
 					</span>
 				) : (
-					<span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+					<span className="inline-flex items-center gap-1 text-sm text-kumo-success">
 						<CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
 						{t`Active`}
 					</span>

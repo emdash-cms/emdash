@@ -93,7 +93,21 @@ pnpm test        # all packages
 pnpm test:e2e    # Playwright
 ```
 
+`pnpm build` is required before the first typecheck in a fresh checkout. Scoped package typechecks such as `pnpm --filter @emdash-cms/plugin-cli typecheck` resolve internal workspace type declarations from `dist/`, which the build emits; this matches CI's build-then-typecheck order.
+
 Tests use real in-memory SQLite -- no mocking. Each test gets a fresh database. Typecheck and lint must pass.
+
+### Visual regression tests
+
+The admin UI has a Playwright visual-regression suite (`e2e/tests/visual-regression.spec.ts`) that screenshots key screens in both LTR (English) and RTL (Arabic). It is gated behind `EMDASH_VISUAL=1` so it stays out of the default `pnpm test:e2e` run:
+
+```bash
+EMDASH_VISUAL=1 pnpm test:e2e visual-regression
+```
+
+Baselines are platform-specific. **CI (Linux) is the source of truth** -- committed baselines are `*-chromium-linux.png`. Locally generated macOS/Windows baselines (`*-darwin.png`, `*-win32.png`) are gitignored; never commit them, they won't match CI.
+
+When a PR changes how a screen renders, the `Visual Regression` check goes red and a bot posts a sticky comment with the diff images. A maintainer reviews the diffs and, if the change is intended, reacts 👍 to the comment. The `Visual Regression — Apply` job then commits the regenerated Linux baselines to the PR branch. Baselines are never updated automatically on push -- a human must accept each change.
 
 ### Building your own site in the monorepo
 
@@ -255,6 +269,7 @@ For RTL rules and the full Lingui pattern reference, see [AGENTS.md § Admin UI:
 ## Getting Help
 
 - [AGENTS.md](AGENTS.md) -- architecture and code patterns
+- [TRIAGE.md](TRIAGE.md) -- guidance for community triagers
 - [docs.emdashcms.com](https://docs.emdashcms.com) -- user guides and API reference
 - [Discussions](https://github.com/emdash-cms/emdash/discussions) -- ask questions, propose features
 - [Issues](https://github.com/emdash-cms/emdash/issues) -- bug reports

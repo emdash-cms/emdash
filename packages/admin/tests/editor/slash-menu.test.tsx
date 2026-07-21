@@ -10,6 +10,7 @@
  */
 
 import type { Editor } from "@tiptap/react";
+import { SuggestionPluginKey } from "@tiptap/suggestion";
 import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
 
@@ -26,11 +27,49 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 }));
 
 vi.mock("../../src/components/SectionPickerModal", () => ({
-	SectionPickerModal: () => null,
+	SectionPickerModal: ({
+		open,
+		onOpenChange,
+		onSelect,
+	}: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+		onSelect: (section: { content: unknown[] }) => void;
+	}) =>
+		open ? (
+			<button
+				type="button"
+				onClick={() => {
+					onSelect({
+						content: [
+							{
+								_type: "block",
+								_key: "section-block",
+								style: "normal",
+								children: [{ _type: "span", _key: "section-span", text: "Inserted section" }],
+							},
+						],
+					});
+					onOpenChange(false);
+				}}
+			>
+				Select test section
+			</button>
+		) : null,
 }));
 
 vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
-	DragHandleWrapper: () => null,
+	DragHandleWrapper: ({
+		editor,
+		onInsertBlock,
+	}: {
+		editor: Editor;
+		onInsertBlock?: (insertPos: number) => void;
+	}) => (
+		<button type="button" onClick={() => onInsertBlock?.(editor.state.doc.content.size)}>
+			Test gutter insert
+		</button>
+	),
 }));
 
 vi.mock("../../src/components/editor/ImageNode", async () => {
@@ -142,13 +181,7 @@ async function focusEditor(pm: HTMLElement) {
 
 /** Get the slash menu portal element from document.body */
 function getSlashMenu(): HTMLElement | null {
-	const portals = document.querySelectorAll("body > div");
-	for (const el of portals) {
-		if (el.querySelector("[data-index]") || el.textContent?.includes("No results")) {
-			return el as HTMLElement;
-		}
-	}
-	return null;
+	return document.querySelector<HTMLElement>("[data-slash-command-menu]");
 }
 
 /** Wait for the slash menu to appear */
@@ -181,12 +214,16 @@ function getSlashMenuItems(menu: HTMLElement): HTMLButtonElement[] {
 
 /**
  * Check if an item is the selected/highlighted item.
- * Selected items use "bg-kumo-tint text-kumo-default" (space-separated).
- * Non-selected items use "hover:bg-kumo-tint/50".
+ * Selected items use the semantic interaction surface.
  */
 function isItemSelected(el: HTMLElement): boolean {
-	// Split className by spaces and check for exact "bg-kumo-tint" token
-	return el.className.split(WHITESPACE_SPLIT_REGEX).includes("bg-kumo-tint");
+	return el.className.split(WHITESPACE_SPLIT_REGEX).includes("bg-kumo-interact");
+}
+
+function isSlashSuggestionActive(editor: Editor): boolean {
+	return Boolean(
+		(SuggestionPluginKey.getState(editor.state) as { active?: boolean } | undefined)?.active,
+	);
 }
 
 // =============================================================================
@@ -194,6 +231,222 @@ function isItemSelected(el: HTMLElement): boolean {
 // =============================================================================
 
 describe("Slash Command Menu", () => {
+	it("keeps focus in the editor when the menu opens", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		expect(document.activeElement).toBe(pm);
+
+		const focusGuards = menu.parentElement?.querySelectorAll("[data-base-ui-focus-guard]");
+		expect(focusGuards).toHaveLength(2);
+		expect(menu.parentElement?.classList.contains("slash-command-menu-positioner")).toBe(true);
+	});
+
+	it("uses a contained scroll viewport inside the menu shell", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		const scrollViewport = menu.querySelector<HTMLElement>("[data-slash-menu-scroll-viewport]");
+
+		expect(scrollViewport).toBeTruthy();
+		expect(scrollViewport).not.toBe(menu);
+		expect(scrollViewport!.className.split(WHITESPACE_SPLIT_REGEX)).toEqual(
+			expect.arrayContaining(["overflow-y-auto", "overscroll-contain"]),
+		);
+		expect(menu.className.split(WHITESPACE_SPLIT_REGEX)).not.toContain("overflow-y-auto");
+	});
+
+	it("closes on Tab and lets focus leave the editor", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+		const nextFocusable = screen.getByRole("button", { name: "Test gutter insert" }).element();
+
+		await userEvent.keyboard("{Tab}");
+
+		await waitForSlashMenuClosed();
+		expect(document.activeElement).toBe(nextFocusable);
+		expect(editor.getText()).toBe("/");
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+	});
+
+	it("closes on Shift+Tab and lets focus leave the editor", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+
+		await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+
+		await waitForSlashMenuClosed();
+		expect(document.activeElement).not.toBe(pm);
+		expect(editor.getText()).toBe("/");
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+	});
+
+	it("closes a gutter-triggered menu on Tab without inserting content", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		const before = editor.getJSON();
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		await userEvent.keyboard("{Tab}");
+
+		await waitForSlashMenuClosed();
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("opens from the gutter and cancels without inserting a slash", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		const before = editor.getJSON();
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		expect(editor.getText()).not.toContain("/");
+		expect(editor.getJSON()).toEqual(before);
+
+		await userEvent.keyboard("{Escape}");
+		await waitForSlashMenuClosed();
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("discards an untouched gutter block when clicking outside the menu", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		const before = editor.getText();
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		pm.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+		await waitForSlashMenuClosed();
+		expect(editor.getText()).toBe(before);
+	});
+
+	it("exits the slash suggestion plugin when clicking outside the menu", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+		expect(isSlashSuggestionActive(editor)).toBe(true);
+
+		pm.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+		await waitForSlashMenuClosed();
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+	});
+
+	it("keeps slash suggestion dismissed when opening the gutter menu", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+
+		const gutterButton = screen.getByRole("button", { name: "Test gutter insert" }).element();
+		gutterButton.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+		gutterButton.click();
+		await waitForSlashMenu();
+		editor.view.dispatch(editor.state.tr.setMeta("test", true));
+
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+		expect(getSlashMenu()).toBeTruthy();
+	});
+
+	it("records slash dismissal when opening the gutter menu from the keyboard", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+		await waitForSlashMenu();
+
+		screen.getByRole("button", { name: "Test gutter insert" }).element().click();
+		await waitForSlashMenu();
+		editor.view.dispatch(editor.state.tr.setMeta("test", true));
+
+		expect(isSlashSuggestionActive(editor)).toBe(false);
+		expect(getSlashMenu()).toBeTruthy();
+	});
+
+	it("does not leave a staging paragraph when a gutter command opens a modal", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		const before = editor.getJSON();
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		const menu = await waitForSlashMenu();
+		const imageCommand = getSlashMenuItems(menu).find((item) =>
+			item.textContent?.includes("Image"),
+		);
+		expect(imageCommand).toBeTruthy();
+
+		imageCommand?.click();
+		await waitForSlashMenuClosed();
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("materializes a new block when a direct gutter command is selected", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		const menu = await waitForSlashMenu();
+		getSlashMenuItems(menu)[0]?.click();
+		await waitForSlashMenuClosed();
+
+		const content = editor.getJSON().content;
+		expect(content?.[1]?.type).toBe("heading");
+		expect(content?.[1]?.attrs?.level).toBe(1);
+	});
+
+	it("inserts modal-backed gutter content at the requested block position", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		const menu = await waitForSlashMenu();
+		const sectionCommand = getSlashMenuItems(menu).find((item) =>
+			item.textContent?.includes("Section"),
+		);
+		sectionCommand?.click();
+		await screen.getByRole("button", { name: "Select test section" }).click();
+
+		const content = editor.getJSON().content;
+		expect(content).toHaveLength(2);
+		expect(content?.[1]?.content?.[0]?.text).toBe("Inserted section");
+	});
+
+	it("materializes a new gutter paragraph when the user starts typing", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		await userEvent.keyboard("A");
+
+		await waitForSlashMenuClosed();
+		const content = editor.getJSON().content;
+		expect(content).toHaveLength(2);
+		expect(content?.[1]?.content?.[0]?.text).toBe("A");
+	});
+
+	it("does not materialize a gutter paragraph for modifier shortcuts", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		const before = editor.getJSON();
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		await userEvent.keyboard("{Control>}b{/Control}");
+
+		expect(editor.getJSON()).toEqual(before);
+	});
+
 	it("opens when typing / at the start of an empty line", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusEditor(pm);
@@ -222,7 +475,9 @@ describe("Slash Command Menu", () => {
 		expect(titles).toContain("Numbered List");
 		expect(titles).toContain("Quote");
 		expect(titles).toContain("Code Block");
+		expect(titles).toContain("HTML");
 		expect(titles).toContain("Divider");
+		expect(titles).toContain("Table");
 	});
 
 	it("shows descriptions for each command", async () => {
@@ -292,9 +547,23 @@ describe("Slash Command Menu", () => {
 				const menu = getSlashMenu()!;
 				const items = getSlashMenuItems(menu);
 				expect(isItemSelected(items[0]!)).toBe(true);
+				expect(items[0]?.getAttribute("aria-current")).toBe("true");
+				expect(menu.querySelector('[role="status"]')?.textContent).toBe("Selected Heading 1");
 			},
 			{ timeout: 3000 },
 		);
+	});
+
+	it("uses the interaction surface for selected items", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		const selectedItem = getSlashMenuItems(menu)[0]!;
+		const classes = selectedItem.className.split(WHITESPACE_SPLIT_REGEX);
+		expect(classes).toContain("bg-kumo-interact");
+		expect(classes).not.toContain("bg-kumo-tint");
 	});
 
 	it("moves selection down with ArrowDown", async () => {
@@ -310,6 +579,9 @@ describe("Slash Command Menu", () => {
 			const items = getSlashMenuItems(menu);
 			expect(isItemSelected(items[1]!)).toBe(true);
 			expect(isItemSelected(items[0]!)).toBe(false);
+			expect(items[1]?.getAttribute("aria-current")).toBe("true");
+			expect(items[0]?.hasAttribute("aria-current")).toBe(false);
+			expect(menu.querySelector('[role="status"]')?.textContent).toBe("Selected Heading 2");
 		});
 	});
 
@@ -377,6 +649,7 @@ describe("Slash Command Menu", () => {
 
 		// Should still be a paragraph
 		expect(pm.querySelector("h1")).toBeNull();
+		expect(isSlashSuggestionActive(editor)).toBe(false);
 	});
 
 	it("executes command when clicking an item", async () => {
@@ -436,6 +709,27 @@ describe("Slash Command Menu", () => {
 
 		await vi.waitFor(() => {
 			expect(pm.querySelector("hr")).toBeTruthy();
+		});
+	});
+
+	it("inserts an HTML block via slash command", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		const htmlBtn = getSlashMenuItems(menu).find(
+			(btn) => btn.querySelector(".font-medium")?.textContent === "HTML",
+		);
+		expect(htmlBtn).toBeTruthy();
+		htmlBtn!.click();
+
+		await waitForSlashMenuClosed();
+
+		await vi.waitFor(() => {
+			const htmlBlock = editor.getJSON().content?.find((node) => node.type === "htmlBlock");
+			expect(htmlBlock).toBeDefined();
+			expect((htmlBlock as { attrs?: { html?: string } }).attrs?.html).toBe("");
 		});
 	});
 

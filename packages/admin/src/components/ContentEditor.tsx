@@ -2,29 +2,24 @@ import {
 	Badge,
 	Button,
 	Checkbox,
-	Dialog,
 	Input,
 	InputArea,
 	Label,
 	LinkButton,
-	Loader,
 	Select,
+	Sidebar,
 	Switch,
+	useSidebar,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	Check,
-	Eye,
-	MagnifyingGlass,
+	ArrowSquareOut,
+	Faders,
 	Paperclip,
 	X,
-	Trash,
 	ArrowsInSimple,
 	ArrowsOutSimple,
-	ArrowSquareOut,
 } from "@phosphor-icons/react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -36,23 +31,33 @@ import type {
 	UserListItem,
 	TranslationSummary,
 } from "../lib/api";
-import { fetchBylines, getPreviewUrl, getDraftStatus } from "../lib/api";
+import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
-import { useDebouncedValue } from "../lib/hooks.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
+import { getLocaleDir } from "../locales/config.js";
+import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
-import { DocumentOutline } from "./editor/DocumentOutline";
+import {
+	ContentSettingsPanel,
+	DiscardDraftDialog,
+	PreviewButton,
+	PublishActions,
+	SettingsActionBar,
+} from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { SaveButton } from "./SaveButton.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
+// Mirrors Header.tsx's h-[58px]; the fixed mobile sheet offsets its body by it.
+const ADMIN_HEADER_HEIGHT_PX = 58;
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -67,22 +72,12 @@ function serializeEditorState(input: {
 }
 
 import type { ContentSeoInput } from "../lib/api";
-import { ImageDetailPanel } from "./editor/ImageDetailPanel";
-import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
 	type PluginBlockDef,
 	type BlockSidebarPanel,
 } from "./PortableTextEditor";
-import { RevisionHistory } from "./RevisionHistory";
-import { SaveButton } from "./SaveButton";
-import { SeoPanel } from "./SeoPanel";
-import { TaxonomySidebar } from "./TaxonomySidebar";
-import { TranslationsPanel } from "./TranslationsPanel.js";
-
-// Editor role level (40) from @emdash-cms/auth
-const ROLE_EDITOR = 40;
 
 export interface FieldDescriptor {
 	id?: string;
@@ -117,7 +112,10 @@ export interface ContentEditorProps {
 	 * right locale on the Bylines manager.
 	 */
 	entryLocale?: string | null;
+	/** Whether any content update is pending. Preserves main's operation gating. */
 	isSaving?: boolean;
+	/** Whether the current entry's editor save should drive visual feedback. */
+	isSaveFeedbackActive?: boolean;
 	onSave?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
@@ -131,8 +129,10 @@ export interface ContentEditorProps {
 	}) => void;
 	/** Whether autosave is in progress */
 	isAutosaving?: boolean;
-	/** Last autosave timestamp (for UI indicator) */
-	lastAutosaveAt?: Date | null;
+	/** Whether the current entry's autosave should drive visual feedback. */
+	isAutosaveFeedbackActive?: boolean;
+	/** Entry-scoped token advanced after a successful autosave. */
+	autosaveCompletionToken?: number;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	/** Callback to discard draft changes (revert to published version) */
@@ -190,13 +190,6 @@ export interface ContentEditorProps {
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 }
 
-/** Format scheduled date for display */
-function formatScheduledDate(dateStr: string | null) {
-	if (!dateStr) return null;
-	const date = new Date(dateStr);
-	return date.toLocaleString();
-}
-
 /**
  * Content editor with dynamic field rendering
  */
@@ -208,10 +201,12 @@ export function ContentEditor({
 	isNew,
 	entryLocale,
 	isSaving,
+	isSaveFeedbackActive,
 	onSave,
 	onAutosave,
 	isAutosaving,
-	lastAutosaveAt,
+	isAutosaveFeedbackActive,
+	autosaveCompletionToken,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
@@ -241,7 +236,20 @@ export function ContentEditor({
 	manifest,
 }: ContentEditorProps) {
 	const { t } = useLingui();
-	const navigate = useNavigate();
+	const { locale: uiLocale } = useLocale();
+	const itemLabel = collectionLabel;
+	// Kumo Sidebar's `side` is physical, not logical.
+	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
+	// Mirrors the Sidebar's mobileBreakpoint; `contained` flips with it.
+	const [isBelowLg, setIsBelowLg] = React.useState(
+		() => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches,
+	);
+	React.useEffect(() => {
+		const mq = window.matchMedia("(max-width: 1023px)");
+		const onChange = () => setIsBelowLg(mq.matches);
+		mq.addEventListener("change", onChange);
+		return () => mq.removeEventListener("change", onChange);
+	}, []);
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
@@ -270,11 +278,16 @@ export function ContentEditor({
 	}, []);
 
 	const handleBlockSidebarClose = React.useCallback(() => {
-		setBlockSidebarPanel((prev) => {
-			prev?.onClose();
+		setBlockSidebarPanel((previous) => {
+			previous?.onClose();
 			return null;
 		});
 	}, []);
+
+	const handleBlockSidebarDelete = React.useCallback(() => {
+		blockSidebarPanel?.onDelete();
+		setBlockSidebarPanel(null);
+	}, [blockSidebarPanel]);
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
@@ -386,6 +399,9 @@ export function ContentEditor({
 		[formData, slug, activeBylines],
 	);
 	const isDirty = isNew || currentData !== lastSavedData;
+	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
+	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
+	const isContentOperationPending = Boolean(isSaving);
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -396,13 +412,13 @@ export function ContentEditor({
 	slugRef.current = slug;
 
 	React.useEffect(() => {
-		if (!lastAutosaveAt || !pendingAutosaveStateRef.current) {
+		if (!autosaveCompletionToken || !pendingAutosaveStateRef.current) {
 			return;
 		}
 
 		setLastSavedData(pendingAutosaveStateRef.current);
 		pendingAutosaveStateRef.current = null;
-	}, [lastAutosaveAt]);
+	}, [autosaveCompletionToken]);
 
 	const hasInvalidUrls = React.useCallback(
 		(data: Record<string, unknown>) => {
@@ -533,10 +549,10 @@ export function ContentEditor({
 		[slugTouched],
 	);
 
-	const handleSlugChange = (value: string) => {
+	const handleSlugChange = React.useCallback((value: string) => {
 		setSlug(value);
 		setSlugTouched(true);
-	};
+	}, []);
 
 	const isPublished = status === "published";
 
@@ -544,16 +560,13 @@ export function ContentEditor({
 	const draftStatus = item ? getDraftStatus(item) : "unpublished";
 	const hasPendingChanges = draftStatus === "published_with_changes";
 	const isLive = draftStatus === "published" || draftStatus === "published_with_changes";
+	const liveViewUrl = isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern) : null;
 
 	// Scheduling — keyed off scheduledAt rather than status, since published
 	// posts can now have a pending schedule without changing status.
 	const hasSchedule = Boolean(item?.scheduledAt);
 	const canSchedule =
 		!isNew && !hasSchedule && Boolean(onSchedule) && (!isPublished || hasPendingChanges);
-
-	// Schedule datetime state
-	const [scheduleDate, setScheduleDate] = React.useState<string>("");
-	const [showScheduler, setShowScheduler] = React.useState(false);
 
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
@@ -574,198 +587,186 @@ export function ContentEditor({
 		return () => document.removeEventListener("keydown", handleKeyDown, { capture: true });
 	}, [isDistractionFree]);
 
-	const handleScheduleSubmit = () => {
-		if (scheduleDate && onSchedule) {
-			// Convert local datetime to ISO string
-			const date = new Date(scheduleDate);
-			onSchedule(date.toISOString());
-			setShowScheduler(false);
-			setScheduleDate("");
-		}
-	};
-
 	return (
 		<form
 			onSubmit={handleSubmit}
 			className={cn(
-				"space-y-6 transition-all duration-300",
-				isDistractionFree && "fixed inset-0 z-50 bg-kumo-base p-8 overflow-auto",
+				"transition-all duration-300",
+				isDistractionFree
+					? "space-y-6 fixed inset-0 z-50 bg-kumo-elevated p-8 overflow-auto"
+					: "flex h-full bg-kumo-elevated",
 			)}
 		>
-			{/* Header. In distraction-free mode this becomes a hover-revealed
-			    overlay so the chrome stays out of the way while writing. In
-			    normal mode it's a regular block; the form also renders a
-			    Save button at the bottom so save is reachable without
-			    scrolling back up. */}
-			<div
-				className={cn(
-					"flex flex-wrap items-center justify-between gap-y-2",
-					isDistractionFree &&
-						"opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10",
-				)}
+			{/* Wraps the whole layout so the strip's Settings button and the
+			    block-panel sync can reach the sidebar context. Below lg Kumo
+			    renders the panel as an inline (not portaled) sheet. */}
+			<Sidebar.Provider
+				contained={!isBelowLg}
+				defaultOpen
+				side={panelSide}
+				collapsible="offcanvas"
+				mobileBreakpoint={1024}
+				className={cn(!isDistractionFree && "h-full min-h-0")}
+				style={
+					{
+						"--sidebar-width": isBelowLg ? "20rem" : "23rem",
+						"--sidebar-bg": "var(--color-kumo-elevated)",
+					} as React.CSSProperties
+				}
 			>
-				<div className="flex items-center space-x-4">
-					{!isDistractionFree && (
-						<RouterLinkButton
-							to="/content/$collection"
-							params={{ collection }}
-							search={{ locale: undefined }}
-							aria-label={t`Back to ${collectionLabel} list`}
-							variant="ghost"
-							shape="square"
-							icon={<ArrowPrev />}
-						/>
-					)}
-					{isDistractionFree && (
-						<Button
-							variant="ghost"
-							shape="square"
-							onClick={() => setIsDistractionFree(false)}
-							aria-label={t`Exit distraction-free mode`}
-						>
-							<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
-						</Button>
-					)}
-					<h1 className="text-2xl font-bold">
-						{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
-					</h1>
-					{i18n && item?.locale && (
-						<Badge variant="outline" className="uppercase text-xs">
-							{item.locale}
-						</Badge>
-					)}
-				</div>
-				<div className="flex items-center space-x-2">
-					{/* Autosave indicator */}
-					{!isNew && onAutosave && (
-						<div
-							className="flex items-center text-xs text-kumo-subtle"
-							role="status"
-							aria-label={t`Autosave status`}
-							aria-live="polite"
-						>
-							{isAutosaving ? (
-								<>
-									<Loader size="sm" />
-									<span className="ms-1">{t`Saving...`}</span>
-								</>
-							) : lastAutosaveAt ? (
-								<>
-									<Check className="me-1 h-3 w-3 text-green-600" aria-hidden="true" />
-									<span>{t`Saved`}</span>
-								</>
-							) : null}
-						</div>
-					)}
-					{!isDistractionFree && (
-						<Button
-							variant="ghost"
-							shape="square"
-							type="button"
-							onClick={() => setIsDistractionFree(true)}
-							aria-label={t`Enter distraction-free mode`}
-							title={t`Distraction-free mode (⌘⇧\\)`}
-						>
-							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
-						</Button>
-					)}
-					{!isNew && supportsPreview && (
-						<Button
-							variant="outline"
-							type="button"
-							onClick={handlePreview}
-							disabled={isLoadingPreview}
-							icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
-						>
-							{hasPendingChanges ? t`Preview draft` : t`Preview`}
-						</Button>
-					)}
-					<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
-					{!isNew && (
-						<>
-							{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-								<Dialog.Root>
-									<Dialog.Trigger
-										render={(p) => (
-											<Button {...p} type="button" variant="outline" icon={<X />}>
-												{t`Discard changes`}
-											</Button>
-										)}
-									/>
-									<Dialog className="p-6" size="sm">
-										<Dialog.Title className="text-lg font-semibold">
-											{t`Discard draft changes?`}
-										</Dialog.Title>
-										<Dialog.Description className="text-kumo-subtle">
-											{t`This will revert to the published version. Your draft changes will be lost.`}
-										</Dialog.Description>
-										<div className="mt-6 flex justify-end gap-2">
-											<Dialog.Close
-												render={(p) => (
-													<Button {...p} variant="secondary">
-														{t`Cancel`}
-													</Button>
-												)}
-											/>
-											<Dialog.Close
-												render={(p) => (
-													<Button {...p} variant="destructive" onClick={onDiscardDraft}>
-														{t`Discard changes`}
-													</Button>
-												)}
-											/>
-										</div>
-									</Dialog>
-								</Dialog.Root>
-							)}
-							{isLive ? (
-								<>
-									{hasPendingChanges ? (
-										<Button type="button" variant="primary" onClick={onPublish}>
-											{t`Publish changes`}
-										</Button>
-									) : (
-										<Button type="button" variant="outline" onClick={onUnpublish}>
-											{t`Unpublish`}
-										</Button>
-									)}
-								</>
-							) : (
-								<Button type="button" variant="secondary" onClick={onPublish}>
-									{t`Publish`}
-								</Button>
-							)}
-							{isLive && item?.slug && (
-								<LinkButton
-									href={contentUrl(collection, item.slug, urlPattern)}
-									external
-									variant="outline"
-									icon={<ArrowSquareOut />}
-								>
-									{t`Live View`}
-								</LinkButton>
-							)}
-						</>
-					)}
-				</div>
-			</div>
-
-			{/* Main content area */}
-			<div
-				className={cn(
-					"grid gap-6 lg:grid-cols-3",
-					isDistractionFree && "lg:grid-cols-1 max-w-4xl mx-auto pt-16",
-				)}
-			>
-				{/* Editor fields */}
-				<div className="space-y-6 lg:col-span-2">
+				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
+					{/* In distraction-free mode the header is a hover-revealed overlay. */}
 					<div
 						className={cn(
-							"rounded-lg border bg-kumo-base p-6",
-							isDistractionFree && "border-0 bg-transparent p-0",
+							"flex flex-wrap items-center justify-between gap-y-2",
+							isDistractionFree
+								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 mx-auto w-[calc(100%-4rem)] max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10"
+								: cn(
+										"mx-auto mb-6 max-w-3xl",
+										isBelowLg && "bg-kumo-elevated/95 py-3 backdrop-blur",
+									),
 						)}
 					>
-						<div className="space-y-4">
+						<div className="flex min-w-0 items-center gap-3">
+							{!isDistractionFree && (
+								<RouterLinkButton
+									to="/content/$collection"
+									params={{ collection }}
+									search={{ locale: undefined }}
+									aria-label={t`Back to ${collectionLabel} list`}
+									variant="ghost"
+									shape="square"
+									icon={<ArrowPrev />}
+								/>
+							)}
+							<h1 className="min-w-0 truncate text-lg font-semibold">
+								{isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`}
+							</h1>
+							{i18n && item?.locale && (
+								<Badge variant="outline" className="uppercase text-xs">
+									{item.locale}
+								</Badge>
+							)}
+						</div>
+						<div className="flex items-center gap-2">
+							{!isDistractionFree ? (
+								// Below lg, actions move here from the (hidden) panel.
+								<>
+									{isBelowLg && (
+										<div className="flex flex-wrap items-center justify-end gap-2">
+											{!isNew && supportsPreview && (
+												<PreviewButton
+													hasPendingChanges={hasPendingChanges}
+													isLoadingPreview={isLoadingPreview}
+													onPreview={handlePreview}
+												/>
+											)}
+											<SaveButton
+												type="submit"
+												isDirty={isDirty}
+												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
+												disabled={isContentOperationPending}
+											/>
+											{liveViewUrl && (
+												<LinkButton
+													href={liveViewUrl}
+													external
+													variant="outline"
+													icon={<ArrowSquareOut />}
+												>
+													{t`Live View`}
+												</LinkButton>
+											)}
+											<PublishActions
+												collectionLabel={collectionLabel}
+												isNew={isNew}
+												isLive={isLive}
+												hasPendingChanges={hasPendingChanges}
+												onPublish={onPublish}
+												onUnpublish={onUnpublish}
+											/>
+											<MobileSettingsButton />
+										</div>
+									)}
+									<Button
+										variant="ghost"
+										shape="square"
+										type="button"
+										onClick={() => setIsDistractionFree(true)}
+										aria-label={t`Enter distraction-free mode`}
+										title={t`Distraction-free mode (⌘⇧\\)`}
+									>
+										<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
+									</Button>
+								</>
+							) : (
+								// Distraction-free: this overlay is the only save/exit surface.
+								<>
+									<SaveButton
+										type="submit"
+										size="sm"
+										isDirty={isDirty}
+										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
+										disabled={isContentOperationPending}
+									/>
+									{liveViewUrl && (
+										<LinkButton
+											href={liveViewUrl}
+											external
+											variant="outline"
+											size="sm"
+											icon={<ArrowSquareOut />}
+										>
+											{t`Live View`}
+										</LinkButton>
+									)}
+									{!isNew && supportsPreview && (
+										<PreviewButton
+											size="sm"
+											hasPendingChanges={hasPendingChanges}
+											isLoadingPreview={isLoadingPreview}
+											onPreview={handlePreview}
+										/>
+									)}
+									{!isNew && (
+										<>
+											{supportsDrafts && hasPendingChanges && onDiscardDraft && (
+												<DiscardDraftDialog
+													onDiscard={onDiscardDraft}
+													triggerVariant="outline"
+													triggerSize="sm"
+												/>
+											)}
+											<PublishActions
+												collectionLabel={collectionLabel}
+												isLive={isLive}
+												hasPendingChanges={hasPendingChanges}
+												onPublish={onPublish}
+												onUnpublish={onUnpublish}
+												size="sm"
+											/>
+										</>
+									)}
+									<Button
+										variant="ghost"
+										shape="square"
+										type="button"
+										onClick={() => setIsDistractionFree(false)}
+										aria-label={t`Exit distraction-free mode`}
+									>
+										<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
+									</Button>
+								</>
+							)}
+						</div>
+					</div>
+
+					<div
+						className={cn(
+							isDistractionFree ? "mx-auto max-w-3xl pt-16" : "mx-auto max-w-3xl space-y-6",
+						)}
+					>
+						<div className="space-y-6">
 							{Object.entries(fields).map(([name, field]) => {
 								// Key by item id so all field editors remount cleanly when the
 								// underlying content item changes (e.g. switching translations).
@@ -786,7 +787,6 @@ export function ContentEditor({
 												? setPortableTextEditor
 												: undefined
 										}
-										minimal={isDistractionFree}
 										pluginBlocks={pluginBlocks}
 										onBlockSidebarOpen={
 											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
@@ -801,276 +801,235 @@ export function ContentEditor({
 							})}
 						</div>
 					</div>
-
-					{/* Save action at the bottom of the main column so users hit it
-					    naturally when they finish editing, without needing to scroll
-					    past the entire sidebar. */}
-					{!isDistractionFree && (
-						<div className="flex justify-end">
-							<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
-						</div>
-					)}
 				</div>
 
-				{/* Sidebar - hidden in distraction-free mode */}
-				<div className={cn("space-y-6", isDistractionFree && "hidden")}>
-					{blockSidebarPanel ? (
-						/* Block sidebar panel – replaces default sections when a block requests it */
-						blockSidebarPanel.type === "image" ? (
-							<ImageDetailPanel
-								attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-								onUpdate={(attrs) =>
-									blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-								}
-								onReplace={(attrs) =>
-									blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
-								}
-								onDelete={() => {
-									blockSidebarPanel.onDelete();
-									setBlockSidebarPanel(null);
-								}}
-								onClose={handleBlockSidebarClose}
-								inline
-							/>
-						) : null
-					) : (
-						/* Default content settings sections – single card with dividers */
-						<div className="rounded-lg border bg-kumo-base flex flex-col">
-							{/* Publish settings */}
-							<div className="p-4">
-								<h3 className="mb-4 font-semibold">{t`Publish`}</h3>
-								<div className="space-y-4">
-									<Input
-										label={t`Slug`}
-										value={slug}
-										onChange={(e) => handleSlugChange(e.target.value)}
-										placeholder="my-post-slug"
-									/>
-									<div>
-										<Label>{t`Status`}</Label>
-										<div className="mt-1 flex flex-wrap items-center gap-1.5">
-											{supportsDrafts ? (
-												<>
-													{isLive && <Badge variant="success">{t`Published`}</Badge>}
-													{hasPendingChanges && (
-														<Badge variant="secondary">{t`Pending changes`}</Badge>
-													)}
-													{!isLive && !hasSchedule && <Badge variant="secondary">{t`Draft`}</Badge>}
-													{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}
-												</>
-											) : (
-												<span className="text-sm text-kumo-subtle">
-													{status.charAt(0).toUpperCase() + status.slice(1)}
-												</span>
-											)}
-										</div>
-										{item?.scheduledAt && (
-											<div className="mt-2 flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-												<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
-												<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
-													{t`Unschedule`}
-												</Button>
-											</div>
-										)}
-									</div>
-
-									{canSchedule && (
-										<div className="pt-2">
-											{showScheduler ? (
-												<div className="space-y-2">
-													<Input
-														label={t`Schedule for`}
-														type="datetime-local"
-														value={scheduleDate}
-														onChange={(e) => setScheduleDate(e.target.value)}
-														min={new Date().toISOString().slice(0, 16)}
-													/>
-													<div className="flex gap-2">
-														<Button
-															type="button"
-															size="sm"
-															onClick={handleScheduleSubmit}
-															disabled={!scheduleDate || isScheduling}
-															icon={isScheduling ? <Loader size="sm" /> : undefined}
-														>
-															{t`Schedule`}
-														</Button>
-														<Button
-															type="button"
-															variant="outline"
-															size="sm"
-															onClick={() => {
-																setShowScheduler(false);
-																setScheduleDate("");
-															}}
-														>
-															{t`Cancel`}
-														</Button>
-													</div>
-												</div>
-											) : (
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													className="w-full"
-													onClick={() => setShowScheduler(true)}
-												>
-													{t`Schedule for later`}
-												</Button>
-											)}
-										</div>
-									)}
-
-									{item && (
-										<div className="text-xs text-kumo-subtle">
-											<p>{t`Created: ${new Date(item.createdAt).toLocaleString()}`}</p>
-											<p>{t`Updated: ${new Date(item.updatedAt).toLocaleString()}`}</p>
-										</div>
-									)}
-									{!isNew && onDelete && (
-										<div className="pt-4 border-t">
-											<Dialog.Root disablePointerDismissal>
-												<Dialog.Trigger
-													render={(p) => (
-														<Button
-															{...p}
-															type="button"
-															variant="outline"
-															className="w-full text-kumo-danger hover:text-kumo-danger"
-															disabled={isDeleting}
-															icon={isDeleting ? <Loader size="sm" /> : <Trash />}
-														>
-															{t`Move to Trash`}
-														</Button>
-													)}
-												/>
-												<Dialog className="p-6" size="sm">
-													<Dialog.Title className="text-lg font-semibold">
-														{t`Move to Trash?`}
-													</Dialog.Title>
-													<Dialog.Description className="text-kumo-subtle">
-														{t`This will move the item to trash. You can restore it later from the trash.`}
-													</Dialog.Description>
-													<div className="mt-6 flex justify-end gap-2">
-														<Dialog.Close
-															render={(p) => (
-																<Button {...p} variant="secondary">
-																	{t`Cancel`}
-																</Button>
-															)}
-														/>
-														<Dialog.Close
-															render={(p) => (
-																<Button {...p} variant="destructive" onClick={onDelete}>
-																	{t`Move to Trash`}
-																</Button>
-															)}
-														/>
-													</div>
-												</Dialog>
-											</Dialog.Root>
-										</div>
-									)}
-								</div>
+				{/* Hidden (not unmounted) in distraction-free mode so panel-local
+			    state survives the round trip; `hidden` on the pane's own layout
+			    element leaves no gap. */}
+				<Sidebar aria-label={t`Settings`} className={cn(isDistractionFree && "hidden")}>
+					{/* The action bar absorbs the high-frequency props (isDirty,
+					    isSaving, isAutosaving) so they never reach the memoized panel. */}
+					{!isBelowLg && (
+						<SettingsActionBar
+							collectionLabel={collectionLabel}
+							isNew={isNew}
+							isDirty={isDirty}
+							isSaving={Boolean(saveFeedbackActive)}
+							isAutosaving={autosaveFeedbackActive}
+							saveDisabled={isContentOperationPending}
+							isLive={isLive}
+							hasPendingChanges={hasPendingChanges}
+							liveViewUrl={liveViewUrl}
+							supportsPreview={supportsPreview}
+							isLoadingPreview={isLoadingPreview}
+							onPreview={handlePreview}
+							onPublish={onPublish}
+							onUnpublish={onUnpublish}
+							announceSaveStatus={!isDistractionFree}
+						/>
+					)}
+					<div
+						className="flex-1 overflow-y-auto overflow-x-hidden"
+						style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
+					>
+						{isBelowLg && (
+							<div className="flex justify-end px-4 pt-3">
+								<MobileSettingsCloseButton />
 							</div>
+						)}
+						<ContentSettingsPanel
+							collection={collection}
+							item={item}
+							isNew={isNew}
+							entryLocale={entryLocale}
+							slug={slug}
+							onSlugChange={handleSlugChange}
+							status={status}
+							supportsDrafts={supportsDrafts}
+							isLive={isLive}
+							hasPendingChanges={hasPendingChanges}
+							hasSchedule={hasSchedule}
+							supportsRevisions={supportsRevisions}
+							canSchedule={canSchedule}
+							onSchedule={onSchedule}
+							onUnschedule={onUnschedule}
+							isScheduling={isScheduling}
+							onDiscardDraft={onDiscardDraft}
+							onDelete={onDelete}
+							isDeleting={isDeleting}
+							currentUser={currentUser}
+							users={users}
+							onAuthorChange={onAuthorChange}
+							activeBylines={activeBylines}
+							availableBylines={availableBylines}
+							availableBylinesLoaded={availableBylinesLoaded}
+							onBylinesChange={handleBylinesChange}
+							onQuickCreateByline={onQuickCreateByline}
+							onQuickEditByline={onQuickEditByline}
+							i18n={i18n}
+							translations={translations}
+							onTranslate={onTranslate}
+							hasSeo={hasSeo}
+							onSeoChange={onSeoChange ? handleSeoChange : undefined}
+							portableTextEditor={portableTextEditor}
+							blockSidebarPanel={blockSidebarPanel}
+							onBlockSidebarClose={handleBlockSidebarClose}
+							onBlockSidebarDelete={handleBlockSidebarDelete}
+						/>
+					</div>
+				</Sidebar>
 
-							{/* Ownership selector - shown only to editors and above */}
-							{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
-								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">{t`Ownership`}</h3>
-									<AuthorSelector
-										authorId={item?.authorId || null}
-										users={users}
-										onChange={onAuthorChange}
-									/>
-								</div>
-							)}
-
-							{/* Byline credits */}
-							{currentUser && currentUser.role >= ROLE_EDITOR && (
-								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">{t`Bylines`}</h3>
-									<BylineCreditsEditor
-										credits={activeBylines}
-										bylines={availableBylines ?? []}
-										selectedBylineDetails={item?.bylines?.map((entry) => entry.byline)}
-										bylinesLoaded={availableBylinesLoaded}
-										onChange={handleBylinesChange}
-										onQuickCreate={onQuickCreateByline}
-										onQuickEdit={onQuickEditByline}
-										// Existing entry: use its own locale. New entry: use the
-										// URL `?locale=` (passed in via `entryLocale`).
-										entryLocale={item?.locale ?? entryLocale}
-										i18n={i18n}
-									/>
-								</div>
-							)}
-
-							{/* Translations sidebar - shown when i18n is enabled */}
-							{i18n && item && !isNew && (
-								<div className="p-4 border-t">
-									<TranslationsPanel
-										locales={i18n.locales}
-										defaultLocale={i18n.defaultLocale}
-										currentLocale={item.locale ?? undefined}
-										translations={translations ?? []}
-										onOpen={(tr) =>
-											navigate({
-												to: "/content/$collection/$id",
-												params: { collection, id: tr.id },
-												search: { locale: tr.locale },
-											})
-										}
-										onCreate={onTranslate}
-									/>
-								</div>
-							)}
-
-							{/* Taxonomy selector */}
-							{item && (
-								<div className="p-4 border-t">
-									<TaxonomySidebar
-										collection={collection}
-										entryId={item.id}
-										entryLocale={item.locale ?? entryLocale}
-									/>
-								</div>
-							)}
-
-							{/* SEO panel - shown for collections with hasSeo enabled */}
-							{hasSeo && !isNew && onSeoChange && (
-								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold flex items-center gap-2">
-										<MagnifyingGlass className="h-4 w-4" />
-										{t`SEO`}
-									</h3>
-									<SeoPanel
-										contentKey={item?.id ?? `new:${collection}`}
-										seo={item?.seo}
-										onChange={handleSeoChange}
-									/>
-								</div>
-							)}
-
-							{/* Document outline - shown when editing content with portableText */}
-							{portableTextEditor && (
-								<div className="p-4 border-t">
-									<DocumentOutline editor={portableTextEditor} />
-								</div>
-							)}
-
-							{/* Revision history - shown for existing items in collections that support it */}
-							{!isNew && item && supportsRevisions && (
-								<div className="p-4 border-t">
-									<RevisionHistory collection={collection} entryId={item.id} />
-								</div>
-							)}
-						</div>
-					)}
-				</div>
-			</div>
+				{/* Below lg, opening a block detail panel must open the sheet.
+				    Suspended in distraction-free mode: the nav is hidden there but
+				    Kumo's separate backdrop would still scrim the whole screen. */}
+				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
+				<MobileSidebarPortalGuard />
+			</Sidebar.Provider>
 		</form>
+	);
+}
+
+/**
+ * Opens the settings sheet when a portable-text block requests sidebar
+ * space below the mobile breakpoint, and restores the sheet's prior
+ * open/closed state when the block panel closes. Renders nothing.
+ */
+function MobileBlockSidebarSync({ active, suspended }: { active: boolean; suspended?: boolean }) {
+	const { isMobile, openMobile, setOpenMobile } = useSidebar();
+	const prevActiveRef = React.useRef(active);
+	const prevIsMobileRef = React.useRef(isMobile);
+	const prevSuspendedRef = React.useRef(suspended);
+	const priorOpenRef = React.useRef<boolean | null>(null);
+
+	React.useEffect(() => {
+		const becameActive = active && !prevActiveRef.current;
+		const becameInactive = !active && prevActiveRef.current;
+		const becameMobileWithActivePanel = active && isMobile && !prevIsMobileRef.current;
+		const becameUnsuspendedWithActivePanel = active && !suspended && prevSuspendedRef.current;
+		prevActiveRef.current = active;
+		prevIsMobileRef.current = isMobile;
+		prevSuspendedRef.current = suspended;
+
+		if (!isMobile) {
+			priorOpenRef.current = null;
+			if (openMobile) setOpenMobile(false);
+			return;
+		}
+
+		// While suspended (distraction-free), keep the sheet closed: its nav is
+		// display:none but the backdrop sibling would still scrim the screen.
+		if (suspended) {
+			priorOpenRef.current = null;
+			if (openMobile) setOpenMobile(false);
+			return;
+		}
+
+		if (becameInactive) {
+			setOpenMobile(priorOpenRef.current ?? false);
+			priorOpenRef.current = null;
+			return;
+		}
+
+		if (becameActive || becameMobileWithActivePanel || becameUnsuspendedWithActivePanel) {
+			priorOpenRef.current = openMobile;
+			setOpenMobile(true);
+		}
+	}, [active, isMobile, openMobile, setOpenMobile, suspended]);
+
+	return null;
+}
+
+/**
+ * Kumo closes its mobile sheet whenever focus leaves the sheet DOM. Keep it
+ * open when focus moves into a portaled control, and keep those overlays above
+ * the sheet's z-50 layer.
+ */
+function MobileSidebarPortalGuard() {
+	const { isMobile, openMobile, setOpenMobile } = useSidebar();
+
+	React.useEffect(() => {
+		if (!isMobile || !openMobile) return;
+		const nestedOverlaySelector =
+			'[role="dialog"], [role="listbox"], [role="menu"], .kumo-tooltip-popup';
+		const keepSheetOpen = () => queueMicrotask(() => setOpenMobile(true));
+		const promotePortal = (element: Element) => {
+			const overlay =
+				element.closest(nestedOverlaySelector) ?? element.querySelector(nestedOverlaySelector);
+			const portal = overlay?.closest<HTMLElement>("[data-base-ui-portal]");
+			if (!portal) return;
+			portal.style.position = "relative";
+			portal.style.zIndex = "60";
+		};
+
+		const handleFocusOut = (event: FocusEvent) => {
+			const source = event.target;
+			const destination = event.relatedTarget;
+			if (!(source instanceof Element) || !(destination instanceof Element)) return;
+
+			const sheet = source.closest('nav[data-sidebar="sidebar"][data-mobile="true"]');
+			if (!sheet || sheet.contains(destination)) return;
+			if (!destination.closest(nestedOverlaySelector)) return;
+
+			promotePortal(destination);
+			keepSheetOpen();
+		};
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== "Escape") return;
+			const target = event.target;
+			if (!(target instanceof Element) || !target.closest(nestedOverlaySelector)) return;
+			keepSheetOpen();
+		};
+
+		document.addEventListener("focusout", handleFocusOut, true);
+		document.addEventListener("keydown", handleKeyDown, true);
+		const portalObserver = new MutationObserver((records) => {
+			for (const record of records) {
+				for (const node of record.addedNodes) {
+					if (node instanceof Element) promotePortal(node);
+				}
+			}
+		});
+		portalObserver.observe(document.body, { childList: true, subtree: true });
+		document
+			.querySelectorAll<HTMLElement>("[data-base-ui-portal]")
+			.forEach((portal) => promotePortal(portal));
+		return () => {
+			document.removeEventListener("focusout", handleFocusOut, true);
+			document.removeEventListener("keydown", handleKeyDown, true);
+			portalObserver.disconnect();
+		};
+	}, [isMobile, openMobile, setOpenMobile]);
+
+	return null;
+}
+
+/**
+ * "Settings" trigger for the mobile sheet. Lives in the editor strip,
+ * which sits inside the Sidebar.Provider, so it can reach the context.
+ */
+function MobileSettingsButton() {
+	const { t } = useLingui();
+	const { toggleSidebar } = useSidebar();
+	return (
+		<Button type="button" variant="outline" icon={<Faders />} onClick={toggleSidebar}>
+			{t`Settings`}
+		</Button>
+	);
+}
+
+function MobileSettingsCloseButton() {
+	const { t } = useLingui();
+	const { setOpenMobile } = useSidebar();
+	return (
+		<Button
+			type="button"
+			variant="ghost"
+			shape="square"
+			icon={<X />}
+			aria-label={t`Close settings`}
+			onClick={() => setOpenMobile(false)}
+		/>
 	);
 }
 
@@ -1214,20 +1173,21 @@ function FieldRenderer({
 		case "portableText": {
 			const labelId = `${id}-label`;
 			return (
-				<div id={id}>
+				<div id={id} className={cn(!minimal && "grid gap-2")}>
 					{!minimal && (
-						<span
-							id={labelId}
-							className={cn("text-sm font-medium leading-none text-kumo-default", labelClass)}
-						>
-							{label}
-						</span>
+						<Label>
+							<span id={labelId}>{label}</span>
+						</Label>
 					)}
 					<PortableTextEditor
 						value={Array.isArray(value) ? value : []}
 						onChange={handleChange}
-						placeholder={t`Enter ${label.toLowerCase()}...`}
+						placeholder={t`Start writing, or type '/' for commands`}
 						aria-labelledby={labelId}
+						className={cn(
+							!minimal &&
+								"bg-kumo-control focus-within:ring-kumo-focus/50 focus-within:ring-[1.5px]",
+						)}
 						pluginBlocks={pluginBlocks}
 						onEditorReady={onEditorReady}
 						minimal={minimal}
@@ -1666,10 +1626,10 @@ function FileFieldRenderer({
 	const hasSize = size !== undefined;
 
 	return (
-		<div id={id}>
+		<div id={id} className="grid gap-2">
 			<Label>{label}</Label>
 			{normalized ? (
-				<div className="mt-2 flex items-center gap-3 rounded-lg border p-3">
+				<div className="flex items-center gap-3 rounded-lg border p-3">
 					<span className="text-3xl" aria-hidden="true">
 						{getFileIcon(normalized.mimeType)}
 					</span>
@@ -1714,7 +1674,7 @@ function FileFieldRenderer({
 				<Button
 					type="button"
 					variant="outline"
-					className="mt-2 w-full h-32 border-dashed"
+					className="w-full h-32 justify-center border-dashed"
 					onClick={() => setPickerOpen(true)}
 					aria-label={t`Select ${label}`}
 				>
@@ -1735,412 +1695,8 @@ function FileFieldRenderer({
 				title={t`Select ${label}`}
 			/>
 			{required && !normalized && (
-				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
+				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
 			)}
-		</div>
-	);
-}
-
-/**
- * Author selector component for editors and above
- */
-interface AuthorSelectorProps {
-	authorId: string | null;
-	users: UserListItem[];
-	onChange?: (authorId: string | null) => void;
-}
-
-interface BylineCreditsEditorProps {
-	credits: BylineCreditInput[];
-	bylines: BylineSummary[];
-	/**
-	 * Full byline details for the entry's already-selected credits. Seeded from
-	 * the saved entry so credited bylines always render their name/slug even when
-	 * they fall outside the initial (unsearched) picker list.
-	 */
-	selectedBylineDetails?: BylineSummary[];
-	onChange: (bylines: BylineCreditInput[]) => void;
-	onQuickCreate?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
-	onQuickEdit?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
-	/**
-	 * Locale of the entry being edited. When the picker comes back empty and
-	 * the install is multi-locale, the empty-state copy and CTA link are
-	 * scoped to this locale (post-migration 040, the picker is strict
-	 * per-locale — see the bylines manager flow).
-	 */
-	entryLocale?: string | null;
-	/** i18n config from the manifest. When set with >1 locales, the editor renders the locale-scoped empty-state. */
-	i18n?: { defaultLocale: string; locales: string[] } | null;
-	/** Suppresses the empty-state until the picker query resolves. Defaults to true. */
-	bylinesLoaded?: boolean;
-}
-
-function BylineCreditsEditor({
-	credits,
-	bylines,
-	selectedBylineDetails,
-	onChange,
-	onQuickCreate,
-	onQuickEdit,
-	entryLocale,
-	i18n,
-	bylinesLoaded = true,
-}: BylineCreditsEditorProps) {
-	const { t } = useLingui();
-	const [search, setSearch] = React.useState("");
-	const debouncedSearch = useDebouncedValue(search, 300);
-	const [quickName, setQuickName] = React.useState("");
-	const [quickSlug, setQuickSlug] = React.useState("");
-	const [quickError, setQuickError] = React.useState<string | null>(null);
-	const [isCreating, setIsCreating] = React.useState(false);
-	const [editBylineId, setEditBylineId] = React.useState<string | null>(null);
-	const [editName, setEditName] = React.useState("");
-	const [editSlug, setEditSlug] = React.useState("");
-	const [editError, setEditError] = React.useState<string | null>(null);
-	const [isEditing, setIsEditing] = React.useState(false);
-
-	// Server-side search so the picker isn't limited to the first page of
-	// bylines (previously capped at 100 with no way to find the rest). When the
-	// search box is empty we fall back to the parent-provided initial list.
-	const trimmedSearch = debouncedSearch.trim();
-	const searchEnabled = trimmedSearch.length > 0;
-	const searchResults = useQuery({
-		queryKey: ["bylines", "credit-picker", entryLocale ?? null, trimmedSearch],
-		queryFn: () =>
-			fetchBylines({ search: trimmedSearch, locale: entryLocale ?? undefined, limit: 20 }),
-		enabled: searchEnabled,
-		placeholderData: keepPreviousData,
-	});
-
-	const resultPool = searchEnabled ? (searchResults.data?.items ?? []) : bylines;
-	const hasMoreResults = searchEnabled ? !!searchResults.data?.nextCursor : bylines.length >= 100;
-
-	// Resolve credited bylines to their full details for display. Selected rows
-	// come from the parent-provided details so they keep rendering even when the
-	// current search results no longer include them.
-	const bylineMap = React.useMemo(() => {
-		const map = new Map<string, BylineSummary>();
-		for (const b of selectedBylineDetails ?? []) map.set(b.id, b);
-		for (const b of bylines) map.set(b.id, b);
-		for (const b of searchResults.data?.items ?? []) map.set(b.id, b);
-		return map;
-	}, [selectedBylineDetails, bylines, searchResults.data?.items]);
-
-	const availableToAdd = resultPool.filter((b) => !credits.some((c) => c.bylineId === b.id));
-
-	const addByline = (bylineId: string) => {
-		if (credits.some((c) => c.bylineId === bylineId)) return;
-		onChange([...credits, { bylineId, roleLabel: null }]);
-	};
-
-	const move = (index: number, direction: -1 | 1) => {
-		const target = index + direction;
-		if (target < 0 || target >= credits.length) return;
-		const next = [...credits];
-		const [moved] = next.splice(index, 1);
-		if (!moved) return;
-		next.splice(target, 0, moved);
-		onChange(next);
-	};
-
-	const resetQuickCreate = () => {
-		setQuickName("");
-		setQuickSlug("");
-		setQuickError(null);
-	};
-
-	const openEditByline = (byline: BylineSummary) => {
-		setEditBylineId(byline.id);
-		setEditName(byline.displayName);
-		setEditSlug(byline.slug);
-		setEditError(null);
-	};
-
-	const resetQuickEdit = () => {
-		setEditBylineId(null);
-		setEditName("");
-		setEditSlug("");
-		setEditError(null);
-	};
-
-	// Multi-locale install with no bylines at the entry's locale: show a
-	// CTA to the byline manager, scoped to that locale. Quick-create
-	// still works inline.
-	const isMultiLocale = !!i18n && i18n.locales.length > 1;
-	const showLocaleEmptyState =
-		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
-
-	return (
-		<div className="space-y-3">
-			{showLocaleEmptyState && (
-				<div className="rounded border border-dashed p-3 text-sm space-y-2">
-					<p className="text-kumo-subtle">
-						{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
-					</p>
-					<RouterLinkButton
-						to="/bylines"
-						search={{ locale: entryLocale ?? undefined }}
-						variant="secondary"
-						size="sm"
-					>
-						{t`Manage bylines in ${entryLocale}`}
-					</RouterLinkButton>
-				</div>
-			)}
-			<div className="space-y-2">
-				<Input
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-					placeholder={t`Search bylines to add...`}
-					aria-label={t`Search bylines`}
-				/>
-				{searchEnabled && searchResults.isLoading ? (
-					<p className="text-sm text-kumo-subtle">{t`Searching...`}</p>
-				) : availableToAdd.length > 0 ? (
-					<ul className="max-h-48 divide-y overflow-y-auto rounded border">
-						{availableToAdd.map((b) => (
-							<li key={b.id}>
-								<button
-									type="button"
-									className="flex w-full items-center justify-between gap-2 p-2 text-start hover:bg-kumo-tint"
-									onClick={() => addByline(b.id)}
-								>
-									<span className="min-w-0">
-										<span className="block truncate text-sm font-medium">{b.displayName}</span>
-										<span className="block truncate text-xs text-kumo-subtle">{b.slug}</span>
-									</span>
-									<span className="text-xs text-kumo-subtle">{t`Add`}</span>
-								</button>
-							</li>
-						))}
-					</ul>
-				) : searchEnabled && searchResults.isError ? (
-					<p className="text-sm text-kumo-danger">{t`Couldn't search bylines. Please try again.`}</p>
-				) : searchEnabled ? (
-					<p className="text-sm text-kumo-subtle">{t`No matching bylines.`}</p>
-				) : null}
-				{hasMoreResults && (
-					<p className="text-xs text-kumo-subtle">{t`Keep typing to narrow down more bylines.`}</p>
-				)}
-			</div>
-
-			{credits.length > 0 ? (
-				<div className="space-y-2">
-					{credits.map((credit, index) => {
-						const byline = bylineMap.get(credit.bylineId);
-						if (!byline) return null;
-						return (
-							<div key={`${credit.bylineId}-${index}`} className="rounded border p-2 space-y-2">
-								<div className="flex items-center justify-between gap-2">
-									<div>
-										<p className="text-sm font-medium">{byline.displayName}</p>
-										<p className="text-xs text-kumo-subtle">{byline.slug}</p>
-									</div>
-									<div className="flex gap-1">
-										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, -1)}>
-											{t`Up`}
-										</Button>
-										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, 1)}>
-											{t`Down`}
-										</Button>
-										{onQuickEdit && (
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												onClick={() => openEditByline(byline)}
-											>
-												{t`Edit`}
-											</Button>
-										)}
-										<Button
-											type="button"
-											variant="destructive"
-											size="sm"
-											onClick={() => onChange(credits.filter((_, i) => i !== index))}
-										>
-											{t`Remove`}
-										</Button>
-									</div>
-								</div>
-								<Input
-									label={t`Role label`}
-									value={credit.roleLabel ?? ""}
-									onChange={(e) => {
-										const next = [...credits];
-										const current = next[index];
-										if (!current) return;
-										next[index] = {
-											...current,
-											roleLabel: e.target.value || null,
-										};
-										onChange(next);
-									}}
-								/>
-							</div>
-						);
-					})}
-				</div>
-			) : (
-				<p className="text-sm text-kumo-subtle">{t`No bylines selected.`}</p>
-			)}
-
-			{onQuickCreate && (
-				<Dialog.Root>
-					<Dialog.Trigger
-						render={(p) => (
-							<Button {...p} type="button" variant="secondary">
-								{t`Quick create byline`}
-							</Button>
-						)}
-					/>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Create byline`}</Dialog.Title>
-						<div className="mt-4 space-y-3">
-							<Input
-								label={t`Display name`}
-								value={quickName}
-								onChange={(e) => {
-									setQuickName(e.target.value);
-									if (!quickSlug) setQuickSlug(slugify(e.target.value));
-								}}
-							/>
-							<Input
-								label={t`Slug`}
-								value={quickSlug}
-								onChange={(e) => setQuickSlug(e.target.value)}
-							/>
-							{quickError && <p className="text-sm text-kumo-danger">{quickError}</p>}
-						</div>
-						<div className="mt-6 flex justify-end gap-2">
-							<Dialog.Close
-								render={(p) => (
-									<Button
-										{...p}
-										variant="secondary"
-										onClick={(e) => {
-											resetQuickCreate();
-											p.onClick?.(e);
-										}}
-									>
-										{t`Cancel`}
-									</Button>
-								)}
-							/>
-							<Button
-								type="button"
-								disabled={!quickName || !quickSlug || isCreating}
-								onClick={async () => {
-									setQuickError(null);
-									setIsCreating(true);
-									try {
-										const created = await onQuickCreate({
-											displayName: quickName,
-											slug: quickSlug,
-										});
-										onChange([...credits, { bylineId: created.id, roleLabel: null }]);
-										resetQuickCreate();
-									} catch (err) {
-										setQuickError(err instanceof Error ? err.message : t`Failed to create byline`);
-									} finally {
-										setIsCreating(false);
-									}
-								}}
-							>
-								{isCreating ? t`Creating...` : t`Create`}
-							</Button>
-						</div>
-					</Dialog>
-				</Dialog.Root>
-			)}
-
-			{onQuickEdit && editBylineId && (
-				<Dialog.Root open onOpenChange={(open) => (!open ? resetQuickEdit() : undefined)}>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Edit byline`}</Dialog.Title>
-						<div className="mt-4 space-y-3">
-							<Input
-								label={t`Display name`}
-								value={editName}
-								onChange={(e) => {
-									setEditName(e.target.value);
-									if (!editSlug) setEditSlug(slugify(e.target.value));
-								}}
-							/>
-							<Input
-								label={t`Slug`}
-								value={editSlug}
-								onChange={(e) => setEditSlug(e.target.value)}
-							/>
-							{editError && <p className="text-sm text-kumo-danger">{editError}</p>}
-						</div>
-						<div className="mt-6 flex justify-end gap-2">
-							<Button type="button" variant="secondary" onClick={resetQuickEdit}>
-								{t`Cancel`}
-							</Button>
-							<Button
-								type="button"
-								disabled={!editName || !editSlug || isEditing}
-								onClick={async () => {
-									setEditError(null);
-									setIsEditing(true);
-									try {
-										await onQuickEdit(editBylineId, {
-											displayName: editName,
-											slug: editSlug,
-										});
-										resetQuickEdit();
-									} catch (err) {
-										setEditError(err instanceof Error ? err.message : t`Failed to update byline`);
-									} finally {
-										setIsEditing(false);
-									}
-								}}
-							>
-								{isEditing ? t`Saving...` : t`Save`}
-							</Button>
-						</div>
-					</Dialog>
-				</Dialog.Root>
-			)}
-		</div>
-	);
-}
-
-function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
-	const { t } = useLingui();
-	const currentAuthor = users.find((u) => u.id === authorId);
-
-	const authorItems: Record<string, string> = { unassigned: t`Unassigned` };
-	for (const user of users) {
-		authorItems[user.id] = user.name || user.email;
-	}
-
-	return (
-		<div className="space-y-2">
-			<Select
-				value={authorId || "unassigned"}
-				onValueChange={(value) =>
-					onChange?.(value === "unassigned" || value === null ? null : value)
-				}
-				items={authorItems}
-			>
-				<Select.Option value="unassigned">
-					<span className="text-kumo-subtle">{t`Unassigned`}</span>
-				</Select.Option>
-				{users.map((user) => (
-					<Select.Option key={user.id} value={user.id}>
-						<span className="flex items-center gap-2">
-							{user.name || user.email}
-							{user.name && <span className="text-xs text-kumo-subtle">({user.email})</span>}
-						</span>
-					</Select.Option>
-				))}
-			</Select>
-			{currentAuthor && <p className="text-xs text-kumo-subtle">{currentAuthor.email}</p>}
 		</div>
 	);
 }

@@ -193,6 +193,7 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
 			({ descriptor, descriptorTypes } = await writeDescriptor({
 				outDir,
 				manifest: sources.manifest,
+				wireManifest,
 				packageName: sources.packageName,
 			}));
 			log.success?.("Wrote index.mjs");
@@ -242,6 +243,7 @@ async function runPipelineStep<T>(fn: () => Promise<T>): Promise<T> {
 interface WriteDescriptorContext {
 	outDir: string;
 	manifest: NormalisedManifest;
+	wireManifest: PluginManifest;
 	packageName: string;
 }
 
@@ -264,7 +266,7 @@ interface DescriptorFiles {
  * `./dist/plugin.mjs` — the runtime bytes the integration loads.
  */
 async function writeDescriptor(ctx: WriteDescriptorContext): Promise<DescriptorFiles> {
-	const { outDir, manifest, packageName } = ctx;
+	const { outDir, manifest, wireManifest, packageName } = ctx;
 
 	const descriptorObject = {
 		id: manifest.slug,
@@ -274,6 +276,7 @@ async function writeDescriptor(ctx: WriteDescriptorContext): Promise<DescriptorF
 		capabilities: manifest.capabilities,
 		allowedHosts: manifest.allowedHosts,
 		storage: manifest.storage,
+		...(wireManifest.mcp ? { mcp: wireManifest.mcp } : {}),
 		...(manifest.admin.pages.length > 0 ? { adminPages: manifest.admin.pages } : {}),
 		...(manifest.admin.widgets.length > 0 ? { adminWidgets: manifest.admin.widgets } : {}),
 	};

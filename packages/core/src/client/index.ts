@@ -127,6 +127,62 @@ export interface Field {
 	sortOrder?: number;
 }
 
+/** Aggregate trust state for media usage reads */
+export type MediaUsageCoverageStatus =
+	| "complete"
+	| "never"
+	| "running"
+	| "partial"
+	| "failed"
+	| "stale"
+	| "unknown";
+
+/** Aggregate media usage coverage across all content collections */
+export interface MediaUsageCoverage {
+	scope: "all_content_collections";
+	status: MediaUsageCoverageStatus;
+}
+
+/** Coverage-aware usage count for a media item */
+export interface MediaUsageSummary {
+	count: number | null;
+	coverage: MediaUsageCoverage;
+}
+
+/** One indexed media reference within a content source */
+export interface MediaUsageOccurrenceDetail {
+	fieldSlug: string;
+	fieldPath: string;
+	occurrenceIndex: number;
+	referenceType: "image_field" | "file_field" | "portable_text_image" | "unknown";
+}
+
+/** Indexed references from one visible content source */
+export interface MediaUsageSourceDetail {
+	variant: "columns" | "draft_overlay";
+	occurrences: MediaUsageOccurrenceDetail[];
+}
+
+/** One content entry that references a media item */
+export interface MediaUsageEntryDetail {
+	collection: string;
+	contentId: string;
+	title: string | null;
+	slug: string | null;
+	locale: string | null;
+	status: string | null;
+	scheduledAt: string | null;
+	deletedAt: string | null;
+	sources: MediaUsageSourceDetail[];
+}
+
+/** Entry-grouped media usage details */
+export interface MediaUsageDetailsResponse {
+	items: MediaUsageEntryDetail[];
+	nextCursor?: string;
+	coverage: MediaUsageCoverage;
+}
+
 /** Media item */
 export interface MediaItem {
 	id: string;
@@ -140,6 +196,36 @@ export interface MediaItem {
 	caption?: string;
 	createdAt: string;
 	updatedAt: string;
+	usage?: MediaUsageSummary;
+}
+
+/** Media usage repair request */
+export type MediaUsageRepairInput = { scope: "collection"; collection: string } | { scope: "all" };
+
+/** Media usage repair status */
+export type MediaUsageRepairStatus = "complete" | "partial" | "failed" | "stale";
+
+/** Per-collection media usage repair summary */
+export interface MediaUsageRepairCollectionSummary {
+	collection: string;
+	status: MediaUsageRepairStatus;
+	indexedSourceCount: number;
+	failedSourceCount: number;
+	skippedSourceCount: number;
+	deletedSourceCount: number;
+	lastErrorCode: string | null;
+	startedAt: string;
+	completedAt: string | null;
+}
+
+/** Media usage repair response */
+export interface MediaUsageRepairResponse {
+	status: MediaUsageRepairStatus;
+	indexedSourceCount: number;
+	failedSourceCount: number;
+	skippedSourceCount: number;
+	deletedSourceCount: number;
+	collections: MediaUsageRepairCollectionSummary[];
 }
 
 /** Search result */
@@ -649,20 +735,45 @@ export class EmDashClient {
 		mimeType?: string;
 		limit?: number;
 		cursor?: string;
+		includeUsage?: boolean;
 	}): Promise<ListResult<MediaItem>> {
 		const params = new URLSearchParams();
 		if (options?.mimeType) params.set("mimeType", options.mimeType);
 		if (options?.limit) params.set("limit", String(options.limit));
 		if (options?.cursor) params.set("cursor", options.cursor);
+		if (options?.includeUsage === true) params.set("includeUsage", "1");
 
 		const qs = params.toString();
 		return this.request<ListResult<MediaItem>>("GET", `/media${qs ? `?${qs}` : ""}`);
 	}
 
 	/** Get a single media item */
-	async mediaGet(id: string): Promise<MediaItem> {
-		const data = await this.request<{ item: MediaItem }>("GET", `/media/${encodeURIComponent(id)}`);
+	async mediaGet(id: string, options?: { includeUsage?: boolean }): Promise<MediaItem> {
+		const params = new URLSearchParams();
+		if (options?.includeUsage === true) params.set("includeUsage", "1");
+
+		const qs = params.toString();
+		const data = await this.request<{ item: MediaItem }>(
+			"GET",
+			`/media/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`,
+		);
 		return data.item;
+	}
+
+	/** Get entry-grouped usage details for a media item */
+	async mediaGetUsage(
+		id: string,
+		options?: { limit?: number; cursor?: string },
+	): Promise<MediaUsageDetailsResponse> {
+		const params = new URLSearchParams();
+		if (options?.limit !== undefined) params.set("limit", String(options.limit));
+		if (options?.cursor !== undefined) params.set("cursor", options.cursor);
+
+		const qs = params.toString();
+		return this.request<MediaUsageDetailsResponse>(
+			"GET",
+			`/media/${encodeURIComponent(id)}/usage${qs ? `?${qs}` : ""}`,
+		);
 	}
 
 	/** Upload a media file */
@@ -700,6 +811,11 @@ export class EmDashClient {
 	/** Delete a media item */
 	async mediaDelete(id: string): Promise<void> {
 		await this.request<unknown>("DELETE", `/media/${encodeURIComponent(id)}`);
+	}
+
+	/** Repair content media usage indexes for one collection or all collections */
+	async mediaRepairUsage(input: MediaUsageRepairInput): Promise<MediaUsageRepairResponse> {
+		return this.request<MediaUsageRepairResponse>("POST", "/admin/media-usage/repair", input);
 	}
 
 	// -----------------------------------------------------------------------
@@ -845,6 +961,11 @@ export class EmDashClient {
 		}
 	}
 }
+
+type _AssertTrue<T extends true> = T;
+type _MediaRepairUsageRequiresExplicitInput = _AssertTrue<
+	Parameters<EmDashClient["mediaRepairUsage"]> extends [MediaUsageRepairInput] ? true : false
+>;
 
 // Re-export transport types for interceptor authors
 export type { Interceptor } from "./transport.js";

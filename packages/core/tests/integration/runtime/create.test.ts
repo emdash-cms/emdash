@@ -11,11 +11,12 @@
 import { randomUUID } from "node:crypto";
 
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
+import { Kysely, sql, SqliteDialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
@@ -111,6 +112,51 @@ describe("EmDashRuntime.create — cold boot", () => {
 			);
 		} finally {
 			await runtime.stopCron();
+		}
+	});
+
+	it("passes normalized site information to the sandbox runner", async () => {
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		const options = new OptionsRepository(setupDb);
+		await options.set("emdash:setup_complete", true);
+		await options.set("emdash:site_title", "Example Site");
+		await options.set("emdash:site_url", "https://example.com/");
+		await options.set("emdash:locale", "nl");
+
+		const runner = {
+			isAvailable: () => true,
+			isHealthy: () => true,
+			load: vi.fn(),
+			setEmailSend: vi.fn(),
+			terminateAll: vi.fn(),
+		};
+		const createSandboxRunner = vi.fn(() => runner as never);
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			createDialect: () => new SqliteDialect({ database: sqlite }),
+			sandboxEnabled: true,
+			createSandboxRunner,
+		};
+
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			expect(createSandboxRunner).toHaveBeenCalledWith(
+				expect.objectContaining({
+					siteInfo: {
+						name: "Example Site",
+						url: "https://example.com",
+						locale: "nl",
+						trailingSlash: "ignore",
+					},
+				}),
+			);
+		} finally {
+			await runtime.stopCron();
+			await setupDb.destroy();
 		}
 	});
 
@@ -215,6 +261,40 @@ describe("EmDashRuntime.create — cold boot", () => {
 				// already closed
 			}
 		}
+	});
+
+	// A failed migration must not be retried on every create() call: on
+	// Workers each request in a warm isolate re-enters create(), and without
+	// a backoff every request re-runs the failing migration against the
+	// database (#1744). The failure is remembered per database entrypoint
+	// and re-attempts are skipped for a backoff window.
+	it("backs off after a migration failure instead of retrying immediately", async () => {
+		// A database whose next migration deterministically fails: fully
+		// migrated, then the 001_initial bookkeeping row is removed so the
+		// migrator re-runs it against existing tables.
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await sql`DELETE FROM _emdash_migrations WHERE name = '001_initial'`.execute(setupDb);
+
+		let dialectCalls = 0;
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			createDialect: () => {
+				dialectCalls += 1;
+				return new SqliteDialect({ database: sqlite });
+			},
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/Migration failed/i);
+		expect(dialectCalls).toBe(1);
+
+		// An immediate retry (same entrypoint → same failure record) must
+		// fail fast without building a new connection or touching the db.
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
+		expect(dialectCalls).toBe(1);
 	});
 
 	// A per-request isolated db (playground / DO preview) must never be

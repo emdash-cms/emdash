@@ -17,7 +17,7 @@ import type {
 	PluginContext,
 	ContentHookEvent,
 	ContentDeleteEvent,
-	ContentPublishStateChangeEvent,
+	ContentStateChangeEvent,
 	MediaUploadEvent,
 	MediaAfterUploadEvent,
 	LifecycleEvent,
@@ -33,7 +33,9 @@ import type {
 	ContentAfterDeleteHandler,
 	ContentAfterPublishHandler,
 	ContentAfterRestoreHandler,
+	ContentAfterScheduleHandler,
 	ContentAfterUnpublishHandler,
+	ContentAfterUnscheduleHandler,
 	MediaBeforeUploadHandler,
 	MediaAfterUploadHandler,
 	LifecycleHandler,
@@ -68,6 +70,8 @@ type HookNameV2 =
 	| "content:afterPublish"
 	| "content:afterUnpublish"
 	| "content:afterRestore"
+	| "content:afterSchedule"
+	| "content:afterUnschedule"
 	| "media:beforeUpload"
 	| "media:afterUpload"
 	| "cron"
@@ -84,6 +88,13 @@ type HookNameV2 =
 /**
  * Map from hook name to handler type — used for type-safe hook retrieval
  */
+type ContentStateChangeHookName =
+	| "content:afterPublish"
+	| "content:afterUnpublish"
+	| "content:afterRestore"
+	| "content:afterSchedule"
+	| "content:afterUnschedule";
+
 interface HookHandlerMap {
 	"plugin:install": LifecycleHandler;
 	"plugin:activate": LifecycleHandler;
@@ -96,6 +107,8 @@ interface HookHandlerMap {
 	"content:afterPublish": ContentAfterPublishHandler;
 	"content:afterUnpublish": ContentAfterUnpublishHandler;
 	"content:afterRestore": ContentAfterRestoreHandler;
+	"content:afterSchedule": ContentAfterScheduleHandler;
+	"content:afterUnschedule": ContentAfterUnscheduleHandler;
 	"media:beforeUpload": MediaBeforeUploadHandler;
 	"media:afterUpload": MediaAfterUploadHandler;
 	cron: CronHandler;
@@ -224,6 +237,8 @@ export class HookPipeline {
 			this.registerPluginHook(plugin, "content:afterPublish");
 			this.registerPluginHook(plugin, "content:afterUnpublish");
 			this.registerPluginHook(plugin, "content:afterRestore");
+			this.registerPluginHook(plugin, "content:afterSchedule");
+			this.registerPluginHook(plugin, "content:afterUnschedule");
 			this.registerPluginHook(plugin, "media:beforeUpload");
 			this.registerPluginHook(plugin, "media:afterUpload");
 			this.registerPluginHook(plugin, "cron");
@@ -269,6 +284,8 @@ export class HookPipeline {
 		["content:afterPublish", "content:read"],
 		["content:afterUnpublish", "content:read"],
 		["content:afterRestore", "content:read"],
+		["content:afterSchedule", "content:read"],
+		["content:afterUnschedule", "content:read"],
 		// Media
 		["media:beforeUpload", "media:write"],
 		["media:afterUpload", "media:read"],
@@ -653,18 +670,19 @@ export class HookPipeline {
 	}
 
 	/**
-	 * Run content:afterPublish hooks (fire-and-forget).
+	 * Run content state-change hooks that all share the same event shape.
 	 */
-	async runContentAfterPublish(
+	private async runContentStateChangeHook(
+		name: ContentStateChangeHookName,
 		content: Record<string, unknown>,
 		collection: string,
 	): Promise<HookResult<void>[]> {
-		const hooks = this.getTypedHooks("content:afterPublish");
+		const hooks = this.getTypedHooks(name);
 		const results: HookResult<void>[] = [];
 
 		for (const hook of hooks) {
 			const { handler } = hook;
-			const event: ContentPublishStateChangeEvent = { content, collection };
+			const event: ContentStateChangeEvent = { content, collection };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
@@ -690,6 +708,16 @@ export class HookPipeline {
 		}
 
 		return results;
+	}
+
+	/**
+	 * Run content:afterPublish hooks (fire-and-forget).
+	 */
+	async runContentAfterPublish(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		return this.runContentStateChangeHook("content:afterPublish", content, collection);
 	}
 
 	/**
@@ -699,37 +727,7 @@ export class HookPipeline {
 		content: Record<string, unknown>,
 		collection: string,
 	): Promise<HookResult<void>[]> {
-		const hooks = this.getTypedHooks("content:afterUnpublish");
-		const results: HookResult<void>[] = [];
-
-		for (const hook of hooks) {
-			const { handler } = hook;
-			const event: ContentPublishStateChangeEvent = { content, collection };
-			const ctx = this.getContext(hook.pluginId);
-			const start = Date.now();
-
-			try {
-				await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
-				results.push({
-					success: true,
-					pluginId: hook.pluginId,
-					duration: Date.now() - start,
-				});
-			} catch (error) {
-				results.push({
-					success: false,
-					error: error instanceof Error ? error : new Error(String(error)),
-					pluginId: hook.pluginId,
-					duration: Date.now() - start,
-				});
-
-				if (hook.errorPolicy === "abort") {
-					throw error;
-				}
-			}
-		}
-
-		return results;
+		return this.runContentStateChangeHook("content:afterUnpublish", content, collection);
 	}
 
 	/**
@@ -739,37 +737,27 @@ export class HookPipeline {
 		content: Record<string, unknown>,
 		collection: string,
 	): Promise<HookResult<void>[]> {
-		const hooks = this.getTypedHooks("content:afterRestore");
-		const results: HookResult<void>[] = [];
+		return this.runContentStateChangeHook("content:afterRestore", content, collection);
+	}
 
-		for (const hook of hooks) {
-			const { handler } = hook;
-			const event: ContentPublishStateChangeEvent = { content, collection };
-			const ctx = this.getContext(hook.pluginId);
-			const start = Date.now();
+	/**
+	 * Run content:afterSchedule hooks (fire-and-forget).
+	 */
+	async runContentAfterSchedule(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		return this.runContentStateChangeHook("content:afterSchedule", content, collection);
+	}
 
-			try {
-				await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
-				results.push({
-					success: true,
-					pluginId: hook.pluginId,
-					duration: Date.now() - start,
-				});
-			} catch (error) {
-				results.push({
-					success: false,
-					error: error instanceof Error ? error : new Error(String(error)),
-					pluginId: hook.pluginId,
-					duration: Date.now() - start,
-				});
-
-				if (hook.errorPolicy === "abort") {
-					throw error;
-				}
-			}
-		}
-
-		return results;
+	/**
+	 * Run content:afterUnschedule hooks (fire-and-forget).
+	 */
+	async runContentAfterUnschedule(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		return this.runContentStateChangeHook("content:afterUnschedule", content, collection);
 	}
 
 	// =========================================================================

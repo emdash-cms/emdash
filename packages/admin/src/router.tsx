@@ -42,6 +42,7 @@ import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
 import { PluginManager } from "./components/PluginManager";
+import { PluginSettings } from "./components/PluginSettings";
 import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
@@ -51,6 +52,7 @@ import { Sections } from "./components/Sections";
 import { Settings } from "./components/Settings";
 import { AllowedDomainsSettings } from "./components/settings/AllowedDomainsSettings";
 import { ApiTokenSettings } from "./components/settings/ApiTokenSettings";
+import { BackupSettings } from "./components/settings/BackupSettings";
 import { EmailSettings } from "./components/settings/EmailSettings";
 import { GeneralSettings } from "./components/settings/GeneralSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
@@ -77,7 +79,6 @@ import {
 	fetchTranslations,
 	fetchMediaList,
 	uploadMedia,
-	deleteMedia,
 	fetchCollections,
 	fetchCollection,
 	createCollection,
@@ -120,6 +121,7 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { runBulkAction } from "./lib/bulk";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
@@ -130,6 +132,28 @@ import { UsersPage } from "./routes/users";
 // Router context type
 interface RouterContext {
 	queryClient: QueryClient;
+}
+
+interface ContentUpdateChanges {
+	data?: Record<string, unknown>;
+	slug?: string;
+	authorId?: string | null;
+	bylines?: BylineCreditInput[];
+	skipRevision?: boolean;
+	seo?: ContentSeoInput;
+}
+
+interface ContentUpdateMutationInput {
+	targetId: string;
+	targetLocale?: string;
+	source: "editor" | "auxiliary";
+	changes: ContentUpdateChanges;
+}
+
+interface AutosaveMutationInput {
+	targetId: string;
+	targetLocale?: string;
+	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines">;
 }
 
 function patchAutosaveQueries(
@@ -251,7 +275,7 @@ function RootComponent() {
 	});
 
 	if (isLoading) {
-		return <LoadingScreen />;
+		return <ConfigurationLoadingScreen />;
 	}
 
 	if (error || !manifest) {
@@ -445,6 +469,80 @@ function ContentListPage() {
 		},
 	});
 
+	// Bulk actions run the existing per-entry endpoints through a
+	// concurrency-limited queue (runBulkAction) — selection persists across
+	// pagination, so an unbounded fan-out could fire hundreds of parallel
+	// requests. Per-id failures are collected (not thrown) and returned to
+	// ContentList, which keeps the failed rows selected for a retry; the
+	// toasts surface the failure count and the list is refetched either way.
+	const bulkPublishMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) =>
+				publishContent(collection, id, { locale: activeLocale }),
+			);
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Published ${total} items`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to publish`,
+					description: t`${failedIds.length} of ${total} could not be published`,
+					type: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+		},
+	});
+
+	const bulkUnpublishMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) =>
+				unpublishContent(collection, id, { locale: activeLocale }),
+			);
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Moved ${total} items to draft`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to update`,
+					description: t`${failedIds.length} of ${total} could not be updated`,
+					type: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+		},
+	});
+
+	const bulkDeleteMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) => deleteContent(collection, id));
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Moved ${total} items to trash`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to delete`,
+					description: t`${failedIds.length} of ${total} could not be deleted`,
+					type: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+		},
+	});
+
 	const items = React.useMemo(() => {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
@@ -453,6 +551,11 @@ function ContentListPage() {
 	// because filters don't change within a fetch cycle. Fall back to the
 	// loaded count so old servers (pre-total) still render a denominator.
 	const total = data?.pages[0]?.total ?? items.length;
+
+	// Keep every hook above the early returns below — a render that takes a
+	// guard (e.g. `error`) must run the same number of hooks as a full render,
+	// or React throws #300 "Rendered fewer hooks than expected" (#1415).
+	const handleLoadMore = React.useCallback(() => void fetchNextPage(), [fetchNextPage]);
 
 	if (!manifest) {
 		return <LoadingScreen />;
@@ -486,7 +589,7 @@ function ContentListPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
 			hasMore={!!hasNextPage}
-			onLoadMore={React.useCallback(() => void fetchNextPage(), [fetchNextPage])}
+			onLoadMore={handleLoadMore}
 			trashedCount={trashedData?.items?.length || 0}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
@@ -507,6 +610,9 @@ function ContentListPage() {
 			onAuthorFilterChange={setAuthorFilter}
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
+			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
 		/>
 	);
 }
@@ -516,6 +622,7 @@ const contentNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/new",
 	component: ContentNewPage,
+	staticData: { fullBleed: true },
 	validateSearch: (search: Record<string, unknown>) => ({
 		locale: typeof search.locale === "string" ? search.locale : undefined,
 	}),
@@ -589,6 +696,27 @@ function ContentNewPage() {
 		},
 	});
 
+	// Stable handler identities: these flow into the memoized
+	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
+	// would defeat the memo. mutate/mutateAsync are referentially stable.
+	const handleSave = React.useCallback(
+		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+			createMutation.mutate(payload);
+		},
+		[createMutation.mutate],
+	);
+
+	const handleQuickCreateByline = React.useCallback(
+		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		[createBylineMutation.mutateAsync],
+	);
+
+	const handleQuickEditByline = React.useCallback(
+		(bylineId: string, input: { slug: string; displayName: string }) =>
+			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		[updateBylineMutation.mutateAsync],
+	);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -598,14 +726,6 @@ function ContentNewPage() {
 	if (!collectionConfig) {
 		return <NotFoundPage message={`Collection "${collection}" not found`} />;
 	}
-
-	const handleSave = (payload: {
-		data: Record<string, unknown>;
-		slug?: string;
-		bylines?: BylineCreditInput[];
-	}) => {
-		createMutation.mutate(payload);
-	};
 
 	return (
 		<ContentEditor
@@ -622,14 +742,8 @@ function ContentNewPage() {
 			availableBylinesLoaded={bylinesLoaded}
 			selectedBylines={selectedBylines}
 			onBylinesChange={setSelectedBylines}
-			onQuickCreateByline={async (input) => {
-				const created = await createBylineMutation.mutateAsync(input);
-				return created;
-			}}
-			onQuickEditByline={async (bylineId, input) => {
-				const updated = await updateBylineMutation.mutateAsync({ id: bylineId, ...input });
-				return updated;
-			}}
+			onQuickCreateByline={handleQuickCreateByline}
+			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
 		/>
 	);
@@ -640,6 +754,7 @@ const contentEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/$id",
 	component: ContentEditPage,
+	staticData: { fullBleed: true },
 	validateSearch: (search) => ({
 		...(typeof search.field === "string" && { field: search.field }),
 		...(typeof search.locale === "string" && { locale: search.locale }),
@@ -755,6 +870,24 @@ function ContentEditPage() {
 	// transient `undefined` doesn't populate the cache with default-locale
 	// data.
 	const itemLocale = rawItem?.locale ?? undefined;
+	const autosaveCompletionSequenceRef = React.useRef(0);
+	const [autosaveCompletion, setAutosaveCompletion] = React.useState({ entryId: "", token: 0 });
+	const [editorSavePendingCounts, setEditorSavePendingCounts] = React.useState<
+		ReadonlyMap<string, number>
+	>(new Map());
+	const updateEditorSavePendingCount = React.useCallback((entryId: string, delta: 1 | -1) => {
+		setEditorSavePendingCounts((previous) => {
+			const next = new Map(previous);
+			const count = Math.max((next.get(entryId) ?? 0) + delta, 0);
+			if (count === 0) next.delete(entryId);
+			else next.set(entryId, count);
+			return next;
+		});
+	}, []);
+	const recordAutosaveCompletion = React.useCallback((entryId: string) => {
+		autosaveCompletionSequenceRef.current += 1;
+		setAutosaveCompletion({ entryId, token: autosaveCompletionSequenceRef.current });
+	}, []);
 	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
 		queryKey: ["bylines", "picker", itemLocale ?? null],
 		queryFn: () => fetchBylines({ locale: itemLocale, limit: 100 }),
@@ -780,26 +913,20 @@ function ContentEditPage() {
 		},
 	});
 
-	const updateMutation = useMutation({
-		mutationFn: (data: {
-			data?: Record<string, unknown>;
-			slug?: string;
-			authorId?: string | null;
-			bylines?: BylineCreditInput[];
-			skipRevision?: boolean;
-			seo?: ContentSeoInput;
-		}) => updateContent(collection, id, data, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: () => {
+	const handleContentUpdateSuccess = React.useCallback(
+		(targetId: string) => {
 			// Invalidate by (collection, id) prefix without the locale object: the
 			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
 			// i18n is off) while `rawItem.locale` is the DB default "en", so a
 			// locale-scoped invalidation key would not match and the item would never
 			// refetch — leaving the publish/save buttons stale until a hard refresh.
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id],
+				queryKey: ["content", collection, targetId],
 			});
 			// Also invalidate revisions since a new one was created
-			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["revisions", collection, targetId],
+			});
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
 			if (rawItem?.draftRevisionId) {
 				void queryClient.invalidateQueries({
@@ -807,41 +934,59 @@ function ContentEditPage() {
 				});
 			}
 		},
-		onError: (error) => {
+		[collection, queryClient, rawItem?.draftRevisionId],
+	);
+	const handleContentUpdateError = React.useCallback(
+		(error: unknown) => {
 			toastManager.add({
 				title: t`Failed to save`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
+		[t, toastManager],
+	);
+
+	const updateMutation = useMutation({
+		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
+			updateContent(collection, targetId, changes, { locale: targetLocale }),
+		onMutate: (variables) => {
+			if (variables.source === "editor") {
+				updateEditorSavePendingCount(variables.targetId, 1);
+			}
+		},
+		onSuccess: (_, variables) => {
+			handleContentUpdateSuccess(variables.targetId);
+		},
+		onError: handleContentUpdateError,
+		onSettled: (_, __, variables) => {
+			if (variables.source === "editor") {
+				updateEditorSavePendingCount(variables.targetId, -1);
+			}
+		},
 	});
 
 	// Autosave mutation - skips revision creation
-	const [lastAutosaveAt, setLastAutosaveAt] = React.useState<Date | null>(null);
 	const autosaveMutation = useMutation({
-		mutationFn: (data: {
-			data?: Record<string, unknown>;
-			slug?: string;
-			bylines?: BylineCreditInput[];
-		}) =>
+		mutationFn: ({ targetId, targetLocale, changes }: AutosaveMutationInput) =>
 			updateContent(
 				collection,
-				id,
-				{ ...data, skipRevision: true },
-				{ locale: rawItem?.locale ?? activeLocale },
+				targetId,
+				{ ...changes, skipRevision: true },
+				{ locale: targetLocale },
 			),
 		onSuccess: (savedItem, variables) => {
+			recordAutosaveCompletion(variables.targetId);
 			patchAutosaveQueries(queryClient, {
 				collection,
-				id,
+				id: variables.targetId,
 				savedItem,
 				payload: {
-					data: variables.data,
-					slug: variables.slug,
+					data: variables.changes.data,
+					slug: variables.changes.slug,
 				},
-				locale: rawItem?.locale ?? activeLocale,
+				locale: variables.targetLocale,
 			});
-			setLastAutosaveAt(new Date());
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
 		},
@@ -1006,6 +1151,88 @@ function ContentEditPage() {
 
 	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
+	// Stable handler identities: these flow into the memoized
+	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
+	// (twice per autosave cycle) would defeat the memo. mutate/mutateAsync
+	// are referentially stable.
+	const handleSave = React.useCallback(
+		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+			updateMutation.mutate({
+				targetId: id,
+				targetLocale: rawItem?.locale ?? activeLocale,
+				source: "editor",
+				changes: payload,
+			});
+		},
+		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+	);
+
+	const handleAutosave = React.useCallback(
+		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+			autosaveMutation.mutate({
+				targetId: id,
+				targetLocale: rawItem?.locale ?? activeLocale,
+				changes: payload,
+			});
+		},
+		[activeLocale, autosaveMutation.mutate, id, rawItem?.locale],
+	);
+	const handleAuthorChange = React.useCallback(
+		(authorId: string | null) => {
+			updateMutation.mutate({
+				targetId: id,
+				targetLocale: rawItem?.locale ?? activeLocale,
+				source: "auxiliary",
+				changes: { authorId },
+			});
+		},
+		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+	);
+
+	const handleSeoChange = React.useCallback(
+		(seo: ContentSeoInput) => {
+			updateMutation.mutate({
+				targetId: id,
+				targetLocale: rawItem?.locale ?? activeLocale,
+				source: "auxiliary",
+				changes: { seo },
+			});
+		},
+		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+	);
+
+	const handlePublish = React.useCallback(() => publishMutation.mutate(), [publishMutation.mutate]);
+	const handleUnpublish = React.useCallback(
+		() => unpublishMutation.mutate(),
+		[unpublishMutation.mutate],
+	);
+	const handleDiscardDraft = React.useCallback(
+		() => discardDraftMutation.mutate(),
+		[discardDraftMutation.mutate],
+	);
+	const handleSchedule = React.useCallback(
+		(scheduledAt: string) => scheduleMutation.mutate(scheduledAt),
+		[scheduleMutation.mutate],
+	);
+	const handleUnschedule = React.useCallback(
+		() => unscheduleMutation.mutate(),
+		[unscheduleMutation.mutate],
+	);
+	const handleDelete = React.useCallback(() => deleteMutation.mutate(), [deleteMutation.mutate]);
+	const handleTranslate = React.useCallback(
+		(locale: string) => translateMutation.mutate(locale),
+		[translateMutation.mutate],
+	);
+	const handleQuickCreateByline = React.useCallback(
+		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		[createBylineMutation.mutateAsync],
+	);
+	const handleQuickEditByline = React.useCallback(
+		(bylineId: string, input: { slug: string; displayName: string }) =>
+			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		[updateBylineMutation.mutateAsync],
+	);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -1020,30 +1247,6 @@ function ContentEditPage() {
 		return <LoadingScreen />;
 	}
 
-	const handleSave = (payload: {
-		data: Record<string, unknown>;
-		slug?: string;
-		bylines?: BylineCreditInput[];
-	}) => {
-		updateMutation.mutate(payload);
-	};
-
-	const handleAutosave = (payload: {
-		data: Record<string, unknown>;
-		slug?: string;
-		bylines?: BylineCreditInput[];
-	}) => {
-		autosaveMutation.mutate(payload);
-	};
-
-	const handleAuthorChange = (authorId: string | null) => {
-		updateMutation.mutate({ authorId });
-	};
-
-	const handleSeoChange = (seo: ContentSeoInput) => {
-		updateMutation.mutate({ seo });
-	};
-
 	return (
 		<ContentEditor
 			collection={collection}
@@ -1051,17 +1254,21 @@ function ContentEditPage() {
 			item={item}
 			fields={collectionConfig.fields}
 			isSaving={updateMutation.isPending}
+			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
 			isAutosaving={autosaveMutation.isPending}
-			lastAutosaveAt={lastAutosaveAt}
-			onPublish={() => publishMutation.mutate()}
-			onUnpublish={() => unpublishMutation.mutate()}
-			onDiscardDraft={() => discardDraftMutation.mutate()}
-			onSchedule={(scheduledAt) => scheduleMutation.mutate(scheduledAt)}
-			onUnschedule={() => unscheduleMutation.mutate()}
+			isAutosaveFeedbackActive={
+				autosaveMutation.isPending && autosaveMutation.variables?.targetId === id
+			}
+			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
+			onPublish={handlePublish}
+			onUnpublish={handleUnpublish}
+			onDiscardDraft={handleDiscardDraft}
+			onSchedule={handleSchedule}
+			onUnschedule={handleUnschedule}
 			isScheduling={scheduleMutation.isPending}
-			onDelete={() => deleteMutation.mutate()}
+			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
@@ -1071,20 +1278,14 @@ function ContentEditPage() {
 			onAuthorChange={handleAuthorChange}
 			i18n={i18n}
 			translations={translationsData?.translations}
-			onTranslate={(locale) => translateMutation.mutate(locale)}
+			onTranslate={handleTranslate}
 			pluginBlocks={pluginBlocks}
 			hasSeo={collectionConfig.hasSeo}
 			onSeoChange={handleSeoChange}
 			availableBylines={bylinesData?.items}
 			availableBylinesLoaded={bylinesLoaded}
-			onQuickCreateByline={async (input) => {
-				const created = await createBylineMutation.mutateAsync(input);
-				return created;
-			}}
-			onQuickEditByline={async (bylineId, input) => {
-				const updated = await updateBylineMutation.mutateAsync({ id: bylineId, ...input });
-				return updated;
-			}}
+			onQuickCreateByline={handleQuickCreateByline}
+			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
 		/>
 	);
@@ -1126,13 +1327,6 @@ function MediaPage() {
 		},
 	});
 
-	const deleteMutation = useMutation({
-		mutationFn: (id: string) => deleteMedia(id),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["media"] });
-		},
-	});
-
 	const items = React.useMemo(() => {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
@@ -1148,7 +1342,6 @@ function MediaPage() {
 			hasMore={!!hasNextPage}
 			onLoadMore={() => void fetchNextPage()}
 			onUpload={(file) => uploadMutation.mutate(file)}
-			onDelete={(id) => deleteMutation.mutate(id)}
 			onLocalSearchChange={setSearch}
 			onLocalMimeFilterChange={setMimeFilter}
 		/>
@@ -1360,6 +1553,13 @@ const emailSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/email",
 	component: EmailSettings,
+});
+
+// Backup settings route
+const backupSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/backups",
+	component: BackupSettings,
 });
 
 // General settings route
@@ -1816,13 +2016,27 @@ function ContentTypesEditPage() {
 		<ContentTypeEditor
 			collection={collection}
 			isSaving={updateMutation.isPending}
-			onSave={(input) => updateMutation.mutate(input as UpdateCollectionInput)}
+			onSave={(input) => updateMutation.mutate(input)}
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}
 			onDeleteField={(fieldSlug) => deleteFieldMutation.mutate(fieldSlug)}
 			onReorderFields={(fieldSlugs) => reorderFieldsMutation.mutate(fieldSlugs)}
 		/>
 	);
+}
+
+// Auto-generated plugin settings route (from admin.settingsSchema).
+// Lives under /plugins-manager so it can never shadow a plugin's own
+// admin pages (which own the /plugins/$pluginId/* namespace).
+const pluginSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/plugins-manager/$pluginId/settings",
+	component: PluginSettingsPage,
+});
+
+function PluginSettingsPage() {
+	const { pluginId } = useParams({ from: "/_admin/plugins-manager/$pluginId/settings" });
+	return <PluginSettings pluginId={pluginId} />;
 }
 
 // Plugin page route
@@ -1869,6 +2083,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	menuListRoute,
 	menuEditorRoute,
 	pluginManagerRoute,
+	pluginSettingsRoute,
 	marketplaceDetailRoute,
 	marketplaceBrowseRoute,
 	themeMarketplaceBrowseRoute,
@@ -1890,6 +2105,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	allowedDomainsSettingsRoute,
 	apiTokenSettingsRoute,
 	emailSettingsRoute,
+	backupSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);
@@ -1921,6 +2137,22 @@ declare module "@tanstack/react-router" {
 }
 
 // Shared components
+
+export function ConfigurationLoadingScreen() {
+	const { t } = useLingui();
+	return (
+		<div className="emdash-configuration-loader">
+			<div className="loader-inner">
+				<div
+					className="spinner emdash-configuration-spinner"
+					role="status"
+					aria-label={t`Loading`}
+				/>
+				<p className="emdash-configuration-label">{t`Loading configuration...`}</p>
+			</div>
+		</div>
+	);
+}
 
 function LoadingScreen() {
 	const { t } = useLingui();

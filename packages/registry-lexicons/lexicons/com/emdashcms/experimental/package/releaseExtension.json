@@ -12,6 +12,42 @@
 					"type": "ref",
 					"ref": "#declaredAccess",
 					"description": "Structured per-category access manifest. The sandbox enforces every operation declared here at runtime."
+				},
+				"provenance": {
+					"type": "ref",
+					"ref": "#provenance",
+					"description": "Optional reference to a provenance document for this release."
+				}
+			}
+		},
+		"provenance": {
+			"type": "object",
+			"description": "Provenance document reference. Unknown predicate types are retained as present-but-unverifiable; consumers understand https://slsa.dev/provenance/v1 in v1. Lexicon validates URI syntax and field lengths; consumers validate multibase-multihash syntax and source and builder canonicalization.",
+			"required": ["predicateType", "url", "checksum", "sourceRepository", "builderId"],
+			"properties": {
+				"predicateType": {
+					"type": "string",
+					"maxLength": 1024
+				},
+				"url": {
+					"type": "string",
+					"format": "uri",
+					"maxLength": 2048
+				},
+				"checksum": {
+					"type": "string",
+					"description": "Multibase-encoded multihash of the provenance document bytes. Consumers validate the multibase-multihash syntax and supported hash function.",
+					"maxLength": 256
+				},
+				"sourceRepository": {
+					"type": "string",
+					"format": "uri",
+					"maxLength": 1024
+				},
+				"builderId": {
+					"type": "string",
+					"format": "uri",
+					"maxLength": 1024
 				}
 			}
 		},
@@ -23,6 +59,11 @@
 					"type": "ref",
 					"ref": "#contentAccess",
 					"description": "Access to site content (posts, pages, custom collections)."
+				},
+				"taxonomies": {
+					"type": "ref",
+					"ref": "#taxonomiesAccess",
+					"description": "Access to taxonomy definitions and terms."
 				},
 				"media": {
 					"type": "ref",
@@ -74,6 +115,21 @@
 		"contentWriteConstraints": {
 			"type": "object",
 			"description": "Constraint object for content.write. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
+		},
+		"taxonomiesAccess": {
+			"type": "object",
+			"description": "Operations under taxonomies. Read-only: there is no plugin-facing taxonomy write operation.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#taxonomiesReadConstraints",
+					"description": "Plugin may read taxonomy definitions, their terms, and the terms assigned to content entries."
+				}
+			}
+		},
+		"taxonomiesReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for taxonomies.read. No constraint keys are normatively defined here."
 		},
 		"mediaAccess": {
 			"type": "object",

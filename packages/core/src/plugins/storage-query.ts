@@ -8,8 +8,7 @@
 
 import type { Kysely } from "kysely";
 
-import { jsonExtractExpr } from "../database/dialect-helpers.js";
-import { validateJsonFieldName } from "../database/validate.js";
+import { pluginDataExtractExpr, pluginDataOrderExpr } from "../database/dialect-helpers.js";
 import type { WhereClause, WhereValue, RangeFilter, InFilter, StartsWithFilter } from "./types.js";
 
 /**
@@ -48,6 +47,15 @@ export function isInFilter(value: WhereValue): value is InFilter {
 export function isStartsWithFilter(value: WhereValue): value is StartsWithFilter {
 	if (typeof value !== "object" || value === null) return false;
 	return "startsWith" in value && typeof value.startsWith === "string";
+}
+
+/**
+ * Escape LIKE pattern metacharacters so a startsWith prefix matches
+ * literally. Without this, `%` and `_` in the prefix act as wildcards
+ * (e.g. `{ startsWith: "50%" }` would match "50x off").
+ */
+export function escapeLikePattern(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
 }
 
 /**
@@ -108,15 +116,34 @@ export function validateOrderByClause(
 }
 
 /**
- * SQL expression for extracting JSON field.
+ * SQL expression for extracting a queryable field from the `_plugin_storage.data`
+ * column.
  *
- * Validates the field name before interpolation to prevent SQL injection
- * via crafted JSON path expressions.
+ * Delegates to `pluginDataExtractExpr`, which validates the field name before
+ * interpolation and applies the dialect-correct extraction: a `::jsonb` cast on
+ * Postgres (the `data` column is `text`) plus an optional type-guarded
+ * `::numeric` cast so numeric comparisons don't fall back to lexical text
+ * ordering.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function jsonExtract(db: Kysely<any>, field: string): string {
-	validateJsonFieldName(field, "query field name");
-	return jsonExtractExpr(db, "data", field);
+export function jsonExtract(
+	db: Kysely<any>,
+	field: string,
+	options?: { numeric?: boolean },
+): string {
+	return pluginDataExtractExpr(db, field, options);
+}
+
+/**
+ * SQL expression for ordering by a `_plugin_storage.data` field.
+ *
+ * Delegates to `pluginDataOrderExpr`, which orders over the jsonb-native value
+ * on Postgres so numeric fields sort numerically (not lexically) while staying
+ * total across heterogeneous data. SQLite keeps `json_extract` (already numeric).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function jsonOrderExtract(db: Kysely<any>, field: string): string {
+	return pluginDataOrderExpr(db, field);
 }
 
 /**
@@ -128,33 +155,45 @@ export function buildCondition(
 	field: string,
 	value: WhereValue,
 ): { sql: string; params: unknown[] } {
-	const extract = jsonExtract(db, field);
+	// Numeric-vs-text is decided per condition from the JS type of the bound
+	// value. On Postgres a text extract compared to a bound number would sort
+	// lexically (`'9' >= '10'` is TRUE); a type-guarded `::numeric` cast on the
+	// extract fixes it. String/boolean operands keep text comparison. SQLite is
+	// unaffected — `json_extract` already returns a typed value.
+	const extractFor = (numeric: boolean): string => jsonExtract(db, field, { numeric });
 
 	if (value === null) {
-		return { sql: `${extract} IS NULL`, params: [] };
+		return { sql: `${extractFor(false)} IS NULL`, params: [] };
 	}
 
-	if (typeof value === "string" || typeof value === "number") {
-		return { sql: `${extract} = ?`, params: [value] };
+	if (typeof value === "number") {
+		return { sql: `${extractFor(true)} = ?`, params: [value] };
+	}
+
+	if (typeof value === "string") {
+		return { sql: `${extractFor(false)} = ?`, params: [value] };
 	}
 
 	if (typeof value === "boolean") {
 		// JSON booleans are stored as true/false strings
-		return { sql: `${extract} = ?`, params: [value] };
+		return { sql: `${extractFor(false)} = ?`, params: [value] };
 	}
 
 	if (isInFilter(value)) {
+		const numeric = value.in.length > 0 && value.in.every((v) => typeof v === "number");
 		const placeholders = value.in.map(() => "?").join(", ");
 		return {
-			sql: `${extract} IN (${placeholders})`,
+			sql: `${extractFor(numeric)} IN (${placeholders})`,
 			params: value.in,
 		};
 	}
 
 	if (isStartsWithFilter(value)) {
+		// ESCAPE '\' works on both SQLite and PostgreSQL. startsWith is a string
+		// operation, so always compare as text.
 		return {
-			sql: `${extract} LIKE ?`,
-			params: [`${value.startsWith}%`],
+			sql: `${extractFor(false)} LIKE ? ESCAPE '\\'`,
+			params: [`${escapeLikePattern(value.startsWith)}%`],
 		};
 	}
 
@@ -162,22 +201,17 @@ export function buildCondition(
 		const conditions: string[] = [];
 		const params: unknown[] = [];
 
-		if (value.gt !== undefined) {
-			conditions.push(`${extract} > ?`);
-			params.push(value.gt);
-		}
-		if (value.gte !== undefined) {
-			conditions.push(`${extract} >= ?`);
-			params.push(value.gte);
-		}
-		if (value.lt !== undefined) {
-			conditions.push(`${extract} < ?`);
-			params.push(value.lt);
-		}
-		if (value.lte !== undefined) {
-			conditions.push(`${extract} <= ?`);
-			params.push(value.lte);
-		}
+		// Each bound is cast to numeric only when its own operand is a number, so
+		// a mixed range (e.g. a string lower bound) stays correct per side.
+		const pushBound = (op: string, bound: string | number): void => {
+			conditions.push(`${extractFor(typeof bound === "number")} ${op} ?`);
+			params.push(bound);
+		};
+
+		if (value.gt !== undefined) pushBound(">", value.gt);
+		if (value.gte !== undefined) pushBound(">=", value.gte);
+		if (value.lt !== undefined) pushBound("<", value.lt);
+		if (value.lte !== undefined) pushBound("<=", value.lte);
 
 		return {
 			sql: conditions.join(" AND "),
@@ -229,7 +263,7 @@ export function buildOrderByClause(
 	const clauses: string[] = [];
 
 	for (const [field, direction] of Object.entries(orderBy)) {
-		clauses.push(`${jsonExtract(db, field)} ${direction.toUpperCase()}`);
+		clauses.push(`${jsonOrderExtract(db, field)} ${direction.toUpperCase()}`);
 	}
 
 	if (clauses.length === 0) {

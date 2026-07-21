@@ -73,6 +73,7 @@
 	--text-color-kumo-success: #00a32a;
 	--text-color-kumo-danger: #d63638;
 	--text-color-kumo-warning: #dba617;
+	--text-color-kumo-info: #72aee6;
 }
 
 /**
@@ -107,6 +108,94 @@
 body {
 	background-color: var(--color-kumo-elevated);
 	color: var(--text-color-kumo-default);
+}
+
+/*
+ * Mirrors the pre-React EmDash boot loader exactly. Keep these values in sync
+ * with packages/core/src/astro/routes/admin.astro so the two loading stages do
+ * not visibly shift or change animation as React takes over.
+ */
+.emdash-configuration-loader {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	width: 100%;
+	background: var(--color-kumo-elevated);
+}
+
+.emdash-configuration-loader .loader-inner {
+	text-align: center;
+}
+
+.emdash-configuration-loader .spinner {
+	width: 24px;
+	height: 24px;
+	margin: 0 auto;
+	border: 2.5px solid var(--color-kumo-line);
+	border-top-color: var(--text-color-kumo-subtle);
+	border-radius: 50%;
+	animation: emdash-configuration-spin 0.8s linear infinite;
+}
+
+.emdash-configuration-loader p {
+	margin-top: 1rem;
+	font-family: var(--font-emdash, ui-sans-serif, system-ui, sans-serif);
+	font-size: 0.875rem;
+	color: var(--text-color-kumo-subtle);
+}
+
+@keyframes emdash-configuration-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Keep heading choices visibly distinct from the dropdown surface. */
+[data-emdash-heading-item][data-highlighted] {
+	background-color: var(--color-kumo-interact) !important;
+}
+
+/* Transitions.dev — Text states swap */
+:root {
+	--text-swap-dur: 150ms;
+	--text-swap-translate-y: 4px;
+	--text-swap-blur: 2px;
+	--text-swap-ease: ease-in-out;
+}
+
+.t-text-swap {
+	display: inline-block;
+	line-height: 1;
+	transform: translateY(0);
+	filter: blur(0);
+	opacity: 1;
+	transition:
+		transform var(--text-swap-dur) var(--text-swap-ease),
+		filter var(--text-swap-dur) var(--text-swap-ease),
+		opacity var(--text-swap-dur) var(--text-swap-ease);
+	will-change: transform, filter, opacity;
+}
+
+.t-text-swap.is-exit {
+	transform: translateY(calc(var(--text-swap-translate-y) * -1));
+	filter: blur(var(--text-swap-blur));
+	opacity: 0;
+}
+
+.t-text-swap.is-enter-start {
+	transform: translateY(var(--text-swap-translate-y));
+	filter: blur(var(--text-swap-blur));
+	opacity: 0;
+	transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.t-text-swap {
+		transition: none !important;
+	}
 }
 
 [data-sidebar-popup] {
@@ -181,11 +270,6 @@ body {
 .spotlight-mode .ProseMirror > .has-focus {
 	opacity: 1;
 	transition: opacity 0.2s ease;
-}
-
-/* Add left padding to accommodate block handles */
-.ProseMirror {
-	padding-left: 2.5rem;
 }
 
 /* Block dragging styles */
@@ -276,6 +360,11 @@ body {
 
 .ProseMirror.resize-cursor {
 	cursor: col-resize;
+}
+
+/* TipTap owns slash-menu focus, so Base UI's portal guards must not enter the Tab order. */
+.slash-command-menu-positioner > [data-base-ui-focus-guard] {
+	display: none;
 }
 
 /**

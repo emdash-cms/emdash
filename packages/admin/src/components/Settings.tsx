@@ -9,6 +9,7 @@ import {
 	GlobeSimple,
 	Key,
 	Envelope,
+	DownloadSimple,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -114,6 +115,12 @@ export function Settings() {
 					icon={<Envelope className="h-5 w-5" />}
 					title={t`Email`}
 					description={t`View email provider status and send test emails`}
+				/>
+				<SettingsLink
+					to="/settings/backups"
+					icon={<DownloadSimple className="h-5 w-5" />}
+					title={t`Backups`}
+					description={t`Download backups and schedule automatic backups to storage`}
 				/>
 			</div>
 

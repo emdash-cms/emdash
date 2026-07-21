@@ -8,6 +8,8 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { RouteMeta } from "../plugins/routes.js";
+
 // Re-export core types
 export type {
 	ContentItem,
@@ -268,6 +270,7 @@ export interface EmDashHandlers {
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
+			taxonomies?: Record<string, string[]>;
 			createdAt?: string | null;
 			publishedAt?: string | null;
 		},
@@ -290,6 +293,7 @@ export interface EmDashHandlers {
 				canonical?: string | null;
 				noIndex?: boolean;
 			};
+			taxonomies?: Record<string, string[]>;
 			publishedAt?: string | null;
 			_rev?: string;
 		},
@@ -408,8 +412,52 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
-	// Plugin route metadata (for auth decisions before dispatch)
-	getPluginRouteMeta: (pluginId: string, path: string) => { public: boolean } | null;
+	// Plugin route metadata (for auth/caching decisions before dispatch)
+	getPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
+	getEnabledPluginMcpTools: () => Promise<
+		Array<{
+			pluginId: string;
+			name: string;
+			description: string;
+			route: string;
+			permission: string;
+			destructive: boolean;
+			inputSchema: import("zod").ZodType;
+			outputSchema?: import("zod").ZodType;
+		}>
+	>;
+	getPluginMcpTools: (pluginId?: string) => Promise<
+		Array<{
+			pluginId: string;
+			name: string;
+			description: string;
+			route: string;
+			permission: string;
+			destructive: boolean;
+			inputSchema: import("zod").ZodType;
+			outputSchema?: import("zod").ZodType;
+		}>
+	>;
+	serializePluginMcpConsent: (
+		tools: Awaited<ReturnType<EmDashHandlers["getPluginMcpTools"]>>,
+		pluginId: string,
+	) => string;
+	handlePluginMcpTool: (
+		pluginId: string,
+		toolName: string,
+		route: string,
+		input: unknown,
+		actorId: string,
+		request: Request,
+	) => Promise<HandlerResponse>;
+	handlePluginMcpDenied: (
+		pluginId: string,
+		toolName: string,
+		route: string,
+		actorId: string,
+		request: Request,
+		reason: string,
+	) => Promise<void>;
 
 	// Media provider handlers
 	getMediaProvider: (providerId: string) => import("../media/types.js").MediaProvider | undefined;
@@ -433,6 +481,10 @@ export interface EmDashHandlers {
 
 	// Configured plugins (for plugin management)
 	configuredPlugins: import("../plugins/types.js").ResolvedPlugin[];
+
+	// Statically-sandboxed plugin entries (registered via `sandboxed: []`),
+	// surfaced through the admin plugin management API alongside configured plugins.
+	sandboxedPluginEntries: import("../emdash-runtime.js").SandboxedPluginEntry[];
 
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;

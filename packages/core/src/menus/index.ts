@@ -235,7 +235,23 @@ async function resolveMenuItem(
 				break;
 
 			case "collection":
-				url = `/${item.reference_collection}/`;
+				// Two shapes share this type: the admin content picker stores
+				// entries from custom collections as "collection" with a
+				// reference_id, while archive links carry only the collection
+				// slug. Entry references resolve like page/post items.
+				if (!item.reference_collection) return null;
+				if (item.reference_id) {
+					url = await resolveContentUrl(
+						item.reference_collection,
+						item.reference_id,
+						db,
+						urlPatterns,
+						locale,
+					);
+					if (url === null) return null;
+				} else {
+					url = `/${item.reference_collection}/`;
+				}
 				break;
 
 			default:

@@ -8,7 +8,7 @@
 import { Badge, Button, Checkbox, Input, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, Check, Trash, Warning, ChatCircle } from "@phosphor-icons/react";
+import { MagnifyingGlass, Check, Trash, Warning } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type {
@@ -18,6 +18,7 @@ import type {
 	BulkAction,
 } from "../../lib/api/comments.js";
 import { cn } from "../../lib/utils.js";
+import { ADMIN_NAV_ICONS } from "../admin-navigation-icons.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { CommentDetail } from "./CommentDetail.js";
@@ -142,7 +143,7 @@ export function CommentInbox({
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
-					<ChatCircle className="h-6 w-6" />
+					<ADMIN_NAV_ICONS.comments className="h-6 w-6" />
 					<h1 className="text-2xl font-bold">{t`Comments`}</h1>
 					{total > 0 && (
 						<span className="text-sm text-kumo-subtle">
@@ -490,7 +491,7 @@ function CommentRow({
 							onClick={() => onStatusChange(comment.id, "approved")}
 							disabled={isStatusPending}
 						>
-							<Check className="h-4 w-4 text-green-600" />
+							<Check className="h-4 w-4 text-kumo-success" />
 						</Button>
 					)}
 					{comment.status !== "spam" && (
@@ -502,7 +503,7 @@ function CommentRow({
 							onClick={() => onStatusChange(comment.id, "spam")}
 							disabled={isStatusPending}
 						>
-							<Warning className="h-4 w-4 text-orange-500" />
+							<Warning className="h-4 w-4 text-kumo-warning" />
 						</Button>
 					)}
 					{comment.status !== "trash" && (

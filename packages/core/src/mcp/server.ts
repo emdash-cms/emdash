@@ -10,17 +10,19 @@
  */
 
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
-import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
+import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import {
 	bylineCreateBody,
 	bylineUpdateBody,
+	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
 } from "#api/schemas.js";
 
+import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
@@ -76,6 +78,35 @@ const settingsSeoSchema = z.object({
 		.describe("Bing Webmaster Tools verification token"),
 });
 
+const mediaUsageRepairToolSchema = z
+	.object({
+		scope: z.enum(["collection", "all"]).describe("Repair one collection or all collections"),
+		collection: z
+			.string()
+			.min(1)
+			.max(63)
+			.regex(COLLECTION_SLUG_PATTERN, "Invalid collection slug")
+			.optional()
+			.describe("Collection slug; required only when scope is collection"),
+	})
+	.strict()
+	.superRefine((input, ctx) => {
+		if (input.scope === "collection" && input.collection === undefined) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["collection"],
+				message: "Collection is required when scope is collection",
+			});
+		}
+		if (input.scope === "all" && input.collection !== undefined) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["collection"],
+				message: "Collection must be omitted when scope is all",
+			});
+		}
+	});
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -88,6 +119,7 @@ type HandlerResult = {
 
 type SuccessEnvelope = {
 	content: Array<{ type: "text"; text: string }>;
+	structuredContent?: Record<string, unknown>;
 	_meta?: Record<string, unknown>;
 };
 
@@ -450,7 +482,21 @@ function extractContentId(data: unknown): string | undefined {
 // Server factory
 // ---------------------------------------------------------------------------
 
-export function createMcpServer(): McpServer {
+export interface PluginMcpRegistration {
+	pluginId: string;
+	name: string;
+	description: string;
+	route: string;
+	permission: string;
+	destructive: boolean;
+	inputSchema: z.ZodType;
+	outputSchema?: z.ZodType;
+}
+
+export function createMcpServer(
+	pluginTools: PluginMcpRegistration[] = [],
+	request?: Request,
+): McpServer {
 	const server = new McpServer(
 		{ name: "emdash", version: "0.1.0" },
 		{ capabilities: { logging: {} } },
@@ -483,6 +529,78 @@ export function createMcpServer(): McpServer {
 			originalRegisterTool as unknown as (n: string, c: unknown, cb: typeof wrapped) => unknown
 		)(name, config, wrapped);
 	}) as typeof server.registerTool;
+
+	for (const tool of pluginTools) {
+		if (!(tool.permission in Permissions)) continue;
+		server.registerTool(
+			`${tool.pluginId}__${tool.name}`,
+			{
+				description: tool.description,
+				inputSchema: tool.inputSchema,
+				outputSchema: tool.outputSchema,
+				annotations: { destructiveHint: tool.destructive },
+			},
+			async (input, extra) => {
+				const payload = getExtra(extra);
+				const requiredScope = `mcp:tools:${tool.pluginId}`;
+				if (payload.tokenScopes && !hasScope(payload.tokenScopes, requiredScope)) {
+					if (request) {
+						await payload.emdash.handlePluginMcpDenied(
+							tool.pluginId,
+							tool.name,
+							tool.route,
+							payload.userId,
+							request,
+							`Missing scope: ${requiredScope}`,
+						);
+					}
+					throw new EmDashAuthError(
+						`Insufficient scope: requires ${requiredScope}`,
+						"INSUFFICIENT_SCOPE",
+					);
+				}
+				if (!hasPermission({ role: payload.userRole }, tool.permission as Permission)) {
+					if (request) {
+						await payload.emdash.handlePluginMcpDenied(
+							tool.pluginId,
+							tool.name,
+							tool.route,
+							payload.userId,
+							request,
+							`Missing permission: ${tool.permission}`,
+						);
+					}
+					throw new EmDashAuthError(
+						`Insufficient permission: requires ${tool.permission}`,
+						"INSUFFICIENT_PERMISSIONS",
+					);
+				}
+				if (!request) return respondError("INTERNAL_ERROR", "Missing MCP request context");
+				const result = await payload.emdash.handlePluginMcpTool(
+					tool.pluginId,
+					tool.name,
+					tool.route,
+					input,
+					payload.userId,
+					request,
+				);
+				if (!result.success) return unwrap(result);
+				if (tool.outputSchema) {
+					if (!result.data || typeof result.data !== "object" || Array.isArray(result.data)) {
+						return respondError(
+							"INVALID_PLUGIN_OUTPUT",
+							"Plugin tool output must be an object when outputSchema is declared",
+						);
+					}
+					return {
+						content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }],
+						structuredContent: result.data as Record<string, unknown>,
+					};
+				}
+				return respondData(result.data);
+			},
+		);
+	}
 
 	// =====================================================================
 	// Content tools
@@ -660,6 +778,12 @@ export function createMcpServer(): McpServer {
 					.describe(
 						"Bylines to credit. Each entry references an existing byline by id (see byline_list / byline_create) with an optional roleLabel. The first entry becomes the primary byline.",
 					),
+				taxonomies: z
+					.record(z.string(), z.array(z.string()))
+					.optional()
+					.describe(
+						"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Call taxonomy_list to see available taxonomies and taxonomy_list_terms to look up slugs. Missing keys leave that taxonomy unchanged.",
+					),
 			}),
 			annotations: { destructiveHint: false },
 		},
@@ -685,7 +809,7 @@ export function createMcpServer(): McpServer {
 			// Publishing requires publish permission — create as draft then publish
 			if (args.status === "published") {
 				const user = { id: userId, role: getExtra(extra).userRole };
-				if (!hasPermission(user, "content:publish_own" as Permission)) {
+				if (!hasPermission(user, "content:publish_own")) {
 					throw new EmDashAuthError(
 						"Insufficient permissions: publishing requires content:publish_own",
 						"INSUFFICIENT_PERMISSIONS",
@@ -698,6 +822,7 @@ export function createMcpServer(): McpServer {
 					locale: args.locale,
 					translationOf: args.translationOf,
 					bylines: args.bylines,
+					taxonomies: args.taxonomies,
 				});
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
@@ -715,6 +840,7 @@ export function createMcpServer(): McpServer {
 					locale: args.locale,
 					translationOf: args.translationOf,
 					bylines: args.bylines,
+					taxonomies: args.taxonomies,
 				}),
 			);
 		},
@@ -771,6 +897,12 @@ export function createMcpServer(): McpServer {
 					.describe(
 						"Replace the byline list for this item. The first entry becomes the primary byline. Pass an empty array to clear all bylines.",
 					),
+				taxonomies: z
+					.record(z.string(), z.array(z.string()))
+					.optional()
+					.describe(
+						"Replace taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Only named taxonomies are touched; other taxonomies are left unchanged. Pass an empty array to clear a taxonomy.",
+					),
 				publishedAt: z.iso
 					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
 					.nullish()
@@ -805,7 +937,7 @@ export function createMcpServer(): McpServer {
 			// route. Status-driven publishes are gated separately below.
 			if (args.publishedAt !== undefined) {
 				const user = { id: userId, role: userRole };
-				if (!hasPermission(user, "content:publish_any" as Permission)) {
+				if (!hasPermission(user, "content:publish_any")) {
 					throw new EmDashAuthError(
 						"Setting publishedAt requires content:publish_any permission",
 						"INSUFFICIENT_PERMISSIONS",
@@ -823,6 +955,7 @@ export function createMcpServer(): McpServer {
 					args.slug ||
 					args.seo !== undefined ||
 					args.bylines !== undefined ||
+					args.taxonomies !== undefined ||
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
@@ -832,6 +965,7 @@ export function createMcpServer(): McpServer {
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
+						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
 						_rev: args._rev,
 					});
@@ -847,6 +981,7 @@ export function createMcpServer(): McpServer {
 					args.slug ||
 					args.seo !== undefined ||
 					args.bylines !== undefined ||
+					args.taxonomies !== undefined ||
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
@@ -856,6 +991,7 @@ export function createMcpServer(): McpServer {
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
+						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
 						_rev: args._rev,
 					});
@@ -872,6 +1008,7 @@ export function createMcpServer(): McpServer {
 					locale: args.locale,
 					seo: args.seo,
 					bylines: args.bylines,
+					taxonomies: args.taxonomies,
 					publishedAt: args.publishedAt,
 					_rev: args._rev,
 				}),
@@ -1008,7 +1145,7 @@ export function createMcpServer(): McpServer {
 			// regardless of ownership (mirrors the REST PUT route's publishedAt gate).
 			if (args.publishedAt !== undefined) {
 				const user = { id: userId, role: userRole };
-				if (!hasPermission(user, "content:publish_any" as Permission)) {
+				if (!hasPermission(user, "content:publish_any")) {
 					throw new EmDashAuthError(
 						"Setting publishedAt requires content:publish_any permission",
 						"INSUFFICIENT_PERMISSIONS",
@@ -1775,9 +1912,8 @@ export function createMcpServer(): McpServer {
 				"caller is responsible for placing the file at `storageKey` (typically " +
 				"using a signed upload URL obtained from the admin UI or a separate API). " +
 				"This tool persists the metadata record so the file is discoverable via " +
-				"media_list / media_get and can be referenced by content. For binary " +
-				"uploads the MCP transport is not appropriate — use the signed-upload " +
-				"flow instead.",
+				"media_list / media_get and can be referenced by content. To upload the " +
+				"file itself, use media_upload (base64 data or a public URL) instead.",
 			inputSchema: z.object({
 				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
 				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
@@ -1811,6 +1947,70 @@ export function createMcpServer(): McpServer {
 					authorId: userId,
 				}),
 			);
+		},
+	);
+
+	server.registerTool(
+		"media_upload",
+		{
+			title: "Upload Media",
+			description:
+				"Upload a media file from base64-encoded data or an external URL and " +
+				"register it in the media library. Returns the media item with id, " +
+				"storageKey, and url — ready to reference from content fields (e.g. " +
+				"featured_image) via content_create / content_update. Uploads are " +
+				"deduplicated by content hash: re-uploading identical bytes returns " +
+				"the existing item with deduplicated: true. URL fetches must resolve " +
+				"to a public http(s) host (SSRF-guarded). Subject to the global " +
+				"upload MIME allowlist and the configured maximum upload size.",
+			inputSchema: z.object({
+				filename: z.string().min(1).describe("Filename including extension (e.g. 'cover.png')"),
+				base64: z
+					.string()
+					.optional()
+					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
+				url: z
+					.string()
+					.url()
+					.optional()
+					.describe(
+						"Public http(s) URL to fetch the file from. Provide exactly one of base64 / url.",
+					),
+				contentType: z
+					.string()
+					.regex(CONTENT_TYPE_RE, "Invalid content type")
+					.optional()
+					.describe(
+						"MIME type (e.g. 'image/png'). Required with base64; with url it " +
+							"defaults to the response's Content-Type header.",
+					),
+				alt: z.string().optional().describe("Alt text for accessibility"),
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "media:write");
+			requireRole(extra, Role.CONTRIBUTOR);
+			const { emdash, userId } = getExtra(extra);
+			if (!emdash.storage) {
+				return respondError("NO_STORAGE", "Storage not configured");
+			}
+			try {
+				const { handleMediaUpload } = await import("../api/handlers/media-upload.js");
+				return unwrap(
+					await handleMediaUpload(emdash.db, emdash.storage, {
+						filename: args.filename,
+						base64: args.base64,
+						url: args.url,
+						contentType: args.contentType,
+						alt: args.alt,
+						authorId: userId,
+						maxUploadSize: emdash.config.maxUploadSize,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "UPLOAD_ERROR");
+			}
 		},
 	);
 
@@ -1908,6 +2108,42 @@ export function createMcpServer(): McpServer {
 		},
 	);
 
+	server.registerTool(
+		"media_usage_repair",
+		{
+			title: "Repair Media Usage Index",
+			description:
+				"Repair content media usage indexes for one collection or every collection. " +
+				"Returns complete, partial, failed, or stale status; inspect the structured result.",
+			inputSchema: mediaUsageRepairToolSchema,
+		},
+		async (args, extra) => {
+			requireScope(extra, "admin");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+
+			let input: MediaUsageRepairRequest;
+			if (args.scope === "collection") {
+				if (args.collection === undefined) {
+					return respondError(
+						"VALIDATION_ERROR",
+						"Collection is required when scope is collection",
+					);
+				}
+				input = { scope: "collection", collection: args.collection };
+			} else {
+				input = { scope: "all" };
+			}
+
+			try {
+				const { handleMediaUsageRepair } = await import("../api/handlers/media-usage.js");
+				return unwrap(await handleMediaUsageRepair(ec.db, input));
+			} catch (error) {
+				return respondHandlerError(error, "MEDIA_USAGE_REPAIR_ERROR");
+			}
+		},
+	);
+
 	// =====================================================================
 	// Search tool
 	// =====================================================================
@@ -1932,6 +2168,12 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe("Filter results by locale (omit to search all locales)"),
 				limit: z.number().int().min(1).max(50).optional().describe("Max results (default 20)"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(2048)
+					.optional()
+					.describe("Pagination cursor from a previous response"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1944,6 +2186,7 @@ export function createMcpServer(): McpServer {
 					collections: args.collections,
 					locale: args.locale,
 					limit: args.limit,
+					cursor: args.cursor,
 				});
 				return jsonResult(results);
 			} catch (error) {

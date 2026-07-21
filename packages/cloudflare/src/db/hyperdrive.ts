@@ -62,6 +62,7 @@
 
 import { env, waitUntil } from "cloudflare:workers";
 import { kyselyLogOption } from "emdash/database/instrumentation";
+import { FailFastPostgresDialect } from "emdash/database/pg-migration-lock";
 import { type Dialect, Kysely, PostgresDialect } from "kysely";
 // `pg` is provided by the consuming site (an optional peer of `emdash`); it is
 // kept external from this package's bundle.
@@ -125,8 +126,10 @@ export function createDialect(config: HyperdriveConfig): Dialect {
 	const binding = requireBinding(config);
 	// Cold-start migrations are sequential, so a single connection is enough,
 	// and keeping it to 1 leaves the bulk of Hyperdrive's connection budget for
-	// the per-request pools.
-	return new PostgresDialect({ pool: createPool(binding.connectionString, 1) });
+	// the per-request pools. Fail-fast migration locking: when another isolate
+	// is already migrating, throw instead of parking this connection on
+	// Kysely's blocking `pg_advisory_xact_lock` (#1744).
+	return new FailFastPostgresDialect({ pool: createPool(binding.connectionString, 1) });
 }
 
 /**

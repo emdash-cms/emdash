@@ -33,6 +33,10 @@ export interface ImageAttributes {
 	width?: number;
 	/** Original image height */
 	height?: number;
+	/** LQIP blurhash placeholder */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder */
+	dominantColor?: string;
 	/** Display width for this instance (defaults to original) */
 	displayWidth?: number;
 	/** Display height for this instance (defaults to original) */
@@ -115,6 +119,8 @@ export function ImageDetailPanel({
 			mediaId: item.id,
 			width: item.width,
 			height: item.height,
+			blurhash: item.blurhash,
+			dominantColor: item.dominantColor,
 			// Clear caption/title since it's a new image
 			caption: undefined,
 			title: undefined,

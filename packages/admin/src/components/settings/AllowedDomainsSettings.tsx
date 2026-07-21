@@ -5,17 +5,9 @@
  * is configured, this page shows an informational message instead.
  */
 
-import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Select, Switch, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	Globe,
-	Plus,
-	CheckCircle,
-	WarningCircle,
-	Trash,
-	Pencil,
-	Info,
-} from "@phosphor-icons/react";
+import { Globe, Plus, Trash, Pencil, Info } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -35,13 +27,10 @@ export function AllowedDomainsSettings() {
 	const { t } = useLingui();
 	const { getRoleLabel, signupRoles, signupRoleItems } = useAllowedDomainsRolesConfig();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
 	const [isAddingDomain, setIsAddingDomain] = React.useState(false);
 	const [editingDomain, setEditingDomain] = React.useState<AllowedDomain | null>(null);
 	const [deletingDomain, setDeletingDomain] = React.useState<string | null>(null);
-	const [saveStatus, setSaveStatus] = React.useState<{
-		type: "success" | "error";
-		message: string;
-	} | null>(null);
 
 	// Form state
 	const [newDomain, setNewDomain] = React.useState("");
@@ -66,14 +55,6 @@ export function AllowedDomainsSettings() {
 		enabled: !isExternalAuth && !manifestLoading,
 	});
 
-	// Clear status message after 3 seconds
-	React.useEffect(() => {
-		if (saveStatus) {
-			const timer = setTimeout(setSaveStatus, 3000, null);
-			return () => clearTimeout(timer);
-		}
-	}, [saveStatus]);
-
 	// Create mutation
 	const createMutation = useMutation({
 		mutationFn: createAllowedDomain,
@@ -82,12 +63,14 @@ export function AllowedDomainsSettings() {
 			setIsAddingDomain(false);
 			setNewDomain("");
 			setNewRole(30);
-			setSaveStatus({ type: "success", message: t`Domain added successfully` });
+			toastManager.add({ title: t`Domain added successfully`, variant: "success", timeout: 3000 });
 		},
 		onError: (mutationError) => {
-			setSaveStatus({
-				type: "error",
-				message: mutationError instanceof Error ? mutationError.message : t`Failed to add domain`,
+			toastManager.add({
+				title: t`Failed to add domain`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				variant: "error",
+				timeout: 3000,
 			});
 		},
 	});
@@ -104,13 +87,14 @@ export function AllowedDomainsSettings() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["allowed-domains"] });
 			setEditingDomain(null);
-			setSaveStatus({ type: "success", message: t`Domain updated` });
+			toastManager.add({ title: t`Domain updated`, variant: "success", timeout: 3000 });
 		},
 		onError: (mutationError) => {
-			setSaveStatus({
-				type: "error",
-				message:
-					mutationError instanceof Error ? mutationError.message : t`Failed to update domain`,
+			toastManager.add({
+				title: t`Failed to update domain`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				variant: "error",
+				timeout: 3000,
 			});
 		},
 	});
@@ -121,13 +105,14 @@ export function AllowedDomainsSettings() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["allowed-domains"] });
 			setDeletingDomain(null);
-			setSaveStatus({ type: "success", message: t`Domain removed` });
+			toastManager.add({ title: t`Domain removed`, variant: "success", timeout: 3000 });
 		},
 		onError: (mutationError) => {
-			setSaveStatus({
-				type: "error",
-				message:
-					mutationError instanceof Error ? mutationError.message : t`Failed to remove domain`,
+			toastManager.add({
+				title: t`Failed to remove domain`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				variant: "error",
+				timeout: 3000,
 			});
 		},
 	});
@@ -214,24 +199,6 @@ export function AllowedDomainsSettings() {
 	return (
 		<div className="space-y-6">
 			{settingsHeader}
-
-			{/* Status message */}
-			{saveStatus && (
-				<div
-					className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${
-						saveStatus.type === "success"
-							? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-200"
-							: "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-					}`}
-				>
-					{saveStatus.type === "success" ? (
-						<CheckCircle className="h-4 w-4 flex-shrink-0" />
-					) : (
-						<WarningCircle className="h-4 w-4 flex-shrink-0" />
-					)}
-					{saveStatus.message}
-				</div>
-			)}
 
 			{/* Domains Section */}
 			<div className="rounded-lg border bg-kumo-base p-6">

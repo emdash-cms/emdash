@@ -1,5 +1,100 @@
 # @emdash-cms/cloudflare
 
+## 0.30.0
+
+### Minor Changes
+
+- [#2122](https://github.com/emdash-cms/emdash/pull/2122) [`6bbf93a`](https://github.com/emdash-cms/emdash/commit/6bbf93a43969a41648505668becfde60aa10e8dd) Thanks [@bimsonz](https://github.com/bimsonz)! - Expose the host Astro project's `trailingSlash` config to plugins via `ctx.site.trailingSlash`, so plugins that build absolute URLs (sitemaps, canonical, hreflang) can match the site's routing policy. Available to in-process and sandboxed plugins alike.
+
+### Patch Changes
+
+- [#2037](https://github.com/emdash-cms/emdash/pull/2037) [`b66d8a0`](https://github.com/emdash-cms/emdash/commit/b66d8a086ea9fd02acb34d4fb90c54ea155c7120) Thanks [@swissky](https://github.com/swissky)! - Fixes oversized image renditions on Cloudflare: transforms without an explicit quality were encoded near-losslessly by the Images binding (a 2048px WebP came out ~900 KB instead of ~100 KB). Lossy transforms (WebP/AVIF/JPEG) now default to quality 85, matching Cloudflare's image-resizing default. PNG output keeps no explicit quality — an explicit PNG quality switches the binding to lossy PNG8, which is not a safe default for a lossless format. An explicit `?q=` in the request URL still wins for every format.
+
+  Note: image responses are cached with `Cache-Control: immutable, max-age=31536000` keyed on the request URL, so previously-served oversized renditions stay cached at the edge/browser until they expire. To benefit immediately after upgrading, purge the Cloudflare cache for your `/_image*` URLs (or the whole site cache).
+
+- [#2135](https://github.com/emdash-cms/emdash/pull/2135) [`c37750c`](https://github.com/emdash-cms/emdash/commit/c37750c2c57048eaa88dcb785d14940f1307c07e) Thanks [@swissky](https://github.com/swissky)! - Fixes a hang where a request cancelled mid-query on Cloudflare D1 could wedge the query-coalescing buffer: the flush timer scheduled by the cancelled request was dropped with it, leaving the coalescing flag stuck so every later query on the connection waited on a flush that never ran. The coalescing D1 and Durable Object SQL connections now treat a flush left pending past a short deadline as stranded and reschedule it, so a cancelled request can no longer stall subsequent queries.
+
+- [#2125](https://github.com/emdash-cms/emdash/pull/2125) [`ba65fb8`](https://github.com/emdash-cms/emdash/commit/ba65fb83eec5b6bd6d4912cb1feab8b2a4378074) Thanks [@swissky](https://github.com/swissky)! - Fixes a site-wide hang on Cloudflare Workers with the default D1 config (`d1({ binding: "DB" })`, sessions disabled). Previously, a single request canceled while a D1 query was in flight could deadlock every subsequent D1 query on that Worker isolate — including EmDash's own per-request middleware — so all SSR pages hung until the isolate was recycled. Concurrent D1 queries on the default raw binding now run independently instead of being serialized behind a connection mutex, removing the deadlock.
+
+- [#2082](https://github.com/emdash-cms/emdash/pull/2082) [`cf6e4fa`](https://github.com/emdash-cms/emdash/commit/cf6e4fa5d259c24d7ae3038c55039fc56c6c2923) Thanks [@logelog](https://github.com/logelog)! - Fixes production build warnings when database adapters do not provide the optional cold-start query coalescing dialect.
+
+- Updated dependencies [[`82827d3`](https://github.com/emdash-cms/emdash/commit/82827d3f8ffdaa4fae688b89cdcc139aa6c25810), [`fbb04ab`](https://github.com/emdash-cms/emdash/commit/fbb04abcff5b909e28541d3b3e5fca3089870b83), [`07c2b0f`](https://github.com/emdash-cms/emdash/commit/07c2b0f999e35e00153e349f74eb9298669b5fbf), [`460efe6`](https://github.com/emdash-cms/emdash/commit/460efe645baae54ee01b5d42643fc9ac5a926ee1), [`7b9e558`](https://github.com/emdash-cms/emdash/commit/7b9e5589a79435b8cf069528fdbdb4dd9b8988ae), [`aa7ef09`](https://github.com/emdash-cms/emdash/commit/aa7ef096c9ab6628920469fb6a4a75bc9b13395f), [`c180240`](https://github.com/emdash-cms/emdash/commit/c18024003340ad5a03076313057284a0f4eea2be), [`039c5dc`](https://github.com/emdash-cms/emdash/commit/039c5dc6d5ecef03bc8be68616234834abdd20cc), [`b66d8a0`](https://github.com/emdash-cms/emdash/commit/b66d8a086ea9fd02acb34d4fb90c54ea155c7120), [`fc6cdfb`](https://github.com/emdash-cms/emdash/commit/fc6cdfbf2e68c23e916518993b229e38868d1510), [`8d6b20b`](https://github.com/emdash-cms/emdash/commit/8d6b20b18fe0570c491de45f60eddb86c1bc1fe7), [`6bbf93a`](https://github.com/emdash-cms/emdash/commit/6bbf93a43969a41648505668becfde60aa10e8dd), [`1b1ff42`](https://github.com/emdash-cms/emdash/commit/1b1ff42c924056806875ab34f39bbb0bc9e60e74), [`e2c7549`](https://github.com/emdash-cms/emdash/commit/e2c7549d7b98c6cc97ba47ca6de5dd1b532e9c8f), [`6c96ac8`](https://github.com/emdash-cms/emdash/commit/6c96ac8b68d6ba514aba51d5a5282c499afc22d6), [`7ff08db`](https://github.com/emdash-cms/emdash/commit/7ff08dbea6407b566dd5ea7c159510fd871e01b9), [`23a740a`](https://github.com/emdash-cms/emdash/commit/23a740ad3deb248d00f29559e0cc9c7bfa49ec1f), [`6fb52b0`](https://github.com/emdash-cms/emdash/commit/6fb52b08139dead03f61324abe1ed10a9e5552e0), [`a27a5cc`](https://github.com/emdash-cms/emdash/commit/a27a5ccda339cc61df452e025e736addbafd1f9a), [`4c57ee2`](https://github.com/emdash-cms/emdash/commit/4c57ee216f242ef163ae269ec6ff6abfba716e6f), [`e52dea9`](https://github.com/emdash-cms/emdash/commit/e52dea9b72b043d62348f8d01eefade2ce66484c), [`3f8b778`](https://github.com/emdash-cms/emdash/commit/3f8b77822bf8e89b065884c53c7e8b7676788c48), [`de44730`](https://github.com/emdash-cms/emdash/commit/de44730990e8a10b70b0a64ed3747f7038a31eec), [`32be60b`](https://github.com/emdash-cms/emdash/commit/32be60b87f091e24897c78d39b5d15de93946aab), [`d4c565e`](https://github.com/emdash-cms/emdash/commit/d4c565ef99dde5f0a5fafa55b3ca4353dd6d3168), [`b22a3d5`](https://github.com/emdash-cms/emdash/commit/b22a3d5cca0b7217bab3f5fa8c90821fa0eb981c), [`32f8261`](https://github.com/emdash-cms/emdash/commit/32f8261fc028dc6941a14d891a83722c8c830209), [`4b7fd08`](https://github.com/emdash-cms/emdash/commit/4b7fd08468caf7897f9c23a238da27cda8cdf171), [`cf6e4fa`](https://github.com/emdash-cms/emdash/commit/cf6e4fa5d259c24d7ae3038c55039fc56c6c2923), [`d303738`](https://github.com/emdash-cms/emdash/commit/d30373826208bd0182e842d20ca718a78a0585c6), [`6a79b03`](https://github.com/emdash-cms/emdash/commit/6a79b03e6f11c61098f78b81d878604e2ac903e0), [`34b3017`](https://github.com/emdash-cms/emdash/commit/34b30171b1bca29110b64d6ab317e5145150807b), [`6890edd`](https://github.com/emdash-cms/emdash/commit/6890edd3b82b076da43d43685195321e83f50914), [`65be947`](https://github.com/emdash-cms/emdash/commit/65be947258ad22dbd75339e65d1745bb7ebb7c95), [`cfdb8f0`](https://github.com/emdash-cms/emdash/commit/cfdb8f00ea18dc728e6e0fb910cc71d56478ea63), [`ca660c6`](https://github.com/emdash-cms/emdash/commit/ca660c6c9043efe115b851d696a12757d9539f25), [`c4a2ffd`](https://github.com/emdash-cms/emdash/commit/c4a2ffd683a94b2ed015862cd81be9d6e74cdb3d), [`c24b7d3`](https://github.com/emdash-cms/emdash/commit/c24b7d3be5efa95e7874e48360e31fdc8b27a06d), [`84173dd`](https://github.com/emdash-cms/emdash/commit/84173dd64ed67da3035f88f37fc573c9fe9753a5), [`c350e86`](https://github.com/emdash-cms/emdash/commit/c350e86d77b9b6b64963bb3d246daa23979feb4a), [`e649af8`](https://github.com/emdash-cms/emdash/commit/e649af8a7912bf2331341a5d2a4c5a960d27e422)]:
+  - emdash@0.30.0
+
+## 0.29.0
+
+### Minor Changes
+
+- [#1719](https://github.com/emdash-cms/emdash/pull/1719) [`7c5de08`](https://github.com/emdash-cms/emdash/commit/7c5de08f6370ea88500b7ec425d58b2c82443260) Thanks [@swissky](https://github.com/swissky)! - Adds a `taxonomies:read` plugin capability with read-only taxonomy access: plugins that declare it get `ctx.taxonomies` to list taxonomy definitions (`getAll()`), fetch the terms of a taxonomy (`getTerms()`), and read the terms assigned to a content entry (`getEntryTerms()`) — in-process and in both sandbox runners.
+
+### Patch Changes
+
+- [#1875](https://github.com/emdash-cms/emdash/pull/1875) [`b116525`](https://github.com/emdash-cms/emdash/commit/b116525425d3687cfe1356704e71ce27832d1db7) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes a database stampede on Postgres when a pending migration fails at runtime: requests no longer pile up waiting on the migration lock, failed migrations are retried with a backoff instead of on every request, and failed attempts no longer leak idle database connections.
+
+- Updated dependencies [[`582ea2c`](https://github.com/emdash-cms/emdash/commit/582ea2c6d970ff8f7224c46fbe9cf2b7cc2470ef), [`77e8968`](https://github.com/emdash-cms/emdash/commit/77e8968d906cb4c6cb76c095c7b758a120d6a017), [`e12f393`](https://github.com/emdash-cms/emdash/commit/e12f393fcb70255a5fe74c2ee7ad4f7c23e0bbfd), [`e4e76f5`](https://github.com/emdash-cms/emdash/commit/e4e76f5a5511c5ad42e40b112201d0f426186149), [`0360900`](https://github.com/emdash-cms/emdash/commit/0360900dfa6be62d44d6ce259db1713dae8a4c2e), [`cbc7d6b`](https://github.com/emdash-cms/emdash/commit/cbc7d6b806e993e7a51c47ffa4abb9b31b3d61f5), [`15f4057`](https://github.com/emdash-cms/emdash/commit/15f4057abf0c55a36396d4b8f05e818277b01898), [`1526f96`](https://github.com/emdash-cms/emdash/commit/1526f96c0728ccaf07ecd295170d0ba18e121e8d), [`b116525`](https://github.com/emdash-cms/emdash/commit/b116525425d3687cfe1356704e71ce27832d1db7), [`7c5de08`](https://github.com/emdash-cms/emdash/commit/7c5de08f6370ea88500b7ec425d58b2c82443260), [`450ea81`](https://github.com/emdash-cms/emdash/commit/450ea810aff6b6dfa3797bb99155386189a8a853), [`58f594b`](https://github.com/emdash-cms/emdash/commit/58f594b59641649a445231b56a2dfbdcab434611), [`c57b12b`](https://github.com/emdash-cms/emdash/commit/c57b12ba07ef381e90d132b32aab3ac7b3b3351a), [`9c0733f`](https://github.com/emdash-cms/emdash/commit/9c0733f6f54aa250039a5d0da29b8d8aa9d144cf), [`60811c0`](https://github.com/emdash-cms/emdash/commit/60811c0313096dd485ee9075a0186eb51fc57ca6)]:
+  - emdash@0.29.0
+
+## 0.28.1
+
+### Patch Changes
+
+- Updated dependencies [[`b92807f`](https://github.com/emdash-cms/emdash/commit/b92807f02b3c7da9a19a0758a2213c6bda7ddc4c), [`9e4701e`](https://github.com/emdash-cms/emdash/commit/9e4701e89cffd77e98ea10f46731c47e2815b4e6)]:
+  - emdash@0.28.1
+
+## 0.28.0
+
+### Patch Changes
+
+- [#1724](https://github.com/emdash-cms/emdash/pull/1724) [`90883de`](https://github.com/emdash-cms/emdash/commit/90883de81eb2da6409d1f176dd2dc8f27c56a547) Thanks [@swissky](https://github.com/swissky)! - Fixes `cloudflareEmail()` failing the Astro build. It now returns a plugin descriptor with a bundlable entrypoint instead of an in-process plugin definition, so the documented `plugins: [cloudflareEmail({...})]` usage builds again.
+
+- Updated dependencies [[`1866fa3`](https://github.com/emdash-cms/emdash/commit/1866fa346e1d4178c60db0fa437b65c0965b1475), [`b36d15c`](https://github.com/emdash-cms/emdash/commit/b36d15c1523dc6e0ada57b4c838f8948b3fbd4fa), [`a3ec23d`](https://github.com/emdash-cms/emdash/commit/a3ec23ddc36889e16a967049de233f21432165a6), [`cdca719`](https://github.com/emdash-cms/emdash/commit/cdca7194b2509993fbb1fc3c39e2e70c8d796ad7), [`ee5bfe6`](https://github.com/emdash-cms/emdash/commit/ee5bfe6b479b736e0432a4d614f5efa01fce02e7), [`a9e9dde`](https://github.com/emdash-cms/emdash/commit/a9e9dde98a9433a1c186490a24865587f1774fd9), [`a9e9dde`](https://github.com/emdash-cms/emdash/commit/a9e9dde98a9433a1c186490a24865587f1774fd9), [`7d16d95`](https://github.com/emdash-cms/emdash/commit/7d16d955003079c8c4a3093decf56bd4f4f05f8a), [`dd05063`](https://github.com/emdash-cms/emdash/commit/dd050637323731fe7795dbc9cf0c3edd906d6908), [`e2dd273`](https://github.com/emdash-cms/emdash/commit/e2dd2738404b7df57ca5e1d50d31b222218d3734), [`92fd412`](https://github.com/emdash-cms/emdash/commit/92fd41227225c425c703e0a0bb62b963c1cd4391), [`932f4ba`](https://github.com/emdash-cms/emdash/commit/932f4ba3adef8be21abc39b4cc7612609895e88c), [`15b4d2d`](https://github.com/emdash-cms/emdash/commit/15b4d2d189142abb69f5c9223c4c1f10363e837f)]:
+  - emdash@0.28.0
+
+## 0.27.0
+
+### Minor Changes
+
+- [#1433](https://github.com/emdash-cms/emdash/pull/1433) [`05f4acd`](https://github.com/emdash-cms/emdash/commit/05f4acd0a806f16278492b49d3faffb00c35c93a) Thanks [@swissky](https://github.com/swissky)! - New `cloudflareEmail()` plugin: production email provider via Cloudflare Email Sending
+
+  Deployments on Cloudflare Workers had no production email provider — only the
+  dev console stub — so magic-link login, invites and notifications failed with
+  "Email is not configured". `cloudflareEmail({ from, replyTo?, binding? })`
+  registers the exclusive `email:deliver` hook and delivers through a
+  `send_email` Worker binding. Add it to the emdash() plugins array, activate it
+  under Extensions, then select it under Settings → Email.
+
+### Patch Changes
+
+- [#1715](https://github.com/emdash-cms/emdash/pull/1715) [`b093193`](https://github.com/emdash-cms/emdash/commit/b09319301c1113be7667bb06b0dcde5b968d3b1a) Thanks [@swissky](https://github.com/swissky)! - Documents that D1 read replica sessions (`session: "auto"` / `"primary-first"`) are incompatible with the `global_fetch_strictly_public` compatibility flag, which silently blocks the D1 Sessions API and hangs every SSR request without logging an error.
+
+- Updated dependencies [[`7422460`](https://github.com/emdash-cms/emdash/commit/7422460adf85863abfc27e8f83ba0cb40a3e942a), [`e4eab4f`](https://github.com/emdash-cms/emdash/commit/e4eab4fba69f1cf249db192938d397aa1b116015), [`46ef945`](https://github.com/emdash-cms/emdash/commit/46ef945d5fcffeef4ac9aecd2fb63fcb49c24b65), [`cff8498`](https://github.com/emdash-cms/emdash/commit/cff84987c679faa61bf491c630b3f77d0083ca21), [`dea8210`](https://github.com/emdash-cms/emdash/commit/dea82106602bb6dde0edd8c007a5acfa5fd7600d), [`90ffe40`](https://github.com/emdash-cms/emdash/commit/90ffe40a1a31193b2f29ef92202e4f339a2487fa), [`386faf5`](https://github.com/emdash-cms/emdash/commit/386faf5bd724ce0b47240e9176c92f554fd66c00), [`2a7063a`](https://github.com/emdash-cms/emdash/commit/2a7063a4e44a7ebb770f1cb28acb5bffac15fca2)]:
+  - emdash@0.27.0
+
+## 0.26.0
+
+### Patch Changes
+
+- Updated dependencies [[`facdcfc`](https://github.com/emdash-cms/emdash/commit/facdcfc745059a6f183581963fcc29c8b6efec63), [`f44a277`](https://github.com/emdash-cms/emdash/commit/f44a2775c8e87be1398befcb29da6bec28bad01c), [`971c627`](https://github.com/emdash-cms/emdash/commit/971c6271e810a8e12e63303778a132a48eb75f4a), [`e5b95e1`](https://github.com/emdash-cms/emdash/commit/e5b95e195e1307237db9eb26806c54c76cc0f81d), [`13b87b7`](https://github.com/emdash-cms/emdash/commit/13b87b70296443db14bf163cd3b25ff2a5701227), [`8f7604d`](https://github.com/emdash-cms/emdash/commit/8f7604dfd8f274b7a62bcbccd53068930b304777), [`5dea403`](https://github.com/emdash-cms/emdash/commit/5dea4035ec2f15fa2248e1621386a91320d50f6d), [`3d80be5`](https://github.com/emdash-cms/emdash/commit/3d80be5e0f1e91844bcf138dea8e86861bc484b4), [`d1116ae`](https://github.com/emdash-cms/emdash/commit/d1116ae6d02f5c15ea5efb68cce78bb24f13ccb6), [`192741f`](https://github.com/emdash-cms/emdash/commit/192741f9a34ede62e23c3de63e3b2483f0b948b6), [`737da19`](https://github.com/emdash-cms/emdash/commit/737da19f56998a5e7f77eecf9337d5f29a18cea6), [`5299d38`](https://github.com/emdash-cms/emdash/commit/5299d38d9c7e92b9faafbe24820164517fc2360c)]:
+  - emdash@0.26.0
+
+## 0.25.1
+
+### Patch Changes
+
+- Updated dependencies [[`d4237eb`](https://github.com/emdash-cms/emdash/commit/d4237ebb875321b2b160034f03321a57f366c495), [`2216dca`](https://github.com/emdash-cms/emdash/commit/2216dcab39d7c0034af81be3543c8440a10d8961)]:
+  - emdash@0.25.1
+
+## 0.25.0
+
+### Minor Changes
+
+- [#1662](https://github.com/emdash-cms/emdash/pull/1662) [`942fac6`](https://github.com/emdash-cms/emdash/commit/942fac6c87d7a6ce3a62ec7e0610887db5a44f3f) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Adds an optional `cachedBinding` to the `hyperdrive()` adapter for serving anonymous public-site reads from a caching-enabled Hyperdrive configuration. When set, anonymous reads of public paths route through the cache-enabled binding, while every authenticated request, every write, and every request under `/_emdash` (admin, setup, auth, internal APIs) stays on the primary (caching-disabled) `binding` — preserving read-after-write consistency, including for the anonymous post-setup status check. Bind both Hyperdrive configurations in wrangler and pass `hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" })`. Omitting `cachedBinding` leaves behavior unchanged.
+
+### Patch Changes
+
+- Updated dependencies [[`942fac6`](https://github.com/emdash-cms/emdash/commit/942fac6c87d7a6ce3a62ec7e0610887db5a44f3f), [`1f4aa59`](https://github.com/emdash-cms/emdash/commit/1f4aa59a284bb6fa10dd9672a671b62a2a1ba3aa), [`38a63d5`](https://github.com/emdash-cms/emdash/commit/38a63d54e7c7c2735caa179b303c63c175a9570e), [`0f8d1ff`](https://github.com/emdash-cms/emdash/commit/0f8d1ffc081e31217eadc0d71051d7c7324ca173)]:
+  - emdash@0.25.0
+
 ## 0.24.1
 
 ### Patch Changes

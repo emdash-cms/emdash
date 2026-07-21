@@ -202,6 +202,7 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		hooks: runtime.hooks,
 		email: runtime.email,
 		configuredPlugins: runtime.configuredPlugins,
+		sandboxedPluginEntries: runtime.sandboxedPluginEntries,
 		config: runtime.config,
 		getManifest: runtime.getManifest.bind(runtime),
 		invalidateUrlPatternCache,

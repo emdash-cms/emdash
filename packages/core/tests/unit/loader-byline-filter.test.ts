@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
+import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
 import { emdashLoader } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
@@ -153,6 +154,9 @@ describeEachDialect("Loader byline credit filter", (dialectName: DialectName) =>
 				name: "category",
 				slug: "news",
 				label: "News",
+				// content_taxonomies.taxonomy_id stores the term's translation_group
+				// (migration 036); single-locale terms seed translation_group = id.
+				translation_group: "tax_cat_news",
 			} as never)
 			.execute();
 
@@ -160,10 +164,9 @@ describeEachDialect("Loader byline credit filter", (dialectName: DialectName) =>
 		const b = await createPost("Bob Other");
 		await credit(a.id, "byline_bob", 0);
 		await credit(b.id, "byline_bob", 0);
-		await db
-			.insertInto("content_taxonomies" as never)
-			.values({ collection: "post", entry_id: a.id, taxonomy_id: "tax_cat_news" } as never)
-			.execute();
+		// Attach through the repository so the pivot row carries the denormalized
+		// filter/sort columns the pivot-drive listing seeks on (migration 051).
+		await new TaxonomyRepository(db).attachToEntry("post", a.id, "tax_cat_news");
 
 		const result = await load({ byline: "byline_bob", category: "news" });
 
@@ -199,7 +202,13 @@ describeEachDialect("Loader byline credit filter", (dialectName: DialectName) =>
 	it("returns no entries when a taxonomy filter is an empty array", async () => {
 		await db
 			.insertInto("taxonomies" as never)
-			.values({ id: "tax_cat_news", name: "category", slug: "news", label: "News" } as never)
+			.values({
+				id: "tax_cat_news",
+				name: "category",
+				slug: "news",
+				label: "News",
+				translation_group: "tax_cat_news",
+			} as never)
 			.execute();
 		const post = await createPost("Anything");
 		await db

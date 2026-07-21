@@ -5,10 +5,10 @@
  * interaction with page="widget:<widgetId>" to the plugin's admin route.
  */
 
+import { SkeletonLine } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
-import { CircleNotch } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
@@ -66,8 +66,10 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 
 	if (loading) {
 		return (
-			<div className="flex items-center justify-center py-6">
-				<CircleNotch className="h-5 w-5 animate-spin text-kumo-subtle" />
+			<div className="space-y-3 py-1">
+				{[1, 2, 3].map((i) => (
+					<SkeletonLine key={i} blockHeight={24} minWidth={45} maxWidth={90} />
+				))}
 			</div>
 		);
 	}
