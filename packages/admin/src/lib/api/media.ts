@@ -367,6 +367,8 @@ export async function uploadToProvider(
 	file: File,
 	alt?: string,
 ): Promise<MediaProviderItem> {
+	file = await prepareMediaUploadFile(file);
+
 	const formData = new FormData();
 	formData.append("file", file);
 	if (alt) formData.append("alt", alt);

@@ -1,5 +1,10 @@
-const HEIC_MIME_TYPES = new Set(["image/heic", "image/heif"]);
-const HEIC_FILENAME_PATTERN = /\.(?:heic|heif)$/i;
+const HEIC_MIME_TYPES = new Set([
+	"image/heic",
+	"image/heif",
+	"image/heic-sequence",
+	"image/heif-sequence",
+]);
+const HEIC_FILENAME_PATTERN = /\.(?:heic|heif|heics|heifs|hif)$/i;
 
 export type HeicConverter = (file: File) => Promise<Blob>;
 

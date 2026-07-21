@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { uploadMedia } from "../../src/lib/api/media.js";
+import { uploadMedia, uploadToProvider } from "../../src/lib/api/media.js";
 import { prepareMediaUploadFile } from "../../src/lib/media-upload.js";
 
 const HEIC_64X64 =
@@ -49,6 +49,24 @@ describe("prepareMediaUploadFile", () => {
 		expect(dimensions).toEqual({ width: 64, height: 64 });
 	});
 
+	it.each([
+		["heic-sequence", "image/heic-sequence", "heic-sequence.jpg"],
+		["heif-sequence", "image/heif-sequence", "heif-sequence.jpg"],
+		["photo.heics", "application/octet-stream", "photo.jpg"],
+		["photo.heifs", "application/octet-stream", "photo.jpg"],
+		["photo.hif", "application/octet-stream", "photo.jpg"],
+	])("converts Apple HEIC variant %s", async (name, type, expectedName) => {
+		const source = new File([new Uint8Array([1, 2, 3])], name, { type });
+		const convert = vi.fn(
+			async () => new Blob([new Uint8Array([4, 5, 6])], { type: "image/jpeg" }),
+		);
+
+		const prepared = await prepareMediaUploadFile(source, convert);
+
+		expect(convert).toHaveBeenCalledWith(source);
+		expect(prepared).toMatchObject({ name: expectedName, type: "image/jpeg" });
+	});
+
 	it("uploads the converted JPEG through the media API", async () => {
 		const originalFetch = globalThis.fetch;
 		let uploadedFile: File | null = null;
@@ -82,6 +100,41 @@ describe("prepareMediaUploadFile", () => {
 
 		try {
 			const item = await uploadMedia(heicFile());
+			expect(item.mimeType).toBe("image/jpeg");
+			expect(item.filename).toBe("fixture.jpg");
+			expect(uploadedFile).toMatchObject({ name: "fixture.jpg", type: "image/jpeg" });
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	it("uploads the converted JPEG through a media provider", async () => {
+		const originalFetch = globalThis.fetch;
+		let uploadedFile: File | null = null;
+		globalThis.fetch = vi.fn(async (_input, init) => {
+			const formData = init?.body;
+			if (!(formData instanceof FormData)) throw new Error("Expected a provider upload form");
+			const file = formData.get("file");
+			if (!(file instanceof File)) throw new Error("Expected an uploaded file");
+			uploadedFile = file;
+
+			return new Response(
+				JSON.stringify({
+					data: {
+						item: {
+							id: "provider-media-1",
+							filename: file.name,
+							mimeType: file.type,
+							url: "https://example.com/fixture.jpg",
+						},
+					},
+				}),
+				{ status: 201, headers: { "Content-Type": "application/json" } },
+			);
+		});
+
+		try {
+			const item = await uploadToProvider("provider-1", heicFile());
 			expect(item.mimeType).toBe("image/jpeg");
 			expect(item.filename).toBe("fixture.jpg");
 			expect(uploadedFile).toMatchObject({ name: "fixture.jpg", type: "image/jpeg" });
