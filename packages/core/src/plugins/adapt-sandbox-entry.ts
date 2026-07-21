@@ -108,6 +108,7 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
 function normalizeRouteEntry(entry: RouteEntry): {
 	handler: RouteHandler;
 	public?: boolean;
+	cacheControl?: string;
 	input?: PluginRoute["input"];
 } {
 	if (typeof entry === "function") {
@@ -116,6 +117,7 @@ function normalizeRouteEntry(entry: RouteEntry): {
 	return {
 		handler: entry.handler,
 		public: entry.public,
+		cacheControl: entry.cacheControl,
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- RouteEntry.input is intentionally `unknown` (sandboxed plugins) and validated by the runtime at invocation time
 		input: entry.input as PluginRoute["input"],
 	};
@@ -196,10 +198,11 @@ export function adaptSandboxEntry(
 	if (definition.routes) {
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
 			const normalized = normalizeRouteEntry(rawEntry);
-			const { handler, public: publicFlag, input: inputSchema } = normalized;
+			const { handler, public: publicFlag, cacheControl, input: inputSchema } = normalized;
 			resolvedRoutes[routeName] = {
 				input: inputSchema,
 				public: publicFlag,
+				cacheControl,
 				handler: async (ctx) => {
 					// `ctx.request` is a real WHATWG `Request` (this is the
 					// in-process adapter; the worker-sandbox adapter handles

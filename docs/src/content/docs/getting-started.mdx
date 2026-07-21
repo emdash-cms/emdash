@@ -144,11 +144,13 @@ The following configuration registers EmDash as an Astro integration with a loca
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
+import react from "@astrojs/react";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
 export default defineConfig({
 	integrations: [
+		react(), // Required — the admin UI is a React app
 		emdash({
 			database: sqlite({ url: "file:./data.db" }),
 			storage: local({

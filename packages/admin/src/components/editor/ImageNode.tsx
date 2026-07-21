@@ -270,10 +270,10 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 					</div>
 				)}
 
-				{/* Caption display (shows caption if set, falls back to alt) */}
-				{!isEditingAlt && (node.attrs.caption || node.attrs.alt) && (
+				{/* Caption only — must mirror the published renderer (Image.astro) */}
+				{!isEditingAlt && node.attrs.caption && (
 					<figcaption className="text-center text-sm text-kumo-subtle mt-2">
-						{node.attrs.caption || node.attrs.alt}
+						{node.attrs.caption}
 					</figcaption>
 				)}
 			</figure>

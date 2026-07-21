@@ -14,6 +14,10 @@ For human-facing contributor info (setup, repo layout, PR policy, changesets, i1
 
 **Scope discipline.** No drive-by refactors, no bulk lint/type cleanups, no "while I'm here" edits in unrelated files. If you see a systemic issue, open a Discussion. See [CONTRIBUTING.md § Contribution Policy](CONTRIBUTING.md#contribution-policy).
 
+**Never add queries to the logged-out hot path.** Any change that increases the query count of a logged-out route needs a _really_ good reason -- and that includes cold-start or first-request-only queries, not just steady state. See [Performance](#performance-caching-and-query-patterns).
+
+**Comments are for code readers, not reviewers.** Write a comment only when the code can't be made clearer, or to give a non-obvious "why". Never justification, narrative, or issue/PR references. See [Comments](#comments).
+
 ## Workflow
 
 Run `pnpm lint:json | jq '.diagnostics | length'` before starting and confirm it's clean -- if it's failing after your edits, your changes caused it.
@@ -177,6 +181,8 @@ When adding content-table features, ask: per-locale (display fields) or per-tran
 
 EmDash runs on D1 with the Sessions API. Anonymous reads go to the nearest replica; writes and authenticated reads route to the primary. Every round-trip matters.
 
+**The logged-out hot path only ratchets down.** Anonymous page renders are what visitors actually hit; their query count is the product's performance envelope. Any change that adds a query to a logged-out route needs a _really_ good reason -- including queries that only run on cold start or first request. Before accepting a new round-trip, look for a way to piggyback on an existing query, batch, defer with `after()`, or cache.
+
 **Wrap query helpers in `requestCached`.** Per-request cache (`src/request-cache.ts`) dedupes identical calls within a render. If a helper takes stable args (slug, key, id) and may be called from multiple components, wrap it. The cache key must include every argument that changes the result. The promise is cached, so concurrent callers share the in-flight query.
 
 ```typescript
@@ -208,7 +214,7 @@ after(async () => {
 
 **One query beats two.** Use `LEFT JOIN` for parent+children. Batch with `WHERE id IN (...)`, chunked at `SQL_BATCH_SIZE` (from `utils/chunks.ts`) for D1's bind-parameter limit.
 
-**Query-count snapshots.** `pnpm query-counts` (see `scripts/query-counts.mjs`) records per-route query counts in `scripts/query-counts.snapshot.{sqlite,d1}.json`. CI auto-updates on PRs -- review the diff. Fewer is always right; more needs a conversation.
+**Query-count snapshots.** `pnpm query-counts` (see `scripts/query-counts.mjs`) records per-route query counts in `scripts/query-counts.snapshot.{sqlite,d1}.json`. CI auto-updates on PRs -- review the diff. Fewer is always right; more needs a conversation. An increase on a logged-out route is presumed wrong: the snapshot diff makes it visible, it does not make it acceptable.
 
 # Admin UI
 
@@ -315,6 +321,23 @@ For directional icons (chevrons, arrows), flip them with `rtl:-scale-x-100` or u
 
 # Conventions
 
+## Comments
+
+Comments are evergreen and addressed to a future reader of the code -- not to whoever reviews the PR. Most comments agents write should not exist. A comment earns its place only when:
+
+- the code is unclear and genuinely can't be made clearer (first try making it clearer), or
+- there's a non-obvious reason for something the reader would otherwise get wrong (an ordering constraint, a footgun, an invariant).
+
+Comments are **not**:
+
+- PR descriptions or summaries of the change
+- messages to the reviewer
+- justification for a decision ("intentionally", "for safety", "we accept", "unlike X")
+- narrative about what you tried and rejected
+- restatements of what the code plainly does
+
+Never reference issues, PRs, or review threads in comments -- they're stale narrative the moment the change merges; that context belongs in the commit message and PR description. Never number comments.
+
 ## Imports
 
 - **Internal imports** use `.js` extensions (ESM): `import { X } from "../foo.js"`.
@@ -345,6 +368,15 @@ In libraries used in a Worker but not themselves Workers, install `@cloudflare/w
 - **No mocks for the DB.** SQLite (`better-sqlite3`) by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `PG_CONNECTION_STRING` to opt in).
 - **Utilities:** `tests/utils/test-db.ts` exposes `setupTestDatabase()`, `setupTestDatabaseWithCollections()`, `teardownTestDatabase()` for SQLite and `setupTestPostgresDatabase()` etc. for Postgres. Dialect-agnostic: `setupForDialect`, `setupForDialectWithCollections`, `teardownForDialect`, plus `describeEachDialect(name, fn)`. Use the dialect wrapper for query-builder code -- regressions tend to be dialect-specific.
 - **Structure:** `tests/unit/`, `tests/integration/`, `tests/e2e/` (Playwright). Test files mirror source structure. Each test gets a fresh DB.
+
+**A test must be able to fail on a real regression.** If it can't, it's not a test -- delete it. The common offenders:
+
+- **Config-pin tests**: asserting a config literal, constant, or schema shape back at itself. It re-states the source file and fails only when someone makes an intentional change.
+- **Tautological tests**: asserting the implementation detail you just wrote straight back -- add a CSS class to a component, then test the component has that class; call a function with arguments, then assert it was called with those arguments. This re-states the diff, not the behavior. Test what the change does for the user (the element is hidden, the query is filtered), not that the code you wrote is the code you wrote.
+- **Mocking the unit under test**, or a mock that returns the very value the assertion checks. The test then verifies the mock, not the code.
+- **Tests that only exercise third-party code**: Kysely, Zod, and Lingui have their own test suites. Test your behavior, not theirs.
+
+**Never change a test just to make it pass.** Understand why it's failing first -- the test may be the only thing that's right. If you can't work out why, stop and say so.
 
 # Toolchain
 
