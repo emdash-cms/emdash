@@ -26,7 +26,7 @@ import type {
 } from "../lib/api";
 import { fetchBylines } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
-import { slugify } from "../lib/utils";
+import { cn, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
@@ -382,6 +382,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 	const [scheduleDate, setScheduleDate] = React.useState<string>("");
 	const [showScheduler, setShowScheduler] = React.useState(false);
+	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const hasApplicableTaxonomies = useHasApplicableTaxonomies(collection);
 
@@ -426,7 +427,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		// The Kumo Sidebar wrapper sets `whitespace-nowrap` for its collapse
 		// animation, which would stop long field descriptions from wrapping.
 		<div className="flex flex-col whitespace-normal">
-			<SortableContentSettingsSections collection={collection} userId={currentUser?.id}>
+			<SortableContentSettingsSections
+				collection={collection}
+				userId={currentUser?.id}
+				onSortingChange={setIsReorderingSections}
+			>
 				<SortableContentSettingsSection id="publish" label={t`Publish`}>
 					<div className="p-4">
 						<Text bold as="h3" DANGEROUS_className="mb-4">
@@ -645,7 +650,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			</SortableContentSettingsSections>
 
 			{!isNew && onDelete && (
-				<div className="border-t p-4">
+				<div
+					data-testid="content-trash-actions"
+					aria-hidden={isReorderingSections || undefined}
+					className={cn("border-t p-4", isReorderingSections && "invisible pointer-events-none")}
+				>
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
 							render={(p) => (

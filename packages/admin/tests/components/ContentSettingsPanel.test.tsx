@@ -1,3 +1,4 @@
+import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -199,6 +200,30 @@ describe("ContentSettingsPanel", () => {
 		const root = screen.container.firstElementChild;
 		const lastSection = root?.lastElementChild;
 		expect(lastSection?.textContent).toContain("Move to Trash");
+	});
+
+	it("hides destructive actions without collapsing their space while reordering", async () => {
+		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
+		const trashActions = screen.getByTestId("content-trash-actions").element();
+		const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+
+		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
+		expect(trashActions).not.toHaveAttribute("aria-hidden");
+
+		handle.focus();
+		await act(async () => {
+			fireEvent.keyDown(handle, { key: " ", code: "Space" });
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		});
+		expect(trashActions).toHaveClass("invisible", "pointer-events-none");
+		expect(trashActions).toHaveAttribute("aria-hidden", "true");
+
+		await act(async () => {
+			fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		});
+		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
+		expect(trashActions).not.toHaveAttribute("aria-hidden");
 	});
 });
 

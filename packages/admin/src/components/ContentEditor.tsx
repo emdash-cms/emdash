@@ -952,6 +952,7 @@ function MobileSidebarPortalGuard() {
 		const nestedOverlaySelector =
 			'[role="dialog"], [role="listbox"], [role="menu"], .kumo-tooltip-popup';
 		const keepSheetOpen = () => queueMicrotask(() => setOpenMobile(true));
+		const reopenSheetAfterDismiss = () => setTimeout(setOpenMobile, 0, true);
 		const promotePortal = (element: Element) => {
 			const overlay =
 				element.closest(nestedOverlaySelector) ?? element.querySelector(nestedOverlaySelector);
@@ -989,7 +990,17 @@ function MobileSidebarPortalGuard() {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key !== "Escape") return;
 			const target = event.target;
-			if (!(target instanceof Element) || !target.closest(nestedOverlaySelector)) return;
+			if (!(target instanceof Element)) return;
+
+			// Escape cancels a keyboard drag, but Kumo also treats it as a request
+			// to dismiss the mobile sheet. Let dnd-kit receive the key while
+			// restoring the sheet after its dismissal handler runs.
+			if (target.closest('[data-sortable-handle][data-sorting="true"]')) {
+				reopenSheetAfterDismiss();
+				return;
+			}
+
+			if (!target.closest(nestedOverlaySelector)) return;
 			keepSheetOpen();
 		};
 

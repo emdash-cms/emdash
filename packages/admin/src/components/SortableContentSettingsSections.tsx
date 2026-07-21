@@ -50,6 +50,7 @@ export interface SortableContentSettingsSectionProps {
 interface SortableContentSettingsSectionsProps {
 	collection: string;
 	userId?: string;
+	onSortingChange?: (isSorting: boolean) => void;
 	children: React.ReactNode;
 }
 
@@ -74,6 +75,7 @@ function writeStoredLayout(storageKey: string | null, layout: ContentSettingsLay
 export function SortableContentSettingsSections({
 	collection,
 	userId,
+	onSortingChange,
 	children,
 }: SortableContentSettingsSectionsProps) {
 	const storageKey = userId
@@ -104,13 +106,22 @@ export function SortableContentSettingsSections({
 		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
 	);
-	const handleDragStart = React.useCallback((event: DragStartEvent) => {
-		setActiveId(String(event.active.id) as ContentSettingsSectionId);
-	}, []);
+	const handleDragStart = React.useCallback(
+		(event: DragStartEvent) => {
+			setActiveId(String(event.active.id) as ContentSettingsSectionId);
+			onSortingChange?.(true);
+		},
+		[onSortingChange],
+	);
+	const handleDragCancel = React.useCallback(() => {
+		setActiveId(null);
+		onSortingChange?.(false);
+	}, [onSortingChange]);
 
 	const handleDragEnd = React.useCallback(
 		(event: DragEndEvent) => {
 			setActiveId(null);
+			onSortingChange?.(false);
 			if (event.over && event.active.id !== event.over.id) {
 				const movedId = String(event.active.id) as ContentSettingsSectionId;
 				const overId = String(event.over.id) as ContentSettingsSectionId;
@@ -125,7 +136,7 @@ export function SortableContentSettingsSections({
 				});
 			}
 		},
-		[storageKey],
+		[onSortingChange, storageKey],
 	);
 
 	return (
@@ -135,7 +146,7 @@ export function SortableContentSettingsSections({
 			modifiers={[restrictToVerticalAxis]}
 			measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
 			onDragStart={handleDragStart}
-			onDragCancel={() => setActiveId(null)}
+			onDragCancel={handleDragCancel}
 			onDragEnd={handleDragEnd}
 		>
 			<SortableContext items={visibleIds} strategy={verticalListSortingStrategy}>
@@ -193,6 +204,7 @@ export function SortableContentSettingsSection({
 			<button
 				type="button"
 				data-sortable-handle
+				data-sorting={isSorting ? "true" : "false"}
 				{...attributes}
 				{...listeners}
 				className={cn(
