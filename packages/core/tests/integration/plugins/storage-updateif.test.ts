@@ -179,6 +179,27 @@ describeEachDialect("Plugin storage updateIf", (dialect) => {
 		await expect(repo.updateIf("p1", { where: { sku: "A" } })).rejects.toThrow(/set.*delta/i);
 	});
 
+	it("updateIf() with an all-`undefined` delta (no set) throws and never writes", async () => {
+		// `{ stock: undefined }` has a key but no DEFINED entry — presence is
+		// derived from defined entries, so this hits the "at least one" guard
+		// instead of doing a no-op write that bumps updated_at (#reviewer flag).
+		const repo = productsRepo();
+		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
+		await expect(
+			repo.updateIf("p1", { where: { sku: "A" }, delta: { stock: undefined } }),
+		).rejects.toThrow(/set.*delta/i);
+		expect((await repo.get("p1"))?.stock).toBe(5);
+	});
+
+	it("updateIf() with an all-`undefined` set (no delta) throws and never writes", async () => {
+		const repo = productsRepo();
+		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
+		await expect(
+			repo.updateIf("p1", { where: { sku: "A" }, set: { name: undefined } }),
+		).rejects.toThrow(/set.*delta/i);
+		expect((await repo.get("p1"))?.name).toBe("Alpha");
+	});
+
 	// ── guard operator coverage ─────────────────────────────────────────────
 
 	it("updateIf() guard covers equality, multi-digit gte, in, startsWith, and a non-indexed field", async () => {

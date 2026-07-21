@@ -207,6 +207,13 @@ export interface StorageCollection<T = unknown> {
 	 * arithmetic live in one statement, so N concurrent guarded decrements
 	 * serialize correctly. `applied: false` means the row was absent OR the
 	 * guard failed (the two are intentionally indistinguishable). Never inserts.
+	 *
+	 * ISOLATION: the `applied: false` contract assumes READ COMMITTED (the
+	 * default). Under REPEATABLE READ / SERIALIZABLE the losing concurrent
+	 * writers throw `StorageSerializationError` (SQLSTATE `40001` / `40P01`)
+	 * instead of resolving to `applied: false` — the caller should retry (or run
+	 * at READ COMMITTED). The no-oversell SAFETY invariant holds either way: a
+	 * losing writer never applies.
 	 */
 	updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>>;
 }

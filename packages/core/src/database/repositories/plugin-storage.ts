@@ -17,6 +17,7 @@ import {
 	getIndexedFields,
 	jsonOrderExtract,
 	isInFilter,
+	StorageSerializationError,
 } from "../../plugins/storage-query.js";
 import type {
 	StorageCollection,
@@ -37,6 +38,59 @@ import { encodeCursor, decodeCursor } from "./types.js";
  */
 function isDeltaLike(value: unknown): value is { inc?: unknown; dec?: unknown } {
 	return typeof value === "object" && value !== null;
+}
+
+/**
+ * SQLSTATEs a losing concurrent `updateIf` writer aborts with under an
+ * isolation level stricter than READ COMMITTED: `40001` (serialization_failure)
+ * and `40P01` (deadlock_detected).
+ */
+const SERIALIZATION_SQLSTATES = new Set(["40001", "40P01"]);
+
+/**
+ * Best-effort extraction of a Postgres SQLSTATE from a thrown driver error.
+ *
+ * node-pg sets `.code` on its `DatabaseError`, and Kysely propagates the driver
+ * error unwrapped (confirmed: a 23505 raised through Kysely surfaces `err.code`
+ * === "23505"). We also check `.cause.code` defensively so a future wrapping
+ * layer that nests the driver error as `cause` keeps working.
+ */
+function errSqlState(err: unknown): string | undefined {
+	if (typeof err !== "object" || err === null) return undefined;
+	const code = (err as { code?: unknown }).code;
+	if (typeof code === "string") return code;
+	const cause = (err as { cause?: unknown }).cause;
+	if (typeof cause === "object" && cause !== null) {
+		const causeCode = (cause as { code?: unknown }).code;
+		if (typeof causeCode === "string") return causeCode;
+	}
+	return undefined;
+}
+
+/**
+ * Map a thrown `updateIf` error to a {@link StorageSerializationError} when it
+ * is a Postgres serialization failure (`40001`) or deadlock (`40P01`);
+ * otherwise return it UNCHANGED.
+ *
+ * Pure and synchronous so it is unit-testable without provoking a live race —
+ * `updateIf`'s catch is simply `throw mapSerializationFailure(err)`. See
+ * {@link StorageSerializationError} for why these aborts happen only under an
+ * isolation level stricter than READ COMMITTED.
+ */
+export function mapSerializationFailure(err: unknown): unknown {
+	const sqlState = errSqlState(err);
+	if (sqlState !== undefined && SERIALIZATION_SQLSTATES.has(sqlState)) {
+		return new StorageSerializationError(
+			`updateIf lost a concurrent race (SQLSTATE ${sqlState}). Its ` +
+				`{ applied: false } contract assumes READ COMMITTED (the default); under ` +
+				`REPEATABLE READ / SERIALIZABLE the losing writer aborts instead of ` +
+				`resolving to { applied: false }. Retry the call, or run it at READ ` +
+				`COMMITTED. The no-oversell safety invariant still holds — a losing ` +
+				`writer never applies.`,
+			{ cause: err, sqlState },
+		);
+	}
+	return err;
 }
 
 /**
@@ -333,13 +387,33 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	 * rows-affected > 0). A missing row and a failed guard both yield 0 rows →
 	 * `{ applied: false }`; the two are intentionally indistinguishable. Never
 	 * inserts.
+	 *
+	 * `undefined` values in `set`/`delta` are IGNORED (they carry no write);
+	 * presence is derived from the DEFINED entries, so an all-`undefined` payload
+	 * (e.g. `{ set: { name: undefined } }`) hits the "at least one of set/delta"
+	 * error rather than doing a no-op write that bumps `updated_at`.
+	 *
+	 * ISOLATION: the `{ applied: false }` contract assumes READ COMMITTED (the
+	 * default). Under REPEATABLE READ / SERIALIZABLE the losing concurrent
+	 * writers throw {@link StorageSerializationError} (SQLSTATE `40001` / `40P01`)
+	 * instead of resolving to `{ applied: false }`. The no-oversell SAFETY
+	 * invariant holds either way — a losing writer never applies.
 	 */
 	async updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>> {
 		const { where, set, delta } = args;
 
-		const setEntries: Array<[string, unknown]> = set ? Object.entries(set) : [];
+		// Derive presence from DEFINED entries — `undefined` values carry no write
+		// and must not satisfy the "at least one of set/delta" requirement below
+		// (otherwise an all-`undefined` payload would do a no-op write that still
+		// bumps `updated_at` and returns `{ applied: true }`).
+		const setEntries: Array<[string, unknown]> = set
+			? Object.entries(set).filter(([, value]) => value !== undefined)
+			: [];
 		const hasSet = setEntries.length > 0;
-		const hasDelta = delta !== undefined && Object.keys(delta).length > 0;
+
+		const definedDeltaEntries: Array<[string, unknown]> =
+			delta !== undefined ? Object.entries(delta).filter(([, spec]) => spec !== undefined) : [];
+		const hasDelta = definedDeltaEntries.length > 0;
 
 		if (!hasSet && !hasDelta) {
 			throw new Error("updateIf requires at least one of `set` or `delta`.");
@@ -349,8 +423,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		const deltaEntries: Array<[string, number]> = [];
 		if (hasDelta) {
 			const setFieldSet = new Set(setEntries.map(([field]) => field));
-			for (const [field, spec] of Object.entries(delta)) {
-				if (spec === undefined) continue;
+			for (const [field, spec] of definedDeltaEntries) {
 				if (setFieldSet.has(field)) {
 					throw new Error(`updateIf: field "${field}" appears in both \`set\` and \`delta\`.`);
 				}
@@ -404,7 +477,16 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 			query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
 		}
 
-		const row = await query.returning("data").executeTakeFirst();
+		// The `{ applied: false }` contract holds only under READ COMMITTED. Under
+		// a stricter isolation level the losing concurrent writers abort with a
+		// serialization failure / deadlock instead; translate those to a typed,
+		// retryable error and rethrow everything else unchanged.
+		let row: { data: string } | undefined;
+		try {
+			row = await query.returning("data").executeTakeFirst();
+		} catch (err) {
+			throw mapSerializationFailure(err);
+		}
 		if (!row) return { applied: false };
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 		const data = JSON.parse(row.data) as T;
