@@ -105,6 +105,7 @@ import {
 	unpublishContent,
 	discardDraft,
 	fetchRevision,
+	useCurrentUser,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
@@ -330,6 +331,7 @@ function ContentListPage() {
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
 	});
+	const { data: currentUser } = useCurrentUser();
 
 	const i18n = manifest?.i18n;
 
@@ -627,6 +629,8 @@ function ContentListPage() {
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			pluginStates={manifest.plugins}
+			userRole={currentUser?.role ?? 0}
 		/>
 	);
 }

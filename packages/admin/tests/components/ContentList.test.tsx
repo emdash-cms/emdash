@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { ContentList } from "../../src/components/ContentList";
 import type { ContentItem, TrashedContentItem } from "../../src/lib/api";
+import type { ContentListColumnExtension } from "../../src/lib/content-list-columns.js";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context.js";
 import { render } from "../utils/render.tsx";
 
 const NO_RESULTS_PATTERN = /No results for/;
@@ -651,6 +653,118 @@ describe("ContentList", () => {
 
 			// The header must not render as a button — it's just a label.
 			expect(screen.getByRole("button", { name: "Title" }).query()).toBeNull();
+		});
+	});
+
+	describe("trusted plugin columns", () => {
+		function listWithColumns(
+			columns: readonly ContentListColumnExtension[],
+			props: Partial<React.ComponentProps<typeof ContentList>> = {},
+		) {
+			const pluginAdmins: PluginAdmins = { seo: { contentListColumns: columns } };
+			return (
+				<PluginAdminProvider pluginAdmins={pluginAdmins}>
+					<ContentList
+						{...defaultProps}
+						items={[makeItem({ data: { title: "Plugin Post", score: 82 } })]}
+						pluginStates={{ seo: { enabled: true } }}
+						{...props}
+					/>
+				</PluginAdminProvider>
+			);
+		}
+
+		function renderWithColumns(
+			columns: readonly ContentListColumnExtension[],
+			props: Partial<React.ComponentProps<typeof ContentList>> = {},
+		) {
+			return render(listWithColumns(columns, props));
+		}
+
+		it("renders contributed headers and cells inside the host table", async () => {
+			function ScoreCell({ item }: { item: ContentItem }) {
+				return <span>{String(item.data.score)}</span>;
+			}
+
+			const screen = await renderWithColumns([
+				{ id: "score", label: "SEO score", align: "end", cell: ScoreCell },
+			]);
+
+			await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
+			await expect.element(screen.getByText("82")).toBeVisible();
+			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+		});
+
+		it("isolates broken headers and cells while healthy columns and core rows remain", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			function Broken(): React.ReactNode {
+				throw new Error("render failed");
+			}
+			function HealthyCell() {
+				return <span>Healthy value</span>;
+			}
+
+			const screen = await renderWithColumns([
+				{ id: "broken", label: "Broken fallback", header: Broken, cell: Broken },
+				{ id: "healthy", label: "Healthy", cell: HealthyCell },
+			]);
+
+			await expect.element(screen.getByText("Broken fallback")).toBeVisible();
+			await expect.element(screen.getByText("Plugin column unavailable")).toBeInTheDocument();
+			await expect.element(screen.getByText("Healthy value")).toBeVisible();
+			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+			expect(error).toHaveBeenCalled();
+			error.mockRestore();
+		});
+
+		it("retries a failed cell when the row locale changes", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			let shouldThrow = true;
+			function LocaleCell({ item }: { item: ContentItem }) {
+				if (shouldThrow) throw new Error("render failed");
+				return <span>{item.locale}</span>;
+			}
+			const columns = [{ id: "locale", label: "Locale", cell: LocaleCell }] as const;
+			const screen = await renderWithColumns(columns, {
+				items: [makeItem({ locale: "en" })],
+			});
+
+			await expect.element(screen.getByText("Plugin column unavailable")).toBeInTheDocument();
+			shouldThrow = false;
+			await screen.rerender(listWithColumns(columns, { items: [makeItem({ locale: "fr" })] }));
+
+			await expect.element(screen.getByText("fr")).toBeVisible();
+			error.mockRestore();
+		});
+
+		it("extends loading and empty-state colspans", async () => {
+			function Cell(): React.ReactNode {
+				return null;
+			}
+			const screen = await renderWithColumns([{ id: "score", label: "Score", cell: Cell }], {
+				items: [],
+				isLoading: true,
+			});
+
+			await expect
+				.element(screen.getByRole("cell", { name: "Loading..." }))
+				.toHaveAttribute("colspan", "5");
+		});
+
+		it("does not render contributed columns in Trash", async () => {
+			function Cell() {
+				return <span>Plugin value</span>;
+			}
+			const screen = await renderWithColumns([{ id: "score", label: "Score", cell: Cell }], {
+				trashedItems: [makeTrashedItem({ data: { title: "Deleted" } })],
+			});
+
+			await screen.getByText("Trash").click();
+			await expect
+				.element(screen.getByRole("cell", { name: "Deleted", exact: true }))
+				.toBeVisible();
+			expect(screen.getByRole("columnheader", { name: "Score" }).query()).toBeNull();
+			expect(screen.getByText("Plugin value").query()).toBeNull();
 		});
 	});
 });

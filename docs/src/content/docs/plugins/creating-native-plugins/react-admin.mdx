@@ -5,7 +5,7 @@ description: Ship custom React components for plugin admin pages and dashboard w
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Native plugins can extend the admin panel with custom React pages and dashboard widgets — sandboxed plugins describe their UI as [Block Kit](/plugins/creating-plugins/block-kit/) instead, because shipping plugin JavaScript into the admin would break sandbox isolation.
+Native plugins can extend the admin panel with custom React pages, dashboard widgets, field widgets, and content-list columns — sandboxed plugins describe their UI as [Block Kit](/plugins/creating-plugins/block-kit/) instead, because shipping plugin JavaScript into the admin would break sandbox isolation.
 
 If your plugin only needs a settings form, the auto-generated `admin.settingsSchema` form (see [Your first native plugin](/plugins/creating-native-plugins/your-first-native-plugin/#settings-ui)) covers most cases without writing any React. Reach for custom components when you need richer UI than `settingsSchema` provides.
 
@@ -224,15 +224,53 @@ export function SEOWidget() {
 
 Widgets wrap automatically based on screen width.
 
+## Content-list columns
+
+Trusted React plugins can add read-only columns to active content collection lists. EmDash keeps ownership of the table, pagination, row actions, and loading and empty states; the plugin supplies only the header metadata and cell content.
+
+```typescript title="src/admin.tsx"
+import type {
+	ContentListColumnCellContext,
+	ContentListColumnExtension,
+} from "@emdash-cms/admin";
+
+function ScoreCell({ item }: ContentListColumnCellContext) {
+	const score = item.data.seoScore;
+	return typeof score === "number" ? <span>{score}</span> : <span>—</span>;
+}
+
+export const contentListColumns = [
+	{
+		id: "score",
+		label: "SEO score",
+		collections: ["posts", "pages"],
+		order: 10,
+		align: "end",
+		cell: ScoreCell,
+	},
+] satisfies readonly ContentListColumnExtension[];
+```
+
+Column ids only need to be unique within the plugin. Contributions are ordered by `order`, then plugin id and column id. A plugin can also provide:
+
+- `header`: a custom header component; `label` remains the host-rendered fallback.
+- `collections`: an array or predicate restricting where the column appears.
+- `minRole`: a visibility filter for the admin UI. This is not authorization; plugin API routes must still enforce access.
+
+Disabled or missing plugins are omitted. Invalid definitions, collection predicates that throw, and render failures are isolated so the host content list remains usable. Columns are not shown in Trash.
+
+Content-list columns are display-only. Server-backed sorting and filtering require a separate host data-provider contract; a browser comparator would only sort the currently loaded cursor pages and is therefore not supported by this API.
+
 ## Export structure
 
-The admin entry point exports two objects:
+The admin entry point exports each contribution directly:
 
 ```typescript title="src/admin.tsx"
 import { SettingsPage } from "./components/SettingsPage";
 import { ReportsPage } from "./components/ReportsPage";
 import { StatusWidget } from "./components/StatusWidget";
 import { OverviewWidget } from "./components/OverviewWidget";
+import { ScoreCell } from "./components/ScoreCell";
 
 export const pages = {
 	"/settings": SettingsPage,
@@ -243,10 +281,14 @@ export const widgets = {
 	status: StatusWidget,
 	overview: OverviewWidget,
 };
+
+export const contentListColumns = [
+	{ id: "score", label: "Score", collections: ["posts"], cell: ScoreCell },
+];
 ```
 
 <Aside type="caution">
-	Page paths in `pages` should match the `path` values in `admin.pages`. A trailing slash is treated as equivalent, so `/settings` and `/settings/` resolve to the same page. Opening a plugin at its root resolves to the first registered page. Widget keys must match the `id` values in `admin.widgets`.
+	Page paths in `pages` should match the `path` values in `admin.pages`. A trailing slash is treated as equivalent, so `/settings` and `/settings/` resolve to the same page. Opening a plugin at its root resolves to the first registered page. Widget keys must match the `id` values in `admin.widgets`. Content-list columns are discovered directly from the trusted admin entry point and do not need a separate descriptor entry.
 </Aside>
 
 ## Using admin components
@@ -344,6 +386,7 @@ When a plugin is disabled in the admin:
 
 - Sidebar links are hidden.
 - Dashboard widgets are not rendered.
+- Content-list columns are not rendered.
 - Admin pages return 404.
 - Backend hooks still execute (for data safety).
 
