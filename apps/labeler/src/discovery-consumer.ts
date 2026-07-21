@@ -623,8 +623,8 @@ async function applyDiscoveryDelete(
 	await deleteSubjectsByUri(deps.db, { uri, now });
 	const runs = await listPendingBearingAssessmentsForUri(deps.db, uri);
 	for (const run of runs) {
-		// Negate (before any cancel) any run — non-terminal OR terminal `stale` —
-		// that committed a positive pending and has not already been negated.
+		// Negate (before any cancel) any run — non-terminal or terminal — that
+		// committed a positive pending and has not already been negated.
 		const positive = await readIssuedLabelByActionKey(
 			deps.db,
 			automatedIdempotencyKey(run.runKey, "assessment-pending", false),

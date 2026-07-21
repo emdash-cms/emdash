@@ -9,6 +9,7 @@ import {
 	operatorTriggerId,
 } from "../src/assessment-lifecycle.js";
 import {
+	buildAssessmentRunStatement,
 	buildFinalizationStatements,
 	createAssessmentRun,
 	createSubject,
@@ -573,6 +574,67 @@ describe("supersession", () => {
 			cid: subject.cid,
 		});
 		expect(pointer?.assessmentId).toBe(newerId);
+	});
+
+	it("a lower-ID run at an equal epoch never displaces a higher-ID current", async () => {
+		const subject = await observedSubject();
+		const createdAt = new Date("2026-07-12T00:00:00.000Z");
+
+		async function runningRun(id: string, triggerSuffix: string) {
+			const triggerId = operatorTriggerId(triggerSuffix);
+			const runKey = await computeRunKey({
+				uri: subject.uri,
+				cid: subject.cid,
+				policyVersion: "v1",
+				modelId: "m",
+				promptHash: "p",
+				scannerSetVersion: "v1",
+				triggerId,
+			});
+			await buildAssessmentRunStatement(testEnv.DB, {
+				id,
+				runKey,
+				uri: subject.uri,
+				cid: subject.cid,
+				trigger: "operator",
+				triggerId,
+				policyVersion: "v1",
+				coverageJson: "{}",
+				now: createdAt,
+			}).run();
+			for (const [from, to] of [
+				["observed", "verifying"],
+				["verifying", "pending"],
+				["pending", "running"],
+			] as const) {
+				await transitionAssessmentState(testEnv.DB, { id, from, to });
+			}
+		}
+
+		const higherId = "asmt_ZZZZZZZZZZZZZZZZZZZZZZZZZZ";
+		const lowerId = "asmt_00000000000000000000000000";
+		await runningRun(higherId, "higher");
+		await runningRun(lowerId, "lower");
+
+		const finalize = (id: string) =>
+			buildFinalizationStatements(testEnv.DB, {
+				assessmentId: id,
+				fromState: "running",
+				toState: "passed",
+				src: LABELER_DID,
+				uri: subject.uri,
+				cid: subject.cid,
+			}).statements;
+
+		await testEnv.DB.batch(finalize(higherId));
+		await testEnv.DB.batch(finalize(lowerId));
+
+		const pointer = await getCurrentAssessment(testEnv.DB, {
+			src: LABELER_DID,
+			uri: subject.uri,
+			cid: subject.cid,
+		});
+		expect(pointer?.assessmentId).toBe(higherId);
 	});
 
 	it("a pending newer run never moves the current pointer", async () => {

@@ -295,6 +295,10 @@ export class AssessmentOrchestrator {
 			// subject after the currency re-check below no-ops this CAS at commit
 			// time, so no outcome/block label commits for a deleted subject.
 			guardSubjectNotDeleted: true,
+			// Halt an in-flight run whose automation kill-switch was paused after
+			// dispatch: the CAS (and every label gated on `toState`) no-ops, leaving
+			// the run `running` for the Workflow retry to re-run after resume.
+			guardAutomationNotPaused: true,
 		});
 
 		const statements = [...finalization.statements];

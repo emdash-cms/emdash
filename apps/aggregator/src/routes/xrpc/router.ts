@@ -76,18 +76,34 @@ function applyCorsHeaders(headers: Headers): void {
 }
 
 /**
- * Generic 500 for an unexpected pre-dispatch failure (e.g. a D1 error resolving
- * the labeler policy). Logs the internal error for operators but returns the
- * router's own opaque envelope, so no internal detail (SQL text, stack) reaches
- * the client. Matches the body the router itself produces for a handler throw.
+ * Generic 500 for an unexpected failure (e.g. a D1 error). Logs the internal
+ * error under `context` for operators but returns the router's own opaque
+ * envelope, so no internal detail (SQL text, stack) reaches the client.
+ * Matches the body the router itself produces for a handler throw.
  */
-function internalErrorResponse(err: unknown): Response {
-	console.error("[aggregator] xrpc policy resolution failed", {
+function internalErrorResponse(err: unknown, context: string): Response {
+	console.error(`[aggregator] xrpc ${context} failed`, {
 		error: err instanceof Error ? (err.stack ?? err.message) : String(err),
 	});
 	return new InternalServerError({
 		message: "an exception happened whilst processing this request",
 	}).toResponse();
+}
+
+/**
+ * Wrap an unexpected dispatch failure as an error Response carrying CORS +
+ * `no-store`. An unwrapped throw escapes to workerd's bare 500, dropping both
+ * — and on the cacheable `sync.getRecord` path it would leave a takedown-
+ * relevant error under a public cache header. `XRPCError` keeps its typed
+ * envelope (e.g. a malformed accept-labelers header); anything else is opaque.
+ */
+function wrapDispatchError(err: unknown, context: string): Response {
+	const errorResponse =
+		err instanceof XRPCError ? err.toResponse() : internalErrorResponse(err, context);
+	const headers = new Headers(errorResponse.headers);
+	headers.set("cache-control", NO_STORE);
+	applyCorsHeaders(headers);
+	return new Response(errorResponse.body, { status: errorResponse.status, headers });
 }
 
 /**
@@ -108,7 +124,12 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 	}
 
 	if (url.pathname === SYNC_GET_RECORD_PATH) {
-		const response = await syncGetRecord(env, request);
+		let response: Response;
+		try {
+			response = await syncGetRecord(env, request);
+		} catch (err) {
+			return wrapDispatchError(err, "sync.getRecord");
+		}
 		const headers = new Headers(response.headers);
 		applyCorsHeaders(headers);
 		return new Response(response.body, {
@@ -128,15 +149,7 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 	try {
 		policy = await resolveRequestLabelerPolicy(env, request);
 	} catch (err) {
-		// Both branches take the same wrapper as a normal response so the
-		// CORS + `no-store` cache invariant holds on the error path too — an
-		// unwrapped throw would escape to workerd's bare 500, dropping both
-		// and leaving a takedown-relevant response cacheable.
-		const errorResponse = err instanceof XRPCError ? err.toResponse() : internalErrorResponse(err);
-		const headers = new Headers(errorResponse.headers);
-		headers.set("cache-control", NO_STORE);
-		applyCorsHeaders(headers);
-		return new Response(errorResponse.body, { status: errorResponse.status, headers });
+		return wrapDispatchError(err, "policy resolution");
 	}
 
 	const router = getRouter(env);
