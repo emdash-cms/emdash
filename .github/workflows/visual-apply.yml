@@ -19,15 +19,17 @@ permissions:
   actions: read # find + download the measure artifact
   contents: read # app token handles the write/push
   pull-requests: write # comment back with the result
+  issues: write # react to the triggering comment (issues-scoped API)
 
 jobs:
   apply:
     name: Apply
-    # Only on PR comments, from a non-bot with write access, containing the command.
+    # Only on PR comments, from a non-bot with write access. Exact match (as in
+    # format-command.yml) so quoted or suffixed text can't trigger a write.
     if: >-
       github.event.issue.pull_request != null
       && github.event.sender.type != 'Bot'
-      && contains(github.event.comment.body, '/accept-baselines')
+      && github.event.comment.body == '/accept-baselines'
       && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     concurrency:
       group: visual-apply-${{ github.event.issue.number }}
@@ -36,6 +38,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Acknowledge
+        continue-on-error: true # a missing 👀 must not block the apply
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -56,14 +59,20 @@ jobs:
             });
 
             // Find the measure run (with the candidate artifact) for this head.
+            // The run "fails" red on drift, so match on completion, not
+            // conclusion. listWorkflowRuns returns newest first.
+            const sha7 = pr.head.sha.slice(0, 7);
             const runs = await github.rest.actions.listWorkflowRuns({
               owner, repo, workflow_id: 'visual.yml', head_sha: pr.head.sha, per_page: 20,
             });
-            const run = runs.data.workflow_runs?.[0];
+            const all = runs.data.workflow_runs ?? [];
+            const run = all.find((r) => r.status === 'completed');
             if (!run) {
               await github.rest.issues.createComment({
                 owner, repo, issue_number: number,
-                body: `No \`Visual Regression\` run found for the current head (\`${pr.head.sha.slice(0, 7)}\`). Wait for the measure job to finish (or push a commit to trigger it), then comment \`/accept-baselines\` again.`,
+                body: all.length > 0
+                  ? `The \`Visual Regression\` run for the current head (\`${sha7}\`) is still in progress. Wait for it to finish, then comment \`/accept-baselines\` again.`
+                  : `No \`Visual Regression\` run found for the current head (\`${sha7}\`). Push a commit to trigger it (or wait for the measure job), then comment \`/accept-baselines\` again.`,
               });
               core.setOutput('eligible', 'false');
               return;
@@ -99,7 +108,7 @@ jobs:
             if (!artifact) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner, repo: context.repo.repo, issue_number: number,
-                body: 'The candidate baselines have expired (artifacts are kept 7 days). Push a commit to regenerate them, then comment `/accept-baselines` again.',
+                body: "Couldn't find the candidate-baseline artifact for the completed measure run (it may have expired after 7 days, or the run failed before uploading). Push a commit to regenerate it, then comment `/accept-baselines` again.",
               });
               core.setOutput('found', 'false');
               return;
@@ -256,15 +265,14 @@ jobs:
             });
 
       - name: Report failure
-        if: failure() && steps.validate.outputs.ok == 'true'
+        if: failure()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          PR_NUMBER: ${{ steps.resolve.outputs.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
             await github.rest.issues.createComment({
               owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: Number(process.env.PR_NUMBER),
-              body: `❌ Failed to commit the accepted baselines. See the [run log](${process.env.RUN_URL}). If this is a fork PR, the contributor may have "Allow edits by maintainers" disabled.`,
+              issue_number: context.issue.number,
+              body: `❌ \`/accept-baselines\` failed. See the [run log](${process.env.RUN_URL}). If this is a fork PR, the contributor may have "Allow edits by maintainers" disabled.`,
             });
