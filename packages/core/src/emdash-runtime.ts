@@ -180,7 +180,12 @@ import {
 } from "./plugins/hooks.js";
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
-import { buildRouteMeta, parseRouteInput, PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
+import {
+	buildRouteMeta,
+	parseRouteInput,
+	PluginRouteRegistry,
+	type RouteMeta,
+} from "./plugins/routes.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
