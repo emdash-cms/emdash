@@ -89,7 +89,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1464
+#: packages/admin/src/router.tsx:1465
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# kommentar oppdatert} other {# kommentarer oppdatert}}"
 
@@ -246,17 +246,17 @@ msgid "{0} items will be imported"
 msgstr "{0} oppføringer vil bli importert"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:534
+#: packages/admin/src/router.tsx:535
 msgid "{0} of {total} could not be deleted"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:490
+#: packages/admin/src/router.tsx:491
 msgid "{0} of {total} could not be published"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:513
+#: packages/admin/src/router.tsx:514
 msgid "{0} of {total} could not be updated"
 msgstr ""
 
@@ -362,6 +362,12 @@ msgstr "{pluginName} ber om flere tillatelser:"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:80
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} krever følgende tillatelser:"
+
+#: packages/admin/src/components/PluginSettings.tsx:128
+#: packages/admin/src/components/PluginSettings.tsx:142
+#: packages/admin/src/components/PluginSettings.tsx:170
+msgid "{pluginName} Settings"
+msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:298
 msgid "{resultCount, plural, one {# item} other {# items}}"
@@ -553,7 +559,7 @@ msgstr "Godta invitasjon"
 msgid "Access denied"
 msgstr "Tilgang nektet"
 
-#: packages/admin/src/router.tsx:1484
+#: packages/admin/src/router.tsx:1485
 msgid "Access Denied"
 msgstr "Tilgang nektet"
 
@@ -866,7 +872,7 @@ msgstr "Tillatte typer"
 msgid "Already have an account?"
 msgstr "Har du allerede en konto?"
 
-#: packages/admin/src/components/PluginManager.tsx:634
+#: packages/admin/src/components/PluginManager.tsx:645
 msgid "Also delete plugin storage data"
 msgstr "Slett også lagrede data for utvidelsen"
 
@@ -895,6 +901,7 @@ msgstr "Alternativt kan du eksportere fra WordPress (Verktøy → Eksporter) og 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
 #: packages/admin/src/components/PluginManager.tsx:98
 #: packages/admin/src/components/PluginManager.tsx:117
+#: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:95
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
@@ -908,23 +915,23 @@ msgstr "Alternativt kan du eksportere fra WordPress (Verktøy → Eksporter) og 
 #: packages/admin/src/components/settings/SocialSettings.tsx:43
 #: packages/admin/src/components/TaxonomySidebar.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:422
-#: packages/admin/src/router.tsx:437
-#: packages/admin/src/router.tsx:451
-#: packages/admin/src/router.tsx:465
-#: packages/admin/src/router.tsx:942
-#: packages/admin/src/router.tsx:995
-#: packages/admin/src/router.tsx:1013
-#: packages/admin/src/router.tsx:1031
-#: packages/admin/src/router.tsx:1052
-#: packages/admin/src/router.tsx:1073
-#: packages/admin/src/router.tsx:1094
-#: packages/admin/src/router.tsx:1125
-#: packages/admin/src/router.tsx:1145
-#: packages/admin/src/router.tsx:1429
-#: packages/admin/src/router.tsx:1445
-#: packages/admin/src/router.tsx:1470
-#: packages/admin/src/router.tsx:1959
+#: packages/admin/src/router.tsx:423
+#: packages/admin/src/router.tsx:438
+#: packages/admin/src/router.tsx:452
+#: packages/admin/src/router.tsx:466
+#: packages/admin/src/router.tsx:943
+#: packages/admin/src/router.tsx:996
+#: packages/admin/src/router.tsx:1014
+#: packages/admin/src/router.tsx:1032
+#: packages/admin/src/router.tsx:1053
+#: packages/admin/src/router.tsx:1074
+#: packages/admin/src/router.tsx:1095
+#: packages/admin/src/router.tsx:1126
+#: packages/admin/src/router.tsx:1146
+#: packages/admin/src/router.tsx:1430
+#: packages/admin/src/router.tsx:1446
+#: packages/admin/src/router.tsx:1471
+#: packages/admin/src/router.tsx:1960
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1130,7 +1137,7 @@ msgstr ""
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:994
+#: packages/admin/src/router.tsx:995
 msgid "Autosave failed"
 msgstr "Autolagring mislyktes"
 
@@ -1179,6 +1186,7 @@ msgstr "Tilbake til innlogging"
 msgid "Back to marketplace"
 msgstr "Tilbake til markedsplassen"
 
+#: packages/admin/src/components/PluginSettings.tsx:118
 #: packages/admin/src/components/RegistryPluginDetail.tsx:805
 msgid "Back to plugins"
 msgstr "Tilbake til utvidelser"
@@ -1353,7 +1361,7 @@ msgstr "Kan vise innhold"
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:173
-#: packages/admin/src/components/PluginManager.tsx:640
+#: packages/admin/src/components/PluginManager.tsx:651
 #: packages/admin/src/components/PortableTextEditor.tsx:3576
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -1393,7 +1401,7 @@ msgstr "Kan ikke fastslå MIME-type fra URL. Bruk en URL som slutter på en gjen
 msgid "Canonical URL"
 msgstr "Kanonisk URL"
 
-#: packages/admin/src/components/PluginManager.tsx:473
+#: packages/admin/src/components/PluginManager.tsx:484
 msgid "Capabilities"
 msgstr "Egenskaper"
 
@@ -1462,7 +1470,7 @@ msgstr "Endre logo"
 msgid "Changelog"
 msgstr "Endringslogg"
 
-#: packages/admin/src/router.tsx:1045
+#: packages/admin/src/router.tsx:1046
 msgid "Changes discarded"
 msgstr "Endringene ble forkastet"
 
@@ -1518,6 +1526,14 @@ msgstr "Tøm filtre"
 #: packages/admin/src/components/MediaLibrary.tsx:497
 #: packages/admin/src/components/MediaLibrary.tsx:521
 msgid "Clear search"
+msgstr ""
+
+#: packages/admin/src/components/PluginSettings.tsx:354
+msgid "Clear stored value"
+msgstr ""
+
+#: packages/admin/src/components/PluginSettings.tsx:352
+msgid "Clear stored value for {fieldKey}"
 msgstr ""
 
 #: packages/admin/src/components/SignupPage.tsx:139
@@ -1613,11 +1629,11 @@ msgstr "Kode"
 msgid "Code Block"
 msgstr "Kodeblokk"
 
-#: packages/admin/src/components/PluginManager.tsx:460
+#: packages/admin/src/components/PluginManager.tsx:471
 msgid "Collapse"
 msgstr "Slå sammen"
 
-#: packages/admin/src/components/PluginManager.tsx:454
+#: packages/admin/src/components/PluginManager.tsx:465
 msgid "Collapse details"
 msgstr "Skjul detaljer"
 
@@ -1731,7 +1747,7 @@ msgstr "Innholdsfeil ({0})"
 msgid "Content found:"
 msgstr "Innhold funnet:"
 
-#: packages/admin/src/router.tsx:1067
+#: packages/admin/src/router.tsx:1068
 msgid "Content has been scheduled for publishing"
 msgstr "Innholdet er planlagt for publisering"
 
@@ -1743,7 +1759,7 @@ msgstr "Innholdet er oppdatert til den valgte revisjonen."
 msgid "Content ID:"
 msgstr "Innholds-ID:"
 
-#: packages/admin/src/router.tsx:1008
+#: packages/admin/src/router.tsx:1009
 msgid "Content is now live"
 msgstr "Innholdet er nå publisert"
 
@@ -1755,11 +1771,11 @@ msgstr "innholdselementer"
 msgid "Content Read"
 msgstr "Les innhold"
 
-#: packages/admin/src/router.tsx:1026
+#: packages/admin/src/router.tsx:1027
 msgid "Content removed from public view"
 msgstr "Innholdet er fjernet fra offentlig visning"
 
-#: packages/admin/src/router.tsx:1088
+#: packages/admin/src/router.tsx:1089
 msgid "Content reverted to draft"
 msgstr "Innholdet er tilbakestilt til kladd"
 
@@ -2049,7 +2065,7 @@ msgid "Created {0}"
 msgstr "Opprettet {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1119
+#: packages/admin/src/router.tsx:1120
 msgid "Created {0} translation"
 msgstr "Opprettet {0}-oversettelse"
 
@@ -2082,6 +2098,10 @@ msgstr "gjeldende"
 #: packages/admin/src/components/RevisionHistory.tsx:272
 msgid "Current"
 msgstr "Gjeldende"
+
+#: packages/admin/src/components/PluginSettings.tsx:340
+msgid "Currently set — enter a new value to replace"
+msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:46
 msgid "Custom"
@@ -2422,7 +2442,7 @@ msgstr "Mål"
 msgid "Destination path"
 msgstr "Målsti"
 
-#: packages/admin/src/components/PluginManager.tsx:460
+#: packages/admin/src/components/PluginManager.tsx:471
 msgid "details"
 msgstr "detaljer"
 
@@ -2458,7 +2478,7 @@ msgstr "Dimensjoner:"
 msgid "Disable"
 msgstr "Deaktiver"
 
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:459
 msgid "Disable plugin"
 msgstr "Deaktiver utvidelse"
 
@@ -2481,7 +2501,7 @@ msgstr "Deaktivere bruker?"
 msgid "Disabled"
 msgstr "Deaktivert"
 
-#: packages/admin/src/components/PluginManager.tsx:531
+#: packages/admin/src/components/PluginManager.tsx:542
 msgid "Disabled:"
 msgstr "Deaktivert:"
 
@@ -2895,7 +2915,7 @@ msgstr "Aktiver kommentarer"
 msgid "Enable full-text search on this collection"
 msgstr "Aktiver fulltekstsøk på denne samlingen"
 
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:459
 msgid "Enable plugin"
 msgstr "Aktiver utvidelse"
 
@@ -2967,7 +2987,7 @@ msgstr "Skriv inn URL-en til WordPress-nettstedet ditt"
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:752
-#: packages/admin/src/router.tsx:2158
+#: packages/admin/src/router.tsx:2174
 msgid "Error"
 msgstr "Feil"
 
@@ -3003,11 +3023,11 @@ msgstr "Avslutt distraksjonsfri modus"
 msgid "Exit Spotlight Mode"
 msgstr "Avslutt søkelysmodus"
 
-#: packages/admin/src/components/PluginManager.tsx:460
+#: packages/admin/src/components/PluginManager.tsx:471
 msgid "Expand"
 msgstr "Utvid"
 
-#: packages/admin/src/components/PluginManager.tsx:454
+#: packages/admin/src/components/PluginManager.tsx:465
 msgid "Expand details"
 msgstr "Vis detaljer"
 
@@ -3097,14 +3117,14 @@ msgstr "Kunne ikke opprette noen samlinger"
 msgid "Failed to create term"
 msgstr "Kunne ikke opprette term"
 
-#: packages/admin/src/router.tsx:1124
+#: packages/admin/src/router.tsx:1125
 msgid "Failed to create translation"
 msgstr "Kunne ikke opprette oversettelse"
 
-#: packages/admin/src/router.tsx:421
-#: packages/admin/src/router.tsx:450
-#: packages/admin/src/router.tsx:533
-#: packages/admin/src/router.tsx:1144
+#: packages/admin/src/router.tsx:422
+#: packages/admin/src/router.tsx:451
+#: packages/admin/src/router.tsx:534
+#: packages/admin/src/router.tsx:1145
 msgid "Failed to delete"
 msgstr "Kunne ikke slette"
 
@@ -3129,7 +3149,7 @@ msgid "Failed to delete collection"
 msgstr "Kunne ikke slette samling"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1444
+#: packages/admin/src/router.tsx:1445
 msgid "Failed to delete comment"
 msgstr "Kunne ikke slette kommentar"
 
@@ -3183,7 +3203,7 @@ msgid "Failed to delete widget area"
 msgstr "Kunne ikke slette modulområde"
 
 #: packages/admin/src/components/PluginManager.tsx:116
-#: packages/admin/src/lib/api/plugins.ts:91
+#: packages/admin/src/lib/api/plugins.ts:151
 msgid "Failed to disable plugin"
 msgstr "Kunne ikke deaktivere utvidelse"
 
@@ -3195,7 +3215,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr "Kunne ikke deaktivere bruker"
 
-#: packages/admin/src/router.tsx:1051
+#: packages/admin/src/router.tsx:1052
 msgid "Failed to discard changes"
 msgstr "Kunne ikke forkaste endringer"
 
@@ -3203,12 +3223,12 @@ msgstr "Kunne ikke forkaste endringer"
 msgid "Failed to dismiss welcome"
 msgstr "Kunne ikke lukke velkomstmelding"
 
-#: packages/admin/src/router.tsx:464
+#: packages/admin/src/router.tsx:465
 msgid "Failed to duplicate"
 msgstr "Kunne ikke duplisere"
 
 #: packages/admin/src/components/PluginManager.tsx:97
-#: packages/admin/src/lib/api/plugins.ts:77
+#: packages/admin/src/lib/api/plugins.ts:137
 msgid "Failed to enable plugin"
 msgstr "Kunne ikke aktivere utvidelse"
 
@@ -3265,12 +3285,16 @@ msgstr ""
 msgid "Failed to fetch media providers"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:59
-#: packages/admin/src/lib/api/plugins.ts:63
+#: packages/admin/src/lib/api/plugins.ts:61
+#: packages/admin/src/lib/api/plugins.ts:65
 msgid "Failed to fetch plugin"
 msgstr "Kunne ikke hente utvidelse"
 
-#: packages/admin/src/lib/api/plugins.ts:45
+#: packages/admin/src/lib/api/plugins.ts:105
+msgid "Failed to fetch plugin settings"
+msgstr ""
+
+#: packages/admin/src/lib/api/plugins.ts:47
 msgid "Failed to fetch plugins"
 msgstr ""
 
@@ -3306,8 +3330,8 @@ msgstr "Kunne ikke hente termer"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:851
-#: packages/admin/src/router.tsx:1375
+#: packages/admin/src/router.tsx:852
+#: packages/admin/src/router.tsx:1376
 msgid "Failed to fetch user"
 msgstr "Kunne ikke hente bruker"
 
@@ -3349,7 +3373,7 @@ msgstr "Kunne ikke installere utvidelse"
 msgid "Failed to list byline fields"
 msgstr "Kunne ikke liste byline-felt"
 
-#: packages/admin/src/router.tsx:281
+#: packages/admin/src/router.tsx:282
 msgid "Failed to load admin"
 msgstr "Kunne ikke laste inn admin"
 
@@ -3382,6 +3406,10 @@ msgstr "Kunne ikke laste inn passnøkler"
 msgid "Failed to load plugin"
 msgstr "Kunne ikke laste inn utvidelse"
 
+#: packages/admin/src/components/PluginSettings.tsx:146
+msgid "Failed to load plugin settings"
+msgstr ""
+
 #. placeholder {0}: error.message
 #: packages/admin/src/components/PluginManager.tsx:145
 msgid "Failed to load plugins: {0}"
@@ -3412,7 +3440,7 @@ msgstr "Kunne ikke laste inn brukere: {0}"
 msgid "Failed to load widget"
 msgstr "Kunne ikke laste inn modul"
 
-#: packages/admin/src/router.tsx:1469
+#: packages/admin/src/router.tsx:1470
 msgid "Failed to perform bulk action"
 msgstr "Kunne ikke utføre masseoperasjon"
 
@@ -3424,8 +3452,8 @@ msgstr "Kunne ikke slette innhold permanent"
 msgid "Failed to prepare import"
 msgstr "Kunne ikke forberede import"
 
-#: packages/admin/src/router.tsx:489
-#: packages/admin/src/router.tsx:1012
+#: packages/admin/src/router.tsx:490
+#: packages/admin/src/router.tsx:1013
 msgid "Failed to publish"
 msgstr "Kunne ikke publisere"
 
@@ -3459,7 +3487,7 @@ msgstr "Kunne ikke endre rekkefølge på felt"
 msgid "Failed to reorder widgets"
 msgstr "Kunne ikke endre rekkefølge på moduler"
 
-#: packages/admin/src/router.tsx:436
+#: packages/admin/src/router.tsx:437
 msgid "Failed to restore"
 msgstr "Kunne ikke gjenopprette"
 
@@ -3480,8 +3508,8 @@ msgstr "Kunne ikke tilbakekalle API-token"
 msgid "Failed to rewrite URLs"
 msgstr "Kunne ikke skrive om URL-er"
 
-#: packages/admin/src/router.tsx:941
-#: packages/admin/src/router.tsx:1958
+#: packages/admin/src/router.tsx:942
+#: packages/admin/src/router.tsx:1959
 msgid "Failed to save"
 msgstr "Kunne ikke lagre"
 
@@ -3493,13 +3521,14 @@ msgstr ""
 msgid "Failed to save field"
 msgstr "Kunne ikke lagre felt"
 
+#: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:50
 #: packages/admin/src/components/settings/SeoSettings.tsx:44
 #: packages/admin/src/components/settings/SocialSettings.tsx:42
 msgid "Failed to save settings"
 msgstr "Kunne ikke lagre innstillinger"
 
-#: packages/admin/src/router.tsx:1072
+#: packages/admin/src/router.tsx:1073
 msgid "Failed to schedule"
 msgstr "Kunne ikke planlegge"
 
@@ -3530,15 +3559,15 @@ msgstr "Kunne ikke angi termer for oppføring"
 msgid "Failed to uninstall plugin"
 msgstr "Kunne ikke avinstallere utvidelse"
 
-#: packages/admin/src/router.tsx:1030
+#: packages/admin/src/router.tsx:1031
 msgid "Failed to unpublish"
 msgstr "Kunne ikke avpublisere"
 
-#: packages/admin/src/router.tsx:1093
+#: packages/admin/src/router.tsx:1094
 msgid "Failed to unschedule"
 msgstr "Kunne ikke oppheve planlegging"
 
-#: packages/admin/src/router.tsx:512
+#: packages/admin/src/router.tsx:513
 msgid "Failed to update"
 msgstr ""
 
@@ -3572,6 +3601,10 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "Kunne ikke oppdatere utvidelse"
 
+#: packages/admin/src/lib/api/plugins.ts:124
+msgid "Failed to update plugin settings"
+msgstr ""
+
 #: packages/admin/src/lib/api/sections.ts:100
 msgid "Failed to update section"
 msgstr ""
@@ -3580,7 +3613,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1428
+#: packages/admin/src/router.tsx:1429
 msgid "Failed to update status"
 msgstr "Kunne ikke oppdatere status"
 
@@ -3790,7 +3823,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2178
+#: packages/admin/src/router.tsx:2194
 msgid "Go to Dashboard"
 msgstr "Gå til dashbordet"
 
@@ -4190,11 +4223,11 @@ msgid "Installed"
 msgstr "Installert"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:500
+#: packages/admin/src/components/PluginManager.tsx:511
 msgid "Installed from marketplace (v{0})"
 msgstr "Installert fra markedsplass (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:519
+#: packages/admin/src/components/PluginManager.tsx:530
 msgid "Installed:"
 msgstr "Installert:"
 
@@ -4342,7 +4375,7 @@ msgstr "Språk"
 msgid "Large section heading"
 msgstr "Stor seksjonsoverskrift"
 
-#: packages/admin/src/components/PluginManager.tsx:525
+#: packages/admin/src/components/PluginManager.tsx:536
 msgid "Last enabled:"
 msgstr "Sist aktivert:"
 
@@ -4468,7 +4501,7 @@ msgstr "Last inn mer"
 msgid "Load More"
 msgstr "Last inn mer"
 
-#: packages/admin/src/router.tsx:2133
+#: packages/admin/src/router.tsx:2149
 msgid "Loading"
 msgstr ""
 
@@ -4484,8 +4517,8 @@ msgstr "Laster samlinger..."
 msgid "Loading comments..."
 msgstr "Laster kommentarer..."
 
-#: packages/admin/src/router.tsx:2135
-#: packages/admin/src/router.tsx:2147
+#: packages/admin/src/router.tsx:2151
+#: packages/admin/src/router.tsx:2163
 msgid "Loading configuration..."
 msgstr "Laster konfigurasjon..."
 
@@ -4518,6 +4551,7 @@ msgstr "Laster videresendinger..."
 msgid "Loading sections..."
 msgstr "Laster seksjoner..."
 
+#: packages/admin/src/components/PluginSettings.tsx:131
 #: packages/admin/src/components/settings/GeneralSettings.tsx:99
 #: packages/admin/src/components/settings/SeoSettings.tsx:93
 #: packages/admin/src/components/settings/SocialSettings.tsx:73
@@ -4935,11 +4969,11 @@ msgstr "Flytte til papirkurven?"
 msgid "Move up"
 msgstr "Flytt opp"
 
-#: packages/admin/src/router.tsx:509
+#: packages/admin/src/router.tsx:510
 msgid "Moved {total} items to draft"
 msgstr ""
 
-#: packages/admin/src/router.tsx:530
+#: packages/admin/src/router.tsx:531
 msgid "Moved {total} items to trash"
 msgstr ""
 
@@ -4988,7 +5022,7 @@ msgstr "Navigasjon"
 msgid "Never"
 msgstr "Aldri"
 
-#: packages/admin/src/router.tsx:1119
+#: packages/admin/src/router.tsx:1120
 msgid "new"
 msgstr "ny"
 
@@ -5383,6 +5417,10 @@ msgstr "Ingen (øverste nivå)"
 msgid "Not compatible with this environment"
 msgstr "Ikke kompatibel med dette miljøet"
 
+#: packages/admin/src/components/PluginSettings.tsx:341
+msgid "Not set"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:162
 #: packages/admin/src/components/FieldEditor.tsx:581
 msgid "Number"
@@ -5528,11 +5566,11 @@ msgstr "Overstyrer sidetittelen i søkemotorresultater"
 msgid "Ownership"
 msgstr "Eierskap"
 
-#: packages/admin/src/components/PluginManager.tsx:509
+#: packages/admin/src/components/PluginManager.tsx:520
 msgid "Package"
 msgstr "Pakke"
 
-#: packages/admin/src/router.tsx:2173
+#: packages/admin/src/router.tsx:2189
 msgid "Page Not Found"
 msgstr "Fant ikke siden"
 
@@ -5714,7 +5752,7 @@ msgstr "Skriv inn en gyldig URL"
 msgid "Plugin"
 msgstr "Utvidelse"
 
-#: packages/admin/src/lib/api/plugins.ts:57
+#: packages/admin/src/lib/api/plugins.ts:59
 msgid "Plugin \"{pluginId}\" not found"
 msgstr ""
 
@@ -5750,6 +5788,10 @@ msgstr "Utvidelse ikke funnet. Utgiverhåndtaket eller slug kan være feil."
 #: packages/admin/src/components/WordPressImport.tsx:1209
 msgid "plugin on your WordPress site."
 msgstr "-utvidelsen på WordPress-nettstedet ditt."
+
+#: packages/admin/src/components/PluginManager.tsx:448
+msgid "Plugin pages"
+msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:75
 msgid "Plugin Permissions"
@@ -5893,7 +5935,7 @@ msgstr "publisert"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:428
 #: packages/admin/src/components/Dashboard.tsx:245
 #: packages/admin/src/components/Dashboard.tsx:345
-#: packages/admin/src/router.tsx:1008
+#: packages/admin/src/router.tsx:1009
 msgid "Published"
 msgstr "Publisert"
 
@@ -5902,7 +5944,7 @@ msgstr "Publisert"
 msgid "Published {0}"
 msgstr "Publisert {0}"
 
-#: packages/admin/src/router.tsx:486
+#: packages/admin/src/router.tsx:487
 msgid "Published {total} items"
 msgstr ""
 
@@ -6250,7 +6292,7 @@ msgstr "Gjenoppretter …"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:2161
+#: packages/admin/src/router.tsx:2177
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Prøv igjen"
@@ -6259,7 +6301,7 @@ msgstr "Prøv igjen"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Gjenbrukbare innholdsblokker du kan sette inn i hvilket som helst innhold"
 
-#: packages/admin/src/router.tsx:1046
+#: packages/admin/src/router.tsx:1047
 msgid "Reverted to published version"
 msgstr "Tilbakestilt til publisert versjon"
 
@@ -6387,6 +6429,8 @@ msgstr "Lagre navn"
 msgid "Save SEO Settings"
 msgstr "Lagre SEO-innstillinger"
 
+#: packages/admin/src/components/PluginSettings.tsx:166
+#: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/settings/GeneralSettings.tsx:120
 #: packages/admin/src/components/settings/GeneralSettings.tsx:298
 msgid "Save Settings"
@@ -6410,6 +6454,8 @@ msgstr "Lagret \"{0}\"."
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
+#: packages/admin/src/components/PluginSettings.tsx:166
+#: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/SaveButton.tsx:33
 #: packages/admin/src/components/settings/BackupSettings.tsx:192
@@ -6458,7 +6504,7 @@ msgstr "planlagt"
 #: packages/admin/src/components/ContentList.tsx:731
 #: packages/admin/src/components/ContentSettingsPanel.tsx:431
 #: packages/admin/src/components/Dashboard.tsx:347
-#: packages/admin/src/router.tsx:1066
+#: packages/admin/src/router.tsx:1067
 msgid "Scheduled"
 msgstr "Planlagt"
 
@@ -6943,6 +6989,7 @@ msgstr "Administrer innstillinger"
 msgid "Settings Read"
 msgstr "Les innstillinger"
 
+#: packages/admin/src/components/PluginSettings.tsx:68
 #: packages/admin/src/components/settings/GeneralSettings.tsx:43
 msgid "Settings saved successfully"
 msgstr "Innstillingene ble lagret"
@@ -7173,7 +7220,7 @@ msgstr "Sorter temaer"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:214
-#: packages/admin/src/components/PluginManager.tsx:497
+#: packages/admin/src/components/PluginManager.tsx:508
 #: packages/admin/src/components/Redirects.tsx:467
 #: packages/admin/src/components/SectionEditor.tsx:281
 msgid "Source"
@@ -7406,7 +7453,7 @@ msgstr "Menyen er slettet."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Navnet på nettstedet ditt, brukt i toppteksten og metadataene"
 
-#: packages/admin/src/router.tsx:2175
+#: packages/admin/src/router.tsx:2191
 msgid "The page you're looking for doesn't exist."
 msgstr "Siden du leter etter, finnes ikke."
 
@@ -7502,6 +7549,10 @@ msgstr "Denne tilgangsnøkkelen er allerede registrert på denne enheten."
 msgid "This permanently deletes {0} from storage."
 msgstr ""
 
+#: packages/admin/src/components/PluginSettings.tsx:177
+msgid "This plugin has no configurable settings."
+msgstr ""
+
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:276
 msgid "This plugin requires no special permissions."
 msgstr "Denne utvidelsen krever ingen spesielle tillatelser."
@@ -7560,7 +7611,7 @@ msgstr "Dette sletter \"{0}\" permanent. Denne handlingen kan ikke angres."
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Dette sletter denne kommentaren permanent. Denne handlingen kan ikke angres."
 
-#: packages/admin/src/components/PluginManager.tsx:629
+#: packages/admin/src/components/PluginManager.tsx:640
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Dette fjerner utvidelsen og pakken dens fra nettstedet ditt."
 
@@ -7675,7 +7726,7 @@ msgstr "Oversetter …"
 
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:780
-#: packages/admin/src/router.tsx:1118
+#: packages/admin/src/router.tsx:1119
 msgid "Translation created"
 msgstr "Oversettelse opprettet"
 
@@ -7802,20 +7853,20 @@ msgid "Undo"
 msgstr "Angre"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:180
-#: packages/admin/src/components/PluginManager.tsx:547
-#: packages/admin/src/components/PluginManager.tsx:643
+#: packages/admin/src/components/PluginManager.tsx:558
+#: packages/admin/src/components/PluginManager.tsx:654
 msgid "Uninstall"
 msgstr "Avinstaller"
 
-#: packages/admin/src/components/PluginManager.tsx:627
+#: packages/admin/src/components/PluginManager.tsx:638
 msgid "Uninstall {pluginName}?"
 msgstr "Avinstallere {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:622
+#: packages/admin/src/components/PluginManager.tsx:633
 msgid "Uninstall confirmation"
 msgstr "Bekreft avinstallering"
 
-#: packages/admin/src/components/PluginManager.tsx:643
+#: packages/admin/src/components/PluginManager.tsx:654
 msgid "Uninstalling..."
 msgstr "Avinstallerer …"
 
@@ -7852,7 +7903,7 @@ msgstr "Tilgangsnøkkel uten navn"
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1026
+#: packages/admin/src/router.tsx:1027
 msgid "Unpublished"
 msgstr "Avpublisert"
 
@@ -7864,7 +7915,7 @@ msgstr "Fant uregistrerte innholdstabeller"
 msgid "Unschedule"
 msgstr "Fjern planlegging"
 
-#: packages/admin/src/router.tsx:1087
+#: packages/admin/src/router.tsx:1088
 msgid "Unscheduled"
 msgstr "Ikke planlagt"
 
@@ -8387,6 +8438,10 @@ msgstr "Widgeter"
 msgid "Width"
 msgstr "Bredde"
 
+#: packages/admin/src/components/PluginSettings.tsx:338
+msgid "Will be cleared on save"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2014
 msgid "Will create"
 msgstr "Vil opprette"
@@ -8477,7 +8532,7 @@ msgstr "Du har full tilgang til å administrere dette nettstedet, inkludert bruk
 msgid "You need admin permissions to manage byline schema."
 msgstr "Du trenger administratortillatelser for å administrere byline-skjema."
 
-#: packages/admin/src/router.tsx:1485
+#: packages/admin/src/router.tsx:1486
 msgid "You need Editor permissions to moderate comments."
 msgstr "Du trenger redaktørtillatelser for å moderere kommentarer."
 

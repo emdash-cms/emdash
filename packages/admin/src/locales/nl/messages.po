@@ -89,7 +89,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# reactie geïmporteerd} other {# reacties geïmporteerd}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1464
+#: packages/admin/src/router.tsx:1465
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# reactie bijgewerkt} other {# reacties bijgewerkt}}"
 
@@ -246,17 +246,17 @@ msgid "{0} items will be imported"
 msgstr "{0} items worden geïmporteerd"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:534
+#: packages/admin/src/router.tsx:535
 msgid "{0} of {total} could not be deleted"
 msgstr "{0} van {total} konden niet worden verwijderd"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:490
+#: packages/admin/src/router.tsx:491
 msgid "{0} of {total} could not be published"
 msgstr "{0} van {total} konden niet worden gepubliceerd"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:513
+#: packages/admin/src/router.tsx:514
 msgid "{0} of {total} could not be updated"
 msgstr "{0} van {total} konden niet worden bijgewerkt"
 
@@ -362,6 +362,12 @@ msgstr "{pluginName} vraagt om extra rechten:"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:80
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} vereist de volgende rechten:"
+
+#: packages/admin/src/components/PluginSettings.tsx:128
+#: packages/admin/src/components/PluginSettings.tsx:142
+#: packages/admin/src/components/PluginSettings.tsx:170
+msgid "{pluginName} Settings"
+msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:298
 msgid "{resultCount, plural, one {# item} other {# items}}"
@@ -553,7 +559,7 @@ msgstr "Uitnodiging accepteren"
 msgid "Access denied"
 msgstr "Toegang geweigerd"
 
-#: packages/admin/src/router.tsx:1484
+#: packages/admin/src/router.tsx:1485
 msgid "Access Denied"
 msgstr "Toegang geweigerd"
 
@@ -866,7 +872,7 @@ msgstr "Toegestane types"
 msgid "Already have an account?"
 msgstr "Heb je al een account?"
 
-#: packages/admin/src/components/PluginManager.tsx:634
+#: packages/admin/src/components/PluginManager.tsx:645
 msgid "Also delete plugin storage data"
 msgstr "Ook storage-data van de plugin verwijderen"
 
@@ -895,6 +901,7 @@ msgstr "Je kunt ook exporteren vanuit WordPress (Extra → Exporteren) en het be
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
 #: packages/admin/src/components/PluginManager.tsx:98
 #: packages/admin/src/components/PluginManager.tsx:117
+#: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:95
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
@@ -908,23 +915,23 @@ msgstr "Je kunt ook exporteren vanuit WordPress (Extra → Exporteren) en het be
 #: packages/admin/src/components/settings/SocialSettings.tsx:43
 #: packages/admin/src/components/TaxonomySidebar.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:422
-#: packages/admin/src/router.tsx:437
-#: packages/admin/src/router.tsx:451
-#: packages/admin/src/router.tsx:465
-#: packages/admin/src/router.tsx:942
-#: packages/admin/src/router.tsx:995
-#: packages/admin/src/router.tsx:1013
-#: packages/admin/src/router.tsx:1031
-#: packages/admin/src/router.tsx:1052
-#: packages/admin/src/router.tsx:1073
-#: packages/admin/src/router.tsx:1094
-#: packages/admin/src/router.tsx:1125
-#: packages/admin/src/router.tsx:1145
-#: packages/admin/src/router.tsx:1429
-#: packages/admin/src/router.tsx:1445
-#: packages/admin/src/router.tsx:1470
-#: packages/admin/src/router.tsx:1959
+#: packages/admin/src/router.tsx:423
+#: packages/admin/src/router.tsx:438
+#: packages/admin/src/router.tsx:452
+#: packages/admin/src/router.tsx:466
+#: packages/admin/src/router.tsx:943
+#: packages/admin/src/router.tsx:996
+#: packages/admin/src/router.tsx:1014
+#: packages/admin/src/router.tsx:1032
+#: packages/admin/src/router.tsx:1053
+#: packages/admin/src/router.tsx:1074
+#: packages/admin/src/router.tsx:1095
+#: packages/admin/src/router.tsx:1126
+#: packages/admin/src/router.tsx:1146
+#: packages/admin/src/router.tsx:1430
+#: packages/admin/src/router.tsx:1446
+#: packages/admin/src/router.tsx:1471
+#: packages/admin/src/router.tsx:1960
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1130,7 +1137,7 @@ msgstr "Automatische back-ups"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Automatische back-ups vereisen een storage-backend (R2, S3 of lokale storage). Configureer storage in je EmDash-config om ze in te schakelen."
 
-#: packages/admin/src/router.tsx:994
+#: packages/admin/src/router.tsx:995
 msgid "Autosave failed"
 msgstr "Automatisch opslaan mislukt"
 
@@ -1179,6 +1186,7 @@ msgstr "Terug naar inloggen"
 msgid "Back to marketplace"
 msgstr "Terug naar marketplace"
 
+#: packages/admin/src/components/PluginSettings.tsx:118
 #: packages/admin/src/components/RegistryPluginDetail.tsx:805
 msgid "Back to plugins"
 msgstr "Terug naar plugins"
@@ -1353,7 +1361,7 @@ msgstr "Kan content bekijken"
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:173
-#: packages/admin/src/components/PluginManager.tsx:640
+#: packages/admin/src/components/PluginManager.tsx:651
 #: packages/admin/src/components/PortableTextEditor.tsx:3576
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -1393,7 +1401,7 @@ msgstr "Kan het MIME-type niet bepalen op basis van de URL. Gebruik een URL die 
 msgid "Canonical URL"
 msgstr "Canonieke URL"
 
-#: packages/admin/src/components/PluginManager.tsx:473
+#: packages/admin/src/components/PluginManager.tsx:484
 msgid "Capabilities"
 msgstr "Mogelijkheden"
 
@@ -1462,7 +1470,7 @@ msgstr "Logo wijzigen"
 msgid "Changelog"
 msgstr "Changelog"
 
-#: packages/admin/src/router.tsx:1045
+#: packages/admin/src/router.tsx:1046
 msgid "Changes discarded"
 msgstr "Wijzigingen verworpen"
 
@@ -1519,6 +1527,14 @@ msgstr "Filters wissen"
 #: packages/admin/src/components/MediaLibrary.tsx:521
 msgid "Clear search"
 msgstr "Zoekopdracht wissen"
+
+#: packages/admin/src/components/PluginSettings.tsx:354
+msgid "Clear stored value"
+msgstr ""
+
+#: packages/admin/src/components/PluginSettings.tsx:352
+msgid "Clear stored value for {fieldKey}"
+msgstr ""
 
 #: packages/admin/src/components/SignupPage.tsx:139
 msgid "Click the link in the email to continue setting up your account."
@@ -1613,11 +1629,11 @@ msgstr "Code"
 msgid "Code Block"
 msgstr "Codeblok"
 
-#: packages/admin/src/components/PluginManager.tsx:460
+#: packages/admin/src/components/PluginManager.tsx:471
 msgid "Collapse"
 msgstr "Inklappen"
 
-#: packages/admin/src/components/PluginManager.tsx:454
+#: packages/admin/src/components/PluginManager.tsx:465
 msgid "Collapse details"
 msgstr "Details inklappen"
 
@@ -1731,7 +1747,7 @@ msgstr "Contentfouten ({0})"
 msgid "Content found:"
 msgstr "Gevonden content:"
 
-#: packages/admin/src/router.tsx:1067
+#: packages/admin/src/router.tsx:1068
 msgid "Content has been scheduled for publishing"
 msgstr "Content is ingepland voor publicatie"
 
@@ -1743,7 +1759,7 @@ msgstr "Content is bijgewerkt naar de geselecteerde revisie."
 msgid "Content ID:"
 msgstr "Content-ID:"
 
-#: packages/admin/src/router.tsx:1008
+#: packages/admin/src/router.tsx:1009
 msgid "Content is now live"
 msgstr "Content is nu live"
 
@@ -1755,11 +1771,11 @@ msgstr "contentitems"
 msgid "Content Read"
 msgstr "Content lezen"
 
-#: packages/admin/src/router.tsx:1026
+#: packages/admin/src/router.tsx:1027
 msgid "Content removed from public view"
 msgstr "Content is niet meer openbaar zichtbaar"
 
-#: packages/admin/src/router.tsx:1088
+#: packages/admin/src/router.tsx:1089
 msgid "Content reverted to draft"
 msgstr "Content teruggezet naar concept"
 
@@ -2049,7 +2065,7 @@ msgid "Created {0}"
 msgstr "Aangemaakt op {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1119
+#: packages/admin/src/router.tsx:1120
 msgid "Created {0} translation"
 msgstr "Vertaling {0} aangemaakt"
 
@@ -2082,6 +2098,10 @@ msgstr "huidig"
 #: packages/admin/src/components/RevisionHistory.tsx:272
 msgid "Current"
 msgstr "Huidig"
+
+#: packages/admin/src/components/PluginSettings.tsx:340
+msgid "Currently set — enter a new value to replace"
+msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:46
 msgid "Custom"
@@ -2422,7 +2442,7 @@ msgstr "Bestemming"
 msgid "Destination path"
 msgstr "Bestemmingspad"
 
-#: packages/admin/src/components/PluginManager.tsx:460
+#: packages/admin/src/components/PluginManager.tsx:471
 msgid "details"
 msgstr "details"
 
@@ -2458,7 +2478,7 @@ msgstr "Afmetingen:"
 msgid "Disable"
 msgstr "Uitschakelen"
 
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:459
 msgid "Disable plugin"
 msgstr "Plugin uitschakelen"
 
@@ -2481,7 +2501,7 @@ msgstr "Gebruiker uitschakelen?"
 msgid "Disabled"
 msgstr "Uitgeschakeld"
 
-#: packages/admin/src/components/PluginManager.tsx:531
+#: packages/admin/src/components/PluginManager.tsx:542
 msgid "Disabled:"
 msgstr "Uitgeschakeld:"
 
@@ -2895,7 +2915,7 @@ msgstr "Reacties inschakelen"
 msgid "Enable full-text search on this collection"
 msgstr "Zoeken in volledige tekst inschakelen voor deze collectie"
 
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:459
 msgid "Enable plugin"
 msgstr "Plugin inschakelen"
 
@@ -2967,7 +2987,7 @@ msgstr "Voer de URL van je WordPress-site in"
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:752
-#: packages/admin/src/router.tsx:2158
+#: packages/admin/src/router.tsx:2174
 msgid "Error"
 msgstr "Fout"
 
@@ -3003,11 +3023,11 @@ msgstr "Afleidingsvrije modus verlaten"
 msgid "Exit Spotlight Mode"
 msgstr "Spotlight-modus verlaten"
 
-#: packages/admin/src/components/PluginManager.tsx:460
+#: packages/admin/src/components/PluginManager.tsx:471
 msgid "Expand"
 msgstr "Uitklappen"
 
-#: packages/admin/src/components/PluginManager.tsx:454
+#: packages/admin/src/components/PluginManager.tsx:465
 msgid "Expand details"
 msgstr "Details uitklappen"
 
@@ -3097,14 +3117,14 @@ msgstr "Aanmaken van sommige collecties mislukt"
 msgid "Failed to create term"
 msgstr "Aanmaken van term mislukt"
 
-#: packages/admin/src/router.tsx:1124
+#: packages/admin/src/router.tsx:1125
 msgid "Failed to create translation"
 msgstr "Aanmaken van vertaling mislukt"
 
-#: packages/admin/src/router.tsx:421
-#: packages/admin/src/router.tsx:450
-#: packages/admin/src/router.tsx:533
-#: packages/admin/src/router.tsx:1144
+#: packages/admin/src/router.tsx:422
+#: packages/admin/src/router.tsx:451
+#: packages/admin/src/router.tsx:534
+#: packages/admin/src/router.tsx:1145
 msgid "Failed to delete"
 msgstr "Verwijderen mislukt"
 
@@ -3129,7 +3149,7 @@ msgid "Failed to delete collection"
 msgstr "Verwijderen van collectie mislukt"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1444
+#: packages/admin/src/router.tsx:1445
 msgid "Failed to delete comment"
 msgstr "Verwijderen van reactie mislukt"
 
@@ -3183,7 +3203,7 @@ msgid "Failed to delete widget area"
 msgstr "Verwijderen van widgetgebied mislukt"
 
 #: packages/admin/src/components/PluginManager.tsx:116
-#: packages/admin/src/lib/api/plugins.ts:91
+#: packages/admin/src/lib/api/plugins.ts:151
 msgid "Failed to disable plugin"
 msgstr "Uitschakelen van plugin mislukt"
 
@@ -3195,7 +3215,7 @@ msgstr "Uitschakelen van zoeken mislukt"
 msgid "Failed to disable user"
 msgstr "Uitschakelen van gebruiker mislukt"
 
-#: packages/admin/src/router.tsx:1051
+#: packages/admin/src/router.tsx:1052
 msgid "Failed to discard changes"
 msgstr "Verwerpen van wijzigingen mislukt"
 
@@ -3203,12 +3223,12 @@ msgstr "Verwerpen van wijzigingen mislukt"
 msgid "Failed to dismiss welcome"
 msgstr "Verbergen van welkomstscherm mislukt"
 
-#: packages/admin/src/router.tsx:464
+#: packages/admin/src/router.tsx:465
 msgid "Failed to duplicate"
 msgstr "Dupliceren mislukt"
 
 #: packages/admin/src/components/PluginManager.tsx:97
-#: packages/admin/src/lib/api/plugins.ts:77
+#: packages/admin/src/lib/api/plugins.ts:137
 msgid "Failed to enable plugin"
 msgstr "Inschakelen van plugin mislukt"
 
@@ -3265,12 +3285,16 @@ msgstr "Ophalen van media-item mislukt"
 msgid "Failed to fetch media providers"
 msgstr "Ophalen van mediaproviders mislukt"
 
-#: packages/admin/src/lib/api/plugins.ts:59
-#: packages/admin/src/lib/api/plugins.ts:63
+#: packages/admin/src/lib/api/plugins.ts:61
+#: packages/admin/src/lib/api/plugins.ts:65
 msgid "Failed to fetch plugin"
 msgstr "Ophalen van plugin mislukt"
 
-#: packages/admin/src/lib/api/plugins.ts:45
+#: packages/admin/src/lib/api/plugins.ts:105
+msgid "Failed to fetch plugin settings"
+msgstr ""
+
+#: packages/admin/src/lib/api/plugins.ts:47
 msgid "Failed to fetch plugins"
 msgstr "Ophalen van plugins mislukt"
 
@@ -3306,8 +3330,8 @@ msgstr "Ophalen van termen mislukt"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:851
-#: packages/admin/src/router.tsx:1375
+#: packages/admin/src/router.tsx:852
+#: packages/admin/src/router.tsx:1376
 msgid "Failed to fetch user"
 msgstr "Ophalen van gebruiker mislukt"
 
@@ -3349,7 +3373,7 @@ msgstr "Installeren van plugin mislukt"
 msgid "Failed to list byline fields"
 msgstr "Ophalen van auteursvermeldingsvelden mislukt"
 
-#: packages/admin/src/router.tsx:281
+#: packages/admin/src/router.tsx:282
 msgid "Failed to load admin"
 msgstr "Laden van admin mislukt"
 
@@ -3382,6 +3406,10 @@ msgstr "Laden van passkeys mislukt"
 msgid "Failed to load plugin"
 msgstr "Laden van plugin mislukt"
 
+#: packages/admin/src/components/PluginSettings.tsx:146
+msgid "Failed to load plugin settings"
+msgstr ""
+
 #. placeholder {0}: error.message
 #: packages/admin/src/components/PluginManager.tsx:145
 msgid "Failed to load plugins: {0}"
@@ -3412,7 +3440,7 @@ msgstr "Laden van gebruikers mislukt: {0}"
 msgid "Failed to load widget"
 msgstr "Laden van widget mislukt"
 
-#: packages/admin/src/router.tsx:1469
+#: packages/admin/src/router.tsx:1470
 msgid "Failed to perform bulk action"
 msgstr "Uitvoeren van bulkactie mislukt"
 
@@ -3424,8 +3452,8 @@ msgstr "Definitief verwijderen van content mislukt"
 msgid "Failed to prepare import"
 msgstr "Voorbereiden van import mislukt"
 
-#: packages/admin/src/router.tsx:489
-#: packages/admin/src/router.tsx:1012
+#: packages/admin/src/router.tsx:490
+#: packages/admin/src/router.tsx:1013
 msgid "Failed to publish"
 msgstr "Publiceren mislukt"
 
@@ -3459,7 +3487,7 @@ msgstr "Herschikken van velden mislukt"
 msgid "Failed to reorder widgets"
 msgstr "Herschikken van widgets mislukt"
 
-#: packages/admin/src/router.tsx:436
+#: packages/admin/src/router.tsx:437
 msgid "Failed to restore"
 msgstr "Herstellen mislukt"
 
@@ -3480,8 +3508,8 @@ msgstr "Intrekken van API-token mislukt"
 msgid "Failed to rewrite URLs"
 msgstr "Herschrijven van URL's mislukt"
 
-#: packages/admin/src/router.tsx:941
-#: packages/admin/src/router.tsx:1958
+#: packages/admin/src/router.tsx:942
+#: packages/admin/src/router.tsx:1959
 msgid "Failed to save"
 msgstr "Opslaan mislukt"
 
@@ -3493,13 +3521,14 @@ msgstr "Opslaan van back-upinstellingen mislukt"
 msgid "Failed to save field"
 msgstr "Opslaan van veld mislukt"
 
+#: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:50
 #: packages/admin/src/components/settings/SeoSettings.tsx:44
 #: packages/admin/src/components/settings/SocialSettings.tsx:42
 msgid "Failed to save settings"
 msgstr "Opslaan van instellingen mislukt"
 
-#: packages/admin/src/router.tsx:1072
+#: packages/admin/src/router.tsx:1073
 msgid "Failed to schedule"
 msgstr "Inplannen mislukt"
 
@@ -3530,15 +3559,15 @@ msgstr "Instellen van termen voor item mislukt"
 msgid "Failed to uninstall plugin"
 msgstr "De-installeren van plugin mislukt"
 
-#: packages/admin/src/router.tsx:1030
+#: packages/admin/src/router.tsx:1031
 msgid "Failed to unpublish"
 msgstr "Depubliceren mislukt"
 
-#: packages/admin/src/router.tsx:1093
+#: packages/admin/src/router.tsx:1094
 msgid "Failed to unschedule"
 msgstr "Annuleren van inplanning mislukt"
 
-#: packages/admin/src/router.tsx:512
+#: packages/admin/src/router.tsx:513
 msgid "Failed to update"
 msgstr "Bijwerken mislukt"
 
@@ -3572,6 +3601,10 @@ msgstr "Bijwerken van media mislukt"
 msgid "Failed to update plugin"
 msgstr "Bijwerken van plugin mislukt"
 
+#: packages/admin/src/lib/api/plugins.ts:124
+msgid "Failed to update plugin settings"
+msgstr ""
+
 #: packages/admin/src/lib/api/sections.ts:100
 msgid "Failed to update section"
 msgstr "Bijwerken van sectie mislukt"
@@ -3580,7 +3613,7 @@ msgstr "Bijwerken van sectie mislukt"
 msgid "Failed to update settings"
 msgstr "Bijwerken van instellingen mislukt"
 
-#: packages/admin/src/router.tsx:1428
+#: packages/admin/src/router.tsx:1429
 msgid "Failed to update status"
 msgstr "Bijwerken van status mislukt"
 
@@ -3790,7 +3823,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2178
+#: packages/admin/src/router.tsx:2194
 msgid "Go to Dashboard"
 msgstr "Ga naar dashboard"
 
@@ -4190,11 +4223,11 @@ msgid "Installed"
 msgstr "Geïnstalleerd"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:500
+#: packages/admin/src/components/PluginManager.tsx:511
 msgid "Installed from marketplace (v{0})"
 msgstr "Geïnstalleerd vanuit de marketplace (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:519
+#: packages/admin/src/components/PluginManager.tsx:530
 msgid "Installed:"
 msgstr "Geïnstalleerd:"
 
@@ -4342,7 +4375,7 @@ msgstr "Taal"
 msgid "Large section heading"
 msgstr "Grote sectiekop"
 
-#: packages/admin/src/components/PluginManager.tsx:525
+#: packages/admin/src/components/PluginManager.tsx:536
 msgid "Last enabled:"
 msgstr "Laatst ingeschakeld:"
 
@@ -4468,7 +4501,7 @@ msgstr "Meer laden"
 msgid "Load More"
 msgstr "Meer laden"
 
-#: packages/admin/src/router.tsx:2133
+#: packages/admin/src/router.tsx:2149
 msgid "Loading"
 msgstr ""
 
@@ -4484,8 +4517,8 @@ msgstr "Collecties laden..."
 msgid "Loading comments..."
 msgstr "Reacties laden..."
 
-#: packages/admin/src/router.tsx:2135
-#: packages/admin/src/router.tsx:2147
+#: packages/admin/src/router.tsx:2151
+#: packages/admin/src/router.tsx:2163
 msgid "Loading configuration..."
 msgstr "Configuratie laden..."
 
@@ -4518,6 +4551,7 @@ msgstr "Omleidingen laden..."
 msgid "Loading sections..."
 msgstr "Secties laden..."
 
+#: packages/admin/src/components/PluginSettings.tsx:131
 #: packages/admin/src/components/settings/GeneralSettings.tsx:99
 #: packages/admin/src/components/settings/SeoSettings.tsx:93
 #: packages/admin/src/components/settings/SocialSettings.tsx:73
@@ -4935,11 +4969,11 @@ msgstr "Naar prullenbak verplaatsen?"
 msgid "Move up"
 msgstr "Omhoog verplaatsen"
 
-#: packages/admin/src/router.tsx:509
+#: packages/admin/src/router.tsx:510
 msgid "Moved {total} items to draft"
 msgstr "{total} items naar concept verplaatst"
 
-#: packages/admin/src/router.tsx:530
+#: packages/admin/src/router.tsx:531
 msgid "Moved {total} items to trash"
 msgstr "{total} items naar de prullenbak verplaatst"
 
@@ -4988,7 +5022,7 @@ msgstr "Navigatie"
 msgid "Never"
 msgstr "Nooit"
 
-#: packages/admin/src/router.tsx:1119
+#: packages/admin/src/router.tsx:1120
 msgid "new"
 msgstr "nieuw"
 
@@ -5383,6 +5417,10 @@ msgstr "Geen (hoogste niveau)"
 msgid "Not compatible with this environment"
 msgstr "Niet compatibel met deze omgeving"
 
+#: packages/admin/src/components/PluginSettings.tsx:341
+msgid "Not set"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:162
 #: packages/admin/src/components/FieldEditor.tsx:581
 msgid "Number"
@@ -5528,11 +5566,11 @@ msgstr "Overschrijft de paginatitel in zoekmachineresultaten"
 msgid "Ownership"
 msgstr "Eigenaarschap"
 
-#: packages/admin/src/components/PluginManager.tsx:509
+#: packages/admin/src/components/PluginManager.tsx:520
 msgid "Package"
 msgstr "Pakket"
 
-#: packages/admin/src/router.tsx:2173
+#: packages/admin/src/router.tsx:2189
 msgid "Page Not Found"
 msgstr "Pagina niet gevonden"
 
@@ -5714,7 +5752,7 @@ msgstr "Voer een geldige URL in"
 msgid "Plugin"
 msgstr "Plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:57
+#: packages/admin/src/lib/api/plugins.ts:59
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Plugin \"{pluginId}\" niet gevonden"
 
@@ -5750,6 +5788,10 @@ msgstr "Plugin niet gevonden. De handle van de uitgever of de slug klopt mogelij
 #: packages/admin/src/components/WordPressImport.tsx:1209
 msgid "plugin on your WordPress site."
 msgstr "plugin op je WordPress-site."
+
+#: packages/admin/src/components/PluginManager.tsx:448
+msgid "Plugin pages"
+msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:75
 msgid "Plugin Permissions"
@@ -5893,7 +5935,7 @@ msgstr "gepubliceerd"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:428
 #: packages/admin/src/components/Dashboard.tsx:245
 #: packages/admin/src/components/Dashboard.tsx:345
-#: packages/admin/src/router.tsx:1008
+#: packages/admin/src/router.tsx:1009
 msgid "Published"
 msgstr "Gepubliceerd"
 
@@ -5902,7 +5944,7 @@ msgstr "Gepubliceerd"
 msgid "Published {0}"
 msgstr "Gepubliceerd op {0}"
 
-#: packages/admin/src/router.tsx:486
+#: packages/admin/src/router.tsx:487
 msgid "Published {total} items"
 msgstr "{total} items gepubliceerd"
 
@@ -6250,7 +6292,7 @@ msgstr "Herstellen..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:2161
+#: packages/admin/src/router.tsx:2177
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Opnieuw proberen"
@@ -6259,7 +6301,7 @@ msgstr "Opnieuw proberen"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Herbruikbare contentblokken die je in elke content kunt invoegen"
 
-#: packages/admin/src/router.tsx:1046
+#: packages/admin/src/router.tsx:1047
 msgid "Reverted to published version"
 msgstr "Teruggezet naar gepubliceerde versie"
 
@@ -6387,6 +6429,8 @@ msgstr "Naam opslaan"
 msgid "Save SEO Settings"
 msgstr "SEO-instellingen opslaan"
 
+#: packages/admin/src/components/PluginSettings.tsx:166
+#: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/settings/GeneralSettings.tsx:120
 #: packages/admin/src/components/settings/GeneralSettings.tsx:298
 msgid "Save Settings"
@@ -6410,6 +6454,8 @@ msgstr "\"{0}\" opgeslagen."
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
+#: packages/admin/src/components/PluginSettings.tsx:166
+#: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/SaveButton.tsx:33
 #: packages/admin/src/components/settings/BackupSettings.tsx:192
@@ -6458,7 +6504,7 @@ msgstr "ingepland"
 #: packages/admin/src/components/ContentList.tsx:731
 #: packages/admin/src/components/ContentSettingsPanel.tsx:431
 #: packages/admin/src/components/Dashboard.tsx:347
-#: packages/admin/src/router.tsx:1066
+#: packages/admin/src/router.tsx:1067
 msgid "Scheduled"
 msgstr "Ingepland"
 
@@ -6943,6 +6989,7 @@ msgstr "Instellingen beheren"
 msgid "Settings Read"
 msgstr "Instellingen lezen"
 
+#: packages/admin/src/components/PluginSettings.tsx:68
 #: packages/admin/src/components/settings/GeneralSettings.tsx:43
 msgid "Settings saved successfully"
 msgstr "Instellingen opgeslagen"
@@ -7173,7 +7220,7 @@ msgstr "Thema's sorteren"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:214
-#: packages/admin/src/components/PluginManager.tsx:497
+#: packages/admin/src/components/PluginManager.tsx:508
 #: packages/admin/src/components/Redirects.tsx:467
 #: packages/admin/src/components/SectionEditor.tsx:281
 msgid "Source"
@@ -7406,7 +7453,7 @@ msgstr "Het menu is verwijderd."
 msgid "The name of your site, used in the header and metadata"
 msgstr "De naam van je site, gebruikt in de header en metadata"
 
-#: packages/admin/src/router.tsx:2175
+#: packages/admin/src/router.tsx:2191
 msgid "The page you're looking for doesn't exist."
 msgstr "De pagina die je zoekt bestaat niet."
 
@@ -7502,6 +7549,10 @@ msgstr "Deze passkey is al geregistreerd op dit apparaat."
 msgid "This permanently deletes {0} from storage."
 msgstr "Dit verwijdert {0} permanent uit de storage."
 
+#: packages/admin/src/components/PluginSettings.tsx:177
+msgid "This plugin has no configurable settings."
+msgstr ""
+
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:276
 msgid "This plugin requires no special permissions."
 msgstr "Deze plugin vereist geen speciale rechten."
@@ -7560,7 +7611,7 @@ msgstr "Dit verwijdert \"{0}\" permanent. Deze actie kan niet ongedaan worden ge
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Dit verwijdert deze reactie permanent. Deze actie kan niet ongedaan worden gemaakt."
 
-#: packages/admin/src/components/PluginManager.tsx:629
+#: packages/admin/src/components/PluginManager.tsx:640
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Dit verwijdert de plugin en de bijbehorende bundle van je site."
 
@@ -7675,7 +7726,7 @@ msgstr "Vertalen..."
 
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:780
-#: packages/admin/src/router.tsx:1118
+#: packages/admin/src/router.tsx:1119
 msgid "Translation created"
 msgstr "Vertaling aangemaakt"
 
@@ -7802,20 +7853,20 @@ msgid "Undo"
 msgstr "Ongedaan maken"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:180
-#: packages/admin/src/components/PluginManager.tsx:547
-#: packages/admin/src/components/PluginManager.tsx:643
+#: packages/admin/src/components/PluginManager.tsx:558
+#: packages/admin/src/components/PluginManager.tsx:654
 msgid "Uninstall"
 msgstr "Deïnstalleren"
 
-#: packages/admin/src/components/PluginManager.tsx:627
+#: packages/admin/src/components/PluginManager.tsx:638
 msgid "Uninstall {pluginName}?"
 msgstr "{pluginName} deïnstalleren?"
 
-#: packages/admin/src/components/PluginManager.tsx:622
+#: packages/admin/src/components/PluginManager.tsx:633
 msgid "Uninstall confirmation"
 msgstr "Deïnstallatie bevestigen"
 
-#: packages/admin/src/components/PluginManager.tsx:643
+#: packages/admin/src/components/PluginManager.tsx:654
 msgid "Uninstalling..."
 msgstr "Deïnstalleren..."
 
@@ -7852,7 +7903,7 @@ msgstr "Naamloze passkey"
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1026
+#: packages/admin/src/router.tsx:1027
 msgid "Unpublished"
 msgstr "Gedepubliceerd"
 
@@ -7864,7 +7915,7 @@ msgstr "Niet-geregistreerde contenttabellen gevonden"
 msgid "Unschedule"
 msgstr "Planning ongedaan maken"
 
-#: packages/admin/src/router.tsx:1087
+#: packages/admin/src/router.tsx:1088
 msgid "Unscheduled"
 msgstr "Planning ongedaan gemaakt"
 
@@ -8387,6 +8438,10 @@ msgstr "Widgets"
 msgid "Width"
 msgstr "Breedte"
 
+#: packages/admin/src/components/PluginSettings.tsx:338
+msgid "Will be cleared on save"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2014
 msgid "Will create"
 msgstr "Wordt aangemaakt"
@@ -8477,7 +8532,7 @@ msgstr "Je hebt volledige toegang om deze site te beheren, inclusief gebruikers,
 msgid "You need admin permissions to manage byline schema."
 msgstr "Je hebt admin-rechten nodig om het schema voor auteursvermeldingen te beheren."
 
-#: packages/admin/src/router.tsx:1485
+#: packages/admin/src/router.tsx:1486
 msgid "You need Editor permissions to moderate comments."
 msgstr "Je hebt redacteursrechten nodig om reacties te modereren."
 
