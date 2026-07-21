@@ -163,7 +163,7 @@ export function refreshInterceptor(options: {
 
 		const json = (await res.json()) as Record<string, unknown>;
 
-		// The token endpoint wraps the response in { data: ... } via apiSuccess.
+		// The token endpoint wraps the response in { success, data: ... } via apiSuccess.
 		// Handle both wrapped and bare shapes for robustness.
 		const tokenData: TokenFields =
 			json.data && typeof json.data === "object" && "access_token" in json.data

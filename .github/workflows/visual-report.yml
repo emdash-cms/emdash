@@ -1,0 +1,267 @@
+name: Visual Regression — Report
+
+# Runs after "Visual Regression" completes. Trusted (runs from the base repo
+# with elevated permissions) but never executes PR-authored code: it only
+# consumes the inert PNG + metadata artifact produced by the measure job.
+#
+# Responsibilities:
+#   - Publish the diff images to the `visual-snapshots` branch so they can be
+#     embedded in a comment (GitHub cannot host comment images via the API).
+#   - Upsert a sticky comment with the diffs and 👍-to-accept instructions.
+#   - Delete the sticky comment when a later run shows no drift (resolved).
+
+on:
+  workflow_run:
+    workflows: ["Visual Regression"]
+    types: [completed]
+
+permissions:
+  actions: read # list/download the measure artifact
+  contents: write # push diff images to the visual-snapshots branch
+  pull-requests: write # upsert/delete the sticky comment
+
+jobs:
+  report:
+    name: Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download artifact
+        id: download
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+            });
+            const artifact = data.artifacts.find((a) => a.name === 'visual-regression');
+            if (!artifact) {
+              core.setOutput('found', 'false');
+              core.info('No visual-regression artifact (measure job likely failed early). Nothing to report.');
+              return;
+            }
+            const dl = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+              archive_format: 'zip',
+            });
+            // Stage outside GITHUB_WORKSPACE so nothing wipes it.
+            const outDir = path.join(process.env.RUNNER_TEMP, 'va');
+            fs.mkdirSync(outDir, { recursive: true });
+            fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(dl.data));
+            core.setOutput('found', 'true');
+
+      - name: Unpack artifact
+        if: steps.download.outputs.found == 'true'
+        run: |
+          cd "$RUNNER_TEMP/va"
+          unzip -o artifact.zip
+          ls -R .
+
+      - name: Resolve PR
+        if: steps.download.outputs.found == 'true'
+        id: pr
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const dir = path.join(process.env.RUNNER_TEMP, 'va');
+            const prNumber = Number(fs.readFileSync(path.join(dir, 'pr-number'), 'utf8').trim());
+            const hasDrift = fs.readFileSync(path.join(dir, 'has-drift'), 'utf8').trim() === 'true';
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed(`Invalid PR number in artifact: ${prNumber}`);
+              return;
+            }
+            const headSha = context.payload.workflow_run.head_sha;
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            // If the branch moved past what was measured, skip; a fresh measure
+            // for the new head will follow.
+            if (pr.head.sha !== headSha) {
+              core.info(`PR #${prNumber} head (${pr.head.sha}) != measured (${headSha}); skipping.`);
+              core.setOutput('stale', 'true');
+              return;
+            }
+            core.setOutput('stale', 'false');
+            core.setOutput('number', String(pr.number));
+            core.setOutput('sha', headSha);
+            core.setOutput('has_drift', hasDrift ? 'true' : 'false');
+
+      # No drift on this run: remove any stale sticky comment and stop.
+      - name: Clear sticky comment (resolved)
+        if: steps.download.outputs.found == 'true' && steps.pr.outputs.stale == 'false' && steps.pr.outputs.has_drift == 'false'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        with:
+          script: |
+            const marker = '<!-- visual-regression -->';
+            const prNumber = Number(process.env.PR_NUMBER);
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const prior = comments.find((c) => typeof c.body === 'string' && c.body.includes(marker));
+            if (prior) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: prior.id,
+              });
+              core.info('Removed stale sticky comment (no drift).');
+            }
+
+      - name: Publish diff images
+        if: steps.download.outputs.found == 'true' && steps.pr.outputs.stale == 'false' && steps.pr.outputs.has_drift == 'true'
+        id: images
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          set -e
+          BRANCH=visual-snapshots
+          DEST="pr-${PR_NUMBER}/${HEAD_SHA}"
+          work="$RUNNER_TEMP/vs"
+          rm -rf "$work"; mkdir -p "$work"; cd "$work"
+          git init -q
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
+          printf '#!/bin/sh\necho "%s"\n' "$GH_TOKEN" > "$GIT_ASKPASS"
+          chmod +x "$GIT_ASKPASS"
+          git remote add origin "https://x-access-token@github.com/${OWNER_REPO}.git"
+          # Preserve other PRs' images: build on the existing branch if present.
+          if git fetch -q --depth=1 origin "$BRANCH"; then
+            git checkout -q -B "$BRANCH" FETCH_HEAD
+          else
+            git checkout -q --orphan "$BRANCH"
+            git rm -rfq --cached . 2>/dev/null || true
+          fi
+          rm -rf "$DEST"; mkdir -p "$DEST"
+          # Normal drift: publish the diff/expected/actual triptychs.
+          cp "$RUNNER_TEMP/va/diff/"*.png "$DEST/" 2>/dev/null || true
+          # Bootstrap (no committed baselines yet): Playwright writes only the
+          # new baselines, no triptych. Publish the candidate baselines so the
+          # comment has something to show. Strip the -chromium-<platform> suffix
+          # so the screen name matches the diff naming (e.g. dashboard-ltr).
+          for f in "$RUNNER_TEMP/va/candidates/"*.png; do
+            [ -e "$f" ] || continue
+            screen=$(basename "$f" | sed -E 's/-chromium-(linux|darwin|win32)\.png$//')
+            cp "$f" "$DEST/${screen}-baseline.png"
+          done
+          git add "$DEST"
+          if git diff --staged --quiet; then
+            echo "No images to publish."
+          else
+            git commit -q -m "visual diffs for PR #${PR_NUMBER} @ ${HEAD_SHA}"
+            git push -q origin "$BRANCH"
+          fi
+          rm -f "$GIT_ASKPASS"
+          echo "base_url=https://github.com/${OWNER_REPO}/raw/${BRANCH}/${DEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Upsert sticky comment
+        if: steps.download.outputs.found == 'true' && steps.pr.outputs.stale == 'false' && steps.pr.outputs.has_drift == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BASE_URL: ${{ steps.images.outputs.base_url }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const marker = '<!-- visual-regression -->';
+            const baseUrl = process.env.BASE_URL;
+            const prNumber = Number(process.env.PR_NUMBER);
+            const headSha = process.env.HEAD_SHA;
+
+            const dir = path.join(process.env.RUNNER_TEMP, 'va');
+            const diffDir = path.join(dir, 'diff');
+            const candDir = path.join(dir, 'candidates');
+            const diffFiles = fs.existsSync(diffDir) ? fs.readdirSync(diffDir) : [];
+            const diffNames = diffFiles
+              .filter((f) => f.endsWith('-diff.png'))
+              .map((f) => f.slice(0, -'-diff.png'.length))
+              .sort();
+
+            let heading;
+            let intro;
+            let rows;
+            if (diffNames.length > 0) {
+              // Normal drift: prior baselines exist, show the triptych.
+              heading = `## Visual regression: ${diffNames.length} screen${diffNames.length === 1 ? '' : 's'} changed`;
+              intro = 'These admin screens render differently on this PR. Confirm every change below is intended before accepting.';
+              rows = diffNames.map((n) => {
+                const diff = `${baseUrl}/${n}-diff.png`;
+                const expected = `${baseUrl}/${n}-expected.png`;
+                const actual = `${baseUrl}/${n}-actual.png`;
+                return `| \`${n}\` | <img src="${diff}" width="320"> | [expected](${expected}) · [actual](${actual}) |`;
+              });
+            } else {
+              // Bootstrap: no prior baselines, show the new candidate baselines.
+              const candFiles = fs.existsSync(candDir) ? fs.readdirSync(candDir) : [];
+              const newNames = candFiles
+                .filter((f) => /-chromium-(linux|darwin|win32)\.png$/.test(f))
+                .map((f) => f.replace(/-chromium-(linux|darwin|win32)\.png$/, ''))
+                .sort();
+              heading = `## Visual regression: ${newNames.length} new screen${newNames.length === 1 ? '' : 's'} (no baseline yet)`;
+              intro = 'No baselines exist for these admin screens yet. Review the proposed baselines below, then accept them to start tracking visual drift.';
+              rows = newNames.map((n) => {
+                const baseline = `${baseUrl}/${n}-baseline.png`;
+                return `| \`${n}\` | <img src="${baseline}" width="320"> | new screen (no prior baseline) |`;
+              });
+            }
+
+            const body = [
+              marker,
+              heading,
+              '',
+              intro,
+              '',
+              '| Screen | Image | Compare |',
+              '| --- | --- | --- |',
+              ...rows,
+              '',
+              '---',
+              '**Maintainers:** react 👍 to this comment to accept these baselines. The',
+              '"Visual Regression — Apply" job (every ~10 min, or run it manually via',
+              'workflow_dispatch) will commit the regenerated Linux baselines to this PR.',
+              '',
+              `<sub>Measured head: \`${headSha}\`. Reacting 👍 accepts the snapshots for this commit.</sub>`,
+            ].join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const prior = comments.find((c) => typeof c.body === 'string' && c.body.includes(marker));
+            if (prior) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: prior.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }

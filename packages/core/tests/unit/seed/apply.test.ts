@@ -1,4 +1,13 @@
-import type { Kysely } from "kysely";
+import type {
+	Kysely,
+	KyselyPlugin,
+	PluginTransformQueryArgs,
+	PluginTransformResultArgs,
+	QueryResult,
+	RootOperationNode,
+	UnknownRow,
+} from "kysely";
+import { sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
@@ -10,6 +19,19 @@ import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+class QueryCountingPlugin implements KyselyPlugin {
+	count = 0;
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		this.count += 1;
+		return args.node;
+	}
+
+	transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return Promise.resolve(args.result);
+	}
+}
 
 describe("applySeed", () => {
 	let db: Kysely<Database>;
@@ -65,6 +87,35 @@ describe("applySeed", () => {
 	});
 
 	describe("collections", () => {
+		it("creates wide collection schemas within the D1 query budget", async () => {
+			const counter = new QueryCountingPlugin();
+			const fields = Array.from({ length: 74 }, (_, index) => ({
+				slug: `field_${index}`,
+				label: `Field ${index}`,
+				type: "string" as const,
+			}));
+			const seed: SeedFile = {
+				version: "1",
+				collections: [{ slug: "site_info", label: "Site Info", fields }],
+			};
+
+			const result = await applySeed(db.withPlugin(counter), seed);
+
+			expect(result.collections.created).toBe(1);
+			expect(result.fields.created).toBe(74);
+			expect(counter.count).toBeLessThan(50);
+
+			const collection = await new SchemaRegistry(db).getCollection("site_info");
+			expect(collection).not.toBeNull();
+			const storedFields = await new SchemaRegistry(db).listFields(collection!.id);
+			expect(storedFields).toHaveLength(74);
+
+			const tableInfo = await sql<{
+				name: string;
+			}>`PRAGMA table_info(${sql.ref("ec_site_info")})`.execute(db);
+			expect(tableInfo.rows.map((column) => column.name)).toContain("field_73");
+		});
+
 		it("should create collections and fields", async () => {
 			const seed: SeedFile = {
 				version: "1",
@@ -74,7 +125,13 @@ describe("applySeed", () => {
 						label: "Posts",
 						labelSingular: "Post",
 						fields: [
-							{ slug: "title", label: "Title", type: "string", required: true },
+							{
+								slug: "title",
+								label: "Title",
+								type: "string",
+								required: true,
+								defaultValue: "Untitled",
+							},
 							{ slug: "content", label: "Content", type: "portableText" },
 						],
 					},
@@ -91,6 +148,19 @@ describe("applySeed", () => {
 			const collection = await registry.getCollection("posts");
 			expect(collection).not.toBeNull();
 			expect(collection?.label).toBe("Posts");
+
+			await sql`
+				INSERT INTO ${sql.ref("ec_posts")} (${sql.ref("id")})
+				VALUES (${"post-1"})
+			`.execute(db);
+			const row = await sql<{
+				title: string;
+			}>`
+				SELECT ${sql.ref("title")} AS title
+				FROM ${sql.ref("ec_posts")}
+				WHERE ${sql.ref("id")} = ${"post-1"}
+			`.execute(db);
+			expect(row.rows[0]?.title).toBe("Untitled");
 		});
 
 		it("should skip existing collections", async () => {

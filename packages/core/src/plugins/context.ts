@@ -252,6 +252,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				updatedAt: item.updatedAt,
 				locale: item.locale,
 				publishedAt: item.publishedAt,
+				scheduledAt: item.scheduledAt,
 			};
 
 			if (await seoRepo.isEnabled(collection)) {
@@ -292,6 +293,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				updatedAt: item.updatedAt,
 				locale: item.locale,
 				publishedAt: item.publishedAt,
+				scheduledAt: item.scheduledAt,
 			}));
 
 			if (items.length > 0 && (await seoRepo.isEnabled(collection))) {
@@ -398,6 +400,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 						updatedAt: item.updatedAt,
 						locale: item.locale,
 						publishedAt: item.publishedAt,
+						scheduledAt: item.scheduledAt,
 					};
 
 					if (hasSeo) {
@@ -455,6 +458,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 						updatedAt: item.updatedAt,
 						locale: item.locale,
 						publishedAt: item.publishedAt,
+						scheduledAt: item.scheduledAt,
 					};
 
 					if (hasSeo) {
@@ -878,6 +882,8 @@ export interface SiteInfoOptions {
 	siteUrl?: string;
 	/** Site locale from options table */
 	locale?: string;
+	/** Astro's `trailingSlash` config (from `virtual:emdash/config`). */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -893,6 +899,7 @@ export function createSiteInfo(options: SiteInfoOptions): SiteInfo {
 		name: options.siteName ?? "",
 		url: (options.siteUrl ?? "").replace(TRAILING_SLASH_RE, ""), // strip trailing slash
 		locale: options.locale ?? "en",
+		trailingSlash: options.trailingSlash ?? "ignore", // Astro's default
 	};
 }
 

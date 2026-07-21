@@ -19,7 +19,11 @@ export interface Props {
 
 const { node } = Astro.props;
 const href = sanitizeHref(node?.markDef?.href);
-const blank = node?.markDef?.blank;
+// Same-page anchor links (`#section`) are on-page jumps — opening them in a
+// new tab is never desirable, so force same-tab regardless of the mark's
+// `blank` flag.
+const isSamePageAnchor = href.startsWith("#");
+const blank = !isSamePageAnchor && node?.markDef?.blank;
 ---
 
 <a

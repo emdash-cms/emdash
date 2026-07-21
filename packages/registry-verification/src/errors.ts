@@ -1,0 +1,60 @@
+/** Stable, machine-readable failures returned by this package. */
+export const VERIFICATION_ERROR_CODES = [
+	"BUNDLE_COMPRESSED_SIZE_EXCEEDED",
+	"BUNDLE_DECOMPRESSED_SIZE_EXCEEDED",
+	"BUNDLE_FILE_COUNT_EXCEEDED",
+	"BUNDLE_FILE_SIZE_EXCEEDED",
+	"BUNDLE_ID_MISMATCH",
+	"BUNDLE_INVALID_ARCHIVE",
+	"BUNDLE_INVALID_MANIFEST",
+	"BUNDLE_INVALID_PATH",
+	"BUNDLE_MISSING_BACKEND",
+	"BUNDLE_MISSING_MANIFEST",
+	"BUNDLE_PATH_COLLISION",
+	"BUNDLE_UNSUPPORTED_ENTRY",
+	"BUNDLE_VERSION_MISMATCH",
+	"CHECKSUM_MISMATCH",
+	"FETCH_FAILED",
+	"HOST_REJECTED",
+	"INVALID_MULTIHASH",
+	"INVALID_URL",
+	"PROFILE_EXTENSION_INVALID",
+	"PROFILE_EXTENSION_MISSING",
+	"PROFILE_ID_MISMATCH",
+	"PROFILE_LEXICON_INVALID",
+	"PROFILE_POLICY_INVALID",
+	"PROFILE_REPOSITORY_INVALID",
+	"PROVENANCE_REQUIRED",
+	"PROVENANCE_UNVERIFIABLE",
+	"REDIRECT_LIMIT_EXCEEDED",
+	"REDIRECT_LOCATION_MISSING",
+	"RESOURCE_SIZE_EXCEEDED",
+	"RESOURCE_STATUS_ERROR",
+	"RESOURCE_TIMEOUT",
+	"RELEASE_EXTENSION_INVALID",
+	"RELEASE_EXTENSION_MISSING",
+	"RELEASE_LEXICON_INVALID",
+	"RELEASE_PACKAGE_MISMATCH",
+	"RELEASE_RKEY_MISMATCH",
+	"RELEASE_VERSION_INVALID",
+	"RELEASE_VERSION_MISMATCH",
+	"UNSUPPORTED_MULTIHASH",
+] as const;
+
+export type VerificationErrorCode = (typeof VERIFICATION_ERROR_CODES)[number];
+
+export interface VerificationError {
+	code: VerificationErrorCode;
+	message: string;
+}
+
+export type VerificationResult<T> =
+	| { success: true; value: T }
+	| { success: false; error: VerificationError };
+
+export function verificationError(
+	code: VerificationErrorCode,
+	message: string,
+): VerificationResult<never> {
+	return { success: false, error: { code, message } };
+}

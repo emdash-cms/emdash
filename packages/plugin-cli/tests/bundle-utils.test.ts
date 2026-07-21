@@ -25,6 +25,7 @@ const minimalResolved = (overrides: Partial<ResolvedPlugin> = {}): ResolvedPlugi
 	storage: {},
 	hooks: {},
 	routes: {},
+	mcp: { tools: {} },
 	admin: {},
 	...overrides,
 });
@@ -70,6 +71,40 @@ describe("extractManifest", () => {
 			}),
 		);
 		expect(manifest.routes.toSorted((a, b) => a.localeCompare(b))).toEqual(["admin", "api"]);
+	});
+
+	it("serializes explicitly declared MCP tools", () => {
+		const manifest = extractManifest(
+			minimalResolved({
+				routes: {
+					"events/create": {
+						handler: () => {},
+						permission: "content:create",
+					},
+				},
+				mcp: {
+					tools: {
+						createEvent: {
+							description: "Create a calendar event.",
+							route: "events/create",
+							input: { type: "object", properties: { title: { type: "string" } } },
+							destructive: false,
+						},
+					},
+				},
+			}),
+		);
+
+		expect(manifest.mcp?.tools).toEqual([
+			{
+				name: "createEvent",
+				description: "Create a calendar event.",
+				route: "events/create",
+				permission: "content:create",
+				destructive: false,
+				inputSchema: { type: "object", properties: { title: { type: "string" } } },
+			},
+		]);
 	});
 
 	it("strips the runtime entry pointer from admin", () => {

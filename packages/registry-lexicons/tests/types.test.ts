@@ -1,7 +1,28 @@
 import { is, safeParse } from "@atcute/lexicons/validations";
 import { describe, expect, it } from "vitest";
 
-import { NSID, PackageProfile, PackageRelease, PublisherProfile } from "../src/index.js";
+import {
+	getDelegatedReleasePermission,
+	NSID,
+	PackageProfile,
+	PackageProfileExtension,
+	PackageRelease,
+	PackageReleaseExtension,
+	PublisherProfile,
+} from "../src/index.js";
+
+describe("delegated release permission", () => {
+	it("exposes only the active release collection's create scope", () => {
+		const permission = getDelegatedReleasePermission();
+
+		expect(permission).toEqual({
+			collection: NSID.packageRelease,
+			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+		});
+		expect(Object.isFrozen(permission)).toBe(true);
+		expect(permission.scope).not.toContain("transition:generic");
+	});
+});
 
 /**
  * Smoke tests over the generated types and validation schemas. The goal isn't
@@ -90,6 +111,92 @@ describe("PackageProfile", () => {
 		expect(is(PackageProfile.mainSchema, known)).toBe(true);
 		expect(is(PackageProfile.mainSchema, custom)).toBe(true);
 	});
+
+	it("intentionally treats extension entries as opaque until consumers dispatch them", () => {
+		const profile: PackageProfile.Main = {
+			$type: NSID.packageProfile,
+			id: "at://did:plc:abc123/com.emdashcms.experimental.package.profile/gallery",
+			type: "emdash-plugin",
+			license: "MIT",
+			authors: [{ name: "Alice Example" }],
+			security: [{ email: "security@example.com" }],
+			extensions: {
+				[NSID.packageProfileExtension]: "not validated by the base profile schema",
+			},
+		};
+
+		expect(safeParse(PackageProfile.mainSchema, profile)).toMatchObject({ ok: true });
+		// Consumers validate an entry only after dispatching its NSID to this schema.
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+			}),
+		).toBe(true);
+	});
+});
+
+describe("PackageProfileExtension", () => {
+	it("round-trips a release policy", () => {
+		const extension: PackageProfileExtension.Main = {
+			$type: NSID.packageProfileExtension,
+			repository: "https://github.com/example/gallery",
+			releasePolicy: {
+				requireProvenance: true,
+				confirmation: "always",
+				approvers: ["did:plc:abc123"],
+			},
+		};
+
+		expect(safeParse(PackageProfileExtension.mainSchema, extension)).toMatchObject({ ok: true });
+	});
+
+	it("accepts an absent policy", () => {
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+			}),
+		).toBe(true);
+	});
+
+	it("rejects invalid repository URIs, approver DIDs, and oversized approver lists", () => {
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "not-a-uri",
+			}),
+		).toBe(false);
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+				releasePolicy: { approvers: ["not-a-did"] },
+			}),
+		).toBe(false);
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+				releasePolicy: {
+					approvers: Array.from({ length: 33 }, (_, index) => `did:plc:${index}`),
+				},
+			}),
+		).toBe(false);
+	});
+
+	it("intentionally defers unknown confirmation values and duplicate approvers to consumers", () => {
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+				releasePolicy: {
+					confirmation: "manual-review",
+					approvers: ["did:plc:abc123", "did:plc:abc123"],
+				},
+			}),
+		).toBe(true);
+	});
 });
 
 describe("PackageRelease", () => {
@@ -128,6 +235,55 @@ describe("PackageRelease", () => {
 	});
 });
 
+describe("PackageReleaseExtension", () => {
+	it("intentionally leaves unknown provenance predicates for consumer verification", () => {
+		const extension: PackageReleaseExtension.Main = {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: {},
+			provenance: {
+				predicateType: "https://example.com/provenance/v2",
+				url: "https://github.com/example/gallery/attestation.json",
+				checksum: "bciqkkpvkbtfcwq6kjkbq3kgjxe5j6ihzkxlfxkzqhwzaaaa3wkbq3a",
+				sourceRepository: "https://github.com/example/gallery",
+				builderId:
+					"https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
+			},
+		};
+
+		expect(safeParse(PackageReleaseExtension.mainSchema, extension)).toMatchObject({ ok: true });
+	});
+
+	it("rejects incomplete provenance", () => {
+		expect(
+			is(PackageReleaseExtension.mainSchema, {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: {},
+				provenance: {
+					predicateType: "https://slsa.dev/provenance/v1",
+					url: "https://github.com/example/gallery/attestation.json",
+				},
+			}),
+		).toBe(false);
+	});
+
+	it("does not enforce profile policy across records", () => {
+		// requireProvenance is enforced by later consumers, not a cross-record Lexicon rule.
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+				releasePolicy: { requireProvenance: true },
+			}),
+		).toBe(true);
+		expect(
+			is(PackageReleaseExtension.mainSchema, {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: {},
+			}),
+		).toBe(true);
+	});
+});
+
 describe("PublisherProfile", () => {
 	it("validates a publisher profile with only required fields", () => {
 		// Only `displayName` is required by the lexicon. Verification records bind
@@ -157,6 +313,7 @@ describe("NSID map", () => {
 		// also sanity-checked in the schema modules' `$type` literals above.
 		const expected = [
 			"com.emdashcms.experimental.package.profile",
+			"com.emdashcms.experimental.package.profileExtension",
 			"com.emdashcms.experimental.package.release",
 			"com.emdashcms.experimental.package.releaseExtension",
 			"com.emdashcms.experimental.publisher.profile",

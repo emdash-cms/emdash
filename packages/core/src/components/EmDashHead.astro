@@ -17,8 +17,10 @@
  * ```
  */
 import type { PublicPageContext, PageMetadataContribution } from "../plugins/types.js";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 import {
-	createSha256CspHash,
+	registerJsonLdCspHashes,
 	resolvePageMetadata,
 	renderPageMetadata,
 	type ResolvedPageMetadata,
@@ -124,13 +126,7 @@ if (runtime) {
 	metadataHtml = renderPageMetadata(resolved, { includeJsonLd: false });
 }
 
-if (Astro.csp && jsonLdScripts.length > 0) {
-	await Promise.all(
-		jsonLdScripts.map(async ({ json }) => {
-			Astro.csp?.insertScriptHash(await createSha256CspHash(json));
-		}),
-	);
-}
+await registerJsonLdCspHashes(virtualConfig.astroCspEnabled === true, () => Astro.csp, jsonLdScripts);
 ---
 
 <Fragment set:html={metadataHtml} />

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { cursorPaginationQuery } from "./common.js";
+import { mediaUsageSummarySchema } from "./media-usage.js";
 
 // ---------------------------------------------------------------------------
 // Media: Input schemas
@@ -23,8 +24,19 @@ export const mediaListQuery = cursorPaginationQuery
 		mimeType: mimeTypeFilter,
 		/** Case-insensitive filename substring search (also matches extensions). */
 		q: z.string().trim().min(1).max(200).optional(),
+		includeUsage: z.literal("1").optional().meta({
+			description: "Include a coverage-aware usage summary on each media item",
+		}),
 	})
 	.meta({ id: "MediaListQuery" });
+
+export const mediaGetQuery = z
+	.object({
+		includeUsage: z.literal("1").optional().meta({
+			description: "Include a coverage-aware usage summary on the media item",
+		}),
+	})
+	.meta({ id: "MediaGetQuery" });
 
 export const mediaUpdateBody = z
 	.object({
@@ -46,7 +58,7 @@ export function formatFileSize(bytes: number): string {
 
 // Matches a full MIME type (type/subtype) with an optional semicolon-delimited
 // parameter section. Forbids CR/LF to prevent header injection.
-const CONTENT_TYPE_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]+(\s*;[^\r\n]*)?$/i;
+export const CONTENT_TYPE_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]+(\s*;[^\r\n]*)?$/i;
 
 export function mediaUploadUrlBody(maxSize: number) {
 	if (!Number.isFinite(maxSize) || maxSize <= 0) {
@@ -114,6 +126,25 @@ export const mediaItemSchema = z
 export const mediaResponseSchema = z
 	.object({ item: mediaItemSchema })
 	.meta({ id: "MediaResponse" });
+
+export const mediaReadItemSchema = mediaItemSchema
+	.extend({ usage: mediaUsageSummarySchema.optional() })
+	.meta({ id: "MediaReadItem" });
+
+export const mediaReadResponseSchema = z
+	.object({ item: mediaReadItemSchema })
+	.meta({ id: "MediaReadResponse" });
+
+export const mediaListReadItemSchema = mediaReadItemSchema
+	.extend({ url: z.string() })
+	.meta({ id: "MediaListReadItem" });
+
+export const mediaListReadResponseSchema = z
+	.object({
+		items: z.array(mediaListReadItemSchema),
+		nextCursor: z.string().optional(),
+	})
+	.meta({ id: "MediaListReadResponse" });
 
 export const mediaListResponseSchema = z
 	.object({

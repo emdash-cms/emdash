@@ -1,5 +1,11 @@
 # @emdash-cms/registry-lexicons
 
+## 0.3.0
+
+### Minor Changes
+
+- [#2067](https://github.com/emdash-cms/emdash/pull/2067) [`07c9f21`](https://github.com/emdash-cms/emdash/commit/07c9f210db300803f49ecf2b8a18fe173e459a28) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds the `packageProfileExtension` lexicon and its generated types, plus a `provenance` reference field on the package release extension.
+
 ## 0.2.0
 
 ### Minor Changes
