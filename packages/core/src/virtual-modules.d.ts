@@ -24,6 +24,7 @@ declare module "virtual:emdash/config" {
 		/** Public origin from astro.config.mjs, origin-normalized at startup. */
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
+		trailingSlash?: "always" | "never" | "ignore";
 	}
 
 	const config: VirtualConfig;

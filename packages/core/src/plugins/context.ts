@@ -882,6 +882,8 @@ export interface SiteInfoOptions {
 	siteUrl?: string;
 	/** Site locale from options table */
 	locale?: string;
+	/** Astro's `trailingSlash` config (from `virtual:emdash/config`). */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -897,6 +899,7 @@ export function createSiteInfo(options: SiteInfoOptions): SiteInfo {
 		name: options.siteName ?? "",
 		url: (options.siteUrl ?? "").replace(TRAILING_SLASH_RE, ""), // strip trailing slash
 		locale: options.locale ?? "en",
+		trailingSlash: options.trailingSlash ?? "ignore", // Astro's default
 	};
 }
 

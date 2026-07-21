@@ -10,8 +10,8 @@
  * Docker image (mcr.microsoft.com/playwright) or run this against Cloudflare
  * Browser Rendering so the render environment is fixed. See the PR discussion.
  *
- * Gated behind EMDASH_VISUAL=1 so it stays out of the default e2e suite until
- * baselines are committed (a fresh checkout has none, which would fail CI):
+ * Gated behind EMDASH_VISUAL=1 so visual snapshots stay out of the default e2e
+ * suite; they are slow and platform-sensitive, so CI runs them explicitly:
  *
  *   # first run writes baselines, reports them as "created" (non-zero exit)
  *   EMDASH_VISUAL=1 pnpm exec playwright test visual-regression --update-snapshots
