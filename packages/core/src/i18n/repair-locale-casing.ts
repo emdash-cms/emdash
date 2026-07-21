@@ -1,20 +1,20 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { getI18nConfig } from "../../i18n/config.js";
-import { listTablesLike } from "../dialect-helpers.js";
+import { listTablesLike } from "../database/dialect-helpers.js";
+import type { Database } from "../database/types.js";
 
-/** Canonicalize stored locales to the casing used by the site configuration. */
-export async function up(db: Kysely<unknown>): Promise<void> {
-	const locales = getI18nConfig()?.locales ?? [];
-	if (locales.length === 0) return;
-
+/** Rewrite stored locales to the exact casing used by the site configuration. */
+export async function repairLocaleCasing(
+	db: Kysely<Database>,
+	configuredLocales: readonly string[],
+): Promise<void> {
 	const tableNames = await listTablesLike(db, "ec_%");
 
 	for (const tableName of tableNames) {
 		const table = sql.ref(tableName);
 		const slug = tableName.slice("ec_".length);
-		for (const locale of locales) {
+		for (const locale of configuredLocales) {
 			await sql`
 				UPDATE ${table} AS target
 				SET locale = ${locale}
@@ -24,6 +24,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 						SELECT 1
 						FROM ${table} AS existing
 						WHERE existing.slug = target.slug AND existing.locale = ${locale}
+					)
+					AND target.id = (
+						SELECT MIN(candidate.id)
+						FROM ${table} AS candidate
+						WHERE candidate.slug = target.slug
+							AND lower(candidate.locale) = lower(${locale})
+							AND candidate.locale != ${locale}
 					)
 			`.execute(db);
 
@@ -41,8 +48,4 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 			`.execute(db);
 		}
 	}
-}
-
-export async function down(_db: Kysely<unknown>): Promise<void> {
-	// Not reversible: the original casing is not recoverable.
 }

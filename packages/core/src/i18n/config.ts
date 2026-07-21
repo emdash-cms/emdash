@@ -30,6 +30,14 @@ export function getI18nConfig(): I18nConfig | null {
 	return _config ?? null;
 }
 
+/** Match a locale to the exact casing used by the site configuration. */
+export function resolveConfiguredLocale(locale: string): string {
+	return (
+		_config?.locales.find((configured) => configured.toLowerCase() === locale.toLowerCase()) ??
+		locale
+	);
+}
+
 /**
  * Check if i18n is enabled.
  * Returns true when multiple locales are configured.
