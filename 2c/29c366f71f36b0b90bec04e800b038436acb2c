@@ -1,0 +1,27 @@
+.changeset/curvy-otters-reference.md
+  s_e063e395be400a::t_355d6f62f0cdf4 1-5
+packages/admin/src/lib/api/index.ts
+  s_e063e395be400a::t_5af250ca74a09b 61-67,74
+packages/admin/src/lib/api/media.ts
+  s_e063e395be400a::t_6eabea4b287c1b 27-82,104-105,117-118,133,155-173
+packages/admin/src/router.tsx
+  s_e063e395be400a::t_93d40247009767 1310,1317
+packages/admin/tests/lib/media-api.test.ts
+  s_e063e395be400a::t_8389d57b6f26dc 1-157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2c29c366f71f36b0b90bec04e800b038436acb2c",
+  "prompts": {},
+  "sessions": {
+    "s_e063e395be400a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8559-779d-74d0-8da8-0001ae7b08c3",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
