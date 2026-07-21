@@ -1293,6 +1293,44 @@ describe("XRPC dispatcher — unexpected policy-resolution failure", () => {
 	});
 });
 
+describe("sync.getRecord — unexpected blob-fetch failure", () => {
+	// A D1 error inside the CAR passthrough (here: `publishers` is gone) must
+	// take the CORS + `no-store` wrapper rather than escape to workerd's bare
+	// 500 — and must NOT inherit the cacheable success header. Capture the
+	// table's schema so the shared beforeEach (`DELETE FROM publishers`) keeps
+	// working after a test drops it.
+	let publishersSchema: string;
+	beforeAll(async () => {
+		const row = await testEnv.DB.prepare(
+			"SELECT sql FROM sqlite_master WHERE type='table' AND name='publishers'",
+		).first<{ sql: string }>();
+		publishersSchema = row!.sql;
+	});
+	afterEach(async () => {
+		const exists = await testEnv.DB.prepare(
+			"SELECT 1 FROM sqlite_master WHERE type='table' AND name='publishers'",
+		).first();
+		if (!exists) await testEnv.DB.prepare(publishersSchema).run();
+	});
+
+	it("wraps a D1 failure in a 500 carrying CORS + no-store and no leaked internals", async () => {
+		// The publisher-profile blob read runs `SELECT record_blob FROM publishers`;
+		// dropping the table makes that throw a non-XRPC D1 error.
+		await testEnv.DB.prepare("DROP TABLE publishers").run();
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/com.atproto.sync.getRecord?did=${DID_A}&collection=${NSID.publisherProfile}&rkey=self`,
+		);
+		expect(res.status).toBe(500);
+		expect(res.headers.get("cache-control")).toBe("private, no-store");
+		expect(res.headers.get("access-control-allow-origin")).toBe("*");
+		const body = (await res.json()) as { error: string; message?: string };
+		expect(body.error).toBe("InternalServerError");
+		// No internal detail (SQL text, table name, stack) leaks to the client.
+		expect(JSON.stringify(body)).not.toMatch(/publishers|no such table|SQL|SELECT/i);
+	});
+});
+
 describe("getPublisherVerification", () => {
 	it("returns the verification claims naming a DID as subject, newest first", async () => {
 		await seedVerification({
