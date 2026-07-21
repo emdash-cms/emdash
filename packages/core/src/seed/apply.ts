@@ -244,11 +244,7 @@ export async function applySeed(
 					}
 
 					const relationId = ulid();
-					const relationName = allocateSeedRelationName(
-						collection.slug,
-						field.slug,
-						relationNames,
-					);
+					const relationName = allocateSeedRelationName(collection.slug, field.slug, relationNames);
 					pendingRelations.push({
 						id: relationId,
 						name: relationName,
