@@ -35,14 +35,28 @@ describe("githubAuthHeader", () => {
 
 describe("push capabilities", () => {
 	test("round-trips only with the signing secret", async () => {
-		const capability = await createPushCapability("webhook-secret", 123);
+		const capability = await createPushCapability("webhook-secret", OWNER, REPO, 123);
 
-		await expect(verifyPushCapability(capability, "webhook-secret")).resolves.toBe(123);
-		await expect(verifyPushCapability(capability, "different-secret")).resolves.toBeNull();
+		await expect(verifyPushCapability(capability, "webhook-secret", OWNER, REPO)).resolves.toBe(
+			123,
+		);
 		await expect(
-			verifyPushCapability(`456.${capability.split(".")[1]}`, "webhook-secret"),
+			verifyPushCapability(capability, "different-secret", OWNER, REPO),
 		).resolves.toBeNull();
-		await expect(verifyPushCapability("123.!", "webhook-secret")).resolves.toBeNull();
+		await expect(
+			verifyPushCapability(`456.${capability.split(".")[1]}`, "webhook-secret", OWNER, REPO),
+		).resolves.toBeNull();
+		await expect(verifyPushCapability("123.!", "webhook-secret", OWNER, REPO)).resolves.toBeNull();
+	});
+
+	test("fails closed without a secret or for another repository", async () => {
+		const capability = await createPushCapability("webhook-secret", OWNER, REPO, 123);
+
+		await expect(createPushCapability("", OWNER, REPO, 123)).rejects.toThrow(/secret/);
+		await expect(verifyPushCapability(capability, "", OWNER, REPO)).resolves.toBeNull();
+		await expect(
+			verifyPushCapability(capability, "webhook-secret", OWNER, "another-repo"),
+		).resolves.toBeNull();
 	});
 });
 

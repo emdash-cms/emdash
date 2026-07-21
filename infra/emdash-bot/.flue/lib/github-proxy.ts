@@ -3,16 +3,24 @@ const PKT_LINE_HEADER = /^[0-9a-fA-F]{4}$/;
 const MAX_RECEIVE_PACK_COMMAND_BYTES = 64 * 1024;
 export const PUSH_CAPABILITY_HEADER = "X-EmDash-Push-Capability";
 
-export async function createPushCapability(secret: string, issueNumber: number): Promise<string> {
+export async function createPushCapability(
+	secret: string,
+	owner: string,
+	repo: string,
+	issueNumber: number,
+): Promise<string> {
+	if (!secret) throw new Error("push capability secret is not configured");
 	const payload = String(issueNumber);
-	return `${payload}.${await signPushCapability(secret, payload)}`;
+	return `${payload}.${await signPushCapability(secret, `${owner}/${repo}/${payload}`)}`;
 }
 
 export async function verifyPushCapability(
 	capability: string | null,
 	secret: string,
+	owner: string,
+	repo: string,
 ): Promise<number | null> {
-	if (!capability) return null;
+	if (!capability || !secret) return null;
 	const separator = capability.indexOf(".");
 	if (separator <= 0) return null;
 	const payload = capability.slice(0, separator);
@@ -26,7 +34,7 @@ export async function verifyPushCapability(
 			"HMAC",
 			key,
 			decodeBase64Url(signature),
-			new TextEncoder().encode(payload),
+			new TextEncoder().encode(`${owner}/${repo}/${payload}`),
 		);
 		return valid ? issueNumber : null;
 	} catch {

@@ -175,6 +175,8 @@ async function setupSandbox(
 	const branch = input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
 	const pushCapability = await createPushCapability(
 		workerEnv.GITHUB_WEBHOOK_SECRET,
+		repo.owner,
+		repo.repo,
 		input.issueNumber,
 	);
 	const steps: Array<{ name: string; command: string; timeoutMs?: number; nonFatal?: boolean }> = [

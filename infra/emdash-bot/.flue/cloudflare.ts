@@ -65,6 +65,8 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 	const issueNumber = await verifyPushCapability(
 		forwarded.headers.get(PUSH_CAPABILITY_HEADER),
 		env.GITHUB_WEBHOOK_SECRET,
+		owner,
+		repo,
 	);
 	forwarded.headers.delete(PUSH_CAPABILITY_HEADER);
 	const denial = await gateGithubRequest(forwarded, url, owner, repo, issueNumber ?? undefined);
