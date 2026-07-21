@@ -27,6 +27,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		emdash.configuredPlugins,
 		emdash.sandboxedPluginEntries,
 		emdash.config.marketplace,
+		(pluginId) => emdash.getRuntimePluginSettingsSchema(pluginId),
 	);
 
 	return unwrapResult(result);

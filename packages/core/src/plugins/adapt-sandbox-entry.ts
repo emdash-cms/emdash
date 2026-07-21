@@ -293,6 +293,9 @@ export function adaptSandboxEntry(
 	if (descriptor.adminWidgets) {
 		admin.widgets = descriptor.adminWidgets;
 	}
+	if (descriptor.settingsSchema) {
+		admin.settingsSchema = descriptor.settingsSchema;
+	}
 	if (descriptor.portableTextBlocks) {
 		admin.portableTextBlocks = descriptor.portableTextBlocks;
 	}

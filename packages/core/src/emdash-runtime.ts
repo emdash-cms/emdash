@@ -58,6 +58,7 @@ import type {
 	PageFragmentContribution,
 	PortableTextBlockConfig,
 	FieldWidgetConfig,
+	SettingField,
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
@@ -240,6 +241,8 @@ export interface SandboxedPluginEntry {
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
+	/** Settings schema for the auto-generated admin settings form */
+	settingsSchema?: Record<string, SettingField>;
 	/** Portable Text block types contributed to the editor (declarative Block Kit) */
 	portableTextBlocks?: PortableTextBlockConfig[];
 	/** Field widget types contributed for schema-field editing UIs */
@@ -477,6 +480,7 @@ const marketplaceManifestCache = new Map<
 		admin?: {
 			pages?: PluginAdminPage[];
 			widgets?: PluginDashboardWidget[];
+			settingsSchema?: Record<string, SettingField>;
 		};
 	}
 >();
@@ -1039,6 +1043,7 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
+						settingsSchema: bundle.manifest.admin?.settingsSchema,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -1865,6 +1870,7 @@ export class EmDashRuntime {
 					storage: entry.storage as never,
 					adminPages,
 					adminWidgets,
+					settingsSchema: entry.settingsSchema,
 					portableTextBlocks: entry.portableTextBlocks,
 					fieldWidgets: entry.fieldWidgets,
 				});
@@ -2175,6 +2181,7 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
+						settingsSchema: bundle.manifest.admin?.settingsSchema,
 					});
 					resolved.push(adapted);
 					console.log(
@@ -3387,6 +3394,18 @@ export class EmDashRuntime {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Resolve the settings schema for a runtime-installed (marketplace or
+	 * registry) plugin from its cached manifest. Returns `{}` for a known
+	 * plugin without a schema and `null` for unknown plugins, matching the
+	 * contract of `getPluginSettingsSchema` for build-time plugins.
+	 */
+	getRuntimePluginSettingsSchema(pluginId: string): Record<string, SettingField> | null {
+		const meta = marketplaceManifestCache.get(pluginId);
+		if (!meta) return null;
+		return meta.admin?.settingsSchema ?? {};
 	}
 
 	async handlePluginApiRoute(pluginId: string, _method: string, path: string, request: Request) {

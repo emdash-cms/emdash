@@ -82,6 +82,7 @@ function makePlugin(overrides: Partial<PluginInfo> = {}): PluginInfo {
 		hasAdminPages: false,
 		hasDashboardWidgets: false,
 		hasHooks: true,
+		hasSettings: false,
 		...overrides,
 	};
 }
@@ -172,30 +173,54 @@ describe("PluginManager", () => {
 		await expect.element(disableToggle).toBeInTheDocument();
 	});
 
-	it("settings link shown only for enabled plugins with admin pages", async () => {
+	it("pages link shown only for enabled plugins with admin pages", async () => {
 		const screen = await render(
 			<Wrapper>
 				<PluginManager />
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Audit Log")).toBeInTheDocument();
-		const settingsLinks = screen.getByRole("link", { name: "Settings" }).all();
-		expect(settingsLinks.length).toBe(1);
+		const pagesLinks = screen.getByRole("link", { name: "Plugin pages" }).all();
+		expect(pagesLinks.length).toBe(1);
 	});
 
-	it("settings link points to the plugin root, not a /settings sub-path", async () => {
+	it("pages link points to the plugin root, not a /settings sub-path", async () => {
 		const screen = await render(
 			<Wrapper>
 				<PluginManager />
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Audit Log")).toBeInTheDocument();
-		const settingsLink = screen.getByRole("link", { name: "Settings" });
-		await expect.element(settingsLink).toBeInTheDocument();
-		const anchor = settingsLink.element() as HTMLAnchorElement;
-		// Plugins are not required to expose a `/settings` sub-page; the gear
+		const pagesLink = screen.getByRole("link", { name: "Plugin pages" });
+		await expect.element(pagesLink).toBeInTheDocument();
+		const anchor = pagesLink.element() as HTMLAnchorElement;
+		// Plugins are not required to expose a `/settings` sub-page; the pages
 		// icon should land on the plugin's primary admin page.
 		expect(anchor.getAttribute("href")).toMatch(/^\/plugins\/audit-log\/?$/);
+	});
+
+	it("settings gear shown only for enabled plugins with a settings schema", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id: "with-settings", name: "With Settings", hasSettings: true }),
+			makePlugin({ id: "no-settings", name: "No Settings", hasSettings: false }),
+			makePlugin({
+				id: "disabled-settings",
+				name: "Disabled Settings",
+				hasSettings: true,
+				enabled: false,
+				status: "inactive",
+			}),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("With Settings")).toBeInTheDocument();
+		const settingsLinks = screen.getByRole("link", { name: "Settings" }).all();
+		expect(settingsLinks.length).toBe(1);
+		const anchor = settingsLinks[0]!.element() as HTMLAnchorElement;
+		expect(anchor.getAttribute("href")).toBe("/plugins-manager/with-settings/settings");
 	});
 
 	it("expand/collapse shows plugin details", async () => {

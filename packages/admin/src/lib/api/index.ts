@@ -101,8 +101,11 @@ export {
 // Plugins
 export {
 	type PluginInfo,
+	type SettingField,
 	fetchPlugins,
 	fetchPlugin,
+	fetchPluginSettings,
+	updatePluginSettings,
 	enablePlugin,
 	disablePlugin,
 } from "./plugins.js";
