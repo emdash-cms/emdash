@@ -2,33 +2,52 @@
  * Email settings page
  *
  * Shows current email pipeline status, provider info, and allows
- * sending a test email through the full pipeline.
+ * configuring the active email provider and sending a test email.
  */
 
-import { Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import { Button, Input, Loader, Select, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	CheckCircle,
 	Envelope,
+	Gear,
 	PaperPlaneTilt,
 	PlugsConnected,
 	WarningCircle,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import {
 	fetchEmailSettings,
+	saveEmailSettings,
 	sendTestEmail,
+	type EmailProviderChoice,
 	type EmailSettings as EmailSettingsData,
 } from "../../lib/api/email-settings.js";
 import { getMutationError } from "../DialogError.js";
 import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
+const PROVIDER_OPTIONS: { value: EmailProviderChoice; label: string }[] = [
+	{ value: "none", label: "None" },
+	{ value: "smtp", label: "SMTP" },
+	{ value: "cloudflare", label: "Cloudflare Email" },
+];
+
 export function EmailSettings() {
 	const { t } = useLingui();
 	const toastManager = useKumoToastManager();
+	const queryClient = useQueryClient();
 	const [testEmail, setTestEmail] = React.useState("");
+
+	// Provider selection + SMTP form state
+	const [provider, setProvider] = React.useState<EmailProviderChoice>("none");
+	const [smtpHost, setSmtpHost] = React.useState("");
+	const [smtpPort, setSmtpPort] = React.useState("587");
+	const [smtpSecure, setSmtpSecure] = React.useState<"starttls" | "tls">("starttls");
+	const [smtpUser, setSmtpUser] = React.useState("");
+	const [smtpPass, setSmtpPass] = React.useState("");
+	const [smtpFrom, setSmtpFrom] = React.useState("");
 
 	const {
 		data: settings,
@@ -37,6 +56,39 @@ export function EmailSettings() {
 	} = useQuery({
 		queryKey: ["email-settings"],
 		queryFn: fetchEmailSettings,
+	});
+
+	// Sync form state from fetched settings
+	React.useEffect(() => {
+		if (!settings) return;
+		if (settings.selectedProviderId === "emdash-smtp") {
+			setProvider("smtp");
+			if (settings.smtp.host) setSmtpHost(settings.smtp.host);
+			if (settings.smtp.port) setSmtpPort(String(settings.smtp.port));
+			if (settings.smtp.secure) setSmtpSecure(settings.smtp.secure);
+			if (settings.smtp.from) setSmtpFrom(settings.smtp.from);
+		} else if (settings.selectedProviderId === "emdash-cloudflare-email") {
+			setProvider("cloudflare");
+		} else {
+			setProvider("none");
+		}
+	}, [settings]);
+
+	const saveMutation = useMutation({
+		mutationFn: saveEmailSettings,
+		onSuccess: (result) => {
+			toastManager.add({ title: result.message, variant: "success", timeout: 5000 });
+			setSmtpPass(""); // clear password field after save
+			void queryClient.invalidateQueries({ queryKey: ["email-settings"] });
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to save email settings`,
+				description: getMutationError(error) || t`An error occurred`,
+				variant: "error",
+				timeout: 5000,
+			});
+		},
 	});
 
 	const testMutation = useMutation({
@@ -54,6 +106,43 @@ export function EmailSettings() {
 			});
 		},
 	});
+
+	const handleSave = () => {
+		if (provider === "smtp") {
+			if (!smtpHost || !smtpUser) {
+				toastManager.add({
+					title: t`Missing SMTP configuration`,
+					description: t`Host and user are required.`,
+					variant: "error",
+					timeout: 5000,
+				});
+				return;
+			}
+			const port = Number.parseInt(smtpPort, 10);
+			if (Number.isNaN(port) || port < 1 || port > 65535) {
+				toastManager.add({
+					title: t`Invalid port`,
+					description: t`Port must be between 1 and 65535.`,
+					variant: "error",
+					timeout: 5000,
+				});
+				return;
+			}
+			saveMutation.mutate({
+				provider: "smtp",
+				smtp: {
+					host: smtpHost,
+					port,
+					secure: smtpSecure,
+					user: smtpUser,
+					...(smtpPass ? { pass: smtpPass } : {}),
+					...(smtpFrom ? { from: smtpFrom } : {}),
+				},
+			});
+		} else {
+			saveMutation.mutate({ provider });
+		}
+	};
 
 	const handleTestSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -84,12 +173,107 @@ export function EmailSettings() {
 		);
 	}
 
+	const hasCloudflareProvider = settings?.providers.some(
+		(p) => p.pluginId === "emdash-cloudflare-email",
+	);
+
 	return (
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex items-center gap-3">
 				<BackToSettingsLink />
 				<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
+			</div>
+
+			{/* Provider configuration */}
+			<div className="rounded-lg border bg-kumo-base p-6">
+				<div className="flex items-center gap-2 mb-4">
+					<Envelope className="h-5 w-5 text-kumo-subtle" />
+					<h2 className="text-lg font-semibold">{t`Email Provider`}</h2>
+				</div>
+
+				<div className="space-y-4">
+					<Select
+						label={t`Provider`}
+						value={provider}
+						onValueChange={(value) => setProvider(value as EmailProviderChoice)}
+						items={PROVIDER_OPTIONS.map((opt) => ({
+							value: opt.value,
+							label: opt.label,
+							disabled: opt.value === "cloudflare" && !hasCloudflareProvider,
+						}))}
+					/>
+
+					{provider === "smtp" && (
+						<div className="space-y-4 pt-2 border-t">
+							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+								<Input
+									label={t`SMTP Host`}
+									value={smtpHost}
+									onChange={(e) => setSmtpHost(e.target.value)}
+									placeholder="smtp-relay.brevo.com"
+									required
+								/>
+								<Input
+									label={t`Port`}
+									type="number"
+									value={smtpPort}
+									onChange={(e) => setSmtpPort(e.target.value)}
+									placeholder="587"
+									required
+								/>
+								<Select
+									label={t`Security`}
+									value={smtpSecure}
+									onValueChange={(value) => setSmtpSecure(value as "starttls" | "tls")}
+									items={[
+										{ value: "starttls", label: "STARTTLS (port 587)" },
+										{ value: "tls", label: "Implicit TLS (port 465)" },
+									]}
+								/>
+								<Input
+									label={t`Username`}
+									value={smtpUser}
+									onChange={(e) => setSmtpUser(e.target.value)}
+									placeholder="you@example.com"
+									required
+								/>
+								<Input
+									label={t`Password`}
+									type="password"
+									value={smtpPass}
+									onChange={(e) => setSmtpPass(e.target.value)}
+									placeholder={
+										settings?.smtp.configured && settings.smtp.source === "db"
+											? t`Leave empty to keep current password`
+											: t`Enter SMTP password`
+									}
+								/>
+								<Input
+									label={t`Default Sender (optional)`}
+									value={smtpFrom}
+									onChange={(e) => setSmtpFrom(e.target.value)}
+									placeholder="Site Name <noreply@example.com>"
+								/>
+							</div>
+							<p className="text-xs text-kumo-subtle">
+								{t`SMTP credentials are encrypted and stored in the database. The password field is write-only — leave it empty to keep the current password.`}
+							</p>
+						</div>
+					)}
+
+					{provider === "cloudflare" && (
+						<div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4">
+							<p className="text-sm text-kumo-subtle">
+								{t`Cloudflare Email uses the native send_email binding. Configure the sender address in your astro.config.mjs and add the EMAIL binding to wrangler.jsonc.`}
+							</p>
+						</div>
+					)}
+
+					<Button onClick={handleSave} disabled={saveMutation.isPending}>
+						{saveMutation.isPending ? t`Saving...` : t`Save Settings`}
+					</Button>
+				</div>
 			</div>
 
 			{/* Pipeline status */}
@@ -101,6 +285,45 @@ export function EmailSettings() {
 
 				<PipelineStatus settings={settings} />
 			</div>
+
+			{/* SMTP transport status */}
+			{settings?.smtp.configured && (
+				<div className="rounded-lg border bg-kumo-base p-6">
+					<div className="flex items-center gap-2 mb-4">
+						<Gear className="h-5 w-5 text-kumo-subtle" />
+						<h2 className="text-lg font-semibold">{t`SMTP Transport`}</h2>
+					</div>
+					<div className="space-y-3">
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+							<div>
+								<p className="text-sm font-medium text-kumo-subtle">{t`Host`}</p>
+								<p className="text-sm font-mono">{settings.smtp.host}</p>
+							</div>
+							<div>
+								<p className="text-sm font-medium text-kumo-subtle">{t`Port`}</p>
+								<p className="text-sm font-mono">{settings.smtp.port}</p>
+							</div>
+							<div>
+								<p className="text-sm font-medium text-kumo-subtle">{t`Security`}</p>
+								<p className="text-sm font-mono">
+									{settings.smtp.secure === "tls" ? t`Implicit TLS` : t`STARTTLS`}
+								</p>
+							</div>
+							{settings.smtp.from && (
+								<div>
+									<p className="text-sm font-medium text-kumo-subtle">{t`Default sender`}</p>
+									<p className="text-sm font-mono">{settings.smtp.from}</p>
+								</div>
+							)}
+						</div>
+						<p className="text-xs text-kumo-subtle">
+							{settings.smtp.source === "db"
+								? t`SMTP is configured in the admin UI. Credentials are encrypted in the database.`
+								: t`SMTP is configured via environment variables on the server.`}
+						</p>
+					</div>
+				</div>
+			)}
 
 			{/* Test email */}
 			{settings?.available && (

@@ -174,6 +174,7 @@ import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import {
 	createSmtpEmailDeliver,
+	loadSmtpConfig,
 	loadSmtpConfigFromEnv,
 	SMTP_EMAIL_PLUGIN_ID,
 } from "./plugins/email-smtp.js";
@@ -1304,12 +1305,17 @@ export class EmDashRuntime {
 		}
 
 		// Register built-in SMTP email provider when EMAIL_SMTP_* env vars are
-		// present. This is the only transport that works with generic SMTP
-		// credentials (Brevo relay, Office365, Fastmail, self-hosted Postfix)
-		// because sandboxed plugins cannot open TCP sockets. Registered as a
-		// built-in so it participates in exclusive hook resolution like any
-		// other provider — explicitly-selected plugin transports still win.
-		const smtpConfig = loadSmtpConfigFromEnv();
+		// present or when configured in the admin UI (stored in DB). This is the
+		// only transport that works with generic SMTP credentials (Brevo relay,
+		// Office365, Fastmail, self-hosted Postfix) because sandboxed plugins
+		// cannot open TCP sockets. Registered as a built-in so it participates
+		// in exclusive hook resolution like any other provider — explicitly-
+		// selected plugin transports still win.
+		const encryptionKey =
+			import.meta.env.EMDASH_ENCRYPTION_KEY ?? process.env.EMDASH_ENCRYPTION_KEY;
+		const smtpConfig = encryptionKey
+			? await loadSmtpConfig(db, encryptionKey)
+			: loadSmtpConfigFromEnv();
 		if (smtpConfig) {
 			try {
 				const smtpPlugin = definePlugin({

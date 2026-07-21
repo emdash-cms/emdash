@@ -13,6 +13,13 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { OptionsRepository } from "#db/repositories/options.js";
+import {
+	clearSmtpConfigFromDb,
+	loadSmtpConfigFromDb,
+	loadSmtpConfigFromEnv,
+	saveSmtpConfigToDb,
+	SMTP_EMAIL_PLUGIN_ID,
+} from "#plugins/email-smtp.js";
 
 export const prerender = false;
 
@@ -58,6 +65,44 @@ export const GET: APIRoute = async ({ locals }) => {
 			.getHookProviders(EMAIL_AFTER_SEND_HOOK)
 			.map((p) => p.pluginId);
 
+		// SMTP transport status — DB config takes precedence over env vars
+		let smtpStatus: {
+			configured: boolean;
+			source: "db" | "env" | null;
+			host?: string;
+			port?: number;
+			secure?: "starttls" | "tls";
+			from?: string;
+		} = { configured: false, source: null };
+		try {
+			const encryptionKey =
+				import.meta.env.EMDASH_ENCRYPTION_KEY ?? process.env.EMDASH_ENCRYPTION_KEY;
+			const dbConfig = encryptionKey ? await loadSmtpConfigFromDb(emdash.db, encryptionKey) : null;
+			const envConfig = loadSmtpConfigFromEnv();
+
+			if (dbConfig) {
+				smtpStatus = {
+					configured: true,
+					source: "db",
+					host: dbConfig.host,
+					port: dbConfig.port,
+					secure: dbConfig.secure,
+					...(dbConfig.from ? { from: dbConfig.from } : {}),
+				};
+			} else if (envConfig) {
+				smtpStatus = {
+					configured: true,
+					source: "env",
+					host: envConfig.host,
+					port: envConfig.port,
+					secure: envConfig.secure,
+					...(envConfig.from ? { from: envConfig.from } : {}),
+				};
+			}
+		} catch {
+			// Invalid SMTP config — show as unconfigured rather than breaking the page
+		}
+
 		return apiSuccess({
 			available: emdash.email?.isAvailable() ?? false,
 			providers: providers.map((p) => ({
@@ -68,6 +113,7 @@ export const GET: APIRoute = async ({ locals }) => {
 				beforeSend: beforeSendPlugins,
 				afterSend: afterSendPlugins,
 			},
+			smtp: smtpStatus,
 		});
 	} catch (error) {
 		return handleError(error, "Failed to get email settings", "EMAIL_SETTINGS_READ_ERROR");
@@ -141,5 +187,102 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		});
 	} catch (error) {
 		return handleError(error, "Failed to send test email", "EMAIL_TEST_ERROR");
+	}
+};
+
+// ---------------------------------------------------------------------------
+// PUT /_emdash/api/settings/email — configure email provider
+// ---------------------------------------------------------------------------
+
+const smtpConfigSchema = z.object({
+	host: z.string().min(1),
+	port: z.number().int().min(1).max(65535),
+	secure: z.enum(["starttls", "tls"]),
+	user: z.string().min(1),
+	pass: z.string().min(1).optional(), // undefined = keep existing password
+	from: z.string().optional(),
+});
+
+const emailSettingsBody = z.discriminatedUnion("provider", [
+	z.object({ provider: z.literal("none") }),
+	z.object({ provider: z.literal("smtp"), smtp: smtpConfigSchema }),
+	z.object({ provider: z.literal("cloudflare") }),
+]);
+
+export const PUT: APIRoute = async ({ request, locals }) => {
+	const { emdash, user } = locals;
+
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
+
+	const denied = requirePerm(user, "settings:manage");
+	if (denied) return denied;
+
+	try {
+		const body = await parseBody(request, emailSettingsBody);
+		if (isParseError(body)) return body;
+
+		const encryptionKey =
+			import.meta.env.EMDASH_ENCRYPTION_KEY ?? process.env.EMDASH_ENCRYPTION_KEY;
+
+		switch (body.provider) {
+			case "none": {
+				// Clear SMTP config and deselect provider
+				await clearSmtpConfigFromDb(emdash.db);
+				emdash.hooks.clearExclusiveSelection(EMAIL_DELIVER_HOOK);
+				return apiSuccess({ success: true, message: "Email provider disabled" });
+			}
+
+			case "smtp": {
+				if (!encryptionKey) {
+					return apiError(
+						"ENCRYPTION_KEY_MISSING",
+						"EMDASH_ENCRYPTION_KEY is required to store SMTP credentials securely",
+						500,
+					);
+				}
+
+				// If no new password provided, keep the existing one from DB
+				let pass = body.smtp.pass;
+				if (!pass) {
+					const existing = await loadSmtpConfigFromDb(emdash.db, encryptionKey);
+					if (!existing) {
+						return apiError(
+							"VALIDATION_ERROR",
+							"Password is required for initial SMTP configuration",
+							400,
+						);
+					}
+					pass = existing.pass;
+				}
+
+				await saveSmtpConfigToDb(emdash.db, encryptionKey, {
+					host: body.smtp.host,
+					port: body.smtp.port,
+					secure: body.smtp.secure,
+					user: body.smtp.user,
+					pass,
+					...(body.smtp.from ? { from: body.smtp.from } : {}),
+				});
+
+				// Select SMTP as the active provider
+				emdash.hooks.setExclusiveSelection(EMAIL_DELIVER_HOOK, SMTP_EMAIL_PLUGIN_ID);
+
+				return apiSuccess({ success: true, message: "SMTP configured and activated" });
+			}
+
+			case "cloudflare": {
+				// Cloudflare Email is configured via astro.config.mjs (from, replyTo, binding)
+				// and the send_email binding in wrangler.jsonc. Nothing to store in DB.
+				emdash.hooks.setExclusiveSelection(EMAIL_DELIVER_HOOK, "emdash-cloudflare-email");
+				return apiSuccess({
+					success: true,
+					message: "Cloudflare Email selected (configure in astro.config.mjs)",
+				});
+			}
+		}
+	} catch (error) {
+		return handleError(error, "Failed to save email settings", "EMAIL_SETTINGS_SAVE_ERROR");
 	}
 };

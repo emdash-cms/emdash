@@ -6,15 +6,22 @@
  * and config parsing from env vars.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 import {
 	createSmtpEmailDeliver,
 	deliverSmtp,
+	loadSmtpConfig,
+	loadSmtpConfigFromDb,
 	loadSmtpConfigFromEnv,
+	saveSmtpConfigToDb,
+	clearSmtpConfigFromDb,
 	type SmtpConfig,
 } from "../../../src/plugins/email-smtp.js";
 import type { EmailDeliverEvent, PluginContext } from "../../../src/plugins/types.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import type { Kysely } from "kysely";
+import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 
 // ---------------------------------------------------------------------------
 // Mock socket helpers
@@ -269,5 +276,140 @@ describe("createSmtpEmailDeliver", () => {
 
 		await expect(handler(event, mockCtx)).resolves.toBeUndefined();
 		expect(connectFn).toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// DB-backed config
+// ---------------------------------------------------------------------------
+
+const TEST_ENCRYPTION_KEY =
+	"emdash_enc_v1_SWmb1wDbtOn-lO8UJgsKIdNps4cwuN8IulWSqsspuM";
+
+describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", () => {
+	let db: Kysely<DatabaseSchema>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("returns null when no config is stored", async () => {
+		const config = await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY);
+		expect(config).toBeNull();
+	});
+
+	it("saves and loads a full config", async () => {
+		const input: SmtpConfig = {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+			from: "Site <noreply@example.com>",
+		};
+
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);
+		const loaded = await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY);
+
+		expect(loaded).toEqual(input);
+	});
+
+	it("encrypts the password in the database", async () => {
+		const input: SmtpConfig = {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		};
+
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);
+
+		const repo = new (await import("../../../src/database/repositories/options.js")).OptionsRepository(db);
+		const raw = await repo.get<string>("emdash:email:smtp:password");
+		expect(raw).toBeDefined();
+		expect(raw).not.toBe("super-secret");
+		expect(typeof raw).toBe("string");
+	});
+
+	it("clears all config", async () => {
+		const input: SmtpConfig = {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		};
+
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);
+		await clearSmtpConfigFromDb(db);
+
+		const loaded = await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY);
+		expect(loaded).toBeNull();
+	});
+});
+
+describe("loadSmtpConfig", () => {
+	let db: Kysely<DatabaseSchema>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("prefers DB config over env vars", async () => {
+		// Set env vars
+		process.env.EMAIL_SMTP_HOST = "env-smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "587";
+		process.env.EMAIL_SMTP_USER = "env-user";
+		process.env.EMAIL_SMTP_PASS = "env-pass";
+
+		// Set DB config
+		const dbConfig: SmtpConfig = {
+			host: "db-smtp.example.com",
+			port: 465,
+			secure: "tls",
+			user: "db-user",
+			pass: "db-pass",
+		};
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, dbConfig);
+
+		const loaded = await loadSmtpConfig(db, TEST_ENCRYPTION_KEY);
+		expect(loaded?.host).toBe("db-smtp.example.com");
+		expect(loaded?.port).toBe(465);
+
+		// Cleanup env
+		delete process.env.EMAIL_SMTP_HOST;
+		delete process.env.EMAIL_SMTP_PORT;
+		delete process.env.EMAIL_SMTP_USER;
+		delete process.env.EMAIL_SMTP_PASS;
+	});
+
+	it("falls back to env vars when DB is empty", async () => {
+		process.env.EMAIL_SMTP_HOST = "env-smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "587";
+		process.env.EMAIL_SMTP_USER = "env-user";
+		process.env.EMAIL_SMTP_PASS = "env-pass";
+
+		const loaded = await loadSmtpConfig(db, TEST_ENCRYPTION_KEY);
+		expect(loaded?.host).toBe("env-smtp.example.com");
+
+		delete process.env.EMAIL_SMTP_HOST;
+		delete process.env.EMAIL_SMTP_PORT;
+		delete process.env.EMAIL_SMTP_USER;
+		delete process.env.EMAIL_SMTP_PASS;
+	});
+
+	it("returns null when neither DB nor env is configured", async () => {
+		delete process.env.EMAIL_SMTP_HOST;
+		const loaded = await loadSmtpConfig(db, TEST_ENCRYPTION_KEY);
+		expect(loaded).toBeNull();
 	});
 });

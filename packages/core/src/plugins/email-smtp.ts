@@ -22,10 +22,19 @@
  * a clear error. TLS is always required; plaintext auth is never attempted.
  */
 
+import { decrypt, encrypt } from "@emdash-cms/auth";
+import type { Kysely } from "kysely";
+
+import { OptionsRepository } from "../database/repositories/options.js";
+import type { Database } from "../database/types.js";
 import type { EmailDeliverEvent, PluginContext } from "./types.js";
 
 /** Plugin ID for the built-in SMTP email provider */
 export const SMTP_EMAIL_PLUGIN_ID = "emdash-smtp";
+
+/** Options key prefix for SMTP settings */
+const SMTP_OPTION_PREFIX = "emdash:email:smtp:";
+const SMTP_OPTION_PASSWORD = `${SMTP_OPTION_PREFIX}password`;
 
 // ---------------------------------------------------------------------------
 // Socket abstraction — cloudflare:sockets on Workers, node:net/tls on Node
@@ -395,6 +404,82 @@ export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 		pass,
 		...(process.env.EMAIL_SMTP_FROM ? { from: process.env.EMAIL_SMTP_FROM } : {}),
 	};
+}
+
+/** Load SMTP config from DB, decrypting the password with the encryption key. */
+export async function loadSmtpConfigFromDb(
+	db: Kysely<Database>,
+	encryptionKey: string,
+): Promise<SmtpConfig | null> {
+	const repo = new OptionsRepository(db);
+	const host = await repo.get<string>(`${SMTP_OPTION_PREFIX}host`);
+	if (!host) return null;
+
+	const port = await repo.get<number>(`${SMTP_OPTION_PREFIX}port`);
+	const secure = await repo.get<"starttls" | "tls">(`${SMTP_OPTION_PREFIX}secure`);
+	const user = await repo.get<string>(`${SMTP_OPTION_PREFIX}user`);
+	const encryptedPass = await repo.get<string>(SMTP_OPTION_PASSWORD);
+	const from = await repo.get<string>(`${SMTP_OPTION_PREFIX}from`);
+
+	if (!port || !secure || !user || !encryptedPass) {
+		return null;
+	}
+
+	const pass = await decrypt(encryptedPass, encryptionKey);
+	return {
+		host,
+		port,
+		secure,
+		user,
+		pass,
+		...(from ? { from } : {}),
+	};
+}
+
+/** Save SMTP config to DB, encrypting the password with the encryption key. */
+export async function saveSmtpConfigToDb(
+	db: Kysely<Database>,
+	encryptionKey: string,
+	config: SmtpConfig,
+): Promise<void> {
+	const repo = new OptionsRepository(db);
+	await repo.set(`${SMTP_OPTION_PREFIX}host`, config.host);
+	await repo.set(`${SMTP_OPTION_PREFIX}port`, config.port);
+	await repo.set(`${SMTP_OPTION_PREFIX}secure`, config.secure);
+	await repo.set(`${SMTP_OPTION_PREFIX}user`, config.user);
+	await repo.set(SMTP_OPTION_PASSWORD, await encrypt(config.pass, encryptionKey));
+	if (config.from) {
+		await repo.set(`${SMTP_OPTION_PREFIX}from`, config.from);
+	} else {
+		await repo.delete(`${SMTP_OPTION_PREFIX}from`);
+	}
+}
+
+/** Clear all SMTP config from DB. */
+export async function clearSmtpConfigFromDb(db: Kysely<Database>): Promise<void> {
+	const repo = new OptionsRepository(db);
+	await repo.delete(`${SMTP_OPTION_PREFIX}host`);
+	await repo.delete(`${SMTP_OPTION_PREFIX}port`);
+	await repo.delete(`${SMTP_OPTION_PREFIX}secure`);
+	await repo.delete(`${SMTP_OPTION_PREFIX}user`);
+	await repo.delete(SMTP_OPTION_PASSWORD);
+	await repo.delete(`${SMTP_OPTION_PREFIX}from`);
+}
+
+/**
+ * Load SMTP config from DB first, then fall back to env vars.
+ * Returns null if neither is configured.
+ *
+ * The encryption key is the same `EMDASH_ENCRYPTION_KEY` used for plugin
+ * secrets — the SMTP password is a plugin secret in spirit.
+ */
+export async function loadSmtpConfig(
+	db: Kysely<Database>,
+	encryptionKey: string,
+): Promise<SmtpConfig | null> {
+	const dbConfig = await loadSmtpConfigFromDb(db, encryptionKey);
+	if (dbConfig) return dbConfig;
+	return loadSmtpConfigFromEnv();
 }
 
 /** Deliver one message over SMTP. Throws on any protocol or network error. */
