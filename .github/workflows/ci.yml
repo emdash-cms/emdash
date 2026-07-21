@@ -81,12 +81,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Validate changesets
-        # Only validate when this PR actually adds/edits a changeset. Gate on the
-        # same git-diff-since-merge-base notion `changeset status --since` uses
-        # internally, not on working-tree presence: on a pull_request merge commit
-        # the tree also contains changesets already accumulated on main, so a
-        # working-tree check runs `status`, which then reports zero *new*
-        # changesets and fails a PR that legitimately needs none.
+        # GitHub tests pull_request events as a merge commit, so the working tree
+        # can contain changesets already on main. Diff against the merge base.
         run: |
           base=$(git merge-base origin/main HEAD)
           added=$(git diff --name-only --diff-filter=d "$base" -- '.changeset/*.md' ':(exclude).changeset/README.md')
