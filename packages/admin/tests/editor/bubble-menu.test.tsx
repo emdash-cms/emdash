@@ -242,6 +242,35 @@ async function waitForBubbleMenu(): Promise<HTMLElement> {
 	return menu!;
 }
 
+function findScrollableAncestor(element: HTMLElement): HTMLElement | null {
+	let ancestor = element.parentElement;
+	while (ancestor) {
+		if (["auto", "scroll"].includes(getComputedStyle(ancestor).overflowX)) return ancestor;
+		ancestor = ancestor.parentElement;
+	}
+	return null;
+}
+
+function hasNonZeroRadius(element: HTMLElement): boolean {
+	const computedRadius = getComputedStyle(element).borderRadius;
+	const computedValues = computedRadius.match(/\d*\.?\d+/g)?.map(Number) ?? [];
+	if (computedValues.some((value) => value > 0)) return true;
+
+	// The component harness does not resolve admin-only Tailwind variables, so
+	// fall back to validating a semantic inline declaration when necessary.
+	const declaredRadius = element.style.borderRadius.trim();
+	if (!declaredRadius || !CSS.supports("border-radius", declaredRadius)) return false;
+	if (declaredRadius.includes("var(")) return true;
+	const declaredValues = declaredRadius.match(/\d*\.?\d+/g)?.map(Number) ?? [];
+	return declaredValues.some((value) => value > 0);
+}
+
+function expectRoundedFloatingWrapper(menu: HTMLElement) {
+	const wrapper = findScrollableAncestor(menu);
+	expect(wrapper).toBeTruthy();
+	expect(hasNonZeroRadius(wrapper!)).toBe(true);
+}
+
 /** Get a bubble menu button by aria-label */
 function getBubbleButton(menu: HTMLElement, label: string): HTMLButtonElement | null {
 	return menu.querySelector(`[aria-label="${label}"]`);
@@ -282,6 +311,14 @@ describe("Bubble Menu", () => {
 
 		const menu = await waitForBubbleMenu();
 		expect(menu).toBeTruthy();
+	});
+
+	it("rounds the scrollable positioning wrapper to preserve every menu corner", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		await vi.waitFor(() => expectRoundedFloatingWrapper(menu));
 	});
 
 	it("flips below a top-line selection when the sticky toolbar blocks the preferred position", async () => {
@@ -361,6 +398,7 @@ describe("Bubble Menu", () => {
 			expect(menuRect.top).toBeGreaterThanOrEqual(
 				formattingToolbar!.getBoundingClientRect().bottom,
 			);
+			expectRoundedFloatingWrapper(tableToolbar);
 		});
 	});
 

@@ -29,6 +29,8 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
@@ -397,6 +399,16 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					onReplace={(attrs) =>
 						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
 					}
+					onDelete={onBlockSidebarDelete}
+					onClose={onBlockSidebarClose}
+					inline
+				/>
+			</div>
+		) : blockSidebarPanel.type === "gallery" ? (
+			<div className="p-4">
+				<GalleryDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
+					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 					onDelete={onBlockSidebarDelete}
 					onClose={onBlockSidebarClose}
 					inline

@@ -11,7 +11,16 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input, Popover, Select, Switch } from "@cloudflare/kumo";
+import {
+	Button,
+	Dialog,
+	Input,
+	Popover,
+	Select,
+	Switch,
+	Tooltip,
+	TooltipProvider,
+} from "@cloudflare/kumo";
 import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import {
 	DndContext,
@@ -48,6 +57,7 @@ import {
 	Quotes,
 	Link as LinkIcon,
 	Image as ImageIcon,
+	Images,
 	ArrowUUpLeft,
 	ArrowUUpRight,
 	TextAlignLeft,
@@ -84,6 +94,7 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { AllSelection, TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
@@ -99,6 +110,8 @@ import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
+import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
@@ -187,6 +200,41 @@ type PortableTextBlock =
 // Generate unique key
 function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
+}
+
+/**
+ * Normalize an untrusted gallery `images` value into well-formed entries.
+ * Mirrors `sanitizeGalleryImages` in core's content/converters (duplicated
+ * like the converters themselves — see note above).
+ */
+function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[] {
+	if (!Array.isArray(value)) return [];
+	const images: GalleryImage[] = [];
+	for (const entry of value as unknown[]) {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
+		const record = entry as Record<string, unknown>;
+		const asset = record.asset;
+		if (typeof asset !== "object" || asset === null) continue;
+		const assetRecord = asset as Record<string, unknown>;
+		const image: GalleryImage = {
+			_type: "image",
+			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
+			asset: {
+				_type: "reference",
+				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
+				...(attrStr(assetRecord.url) ? { url: attrStr(assetRecord.url) } : {}),
+				...(attrStr(assetRecord.provider) ? { provider: attrStr(assetRecord.provider) } : {}),
+			},
+		};
+		if (attrStr(record.alt)) image.alt = attrStr(record.alt);
+		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
+		if (typeof record.width === "number") image.width = record.width;
+		if (typeof record.height === "number") image.height = record.height;
+		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
+		if (attrStr(record.dominantColor)) image.dominantColor = attrStr(record.dominantColor);
+		images.push(image);
+	}
+	return images;
 }
 
 // Helpers for safely extracting typed values from ProseMirror attrs (Record<string, any>)
@@ -357,6 +405,16 @@ function convertPMNode(node: {
 				_key: generateKey(),
 				style: "lineBreak",
 			};
+
+		case "gallery": {
+			const columns = node.attrs?.columns;
+			return {
+				_type: "gallery",
+				_key: generateKey(),
+				images: sanitizeGalleryImages(node.attrs?.images, true),
+				...(typeof columns === "number" ? { columns } : {}),
+			};
+		}
 
 		case "table": {
 			const tableKey = generateKey();
@@ -725,6 +783,31 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 
 		case "break":
 			return { type: "horizontalRule" };
+
+		case "gallery": {
+			const galleryBlock = block as { _type: "gallery"; _key: string; [key: string]: unknown };
+			// A gallery without an images array is malformed — keep the visible
+			// placeholder rather than silently rendering an empty grid.
+			if (!Array.isArray(galleryBlock.images)) {
+				return {
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: `[Unknown block type: ${block._type}]`,
+							marks: [{ type: "code" }],
+						},
+					],
+				};
+			}
+			return {
+				type: "gallery",
+				attrs: {
+					images: sanitizeGalleryImages(galleryBlock.images),
+					columns: typeof galleryBlock.columns === "number" ? galleryBlock.columns : undefined,
+				},
+			};
+		}
 
 		case "htmlBlock": {
 			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
@@ -2244,6 +2327,9 @@ export function PortableTextEditor({
 	// Media picker state (for image insertion)
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 
+	// Multi-select media picker state (for gallery insertion)
+	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
+
 	// Plugin block insertion/editing state
 	const [pluginBlockModal, setPluginBlockModal] = React.useState<PluginBlockDef | null>(null);
 	const [pluginBlockInitialValues, setPluginBlockInitialValues] = React.useState<
@@ -2314,6 +2400,21 @@ export function PortableTextEditor({
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setMediaPickerOpen(true);
+			},
+		});
+
+		// Add gallery command
+		cmds.push({
+			id: "gallery",
+			title: msg`Gallery`,
+			description: msg`Insert an image gallery`,
+			icon: Images,
+			aliases: ["gal", "photos", "grid"],
+			category: msg`Media`,
+			deferInsertion: true,
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).run();
+				setGalleryPickerOpen(true);
 			},
 		});
 
@@ -2412,6 +2513,7 @@ export function PortableTextEditor({
 			}),
 			CodeBlockExtension,
 			HtmlBlockExtension,
+			GalleryExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
@@ -2720,17 +2822,24 @@ export function PortableTextEditor({
 
 	React.useEffect(() => {
 		if (!editor) return;
-		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
-		if (!storage) return;
-		storage.onOpenBlockSidebar = (panel: BlockSidebarPanel) => {
-			onBlockSidebarOpenRef.current?.(panel);
-		};
-		storage.onCloseBlockSidebar = () => {
-			onBlockSidebarCloseRef.current?.();
-		};
+		const editorStorage = editor.storage as unknown as Record<string, Record<string, unknown>>;
+		// Both node types share the same sidebar plumbing
+		const storages = [editorStorage.image, editorStorage.gallery].filter(
+			(storage): storage is Record<string, unknown> => storage !== undefined,
+		);
+		for (const storage of storages) {
+			storage.onOpenBlockSidebar = (panel: BlockSidebarPanel) => {
+				onBlockSidebarOpenRef.current?.(panel);
+			};
+			storage.onCloseBlockSidebar = () => {
+				onBlockSidebarCloseRef.current?.();
+			};
+		}
 		return () => {
-			storage.onOpenBlockSidebar = null;
-			storage.onCloseBlockSidebar = null;
+			for (const storage of storages) {
+				storage.onOpenBlockSidebar = null;
+				storage.onCloseBlockSidebar = null;
+			}
 		};
 	}, [editor]);
 
@@ -2760,6 +2869,25 @@ export function PortableTextEditor({
 			}
 			pendingBlockInsertPosRef.current = null;
 			setMediaPickerOpen(false);
+		},
+		[editor],
+	);
+
+	// Handle gallery insertion from the multi-select media picker
+	const handleGallerySelect = React.useCallback(
+		(items: MediaItem[]) => {
+			if (editor && items.length > 0) {
+				const attrs = { images: items.map(mediaItemToGalleryImage), columns: 3 };
+				const insertPos = pendingBlockInsertPosRef.current;
+				const chain = editor.chain().focus();
+				if (insertPos === null) {
+					chain.setGallery(attrs).run();
+				} else {
+					chain.insertContentAt(insertPos, { type: "gallery", attrs }).run();
+				}
+			}
+			pendingBlockInsertPosRef.current = null;
+			setGalleryPickerOpen(false);
 		},
 		[editor],
 	);
@@ -2919,6 +3047,20 @@ export function PortableTextEditor({
 					title={t`Select Image`}
 				/>
 
+				{/* Multi-select media picker for gallery insertion */}
+				<MediaPickerModal
+					open={galleryPickerOpen}
+					onOpenChange={(open) => {
+						setGalleryPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					multiple
+					onSelect={() => {}}
+					onSelectMany={handleGallerySelect}
+					mimeTypeFilter="image/"
+					title={t`Select Gallery Images`}
+				/>
+
 				{/* Plugin block insertion/editing modal */}
 				<PluginBlockModal
 					block={pluginBlockModal}
@@ -3027,6 +3169,7 @@ function EditorBubbleMenu({
 					apply: ({ availableWidth, elements }) => {
 						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
 					},
 				}),
 			}}
@@ -3165,6 +3308,7 @@ function TableBubbleMenu({
 					apply: ({ availableWidth, elements }) => {
 						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
 					},
 				}),
 			}}
@@ -3265,6 +3409,48 @@ function BubbleButton({
 	);
 }
 
+type TextAlignment = "left" | "center" | "right" | "justify";
+
+function getSelectionTextAlignment(editor: Editor): TextAlignment | null {
+	const ownerWindow = editor.view.dom.ownerDocument.defaultView;
+	const defaultAlignment: TextAlignment =
+		ownerWindow?.getComputedStyle(editor.view.dom).direction === "rtl" ? "right" : "left";
+	const alignments = new Set<TextAlignment>();
+
+	const collectAlignment = (node: ProseMirrorNode) => {
+		if (node.type.name !== "paragraph" && node.type.name !== "heading") return;
+		const textAlign = node.attrs.textAlign;
+		alignments.add(
+			textAlign === "left" ||
+				textAlign === "center" ||
+				textAlign === "right" ||
+				textAlign === "justify"
+				? textAlign
+				: defaultAlignment,
+		);
+	};
+
+	for (const { $from, $to } of editor.state.selection.ranges) {
+		if ($from.pos === $to.pos) {
+			for (let depth = $from.depth; depth >= 0; depth -= 1) {
+				const node = $from.node(depth);
+				if (node.type.name === "paragraph" || node.type.name === "heading") {
+					collectAlignment(node);
+					break;
+				}
+			}
+			continue;
+		}
+
+		editor.state.doc.nodesBetween($from.pos, $to.pos, (node) => {
+			collectAlignment(node);
+			return node.type.name !== "paragraph" && node.type.name !== "heading";
+		});
+	}
+
+	return alignments.size === 1 ? (alignments.values().next().value ?? null) : null;
+}
+
 /**
  * Editor Toolbar
  *
@@ -3292,23 +3478,26 @@ function EditorToolbar({
 	// Subscribe to editor state changes for reactive button states
 	const editorState = useEditorState({
 		editor,
-		selector: (ctx) => ({
-			isBold: ctx.editor.isActive("bold"),
-			isItalic: ctx.editor.isActive("italic"),
-			isUnderline: ctx.editor.isActive("underline"),
-			isStrike: ctx.editor.isActive("strike"),
-			isCode: ctx.editor.isActive("code"),
-			isBulletList: ctx.editor.isActive("bulletList"),
-			isOrderedList: ctx.editor.isActive("orderedList"),
-			isBlockquote: ctx.editor.isActive("blockquote"),
-			isCodeBlock: ctx.editor.isActive("codeBlock"),
-			isAlignLeft: ctx.editor.isActive({ textAlign: "left" }),
-			isAlignCenter: ctx.editor.isActive({ textAlign: "center" }),
-			isAlignRight: ctx.editor.isActive({ textAlign: "right" }),
-			isLink: ctx.editor.isActive("link"),
-			canUndo: ctx.editor.can().undo(),
-			canRedo: ctx.editor.can().redo(),
-		}),
+		selector: (ctx) => {
+			const textAlignment = getSelectionTextAlignment(ctx.editor);
+			return {
+				isBold: ctx.editor.isActive("bold"),
+				isItalic: ctx.editor.isActive("italic"),
+				isUnderline: ctx.editor.isActive("underline"),
+				isStrike: ctx.editor.isActive("strike"),
+				isCode: ctx.editor.isActive("code"),
+				isBulletList: ctx.editor.isActive("bulletList"),
+				isOrderedList: ctx.editor.isActive("orderedList"),
+				isBlockquote: ctx.editor.isActive("blockquote"),
+				isCodeBlock: ctx.editor.isActive("codeBlock"),
+				isAlignLeft: textAlignment === "left",
+				isAlignCenter: textAlignment === "center",
+				isAlignRight: textAlignment === "right",
+				isLink: ctx.editor.isActive("link"),
+				canUndo: ctx.editor.can().undo(),
+				canRedo: ctx.editor.can().redo(),
+			};
+		},
 	});
 
 	// Populate link URL when opening popover
@@ -3392,7 +3581,7 @@ function EditorToolbar({
 		}
 	}, []);
 
-	return (
+	const toolbar = (
 		<div
 			ref={toolbarRef}
 			role="toolbar"
@@ -3403,18 +3592,24 @@ function EditorToolbar({
 		>
 			{/* Text formatting */}
 			<ToolbarGroup>
-				<Button
-					type="button"
-					variant="ghost"
-					shape="square"
-					className="hidden h-8 w-8 flex-none pointer-coarse:flex"
-					onMouseDown={(event) => event.preventDefault()}
-					onClick={onInsertBlock}
-					aria-label={t`Insert block after current block`}
-					data-touch-block-insert
-				>
-					<Plus className="h-4 w-4" aria-hidden="true" />
-				</Button>
+				<Tooltip
+					content={t`Insert block after current block`}
+					side="bottom"
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							shape="square"
+							className="hidden h-8 w-8 flex-none hover:bg-kumo-interact/50 pointer-coarse:flex"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={onInsertBlock}
+							aria-label={t`Insert block after current block`}
+							data-touch-block-insert
+						>
+							<Plus className="h-4 w-4" aria-hidden="true" />
+						</Button>
+					}
+				/>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
@@ -3531,22 +3726,28 @@ function EditorToolbar({
 						if (!open) setLinkUrl("");
 					}}
 				>
-					<Popover.Trigger
+					<Tooltip
+						content={t`Insert Link`}
+						side="bottom"
 						render={
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className={cn(
-									"h-8 w-8 flex-none",
-									editorState.isLink && "bg-kumo-tint text-kumo-default",
-								)}
-								onMouseDown={(event) => event.preventDefault()}
-								aria-label={t`Insert Link`}
-								aria-pressed={editorState.isLink}
-							>
-								<LinkIcon className="h-4 w-4" aria-hidden="true" />
-							</Button>
+							<Popover.Trigger
+								render={
+									<Button
+										type="button"
+										variant="ghost"
+										shape="square"
+										className={cn(
+											"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+											editorState.isLink && "bg-kumo-interact/50 text-kumo-default",
+										)}
+										onMouseDown={(event) => event.preventDefault()}
+										aria-label={t`Insert Link`}
+										aria-pressed={editorState.isLink}
+									>
+										<LinkIcon className="h-4 w-4" aria-hidden="true" />
+									</Button>
+								}
+							/>
 						}
 					/>
 					<Popover.Content side="bottom" align="start" className="w-auto p-3">
@@ -3633,6 +3834,8 @@ function EditorToolbar({
 			</ToolbarGroup>
 		</div>
 	);
+
+	return <TooltipProvider>{toolbar}</TooltipProvider>;
 }
 
 function ToolbarGroup({ children }: { children: React.ReactNode }) {
@@ -3653,20 +3856,29 @@ interface ToolbarButtonProps {
 
 function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarButtonProps) {
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			shape="square"
-			className={cn("h-8 w-8 flex-none", active && "bg-kumo-tint text-kumo-default")}
-			onMouseDown={(e) => e.preventDefault()}
-			onClick={onClick}
-			disabled={disabled}
-			aria-label={title}
-			aria-pressed={active}
-			tabIndex={0}
-		>
-			{children}
-		</Button>
+		<Tooltip
+			content={title}
+			side="bottom"
+			render={
+				<Button
+					type="button"
+					variant="ghost"
+					shape="square"
+					className={cn(
+						"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+						active && "bg-kumo-interact/50 text-kumo-default",
+					)}
+					onMouseDown={(e) => e.preventDefault()}
+					onClick={onClick}
+					disabled={disabled}
+					aria-label={title}
+					aria-pressed={active}
+					tabIndex={0}
+				>
+					{children}
+				</Button>
+			}
+		/>
 	);
 }
 
