@@ -361,7 +361,12 @@ export interface EmDashRuntimeParts {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		storage?: Storage;
-		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
+		siteInfo?: {
+			siteName?: string;
+			siteUrl?: string;
+			locale?: string;
+			trailingSlash?: "always" | "never" | "ignore";
+		};
 	};
 	runtimeDeps: RuntimeDependencies;
 	pipelineRef: { current: HookPipeline };
@@ -545,7 +550,12 @@ export class EmDashRuntime {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		storage?: Storage;
-		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
+		siteInfo?: {
+			siteName?: string;
+			siteUrl?: string;
+			locale?: string;
+			trailingSlash?: "always" | "never" | "ignore";
+		};
 	};
 	/** Dependencies needed for exclusive hook resolution */
 	private runtimeDeps: RuntimeDependencies;
@@ -1120,7 +1130,14 @@ export class EmDashRuntime {
 		const storage = EmDashRuntime.getStorage(deps);
 
 		let pluginStates: Map<string, string> = new Map();
-		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
+		let siteInfo:
+			| {
+					siteName?: string;
+					siteUrl?: string;
+					locale?: string;
+					trailingSlash?: "always" | "never" | "ignore";
+			  }
+			| undefined;
 		// "Already set up" by default so a read failure (e.g. tables absent on a
 		// pre-migration db) skips seeding rather than seeding a half-built db.
 		let seedGate = { collectionCount: 1, setupDone: true };
@@ -1163,6 +1180,10 @@ export class EmDashRuntime {
 				siteName: siteOpts.get("emdash:site_title") ?? undefined,
 				siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
 				locale: siteOpts.get("emdash:locale") ?? undefined,
+				// trailingSlash is a build-time Astro routing decision, not a
+				// user-editable setting, so it comes from the Astro config
+				// (virtual:emdash/config), not the options table.
+				trailingSlash: virtualConfig?.trailingSlash,
 			};
 		};
 
@@ -1846,7 +1867,12 @@ export class EmDashRuntime {
 		deps: RuntimeDependencies,
 		db: Kysely<Database>,
 		mediaStorage?: Storage | null,
-		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string },
+		siteInfo?: {
+			siteName?: string;
+			siteUrl?: string;
+			locale?: string;
+			trailingSlash?: "always" | "never" | "ignore";
+		},
 	): Promise<Map<string, SandboxedPluginInstance>> {
 		// Return cached plugins if already loaded
 		if (sandboxedPluginCache.size > 0) {
@@ -1962,7 +1988,12 @@ export class EmDashRuntime {
 		storage: Storage,
 		deps: RuntimeDependencies,
 		cache: Map<string, SandboxedPluginInstance>,
-		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string },
+		siteInfo?: {
+			siteName?: string;
+			siteUrl?: string;
+			locale?: string;
+			trailingSlash?: "always" | "never" | "ignore";
+		},
 	): Promise<void> {
 		// Ensure sandbox runner exists with media storage wired up.
 		// (storage here is the media Storage adapter from the runtime.)
