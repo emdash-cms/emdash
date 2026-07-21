@@ -11,7 +11,16 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input, Popover, Select, Switch } from "@cloudflare/kumo";
+import {
+	Button,
+	Dialog,
+	Input,
+	Popover,
+	Select,
+	Switch,
+	Tooltip,
+	TooltipProvider,
+} from "@cloudflare/kumo";
 import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import {
 	DndContext,
@@ -84,6 +93,7 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { AllSelection, TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
@@ -3027,6 +3037,7 @@ function EditorBubbleMenu({
 					apply: ({ availableWidth, elements }) => {
 						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
 					},
 				}),
 			}}
@@ -3165,6 +3176,7 @@ function TableBubbleMenu({
 					apply: ({ availableWidth, elements }) => {
 						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
 					},
 				}),
 			}}
@@ -3265,6 +3277,48 @@ function BubbleButton({
 	);
 }
 
+type TextAlignment = "left" | "center" | "right" | "justify";
+
+function getSelectionTextAlignment(editor: Editor): TextAlignment | null {
+	const ownerWindow = editor.view.dom.ownerDocument.defaultView;
+	const defaultAlignment: TextAlignment =
+		ownerWindow?.getComputedStyle(editor.view.dom).direction === "rtl" ? "right" : "left";
+	const alignments = new Set<TextAlignment>();
+
+	const collectAlignment = (node: ProseMirrorNode) => {
+		if (node.type.name !== "paragraph" && node.type.name !== "heading") return;
+		const textAlign = node.attrs.textAlign;
+		alignments.add(
+			textAlign === "left" ||
+				textAlign === "center" ||
+				textAlign === "right" ||
+				textAlign === "justify"
+				? textAlign
+				: defaultAlignment,
+		);
+	};
+
+	for (const { $from, $to } of editor.state.selection.ranges) {
+		if ($from.pos === $to.pos) {
+			for (let depth = $from.depth; depth >= 0; depth -= 1) {
+				const node = $from.node(depth);
+				if (node.type.name === "paragraph" || node.type.name === "heading") {
+					collectAlignment(node);
+					break;
+				}
+			}
+			continue;
+		}
+
+		editor.state.doc.nodesBetween($from.pos, $to.pos, (node) => {
+			collectAlignment(node);
+			return node.type.name !== "paragraph" && node.type.name !== "heading";
+		});
+	}
+
+	return alignments.size === 1 ? (alignments.values().next().value ?? null) : null;
+}
+
 /**
  * Editor Toolbar
  *
@@ -3292,23 +3346,26 @@ function EditorToolbar({
 	// Subscribe to editor state changes for reactive button states
 	const editorState = useEditorState({
 		editor,
-		selector: (ctx) => ({
-			isBold: ctx.editor.isActive("bold"),
-			isItalic: ctx.editor.isActive("italic"),
-			isUnderline: ctx.editor.isActive("underline"),
-			isStrike: ctx.editor.isActive("strike"),
-			isCode: ctx.editor.isActive("code"),
-			isBulletList: ctx.editor.isActive("bulletList"),
-			isOrderedList: ctx.editor.isActive("orderedList"),
-			isBlockquote: ctx.editor.isActive("blockquote"),
-			isCodeBlock: ctx.editor.isActive("codeBlock"),
-			isAlignLeft: ctx.editor.isActive({ textAlign: "left" }),
-			isAlignCenter: ctx.editor.isActive({ textAlign: "center" }),
-			isAlignRight: ctx.editor.isActive({ textAlign: "right" }),
-			isLink: ctx.editor.isActive("link"),
-			canUndo: ctx.editor.can().undo(),
-			canRedo: ctx.editor.can().redo(),
-		}),
+		selector: (ctx) => {
+			const textAlignment = getSelectionTextAlignment(ctx.editor);
+			return {
+				isBold: ctx.editor.isActive("bold"),
+				isItalic: ctx.editor.isActive("italic"),
+				isUnderline: ctx.editor.isActive("underline"),
+				isStrike: ctx.editor.isActive("strike"),
+				isCode: ctx.editor.isActive("code"),
+				isBulletList: ctx.editor.isActive("bulletList"),
+				isOrderedList: ctx.editor.isActive("orderedList"),
+				isBlockquote: ctx.editor.isActive("blockquote"),
+				isCodeBlock: ctx.editor.isActive("codeBlock"),
+				isAlignLeft: textAlignment === "left",
+				isAlignCenter: textAlignment === "center",
+				isAlignRight: textAlignment === "right",
+				isLink: ctx.editor.isActive("link"),
+				canUndo: ctx.editor.can().undo(),
+				canRedo: ctx.editor.can().redo(),
+			};
+		},
 	});
 
 	// Populate link URL when opening popover
@@ -3392,7 +3449,7 @@ function EditorToolbar({
 		}
 	}, []);
 
-	return (
+	const toolbar = (
 		<div
 			ref={toolbarRef}
 			role="toolbar"
@@ -3403,18 +3460,24 @@ function EditorToolbar({
 		>
 			{/* Text formatting */}
 			<ToolbarGroup>
-				<Button
-					type="button"
-					variant="ghost"
-					shape="square"
-					className="hidden h-8 w-8 flex-none pointer-coarse:flex"
-					onMouseDown={(event) => event.preventDefault()}
-					onClick={onInsertBlock}
-					aria-label={t`Insert block after current block`}
-					data-touch-block-insert
-				>
-					<Plus className="h-4 w-4" aria-hidden="true" />
-				</Button>
+				<Tooltip
+					content={t`Insert block after current block`}
+					side="bottom"
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							shape="square"
+							className="hidden h-8 w-8 flex-none hover:bg-kumo-interact/50 pointer-coarse:flex"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={onInsertBlock}
+							aria-label={t`Insert block after current block`}
+							data-touch-block-insert
+						>
+							<Plus className="h-4 w-4" aria-hidden="true" />
+						</Button>
+					}
+				/>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
@@ -3531,22 +3594,28 @@ function EditorToolbar({
 						if (!open) setLinkUrl("");
 					}}
 				>
-					<Popover.Trigger
+					<Tooltip
+						content={t`Insert Link`}
+						side="bottom"
 						render={
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className={cn(
-									"h-8 w-8 flex-none",
-									editorState.isLink && "bg-kumo-tint text-kumo-default",
-								)}
-								onMouseDown={(event) => event.preventDefault()}
-								aria-label={t`Insert Link`}
-								aria-pressed={editorState.isLink}
-							>
-								<LinkIcon className="h-4 w-4" aria-hidden="true" />
-							</Button>
+							<Popover.Trigger
+								render={
+									<Button
+										type="button"
+										variant="ghost"
+										shape="square"
+										className={cn(
+											"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+											editorState.isLink && "bg-kumo-interact/50 text-kumo-default",
+										)}
+										onMouseDown={(event) => event.preventDefault()}
+										aria-label={t`Insert Link`}
+										aria-pressed={editorState.isLink}
+									>
+										<LinkIcon className="h-4 w-4" aria-hidden="true" />
+									</Button>
+								}
+							/>
 						}
 					/>
 					<Popover.Content side="bottom" align="start" className="w-auto p-3">
@@ -3633,6 +3702,8 @@ function EditorToolbar({
 			</ToolbarGroup>
 		</div>
 	);
+
+	return <TooltipProvider>{toolbar}</TooltipProvider>;
 }
 
 function ToolbarGroup({ children }: { children: React.ReactNode }) {
@@ -3653,20 +3724,29 @@ interface ToolbarButtonProps {
 
 function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarButtonProps) {
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			shape="square"
-			className={cn("h-8 w-8 flex-none", active && "bg-kumo-tint text-kumo-default")}
-			onMouseDown={(e) => e.preventDefault()}
-			onClick={onClick}
-			disabled={disabled}
-			aria-label={title}
-			aria-pressed={active}
-			tabIndex={0}
-		>
-			{children}
-		</Button>
+		<Tooltip
+			content={title}
+			side="bottom"
+			render={
+				<Button
+					type="button"
+					variant="ghost"
+					shape="square"
+					className={cn(
+						"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+						active && "bg-kumo-interact/50 text-kumo-default",
+					)}
+					onMouseDown={(e) => e.preventDefault()}
+					onClick={onClick}
+					disabled={disabled}
+					aria-label={title}
+					aria-pressed={active}
+					tabIndex={0}
+				>
+					{children}
+				</Button>
+			}
+		/>
 	);
 }
 
