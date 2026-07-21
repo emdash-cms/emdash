@@ -90,7 +90,6 @@ export function SortableContentSettingsSections({
 		setStoredLayout(readStoredLayout(storageKey));
 	}, [storageKey]);
 
-	const layout = React.useMemo(() => resolveContentSettingsLayout(storedLayout), [storedLayout]);
 	const sectionsById = React.useMemo(() => {
 		const sections = React.Children.toArray(children).filter(
 			(child): child is React.ReactElement<SortableContentSettingsSectionProps> =>
@@ -98,6 +97,11 @@ export function SortableContentSettingsSections({
 		);
 		return new Map(sections.map((section) => [section.props.id, section]));
 	}, [children]);
+	const sectionIds = React.useMemo(() => Array.from(sectionsById.keys()), [sectionsById]);
+	const layout = React.useMemo(
+		() => resolveContentSettingsLayout(storedLayout, sectionIds),
+		[sectionIds, storedLayout],
+	);
 	const visibleIds = React.useMemo(
 		() => layout.order.filter((id) => sectionsById.has(id)),
 		[layout.order, sectionsById],
@@ -127,7 +131,7 @@ export function SortableContentSettingsSections({
 				const overId = String(event.over.id) as ContentSettingsSectionId;
 				setStoredLayout((current) => {
 					const next = reorderContentSettingsLayout(
-						resolveContentSettingsLayout(current),
+						resolveContentSettingsLayout(current, sectionIds),
 						movedId,
 						overId,
 					);
@@ -136,7 +140,7 @@ export function SortableContentSettingsSections({
 				});
 			}
 		},
-		[onSortingChange, storageKey],
+		[onSortingChange, sectionIds, storageKey],
 	);
 
 	return (

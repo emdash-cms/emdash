@@ -13,6 +13,11 @@ export * from "./lib/api";
 // Utilities
 export { cn } from "./lib/utils";
 
+export {
+	type ContentEditorPanelContext,
+	type ContentEditorPanelExtension,
+} from "./lib/content-editor-panels";
+
 // Plugin admin context (for accessing plugin components)
 export {
 	PluginAdminProvider,
