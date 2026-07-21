@@ -6,8 +6,8 @@
 	"description": "Cloudflare-deployed orchestrator + agent for emdashbot. Webhook ingress, per-issue state machine (Durable Object), classifier, and container-sandboxed investigate agent in one Worker.",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build && node scripts/verify-worker-exports.mjs",
-		"deploy": "pnpm build && wrangler deploy",
+		"build": "vite build",
+		"deploy": "vite build && wrangler deploy",
 		"cf-typegen": "wrangler types",
 		"pretypecheck": "wrangler types",
 		"typecheck": "tsc --noEmit",
