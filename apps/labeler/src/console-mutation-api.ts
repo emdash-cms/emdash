@@ -247,6 +247,8 @@ export async function handleConsoleMutation(
 			error instanceof ReadGuardError ||
 			error instanceof LabelMutationError ||
 			error instanceof DeadLetterResolvedError ||
+			error instanceof DeadLetterUndeliverableError ||
+			error instanceof DeadLetterReenqueueError ||
 			error instanceof NoActiveLabelError ||
 			error instanceof ReconsiderationStateError
 		)
@@ -1307,6 +1309,47 @@ class DeadLetterResolvedError extends Error {
 	}
 }
 
+/** A dead letter whose stored payload no longer decodes to a discovery job, so a
+ * retry could never re-drive it. A 422 that leaves the row `new` (the operator
+ * quarantines it) rather than stranding it `retried` with nothing delivered. */
+class DeadLetterUndeliverableError extends Error {
+	override readonly name = "DeadLetterUndeliverableError";
+	readonly code = "DEAD_LETTER_UNDELIVERABLE";
+	readonly status = 422;
+
+	constructor() {
+		super(
+			"Dead letter payload cannot be reconstructed into a discovery job; quarantine it instead",
+		);
+	}
+
+	toResponse(): Response {
+		return Response.json(
+			{ error: { code: this.code, message: this.message } },
+			{ status: this.status },
+		);
+	}
+}
+
+/** The re-drive enqueue failed, so `retried` was not committed. A retryable 503:
+ * the row stays `new` and a later retry re-attempts the enqueue. */
+class DeadLetterReenqueueError extends Error {
+	override readonly name = "DeadLetterReenqueueError";
+	readonly code = "DEAD_LETTER_REENQUEUE_FAILED";
+	readonly status = 503;
+
+	constructor(options?: { cause?: unknown }) {
+		super("Dead letter re-drive could not be enqueued; retry.", options);
+	}
+
+	toResponse(): Response {
+		return Response.json(
+			{ error: { code: this.code, message: this.message } },
+			{ status: this.status },
+		);
+	}
+}
+
 /** The id from the path, folded into the parsed body so it joins the request
  * fingerprint — a replayed key must target the same dead letter. */
 interface DeadLetterActionBody {
@@ -1326,9 +1369,10 @@ interface DeadLetterActionDescriptor {
  * operational controls (design §6). Neither issues a label: the effect is a
  * `status` UPDATE guarded by `status = 'new'` plus an ungated `info` operational
  * event, both committed in one atomic `commitMutation` batch with the audit row.
- * Retry additionally re-enqueues the dead letter's discovery job in the deferred
- * tail. A row that is absent (404) or already resolved (409) is rejected before
- * any commit, so a late request commits nothing and enqueues nothing (T6).
+ * Retry first durably enqueues the discovery job, then commits `retried`, so the
+ * status flips only once the re-drive is accepted. A row that is absent (404),
+ * already resolved (409), undeliverable (422), or whose enqueue fails (503) is
+ * rejected before the commit, leaving the row `new` and actionable (T6).
  */
 async function runDeadLetterAction(
 	request: Request,
@@ -1352,6 +1396,22 @@ async function runDeadLetterAction(
 	const letter = await getDeadLetter(deps.db, id);
 	if (!letter) throw new ReadGuardError("NOT_FOUND");
 	if (letter.status !== "new") throw new DeadLetterResolvedError();
+
+	// Durably enqueue the re-drive BEFORE committing `retried`, so the status can
+	// only flip once the discovery consumer has accepted the job. An undecodable
+	// payload or a queue failure leaves the row `new` — still counted by health and
+	// retryable — rather than stranding it `retried` with nothing delivered. A
+	// duplicate enqueue under a concurrent double-retry is absorbed by the
+	// consumer's `runKey` dedup.
+	if (status === "retried") {
+		const job = await readDeadLetterJob(deps.db, id);
+		if (!job) throw new DeadLetterUndeliverableError();
+		try {
+			await deps.sendDiscoveryJob(job);
+		} catch (error) {
+			throw new DeadLetterReenqueueError({ cause: error });
+		}
+	}
 
 	const subjectUri = `at://${letter.did}/${letter.collection}/${letter.rkey}`;
 	const update = buildDeadLetterResolveUpdate(deps.db, {
@@ -1388,40 +1448,7 @@ async function runDeadLetterAction(
 		descriptor,
 	);
 
-	if (status === "retried") deferDeadLetterReenqueue(deps, id, ctx.actionId);
 	return jsonData(returned);
-}
-
-/**
- * Re-enqueues a retried dead letter's discovery job off the response path, but
- * only when this action won the `status = 'new'` race: a concurrent retry that
- * committed its audit row yet matched zero rows in the UPDATE reads back a
- * `resolved_by_action_id` that is not ours and skips, so the job enqueues once
- * even under a double retry. The consumer's `runKey` dedup is the backstop; a
- * lost enqueue is recoverable by re-driving `status = 'retried'` rows.
- */
-function deferDeadLetterReenqueue(deps: ConsoleMutationDeps, id: number, actionId: string): void {
-	deps.defer(
-		(async () => {
-			try {
-				const letter = await getDeadLetter(deps.db, id);
-				if (!letter || letter.resolvedByActionId !== actionId) return;
-				const job = await readDeadLetterJob(deps.db, id);
-				if (!job) {
-					// The row flipped to 'retried' but its payload didn't decode to a
-					// valid job (e.g. a row written before the full-job payload shape),
-					// so nothing re-drives it and a fresh retry is barred by status.
-					console.error("[console-mutation] dead-letter payload undecodable, re-enqueue skipped", {
-						id,
-					});
-					return;
-				}
-				await deps.sendDiscoveryJob(job);
-			} catch (error) {
-				console.error("[console-mutation] dead-letter re-enqueue failed", error);
-			}
-		})(),
-	);
 }
 
 /** A non-numeric or non-positive path segment names no dead letter — a 404,
