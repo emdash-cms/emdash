@@ -32,6 +32,7 @@ import type { ModerationPolicy } from "./policy.js";
 import {
 	buildIssuanceStatements,
 	markPublicationAccepted,
+	readIssuedLabelByActionKey,
 	type AutomatedIssuanceAction,
 	type AutomatedLabelProposal,
 	type IssuedLabel,
@@ -347,8 +348,40 @@ export class AssessmentOrchestrator {
 		if (toState === "error") {
 			await issue("assessment-error", false);
 		}
-		// Spec §9.9 point 9: always negate this run's own assessment-pending.
-		await issue("assessment-pending", true);
+		// Spec §9.9 point 9: negate this run's own assessment-pending — but only when
+		// this is the last run in flight for the subject. `requireNoOtherActiveRun`
+		// no-ops the negation while a sibling run for the same (uri, cid) is still
+		// non-terminal, so the positive assessment-pending stays the stream head and
+		// the release stays gated; the last run to finalize clears it.
+		const pendingNegationKey = automatedIdempotencyKey(
+			assessment.runKey,
+			"assessment-pending",
+			true,
+		);
+		const pendingNegation = await buildIssuanceStatements(
+			this.db,
+			this.config,
+			this.signer,
+			{
+				actor: this.config.labelerDid,
+				type: "automated-assessment",
+				assessmentId: assessment.id,
+				reason: `assessment ${toState}`,
+				idempotencyKey: pendingNegationKey,
+			},
+			{ uri: assessment.uri, cid: assessment.cid, val: "assessment-pending", neg: true },
+			now,
+			this.publisher !== undefined,
+			{
+				requireAssessmentState: toState,
+				requireNoOtherActiveRun: {
+					uri: assessment.uri,
+					cid: assessment.cid,
+					assessmentId: assessment.id,
+				},
+			},
+		);
+		statements.push(...pendingNegation.statements);
 
 		// Spec §9.9 point 8 / §10: negate prior active automated labels this
 		// outcome no longer supports.
@@ -424,6 +457,12 @@ export class AssessmentOrchestrator {
 		}
 		const issued: IssuedLabel[] = [];
 		for (const postCommit of postCommits) issued.push(await postCommit());
+		// The pending negation is suppressed (writes no row) while a sibling run is
+		// still in flight; broadcast it only when it committed. It is the only label
+		// here that can legitimately be absent after the CAS succeeded — the CAS shares
+		// its signing guard — so its absence needs no signing diagnosis.
+		const pendingNegated = await readIssuedLabelByActionKey(this.db, pendingNegationKey);
+		if (pendingNegated) issued.push(pendingNegated);
 		await this.publishLabels(issued);
 
 		const finalised = await getAssessment(this.db, assessment.id);

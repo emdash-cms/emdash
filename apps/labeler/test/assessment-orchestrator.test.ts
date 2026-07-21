@@ -12,7 +12,12 @@ import {
 	type AcquisitionHolder,
 	type AcquisitionTarget,
 } from "../src/artifact-acquisition.js";
-import { computeRunKey, initialTriggerId, operatorTriggerId } from "../src/assessment-lifecycle.js";
+import {
+	automatedIdempotencyKey,
+	computeRunKey,
+	initialTriggerId,
+	operatorTriggerId,
+} from "../src/assessment-lifecycle.js";
 import {
 	AssessmentFinalizationConflictError,
 	AssessmentOrchestrator,
@@ -26,6 +31,7 @@ import {
 	createAssessmentRun,
 	createSubject,
 	deleteSubject,
+	getActiveLabelState,
 	getAssessment,
 	getCurrentAssessment,
 	transitionAssessmentState,
@@ -33,7 +39,12 @@ import {
 import { FindingValidationError, HISTORY_FINDING_CATEGORIES } from "../src/findings.js";
 import { analyzeHistory } from "../src/history-context.js";
 import { MODERATION_POLICY } from "../src/policy.js";
-import { issueManualLabel, type IssuedLabel } from "../src/service.js";
+import {
+	issueAutomatedAssessmentLabel,
+	issueManualLabel,
+	readIssuedLabelByActionKey,
+	type IssuedLabel,
+} from "../src/service.js";
 import {
 	abortRoutineKeyRotation,
 	beginRoutineKeyRotation,
@@ -1385,5 +1396,83 @@ describe("AssessmentOrchestrator: delete racing finalization (Blocker 1)", () =>
 			.bind(run.id)
 			.first<{ n: number }>();
 		expect(labelsAfter?.n).toBe(0);
+	});
+});
+
+/** Issues a run's initial positive `assessment-pending`, the way the discovery
+ * consumer does, so the subject carries a live pending gate before a run finalizes. */
+async function issuePendingPositive(run: {
+	id: string;
+	uri: string;
+	cid: string;
+	runKey: string;
+}): Promise<void> {
+	await issueAutomatedAssessmentLabel(
+		testEnv.DB,
+		config,
+		await signer(),
+		{
+			actor: LABELER_DID,
+			type: "automated-assessment",
+			assessmentId: run.id,
+			reason: "initial discovery",
+			idempotencyKey: automatedIdempotencyKey(run.runKey, "assessment-pending", false),
+		},
+		{ uri: run.uri, cid: run.cid, val: "assessment-pending" },
+	);
+}
+
+describe("AssessmentOrchestrator: concurrent runs share one pending gate", () => {
+	it("keeps assessment-pending live while a sibling run for the same subject is in flight, clearing it only when the last run finalizes", async () => {
+		const cidValue = await cid("shared-pending");
+		const runA = await pendingRun({
+			name: "shared-pending",
+			cidValue,
+			triggerId: initialTriggerId(cidValue),
+		});
+		const runB = await pendingRun({
+			name: "shared-pending",
+			cidValue,
+			triggerId: operatorTriggerId("op-shared-pending"),
+		});
+		await issuePendingPositive(runA);
+		await issuePendingPositive(runB);
+
+		const orchestrator = await buildOrchestrator();
+
+		// A finalizes while B is still `pending`. Its own pending-negation is
+		// suppressed, so the gate B also depends on stays live.
+		const a = await orchestrator.runAssessment(runA.id);
+		expect(a.state).toBe("passed");
+
+		const aNegation = await readIssuedLabelByActionKey(
+			testEnv.DB,
+			automatedIdempotencyKey(runA.runKey, "assessment-pending", true),
+		);
+		expect(aNegation).toBeNull();
+
+		const gateWhileBActive = await getActiveLabelState(testEnv.DB, {
+			src: LABELER_DID,
+			uri: runA.uri,
+			cid: cidValue,
+		});
+		expect(gateWhileBActive.get("assessment-pending")?.active).toBe(true);
+
+		// B is the last run in flight; finalizing it clears the shared gate.
+		const b = await orchestrator.runAssessment(runB.id);
+		expect(b.state).toBe("passed");
+
+		const bNegation = await readIssuedLabelByActionKey(
+			testEnv.DB,
+			automatedIdempotencyKey(runB.runKey, "assessment-pending", true),
+		);
+		expect(bNegation).not.toBeNull();
+
+		const gateAfterLast = await getActiveLabelState(testEnv.DB, {
+			src: LABELER_DID,
+			uri: runB.uri,
+			cid: cidValue,
+		});
+		expect(gateAfterLast.get("assessment-pending")?.active).toBe(false);
 	});
 });

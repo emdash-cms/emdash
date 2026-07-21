@@ -1,6 +1,6 @@
 import type { LabelSigner, SignedLabel } from "@emdash-cms/registry-moderation";
 
-import { ASSESSMENT_ID, type AssessmentState } from "./assessment-lifecycle.js";
+import { ASSESSMENT_ID, TERMINAL_STATES, type AssessmentState } from "./assessment-lifecycle.js";
 import { getNegatableAutomatedLabels } from "./assessment-store.js";
 import type { LabelerConfig } from "./config.js";
 import type { FindingSeverity } from "./evidence.js";
@@ -132,6 +132,18 @@ export interface BuildIssuanceOptions {
 	 * action (not the label) leaves no orphan label, same as the state guard.
 	 */
 	requireSubjectNotDeleted?: { uri: string; cid: string; generation: number };
+	/**
+	 * Gate the action insert (and thus its label) on NO OTHER assessment run for the
+	 * same subject `(uri, cid)` being non-terminal at commit time. Finalization pairs
+	 * this with `requireAssessmentState` on the `assessment-pending` negation so the
+	 * shared pending gate clears only when the LAST run resolves: while any sibling
+	 * run is still in flight, this run's negation no-ops and the positive
+	 * `assessment-pending` stays the stream head, holding the release gated.
+	 * `assessmentId` excludes this run itself from the sibling scan (by id), so
+	 * self-exclusion holds regardless of batch ordering; siblings are read as their
+	 * committed terminal state. Requires an automated-assessment action.
+	 */
+	requireNoOtherActiveRun?: { uri: string; cid: string; assessmentId: string };
 }
 
 /**
@@ -232,6 +244,15 @@ export async function buildIssuanceStatements(
 			? ""
 			: `\n\t\t\t\t AND EXISTS (SELECT 1 FROM subjects
 				 WHERE uri = ? AND cid = ? AND deleted_at IS NULL AND delete_generation = ?)`;
+	const requireNoOtherActiveRun = options.requireNoOtherActiveRun;
+	if (requireNoOtherActiveRun !== undefined && action.type !== "automated-assessment")
+		throw new TypeError("requireNoOtherActiveRun requires an automated-assessment action");
+	const activeRunGuardSql =
+		requireNoOtherActiveRun === undefined
+			? ""
+			: `\n\t\t\t\t AND NOT EXISTS (SELECT 1 FROM assessments
+				 WHERE uri = ? AND cid = ? AND id != ?
+				   AND state NOT IN (${Array.from(TERMINAL_STATES, () => "?").join(", ")}))`;
 	const actionBinds: unknown[] = [
 		action.actor,
 		action.type,
@@ -253,6 +274,13 @@ export async function buildIssuanceStatements(
 	if (requireState !== undefined) actionBinds.push(assessmentId, requireState);
 	if (requireSubject !== undefined)
 		actionBinds.push(requireSubject.uri, requireSubject.cid, requireSubject.generation);
+	if (requireNoOtherActiveRun !== undefined)
+		actionBinds.push(
+			requireNoOtherActiveRun.uri,
+			requireNoOtherActiveRun.cid,
+			requireNoOtherActiveRun.assessmentId,
+			...TERMINAL_STATES,
+		);
 
 	const statements: D1PreparedStatement[] = [
 		db
@@ -277,7 +305,7 @@ export async function buildIssuanceStatements(
 						  )
 						  AND l2.neg = 0 AND a2.type <> 'automated-assessment'
 					)
-				 )${stateGuardSql}${subjectGuardSql}
+				 )${stateGuardSql}${subjectGuardSql}${activeRunGuardSql}
 				 ON CONFLICT(idempotency_key) DO NOTHING`,
 			)
 			.bind(...actionBinds),

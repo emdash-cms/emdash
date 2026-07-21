@@ -387,25 +387,14 @@ export async function listNonTerminalAssessmentsForUri(
 	return (rows.results ?? []).map(rowToAssessment);
 }
 
-/** States a run can be in and still carry a live, un-negated positive
- * `assessment-pending`: every non-terminal state, plus terminal `stale` (which,
- * unlike the other terminals, does not negate its own pending on transition).
- * `cancelled` is excluded — the delete negates before cancelling; the decision
- * outcomes negate their own pending at finalization. */
-const PENDING_BEARING_STATES: readonly AssessmentState[] = [
-	"observed",
-	"verifying",
-	"pending",
-	"running",
-	"stale",
-];
-
 /**
- * Runs for a URI that could still carry a live positive `assessment-pending`
- * label — the delete cleanup's scan set (spec §9.1). Widens
- * `listNonTerminalAssessmentsForUri` to include terminal `stale` runs: a run that
- * self-transitioned to `stale` on detecting a deleted/superseded subject keeps
- * its committed positive, so the delete must still reach it to negate.
+ * Runs for a URI the delete cleanup must reach (spec §9.1): every non-terminal
+ * run (to cancel it and negate any pending it issued) plus any run — of ANY state,
+ * terminal included — still holding a committed, un-negated positive
+ * `assessment-pending`. A run that self-stales on a deleted/superseded subject, or
+ * a decision run that suppressed its own pending-negation while a sibling was still
+ * in flight (`requireNoOtherActiveRun`), stays terminal yet keeps its positive, so
+ * its state alone does not identify it — the label stream does.
  */
 export async function listPendingBearingAssessmentsForUri(
 	db: D1Database,
@@ -416,10 +405,19 @@ export async function listPendingBearingAssessmentsForUri(
 			`SELECT id, run_key, uri, cid, artifact_id, artifact_checksum, state, trigger, trigger_id,
 			 policy_version, model_id, prompt_hash, public_summary, coverage_json,
 			 supersedes_assessment_id, started_at, completed_at, created_at
-			 FROM assessments
-			 WHERE uri = ? AND state IN (${PENDING_BEARING_STATES.map(() => "?").join(", ")})`,
+			 FROM assessments a
+			 WHERE a.uri = ?
+			   AND (
+				 a.state NOT IN (${Array.from(TERMINAL_STATES, () => "?").join(", ")})
+				 OR (
+				   EXISTS (SELECT 1 FROM issued_labels l JOIN issuance_actions act ON act.id = l.action_id
+				           WHERE act.assessment_id = a.id AND l.val = 'assessment-pending' AND l.neg = 0)
+				   AND NOT EXISTS (SELECT 1 FROM issued_labels l JOIN issuance_actions act ON act.id = l.action_id
+				           WHERE act.assessment_id = a.id AND l.val = 'assessment-pending' AND l.neg = 1)
+				 )
+			   )`,
 		)
-		.bind(uri, ...PENDING_BEARING_STATES)
+		.bind(uri, ...TERMINAL_STATES)
 		.all<AssessmentRow>();
 	return (rows.results ?? []).map(rowToAssessment);
 }
