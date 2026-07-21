@@ -1,0 +1,19 @@
+packages/admin/tests/editor/bubble-menu.test.tsx
+  s_0dacf3e2fa197f::t_5a95724a8e34b6 245-267,269,271
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "db53e8f1a80a53bc15a5453c3e490a053e3dd8b3",
+  "prompts": {},
+  "sessions": {
+    "s_0dacf3e2fa197f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8113-f0b1-7860-8e34-11d09e5add7e",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
