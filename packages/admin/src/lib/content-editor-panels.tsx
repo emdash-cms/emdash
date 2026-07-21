@@ -1,3 +1,4 @@
+import { Button } from "@cloudflare/kumo";
 import { Trans } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -190,13 +191,15 @@ export class ContentEditorPanelBoundary extends React.Component<
 				<p>
 					<Trans>Plugin panel unavailable.</Trans>
 				</p>
-				<button
+				<Button
 					type="button"
-					className="mt-1 text-xs font-medium text-kumo-brand underline"
+					variant="ghost"
+					size="sm"
+					className="mt-1"
 					onClick={() => this.setState({ hasError: false })}
 				>
 					<Trans>Retry</Trans>
-				</button>
+				</Button>
 			</div>
 		);
 	}
