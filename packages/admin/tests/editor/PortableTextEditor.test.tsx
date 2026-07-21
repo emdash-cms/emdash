@@ -321,6 +321,24 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(strong!.textContent).toBe("Bold text");
 	});
 
+	it("renders subscript text", async () => {
+		await render(<PortableTextEditor value={[textBlock("Sub text", { marks: ["subscript"] })]} />);
+		const pm = await waitForEditor();
+		const sub = pm.querySelector("sub");
+		expect(sub).toBeTruthy();
+		expect(sub!.textContent).toBe("Sub text");
+	});
+
+	it("renders superscript text", async () => {
+		await render(
+			<PortableTextEditor value={[textBlock("Sup text", { marks: ["superscript"] })]} />,
+		);
+		const pm = await waitForEditor();
+		const sup = pm.querySelector("sup");
+		expect(sup).toBeTruthy();
+		expect(sup!.textContent).toBe("Sup text");
+	});
+
 	it("renders a link from markDef", async () => {
 		const linkKey = "lnk1";
 		await render(

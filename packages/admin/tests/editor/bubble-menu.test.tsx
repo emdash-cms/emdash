@@ -447,7 +447,7 @@ describe("Bubble Menu", () => {
 		expect(beforeIcon?.getAttribute("class")).toContain("rtl:-scale-x-100");
 	});
 
-	it("shows formatting buttons: Bold, Italic, Underline, Strikethrough, Code", async () => {
+	it("shows formatting buttons: Bold, Italic, Underline, Strikethrough, Subscript, Superscript, Code", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
 
@@ -457,6 +457,8 @@ describe("Bubble Menu", () => {
 		expect(getBubbleButton(menu, "Italic")).toBeTruthy();
 		expect(getBubbleButton(menu, "Underline")).toBeTruthy();
 		expect(getBubbleButton(menu, "Strikethrough")).toBeTruthy();
+		expect(getBubbleButton(menu, "Subscript")).toBeTruthy();
+		expect(getBubbleButton(menu, "Superscript")).toBeTruthy();
 		expect(getBubbleButton(menu, "Code")).toBeTruthy();
 	});
 
@@ -533,6 +535,42 @@ describe("Bubble Menu", () => {
 		});
 
 		expect(pm.querySelector("s")).toBeTruthy();
+	});
+
+	it("toggles subscript when Subscript button is clicked", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		const subscriptBtn = getBubbleButton(menu, "Subscript")!;
+		expect(subscriptBtn.getAttribute("aria-pressed")).toBe("false");
+
+		subscriptBtn.click();
+
+		await vi.waitFor(() => {
+			expect(editor.isActive("subscript")).toBe(true);
+			expect(subscriptBtn.getAttribute("aria-pressed")).toBe("true");
+		});
+
+		expect(pm.querySelector("sub")).toBeTruthy();
+	});
+
+	it("toggles superscript when Superscript button is clicked", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		const superscriptBtn = getBubbleButton(menu, "Superscript")!;
+		expect(superscriptBtn.getAttribute("aria-pressed")).toBe("false");
+
+		superscriptBtn.click();
+
+		await vi.waitFor(() => {
+			expect(editor.isActive("superscript")).toBe(true);
+			expect(superscriptBtn.getAttribute("aria-pressed")).toBe("true");
+		});
+
+		expect(pm.querySelector("sup")).toBeTruthy();
 	});
 
 	it("toggles inline code when Code button is clicked", async () => {

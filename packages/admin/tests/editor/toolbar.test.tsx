@@ -172,6 +172,8 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Subscript" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Superscript" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeVisible();
 	});
 
@@ -335,6 +337,32 @@ describe("Formatting Button Toggle States", () => {
 		await focusAndSelectAll(screen);
 
 		const btn = getToolbarButton(screen, "Strikethrough");
+		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
+		btn.element().click();
+
+		await vi.waitFor(() => {
+			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
+		});
+	});
+
+	it("Subscript: click toggles aria-pressed to true", async () => {
+		const { screen } = await renderEditor();
+		await focusAndSelectAll(screen);
+
+		const btn = getToolbarButton(screen, "Subscript");
+		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
+		btn.element().click();
+
+		await vi.waitFor(() => {
+			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
+		});
+	});
+
+	it("Superscript: click toggles aria-pressed to true", async () => {
+		const { screen } = await renderEditor();
+		await focusAndSelectAll(screen);
+
+		const btn = getToolbarButton(screen, "Superscript");
 		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
 		btn.element().click();
 

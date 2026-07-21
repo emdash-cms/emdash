@@ -39,6 +39,8 @@ import {
 	TextItalic,
 	TextUnderline,
 	TextStrikethrough,
+	TextSubscript,
+	TextSuperscript,
 	Code,
 	TextHOne,
 	TextHTwo,
@@ -109,6 +111,7 @@ import {
 	registerPluginBlocks,
 	resolveIcon,
 } from "./editor/PluginBlockNode";
+import { Subscript, Superscript } from "./editor/SubSupExtension";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { SectionPickerModal } from "./SectionPickerModal";
 
@@ -547,6 +550,12 @@ function convertMark(
 		case "strike":
 		case "strikethrough":
 			return "strike-through";
+		case "sub":
+		case "subscript":
+			return "subscript";
+		case "sup":
+		case "superscript":
+			return "superscript";
 		case "code":
 			return "code";
 		case "link": {
@@ -969,6 +978,12 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 				break;
 			case "strike-through":
 				pmMarks.push({ type: "strike" });
+				break;
+			case "subscript":
+				pmMarks.push({ type: "subscript" });
+				break;
+			case "superscript":
+				pmMarks.push({ type: "superscript" });
 				break;
 			case "code":
 				pmMarks.push({ type: "code" });
@@ -2412,6 +2427,8 @@ export function PortableTextEditor({
 			}),
 			CodeBlockExtension,
 			HtmlBlockExtension,
+			Subscript,
+			Superscript,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
@@ -2970,6 +2987,8 @@ function EditorBubbleMenu({
 			italic: activeEditor.isActive("italic"),
 			underline: activeEditor.isActive("underline"),
 			strike: activeEditor.isActive("strike"),
+			subscript: activeEditor.isActive("subscript"),
+			superscript: activeEditor.isActive("superscript"),
 			code: activeEditor.isActive("code"),
 			link: activeEditor.isActive("link"),
 		}),
@@ -3108,6 +3127,20 @@ function EditorBubbleMenu({
 						title={t`Strikethrough`}
 					>
 						<TextStrikethrough className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleMark("subscript").run()}
+						active={activeMarks.subscript}
+						title={t`Subscript`}
+					>
+						<TextSubscript className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleMark("superscript").run()}
+						active={activeMarks.superscript}
+						title={t`Superscript`}
+					>
+						<TextSuperscript className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleCode().run()}
@@ -3297,6 +3330,8 @@ function EditorToolbar({
 			isItalic: ctx.editor.isActive("italic"),
 			isUnderline: ctx.editor.isActive("underline"),
 			isStrike: ctx.editor.isActive("strike"),
+			isSubscript: ctx.editor.isActive("subscript"),
+			isSuperscript: ctx.editor.isActive("superscript"),
 			isCode: ctx.editor.isActive("code"),
 			isBulletList: ctx.editor.isActive("bulletList"),
 			isOrderedList: ctx.editor.isActive("orderedList"),
@@ -3449,6 +3484,20 @@ function EditorToolbar({
 					title={t`Inline Code`}
 				>
 					<Code className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
+					onClick={() => editor.chain().focus().toggleMark("subscript").run()}
+					active={editorState.isSubscript}
+					title={t`Subscript`}
+				>
+					<TextSubscript className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
+					onClick={() => editor.chain().focus().toggleMark("superscript").run()}
+					active={editorState.isSuperscript}
+					title={t`Superscript`}
+				>
+					<TextSuperscript className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
 
