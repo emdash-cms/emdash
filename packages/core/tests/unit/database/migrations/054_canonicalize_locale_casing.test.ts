@@ -9,16 +9,7 @@ import { getI18nConfig, setI18nConfig } from "../../../../src/i18n/config.js";
 import { createPostFixture } from "../../../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../../utils/test-db.js";
 
-/**
- * Regression coverage for #1572.
- *
- * `contentCreateBody` used to lowercase every explicit `locale` value, so a
- * site with a configured locale like `zh-TW` could have existing rows stored
- * as `zh-tw`. Removing that transform fixed new queries against the
- * canonical casing, but pre-existing rows would still be missed by an exact
- * `locale = 'zh-TW'` filter without a data backfill.
- */
-describe("migration 054: canonicalize locale casing (#1572)", () => {
+describe("migration 054: canonicalize locale casing", () => {
 	let db: Kysely<Database>;
 	const previousI18nConfig = getI18nConfig();
 
@@ -35,20 +26,66 @@ describe("migration 054: canonicalize locale casing (#1572)", () => {
 		setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
 
 		const repo = new ContentRepository(db);
-		await repo.create(
+		const post = await repo.create(
 			createPostFixture({ slug: "guide", status: "published", data: { title: "Guide" } }),
 		);
 		// Simulate a pre-fix row: written under the lowercased locale.
 		await sql`UPDATE ec_post SET locale = 'zh-tw' WHERE slug = 'guide'`.execute(db);
+		await db
+			.insertInto("taxonomies")
+			.values({
+				id: "category-news",
+				name: "category",
+				slug: "news",
+				label: "News",
+				parent_id: null,
+				data: null,
+				locale: "en",
+				translation_group: "category-news",
+			})
+			.execute();
+		await db
+			.insertInto("content_taxonomies")
+			.values({
+				collection: "post",
+				entry_id: post.id,
+				taxonomy_id: "category-news",
+				locale: "zh-tw",
+			})
+			.execute();
 
 		await up(db);
 
-		const row = await db
+		const contentRow = await db
 			.selectFrom("ec_post")
 			.select("locale")
 			.where("slug", "=", "guide")
 			.executeTakeFirstOrThrow();
-		expect(row.locale).toBe("zh-TW");
+		const pivotRow = await db
+			.selectFrom("content_taxonomies")
+			.select("locale")
+			.where("entry_id", "=", post.id)
+			.executeTakeFirstOrThrow();
+		expect(contentRow.locale).toBe("zh-TW");
+		expect(pivotRow.locale).toBe("zh-TW");
+	});
+
+	it("preserves case-variant rows when canonicalizing would violate slug uniqueness", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+
+		const repo = new ContentRepository(db);
+		await repo.create(createPostFixture({ slug: "guide", locale: "zh-tw" }));
+		await repo.create(createPostFixture({ slug: "guide", locale: "zh-TW" }));
+
+		await expect(up(db)).resolves.toBeUndefined();
+
+		const rows = await db
+			.selectFrom("ec_post")
+			.select("locale")
+			.where("slug", "=", "guide")
+			.orderBy("locale")
+			.execute();
+		expect(rows.map((row) => row.locale)).toEqual(["zh-TW", "zh-tw"]);
 	});
 
 	it("leaves rows already in canonical casing untouched", async () => {

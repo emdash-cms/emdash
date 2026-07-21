@@ -4,21 +4,7 @@ import { sql } from "kysely";
 import { getI18nConfig } from "../../i18n/config.js";
 import { listTablesLike } from "../dialect-helpers.js";
 
-/**
- * Backfill migration for #1572.
- *
- * `contentCreateBody`'s `locale` field used to lowercase every explicit
- * value (`localeCode`'s `.transform()`), so a site with a configured locale
- * like `zh-TW` could end up with rows stored as `zh-tw`. The transform was
- * removed so canonical-cased queries (`?locale=zh-TW`) now match, but that
- * only fixes future writes -- existing rows already stored under the
- * lowercased form are still missed by an exact-match `locale = 'zh-TW'`
- * filter.
- *
- * For every `ec_*` content table, canonicalize any row whose `locale`
- * case-insensitively matches a configured locale but isn't stored in that
- * locale's canonical casing.
- */
+/** Canonicalize stored locales to the casing used by the site configuration. */
 export async function up(db: Kysely<unknown>): Promise<void> {
 	const locales = getI18nConfig()?.locales ?? [];
 	if (locales.length === 0) return;
@@ -27,11 +13,31 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 	for (const tableName of tableNames) {
 		const table = sql.ref(tableName);
+		const slug = tableName.slice("ec_".length);
 		for (const locale of locales) {
 			await sql`
-				UPDATE ${table}
+				UPDATE ${table} AS target
 				SET locale = ${locale}
-				WHERE lower(locale) = lower(${locale}) AND locale != ${locale}
+				WHERE lower(target.locale) = lower(${locale})
+					AND target.locale != ${locale}
+					AND NOT EXISTS (
+						SELECT 1
+						FROM ${table} AS existing
+						WHERE existing.slug = target.slug AND existing.locale = ${locale}
+					)
+			`.execute(db);
+
+			await sql`
+				UPDATE content_taxonomies AS pivot
+				SET locale = ${locale}
+				WHERE pivot.collection = ${slug}
+					AND lower(pivot.locale) = lower(${locale})
+					AND pivot.locale != ${locale}
+					AND EXISTS (
+						SELECT 1
+						FROM ${table} AS content
+						WHERE content.id = pivot.entry_id AND content.locale = ${locale}
+					)
 			`.execute(db);
 		}
 	}

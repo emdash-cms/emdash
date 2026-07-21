@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Fixes the content and search APIs returning zero results when filtering by a locale with an uppercase region or script subtag (e.g. `?locale=zh-TW`, `pt-BR`, `zh-Hant`). The `localeCode` validator lowercased the value, but config locales, the stored `locale` column, and the public query path all preserve the original casing, so the filter matched nothing. Validation stays case-insensitive; the value is now preserved verbatim. The taxonomy and menu endpoints' shared `?locale=` filter now applies the same BCP-47 validation, so a malformed locale is rejected with a clear error instead of silently matching nothing. A migration backfills existing content rows that were previously stored under the lowercased casing so upgraded sites match immediately, not just new content. Closes #1551.
+Fixes locale-filtered content, search, taxonomy, and menu results for locales with uppercase region or script subtags, including existing content saved with lowercased locale values.

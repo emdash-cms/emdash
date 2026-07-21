@@ -124,7 +124,7 @@ describe("contentUpdateBody schema", () => {
 	});
 });
 
-describe("localeCode validator (#1551)", () => {
+describe("localeCode validator", () => {
 	// Config `locales`/`defaultLocale`, the `locale` column default, and the
 	// public query path all keep the raw BCP-47 casing (e.g. "zh-TW"). The API
 	// schema must do the same — lowercasing the `?locale=` filter (or a create
