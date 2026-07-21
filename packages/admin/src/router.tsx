@@ -1307,13 +1307,14 @@ function MediaPage() {
 
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["media", { search, mime: mimeKey }],
+			queryKey: ["media", { search, mime: mimeKey, usage: true }],
 			queryFn: ({ pageParam }) =>
 				fetchMediaList({
 					cursor: pageParam,
 					limit: 100,
 					search: search || undefined,
 					mimeType: mimeFilter,
+					includeUsage: true,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,

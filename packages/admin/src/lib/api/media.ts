@@ -24,6 +24,62 @@ export function normalizeMediaSearch(value: string | undefined | null): string {
 	return (value ?? "").trim().slice(0, MEDIA_SEARCH_MAX_LENGTH);
 }
 
+/** Aggregate trust state for media usage reads. */
+export type MediaUsageCoverageStatus =
+	| "complete"
+	| "never"
+	| "running"
+	| "partial"
+	| "failed"
+	| "stale"
+	| "unknown";
+
+/** Aggregate media usage coverage across all content collections. */
+export interface MediaUsageCoverage {
+	scope: "all_content_collections";
+	status: MediaUsageCoverageStatus;
+}
+
+/** Coverage-aware active usage count for a media item. */
+export interface MediaUsageSummary {
+	count: number | null;
+	coverage: MediaUsageCoverage;
+}
+
+/** One indexed media reference within a content source. */
+export interface MediaUsageOccurrenceDetail {
+	fieldSlug: string;
+	fieldPath: string;
+	occurrenceIndex: number;
+	referenceType: "image_field" | "file_field" | "portable_text_image" | "unknown";
+}
+
+/** Indexed references from one visible content source. */
+export interface MediaUsageSourceDetail {
+	variant: "columns" | "draft_overlay";
+	occurrences: MediaUsageOccurrenceDetail[];
+}
+
+/** One content entry that references a media item. */
+export interface MediaUsageEntryDetail {
+	collection: string;
+	contentId: string;
+	title: string | null;
+	slug: string | null;
+	locale: string | null;
+	status: string | null;
+	scheduledAt: string | null;
+	deletedAt: string | null;
+	sources: MediaUsageSourceDetail[];
+}
+
+/** Entry-grouped media usage details. */
+export interface MediaUsageDetailsResponse {
+	items: MediaUsageEntryDetail[];
+	nextCursor?: string;
+	coverage: MediaUsageCoverage;
+}
+
 export interface MediaItem {
 	id: string;
 	filename: string;
@@ -45,6 +101,8 @@ export interface MediaItem {
 	provider?: string;
 	/** Provider-specific metadata */
 	meta?: Record<string, unknown>;
+	/** Coverage-aware usage summary when explicitly requested for local media. */
+	usage?: MediaUsageSummary;
 }
 
 /**
@@ -56,6 +114,8 @@ export async function fetchMediaList(options?: {
 	mimeType?: string | string[];
 	/** Case-insensitive filename substring search (also matches extensions). */
 	search?: string;
+	/** Include coverage-aware usage summaries when true. */
+	includeUsage?: boolean;
 }): Promise<FindManyResult<MediaItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
@@ -70,6 +130,7 @@ export async function fetchMediaList(options?: {
 		const q = normalizeMediaSearch(options.search);
 		if (q) params.set("q", q);
 	}
+	if (options?.includeUsage === true) params.set("includeUsage", "1");
 
 	const url = `${API_BASE}/media${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
@@ -89,6 +150,25 @@ export async function fetchMediaItem(id: string): Promise<MediaItem> {
 		i18n._(msg`Failed to fetch media item`),
 	);
 	return data.item;
+}
+
+/** Fetch entry-grouped usage details for a local media item. */
+export async function fetchMediaUsageDetails(
+	id: string,
+	options?: { cursor?: string; limit?: number },
+): Promise<MediaUsageDetailsResponse> {
+	const params = new URLSearchParams();
+	if (options?.limit !== undefined) params.set("limit", String(options.limit));
+	if (options?.cursor !== undefined) params.set("cursor", options.cursor);
+
+	const query = params.toString();
+	const response = await apiFetch(
+		`${API_BASE}/media/${encodeURIComponent(id)}/usage${query ? `?${query}` : ""}`,
+	);
+	return parseApiResponse<MediaUsageDetailsResponse>(
+		response,
+		i18n._(msg`Failed to fetch media usage details`),
+	);
 }
 
 /**
