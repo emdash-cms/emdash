@@ -7,6 +7,7 @@ import {
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
+	pluginManifestSchema,
 } from "../src/index.js";
 
 describe("isDeprecatedCapability", () => {
@@ -80,6 +81,22 @@ describe("normalizeCapabilities", () => {
 });
 
 describe("declaredAccess facet mapping", () => {
+	it("validates taxonomy access in plugin manifests", () => {
+		expect(
+			pluginManifestSchema.safeParse({
+				id: "taxonomy-reader",
+				version: "1.0.0",
+				declaredAccess: { taxonomies: { read: {} } },
+				capabilities: ["taxonomies:read"],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: [],
+				admin: {},
+			}).success,
+		).toBe(true);
+	});
+
 	it("maps each hook-registration capability to its participation facet", () => {
 		expect(capabilitiesToDeclaredAccess(["hooks.email-transport:register"], [])).toEqual({
 			email: { transport: {} },
@@ -91,6 +108,9 @@ describe("declaredAccess facet mapping", () => {
 			page: { fragments: {} },
 		});
 		expect(capabilitiesToDeclaredAccess(["users:read"], [])).toEqual({ users: { read: {} } });
+		expect(capabilitiesToDeclaredAccess(["taxonomies:read"], [])).toEqual({
+			taxonomies: { read: {} },
+		});
 	});
 
 	it("distinguishes host-restricted from unrestricted network", () => {
@@ -155,6 +175,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 		"hooks.email-transport:register",
 		"hooks.page-fragments:register",
 		"users:read",
+		"taxonomies:read",
 	];
 
 	function* states() {
@@ -183,7 +204,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
 			count++;
 		}
-		// 3 content x 3 media x 5 network x 2^5 singleton subsets.
-		expect(count).toBe(1440);
+		// 3 content x 3 media x 5 network x 2^6 singleton subsets.
+		expect(count).toBe(2880);
 	});
 });

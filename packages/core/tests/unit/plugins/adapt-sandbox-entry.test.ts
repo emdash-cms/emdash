@@ -382,6 +382,23 @@ describe("adaptSandboxEntry", () => {
 			expect(result.routes.webhook.public).toBe(true);
 		});
 
+		it("preserves cacheControl on routes", () => {
+			const def: SandboxedPlugin = {
+				routes: {
+					catalog: {
+						handler: vi.fn(),
+						public: true,
+						cacheControl: "public, max-age=60",
+					},
+				},
+			};
+			const descriptor = createDescriptor();
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.routes.catalog.cacheControl).toBe("public, max-age=60");
+		});
+
 		it("adapts multiple routes", () => {
 			const def: SandboxedPlugin = {
 				routes: {

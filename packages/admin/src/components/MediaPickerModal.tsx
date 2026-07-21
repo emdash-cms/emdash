@@ -23,7 +23,6 @@ import {
 	uploadToProvider,
 	updateMedia,
 	type MediaItem,
-	type MediaProviderInfo,
 	type MediaProviderItem,
 } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
@@ -258,7 +257,7 @@ export function MediaPickerModal({
 				name: t`Library`,
 				icon: undefined,
 				capabilities: { browse: true, search: false, upload: true, delete: true },
-			} as MediaProviderInfo;
+			};
 		}
 		return providers?.find((p) => p.id === activeProvider);
 	}, [activeProvider, providers, t]);

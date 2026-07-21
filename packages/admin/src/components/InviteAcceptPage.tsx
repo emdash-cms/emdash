@@ -9,9 +9,11 @@ import { useLingui } from "@lingui/react/macro";
 import { useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
+import { useAdminBranding } from "../lib/admin-branding-context";
 import { validateInviteToken, type InviteVerifyResult } from "../lib/api";
+import { useAuthProviderList } from "../lib/auth-provider-context";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
-import { LogoLockup } from "./Logo.js";
+import { BrandLogo } from "./Logo.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
 type InviteStep = "verify" | "register" | "error";
@@ -28,6 +30,7 @@ function handleInviteSuccess() {
 function RegisterStep({ inviteData, token }: RegisterStepProps) {
 	const { t } = useLingui();
 	const [name, setName] = React.useState("");
+	const buttonProviders = useAuthProviderList().filter((p) => p.LoginButton);
 
 	return (
 		<div className="space-y-6">
@@ -82,6 +85,36 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 					additionalData={{ token, name: name || undefined }}
 				/>
 			</div>
+
+			{buttonProviders.length > 0 && (
+				<>
+					{/* Divider */}
+					<div className="relative">
+						<div className="absolute inset-0 flex items-center">
+							<span className="w-full border-t" />
+						</div>
+						<div className="relative flex justify-center text-xs uppercase">
+							<span className="bg-kumo-base px-2 text-kumo-subtle">{t`Or continue with`}</span>
+						</div>
+					</div>
+
+					{/* Accept the invite via an OAuth provider. The button carries the
+					    invite token; the callback only completes the invite when the
+					    provider-verified email matches the invited address. */}
+					<div
+						className={`grid gap-3 ${buttonProviders.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}
+					>
+						{buttonProviders.map((provider) => {
+							const Btn = provider.LoginButton!;
+							return (
+								<div key={provider.id}>
+									<Btn inviteToken={token} />
+								</div>
+							);
+						})}
+					</div>
+				</>
+			)}
 		</div>
 	);
 }
@@ -146,6 +179,7 @@ function ErrorStep({ message, code }: ErrorStepProps) {
 
 export function InviteAcceptPage() {
 	const { t } = useLingui();
+	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
 	const { token: urlToken } = useSearch({ strict: false });
 	const [step, setStep] = React.useState<InviteStep>("verify");
 	const [error, setError] = React.useState<string | undefined>();
@@ -201,7 +235,7 @@ export function InviteAcceptPage() {
 		<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">
 			<div className="w-full max-w-md">
 				<div className="text-center mb-8">
-					<LogoLockup className="h-10 mx-auto mb-2" />
+					<BrandLogo logoUrl={brandLogo} siteName={brandSiteName} className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{step === "register" && t`Accept Invite`}
 						{step === "error" && t`Invite Error`}

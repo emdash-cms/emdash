@@ -43,6 +43,23 @@ describe("SeoPanel", () => {
 		screen.getByRole("button", { name: "Select OG image" });
 	});
 
+	it("associates visible SEO labels with their fields", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+
+		for (const label of ["SEO Title", "Meta Description", "Canonical URL"]) {
+			await userEvent.click(screen.getByText(label));
+			expect(document.activeElement).toBe(screen.getByLabelText(label).element());
+		}
+	});
+
 	it("renders the existing OG image preview when set", async () => {
 		const screen = await render(
 			<QueryWrapper>

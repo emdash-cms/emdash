@@ -1,20 +1,12 @@
-import { Badge, Button, Loader, Toast } from "@cloudflare/kumo";
+import { Badge, Button, Collapsible, Loader, Text, Toast } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ClockCounterClockwise,
-	ArrowCounterClockwise,
-	CaretDown,
-	CaretUp,
-	Plus,
-	Minus,
-	PencilSimple,
-} from "@phosphor-icons/react";
+import { ArrowCounterClockwise, CaretDown, Plus, Minus, PencilSimple } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchRevisions, restoreRevision, type Revision } from "../lib/api";
-import { formatRelativeTime } from "../lib/utils";
+import { cn, formatRelativeTime } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 // =============================================================================
@@ -149,28 +141,44 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 
 	return (
 		<>
-			<div className="rounded-lg border bg-kumo-base">
+			<Collapsible.Root open={isExpanded} onOpenChange={setIsExpanded}>
 				{/* Header - always visible */}
-				<button
-					type="button"
-					onClick={() => setIsExpanded(!isExpanded)}
-					className="flex w-full items-center justify-between p-4 text-start hover:bg-kumo-tint/50 transition-colors"
+				<Collapsible.Trigger
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							className="relative justify-between"
+							style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
+						/>
+					}
 				>
-					<div className="flex items-center gap-2">
-						<ClockCounterClockwise className="h-4 w-4 text-kumo-subtle" />
-						<span className="font-semibold">{t`Revisions`}</span>
-						{total > 0 && <span className="text-xs text-kumo-subtle">({total})</span>}
-					</div>
-					{isExpanded ? (
-						<CaretUp className="h-4 w-4 text-kumo-subtle" />
-					) : (
-						<CaretDown className="h-4 w-4 text-kumo-subtle" />
-					)}
-				</button>
+					<span className="flex items-center gap-1.5">
+						<Text bold as="span">
+							{t`Revisions`}
+						</Text>
+						{total > 0 && <span className="font-normal text-kumo-subtle">({total})</span>}
+					</span>
+					<CaretDown
+						className={cn(
+							"h-4 w-4 text-kumo-subtle transition-transform duration-150 ease-out motion-reduce:transition-none",
+							isExpanded && "rotate-180",
+						)}
+					/>
+				</Collapsible.Trigger>
 
 				{/* Content - shown when expanded */}
-				{isExpanded && (
-					<div className="border-t px-4 pb-4">
+				<Collapsible.Panel
+					className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+					style={({ transitionStatus }) => ({
+						height:
+							transitionStatus === "starting" || transitionStatus === "ending"
+								? 0
+								: "var(--collapsible-panel-height)",
+						transitionProperty: "height",
+					})}
+				>
+					<div>
 						{isLoading ? (
 							<div className="flex items-center justify-center py-6">
 								<Loader />
@@ -202,8 +210,8 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 							</div>
 						)}
 					</div>
-				)}
-			</div>
+				</Collapsible.Panel>
+			</Collapsible.Root>
 
 			<ConfirmDialog
 				open={!!restoreTarget}
@@ -253,7 +261,7 @@ function RevisionItem({
 	const { t } = useLingui();
 	return (
 		<div
-			className={`rounded-md border p-3 transition-colors ${
+			className={`rounded-lg border p-3 transition-colors ${
 				isSelected ? "border-kumo-brand bg-kumo-brand/5" : "hover:bg-kumo-tint/50"
 			}`}
 		>
@@ -294,7 +302,7 @@ function RevisionItem({
 					) : (
 						<>
 							<div className="text-xs font-medium text-kumo-subtle mb-2">{t`Content snapshot:`}</div>
-							<pre className="text-xs bg-kumo-tint p-2 rounded overflow-auto max-h-48">
+							<pre className="text-xs bg-kumo-tint p-2 rounded-md overflow-auto max-h-48">
 								{JSON.stringify(revision.data, null, 2)}
 							</pre>
 						</>
@@ -390,7 +398,7 @@ function DiffFieldRow({ diff }: { diff: FieldDiff }) {
 	const style = DIFF_STYLES[diff.kind];
 
 	return (
-		<div className={`rounded border px-3 py-2 text-xs ${style.bg}`}>
+		<div className={`rounded-lg border px-3 py-2 text-xs ${style.bg}`}>
 			<div className="flex items-center gap-1.5 mb-1">
 				{style.icon}
 				<span className="font-medium">{diff.field}</span>

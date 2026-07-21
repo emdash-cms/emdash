@@ -22,6 +22,7 @@ import { getEditMeta } from "../query.js";
 import { pluginBlockComponents } from "virtual:emdash/block-components";
 import { emdashComponents } from "./index.js";
 import InlineEditor from "./InlineEditor.astro";
+import { groupBlockquoteRuns } from "./portable-text-blockquote-group.js";
 
 export interface Props extends Omit<PortableTextProps, "value"> {
 	value: PortableTextProps["value"];
@@ -37,6 +38,11 @@ const withPlugins = mergeComponents(emdashComponents, { type: pluginBlockCompone
 const mergedComponents = userComponents
 	? mergeComponents(withPlugins, userComponents)
 	: withPlugins;
+
+// A multi-paragraph quote is stored as consecutive blockquote-styled blocks
+// (Portable Text is flat); merge each run into one blockquoteGroup node so
+// it renders as a single <blockquote> instead of several (#1884).
+const renderValue = Array.isArray(value) ? groupBlockquoteRuns(value) : value;
 ---
 
 {editMeta ? (
@@ -47,5 +53,5 @@ const mergedComponents = userComponents
 		field={editMeta.field}
 	/>
 ) : (
-	<BasePortableText value={value} components={mergedComponents} {...rest} />
+	<BasePortableText value={renderValue} components={mergedComponents} {...rest} />
 )}

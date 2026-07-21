@@ -9,6 +9,7 @@
  * Private routes (the default) require authentication and appropriate permissions.
  */
 
+import { Permissions, type Permission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -47,8 +48,13 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		// since HEAD is CORS-safe) invoke a mutating admin route by choosing the
 		// method (#1853). Astro also dispatches HEAD to the GET export, so no
 		// explicit HEAD handler is needed to reach a "GET" route. Gate every
-		// private invocation on `plugins:manage` + CSRF regardless of method.
-		const denied = requirePerm(user, "plugins:manage");
+		// private invocation on the route's declared permission (defaulting to
+		// `plugins:manage`) + CSRF regardless of method.
+		const permission = routeMeta.permission ?? "plugins:manage";
+		if (!(permission in Permissions)) {
+			return apiError("INVALID_PLUGIN_ROUTE", "Plugin route declares an invalid permission", 500);
+		}
+		const denied = requirePerm(user, permission as Permission);
 		if (denied) return denied;
 
 		// Token scope enforcement — plugin routes require "admin" scope.
@@ -83,7 +89,15 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		return apiError(code, message, status);
 	}
 
-	return apiSuccess(result.data);
+	const response = apiSuccess(result.data);
+	// Public routes may opt in to CDN/browser caching for GET responses.
+	// getRouteMeta only ever exposes cacheControl on public routes, and errors
+	// above keep the default private, no-store. Astro serves HEAD via this GET
+	// export, which is fine: same headers, no body.
+	if (routeMeta.cacheControl && (method === "GET" || method === "HEAD")) {
+		response.headers.set("Cache-Control", routeMeta.cacheControl);
+	}
+	return response;
 };
 
 // Export handlers for all HTTP methods

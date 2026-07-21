@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
@@ -31,8 +32,9 @@ import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
-import { isMissingTableError } from "../../utils/db-errors.js";
+import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 import { validateMediaFields } from "./validate-media-fields.js";
@@ -330,6 +332,30 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 }
 
 /**
+ * Decide whether the content-list `q` filter can be served from the
+ * collection's FTS5 index instead of a full-scan substring LIKE (#1517).
+ *
+ * Requires SQLite (FTS5 is SQLite-only), search enabled on the collection,
+ * every non-slug display column present in the searchable-field set (or the
+ * index would miss matches the LIKE finds), and the index table actually
+ * existing.
+ */
+async function canUseFtsForListFilter(
+	db: Kysely<Database>,
+	collection: string,
+	searchColumns: string[],
+): Promise<boolean> {
+	if (!isSqlite(db)) return false;
+	const ftsManager = new FTSManager(db);
+	const config = await ftsManager.getSearchConfig(collection);
+	if (!config?.enabled) return false;
+	const searchable = new Set(await ftsManager.getSearchableFields(collection));
+	const covered = searchColumns.every((col) => col === "slug" || searchable.has(col));
+	if (!covered) return false;
+	return ftsManager.ftsTableExists(collection);
+}
+
+/**
  * Create a 301 auto-redirect from an entry's old URL to its new one after a
  * slug change, using the collection's URL pattern. Shared by
  * handleContentUpdate (direct slug edits) and handleContentPublish (slug edits
@@ -418,6 +444,7 @@ export async function handleContentList(
 		if (q) {
 			where.q = q;
 			where.searchColumns = await resolveSearchColumns(db, collection);
+			where.useFts = await canUseFtsForListFilter(db, collection, where.searchColumns);
 		}
 
 		const result = await repo.findMany(collection, {
@@ -455,6 +482,15 @@ export async function handleContentList(
 				error: {
 					code: "COLLECTION_NOT_FOUND",
 					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (isMissingColumnError(error, "deleted_at")) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_SCHEMA_MISMATCH",
+					message: `Collection '${collection}' backing table is missing the 'deleted_at' column`,
 				},
 			};
 		}
@@ -1460,11 +1496,36 @@ export async function handleContentPublish(
 			};
 		}
 		if (error instanceof EmDashValidationError) {
+			// The staged-slug pre-check tags its error so it maps to the same
+			// 409 SLUG_CONFLICT as direct slug edits in create/update.
+			const details: unknown = error.details;
+			const isSlugConflict =
+				typeof details === "object" &&
+				details !== null &&
+				"code" in details &&
+				details.code === "SLUG_CONFLICT";
 			return {
 				success: false,
 				error: {
-					code: "VALIDATION_ERROR",
+					code: isSlugConflict ? "SLUG_CONFLICT" : "VALIDATION_ERROR",
 					message: error.message,
+				},
+			};
+		}
+		// Backstop for the pre-check inside repo.publish(): a concurrent write
+		// can still take the slug between the check and the UPDATE, in which
+		// case the `(slug, locale)` unique constraint fires. Same fingerprint
+		// mapping as create/update — never a raw SQLite error to the client.
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (
+			(message.includes("unique constraint failed") || message.includes("duplicate key")) &&
+			message.includes("slug")
+		) {
+			return {
+				success: false,
+				error: {
+					code: "SLUG_CONFLICT",
+					message: `The staged slug is already used by another entry in collection '${collection}'`,
 				},
 			};
 		}

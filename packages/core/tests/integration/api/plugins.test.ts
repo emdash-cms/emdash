@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { handlePluginList } from "../../../src/api/handlers/plugins.js";
 import type { Database } from "../../../src/database/types.js";
 import type { SandboxedPluginEntry } from "../../../src/emdash-runtime.js";
+import { PluginStateRepository } from "../../../src/plugins/state.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -73,5 +74,23 @@ describe("plugin admin handlers: sandboxed plugins", () => {
 		expect(shared).toHaveLength(1);
 		expect(shared[0]?.version).toBe("1.0.0");
 		expect(shared[0]?.sandboxed).toBeUndefined();
+	});
+
+	it("derives hasSettings for runtime-installed plugins from the schema lookup", async () => {
+		const stateRepo = new PluginStateRepository(db);
+		await stateRepo.upsert("mp-with-settings", "1.0.0", "active", { source: "marketplace" });
+		await stateRepo.upsert("mp-without-settings", "1.0.0", "active", { source: "marketplace" });
+
+		const result = await handlePluginList(db, [], [], undefined, (pluginId) =>
+			pluginId === "mp-with-settings" ? { apiKey: { type: "secret", label: "API Key" } } : null,
+		);
+
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+
+		const withSettings = result.data.items.find((p) => p.id === "mp-with-settings");
+		const withoutSettings = result.data.items.find((p) => p.id === "mp-without-settings");
+		expect(withSettings?.hasSettings).toBe(true);
+		expect(withoutSettings?.hasSettings).toBe(false);
 	});
 });

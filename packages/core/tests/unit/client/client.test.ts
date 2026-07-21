@@ -45,10 +45,17 @@ function createMockBackend(routes: MockRoute[]): Interceptor {
 	};
 }
 
-/** Wraps body in `{ data: body }` to match the standard API response envelope. */
+/**
+ * Mirrors the API response envelope: `{ success: true, data }` on 2xx and
+ * `{ success: false, error }` on 4xx/5xx.
+ */
 function jsonResponse(body: unknown, status: number = 200): Response {
-	// Error responses (4xx/5xx) are NOT wrapped in { data }
-	const payload = status >= 400 ? body : { data: body };
+	// Error callers already pass `{ error: ... }`; add the discriminant so the
+	// fixture matches what `apiError()` actually sends.
+	const payload =
+		status >= 400
+			? { success: false, ...(typeof body === "object" && body !== null ? body : {}) }
+			: { success: true, data: body };
 	return new Response(JSON.stringify(payload), {
 		status,
 		headers: { "Content-Type": "application/json" },
@@ -509,6 +516,7 @@ describe("EmDashClient", () => {
 
 				const body = await response.json();
 				expect(body).toEqual({
+					success: true,
 					data: expect.objectContaining({
 						collections: expect.arrayContaining([
 							expect.objectContaining({ slug: "page" }),
@@ -679,6 +687,210 @@ describe("EmDashClient", () => {
 				labelSingular: "Event",
 			});
 		});
+	});
+
+	describe("media usage reads", () => {
+		it("opts media list into usage summaries with an exact includeUsage value", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({
+					items: [
+						{
+							id: "media-1",
+							usage: {
+								count: null,
+								coverage: { scope: "all_content_collections", status: "partial" },
+							},
+						},
+					],
+					nextCursor: "next-media",
+				});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaList({
+				mimeType: "image/png",
+				limit: 25,
+				cursor: "after / one",
+				includeUsage: true,
+			});
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				mimeType: "image/png",
+				limit: "25",
+				cursor: "after / one",
+				includeUsage: "1",
+			});
+			expect(result).toEqual({
+				items: [
+					{
+						id: "media-1",
+						usage: {
+							count: null,
+							coverage: { scope: "all_content_collections", status: "partial" },
+						},
+					},
+				],
+				nextCursor: "next-media",
+			});
+		});
+
+		it("omits includeUsage from media list when it is false", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({ items: [] });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.mediaList({ includeUsage: false });
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media");
+			expect(capturedUrl?.search).toBe("");
+		});
+
+		it("opts media get into a usage summary without changing item unwrapping", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({
+					item: {
+						id: "media/one",
+						usage: {
+							count: 3,
+							coverage: { scope: "all_content_collections", status: "complete" },
+						},
+					},
+				});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const item = await client.mediaGet("media/one", { includeUsage: true });
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media/media%2Fone");
+			expect(capturedUrl?.search).toBe("?includeUsage=1");
+			expect(item).toEqual({
+				id: "media/one",
+				usage: {
+					count: 3,
+					coverage: { scope: "all_content_collections", status: "complete" },
+				},
+			});
+		});
+
+		it("omits includeUsage from media get when it is false", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({ item: { id: "media-1" } });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.mediaGet("media-1", { includeUsage: false });
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media/media-1");
+			expect(capturedUrl?.search).toBe("");
+		});
+
+		it("serializes media usage detail pagination and unwraps grouped details", async () => {
+			let capturedUrl: URL | undefined;
+			const response = {
+				items: [
+					{
+						collection: "posts",
+						contentId: "post-1",
+						title: "Launch notes",
+						slug: "launch-notes",
+						locale: "en",
+						status: "published",
+						scheduledAt: null,
+						deletedAt: null,
+						sources: [
+							{
+								variant: "columns",
+								occurrences: [
+									{
+										fieldSlug: "hero",
+										fieldPath: "hero",
+										occurrenceIndex: 0,
+										referenceType: "image_field",
+									},
+								],
+							},
+						],
+					},
+				],
+				nextCursor: "next / group",
+				coverage: { scope: "all_content_collections", status: "complete" },
+			};
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse(response);
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaGetUsage("media/one", {
+				limit: 25,
+				cursor: "after / group",
+			});
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/media/media%2Fone/usage");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				limit: "25",
+				cursor: "after / group",
+			});
+			expect(result).toEqual(response);
+		});
+
+		it.each([
+			[403, "INSUFFICIENT_SCOPE", "Admin scope required"],
+			[404, "NOT_FOUND", "Media not found"],
+		] as const)(
+			"throws EmDashApiError for media usage detail HTTP %i responses",
+			async (status, code, message) => {
+				const backend = createMockBackend([
+					{
+						method: "GET",
+						path: "/media/media-1/usage",
+						handler: () => jsonResponse({ error: { code, message } }, status),
+					},
+				]);
+				const client = new EmDashClient({
+					baseUrl: "http://localhost:4321",
+					token: "test",
+					interceptors: [backend],
+				});
+
+				await expect(client.mediaGetUsage("media-1")).rejects.toMatchObject({
+					name: "EmDashApiError",
+					status,
+					code,
+					message,
+				});
+			},
+		);
 	});
 
 	describe("mediaRepairUsage()", () => {

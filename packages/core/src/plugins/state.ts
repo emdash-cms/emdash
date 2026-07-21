@@ -49,6 +49,8 @@ export interface PluginState {
 	 * `packages/core/src/registry/plugin-id.ts`.
 	 */
 	registrySlug: string | null;
+	mcpToolsEnabled: boolean;
+	mcpToolsConsent: string | null;
 }
 
 /**
@@ -121,6 +123,8 @@ export class PluginStateRepository {
 			description?: string;
 			registryPublisherDid?: string;
 			registrySlug?: string;
+			mcpToolsEnabled?: boolean;
+			mcpToolsConsent?: string | null;
 		},
 	): Promise<PluginState> {
 		const now = new Date().toISOString();
@@ -128,7 +132,7 @@ export class PluginStateRepository {
 
 		if (existing) {
 			// Update existing state
-			const updates: Record<string, string | null> = {
+			const updates: Record<string, string | number | null> = {
 				status,
 				version,
 			};
@@ -155,6 +159,12 @@ export class PluginStateRepository {
 			if (opts?.registrySlug !== undefined) {
 				updates.registry_slug = opts.registrySlug;
 			}
+			if (opts?.mcpToolsEnabled !== undefined) {
+				updates.mcp_tools_enabled = opts.mcpToolsEnabled ? 1 : 0;
+			}
+			if (opts?.mcpToolsConsent !== undefined) {
+				updates.mcp_tools_consent = opts.mcpToolsConsent;
+			}
 
 			await this.db
 				.updateTable("_plugin_state")
@@ -179,6 +189,8 @@ export class PluginStateRepository {
 					description: opts?.description ?? null,
 					registry_publisher_did: opts?.registryPublisherDid ?? null,
 					registry_slug: opts?.registrySlug ?? null,
+					mcp_tools_enabled: opts?.mcpToolsEnabled ? 1 : 0,
+					mcp_tools_consent: opts?.mcpToolsConsent ?? null,
 				})
 				.execute();
 		}
@@ -234,6 +246,8 @@ interface PluginStateRow {
 	description: string | null;
 	registry_publisher_did: string | null;
 	registry_slug: string | null;
+	mcp_tools_enabled: number;
+	mcp_tools_consent: string | null;
 }
 
 function rowToPluginState(row: PluginStateRow): PluginState {
@@ -250,5 +264,7 @@ function rowToPluginState(row: PluginStateRow): PluginState {
 		description: row.description ?? null,
 		registryPublisherDid: row.registry_publisher_did ?? null,
 		registrySlug: row.registry_slug ?? null,
+		mcpToolsEnabled: row.mcp_tools_enabled === 1,
+		mcpToolsConsent: row.mcp_tools_consent ?? null,
 	};
 }

@@ -224,36 +224,35 @@ export async function applySeed(
 				continue;
 			}
 
-			// Create collection
-			await registry.createCollection({
-				slug: collection.slug,
-				label: collection.label,
-				labelSingular: collection.labelSingular,
-				description: collection.description,
-				icon: collection.icon,
-				supports: collection.supports || [],
-				source: "seed",
-				urlPattern: collection.urlPattern,
-				commentsEnabled: collection.commentsEnabled,
-			});
-			result.collections.created++;
+			const fields = collection.fields.map((field) => ({
+				slug: field.slug,
+				label: field.label,
+				type: field.type,
+				required: field.required || false,
+				unique: field.unique || false,
+				searchable: field.searchable || false,
+				defaultValue: field.defaultValue,
+				validation: field.validation,
+				widget: field.widget,
+				options: field.options,
+			}));
 
-			// Create fields
-			for (const field of collection.fields) {
-				await registry.createField(collection.slug, {
-					slug: field.slug,
-					label: field.label,
-					type: field.type,
-					required: field.required || false,
-					unique: field.unique || false,
-					searchable: field.searchable || false,
-					defaultValue: field.defaultValue,
-					validation: field.validation,
-					widget: field.widget,
-					options: field.options,
-				});
-				result.fields.created++;
-			}
+			// Create a fresh seed schema in bulk to stay within D1's query budget.
+			await registry.createSeedCollection(
+				{
+					slug: collection.slug,
+					label: collection.label,
+					labelSingular: collection.labelSingular,
+					description: collection.description,
+					icon: collection.icon,
+					supports: collection.supports || [],
+					urlPattern: collection.urlPattern,
+					commentsEnabled: collection.commentsEnabled,
+				},
+				fields,
+			);
+			result.collections.created++;
+			result.fields.created += fields.length;
 		}
 	}
 

@@ -549,15 +549,26 @@ export function ContentTypeEditor({
 							</div>
 						)}
 
-						{!isFromCode && (
-							<Button
-								type="submit"
-								disabled={!hasChanges || !urlPatternValid || isSaving}
-								className="w-full"
-							>
-								{isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`}
-							</Button>
-						)}
+						{!isFromCode &&
+							(isNew ? (
+								<Button
+									type="submit"
+									disabled={!hasChanges || !urlPatternValid}
+									loading={isSaving}
+									className="w-full justify-center"
+								>
+									{t`Create Content Type`}
+								</Button>
+							) : (
+								<SaveButton
+									type="submit"
+									isDirty={!!hasChanges}
+									isSaving={!!isSaving}
+									announce={false}
+									disabled={!urlPatternValid}
+									className="w-full justify-center"
+								/>
+							))}
 					</form>
 				</div>
 

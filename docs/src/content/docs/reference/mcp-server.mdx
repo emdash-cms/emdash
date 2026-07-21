@@ -41,15 +41,19 @@ Tokens are scoped to limit what operations a client can perform. Scopes are requ
 | `menus:manage` | Create, update, and delete navigation menus and their items. |
 | `settings:read` | Read site-wide settings. |
 | `settings:manage` | Update site-wide settings. |
+| `mcp:tools` | Invoke explicitly enabled MCP tools from any plugin. |
+| `mcp:tools:<pluginId>` | Invoke explicitly enabled MCP tools from one plugin. |
 | `admin` | Full access to all operations. |
 
-The `admin` scope grants access to everything. Session-based auth (no token) also has full access based on the user's role.
+The `admin` scope grants access to core operations, but it does not grant plugin MCP access. Plugin tools always require `mcp:tools` or the matching plugin-specific scope. Session-based auth has access based on the user's role and the plugin's explicit admin enablement.
 
 `content:write` implicitly grants `taxonomies:manage` and `menus:manage` so personal access tokens issued before those scopes were split out continue to work without re-issue. New tokens should request the granular scopes.
 
 ### Role Requirements
 
 In addition to scopes, some tools require a minimum RBAC role. Both must be satisfied -- a token with the right scope still fails if the calling user's role is too low.
+
+Plugin tools use the permission declared by their underlying route. They are absent from `tools/list` until an administrator enables that plugin's MCP surface. Tool names use the deterministic `<pluginId>__<localName>` form, and invocations are recorded in the audit log with plugin, tool, route, and actor provenance.
 
 | Operation | Minimum role |
 | --- | --- |
@@ -63,7 +67,9 @@ In addition to scopes, some tools require a minimum RBAC role. Both must be sati
 | Menus manage | Editor (40) |
 | Settings read | Editor (40) |
 | Settings manage | Admin (50) |
-| Media upload (`media_create`) | Author (30) |
+| Media upload (`media_upload`) | Contributor (20) |
+| Media register (`media_create`) | Author (30) |
+| Media usage repair | Admin (50) |
 
 See the [Authentication guide](/guides/authentication#user-roles) for role definitions.
 
@@ -79,7 +85,7 @@ Responses follow the [JSON-RPC 2.0](https://www.jsonrpc.org/specification) forma
 
 ## Tools
 
-The server exposes 45 tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
+The server exposes tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
 
 ### Content Tools
 
@@ -378,12 +384,32 @@ List uploaded media files with optional MIME type filtering and pagination.
 
 **Scope:** `media:read` | **Read-only:** Yes
 
+#### `media_upload`
+
+Upload a media file from base64-encoded data or an external URL and register it in the media library. Returns the media item with `id`, `storageKey`, and `url` -- ready to reference from content fields (e.g. `featured_image`) via `content_create` / `content_update`.
+
+Uploads are deduplicated by content hash: re-uploading identical bytes returns the existing item with `deduplicated: true`. Image uploads are enriched automatically with dimensions, a blurhash placeholder, and the dominant color.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filename` | `string` | Yes | Filename including extension (e.g. `cover.png`) |
+| `base64` | `string` | One of `base64` / `url` | Base64-encoded file contents |
+| `url` | `string` | One of `base64` / `url` | Public http(s) URL to fetch the file from |
+| `contentType` | `string` | With `base64` | MIME type (e.g. `image/png`). With `url` it defaults to the response's `Content-Type` header. |
+| `alt` | `string` | No | Alt text for accessibility |
+
+<Aside>
+	URL fetches are SSRF-guarded: the URL must resolve to a public host, and redirects are re-validated. Uploads are subject to the global MIME allowlist (images, video, audio, PDF) and the configured maximum upload size.
+</Aside>
+
+**Scope:** `media:write` | **Minimum role:** Contributor
+
 #### `media_create`
 
 Register a media file that has already been uploaded to storage. The caller is responsible for placing the file at `storageKey` (typically using a signed upload URL from the admin UI or a separate API). This tool persists the metadata record so the file is discoverable via `media_list` / `media_get` and can be referenced by content.
 
 <Aside>
-	The MCP transport is not appropriate for binary uploads. Use the signed-upload flow to put the bytes in storage, then call `media_create` to register the record.
+	To upload the file itself, use `media_upload` (base64 data or a public URL) instead.
 </Aside>
 
 | Parameter | Type | Required | Description |
@@ -433,6 +459,19 @@ Permanently delete a media file. Removes the database record and the file from s
 | `id` | `string` | Yes | Media item ID |
 
 **Scope:** `media:write` | **Destructive:** Yes
+
+#### `media_usage_repair`
+
+Repair content media usage indexes for one collection or every collection. Repair runs synchronously and can be slow or expensive on large sites; prefer collection scope when possible.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `scope` | `"collection" \| "all"` | Yes | Whether to repair one collection or all collections |
+| `collection` | `string` | For collection scope | Collection slug; omit when `scope` is `all` |
+
+The result has a structured `status` of `complete`, `partial`, `failed`, or `stale`, plus aggregate and per-collection source counts. All four statuses are successful MCP tool results, so callers must inspect `status` rather than relying on `isError`. Authentication, validation, or unexpected repair errors return `isError: true`.
+
+**Scope:** `admin` | **Minimum role:** Admin
 
 ### Search Tool
 

@@ -32,6 +32,9 @@
 import type { ContentSeo } from "../database/repositories/types.js";
 import { buildSeoImageUrl } from "./media-url.js";
 
+export { getHreflangAlternates, getHreflangAlternatesWithDb } from "./hreflang.js";
+export type { HreflangAlternate, HreflangOptions } from "./hreflang.js";
+
 const TRAILING_SLASH_RE = /\/$/;
 const ABSOLUTE_URL_RE = /^https?:\/\//i;
 
@@ -80,6 +83,17 @@ export interface SeoMetaOptions {
 	path?: string;
 	/** Default OG image URL if content has none */
 	defaultOgImage?: string;
+	/**
+	 * Default page title used when the SEO panel has none. Ranks above the
+	 * `data.title` fallback, so computed titles (e.g. `` `${title} (cover of
+	 * ${artist})` ``) apply while an editor-set SEO title still wins.
+	 */
+	defaultTitle?: string;
+	/**
+	 * Default description used when the SEO panel has none. Ranks above the
+	 * `data.excerpt` fallback; an editor-set SEO description still wins.
+	 */
+	defaultDescription?: string;
 }
 
 /**
@@ -93,7 +107,7 @@ export interface SeoMetaOptions {
  * @returns Resolved meta tags ready for template use
  */
 export function getSeoMeta<T>(content: SeoContentInput<T>, options: SeoMetaOptions = {}): SeoMeta {
-	const { siteTitle, siteUrl, path, defaultOgImage } = options;
+	const { siteTitle, siteUrl, path, defaultOgImage, defaultTitle, defaultDescription } = options;
 	const separator = options.titleSeparator || " | ";
 	// SEO can be in content.seo (ContentItem) or content.data.seo (ContentEntry)
 	const seo = content.seo ??
@@ -105,15 +119,19 @@ export function getSeoMeta<T>(content: SeoContentInput<T>, options: SeoMetaOptio
 			noIndex: false,
 		};
 
-	// Title: SEO title > content title > fallback
+	// Title: SEO panel title > caller default > content title
 	const pageTitle =
-		seo.title || (typeof content.data.title === "string" ? content.data.title : null) || "";
+		seo.title ||
+		defaultTitle ||
+		(typeof content.data.title === "string" ? content.data.title : null) ||
+		"";
 
 	const fullTitle = siteTitle && pageTitle ? `${pageTitle}${separator}${siteTitle}` : pageTitle;
 
-	// Description: SEO description > excerpt
+	// Description: SEO panel description > caller default > excerpt
 	const description =
 		seo.description ||
+		defaultDescription ||
 		(typeof content.data.excerpt === "string" ? content.data.excerpt : null) ||
 		null;
 
