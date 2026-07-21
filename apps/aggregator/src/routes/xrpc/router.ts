@@ -128,9 +128,6 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 		try {
 			response = await syncGetRecord(env, request);
 		} catch (err) {
-			// The success path serves a cacheable 200; an unexpected throw (e.g. a
-			// D1 error fetching the CAR blob) must fail closed with `no-store` so
-			// the error never inherits that public cache header.
 			return wrapDispatchError(err, "sync.getRecord");
 		}
 		const headers = new Headers(response.headers);
