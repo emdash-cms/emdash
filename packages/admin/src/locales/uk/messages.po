@@ -611,7 +611,7 @@ msgstr "Додати"
 
 #. placeholder {0}: field.item_label
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/PortableTextEditor.tsx:1746
+#: packages/admin/src/components/PortableTextEditor.tsx:1747
 #: packages/admin/src/components/TaxonomyManager.tsx:378
 #: packages/admin/src/components/TaxonomyManager.tsx:834
 msgid "Add {0}"
@@ -633,11 +633,11 @@ msgstr "Додати дозволений домен"
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Додайте принаймні одне підполе, щоб визначити структуру повторювача."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3192
+#: packages/admin/src/components/PortableTextEditor.tsx:3193
 msgid "Add column after"
 msgstr "Додати стовпець після"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3186
+#: packages/admin/src/components/PortableTextEditor.tsx:3187
 msgid "Add column before"
 msgstr "Додати стовпець перед"
 
@@ -683,7 +683,7 @@ msgstr "Додати перше поле"
 msgid "Add First Item"
 msgstr "Додати перший елемент"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1746
+#: packages/admin/src/components/PortableTextEditor.tsx:1747
 msgid "Add item"
 msgstr "Додати елемент"
 
@@ -691,7 +691,7 @@ msgstr "Додати елемент"
 msgid "Add Item"
 msgstr "Додати елемент"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3122
+#: packages/admin/src/components/PortableTextEditor.tsx:3123
 msgid "Add link"
 msgstr "Додати посилання"
 
@@ -724,11 +724,11 @@ msgstr "Додати passkey"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Додайте плагіни до astro.config.mjs, щоб розширити можливості EmDash."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3213
+#: packages/admin/src/components/PortableTextEditor.tsx:3214
 msgid "Add row after"
 msgstr "Додати рядок після"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3207
+#: packages/admin/src/components/PortableTextEditor.tsx:3208
 msgid "Add row before"
 msgstr "Додати рядок перед"
 
@@ -783,15 +783,15 @@ msgstr "Адміністратор"
 msgid "After send:"
 msgstr "Після надсилання:"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3509
+#: packages/admin/src/components/PortableTextEditor.tsx:3510
 msgid "Align Center"
 msgstr "По центру"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3502
+#: packages/admin/src/components/PortableTextEditor.tsx:3503
 msgid "Align Left"
 msgstr "По лівому краю"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3516
+#: packages/admin/src/components/PortableTextEditor.tsx:3517
 msgid "Align Right"
 msgstr "По правому краю"
 
@@ -972,7 +972,7 @@ msgstr "З'являється в дописах і на сторінках"
 msgid "Application Password"
 msgstr "Пароль застосунку"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3592
+#: packages/admin/src/components/PortableTextEditor.tsx:3593
 msgid "Apply"
 msgstr "Застосувати"
 
@@ -981,8 +981,8 @@ msgstr "Застосувати"
 msgid "Apply language"
 msgstr "Застосувати мову"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3062
 #: packages/admin/src/components/PortableTextEditor.tsx:3063
+#: packages/admin/src/components/PortableTextEditor.tsx:3064
 msgid "Apply link"
 msgstr "Застосувати посилання"
 
@@ -1252,8 +1252,8 @@ msgstr "Біо"
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "Дії блоку — перетягніть для зміни порядку, клацніть для меню"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3086
-#: packages/admin/src/components/PortableTextEditor.tsx:3420
+#: packages/admin/src/components/PortableTextEditor.tsx:3087
+#: packages/admin/src/components/PortableTextEditor.tsx:3421
 msgid "Bold"
 msgstr "Жирний"
 
@@ -1290,7 +1290,7 @@ msgstr "Переглядайте теми та переглядайте їх і�
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:102
 #: packages/admin/src/components/PortableTextEditor.tsx:1056
-#: packages/admin/src/components/PortableTextEditor.tsx:3468
+#: packages/admin/src/components/PortableTextEditor.tsx:3469
 msgid "Bullet List"
 msgstr "Маркований список"
 
@@ -1362,7 +1362,7 @@ msgstr "Може переглядати вміст"
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:173
 #: packages/admin/src/components/PluginManager.tsx:651
-#: packages/admin/src/components/PortableTextEditor.tsx:3576
+#: packages/admin/src/components/PortableTextEditor.tsx:3577
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
@@ -1573,9 +1573,9 @@ msgstr "Перейдіть за посиланням у листі, щоб ув�
 #: packages/admin/src/components/MenuList.tsx:137
 #: packages/admin/src/components/MenuList.tsx:143
 #: packages/admin/src/components/MenuList.tsx:147
-#: packages/admin/src/components/PortableTextEditor.tsx:1530
-#: packages/admin/src/components/PortableTextEditor.tsx:1536
-#: packages/admin/src/components/PortableTextEditor.tsx:1540
+#: packages/admin/src/components/PortableTextEditor.tsx:1531
+#: packages/admin/src/components/PortableTextEditor.tsx:1537
+#: packages/admin/src/components/PortableTextEditor.tsx:1541
 #: packages/admin/src/components/Redirects.tsx:115
 #: packages/admin/src/components/Redirects.tsx:121
 #: packages/admin/src/components/SectionPickerModal.tsx:61
@@ -1618,14 +1618,14 @@ msgid "Close settings"
 msgstr "Закрити налаштування"
 
 #: packages/admin/src/components/ContentTypeList.tsx:242
-#: packages/admin/src/components/PortableTextEditor.tsx:3114
+#: packages/admin/src/components/PortableTextEditor.tsx:3115
 #: packages/admin/src/components/Redirects.tsx:470
 msgid "Code"
 msgstr "Код"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:94
 #: packages/admin/src/components/PortableTextEditor.tsx:1086
-#: packages/admin/src/components/PortableTextEditor.tsx:3489
+#: packages/admin/src/components/PortableTextEditor.tsx:3490
 msgid "Code Block"
 msgstr "Блок коду"
 
@@ -1727,7 +1727,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:294
 #: packages/admin/src/components/Dashboard.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:2326
+#: packages/admin/src/components/PortableTextEditor.tsx:2327
 #: packages/admin/src/components/SectionEditor.tsx:193
 #: packages/admin/src/components/Sidebar.tsx:365
 #: packages/admin/src/components/Widgets.tsx:882
@@ -2279,7 +2279,7 @@ msgstr "Видалити поле підпису?"
 msgid "Delete Byline?"
 msgstr "Видалити підпис?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3198
+#: packages/admin/src/components/PortableTextEditor.tsx:3199
 msgid "Delete column"
 msgstr "Видалити стовпець"
 
@@ -2342,7 +2342,7 @@ msgstr "Видалити перенаправлення {0}"
 msgid "Delete Redirect?"
 msgstr "Видалити перенаправлення?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3217
+#: packages/admin/src/components/PortableTextEditor.tsx:3218
 msgid "Delete row"
 msgstr "Видалити рядок"
 
@@ -2350,7 +2350,7 @@ msgstr "Видалити рядок"
 msgid "Delete Section?"
 msgstr "Видалити секцію?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3232
+#: packages/admin/src/components/PortableTextEditor.tsx:3233
 msgid "Delete table"
 msgstr "Видалити таблицю"
 
@@ -2683,7 +2683,7 @@ msgstr "Перетягніть або клацніть для вибору (.xml
 msgid "Drag here to add"
 msgstr "Перетягніть сюди, щоб додати"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1922
+#: packages/admin/src/components/PortableTextEditor.tsx:1923
 msgid "Drag to reorder"
 msgstr "Перетягніть для зміни порядку"
 
@@ -2752,7 +2752,7 @@ msgstr "Редагувати"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:218
-#: packages/admin/src/components/PortableTextEditor.tsx:1527
+#: packages/admin/src/components/PortableTextEditor.tsx:1528
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:243
 #: packages/admin/src/components/TaxonomyManager.tsx:109
 #: packages/admin/src/components/TaxonomyManager.tsx:377
@@ -2790,7 +2790,7 @@ msgstr "Редагувати домен"
 msgid "Edit Field"
 msgstr "Редагувати поле"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3122
+#: packages/admin/src/components/PortableTextEditor.tsx:3123
 msgid "Edit link"
 msgstr "Редагувати посилання"
 
@@ -2887,11 +2887,11 @@ msgid "Email verified!"
 msgstr "Email підтверджено!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2340
+#: packages/admin/src/components/PortableTextEditor.tsx:2341
 msgid "Embed a {0}"
 msgstr "Вбудувати {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2343
+#: packages/admin/src/components/PortableTextEditor.tsx:2344
 msgid "Embeds"
 msgstr "Вбудування"
 
@@ -3019,7 +3019,7 @@ msgstr "Існує"
 msgid "Exit distraction-free mode"
 msgstr "Вийти з режиму без відволікань"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3628
+#: packages/admin/src/components/PortableTextEditor.tsx:3629
 msgid "Exit Spotlight Mode"
 msgstr "Вийти з режиму Spotlight"
 
@@ -3946,8 +3946,8 @@ msgstr "HTML"
 msgid "HTML source"
 msgstr "HTML-код"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3049
-#: packages/admin/src/components/PortableTextEditor.tsx:3558
+#: packages/admin/src/components/PortableTextEditor.tsx:3050
+#: packages/admin/src/components/PortableTextEditor.tsx:3559
 msgid "https://..."
 msgstr "https://..."
 
@@ -3978,7 +3978,7 @@ msgstr "Якщо обліковий запис для <0>{email}</0> існує,
 
 #: packages/admin/src/components/FieldEditor.tsx:204
 #: packages/admin/src/components/FieldEditor.tsx:587
-#: packages/admin/src/components/PortableTextEditor.tsx:2307
+#: packages/admin/src/components/PortableTextEditor.tsx:2308
 msgid "Image"
 msgstr "Зображення"
 
@@ -4124,7 +4124,7 @@ msgstr "Несумісний"
 msgid "Indexed"
 msgstr "Проіндексовано"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3448
+#: packages/admin/src/components/PortableTextEditor.tsx:3449
 msgid "Inline Code"
 msgstr "Вбудований код"
 
@@ -4134,7 +4134,7 @@ msgid "Insert"
 msgstr "Вставити"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1527
+#: packages/admin/src/components/PortableTextEditor.tsx:1528
 msgid "Insert {0}"
 msgstr "Вставити {0}"
 
@@ -4150,7 +4150,7 @@ msgstr "Вставити блок коду"
 msgid "Insert a horizontal rule"
 msgstr "Вставити горизонтальну лінію"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2323
+#: packages/admin/src/components/PortableTextEditor.tsx:2324
 msgid "Insert a reusable section"
 msgstr "Вставити багаторазову секцію"
 
@@ -4158,7 +4158,7 @@ msgstr "Вставити багаторазову секцію"
 msgid "Insert a table"
 msgstr "Вставити таблицю"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2308
+#: packages/admin/src/components/PortableTextEditor.tsx:2309
 msgid "Insert an image"
 msgstr "Вставити зображення"
 
@@ -4166,7 +4166,7 @@ msgstr "Вставити зображення"
 msgid "Insert block"
 msgstr "Вставити блок"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3412
+#: packages/admin/src/components/PortableTextEditor.tsx:3413
 msgid "Insert block after current block"
 msgstr "Вставити блок після поточного"
 
@@ -4178,7 +4178,7 @@ msgstr "Вставити блок нижче"
 msgid "Insert from URL"
 msgstr "Вставити з URL"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3544
+#: packages/admin/src/components/PortableTextEditor.tsx:3545
 msgid "Insert Link"
 msgstr "Вставити посилання"
 
@@ -4273,13 +4273,13 @@ msgstr "Запросити користувача"
 msgid "Invite your first team member"
 msgstr "Запросіть першого учасника команди"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3093
-#: packages/admin/src/components/PortableTextEditor.tsx:3427
+#: packages/admin/src/components/PortableTextEditor.tsx:3094
+#: packages/admin/src/components/PortableTextEditor.tsx:3428
 msgid "Italic"
 msgstr "Курсив"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1908
+#: packages/admin/src/components/PortableTextEditor.tsx:1909
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
 msgstr "Елемент {0}"
@@ -4526,7 +4526,7 @@ msgstr "Завантаження конфігурації..."
 msgid "Loading content..."
 msgstr "Завантаження вмісту..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2856
+#: packages/admin/src/components/PortableTextEditor.tsx:2857
 msgid "Loading editor..."
 msgstr "Завантаження редактора..."
 
@@ -4578,7 +4578,7 @@ msgstr "Завантаження віджетів..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:722
-#: packages/admin/src/components/PortableTextEditor.tsx:2035
+#: packages/admin/src/components/PortableTextEditor.tsx:2036
 #: packages/admin/src/components/RegistryBrowse.tsx:144
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:161
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
@@ -4755,7 +4755,7 @@ msgstr "Максимум тегів"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2311
+#: packages/admin/src/components/PortableTextEditor.tsx:2312
 #: packages/admin/src/components/Sidebar.tsx:216
 #: packages/admin/src/components/WordPressImport.tsx:752
 #: packages/admin/src/components/WordPressImport.tsx:1145
@@ -5239,7 +5239,7 @@ msgstr "Немає встановлюваних випусків"
 msgid "No invite token provided"
 msgstr "Токен запрошення не надано"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1831
+#: packages/admin/src/components/PortableTextEditor.tsx:1832
 #: packages/admin/src/components/RepeaterField.tsx:165
 msgid "No items yet"
 msgstr "Ще немає елементів"
@@ -5436,7 +5436,7 @@ msgstr "Кількість записів на сторінці в списко�
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:110
 #: packages/admin/src/components/PortableTextEditor.tsx:1066
-#: packages/admin/src/components/PortableTextEditor.tsx:3475
+#: packages/admin/src/components/PortableTextEditor.tsx:3476
 msgid "Numbered List"
 msgstr "Нумерований список"
 
@@ -5971,7 +5971,7 @@ msgstr "Швидко редагувати alt-текст"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:86
 #: packages/admin/src/components/PortableTextEditor.tsx:1076
-#: packages/admin/src/components/PortableTextEditor.tsx:3482
+#: packages/admin/src/components/PortableTextEditor.tsx:3483
 msgid "Quote"
 msgstr "Цитата"
 
@@ -6053,7 +6053,7 @@ msgstr "Перенаправлення на вхід..."
 msgid "Redirects"
 msgstr "Перенаправлення"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3615
+#: packages/admin/src/components/PortableTextEditor.tsx:3616
 msgid "Redo"
 msgstr "Повторити"
 
@@ -6102,7 +6102,7 @@ msgstr "Реліз занадто новий для встановлення"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
 #: packages/admin/src/components/ContentSettingsPanel.tsx:878
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
-#: packages/admin/src/components/PortableTextEditor.tsx:3588
+#: packages/admin/src/components/PortableTextEditor.tsx:3589
 #: packages/admin/src/components/settings/GeneralSettings.tsx:194
 #: packages/admin/src/components/settings/GeneralSettings.tsx:248
 #: packages/admin/src/components/settings/PasskeyItem.tsx:185
@@ -6150,13 +6150,13 @@ msgid "Remove Image?"
 msgstr "Видалити зображення?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1947
+#: packages/admin/src/components/PortableTextEditor.tsx:1948
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
 msgstr "Видалити елемент {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3074
 #: packages/admin/src/components/PortableTextEditor.tsx:3075
+#: packages/admin/src/components/PortableTextEditor.tsx:3076
 msgid "Remove link"
 msgstr "Видалити посилання"
 
@@ -6682,7 +6682,7 @@ msgstr "Доступно для пошуку"
 msgid "Searching..."
 msgstr "Пошук..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2322
+#: packages/admin/src/components/PortableTextEditor.tsx:2323
 msgid "Section"
 msgstr "Секція"
 
@@ -6833,7 +6833,7 @@ msgid "Select image"
 msgstr "Обрати зображення"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:144
-#: packages/admin/src/components/PortableTextEditor.tsx:2918
+#: packages/admin/src/components/PortableTextEditor.tsx:2919
 #: packages/admin/src/components/settings/SeoSettings.tsx:188
 msgid "Select Image"
 msgstr "Обрати зображення"
@@ -6860,7 +6860,7 @@ msgid "Select which content types to import."
 msgstr "Оберіть типи вмісту для імпорту."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2042
+#: packages/admin/src/components/PortableTextEditor.tsx:2043
 #: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "Обрати..."
@@ -7240,7 +7240,7 @@ msgstr "спам"
 msgid "Spam"
 msgstr "Спам"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3628
+#: packages/admin/src/components/PortableTextEditor.tsx:3629
 msgid "Spotlight Mode"
 msgstr "Режим фокусу"
 
@@ -7257,8 +7257,8 @@ msgid "Start Import"
 msgstr "Почати імпорт"
 
 #: packages/admin/src/components/ContentEditor.tsx:1185
-#: packages/admin/src/components/PortableTextEditor.tsx:2201
 #: packages/admin/src/components/PortableTextEditor.tsx:2202
+#: packages/admin/src/components/PortableTextEditor.tsx:2203
 msgid "Start writing, or type '/' for commands"
 msgstr "Почніть писати або введіть «/» для команд"
 
@@ -7290,8 +7290,8 @@ msgstr "Збережені резервні копії"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Зберігається для кожної локалі — кожен переклад авторського рядка має власне значення."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3107
-#: packages/admin/src/components/PortableTextEditor.tsx:3441
+#: packages/admin/src/components/PortableTextEditor.tsx:3108
+#: packages/admin/src/components/PortableTextEditor.tsx:3442
 msgid "Strikethrough"
 msgstr "Закреслення"
 
@@ -7344,7 +7344,7 @@ msgstr "Системні поля"
 msgid "Table"
 msgstr "Таблиця"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3181
+#: packages/admin/src/components/PortableTextEditor.tsx:3182
 msgid "Table controls"
 msgstr "Елементи керування таблицею"
 
@@ -7416,7 +7416,7 @@ msgstr "Термін видалено"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3398
+#: packages/admin/src/components/PortableTextEditor.tsx:3399
 msgid "Text formatting"
 msgstr "Форматування тексту"
 
@@ -7668,7 +7668,7 @@ msgstr "для встановлення плагінів або додайте �
 msgid "to select"
 msgstr "щоб вибрати"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3226
+#: packages/admin/src/components/PortableTextEditor.tsx:3227
 msgid "Toggle header row"
 msgstr "Перемкнути рядок заголовка"
 
@@ -7843,12 +7843,12 @@ msgstr "Не вдалося підключитися до маркетплейс
 msgid "Unassigned"
 msgstr "Не призначено"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3100
-#: packages/admin/src/components/PortableTextEditor.tsx:3434
+#: packages/admin/src/components/PortableTextEditor.tsx:3101
+#: packages/admin/src/components/PortableTextEditor.tsx:3435
 msgid "Underline"
 msgstr "Підкреслення"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3608
+#: packages/admin/src/components/PortableTextEditor.tsx:3609
 msgid "Undo"
 msgstr "Скасувати"
 
@@ -8095,9 +8095,9 @@ msgstr "Завантаження..."
 #: packages/admin/src/components/FieldEditor.tsx:586
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
-#: packages/admin/src/components/PortableTextEditor.tsx:3054
-#: packages/admin/src/components/PortableTextEditor.tsx:3553
-#: packages/admin/src/components/PortableTextEditor.tsx:3563
+#: packages/admin/src/components/PortableTextEditor.tsx:3055
+#: packages/admin/src/components/PortableTextEditor.tsx:3554
+#: packages/admin/src/components/PortableTextEditor.tsx:3564
 msgid "URL"
 msgstr "URL"
 
