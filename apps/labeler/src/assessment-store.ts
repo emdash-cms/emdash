@@ -621,6 +621,16 @@ export interface FinalizationInput {
 	 * finalization retries and stales out instead of labelling a deleted subject.
 	 */
 	guardSubjectNotDeleted?: boolean;
+	/**
+	 * Gate the CAS on the automation kill-switch reading `paused = 0` at commit
+	 * time. An admin pausing automation after a run was dispatched otherwise lets
+	 * the in-flight run commit its automated labels; folding the predicate into the
+	 * CAS (and, transitively, every label gated on `toState`) no-ops finalization
+	 * under a pause, leaving the run `running` for the Workflow retry to re-run
+	 * after resume. Fails closed like `isAutomationPaused`: a missing singleton row
+	 * fails the `paused = 0` read and halts finalization.
+	 */
+	guardAutomationNotPaused?: boolean;
 }
 
 export interface FinalizationStatements {
@@ -682,6 +692,12 @@ export function buildFinalizationStatements(
 		? `\n\t\t\t\t AND EXISTS (SELECT 1 FROM subjects WHERE uri = ? AND cid = ? AND deleted_at IS NULL)`
 		: "";
 	if (input.guardSubjectNotDeleted) casBinds.push(input.uri, input.cid);
+	// Fail-closed automation kill-switch: `EXISTS (… paused = 0)` no-ops the CAS
+	// (and every label gated on `toState`) when automation is paused or the
+	// singleton row is missing.
+	const automationGuardSql = input.guardAutomationNotPaused
+		? `\n\t\t\t\t AND EXISTS (SELECT 1 FROM automation_state WHERE id = 1 AND paused = 0)`
+		: "";
 	const statements: D1PreparedStatement[] = [
 		db
 			.prepare(
@@ -690,7 +706,7 @@ export function buildFinalizationStatements(
 				     public_summary = COALESCE(?, public_summary),
 				     coverage_json = COALESCE(?, coverage_json),
 				     supersedes_assessment_id = COALESCE(?, supersedes_assessment_id)
-				 WHERE id = ? AND state = ?${signingGuardSql}${subjectGuardSql}`,
+				 WHERE id = ? AND state = ?${signingGuardSql}${subjectGuardSql}${automationGuardSql}`,
 			)
 			.bind(...casBinds),
 	];
@@ -706,8 +722,15 @@ export function buildFinalizationStatements(
 					 ON CONFLICT(src, uri, cid) DO UPDATE SET
 					   assessment_id = excluded.assessment_id, updated_at = excluded.updated_at
 					 WHERE EXISTS (SELECT 1 FROM assessments WHERE id = ? AND state = ?)
-					   AND (SELECT created_at_epoch_ms FROM assessments WHERE id = excluded.assessment_id)
-					       >= (SELECT created_at_epoch_ms FROM assessments WHERE id = current_assessments.assessment_id)`,
+					   AND (
+					     (SELECT created_at_epoch_ms FROM assessments WHERE id = excluded.assessment_id)
+					         > (SELECT created_at_epoch_ms FROM assessments WHERE id = current_assessments.assessment_id)
+					     OR (
+					       (SELECT created_at_epoch_ms FROM assessments WHERE id = excluded.assessment_id)
+					           = (SELECT created_at_epoch_ms FROM assessments WHERE id = current_assessments.assessment_id)
+					       AND excluded.assessment_id >= current_assessments.assessment_id
+					     )
+					   )`,
 				)
 				.bind(
 					input.src,

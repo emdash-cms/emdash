@@ -1965,6 +1965,52 @@ describe("console mutation: dead-letter retry (admin)", () => {
 	});
 });
 
+describe("console mutation: dead-letter retry durability", () => {
+	it("leaves the row new (not retried) when the queue enqueue fails", async () => {
+		const { id } = await seedDeadLetter();
+		const deps = mutationDeps({
+			sendDiscoveryJob: async () => {
+				throw new Error("queue unavailable");
+			},
+		});
+		const response = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/${id}/retry`),
+			deps,
+		);
+		// A failed re-drive is retryable, not a phantom success: the row is untouched
+		// (still new, unresolved) so a later retry works and health still counts it.
+		expect(response.status).toBe(503);
+		const row = await deadLetterRow(id);
+		expect(row?.status).toBe("new");
+		expect(row?.resolved_at).toBeNull();
+		expect(row?.resolved_by_action_id).toBeNull();
+	});
+
+	it("leaves the row new (not retried) when the stored payload cannot be decoded", async () => {
+		const garbage = new TextEncoder().encode(JSON.stringify({ not: "a discovery job" }));
+		const result = await testEnv.DB.prepare(
+			`INSERT INTO dead_letters (did, collection, rkey, reason, detail, payload, received_at, status)
+			 VALUES (?, 'com.emdashcms.experimental.package.release', 'dl-garbage', 'verify-failed', 'detail', ?, datetime('now'), 'new')`,
+		)
+			.bind(PUBLISHER_DID, garbage)
+			.run();
+		const id = Number(result.meta.last_row_id);
+		const { deps, sent, settle } = captureReenqueue();
+
+		const response = await handleConsoleMutation(
+			deadLetterReq(`/admin/api/dead-letters/${id}/retry`),
+			deps,
+		);
+
+		// An undecodable payload can never be delivered, so the retry is refused and
+		// the row stays new (the operator quarantines it) rather than stranding retried.
+		expect(response.status).toBe(422);
+		expect((await deadLetterRow(id))?.status).toBe("new");
+		await settle();
+		expect(sent).toHaveLength(0);
+	});
+});
+
 describe("console mutation: dead-letter quarantine (admin)", () => {
 	it("flips new→quarantined, emits one info event, enqueues nothing", async () => {
 		const { id } = await seedDeadLetter();

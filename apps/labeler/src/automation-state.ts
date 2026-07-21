@@ -14,6 +14,15 @@ export class AutomationStateUnavailableError extends Error {
 	override readonly name = "AutomationStateUnavailableError";
 }
 
+/**
+ * Raised when an in-flight assessment run re-reads the kill-switch on Workflow
+ * entry and finds automation paused. Halts the run before it spends AI/network
+ * work; the Workflow step retries, resuming once automation is unpaused.
+ */
+export class AutomationPausedError extends Error {
+	override readonly name = "AutomationPausedError";
+}
+
 export interface AutomationPauseUpdate {
 	paused: boolean;
 	reason: string | null;
