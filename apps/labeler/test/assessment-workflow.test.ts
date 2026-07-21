@@ -31,9 +31,11 @@ import { serializeCoverage, type CoverageAccumulator } from "../src/assessment-s
 import {
 	createAssessmentRun,
 	createSubject,
+	getAssessment,
 	transitionAssessmentState,
 } from "../src/assessment-store.js";
 import { buildStages, executeAssessmentInstance } from "../src/assessment-workflow.js";
+import { AutomationPausedError } from "../src/automation-state.js";
 import type { AiBinding } from "../src/code-ai-adapter.js";
 import type { PublisherVerificationReader } from "../src/history-context.js";
 import type { ImageAiBinding } from "../src/image-ai-adapter.js";
@@ -351,5 +353,20 @@ describe("executeAssessmentInstance: shell", () => {
 		await expect(executeAssessmentInstance(minimalEnv, run.id)).rejects.toThrow(
 			/missing required bindings/,
 		);
+	});
+
+	it("halts on entry, before any stage work, when automation is paused", async () => {
+		const run = await pendingRun("wf-paused-entry");
+		await testEnv.DB.prepare(`UPDATE automation_state SET paused = 1 WHERE id = 1`).run();
+
+		// The paused switch throws before `assertRequiredBindings`, so the error is
+		// the kill-switch halt — not the missing-binding failure minimalEnv would
+		// otherwise raise once it reached stage assembly.
+		await expect(executeAssessmentInstance(minimalEnv, run.id)).rejects.toBeInstanceOf(
+			AutomationPausedError,
+		);
+
+		const assessment = await getAssessment(testEnv.DB, run.id);
+		expect(assessment?.state).toBe("pending");
 	});
 });

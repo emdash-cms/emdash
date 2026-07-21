@@ -44,6 +44,7 @@ import {
 	type CoverageAccumulator,
 } from "./assessment-stages.js";
 import { getAssessment, type Assessment } from "./assessment-store.js";
+import { AutomationPausedError, isAutomationPaused } from "./automation-state.js";
 import type { AiBinding } from "./code-ai-adapter.js";
 import { getLabelerIdentityConfig, type LabelerConfig } from "./config.js";
 import type { PublisherVerificationReader } from "./history-context.js";
@@ -93,6 +94,14 @@ export async function executeAssessmentInstance(
 		await notifyOutcome(env, existing);
 		return existing.state;
 	}
+
+	// Re-read the kill-switch on entry: an admin pausing automation after this run
+	// was dispatched halts it here, before it spends AI/network work. Throwing
+	// leaves the row untouched for the Workflow-step retry to resume once
+	// automation is unpaused; finalization carries the same guard as the backstop.
+	// `isAutomationPaused` fails closed — an unreadable switch throws and retries.
+	if (await isAutomationPaused(env.DB))
+		throw new AutomationPausedError(`assessment ${assessmentId} halted: automation is paused`);
 
 	assertRequiredBindings(env);
 	const config = await getLabelerIdentityConfig(env);

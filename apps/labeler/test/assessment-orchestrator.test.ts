@@ -1387,3 +1387,60 @@ describe("AssessmentOrchestrator: delete racing finalization (Blocker 1)", () =>
 		expect(labelsAfter?.n).toBe(0);
 	});
 });
+
+describe("AssessmentOrchestrator: automation pause between prep and commit", () => {
+	it("leaves the run running and issues no labels when automation pauses before the batch commits", async () => {
+		const run = await pendingRun({
+			name: "automation-pause",
+			cidValue: await cid("automation-pause"),
+		});
+		// Pause automation in the seam between finalization prep (statements built
+		// while unpaused) and the batch commit.
+		const db = pauseBeforeFirstBatch(testEnv.DB, async () => {
+			await testEnv.DB.prepare(`UPDATE automation_state SET paused = 1 WHERE id = 1`).run();
+		});
+		const orchestrator = new AssessmentOrchestrator({
+			db,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+		});
+
+		// The CAS carries the automation guard, so the whole batch no-ops and the
+		// finalization conflict is raised rather than terminal state with labels.
+		await expect(orchestrator.runAssessment(run.id)).rejects.toBeInstanceOf(
+			AssessmentFinalizationConflictError,
+		);
+
+		expect((await getAssessment(testEnv.DB, run.id))?.state).toBe("running");
+		const labels = await testEnv.DB.prepare(
+			`SELECT COUNT(*) AS n FROM issued_labels l JOIN issuance_actions a ON a.id = l.action_id
+			 WHERE a.assessment_id = ?`,
+		)
+			.bind(run.id)
+			.first<{ n: number }>();
+		expect(labels?.n).toBe(0);
+
+		// Resume automation and re-run (as the Workflow retry does): finalization now
+		// completes and issues the labels the paused attempt withheld.
+		await testEnv.DB.prepare(`UPDATE automation_state SET paused = 0 WHERE id = 1`).run();
+		const resumed = new AssessmentOrchestrator({
+			db: testEnv.DB,
+			config,
+			signer: await signer(),
+			policy: MODERATION_POLICY,
+			stages: stubStages,
+			sleep: () => Promise.resolve(),
+		});
+		const finalized = await resumed.runAssessment(run.id);
+		expect(finalized.state).toBe("passed");
+		const pendingNeg = await testEnv.DB.prepare(
+			`SELECT neg FROM issued_labels WHERE uri = ? AND cid = ? AND val = 'assessment-pending'`,
+		)
+			.bind(run.uri, run.cid)
+			.first<{ neg: number }>();
+		expect(pendingNeg?.neg).toBe(1);
+	});
+});
