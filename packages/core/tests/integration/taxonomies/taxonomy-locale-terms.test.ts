@@ -32,6 +32,7 @@ import { up as up045 } from "../../../src/database/migrations/045_taxonomy_paren
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -165,7 +166,22 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownForDialect(ctx);
+	});
+
+	it("stores term locales with the configured casing", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+		await insertHierarchicalDef(ctx.db, "categories");
+		const term = await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "news",
+				label: "News",
+				locale: "zh-tw",
+			}),
+		);
+
+		expect(term.locale).toBe("zh-TW");
 	});
 
 	it("repository resolves only the entry-locale variant when locale is given", async () => {
