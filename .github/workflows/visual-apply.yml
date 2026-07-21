@@ -1,122 +1,116 @@
 name: Visual Regression — Apply
 
-# Commits accepted visual baselines when a maintainer reacts 👍 to the sticky
-# comment posted by "Visual Regression — Report".
+# Commits accepted visual baselines when a maintainer comments
+# `/accept-baselines` on a PR. The command is the human gate: only users with
+# write access (author association OWNER/MEMBER/COLLABORATOR) can trigger it.
 #
-# GitHub has no "reaction" event, so this polls on a schedule (and can be run
-# on demand via workflow_dispatch). Each run processes at most one eligible PR:
-# it finds the sticky comment, confirms a 👍 from a user with write access,
-# downloads the inert candidate-baseline artifact produced by the measure job,
-# and commits those PNGs to the PR branch. It never executes PR-authored code.
+# It downloads the inert candidate-baseline artifact produced by the measure
+# job for the PR's current head and commits those PNGs to the PR branch. It
+# never checks out or executes PR-authored code.
 #
-# Idempotency:
-#   - The sticky comment carries an `<!-- applied:<sha> -->` marker; a head that
-#     already matches is skipped.
-#   - The measure artifact records has-drift; a green (no-drift) artifact is
-#     skipped, so a re-poll in the window before the comment is cleared is inert.
-#   - After copying candidates, an empty git diff short-circuits the push.
+# Like all issue_comment workflows, this runs from the default branch, so it
+# only takes effect once merged to main.
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"
-  workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 permissions:
   actions: read # find + download the measure artifact
   contents: read # app token handles the write/push
-  pull-requests: write # read reactions, update the sticky comment
+  pull-requests: write # comment back with the result
+  issues: write # react to the triggering comment (issues-scoped API)
 
 jobs:
   apply:
     name: Apply
+    # Only on PR comments, from a non-bot with write access. Exact match (as in
+    # format-command.yml) so quoted or suffixed text can't trigger a write.
+    if: >-
+      github.event.issue.pull_request != null
+      && github.event.sender.type != 'Bot'
+      && github.event.comment.body == '/accept-baselines'
+      && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    concurrency:
+      group: visual-apply-${{ github.event.issue.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Find an accepted PR
-        id: scan
+      - name: Acknowledge
+        continue-on-error: true # a missing 👀 must not block the apply
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const marker = '<!-- visual-regression -->';
-            const { owner, repo } = context.repo;
-            const ALLOWED = new Set(['admin', 'write', 'maintain']);
-
-            const prs = await github.paginate(github.rest.pulls.list, {
-              owner, repo, state: 'open', base: 'main', per_page: 100,
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              comment_id: context.payload.comment.id, content: 'eyes',
             });
 
-            for (const pr of prs) {
-              const comments = await github.paginate(github.rest.issues.listComments, {
-                owner, repo, issue_number: pr.number, per_page: 100,
+      - name: Resolve PR and measure run
+        id: resolve
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const number = context.issue.number;
+            const { data: pr } = await github.rest.pulls.get({
+              owner, repo, pull_number: number,
+            });
+
+            // Find the measure run (with the candidate artifact) for this head.
+            // The run "fails" red on drift, so match on completion, not
+            // conclusion. listWorkflowRuns returns newest first.
+            const sha7 = pr.head.sha.slice(0, 7);
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: 'visual.yml', head_sha: pr.head.sha, per_page: 20,
+            });
+            const all = runs.data.workflow_runs ?? [];
+            const run = all.find((r) => r.status === 'completed');
+            if (!run) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: number,
+                body: all.length > 0
+                  ? `The \`Visual Regression\` run for the current head (\`${sha7}\`) is still in progress. Wait for it to finish, then comment \`/accept-baselines\` again.`
+                  : `No \`Visual Regression\` run found for the current head (\`${sha7}\`). Push a commit to trigger it (or wait for the measure job), then comment \`/accept-baselines\` again.`,
               });
-              const sticky = comments.find(
-                (c) => typeof c.body === 'string' && c.body.includes(marker),
-              );
-              if (!sticky) continue;
-
-              // Already applied for this head?
-              const applied = sticky.body.match(/<!-- applied:([0-9a-f]{7,40}) -->/);
-              if (applied && applied[1] === pr.head.sha) continue;
-
-              // Authorized 👍?
-              const reactions = await github.paginate(
-                github.rest.reactions.listForIssueComment,
-                { owner, repo, comment_id: sticky.id, per_page: 100 },
-              );
-              let reactor = null;
-              for (const r of reactions.filter((x) => x.content === '+1')) {
-                if (!r.user) continue;
-                try {
-                  const { data: perm } = await github.rest.repos.getCollaboratorPermissionLevel({
-                    owner, repo, username: r.user.login,
-                  });
-                  if (ALLOWED.has(perm.permission)) { reactor = r.user.login; break; }
-                } catch { /* not a collaborator */ }
-              }
-              if (!reactor) continue;
-
-              // Locate the measure run (with the candidate artifact) for this head.
-              const runs = await github.rest.actions.listWorkflowRuns({
-                owner, repo, workflow_id: 'visual.yml', head_sha: pr.head.sha, per_page: 20,
-              });
-              const run = runs.data.workflow_runs?.[0];
-              if (!run) continue;
-
-              core.setOutput('eligible', 'true');
-              core.setOutput('number', String(pr.number));
-              core.setOutput('head_sha', pr.head.sha);
-              core.setOutput('ref', pr.head.ref);
-              core.setOutput('full_name', pr.head.repo.full_name);
-              core.setOutput('is_fork', String(
-                pr.head.repo.fork || pr.head.repo.full_name !== `${owner}/${repo}`,
-              ));
-              core.setOutput('comment_id', String(sticky.id));
-              core.setOutput('run_id', String(run.id));
-              core.setOutput('reactor', reactor);
-              core.info(`Eligible: PR #${pr.number} accepted by @${reactor} (run ${run.id}).`);
+              core.setOutput('eligible', 'false');
               return;
             }
-            core.setOutput('eligible', 'false');
-            core.info('No PR with an authorized 👍 awaiting baseline apply.');
+
+            core.setOutput('eligible', 'true');
+            core.setOutput('number', String(number));
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('ref', pr.head.ref);
+            core.setOutput('full_name', pr.head.repo.full_name);
+            core.setOutput('is_fork', String(
+              pr.head.repo.fork || pr.head.repo.full_name !== `${owner}/${repo}`,
+            ));
+            core.setOutput('run_id', String(run.id));
 
       - name: Download candidate baselines
         id: download
-        if: steps.scan.outputs.eligible == 'true'
+        if: steps.resolve.outputs.eligible == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          RUN_ID: ${{ steps.scan.outputs.run_id }}
+          RUN_ID: ${{ steps.resolve.outputs.run_id }}
+          PR_NUMBER: ${{ steps.resolve.outputs.number }}
         with:
           script: |
             const fs = require('node:fs');
             const path = require('node:path');
             const runId = Number(process.env.RUN_ID);
+            const number = Number(process.env.PR_NUMBER);
             const { data } = await github.rest.actions.listWorkflowRunArtifacts({
               owner: context.repo.owner, repo: context.repo.repo, run_id: runId,
             });
             const artifact = data.artifacts.find((a) => a.name === 'visual-regression');
             if (!artifact) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo, issue_number: number,
+                body: "Couldn't find the candidate-baseline artifact for the completed measure run (it may have expired after 7 days, or the run failed before uploading). Push a commit to regenerate it, then comment `/accept-baselines` again.",
+              });
               core.setOutput('found', 'false');
-              core.info('Candidate artifact missing or expired (>7d). Push a new commit to regenerate.');
               return;
             }
             const dl = await github.rest.actions.downloadArtifact({
@@ -130,26 +124,45 @@ jobs:
 
       - name: Unpack and validate
         id: validate
-        if: steps.scan.outputs.eligible == 'true' && steps.download.outputs.found == 'true'
+        if: steps.download.outputs.found == 'true'
         env:
-          HEAD_SHA: ${{ steps.scan.outputs.head_sha }}
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
         run: |
           cd "$RUNNER_TEMP/va"
           unzip -o artifact.zip
           drift=$(cat has-drift 2>/dev/null || echo false)
           measured=$(cat head-sha 2>/dev/null || echo "")
           if [ "$drift" != "true" ]; then
-            echo "Artifact reports no drift — nothing to apply."
+            echo "reason=no_drift" >> "$GITHUB_OUTPUT"
             echo "ok=false" >> "$GITHUB_OUTPUT"
           elif [ "$measured" != "$HEAD_SHA" ]; then
-            echo "Artifact head ($measured) != PR head ($HEAD_SHA) — skipping."
+            echo "reason=head_mismatch" >> "$GITHUB_OUTPUT"
             echo "ok=false" >> "$GITHUB_OUTPUT"
           elif [ -z "$(ls -A candidates 2>/dev/null)" ]; then
-            echo "No candidate baselines in artifact."
+            echo "reason=no_candidates" >> "$GITHUB_OUTPUT"
             echo "ok=false" >> "$GITHUB_OUTPUT"
           else
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Report nothing to apply
+        if: steps.validate.outputs.ok == 'false'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.resolve.outputs.number }}
+          REASON: ${{ steps.validate.outputs.reason }}
+        with:
+          script: |
+            const messages = {
+              no_drift: 'There is no visual drift on the current head, so there are no baselines to accept.',
+              head_mismatch: 'The measured baselines are for an older commit. Wait for the `Visual Regression` run on the current head to finish, then comment `/accept-baselines` again.',
+              no_candidates: 'The measure run produced no candidate baselines (likely an infrastructure failure, not a UI change). Check the `Visual Regression` logs.',
+            };
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: Number(process.env.PR_NUMBER),
+              body: messages[process.env.REASON] || 'Nothing to apply.',
+            });
 
       - name: Generate app token
         id: app-token
@@ -161,19 +174,19 @@ jobs:
           permission-contents: write
 
       - name: Checkout (same-repo)
-        if: steps.validate.outputs.ok == 'true' && steps.scan.outputs.is_fork == 'false'
+        if: steps.validate.outputs.ok == 'true' && steps.resolve.outputs.is_fork == 'false'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ steps.scan.outputs.head_sha }}
+          ref: ${{ steps.resolve.outputs.head_sha }}
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: true
 
       - name: Checkout (fork)
-        if: steps.validate.outputs.ok == 'true' && steps.scan.outputs.is_fork == 'true'
+        if: steps.validate.outputs.ok == 'true' && steps.resolve.outputs.is_fork == 'true'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          repository: ${{ steps.scan.outputs.full_name }}
-          ref: ${{ steps.scan.outputs.head_sha }}
+          repository: ${{ steps.resolve.outputs.full_name }}
+          ref: ${{ steps.resolve.outputs.head_sha }}
           persist-credentials: false
           # Reviewed opt-in: no code from the fork tree is executed. The steps
           # below only copy inert PNGs from the trusted measure artifact and run
@@ -191,38 +204,37 @@ jobs:
           git add "$dest"
           if git diff --staged --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Baselines already match candidates — nothing to commit."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Commit and push (same-repo)
-        if: steps.stage.outputs.changed == 'true' && steps.scan.outputs.is_fork == 'false'
+        if: steps.stage.outputs.changed == 'true' && steps.resolve.outputs.is_fork == 'false'
         env:
-          HEAD_REF: ${{ steps.scan.outputs.ref }}
-          REACTOR: ${{ steps.scan.outputs.reactor }}
+          HEAD_REF: ${{ steps.resolve.outputs.ref }}
+          ACCEPTER: ${{ github.event.comment.user.login }}
         run: |
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: accept visual baselines (👍 @$REACTOR)"
+          git commit -m "ci: accept visual baselines (requested by @$ACCEPTER)"
           if ! git push origin "HEAD:$HEAD_REF"; then
-            echo "::error::Non-fast-forward push — the PR branch moved. A fresh measure+apply will run for the new head." >&2
+            echo "::error::Non-fast-forward push — the PR branch moved. Wait for the new measure run, then comment /accept-baselines again." >&2
             exit 1
           fi
 
       - name: Commit and push (fork)
-        if: steps.stage.outputs.changed == 'true' && steps.scan.outputs.is_fork == 'true'
+        if: steps.stage.outputs.changed == 'true' && steps.resolve.outputs.is_fork == 'true'
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
-          HEAD_REF: ${{ steps.scan.outputs.ref }}
-          FULL_NAME: ${{ steps.scan.outputs.full_name }}
-          REACTOR: ${{ steps.scan.outputs.reactor }}
+          HEAD_REF: ${{ steps.resolve.outputs.ref }}
+          FULL_NAME: ${{ steps.resolve.outputs.full_name }}
+          ACCEPTER: ${{ github.event.comment.user.login }}
         run: |
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: accept visual baselines (👍 @$REACTOR)"
+          git commit -m "ci: accept visual baselines (requested by @$ACCEPTER)"
           export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
           printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
           chmod +x "$GIT_ASKPASS"
@@ -234,30 +246,33 @@ jobs:
           fi
           rm -f "$GIT_ASKPASS"
 
-      - name: Mark comment applied
+      - name: Report result
         if: steps.validate.outputs.ok == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          COMMENT_ID: ${{ steps.scan.outputs.comment_id }}
-          HEAD_SHA: ${{ steps.scan.outputs.head_sha }}
-          REACTOR: ${{ steps.scan.outputs.reactor }}
+          PR_NUMBER: ${{ steps.resolve.outputs.number }}
+          ACCEPTER: ${{ github.event.comment.user.login }}
           CHANGED: ${{ steps.stage.outputs.changed }}
         with:
           script: |
-            const commentId = Number(process.env.COMMENT_ID);
-            const headSha = process.env.HEAD_SHA;
-            const reactor = process.env.REACTOR;
             const changed = process.env.CHANGED === 'true';
-            const { data: comment } = await github.rest.issues.getComment({
-              owner: context.repo.owner, repo: context.repo.repo, comment_id: commentId,
+            const body = changed
+              ? `✅ Baselines accepted by @${process.env.ACCEPTER} and committed to this PR.`
+              : 'ℹ️ The committed baselines already match the candidates; nothing to commit.';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: Number(process.env.PR_NUMBER), body,
             });
-            // Strip any prior applied marker, then append the current one so a
-            // re-poll for the same head is skipped.
-            const base = comment.body.replace(/\n*<!-- applied:[0-9a-f]{7,40} -->/g, '');
-            const note = changed
-              ? `\n\n✅ Baselines accepted by @${reactor} and committed to this PR.`
-              : `\n\nℹ️ Baselines already matched the accepted candidates; nothing to commit.`;
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner, repo: context.repo.repo, comment_id: commentId,
-              body: `${base}${note}\n<!-- applied:${headSha} -->`,
+
+      - name: Report failure
+        if: failure()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `❌ \`/accept-baselines\` failed. See the [run log](${process.env.RUN_URL}). If this is a fork PR, the contributor may have "Allow edits by maintainers" disabled.`,
             });
