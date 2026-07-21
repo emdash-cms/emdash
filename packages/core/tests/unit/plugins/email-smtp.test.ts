@@ -6,8 +6,10 @@
  * and config parsing from env vars.
  */
 
+import type { Kysely } from "kysely";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
+import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import {
 	createSmtpEmailDeliver,
 	deliverSmtp,
@@ -20,8 +22,6 @@ import {
 } from "../../../src/plugins/email-smtp.js";
 import type { EmailDeliverEvent, PluginContext } from "../../../src/plugins/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
-import type { Kysely } from "kysely";
-import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 
 // ---------------------------------------------------------------------------
 // Mock socket helpers
@@ -283,8 +283,7 @@ describe("createSmtpEmailDeliver", () => {
 // DB-backed config
 // ---------------------------------------------------------------------------
 
-const TEST_ENCRYPTION_KEY =
-	"emdash_enc_v1_SWmb1wDbtOn-lO8UJgsKIdNps4cwuN8IulWSqsspuM";
+const TEST_ENCRYPTION_KEY = "emdash_enc_v1_SWmb1wDbtOn-lO8UJgsKIdNps4cwuN8IulWSqsspuM";
 
 describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", () => {
 	let db: Kysely<DatabaseSchema>;
@@ -329,7 +328,9 @@ describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", ()
 
 		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);
 
-		const repo = new (await import("../../../src/database/repositories/options.js")).OptionsRepository(db);
+		const repo = new (
+			await import("../../../src/database/repositories/options.js")
+		).OptionsRepository(db);
 		const raw = await repo.get<string>("emdash:email:smtp:password");
 		expect(raw).toBeDefined();
 		expect(raw).not.toBe("super-secret");
