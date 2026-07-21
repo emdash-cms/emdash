@@ -163,9 +163,10 @@ export interface ConsoleMutationDeps {
 	afterCommit: (actionId: string) => Promise<void>;
 	/** Schedules `afterCommit` without blocking the response (workerd `waitUntil`). */
 	defer: (work: Promise<unknown>) => void;
-	/** Re-enqueues a dead letter's discovery job on retry (design §6). A queue op
-	 * cannot join the D1 batch, so it runs in the deferred tail; the discovery
-	 * consumer's `runKey` dedup absorbs a duplicate re-drive. */
+	/** Re-enqueues a dead letter's discovery job on retry. A queue op cannot join
+	 * the D1 batch, so it is awaited before `retried` is committed — `retried` is a
+	 * durable claim only once the job is accepted; the discovery consumer's `runKey`
+	 * dedup absorbs a duplicate re-drive. */
 	sendDiscoveryJob: (job: DiscoveryJob) => Promise<void>;
 	/** Dispatches a rerun's fresh assessment run to its Workflow instance (the same
 	 * binding discovery uses). The instance id is the run's `runKey`, so a
