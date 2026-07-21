@@ -4,6 +4,7 @@
  * Converts TipTap's ProseMirror JSON format to Portable Text for storage.
  */
 
+import { sanitizeGalleryImages } from "./gallery.js";
 import type {
 	ProseMirrorDocument,
 	ProseMirrorNode,
@@ -13,6 +14,7 @@ import type {
 	PortableTextSpan,
 	PortableTextMarkDef,
 	PortableTextImageBlock,
+	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
 	PortableTextHtmlBlock,
 } from "./types.js";
@@ -76,6 +78,9 @@ function convertNode(node: ProseMirrorNode): PortableTextBlock | PortableTextBlo
 
 		case "image":
 			return convertImage(node);
+
+		case "gallery":
+			return convertGallery(node);
 
 		case "horizontalRule":
 			return {
@@ -324,6 +329,19 @@ function convertImage(node: ProseMirrorNode): PortableTextImageBlock {
 		height: height || undefined,
 		displayWidth: displayWidth || undefined,
 		displayHeight: displayHeight || undefined,
+	};
+}
+
+/**
+ * Convert gallery node to Portable Text
+ */
+function convertGallery(node: ProseMirrorNode): PortableTextGalleryBlock {
+	const columns = node.attrs?.columns;
+	return {
+		_type: "gallery",
+		_key: generateKey(),
+		images: sanitizeGalleryImages(node.attrs?.images, generateKey),
+		...(typeof columns === "number" ? { columns } : {}),
 	};
 }
 
