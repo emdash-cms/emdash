@@ -604,8 +604,7 @@ describe("Response passthrough (#2110)", () => {
 		const plugin = createTestPlugin({
 			routes: {
 				image: {
-					handler: async () =>
-						new Response(pngBytes, { headers: { "Content-Type": "image/png" } }),
+					handler: async () => new Response(pngBytes, { headers: { "Content-Type": "image/png" } }),
 				},
 			},
 		});
