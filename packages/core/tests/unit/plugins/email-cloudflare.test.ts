@@ -5,9 +5,10 @@
  * and the built-in plugin registration.
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { Kysely } from "kysely";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
+import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import {
 	CLOUDFLARE_EMAIL_PLUGIN_ID,
 	createCloudflareEmailDeliver,
@@ -19,7 +20,6 @@ import {
 	type CloudflareEmailConfig,
 } from "../../../src/plugins/email-cloudflare.js";
 import type { EmailDeliverEvent, PluginContext } from "../../../src/plugins/types.js";
-import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 // ---------------------------------------------------------------------------
@@ -208,9 +208,9 @@ describe("createCloudflareEmailDeliver", () => {
 	it("throws when the binding is missing", async () => {
 		const deliver = createCloudflareEmailDeliver(baseConfig, async () => ({}));
 
-		await expect(
-			deliver({ message: makeMessage(), source: "test" }, mockCtx),
-		).rejects.toThrow(/send_email binding "EMAIL" not found/);
+		await expect(deliver({ message: makeMessage(), source: "test" }, mockCtx)).rejects.toThrow(
+			/send_email binding "EMAIL" not found/,
+		);
 	});
 
 	it("throws when the binding has no send method", async () => {
@@ -218,9 +218,9 @@ describe("createCloudflareEmailDeliver", () => {
 			EMAIL: { notSend: true },
 		}));
 
-		await expect(
-			deliver({ message: makeMessage(), source: "test" }, mockCtx),
-		).rejects.toThrow(/send_email binding "EMAIL" not found/);
+		await expect(deliver({ message: makeMessage(), source: "test" }, mockCtx)).rejects.toThrow(
+			/send_email binding "EMAIL" not found/,
+		);
 	});
 
 	it("uses a custom binding name when configured", async () => {

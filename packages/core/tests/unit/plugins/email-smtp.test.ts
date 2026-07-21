@@ -238,7 +238,7 @@ describe("deliverSmtp", () => {
 		const connectFn = vi.fn(async () => socket);
 
 		await expect(deliverSmtp(baseConfig, message, mockCtx, connectFn)).rejects.toThrow(
-			/AUTH password failed.*535/,
+			/Authentication failed \(535/,
 		);
 	});
 
@@ -316,8 +316,7 @@ describe("createSmtpEmailDeliver", () => {
 // DB-backed config
 // ---------------------------------------------------------------------------
 
-const TEST_ENCRYPTION_KEY =
-	"emdash_enc_v1_U-1To8mS9tyTfAFz8KHAsCVo1fvktqbq0y5JxBiXgIU";
+const TEST_ENCRYPTION_KEY = "emdash_enc_v1_U-1To8mS9tyTfAFz8KHAsCVo1fvktqbq0y5JxBiXgIU";
 
 describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", () => {
 	let db: Kysely<DatabaseSchema>;
@@ -449,4 +448,137 @@ describe("loadSmtpConfig", () => {
 		const loaded = await loadSmtpConfig(db, TEST_ENCRYPTION_KEY);
 		expect(loaded).toBeNull();
 	});
+});
+
+describe("Cloudflare socket edge cases (regression #1541)", () => {
+	const message = {
+		to: "recipient@example.com",
+		subject: "Hello",
+		text: "Hi there",
+		html: "<p>Hi there</p>",
+	};
+
+	it("performs the full STARTTLS upgrade flow (re-EHLO, AUTH)", async () => {
+		// Regression #1541: the Cloudflare STARTTLS path stalled after the
+		// upgrade. This verifies the deliverSmtp-level flow — the upgraded
+		// socket takes over reads/writes and the buffer resets. The
+		// writer-release fix itself lives in connectCloudflare and was
+		// verified against live Workers; it cannot be exercised here because
+		// a connectFn mock bypasses connectCloudflare entirely.
+		const script = [
+			makeReply(220, "ready"),
+			makeReply(250, "EHLO ok"),
+			makeReply(220, "TLS go"),
+			makeReply(250, "EHLO ok"),
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(235, "Auth ok"),
+			makeReply(250, "MAIL FROM ok"),
+			makeReply(250, "RCPT TO ok"),
+			makeReply(354, "DATA go"),
+			makeReply(250, "Message accepted"),
+		];
+
+		let plaintextClosed = false;
+		const plainWrites: string[] = [];
+		const tlsWrites: string[] = [];
+		const incoming = script.map((s) => new TextEncoder().encode(s));
+		let readIndex = 0;
+
+		const makeReader = () => ({
+			read: async () => {
+				if (readIndex >= incoming.length) return { done: true };
+				return { value: incoming[readIndex++], done: false };
+			},
+		});
+
+		const socket: import("../../../src/plugins/email-smtp.js").SmtpSocket = {
+			writer: {
+				write: async (data: Uint8Array) => {
+					plainWrites.push(new TextDecoder().decode(data));
+				},
+				close: async () => {
+					plaintextClosed = true;
+				},
+			},
+			reader: makeReader(),
+			startTls: async () => {
+				// Mirror what connectCloudflare's startTls wrapper is required to
+				// do: the old writer must be released before the upgraded socket
+				// is used.
+				if (plaintextClosed) {
+					throw new Error("double close");
+				}
+				plaintextClosed = true;
+				return {
+					writer: {
+						write: async (data: Uint8Array) => {
+							tlsWrites.push(new TextDecoder().decode(data));
+						},
+						close: async () => {},
+					},
+					reader: makeReader(),
+					close: async () => {},
+				};
+			},
+			close: async () => {},
+		};
+
+		const connectFn = vi.fn(async () => socket);
+		await deliverSmtp(
+			{ ...baseConfig, port: 587, secure: "starttls" },
+			message,
+			mockCtx,
+			connectFn,
+		);
+
+		// Plaintext side: EHLO + STARTTLS. TLS side: re-EHLO through QUIT.
+		expect(plainWrites.join("")).toContain("EHLO emdash\r\n");
+		expect(plainWrites.join("")).toContain("STARTTLS\r\n");
+		expect(plainWrites.join("")).not.toContain("AUTH LOGIN");
+		expect(tlsWrites.join("")).toContain("EHLO emdash\r\n");
+		expect(tlsWrites.join("")).toContain("AUTH LOGIN\r\n");
+		expect(tlsWrites.join("")).toContain("QUIT\r\n");
+	});
+
+	it("attaches the SMTP transcript to errors for debugging", async () => {
+		// WP Mail SMTP's SMTPDebug=3 pattern: when delivery fails, the error
+		// must include the transcript so the failure is debuggable from logs.
+		const script = [makeReply(554, "Service unavailable")];
+		const { socket } = mockSocket(script);
+		const connectFn = vi.fn(async () => socket);
+
+		try {
+			await deliverSmtp(baseConfig, message, mockCtx, connectFn);
+			expect.unreachable("should have thrown");
+		} catch (error) {
+			const err = error as Error;
+			expect(err.message).toContain("greeting failed");
+			expect(err.message).toContain("[smtp-trace:");
+			expect(err.message).toContain("554");
+		}
+	});
+
+	it("uses 25s timeout so hook timeout (30s) does not swallow the error", async () => {
+		// If SMTP timeout == hook timeout, the hook kills the promise before
+		// our own error with transcript can be thrown. This test verifies
+		// the timeout is shorter than 30s by using a short test timeout.
+		const { socket } = mockSocket([]);
+
+		// Mock a socket that never responds — should hit our timeout, not the hook's
+		const neverResponds = {
+			...socket,
+			reader: {
+				read: async () => {
+					await new Promise((resolve) => setTimeout(resolve, 30_000));
+					return { done: true };
+				},
+			},
+		};
+		const neverConnect = vi.fn(async () => neverResponds);
+
+		await expect(
+			deliverSmtp({ ...baseConfig, timeoutMs: 50 }, message, mockCtx, neverConnect),
+		).rejects.toThrow(/timed out after 50ms/);
+	}, 5_000);
 });

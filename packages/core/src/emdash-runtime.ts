@@ -176,13 +176,11 @@ import {
 import { getDb } from "./loader.js";
 import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
+import { createCloudflareEmailPlugin, loadCloudflareConfig } from "./plugins/email-cloudflare.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import {
-	createCloudflareEmailPlugin,
-	loadCloudflareConfig,
-} from "./plugins/email-cloudflare.js";
-import {
 	createSmtpEmailDeliver,
+	isSmtpConfigComplete,
 	loadSmtpConfig,
 	loadSmtpConfigFromEnv,
 	SMTP_EMAIL_PLUGIN_ID,
@@ -1355,7 +1353,10 @@ export class EmDashRuntime {
 		const smtpConfig = encryptionKey
 			? await loadSmtpConfig(db, encryptionKey)
 			: loadSmtpConfigFromEnv();
-		if (smtpConfig) {
+		// WP Mail SMTP's is_mailer_complete(): a half-saved config (host but no
+		// password) must not register a provider — the resulting 535 on send is
+		// more confusing than a clean "not configured" state.
+		if (isSmtpConfigComplete(smtpConfig)) {
 			try {
 				const smtpPlugin = definePlugin({
 					id: SMTP_EMAIL_PLUGIN_ID,
@@ -1364,6 +1365,9 @@ export class EmDashRuntime {
 					hooks: {
 						"email:deliver": {
 							exclusive: true,
+							// SMTP over public internet (EHLO → STARTTLS → AUTH → DATA)
+							// needs far more than the 5s default hook timeout.
+							timeout: 30_000,
 							handler: createSmtpEmailDeliver(smtpConfig),
 						},
 					},

@@ -48,6 +48,10 @@ export function EmailSettings() {
 	const [smtpSecure, setSmtpSecure] = React.useState<"starttls" | "tls">("starttls");
 	const [smtpUser, setSmtpUser] = React.useState("");
 	const [smtpPass, setSmtpPass] = React.useState("");
+	// Track whether the user has manually overridden encryption — if not,
+	// changing the port auto-suggests the matching security mode (WP Mail
+	// SMTP's autotls pattern). Prevents the classic "587 + implicit TLS" mismatch.
+	const [smtpSecureTouched, setSmtpSecureTouched] = React.useState(false);
 	const [smtpFromName, setSmtpFromName] = React.useState("");
 	const [smtpFromEmail, setSmtpFromEmail] = React.useState("");
 	const [smtpReplyTo, setSmtpReplyTo] = React.useState("");
@@ -73,6 +77,7 @@ export function EmailSettings() {
 			if (settings.smtp.host) setSmtpHost(settings.smtp.host);
 			if (settings.smtp.port) setSmtpPort(String(settings.smtp.port));
 			if (settings.smtp.secure) setSmtpSecure(settings.smtp.secure);
+			if (settings.smtp.user) setSmtpUser(settings.smtp.user);
 			if (settings.smtp.fromName) setSmtpFromName(settings.smtp.fromName);
 			if (settings.smtp.fromEmail) setSmtpFromEmail(settings.smtp.fromEmail);
 			if (settings.smtp.replyTo) setSmtpReplyTo(settings.smtp.replyTo);
@@ -274,14 +279,27 @@ export function EmailSettings() {
 									label={t`Port`}
 									type="number"
 									value={smtpPort}
-									onChange={(e) => setSmtpPort(e.target.value)}
-									placeholder="587"
+									onChange={(e) => {
+										setSmtpPort(e.target.value);
+										if (!smtpSecureTouched) {
+											const p = Number.parseInt(e.target.value, 10);
+											if (p === 465) setSmtpSecure("tls");
+											else if (p === 587 || p === 25) setSmtpSecure("starttls");
+										}
+									}}
+									placeholder="465"
 									required
 								/>
+								<p className="text-sm text-kumo-subtle">
+									{t`465 (implicit TLS) is recommended on Cloudflare Workers. 587 (STARTTLS) works on Node but is unreliable on Workers.`}
+								</p>
 								<Select
 									label={t`Security`}
 									value={smtpSecure}
-									onValueChange={(value) => setSmtpSecure(value as "starttls" | "tls")}
+									onValueChange={(value) => {
+										setSmtpSecureTouched(true);
+										setSmtpSecure(value as "starttls" | "tls");
+									}}
 									items={[
 										{ value: "starttls", label: "STARTTLS (port 587)" },
 										{ value: "tls", label: "Implicit TLS (port 465)" },

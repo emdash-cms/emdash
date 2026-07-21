@@ -146,10 +146,7 @@ export async function saveCloudflareConfigToDb(
 	await repo.set(`${CLOUDFLARE_OPTION_PREFIX}fromName`, config.fromName);
 	await repo.set(`${CLOUDFLARE_OPTION_PREFIX}fromEmail`, config.fromEmail);
 	// Keep the combined "from" for backward compat with the old API shape
-	await repo.set(
-		`${CLOUDFLARE_OPTION_PREFIX}from`,
-		`${config.fromName} <${config.fromEmail}>`,
-	);
+	await repo.set(`${CLOUDFLARE_OPTION_PREFIX}from`, `${config.fromName} <${config.fromEmail}>`);
 	if (config.replyTo) {
 		await repo.set(`${CLOUDFLARE_OPTION_PREFIX}replyTo`, config.replyTo);
 	} else {

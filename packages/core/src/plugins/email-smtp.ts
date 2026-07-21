@@ -126,6 +126,34 @@ async function readReply(
 	return { code, lines };
 }
 
+/**
+ * Map raw SMTP failures to actionable messages — WP Mail SMTP's approach.
+ * The raw server line stays in the message so support can still see it.
+ */
+function humanizeSmtpError(code: number, context: string, serverLine: string): string {
+	const raw = `${code} ${serverLine}`.trim();
+	// 535 = auth rejected at AUTH; 530 = auth required / relay denied at MAIL FROM
+	if (code === 535) {
+		return (
+			`Authentication failed (${raw}). Username or password rejected by the server. ` +
+			`For Brevo, use your login email as username and an SMTP key (xsmtpsib-…), not your account password.`
+		);
+	}
+	if (code === 530 || code === 550) {
+		return (
+			`Relay denied (${raw}). The server rejected the sender or recipient. ` +
+			`Check that the "From" address belongs to a domain verified with your provider.`
+		);
+	}
+	if (code === 534) {
+		return (
+			`Authentication mechanism rejected (${raw}). The server wants a different auth method ` +
+			`(often OAuth2 for Gmail/Outlook). This provider may not support plain SMTP auth.`
+		);
+	}
+	return `SMTP ${context} failed: ${raw}`;
+}
+
 /** Assert reply code matches expectation; throw with server message otherwise. */
 function expectCode(
 	reply: { code: number; lines: string[] },
@@ -134,9 +162,29 @@ function expectCode(
 ): void {
 	const codes = Array.isArray(expected) ? expected : [expected];
 	if (!codes.includes(reply.code)) {
-		throw new Error(
-			`SMTP ${context} failed: expected ${codes.join("/")}, got ${reply.code} — ${reply.lines.join(" | ")}`,
-		);
+		const serverLine = reply.lines.join(" | ");
+		throw new Error(humanizeSmtpError(reply.code, context, serverLine));
+	}
+}
+
+/**
+ * Transcript recorder — WP Mail SMTP's SMTPDebug=3 pattern. Each SMTP step
+ * logs what was sent and received so a hang or rejection is debuggable from
+ * the worker logs instead of requiring a local repro.
+ */
+class SmtpTrace {
+	private readonly events: string[] = [];
+	private readonly start = Date.now();
+
+	record(direction: "send" | "recv", line: string): void {
+		const elapsed = Date.now() - this.start;
+		const safe = line.replace(/[\r\n]/g, " ").slice(0, 120);
+		this.events.push(`[+${elapsed}ms] ${direction === "send" ? "C>" : "S<"} ${safe}`);
+	}
+
+	/** Last few events — enough context to see where the conversation stalled. */
+	tail(n = 6): string {
+		return this.events.slice(-n).join(" | ");
 	}
 }
 
@@ -219,6 +267,33 @@ function buildMime(params: {
 // Runtime-specific connect implementations
 // ---------------------------------------------------------------------------
 
+// Cloudflare sockets need `await sock.opened` before the stream is usable —
+// unlike Node, where the connect callback signals readiness. Skipping this
+// makes writes hang silently after STARTTLS.
+async function wrapCloudflareSocket(sock: {
+	readable: ReadableStream<Uint8Array>;
+	writable: WritableStream<Uint8Array>;
+	close(): Promise<void>;
+	opened: Promise<unknown>;
+}): Promise<SmtpSocket> {
+	await sock.opened;
+	let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+	return {
+		writer: {
+			write: async (data) => {
+				if (!writer) writer = sock.writable.getWriter();
+				await writer.write(data);
+			},
+			close: async () => {
+				await writer?.close();
+				writer = null;
+			},
+		},
+		reader: sock.readable.getReader(),
+		close: () => sock.close(),
+	};
+}
+
 async function connectCloudflare(
 	host: string,
 	port: number,
@@ -229,40 +304,23 @@ async function connectCloudflare(
 
 	if (secure === "tls") {
 		const sock = connect(`${host}:${port}`, { secureTransport: "on", allowHalfOpen: false });
-		const reader = sock.readable.getReader();
-		return {
-			writer: {
-				write: async (data) => sock.writable.getWriter().write(data),
-				close: async () => sock.writable.getWriter().close(),
-			},
-			reader,
-			close: () => sock.close(),
-		};
+		return wrapCloudflareSocket(sock);
 	}
 
-	// STARTTLS: connect plaintext, upgrade after EHLO
-	const sock = connect(`${host}:${port}`, { secureTransport: "off", allowHalfOpen: false });
-	const reader = sock.readable.getReader();
+	// STARTTLS: connect plaintext, upgrade after EHLO. Cloudflare requires
+	// `secureTransport: "starttls"` (not "off") to later allow `sock.startTls()`.
+	const sock = connect(`${host}:${port}`, { secureTransport: "starttls", allowHalfOpen: false });
+	const wrapped = await wrapCloudflareSocket(sock);
 
 	return {
-		writer: {
-			write: async (data) => sock.writable.getWriter().write(data),
-			close: async () => sock.writable.getWriter().close(),
-		},
-		reader,
+		...wrapped,
 		startTls: async () => {
-			const tlsSock = sock.startTls();
-			const tlsReader = tlsSock.readable.getReader();
-			return {
-				writer: {
-					write: async (data) => tlsSock.writable.getWriter().write(data),
-					close: async () => tlsSock.writable.getWriter().close(),
-				},
-				reader: tlsReader,
-				close: () => tlsSock.close(),
-			};
+			// Cloudflare: the plaintext socket's writer holds the stream lock.
+			// Release it BEFORE startTls() — otherwise the upgraded socket's
+			// writable is still locked and the first write throws.
+			await wrapped.writer.close().catch(() => {});
+			return wrapCloudflareSocket(sock.startTls());
 		},
-		close: () => sock.close(),
 	};
 }
 
@@ -403,12 +461,11 @@ export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 				"Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
 		);
 	}
-	const secure = (process.env.EMAIL_SMTP_SECURE ?? (port === 465 ? "tls" : "starttls")) as
-		| "starttls"
-		| "tls";
-	if (secure !== "starttls" && secure !== "tls") {
-		throw new Error(`EMAIL_SMTP_SECURE must be "starttls" or "tls", got "${secure}"`);
+	const secureRaw = process.env.EMAIL_SMTP_SECURE ?? (port === 465 ? "tls" : "starttls");
+	if (secureRaw !== "starttls" && secureRaw !== "tls") {
+		throw new Error(`EMAIL_SMTP_SECURE must be "starttls" or "tls", got "${secureRaw}"`);
 	}
+	const secure: "starttls" | "tls" = secureRaw;
 	const user = process.env.EMAIL_SMTP_USER;
 	const pass = process.env.EMAIL_SMTP_PASS;
 	if (!user || !pass) {
@@ -529,6 +586,15 @@ export async function loadSmtpConfig(
 	return loadSmtpConfigFromEnv();
 }
 
+/**
+ * WP Mail SMTP's `is_mailer_complete()`: a partial config (host but no
+ * password, e.g. a half-saved form) must not even attempt delivery — the
+ * resulting 535 is more confusing than a clear "not fully configured" error.
+ */
+export function isSmtpConfigComplete(config: SmtpConfig | null): config is SmtpConfig {
+	return Boolean(config?.host && config?.port && config?.user && config?.pass);
+}
+
 /** Deliver one message over SMTP. Throws on any protocol or network error. */
 export async function deliverSmtp(
 	config: SmtpConfig,
@@ -540,7 +606,9 @@ export async function deliverSmtp(
 		email: config.fromEmail ?? config.user,
 		...(config.fromName ? { name: config.fromName } : {}),
 	};
-	const timeoutMs = config.timeoutMs ?? 30_000;
+	// SMTP timeout must be SHORTER than the hook timeout, otherwise the hook
+	// kills the promise before we can log the transcript. 25s vs 30s hook.
+	const timeoutMs = config.timeoutMs ?? 25_000;
 
 	const connect: ConnectFn =
 		connectFn ??
@@ -564,56 +632,95 @@ export async function deliverSmtp(
 		});
 
 	let socket: SmtpSocket | null = null;
+	// A throw inside setTimeout never reaches the awaiting promise — it becomes
+	// an unhandled exception and the real delivery keeps hanging until the hook
+	// timeout kills it (which was exactly the "Hook timeout after 30000ms" we
+	// saw live, with no SMTP trace). Race a rejecting timeout promise instead.
+	let fail!: (error: Error) => void;
+	const timeout = new Promise<never>((_, reject) => {
+		fail = reject;
+	});
 	const timer = setTimeout(() => {
 		socket?.close().catch(() => {});
-		throw new Error(`SMTP operation timed out after ${timeoutMs}ms`);
+		fail(new Error(`SMTP operation timed out after ${timeoutMs}ms`));
 	}, timeoutMs);
 
+	const trace = new SmtpTrace();
 	try {
+		// connect() runs outside deliver() so TS's control-flow analysis sees the
+		// socket assignment (closure assignments make `socket` narrow to never).
 		socket = await connect(config.host, config.port, config.secure);
+		return await Promise.race([deliver(socket), timeout]);
+	} catch (error) {
+		// Attach the SMTP transcript so the failure is debuggable from logs —
+		// a bare "Hook timeout" or "connection closed" says nothing about which
+		// step stalled (WP Mail SMTP's SMTPDebug=3 pattern).
+		const detail = error instanceof Error ? error.message : String(error);
+		ctx.log.error("SMTP delivery failed", {
+			error: detail,
+			host: config.host,
+			port: config.port,
+			trace: trace.tail(),
+		});
+		throw new Error(`${detail} [smtp-trace: ${trace.tail()}]`, { cause: error });
+	} finally {
+		clearTimeout(timer);
+		await socket?.close().catch(() => {});
+	}
+
+	async function deliver(sock: SmtpSocket): Promise<void> {
+		let active = sock;
 		const buffered: Uint8Array[] = [];
 
-		// Greeting
-		expectCode(await readReply(socket.reader, buffered), 220, "greeting");
-
 		const send = async (line: string) => {
-			await socket!.writer.write(encodeUtf8(`${line}\r\n`));
+			trace.record("send", line);
+			await active.writer.write(encodeUtf8(`${line}\r\n`));
 		};
+		const recv = async (context: string, expected: number | number[]) => {
+			const reply = await readReply(active.reader, buffered);
+			trace.record("recv", reply.lines.join(" / "));
+			expectCode(reply, expected, context);
+			return reply;
+		};
+
+		// Greeting
+		await recv("greeting", 220);
 
 		// EHLO
 		await send(`EHLO emdash`);
-		expectCode(await readReply(socket.reader, buffered), 250, "EHLO");
+		await recv("EHLO", 250);
 
 		// STARTTLS upgrade
 		if (config.secure === "starttls") {
-			if (!socket.startTls)
+			if (!active.startTls)
 				throw new Error("STARTTLS requested but socket does not support upgrade");
 			await send("STARTTLS");
-			expectCode(await readReply(socket.reader, buffered), 220, "STARTTLS");
-			socket = await socket.startTls();
+			await recv("STARTTLS", 220);
+			active = await active.startTls();
+			socket = active; // close the upgraded socket on timeout
 			buffered.length = 0;
 			// Re-EHLO after TLS upgrade
 			await send(`EHLO emdash`);
-			expectCode(await readReply(socket.reader, buffered), 250, "EHLO after STARTTLS");
+			await recv("EHLO after STARTTLS", 250);
 		}
 
 		// AUTH LOGIN
 		await send("AUTH LOGIN");
-		expectCode(await readReply(socket.reader, buffered), 334, "AUTH LOGIN");
+		await recv("AUTH LOGIN", 334);
 		await send(b64(config.user));
-		expectCode(await readReply(socket.reader, buffered), 334, "AUTH username");
+		await recv("AUTH username", 334);
 		await send(b64(config.pass));
-		expectCode(await readReply(socket.reader, buffered), 235, "AUTH password");
+		await recv("AUTH password", 235);
 
 		// Envelope
 		await send(`MAIL FROM:<${from.email}>`);
-		expectCode(await readReply(socket.reader, buffered), 250, "MAIL FROM");
+		await recv("MAIL FROM", 250);
 		await send(`RCPT TO:<${message.to}>`);
-		expectCode(await readReply(socket.reader, buffered), [250, 251], "RCPT TO");
+		await recv("RCPT TO", [250, 251]);
 
 		// Data
 		await send("DATA");
-		expectCode(await readReply(socket.reader, buffered), 354, "DATA");
+		await recv("DATA", 354);
 		const mime = buildMime({
 			from,
 			...(config.replyTo ? { replyTo: config.replyTo } : {}),
@@ -622,8 +729,8 @@ export async function deliverSmtp(
 			text: message.text,
 			...(message.html ? { html: message.html } : {}),
 		});
-		await socket.writer.write(encodeUtf8(`${mime}\r\n.\r\n`));
-		expectCode(await readReply(socket.reader, buffered), 250, "message accepted");
+		await active.writer.write(encodeUtf8(`${mime}\r\n.\r\n`));
+		await recv("message accepted", 250);
 
 		// Quit
 		await send("QUIT");
@@ -634,9 +741,6 @@ export async function deliverSmtp(
 			host: config.host,
 			port: config.port,
 		});
-	} finally {
-		clearTimeout(timer);
-		await socket?.close().catch(() => {});
 	}
 }
 

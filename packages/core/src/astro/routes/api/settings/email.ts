@@ -125,6 +125,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					host: dbConfig.host,
 					port: dbConfig.port,
 					secure: dbConfig.secure,
+					user: dbConfig.user,
 					...(dbConfig.fromName ? { fromName: dbConfig.fromName } : {}),
 					...(dbConfig.fromEmail ? { fromEmail: dbConfig.fromEmail } : {}),
 					...(dbConfig.replyTo ? { replyTo: dbConfig.replyTo } : {}),
@@ -136,6 +137,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					host: envConfig.host,
 					port: envConfig.port,
 					secure: envConfig.secure,
+					user: envConfig.user,
 					...(envConfig.fromName ? { fromName: envConfig.fromName } : {}),
 					...(envConfig.fromEmail ? { fromEmail: envConfig.fromEmail } : {}),
 					...(envConfig.replyTo ? { replyTo: envConfig.replyTo } : {}),
@@ -231,7 +233,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			message: `Test email sent to ${body.to}`,
 		});
 	} catch (error) {
-		return handleError(error, "Failed to send test email", "EMAIL_TEST_ERROR");
+		// Surface the underlying delivery error so the admin can act on it —
+		// e.g. "535 authentication failed" vs "connection refused" need very
+		// different fixes. Never expose raw stack traces; only the message.
+		const detail = error instanceof Error ? error.message : String(error);
+		console.error("[EMAIL_TEST_ERROR]", error);
+		return apiError("EMAIL_TEST_ERROR", `Failed to send test email: ${detail}`, 502);
 	}
 };
 

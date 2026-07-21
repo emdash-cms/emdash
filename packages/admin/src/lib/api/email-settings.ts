@@ -21,6 +21,7 @@ export interface SmtpConfigStatus {
 	host?: string;
 	port?: number;
 	secure?: "starttls" | "tls";
+	user?: string;
 	fromName?: string;
 	fromEmail?: string;
 	replyTo?: string;
