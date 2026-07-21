@@ -1,0 +1,263 @@
+name: Visual Regression — Apply
+
+# Commits accepted visual baselines when a maintainer reacts 👍 to the sticky
+# comment posted by "Visual Regression — Report".
+#
+# GitHub has no "reaction" event, so this polls on a schedule (and can be run
+# on demand via workflow_dispatch). Each run processes at most one eligible PR:
+# it finds the sticky comment, confirms a 👍 from a user with write access,
+# downloads the inert candidate-baseline artifact produced by the measure job,
+# and commits those PNGs to the PR branch. It never executes PR-authored code.
+#
+# Idempotency:
+#   - The sticky comment carries an `<!-- applied:<sha> -->` marker; a head that
+#     already matches is skipped.
+#   - The measure artifact records has-drift; a green (no-drift) artifact is
+#     skipped, so a re-poll in the window before the comment is cleared is inert.
+#   - After copying candidates, an empty git diff short-circuits the push.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read # find + download the measure artifact
+  contents: read # app token handles the write/push
+  pull-requests: write # read reactions, update the sticky comment
+
+jobs:
+  apply:
+    name: Apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Find an accepted PR
+        id: scan
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const marker = '<!-- visual-regression -->';
+            const { owner, repo } = context.repo;
+            const ALLOWED = new Set(['admin', 'write', 'maintain']);
+
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'open', base: 'main', per_page: 100,
+            });
+
+            for (const pr of prs) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: pr.number, per_page: 100,
+              });
+              const sticky = comments.find(
+                (c) => typeof c.body === 'string' && c.body.includes(marker),
+              );
+              if (!sticky) continue;
+
+              // Already applied for this head?
+              const applied = sticky.body.match(/<!-- applied:([0-9a-f]{7,40}) -->/);
+              if (applied && applied[1] === pr.head.sha) continue;
+
+              // Authorized 👍?
+              const reactions = await github.paginate(
+                github.rest.reactions.listForIssueComment,
+                { owner, repo, comment_id: sticky.id, per_page: 100 },
+              );
+              let reactor = null;
+              for (const r of reactions.filter((x) => x.content === '+1')) {
+                if (!r.user) continue;
+                try {
+                  const { data: perm } = await github.rest.repos.getCollaboratorPermissionLevel({
+                    owner, repo, username: r.user.login,
+                  });
+                  if (ALLOWED.has(perm.permission)) { reactor = r.user.login; break; }
+                } catch { /* not a collaborator */ }
+              }
+              if (!reactor) continue;
+
+              // Locate the measure run (with the candidate artifact) for this head.
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner, repo, workflow_id: 'visual.yml', head_sha: pr.head.sha, per_page: 20,
+              });
+              const run = runs.data.workflow_runs?.[0];
+              if (!run) continue;
+
+              core.setOutput('eligible', 'true');
+              core.setOutput('number', String(pr.number));
+              core.setOutput('head_sha', pr.head.sha);
+              core.setOutput('ref', pr.head.ref);
+              core.setOutput('full_name', pr.head.repo.full_name);
+              core.setOutput('is_fork', String(
+                pr.head.repo.fork || pr.head.repo.full_name !== `${owner}/${repo}`,
+              ));
+              core.setOutput('comment_id', String(sticky.id));
+              core.setOutput('run_id', String(run.id));
+              core.setOutput('reactor', reactor);
+              core.info(`Eligible: PR #${pr.number} accepted by @${reactor} (run ${run.id}).`);
+              return;
+            }
+            core.setOutput('eligible', 'false');
+            core.info('No PR with an authorized 👍 awaiting baseline apply.');
+
+      - name: Download candidate baselines
+        id: download
+        if: steps.scan.outputs.eligible == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RUN_ID: ${{ steps.scan.outputs.run_id }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const runId = Number(process.env.RUN_ID);
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner, repo: context.repo.repo, run_id: runId,
+            });
+            const artifact = data.artifacts.find((a) => a.name === 'visual-regression');
+            if (!artifact) {
+              core.setOutput('found', 'false');
+              core.info('Candidate artifact missing or expired (>7d). Push a new commit to regenerate.');
+              return;
+            }
+            const dl = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner, repo: context.repo.repo,
+              artifact_id: artifact.id, archive_format: 'zip',
+            });
+            const outDir = path.join(process.env.RUNNER_TEMP, 'va');
+            fs.mkdirSync(outDir, { recursive: true });
+            fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(dl.data));
+            core.setOutput('found', 'true');
+
+      - name: Unpack and validate
+        id: validate
+        if: steps.scan.outputs.eligible == 'true' && steps.download.outputs.found == 'true'
+        env:
+          HEAD_SHA: ${{ steps.scan.outputs.head_sha }}
+        run: |
+          cd "$RUNNER_TEMP/va"
+          unzip -o artifact.zip
+          drift=$(cat has-drift 2>/dev/null || echo false)
+          measured=$(cat head-sha 2>/dev/null || echo "")
+          if [ "$drift" != "true" ]; then
+            echo "Artifact reports no drift — nothing to apply."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          elif [ "$measured" != "$HEAD_SHA" ]; then
+            echo "Artifact head ($measured) != PR head ($HEAD_SHA) — skipping."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$(ls -A candidates 2>/dev/null)" ]; then
+            echo "No candidate baselines in artifact."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate app token
+        id: app-token
+        if: steps.validate.outputs.ok == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Checkout (same-repo)
+        if: steps.validate.outputs.ok == 'true' && steps.scan.outputs.is_fork == 'false'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ steps.scan.outputs.head_sha }}
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
+
+      - name: Checkout (fork)
+        if: steps.validate.outputs.ok == 'true' && steps.scan.outputs.is_fork == 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ steps.scan.outputs.full_name }}
+          ref: ${{ steps.scan.outputs.head_sha }}
+          persist-credentials: false
+          # Reviewed opt-in: no code from the fork tree is executed. The steps
+          # below only copy inert PNGs from the trusted measure artifact and run
+          # git add/commit/push -- no scripts, hooks, or tooling from the tree.
+          allow-unsafe-pr-checkout: true
+
+      - name: Stage baselines
+        id: stage
+        if: steps.validate.outputs.ok == 'true'
+        run: |
+          set -e
+          dest="e2e/tests/visual-regression.spec.ts-snapshots"
+          mkdir -p "$dest"
+          cp -r "$RUNNER_TEMP/va/candidates/." "$dest/"
+          git add "$dest"
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Baselines already match candidates — nothing to commit."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push (same-repo)
+        if: steps.stage.outputs.changed == 'true' && steps.scan.outputs.is_fork == 'false'
+        env:
+          HEAD_REF: ${{ steps.scan.outputs.ref }}
+          REACTOR: ${{ steps.scan.outputs.reactor }}
+        run: |
+          set -e
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "ci: accept visual baselines (👍 @$REACTOR)"
+          if ! git push origin "HEAD:$HEAD_REF"; then
+            echo "::error::Non-fast-forward push — the PR branch moved. A fresh measure+apply will run for the new head." >&2
+            exit 1
+          fi
+
+      - name: Commit and push (fork)
+        if: steps.stage.outputs.changed == 'true' && steps.scan.outputs.is_fork == 'true'
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          HEAD_REF: ${{ steps.scan.outputs.ref }}
+          FULL_NAME: ${{ steps.scan.outputs.full_name }}
+          REACTOR: ${{ steps.scan.outputs.reactor }}
+        run: |
+          set -e
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "ci: accept visual baselines (👍 @$REACTOR)"
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
+          printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
+          chmod +x "$GIT_ASKPASS"
+          git remote add fork "https://x-access-token@github.com/$FULL_NAME.git"
+          if ! git push fork "HEAD:$HEAD_REF"; then
+            rm -f "$GIT_ASKPASS"
+            echo "::error::Failed to push to fork. The contributor likely has 'Allow edits by maintainers' disabled; they must regenerate baselines in the pinned Playwright Docker image and commit." >&2
+            exit 1
+          fi
+          rm -f "$GIT_ASKPASS"
+
+      - name: Mark comment applied
+        if: steps.validate.outputs.ok == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          COMMENT_ID: ${{ steps.scan.outputs.comment_id }}
+          HEAD_SHA: ${{ steps.scan.outputs.head_sha }}
+          REACTOR: ${{ steps.scan.outputs.reactor }}
+          CHANGED: ${{ steps.stage.outputs.changed }}
+        with:
+          script: |
+            const commentId = Number(process.env.COMMENT_ID);
+            const headSha = process.env.HEAD_SHA;
+            const reactor = process.env.REACTOR;
+            const changed = process.env.CHANGED === 'true';
+            const { data: comment } = await github.rest.issues.getComment({
+              owner: context.repo.owner, repo: context.repo.repo, comment_id: commentId,
+            });
+            // Strip any prior applied marker, then append the current one so a
+            // re-poll for the same head is skipped.
+            const base = comment.body.replace(/\n*<!-- applied:[0-9a-f]{7,40} -->/g, '');
+            const note = changed
+              ? `\n\n✅ Baselines accepted by @${reactor} and committed to this PR.`
+              : `\n\nℹ️ Baselines already matched the accepted candidates; nothing to commit.`;
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner, repo: context.repo.repo, comment_id: commentId,
+              body: `${base}${note}\n<!-- applied:${headSha} -->`,
+            });

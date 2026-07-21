@@ -505,7 +505,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				</div>
 
 				{item && (
-					<dl className="mt-4 border-t pt-4 space-y-1 text-xs text-kumo-subtle">
+					<dl
+						data-testid="content-timestamps"
+						className="mt-4 border-t pt-4 space-y-1 text-xs text-kumo-subtle"
+					>
 						<div className="flex items-center justify-between gap-2">
 							<dt>{t`Created`}</dt>
 							<dd>{new Date(item.createdAt).toLocaleString()}</dd>
