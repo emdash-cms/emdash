@@ -1485,6 +1485,7 @@ function PluginBlockModal({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		e.stopPropagation();
 		if (block?.fields && block.fields.length > 0) {
 			onInsert(formValues);
 		} else {
@@ -2859,7 +2860,7 @@ export function PortableTextEditor({
 	}
 
 	return (
-		<div ref={floatingRootRef} className="relative" data-emdash-editor-floating-root>
+		<div ref={floatingRootRef} className="relative min-w-0" data-emdash-editor-floating-root>
 			<EditorBubbleMenu
 				editor={editor}
 				appendTo={appendBubbleMenu}
@@ -2873,7 +2874,8 @@ export function PortableTextEditor({
 			<div
 				className={cn(
 					"border rounded-lg overflow-clip",
-					minimal && "border-0 rounded-none -mx-4",
+					!minimal && "bg-kumo-base",
+					minimal && "border-0 rounded-none",
 					focusMode === "spotlight" && "spotlight-mode",
 					className,
 				)}

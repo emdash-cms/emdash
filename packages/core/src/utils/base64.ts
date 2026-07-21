@@ -37,11 +37,16 @@ export function encodeBase64(str: string): string {
 
 /** Decode a standard base64 string to a UTF-8 string. */
 export function decodeBase64(base64: string): string {
-	if (hasNative) return new TextDecoder().decode(Uint8Array.fromBase64(base64));
+	return new TextDecoder().decode(decodeBase64Bytes(base64));
+}
+
+/** Decode a standard base64 string to raw bytes (for binary payloads). */
+export function decodeBase64Bytes(base64: string): Uint8Array {
+	if (hasNative) return Uint8Array.fromBase64(base64);
 	const binary = atob(base64);
 	const bytes = new Uint8Array(binary.length);
 	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-	return new TextDecoder().decode(bytes);
+	return bytes;
 }
 
 // ---------------------------------------------------------------------------

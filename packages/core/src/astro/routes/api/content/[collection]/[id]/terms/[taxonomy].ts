@@ -24,15 +24,14 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	const { collection, id, taxonomy } = params;
 
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const denied = requirePerm(user, "content:read");
 	if (denied) return denied;
 
 	if (!collection || !id || !taxonomy) {
 		return apiError("VALIDATION_ERROR", "Collection, id, and taxonomy required", 400);
 	}
-
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
 
 	try {
 		// Terms are stored against the per-locale entry row but their
@@ -71,11 +70,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		return apiError("VALIDATION_ERROR", "Collection, id, and taxonomy required", 400);
 	}
 
-	const denied = requirePerm(user, "content:edit_own");
-	if (denied) return denied;
-
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
+	const denied = requirePerm(user, "content:edit_own");
+	if (denied) return denied;
 
 	if (!emdash.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);

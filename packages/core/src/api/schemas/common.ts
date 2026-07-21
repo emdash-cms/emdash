@@ -73,6 +73,7 @@ export const localeFilterQuery = z
 /** Standard API error response */
 export const apiErrorSchema = z
 	.object({
+		success: z.literal(false).meta({ description: "Discriminant: always false for errors" }),
 		error: z.object({
 			code: z.string().meta({ description: "Machine-readable error code", example: "NOT_FOUND" }),
 			message: z.string().meta({ description: "Human-readable error message" }),
@@ -80,9 +81,12 @@ export const apiErrorSchema = z
 	})
 	.meta({ id: "ApiError" });
 
-/** Wrap a data schema in the standard success envelope: { data: T } */
+/** Wrap a data schema in the standard success envelope: { success: true, data: T } */
 export function successEnvelope<T extends z.ZodType>(dataSchema: T) {
-	return z.object({ data: dataSchema });
+	return z.object({
+		success: z.literal(true).meta({ description: "Discriminant: always true for success" }),
+		data: dataSchema,
+	});
 }
 
 /** Standard delete response */
