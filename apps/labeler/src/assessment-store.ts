@@ -706,8 +706,15 @@ export function buildFinalizationStatements(
 					 ON CONFLICT(src, uri, cid) DO UPDATE SET
 					   assessment_id = excluded.assessment_id, updated_at = excluded.updated_at
 					 WHERE EXISTS (SELECT 1 FROM assessments WHERE id = ? AND state = ?)
-					   AND (SELECT created_at_epoch_ms FROM assessments WHERE id = excluded.assessment_id)
-					       >= (SELECT created_at_epoch_ms FROM assessments WHERE id = current_assessments.assessment_id)`,
+					   AND (
+					     (SELECT created_at_epoch_ms FROM assessments WHERE id = excluded.assessment_id)
+					         > (SELECT created_at_epoch_ms FROM assessments WHERE id = current_assessments.assessment_id)
+					     OR (
+					       (SELECT created_at_epoch_ms FROM assessments WHERE id = excluded.assessment_id)
+					           = (SELECT created_at_epoch_ms FROM assessments WHERE id = current_assessments.assessment_id)
+					       AND excluded.assessment_id >= current_assessments.assessment_id
+					     )
+					   )`,
 				)
 				.bind(
 					input.src,
