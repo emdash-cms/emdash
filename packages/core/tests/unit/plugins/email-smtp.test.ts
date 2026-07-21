@@ -75,7 +75,9 @@ const baseConfig: SmtpConfig = {
 	secure: "starttls",
 	user: "user@example.com",
 	pass: "secret",
-	from: "Site <noreply@example.com>",
+	fromName: "Site",
+	fromEmail: "noreply@example.com",
+	replyTo: "support@example.com",
 };
 
 const mockCtx = {
@@ -96,7 +98,33 @@ describe("loadSmtpConfigFromEnv", () => {
 		expect(loadSmtpConfigFromEnv()).toBeNull();
 	});
 
-	it("parses a complete config", () => {
+	it("parses a complete config with structured sender fields", () => {
+		process.env.EMAIL_SMTP_HOST = "smtp-relay.brevo.com";
+		process.env.EMAIL_SMTP_PORT = "587";
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+		process.env.EMAIL_SMTP_FROM_NAME = "Site";
+		process.env.EMAIL_SMTP_FROM_EMAIL = "noreply@example.com";
+		process.env.EMAIL_SMTP_REPLY_TO = "support@example.com";
+
+		const config = loadSmtpConfigFromEnv();
+		expect(config).toEqual({
+			host: "smtp-relay.brevo.com",
+			port: 587,
+			secure: "starttls",
+			user: "u",
+			pass: "p",
+			fromName: "Site",
+			fromEmail: "noreply@example.com",
+			replyTo: "support@example.com",
+		});
+
+		delete process.env.EMAIL_SMTP_FROM_NAME;
+		delete process.env.EMAIL_SMTP_FROM_EMAIL;
+		delete process.env.EMAIL_SMTP_REPLY_TO;
+	});
+
+	it("parses legacy EMAIL_SMTP_FROM into structured fields", () => {
 		process.env.EMAIL_SMTP_HOST = "smtp-relay.brevo.com";
 		process.env.EMAIL_SMTP_PORT = "587";
 		process.env.EMAIL_SMTP_USER = "u";
@@ -110,8 +138,11 @@ describe("loadSmtpConfigFromEnv", () => {
 			secure: "starttls",
 			user: "u",
 			pass: "p",
-			from: "Site <noreply@example.com>",
+			fromName: "Site",
+			fromEmail: "noreply@example.com",
 		});
+
+		delete process.env.EMAIL_SMTP_FROM;
 	});
 
 	it("infers secure=tls for port 465", () => {
@@ -182,6 +213,8 @@ describe("deliverSmtp", () => {
 		expect(transcript).toContain("RCPT TO:<recipient@example.com>\r\n");
 		expect(transcript).toContain("DATA\r\n");
 		expect(transcript).toContain("Subject: Hello\r\n");
+		expect(transcript).toContain('From: "Site" <noreply@example.com>\r\n');
+		expect(transcript).toContain("Reply-To: support@example.com\r\n");
 		expect(transcript).toContain("QUIT\r\n");
 
 		expect(mockCtx.log.info).toHaveBeenCalledWith(
@@ -283,7 +316,8 @@ describe("createSmtpEmailDeliver", () => {
 // DB-backed config
 // ---------------------------------------------------------------------------
 
-const TEST_ENCRYPTION_KEY = "emdash_enc_v1_SWmb1wDbtOn-lO8UJgsKIdNps4cwuN8IulWSqsspuM";
+const TEST_ENCRYPTION_KEY =
+	"emdash_enc_v1_U-1To8mS9tyTfAFz8KHAsCVo1fvktqbq0y5JxBiXgIU";
 
 describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", () => {
 	let db: Kysely<DatabaseSchema>;
@@ -301,14 +335,16 @@ describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", ()
 		expect(config).toBeNull();
 	});
 
-	it("saves and loads a full config", async () => {
+	it("saves and loads a full config with structured sender fields", async () => {
 		const input: SmtpConfig = {
 			host: "smtp.example.com",
 			port: 587,
 			secure: "starttls",
 			user: "user@example.com",
 			pass: "super-secret",
-			from: "Site <noreply@example.com>",
+			fromName: "Site",
+			fromEmail: "noreply@example.com",
+			replyTo: "support@example.com",
 		};
 
 		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);

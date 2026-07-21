@@ -22,6 +22,7 @@ import {
 	fetchEmailSettings,
 	saveEmailSettings,
 	sendTestEmail,
+	testCloudflareBinding,
 	type EmailProviderChoice,
 	type EmailSettings as EmailSettingsData,
 } from "../../lib/api/email-settings.js";
@@ -47,7 +48,13 @@ export function EmailSettings() {
 	const [smtpSecure, setSmtpSecure] = React.useState<"starttls" | "tls">("starttls");
 	const [smtpUser, setSmtpUser] = React.useState("");
 	const [smtpPass, setSmtpPass] = React.useState("");
-	const [smtpFrom, setSmtpFrom] = React.useState("");
+	const [smtpFromName, setSmtpFromName] = React.useState("");
+	const [smtpFromEmail, setSmtpFromEmail] = React.useState("");
+	const [smtpReplyTo, setSmtpReplyTo] = React.useState("");
+	// Cloudflare form state
+	const [cfFromName, setCfFromName] = React.useState("");
+	const [cfFromEmail, setCfFromEmail] = React.useState("");
+	const [cfReplyTo, setCfReplyTo] = React.useState("");
 
 	const {
 		data: settings,
@@ -66,9 +73,14 @@ export function EmailSettings() {
 			if (settings.smtp.host) setSmtpHost(settings.smtp.host);
 			if (settings.smtp.port) setSmtpPort(String(settings.smtp.port));
 			if (settings.smtp.secure) setSmtpSecure(settings.smtp.secure);
-			if (settings.smtp.from) setSmtpFrom(settings.smtp.from);
+			if (settings.smtp.fromName) setSmtpFromName(settings.smtp.fromName);
+			if (settings.smtp.fromEmail) setSmtpFromEmail(settings.smtp.fromEmail);
+			if (settings.smtp.replyTo) setSmtpReplyTo(settings.smtp.replyTo);
 		} else if (settings.selectedProviderId === "emdash-cloudflare-email") {
 			setProvider("cloudflare");
+			if (settings.cloudflare.fromName) setCfFromName(settings.cloudflare.fromName);
+			if (settings.cloudflare.fromEmail) setCfFromEmail(settings.cloudflare.fromEmail);
+			if (settings.cloudflare.replyTo) setCfReplyTo(settings.cloudflare.replyTo);
 		} else {
 			setProvider("none");
 		}
@@ -107,6 +119,30 @@ export function EmailSettings() {
 		},
 	});
 
+	const bindingMutation = useMutation({
+		mutationFn: testCloudflareBinding,
+		onSuccess: (result) => {
+			if (result.available) {
+				toastManager.add({ title: result.message, variant: "success", timeout: 5000 });
+			} else {
+				toastManager.add({
+					title: t`Binding not available`,
+					description: result.message,
+					variant: "warning",
+					timeout: 8000,
+				});
+			}
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to test binding`,
+				description: getMutationError(error) || t`An error occurred`,
+				variant: "error",
+				timeout: 5000,
+			});
+		},
+	});
+
 	const handleSave = () => {
 		if (provider === "smtp") {
 			if (!smtpHost || !smtpUser) {
@@ -136,7 +172,27 @@ export function EmailSettings() {
 					secure: smtpSecure,
 					user: smtpUser,
 					...(smtpPass ? { pass: smtpPass } : {}),
-					...(smtpFrom ? { from: smtpFrom } : {}),
+					...(smtpFromName.trim() ? { fromName: smtpFromName.trim() } : {}),
+					...(smtpFromEmail.trim() ? { fromEmail: smtpFromEmail.trim() } : {}),
+					...(smtpReplyTo.trim() ? { replyTo: smtpReplyTo.trim() } : {}),
+				},
+			});
+		} else if (provider === "cloudflare") {
+			if (!cfFromName.trim() || !cfFromEmail.trim()) {
+				toastManager.add({
+					title: t`Missing Cloudflare Email configuration`,
+					description: t`Sender name and email are required.`,
+					variant: "error",
+					timeout: 5000,
+				});
+				return;
+			}
+			saveMutation.mutate({
+				provider: "cloudflare",
+				cloudflare: {
+					fromName: cfFromName.trim(),
+					fromEmail: cfFromEmail.trim(),
+					...(cfReplyTo.trim() ? { replyTo: cfReplyTo.trim() } : {}),
 				},
 			});
 		} else {
@@ -250,10 +306,24 @@ export function EmailSettings() {
 									}
 								/>
 								<Input
-									label={t`Default Sender (optional)`}
-									value={smtpFrom}
-									onChange={(e) => setSmtpFrom(e.target.value)}
-									placeholder="Site Name <noreply@example.com>"
+									label={t`Sender name (optional)`}
+									value={smtpFromName}
+									onChange={(e) => setSmtpFromName(e.target.value)}
+									placeholder="Site Name"
+								/>
+								<Input
+									label={t`Sender email (optional)`}
+									type="email"
+									value={smtpFromEmail}
+									onChange={(e) => setSmtpFromEmail(e.target.value)}
+									placeholder="noreply@example.com"
+								/>
+								<Input
+									label={t`Reply-to email (optional)`}
+									type="email"
+									value={smtpReplyTo}
+									onChange={(e) => setSmtpReplyTo(e.target.value)}
+									placeholder="support@example.com"
 								/>
 							</div>
 							<p className="text-xs text-kumo-subtle">
@@ -263,16 +333,51 @@ export function EmailSettings() {
 					)}
 
 					{provider === "cloudflare" && (
-						<div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4">
-							<p className="text-sm text-kumo-subtle">
-								{t`Cloudflare Email uses the native send_email binding. Configure the sender address in your astro.config.mjs and add the EMAIL binding to wrangler.jsonc.`}
+						<div className="space-y-4 pt-2 border-t">
+							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+								<Input
+									label={t`Sender name`}
+									value={cfFromName}
+									onChange={(e) => setCfFromName(e.target.value)}
+									placeholder="John Doe"
+									required
+								/>
+								<Input
+									label={t`Sender email`}
+									type="email"
+									value={cfFromEmail}
+									onChange={(e) => setCfFromEmail(e.target.value)}
+									placeholder="noreply@example.com"
+									required
+								/>
+								<Input
+									label={t`Reply-to email (optional)`}
+									type="email"
+									value={cfReplyTo}
+									onChange={(e) => setCfReplyTo(e.target.value)}
+									placeholder="support@example.com"
+								/>
+							</div>
+							<p className="text-xs text-kumo-subtle">
+								{t`Cloudflare Email uses the native send_email binding. Add the EMAIL binding to wrangler.jsonc. The sender must be a verified address on your Cloudflare account.`}
 							</p>
 						</div>
 					)}
 
-					<Button onClick={handleSave} disabled={saveMutation.isPending}>
-						{saveMutation.isPending ? t`Saving...` : t`Save Settings`}
-					</Button>
+					<div className="flex items-center gap-3">
+						<Button onClick={handleSave} disabled={saveMutation.isPending}>
+							{saveMutation.isPending ? t`Saving...` : t`Save Settings`}
+						</Button>
+						{provider === "cloudflare" && (
+							<Button
+								variant="secondary"
+								onClick={() => bindingMutation.mutate()}
+								disabled={bindingMutation.isPending}
+							>
+								{bindingMutation.isPending ? t`Testing...` : t`Test Binding`}
+							</Button>
+						)}
+					</div>
 				</div>
 			</div>
 
@@ -286,8 +391,8 @@ export function EmailSettings() {
 				<PipelineStatus settings={settings} />
 			</div>
 
-			{/* SMTP transport status */}
-			{settings?.smtp.configured && (
+			{/* SMTP transport status — only shown when SMTP is the active provider */}
+			{settings?.smtp.configured && settings.selectedProviderId === "emdash-smtp" && (
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<div className="flex items-center gap-2 mb-4">
 						<Gear className="h-5 w-5 text-kumo-subtle" />
@@ -309,10 +414,20 @@ export function EmailSettings() {
 									{settings.smtp.secure === "tls" ? t`Implicit TLS` : t`STARTTLS`}
 								</p>
 							</div>
-							{settings.smtp.from && (
+							{settings.smtp.fromEmail && (
 								<div>
-									<p className="text-sm font-medium text-kumo-subtle">{t`Default sender`}</p>
-									<p className="text-sm font-mono">{settings.smtp.from}</p>
+									<p className="text-sm font-medium text-kumo-subtle">{t`Sender email`}</p>
+									<p className="text-sm font-mono">
+										{settings.smtp.fromName
+											? `${settings.smtp.fromName} <${settings.smtp.fromEmail}>`
+											: settings.smtp.fromEmail}
+									</p>
+								</div>
+							)}
+							{settings.smtp.replyTo && (
+								<div>
+									<p className="text-sm font-medium text-kumo-subtle">{t`Reply-to`}</p>
+									<p className="text-sm font-mono">{settings.smtp.replyTo}</p>
 								</div>
 							)}
 						</div>
@@ -393,12 +508,14 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 				<CheckCircle className="h-5 w-5 text-kumo-success flex-shrink-0" />
 				<div>
 					<p className="text-sm font-medium text-kumo-success">{t`Email provider active`}</p>
-					<p className="text-sm text-kumo-subtle">
-						{t`Provider:`}{" "}
-						<code className="rounded bg-kumo-tint px-1.5 py-0.5 text-xs">
-							{settings.selectedProviderId || "default"}
-						</code>
-					</p>
+					{settings.selectedProviderId && (
+						<p className="text-sm text-kumo-subtle">
+							{t`Provider:`}{" "}
+							<code className="rounded bg-kumo-tint px-1.5 py-0.5 text-xs">
+								{settings.selectedProviderId}
+							</code>
+						</p>
+					)}
 				</div>
 			</div>
 

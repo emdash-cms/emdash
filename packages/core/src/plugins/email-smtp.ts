@@ -22,6 +22,8 @@
  * a clear error. TLS is always required; plaintext auth is never attempted.
  */
 
+import { promisify } from "node:util";
+
 import { decrypt, encrypt } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
 
@@ -35,6 +37,18 @@ export const SMTP_EMAIL_PLUGIN_ID = "emdash-smtp";
 /** Options key prefix for SMTP settings */
 const SMTP_OPTION_PREFIX = "emdash:email:smtp:";
 const SMTP_OPTION_PASSWORD = `${SMTP_OPTION_PREFIX}password`;
+
+/**
+ * `EMDASH_ENCRYPTION_KEY` carries the `emdash_enc_v1_` version prefix, but
+ * `encrypt()`/`decrypt()` from `@emdash-cms/auth` expect the raw base64url
+ * key material. Strip the version prefix before use.
+ */
+const ENCRYPTION_KEY_PREFIX = "emdash_enc_v1_";
+function toKeyMaterial(encryptionKey: string): string {
+	return encryptionKey.startsWith(ENCRYPTION_KEY_PREFIX)
+		? encryptionKey.slice(ENCRYPTION_KEY_PREFIX.length)
+		: encryptionKey;
+}
 
 // ---------------------------------------------------------------------------
 // Socket abstraction — cloudflare:sockets on Workers, node:net/tls on Node
@@ -154,12 +168,13 @@ function parseAddress(input: string): { email: string; name?: string } {
 /** Build a dot-stuffed MIME body. */
 function buildMime(params: {
 	from: { email: string; name?: string };
+	replyTo?: string;
 	to: string;
 	subject: string;
 	text: string;
 	html?: string;
 }): string {
-	const { from, to, subject, text, html } = params;
+	const { from, replyTo, to, subject, text, html } = params;
 	const headers: string[] = [
 		`From: ${from.name ? `"${sanitizeHeader(from.name)}" <${from.email}>` : from.email}`,
 		`To: ${to}`,
@@ -168,6 +183,9 @@ function buildMime(params: {
 		`Message-ID: <${crypto.randomUUID()}@emdash>`,
 		`MIME-Version: 1.0`,
 	];
+	if (replyTo) {
+		headers.push(`Reply-To: ${sanitizeHeader(replyTo)}`);
+	}
 
 	let body: string;
 	if (html) {
@@ -270,14 +288,12 @@ async function connectNode(
 				});
 				sock.on("end", () => resolveRead?.({ done: true }));
 				sock.on("error", reject);
-				// eslint-disable-next-line promise/no-multiple-resolved -- resolve happens once in connect callback
+				const sockWrite = promisify(sock.write.bind(sock));
+				const sockEnd = promisify(sock.end.bind(sock));
 				resolve({
 					writer: {
-						write: (data) =>
-							new Promise((res, rej) =>
-								sock.write(data, (e: Error | null | undefined) => (e ? rej(e) : res())),
-							),
-						close: () => new Promise((res) => sock.end(res)),
+						write: (data: Uint8Array) => sockWrite(data),
+						close: () => sockEnd(),
 					},
 					reader: {
 						read: () =>
@@ -286,7 +302,7 @@ async function connectNode(
 								resolveRead = res;
 							}),
 					},
-					close: () => new Promise((res) => sock.end(res)),
+					close: () => sockEnd(),
 				});
 			});
 			sock.on("error", reject);
@@ -313,24 +329,24 @@ async function connectNode(
 			sock.on("end", () => resolveRead?.({ done: true }));
 			sock.on("error", reject);
 
-			// eslint-disable-next-line promise/no-multiple-resolved -- resolve happens once in connect callback
-			const makeSocket = (s: InstanceType<typeof TLSSocket> | typeof sock): SmtpSocket => ({
-				writer: {
-					write: (data) =>
-						new Promise((res, rej) =>
-							s.write(data, (e: Error | null | undefined) => (e ? rej(e) : res())),
-						),
-					close: () => new Promise((res) => s.end(res)),
-				},
-				reader: {
-					read: () =>
-						new Promise((res) => {
-							if (chunks.length > 0) return res({ value: chunks.shift()!, done: false });
-							resolveRead = res;
-						}),
-				},
-				close: () => new Promise((res) => s.end(res)),
-			});
+			const makeSocket = (s: InstanceType<typeof TLSSocket> | typeof sock): SmtpSocket => {
+				const sWrite = promisify(s.write.bind(s));
+				const sEnd = promisify(s.end.bind(s));
+				return {
+					writer: {
+						write: (data: Uint8Array) => sWrite(data),
+						close: () => sEnd(),
+					},
+					reader: {
+						read: () =>
+							new Promise((res) => {
+								if (chunks.length > 0) return res({ value: chunks.shift()!, done: false });
+								resolveRead = res;
+							}),
+					},
+					close: () => sEnd(),
+				};
+			};
 
 			resolve({
 				...makeSocket(sock),
@@ -369,7 +385,9 @@ export interface SmtpConfig {
 	secure: "starttls" | "tls";
 	user: string;
 	pass: string;
-	from?: string;
+	fromName?: string;
+	fromEmail?: string;
+	replyTo?: string;
 	/** Connect + overall timeout in ms (default 30s) */
 	timeoutMs?: number;
 }
@@ -396,13 +414,26 @@ export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 	if (!user || !pass) {
 		throw new Error("EMAIL_SMTP_USER and EMAIL_SMTP_PASS are required when EMAIL_SMTP_HOST is set");
 	}
+	// Support both structured fields and legacy EMAIL_SMTP_FROM
+	let fromName: string | undefined;
+	let fromEmail: string | undefined;
+	if (process.env.EMAIL_SMTP_FROM_NAME && process.env.EMAIL_SMTP_FROM_EMAIL) {
+		fromName = process.env.EMAIL_SMTP_FROM_NAME;
+		fromEmail = process.env.EMAIL_SMTP_FROM_EMAIL;
+	} else if (process.env.EMAIL_SMTP_FROM) {
+		const parsed = parseAddress(process.env.EMAIL_SMTP_FROM);
+		fromName = parsed.name;
+		fromEmail = parsed.email;
+	}
 	return {
 		host,
 		port,
 		secure,
 		user,
 		pass,
-		...(process.env.EMAIL_SMTP_FROM ? { from: process.env.EMAIL_SMTP_FROM } : {}),
+		...(fromName ? { fromName } : {}),
+		...(fromEmail ? { fromEmail } : {}),
+		...(process.env.EMAIL_SMTP_REPLY_TO ? { replyTo: process.env.EMAIL_SMTP_REPLY_TO } : {}),
 	};
 }
 
@@ -419,20 +450,24 @@ export async function loadSmtpConfigFromDb(
 	const secure = await repo.get<"starttls" | "tls">(`${SMTP_OPTION_PREFIX}secure`);
 	const user = await repo.get<string>(`${SMTP_OPTION_PREFIX}user`);
 	const encryptedPass = await repo.get<string>(SMTP_OPTION_PASSWORD);
-	const from = await repo.get<string>(`${SMTP_OPTION_PREFIX}from`);
+	const fromName = await repo.get<string>(`${SMTP_OPTION_PREFIX}fromName`);
+	const fromEmail = await repo.get<string>(`${SMTP_OPTION_PREFIX}fromEmail`);
+	const replyTo = await repo.get<string>(`${SMTP_OPTION_PREFIX}replyTo`);
 
 	if (!port || !secure || !user || !encryptedPass) {
 		return null;
 	}
 
-	const pass = await decrypt(encryptedPass, encryptionKey);
+	const pass = await decrypt(encryptedPass, toKeyMaterial(encryptionKey));
 	return {
 		host,
 		port,
 		secure,
 		user,
 		pass,
-		...(from ? { from } : {}),
+		...(fromName ? { fromName } : {}),
+		...(fromEmail ? { fromEmail } : {}),
+		...(replyTo ? { replyTo } : {}),
 	};
 }
 
@@ -447,11 +482,21 @@ export async function saveSmtpConfigToDb(
 	await repo.set(`${SMTP_OPTION_PREFIX}port`, config.port);
 	await repo.set(`${SMTP_OPTION_PREFIX}secure`, config.secure);
 	await repo.set(`${SMTP_OPTION_PREFIX}user`, config.user);
-	await repo.set(SMTP_OPTION_PASSWORD, await encrypt(config.pass, encryptionKey));
-	if (config.from) {
-		await repo.set(`${SMTP_OPTION_PREFIX}from`, config.from);
+	await repo.set(SMTP_OPTION_PASSWORD, await encrypt(config.pass, toKeyMaterial(encryptionKey)));
+	if (config.fromName) {
+		await repo.set(`${SMTP_OPTION_PREFIX}fromName`, config.fromName);
 	} else {
-		await repo.delete(`${SMTP_OPTION_PREFIX}from`);
+		await repo.delete(`${SMTP_OPTION_PREFIX}fromName`);
+	}
+	if (config.fromEmail) {
+		await repo.set(`${SMTP_OPTION_PREFIX}fromEmail`, config.fromEmail);
+	} else {
+		await repo.delete(`${SMTP_OPTION_PREFIX}fromEmail`);
+	}
+	if (config.replyTo) {
+		await repo.set(`${SMTP_OPTION_PREFIX}replyTo`, config.replyTo);
+	} else {
+		await repo.delete(`${SMTP_OPTION_PREFIX}replyTo`);
 	}
 }
 
@@ -463,7 +508,9 @@ export async function clearSmtpConfigFromDb(db: Kysely<Database>): Promise<void>
 	await repo.delete(`${SMTP_OPTION_PREFIX}secure`);
 	await repo.delete(`${SMTP_OPTION_PREFIX}user`);
 	await repo.delete(SMTP_OPTION_PASSWORD);
-	await repo.delete(`${SMTP_OPTION_PREFIX}from`);
+	await repo.delete(`${SMTP_OPTION_PREFIX}fromName`);
+	await repo.delete(`${SMTP_OPTION_PREFIX}fromEmail`);
+	await repo.delete(`${SMTP_OPTION_PREFIX}replyTo`);
 }
 
 /**
@@ -489,7 +536,10 @@ export async function deliverSmtp(
 	ctx: PluginContext,
 	connectFn?: ConnectFn,
 ): Promise<void> {
-	const from = config.from ? parseAddress(config.from) : { email: config.user };
+	const from = {
+		email: config.fromEmail ?? config.user,
+		...(config.fromName ? { name: config.fromName } : {}),
+	};
 	const timeoutMs = config.timeoutMs ?? 30_000;
 
 	const connect: ConnectFn =
@@ -566,6 +616,7 @@ export async function deliverSmtp(
 		expectCode(await readReply(socket.reader, buffered), 354, "DATA");
 		const mime = buildMime({
 			from,
+			...(config.replyTo ? { replyTo: config.replyTo } : {}),
 			to: message.to,
 			subject: message.subject,
 			text: message.text,

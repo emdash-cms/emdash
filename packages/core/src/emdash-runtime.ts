@@ -173,6 +173,10 @@ import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import {
+	createCloudflareEmailPlugin,
+	loadCloudflareConfig,
+} from "./plugins/email-cloudflare.js";
+import {
 	createSmtpEmailDeliver,
 	loadSmtpConfig,
 	loadSmtpConfigFromEnv,
@@ -1334,6 +1338,19 @@ export class EmDashRuntime {
 			} catch (error) {
 				console.warn("[email] Failed to register SMTP email provider:", error);
 			}
+		}
+
+		// Register built-in Cloudflare Email provider. Always registered
+		// (even unconfigured) so it appears in the Settings → Email list.
+		// Config comes from DB (Settings UI) or env vars; the send_email
+		// binding is checked at delivery time with a clear error message.
+		try {
+			const cloudflareConfig = await loadCloudflareConfig(db);
+			const cloudflarePlugin = createCloudflareEmailPlugin(cloudflareConfig);
+			allPipelinePlugins.push(cloudflarePlugin);
+			enabledPlugins.add(cloudflarePlugin.id);
+		} catch (error) {
+			console.warn("[email] Failed to register Cloudflare Email provider:", error);
 		}
 
 		// Register built-in default comment moderator.

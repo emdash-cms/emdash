@@ -1340,6 +1340,8 @@ export interface ExclusiveHookResolutionOptions {
 	/** Write an option value to persistent storage. */
 	setOption: (key: string, value: string) => Promise<void>;
 	/** Delete an option from persistent storage. */
+	/** Delete an option from persistent storage. Unused since selections
+	 * are preserved when a provider is temporarily unregistered. */
 	deleteOption: (key: string) => Promise<void>;
 	/**
 	 * Map of pluginId → hook names the plugin prefers to handle.
@@ -1352,6 +1354,14 @@ export interface ExclusiveHookResolutionOptions {
 const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
 
 /**
+ * Sentinel value stored in the options table when the admin explicitly
+ * chooses "no provider" for an exclusive hook. Distinguishes "explicitly
+ * disabled" from "no selection yet" so resolution does not auto-select
+ * a provider again on the next startup.
+ */
+export const EXCLUSIVE_HOOK_NONE_VALUE = "__none__";
+
+/**
  * Resolve exclusive hook selections.
  *
  * Shared algorithm used by both PluginManager and EmDashRuntime:
@@ -1362,8 +1372,7 @@ const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
 export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions): Promise<void> {
-	const { pipeline, isActive, getOption, getOptions, setOption, deleteOption, preferredHints } =
-		opts;
+	const { pipeline, isActive, getOption, getOptions, setOption, preferredHints } = opts;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 	if (exclusiveHookNames.length === 0) return;
 
@@ -1402,22 +1411,31 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 			}
 		}
 
+		// Explicitly disabled by the admin ("None") — never auto-select.
+		if (currentSelection === EXCLUSIVE_HOOK_NONE_VALUE) {
+			pipeline.clearExclusiveSelection(hookName);
+			continue;
+		}
+
 		// If selection exists and the plugin is still active → keep it
 		if (currentSelection && activeProviderIds.has(currentSelection)) {
 			pipeline.setExclusiveSelection(hookName, currentSelection);
 			continue;
 		}
 
-		// Selection is stale or missing — clear it
+		// Selection exists but the provider is not currently registered.
+		// Do NOT delete the DB selection — the provider may be a built-in
+		// that is registered conditionally (e.g. SMTP only when env vars
+		// are present). Deleting would silently revert the user's choice
+		// on every deploy/restart. Instead, keep the DB selection and
+		// leave the in-memory selection unset; delivery will fail with a
+		// clear "provider not available" error until the provider is
+		// registered again.
 		if (currentSelection) {
-			try {
-				await deleteOption(key);
-			} catch {
-				// Non-fatal
-			}
+			continue;
 		}
 
-		// Auto-select if only one active provider
+		// No selection at all — auto-select if only one active provider
 		if (activeProviderIds.size === 1) {
 			const [onlyProvider] = activeProviderIds;
 			try {

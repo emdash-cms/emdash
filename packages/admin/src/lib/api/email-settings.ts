@@ -21,7 +21,17 @@ export interface SmtpConfigStatus {
 	host?: string;
 	port?: number;
 	secure?: "starttls" | "tls";
+	fromName?: string;
+	fromEmail?: string;
+	replyTo?: string;
+}
+
+export interface CloudflareConfigStatus {
+	configured: boolean;
 	from?: string;
+	fromName?: string;
+	fromEmail?: string;
+	replyTo?: string;
 }
 
 export interface EmailSettings {
@@ -33,6 +43,7 @@ export interface EmailSettings {
 		afterSend: string[];
 	};
 	smtp: SmtpConfigStatus;
+	cloudflare: CloudflareConfigStatus;
 }
 
 // =============================================================================
@@ -66,7 +77,14 @@ export interface SaveEmailSettingsInput {
 		secure: "starttls" | "tls";
 		user: string;
 		pass?: string;
-		from?: string;
+		fromName?: string;
+		fromEmail?: string;
+		replyTo?: string;
+	};
+	cloudflare?: {
+		fromName: string;
+		fromEmail: string;
+		replyTo?: string;
 	};
 }
 
@@ -81,5 +99,15 @@ export async function saveEmailSettings(
 	return parseApiResponse<{ success: boolean; message: string }>(
 		res,
 		i18n._(msg`Failed to save email settings`),
+	);
+}
+
+export async function testCloudflareBinding(): Promise<{ available: boolean; message: string }> {
+	const res = await apiFetch(`${API_BASE}/settings/email/test-binding`, {
+		method: "POST",
+	});
+	return parseApiResponse<{ available: boolean; message: string }>(
+		res,
+		i18n._(msg`Failed to test Cloudflare Email binding`),
 	);
 }
