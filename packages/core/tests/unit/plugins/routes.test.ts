@@ -570,3 +570,66 @@ describe("createRouteRegistry helper", () => {
 		expect(registry).toBeInstanceOf(PluginRouteRegistry);
 	});
 });
+
+describe("Response passthrough (#2110)", () => {
+	it("returns a handler's Response verbatim instead of JSON-wrapping it", async () => {
+		const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+		const plugin = createTestPlugin({
+			routes: {
+				image: {
+					handler: async () =>
+						new Response(pngBytes, { headers: { "Content-Type": "image/png" } }),
+				},
+			},
+		});
+		const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+		const result = await handler.invoke("image", {
+			request: new Request("http://test.com"),
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.data).toBeUndefined();
+		expect(result.response).toBeInstanceOf(Response);
+		expect(result.status).toBe(200);
+		expect(result.response!.headers.get("Content-Type")).toBe("image/png");
+		expect(new Uint8Array(await result.response!.arrayBuffer())).toEqual(pngBytes);
+	});
+
+	it("carries a non-200 Response status to the result", async () => {
+		const plugin = createTestPlugin({
+			routes: {
+				redirect: {
+					handler: async () =>
+						new Response(null, { status: 302, headers: { Location: "/elsewhere" } }),
+				},
+			},
+		});
+		const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+		const result = await handler.invoke("redirect", {
+			request: new Request("http://test.com"),
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.status).toBe(302);
+		expect(result.response!.headers.get("Location")).toBe("/elsewhere");
+	});
+
+	it("still JSON-wraps ordinary return values", async () => {
+		const plugin = createTestPlugin({
+			routes: {
+				json: { handler: async () => ({ hello: "world" }) },
+			},
+		});
+		const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+		const result = await handler.invoke("json", {
+			request: new Request("http://test.com"),
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.response).toBeUndefined();
+		expect(result.data).toEqual({ hello: "world" });
+	});
+});

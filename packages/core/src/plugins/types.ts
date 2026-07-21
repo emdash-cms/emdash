@@ -1175,7 +1175,13 @@ export interface PluginRoute<TInput = unknown> {
 	 * Public routes skip session/token auth and CSRF checks.
 	 */
 	public?: boolean;
-	/** Route handler */
+	/**
+	 * Route handler. Return a JSON-serializable value to send the standard
+	 * `{ success, data }` envelope, or return a `Response` directly to serve
+	 * non-JSON content (an image, a file, a custom content type) verbatim.
+	 * Response passthrough applies to trusted (configured) plugins; sandboxed
+	 * plugin results cross a serialization boundary and stay JSON-only.
+	 */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
 }
 

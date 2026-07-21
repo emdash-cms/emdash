@@ -83,6 +83,13 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		return apiError(code, message, status);
 	}
 
+	// Route handlers may return a Response directly (image, file, custom
+	// content type) — send it verbatim instead of JSON-wrapping it (#2110).
+	const passthrough = (result as { response?: unknown }).response;
+	if (passthrough instanceof Response) {
+		return passthrough;
+	}
+
 	return apiSuccess(result.data);
 };
 
