@@ -14,7 +14,7 @@ const EXPECTED_INDEXES = [
 	"idx__emdash_media_usage_sources_locale",
 	"idx__emdash_media_usage_sources_deleted",
 	"idx__emdash_media_usage_sources_translation_group",
-	"idx__emdash_media_usage_media_id",
+	"idx__emdash_media_usage_media_source_generation",
 	"idx__emdash_media_usage_provider_asset",
 	"idx__emdash_media_usage_source_generation",
 	"idx__emdash_media_usage_unique_occurrence",
@@ -108,6 +108,47 @@ describeEachDialect("media usage index migration", (dialect) => {
 		for (const indexName of EXPECTED_INDEXES) {
 			expect(indexNames.has(indexName), `missing index ${indexName}`).toBe(true);
 		}
+	});
+
+	it("replaces the media lookup index in retry-safe D1 statement order", async () => {
+		const migration =
+			await import("../../../src/database/migrations/052_media_usage_read_index.js");
+
+		await migration.down(ctx.db);
+		let indexNames = await listIndexNames(ctx);
+		expect(indexNames.has("idx__emdash_media_usage_media_id")).toBe(true);
+		expect(indexNames.has("idx__emdash_media_usage_media_source_generation")).toBe(false);
+
+		// Simulate interruption after the first up statement, before the old index drops.
+		await ctx.db.schema
+			.createIndex("idx__emdash_media_usage_media_source_generation")
+			.ifNotExists()
+			.on("_emdash_media_usage")
+			.columns(["media_id", "source_key", "generation"])
+			.execute();
+		await migration.up(ctx.db);
+		await migration.up(ctx.db);
+
+		indexNames = await listIndexNames(ctx);
+		expect(indexNames.has("idx__emdash_media_usage_media_id")).toBe(false);
+		expect(indexNames.has("idx__emdash_media_usage_media_source_generation")).toBe(true);
+
+		// Simulate interruption after the first down statement, before the new index drops.
+		await ctx.db.schema
+			.createIndex("idx__emdash_media_usage_media_id")
+			.ifNotExists()
+			.on("_emdash_media_usage")
+			.column("media_id")
+			.execute();
+		indexNames = await listIndexNames(ctx);
+		expect(indexNames.has("idx__emdash_media_usage_media_id")).toBe(true);
+		expect(indexNames.has("idx__emdash_media_usage_media_source_generation")).toBe(true);
+		await migration.down(ctx.db);
+		await migration.down(ctx.db);
+
+		indexNames = await listIndexNames(ctx);
+		expect(indexNames.has("idx__emdash_media_usage_media_id")).toBe(true);
+		expect(indexNames.has("idx__emdash_media_usage_media_source_generation")).toBe(false);
 	});
 
 	it("down() drops tables and up() recreates them", async () => {

@@ -28,6 +28,27 @@ export interface ContentTaxonomyTable {
 	collection: string; // e.g., 'posts'
 	entry_id: string; // ID in the ec_* table
 	taxonomy_id: string; // stores taxonomies.translation_group (locale-agnostic)
+	// Denormalized filter + sort columns mirrored from the entry's ec_* row
+	// (migration 051). They let a taxonomy-filtered listing seek the matching
+	// entries directly on the pivot instead of scanning the whole collection.
+	//
+	// ADVISORY, not authoritative: D1 has no transactions, so the write-path
+	// re-stamp (ContentRepository / TaxonomyRepository) is a separate statement
+	// from the ec_* mutation and can be transiently stale. The read path narrows
+	// the candidate set with these columns but re-checks the real filter
+	// predicates on the joined ec_* row. `updated_at` is deliberately NOT
+	// denormalized — it moves on every edit, so denormalizing it would force a
+	// pivot re-stamp on the common edit path for little read value.
+	//
+	// Nullable/Generated so inserts that predate a re-stamp (or the migration
+	// backfill) leave them NULL; every insert site in the repositories stamps
+	// them explicitly.
+	status: Generated<string | null>;
+	scheduled_at: Generated<string | null>;
+	deleted_at: Generated<string | null>;
+	locale: Generated<string | null>;
+	published_at: Generated<string | null>;
+	created_at: Generated<string | null>;
 }
 
 export interface TaxonomyDefTable {
@@ -341,6 +362,8 @@ export interface PluginStateTable {
 	// `source = 'config' | 'marketplace'`; populated for `source = 'registry'`.
 	registry_publisher_did: string | null;
 	registry_slug: string | null;
+	mcp_tools_enabled: Generated<number>;
+	mcp_tools_consent: string | null;
 }
 
 export interface PluginIndexTable {

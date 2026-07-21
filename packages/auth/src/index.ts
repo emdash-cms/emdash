@@ -65,6 +65,7 @@ export {
 	// Scopes
 	VALID_SCOPES,
 	validateScopes,
+	isValidScope,
 	hasScope,
 	type ApiTokenScope,
 	// PKCE

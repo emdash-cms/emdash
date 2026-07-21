@@ -237,6 +237,7 @@ export function ContentEditor({
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
+	const itemLabel = collectionLabel;
 	// Kumo Sidebar's `side` is physical, not logical.
 	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
 	// Mirrors the Sidebar's mobileBreakpoint; `contained` flips with it.
@@ -592,8 +593,8 @@ export function ContentEditor({
 			className={cn(
 				"transition-all duration-300",
 				isDistractionFree
-					? "space-y-6 fixed inset-0 z-50 bg-kumo-base p-8 overflow-auto"
-					: "flex h-full bg-kumo-base",
+					? "space-y-6 fixed inset-0 z-50 bg-kumo-elevated p-8 overflow-auto"
+					: "flex h-full bg-kumo-elevated",
 			)}
 		>
 			{/* Wraps the whole layout so the strip's Settings button and the
@@ -609,6 +610,7 @@ export function ContentEditor({
 				style={
 					{
 						"--sidebar-width": isBelowLg ? "20rem" : "23rem",
+						"--sidebar-bg": "var(--color-kumo-elevated)",
 					} as React.CSSProperties
 				}
 			>
@@ -618,14 +620,14 @@ export function ContentEditor({
 						className={cn(
 							"flex flex-wrap items-center justify-between gap-y-2",
 							isDistractionFree
-								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10"
+								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 mx-auto w-[calc(100%-4rem)] max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10"
 								: cn(
 										"mx-auto mb-6 max-w-3xl",
-										isBelowLg && "sticky top-0 z-20 bg-kumo-base/95 py-3 backdrop-blur",
+										isBelowLg && "bg-kumo-elevated/95 py-3 backdrop-blur",
 									),
 						)}
 					>
-						<div className="flex items-center gap-4">
+						<div className="flex min-w-0 items-center gap-3">
 							{!isDistractionFree && (
 								<RouterLinkButton
 									to="/content/$collection"
@@ -637,18 +639,8 @@ export function ContentEditor({
 									icon={<ArrowPrev />}
 								/>
 							)}
-							{isDistractionFree && (
-								<Button
-									variant="ghost"
-									shape="square"
-									onClick={() => setIsDistractionFree(false)}
-									aria-label={t`Exit distraction-free mode`}
-								>
-									<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
-								</Button>
-							)}
-							<h1 className="text-2xl font-bold">
-								{isNew ? t`New ${collectionLabel}` : t`Edit ${collectionLabel}`}
+							<h1 className="min-w-0 truncate text-lg font-semibold">
+								{isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`}
 							</h1>
 							{i18n && item?.locale && (
 								<Badge variant="outline" className="uppercase text-xs">
@@ -686,6 +678,7 @@ export function ContentEditor({
 												</LinkButton>
 											)}
 											<PublishActions
+												collectionLabel={collectionLabel}
 												isNew={isNew}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
@@ -709,15 +702,9 @@ export function ContentEditor({
 							) : (
 								// Distraction-free: this overlay is the only save/exit surface.
 								<>
-									{!isNew && supportsPreview && (
-										<PreviewButton
-											hasPendingChanges={hasPendingChanges}
-											isLoadingPreview={isLoadingPreview}
-											onPreview={handlePreview}
-										/>
-									)}
 									<SaveButton
 										type="submit"
+										size="sm"
 										isDirty={isDirty}
 										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
 										disabled={isContentOperationPending}
@@ -727,24 +714,48 @@ export function ContentEditor({
 											href={liveViewUrl}
 											external
 											variant="outline"
+											size="sm"
 											icon={<ArrowSquareOut />}
 										>
 											{t`Live View`}
 										</LinkButton>
 									)}
+									{!isNew && supportsPreview && (
+										<PreviewButton
+											size="sm"
+											hasPendingChanges={hasPendingChanges}
+											isLoadingPreview={isLoadingPreview}
+											onPreview={handlePreview}
+										/>
+									)}
 									{!isNew && (
 										<>
 											{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-												<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
+												<DiscardDraftDialog
+													onDiscard={onDiscardDraft}
+													triggerVariant="outline"
+													triggerSize="sm"
+												/>
 											)}
 											<PublishActions
+												collectionLabel={collectionLabel}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
 												onPublish={onPublish}
 												onUnpublish={onUnpublish}
+												size="sm"
 											/>
 										</>
 									)}
+									<Button
+										variant="ghost"
+										shape="square"
+										type="button"
+										onClick={() => setIsDistractionFree(false)}
+										aria-label={t`Exit distraction-free mode`}
+									>
+										<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
+									</Button>
 								</>
 							)}
 						</div>
@@ -752,10 +763,10 @@ export function ContentEditor({
 
 					<div
 						className={cn(
-							isDistractionFree ? "max-w-4xl mx-auto pt-16" : "mx-auto max-w-3xl space-y-6",
+							isDistractionFree ? "mx-auto max-w-3xl pt-16" : "mx-auto max-w-3xl space-y-6",
 						)}
 					>
-						<div className="space-y-4">
+						<div className="space-y-6">
 							{Object.entries(fields).map(([name, field]) => {
 								// Key by item id so all field editors remount cleanly when the
 								// underlying content item changes (e.g. switching translations).
@@ -776,7 +787,6 @@ export function ContentEditor({
 												? setPortableTextEditor
 												: undefined
 										}
-										minimal={isDistractionFree}
 										pluginBlocks={pluginBlocks}
 										onBlockSidebarOpen={
 											field.kind === "portableText" ? handleBlockSidebarOpen : undefined
@@ -801,6 +811,7 @@ export function ContentEditor({
 					    isSaving, isAutosaving) so they never reach the memoized panel. */}
 					{!isBelowLg && (
 						<SettingsActionBar
+							collectionLabel={collectionLabel}
 							isNew={isNew}
 							isDirty={isDirty}
 							isSaving={Boolean(saveFeedbackActive)}
@@ -1162,20 +1173,21 @@ function FieldRenderer({
 		case "portableText": {
 			const labelId = `${id}-label`;
 			return (
-				<div id={id}>
+				<div id={id} className={cn(!minimal && "grid gap-2")}>
 					{!minimal && (
-						<span
-							id={labelId}
-							className={cn("text-sm font-medium leading-none text-kumo-default", labelClass)}
-						>
-							{label}
-						</span>
+						<Label>
+							<span id={labelId}>{label}</span>
+						</Label>
 					)}
 					<PortableTextEditor
 						value={Array.isArray(value) ? value : []}
 						onChange={handleChange}
-						placeholder={t`Enter ${label.toLowerCase()}...`}
+						placeholder={t`Start writing, or type '/' for commands`}
 						aria-labelledby={labelId}
+						className={cn(
+							!minimal &&
+								"bg-kumo-control focus-within:ring-kumo-focus/50 focus-within:ring-[1.5px]",
+						)}
 						pluginBlocks={pluginBlocks}
 						onEditorReady={onEditorReady}
 						minimal={minimal}
@@ -1614,10 +1626,10 @@ function FileFieldRenderer({
 	const hasSize = size !== undefined;
 
 	return (
-		<div id={id}>
+		<div id={id} className="grid gap-2">
 			<Label>{label}</Label>
 			{normalized ? (
-				<div className="mt-2 flex items-center gap-3 rounded-lg border p-3">
+				<div className="flex items-center gap-3 rounded-lg border p-3">
 					<span className="text-3xl" aria-hidden="true">
 						{getFileIcon(normalized.mimeType)}
 					</span>
@@ -1662,7 +1674,7 @@ function FileFieldRenderer({
 				<Button
 					type="button"
 					variant="outline"
-					className="mt-2 w-full h-32 justify-center border-dashed"
+					className="w-full h-32 justify-center border-dashed"
 					onClick={() => setPickerOpen(true)}
 					aria-label={t`Select ${label}`}
 				>
@@ -1683,7 +1695,7 @@ function FileFieldRenderer({
 				title={t`Select ${label}`}
 			/>
 			{required && !normalized && (
-				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
+				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
 			)}
 		</div>
 	);

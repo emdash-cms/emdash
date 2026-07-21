@@ -22,8 +22,10 @@ interface SiteUrlConfig {
  * the build. Container deployments set env vars at runtime, so we must read
  * process.env which Vite leaves untouched.
  *
- * On Cloudflare Workers process.env is unavailable (returns undefined),
- * so the fallback chain continues to url.origin.
+ * On Cloudflare Workers process.env is empty by default, so the fallback
+ * chain continues to url.origin — unless the Worker enables the
+ * `nodejs_compat_populate_process_env` compatibility flag, in which case
+ * `vars`/secrets (e.g. EMDASH_SITE_URL) are readable here too.
  *
  * Caches after first call.
  */

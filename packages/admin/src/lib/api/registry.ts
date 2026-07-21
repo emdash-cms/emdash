@@ -38,6 +38,7 @@ import {
 	throwResponseError,
 	type AdminManifest,
 } from "./client.js";
+import { PluginMcpConsentRequiredError, type PluginMcpConsentTool } from "./marketplace.js";
 
 export type { Did, Handle };
 export type { HostEnv };
@@ -82,6 +83,7 @@ export interface RegistryInstallRequest {
 	slug: string;
 	version?: string;
 	acknowledgedDeclaredAccess?: unknown;
+	acknowledgedMcpTools?: PluginMcpConsentTool[];
 }
 
 export interface RegistryInstallResult {
@@ -689,6 +691,14 @@ export async function installRegistryPlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body),
 	});
+	if (!response.ok) {
+		const errorBody: unknown = await response
+			.clone()
+			.json()
+			.catch(() => null);
+		const mcpConsent = parseMcpConsent(errorBody);
+		if (mcpConsent) throw mcpConsent;
+	}
 	return parseApiResponse<RegistryInstallResult>(response, i18n._(msg`Failed to install plugin`));
 }
 
@@ -700,6 +710,7 @@ export interface RegistryUpdateOpts {
 	version?: string;
 	confirmCapabilityChanges?: boolean;
 	confirmRouteVisibilityChanges?: boolean;
+	confirmMcpTools?: boolean;
 }
 
 export interface RegistryUninstallOpts {
@@ -760,7 +771,23 @@ export async function updateRegistryPlugin(
 		.catch(() => undefined);
 	const escalation = parseEscalation(body);
 	if (escalation) throw escalation;
+	const mcpConsent = parseMcpConsent(body);
+	if (mcpConsent) throw mcpConsent;
 	await throwResponseError(response, i18n._(msg`Failed to update plugin`));
+}
+
+function parseMcpConsent(body: unknown): PluginMcpConsentRequiredError | null {
+	if (!body || typeof body !== "object" || !("error" in body)) return null;
+	const error = body.error;
+	if (!error || typeof error !== "object" || !("code" in error)) return null;
+	if (error.code !== "MCP_TOOL_CONSENT_REQUIRED") return null;
+	const details =
+		"details" in error && error.details && typeof error.details === "object"
+			? (error.details as { mcpTools?: PluginMcpConsentTool[] })
+			: {};
+	return details.mcpTools && details.mcpTools.length > 0
+		? new PluginMcpConsentRequiredError(details.mcpTools)
+		: null;
 }
 
 function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {

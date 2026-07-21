@@ -23,7 +23,7 @@ import {
 } from "#api/handlers/oauth-authorization.js";
 import { lookupOAuthClient, validateClientRedirectUri } from "#api/handlers/oauth-clients.js";
 import { getPublicOrigin } from "#api/public-url.js";
-import { VALID_SCOPES } from "#auth/api-tokens.js";
+import { isValidScope } from "#auth/api-tokens.js";
 
 export const prerender = false;
 
@@ -141,11 +141,7 @@ export const GET: APIRoute = async ({ url, request, locals }) => {
 	}
 
 	// Parse and validate scopes
-	const validSet = new Set<string>(VALID_SCOPES);
-	const requestedScopes = (scope ?? "")
-		.split(" ")
-		.filter(Boolean)
-		.filter((s) => validSet.has(s));
+	const requestedScopes = (scope ?? "").split(" ").filter(Boolean).filter(isValidScope);
 
 	if (requestedScopes.length === 0) {
 		return new Response(renderErrorPage("No valid scopes requested."), {

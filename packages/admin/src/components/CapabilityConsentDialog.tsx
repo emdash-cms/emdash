@@ -12,6 +12,7 @@ import { ShieldCheck, ShieldWarning, Warning } from "@phosphor-icons/react";
 import * as React from "react";
 
 import { describeCapability } from "../lib/api/marketplace.js";
+import type { PluginMcpConsentTool } from "../lib/api/marketplace.js";
 import { cn } from "../lib/utils.js";
 import { DialogError } from "./DialogError.js";
 
@@ -28,6 +29,8 @@ export interface CapabilityConsentDialogProps {
 	newCapabilities?: string[];
 	/** Routes that change from private to public in an update. */
 	newlyPublicRoutes?: string[];
+	/** Plugin routes explicitly exposed as MCP tools. */
+	mcpTools?: PluginMcpConsentTool[];
 	/** Audit verdict badge */
 	auditVerdict?: "pass" | "warn" | "fail";
 	/** Whether the action is in progress */
@@ -47,6 +50,7 @@ export function CapabilityConsentDialog({
 	allowedHosts,
 	newCapabilities = [],
 	newlyPublicRoutes = [],
+	mcpTools = [],
 	auditVerdict,
 	isPending = false,
 	error,
@@ -124,6 +128,31 @@ export function CapabilityConsentDialog({
 								{newlyPublicRoutes.map((route) => (
 									<li key={route} className="list-disc font-mono">
 										{route}
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+
+					{mcpTools.length > 0 && (
+						<div className="rounded-md border border-kumo-warning/30 bg-kumo-warning/10 p-3 text-sm">
+							<div className="font-medium text-kumo-warning">{t`Agent-callable MCP tools`}</div>
+							<p className="mt-1 text-xs text-kumo-subtle">
+								{t`These tools remain disabled after installation until you explicitly enable agent access.`}
+							</p>
+							<ul className="mt-2 space-y-2">
+								{mcpTools.map((tool) => (
+									<li key={tool.name} className="rounded bg-kumo-base p-2 text-xs">
+										<div className="font-mono">{tool.name}</div>
+										<p className="mt-1 text-kumo-subtle">{tool.description}</p>
+										<p className="mt-1 text-kumo-subtle">
+											{t`Route: ${tool.route} · Permission: ${tool.permission}`}
+										</p>
+										{tool.destructive && (
+											<span className="mt-1 inline-block font-medium text-kumo-danger">
+												{t`Destructive`}
+											</span>
+										)}
 									</li>
 								))}
 							</ul>

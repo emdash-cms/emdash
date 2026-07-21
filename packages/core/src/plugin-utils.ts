@@ -44,13 +44,14 @@ export function getPublicPluginApiRouteHandler(
 }
 
 /**
- * Parse an API response, unwrapping the `{ data: T }` envelope.
+ * Parse an API response, unwrapping the `{ success, data: T }` envelope.
  *
- * All plugin API routes return success responses wrapped in `{ data: ... }`
- * by `apiSuccess()`. This helper unwraps that envelope and handles errors.
+ * All plugin API routes return success responses wrapped in
+ * `{ success: true, data: ... }` by `apiSuccess()`. This helper unwraps that
+ * envelope and handles errors.
  *
  * On error responses (non-2xx), throws an Error with the server's message
- * (from `{ error: { message } }`) or the fallback message.
+ * (from `{ success: false, error: { message } }`) or the fallback message.
  *
  * @example
  * ```ts
@@ -72,8 +73,9 @@ export async function parseApiResponse<T>(
 /**
  * Extract the error message from a failed API response.
  *
- * Error responses use the shape `{ error: { code, message } }`. This helper
- * parses that body and returns the message, falling back to the provided default.
+ * Error responses use the shape `{ success: false, error: { code, message } }`.
+ * This helper parses that body and returns the message, falling back to the
+ * provided default.
  * Swallows JSON parse failures gracefully.
  *
  * @example

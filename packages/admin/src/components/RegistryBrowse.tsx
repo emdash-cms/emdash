@@ -13,7 +13,7 @@
 
 import { Badge, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, PuzzlePiece, ShieldCheck } from "@phosphor-icons/react";
+import { MagnifyingGlass, ShieldCheck } from "@phosphor-icons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -23,6 +23,7 @@ import {
 	type RegistryClientConfig,
 	type RegistryPackageView,
 } from "../lib/api/registry.js";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { PublisherHandle, usePublisherHandle } from "./PublisherHandle.js";
 
 export interface RegistryBrowseProps {
@@ -175,7 +176,7 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 		>
 			<div className="flex items-start gap-3">
 				<div className="mt-1 rounded-md bg-kumo-subtle p-2 text-kumo-subtle">
-					<PuzzlePiece className="h-5 w-5" />
+					<ADMIN_NAV_ICONS.plugins className="h-5 w-5" />
 				</div>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
