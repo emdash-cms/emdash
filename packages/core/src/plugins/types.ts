@@ -127,6 +127,59 @@ export interface PaginatedResult<T> {
 }
 
 /**
+ * A single per-field integer delta for {@link StorageCollection.updateIf}.
+ *
+ * `inc`/`dec` values MUST be integers — this is enforced at runtime with
+ * `Number.isInteger` (which also rejects `NaN`/`Infinity`), because a TS
+ * `number` cannot forbid float literals. Deltas are applied entirely in-SQL
+ * over the stored value with `COALESCE(<value>, 0) ± n`, so a delta on a
+ * missing or JSON-`null` field starts from `0` (never corrupts the document).
+ *
+ * `updateIf` does NOT clamp: a `dec` can drive a field negative when the
+ * `where` guard doesn't cover the delta magnitude (e.g. stock `2` with
+ * `where: { stock: { gte: 1 } }` and `delta: { stock: { dec: 3 } }` → `-1`,
+ * `applied: true`). The guard is the caller's responsibility — pair a `dec: k`
+ * with a `gte: k` guard to prevent underflow.
+ */
+export type NumericDelta = { inc: number } | { dec: number };
+
+/**
+ * Arguments to {@link StorageCollection.updateIf}.
+ *
+ * `where` reuses the {@link QueryOptions} `WhereClause` verbatim — the guard is
+ * evaluated in-SQL with the same numeric-correct, total comparisons as
+ * `query()`. An empty `where: {}` emits no guard, i.e. it matches the row
+ * unconditionally (update-if-row-exists) — a footgun in the no-oversell case,
+ * where a real predicate (e.g. `{ stock: { gte: 1 } }`) is what you want.
+ *
+ * At least one of `set` / `delta` must be present (a runtime error is thrown
+ * otherwise). A field may not appear in both `set` and `delta` in the same
+ * call. `set` and `delta` are separate arguments (not a union) so a wholesale
+ * value that happens to look like `{ inc: 5 }` is never mistaken for a delta.
+ */
+export interface UpdateIfArgs<T> {
+	/**
+	 * Guard evaluated in-SQL; identical semantics to `query({ where })`. An
+	 * empty `{}` means "match the row unconditionally (no guard)".
+	 */
+	where: WhereClause;
+	/** Wholesale field values merged into the stored JSON document. */
+	set?: Partial<T>;
+	/** Per-field integer deltas applied in-SQL (`COALESCE(base, 0) ± n`). */
+	delta?: { [K in keyof T]?: NumericDelta };
+}
+
+/**
+ * Result of {@link StorageCollection.updateIf}.
+ *
+ * `applied: false` intentionally conflates "row absent" and "guard failed": a
+ * single-statement guarded `UPDATE` cannot distinguish them, and the caller
+ * should not need to. `updateIf` is update-only — it never inserts a missing
+ * row.
+ */
+export type UpdateIfResult<T> = { applied: true; data: T } | { applied: false };
+
+/**
  * Storage collection interface - the API exposed to plugins
  * No async iterators - all operations return promises with pagination
  */
@@ -145,6 +198,17 @@ export interface StorageCollection<T = unknown> {
 	// Query - always paginated
 	query(options?: QueryOptions): Promise<PaginatedResult<{ id: string; data: T }>>;
 	count(where?: WhereClause): Promise<number>;
+
+	// Conditional write (single-statement, atomic per row).
+	/**
+	 * Predicate-guarded atomic update. Applies `set`/`delta` to the row `id`
+	 * only if it exists and the `where` guard matches, in a single guarded
+	 * `UPDATE … RETURNING`. This is the no-oversell primitive: the guard and the
+	 * arithmetic live in one statement, so N concurrent guarded decrements
+	 * serialize correctly. `applied: false` means the row was absent OR the
+	 * guard failed (the two are intentionally indistinguishable). Never inserts.
+	 */
+	updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>>;
 }
 
 /**

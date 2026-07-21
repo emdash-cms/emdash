@@ -16,16 +16,28 @@ import {
 	validateOrderByClause,
 	getIndexedFields,
 	jsonOrderExtract,
+	isInFilter,
 } from "../../plugins/storage-query.js";
 import type {
 	StorageCollection,
 	QueryOptions,
 	PaginatedResult,
 	WhereClause,
+	UpdateIfArgs,
+	UpdateIfResult,
 } from "../../plugins/types.js";
+import { pluginDataWriteExpr } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
+
+/**
+ * A value that looks like a `NumericDelta` shell (`{ inc?, dec? }`); the precise
+ * one-of-`inc`/`dec` and integer checks happen in `updateIf`.
+ */
+function isDeltaLike(value: unknown): value is { inc?: unknown; dec?: unknown } {
+	return typeof value === "object" && value !== null;
+}
 
 /**
  * Interleave a `?`-placeholder SQL string with its params into a single
@@ -306,6 +318,97 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		const result = await query.executeTakeFirst();
 		// Number() because the pg driver returns COUNT(*) (bigint) as a string.
 		return Number(result?.count ?? 0);
+	}
+
+	/**
+	 * Predicate-guarded atomic update (see {@link StorageCollection.updateIf}).
+	 *
+	 * One guarded `UPDATE _plugin_storage SET data = <json_set/jsonb_set expr>,
+	 * updated_at = ? WHERE <pk> AND <guard> RETURNING data`. The guard reuses the
+	 * numeric-correct `buildWhereClause` translation verbatim, and the
+	 * `set`/`delta` arithmetic is computed in-SQL — no read-then-write — which is
+	 * what makes N concurrent guarded decrements correct (no oversell).
+	 *
+	 * `applied` is derived from whether a `RETURNING` row came back (equivalently
+	 * rows-affected > 0). A missing row and a failed guard both yield 0 rows →
+	 * `{ applied: false }`; the two are intentionally indistinguishable. Never
+	 * inserts.
+	 */
+	async updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>> {
+		const { where, set, delta } = args;
+
+		const setEntries: Array<[string, unknown]> = set ? Object.entries(set) : [];
+		const hasSet = setEntries.length > 0;
+		const hasDelta = delta !== undefined && Object.keys(delta).length > 0;
+
+		if (!hasSet && !hasDelta) {
+			throw new Error("updateIf requires at least one of `set` or `delta`.");
+		}
+
+		// Build the signed integer deltas, enforcing integer-only at runtime.
+		const deltaEntries: Array<[string, number]> = [];
+		if (hasDelta) {
+			const setFieldSet = new Set(setEntries.map(([field]) => field));
+			for (const [field, spec] of Object.entries(delta)) {
+				if (spec === undefined) continue;
+				if (setFieldSet.has(field)) {
+					throw new Error(`updateIf: field "${field}" appears in both \`set\` and \`delta\`.`);
+				}
+				if (!isDeltaLike(spec)) {
+					throw new TypeError(
+						`updateIf: delta for "${field}" must be exactly one of { inc: number } or { dec: number }.`,
+					);
+				}
+				const { inc, dec } = spec;
+				let signed: number;
+				if (typeof inc === "number" && typeof dec !== "number") {
+					signed = inc;
+				} else if (typeof dec === "number" && typeof inc !== "number") {
+					signed = -dec;
+				} else {
+					// Both present or neither present/numeric → ambiguous or invalid.
+					throw new TypeError(
+						`updateIf: delta for "${field}" must be exactly one of { inc: number } or { dec: number }.`,
+					);
+				}
+				if (!Number.isInteger(signed)) {
+					throw new TypeError(
+						`updateIf: delta for "${field}" must be an integer (got ${String(inc ?? dec)}).`,
+					);
+				}
+				deltaEntries.push([field, signed]);
+			}
+		}
+
+		// Defensive empty-`in` guard: an empty `in: []` matches nothing. The shared
+		// where-translation would emit invalid `IN ()`; short-circuit to a no-op
+		// (matches nothing → applied:false) BEFORE building any SQL.
+		for (const value of Object.values(where)) {
+			if (isInFilter(value) && value.in.length === 0) {
+				return { applied: false };
+			}
+		}
+
+		const now = new Date().toISOString();
+		const dataExpr = pluginDataWriteExpr(this.db, setEntries, deltaEntries);
+
+		let query = this.db
+			.updateTable("_plugin_storage")
+			.set({ data: dataExpr, updated_at: now })
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id);
+
+		const whereResult = buildWhereClause(this.db, where);
+		if (whereResult.sql) {
+			query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
+		}
+
+		const row = await query.returning("data").executeTakeFirst();
+		if (!row) return { applied: false };
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
+		const data = JSON.parse(row.data) as T;
+		return { applied: true, data };
 	}
 }
 
