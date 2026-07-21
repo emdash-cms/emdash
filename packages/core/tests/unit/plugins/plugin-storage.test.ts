@@ -1,10 +1,16 @@
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
+import {
+	PluginStorageRepository,
+	mapSerializationFailure,
+} from "../../../src/database/repositories/plugin-storage.js";
 import type { Database } from "../../../src/database/types.js";
 import { IdentifierError } from "../../../src/database/validate.js";
-import { StorageQueryError } from "../../../src/plugins/storage-query.js";
+import {
+	StorageQueryError,
+	StorageSerializationError,
+} from "../../../src/plugins/storage-query.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 interface TestDocument {
@@ -439,5 +445,48 @@ describe("PluginStorageRepository", () => {
 			const result = await otherRepo.get("doc1");
 			expect(result).toBeNull();
 		});
+	});
+});
+
+describe("mapSerializationFailure", () => {
+	// Pure/deterministic: proves the SQLSTATE trap without provoking a live race.
+	// node-pg sets `.code` on its DatabaseError and Kysely propagates it
+	// unwrapped, so a fake `{ code }` faithfully stands in for the real throw.
+
+	it("wraps a 40001 (serialization_failure) into StorageSerializationError, preserving cause", () => {
+		const original = { code: "40001", message: "could not serialize access" };
+		const mapped = mapSerializationFailure(original);
+		expect(mapped).toBeInstanceOf(StorageSerializationError);
+		const err = mapped as StorageSerializationError;
+		expect(err.sqlState).toBe("40001");
+		expect(err.cause).toBe(original);
+		expect(err.message).toMatch(/40001/);
+		expect(err.message).toMatch(/READ COMMITTED/);
+	});
+
+	it("wraps a 40P01 (deadlock_detected) into StorageSerializationError, preserving cause", () => {
+		const original = { code: "40P01", message: "deadlock detected" };
+		const mapped = mapSerializationFailure(original);
+		expect(mapped).toBeInstanceOf(StorageSerializationError);
+		const err = mapped as StorageSerializationError;
+		expect(err.sqlState).toBe("40P01");
+		expect(err.cause).toBe(original);
+	});
+
+	it("detects the SQLSTATE nested on `.cause.code` too", () => {
+		const original = { cause: { code: "40001" } };
+		const mapped = mapSerializationFailure(original);
+		expect(mapped).toBeInstanceOf(StorageSerializationError);
+		expect((mapped as StorageSerializationError).sqlState).toBe("40001");
+	});
+
+	it("passes a non-serialization SQLSTATE (23505) through unchanged", () => {
+		const original = { code: "23505", message: "duplicate key" };
+		expect(mapSerializationFailure(original)).toBe(original);
+	});
+
+	it("passes a plain Error (no code) through unchanged", () => {
+		const original = new Error("boom");
+		expect(mapSerializationFailure(original)).toBe(original);
 	});
 });
