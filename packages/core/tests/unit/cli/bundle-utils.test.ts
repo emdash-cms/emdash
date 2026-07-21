@@ -22,6 +22,7 @@ import {
 	findNodeBuiltinImports,
 	findBuildOutput,
 	findSourceExports,
+	toFileImportSpecifier,
 } from "../../../src/cli/commands/bundle-utils.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
@@ -85,40 +86,20 @@ describe("extractManifest", () => {
 		expect(manifest.routes).toEqual(["sync", "webhook"]);
 	});
 
-	it("converts MCP tools to serializable manifest metadata", () => {
+	it("emits structured route entries for public and cacheControl metadata", () => {
 		const plugin = mockPlugin({
-			mcpTools: {
-				summarize: {
-					title: "Summarize",
-					description: "Summarize text.",
-					route: "summarize",
-					inputSchema: {
-						type: "object",
-						properties: {
-							text: { type: "string" },
-						},
-						required: ["text"],
-					},
-				},
+			routes: {
+				sync: { handler: vi.fn() },
+				webhook: { handler: vi.fn(), public: true },
+				catalog: { handler: vi.fn(), public: true, cacheControl: "public, max-age=60" },
 			},
 		});
 
 		const manifest = extractManifest(plugin);
-
-		expect(manifest.mcpTools).toEqual([
-			{
-				name: "summarize",
-				title: "Summarize",
-				description: "Summarize text.",
-				route: "summarize",
-				inputSchema: {
-					type: "object",
-					properties: {
-						text: { type: "string" },
-					},
-					required: ["text"],
-				},
-			},
+		expect(manifest.routes).toEqual([
+			"sync",
+			{ name: "webhook", public: true },
+			{ name: "catalog", public: true, cacheControl: "public, max-age=60" },
 		]);
 	});
 
@@ -311,6 +292,16 @@ describe("findBuildOutput", () => {
 
 	it("returns undefined when no match", async () => {
 		expect(await findBuildOutput(tempDir, "index")).toBeUndefined();
+	});
+});
+
+describe("toFileImportSpecifier", () => {
+	it("returns a file URL for an absolute build artifact path", () => {
+		const artifactPath = join(tmpdir(), "emdash-plugin", "index.mjs");
+		const specifier = toFileImportSpecifier(artifactPath);
+
+		expect(new URL(specifier).protocol).toBe("file:");
+		expect(specifier).not.toBe(artifactPath);
 	});
 });
 

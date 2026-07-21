@@ -88,12 +88,19 @@ export default defineConfig({
 		"src/db/postgres.ts",
 		// Query instrumentation (used by first-party adapters like @emdash-cms/cloudflare)
 		"src/database/instrumentation.ts",
+		// Fail-fast Postgres migration lock (used by @emdash-cms/cloudflare's Hyperdrive adapter)
+		"src/database/pg-migration-lock.ts",
 		// Storage adapters (runtime - loaded via virtual:emdash/storage)
 		"src/storage/local.ts",
 		"src/storage/s3.ts",
+		// Object-cache memory backend (runtime - loaded via virtual:emdash/object-cache)
+		"src/object-cache/memory.ts",
 		// Media providers
 		"src/media/index.ts",
 		"src/media/local-runtime.ts",
+		// Image-endpoint helpers (portable) + the Node image endpoint
+		"src/media/image-endpoint.ts",
+		"src/astro/image-endpoint.ts",
 		// Runtime exports (depends on virtual modules - for live.config.ts)
 		"src/runtime.ts",
 		// Seed engine

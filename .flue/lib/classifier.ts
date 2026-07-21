@@ -1,5 +1,5 @@
 // Lightweight classifier shared between investigate and classify-reply
-// workflows. Uses kimi-k2.6 via our Cloudflare AI Gateway -- cheap and
+// workflows. Uses kimi-k2.7-code via our Cloudflare AI Gateway -- cheap and
 // fast for structured classification tasks.
 
 import { writeFileSync } from "node:fs";
@@ -12,7 +12,7 @@ import * as v from "valibot";
  * Used for cheap structured-output prompts that don't need a shell.
  */
 export const classifier = createAgent(() => ({
-	model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6",
+	model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code",
 }));
 
 /**

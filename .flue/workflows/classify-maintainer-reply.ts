@@ -11,6 +11,7 @@
 
 import type { FlueContext } from "@flue/runtime";
 
+import { withCapacityRetry } from "../lib/capacity.js";
 import {
 	classifier,
 	maintainerIntentSchema,
@@ -74,7 +75,21 @@ export async function run({
 		"Quote the specific phrase that drove your decision in the reasoning field.",
 	].join("\n");
 
-	const { data } = await session.prompt(prompt, { result: maintainerIntentSchema });
+	const { data } = await withCapacityRetry(
+		(signal) => session.prompt(prompt, { result: maintainerIntentSchema, signal }),
+		{
+			label: `classify-maintainer-reply#${payload.issueNumber}`,
+			attempts: 4,
+			perAttemptTimeoutMs: 90_000,
+			onRetry: ({ attempt, delayMs, error }) =>
+				log.warn?.("model over capacity, backing off", {
+					issueNumber: payload.issueNumber,
+					attempt,
+					delayMs,
+					error: String(error),
+				}),
+		},
+	);
 	log.info("classified maintainer reply", {
 		issueNumber: payload.issueNumber,
 		intent: data.intent,

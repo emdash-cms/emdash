@@ -31,6 +31,9 @@ export {
 	type TranslationsResponse,
 	getDraftStatus,
 	fetchContentList,
+	fetchContentAuthors,
+	type ContentAuthor,
+	type ContentDateField,
 	fetchContent,
 	fetchTranslations,
 	createContent,
@@ -60,6 +63,7 @@ export {
 	type MediaProviderItem,
 	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaList,
+	fetchMediaItem,
 	uploadMedia,
 	deleteMedia,
 	updateMedia,
@@ -97,10 +101,14 @@ export {
 // Plugins
 export {
 	type PluginInfo,
+	type SettingField,
 	fetchPlugins,
 	fetchPlugin,
+	fetchPluginSettings,
+	updatePluginSettings,
 	enablePlugin,
 	disablePlugin,
+	setPluginMcpEnabled,
 } from "./plugins.js";
 
 // Settings
@@ -268,6 +276,7 @@ export {
 	type ImportResult,
 	type MediaImportResult,
 	type MediaImportProgress,
+	type WpImportProgress,
 	type RewriteUrlsResult,
 	type SourceCapabilities,
 	type SourceAuth,
@@ -279,6 +288,7 @@ export {
 	prepareWxrImport,
 	executeWxrImport,
 	importWxrMedia,
+	importWxrMediaBatched,
 	probeImportUrl,
 	rewriteContentUrls,
 	analyzeWpPluginSite,

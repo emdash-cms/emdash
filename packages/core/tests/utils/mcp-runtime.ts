@@ -20,10 +20,9 @@ import type { Kysely } from "kysely";
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
 import type { EmDashHandlers } from "../../src/astro/types.js";
 import type { Database } from "../../src/database/types.js";
-import { EmDashRuntime, type SandboxedPluginEntry } from "../../src/emdash-runtime.js";
+import { EmDashRuntime } from "../../src/emdash-runtime.js";
 import { createMcpServer } from "../../src/mcp/server.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
-import type { SandboxedPlugin } from "../../src/plugins/sandbox/index.js";
 import type { ResolvedPlugin } from "../../src/plugins/types.js";
 import { invalidateUrlPatternCache } from "../../src/query.js";
 
@@ -95,12 +94,6 @@ function createAuthenticatedPair(authInfo: {
 export interface TestRuntimeOptions {
 	/** Optional plugins to participate in the hook pipeline. Default: none. */
 	plugins?: ResolvedPlugin[];
-	/** Optional already-loaded sandboxed plugins. Default: none. */
-	sandboxedPlugins?: Map<string, SandboxedPlugin>;
-	/** Optional sandboxed plugin descriptors. Default: none. */
-	sandboxedPluginEntries?: SandboxedPluginEntry[];
-	/** Optional enabled plugin IDs in addition to configured plugins. */
-	enabledPluginIds?: string[];
 	/** Optional partial config override. Default: empty config. */
 	config?: Partial<EmDashConfig>;
 }
@@ -116,8 +109,6 @@ export function createTestRuntime(
 	opts: TestRuntimeOptions = {},
 ): EmDashRuntime {
 	const plugins = opts.plugins ?? [];
-	const sandboxedPlugins = opts.sandboxedPlugins ?? new Map<string, SandboxedPlugin>();
-	const sandboxedPluginEntries = opts.sandboxedPluginEntries ?? [];
 	const config: EmDashConfig = { ...opts.config };
 
 	const pipelineFactoryOptions = { db } as const;
@@ -138,7 +129,7 @@ export function createTestRuntime(
 		}) as any,
 		createStorage: null,
 		sandboxEnabled: false,
-		sandboxedPluginEntries,
+		sandboxedPluginEntries: [],
 		createSandboxRunner: null,
 	};
 
@@ -146,10 +137,10 @@ export function createTestRuntime(
 		db,
 		storage: null,
 		configuredPlugins: plugins,
-		sandboxedPlugins,
-		sandboxedPluginEntries,
+		sandboxedPlugins: new Map(),
+		sandboxedPluginEntries: [],
 		hooks,
-		enabledPlugins: new Set([...plugins.map((p) => p.id), ...(opts.enabledPluginIds ?? [])]),
+		enabledPlugins: new Set(plugins.map((p) => p.id)),
 		pluginStates: new Map(),
 		config,
 		mediaProviders: new Map(),
@@ -211,16 +202,21 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		hooks: runtime.hooks,
 		email: runtime.email,
 		configuredPlugins: runtime.configuredPlugins,
+		sandboxedPluginEntries: runtime.sandboxedPluginEntries,
 		config: runtime.config,
 		getManifest: runtime.getManifest.bind(runtime),
 		invalidateUrlPatternCache,
 
-		handlePluginApiRoute: runtime.handlePluginApiRoute.bind(runtime),
+		// Fields the MCP server doesn't currently call. Stub so the type
+		// checks; if a tool ever reaches for one, the test will throw a
+		// clear error rather than silently no-op.
+		handlePluginApiRoute: () => {
+			throw new Error("handlePluginApiRoute not implemented in test runtime");
+		},
 		handlePublicPluginApiRoute: () => {
 			throw new Error("handlePublicPluginApiRoute not implemented in test runtime");
 		},
-		getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
-		getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
+		getPluginRouteMeta: () => null,
 		getMediaProvider: runtime.getMediaProvider.bind(runtime),
 		getMediaProviderList: runtime.getMediaProviderList.bind(runtime),
 		getSandboxRunner: runtime.getSandboxRunner.bind(runtime),
@@ -267,7 +263,7 @@ export async function connectMcpHarness(opts: ConnectMcpOptions): Promise<McpHar
 	const runtime = createTestRuntime(opts.db, opts.runtimeOptions);
 	const handlers = handlersFromRuntime(runtime);
 
-	const server = createMcpServer(handlers);
+	const server = createMcpServer();
 	const [clientTransport, serverTransport] = createAuthenticatedPair({
 		emdash: handlers,
 		userId: opts.userId,

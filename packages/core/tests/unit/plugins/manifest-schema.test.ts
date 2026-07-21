@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 
 import {
-	pluginManifestBaseSchema,
 	pluginManifestSchema,
 	normalizeManifestRoute,
 } from "../../../src/plugins/manifest-schema.js";
@@ -21,24 +20,6 @@ function makeManifest(storage: Record<string, { indexes: Array<string | string[]
 }
 
 describe("pluginManifestSchema — route entries", () => {
-	it("should keep a refinement-free base schema for manifest projections", () => {
-		const summarySchema = pluginManifestBaseSchema.pick({
-			id: true,
-			version: true,
-			capabilities: true,
-			allowedHosts: true,
-		});
-
-		expect(
-			summarySchema.safeParse({
-				id: "test-plugin",
-				version: "1.0.0",
-				capabilities: [],
-				allowedHosts: [],
-			}).success,
-		).toBe(true);
-	});
-
 	it("should accept plain string routes", () => {
 		const result = pluginManifestSchema.safeParse(makeManifest({}));
 		// Baseline with empty routes is valid
@@ -91,6 +72,22 @@ describe("pluginManifestSchema — route entries", () => {
 		expect(result.success).toBe(true);
 	});
 
+	it("should accept route objects with cacheControl", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "catalog", public: true, cacheControl: "public, max-age=60" }],
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should reject route objects with empty cacheControl", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "catalog", public: true, cacheControl: "" }],
+		});
+		expect(result.success).toBe(false);
+	});
+
 	it("should accept route names with slashes and hyphens", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
@@ -124,143 +121,46 @@ describe("pluginManifestSchema — route entries", () => {
 	});
 });
 
-describe("pluginManifestSchema — MCP tool entries", () => {
-	it("should accept plugin MCP tool metadata", () => {
+describe("pluginManifestSchema — MCP tools", () => {
+	it("keeps MCP declarations optional for backwards compatibility", () => {
+		expect(pluginManifestSchema.safeParse(makeManifest({})).success).toBe(true);
+	});
+
+	it("accepts a plugin-scoped MCP tool declaration", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
-			capabilities: ["mcp:tools"],
-			routes: ["tools/summarize"],
-			mcpTools: [
-				{
-					name: "summarize",
-					title: "Summarize Text",
-					description: "Summarize content using the plugin.",
-					route: "tools/summarize",
-					inputSchema: {
-						type: "object",
-						properties: {
-							text: {
-								type: "string",
-								description: "Text to summarize.",
-								minLength: 1,
-							},
-						},
-						required: ["text"],
-						additionalProperties: false,
+			mcp: {
+				tools: [
+					{
+						name: "createEvent",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						destructive: false,
+						inputSchema: { type: "object", properties: { title: { type: "string" } } },
+						outputSchema: { type: "object", properties: { id: { type: "string" } } },
 					},
-				},
-			],
+				],
+			},
 		});
 
 		expect(result.success).toBe(true);
-		if (result.success) {
-			expect(result.data.mcpTools).toEqual([
-				{
-					name: "summarize",
-					title: "Summarize Text",
-					description: "Summarize content using the plugin.",
-					route: "tools/summarize",
-					inputSchema: {
-						type: "object",
-						properties: {
-							text: {
-								type: "string",
-								description: "Text to summarize.",
-								minLength: 1,
-							},
-						},
-						required: ["text"],
-						additionalProperties: false,
+	});
+
+	it("rejects unsafe local tool names", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mcp: {
+				tools: [
+					{
+						name: "calendar.create",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						inputSchema: { type: "object" },
 					},
-				},
-			]);
-		}
-	});
-
-	it("should reject MCP tool names outside lowercase snake_case", () => {
-		const result = pluginManifestSchema.safeParse({
-			...makeManifest({}),
-			capabilities: ["mcp:tools"],
-			routes: ["tools/summarize"],
-			mcpTools: [
-				{
-					name: "Summarize",
-					description: "Invalid tool name.",
-					route: "tools/summarize",
-				},
-			],
-		});
-
-		expect(result.success).toBe(false);
-	});
-
-	it("should reject MCP tool names with double underscores", () => {
-		const result = pluginManifestSchema.safeParse({
-			...makeManifest({}),
-			capabilities: ["mcp:tools"],
-			routes: ["tools/summarize"],
-			mcpTools: [
-				{
-					name: "bad__name",
-					description: "Invalid tool name.",
-					route: "tools/summarize",
-				},
-			],
-		});
-
-		expect(result.success).toBe(false);
-	});
-
-	it("should reject MCP tools without the mcp:tools capability", () => {
-		const result = pluginManifestSchema.safeParse({
-			...makeManifest({}),
-			routes: ["tools/summarize"],
-			mcpTools: [
-				{
-					name: "summarize",
-					description: "Summarize text.",
-					route: "tools/summarize",
-				},
-			],
-		});
-
-		expect(result.success).toBe(false);
-	});
-
-	it("should reject MCP tools that reference undeclared routes", () => {
-		const result = pluginManifestSchema.safeParse({
-			...makeManifest({}),
-			capabilities: ["mcp:tools"],
-			routes: ["tools/other"],
-			mcpTools: [
-				{
-					name: "summarize",
-					description: "Summarize text.",
-					route: "tools/summarize",
-				},
-			],
-		});
-
-		expect(result.success).toBe(false);
-	});
-
-	it("should reject unsupported JSON Schema keywords in MCP input schemas", () => {
-		const result = pluginManifestSchema.safeParse({
-			...makeManifest({}),
-			capabilities: ["mcp:tools"],
-			routes: ["tools/summarize"],
-			mcpTools: [
-				{
-					name: "summarize",
-					description: "Summarize text.",
-					route: "tools/summarize",
-					inputSchema: {
-						type: "object",
-						properties: {},
-						$ref: "#/$defs/input",
-					},
-				},
-			],
+				],
+			},
 		});
 
 		expect(result.success).toBe(false);

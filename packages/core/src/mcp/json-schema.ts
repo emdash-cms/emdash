@@ -1,14 +1,15 @@
 import { z } from "zod";
 
-import type { ManifestJsonObjectSchema } from "../plugins/types.js";
+const fallbackSchema = z.record(z.string(), z.unknown());
 
-type ZodJsonObjectSchema = z.core.JSONSchema.ObjectSchema;
-
-export function jsonSchemaObjectToZod(
-	schema: ManifestJsonObjectSchema,
-): z.ZodType<Record<string, unknown>> {
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- manifest validation constrains input schemas to object roots.
-	return z.fromJSONSchema(schema as unknown as ZodJsonObjectSchema) as z.ZodType<
-		Record<string, unknown>
-	>;
+export function safeJsonSchemaToZod(
+	schema: Record<string, unknown>,
+	onError?: (error: unknown) => void,
+): z.ZodType {
+	try {
+		return z.fromJSONSchema(schema);
+	} catch (error) {
+		onError?.(error);
+		return fallbackSchema;
+	}
 }

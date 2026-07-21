@@ -8,8 +8,12 @@
  * but are read on every byline hydration (admin pages, content rendering,
  * API responses). Caching at the isolate level drops the SELECT-from-
  * `_emdash_byline_fields` from once-per-hydration to once-per-isolate-
- * after-bump. The cache holds a Promise (not the resolved value) so
- * concurrent cold-isolate readers share the in-flight query.
+ * after-bump. The cache holds the resolved *value* behind a reclaimable
+ * single-flight lock (see `utils/single-flight-cache.ts`), never an
+ * in-flight promise: concurrent cold-isolate readers coalesce onto one
+ * query by polling the published value, so a reader whose request is
+ * cancelled mid-query can never strand later byline hydrations on the
+ * isolate (the workerd never-settling-promise hazard that produced 524s).
  *
  * Stored on globalThis under `Symbol.for("emdash:byline-field-defs")` so
  * Vite SSR chunk duplication can't produce two independent caches (same
@@ -50,17 +54,23 @@
 
 import type { Kysely } from "kysely";
 
+import { after } from "../after.js";
 import type { Database } from "../database/types.js";
 import { requestCached } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
 import { BylineSchemaRegistry } from "../schema/byline-registry.js";
 import type { BylineFieldDefinition } from "../schema/types.js";
+import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 
 interface FieldDefsHolder {
-	/** In-flight or resolved defs promise for the cached version. Null until first read. */
-	cached: Promise<BylineFieldDefinition[]> | null;
-	/** Persisted-version value that `cached` was fetched against. */
+	/** Last resolved defs, valid only when `hasValue` is true. */
+	value: BylineFieldDefinition[] | null;
+	/** Presence flag, separate from `value` so an empty-array result still caches. */
+	hasValue: boolean;
+	/** Persisted-version value that `value` was fetched against. */
 	cachedVersion: number;
+	/** Reclaimable single-flight lock so a cancelled owner can't wedge readers. */
+	lock: InitLock;
 }
 
 const HOLDER_KEY = Symbol.for("emdash:byline-field-defs");
@@ -69,13 +79,28 @@ const holder: FieldDefsHolder =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-cache.ts)
 	(g[HOLDER_KEY] as FieldDefsHolder | undefined) ??
 	(() => {
-		const h: FieldDefsHolder = { cached: null, cachedVersion: -1 };
+		const h: FieldDefsHolder = {
+			value: null,
+			hasValue: false,
+			cachedVersion: -1,
+			lock: createInitLock(),
+		};
 		g[HOLDER_KEY] = h;
 		return h;
 	})();
 
 const REQUEST_CACHE_KEY_VERSION = "byline-fields-version";
 const REQUEST_CACHE_KEY_DEFS_PREFIX = "byline-field-defs:";
+
+/**
+ * Reclaim window for the single-flight lock: if an owner holds it past
+ * this without publishing (e.g. its request was cancelled and the
+ * anchored fetch hasn't completed yet), the next reader reclaims and
+ * refetches. `listFields` is a single fast SELECT, so this only needs to
+ * cover a genuinely slow/stranded query. Mutable solely so tests can
+ * shorten it; production never changes it.
+ */
+let reclaimDeadlineMs = 10_000;
 
 /**
  * Read the persisted `options.byline_fields_version` counter. Cached for
@@ -107,19 +132,29 @@ export async function getBylineFieldDefs(db: Kysely<Database>): Promise<BylineFi
 		if (isolated || dirty) {
 			return new BylineSchemaRegistry(db).listFields();
 		}
-		if (holder.cached !== null && holder.cachedVersion === version) {
-			return holder.cached;
-		}
-		const defs = new BylineSchemaRegistry(db).listFields().catch((error) => {
-			if (holder.cached === defs) {
-				holder.cached = null;
-				holder.cachedVersion = -1;
-			}
-			throw error;
-		});
-		holder.cached = defs;
-		holder.cachedVersion = version;
-		return defs;
+		// Per-isolate single-flight cache keyed on the persisted version.
+		// Coalesce concurrent cold readers via the lock and read the
+		// published value; never await another request's in-flight promise
+		// (a cancelled owner would otherwise strand every later byline
+		// hydration on the isolate). The fetch is anchored so a cancelled
+		// originator still drives it to completion and populates the cache.
+		return initWithLock<BylineFieldDefinition[]>(
+			holder.lock,
+			() => (holder.hasValue && holder.cachedVersion === version ? holder.value : null),
+			(isCurrentClaim) =>
+				(async () => {
+					const defs = await new BylineSchemaRegistry(db).listFields();
+					// Publish only while still the current claim, and never
+					// regress over a newer version a concurrent reader stored.
+					if (isCurrentClaim() && version >= holder.cachedVersion) {
+						holder.value = defs;
+						holder.hasValue = true;
+						holder.cachedVersion = version;
+					}
+					return defs;
+				})(),
+			{ deadlineMs: reclaimDeadlineMs, anchor: (promise) => after(() => promise) },
+		);
 	});
 }
 
@@ -133,6 +168,21 @@ export async function getBylineFieldDefs(db: Kysely<Database>): Promise<BylineFi
  * coordination that lets other isolates see the change.
  */
 export function resetBylineFieldDefsCacheForTests(): void {
-	holder.cached = null;
+	holder.value = null;
+	holder.hasValue = false;
 	holder.cachedVersion = -1;
+	holder.lock.ownerStartedAt = null;
+	holder.lock.generation = 0;
+	reclaimDeadlineMs = 10_000;
+}
+
+/**
+ * Test-only: shorten the single-flight reclaim window so a "stranded
+ * owner" scenario can be exercised without waiting out the production
+ * deadline. Reset by `resetBylineFieldDefsCacheForTests`.
+ *
+ * @internal
+ */
+export function setBylineFieldDefsReclaimDeadlineForTests(ms: number): void {
+	reclaimDeadlineMs = ms;
 }

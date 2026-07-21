@@ -1,12 +1,18 @@
 import type { Kysely } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
 import type { Database } from "../../src/database/types.js";
 import { emdashLoader } from "../../src/loader.js";
-import { bucketFilter, sliceCollectionResult } from "../../src/query.js";
+import { bucketFilter, getEmDashEntry, sliceCollectionResult } from "../../src/query.js";
 import { runWithContext } from "../../src/request-context.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
+
+vi.mock("astro:content", () => ({
+	getLiveEntry: vi.fn(),
+}));
+
+import { getLiveEntry } from "astro:content";
 
 describe("getEmDashCollection limit bucketing", () => {
 	let db: Kysely<Database>;
@@ -65,6 +71,11 @@ describe("getEmDashCollection limit bucketing", () => {
 			fetchFilter: { limit: 4, cursor: "abc" },
 			requestedLimit: undefined,
 		});
+		// offset-paginated calls bypass bucketing for the same reason
+		expect(bucketFilter({ limit: 4, offset: 8 })).toEqual({
+			fetchFilter: { limit: 4, offset: 8 },
+			requestedLimit: undefined,
+		});
 	});
 
 	it("paginating from a slice-produced cursor returns the correct next page", async () => {
@@ -87,5 +98,95 @@ describe("getEmDashCollection limit bucketing", () => {
 
 		const allIds = [...firstPage.entries, ...secondPage.entries].map((e) => e.id);
 		expect(new Set(allIds).size).toBe(7);
+	});
+});
+
+describe("getEmDashEntry scheduled visibility", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+		vi.mocked(getLiveEntry).mockReset();
+	});
+
+	function mockEntry(data: Record<string, unknown>) {
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry: {
+				id: "scheduled-post",
+				data: {
+					id: "db-id-1",
+					title: "Scheduled post",
+					...data,
+				},
+			},
+			error: undefined,
+			cacheHint: {},
+		} as any);
+	}
+
+	async function loadEntry() {
+		return runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "scheduled-post"));
+	}
+
+	it("returns scheduled entries whose Date scheduledAt has passed", async () => {
+		mockEntry({
+			status: "scheduled",
+			scheduledAt: new Date("2000-01-01T00:00:00.000Z"),
+		});
+
+		const { entry } = await loadEntry();
+
+		expect(entry?.id).toBe("scheduled-post");
+	});
+
+	it("keeps scheduled entries with a future Date scheduledAt hidden", async () => {
+		mockEntry({
+			status: "scheduled",
+			scheduledAt: new Date("2999-01-01T00:00:00.000Z"),
+		});
+
+		const { entry } = await loadEntry();
+
+		expect(entry).toBeNull();
+	});
+
+	it("returns scheduled entries whose string scheduledAt has passed", async () => {
+		mockEntry({
+			status: "scheduled",
+			scheduledAt: "2000-01-01T00:00:00.000Z",
+		});
+
+		const { entry } = await loadEntry();
+
+		expect(entry?.id).toBe("scheduled-post");
+	});
+
+	it("returns published entries regardless of scheduledAt", async () => {
+		mockEntry({
+			status: "published",
+			scheduledAt: new Date("2999-01-01T00:00:00.000Z"),
+		});
+
+		const { entry } = await loadEntry();
+
+		expect(entry?.id).toBe("scheduled-post");
+	});
+
+	it.each([
+		["missing", {}],
+		["invalid", { scheduledAt: "not-a-date" }],
+	])("keeps scheduled entries with %s scheduledAt hidden", async (_label, scheduledFields) => {
+		mockEntry({
+			status: "scheduled",
+			...scheduledFields,
+		});
+
+		const { entry } = await loadEntry();
+
+		expect(entry).toBeNull();
 	});
 });

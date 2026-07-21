@@ -18,15 +18,14 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ params, url, locals }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.handleContentGet) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requirePerm(user, "content:read");
 	if (denied) return denied;
 	const collection = params.collection!;
 	const id = params.id!;
 	const locale = url.searchParams.get("locale") || undefined;
-
-	if (!emdash?.handleContentGet) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
 
 	const result = await emdash.handleContentGet(collection, id, locale);
 
@@ -132,7 +131,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	return unwrapResult(result);
 };
 
-export const DELETE: APIRoute = async ({ params, locals, cache }) => {
+export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
@@ -141,8 +140,10 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
+	const locale = url.searchParams.get("locale") || undefined;
+
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGet(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",

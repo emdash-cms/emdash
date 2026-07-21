@@ -178,22 +178,23 @@ DELETE /_emdash/api/content/:collection/:id
 ### List Media
 
 ```http
-GET /_emdash/api/media
+GET /_emdash/api/media?includeUsage=1
 ```
 
 #### Parameters
 
-| Parameter  | Type     | Description                  |
-| ---------- | -------- | ---------------------------- |
-| `cursor`   | `string` | Pagination cursor            |
-| `limit`    | `number` | Items per page (default: 20) |
-| `mimeType` | `string` | Filter by MIME type prefix   |
+| Parameter      | Type     | Description                                                    |
+| -------------- | -------- | -------------------------------------------------------------- |
+| `cursor`       | `string` | Opaque pagination cursor                                       |
+| `limit`        | `number` | Items per page, from 1 to 100 (default: 50)                    |
+| `mimeType`     | `string` | Filter by one or more comma-separated MIME types               |
+| `q`            | `string` | Case-insensitive filename search                               |
+| `includeUsage` | `1`      | Include a coverage-aware `usage` summary on every returned item |
 
 #### Response
 
 ```json
 {
-	"success": true,
 	"data": {
 		"items": [
 			{
@@ -203,8 +204,15 @@ GET /_emdash/api/media
 				"size": 102400,
 				"width": 1920,
 				"height": 1080,
-				"url": "https://cdn.example.com/photo.jpg",
-				"createdAt": "2025-01-24T12:00:00Z"
+				"url": "/_emdash/api/media/file/uploads/photo.jpg",
+				"createdAt": "2025-01-24T12:00:00Z",
+				"usage": {
+					"count": 3,
+					"coverage": {
+						"scope": "all_content_collections",
+						"status": "complete"
+					}
+				}
 			}
 		],
 		"nextCursor": "eyJpZCI6..."
@@ -215,8 +223,98 @@ GET /_emdash/api/media
 ### Get Media
 
 ```http
-GET /_emdash/api/media/:id
+GET /_emdash/api/media/:id?includeUsage=1
 ```
+
+`includeUsage` is optional on both list and get. Its only accepted value is `1`. When omitted,
+the `usage` property is omitted and the server does not run usage queries.
+
+### Usage Summaries
+
+`usage.count` is the number of distinct active EmDash content rows or locales whose selected
+current indexed source references the media item. Repeated references and multiple source
+variants for the same content entry count once. Trashed content does not count.
+
+A numeric count can reveal draft-like content. It is returned only when a session user has
+`content:read_drafts`, or when an API token has `admin` scope and its associated user also has
+that permission. Other media readers receive `usage.count: null`; this is a successful redacted
+response, not an error.
+
+Every requested summary includes aggregate coverage for all currently registered content
+collections:
+
+| Status     | Meaning                                                               |
+| ---------- | --------------------------------------------------------------------- |
+| `complete` | Every registered collection has current, completed usage coverage     |
+| `never`    | No registered collection has completed an initial usage repair         |
+| `running`  | A usage repair is currently running                                    |
+| `partial`  | Coverage is mixed or only part of the registered scope was indexed     |
+| `failed`   | Coverage failed across the registered scope                            |
+| `stale`    | Indexed coverage is outdated                                           |
+| `unknown`  | Stored coverage contains a state this version does not recognize        |
+
+Only `complete` supports a scoped complete-zero statement within the EmDash-managed fields
+described below. Counts with any other status are indexed projections and may over-report or
+under-report. Even complete results are advisory during concurrent writes; usage reads are not a
+transactional lock and must not be used as a deletion guarantee.
+
+### Get Media Usage Details
+
+```http
+GET /_emdash/api/media/:id/usage?limit=50&cursor=...
+```
+
+This endpoint requires `media:read` and `content:read_drafts`. Token-authenticated callers also
+require `admin` scope; token scope does not bypass the associated user's permissions.
+
+`limit` controls content entry groups per page, from 1 to 100 (default: 50). Pagination never
+splits the sources or occurrences for one returned entry group.
+
+```json
+{
+	"data": {
+		"items": [
+			{
+				"collection": "posts",
+				"contentId": "01CONTENT...",
+				"title": "Launch notes",
+				"slug": "launch-notes",
+				"locale": "en",
+				"status": "published",
+				"scheduledAt": null,
+				"deletedAt": null,
+				"sources": [
+					{
+						"variant": "columns",
+						"occurrences": [
+							{
+								"fieldSlug": "hero",
+								"fieldPath": "hero",
+								"occurrenceIndex": 0,
+								"referenceType": "image_field"
+							}
+						]
+					}
+				]
+			}
+		],
+		"nextCursor": "eyJvcmRlclZhbHVlIjoicG9zdHMiLCJpZCI6IjAxLi4uIn0",
+		"coverage": {
+			"scope": "all_content_collections",
+			"status": "complete"
+		}
+	}
+}
+```
+
+Authorized details include active and trashed entries. A non-null `deletedAt` identifies a
+trashed entry. Sources are `columns` or `draft_overlay`; occurrences identify the supported field
+and path without exposing internal index metadata.
+
+Media usage covers local media references in top-level image and file fields, repeater image
+fields, and Portable Text image blocks managed by EmDash content collections. It does not scan
+custom code, rendered HTML, settings, menus, widgets, plugin-private data, external sites, or
+provider-only assets.
 
 ### Create Media
 
@@ -264,6 +362,95 @@ Content-Type: application/json
 ```http
 DELETE /_emdash/api/media/:id
 ```
+
+### Repair Media Usage
+
+```http
+POST /_emdash/api/admin/media-usage/repair
+Content-Type: application/json
+X-EmDash-Request: 1
+```
+
+Repairs the content media usage index for one collection or for all content collections. This is an admin/operator endpoint: session-authenticated callers need `schema:manage`, and bearer tokens must have the `admin` scope because the route is under `/_emdash/api/admin`.
+
+All-content repair runs synchronously and sequentially in the current version. It can be expensive on large sites, so callers should trigger it deliberately and wait for the response.
+
+#### Request Body
+
+Repair one collection:
+
+```json
+{
+	"scope": "collection",
+	"collection": "posts"
+}
+```
+
+Repair all content collections:
+
+```json
+{
+	"scope": "all"
+}
+```
+
+The request body is required. Invalid slugs, unknown request keys, missing `scope`, and body-less requests return `400` instead of defaulting to all-content repair.
+
+#### Response
+
+The endpoint returns `200` when a repair invocation produces a structured result. Inspect `data.status`: `failed` and `stale` are repair-domain statuses, not transport errors.
+
+```json
+{
+	"data": {
+		"status": "complete",
+		"indexedSourceCount": 12,
+		"failedSourceCount": 0,
+		"skippedSourceCount": 0,
+		"deletedSourceCount": 1,
+		"collections": [
+			{
+				"collection": "posts",
+				"status": "complete",
+				"indexedSourceCount": 12,
+				"failedSourceCount": 0,
+				"skippedSourceCount": 0,
+				"deletedSourceCount": 1,
+				"lastErrorCode": null,
+				"startedAt": "2026-07-07T12:00:00.000Z",
+				"completedAt": "2026-07-07T12:00:01.000Z"
+			}
+		]
+	}
+}
+```
+
+Top-level response fields:
+
+| Field                | Type                                                | Description                                |
+| -------------------- | --------------------------------------------------- | ------------------------------------------ |
+| `status`             | `complete` \| `partial` \| `failed` \| `stale` | Aggregate repair status                    |
+| `indexedSourceCount` | `number`                                            | Sources indexed during repair              |
+| `failedSourceCount`  | `number`                                            | Sources that failed during repair          |
+| `skippedSourceCount` | `number`                                            | Sources skipped, including stale conflicts |
+| `deletedSourceCount` | `number`                                            | Stale usage rows deleted during repair     |
+| `collections`        | `array`                                             | Per-collection repair summaries            |
+
+Collection summary fields:
+
+| Field                | Type                                                | Description                                  |
+| -------------------- | --------------------------------------------------- | -------------------------------------------- |
+| `collection`         | `string`                                            | Collection slug                              |
+| `status`             | `complete` \| `partial` \| `failed` \| `stale` | Collection repair status                     |
+| `indexedSourceCount` | `number`                                            | Sources indexed for this collection          |
+| `failedSourceCount`  | `number`                                            | Sources that failed for this collection      |
+| `skippedSourceCount` | `number`                                            | Sources skipped for this collection          |
+| `deletedSourceCount` | `number`                                            | Stale usage rows deleted for this collection |
+| `lastErrorCode`      | `string \| null`                                   | Last collection repair error, when available |
+| `startedAt`          | `string`                                            | Repair start time                            |
+| `completedAt`        | `string \| null`                                   | Completion time, or `null` for stale results |
+
+Unknown collections return `200` with `data.status: "failed"` and a per-collection `lastErrorCode` such as `COLLECTION_NOT_FOUND`. Transport errors still use the standard error envelope, including `400`, `401`, `403`, `413`, and `500`.
 
 ### Get Media File
 

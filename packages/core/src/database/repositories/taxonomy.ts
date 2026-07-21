@@ -1,7 +1,33 @@
-import type { Kysely, Selectable } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
-import type { Database, TaxonomyTable, ContentTaxonomyTable } from "../types.js";
+import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
+import type { Database, TaxonomyTable } from "../types.js";
+import { validateIdentifier } from "../validate.js";
+
+/**
+ * Filter + sort columns denormalized from an entry's `ec_*` row onto its
+ * `content_taxonomies` pivot rows (migration 051). Stamped at insert time so a
+ * newly-tagged entry is immediately seekable by a taxonomy-filtered listing.
+ */
+interface PivotDenorm {
+	status: string | null;
+	scheduled_at: string | null;
+	deleted_at: string | null;
+	locale: string | null;
+	published_at: string | null;
+	created_at: string | null;
+}
+
+const EMPTY_DENORM: PivotDenorm = {
+	status: null,
+	scheduled_at: null,
+	deleted_at: null,
+	locale: null,
+	published_at: null,
+	created_at: null,
+};
 
 export interface Taxonomy {
 	id: string;
@@ -63,7 +89,13 @@ export class TaxonomyRepository {
 
 		// Empty-string parentId is coerced to null defensively. Higher layers
 		// also normalize this — see handleTermCreate / handleTermUpdate.
-		const parentId = input.parentId === undefined || input.parentId === "" ? null : input.parentId;
+		// `parent_id` stores the parent's locale-agnostic translation_group (not a
+		// row id), mirroring content_taxonomies.taxonomy_id, so a child stays
+		// nested in every locale's tree. resolveTranslationGroup accepts either a
+		// row id or an already-resolved group, so this is idempotent.
+		const parentInput =
+			input.parentId === undefined || input.parentId === "" ? null : input.parentId;
+		const parentId = parentInput ? await this.resolveParentRef(parentInput) : null;
 
 		let translationGroup = id;
 		if (input.translationOf) {
@@ -87,6 +119,8 @@ export class TaxonomyRepository {
 				translation_group: translationGroup,
 			})
 			.execute();
+
+		invalidateTaxonomyObjectCache();
 
 		const taxonomy = await this.findById(id);
 		if (!taxonomy) throw new Error("Failed to create taxonomy");
@@ -147,14 +181,26 @@ export class TaxonomyRepository {
 		return rows.map((row) => this.rowToTaxonomy(row));
 	}
 
-	async findChildren(parentId: string): Promise<Taxonomy[]> {
-		const rows = await this.db
+	/**
+	 * Children of a term. Accepts a term id OR a translation_group and resolves
+	 * to the group, since `parent_id` stores the parent's translation_group.
+	 * Pass `locale` to scope to one locale's tree (children share the parent's
+	 * group across locales); omit it to find children in every locale (used to
+	 * block deletes that would orphan a sibling translation's subtree).
+	 */
+	async findChildren(parentIdOrGroup: string, locale?: string): Promise<Taxonomy[]> {
+		const group = await this.resolveTranslationGroup(parentIdOrGroup);
+		if (!group) return [];
+
+		let query = this.db
 			.selectFrom("taxonomies")
 			.selectAll()
-			.where("parent_id", "=", parentId)
+			.where("parent_id", "=", group)
 			.orderBy("label", "asc")
-			.orderBy("id", "asc")
-			.execute();
+			.orderBy("id", "asc");
+		if (locale !== undefined) query = query.where("locale", "=", locale);
+
+		const rows = await query.execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
 	}
 
@@ -181,12 +227,18 @@ export class TaxonomyRepository {
 		if (input.label !== undefined) updates.label = input.label;
 		if (input.parentId !== undefined) {
 			// Defense in depth: empty-string parentId means null (no parent).
-			updates.parent_id = input.parentId === "" ? null : input.parentId;
+			// Otherwise persist the parent's translation_group (locale-agnostic),
+			// matching create() — see the note there.
+			updates.parent_id =
+				input.parentId === "" || input.parentId === null
+					? null
+					: await this.resolveParentRef(input.parentId);
 		}
 		if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
 		if (Object.keys(updates).length > 0) {
 			await this.db.updateTable("taxonomies").set(updates).where("id", "=", id).execute();
+			invalidateTaxonomyObjectCache();
 		}
 
 		return this.findById(id);
@@ -214,6 +266,7 @@ export class TaxonomyRepository {
 		}
 
 		const result = await this.db.deleteFrom("taxonomies").where("id", "=", id).executeTakeFirst();
+		invalidateTaxonomyObjectCache();
 		return (result.numDeletedRows ?? 0n) > 0n;
 	}
 
@@ -223,16 +276,13 @@ export class TaxonomyRepository {
 		const group = await this.resolveTranslationGroup(taxonomyId);
 		if (!group) return;
 
-		const row: ContentTaxonomyTable = {
-			collection,
-			entry_id: entryId,
-			taxonomy_id: group,
-		};
+		const denorm = await this.fetchEntryDenorm(collection, entryId);
 		await this.db
 			.insertInto("content_taxonomies")
-			.values(row)
+			.values({ collection, entry_id: entryId, taxonomy_id: group, ...denorm })
 			.onConflict((oc) => oc.doNothing())
 			.execute();
+		invalidateTaxonomyObjectCache();
 	}
 
 	async detachFromEntry(collection: string, entryId: string, taxonomyId: string): Promise<void> {
@@ -245,6 +295,7 @@ export class TaxonomyRepository {
 			.where("entry_id", "=", entryId)
 			.where("taxonomy_id", "=", group)
 			.execute();
+		invalidateTaxonomyObjectCache();
 	}
 
 	/**
@@ -312,6 +363,7 @@ export class TaxonomyRepository {
 
 		const toAdd = [...newGroups].filter((g) => !currentGroups.has(g));
 		if (toAdd.length > 0) {
+			const denorm = await this.fetchEntryDenorm(collection, entryId);
 			await this.db
 				.insertInto("content_taxonomies")
 				.values(
@@ -319,11 +371,14 @@ export class TaxonomyRepository {
 						collection,
 						entry_id: entryId,
 						taxonomy_id,
+						...denorm,
 					})),
 				)
 				.onConflict((oc) => oc.doNothing())
 				.execute();
 		}
+
+		if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
 	}
 
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
@@ -332,7 +387,9 @@ export class TaxonomyRepository {
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
 			.executeTakeFirst();
-		return Number(result.numDeletedRows ?? 0);
+		const removed = Number(result.numDeletedRows ?? 0);
+		if (removed > 0) invalidateTaxonomyObjectCache();
+		return removed;
 	}
 
 	/**
@@ -353,6 +410,9 @@ export class TaxonomyRepository {
 			.execute();
 		if (rows.length === 0) return;
 
+		// Stamp the TARGET entry's current values — the copy inherits the source's
+		// term memberships but the target's own status/dates/locale.
+		const denorm = await this.fetchEntryDenorm(collection, targetEntryId);
 		await this.db
 			.insertInto("content_taxonomies")
 			.values(
@@ -360,15 +420,45 @@ export class TaxonomyRepository {
 					collection,
 					entry_id: targetEntryId,
 					taxonomy_id: r.taxonomy_id,
+					...denorm,
 				})),
 			)
 			.onConflict((oc) => oc.doNothing())
 			.execute();
+		invalidateTaxonomyObjectCache();
+	}
+
+	/**
+	 * Read the denormalized filter + sort columns from an entry's `ec_*` row so
+	 * they can be stamped onto new pivot rows (migration 051). A missing table or
+	 * missing row yields all-nulls: the pivot columns are advisory, and the
+	 * listing read path re-checks the authoritative `ec_*` row regardless.
+	 */
+	private async fetchEntryDenorm(collection: string, entryId: string): Promise<PivotDenorm> {
+		validateIdentifier(collection, "collection type");
+		const tableName = `ec_${collection}`;
+		try {
+			const result = await sql<PivotDenorm>`
+				SELECT status, scheduled_at, deleted_at, locale, published_at, created_at
+				FROM ${sql.ref(tableName)}
+				WHERE id = ${entryId}
+			`.execute(this.db);
+			return result.rows[0] ?? EMPTY_DENORM;
+		} catch (error) {
+			if (isMissingTableError(error)) return EMPTY_DENORM;
+			throw error;
+		}
 	}
 
 	/**
 	 * Count content entries that use any translation of this term. Accepts
 	 * either a term id or a translation_group — we normalise to the group.
+	 *
+	 * Counts raw pivot rows regardless of the entry's status or deletion —
+	 * drafts and trashed entries are included. User-facing counts (admin term
+	 * list/get, public widget and term pages) use `fetchVisibleTermCounts`
+	 * from `taxonomies/term-counts.ts` instead, which counts only publicly
+	 * visible entries.
 	 */
 	async countEntriesWithTerm(termIdOrGroup: string): Promise<number> {
 		const group = await this.resolveTranslationGroup(termIdOrGroup);
@@ -380,6 +470,26 @@ export class TaxonomyRepository {
 			.where("taxonomy_id", "=", group)
 			.executeTakeFirst();
 		return Number(result?.count ?? 0);
+	}
+
+	/**
+	 * Resolve a parent reference (a row id or a translation_group) to the value
+	 * persisted in `parent_id`: the parent's translation_group, which is
+	 * locale-agnostic so the child stays nested in every locale. A
+	 * translation_group normally equals its anchor row's id, which satisfies the
+	 * self-FK on `parent_id`. If that anchor row is missing (a translation whose
+	 * anchor was deleted), fall back to the id we were given so we never write a
+	 * dangling FK value.
+	 */
+	private async resolveParentRef(idOrGroup: string): Promise<string> {
+		const group = await this.resolveTranslationGroup(idOrGroup);
+		if (!group) return idOrGroup;
+		const anchor = await this.db
+			.selectFrom("taxonomies")
+			.select("id")
+			.where("id", "=", group)
+			.executeTakeFirst();
+		return anchor ? group : idOrGroup;
 	}
 
 	private async resolveTranslationGroup(idOrGroup: string): Promise<string | null> {
@@ -398,6 +508,9 @@ export class TaxonomyRepository {
 	 *
 	 * Pass translation_groups (not term ids) — `content_taxonomies.taxonomy_id`
 	 * stores the translation_group so a single assignment spans every locale.
+	 *
+	 * Like `countEntriesWithTerm`, this counts raw pivot rows regardless of
+	 * status/deletion; user-facing counts go through `fetchVisibleTermCounts`.
 	 */
 	async countEntriesForTerms(translationGroups: string[]): Promise<Map<string, number>> {
 		if (translationGroups.length === 0) return new Map();

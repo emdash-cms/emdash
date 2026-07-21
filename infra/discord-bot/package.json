@@ -8,8 +8,8 @@
 		"deploy": "wrangler deploy",
 		"cf-typegen": "wrangler types",
 		"typecheck": "tsc --noEmit",
-		"register-commands": "node --env-file=.dev.vars scripts/register-commands.mjs",
-		"backfill": "node --env-file=.dev.vars scripts/backfill-contributors.mjs"
+		"register-commands": "node --env-file=.env scripts/register-commands.mjs",
+		"backfill": "node --env-file=.env scripts/backfill-contributors.mjs"
 	},
 	"devDependencies": {
 		"typescript": "catalog:",

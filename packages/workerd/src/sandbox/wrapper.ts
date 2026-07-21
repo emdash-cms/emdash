@@ -18,7 +18,12 @@ const NEWLINE_RE = /[\n\r]/g;
 const COMMENT_CLOSE_RE = /\*\//g;
 
 export interface WrapperOptions {
-	site?: { name: string; url: string; locale: string };
+	site?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 	/** URL of the Node backing service (e.g., http://127.0.0.1:18787) */
 	backingServiceUrl: string;
 	/** Auth token the plugin sends on outbound bridge calls to Node */
@@ -121,6 +126,13 @@ function createContext() {
 		createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),
 		updateMany: (collection, items) => bridgeCall("content/updateMany", { collection, items }),
 		deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids }),
+	};
+
+	// Taxonomy access (read-only) - capability enforced by the bridge
+	const taxonomies = {
+		getAll: (opts) => bridgeCall("taxonomy/list", { ...opts }),
+		getTerms: (taxonomy, opts) => bridgeCall("taxonomy/terms", { taxonomy, ...opts }),
+		getEntryTerms: (collection, entryId, opts) => bridgeCall("taxonomy/entryTerms", { collection, entryId, ...opts }),
 	};
 
 	const media = {
@@ -317,6 +329,7 @@ function createContext() {
 		storage,
 		kv,
 		content,
+		taxonomies,
 		media,
 		http,
 		log,

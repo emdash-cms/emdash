@@ -7,12 +7,14 @@ import type { InsertParams, Source } from "./store.js";
 
 const PROBE_BINDINGS: Record<
 	Region,
-	keyof Pick<Env, "PROBE_USE" | "PROBE_EUW" | "PROBE_APE" | "PROBE_APS">
+	keyof Pick<Env, "PROBE_USE" | "PROBE_EUW" | "PROBE_APE" | "PROBE_APS" | "PROBE_SAE" | "PROBE_OCE">
 > = {
 	use: "PROBE_USE",
 	euw: "PROBE_EUW",
 	ape: "PROBE_APE",
 	aps: "PROBE_APS",
+	sae: "PROBE_SAE",
+	oce: "PROBE_OCE",
 };
 
 function generateId(): string {

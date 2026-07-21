@@ -9,6 +9,7 @@
  *
  */
 
+import type { Permission } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
@@ -19,14 +20,18 @@ import type { Element } from "@emdash-cms/blocks";
 // (e.g. `import { PluginCapability } from "../plugins/types.js"`).
 import {
 	CAPABILITY_RENAMES,
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
 	type CurrentPluginCapability,
+	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
-	type ManifestMcpToolEntry as SharedManifestMcpToolEntry,
+	type ManifestMcpTool,
 	type ManifestRouteEntry,
+	type PluginMcpManifestConfig,
 	type PluginCapability,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
@@ -41,70 +46,22 @@ import type { FieldType } from "../schema/types.js";
 
 export {
 	CAPABILITY_RENAMES,
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
 	type CurrentPluginCapability,
+	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
+	type ManifestMcpTool,
 	type ManifestRouteEntry,
+	type PluginMcpManifestConfig,
 	type PluginCapability,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
 };
-
-export interface ManifestJsonSchemaBase {
-	title?: string;
-	description?: string;
-	default?: unknown;
-}
-
-export interface ManifestJsonStringSchema extends ManifestJsonSchemaBase {
-	type: "string";
-	enum?: string[];
-	format?: "date-time" | "email" | "uri" | "uuid";
-	minLength?: number;
-	maxLength?: number;
-	pattern?: string;
-}
-
-export interface ManifestJsonNumberSchema extends ManifestJsonSchemaBase {
-	type: "number" | "integer";
-	enum?: number[];
-	minimum?: number;
-	maximum?: number;
-}
-
-export interface ManifestJsonBooleanSchema extends ManifestJsonSchemaBase {
-	type: "boolean";
-	enum?: boolean[];
-}
-
-export interface ManifestJsonArraySchema extends ManifestJsonSchemaBase {
-	type: "array";
-	items: ManifestJsonSchema;
-	minItems?: number;
-	maxItems?: number;
-}
-
-export interface ManifestJsonObjectSchema extends ManifestJsonSchemaBase {
-	type: "object";
-	properties?: Record<string, ManifestJsonSchema>;
-	required?: string[];
-	additionalProperties?: boolean;
-}
-
-export type ManifestJsonSchema =
-	| ManifestJsonStringSchema
-	| ManifestJsonNumberSchema
-	| ManifestJsonBooleanSchema
-	| ManifestJsonArraySchema
-	| ManifestJsonObjectSchema;
-
-export interface ManifestMcpToolEntry extends SharedManifestMcpToolEntry {
-	/** JSON Schema object used for MCP input validation and client introspection. */
-	inputSchema?: ManifestJsonObjectSchema;
-}
 
 // =============================================================================
 // Storage Types
@@ -261,6 +218,8 @@ export interface ContentItem {
 	createdAt: string;
 	updatedAt: string;
 	publishedAt: string | null;
+	/** Scheduled publication time, if set (e.g. scheduled items or scheduled draft changes). */
+	scheduledAt?: string | null;
 }
 
 export interface ContentListWhere {
@@ -293,6 +252,45 @@ export type ContentWriteInput = Record<string, unknown> & {
 };
 
 /**
+ * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").
+ */
+export interface TaxonomyDefInfo {
+	name: string;
+	label: string;
+	labelSingular: string | null;
+	hierarchical: boolean;
+	/** Collections this taxonomy is attached to (e.g. `["posts"]`). */
+	collections: string[];
+	locale: string;
+}
+
+/**
+ * Taxonomy term returned from the taxonomy API. Flat shape — for hierarchical
+ * taxonomies the tree is reconstructed via `parentId` (which stores the
+ * parent's locale-agnostic `translationGroup`).
+ */
+export interface TaxonomyTermInfo {
+	id: string;
+	/** Taxonomy name this term belongs to (e.g. "category"). */
+	taxonomy: string;
+	slug: string;
+	label: string;
+	parentId: string | null;
+	/** Term metadata as edited in the admin (`description` etc.). */
+	data: Record<string, unknown> | null;
+	locale: string;
+	translationGroup: string | null;
+}
+
+/**
+ * Options accepted by taxonomy read operations. Omitting `locale` returns
+ * rows for every locale.
+ */
+export interface TaxonomyReadOptions {
+	locale?: string;
+}
+
+/**
  * Content access interface - capability-gated
  */
 export interface ContentAccess {
@@ -304,6 +302,23 @@ export interface ContentAccess {
 	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;
 	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
+}
+
+/**
+ * Taxonomy access interface — capability-gated on `taxonomies:read`.
+ * Read-only: there is no plugin-facing taxonomy write API.
+ */
+export interface TaxonomyAccess {
+	/** List taxonomy definitions. */
+	getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]>;
+	/** All terms of a taxonomy, ordered by label. */
+	getTerms(taxonomy: string, options?: TaxonomyReadOptions): Promise<TaxonomyTermInfo[]>;
+	/** Terms assigned to a content entry, optionally scoped to one taxonomy. */
+	getEntryTerms(
+		collection: string,
+		entryId: string,
+		options?: TaxonomyReadOptions & { taxonomy?: string },
+	): Promise<TaxonomyTermInfo[]>;
 }
 
 /**
@@ -409,6 +424,14 @@ export interface SiteInfo {
 	url: string;
 	/** Site locale (from settings, defaults to "en") */
 	locale: string;
+	/**
+	 * Astro's `trailingSlash` routing policy, from the host's Astro config.
+	 * Plugins that build absolute URLs (sitemap, canonical, hreflang) should
+	 * honor this so the URLs they emit match what the site serves. `createSiteInfo`
+	 * always populates it (defaulting to `"ignore"`, Astro's default); it is
+	 * optional on the type so pre-existing `SiteInfo` construction stays valid.
+	 */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -460,6 +483,9 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** Content access - only if read:content or write:content capability */
 	content?: ContentAccess | ContentAccessWithWrite;
+
+	/** Taxonomy access (read-only) - only if taxonomies:read capability */
+	taxonomies?: TaxonomyAccess;
 
 	/** Media access - only if read:media or write:media capability */
 	media?: MediaAccess | MediaAccessWithWrite;
@@ -773,12 +799,28 @@ export interface ContentDeleteEvent {
 }
 
 /**
- * Content publish state change hook event (fired after publish or unpublish)
+ * Content state-change hook event (fired after publish, unpublish, restore,
+ * schedule, or unschedule).
  */
-export interface ContentPublishStateChangeEvent {
+export interface ContentStateChangeEvent {
 	content: Record<string, unknown>;
 	collection: string;
 }
+
+/**
+ * Content publish/unpublish hook event.
+ */
+export type ContentPublishStateChangeEvent = ContentStateChangeEvent;
+
+/**
+ * Content restore hook event.
+ */
+export type ContentRestoreStateChangeEvent = ContentStateChangeEvent;
+
+/**
+ * Content schedule/unschedule hook event.
+ */
+export type ContentScheduleStateChangeEvent = ContentStateChangeEvent;
 
 /**
  * Media hook event
@@ -836,6 +878,21 @@ export type ContentAfterPublishHandler = (
 
 export type ContentAfterUnpublishHandler = (
 	event: ContentPublishStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterRestoreHandler = (
+	event: ContentRestoreStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterScheduleHandler = (
+	event: ContentScheduleStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterUnscheduleHandler = (
+	event: ContentScheduleStateChangeEvent,
 	ctx: PluginContext,
 ) => Promise<void>;
 
@@ -1024,6 +1081,11 @@ export interface PluginHooks {
 	"content:afterUnpublish"?:
 		| HookConfig<ContentAfterUnpublishHandler>
 		| ContentAfterUnpublishHandler;
+	"content:afterRestore"?: HookConfig<ContentAfterRestoreHandler> | ContentAfterRestoreHandler;
+	"content:afterSchedule"?: HookConfig<ContentAfterScheduleHandler> | ContentAfterScheduleHandler;
+	"content:afterUnschedule"?:
+		| HookConfig<ContentAfterUnscheduleHandler>
+		| ContentAfterUnscheduleHandler;
 
 	// Media hooks
 	"media:beforeUpload"?: HookConfig<MediaBeforeUploadHandler> | MediaBeforeUploadHandler;
@@ -1126,37 +1188,29 @@ export interface PluginRoute<TInput = unknown> {
 	 * Public routes skip session/token auth and CSRF checks.
 	 */
 	public?: boolean;
+	/** RBAC permission required to invoke the route. Legacy routes default to plugins:manage. */
+	permission?: Permission;
+	/**
+	 * `Cache-Control` header value for successful GET responses, e.g.
+	 * `"public, max-age=60, stale-while-revalidate=300"`. Only honored on
+	 * routes that are also `public: true` — authenticated responses always
+	 * keep the default `private, no-store`. Errors are never cached.
+	 */
+	cacheControl?: string;
 	/** Route handler */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
 }
 
-/**
- * Plugin-defined MCP tool.
- *
- * Execution delegates to a plugin route so the route's existing validation,
- * plugin context, and sandbox bridge are reused.
- */
-export interface PluginMcpTool {
-	/** Human-readable title exposed to MCP clients */
-	title?: string;
-	/** Tool description exposed to MCP clients */
+export interface PluginMcpToolDefinition {
 	description: string;
-	/** Route name to invoke when the MCP tool is called */
 	route: string;
-	/** Optional Zod schema for MCP argument validation */
-	input?: z.ZodType<Record<string, unknown>>;
-	/** Optional JSON Schema object for manifest output and MCP introspection */
-	inputSchema?: ManifestJsonObjectSchema;
+	input: z.ZodType;
+	output?: z.ZodType;
+	destructive?: boolean;
 }
 
-export interface PluginMcpToolRegistration {
-	pluginId: string;
-	name: string;
-	title?: string;
-	description: string;
-	route: string;
-	input?: z.ZodType<Record<string, unknown>>;
-	inputSchema?: ManifestJsonObjectSchema;
+export interface PluginMcpConfig {
+	tools: Record<string, PluginMcpToolDefinition>;
 }
 
 // =============================================================================
@@ -1340,8 +1394,8 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 	/** API routes */
 	routes?: Record<string, PluginRoute>;
 
-	/** MCP tools exposed through the host MCP endpoint */
-	mcpTools?: Record<string, PluginMcpTool>;
+	/** Routes explicitly exposed as agent-callable MCP tools. */
+	mcp?: PluginMcpConfig;
 
 	/** Admin UI configuration */
 	admin?: PluginAdminConfig;
@@ -1358,7 +1412,7 @@ export interface ResolvedPlugin<TStorage extends PluginStorageConfig = PluginSto
 	storage: TStorage;
 	hooks: ResolvedPluginHooks;
 	routes: Record<string, PluginRoute>;
-	mcpTools?: Record<string, PluginMcpTool>;
+	mcp?: PluginMcpConfig;
 	admin: PluginAdminConfig;
 }
 
@@ -1376,6 +1430,9 @@ export interface ResolvedPluginHooks {
 	"content:afterDelete"?: ResolvedHook<ContentAfterDeleteHandler>;
 	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
 	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
+	"content:afterRestore"?: ResolvedHook<ContentAfterRestoreHandler>;
+	"content:afterSchedule"?: ResolvedHook<ContentAfterScheduleHandler>;
+	"content:afterUnschedule"?: ResolvedHook<ContentAfterUnscheduleHandler>;
 	"media:beforeUpload"?: ResolvedHook<MediaBeforeUploadHandler>;
 	"media:afterUpload"?: ResolvedHook<MediaAfterUploadHandler>;
 	cron?: ResolvedHook<CronHandler>;
@@ -1423,6 +1480,12 @@ export interface PluginAdminExports {
 export interface PluginManifest {
 	id: string;
 	version: string;
+	/**
+	 * The trust contract (see `@emdash-cms/plugin-types`). Authoritative;
+	 * `capabilities`/`allowedHosts` are derived from it at the parse boundary
+	 * via `reconcileManifestAccess`. Optional during the wire-format migration.
+	 */
+	declaredAccess?: DeclaredAccess;
 	capabilities: PluginCapability[];
 	allowedHosts: string[];
 	storage: PluginStorageConfig;
@@ -1430,8 +1493,7 @@ export interface PluginManifest {
 	hooks: Array<ManifestHookEntry | HookName>;
 	/** Route declarations — either plain name strings or structured objects */
 	routes: Array<ManifestRouteEntry | string>;
-	/** MCP tool declarations */
-	mcpTools?: ManifestMcpToolEntry[];
+	mcp?: PluginMcpManifestConfig;
 	admin: PluginAdminConfig;
 }
 

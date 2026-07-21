@@ -1,6 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import { type Migration, type MigrationProvider, Migrator } from "kysely/migration";
 
+import { MIGRATION_LOCK_BUSY_MESSAGE } from "../pg-migration-lock.js";
 import type { Database } from "../types.js";
 // Import migrations statically for bundling
 import * as m001 from "./001_initial.js";
@@ -44,6 +45,17 @@ import * as m039 from "./039_fix_fts5_triggers.js";
 import * as m040 from "./040_byline_i18n.js";
 import * as m041 from "./041_content_locale_list_index.js";
 import * as m042 from "./042_byline_fields.js";
+import * as m043 from "./043_content_references.js";
+import * as m044 from "./044_comment_reactions.js";
+import * as m045 from "./045_taxonomy_parent_group.js";
+import * as m046 from "./046_media_usage_index.js";
+import * as m047 from "./047_restore_taxonomy_parent_index.js";
+import * as m048 from "./048_restore_content_taxonomies_term_index.js";
+import * as m049 from "./049_taxonomies_name_locale_index.js";
+import * as m050 from "./050_media_usage_index_status.js";
+import * as m051 from "./051_content_taxonomies_denorm.js";
+import * as m052 from "./052_media_usage_read_index.js";
+import * as m053 from "./053_plugin_mcp_tools.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -87,6 +99,17 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"040_byline_i18n": m040,
 	"041_content_locale_list_index": m041,
 	"042_byline_fields": m042,
+	"043_content_references": m043,
+	"044_comment_reactions": m044,
+	"045_taxonomy_parent_group": m045,
+	"046_media_usage_index": m046,
+	"047_restore_taxonomy_parent_index": m047,
+	"048_restore_content_taxonomies_term_index": m048,
+	"049_taxonomies_name_locale_index": m049,
+	"050_media_usage_index_status": m050,
+	"051_content_taxonomies_denorm": m051,
+	"052_media_usage_read_index": m052,
+	"053_plugin_mcp_tools": m053,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */
@@ -107,12 +130,36 @@ export interface MigrationStatus {
 	pending: string[];
 }
 
+/**
+ * Thrown when another instance held the migration lock for the whole wait
+ * window. This is NOT a migration failure — the holder may simply be slow
+ * (e.g. many pending migrations over a remote Postgres connection) — so
+ * callers with failure-backoff logic (`getDatabase` in emdash-runtime.ts)
+ * exempt it: the next request waits again instead of backing off, and init
+ * recovers as soon as the holder finishes.
+ */
+export class ConcurrentMigrationTimeoutError extends Error {
+	constructor(waitMs: number) {
+		super(
+			`Timed out waiting for another instance's migrations: the migration lock was still held after ${waitMs}ms. ` +
+				"It may still be applying migrations, or its migration may be failing repeatedly.",
+		);
+		this.name = "ConcurrentMigrationTimeoutError";
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
 const MIGRATION_LOCK_TABLE = "_emdash_migrations_lock";
 
 export interface MigrationOptions {
 	migrationTableSchema?: string;
+	/**
+	 * Override how long to wait for a concurrent migrator to finish before
+	 * giving up. Defaults to MIGRATION_RACE_WAIT_MS; tests shorten it so the
+	 * give-up path doesn't take 10 seconds per case.
+	 */
+	raceWaitMs?: number;
 }
 
 function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
@@ -178,8 +225,13 @@ const MIGRATION_RACE_PATTERN = new RegExp(
 	"i",
 );
 
-/** How long to wait for a concurrent migrator to finish before giving up. */
-const MIGRATION_RACE_WAIT_MS = 10_000;
+/**
+ * How long to wait for a concurrent migrator to finish before giving up.
+ * Exported because the db init lock's reclaim deadline must comfortably
+ * exceed it (see DB_INIT_DEADLINE_MS in emdash-runtime.ts) — a healthy
+ * init can legitimately block this long inside waitForConcurrentMigrator.
+ */
+export const MIGRATION_RACE_WAIT_MS = 10_000;
 /** Polling interval while waiting for a concurrent migrator. */
 const MIGRATION_RACE_POLL_MS = 100;
 
@@ -239,8 +291,11 @@ async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | 
  * been migrated by a newer build still treats the wait as settled instead
  * of timing out.
  */
-async function waitForConcurrentMigrator(db: Kysely<Database>): Promise<boolean> {
-	const deadline = Date.now() + MIGRATION_RACE_WAIT_MS;
+async function waitForConcurrentMigrator(
+	db: Kysely<Database>,
+	waitMs: number = MIGRATION_RACE_WAIT_MS,
+): Promise<boolean> {
+	const deadline = Date.now() + waitMs;
 	while (Date.now() < deadline) {
 		const count = await getAppliedMigrationCount(db);
 		if (count !== null && count >= MIGRATION_COUNT) {
@@ -320,12 +375,24 @@ export async function runMigrations(
 		const failedMigration = results?.find((r) => r.status === "Error");
 
 		// Concurrent-migration race: another caller is applying (or just
-		// applied) the same migration. Wait for it to finish, then verify
-		// the schema is fully migrated and treat as success.
-		if (MIGRATION_RACE_PATTERN.test(msg)) {
-			const settled = await waitForConcurrentMigrator(db);
+		// applied) the same migration. SQLite/D1 surface it as the
+		// bookkeeping UNIQUE violation (their migration lock is a no-op);
+		// Postgres surfaces it as the fail-fast advisory try-lock reporting
+		// busy (see pg-migration-lock.ts). Either way: wait for the
+		// concurrent migrator to finish, then verify the schema is fully
+		// migrated and treat as success.
+		const lockBusy = msg.includes(MIGRATION_LOCK_BUSY_MESSAGE);
+		if (MIGRATION_RACE_PATTERN.test(msg) || lockBusy) {
+			const settled = await waitForConcurrentMigrator(db, options?.raceWaitMs);
 			if (settled) {
 				return { applied };
+			}
+			if (lockBusy) {
+				// The lock holder didn't finish within the wait window —
+				// either it's slow or its migration is failing. Surface a
+				// distinct error type instead of the raw sentinel message so
+				// callers can tell "still in progress" from "failed".
+				throw new ConcurrentMigrationTimeoutError(options?.raceWaitMs ?? MIGRATION_RACE_WAIT_MS);
 			}
 		}
 

@@ -49,6 +49,8 @@ import { extractBundle } from "../../plugins/marketplace.js";
 import type { PluginBundle } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import { declaredAccessToCapabilities } from "../../plugins/types.js";
+import type { DeclaredAccess } from "../../plugins/types.js";
 import {
 	canonicalCapabilitiesForDriftCheck,
 	coerceRegistryConfig,
@@ -69,6 +71,26 @@ import {
 	loadBundleFromR2,
 	storeBundleInR2,
 } from "./marketplace.js";
+
+const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
+
+/**
+ * Whether two `declaredAccess` blocks grant exactly the same enforced access --
+ * the same capabilities AND the same host allow-list. Both are lowered through
+ * the canonical converter so that constraint content (`allowedHosts`), not just
+ * the capability set, is part of the comparison. The capability-set consent
+ * gate is blind to host scope; this is what keeps a bundle from being installed
+ * with a wider (or simply different) host allow-list than its published record
+ * advertised and the user consented to.
+ */
+export function enforcedAccessEqual(a: DeclaredAccess, b: DeclaredAccess): boolean {
+	const aa = declaredAccessToCapabilities(a);
+	const bb = declaredAccessToCapabilities(b);
+	return (
+		JSON.stringify(aa.capabilities.toSorted()) === JSON.stringify(bb.capabilities.toSorted()) &&
+		JSON.stringify(aa.allowedHosts.toSorted()) === JSON.stringify(bb.allowedHosts.toSorted())
+	);
+}
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -99,6 +121,7 @@ export interface RegistryInstallInput {
 	 * surface a consent UI before posting (e.g. CI scripts) opt out.
 	 */
 	acknowledgedDeclaredAccess?: unknown;
+	acknowledgedMcpTools?: unknown;
 }
 
 export interface RegistryInstallResult {
@@ -999,6 +1022,31 @@ export async function handleRegistryInstall(
 		// marketplace plugins that happen to share the publisher's slug.
 		bundle.manifest = { ...bundle.manifest, id: pluginId };
 
+		// Integrity: the bundle that will run MUST declare exactly the access
+		// the signed release record advertises. The consent dialog is driven
+		// from the record's `declaredAccess`, so a bundle enforcing something
+		// different -- a wider host allow-list, an extra capability -- would run
+		// outside what the user reviewed. The capability-set consent gate below
+		// is blind to constraint content (host scope), so compare the full
+		// enforced access of record vs bundle here and refuse on any difference.
+		const recordExt =
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- extensions is the lexicon's open `unknown` map; narrow to read our own extension
+			(release?.extensions as Record<string, { declaredAccess?: DeclaredAccess }> | undefined)?.[
+				RELEASE_EXTENSION_NSID
+			];
+		if (
+			!enforcedAccessEqual(recordExt?.declaredAccess ?? {}, bundle.manifest.declaredAccess ?? {})
+		) {
+			return {
+				success: false,
+				error: {
+					code: "DECLARED_ACCESS_DRIFT",
+					message:
+						"The plugin bundle declares different permissions than its published record. Installation refused.",
+				},
+			};
+		}
+
 		// Capability consent gate: the admin MUST acknowledge the
 		// capabilities the bundle's manifest actually declares before we
 		// install it. The bundle manifest is the only source of truth
@@ -1046,6 +1094,22 @@ export async function handleRegistryInstall(
 						code: "DECLARED_ACCESS_DRIFT",
 						message:
 							"Plugin manifest has changed since you consented. Re-open the install dialog to review the new permissions.",
+					},
+				};
+			}
+		}
+
+		const actualMcpTools = (bundle.manifest.mcp?.tools ?? []).map(
+			({ inputSchema: _, outputSchema: __, ...tool }) => tool,
+		);
+		if (actualMcpTools.length > 0) {
+			if (JSON.stringify(input.acknowledgedMcpTools) !== JSON.stringify(actualMcpTools)) {
+				return {
+					success: false,
+					error: {
+						code: "MCP_TOOL_CONSENT_REQUIRED",
+						message: "Plugin MCP tools require explicit consent",
+						details: { mcpTools: actualMcpTools },
 					},
 				};
 			}
@@ -1271,6 +1335,7 @@ export async function handleRegistryUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		confirmMcpTools?: boolean;
 		hostEnv?: HostEnv;
 	},
 ): Promise<ApiResult<RegistryUpdateResult>> {
@@ -1488,6 +1553,29 @@ export async function handleRegistryUpdate(
 		// and R2 layout stay in sync across install and update.
 		bundle.manifest = { ...bundle.manifest, id: pluginId };
 
+		// Integrity: same gate as install. The new bundle must declare exactly
+		// the access its signed release record advertises. Without it, an update
+		// that changes only the host scope (e.g. api.good.com -> evil.com) keeps
+		// the capability set identical, sails through the escalation diff below,
+		// and installs a bundle enforcing a scope the record never showed.
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- extensions is the lexicon's open `unknown` map; narrow to read our own extension
+		const updateRecordExtensions = signedRelease?.extensions as
+			| Record<string, { declaredAccess?: DeclaredAccess }>
+			| undefined;
+		const recordExt = updateRecordExtensions?.[RELEASE_EXTENSION_NSID];
+		if (
+			!enforcedAccessEqual(recordExt?.declaredAccess ?? {}, bundle.manifest.declaredAccess ?? {})
+		) {
+			return {
+				success: false,
+				error: {
+					code: "DECLARED_ACCESS_DRIFT",
+					message:
+						"The plugin bundle declares different permissions than its published record. Update refused.",
+				},
+			};
+		}
+
 		// Diff capabilities + route visibility against the currently
 		// installed bundle. Loading from R2 keeps us honest: the diff is
 		// against the bytes the sandbox is actually running, not whatever
@@ -1520,6 +1608,25 @@ export async function handleRegistryUpdate(
 			};
 		}
 
+		const oldMcpTools = [...(oldBundle?.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		const newMcpTools = [...(bundle.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		if (JSON.stringify(oldMcpTools) !== JSON.stringify(newMcpTools) && !opts?.confirmMcpTools) {
+			return {
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					message: "Plugin update changes its MCP tools",
+					details: {
+						mcpTools: newMcpTools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool),
+					},
+				},
+			};
+		}
+
 		// Store new bundle. R2 prefix is deterministic per (pluginId, version),
 		// so a retry of the same update is idempotent.
 		await storeBundleInR2(storage, pluginId, newVersion, bundle, "registry");
@@ -1535,6 +1642,8 @@ export async function handleRegistryUpdate(
 			registrySlug: slug,
 			displayName: existing.displayName ?? slug,
 			description: existing.description ?? undefined,
+			mcpToolsEnabled: false,
+			mcpToolsConsent: null,
 		});
 
 		// Best-effort cleanup of the old bundle. Failures here don't roll

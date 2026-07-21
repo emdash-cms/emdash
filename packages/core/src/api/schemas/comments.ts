@@ -12,8 +12,24 @@ export const createCommentBody = z
 		parentId: z.string().optional(),
 		/** Honeypot field — hidden in the form, filled only by bots */
 		website_url: z.string().optional(),
+		/**
+		 * Turnstile response token from the form widget. Verified
+		 * server-side when a Turnstile secret key is configured.
+		 * Turnstile tokens can be up to 2048 characters.
+		 */
+		turnstileToken: z.string().max(2048).optional(),
 	})
 	.meta({ id: "CreateCommentBody" });
+
+export const createReactionBody = z
+	.object({
+		commentId: z.string().min(1),
+		/** Reaction name. Positive-only ("like") by default; extensible. */
+		reaction: z.string().min(1).max(20).default("like"),
+		/** Honeypot field — hidden in the form, filled only by bots */
+		website_url: z.string().optional(),
+	})
+	.meta({ id: "CreateReactionBody" });
 
 export const commentStatusBody = z
 	.object({

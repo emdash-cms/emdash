@@ -38,7 +38,8 @@
  * per-hook return contracts so misuse fails at compile time.
  */
 
-import type { ManifestJsonObjectSchema } from "@emdash-cms/plugin-types";
+import type { Permission } from "@emdash-cms/auth";
+import type { ZodType } from "zod";
 
 import type {
 	CommentAfterCreateEvent,
@@ -51,13 +52,19 @@ import type {
 	CommentModerateHandler,
 	ContentAfterDeleteHandler,
 	ContentAfterPublishHandler,
+	ContentAfterRestoreHandler,
 	ContentAfterSaveHandler,
+	ContentAfterScheduleHandler,
 	ContentAfterUnpublishHandler,
+	ContentAfterUnscheduleHandler,
 	ContentBeforeDeleteHandler,
 	ContentBeforeSaveHandler,
 	ContentDeleteEvent,
 	ContentHookEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	CronEvent,
 	CronHandler,
 	EmailAfterSendEvent,
@@ -99,6 +106,9 @@ export interface HookHandlers {
 	"content:afterDelete": ContentAfterDeleteHandler;
 	"content:afterPublish": ContentAfterPublishHandler;
 	"content:afterUnpublish": ContentAfterUnpublishHandler;
+	"content:afterRestore": ContentAfterRestoreHandler;
+	"content:afterSchedule": ContentAfterScheduleHandler;
+	"content:afterUnschedule": ContentAfterUnscheduleHandler;
 	"media:beforeUpload": MediaBeforeUploadHandler;
 	"media:afterUpload": MediaAfterUploadHandler;
 	cron: CronHandler;
@@ -193,22 +203,22 @@ export type RouteEntry =
 	| {
 			handler: RouteHandler;
 			public?: boolean;
+			/**
+			 * Cache-Control value for successful GET responses. Only honored on
+			 * routes that are also `public: true` — authenticated responses
+			 * always keep `private, no-store`.
+			 */
+			cacheControl?: string;
 			input?: unknown;
+			permission?: Permission;
 	  };
 
-/**
- * MCP tool entry declared by a sandboxed plugin's default export.
- *
- * Execution is delegated to a plugin route. `input` is the optional
- * trusted-mode Zod schema used at runtime; `inputSchema` is the portable
- * JSON Schema object emitted to manifests for MCP client introspection.
- */
-export interface SandboxedMcpToolEntry {
-	title?: string;
+export interface SandboxedMcpTool {
 	description: string;
 	route: string;
-	input?: unknown;
-	inputSchema?: ManifestJsonObjectSchema;
+	input: ZodType;
+	output?: ZodType;
+	destructive?: boolean;
 }
 
 /**
@@ -225,7 +235,7 @@ export interface SandboxedPlugin {
 		[K in keyof HookHandlers]?: HookEntry<K>;
 	};
 	routes?: Record<string, RouteEntry>;
-	mcpTools?: Record<string, SandboxedMcpToolEntry>;
+	mcp?: { tools: Record<string, SandboxedMcpTool> };
 }
 
 /**
@@ -244,6 +254,9 @@ export type {
 	ContentDeleteEvent,
 	ContentHookEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	CronEvent,
 	EmailAfterSendEvent,
 	EmailBeforeSendEvent,

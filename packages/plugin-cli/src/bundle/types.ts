@@ -15,11 +15,16 @@
 
 export {
 	CAPABILITY_RENAMES,
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
 	isDeprecatedCapability,
 	type CurrentPluginCapability,
+	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
+	type ManifestMcpTool,
 	type ManifestRouteEntry,
+	type PluginMcpManifestConfig,
 	type PluginAdminConfig,
 	type PluginCapability,
 	type PluginManifest,
@@ -33,53 +38,13 @@ import type {
 	PluginStorageConfig,
 } from "@emdash-cms/plugin-types";
 
-export interface ManifestJsonSchemaBase {
-	title?: string;
-	description?: string;
-	default?: unknown;
+export interface ResolvedMcpTool {
+	description: string;
+	route: string;
+	input: unknown;
+	output?: unknown;
+	destructive?: boolean;
 }
-
-export interface ManifestJsonStringSchema extends ManifestJsonSchemaBase {
-	type: "string";
-	enum?: string[];
-	format?: "date-time" | "email" | "uri" | "uuid";
-	minLength?: number;
-	maxLength?: number;
-	pattern?: string;
-}
-
-export interface ManifestJsonNumberSchema extends ManifestJsonSchemaBase {
-	type: "number" | "integer";
-	enum?: number[];
-	minimum?: number;
-	maximum?: number;
-}
-
-export interface ManifestJsonBooleanSchema extends ManifestJsonSchemaBase {
-	type: "boolean";
-	enum?: boolean[];
-}
-
-export interface ManifestJsonArraySchema extends ManifestJsonSchemaBase {
-	type: "array";
-	items: ManifestJsonSchema;
-	minItems?: number;
-	maxItems?: number;
-}
-
-export interface ManifestJsonObjectSchema extends ManifestJsonSchemaBase {
-	type: "object";
-	properties?: Record<string, ManifestJsonSchema>;
-	required?: string[];
-	additionalProperties?: boolean;
-}
-
-export type ManifestJsonSchema =
-	| ManifestJsonStringSchema
-	| ManifestJsonNumberSchema
-	| ManifestJsonBooleanSchema
-	| ManifestJsonArraySchema
-	| ManifestJsonObjectSchema;
 
 /**
  * The bundler's view of a "resolved" plugin -- whatever the user's plugin
@@ -111,16 +76,9 @@ export interface ResolvedPlugin {
 		{
 			handler?: unknown;
 			public?: boolean;
+			permission?: string;
 		}
 	>;
-	mcpTools?: Record<
-		string,
-		{
-			title?: string;
-			description: string;
-			route: string;
-			inputSchema?: ManifestJsonObjectSchema;
-		}
-	>;
+	mcp?: { tools: Record<string, ResolvedMcpTool> };
 	admin: PluginAdminConfig;
 }

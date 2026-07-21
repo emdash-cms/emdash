@@ -24,14 +24,14 @@ jobs:
       pull-requests: read # dorny/paths-filter calls the PRs API on pull_request events
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
       - name: Detect workflow changes
         id: changes
         if: github.event_name == 'pull_request'
-        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
         with:
           filters: |
             workflows:
@@ -53,7 +53,11 @@ jobs:
 
       - name: Run zizmor
         if: steps.decide.outputs.analyze == 'true'
-        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
+        uses: zizmorcore/zizmor-action@6599ee8b7a49aef6a770f63d261d214911a7ce02 # v0.6.0
+        with:
+          # Pin the tool version (the action defaults to `latest`) so a new
+          # zizmor release can't surface findings that block unrelated PRs.
+          version: "1.26.1"
 
       # When skipped, upload an empty SARIF so the ruleset rule passes.
       - name: Write empty SARIF
@@ -83,7 +87,7 @@ jobs:
 
       - name: Upload empty SARIF
         if: steps.decide.outputs.analyze != 'true'
-        uses: github/codeql-action/upload-sarif@87557b9c84dde89fdd9b10e88954ac2f4248e463 # v4.36.1
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           sarif_file: zizmor.sarif
           category: zizmor

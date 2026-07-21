@@ -180,6 +180,7 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 			const response = await updateContent({
 				params: { collection: "post", id: "c1" },
 				request,
+				url: new URL(request.url),
 				locals: {
 					emdash: { handleContentUpdate, handleContentGet },
 					user: makeUser(Role.AUTHOR),
@@ -204,6 +205,7 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 			const response = await updateContent({
 				params: { collection: "post", id: "c1" },
 				request,
+				url: new URL(request.url),
 				locals: {
 					emdash: { handleContentUpdate, handleContentGet },
 					user: makeUser(Role.AUTHOR),
@@ -234,6 +236,7 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 			const response = await updateContent({
 				params: { collection: "post", id: "c1" },
 				request,
+				url: new URL(request.url),
 				locals: {
 					emdash: { handleContentUpdate, handleContentGet },
 					user: makeUser(Role.EDITOR),
@@ -265,6 +268,7 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 			const response = await updateContent({
 				params: { collection: "post", id: "c1" },
 				request,
+				url: new URL(request.url),
 				locals: {
 					emdash: { handleContentUpdate, handleContentGet },
 					user: makeUser(Role.AUTHOR),

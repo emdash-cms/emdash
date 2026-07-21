@@ -187,13 +187,13 @@ test.describe("Language Switcher", () => {
 
 		// Switch to German
 		await page.locator('[aria-label="Language"]').click();
-		await page.locator("[role='option']", { hasText: "Deutsch" }).click();
+		await page.getByRole("option", { name: "Deutsch", exact: true }).click();
 
 		await expect(page.locator("h1")).toContainText("Einstellungen", { timeout: 5000 });
 
 		// Switch back — the select now shows "Deutsch" as its value
 		await page.locator("[role='combobox']", { hasText: "Deutsch" }).click();
-		await page.locator("[role='option']", { hasText: "English" }).click();
+		await page.getByRole("option", { name: "English", exact: true }).click();
 
 		await expect(page.locator("h1")).toContainText("Settings", { timeout: 5000 });
 	});

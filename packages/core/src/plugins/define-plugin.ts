@@ -22,12 +22,7 @@ import type {
 	PluginStorageConfig,
 } from "./types.js";
 
-// Plugin ID validation patterns
-const SIMPLE_ID = /^[a-z0-9-]+$/;
-const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
-const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
-const MCP_TOOL_NAME_PATTERN = /^(?!.*__)[a-z][a-z0-9_]*$/;
-const LEADING_SLASH_PATTERN = /^\/+/;
+const MCP_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 /**
  * Define a native EmDash plugin.
@@ -96,6 +91,20 @@ export function definePlugin<TStorage extends PluginStorageConfig>(
 function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	definition: PluginDefinition<TStorage>,
 ): ResolvedPlugin<TStorage> {
+	// Declared function-local (not module scope) on purpose. Under
+	// `ssr.noExternal` the worker entry can instantiate native plugins during a
+	// circular module init, reaching this function before module-scope consts
+	// initialize -> "Cannot access 'SIMPLE_ID' before initialization" -> every
+	// route 500s on Cloudflare Workers. Call-time consts evaluate after the
+	// literals are parsed, so the temporal dead zone cannot occur regardless of
+	// bundle ordering. See #1370.
+	// oxlint-disable-next-line e18e/prefer-static-regex -- call-time on purpose (see #1370)
+	const SIMPLE_ID = /^[a-z0-9-]+$/;
+	// oxlint-disable-next-line e18e/prefer-static-regex -- call-time on purpose (see #1370)
+	const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
+	// oxlint-disable-next-line e18e/prefer-static-regex -- call-time on purpose (see #1370)
+	const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
+
 	const {
 		id,
 		version,
@@ -103,7 +112,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		allowedHosts = [],
 		hooks = {},
 		routes = {},
-		mcpTools = {},
+		mcp = { tools: {} },
 		admin = {},
 	} = definition;
 
@@ -126,6 +135,18 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		throw new Error(`Invalid plugin version "${version}". Must be semver format (e.g., "1.0.0").`);
 	}
 
+	for (const [name, tool] of Object.entries(mcp.tools)) {
+		if (!MCP_TOOL_NAME_PATTERN.test(name)) {
+			throw new Error(`Invalid MCP tool name "${name}" in plugin "${id}".`);
+		}
+		const route = routes[tool.route];
+		if (!route) throw new Error(`MCP tool "${name}" references unknown route "${tool.route}".`);
+		if (route.public) throw new Error(`MCP tool "${name}" cannot reference a public route.`);
+		if (!route.permission) {
+			throw new Error(`MCP route "${tool.route}" must declare a permission.`);
+		}
+	}
+
 	// Validate capabilities. Both current names and deprecated aliases are
 	// accepted; aliases are silently rewritten to current names below so the
 	// runtime only ever sees the canonical form. Authors are warned at
@@ -136,11 +157,11 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"network:request:unrestricted",
 		"content:read",
 		"content:write",
+		"taxonomies:read",
 		"media:read",
 		"media:write",
 		"users:read",
 		"email:send",
-		"mcp:tools",
 		"hooks.email-transport:register",
 		"hooks.email-events:register",
 		"hooks.page-fragments:register",
@@ -185,25 +206,6 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		normalizedCapabilities.push("network:request");
 	}
 
-	const mcpToolEntries = Object.entries(mcpTools);
-	if (mcpToolEntries.length > 0 && !normalizedCapabilities.includes("mcp:tools")) {
-		throw new Error(`Plugin "${id}" declares MCP tools but is missing the "mcp:tools" capability.`);
-	}
-	for (const [toolName, tool] of mcpToolEntries) {
-		if (!MCP_TOOL_NAME_PATTERN.test(toolName)) {
-			throw new Error(
-				`Invalid MCP tool name "${toolName}" in plugin "${id}". Must be lowercase snake_case and must not contain double underscores.`,
-			);
-		}
-
-		const routeName = tool.route.replace(LEADING_SLASH_PATTERN, "");
-		if (!(routeName in routes)) {
-			throw new Error(
-				`Invalid MCP tool route "${tool.route}" in plugin "${id}". MCP tool routes must be declared in routes.`,
-			);
-		}
-	}
-
 	// Normalize hooks
 	const resolvedHooks = resolveHooks(hooks, id);
 
@@ -215,7 +217,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		storage,
 		hooks: resolvedHooks,
 		routes,
-		mcpTools,
+		mcp,
 		admin,
 	};
 }

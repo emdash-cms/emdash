@@ -2,13 +2,16 @@
  * Shared error display for dialogs and mutation error extraction.
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { cn } from "../lib/utils.js";
 
 /** Extract a user-facing message from a mutation error value. */
 export function getMutationError(error: unknown): string | null {
 	if (!error) return null;
 	if (error instanceof Error) return error.message;
-	return "An error occurred";
+	return i18n._(msg`An error occurred`);
 }
 
 /** Inline error banner for use inside dialogs. */

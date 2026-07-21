@@ -13,6 +13,7 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 import { SeoRepository } from "../database/repositories/seo.js";
+import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxonomy.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
@@ -21,6 +22,8 @@ import {
 	SsrfError,
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
+import { enrichImageMetadata } from "../media/enrich.js";
+import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
@@ -50,6 +53,10 @@ import type {
 	QueryOptions,
 	ContentListOptions,
 	MediaListOptions,
+	TaxonomyAccess,
+	TaxonomyDefInfo,
+	TaxonomyTermInfo,
+	TaxonomyReadOptions,
 } from "./types.js";
 
 // =============================================================================
@@ -193,6 +200,37 @@ async function assertSeoEnabled(
 }
 
 /**
+ * Parse the `collections` JSON column into a string array (`[]` on anything
+ * else). Mirrors the guards in the Cloudflare/workerd bridges so an
+ * in-process plugin degrades on malformed data instead of crashing.
+ */
+function parseCollectionsColumn(value: string | null): string[] {
+	if (!value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return Array.isArray(parsed)
+			? parsed.filter((item): item is string => typeof item === "string")
+			: [];
+	} catch {
+		return [];
+	}
+}
+
+/** Map a repository `Taxonomy` row to the plugin-facing term shape. */
+function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
+	return {
+		id: term.id,
+		taxonomy: term.name,
+		slug: term.slug,
+		label: term.label,
+		parentId: term.parentId,
+		data: term.data,
+		locale: term.locale,
+		translationGroup: term.translationGroup,
+	};
+}
+
+/**
  * Create read-only content access
  */
 export function createContentAccess(db: Kysely<Database>): ContentAccess {
@@ -214,6 +252,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				updatedAt: item.updatedAt,
 				locale: item.locale,
 				publishedAt: item.publishedAt,
+				scheduledAt: item.scheduledAt,
 			};
 
 			if (await seoRepo.isEnabled(collection)) {
@@ -254,6 +293,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				updatedAt: item.updatedAt,
 				locale: item.locale,
 				publishedAt: item.publishedAt,
+				scheduledAt: item.scheduledAt,
 			}));
 
 			if (items.length > 0 && (await seoRepo.isEnabled(collection))) {
@@ -277,6 +317,48 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 }
 
 /**
+ * Create read-only taxonomy access (gated on `taxonomies:read`).
+ */
+export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
+	const taxonomyRepo = new TaxonomyRepository(db);
+
+	return {
+		async getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]> {
+			let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+			if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
+			const rows = await query.orderBy("name", "asc").execute();
+			return rows.map((row) => ({
+				name: row.name,
+				label: row.label,
+				labelSingular: row.label_singular,
+				hierarchical: row.hierarchical === 1,
+				collections: parseCollectionsColumn(row.collections),
+				locale: row.locale,
+			}));
+		},
+
+		async getTerms(taxonomy: string, options?: TaxonomyReadOptions): Promise<TaxonomyTermInfo[]> {
+			const terms = await taxonomyRepo.findByName(taxonomy, { locale: options?.locale });
+			return terms.map(taxonomyToTermInfo);
+		},
+
+		async getEntryTerms(
+			collection: string,
+			entryId: string,
+			options?: TaxonomyReadOptions & { taxonomy?: string },
+		): Promise<TaxonomyTermInfo[]> {
+			const terms = await taxonomyRepo.getTermsForEntry(
+				collection,
+				entryId,
+				options?.taxonomy,
+				options?.locale,
+			);
+			return terms.map(taxonomyToTermInfo);
+		},
+	};
+}
+
+/**
  * Create full content access with write operations.
  *
  * `create` and `update` accept a reserved `seo` key in their `data`
@@ -293,90 +375,120 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 
 		async create(collection: string, data: ContentWriteInput): Promise<ContentItem> {
 			const { fields, seo } = splitSeoFromInput(data);
+			let contentMutated = false;
 
-			return withTransaction(db, async (trx) => {
-				const trxContentRepo = new ContentRepository(trx);
-				const trxSeoRepo = new SeoRepository(trx);
+			try {
+				const created = await withTransaction(db, async (trx) => {
+					const trxContentRepo = new ContentRepository(trx);
+					const trxSeoRepo = new SeoRepository(trx);
 
-				const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
+					const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
 
-				const item = await trxContentRepo.create({
-					type: collection,
-					data: fields,
+					const item = await trxContentRepo.create({
+						type: collection,
+						data: fields,
+					});
+					contentMutated = true;
+
+					const result: ContentItem = {
+						id: item.id,
+						type: item.type,
+						slug: item.slug,
+						status: item.status,
+						data: item.data,
+						createdAt: item.createdAt,
+						updatedAt: item.updatedAt,
+						locale: item.locale,
+						publishedAt: item.publishedAt,
+						scheduledAt: item.scheduledAt,
+					};
+
+					if (hasSeo) {
+						result.seo =
+							seo !== undefined
+								? await trxSeoRepo.upsert(collection, item.id, seo)
+								: await trxSeoRepo.get(collection, item.id);
+					}
+
+					return result;
 				});
-
-				const result: ContentItem = {
-					id: item.id,
-					type: item.type,
-					slug: item.slug,
-					status: item.status,
-					data: item.data,
-					createdAt: item.createdAt,
-					updatedAt: item.updatedAt,
-					locale: item.locale,
-					publishedAt: item.publishedAt,
-				};
-
-				if (hasSeo) {
-					result.seo =
-						seo !== undefined
-							? await trxSeoRepo.upsert(collection, item.id, seo)
-							: await trxSeoRepo.get(collection, item.id);
+				await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+				return created;
+			} catch (error) {
+				if (contentMutated) {
+					await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
 				}
-
-				return result;
-			});
+				throw error;
+			}
 		},
 
 		async update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem> {
 			const { fields, seo } = splitSeoFromInput(data);
+			const hasFieldUpdates = Object.keys(fields).length > 0;
+			let contentMutated = false;
 
-			return withTransaction(db, async (trx) => {
-				const trxContentRepo = new ContentRepository(trx);
-				const trxSeoRepo = new SeoRepository(trx);
+			try {
+				const updated = await withTransaction(db, async (trx) => {
+					const trxContentRepo = new ContentRepository(trx);
+					const trxSeoRepo = new SeoRepository(trx);
 
-				const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
+					const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
 
-				// Pass the `data` payload to ContentRepository.update only when
-				// there are field updates — passing an empty object would still
-				// bump updated_at/version, but we want a seo-only call to touch
-				// only the SEO table. ContentRepository.update handles the no-op
-				// path by returning the current row.
-				const hasFieldUpdates = Object.keys(fields).length > 0;
-				const item = hasFieldUpdates
-					? await trxContentRepo.update(collection, id, { data: fields })
-					: await (async () => {
-							const existing = await trxContentRepo.findById(collection, id);
-							if (!existing) throw new Error("Content not found");
-							return existing;
-						})();
+					// Pass the `data` payload to ContentRepository.update only when
+					// there are field updates — passing an empty object would still
+					// bump updated_at/version, but we want a seo-only call to touch
+					// only the SEO table. ContentRepository.update handles the no-op
+					// path by returning the current row.
+					const item = hasFieldUpdates
+						? await trxContentRepo.update(collection, id, { data: fields })
+						: await (async () => {
+								const existing = await trxContentRepo.findById(collection, id);
+								if (!existing) throw new Error("Content not found");
+								return existing;
+							})();
+					if (hasFieldUpdates) contentMutated = true;
 
-				const result: ContentItem = {
-					id: item.id,
-					type: item.type,
-					slug: item.slug,
-					status: item.status,
-					data: item.data,
-					createdAt: item.createdAt,
-					updatedAt: item.updatedAt,
-					locale: item.locale,
-					publishedAt: item.publishedAt,
-				};
+					const result: ContentItem = {
+						id: item.id,
+						type: item.type,
+						slug: item.slug,
+						status: item.status,
+						data: item.data,
+						createdAt: item.createdAt,
+						updatedAt: item.updatedAt,
+						locale: item.locale,
+						publishedAt: item.publishedAt,
+						scheduledAt: item.scheduledAt,
+					};
 
-				if (hasSeo) {
-					result.seo =
-						seo !== undefined
-							? await trxSeoRepo.upsert(collection, item.id, seo)
-							: await trxSeoRepo.get(collection, item.id);
+					if (hasSeo) {
+						result.seo =
+							seo !== undefined
+								? await trxSeoRepo.upsert(collection, item.id, seo)
+								: await trxSeoRepo.get(collection, item.id);
+					}
+
+					return result;
+				});
+				if (hasFieldUpdates) {
+					await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
 				}
-
-				return result;
-			});
+				return updated;
+			} catch (error) {
+				if (contentMutated) {
+					await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+				}
+				throw error;
+			}
 		},
 
 		async delete(collection: string, id: string): Promise<boolean> {
 			const contentRepo = new ContentRepository(db);
-			return contentRepo.delete(collection, id);
+			const deleted = await contentRepo.delete(collection, id);
+			if (deleted) {
+				await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+			}
+			return deleted;
 		},
 	};
 }
@@ -432,23 +544,55 @@ export function createMediaAccess(db: Kysely<Database>): MediaAccess {
 
 /**
  * Create full media access with write operations.
- * If storage is not provided, upload() will throw at call time.
+ *
+ * `getUploadUrlFn` is optional: when omitted, `getUploadUrl()` is derived from
+ * `storage` (create a pending record + a signed PUT URL), mirroring the REST
+ * `/_emdash/api/media/upload-url` endpoint. `upload()` only needs `storage`.
+ * If storage is not provided, both throw at call time.
  */
 export function createMediaAccessWithWrite(
 	db: Kysely<Database>,
-	getUploadUrlFn: (
-		filename: string,
-		contentType: string,
-	) => Promise<{ uploadUrl: string; mediaId: string }>,
+	getUploadUrlFn:
+		| ((filename: string, contentType: string) => Promise<{ uploadUrl: string; mediaId: string }>)
+		| undefined,
 	storage?: Storage,
 ): MediaAccessWithWrite {
 	const mediaRepo = new MediaRepository(db);
 	const readAccess = createMediaAccess(db);
 
+	const getUploadUrl =
+		getUploadUrlFn ??
+		(async (filename: string, contentType: string) => {
+			if (!storage) {
+				throw new Error(
+					"Media getUploadUrl() requires a storage backend. Configure storage in PluginContextFactoryOptions.",
+				);
+			}
+
+			const basename = filename.split("/").pop() ?? filename;
+			const dotIdx = basename.lastIndexOf(".");
+			const ext = dotIdx > 0 ? basename.slice(dotIdx).toLowerCase() : "";
+			const storageKey = `${ulid()}${ext}`;
+
+			const media = await mediaRepo.createPending({
+				filename: basename,
+				mimeType: contentType,
+				storageKey,
+			});
+
+			const signed = await storage.getSignedUploadUrl({
+				key: storageKey,
+				contentType,
+				expiresIn: 3600,
+			});
+
+			return { uploadUrl: signed.url, mediaId: media.id };
+		});
+
 	return {
 		...readAccess,
 
-		getUploadUrl: getUploadUrlFn,
+		getUploadUrl,
 
 		async upload(
 			filename: string,
@@ -476,6 +620,9 @@ export function createMediaAccessWithWrite(
 				contentType,
 			});
 
+			// Derive dimensions + LQIP placeholders (no-op for non-images).
+			const enriched = await enrichImageMetadata(new Uint8Array(bytes), contentType);
+
 			// Create DB record — clean up storage on failure
 			let media;
 			try {
@@ -485,6 +632,10 @@ export function createMediaAccessWithWrite(
 					size: bytes.byteLength,
 					storageKey,
 					status: "ready",
+					width: enriched.width,
+					height: enriched.height,
+					blurhash: enriched.blurhash,
+					dominantColor: enriched.dominantColor,
 				});
 			} catch (error) {
 				try {
@@ -731,6 +882,8 @@ export interface SiteInfoOptions {
 	siteUrl?: string;
 	/** Site locale from options table */
 	locale?: string;
+	/** Astro's `trailingSlash` config (from `virtual:emdash/config`). */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -746,6 +899,7 @@ export function createSiteInfo(options: SiteInfoOptions): SiteInfo {
 		name: options.siteName ?? "",
 		url: (options.siteUrl ?? "").replace(TRAILING_SLASH_RE, ""), // strip trailing slash
 		locale: options.locale ?? "en",
+		trailingSlash: options.trailingSlash ?? "ignore", // Astro's default
 	};
 }
 
@@ -837,13 +991,25 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
 	/**
+	 * Resolver for the database connection, preferred over `db` when present.
+	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
+	 * over Hyperdrive) get the current request/event-scoped connection from ALS
+	 * rather than a snapshot of the per-isolate singleton — reusing the
+	 * singleton's socket from a later event trips workerd's cross-request I/O
+	 * guard. When omitted, `db` is used directly (correct for stateless
+	 * adapters like D1 and Node SQLite). `db` remains required as the fallback.
+	 */
+	getDb?: () => Kysely<Database>;
+	/**
 	 * Storage backend for direct media uploads.
 	 * If not provided, upload() will throw.
 	 */
 	storage?: Storage;
 	/**
-	 * Function to generate upload URLs for media.
-	 * If not provided, media write operations will throw.
+	 * Explicit provider for `ctx.media.getUploadUrl()`. Optional: when omitted
+	 * but `storage` is configured, the factory derives a working `getUploadUrl()`
+	 * (and `upload()`) from storage. Only when neither `getUploadUrl` nor
+	 * `storage` is present do media write operations become unavailable.
 	 */
 	getUploadUrl?: (
 		filename: string,
@@ -877,8 +1043,7 @@ export interface PluginContextFactoryOptions {
  * Factory for creating plugin contexts
  */
 export class PluginContextFactory {
-	private optionsRepo: OptionsRepository;
-	private db: Kysely<Database>;
+	private resolveDb: () => Kysely<Database>;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -888,10 +1053,16 @@ export class PluginContextFactory {
 	private urlHelper: (path: string) => string;
 	private cronReschedule?: () => void;
 	private emailPipeline?: EmailPipeline;
+	/**
+	 * Plugin IDs already warned about a missing media-write backend, so the
+	 * warning fires once per factory instead of on every hook/route context
+	 * creation (which would spam logs for hook-participating plugins).
+	 */
+	private warnedMissingMediaBackend = new Set<string>();
 
 	constructor(options: PluginContextFactoryOptions) {
-		this.db = options.db;
-		this.optionsRepo = new OptionsRepository(options.db);
+		const fixedDb = options.db;
+		this.resolveDb = options.getDb ?? (() => fixedDb);
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -906,10 +1077,17 @@ export class PluginContextFactory {
 	createContext(plugin: ResolvedPlugin): PluginContext {
 		const capabilities = new Set(plugin.capabilities);
 
+		// Resolve the connection once per context. For stateless adapters this
+		// is the singleton; for connection-backed adapters it's the current
+		// request/event-scoped connection from ALS. All repos below are built
+		// from this local `db` so a hook never queries a stale singleton socket.
+		const db = this.resolveDb();
+		const optionsRepo = new OptionsRepository(db);
+
 		// Always available
-		const kv = createKVAccess(this.optionsRepo, plugin.id);
+		const kv = createKVAccess(optionsRepo, plugin.id);
 		const log = createLogAccess(plugin.id);
-		const storage = createStorageAccess(this.db, plugin.id, plugin.storage);
+		const storage = createStorageAccess(db, plugin.id, plugin.storage);
 
 		// Capability-gated: content
 		// Note: capabilities reach this point already normalized to the
@@ -917,17 +1095,39 @@ export class PluginContextFactory {
 		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
-			content = createContentAccessWithWrite(this.db);
+			content = createContentAccessWithWrite(db);
 		} else if (capabilities.has("content:read")) {
-			content = createContentAccess(this.db);
+			content = createContentAccess(db);
+		}
+
+		// Capability-gated: taxonomies (read-only)
+		let taxonomies: TaxonomyAccess | undefined;
+		if (capabilities.has("taxonomies:read")) {
+			taxonomies = createTaxonomyAccess(db);
 		}
 
 		// Capability-gated: media
+		// `upload()` only needs `storage`; `getUploadUrl()` is derived from
+		// storage when no explicit provider is wired. Granting write access on
+		// either avoids silently degrading media:write to read-only — the bug
+		// where the runtime threads `storage` but not `getUploadUrl`.
 		let media: MediaAccess | MediaAccessWithWrite | undefined;
-		if (capabilities.has("media:write") && this.getUploadUrl) {
-			media = createMediaAccessWithWrite(this.db, this.getUploadUrl, this.storage);
+		if (capabilities.has("media:write")) {
+			if (this.getUploadUrl || this.storage) {
+				media = createMediaAccessWithWrite(db, this.getUploadUrl, this.storage);
+			} else {
+				if (!this.warnedMissingMediaBackend.has(plugin.id)) {
+					this.warnedMissingMediaBackend.add(plugin.id);
+					log.warn(
+						"declares the media:write capability but no storage backend is configured; upload() is unavailable.",
+					);
+				}
+				if (capabilities.has("media:read")) {
+					media = createMediaAccess(db);
+				}
+			}
 		} else if (capabilities.has("media:read")) {
-			media = createMediaAccess(this.db);
+			media = createMediaAccess(db);
 		}
 
 		// Capability-gated: http
@@ -941,14 +1141,14 @@ export class PluginContextFactory {
 		// Capability-gated: users
 		let users: UserAccess | undefined;
 		if (capabilities.has("users:read")) {
-			users = createUserAccess(this.db);
+			users = createUserAccess(db);
 		}
 
-		// Cron access ��� always available (scoped to plugin), but only if
+		// Cron access — always available (scoped to plugin), but only if
 		// the runtime provided a reschedule callback (i.e. cron is wired up).
 		let cron: CronAccess | undefined;
 		if (this.cronReschedule) {
-			cron = new CronAccessImpl(this.db, plugin.id, this.cronReschedule);
+			cron = new CronAccessImpl(db, plugin.id, this.cronReschedule);
 		}
 
 		// Email access — requires email:send capability AND a configured provider
@@ -969,6 +1169,7 @@ export class PluginContextFactory {
 			storage,
 			kv,
 			content,
+			taxonomies,
 			media,
 			http,
 			log,

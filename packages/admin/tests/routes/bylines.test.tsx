@@ -91,4 +91,54 @@ describe("BylinesPage search", () => {
 			vi.useRealTimers();
 		}
 	});
+
+	it("keeps the previous results mounted while a search refetch is in flight", async () => {
+		vi.useFakeTimers();
+		try {
+			// Initial load returns one byline; the search refetch is held
+			// in-flight so we can observe what the page renders *during* the
+			// new query — the moment the original full-page loader takeover
+			// (#1220) blanks the screen and drops input focus.
+			let resolveSearch: (value: { items: unknown[]; nextCursor: undefined }) => void = () => {};
+			const pendingSearch = new Promise<{ items: unknown[]; nextCursor: undefined }>((resolve) => {
+				resolveSearch = resolve;
+			});
+			fetchBylinesMock
+				.mockResolvedValueOnce({
+					items: [
+						{ id: "1", slug: "alice", displayName: "Alice Example", isGuest: false, userId: null },
+					],
+					nextCursor: undefined,
+				} as never)
+				.mockReturnValueOnce(pendingSearch as never);
+
+			const screen = await render(
+				<QueryWrapper>
+					<BylinesPage />
+				</QueryWrapper>,
+			);
+
+			await vi.advanceTimersByTimeAsync(0);
+			await expect.element(screen.getByText("Alice Example")).toBeInTheDocument();
+
+			const input = screen.getByPlaceholder("Search bylines");
+			await input.fill("ali");
+
+			// Elapse the debounce so the (still-pending) search refetch fires.
+			await vi.advanceTimersByTimeAsync(300);
+			await vi.waitFor(() => {
+				expect(searchArgs()).toEqual([undefined, "ali"]);
+			});
+
+			// While the refetch is in flight the page must NOT collapse into
+			// the centered full-page loader: the search input keeps focus and
+			// the previous results stay visible.
+			await expect.element(screen.getByPlaceholder("Search bylines")).toBeInTheDocument();
+			await expect.element(screen.getByText("Alice Example")).toBeInTheDocument();
+
+			resolveSearch({ items: [], nextCursor: undefined });
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });

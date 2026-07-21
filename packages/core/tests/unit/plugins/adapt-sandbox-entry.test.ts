@@ -83,133 +83,6 @@ describe("adaptSandboxEntry", () => {
 			expect(result.allowedHosts).toEqual(["api.example.com", "*.cdn.com"]);
 		});
 
-		it("carries MCP tools from the standard definition", () => {
-			const def: SandboxedPlugin = {
-				routes: {
-					summarize: {
-						handler: async () => ({ ok: true }),
-					},
-				},
-				mcpTools: {
-					summarize: {
-						title: "Summarize",
-						description: "Summarize text.",
-						route: "summarize",
-						inputSchema: {
-							type: "object",
-							properties: {
-								text: { type: "string" },
-							},
-							required: ["text"],
-						},
-					},
-				},
-			};
-			const descriptor = createDescriptor({ capabilities: ["mcp:tools"] });
-
-			const result = adaptSandboxEntry(def, descriptor);
-
-			expect(result.mcpTools).toEqual({
-				summarize: {
-					title: "Summarize",
-					description: "Summarize text.",
-					route: "summarize",
-					inputSchema: {
-						type: "object",
-						properties: {
-							text: { type: "string" },
-						},
-						required: ["text"],
-					},
-				},
-			});
-		});
-
-		it("carries MCP tools from the descriptor", () => {
-			const def: SandboxedPlugin = {
-				routes: {
-					summarize: {
-						handler: async () => ({ ok: true }),
-					},
-				},
-			};
-			const descriptor = createDescriptor({
-				capabilities: ["mcp:tools"],
-				mcpTools: [
-					{
-						name: "summarize",
-						title: "Summarize",
-						description: "Summarize text.",
-						route: "summarize",
-						inputSchema: {
-							type: "object",
-							properties: {
-								text: { type: "string" },
-							},
-							required: ["text"],
-						},
-					},
-				],
-			});
-
-			const result = adaptSandboxEntry(def, descriptor);
-
-			expect(result.mcpTools).toEqual({
-				summarize: {
-					title: "Summarize",
-					description: "Summarize text.",
-					route: "summarize",
-					inputSchema: {
-						type: "object",
-						properties: {
-							text: { type: "string" },
-						},
-						required: ["text"],
-					},
-				},
-			});
-		});
-
-		it("rejects MCP tools without the mcp:tools capability", () => {
-			const def: SandboxedPlugin = {
-				routes: {
-					summarize: {
-						handler: async () => ({ ok: true }),
-					},
-				},
-				mcpTools: {
-					summarize: {
-						description: "Summarize text.",
-						route: "summarize",
-					},
-				},
-			};
-			const descriptor = createDescriptor();
-
-			expect(() => adaptSandboxEntry(def, descriptor)).toThrow(
-				/missing the "mcp:tools" capability/,
-			);
-		});
-
-		it("rejects MCP tools that reference undeclared routes", () => {
-			const def: SandboxedPlugin = {
-				routes: {
-					other: {
-						handler: async () => ({ ok: true }),
-					},
-				},
-				mcpTools: {
-					summarize: {
-						description: "Summarize text.",
-						route: "summarize",
-					},
-				},
-			};
-			const descriptor = createDescriptor({ capabilities: ["mcp:tools"] });
-
-			expect(() => adaptSandboxEntry(def, descriptor)).toThrow(/MCP tool routes must be declared/);
-		});
-
 		it("carries storage config from descriptor", () => {
 			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({
@@ -247,6 +120,63 @@ describe("adaptSandboxEntry", () => {
 			const result = adaptSandboxEntry(def, descriptor);
 
 			expect(result.admin.widgets).toEqual([{ id: "status", title: "Status", size: "half" }]);
+		});
+
+		it("carries portable text blocks from descriptor", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({
+				portableTextBlocks: [
+					{
+						type: "faq",
+						label: "FAQ",
+						icon: "list",
+						category: "Sections",
+						fields: [
+							{
+								type: "repeater",
+								action_id: "items",
+								label: "Questions",
+								item_label: "Question",
+								fields: [
+									{ type: "text_input", action_id: "q", label: "Question" },
+									{ type: "text_input", action_id: "a", label: "Answer", multiline: true },
+								],
+							},
+						],
+					},
+				],
+			});
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.admin.portableTextBlocks).toEqual(descriptor.portableTextBlocks);
+		});
+
+		it("carries field widgets from descriptor", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({
+				fieldWidgets: [
+					{
+						name: "color-picker",
+						label: "Color Picker",
+						fieldTypes: ["string"],
+					},
+				],
+			});
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.admin.fieldWidgets).toEqual(descriptor.fieldWidgets);
+		});
+
+		it("leaves admin block config undefined when the descriptor omits it", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor();
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.admin.portableTextBlocks).toBeUndefined();
+			expect(result.admin.fieldWidgets).toBeUndefined();
 		});
 	});
 
@@ -450,6 +380,23 @@ describe("adaptSandboxEntry", () => {
 			const result = adaptSandboxEntry(def, descriptor);
 
 			expect(result.routes.webhook.public).toBe(true);
+		});
+
+		it("preserves cacheControl on routes", () => {
+			const def: SandboxedPlugin = {
+				routes: {
+					catalog: {
+						handler: vi.fn(),
+						public: true,
+						cacheControl: "public, max-age=60",
+					},
+				},
+			};
+			const descriptor = createDescriptor();
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.routes.catalog.cacheControl).toBe("public, max-age=60");
 		});
 
 		it("adapts multiple routes", () => {

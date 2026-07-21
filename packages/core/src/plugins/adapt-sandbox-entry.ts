@@ -22,7 +22,6 @@ import type {
 	PluginCapability,
 	PluginStorageConfig,
 	PluginAdminConfig,
-	PluginMcpTool,
 } from "./types.js";
 
 /**
@@ -54,8 +53,6 @@ type AnyHookEntry =
 const DEFAULT_PRIORITY = 100;
 const DEFAULT_TIMEOUT = 5000;
 const DEFAULT_ERROR_POLICY = "abort" as const;
-const MCP_TOOL_NAME_PATTERN = /^(?!.*__)[a-z][a-z0-9_]*$/;
-const LEADING_SLASH_PATTERN = /^\/+/;
 
 /**
  * Check if a hook entry is the config form (has a `handler` property).
@@ -111,7 +108,9 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
 function normalizeRouteEntry(entry: RouteEntry): {
 	handler: RouteHandler;
 	public?: boolean;
+	cacheControl?: string;
 	input?: PluginRoute["input"];
+	permission?: PluginRoute["permission"];
 } {
 	if (typeof entry === "function") {
 		return { handler: entry };
@@ -119,6 +118,8 @@ function normalizeRouteEntry(entry: RouteEntry): {
 	return {
 		handler: entry.handler,
 		public: entry.public,
+		permission: entry.permission,
+		cacheControl: entry.cacheControl,
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- RouteEntry.input is intentionally `unknown` (sandboxed plugins) and validated by the runtime at invocation time
 		input: entry.input as PluginRoute["input"],
 	};
@@ -199,10 +200,18 @@ export function adaptSandboxEntry(
 	if (definition.routes) {
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
 			const normalized = normalizeRouteEntry(rawEntry);
-			const { handler, public: publicFlag, input: inputSchema } = normalized;
+			const {
+				handler,
+				public: publicFlag,
+				cacheControl,
+				input: inputSchema,
+				permission,
+			} = normalized;
 			resolvedRoutes[routeName] = {
 				input: inputSchema,
 				public: publicFlag,
+				permission,
+				cacheControl,
 				handler: async (ctx) => {
 					// `ctx.request` is a real WHATWG `Request` (this is the
 					// in-process adapter; the worker-sandbox adapter handles
@@ -227,28 +236,6 @@ export function adaptSandboxEntry(
 					const { input: _, request: __, requestMeta: ___, ...pluginCtx } = ctx;
 					return handler(routeCtx, pluginCtx);
 				},
-			};
-		}
-	}
-
-	const mcpTools: Record<string, PluginMcpTool> = {};
-	for (const toolEntry of descriptor.mcpTools ?? []) {
-		mcpTools[toolEntry.name] = {
-			title: toolEntry.title,
-			description: toolEntry.description,
-			route: toolEntry.route,
-			inputSchema: toolEntry.inputSchema,
-		};
-	}
-	if (definition.mcpTools) {
-		for (const [toolName, toolEntry] of Object.entries(definition.mcpTools)) {
-			mcpTools[toolName] = {
-				title: toolEntry.title,
-				description: toolEntry.description,
-				route: toolEntry.route,
-				inputSchema: toolEntry.inputSchema,
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Standard MCP tool input is intentionally loosely typed; callers validate at runtime
-				input: toolEntry.input as PluginMcpTool["input"],
 			};
 		}
 	}
@@ -291,26 +278,6 @@ export function adaptSandboxEntry(
 		capabilities.push("network:request");
 	}
 
-	if (Object.keys(mcpTools).length > 0 && !capabilities.includes("mcp:tools")) {
-		throw new Error(
-			`Plugin "${pluginId}" declares MCP tools but is missing the "mcp:tools" capability.`,
-		);
-	}
-	for (const [toolName, tool] of Object.entries(mcpTools)) {
-		if (!MCP_TOOL_NAME_PATTERN.test(toolName)) {
-			throw new Error(
-				`Invalid MCP tool name "${toolName}" in plugin "${pluginId}". Must be lowercase snake_case and must not contain double underscores.`,
-			);
-		}
-
-		const routeName = tool.route.replace(LEADING_SLASH_PATTERN, "");
-		if (!(routeName in resolvedRoutes)) {
-			throw new Error(
-				`Invalid MCP tool route "${tool.route}" in plugin "${pluginId}". MCP tool routes must be declared in routes.`,
-			);
-		}
-	}
-
 	// Build storage config from descriptor.
 	// StorageCollectionDeclaration uses optional indexes, but PluginStorageConfig
 	// requires them. Ensure every collection has an indexes array.
@@ -323,13 +290,26 @@ export function adaptSandboxEntry(
 		};
 	}
 
-	// Build admin config from descriptor
+	// Build admin config from descriptor.
+	// Portable Text blocks and field widgets are declarative (Block Kit), so they
+	// are forwarded for standard/sandboxed plugins just like pages and widgets —
+	// the admin editor consumes them from the manifest. Only the site-side render
+	// component (`componentsEntry`) stays native-only.
 	const admin: PluginAdminConfig = {};
 	if (descriptor.adminPages) {
 		admin.pages = descriptor.adminPages;
 	}
 	if (descriptor.adminWidgets) {
 		admin.widgets = descriptor.adminWidgets;
+	}
+	if (descriptor.settingsSchema) {
+		admin.settingsSchema = descriptor.settingsSchema;
+	}
+	if (descriptor.portableTextBlocks) {
+		admin.portableTextBlocks = descriptor.portableTextBlocks;
+	}
+	if (descriptor.fieldWidgets) {
+		admin.fieldWidgets = descriptor.fieldWidgets;
 	}
 
 	return {
@@ -340,7 +320,20 @@ export function adaptSandboxEntry(
 		storage,
 		hooks: resolvedHooks,
 		routes: resolvedRoutes,
-		mcpTools,
+		mcp: {
+			tools: Object.fromEntries(
+				Object.entries(definition.mcp?.tools ?? {}).map(([name, tool]) => [
+					name,
+					{
+						description: tool.description,
+						route: tool.route,
+						input: tool.input,
+						output: tool.output,
+						destructive: tool.destructive,
+					},
+				]),
+			),
+		},
 		admin,
 	};
 }

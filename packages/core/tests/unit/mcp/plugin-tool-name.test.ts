@@ -11,12 +11,13 @@ describe("pluginToolName", () => {
 		);
 	});
 
-	it("adds a stable hash when dashes make a segment ambiguous", () => {
-		const name = pluginToolName("foo--bar", "summarize");
+	it("preserves existing names for already MCP-safe plugin IDs", () => {
+		expect(pluginToolName("calendar-plugin", "createEvent")).toBe("calendar-plugin__createEvent");
+		expect(pluginToolName("foo--bar", "summarize")).toBe("foo--bar__summarize");
+	});
 
-		expect(name).toMatch(HASHED_TOOL_NAME_PATTERN);
-		expect(name).not.toBe("foo__bar__summarize");
-		expect(pluginToolName("foo--bar", "summarize")).toBe(name);
+	it("hashes safe-looking IDs with ambiguous separators", () => {
+		expect(pluginToolName("foo__bar", "summarize")).toMatch(HASHED_TOOL_NAME_PATTERN);
 	});
 
 	it("keeps scoped IDs distinct when dashes sit next to the slash boundary", () => {
@@ -26,5 +27,9 @@ describe("pluginToolName", () => {
 		expect(trailingDashScope).toMatch(HASHED_TOOL_NAME_PATTERN);
 		expect(leadingDashName).toMatch(HASHED_TOOL_NAME_PATTERN);
 		expect(trailingDashScope).not.toBe(leadingDashName);
+	});
+
+	it("keeps normalized dashes distinct from literal underscores", () => {
+		expect(pluginToolName("foo-bar", "summarize")).not.toBe(pluginToolName("foo_bar", "summarize"));
 	});
 });

@@ -320,6 +320,63 @@ export async function getBylinesForEntries(
 	return result;
 }
 
+/**
+ * Get content entries credited to a byline, in any credit position.
+ *
+ * Unlike filtering on the content table's `primary_byline_id` column (which
+ * only finds entries where the byline is the first/primary credit), this
+ * matches every explicit credit recorded in `_emdash_content_bylines`, so
+ * co-authored entries where the byline is a secondary credit are included.
+ *
+ * `byline` is matched against the byline's `translation_group` (the value
+ * stored on credits since migration 040), so a single credit spans every
+ * locale variant of the byline. Pass `byline.translationGroup ?? byline.id`
+ * from `getByline` / `getBylineBySlug`. An array matches any of the given
+ * bylines (OR).
+ *
+ * The result respects the active locale, status, ordering, and eager
+ * hydration of `getEmDashCollection`.
+ *
+ * @example
+ * ```ts
+ * import { getBylineBySlug, getEntriesByByline } from "emdash";
+ *
+ * const byline = await getBylineBySlug("jane-doe");
+ * if (byline) {
+ *   const posts = await getEntriesByByline("posts", byline.translationGroup ?? byline.id, {
+ *     orderBy: { published_at: "desc" },
+ *   });
+ * }
+ * ```
+ *
+ * @param collection - The collection slug (e.g. "posts")
+ * @param byline - A byline translation group, or an array of them (OR)
+ * @param options - Optional locale, ordering, status, and limit
+ */
+export async function getEntriesByByline(
+	collection: string,
+	byline: string | string[],
+	options: {
+		locale?: string;
+		orderBy?: Record<string, "asc" | "desc">;
+		status?: "draft" | "published" | "archived";
+		limit?: number;
+	} = {},
+): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+	const { getEmDashCollection } = await import("../query.js");
+
+	const queryOptions: Record<string, unknown> = {
+		where: { byline },
+	};
+	if (options.locale !== undefined) queryOptions.locale = options.locale;
+	if (options.orderBy !== undefined) queryOptions.orderBy = options.orderBy;
+	if (options.status !== undefined) queryOptions.status = options.status;
+	if (options.limit !== undefined) queryOptions.limit = options.limit;
+
+	const { entries } = await getEmDashCollection(collection, queryOptions);
+	return entries;
+}
+
 /** Reads `author_id` + `primary_byline_id` for one entry in a single query. */
 async function getEntryContext(
 	db: Awaited<ReturnType<typeof getDb>>,

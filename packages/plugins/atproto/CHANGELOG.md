@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-atproto
 
+## 0.2.1
+
+### Patch Changes
+
+- [#1530](https://github.com/emdash-cms/emdash/pull/1530) [`997d7ee`](https://github.com/emdash-cms/emdash/commit/997d7eea8f39c16eef28577bb8ace0c0413fc38b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes AT Protocol syndication hanging on Cloudflare Workers when a request was cancelled while refreshing the session token. The token refresh is still coalesced so concurrent publishes don't race, but it no longer shares an in-flight promise that a cancelled request could leave pending forever; a later publish now recovers instead of hanging.
+
 ## 0.2.0
 
 ### Minor Changes

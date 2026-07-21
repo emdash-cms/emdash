@@ -10,21 +10,26 @@
  */
 
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
-import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
+import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { contentBylineInputSchema, contentSeoInput } from "#api/schemas.js";
+import {
+	bylineCreateBody,
+	bylineUpdateBody,
+	CONTENT_TYPE_RE,
+	contentBylineInputSchema,
+	contentSeoInput,
+} from "#api/schemas.js";
 
+import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
-import { jsonSchemaObjectToZod } from "./json-schema.js";
+import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
+import type { FieldSchema } from "../client/portable-text.js";
 import { pluginToolName } from "./plugin-tool-name.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
-const MCP_TOOL_NAME_PATTERN = /^(?!.*__)[a-z][a-z0-9_]*$/;
-const LEADING_SLASH_PATTERN = /^\/+/;
-const FORWARD_SLASH_PATTERN = "/";
 /** http(s) scheme matcher used by `settings_update` URL validation. */
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
 
@@ -74,6 +79,35 @@ const settingsSeoSchema = z.object({
 		.describe("Bing Webmaster Tools verification token"),
 });
 
+const mediaUsageRepairToolSchema = z
+	.object({
+		scope: z.enum(["collection", "all"]).describe("Repair one collection or all collections"),
+		collection: z
+			.string()
+			.min(1)
+			.max(63)
+			.regex(COLLECTION_SLUG_PATTERN, "Invalid collection slug")
+			.optional()
+			.describe("Collection slug; required only when scope is collection"),
+	})
+	.strict()
+	.superRefine((input, ctx) => {
+		if (input.scope === "collection" && input.collection === undefined) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["collection"],
+				message: "Collection is required when scope is collection",
+			});
+		}
+		if (input.scope === "all" && input.collection !== undefined) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["collection"],
+				message: "Collection must be omitted when scope is all",
+			});
+		}
+	});
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -86,6 +120,7 @@ type HandlerResult = {
 
 type SuccessEnvelope = {
 	content: Array<{ type: "text"; text: string }>;
+	structuredContent?: Record<string, unknown>;
 	_meta?: Record<string, unknown>;
 };
 
@@ -237,47 +272,6 @@ function jsonResult(data: unknown): SuccessEnvelope {
 	return respondData(data);
 }
 
-function fallbackPluginToolInputSchema(): z.ZodType<Record<string, unknown>> {
-	return z.record(z.string(), z.unknown());
-}
-
-function safeJsonSchemaObjectToZod(
-	schema: Parameters<typeof jsonSchemaObjectToZod>[0],
-	pluginId: string,
-	toolName: string,
-): z.ZodType<Record<string, unknown>> {
-	try {
-		return jsonSchemaObjectToZod(schema);
-	} catch (error) {
-		console.warn(
-			`[emdash] Ignoring invalid MCP inputSchema for plugin tool ${pluginId}/${toolName}:`,
-			error,
-		);
-		return fallbackPluginToolInputSchema();
-	}
-}
-
-function normalizePluginToolRoute(route: string): string {
-	return route.replace(LEADING_SLASH_PATTERN, "");
-}
-
-function createPluginToolRequest(
-	pluginId: string,
-	route: string,
-	args: Record<string, unknown>,
-): Request {
-	const routePath = normalizePluginToolRoute(route)
-		.split(FORWARD_SLASH_PATTERN)
-		.map((segment) => encodeURIComponent(segment))
-		.join("/");
-	const encodedPluginId = encodeURIComponent(pluginId);
-	return new Request(`http://localhost/_emdash/api/plugins/${encodedPluginId}/${routePath}`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
-		body: JSON.stringify(args),
-	});
-}
-
 // ---------------------------------------------------------------------------
 // Context extraction
 //
@@ -312,6 +306,64 @@ function getExtra(extra: { authInfo?: { extra?: Record<string, unknown> } }): Em
 
 function getEmDash(extra: { authInfo?: { extra?: Record<string, unknown> } }): EmDashHandlers {
 	return getExtra(extra).emdash;
+}
+
+async function getCollectionFields(
+	ec: EmDashHandlers,
+	collection: string,
+): Promise<FieldSchema[] | null> {
+	try {
+		const { SchemaRegistry } = await import("../schema/index.js");
+		const col = await new SchemaRegistry(ec.db).getCollectionWithFields(collection);
+		return col ? col.fields : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Convert markdown strings to Portable Text for `portableText` fields on write.
+ * Non-string values pass through, so callers may still send Portable Text. If
+ * the schema can't be loaded, data is returned unchanged for the handler to
+ * validate.
+ */
+async function convertWriteData(
+	ec: EmDashHandlers,
+	collection: string,
+	data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	const fields = await getCollectionFields(ec, collection);
+	if (!fields) return data;
+	return convertDataForWrite(data, fields);
+}
+
+/**
+ * Convert `portableText` field values on each item's `data` to markdown,
+ * mutating in place. Inverse of {@link convertWriteData}, gated on the read
+ * tools' `markdown` argument.
+ */
+async function applyReadMarkdown(
+	ec: EmDashHandlers,
+	collection: string,
+	items: Array<Record<string, unknown>>,
+): Promise<void> {
+	const fields = await getCollectionFields(ec, collection);
+	if (!fields) return;
+	for (const item of items) {
+		if (item.data && typeof item.data === "object") {
+			item.data = convertDataForRead(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
+				item.data as Record<string, unknown>,
+				fields,
+				false,
+			);
+		}
+	}
+}
+
+async function invalidateBylines(): Promise<void> {
+	const { invalidateBylineCache } = await import("../bylines/index.js");
+	invalidateBylineCache();
 }
 
 /**
@@ -431,7 +483,21 @@ function extractContentId(data: unknown): string | undefined {
 // Server factory
 // ---------------------------------------------------------------------------
 
-export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
+export interface PluginMcpRegistration {
+	pluginId: string;
+	name: string;
+	description: string;
+	route: string;
+	permission: string;
+	destructive: boolean;
+	inputSchema: z.ZodType;
+	outputSchema?: z.ZodType;
+}
+
+export function createMcpServer(
+	pluginTools: PluginMcpRegistration[] = [],
+	request?: Request,
+): McpServer {
 	const server = new McpServer(
 		{ name: "emdash", version: "0.1.0" },
 		{ capabilities: { logging: {} } },
@@ -465,62 +531,74 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 		)(name, config, wrapped);
 	}) as typeof server.registerTool;
 
-	const registeredToolNames = new Set<string>();
-	for (const tool of emdashForToolList?.getPluginMcpTools() ?? []) {
-		if (!MCP_TOOL_NAME_PATTERN.test(tool.name)) continue;
-
-		const name = pluginToolName(tool.pluginId, tool.name);
-		if (registeredToolNames.has(name)) continue;
-		registeredToolNames.add(name);
-
+	for (const tool of pluginTools) {
+		if (!(tool.permission in Permissions)) continue;
 		server.registerTool(
-			name,
+			pluginToolName(tool.pluginId, tool.name),
 			{
-				title: tool.title,
 				description: tool.description,
-				inputSchema:
-					tool.input ??
-					(tool.inputSchema
-						? safeJsonSchemaObjectToZod(tool.inputSchema, tool.pluginId, tool.name)
-						: fallbackPluginToolInputSchema()),
+				inputSchema: tool.inputSchema,
+				outputSchema: tool.outputSchema,
+				annotations: { destructiveHint: tool.destructive },
 			},
-			async (args: Record<string, unknown>, extra) => {
-				requireScope(extra, "admin");
-				requireRole(extra, Role.ADMIN);
-
-				const emdash = getEmDash(extra);
-				const routePath = normalizePluginToolRoute(tool.route);
-				// Plugin MCP tools are always admin-only, even when the underlying route is public.
-				const routeMeta = emdash.getPluginRouteMeta(tool.pluginId, `/${routePath}`);
-				if (!routeMeta) {
-					return respondError("NOT_FOUND", `Plugin MCP tool route not found: ${tool.route}`);
+			async (input, extra) => {
+				const payload = getExtra(extra);
+				const requiredScope = `mcp:tools:${tool.pluginId}`;
+				if (payload.tokenScopes && !hasScope(payload.tokenScopes, requiredScope)) {
+					if (request) {
+						await payload.emdash.handlePluginMcpDenied(
+							tool.pluginId,
+							tool.name,
+							tool.route,
+							payload.userId,
+							request,
+							`Missing scope: ${requiredScope}`,
+						);
+					}
+					throw new EmDashAuthError(
+						`Insufficient scope: requires ${requiredScope}`,
+						"INSUFFICIENT_SCOPE",
+					);
 				}
-
-				const request = createPluginToolRequest(tool.pluginId, routePath, args);
-				const result = await emdash.handlePluginApiRoute(
+				if (!hasPermission({ role: payload.userRole }, tool.permission as Permission)) {
+					if (request) {
+						await payload.emdash.handlePluginMcpDenied(
+							tool.pluginId,
+							tool.name,
+							tool.route,
+							payload.userId,
+							request,
+							`Missing permission: ${tool.permission}`,
+						);
+					}
+					throw new EmDashAuthError(
+						`Insufficient permission: requires ${tool.permission}`,
+						"INSUFFICIENT_PERMISSIONS",
+					);
+				}
+				if (!request) return respondError("INTERNAL_ERROR", "Missing MCP request context");
+				const result = await payload.emdash.handlePluginMcpTool(
 					tool.pluginId,
-					"POST",
-					`/${routePath}`,
+					tool.name,
+					tool.route,
+					input,
+					payload.userId,
 					request,
 				);
-				if (!result.success) {
-					const err =
-						result.error && typeof result.error === "object"
-							? (result.error as { code?: unknown; message?: unknown; details?: unknown })
-							: undefined;
-					const code = typeof err?.code === "string" && err.code ? err.code : "PLUGIN_ERROR";
-					const message =
-						typeof err?.message === "string" && err.message
-							? err.message
-							: "Plugin MCP tool failed";
-					const details =
-						err?.details && typeof err.details === "object"
-							? (err.details as Record<string, unknown>)
-							: undefined;
-					return respondError(code, message, details);
+				if (!result.success) return unwrap(result);
+				if (tool.outputSchema) {
+					if (!result.data || typeof result.data !== "object" || Array.isArray(result.data)) {
+						return respondError(
+							"INVALID_PLUGIN_OUTPUT",
+							"Plugin tool output must be an object when outputSchema is declared",
+						);
+					}
+					return {
+						content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }],
+						structuredContent: result.data as Record<string, unknown>,
+					};
 				}
-
-				return respondData(result.data ?? null);
+				return respondData(result.data);
 			},
 		);
 	}
@@ -566,6 +644,12 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					.string()
 					.optional()
 					.describe("Filter by locale (e.g. 'en', 'fr'). Only relevant when i18n is enabled."),
+				markdown: z
+					.boolean()
+					.optional()
+					.describe(
+						"Return rich text (portableText) fields as Markdown strings instead of Portable Text arrays (default false).",
+					),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -575,16 +659,26 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 			// Subscribers must only see published content; force the status
 			// filter regardless of caller-supplied value.
 			const status = canReadDrafts(extra) ? args.status : "published";
-			return unwrap(
-				await ec.handleContentList(args.collection, {
-					status,
-					limit: args.limit,
-					cursor: args.cursor,
-					orderBy: args.orderBy,
-					order: args.order,
-					locale: args.locale,
-				}),
-			);
+			const result = await ec.handleContentList(args.collection, {
+				status,
+				limit: args.limit,
+				cursor: args.cursor,
+				orderBy: args.orderBy,
+				order: args.order,
+				locale: args.locale,
+			});
+			if (result.success && args.markdown) {
+				const payload = result.data;
+				if (
+					payload &&
+					typeof payload === "object" &&
+					"items" in payload &&
+					Array.isArray(payload.items)
+				) {
+					await applyReadMarkdown(ec, args.collection, payload.items);
+				}
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -604,6 +698,12 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					.optional()
 					.describe(
 						"Locale to scope slug lookup (e.g. 'fr'). Only affects slug resolution; IDs are globally unique.",
+					),
+				markdown: z
+					.boolean()
+					.optional()
+					.describe(
+						"Return rich text (portableText) fields as Markdown strings instead of Portable Text arrays (default false).",
 					),
 			}),
 			annotations: { readOnlyHint: true },
@@ -633,6 +733,9 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					});
 				}
 			}
+			if (result.success && args.markdown && result.data?.item) {
+				await applyReadMarkdown(ec, args.collection, [result.data.item]);
+			}
 			return unwrap(result);
 		},
 	);
@@ -644,9 +747,12 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 			description:
 				"Create a new content item in a collection. The 'data' object should " +
 				"contain field values matching the collection's schema (use " +
-				"schema_get_collection to check). Rich text fields accept Portable Text " +
-				"JSON arrays. A slug is auto-generated if not provided. Items are created " +
-				"as 'draft' by default — use content_publish to make them live.",
+				"schema_get_collection to check). For rich text (portableText) fields, " +
+				"pass a Markdown string — converted to Portable Text automatically; prefer " +
+				"this. Pass a Portable Text JSON array only for complex content Markdown " +
+				"can't express (custom blocks, embeds). A slug is auto-generated if not " +
+				"provided. Items are created as 'draft' by default — use content_publish " +
+				"to make them live.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				data: z
@@ -666,6 +772,18 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					.optional()
 					.describe(
 						"ID of the content item this is a translation of. Links items in the same translation group.",
+					),
+				bylines: z
+					.array(contentBylineInputSchema)
+					.optional()
+					.describe(
+						"Bylines to credit. Each entry references an existing byline by id (see byline_list / byline_create) with an optional roleLabel. The first entry becomes the primary byline.",
+					),
+				taxonomies: z
+					.record(z.string(), z.array(z.string()))
+					.optional()
+					.describe(
+						"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Call taxonomy_list to see available taxonomies and taxonomy_list_terms to look up slugs. Missing keys leave that taxonomy unchanged.",
 					),
 			}),
 			annotations: { destructiveHint: false },
@@ -687,21 +805,25 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 				);
 			}
 
+			const data = await convertWriteData(emdash, args.collection, args.data);
+
 			// Publishing requires publish permission — create as draft then publish
 			if (args.status === "published") {
 				const user = { id: userId, role: getExtra(extra).userRole };
-				if (!hasPermission(user, "content:publish_own" as Permission)) {
+				if (!hasPermission(user, "content:publish_own")) {
 					throw new EmDashAuthError(
 						"Insufficient permissions: publishing requires content:publish_own",
 						"INSUFFICIENT_PERMISSIONS",
 					);
 				}
 				const result = await emdash.handleContentCreate(args.collection, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
 					translationOf: args.translationOf,
+					bylines: args.bylines,
+					taxonomies: args.taxonomies,
 				});
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
@@ -713,11 +835,13 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 
 			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
 					translationOf: args.translationOf,
+					bylines: args.bylines,
+					taxonomies: args.taxonomies,
 				}),
 			);
 		},
@@ -729,7 +853,10 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 			title: "Update Content",
 			description:
 				"Update an existing content item. Only include fields you want to change " +
-				"in the 'data' object — unspecified fields are left unchanged. Pass the " +
+				"in the 'data' object — unspecified fields are left unchanged. Rich text " +
+				"(portableText) fields accept a Markdown string (recommended, converted " +
+				"automatically); use a Portable Text JSON array only for complex content " +
+				"Markdown can't express (custom blocks, embeds). Pass the " +
 				"_rev token from content_get to enable optimistic concurrency checking " +
 				"(the update fails if the item was modified since you read it). " +
 				"`seo` and `bylines` are persisted alongside the field updates in a " +
@@ -771,6 +898,12 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					.describe(
 						"Replace the byline list for this item. The first entry becomes the primary byline. Pass an empty array to clear all bylines.",
 					),
+				taxonomies: z
+					.record(z.string(), z.array(z.string()))
+					.optional()
+					.describe(
+						"Replace taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Only named taxonomies are touched; other taxonomies are left unchanged. Pass an empty array to clear a taxonomy.",
+					),
 				publishedAt: z.iso
 					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
 					.nullish()
@@ -796,12 +929,16 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 			const ownerId = extractContentAuthorId(existing.data);
 			requireOwnership(extra, ownerId, "content:edit_own", "content:edit_any");
 
+			const data = args.data
+				? await convertWriteData(emdash, args.collection, args.data)
+				: args.data;
+
 			// Writing publishedAt directly (incl. clearing to null) overwrites
 			// historical record — gate behind publish_any, mirroring the REST PUT
 			// route. Status-driven publishes are gated separately below.
 			if (args.publishedAt !== undefined) {
 				const user = { id: userId, role: userRole };
-				if (!hasPermission(user, "content:publish_any" as Permission)) {
+				if (!hasPermission(user, "content:publish_any")) {
 					throw new EmDashAuthError(
 						"Setting publishedAt requires content:publish_any permission",
 						"INSUFFICIENT_PERMISSIONS",
@@ -819,15 +956,17 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					args.slug ||
 					args.seo !== undefined ||
 					args.bylines !== undefined ||
+					args.taxonomies !== undefined ||
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
-						data: args.data,
+						data,
 						slug: args.slug,
 						authorId: userId,
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
+						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
 						_rev: args._rev,
 					});
@@ -843,15 +982,17 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					args.slug ||
 					args.seo !== undefined ||
 					args.bylines !== undefined ||
+					args.taxonomies !== undefined ||
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
-						data: args.data,
+						data,
 						slug: args.slug,
 						authorId: userId,
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
+						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
 						_rev: args._rev,
 					});
@@ -862,12 +1003,13 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 
 			return unwrap(
 				await emdash.handleContentUpdate(args.collection, resolvedId, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
 					seo: args.seo,
 					bylines: args.bylines,
+					taxonomies: args.taxonomies,
 					publishedAt: args.publishedAt,
 					_rev: args._rev,
 				}),
@@ -1004,7 +1146,7 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 			// regardless of ownership (mirrors the REST PUT route's publishedAt gate).
 			if (args.publishedAt !== undefined) {
 				const user = { id: userId, role: userRole };
-				if (!hasPermission(user, "content:publish_any" as Permission)) {
+				if (!hasPermission(user, "content:publish_any")) {
 					throw new EmDashAuthError(
 						"Setting publishedAt requires content:publish_any permission",
 						"INSUFFICIENT_PERMISSIONS",
@@ -1266,6 +1408,183 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 				});
 			}
 			return unwrap(result);
+		},
+	);
+
+	// =====================================================================
+	// Byline tools
+	// =====================================================================
+
+	server.registerTool(
+		"byline_list",
+		{
+			title: "List Bylines",
+			description:
+				"List bylines (author/contributor credits) with optional filtering and " +
+				"pagination. Bylines are standalone records referenced by content items; " +
+				"use the returned id with content_create/content_update or byline_get. Use " +
+				"the nextCursor value from the response to fetch the next page.",
+			inputSchema: z.object({
+				search: z.string().optional().describe("Filter by display name or slug substring"),
+				isGuest: z.boolean().optional().describe("Filter by guest (true) or linked-user (false)"),
+				userId: z.string().optional().describe("Filter to the byline linked to a CMS user ID"),
+				locale: z.string().optional().describe("Filter by locale (omit for all)"),
+				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
+				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { BylineRepository } = await import("../database/repositories/byline.js");
+				const repo = new BylineRepository(ec.db);
+				return jsonResult(
+					await repo.findMany({
+						search: args.search,
+						isGuest: args.isGuest,
+						userId: args.userId,
+						locale: args.locale,
+						limit: args.limit,
+						cursor: args.cursor,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_LIST_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_get",
+		{
+			title: "Get Byline",
+			description:
+				"Get a single byline by its ID, including bio, avatar, website, linked " +
+				"user, and any custom fields.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline ID"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { BylineRepository } = await import("../database/repositories/byline.js");
+				const byline = await new BylineRepository(ec.db).findById(args.id);
+				if (!byline) return respondError("NOT_FOUND", `Byline '${args.id}' not found`);
+				return jsonResult(byline);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_GET_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_create",
+		{
+			title: "Create Byline",
+			description:
+				"Create a new byline (author/contributor credit). The slug must be unique " +
+				"and contain only lowercase letters, digits, and hyphens. Link the byline " +
+				"to a CMS user via userId, or leave it as a standalone guest credit. The " +
+				"returned id can then be passed to content_create/content_update bylines.",
+			inputSchema: z.object({ ...bylineCreateBody.shape }),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleBylineCreate } = await import("../api/handlers/bylines.js");
+				const result = await handleBylineCreate(ec.db, args);
+				if (result.success) await invalidateBylines();
+				return unwrap(result);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_CREATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_update",
+		{
+			title: "Update Byline",
+			description:
+				"Update an existing byline. Any field can be omitted to leave it " +
+				"unchanged. Renaming the slug must not collide with another byline.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline ID to update"),
+				...bylineUpdateBody.shape,
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleBylineUpdate } = await import("../api/handlers/bylines.js");
+				const { id, ...input } = args;
+				const result = await handleBylineUpdate(ec.db, id, input);
+				if (result.success) await invalidateBylines();
+				return unwrap(result);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_delete",
+		{
+			title: "Delete Byline",
+			description:
+				"Permanently delete a byline. Any content crediting this byline loses the " +
+				"association, and it is cleared as a primary byline where set.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline ID to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { BylineRepository } = await import("../database/repositories/byline.js");
+				const deleted = await new BylineRepository(ec.db).delete(args.id);
+				if (!deleted) return respondError("NOT_FOUND", `Byline '${args.id}' not found`);
+				await invalidateBylines();
+				return jsonResult({ deleted: args.id });
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_translations",
+		{
+			title: "List Byline Translations",
+			description:
+				"Return every locale variant of a byline, identified via its shared translation_group.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline id (or translation_group)"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { handleBylineTranslations } = await import("../api/handlers/bylines.js");
+				return unwrap(await handleBylineTranslations(ec.db, args.id));
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_TRANSLATIONS_ERROR");
+			}
 		},
 	);
 
@@ -1594,9 +1913,8 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 				"caller is responsible for placing the file at `storageKey` (typically " +
 				"using a signed upload URL obtained from the admin UI or a separate API). " +
 				"This tool persists the metadata record so the file is discoverable via " +
-				"media_list / media_get and can be referenced by content. For binary " +
-				"uploads the MCP transport is not appropriate — use the signed-upload " +
-				"flow instead.",
+				"media_list / media_get and can be referenced by content. To upload the " +
+				"file itself, use media_upload (base64 data or a public URL) instead.",
 			inputSchema: z.object({
 				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
 				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
@@ -1630,6 +1948,70 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					authorId: userId,
 				}),
 			);
+		},
+	);
+
+	server.registerTool(
+		"media_upload",
+		{
+			title: "Upload Media",
+			description:
+				"Upload a media file from base64-encoded data or an external URL and " +
+				"register it in the media library. Returns the media item with id, " +
+				"storageKey, and url — ready to reference from content fields (e.g. " +
+				"featured_image) via content_create / content_update. Uploads are " +
+				"deduplicated by content hash: re-uploading identical bytes returns " +
+				"the existing item with deduplicated: true. URL fetches must resolve " +
+				"to a public http(s) host (SSRF-guarded). Subject to the global " +
+				"upload MIME allowlist and the configured maximum upload size.",
+			inputSchema: z.object({
+				filename: z.string().min(1).describe("Filename including extension (e.g. 'cover.png')"),
+				base64: z
+					.string()
+					.optional()
+					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
+				url: z
+					.string()
+					.url()
+					.optional()
+					.describe(
+						"Public http(s) URL to fetch the file from. Provide exactly one of base64 / url.",
+					),
+				contentType: z
+					.string()
+					.regex(CONTENT_TYPE_RE, "Invalid content type")
+					.optional()
+					.describe(
+						"MIME type (e.g. 'image/png'). Required with base64; with url it " +
+							"defaults to the response's Content-Type header.",
+					),
+				alt: z.string().optional().describe("Alt text for accessibility"),
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "media:write");
+			requireRole(extra, Role.CONTRIBUTOR);
+			const { emdash, userId } = getExtra(extra);
+			if (!emdash.storage) {
+				return respondError("NO_STORAGE", "Storage not configured");
+			}
+			try {
+				const { handleMediaUpload } = await import("../api/handlers/media-upload.js");
+				return unwrap(
+					await handleMediaUpload(emdash.db, emdash.storage, {
+						filename: args.filename,
+						base64: args.base64,
+						url: args.url,
+						contentType: args.contentType,
+						alt: args.alt,
+						authorId: userId,
+						maxUploadSize: emdash.config.maxUploadSize,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "UPLOAD_ERROR");
+			}
 		},
 	);
 
@@ -1727,6 +2109,42 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 		},
 	);
 
+	server.registerTool(
+		"media_usage_repair",
+		{
+			title: "Repair Media Usage Index",
+			description:
+				"Repair content media usage indexes for one collection or every collection. " +
+				"Returns complete, partial, failed, or stale status; inspect the structured result.",
+			inputSchema: mediaUsageRepairToolSchema,
+		},
+		async (args, extra) => {
+			requireScope(extra, "admin");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+
+			let input: MediaUsageRepairRequest;
+			if (args.scope === "collection") {
+				if (args.collection === undefined) {
+					return respondError(
+						"VALIDATION_ERROR",
+						"Collection is required when scope is collection",
+					);
+				}
+				input = { scope: "collection", collection: args.collection };
+			} else {
+				input = { scope: "all" };
+			}
+
+			try {
+				const { handleMediaUsageRepair } = await import("../api/handlers/media-usage.js");
+				return unwrap(await handleMediaUsageRepair(ec.db, input));
+			} catch (error) {
+				return respondHandlerError(error, "MEDIA_USAGE_REPAIR_ERROR");
+			}
+		},
+	);
+
 	// =====================================================================
 	// Search tool
 	// =====================================================================
@@ -1751,6 +2169,12 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					.optional()
 					.describe("Filter results by locale (omit to search all locales)"),
 				limit: z.number().int().min(1).max(50).optional().describe("Max results (default 20)"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(2048)
+					.optional()
+					.describe("Pagination cursor from a previous response"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1763,6 +2187,7 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 					collections: args.collections,
 					locale: args.locale,
 					limit: args.limit,
+					cursor: args.cursor,
 				});
 				return jsonResult(results);
 			} catch (error) {

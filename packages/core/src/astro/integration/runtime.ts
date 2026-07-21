@@ -10,7 +10,14 @@
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
-import type { ResolvedPlugin } from "../../plugins/types.js";
+import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
+import type {
+	FieldWidgetConfig,
+	PluginMcpManifestConfig,
+	PortableTextBlockConfig,
+	ResolvedPlugin,
+	SettingField,
+} from "../../plugins/types.js";
 import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
@@ -35,14 +42,6 @@ export interface PluginDashboardWidget {
 	id: string;
 	size?: "full" | "half" | "third";
 	title?: string;
-}
-
-export interface PluginMcpToolDescriptor {
-	name: string;
-	title?: string;
-	description: string;
-	route: string;
-	inputSchema?: import("../../plugins/types.js").ManifestJsonObjectSchema;
 }
 
 /**
@@ -106,8 +105,17 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
-	/** MCP tools exposed through EmDash's MCP endpoint */
-	mcpTools?: PluginMcpToolDescriptor[];
+	/** Settings schema for the auto-generated admin settings form */
+	settingsSchema?: Record<string, SettingField>;
+	/**
+	 * Portable Text block types this plugin contributes to the editor.
+	 * Declarative (Block Kit) — surfaced in the admin slash menu and consumed
+	 * from the manifest, so standard/sandboxed plugins can contribute blocks
+	 * without a native render component.
+	 */
+	portableTextBlocks?: PortableTextBlockConfig[];
+	/** Field widget types this plugin contributes for schema-field editing UIs. */
+	fieldWidgets?: FieldWidgetConfig[];
 
 	// === Sandbox-specific fields (for sandboxed plugins) ===
 
@@ -127,6 +135,8 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	 * Sandboxed plugins can only access declared collections.
 	 */
 	storage?: Record<string, StorageCollectionDeclaration>;
+	/** Serialized MCP declarations emitted by the plugin build. */
+	mcp?: PluginMcpManifestConfig;
 }
 
 /**
@@ -161,19 +171,66 @@ export interface EmDashConfig {
 	 * Storage configuration (for media)
 	 */
 	storage?: StorageDescriptor;
+
+	/**
+	 * Optional distributed object cache for query results.
+	 *
+	 * Off by default. When configured, content and chrome (settings, menus,
+	 * taxonomies) reads are cached in a fast key/value store and served without
+	 * touching the database on repeat requests across isolates. This offloads
+	 * read pressure from D1/SQLite, which is especially valuable on Cloudflare
+	 * where D1 has far lower request capacity than KV.
+	 *
+	 * Use a backend adapter:
+	 * - `memoryCache()` from `emdash/astro` — in-isolate (Node / local dev)
+	 * - `kvCache({ binding: "CACHE" })` from `@emdash-cms/cloudflare` — KV
+	 *
+	 * Preview and visual-edit requests bypass the cache, so editors previewing
+	 * see live content. All other reads — including authenticated browsing outside
+	 * edit mode — are served from the cache, which only ever stores published
+	 * content. After an edit, anonymous visitors may see stale content until other
+	 * isolates pick up the bumped epoch: immediate with the memory backend, and on
+	 * KV bounded by KV's edge-cache propagation (eventual consistency, up to ~60s)
+	 * plus the isolate-local `revalidate` window (default 1s).
+	 *
+	 * Scheduled content becomes visible at query time (no write event fires when
+	 * its publish time passes), so a cached list/entry won't surface a newly-due
+	 * scheduled item until the next write to that collection or until the
+	 * entry's TTL lapses (`defaultTtl`, default 1h). Sites that rely on precise
+	 * scheduled publishing should lower `defaultTtl` accordingly.
+	 *
+	 * @example
+	 * ```ts
+	 * import { kvCache } from "@emdash-cms/cloudflare";
+	 *
+	 * emdash({
+	 *   database: d1({ binding: "DB" }),
+	 *   objectCache: kvCache({ binding: "CACHE" }),
+	 * })
+	 * ```
+	 */
+	objectCache?: ObjectCacheDescriptor;
+	/**
+	 * Image optimization.
+	 *
+	 * By default EmDash wraps Astro's image endpoint so media served from
+	 * storage is optimized through the normal `<Image>` / `getImage` pipeline,
+	 * loading source bytes directly from the storage adapter (works behind
+	 * Cloudflare Access). Set to `false` to leave Astro's image endpoint
+	 * untouched -- media then renders as a plain `<img>` unless your image
+	 * service can fetch it over HTTP.
+	 */
+	images?: boolean;
 	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *
 	 * @example
 	 * ```ts
-	 * import { auditLogPlugin } from "@emdash-cms/plugin-audit-log";
-	 * import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
+	 * import auditLog from "@emdash-cms/plugin-audit-log";
+	 * import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
 	 *
 	 * emdash({
-	 *   plugins: [
-	 *     auditLogPlugin(),
-	 *     webhookNotifierPlugin({ url: "https://example.com/webhook" }),
-	 *   ],
+	 *   plugins: [auditLog, webhookNotifier],
 	 * })
 	 * ```
 	 */
@@ -537,6 +594,30 @@ export interface EmDashConfig {
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};
+
+	/**
+	 * Editor toolbar delivery on public pages.
+	 *
+	 * - `"server"` (default): the toolbar is injected server-side into every
+	 *   HTML response rendered for an authenticated editor. Simple and
+	 *   zero-config, but behind a shared cache (Cloudflare Cache Everything /
+	 *   Workers Cache, Fastly, Varnish, …) editors often receive the cached
+	 *   anonymous variant — without the toolbar — whenever an anonymous visitor
+	 *   primed the cache first, so the toolbar appears and disappears with
+	 *   cache state.
+	 * - `"client"`: public HTML is identical for everyone (nothing
+	 *   session-specific is injected server-side, so shared caches stay fully
+	 *   effective). A tiny bootstrap script shows an "Edit" pill for browsers
+	 *   that have logged into the admin (non-secret localStorage flag). Clicking
+	 *   it verifies the session and reloads the page with an `_edit` query
+	 *   param, which is always rendered fresh (never cached) with the full
+	 *   toolbar. Logged-out visitors opening an `_edit` URL are redirected to
+	 *   the canonical URL.
+	 * - `false`: never render the toolbar or bootstrap script.
+	 *
+	 * See the visual-editing docs for the cache-behavior details.
+	 */
+	toolbar?: "server" | "client" | false;
 
 	/**
 	 * Version of Astro the host project is building with. Populated by the

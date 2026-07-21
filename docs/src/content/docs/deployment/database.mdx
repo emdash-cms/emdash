@@ -9,12 +9,13 @@ EmDash supports multiple database backends. Choose based on your deployment targ
 
 ## Overview
 
-| Database       | Best For           | Deployment                 |
-| -------------- | ------------------ | -------------------------- |
-| **D1**         | Cloudflare Workers | Edge, globally distributed |
-| **PostgreSQL** | Production Node.js | Any platform with Postgres |
-| **libSQL**     | Remote databases   | Edge or Node.js            |
-| **SQLite**     | Node.js, local dev | Single server              |
+| Database       | Best For                       | Deployment                 |
+| -------------- | ------------------------------ | -------------------------- |
+| **D1**         | Cloudflare Workers             | Edge, globally distributed |
+| **Hyperdrive** | PostgreSQL on Cloudflare Workers | Edge, existing Postgres    |
+| **PostgreSQL** | Production Node.js             | Any platform with Postgres |
+| **libSQL**     | Remote databases               | Edge or Node.js            |
+| **SQLite**     | Node.js, local dev             | Single server              |
 
 ## Cloudflare D1
 
@@ -108,6 +109,16 @@ export default defineConfig({
 <Aside type="tip">
 	Read replication must also be enabled on the D1 database itself via the Cloudflare dashboard or
 	REST API. The `session` option only controls EmDash's client-side session management.
+</Aside>
+
+<Aside type="caution">
+	Sessions are incompatible with the
+	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
+	compatibility flag: the internal request the D1 Sessions API makes to route queries to replicas
+	is silently blocked, and every SSR request hangs with nothing in the logs. The hang may only
+	begin once replicas finish provisioning, so it can pass an initial post-deploy check. If your
+	Worker needs that flag, keep `session` disabled. See
+	[#1273](https://github.com/emdash-cms/emdash/issues/1273).
 </Aside>
 
 <Aside>
@@ -217,6 +228,140 @@ database: postgres({
 	```bash
 	pnpm add pg
 	```
+</Aside>
+
+## Hyperdrive
+
+Use the `hyperdrive()` adapter to run EmDash on **Cloudflare Workers** backed by an existing PostgreSQL — or Postgres-compatible (e.g. PlanetScale Postgres) — database. [Hyperdrive](https://developers.cloudflare.com/hyperdrive/) pools and accelerates the connection over Cloudflare's network; EmDash's PostgreSQL dialect runs the queries.
+
+```js title="astro.config.mjs"
+import { hyperdrive, r2 } from "@emdash-cms/cloudflare";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			database: hyperdrive({ binding: "HYPERDRIVE" }),
+			storage: r2({ binding: "MEDIA" }),
+		}),
+	],
+});
+```
+
+### Requirements
+
+- `pg >= 8.16.3` installed in your site (`pnpm add pg`)
+- `compatibility_flags: ["nodejs_compat"]`
+- `compatibility_date >= "2024-09-23"`
+
+### Setup
+
+Create the Hyperdrive configuration and add the binding to your Wrangler config:
+
+```sh
+wrangler hyperdrive create emdash-db \
+  --connection-string "postgres://user:password@host/db?sslmode=verify-full" \
+  --caching-disabled
+```
+
+<Tabs>
+  <TabItem label="wrangler.jsonc">
+    ```jsonc
+    {
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "<your-hyperdrive-id>"
+        }
+      ]
+    }
+    ```
+  </TabItem>
+  <TabItem label="wrangler.toml">
+    ```toml
+    [[hyperdrive]]
+    binding = "HYPERDRIVE"
+    id = "<your-hyperdrive-id>"
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="caution" title="Disable query caching on the primary binding">
+	Hyperdrive's query cache is **on by default and must be turned off** for the primary EmDash binding. EmDash runs its own caching layer and relies on read-after-write consistency — the admin and setup wizard write a row and immediately read it back. With caching on, Hyperdrive can serve the pre-write result within its TTL, which corrupts setup (e.g. "collection already exists", then half-created tables) and shows editors stale content. Disable it:
+
+    ```sh
+    wrangler hyperdrive update <id> --caching-disabled
+    # or at create time: wrangler hyperdrive create ... --caching-disabled
+    ```
+
+</Aside>
+
+<Aside type="tip" title="Co-locate the Worker with your database">
+	The request path makes multiple round trips, so pair the deploy with a [Smart Placement](https://developers.cloudflare.com/workers/configuration/smart-placement/) hint to run the Worker in the Cloudflare data center closest to your database's region:
+
+    ```jsonc
+    // wrangler.jsonc
+    { "placement": { "region": "aws:us-east-1" } }
+    ```
+
+</Aside>
+
+### Configuration
+
+| Option          | Type     | Default       | Description                                                          |
+| --------------- | -------- | ------------- | -------------------------------------------------------------------- |
+| `binding`       | `string` | `"HYPERDRIVE"` | Primary (caching-disabled) Hyperdrive binding name                  |
+| `cachedBinding` | `string` | —             | Optional caching-enabled binding for anonymous reads (see below)     |
+| `max`           | `number` | `5`           | Max size of the in-Worker connection pool to Hyperdrive              |
+
+### Serving anonymous reads from cache
+
+By default you disable Hyperdrive caching entirely, because the admin and writes need read-after-write consistency. But **anonymous public reads** — no session, no write — can tolerate a short staleness window. If that trade-off is acceptable, run **two Hyperdrive configurations over the same database**: one with caching off (the primary `binding`) and one with caching on (`cachedBinding`). EmDash then routes anonymous read requests through the cache-enabled binding while every authenticated request and every write stays on the uncached primary, so read-after-write consistency is preserved.
+
+```sh
+# Primary — caching OFF (used by admin, auth'd requests, writes, migrations)
+wrangler hyperdrive create emdash-db \
+  --connection-string "postgres://user:password@host/db?sslmode=verify-full" \
+  --caching-disabled
+
+# Cached — SAME connection string, caching ON (used by anonymous reads only)
+wrangler hyperdrive create emdash-db-cached \
+  --connection-string "postgres://user:password@host/db?sslmode=verify-full"
+```
+
+```jsonc title="wrangler.jsonc"
+{
+	"hyperdrive": [
+		{ "binding": "HYPERDRIVE", "id": "<caching-disabled-id>" },
+		{ "binding": "HYPERDRIVE_CACHED", "id": "<caching-enabled-id>" }
+	]
+}
+```
+
+```js title="astro.config.mjs"
+database: hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" });
+```
+
+This is the [two-configuration pattern](https://developers.cloudflare.com/hyperdrive/configuration/query-caching/#disable-caching) Cloudflare documents for caching. EmDash decides which binding to use per request:
+
+- **Anonymous reads of public-site paths** (`GET`/`HEAD`, no session, not under `/_emdash`) → cache-enabled `cachedBinding`.
+- **Authenticated requests** (editors, authors) → uncached `binding`.
+- **Writes** (`POST`, `PUT`, `DELETE`, including anonymous ones) → uncached `binding`.
+- **Any request under `/_emdash`** (admin, setup, auth, internal APIs), even an anonymous `GET` → uncached `binding`.
+- **Migrations and cold-start** → always the primary `binding`.
+
+<Aside>
+	The `/_emdash` carve-out matters: the setup wizard and login-state checks are
+	anonymous `GET`s that read a row written moments earlier. Caching them would
+	loop the setup wizard or show stale auth state, so they always use the
+	uncached primary.
+</Aside>
+
+<Aside type="caution">
+	Both configurations must point at the **same** database, or anonymous visitors see a different dataset than editors. Anonymous reads of just-published content can be up to the cache's `max_age` stale (Hyperdrive default 60s, max 1h), and this cache is independent of EmDash's own cache invalidation. Only opt in if a short public-read staleness window is acceptable; otherwise omit `cachedBinding` and keep caching disabled.
+</Aside>
+
+<Aside>
+	**Sandboxed plugins are D1-only.** The sandbox plugin bridge talks to a D1 binding directly, independent of the configured adapter, so sandboxed plugins aren't available on a Hyperdrive deployment.
 </Aside>
 
 ## SQLite

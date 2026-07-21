@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	getBylineFieldDefs,
 	resetBylineFieldDefsCacheForTests,
+	setBylineFieldDefsReclaimDeadlineForTests,
 } from "../../../src/bylines/field-defs-cache.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
@@ -64,7 +65,7 @@ describe("getBylineFieldDefs — dirty-version bypass (#1174 BUG 1)", () => {
 		await db.destroy();
 	});
 
-	it("coalesces concurrent cold global reads on the same in-flight defs promise", async () => {
+	it("coalesces concurrent cold global reads onto a single query", async () => {
 		await insertFieldDirect(db, "shared_field");
 
 		const original = BylineSchemaRegistry.prototype.listFields;
@@ -91,6 +92,47 @@ describe("getBylineFieldDefs — dirty-version bypass (#1174 BUG 1)", () => {
 		expect(calls).toBe(1);
 		expect(results[0].map((f) => f.slug)).toEqual(["shared_field"]);
 		expect(results[1].map((f) => f.slug)).toEqual(["shared_field"]);
+	});
+
+	it("a stranded owner (cancelled request) does not poison later byline hydrations", async () => {
+		// Regression for the isolate-poisoning class (companion to
+		// #1489): the old global holder cached the in-flight *promise*, so a
+		// first reader whose request was cancelled mid-query left a
+		// never-settling promise that every later byline hydration on the
+		// isolate awaited forever (524 at the 100s wall). The value+lock
+		// cache must let a later reader reclaim and recover instead.
+		await insertFieldDirect(db, "f1");
+		// Short reclaim window so the stranded-owner path is exercised fast.
+		setBylineFieldDefsReclaimDeadlineForTests(100);
+
+		const original = BylineSchemaRegistry.prototype.listFields;
+		let calls = 0;
+		vi.spyOn(BylineSchemaRegistry.prototype, "listFields").mockImplementation(
+			async function (this: BylineSchemaRegistry) {
+				calls += 1;
+				if (calls === 1) {
+					// Owner A's request is cancelled mid-query: on workerd the
+					// continuation never runs, so this promise never settles.
+					await new Promise(() => {});
+				}
+				return original.call(this);
+			},
+		);
+
+		// Owner A claims the lock and strands. Its request is gone, so nobody
+		// awaits its result.
+		const stranded = getBylineFieldDefs(db);
+		void stranded.catch(() => {});
+
+		// Let A claim before B arrives.
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		// Reader B must recover by reclaiming the stale lock, not hang on A's
+		// dead promise. With the old promise-caching holder this awaited
+		// forever and the test would time out.
+		const recovered = await getBylineFieldDefs(db);
+		expect(recovered.map((f) => f.slug)).toEqual(["f1"]);
+		expect(calls).toBeGreaterThanOrEqual(2);
 	});
 
 	it("returns fresh defs when the global cache was primed under the same odd version", async () => {

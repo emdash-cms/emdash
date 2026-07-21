@@ -9,7 +9,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import { validatePluginIdentifier } from "../../database/validate.js";
-import { pluginManifestSchema } from "../../plugins/manifest-schema.js";
+import { pluginManifestSchema, reconcileManifestAccess } from "../../plugins/manifest-schema.js";
 import { normalizeManifestRoute } from "../../plugins/manifest-schema.js";
 import {
 	createMarketplaceClient,
@@ -271,10 +271,7 @@ export async function loadBundleFromR2(
 		const parsed: unknown = JSON.parse(manifestText);
 		const result = pluginManifestSchema.safeParse(parsed);
 		if (!result.success) return null;
-		// Elements are validated as unknown[] by Zod; cast to PluginManifest
-		// for the Element[] type (Block Kit validation happens at render time).
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Zod types elements as unknown[]; Element type validated at render time
-		const manifest = result.data as unknown as PluginManifest;
+		const manifest = reconcileManifestAccess(result.data);
 
 		// Try to load admin code (optional)
 		let adminCode: string | undefined;
@@ -331,6 +328,7 @@ export async function handleMarketplaceInstall(
 		 * Skip the SANDBOX_NOT_AVAILABLE gate so the install can proceed.
 		 */
 		sandboxBypassed?: boolean;
+		confirmMcpTools?: boolean;
 	},
 ): Promise<ApiResult<MarketplaceInstallResult>> {
 	const client = getClient(marketplaceUrl, opts?.siteOrigin);
@@ -451,6 +449,21 @@ export async function handleMarketplaceInstall(
 		const bundleIdentityError = validateBundleIdentity(bundle, pluginId, version);
 		if (bundleIdentityError) return bundleIdentityError;
 
+		if ((bundle.manifest.mcp?.tools.length ?? 0) > 0 && !opts?.confirmMcpTools) {
+			return {
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					message: "Plugin MCP tools require explicit consent",
+					details: {
+						mcpTools: bundle.manifest.mcp?.tools.map(
+							({ inputSchema: _, outputSchema: __, ...tool }) => tool,
+						),
+					},
+				},
+			};
+		}
+
 		// Store bundle in site-local R2
 		await storeBundleInR2(storage, pluginId, version, bundle);
 
@@ -537,6 +550,7 @@ export async function handleMarketplaceUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		confirmMcpTools?: boolean;
 		/**
 		 * When true, sandbox: false bypass mode is active. The sandbox runner
 		 * is the noop runner (isAvailable() === false) but the runtime will
@@ -667,6 +681,25 @@ export async function handleMarketplaceUpdate(
 			};
 		}
 
+		const oldMcpTools = [...(oldBundle?.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		const newMcpTools = [...(bundle.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		if (JSON.stringify(oldMcpTools) !== JSON.stringify(newMcpTools) && !opts?.confirmMcpTools) {
+			return {
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					message: "Plugin update changes its MCP tools",
+					details: {
+						mcpTools: newMcpTools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool),
+					},
+				},
+			};
+		}
+
 		// Store new bundle
 		await storeBundleInR2(storage, pluginId, newVersion, bundle);
 
@@ -676,6 +709,8 @@ export async function handleMarketplaceUpdate(
 			marketplaceVersion: newVersion,
 			displayName: pluginDetail.name,
 			description: pluginDetail.description ?? undefined,
+			mcpToolsEnabled: false,
+			mcpToolsConsent: null,
 		});
 
 		// Clean up old bundle from R2 (best-effort)

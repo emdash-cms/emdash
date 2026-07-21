@@ -12,8 +12,10 @@
 import { test, expect } from "../fixtures";
 
 // Regex patterns
-const CONTENT_EDIT_URL_PATTERN = /\/content\/posts\/[A-Z0-9]+$/;
-const CONTENT_ID_PATTERN = /\/content\/posts\/[A-Z0-9]+$/;
+// Edit-route navigation preserves the entry's locale as a `?locale=` search
+// param (see #1242), so the URL may carry a query string after the ULID.
+const CONTENT_EDIT_URL_PATTERN = /\/content\/posts\/[A-Z0-9]+(?:\?.*)?$/;
+const CONTENT_ID_PATTERN = /\/content\/posts\/[A-Z0-9]+(?:\?.*)?$/;
 const NEW_CONTENT_URL_PATTERN = /\/content\/posts\/new(?:[?#].*)?$/;
 
 test.describe("Content CRUD", () => {
@@ -154,16 +156,19 @@ test.describe("Content CRUD", () => {
 			});
 
 			// Publish the draft
-			const publishButton = admin.page.getByRole("button", { name: "Publish", exact: true });
+			const publishButton = admin.page.getByRole("button", {
+				name: "Publish Post",
+				exact: true,
+			});
 			await expect(publishButton).toBeVisible();
 			await publishButton.click();
 			await admin.waitForLoading();
 
-			// Once live with no pending changes, the action flips to "Unpublish",
+			// Once live with no pending changes, the action flips to "Unpublish Post",
 			// confirming the status actually changed.
-			await expect(admin.page.getByRole("button", { name: "Unpublish" })).toBeVisible({
-				timeout: 10000,
-			});
+			await expect(
+				admin.page.getByRole("button", { name: "Unpublish Post", exact: true }),
+			).toBeVisible({ timeout: 10000 });
 		});
 	});
 });

@@ -34,14 +34,31 @@ export type RescheduleFn = () => void;
 /**
  * Executes overdue cron tasks.
  *
- * Called by platform-specific schedulers (NodeCronScheduler, EmDashScheduler DO,
- * PiggybackScheduler). Stateless — all state lives in the database.
+ * Called by the platform driver: the NodeCronScheduler timer on Node, or the
+ * Worker's `scheduled()` handler (via runScheduledTasks) on Cloudflare.
+ * Stateless — all state lives in the database.
  */
 export class CronExecutor {
+	/**
+	 * Resolves the database connection to use for this tick. A resolver (not a
+	 * captured instance) so connection-backed adapters work across events: on
+	 * Cloudflare the `scheduled()` handler installs an event-scoped connection
+	 * in ALS, and this resolves to it instead of the per-isolate singleton
+	 * whose socket belongs to an earlier request. Accepts a plain `Kysely` too
+	 * (wrapped in a constant resolver) for callers/tests that don't need ALS.
+	 */
+	private readonly resolveDb: () => Kysely<Database>;
+
 	constructor(
-		private db: Kysely<Database>,
+		db: Kysely<Database> | (() => Kysely<Database>),
 		private invokeCronHook: InvokeCronHookFn,
-	) {}
+	) {
+		this.resolveDb = typeof db === "function" ? db : () => db;
+	}
+
+	private get db(): Kysely<Database> {
+		return this.resolveDb();
+	}
 
 	/**
 	 * Process all overdue tasks.

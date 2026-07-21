@@ -20,7 +20,7 @@ import consola from "consola";
 import { createGzipDecoder, unpackTar } from "modern-tar";
 import pc from "picocolors";
 
-import { pluginManifestBaseSchema } from "../../plugins/manifest-schema.js";
+import { pluginManifestSchema } from "../../plugins/manifest-schema.js";
 import { CAPABILITY_RENAMES, isDeprecatedCapability } from "../../plugins/types.js";
 import {
 	getMarketplaceCredential,
@@ -201,7 +201,7 @@ async function pollGitHubDeviceFlow(
 
 // ── Tarball reading ─────────────────────────────────────────────
 
-const manifestSummarySchema = pluginManifestBaseSchema.pick({
+const manifestSummarySchema = pluginManifestSchema.pick({
 	id: true,
 	version: true,
 	capabilities: true,

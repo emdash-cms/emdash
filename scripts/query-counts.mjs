@@ -9,6 +9,18 @@
  * emits `[emdash-query-log]`-prefixed NDJSON on stdout, which the harness
  * captures.
  *
+ * Two snapshots are written/compared per target:
+ *   query-counts.snapshot.{target}.json  — per route+phase query *count*
+ *   query-counts.queries.{target}.json   — per route+phase map of the
+ *                                          actual SQL -> occurrence count,
+ *                                          so a count change shows which
+ *                                          query moved, not just the total.
+ *
+ * The recorder is flushed when the response body finishes streaming (not
+ * when middleware returns), so queries issued by components *during*
+ * streaming are captured. Before that fix the counts only saw queries that
+ * ran before the response headers were sent.
+ *
  * Two targets, two server strategies:
  *   --target sqlite   Node adapter standalone entry. One long-lived
  *                     process. First request warms the runtime (migrations
@@ -78,6 +90,10 @@ const ROUTES = [
 const TRACKED_PHASES = new Set(["cold", "warm"]);
 const VALID_TARGETS = new Set(["sqlite", "d1"]);
 const QUERY_LOG_PREFIX = "[emdash-query-log] ";
+// Emitted by stream-end-metrics.ts when the response body finishes
+// streaming — captures the FULL request cost, including queries issued
+// during body streaming that Server-Timing headers can't see.
+const STREAM_END_PREFIX = "[emdash-stream-end] ";
 
 /**
  * Resolve once a TCP connection to (host, port) succeeds, or reject on
@@ -131,6 +147,9 @@ function parseArgs(argv) {
 
 const { target, update, skipBuild, skipSeed } = parseArgs(process.argv.slice(2));
 const snapshotPath = resolve(__dirname, `query-counts.snapshot.${target}.json`);
+// Companion snapshot of the actual SQL per route+phase, so a count change
+// shows *which* query appeared/vanished, not just that the number moved.
+const querySnapshotPath = resolve(__dirname, `query-counts.queries.${target}.json`);
 
 function resetSqliteState() {
 	for (const f of ["data.db", "data.db-wal", "data.db-shm"]) {
@@ -221,6 +240,8 @@ async function seedD1ViaDevBypass(events) {
 			}
 			return;
 		}
+		// Stream-end snapshots from seeding aren't measurements; swallow them.
+		if (line.includes(STREAM_END_PREFIX)) return;
 		process.stdout.write(line + "\n");
 	});
 	const exited = new Promise((res) => child.once("exit", res));
@@ -254,7 +275,7 @@ async function seedD1ViaDevBypass(events) {
  * `ready` resolves on a successful TCP connection — no HTTP probing,
  * so a fresh workerd isolate stays cold until our first tagged request.
  */
-function startServer({ collectedEvents }) {
+function startServer({ collectedEvents, streamEndSnapshots = [] }) {
 	let cmd;
 	let args;
 	if (target === "sqlite") {
@@ -290,6 +311,18 @@ function startServer({ collectedEvents }) {
 				collectedEvents.push(JSON.parse(payload));
 			} catch {
 				process.stderr.write(`bad query-log line: ${payload}\n`);
+			}
+			return;
+		}
+		const seIdx = line.indexOf(STREAM_END_PREFIX);
+		if (seIdx !== -1) {
+			const before = line.slice(0, seIdx);
+			if (before.trim().length > 0) process.stdout.write(before + "\n");
+			const payload = line.slice(seIdx + STREAM_END_PREFIX.length);
+			try {
+				streamEndSnapshots.push(JSON.parse(payload));
+			} catch {
+				process.stderr.write(`bad stream-end line: ${payload}\n`);
 			}
 			return;
 		}
@@ -356,6 +389,38 @@ function aggregate(events) {
 	return Object.fromEntries(Object.entries(counts).toSorted(([a], [b]) => a.localeCompare(b)));
 }
 
+// Normalize the parameterized SQL so the snapshot is stable: Kysely emits
+// `?` placeholders (already value-free), so we only collapse whitespace.
+// Variable-arity `IN (?, ?, ...)` lists are folded to `in (...)` so a
+// different batch size doesn't churn the text (the count still reflects it).
+function normalizeSql(sql) {
+	return sql
+		.replace(/\s+/g, " ")
+		.replace(/\bin\s*\(\s*\?(?:\s*,\s*\?)*\s*\)/gi, "in (...)")
+		.trim();
+}
+
+// Per route+phase, a map of normalized SQL -> occurrence count. Sorted keys
+// keep it order-independent (queued rendering issues queries concurrently,
+// so arrival order is not stable). The summed values equal the count snapshot.
+function aggregateQueries(events) {
+	const byRoute = {};
+	for (const e of events) {
+		if (!TRACKED_PHASES.has(e.phase)) continue;
+		const key = `${e.method} ${e.route} (${e.phase})`;
+		const sql = normalizeSql(e.sql);
+		(byRoute[key] ??= {})[sql] = (byRoute[key][sql] ?? 0) + 1;
+	}
+	return Object.fromEntries(
+		Object.entries(byRoute)
+			.toSorted(([a], [b]) => a.localeCompare(b))
+			.map(([route, sqls]) => [
+				route,
+				Object.fromEntries(Object.entries(sqls).toSorted(([a], [b]) => a.localeCompare(b))),
+			]),
+	);
+}
+
 function diffSnapshot(actual) {
 	if (!existsSync(snapshotPath)) {
 		process.stderr.write(`No snapshot at ${snapshotPath}. Run with --update to create one.\n`);
@@ -385,17 +450,55 @@ function diffSnapshot(actual) {
 	return 1;
 }
 
+// Diff the per-route SQL snapshot. Surfaces exactly which query text
+// appeared, vanished, or changed multiplicity — the "what dropped" view
+// that a bare count can't give.
+function diffQuerySnapshot(actual) {
+	if (!existsSync(querySnapshotPath)) {
+		process.stderr.write(
+			`No query snapshot at ${querySnapshotPath}. Run with --update to create one.\n`,
+		);
+		return 1;
+	}
+	const expected = JSON.parse(readFileSync(querySnapshotPath, "utf8"));
+	const routes = [...new Set([...Object.keys(expected), ...Object.keys(actual)])].toSorted();
+	const lines = [];
+	for (const route of routes) {
+		const exp = expected[route] ?? {};
+		const act = actual[route] ?? {};
+		const sqls = [...new Set([...Object.keys(exp), ...Object.keys(act)])].toSorted();
+		for (const sql of sqls) {
+			if (exp[sql] !== act[sql]) {
+				const e = exp[sql] ?? 0;
+				const a = act[sql] ?? 0;
+				const sign = a > e ? "+" : "-";
+				lines.push(`  ${route}\n    ${sign} [${e}->${a}] ${sql}`);
+			}
+		}
+	}
+	if (lines.length === 0) {
+		process.stdout.write(`OK: query text matches ${querySnapshotPath}\n`);
+		return 0;
+	}
+	process.stderr.write(`Query text differs from ${querySnapshotPath}:\n`);
+	for (const l of lines) process.stderr.write(l + "\n");
+	process.stderr.write(
+		`\nIf the change is intentional, run: node scripts/query-counts.mjs --target ${target} --update\n`,
+	);
+	return 1;
+}
+
 // SQLite: seed the file DB via CLI, build, then run one long-lived node
 // entry. Warmup hit absorbs runtime init queries (filtered as "default"
 // phase). Tagged cold = first visit to route (runtime warm); warm = second.
-async function runSqlite(events) {
+async function runSqlite(events, streamEndSnapshots) {
 	if (!skipSeed) {
 		resetSqliteState();
 		seedSqliteCli();
 	}
 	if (skipBuild) assertExistingBuildMatchesTarget();
 	else buildFixture();
-	const server = startServer({ collectedEvents: events });
+	const server = startServer({ collectedEvents: events, streamEndSnapshots });
 	try {
 		await server.ready;
 		await warmup();
@@ -415,7 +518,7 @@ async function runSqlite(events) {
 // Seed must precede build: `astro dev` leaves `.wrangler/deploy/`
 // without the build-time `config.json` that `astro preview` requires,
 // so building afterwards is what makes the subsequent previews work.
-async function runD1(events) {
+async function runD1(events, streamEndSnapshots) {
 	if (!skipSeed) {
 		resetD1State();
 		// seeding uses its own event sink; we don't want to commingle
@@ -428,7 +531,7 @@ async function runD1(events) {
 
 	for (const [m, p] of ROUTES) {
 		process.stdout.write(`--- fresh isolate for ${m} ${p} ---\n`);
-		const server = startServer({ collectedEvents: events });
+		const server = startServer({ collectedEvents: events, streamEndSnapshots });
 		try {
 			await server.ready;
 			await hit(m, p, "cold");
@@ -439,12 +542,40 @@ async function runD1(events) {
 	}
 }
 
+/**
+ * Print the per-route stream-end snapshots (full request cost measured
+ * when the body finished streaming). Informational only — not part of
+ * the snapshot files, since timings are machine-dependent. The value is
+ * `dbCount` here vs. the header-time count: the difference is queries
+ * issued during body streaming, invisible to Server-Timing.
+ */
+function reportStreamEnd(snapshots) {
+	const tracked = snapshots
+		.filter((s) => TRACKED_PHASES.has(s.phase))
+		.toSorted((a, b) =>
+			`${a.method} ${a.route} ${a.phase}`.localeCompare(`${b.method} ${b.route} ${b.phase}`),
+		);
+	if (tracked.length === 0) return;
+	process.stdout.write("\nStream-end metrics (full request, incl. post-header queries):\n");
+	for (const s of tracked) {
+		const dbMs = typeof s.dbTotalMs === "number" ? s.dbTotalMs.toFixed(1) : "?";
+		const totalMs = typeof s.totalMs === "number" ? s.totalMs.toFixed(1) : "?";
+		process.stdout.write(
+			`  ${s.method} ${s.route} (${s.phase}): db.count=${s.dbCount} db.total=${dbMs}ms total=${totalMs}ms cache=${s.cacheHits}/${s.cacheHits + s.cacheMisses}\n`,
+		);
+	}
+}
+
 async function main() {
 	const events = [];
-	if (target === "sqlite") await runSqlite(events);
-	else await runD1(events);
+	const streamEndSnapshots = [];
+	if (target === "sqlite") await runSqlite(events, streamEndSnapshots);
+	else await runD1(events, streamEndSnapshots);
+
+	reportStreamEnd(streamEndSnapshots);
 
 	const counts = aggregate(events);
+	const queries = aggregateQueries(events);
 	if (update) {
 		// Use tab indent so the output matches oxfmt's default and
 		// doesn't thrash under `pnpm format`. Space-indented output
@@ -453,9 +584,15 @@ async function main() {
 		// output wouldn't match the committed file).
 		writeFileSync(snapshotPath, JSON.stringify(counts, null, "\t") + "\n");
 		process.stdout.write(`Wrote ${Object.keys(counts).length} entries to ${snapshotPath}\n`);
+		writeFileSync(querySnapshotPath, JSON.stringify(queries, null, "\t") + "\n");
+		process.stdout.write(`Wrote ${Object.keys(queries).length} entries to ${querySnapshotPath}\n`);
 		return 0;
 	}
-	return diffSnapshot(counts);
+	// Both must match. Run both so a single invocation surfaces count and
+	// text drift together; OR the exit codes so either failing fails CI.
+	const countCode = diffSnapshot(counts);
+	const queryCode = diffQuerySnapshot(queries);
+	return countCode || queryCode;
 }
 
 main()

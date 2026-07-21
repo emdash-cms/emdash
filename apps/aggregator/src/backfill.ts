@@ -32,7 +32,10 @@
  * no periodic scheduler — see plan §"Why no reconciliation cron".
  */
 
-import { parseCanonicalResourceUri } from "@atcute/lexicons/syntax";
+import {
+	parseCanonicalResourceUri,
+	type ParsedCanonicalResourceUri,
+} from "@atcute/lexicons/syntax";
 
 import { WANTED_COLLECTIONS } from "./constants.js";
 import type { DidResolver } from "./did-resolver.js";
@@ -369,8 +372,13 @@ async function paginateAndEnqueue(opts: PaginateOpts): Promise<number> {
 
 		const messages: { body: RecordsJob }[] = [];
 		for (const record of records) {
-			const parsed = parseCanonicalResourceUri(record.uri);
-			if (!parsed.ok) continue;
+			let parsed: ParsedCanonicalResourceUri;
+			try {
+				parsed = parseCanonicalResourceUri(record.uri);
+			} catch (err) {
+				if (err instanceof SyntaxError) continue;
+				throw err;
+			}
 			// Defence vs. a buggy/malicious PDS that returns records under
 			// a different DID (or a different collection) than the one we
 			// asked for. Such jobs would never verify (signature would be
@@ -378,13 +386,13 @@ async function paginateAndEnqueue(opts: PaginateOpts): Promise<number> {
 			// at the source. `parseCanonicalResourceUri` already validated
 			// the rkey grammar and the collection NSID for us, so we only
 			// need the cross-checks here.
-			if (parsed.value.repo !== opts.did) continue;
-			if (parsed.value.collection !== opts.collection) continue;
+			if (parsed.repo !== opts.did) continue;
+			if (parsed.collection !== opts.collection) continue;
 			messages.push({
 				body: {
 					did: opts.did,
 					collection: opts.collection,
-					rkey: parsed.value.rkey,
+					rkey: parsed.rkey,
 					operation: "create",
 					cid: record.cid,
 				},

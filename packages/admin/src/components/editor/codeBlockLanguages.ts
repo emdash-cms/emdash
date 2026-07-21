@@ -11,49 +11,52 @@
  * normalize unknown inputs.
  */
 
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 export interface CodeBlockLanguage {
 	/** Canonical identifier persisted in storage and emitted as `language-{id}`. */
 	id: string;
 	/** Human-readable label shown in the picker. */
-	label: string;
+	label: MessageDescriptor;
 	/** Alternative identifiers (typed by the user) that resolve to this language. */
 	aliases?: string[];
 }
 
 export const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
-	{ id: "plaintext", label: "Plain text", aliases: ["text", "plain", "txt"] },
-	{ id: "astro", label: "Astro" },
-	{ id: "bash", label: "Bash", aliases: ["sh", "shell", "zsh"] },
-	{ id: "c", label: "C" },
-	{ id: "cpp", label: "C++", aliases: ["c++"] },
-	{ id: "csharp", label: "C#", aliases: ["cs", "c#"] },
-	{ id: "css", label: "CSS" },
-	{ id: "diff", label: "Diff", aliases: ["patch"] },
-	{ id: "dockerfile", label: "Dockerfile", aliases: ["docker"] },
-	{ id: "go", label: "Go", aliases: ["golang"] },
-	{ id: "graphql", label: "GraphQL", aliases: ["gql"] },
-	{ id: "html", label: "HTML" },
-	{ id: "java", label: "Java" },
-	{ id: "javascript", label: "JavaScript", aliases: ["js"] },
-	{ id: "json", label: "JSON" },
-	{ id: "jsx", label: "JSX" },
-	{ id: "kotlin", label: "Kotlin", aliases: ["kt"] },
-	{ id: "markdown", label: "Markdown", aliases: ["md"] },
-	{ id: "mdx", label: "MDX" },
-	{ id: "php", label: "PHP" },
-	{ id: "python", label: "Python", aliases: ["py"] },
-	{ id: "ruby", label: "Ruby", aliases: ["rb"] },
-	{ id: "rust", label: "Rust", aliases: ["rs"] },
-	{ id: "scss", label: "SCSS", aliases: ["sass"] },
-	{ id: "sql", label: "SQL" },
-	{ id: "svelte", label: "Svelte" },
-	{ id: "swift", label: "Swift" },
-	{ id: "toml", label: "TOML" },
-	{ id: "tsx", label: "TSX" },
-	{ id: "typescript", label: "TypeScript", aliases: ["ts"] },
-	{ id: "vue", label: "Vue" },
-	{ id: "xml", label: "XML" },
-	{ id: "yaml", label: "YAML", aliases: ["yml"] },
+	{ id: "plaintext", label: msg`Plain text`, aliases: ["text", "plain", "txt"] },
+	{ id: "astro", label: msg`Astro` },
+	{ id: "bash", label: msg`Bash`, aliases: ["sh", "shell", "zsh"] },
+	{ id: "c", label: msg`C` },
+	{ id: "cpp", label: msg`C++`, aliases: ["c++"] },
+	{ id: "csharp", label: msg`C#`, aliases: ["cs", "c#"] },
+	{ id: "css", label: msg`CSS` },
+	{ id: "diff", label: msg`Diff`, aliases: ["patch"] },
+	{ id: "dockerfile", label: msg`Dockerfile`, aliases: ["docker"] },
+	{ id: "go", label: msg`Go`, aliases: ["golang"] },
+	{ id: "graphql", label: msg`GraphQL`, aliases: ["gql"] },
+	{ id: "html", label: msg`HTML` },
+	{ id: "java", label: msg`Java` },
+	{ id: "javascript", label: msg`JavaScript`, aliases: ["js"] },
+	{ id: "json", label: msg`JSON` },
+	{ id: "jsx", label: msg`JSX` },
+	{ id: "kotlin", label: msg`Kotlin`, aliases: ["kt"] },
+	{ id: "markdown", label: msg`Markdown`, aliases: ["md"] },
+	{ id: "mdx", label: msg`MDX` },
+	{ id: "php", label: msg`PHP` },
+	{ id: "python", label: msg`Python`, aliases: ["py"] },
+	{ id: "ruby", label: msg`Ruby`, aliases: ["rb"] },
+	{ id: "rust", label: msg`Rust`, aliases: ["rs"] },
+	{ id: "scss", label: msg`SCSS`, aliases: ["sass"] },
+	{ id: "sql", label: msg`SQL` },
+	{ id: "svelte", label: msg`Svelte` },
+	{ id: "swift", label: msg`Swift` },
+	{ id: "toml", label: msg`TOML` },
+	{ id: "tsx", label: msg`TSX` },
+	{ id: "typescript", label: msg`TypeScript`, aliases: ["ts"] },
+	{ id: "vue", label: msg`Vue` },
+	{ id: "xml", label: msg`XML` },
+	{ id: "yaml", label: msg`YAML`, aliases: ["yml"] },
 ];
 
 /**
@@ -62,11 +65,11 @@ export const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
  */
 export function findLanguage(value: string | null | undefined): CodeBlockLanguage | null {
 	if (!value) return null;
-	const needle = value.trim().toLowerCase();
-	if (!needle) return null;
+	const searchText = value.trim().toLowerCase();
+	if (!searchText) return null;
 	for (const lang of CODE_BLOCK_LANGUAGES) {
-		if (lang.id === needle) return lang;
-		if (lang.aliases?.includes(needle)) return lang;
+		if (lang.id === searchText) return lang;
+		if (lang.aliases?.includes(searchText)) return lang;
 	}
 	return null;
 }
@@ -111,8 +114,10 @@ export function normalizeLanguage(value: string | null | undefined): string | un
  * Human-readable label for a stored language id. Falls back to the id itself
  * for unknown values so the editor never shows "undefined".
  */
-export function languageLabel(value: string | null | undefined): string {
-	if (!value) return "Plain text";
+export function languageLabelDescriptor(
+	value: string | null | undefined,
+): MessageDescriptor | string {
+	if (!value) return msg`Plain text`;
 	const match = findLanguage(value);
 	if (match) return match.label;
 	return value;

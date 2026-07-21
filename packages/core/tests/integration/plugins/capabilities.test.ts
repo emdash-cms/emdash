@@ -8,7 +8,7 @@
 
 import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
@@ -18,6 +18,7 @@ import {
 	PluginContextFactory,
 	createContentAccess,
 	createContentAccessWithWrite,
+	createTaxonomyAccess,
 	createHttpAccess,
 	createUnrestrictedHttpAccess,
 	createBlockedHttpAccess,
@@ -58,6 +59,44 @@ function createTestPlugin(overrides: Partial<ResolvedPlugin> = {}): ResolvedPlug
 	};
 }
 
+/**
+ * Minimal in-memory Storage backend for media write tests.
+ * Records uploaded keys so tests can assert bytes were persisted.
+ */
+function createFakeStorage() {
+	const uploads = new Map<string, Uint8Array>();
+	return {
+		uploads,
+		async upload(options: { key: string; body: Uint8Array; contentType: string }) {
+			uploads.set(options.key, options.body);
+			return { key: options.key, size: options.body.byteLength };
+		},
+		async download() {
+			throw new Error("not implemented");
+		},
+		async delete(key: string) {
+			uploads.delete(key);
+		},
+		async exists(key: string) {
+			return uploads.has(key);
+		},
+		async list() {
+			return { items: [] };
+		},
+		async getSignedUploadUrl(options: { key: string }) {
+			return {
+				url: `https://signed.example.com/${options.key}`,
+				method: "PUT" as const,
+				headers: {},
+				expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+			};
+		},
+		getPublicUrl(key: string) {
+			return `/media/${key}`;
+		},
+	};
+}
+
 describe("Capability Enforcement Integration (v2)", () => {
 	let db: Kysely<DbSchema>;
 	let sqliteDb: Database.Database;
@@ -87,6 +126,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 				created_at TEXT DEFAULT (datetime('now')),
 				updated_at TEXT DEFAULT (datetime('now')),
 				published_at TEXT,
+				scheduled_at TEXT,
 				deleted_at TEXT,
 				version INTEGER DEFAULT 1,
 				locale TEXT NOT NULL DEFAULT 'en',
@@ -128,6 +168,21 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 				expect(result.items).toHaveLength(2);
 				expect(result.hasMore).toBe(false);
+			});
+
+			it("includes the scheduled publication time", async () => {
+				await sql`
+					UPDATE ec_posts
+					SET status = 'scheduled', scheduled_at = '2026-12-01T12:00:00.000Z'
+					WHERE id = 'post-1'
+				`.execute(db);
+				const access = createContentAccess(db);
+				const result = await access.list("posts");
+
+				expect(result.items.find((item) => item.id === "post-1")?.scheduledAt).toBe(
+					"2026-12-01T12:00:00.000Z",
+				);
+				expect((await access.get("posts", "post-1"))?.scheduledAt).toBe("2026-12-01T12:00:00.000Z");
 			});
 
 			it("narrows list results by where.status", async () => {
@@ -207,6 +262,149 @@ describe("Capability Enforcement Integration (v2)", () => {
 				const access = createContentAccess(db);
 				const post = await access.get("posts", "non-existent");
 				expect(post).toBeNull();
+			});
+		});
+
+		describe("taxonomy read access", () => {
+			beforeEach(async () => {
+				// Migrations seed the default `category`/`tag` defs — clear them
+				// so the assertions below only see the fixtures.
+				await sql`DELETE FROM _emdash_taxonomy_defs`.execute(db);
+				await sql`
+					INSERT INTO _emdash_taxonomy_defs (id, name, label, label_singular, hierarchical, collections, locale, translation_group)
+					VALUES
+						('def-genre', 'genre', 'Genres', 'Genre', 1, '["posts"]', 'en', 'def-genre'),
+						('def-topic', 'topic', 'Topics', 'Topic', 0, '["posts"]', 'en', 'def-topic')
+				`.execute(db);
+				await sql`
+					INSERT INTO taxonomies (id, name, slug, label, parent_id, data, locale, translation_group)
+					VALUES
+						('term-news', 'genre', 'news', 'News', NULL, NULL, 'en', 'term-news'),
+						('term-sub', 'genre', 'sub-news', 'Sub News', 'term-news', NULL, 'en', 'term-sub'),
+						('term-news-fr', 'genre', 'actualites', 'Actualités', NULL, NULL, 'fr', 'term-news'),
+						('term-ai', 'topic', 'ai', 'AI', NULL, '{"description":"Artificial intelligence"}', 'en', 'term-ai')
+				`.execute(db);
+				// The pivot stores the term's translation_group, so one
+				// assignment spans every locale of the term.
+				await sql`
+					INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id)
+					VALUES
+						('posts', 'post-1', 'term-news'),
+						('posts', 'post-1', 'term-ai')
+				`.execute(db);
+			});
+
+			it("lists taxonomy definitions", async () => {
+				const access = createTaxonomyAccess(db);
+				const defs = await access.getAll();
+
+				expect(defs).toHaveLength(2);
+				const category = defs.find((d) => d.name === "genre");
+				expect(category).toMatchObject({
+					label: "Genres",
+					labelSingular: "Genre",
+					hierarchical: true,
+					collections: ["posts"],
+					locale: "en",
+				});
+				const tag = defs.find((d) => d.name === "topic");
+				expect(tag?.hierarchical).toBe(false);
+			});
+
+			it("filters taxonomy definitions by locale", async () => {
+				const access = createTaxonomyAccess(db);
+				const defs = await access.getAll({ locale: "fr" });
+				expect(defs).toHaveLength(0);
+			});
+
+			it("lists terms of a taxonomy", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getTerms("genre");
+
+				expect(terms.map((t) => t.slug)).toEqual(["actualites", "news", "sub-news"]);
+				const sub = terms.find((t) => t.slug === "sub-news");
+				expect(sub).toMatchObject({
+					taxonomy: "genre",
+					label: "Sub News",
+					parentId: "term-news",
+					locale: "en",
+					translationGroup: "term-sub",
+				});
+			});
+
+			it("scopes terms to a locale", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getTerms("genre", { locale: "en" });
+				expect(terms.map((t) => t.slug)).toEqual(["news", "sub-news"]);
+			});
+
+			it("parses term data JSON", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getTerms("topic");
+
+				expect(terms).toHaveLength(1);
+				expect(terms[0]!.data).toEqual({ description: "Artificial intelligence" });
+			});
+
+			it("returns an empty list for an unknown taxonomy", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getTerms("nonexistent");
+				expect(terms).toEqual([]);
+			});
+
+			it("returns terms assigned to an entry", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getEntryTerms("posts", "post-1", { locale: "en" });
+
+				expect(terms.map((t) => t.slug).toSorted()).toEqual(["ai", "news"]);
+			});
+
+			it("scopes entry terms to one taxonomy", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getEntryTerms("posts", "post-1", {
+					taxonomy: "genre",
+					locale: "en",
+				});
+
+				expect(terms).toHaveLength(1);
+				expect(terms[0]!.slug).toBe("news");
+			});
+
+			it("resolves entry terms into the requested locale", async () => {
+				// The assignment points at the term's translation_group, so
+				// asking for 'fr' surfaces the French translation of the term.
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getEntryTerms("posts", "post-1", {
+					taxonomy: "genre",
+					locale: "fr",
+				});
+
+				expect(terms).toHaveLength(1);
+				expect(terms[0]!.slug).toBe("actualites");
+			});
+
+			it("is exposed on the context only with taxonomies:read", async () => {
+				const factory = new PluginContextFactory({ db });
+
+				const withCap = factory.createContext(
+					createTestPlugin({ id: "tax-reader", capabilities: ["taxonomies:read"] }),
+				);
+				expect(withCap.taxonomies).toBeDefined();
+				const defs = await withCap.taxonomies!.getAll();
+				expect(defs).toHaveLength(2);
+
+				// content:read alone does NOT grant taxonomy access...
+				const contentOnly = factory.createContext(
+					createTestPlugin({ id: "content-reader", capabilities: ["content:read"] }),
+				);
+				expect(contentOnly.taxonomies).toBeUndefined();
+				expect(contentOnly.content).toBeDefined();
+
+				// ...and taxonomies:read alone does not grant content access.
+				const taxOnly = factory.createContext(
+					createTestPlugin({ id: "tax-only", capabilities: ["taxonomies:read"] }),
+				);
+				expect(taxOnly.content).toBeUndefined();
 			});
 		});
 
@@ -721,6 +919,78 @@ describe("Capability Enforcement Integration (v2)", () => {
 			const ctx = factory.createContext(plugin);
 			expect(ctx.users).toBeUndefined();
 		});
+
+		it("provides writable media (upload) for media:write when storage is configured", () => {
+			// Regression: the runtime threads `storage` but never `getUploadUrl`,
+			// so media:write plugins silently fell through to read-only media with
+			// no upload(). Storage is all upload() needs.
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal fake Storage for test
+			const storage = createFakeStorage() as never;
+			const factory = new PluginContextFactory({ db, storage });
+
+			const plugin = createTestPlugin({
+				id: "media-writer",
+				capabilities: ["media:write"],
+			});
+
+			const ctx = factory.createContext(plugin);
+			expect(ctx.media).toBeDefined();
+			expect(typeof ctx.media!.upload).toBe("function");
+			expect(typeof ctx.media!.getUploadUrl).toBe("function");
+			expect(typeof ctx.media!.get).toBe("function");
+		});
+
+		it("media:write upload() persists bytes to storage and creates a media record", async () => {
+			const fakeStorage = createFakeStorage();
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal fake Storage for test
+			const factory = new PluginContextFactory({ db, storage: fakeStorage as never });
+
+			const plugin = createTestPlugin({
+				id: "media-writer-2",
+				capabilities: ["media:write"],
+			});
+
+			const ctx = factory.createContext(plugin);
+			const bytes = new Uint8Array([1, 2, 3, 4]).buffer;
+			const result = await ctx.media!.upload!("logo.png", "image/png", bytes);
+
+			expect(result.mediaId).toBeTruthy();
+			expect(result.storageKey).toMatch(/\.png$/);
+			expect(fakeStorage.uploads.has(result.storageKey)).toBe(true);
+
+			// The media record is retrievable via the read surface.
+			const fetched = await ctx.media!.get(result.mediaId);
+			expect(fetched?.filename).toBe("logo.png");
+		});
+
+		it("warns and stays read-only for media:write when no storage is configured", () => {
+			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+			try {
+				const factory = new PluginContextFactory({ db });
+
+				const plugin = createTestPlugin({
+					id: "media-writer-no-storage",
+					capabilities: ["media:write", "media:read"],
+				});
+
+				const ctx = factory.createContext(plugin);
+				// Re-create the context: hooks/routes do this on every invocation,
+				// so the warning must not fire again for the same plugin.
+				factory.createContext(plugin);
+
+				// Read access still works, but write is unavailable.
+				expect(ctx.media).toBeDefined();
+				expect(typeof ctx.media!.get).toBe("function");
+				expect(ctx.media!.upload).toBeUndefined();
+
+				// The author gets a signal rather than silent degradation — but
+				// only once per factory, not on every context creation.
+				expect(warnSpy).toHaveBeenCalledTimes(1);
+				expect(String(warnSpy.mock.calls[0]?.[1])).toContain("media:write");
+			} finally {
+				warnSpy.mockRestore();
+			}
+		});
 	});
 
 	describe("Site Info", () => {
@@ -729,11 +999,13 @@ describe("Capability Enforcement Integration (v2)", () => {
 				siteName: "My Site",
 				siteUrl: "https://example.com/",
 				locale: "fr",
+				trailingSlash: "never",
 			});
 
 			expect(info.name).toBe("My Site");
 			expect(info.url).toBe("https://example.com"); // trailing slash stripped
 			expect(info.locale).toBe("fr");
+			expect(info.trailingSlash).toBe("never");
 		});
 
 		it("uses defaults for missing values", () => {
@@ -742,6 +1014,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 			expect(info.name).toBe("");
 			expect(info.url).toBe("");
 			expect(info.locale).toBe("en");
+			expect(info.trailingSlash).toBe("ignore"); // Astro's default
 		});
 
 		it("strips trailing slash from URL", () => {

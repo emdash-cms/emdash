@@ -11,7 +11,6 @@ import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
-	PuzzlePiece,
 	DownloadSimple,
 	ShieldCheck,
 	ShieldWarning,
@@ -29,6 +28,7 @@ import {
 	type MarketplaceSearchOpts,
 } from "../lib/api/marketplace.js";
 import { safeIconUrl } from "../lib/url.js";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 
 type SortOption = "installs" | "updated" | "created" | "name";
 
@@ -169,7 +169,7 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 				<>
 					{plugins.length === 0 ? (
 						<div className="rounded-lg border bg-kumo-base p-8 text-center">
-							<PuzzlePiece className="mx-auto h-12 w-12 text-kumo-subtle" />
+							<ADMIN_NAV_ICONS.plugins className="mx-auto h-12 w-12 text-kumo-subtle" />
 							<h3 className="mt-4 text-lg font-medium">{t`No plugins found`}</h3>
 							<p className="mt-2 text-sm text-kumo-subtle">
 								{debouncedQuery
@@ -315,7 +315,7 @@ export function AuditBadge({ verdict }: { verdict: "pass" | "warn" | "fail" }) {
 	if (verdict === "pass") {
 		return (
 			<span
-				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-green-500/10 text-green-600"
+				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-kumo-success/10 text-kumo-success"
 				title={t`Security audit passed`}
 			>
 				<ShieldCheck className="h-3 w-3" />
@@ -326,7 +326,7 @@ export function AuditBadge({ verdict }: { verdict: "pass" | "warn" | "fail" }) {
 	if (verdict === "warn") {
 		return (
 			<span
-				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-warning/10 text-warning"
+				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-kumo-warning/10 text-kumo-warning"
 				title={t`Security audit flagged concerns`}
 			>
 				<Warning className="h-3 w-3" />

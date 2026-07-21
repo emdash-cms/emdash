@@ -23,6 +23,7 @@ import {
 	matchCachedPatterns,
 	setCachedRedirects,
 } from "../../redirects/cache.js";
+import { isTerminalStatus } from "../../redirects/status.js";
 
 /** Paths that should never be intercepted by redirects */
 const SKIP_PREFIXES = ["/_emdash", "/_image"];
@@ -80,6 +81,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			exact = cached.exact.get(alt);
 		}
 		if (exact) {
+			// Terminal statuses (410 Gone / 451): serve the status directly,
+			// with no Location header.
+			if (isTerminalStatus(exact.type)) {
+				repo.recordHit(exact.id).catch(() => {});
+				return new Response(null, { status: exact.type });
+			}
 			const dest = exact.destination;
 			if (dest.startsWith("//") || dest.startsWith("/\\")) return next();
 			repo.recordHit(exact.id).catch(() => {});
@@ -91,6 +98,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const patternMatch = matchCachedPatterns(cached.patterns, pathname);
 		if (patternMatch) {
 			const { redirect, destination } = patternMatch;
+			// Terminal statuses (410 Gone / 451): serve the status directly.
+			if (isTerminalStatus(redirect.type)) {
+				repo.recordHit(redirect.id).catch(() => {});
+				return new Response(null, { status: redirect.type });
+			}
 			if (destination.startsWith("//") || destination.startsWith("/\\")) return next();
 			repo.recordHit(redirect.id).catch(() => {});
 			const code = isRedirectCode(redirect.type) ? redirect.type : 301;

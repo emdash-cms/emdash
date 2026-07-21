@@ -1,8 +1,10 @@
 import { execFile, spawn } from "node:child_process";
 import { rmSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
+import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 
 import { ensureBuilt } from "../server.js";
@@ -21,6 +23,15 @@ interface SiteCase {
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const execAsync = promisify(execFile);
+const FONT_FETCH_RETRY_IMPORT = pathToFileURL(
+	resolve(import.meta.dirname, "retry-font-fetch.mjs"),
+).href;
+
+function nodeOptionsWithFontFetchRetry(): string {
+	return [process.env.NODE_OPTIONS, `--import=${FONT_FETCH_RETRY_IMPORT}`]
+		.filter(Boolean)
+		.join(" ");
+}
 
 const SITE_MATRIX: SiteCase[] = [
 	{
@@ -121,7 +132,9 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 
 // ---------------------------------------------------------------------------
 // Build verification — runs a single recursive `pnpm build` across templates
-// and the playground demo in parallel.
+// and the playground demo in parallel. The child process imports a test-only
+// fetch retry shim for Astro's remote Google font-file downloads so transient
+// network errors don't make smoke tests flaky.
 // ---------------------------------------------------------------------------
 
 describe("Site build verification", () => {
@@ -146,6 +159,7 @@ describe("Site build verification", () => {
 					env: {
 						...process.env,
 						CI: "true",
+						NODE_OPTIONS: nodeOptionsWithFontFetchRetry(),
 					},
 				},
 			);
@@ -185,6 +199,7 @@ async function bootSite(site: SiteCase): Promise<BootedServer> {
 		env: {
 			...process.env,
 			CI: "true",
+			NODE_OPTIONS: nodeOptionsWithFontFetchRetry(),
 		},
 		stdio: "pipe",
 	});
@@ -277,6 +292,13 @@ describe.sequential("Site runtime verification", () => {
 const MCP_SITES: SiteCase[] = SITE_MATRIX.filter(
 	(s) => s.name === "templates/blog" || s.name === "templates/starter-cloudflare",
 );
+
+const PLUGIN_MCP_SITE: SiteCase = {
+	name: "demos/simple",
+	dir: resolve(WORKSPACE_ROOT, "demos/simple"),
+	port: 4620,
+	startupTimeoutMs: 90_000,
+};
 
 describe.sequential("MCP endpoint verification", () => {
 	for (const site of MCP_SITES) {
@@ -407,6 +429,158 @@ describe.sequential("MCP endpoint verification", () => {
 			},
 		);
 	}
+
+	it(
+		"plugin MCP enablement, scoped invocation, and auditing work end to end",
+		{ timeout: PLUGIN_MCP_SITE.startupTimeoutMs + 120_000 },
+		async () => {
+			const server = await bootSite(PLUGIN_MCP_SITE);
+			const headers = (token: string) => ({
+				Accept: "application/json, text/event-stream",
+				Authorization: `Bearer ${token}`,
+				"Content-Type": "application/json",
+				"X-EmDash-Request": "1",
+			});
+			const listTools = async (token: string) => {
+				const response = await fetch(`${server.baseUrl}/_emdash/api/mcp`, {
+					method: "POST",
+					headers: headers(token),
+					body: JSON.stringify([
+						{ jsonrpc: "2.0", method: "notifications/initialized" },
+						{ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+					]),
+				});
+				expect(response.status).toBe(200);
+				return parseSSE(await response.text());
+			};
+			const callEcho = async (token: string, message: string) => {
+				const response = await fetch(`${server.baseUrl}/_emdash/api/mcp`, {
+					method: "POST",
+					headers: headers(token),
+					body: JSON.stringify([
+						{ jsonrpc: "2.0", method: "notifications/initialized" },
+						{
+							jsonrpc: "2.0",
+							id: 2,
+							method: "tools/call",
+							params: { name: "mcp-smoke__echo", arguments: { message } },
+						},
+					]),
+				});
+				expect(response.status).toBe(200);
+				return parseSSE(await response.text());
+			};
+
+			try {
+				const setupResponse = await fetchWithRetry(
+					`${server.baseUrl}/_emdash/api/setup/dev-bypass?token=1`,
+				);
+				expect(setupResponse.status).toBe(200);
+				const setup = (await setupResponse.json()) as { data?: { token?: string } };
+				const adminToken = setup.data?.token;
+				expect(adminToken).toBeTruthy();
+				if (!adminToken) throw new Error("Dev bypass did not return an admin token");
+
+				const beforeEnable = await listTools(adminToken);
+				expect(beforeEnable).not.toHaveProperty(
+					"result.tools",
+					expect.arrayContaining([expect.objectContaining({ name: "mcp-smoke__echo" })]),
+				);
+
+				const enableResponse = await fetch(
+					`${server.baseUrl}/_emdash/api/admin/plugins/mcp-smoke/mcp`,
+					{
+						method: "PUT",
+						headers: headers(adminToken),
+						body: JSON.stringify({ enabled: true }),
+					},
+				);
+				expect(enableResponse.status).toBe(200);
+
+				const tokenResponse = await fetch(`${server.baseUrl}/_emdash/api/admin/api-tokens`, {
+					method: "POST",
+					headers: headers(adminToken),
+					body: JSON.stringify({ name: "Plugin MCP smoke", scopes: ["mcp:tools:mcp-smoke"] }),
+				});
+				expect(tokenResponse.status).toBe(201);
+				const created = (await tokenResponse.json()) as { data?: { token?: string } };
+				const scopedToken = created.data?.token;
+				expect(scopedToken).toBeTruthy();
+				if (!scopedToken) throw new Error("Token creation did not return a token");
+
+				const listed = await listTools(scopedToken);
+				expect(listed).toHaveProperty(
+					"result.tools",
+					expect.arrayContaining([
+						expect.objectContaining({
+							name: "mcp-smoke__echo",
+							annotations: expect.objectContaining({ destructiveHint: false }),
+						}),
+					]),
+				);
+
+				const denied = await callEcho(adminToken, "blocked");
+				expect(denied).toHaveProperty("result.isError", true);
+				expect(denied).toHaveProperty("result._meta.code", "INSUFFICIENT_SCOPE");
+
+				const invoked = await callEcho(scopedToken, "hello");
+				expect(invoked).not.toHaveProperty("result.isError", true);
+				expect(invoked).toHaveProperty("result.structuredContent", {
+					message: "hello",
+					length: 5,
+				});
+
+				const db = new Database(join(PLUGIN_MCP_SITE.dir, "data.db"), { readonly: true });
+				try {
+					const auditRows = db
+						.prepare(
+							"SELECT action, resource_type, resource_id, status FROM audit_logs WHERE resource_id = ? ORDER BY timestamp",
+						)
+						.all("mcp-smoke__echo");
+					expect(auditRows).toEqual(
+						expect.arrayContaining([
+							expect.objectContaining({
+								action: "plugin_tool_invoke",
+								resource_type: "plugin_mcp_tool",
+								status: "denied",
+							}),
+							expect.objectContaining({
+								action: "plugin_tool_invoke",
+								resource_type: "plugin_mcp_tool",
+								status: "success",
+							}),
+						]),
+					);
+				} finally {
+					db.close();
+				}
+
+				const disableResponse = await fetch(
+					`${server.baseUrl}/_emdash/api/admin/plugins/mcp-smoke/mcp`,
+					{
+						method: "PUT",
+						headers: headers(adminToken),
+						body: JSON.stringify({ enabled: false }),
+					},
+				);
+				expect(disableResponse.status).toBe(200);
+
+				const afterDisable = await listTools(scopedToken);
+				expect(afterDisable).not.toHaveProperty(
+					"result.tools",
+					expect.arrayContaining([expect.objectContaining({ name: "mcp-smoke__echo" })]),
+				);
+			} catch (error) {
+				throw new Error(
+					`Plugin MCP smoke failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
+						server.output.slice(-3000),
+					{ cause: error },
+				);
+			} finally {
+				await killServer(server.process);
+			}
+		},
+	);
 });
 
 /**

@@ -25,6 +25,7 @@ const minimalResolved = (overrides: Partial<ResolvedPlugin> = {}): ResolvedPlugi
 	storage: {},
 	hooks: {},
 	routes: {},
+	mcp: { tools: {} },
 	admin: {},
 	...overrides,
 });
@@ -72,39 +73,36 @@ describe("extractManifest", () => {
 		expect(manifest.routes.toSorted((a, b) => a.localeCompare(b))).toEqual(["admin", "api"]);
 	});
 
-	it("emits MCP tool metadata", () => {
+	it("serializes explicitly declared MCP tools", () => {
 		const manifest = extractManifest(
 			minimalResolved({
-				mcpTools: {
-					summarize: {
-						title: "Summarize",
-						description: "Summarize text.",
-						route: "summarize",
-						inputSchema: {
-							type: "object",
-							properties: {
-								text: { type: "string" },
-							},
-							required: ["text"],
+				routes: {
+					"events/create": {
+						handler: () => {},
+						permission: "content:create",
+					},
+				},
+				mcp: {
+					tools: {
+						createEvent: {
+							description: "Create a calendar event.",
+							route: "events/create",
+							input: { type: "object", properties: { title: { type: "string" } } },
+							destructive: false,
 						},
 					},
 				},
 			}),
 		);
 
-		expect(manifest.mcpTools).toEqual([
+		expect(manifest.mcp?.tools).toEqual([
 			{
-				name: "summarize",
-				title: "Summarize",
-				description: "Summarize text.",
-				route: "summarize",
-				inputSchema: {
-					type: "object",
-					properties: {
-						text: { type: "string" },
-					},
-					required: ["text"],
-				},
+				name: "createEvent",
+				description: "Create a calendar event.",
+				route: "events/create",
+				permission: "content:create",
+				destructive: false,
+				inputSchema: { type: "object", properties: { title: { type: "string" } } },
 			},
 		]);
 	});

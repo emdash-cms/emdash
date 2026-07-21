@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import {
@@ -6,14 +6,20 @@ import {
 	handleContentDuplicate,
 	handleContentGet,
 	handleContentList,
+	handleContentPublish,
 	handleContentUpdate,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
-import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	setupTestDatabase,
+	setupTestDatabaseWithCollections,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
 
 describe("Content Handlers — auto-slug generation", () => {
 	let db: Kysely<Database>;
@@ -688,5 +694,191 @@ describe("Content Handlers — list total", () => {
 		expect(result.success).toBe(true);
 		expect(result.data?.items).toHaveLength(2);
 		expect(result.data?.total).toBe(8);
+	});
+});
+
+describe("Content Handlers — slug-change auto-redirect on publish", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	/**
+	 * Stage a slug change the way the runtime does for revision-supporting
+	 * collections: write `_slug` into a draft revision and point the entry's
+	 * `draft_revision_id` at it, leaving the live `slug` column untouched.
+	 */
+	async function stageDraftSlugChange(
+		collection: string,
+		entryId: string,
+		data: Record<string, unknown>,
+		newSlug: string,
+	): Promise<void> {
+		const revisionRepo = new RevisionRepository(db);
+		const revision = await revisionRepo.create({
+			collection,
+			entryId,
+			data: { ...data, _slug: newSlug },
+		});
+		await sql`
+			UPDATE ${sql.ref(`ec_${collection}`)}
+			SET draft_revision_id = ${revision.id}
+			WHERE id = ${entryId}
+		`.execute(db);
+	}
+
+	it("creates a 301 from the old URL when publishing a staged slug change", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Hello" },
+			slug: "hello",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Hello" }, "hello-world");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBe("hello-world");
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(1);
+		expect(redirects[0]).toMatchObject({
+			source: "/post/hello",
+			destination: "/post/hello-world",
+			type: 301,
+			auto: 1,
+		});
+	});
+
+	it("does not create a redirect on first publish (draft URL was never live)", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Fresh" },
+			slug: "fresh-draft",
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Fresh" }, "fresh-final");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBe("fresh-final");
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(0);
+	});
+
+	it("does not create a redirect when republishing without a slug change", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Stable" },
+			slug: "stable",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Stable (edited)" }, "stable");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(true);
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(0);
+	});
+
+	// #2034: a staged slug colliding with another entry's (slug, locale) used
+	// to surface as an opaque 500 (raw D1/SQLite UNIQUE error). It must be the
+	// same SLUG_CONFLICT (409) as direct slug edits, naming the slug so the
+	// admin can show it inline.
+	it("returns SLUG_CONFLICT naming the slug when the staged slug is taken", async () => {
+		const taken = await handleContentCreate(db, "post", {
+			data: { title: "Owner" },
+			slug: "eleven",
+			status: "published",
+		});
+		expect(taken.success).toBe(true);
+
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Victim" },
+			slug: "victim",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Victim" }, "eleven");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(false);
+		if (published.success) return;
+		expect(published.error.code).toBe("SLUG_CONFLICT");
+		expect(published.error.message).toContain("eleven");
+		expect(published.error.message).toContain(taken.data!.item.id);
+	});
+});
+
+describe("handleContentList — backing table missing deleted_at column", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		await sql`
+			CREATE TABLE ec_repro_test (
+				id TEXT PRIMARY KEY,
+				slug TEXT NOT NULL,
+				title TEXT NOT NULL,
+				content JSON,
+				excerpt TEXT,
+				status TEXT NOT NULL,
+				locale TEXT NOT NULL DEFAULT 'en',
+				published_at TEXT,
+				created_at TEXT NOT NULL,
+				updated_at TEXT NOT NULL
+			)
+		`.execute(db);
+		await sql`
+			INSERT INTO ec_repro_test (id, slug, title, content, excerpt, status, locale, published_at, created_at, updated_at)
+			VALUES ('01KPQZA8J1E206F60QSNFRX3Y2', 'repro', 'Repro entry', '[]', 'x', 'published', 'en',
+				'2026-05-01T00:00:00.000Z', '2026-05-01T00:00:00.000Z', '2026-05-01T00:00:00.000Z')
+		`.execute(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("reports a schema mismatch instead of a generic list error", async () => {
+		const res = await handleContentList(db, "repro_test", {});
+		expect(res.success).toBe(false);
+		if (res.success) return;
+		expect(res.error.code).toBe("COLLECTION_SCHEMA_MISMATCH");
+		expect(res.error.message).toContain("repro_test");
+	});
+});
+
+describe("handleContentList — unknown orderBy column on a healthy collection", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("does not report a schema mismatch when ordering by a field the collection lacks", async () => {
+		const res = await handleContentList(db, "post", { orderBy: "name" });
+		expect(res.success).toBe(false);
+		if (res.success) return;
+		expect(res.error.code).not.toBe("COLLECTION_SCHEMA_MISMATCH");
 	});
 });

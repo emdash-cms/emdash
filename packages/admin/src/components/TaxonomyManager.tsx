@@ -46,6 +46,26 @@ function flattenTerms(terms: TaxonomyTerm[]): TaxonomyTerm[] {
 }
 
 /**
+ * Return valid parent candidates in tree order.
+ *
+ * The current term and its complete subtree are excluded while editing so a
+ * parent change cannot create a taxonomy cycle.
+ */
+export function getAvailableParentTerms(
+	terms: TaxonomyTerm[],
+	currentTerm?: TaxonomyTerm,
+): TaxonomyTerm[] {
+	const flatTerms = flattenTerms(terms);
+	if (!currentTerm) return flatTerms;
+
+	const excludedIds = new Set([
+		currentTerm.id,
+		...flattenTerms(currentTerm.children).map((term) => term.id),
+	]);
+	return flatTerms.filter((term) => !excludedIds.has(term.id));
+}
+
+/**
  * Term row component (recursive for hierarchy)
  */
 function TermRow({
@@ -336,11 +356,7 @@ function TermFormDialog({
 		}
 	};
 
-	// Flatten terms for parent selector (exclude current term and its children)
-	const flatTerms = flattenTerms(allTerms);
-	const availableParents = term
-		? flatTerms.filter((item) => item.id !== term.id && item.parentId !== term.id)
-		: flatTerms;
+	const availableParents = getAvailableParentTerms(allTerms, term);
 
 	return (
 		<Dialog.Root
@@ -352,8 +368,8 @@ function TermFormDialog({
 				}
 			}}
 		>
-			<Dialog className="p-6" size="lg">
-				<form onSubmit={handleSubmit}>
+			<Dialog className="p-6 max-h-[85vh] flex flex-col" size="lg">
+				<form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
 					<div className="flex items-start justify-between gap-4 mb-4">
 						<div className="flex flex-col space-y-1.5">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
@@ -384,7 +400,7 @@ function TermFormDialog({
 						/>
 					</div>
 
-					<div className="space-y-4 py-4">
+					<div className="space-y-4 py-4 flex-1 overflow-y-auto -mx-1 px-1 min-h-0">
 						<Input
 							label={t`Name`}
 							value={label}
@@ -417,13 +433,19 @@ function TermFormDialog({
 								items={{
 									"": t`None (top level)`,
 									...Object.fromEntries(
-										availableParents.map((parentTerm) => [parentTerm.id, parentTerm.label]),
+										availableParents.map((parentTerm) => [
+											parentTerm.translationGroup ?? parentTerm.id,
+											parentTerm.label,
+										]),
 									),
 								}}
 							>
 								<Select.Option value="">{t`None (top level)`}</Select.Option>
 								{availableParents.map((parentTerm) => (
-									<Select.Option key={parentTerm.id} value={parentTerm.id}>
+									<Select.Option
+										key={parentTerm.id}
+										value={parentTerm.translationGroup ?? parentTerm.id}
+									>
 										{parentTerm.label}
 									</Select.Option>
 								))}
@@ -787,8 +809,6 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 		);
 	}
 
-	const flatTerms = flattenTerms(terms);
-
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between gap-4 flex-wrap">
@@ -851,7 +871,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				taxonomyName={taxonomyName}
 				taxonomyDef={taxonomyDef}
 				term={editingTerm}
-				allTerms={flatTerms}
+				allTerms={terms}
 				locale={activeLocale}
 				i18n={i18n}
 				onOpenTranslation={(tr) => setActiveLocale(tr.locale)}

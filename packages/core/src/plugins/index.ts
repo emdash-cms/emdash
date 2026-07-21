@@ -63,6 +63,11 @@ export type { RouteResult, InvokeRouteOptions } from "./routes.js";
 export { PluginManager, createPluginManager } from "./manager.js";
 export type { PluginManagerOptions, PluginState } from "./manager.js";
 
+// Scheduler (Node timer-based heartbeat; consumed by the generated
+// virtual:emdash/scheduler module on non-serverless adapters)
+export { NodeCronScheduler } from "./scheduler/node.js";
+export type { CronScheduler, SystemCleanupFn } from "./scheduler/types.js";
+
 // Sandbox
 export {
 	NoopSandboxRunner,
@@ -113,6 +118,10 @@ export type {
 	MediaItem,
 	ContentListOptions,
 	MediaListOptions,
+	TaxonomyAccess,
+	TaxonomyDefInfo,
+	TaxonomyTermInfo,
+	TaxonomyReadOptions,
 
 	// Hook types
 	PluginHooks,
@@ -123,6 +132,9 @@ export type {
 	ContentHookEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	MediaUploadEvent,
 	MediaAfterUploadEvent,
 	LifecycleEvent,
@@ -143,6 +155,9 @@ export type {
 	ContentAfterSaveHandler,
 	ContentBeforeDeleteHandler,
 	ContentAfterDeleteHandler,
+	ContentAfterRestoreHandler,
+	ContentAfterScheduleHandler,
+	ContentAfterUnscheduleHandler,
 	MediaBeforeUploadHandler,
 	MediaAfterUploadHandler,
 	LifecycleHandler,
@@ -168,8 +183,6 @@ export type {
 	// Route types
 	PluginRoute,
 	RouteContext,
-	PluginMcpTool,
-	PluginMcpToolRegistration,
 
 	// Admin types
 	PluginAdminConfig,
@@ -186,7 +199,6 @@ export type {
 	PluginDefinition,
 	ResolvedPlugin,
 	PluginManifest,
-	ManifestMcpToolEntry,
 } from "./types.js";
 
 // Capability normalization (legacy → canonical alias layer)

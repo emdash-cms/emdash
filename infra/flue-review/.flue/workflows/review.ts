@@ -1,119 +1,151 @@
-// Review workflow (Cloudflare target).
+// Review workflow (Cloudflare target) -- cf-shell (Cloudflare Shell) variant.
 //
-// Reviews one pull request and returns structured findings plus a verdict. It
-// does NOT post to GitHub: the workflow result is returned over HTTP and a
-// separate orchestrator (the GitHub App webhook handler, Phase B) posts the
-// review with a write-scoped installation token.
+// Reviews one pull request and returns structured findings plus a verdict. No
+// firecracker container: the PR is hydrated into a durable cf-shell Workspace
+// (DO SQLite + R2 for large files) via JS git, and the agent inspects it with a
+// Worker-Loader-backed `code` tool. It does NOT post to GitHub: the workflow's
+// trusted Action code posts with a write-scoped installation token, so no
+// secret is ever reachable by the model.
 //
-// Security model: the agent runs inside a @cloudflare/sandbox container with
-// no GitHub token in its environment. emdash is a public repo, so the container
-// clones it over anonymous https; nothing secret is ever exposed to the
-// model-directed shell. The reviewer is git-only (no `gh`): it diffs the PR
-// head against the base locally. Posting (Phase B) happens outside this
-// container via the egress proxy, so the token never enters model-reachable
-// space.
+// @flue 1.0 workflow model: the agent (execution policy + sandbox) is defined
+// with `defineAgent`, and the finite behavior is an inline Action bound with
+// `defineWorkflow`. The Action's `run` receives `{ harness, log, input }` --
+// deliberately NOT platform bindings -- so env-scoped work (repo hydration,
+// GitHub auth) reads the bindings back through `getCloudflareContext()`. The
+// Workspace is keyed by the Durable Object identity so the sandbox built in the
+// agent initializer and the clone performed in the Action target the exact same
+// DO SQLite + R2 namespace.
 
-import { getSandbox, type Sandbox } from "@cloudflare/sandbox";
-import { createAgent, type FlueContext, type WorkflowRouteHandler } from "@flue/runtime";
-import { cfSandboxToSessionEnv } from "@flue/runtime/cloudflare";
+import { WorkspaceFileSystem } from "@cloudflare/shell";
+import { createGit } from "@cloudflare/shell/git";
+import {
+	defineAgent,
+	defineWorkflow,
+	type ActionContext,
+	type WorkflowRouteHandler,
+} from "@flue/runtime";
+import { getCloudflareContext, getDurableObjectIdentity } from "@flue/runtime/cloudflare";
+import * as v from "valibot";
 
+import { withCapacityRetry } from "../lib/capacity.js";
 import {
 	readAppCreds,
 	mintInstallationToken,
+	fetchUnifiedDiff,
+	fetchPullRequestHeadSha,
 	fetchPriorReview,
 	postReview,
 	addEyesReaction,
 	removeReaction,
+	updateReviewCheck,
 } from "../lib/github.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
-// Bundled as a SkillReference by the Flue build. Holds the full investigation
-// protocol (git-only, ported from the ask-bonk auto-reviewer).
+import {
+	getReviewWatchdog,
+	type ReviewStage,
+	type ReviewTerminal,
+} from "../lib/review-watchdog.js";
+import { getDefaultWorkspace, getShellSandbox } from "../sandboxes/cloudflare-shell.js";
 import review from "../skills/review/SKILL.md" with { type: "skill" };
 
-interface ReviewPayload {
-	prNumber: number;
-	prTitle: string;
-	prBody: string;
-	/** Head ref name (informational; the head commit is fetched via pull/N/head). */
-	headRef: string;
-	/** Base branch name, e.g. "main". The diff is taken against origin/<baseRef>. */
-	baseRef: string;
-	owner: string;
-	repo: string;
-}
+const reviewPayloadSchema = v.object({
+	prNumber: v.number(),
+	prTitle: v.string(),
+	prBody: v.string(),
+	headRef: v.string(),
+	// Optional only so persisted pre-observability runs remain readable; run() fails closed without them.
+	headSha: v.optional(v.string()),
+	baseRef: v.string(),
+	baseSha: v.optional(v.string()),
+	owner: v.string(),
+	repo: v.string(),
+	attemptId: v.optional(v.string()),
+	expectedRunId: v.optional(v.string()),
+	deliveryId: v.optional(v.string()),
+	checkRunId: v.optional(v.number()),
+});
 
-// Kimi via the Cloudflare Workers AI binding: the `cloudflare/` prefix is
-// reserved by Flue's generated CF entry and routed through `env.AI`, so no
-// model API key is needed anywhere.
-const reviewAgent = createAgent<ReviewPayload, Env>(({ env }) => ({
-	model: "cloudflare/@cf/moonshotai/kimi-k2.6",
-	// The container's working dir is the checked-out PR. AGENTS.md at the repo
-	// root is auto-discovered into the agent's context from here.
-	cwd: "/workspace",
-	// Wire the @cloudflare/sandbox container into Flue via its CF adapter.
-	// (The deploy doc's bare `sandbox: getSandbox(...)` is unreleased sugar; on
-	// @flue/runtime 0.8.1 the supported path is a SandboxFactory that calls
-	// cfSandboxToSessionEnv.) `id` here is the per-session id Flue supplies, so
-	// each review run gets its own container instance.
-	sandbox: {
-		createSessionEnv: ({ id: sessionId, cwd: sessionCwd }) =>
-			cfSandboxToSessionEnv(
-				// wrangler types the auto-wired DO as DurableObjectNamespace<undefined>;
-				// Flue re-exports the real Sandbox class into the bundle at build.
-				// oxlint-disable-next-line typescript/no-unsafe-type-assertion
-				getSandbox(env.Sandbox as DurableObjectNamespace<Sandbox>, sessionId),
-				sessionCwd ?? "/workspace",
-			),
-	},
-	instructions: [
-		"You are EmDash's automated pull request reviewer.",
-		"You investigate one PR in depth and return structured, line-anchored findings plus an overall verdict.",
-		"You are read-only: no network writes, no posting. The orchestrator posts your review after you finish.",
-		"Follow the review skill's protocol exactly and return strictly schema-conformant output.",
-	].join(" "),
-	skills: [review],
-}));
+type ReviewPayload = v.InferOutput<typeof reviewPayloadSchema>;
 
-// Phase A: open endpoint for local validation. Phase B replaces this with HMAC
-// webhook-signature verification before calling next().
-export const route: WorkflowRouteHandler = async (_c, next) => next();
+const REPO_DIR = "/repo";
+const DIFF_PATH = `${REPO_DIR}/.flue-pr.diff`;
+const HYDRATED = `${REPO_DIR}/.flue-hydrated`;
 
-// GitHub login / repo-name charset.
 const NAME = /^[A-Za-z0-9._-]+$/;
-// Git ref: "/"-joined segments; each segment must not start with "-" (so the
-// value can't be read as a CLI option when interpolated into git). The caller
-// also rejects "..".
 const REF = /^[A-Za-z0-9._][A-Za-z0-9._-]*(?:\/[A-Za-z0-9._][A-Za-z0-9._-]*)*$/;
+const SHA = /^[0-9a-f]{40}$/i;
 
 function assertSafe(payload: ReviewPayload): void {
 	if (!Number.isInteger(payload.prNumber) || payload.prNumber <= 0) {
 		throw new Error("payload.prNumber must be a positive integer");
 	}
-	if (!payload.prTitle) {
-		throw new Error("payload.prTitle is required");
-	}
+	if (!payload.prTitle) throw new Error("payload.prTitle is required");
 	for (const [key, value] of [
 		["owner", payload.owner],
 		["repo", payload.repo],
 	] as const) {
-		if (!value || !NAME.test(value)) {
-			throw new Error(`payload.${key} is missing or has unsafe characters`);
-		}
+		if (!value || !NAME.test(value)) throw new Error(`payload.${key} missing or unsafe`);
 	}
 	for (const [key, value] of [
 		["baseRef", payload.baseRef],
 		["headRef", payload.headRef],
 	] as const) {
 		if (!value || !REF.test(value) || value.includes("..")) {
-			throw new Error(`payload.${key} is missing or not a safe git ref`);
+			throw new Error(`payload.${key} missing or not a safe git ref`);
 		}
 	}
+	for (const [key, value] of [
+		["baseSha", payload.baseSha],
+		["headSha", payload.headSha],
+	] as const) {
+		if (value !== undefined && !SHA.test(value))
+			throw new Error(`payload.${key} is not a full SHA`);
+	}
 }
+
+// Stable per-run Workspace name shared by the agent initializer (sandbox) and
+// the Action (clone). Both run inside the same workflow-run Durable Object and
+// therefore share one DO SqlStorage regardless of this name -- SQLite isolation
+// comes from the per-run DO, not the name. The name only keys the R2 large-file
+// spill prefix (r2://<name>/...) and observability, so the two call sites must
+// derive it identically, otherwise the sandbox and the clone would look for
+// spilled git objects under different prefixes. The DO id is a run-unique,
+// retry-stable key (same runId -> same DO).
+function workspaceName(): string {
+	return `review-${getDurableObjectIdentity().id}`;
+}
+
+function workflowRunId(): string {
+	return getDurableObjectIdentity().name;
+}
+
+// The agent: execution policy (model, reasoning effort) plus the cf-shell
+// sandbox built from the platform bindings. Repo hydration cannot live here --
+// the initializer has no access to the PR payload -- so it moves into the
+// Action's `run` below, which shares this sandbox via the same Workspace name.
+const reviewAgent = defineAgent<Env>(({ env }) => {
+	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
+	return {
+		// Kimi K2.7 Code via the Workers AI binding: no model API key needed.
+		model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
+		sandbox: getShellSandbox({ workspace, loader: env.LOADER }),
+		cwd: REPO_DIR,
+		instructions: [
+			"You are EmDash's automated pull request reviewer.",
+			"You investigate one PR in depth and return structured, line-anchored findings plus an overall verdict.",
+			"You inspect the checked-out repo with the `code` tool (JavaScript over `state.*`); there is no shell.",
+			"You are read-only: no posting. The orchestrator posts your review after you finish.",
+			"Follow the review skill's protocol exactly and return strictly schema-conformant output.",
+		].join(" "),
+		skills: [review],
+	};
+});
 
 function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 	const lines = [
 		`PR #${payload.prNumber} in ${payload.owner}/${payload.repo}.`,
-		`Head ref: ${payload.headRef}. Base branch: ${payload.baseRef} (diff against origin/${payload.baseRef}).`,
+		`Head ref: ${payload.headRef}. Base branch: ${payload.baseRef}.`,
+		`The repo is checked out at the PR head under ${REPO_DIR}. The unified diff is at ${DIFF_PATH}.`,
 		`Title: ${payload.prTitle}`,
 		"",
 		"## Description",
@@ -126,86 +158,309 @@ function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 	return lines.join("\n");
 }
 
-export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewResult> {
-	const { init, payload, env } = ctx;
-	assertSafe(payload);
+// Hydrate the PR into the durable Workspace via JS git (shallow clone of base,
+// then fetch + checkout the PR head -- refs/pull/N/head covers fork PRs). Large
+// objects (the git packfile) spill to R2 under the workspace name. Idempotent:
+// a HYDRATED marker skips re-cloning on workflow re-entry.
+async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
+	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
+	if (await workspace.exists(HYDRATED)) return;
 
-	// GitHub access lives entirely in this trusted DO code, never in the agent's
-	// container. Without app creds (e.g. local dev) we skip posting and just
-	// return the result. The token (minted once, valid ~1h) is reused for the
-	// prior-review fetch and the final post.
+	const fs = new WorkspaceFileSystem(workspace);
+	const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
+	const git = createGit(fs);
+	await git.clone({
+		url: cloneUrl,
+		dir: REPO_DIR,
+		branch: payload.baseRef,
+		singleBranch: true,
+		depth: 1,
+	});
+	const fetched = await git.fetch({
+		ref: `pull/${payload.prNumber}/head`,
+		depth: 1,
+		dir: REPO_DIR,
+	});
+	if (!fetched.fetchHead) throw new Error("PR head fetch did not return a commit");
+	if (payload.headSha && fetched.fetchHead.toLowerCase() !== payload.headSha.toLowerCase()) {
+		throw new Error("PR head changed after the review was requested");
+	}
+	await git.checkout({ ref: fetched.fetchHead, dir: REPO_DIR, force: true });
+	await workspace.writeFile(HYDRATED, new Date().toISOString());
+}
+
+function logReviewEvent(
+	level: "log" | "error",
+	payload: ReviewPayload,
+	runId: string,
+	message: string,
+	extra: Record<string, unknown> = {},
+): void {
+	console[level](
+		JSON.stringify({
+			message,
+			attemptId: payload.attemptId,
+			runId,
+			deliveryId: payload.deliveryId,
+			prNumber: payload.prNumber,
+			headSha: payload.headSha,
+			checkRunId: payload.checkRunId,
+			...extra,
+		}),
+	);
+}
+
+async function reportStage(
+	env: Env,
+	token: string | undefined,
+	payload: ReviewPayload,
+	runId: string,
+	stage: ReviewStage,
+	detail: string,
+): Promise<boolean> {
+	logReviewEvent("log", payload, runId, "review stage changed", { stage });
+	if (payload.checkRunId === undefined || !payload.attemptId) return true;
+
+	const active = await getReviewWatchdog(env, payload.attemptId).heartbeat(
+		payload.attemptId,
+		runId,
+		stage,
+	);
+	if (!active) return false;
+	if (token) {
+		try {
+			await updateReviewCheck(token, payload.owner, payload.repo, payload.checkRunId, {
+				prNumber: payload.prNumber,
+				runId,
+				stage,
+				detail,
+			});
+		} catch (error) {
+			logReviewEvent("error", payload, runId, "review stage reporting failed", {
+				stage,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+	return true;
+}
+
+async function finishReviewCheck(
+	env: Env,
+	payload: ReviewPayload,
+	runId: string,
+	terminal: ReviewTerminal,
+): Promise<void> {
+	if (payload.checkRunId === undefined || !payload.attemptId) return;
+	try {
+		const finished = await getReviewWatchdog(env, payload.attemptId).finish(
+			payload.attemptId,
+			runId,
+			terminal,
+		);
+		if (!finished) {
+			logReviewEvent("error", payload, runId, "review attempt was already terminal");
+		}
+	} catch (error) {
+		logReviewEvent("error", payload, runId, "review completion reporting failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
+async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<ReviewResult> {
+	const payload = context.input;
+
+	// ActionContext intentionally excludes platform bindings; read them back
+	// through the Cloudflare context established for this workflow run.
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+	const env = getCloudflareContext().env as unknown as Env;
+	let runId = payload.attemptId ?? "unidentified";
+
+	// GitHub access lives only in this trusted Action code, never in the agent's
+	// workspace. Without app creds (local dev) we skip posting and return.
 	const creds = readAppCreds(env);
 	let token: string | undefined;
 	let priorReview: string | undefined;
 	let reactionId: number | undefined;
-	if (creds) {
-		token = await mintInstallationToken(creds);
-		// Signal "review in progress" before the (minutes-long) container review.
-		reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
-		priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
-	}
-
+	let stage: ReviewStage = "admitted";
 	try {
-		const harness = await init(reviewAgent);
-		const session = await harness.session();
-
-		// Set up the checkout inside the container: init in /workspace, fetch the
-		// base branch and the PR head, check out the PR head (detached). Full fetch
-		// (no shallow/depth) so `git diff origin/<base>...HEAD` can resolve a merge
-		// base. emdash is public, so anonymous https is sufficient.
-		const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
-		const setup = [
-			"set -euo pipefail",
-			"cd /workspace",
-			"git init -q",
-			`git remote add origin ${cloneUrl} 2>/dev/null || git remote set-url origin ${cloneUrl}`,
-			`git fetch -q --no-tags origin ${payload.baseRef}:refs/remotes/origin/${payload.baseRef}`,
-			`git fetch -q --no-tags origin pull/${payload.prNumber}/head:refs/remotes/origin/pr`,
-			"git checkout -q -f refs/remotes/origin/pr",
-		].join("\n");
-
-		const setupResult = await session.shell(setup);
-		if (setupResult.exitCode !== 0) {
-			throw new Error(
-				`git setup failed (exit ${setupResult.exitCode}): ${setupResult.stderr || setupResult.stdout}`,
-			);
+		assertSafe(payload);
+		if (!payload.headSha || !payload.baseSha) {
+			throw new Error("Review payload does not include immutable base and head SHAs");
+		}
+		runId = workflowRunId();
+		if (
+			payload.attemptId &&
+			payload.checkRunId !== undefined &&
+			!(await getReviewWatchdog(env, payload.attemptId).identify(
+				payload.attemptId,
+				payload.expectedRunId ?? payload.attemptId,
+				runId,
+			))
+		) {
+			throw new Error("Review attempt is no longer active");
+		}
+		if (creds) {
+			token = await mintInstallationToken(creds);
+			reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
+			priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
 		}
 
-		const { data } = await session.skill(review, {
-			args: {
-				prContext: buildPrContext(payload, priorReview),
-				owner: payload.owner,
-				repo: payload.repo,
-				prNumber: payload.prNumber,
-				baseRef: payload.baseRef,
-				headRef: payload.headRef,
+		// Hydrate the Workspace (clone + checkout the PR head) into the same DO
+		// SQLite + R2 namespace the agent's sandbox reads from.
+		stage = "hydrating";
+		if (
+			!(await reportStage(env, token, payload, runId, "hydrating", "Preparing the PR workspace."))
+		) {
+			throw new Error("Review attempt is no longer active");
+		}
+		await hydrate(env, payload);
+
+		const session = await context.harness.session();
+
+		// Stage the canonical unified diff into the Workspace (no `git` in cf-shell).
+		stage = "fetching_diff";
+		if (
+			!(await reportStage(
+				env,
+				token,
+				payload,
+				runId,
+				"fetching_diff",
+				"Fetching the canonical PR diff.",
+			))
+		) {
+			throw new Error("Review attempt is no longer active");
+		}
+		const diff = await fetchUnifiedDiff(
+			payload.owner,
+			payload.repo,
+			payload.prNumber,
+			token,
+			payload.baseSha,
+			payload.headSha,
+		);
+		await context.harness.fs.writeFile(DIFF_PATH, diff);
+
+		stage = "model_review";
+		if (
+			!(await reportStage(
+				env,
+				token,
+				payload,
+				runId,
+				"model_review",
+				"The model is reviewing the diff.",
+			))
+		) {
+			throw new Error("Review attempt is no longer active");
+		}
+		const { data } = await withCapacityRetry(
+			(signal) =>
+				session.skill("review", {
+					args: {
+						prContext: buildPrContext(payload, priorReview),
+						owner: payload.owner,
+						repo: payload.repo,
+						prNumber: payload.prNumber,
+						baseRef: payload.baseRef,
+						headRef: payload.headRef,
+						repoDir: REPO_DIR,
+						diffPath: DIFF_PATH,
+					},
+					result: reviewResultSchema,
+					signal,
+				}),
+			{
+				label: `review#${payload.prNumber}`,
+				attempts: 3,
+				perAttemptTimeoutMs: 30 * 60_000,
+				onRetry: ({ attempt, delayMs, error }) =>
+					context.log.warn?.("[review] model over capacity, backing off", {
+						prNumber: payload.prNumber,
+						attempt,
+						delayMs,
+						error: String(error),
+					}),
 			},
-			result: reviewResultSchema,
+		);
+
+		logReviewEvent("log", payload, runId, "review model result received", {
+			hasToken: Boolean(token),
+			verdict: data.verdict,
+			summaryLength: data.summary.length,
+			findingCount: data.findings.length,
 		});
 
-		// Post from this trusted DO context (durable, not bound by the webhook's
-		// 30s waitUntil budget). In dev (no creds) we just log and return.
 		if (token) {
-			// Don't let a transient GitHub failure throw: that would discard the
-			// completed review AND trigger Flue's at-least-once workflow restart
-			// (a full re-review). Log and return the result instead.
-			try {
-				await postReview(token, payload.owner, payload.repo, payload.prNumber, data);
-			} catch (err) {
-				ctx.log.error?.("[review] postReview failed", {
-					error: String(err),
-					prNumber: payload.prNumber,
-				});
+			stage = "posting_review";
+			if (
+				!(await reportStage(
+					env,
+					token,
+					payload,
+					runId,
+					"posting_review",
+					"Posting the review to GitHub.",
+				))
+			) {
+				throw new Error("Review attempt is no longer active");
 			}
+			if (payload.headSha) {
+				const currentHeadSha = await fetchPullRequestHeadSha(
+					token,
+					payload.owner,
+					payload.repo,
+					payload.prNumber,
+				);
+				if (currentHeadSha.toLowerCase() !== payload.headSha.toLowerCase()) {
+					throw new Error("PR head changed before the review could be posted");
+				}
+			}
+			await postReview(
+				token,
+				payload.owner,
+				payload.repo,
+				payload.prNumber,
+				data,
+				payload.headSha,
+				payload.attemptId,
+			);
 		} else {
-			ctx.log.info?.("[review] no GitHub App creds; skipping post", { prNumber: payload.prNumber });
+			logReviewEvent("log", payload, runId, "GitHub App credentials unavailable; skipping post");
 		}
 
+		await finishReviewCheck(env, payload, runId, {
+			conclusion: "success",
+			summary: `The automated review completed with verdict \`${data.verdict}\` and ${data.findings.length} finding(s).`,
+		});
+
 		return data;
+	} catch (error) {
+		logReviewEvent("error", payload, runId, "review run failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+		const errorName = error instanceof Error ? error.name : "Error";
+		await finishReviewCheck(env, payload, runId, {
+			conclusion: "failure",
+			summary: `The review failed during the \`${stage}\` stage (\`${errorName}\`). Reapply the \`bot:review\` label to retry.`,
+		});
+		throw error;
 	} finally {
-		// Clear the in-progress marker whether the review posted or threw.
 		if (token && reactionId !== undefined) {
 			await removeReaction(token, payload.owner, payload.repo, payload.prNumber, reactionId);
 		}
 	}
 }
+
+export default defineWorkflow({
+	agent: reviewAgent,
+	input: reviewPayloadSchema,
+	output: reviewResultSchema,
+	run,
+});
+
+// Enable POST /workflows/review (the internal admission route the webhook
+// handler calls). Pass-through: admission control lives in the webhook handler.
+export const route: WorkflowRouteHandler = async (_c, next) => next();

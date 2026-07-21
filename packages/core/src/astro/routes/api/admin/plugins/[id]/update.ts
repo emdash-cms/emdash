@@ -18,6 +18,7 @@ const updateBodySchema = z.object({
 	version: z.string().min(1).optional(),
 	confirmCapabilityChanges: z.boolean().optional(),
 	confirmRouteVisibilityChanges: z.boolean().optional(),
+	confirmMcpTools: z.boolean().optional(),
 });
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
@@ -48,6 +49,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			version: body.version,
 			confirmCapabilityChanges: body.confirmCapabilityChanges,
 			confirmRouteVisibilityChanges: body.confirmRouteVisibilityChanges,
+			confirmMcpTools: body.confirmMcpTools,
 			sandboxBypassed: emdash.isSandboxBypassed(),
 		},
 	);
