@@ -19,13 +19,14 @@ import { cloudflareSandbox } from "@flue/runtime/cloudflare";
 import { env as workerEnv } from "cloudflare:workers";
 import * as v from "valibot";
 
+import { createPushCapability, PUSH_CAPABILITY_HEADER } from "../lib/github-proxy.js";
 import {
 	getBranchSha,
 	mintInstallationToken,
 	readAppCreds,
 	readRepoContext,
 } from "../lib/github.js";
-import type { AgentResult } from "../lib/orchestrator.js";
+import { applyInvestigationResult } from "../lib/investigation-result.js";
 import { withSandboxDeadlines } from "../lib/sandbox-deadline.js";
 import investigateDocument from "../skills/investigate/instructions.md?raw";
 
@@ -94,7 +95,7 @@ export function Investigate({ id }: AgentProps) {
 			const result = failedResult(
 				`I couldn't prepare the investigation sandbox: ${errorMessage(error)}`,
 			);
-			await applyResult(input, result, false, false);
+			await applyInvestigationResult(input, result, false, false);
 			writeResult({ result, ok: false, pushed: false });
 			setReported(true);
 			log.error("sandbox setup failed", { error: errorMessage(error) });
@@ -112,7 +113,9 @@ export function Investigate({ id }: AgentProps) {
 				const pushed = await step.do("detect-push", () =>
 					detectPush(input.issueNumber, input.previousBranchSha),
 				);
-				await step.do("apply-agent-result", () => applyResult(input, data, true, pushed));
+				await step.do("apply-agent-result", () =>
+					applyInvestigationResult(input, data, true, pushed),
+				);
 				const reportedResult = { result: data, ok: true, pushed };
 				writeResult(reportedResult);
 				setReported(true);
@@ -144,7 +147,7 @@ export function Investigate({ id }: AgentProps) {
 		const result = failedResult(
 			"I couldn't complete this run because the agent stopped without reporting a result.",
 		);
-		await applyResult(input, result, false, false);
+		await applyInvestigationResult(input, result, false, false);
 		writeResult({ result, ok: false, pushed: false });
 		setReported(true);
 		log.warn("agent stopped without reporting", { runId: input.runId });
@@ -170,6 +173,10 @@ async function setupSandbox(
 	if (!repo) throw new Error("repository context is not configured");
 	const cloneUrl = `https://github.com/${repo.owner}/${repo.repo}.git`;
 	const branch = input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
+	const pushCapability = await createPushCapability(
+		workerEnv.GITHUB_WEBHOOK_SECRET,
+		input.issueNumber,
+	);
 	const steps: Array<{ name: string; command: string; timeoutMs?: number; nonFatal?: boolean }> = [
 		{
 			name: "git-identity-email",
@@ -191,6 +198,10 @@ async function setupSandbox(
 					name: "checkout-main",
 					command: `cd ${REPO_DIR} && git checkout main && git reset --hard origin/main`,
 				},
+		{
+			name: "git-push-capability",
+			command: `cd ${REPO_DIR} && git config http.https://github.com/.extraHeader '${PUSH_CAPABILITY_HEADER}: ${pushCapability}'`,
+		},
 		{
 			name: "pnpm-install",
 			command: `cd ${REPO_DIR} && pnpm install --frozen-lockfile --prefer-offline`,
@@ -225,16 +236,6 @@ async function setupSandbox(
 			throw error;
 		}
 	}
-}
-
-async function applyResult(
-	input: InvestigateData,
-	result: AgentResult,
-	ok: boolean,
-	pushed: boolean,
-): Promise<void> {
-	const stub = workerEnv.Orchestrator.getByName(`issue-${input.issueNumber}`);
-	await stub.applyAgentResult({ runId: input.runId, result, ok, pushed });
 }
 
 function failedResult(summary: string): InvestigationResult {
