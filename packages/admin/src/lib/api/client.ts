@@ -49,9 +49,9 @@ function formatValidationIssues(error: Record<string, unknown>): string | undefi
 /**
  * Throw an error with the message from the API response body if available,
  * falling back to a generic message. All API error responses use the shape
- * `{ error: { code, message, details? } }`. For validation errors, the
- * field-level messages in `error.details.issues` are surfaced instead of
- * the generic "Invalid request data" top-level message.
+ * `{ success: false, error: { code, message, details? } }`. For validation
+ * errors, the field-level messages in `error.details.issues` are surfaced
+ * instead of the generic "Invalid request data" top-level message.
  */
 export async function throwResponseError(res: Response, fallback: string): Promise<never> {
 	const body: unknown = await res.json().catch(() => ({}));
@@ -216,7 +216,7 @@ export interface AdminManifest {
 }
 
 /**
- * Parse an API response with the { data: T } envelope.
+ * Parse an API response with the { success, data: T } envelope.
  *
  * Handles error responses via throwResponseError, then unwraps the data envelope.
  * Replaces both bare `response.json()` and field-unwrap patterns.
