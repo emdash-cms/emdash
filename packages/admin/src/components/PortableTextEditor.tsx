@@ -1485,6 +1485,7 @@ function PluginBlockModal({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		e.stopPropagation();
 		if (block?.fields && block.fields.length > 0) {
 			onInsert(formValues);
 		} else {
