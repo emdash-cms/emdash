@@ -1,7 +1,7 @@
 {
 	"name": "@emdash-cms/plugin-mcp-smoke",
 	"private": true,
-	"version": "0.0.1",
+	"version": "1.0.0",
 	"description": "Test fixture for end-to-end plugin MCP verification",
 	"type": "module",
 	"exports": {
