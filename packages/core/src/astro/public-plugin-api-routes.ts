@@ -1,3 +1,4 @@
+import type { RouteMeta } from "../plugins/routes.js";
 import type { HandlerResponse } from "./types.js";
 
 export type PublicPluginApiRouteHandler = (
@@ -8,7 +9,7 @@ export type PublicPluginApiRouteHandler = (
 ) => Promise<HandlerResponse>;
 
 interface PublicPluginApiRouteRuntime {
-	getPluginRouteMeta(pluginId: string, path: string): { public: boolean } | null;
+	getPluginRouteMeta(pluginId: string, path: string): RouteMeta | null;
 	handlePluginApiRoute(
 		pluginId: string,
 		method: string,

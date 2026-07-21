@@ -11,7 +11,6 @@ import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
-	PuzzlePiece,
 	DownloadSimple,
 	ShieldCheck,
 	ShieldWarning,
@@ -29,6 +28,7 @@ import {
 	type MarketplaceSearchOpts,
 } from "../lib/api/marketplace.js";
 import { safeIconUrl } from "../lib/url.js";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 
 type SortOption = "installs" | "updated" | "created" | "name";
 
@@ -169,7 +169,7 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 				<>
 					{plugins.length === 0 ? (
 						<div className="rounded-lg border bg-kumo-base p-8 text-center">
-							<PuzzlePiece className="mx-auto h-12 w-12 text-kumo-subtle" />
+							<ADMIN_NAV_ICONS.plugins className="mx-auto h-12 w-12 text-kumo-subtle" />
 							<h3 className="mt-4 text-lg font-medium">{t`No plugins found`}</h3>
 							<p className="mt-2 text-sm text-kumo-subtle">
 								{debouncedQuery

@@ -14,6 +14,9 @@ minimumReleaseAgeExclude:
   # stall. TEMPORARY: remove this scope exclusion once the cooldown has elapsed.
   - astro
   - "@astrojs/*"
+  # The bot is intentionally pinned to this reviewed Flue 2 nightly.
+  - "@flue/runtime@0.4.0-nightly.202605171039"
+  - "@flue/vite@0.4.0-nightly.202605171039"
 trustPolicy: no-downgrade
 strictDepBuilds: true
 dangerouslyAllowAllBuilds: false
@@ -45,6 +48,8 @@ trustPolicyExclude:
 overrides:
   # 1.3.0 is deprecated (CWE-502); pin the patched line.
   "@ungap/structured-clone": "^1.3.1"
+  # Flue exports Hono types, so its copy must match the bot's exact pin.
+  "@flue/runtime@0.4.0-nightly.202605171039>hono": "4.12.27"
 
 patchedDependencies:
   "@sigstore/core@4.0.1": patches/@sigstore__core@4.0.1.patch

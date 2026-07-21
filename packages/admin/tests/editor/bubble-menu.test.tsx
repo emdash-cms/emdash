@@ -222,26 +222,11 @@ async function waitForTableToolbar(): Promise<HTMLElement> {
 
 /**
  * Find the bubble menu element.
- * TipTap's BubbleMenu renders as a div with role=presentation (tippy.js).
- * Our menu has the class "bg-kumo-base" and contains aria-label buttons.
+ * The dedicated data attribute avoids coupling the test to surface styles,
+ * which are also shared by the editor canvas and other floating controls.
  */
 function getBubbleMenu(): HTMLElement | null {
-	// The BubbleMenu from @tiptap/react/menus renders inline.
-	// Look for the container with our known class pattern.
-	const candidates = document.querySelectorAll('[class*="bg-kumo-base"]');
-	for (const el of candidates) {
-		// Bubble menu has formatting buttons with specific aria-labels
-		if (el.querySelector('[aria-label="Bold"]') && el.querySelector('[aria-label="Italic"]')) {
-			return el as HTMLElement;
-		}
-	}
-	// Also check for link input mode (has Apply link button)
-	for (const el of candidates) {
-		if (el.querySelector('[aria-label="Apply link"]')) {
-			return el as HTMLElement;
-		}
-	}
-	return null;
+	return document.querySelector<HTMLElement>("[data-emdash-inline-bubble-menu]");
 }
 
 /** Wait for bubble menu to appear */
@@ -255,6 +240,35 @@ async function waitForBubbleMenu(): Promise<HTMLElement> {
 		{ timeout: 3000 },
 	);
 	return menu!;
+}
+
+function findScrollableAncestor(element: HTMLElement): HTMLElement | null {
+	let ancestor = element.parentElement;
+	while (ancestor) {
+		if (["auto", "scroll"].includes(getComputedStyle(ancestor).overflowX)) return ancestor;
+		ancestor = ancestor.parentElement;
+	}
+	return null;
+}
+
+function hasNonZeroRadius(element: HTMLElement): boolean {
+	const computedRadius = getComputedStyle(element).borderRadius;
+	const computedValues = computedRadius.match(/\d*\.?\d+/g)?.map(Number) ?? [];
+	if (computedValues.some((value) => value > 0)) return true;
+
+	// The component harness does not resolve admin-only Tailwind variables, so
+	// fall back to validating a semantic inline declaration when necessary.
+	const declaredRadius = element.style.borderRadius.trim();
+	if (!declaredRadius || !CSS.supports("border-radius", declaredRadius)) return false;
+	if (declaredRadius.includes("var(")) return true;
+	const declaredValues = declaredRadius.match(/\d*\.?\d+/g)?.map(Number) ?? [];
+	return declaredValues.some((value) => value > 0);
+}
+
+function expectRoundedFloatingWrapper(menu: HTMLElement) {
+	const wrapper = findScrollableAncestor(menu);
+	expect(wrapper).toBeTruthy();
+	expect(hasNonZeroRadius(wrapper!)).toBe(true);
 }
 
 /** Get a bubble menu button by aria-label */
@@ -297,6 +311,14 @@ describe("Bubble Menu", () => {
 
 		const menu = await waitForBubbleMenu();
 		expect(menu).toBeTruthy();
+	});
+
+	it("rounds the scrollable positioning wrapper to preserve every menu corner", async () => {
+		const { editor, pm } = await renderEditor();
+		await focusAndSelectAll(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		await vi.waitFor(() => expectRoundedFloatingWrapper(menu));
 	});
 
 	it("flips below a top-line selection when the sticky toolbar blocks the preferred position", async () => {
@@ -376,6 +398,7 @@ describe("Bubble Menu", () => {
 			expect(menuRect.top).toBeGreaterThanOrEqual(
 				formattingToolbar!.getBoundingClientRect().bottom,
 			);
+			expectRoundedFloatingWrapper(tableToolbar);
 		});
 	});
 

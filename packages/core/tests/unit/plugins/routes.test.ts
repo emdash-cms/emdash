@@ -173,6 +173,33 @@ describe("PluginRouteHandler", () => {
 			const meta = handler.getRouteMeta("admin");
 			expect(meta).toEqual({ public: false });
 		});
+
+		it("exposes cacheControl for public routes", () => {
+			const plugin = createTestPlugin({
+				routes: {
+					catalog: { public: true, cacheControl: "public, max-age=60", handler: vi.fn() },
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			expect(handler.getRouteMeta("catalog")).toEqual({
+				public: true,
+				cacheControl: "public, max-age=60",
+			});
+		});
+
+		it("never exposes cacheControl for private routes", () => {
+			// Private responses are per-user; a route that sets both flags must
+			// not become cacheable.
+			const plugin = createTestPlugin({
+				routes: {
+					admin: { cacheControl: "public, max-age=60", handler: vi.fn() },
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			expect(handler.getRouteMeta("admin")).toEqual({ public: false });
+		});
 	});
 
 	describe("getRouteNames", () => {

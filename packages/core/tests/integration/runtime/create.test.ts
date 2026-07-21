@@ -150,6 +150,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 						name: "Example Site",
 						url: "https://example.com",
 						locale: "nl",
+						trailingSlash: "ignore",
 					},
 				}),
 			);

@@ -13,7 +13,7 @@ import { kyselyLogOption } from "emdash/database/instrumentation";
 import { type Dialect, Kysely } from "kysely";
 
 import { CoalescingD1Dialect } from "./coalescing-d1.js";
-import { EmDashD1Dialect } from "./d1-dialect.js";
+import { EmDashD1Dialect, RawBindingD1Dialect } from "./d1-dialect.js";
 
 /**
  * D1 configuration (runtime type — matches the config-time type in index.ts)
@@ -84,7 +84,11 @@ export function createDialect(config: D1Config): Dialect {
 			'[emdash] d1({ coalesce: true }) has no effect without sessions — set session: "auto" (or "primary-first") to enable query coalescing.',
 		);
 	}
-	return new EmDashD1Dialect({ database: db });
+	// The raw-binding singleton skips the ConnectionMutex: on Workers a
+	// canceled request would otherwise never release the lock, deadlocking the
+	// isolate (#2040). The session-backed dialects below keep their
+	// serialization (see RawBindingD1Dialect for why).
+	return new RawBindingD1Dialect({ database: db });
 }
 
 /**

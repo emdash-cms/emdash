@@ -1,5 +1,12 @@
 # @emdash-cms/registry-client
 
+## 0.3.4
+
+### Patch Changes
+
+- Updated dependencies [[`07c9f21`](https://github.com/emdash-cms/emdash/commit/07c9f210db300803f49ecf2b8a18fe173e459a28)]:
+  - @emdash-cms/registry-lexicons@0.3.0
+
 ## 0.3.3
 
 ### Patch Changes

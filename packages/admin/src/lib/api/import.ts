@@ -422,7 +422,7 @@ export async function importWxrMedia(
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to import media`));
 
 	// If no progress callback, just parse as JSON (non-streaming mode)
-	// Note: streaming NDJSON responses are excluded from the { data } envelope
+	// Note: streaming NDJSON responses are excluded from the { success, data } envelope
 	if (!onProgress) {
 		return parseApiResponse<MediaImportResult>(response, "Failed to import media");
 	}

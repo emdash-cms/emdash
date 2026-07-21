@@ -20,7 +20,7 @@ import type {
 	MediaUsageTable,
 } from "../types.js";
 import { validateIdentifier } from "../validate.js";
-import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
+import { decodeCursor, encodeCursor, InvalidCursorError, type FindManyResult } from "./types.js";
 
 type DatabaseExecutor = Kysely<Database> | Transaction<Database>;
 type MediaUsageSourceNullableStringColumn =
@@ -537,6 +537,9 @@ export class MediaUsageRepository {
 		const requestedLimit = Math.floor(options.limit ?? 50);
 		const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(1, requestedLimit), 100) : 50;
 		const cursor = options.cursor ? decodeCursor(options.cursor) : null;
+		if (cursor && (cursor.orderValue.length === 0 || cursor.id.length === 0)) {
+			throw new InvalidCursorError(options.cursor ?? "");
+		}
 		let matchedGroups = this.currentContentMediaUsageBaseQuery()
 			.select(["s.collection_slug as collection_slug", "s.content_id as content_id"])
 			.where("u.media_id", "=", mediaId)

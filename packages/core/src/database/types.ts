@@ -362,6 +362,8 @@ export interface PluginStateTable {
 	// `source = 'config' | 'marketplace'`; populated for `source = 'registry'`.
 	registry_publisher_did: string | null;
 	registry_slug: string | null;
+	mcp_tools_enabled: Generated<number>;
+	mcp_tools_consent: string | null;
 }
 
 export interface PluginIndexTable {

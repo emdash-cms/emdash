@@ -16,8 +16,8 @@ import type { Kysely } from "kysely";
 import {
 	generatePrefixedToken,
 	hashApiToken,
+	isValidScope,
 	TOKEN_PREFIXES,
-	VALID_SCOPES,
 } from "../../auth/api-tokens.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
@@ -87,11 +87,7 @@ export { validateRedirectUri };
 function normalizeScopes(requested?: string): string[] {
 	if (!requested) return [];
 
-	const validSet = new Set<string>(VALID_SCOPES);
-	const scopes = requested
-		.split(" ")
-		.filter(Boolean)
-		.filter((s) => validSet.has(s));
+	const scopes = requested.split(" ").filter(Boolean).filter(isValidScope);
 
 	return scopes;
 }

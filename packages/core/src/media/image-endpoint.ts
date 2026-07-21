@@ -20,6 +20,17 @@ export const ALLOWED_TRANSFORM_FORMATS = ["webp", "avif", "jpeg", "png"] as cons
 /** Default output format -- broad support, strong compression. */
 export const DEFAULT_TRANSFORM_FORMAT: ImageTransformFormat = "webp";
 
+/**
+ * Default output quality for lossy formats (WebP/AVIF/JPEG) when the request
+ * doesn't specify one. Matches the default Cloudflare applies to URL-based
+ * image transformations. The Images *binding* applies no default of its own
+ * and encodes near-losslessly when quality is omitted (a 2048px WebP comes
+ * out ~900 KB instead of ~100 KB), so the endpoint sends an explicit quality
+ * for lossy output. PNG is exempt: an explicit PNG quality switches the
+ * binding to lossy PNG8, which is not a safe default for a lossless format.
+ */
+export const DEFAULT_TRANSFORM_QUALITY = 85;
+
 /** Upper bound for a requested dimension; caps the work a single request asks for. */
 export const MAX_TRANSFORM_DIMENSION = 4000;
 
@@ -31,6 +42,11 @@ export interface ImageTransformOptions {
 	width?: number;
 	height?: number;
 	format: ImageTransformFormat;
+	/**
+	 * Explicitly-requested quality (1-100), or `undefined` when the request
+	 * carried no `q`. Callers apply their own default per format (see
+	 * {@link DEFAULT_TRANSFORM_QUALITY}); lossless PNG deliberately gets none.
+	 */
 	quality?: number;
 }
 
@@ -118,9 +134,29 @@ export type ParsedTransformParams =
 	| { ok: false; message: string };
 
 /**
+ * Resolve the quality to send to the image binding for a transform. An
+ * explicitly-requested quality always wins. Otherwise lossy formats
+ * (WebP/AVIF/JPEG) get {@link DEFAULT_TRANSFORM_QUALITY} because the Images
+ * binding encodes near-losslessly when quality is omitted; lossless PNG gets
+ * `undefined` because an explicit PNG quality switches the binding to lossy
+ * PNG8, which is not a safe default for a lossless format.
+ */
+export function resolveTransformQuality(
+	format: ImageTransformFormat,
+	requested: number | undefined,
+): number | undefined {
+	if (requested !== undefined) return requested;
+	return format === "png" ? undefined : DEFAULT_TRANSFORM_QUALITY;
+}
+
+/**
  * Parse and validate `?w=&h=&f=&q=` query params. Width is required (it sizes
  * the rendition); dimensions are bounded so a request can't ask for an
- * unbounded or nonsensical transform.
+ * unbounded or nonsensical transform. Format falls back to
+ * {@link DEFAULT_TRANSFORM_FORMAT} when not requested. `q` is validated when
+ * present but otherwise left `undefined` so the caller can apply a per-format
+ * default (lossy formats get one, lossless PNG does not — see
+ * {@link DEFAULT_TRANSFORM_QUALITY}).
  */
 export function parseTransformParams(params: URLSearchParams): ParsedTransformParams {
 	const width = parseDimension(params.get("w"));
@@ -139,8 +175,8 @@ export function parseTransformParams(params: URLSearchParams): ParsedTransformPa
 		format = formatRaw;
 	}
 
-	const qualityRaw = params.get("q");
 	let quality: number | undefined;
+	const qualityRaw = params.get("q");
 	if (qualityRaw !== null) {
 		const q = Number(qualityRaw);
 		if (!Number.isInteger(q) || q < 1 || q > 100) {

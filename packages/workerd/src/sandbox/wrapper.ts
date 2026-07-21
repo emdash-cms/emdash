@@ -18,7 +18,12 @@ const NEWLINE_RE = /[\n\r]/g;
 const COMMENT_CLOSE_RE = /\*\//g;
 
 export interface WrapperOptions {
-	site?: { name: string; url: string; locale: string };
+	site?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 	/** URL of the Node backing service (e.g., http://127.0.0.1:18787) */
 	backingServiceUrl: string;
 	/** Auth token the plugin sends on outbound bridge calls to Node */
