@@ -20,8 +20,13 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { handleContentGet } from "../../../src/api/handlers/content.js";
 import {
+	handleTaxonomyCreate,
+	handleTaxonomyList,
 	handleTermCreate,
+	handleTermDelete,
+	handleTermGet,
 	handleTermList,
+	handleTermUpdate,
 	type TermWithCount,
 } from "../../../src/api/handlers/taxonomies.js";
 import {
@@ -182,6 +187,51 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		);
 
 		expect(term.locale).toBe("zh-TW");
+	});
+
+	it("resolves taxonomy reads with the configured locale casing", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+		const createdDef = await handleTaxonomyCreate(ctx.db, {
+			name: "categories",
+			label: "Categories",
+			locale: "zh-tw",
+		});
+		expect(createdDef.success).toBe(true);
+
+		const definitions = await handleTaxonomyList(ctx.db, { locale: "zh-tw" });
+		expect(definitions.success).toBe(true);
+		if (!definitions.success) throw new Error(definitions.error.message);
+		expect(definitions.data.taxonomies.map((taxonomy) => taxonomy.name)).toEqual(["categories"]);
+
+		await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "news",
+				label: "News",
+				locale: "zh-tw",
+			}),
+		);
+
+		const listed = await handleTermList(ctx.db, "categories", { locale: "zh-tw" });
+		expect(listed.success).toBe(true);
+		if (!listed.success) throw new Error(listed.error.message);
+		expect(listed.data.terms.map((term) => term.slug)).toEqual(["news"]);
+
+		const fetched = await handleTermGet(ctx.db, "categories", "news", { locale: "zh-tw" });
+		expect(fetched.success).toBe(true);
+
+		const updated = await handleTermUpdate(
+			ctx.db,
+			"categories",
+			"news",
+			{ label: "Latest news" },
+			{ locale: "zh-tw" },
+		);
+		expect(updated.success).toBe(true);
+
+		const deleted = await handleTermDelete(ctx.db, "categories", "news", {
+			locale: "zh-tw",
+		});
+		expect(deleted.success).toBe(true);
 	});
 
 	it("repository resolves only the entry-locale variant when locale is given", async () => {
