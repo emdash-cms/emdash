@@ -43,11 +43,24 @@ export function matchesMimeAllowlist(mime: string, allowList: readonly string[])
 	return false;
 }
 
+/** Try to resolve a MIME type from a filename's extension. Returns null on failure. */
+export function mimeFromFilename(filename: string): string | null {
+	const dotIdx = filename.lastIndexOf(".");
+	if (dotIdx === -1) return null;
+	const ext = filename.slice(dotIdx).toLowerCase();
+	return EXTENSION_TO_MIME[ext] ?? null;
+}
+
 /** Try to resolve a MIME type from a URL's file extension. Returns null on failure. */
 export function mimeFromUrl(url: URL): string | null {
 	const lastSegment = url.pathname.split("/").pop() ?? "";
-	const dotIdx = lastSegment.lastIndexOf(".");
-	if (dotIdx === -1) return null;
-	const ext = lastSegment.slice(dotIdx).toLowerCase();
-	return EXTENSION_TO_MIME[ext] ?? null;
+	return mimeFromFilename(lastSegment);
+}
+
+/** Try to resolve a MIME type from a File's declared type or filename extension. */
+export function mimeFromFile(file: File): string | null {
+	const declaredType = file.type.trim();
+	return declaredType && declaredType !== "application/octet-stream"
+		? declaredType
+		: mimeFromFilename(file.name);
 }
