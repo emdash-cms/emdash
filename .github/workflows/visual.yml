@@ -6,13 +6,13 @@ name: Visual Regression
 # a read-only token and never comments or pushes. The companion workflows handle
 # that with elevated permissions, isolated from PR-authored code:
 #   - "Visual Regression — Report" (workflow_run) posts the sticky comment.
-#   - "Visual Regression — Apply" (schedule) commits accepted baselines when a
-#     maintainer reacts 👍 to the sticky comment.
+#   - "Visual Regression — Apply" commits accepted baselines when a maintainer
+#     comments /accept-baselines on the PR.
 #
 # Baselines are Linux/chromium PNGs regenerated here on the CI runner, so they
 # always match the environment they're diffed in. Contributors do NOT commit
-# baselines by hand (macOS PNGs would never match); the 👍-accept flow commits
-# the correct Linux baselines for them.
+# baselines by hand (macOS PNGs would never match); the /accept-baselines flow
+# commits the correct Linux baselines for them.
 
 on:
   pull_request:
@@ -97,7 +97,7 @@ jobs:
           fi
 
           # Regenerate the accepted-state baselines (the candidates the Apply
-          # workflow will commit verbatim on 👍). These are Linux/chromium PNGs.
+          # workflow commits verbatim on accept). These are Linux/chromium PNGs.
           pnpm exec playwright test visual-regression --update-snapshots --reporter=line || true
           mkdir -p visual-out/candidates
           if [ -d e2e/tests/visual-regression.spec.ts-snapshots ]; then
@@ -129,5 +129,5 @@ jobs:
       - name: Fail on drift
         if: steps.collect.outputs.has_drift == 'true'
         run: |
-          echo "::error::Visual snapshots changed. Review the diff in the sticky comment; a maintainer 👍 on that comment accepts the new baselines."
+          echo "::error::Visual snapshots changed. Review the diff in the sticky comment; a maintainer comments /accept-baselines to accept the new baselines."
           exit 1
