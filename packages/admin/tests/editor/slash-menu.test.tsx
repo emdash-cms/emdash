@@ -455,7 +455,7 @@ describe("Slash Command Menu", () => {
 		const menu = await waitForSlashMenu();
 		const items = getSlashMenuItems(menu);
 
-		// Default commands: heading1-3, bullet/numbered list, quote, code block, divider, image, section
+		// Default commands: heading1-6, bullet/numbered list, quote, code block, divider, image, section
 		expect(items.length).toBeGreaterThanOrEqual(8);
 	});
 
@@ -471,6 +471,9 @@ describe("Slash Command Menu", () => {
 		expect(titles).toContain("Heading 1");
 		expect(titles).toContain("Heading 2");
 		expect(titles).toContain("Heading 3");
+		expect(titles).toContain("Heading 4");
+		expect(titles).toContain("Heading 5");
+		expect(titles).toContain("Heading 6");
 		expect(titles).toContain("Bullet List");
 		expect(titles).toContain("Numbered List");
 		expect(titles).toContain("Quote");
