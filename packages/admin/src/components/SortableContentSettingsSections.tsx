@@ -97,7 +97,7 @@ export function SortableContentSettingsSections({
 		);
 		return new Map(sections.map((section) => [section.props.id, section]));
 	}, [children]);
-	const sectionIds = React.useMemo(() => Array.from(sectionsById.keys()), [sectionsById]);
+	const sectionIds = React.useMemo(() => [...sectionsById.keys()], [sectionsById]);
 	const layout = React.useMemo(
 		() => resolveContentSettingsLayout(storedLayout, sectionIds),
 		[sectionIds, storedLayout],
@@ -112,7 +112,7 @@ export function SortableContentSettingsSections({
 	);
 	const handleDragStart = React.useCallback(
 		(event: DragStartEvent) => {
-			setActiveId(String(event.active.id) as ContentSettingsSectionId);
+			setActiveId(String(event.active.id));
 			onSortingChange?.(true);
 		},
 		[onSortingChange],
@@ -127,8 +127,8 @@ export function SortableContentSettingsSections({
 			setActiveId(null);
 			onSortingChange?.(false);
 			if (event.over && event.active.id !== event.over.id) {
-				const movedId = String(event.active.id) as ContentSettingsSectionId;
-				const overId = String(event.over.id) as ContentSettingsSectionId;
+				const movedId = String(event.active.id);
+				const overId = String(event.over.id);
 				setStoredLayout((current) => {
 					const next = reorderContentSettingsLayout(
 						resolveContentSettingsLayout(current, sectionIds),
