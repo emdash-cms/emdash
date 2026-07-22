@@ -135,6 +135,32 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("media_grid", () => {
+			const result = validateBlocks([
+				{
+					type: "media_grid",
+					columns: 3,
+					empty_text: "No media",
+					items: [
+						{
+							url: "https://example.com/photo.jpg",
+							alt: "Photo",
+							title: "Photo title",
+							description: "Photo description",
+							badge: "New",
+							actions: [{ type: "button", action_id: "view", label: "View" }],
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("media_grid with empty items array", () => {
+			const result = validateBlocks([{ type: "media_grid", items: [] }]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("repeater", () => {
 			const result = validateBlocks([
 				{
@@ -499,6 +525,44 @@ describe("validateBlocks", () => {
 			]);
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].default_open");
+		});
+
+		it("media_grid missing items", () => {
+			const result = validateBlocks([{ type: "media_grid" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].items");
+		});
+
+		it("media_grid item missing required url or alt", () => {
+			const result = validateBlocks([{ type: "media_grid", items: [{}] }]);
+			expect(result.valid).toBe(false);
+			const paths = result.errors.map((e) => e.path);
+			expect(paths).toContain("blocks[0].items[0].url");
+			expect(paths).toContain("blocks[0].items[0].alt");
+		});
+
+		it("media_grid rejects invalid columns", () => {
+			const result = validateBlocks([{ type: "media_grid", columns: 5, items: [] }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].columns");
+		});
+
+		it("media_grid actions must be button elements", () => {
+			const result = validateBlocks([
+				{
+					type: "media_grid",
+					items: [
+						{
+							url: "/uploads/photo.jpg",
+							alt: "Photo",
+							actions: [{ type: "select", action_id: "pick", label: "Pick", options: [] }],
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].items[0].actions[0].type");
+			expect(result.errors[0]!.message).toContain("button");
 		});
 
 		it("stats item missing label or value", () => {
