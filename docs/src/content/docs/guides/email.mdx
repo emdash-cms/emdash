@@ -1,0 +1,90 @@
+---
+title: Email Setup
+description: Configure email delivery for magic links, invites, and password recovery — in development and production.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+EmDash uses email for **magic link login**, **user invites**, and **account recovery**. Email delivery is handled by plugins, not by config-file settings — there is no SMTP block in `astro.config.mjs` or `wrangler.jsonc`.
+
+This guide covers how the email pipeline works, what you get out of the box in development, and how to wire up a real provider for production.
+
+## How Email Delivery Works
+
+A single active provider plugin delivers all outgoing mail. If no provider is active, features that need email are unavailable — invite links must then be copied and shared manually from the Users page.
+
+You can see the current state under **Settings → Email** in the admin: whether a provider is active, which plugin it is, and a **send test email** button that exercises the full pipeline.
+
+## Development: Built-in Console Provider
+
+In development (`astro dev`), EmDash auto-activates a built-in console provider when no other provider is selected. It does not send anything — it logs each email to the terminal and keeps the last 100 messages in memory.
+
+That means magic links and invites work out of the box in dev: request a magic link, then copy the URL from your terminal output. You can also list captured emails at the dev-only endpoint `GET /_emdash/api/dev/emails` (and clear them with `DELETE`).
+
+The console provider is dev-only and never runs in production builds.
+
+## Production: Install a Provider Plugin
+
+The community-maintained [`emdash-smtp`](https://github.com/masonjames/emdash-smtp) plugin family covers generic SMTP plus hosted providers, including Amazon SES, Brevo, Mailgun, Postmark, Resend, SendGrid, Zoho, and more.
+
+```bash
+pnpm add emdash-smtp
+```
+
+```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash/astro";
+import { emdashSmtp } from "emdash-smtp";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			// ...your database/storage config
+			plugins: [emdashSmtp()],
+		}),
+	],
+});
+```
+
+Provider credentials are configured through the plugin's own settings — see its README for the provider matrix and setup details.
+
+<Aside type="note" title="Cloudflare Workers: prefer HTTP APIs over raw SMTP">
+	Workers cannot open raw SMTP connections on port 25, so on Cloudflare deployments choose an
+	HTTP-based provider (Resend, SendGrid, Mailgun, Postmark, SES via API, …) rather than generic
+	SMTP. HTTP providers are plain `fetch` calls and work on every Workers plan, including the free
+	tier.
+</Aside>
+
+## Secrets on Cloudflare
+
+Store API keys as Worker secrets, never in `wrangler.jsonc` vars:
+
+```bash
+wrangler secret put RESEND_API_KEY
+```
+
+For local development put the same key in `.env` (note: if a `.dev.vars` file exists, Wrangler ignores `.env` entirely). Read it in code via `import.meta.env.RESEND_API_KEY`.
+
+## Selecting a Provider and Testing
+
+<Steps>
+
+1. Install and activate the provider plugin, then open **Settings → Email** in the admin.
+
+2. If more than one provider plugin is installed, pick the active one there — only one delivers at a time.
+
+3. Use **Send test email** to verify the full pipeline end to end. The result surfaces delivery errors directly, which is the fastest way to debug credentials.
+
+</Steps>
+
+## Troubleshooting
+
+- **"No email provider is configured"** — no provider plugin is active. Install and activate one, then select it in Settings → Email.
+- **Magic links / invites silently unavailable** — same cause. Without a provider, the Users page still creates invites, but you must copy the invite link manually.
+- **Works in dev, fails in production** — dev uses the built-in console provider, which masks a missing production provider. Check Settings → Email on the deployed site.
+- **Emails land in spam** — configure SPF/DKIM/DMARC for your sending domain at your email provider; this is provider-side, not an EmDash setting.
+
+## Related
+
+- [Authentication](/guides/authentication/) — magic links, invites, and recovery flows that rely on email
+- [Email hooks reference](/reference/hooks/#email-hooks) — `email:beforeSend`, `email:deliver`, `email:afterSend`
