@@ -32,6 +32,7 @@ export type {
 	// Block sub-types
 	TableColumn,
 	StatItem,
+	CardGridItem,
 	ChartSeries,
 	ChartConfig,
 	TimeseriesChartConfig,
@@ -56,6 +57,7 @@ export type {
 	MeterBlock,
 	EmptyBlock,
 	AccordionBlock,
+	CardGridBlock,
 	Block,
 	// Interactions
 	BlockAction,
