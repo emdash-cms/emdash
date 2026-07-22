@@ -366,6 +366,82 @@ describe("adaptSandboxEntry", () => {
 			expect(pluginCtx).not.toHaveProperty("requestMeta");
 		});
 
+		it("calls standard-format (definePlugin) handlers with the public single-arg RouteContext (#2079)", async () => {
+			const singleArgHandler = vi.fn().mockResolvedValue({ ok: true });
+
+			// A definePlugin(...) default export carries `id` — the format
+			// signal. Its route handlers are authored against the public
+			// single-arg RouteContext contract.
+			const def = {
+				id: "standard-plugin",
+				version: "1.0.0",
+				routes: {
+					ping: {
+						handler: singleArgHandler,
+					},
+				},
+			};
+			const descriptor = createDescriptor({ id: "standard-plugin" });
+
+			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- deliberately passing a definePlugin-shaped definition through the sandbox adapter, as the trusted plugins:[] path does
+			const result = adaptSandboxEntry(def as unknown as SandboxedPlugin, descriptor);
+
+			const request = new Request("http://localhost/ping");
+			const mockCtx = {
+				input: { foo: "bar" },
+				request,
+				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				plugin: { id: "standard-plugin", version: "1.0.0" },
+				kv: {} as any,
+				storage: { things: { query: vi.fn() } } as any,
+				log: {} as any,
+				site: { name: "", url: "", locale: "en" },
+				url: (p: string) => p,
+			};
+
+			await result.routes.ping.handler(mockCtx as any);
+
+			// The handler must receive the FULL RouteContext as its only
+			// argument — including capability surfaces like storage — with
+			// the real WHATWG Request, not the flattened sandbox shape.
+			expect(singleArgHandler).toHaveBeenCalledTimes(1);
+			expect(singleArgHandler.mock.calls[0]).toHaveLength(1);
+			const [ctx] = singleArgHandler.mock.calls[0];
+			expect(ctx).toBe(mockCtx);
+			expect(ctx.storage.things).toBeDefined();
+			expect(ctx.request).toBe(request);
+		});
+
+		it("keeps the two-arg flattened convention for sandbox-format definitions (no id)", async () => {
+			const twoArgHandler = vi.fn().mockResolvedValue({ ok: true });
+
+			const def: SandboxedPlugin = {
+				routes: { ping: { handler: twoArgHandler } },
+			};
+
+			const result = adaptSandboxEntry(def, createDescriptor());
+
+			const mockCtx = {
+				input: {},
+				request: new Request("http://localhost/ping", { headers: { "x-demo": "1" } }),
+				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				plugin: { id: "test-plugin", version: "1.0.0" },
+				kv: {} as any,
+				storage: {} as any,
+				log: {} as any,
+				site: { name: "", url: "", locale: "en" },
+				url: (p: string) => p,
+			};
+
+			await result.routes.ping.handler(mockCtx as any);
+
+			const [routeCtx, pluginCtx] = twoArgHandler.mock.calls[0];
+			// Sandbox contract: flattened plain-object request, not a Request.
+			expect(routeCtx.request.headers["x-demo"]).toBe("1");
+			expect(routeCtx.request).not.toBeInstanceOf(Request);
+			expect(pluginCtx.storage).toBeDefined();
+		});
+
 		it("preserves public flag on routes", () => {
 			const def: SandboxedPlugin = {
 				routes: {
