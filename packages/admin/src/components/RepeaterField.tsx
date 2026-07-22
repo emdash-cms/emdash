@@ -31,6 +31,8 @@ interface RepeaterSubFieldDef {
 	label: string;
 	required?: boolean;
 	options?: string[];
+	// Not rendered in the editor, but its value is preserved on save.
+	hidden?: boolean;
 }
 
 export interface RepeaterFieldProps {
@@ -233,8 +235,10 @@ function SortableRepeaterItem({
 		transition,
 	};
 
-	// Use the first text sub-field as the item summary label
-	const summaryField = subFields.find((sf) => sf.type === "string" || sf.type === "text");
+	// Use the first visible text sub-field as the item summary label
+	const summaryField = subFields.find(
+		(sf) => !sf.hidden && (sf.type === "string" || sf.type === "text"),
+	);
 	const summaryValue = summaryField ? (item[summaryField.slug] as string) || "" : "";
 	const summaryLabel = summaryValue || t`Item ${index + 1}`;
 
@@ -282,14 +286,16 @@ function SortableRepeaterItem({
 			{/* Sub-fields */}
 			{!isCollapsed && (
 				<div className="p-3 space-y-3">
-					{subFields.map((sf) => (
-						<SubFieldInput
-							key={sf.slug}
-							subField={sf}
-							value={item[sf.slug]}
-							onChange={(v) => onChange(sf.slug, v)}
-						/>
-					))}
+					{subFields
+						.filter((sf) => !sf.hidden)
+						.map((sf) => (
+							<SubFieldInput
+								key={sf.slug}
+								subField={sf}
+								value={item[sf.slug]}
+								onChange={(v) => onChange(sf.slug, v)}
+							/>
+						))}
 				</div>
 			)}
 		</div>
