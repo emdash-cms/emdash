@@ -1,7 +1,7 @@
 import { Trans } from "@lingui/react/macro";
 import * as React from "react";
 
-import type { AdminManifest, ContentItem } from "./api";
+import type { AdminManifest, ContentItem } from "./api.js";
 
 /** Context passed to a trusted plugin's content-list column header. */
 export interface ContentListColumnHeaderContext {
