@@ -841,6 +841,7 @@ export function ContentEditor({
 							collection={collection}
 							item={item}
 							isNew={isNew}
+							manifest={manifest}
 							entryLocale={entryLocale}
 							slug={slug}
 							onSlugChange={handleSlugChange}

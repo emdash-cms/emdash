@@ -36,4 +36,18 @@ describe("content settings layout", () => {
 		expect(next.order.indexOf("seo")).toBe(next.order.indexOf("ownership") - 1);
 		expect(layout.order).toEqual(DEFAULT_CONTENT_SETTINGS_SECTION_ORDER);
 	});
+
+	it("preserves and reorders dynamically registered sections", () => {
+		const pluginSection = "plugin:example:insights";
+		const available = [...DEFAULT_CONTENT_SETTINGS_SECTION_ORDER, pluginSection];
+		const stored = parseContentSettingsLayout(
+			JSON.stringify({ version: 1, order: [pluginSection, "seo"] }),
+		);
+		const layout = resolveContentSettingsLayout(stored, available);
+
+		expect(layout.order.slice(0, 2)).toEqual([pluginSection, "seo"]);
+
+		const next = reorderContentSettingsLayout(layout, pluginSection, "ownership");
+		expect(next.order.indexOf(pluginSection)).toBe(next.order.indexOf("ownership") + 1);
+	});
 });

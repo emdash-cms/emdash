@@ -1,7 +1,7 @@
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ContentEditorProps } from "../../src/components/ContentEditor";
 import {
@@ -11,7 +11,9 @@ import {
 	type SettingsActionBarProps,
 } from "../../src/components/ContentSettingsPanel";
 import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor";
-import type { ContentItem } from "../../src/lib/api";
+import type { AdminManifest, ContentItem } from "../../src/lib/api";
+import type { ContentEditorPanelContext } from "../../src/lib/content-editor-panels";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
 
 // Mock child components with their own data fetching so the panel tests
@@ -78,6 +80,27 @@ const USERS = [
 	{ id: "u1", name: "Editor One", email: "editor@example.com", role: 40 },
 ] as ContentSettingsPanelProps["users"];
 
+const TEST_MANIFEST: AdminManifest = {
+	version: "0.30.0",
+	hash: "test",
+	collections: {},
+	plugins: { insights: { enabled: true } },
+};
+
+function InsightsPanel({ entry, locale }: ContentEditorPanelContext) {
+	return (
+		<div data-testid="insights-panel">
+			Insights for {entry.slug} ({locale})
+		</div>
+	);
+}
+
+function pluginWrapper(pluginAdmins: PluginAdmins) {
+	return function PluginWrapper({ children }: React.PropsWithChildren) {
+		return <PluginAdminProvider pluginAdmins={pluginAdmins}>{children}</PluginAdminProvider>;
+	};
+}
+
 function makePanelProps(
 	overrides: Partial<ContentSettingsPanelProps> = {},
 ): ContentSettingsPanelProps {
@@ -119,6 +142,9 @@ describe("ContentSettingsPanel", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
 
 	it("renders all eight sections when every capability is enabled", async () => {
 		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
@@ -132,6 +158,92 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
 		await expect.element(screen.getByTestId("revision-history")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
+	});
+
+	it("renders applicable trusted plugin panels in host-owned sections", async () => {
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "summary",
+						title: "Content insights",
+						component: InsightsPanel,
+						collections: ["posts"],
+					},
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest: TEST_MANIFEST,
+					entryLocale: "en",
+				})}
+			/>,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect
+			.element(screen.getByRole("heading", { name: "Content insights" }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByTestId("insights-panel"))
+			.toHaveTextContent("Insights for my-post (en)");
+	});
+
+	it("omits panels when their plugin is disabled or the entry is new", async () => {
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{ id: "summary", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const disabledManifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: { insights: { enabled: false } },
+		};
+		const disabledScreen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: disabledManifest })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+		expect(disabledScreen.container.querySelector('[data-testid="insights-panel"]')).toBeNull();
+
+		const newScreen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, manifest: TEST_MANIFEST })}
+			/>,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+		expect(newScreen.container.querySelector('[data-testid="insights-panel"]')).toBeNull();
+	});
+
+	it("contains plugin panel render failures", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		function BrokenPanel(): React.ReactNode {
+			throw new Error("render failed");
+		}
+		function HealthyPanel(): React.ReactNode {
+			return <div data-testid="healthy-panel">Healthy panel</div>;
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{ id: "broken", title: "Broken insights", component: BrokenPanel },
+					{ id: "healthy", title: "Healthy insights", component: HealthyPanel },
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Plugin panel unavailable.");
+		await expect.element(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+		await expect.element(screen.getByTestId("healthy-panel")).toHaveTextContent("Healthy panel");
+		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
+		expect(errorSpy).toHaveBeenCalled();
 	});
 
 	it("hides Ownership and Bylines for users below the editor role", async () => {

@@ -90,7 +90,6 @@ export function SortableContentSettingsSections({
 		setStoredLayout(readStoredLayout(storageKey));
 	}, [storageKey]);
 
-	const layout = React.useMemo(() => resolveContentSettingsLayout(storedLayout), [storedLayout]);
 	const sectionsById = React.useMemo(() => {
 		const sections = React.Children.toArray(children).filter(
 			(child): child is React.ReactElement<SortableContentSettingsSectionProps> =>
@@ -98,6 +97,11 @@ export function SortableContentSettingsSections({
 		);
 		return new Map(sections.map((section) => [section.props.id, section]));
 	}, [children]);
+	const sectionIds = React.useMemo(() => [...sectionsById.keys()], [sectionsById]);
+	const layout = React.useMemo(
+		() => resolveContentSettingsLayout(storedLayout, sectionIds),
+		[sectionIds, storedLayout],
+	);
 	const visibleIds = React.useMemo(
 		() => layout.order.filter((id) => sectionsById.has(id)),
 		[layout.order, sectionsById],
@@ -108,7 +112,7 @@ export function SortableContentSettingsSections({
 	);
 	const handleDragStart = React.useCallback(
 		(event: DragStartEvent) => {
-			setActiveId(String(event.active.id) as ContentSettingsSectionId);
+			setActiveId(String(event.active.id));
 			onSortingChange?.(true);
 		},
 		[onSortingChange],
@@ -123,11 +127,11 @@ export function SortableContentSettingsSections({
 			setActiveId(null);
 			onSortingChange?.(false);
 			if (event.over && event.active.id !== event.over.id) {
-				const movedId = String(event.active.id) as ContentSettingsSectionId;
-				const overId = String(event.over.id) as ContentSettingsSectionId;
+				const movedId = String(event.active.id);
+				const overId = String(event.over.id);
 				setStoredLayout((current) => {
 					const next = reorderContentSettingsLayout(
-						resolveContentSettingsLayout(current),
+						resolveContentSettingsLayout(current, sectionIds),
 						movedId,
 						overId,
 					);
@@ -136,7 +140,7 @@ export function SortableContentSettingsSections({
 				});
 			}
 		},
-		[onSortingChange, storageKey],
+		[onSortingChange, sectionIds, storageKey],
 	);
 
 	return (
