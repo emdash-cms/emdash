@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import type { ContentFieldFilters } from "../../content-list-query.js";
 import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
@@ -499,6 +500,7 @@ export async function handleContentList(
 		bylines?: string[];
 		bylinesNone?: boolean;
 		includeInferredBylines?: boolean;
+		fieldFilters?: ContentFieldFilters;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
@@ -508,6 +510,9 @@ export async function handleContentList(
 		const locale = params.locale ? resolveConfiguredLocale(params.locale) : undefined;
 		if (locale) where.locale = locale;
 		if (params.authorId) where.authorId = params.authorId;
+		if (params.fieldFilters && Object.keys(params.fieldFilters).length > 0) {
+			where.fieldFilters = params.fieldFilters;
+		}
 
 		const bylineFilter = resolveBylineFilter(params, locale);
 		if (bylineFilter) where.bylineFilter = bylineFilter;

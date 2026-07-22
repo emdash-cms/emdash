@@ -27,6 +27,13 @@ export type {
 	FindManyOptions,
 	FindManyResult,
 } from "./database/repositories/index.js";
+export type {
+	ContentFieldFilterScalar,
+	ContentFieldFilterValue,
+	ContentFieldFilters,
+	ContentFieldInFilter,
+	ContentFieldRangeFilter,
+} from "./content-list-query.js";
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
 export type { CompoundSelectLimitedAdapter } from "./database/dialect-helpers.js";
 

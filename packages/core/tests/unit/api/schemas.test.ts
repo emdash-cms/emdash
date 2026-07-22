@@ -152,6 +152,32 @@ describe("localeCode validator", () => {
 		expect(result.locale).toBe("zh-TW");
 	});
 
+	it("contentListQuery parses bounded indexed field filters", () => {
+		const result = contentListQuery.parse({
+			fieldFilters: JSON.stringify({
+				priority: { in: ["urgent", "high"] },
+				score: { gte: 80 },
+				resolved: false,
+			}),
+		});
+
+		expect(result.fieldFilters).toEqual({
+			priority: { in: ["urgent", "high"] },
+			score: { gte: 80 },
+			resolved: false,
+		});
+	});
+
+	it("contentListQuery rejects malformed or unsupported field filters", () => {
+		expect(() => contentListQuery.parse({ fieldFilters: "not-json" })).toThrow();
+		expect(() =>
+			contentListQuery.parse({ fieldFilters: JSON.stringify({ priority: { in: [] } }) }),
+		).toThrow();
+		expect(() =>
+			contentListQuery.parse({ fieldFilters: JSON.stringify({ "priority;drop": "urgent" }) }),
+		).toThrow();
+	});
+
 	it("contentCreateBody keeps the locale casing", () => {
 		const result = contentCreateBody.parse({ data: { title: "Hi" }, locale: "pt-BR" });
 		expect(result.locale).toBe("pt-BR");
