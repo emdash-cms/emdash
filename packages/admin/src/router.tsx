@@ -137,6 +137,7 @@ interface RouterContext {
 interface ContentUpdateChanges {
 	data?: Record<string, unknown>;
 	slug?: string;
+	publishedAt?: string | null;
 	authorId?: string | null;
 	bylines?: BylineCreditInput[];
 	skipRevision?: boolean;
@@ -1188,6 +1189,17 @@ function ContentEditPage() {
 		},
 		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
 	);
+	const handlePublishedAtChange = React.useCallback(
+		(publishedAt: string) => {
+			updateMutation.mutate({
+				targetId: id,
+				targetLocale: rawItem?.locale ?? activeLocale,
+				source: "auxiliary",
+				changes: { publishedAt },
+			});
+		},
+		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+	);
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
@@ -1268,6 +1280,10 @@ function ContentEditPage() {
 			onSchedule={handleSchedule}
 			onUnschedule={handleUnschedule}
 			isScheduling={scheduleMutation.isPending}
+			onPublishedAtChange={handlePublishedAtChange}
+			isUpdatingPublishedAt={
+				updateMutation.isPending && updateMutation.variables?.changes.publishedAt !== undefined
+			}
 			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
