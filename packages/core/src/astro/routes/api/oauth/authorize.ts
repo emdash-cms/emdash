@@ -69,11 +69,16 @@ function getCsrfCookie(request: Request): string | null {
 
 const SCOPE_LABELS: Record<string, string> = {
 	"content:read": "Read content (posts, pages, etc.)",
-	"content:write": "Create, edit, and delete content",
+	"content:write": "Create, edit, and delete content; manage menus and taxonomies",
 	"media:read": "View media files",
 	"media:write": "Upload and manage media files",
 	"schema:read": "View collection schemas",
 	"schema:write": "Create and modify collection schemas",
+	"taxonomies:manage": "Manage taxonomies",
+	"menus:manage": "Manage navigation menus",
+	"settings:read": "View site settings",
+	"settings:manage": "Modify site settings",
+	"mcp:tools": "Use MCP tools from all enabled plugins",
 	admin: "Full administrative access",
 };
 
@@ -141,7 +146,9 @@ export const GET: APIRoute = async ({ url, request, locals }) => {
 	}
 
 	// Parse and validate scopes
-	const requestedScopes = (scope ?? "").split(" ").filter(Boolean).filter(isValidScope);
+	const requestedScopes = [
+		...new Set((scope ?? "").split(" ").filter(Boolean).filter(isValidScope)),
+	];
 
 	if (requestedScopes.length === 0) {
 		return new Response(renderErrorPage("No valid scopes requested."), {
@@ -201,6 +208,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const v = formData.get(name);
 		return typeof v === "string" ? v : fallback;
 	};
+	const requestedScopes = new Set(
+		(new URL(request.url).searchParams.get("scope") ?? "")
+			.split(" ")
+			.filter(Boolean)
+			.filter(isValidScope),
+	);
+	const selectedScopes = [
+		...new Set(
+			formData
+				.getAll("scope")
+				.filter((value): value is string => typeof value === "string")
+				.filter(isValidScope)
+				.filter((scope) => requestedScopes.has(scope)),
+		),
+	];
 
 	// SEC-18: Validate CSRF token (double-submit cookie pattern).
 	// The form includes a hidden csrf_token field; the cookie has the same value.
@@ -285,7 +307,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		response_type: field("response_type", "code"),
 		client_id: field("client_id"),
 		redirect_uri: redirectUri,
-		scope: field("scope"),
+		scope: selectedScopes.join(" "),
 		state,
 		code_challenge: field("code_challenge"),
 		code_challenge_method: field("code_challenge_method", "S256"),
@@ -294,12 +316,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 	if (!result.success) {
 		const errMsg = result.error?.message ?? "Authorization failed";
+		const invalidScope = result.error?.code === "INVALID_SCOPE";
 		// On error, redirect back with error params — use generic description to avoid
 		// leaking internal error details to the (already-validated) redirect target
 		try {
 			const errorUrl = new URL(redirectUri);
-			errorUrl.searchParams.set("error", "server_error");
-			errorUrl.searchParams.set("error_description", "Authorization failed");
+			errorUrl.searchParams.set("error", invalidScope ? "invalid_scope" : "server_error");
+			errorUrl.searchParams.set(
+				"error_description",
+				invalidScope ? "No selected permission can be granted" : "Authorization failed",
+			);
 			if (state) errorUrl.searchParams.set("state", state);
 			return Response.redirect(errorUrl.toString(), 302);
 		} catch {
@@ -331,8 +357,8 @@ function renderConsentPage(params: {
 }): string {
 	const scopeList = params.scopes
 		.map((s) => {
-			const label = SCOPE_LABELS[s] ?? s;
-			return `<li>${escapeHtml(label)}</li>`;
+			const label = SCOPE_LABELS[s] ?? getPluginScopeLabel(s) ?? s;
+			return `<li><label><input type="checkbox" name="scope" value="${escapeHtml(s)}" checked><span>${escapeHtml(label)}</span></label></li>`;
 		})
 		.join("\n");
 
@@ -353,6 +379,8 @@ function renderConsentPage(params: {
   ul { list-style: none; margin-bottom: 1.5rem; }
   li { padding: 0.5rem 0; border-bottom: 1px solid #262626; font-size: 0.875rem; }
   li:last-child { border-bottom: none; }
+  label { display: flex; align-items: flex-start; gap: 0.625rem; cursor: pointer; }
+  input[type="checkbox"] { margin-top: 0.125rem; accent-color: #2563eb; }
   .actions { display: flex; gap: 0.75rem; }
   button { flex: 1; padding: 0.625rem 1rem; border-radius: 8px; border: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
   .approve { background: #2563eb; color: white; }
@@ -366,14 +394,13 @@ function renderConsentPage(params: {
   <h1>Authorize Application</h1>
   <p class="client-id">${escapeHtml(params.clientId)}</p>
   <p class="user">Signed in as <strong>${escapeHtml(params.userName)}</strong></p>
-  <h2>Permissions requested</h2>
-  <ul>${scopeList}</ul>
   <form method="POST">
+    <h2>Permissions requested</h2>
+    <ul>${scopeList}</ul>
     <input type="hidden" name="csrf_token" value="${escapeHtml(params.csrfToken)}">
     <input type="hidden" name="response_type" value="${escapeHtml(params.responseType)}">
     <input type="hidden" name="client_id" value="${escapeHtml(params.clientId)}">
     <input type="hidden" name="redirect_uri" value="${escapeHtml(params.redirectUri)}">
-    <input type="hidden" name="scope" value="${escapeHtml(params.scopes.join(" "))}">
     <input type="hidden" name="state" value="${escapeHtml(params.state)}">
     <input type="hidden" name="code_challenge" value="${escapeHtml(params.codeChallenge)}">
     <input type="hidden" name="code_challenge_method" value="${escapeHtml(params.codeChallengeMethod)}">
@@ -386,6 +413,11 @@ function renderConsentPage(params: {
 </div>
 </body>
 </html>`;
+}
+
+function getPluginScopeLabel(scope: string): string | null {
+	const pluginId = scope.startsWith("mcp:tools:") ? scope.slice("mcp:tools:".length) : "";
+	return pluginId ? `Use MCP tools from ${pluginId}` : null;
 }
 
 function renderErrorPage(message: string): string {

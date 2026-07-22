@@ -1,5 +1,22 @@
 # @emdash-cms/admin
 
+## 0.31.0
+
+### Minor Changes
+
+- [#2185](https://github.com/emdash-cms/emdash/pull/2185) [`d62a302`](https://github.com/emdash-cms/emdash/commit/d62a3024b597da976de8561b12826dc0f691b0a2) Thanks [@logelog](https://github.com/logelog)! - Adds accessible drag handles for reordering the built-in content settings sections and stores each editor's preferred order per collection in the browser.
+
+- [#1967](https://github.com/emdash-cms/emdash/pull/1967) [`f8e41cd`](https://github.com/emdash-cms/emdash/commit/f8e41cdddae07859b1854719fb15536533916f8b) Thanks [@Rimander](https://github.com/Rimander)! - Makes the Portable Text gallery block editable in the admin editor. Galleries imported from WordPress now load and stay editable instead of being invisible and lost on save, and you can insert new galleries from the toolbar or with /gallery: pick several images at once reorder them by drag and drop, set the column count, and click any image in the gallery to edit its alt text and caption or replace it. Multiple galleries per document are supported, and gallery blocks render on the public site as before.
+
+### Patch Changes
+
+- [#2189](https://github.com/emdash-cms/emdash/pull/2189) [`1614e2a`](https://github.com/emdash-cms/emdash/commit/1614e2ad77a467e382fec51fb312e13e26b42d10) Thanks [@leevincent](https://github.com/leevincent)! - Completes the Traditional Chinese (zh-TW) translation of the admin interface.
+
+- [#2190](https://github.com/emdash-cms/emdash/pull/2190) [`4f58eec`](https://github.com/emdash-cms/emdash/commit/4f58eec7ac510864d10af085fcf3b7d03026d81b) Thanks [@edrpls](https://github.com/edrpls)! - Completes the Latin American Spanish (es-419) admin UI translations — all 737 previously missing strings, covering the content editor, media library, settings and backups, WordPress import, bylines, widgets, taxonomies, users, and plugin screens.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.31.0
+
 ## 0.30.0
 
 ### Minor Changes
