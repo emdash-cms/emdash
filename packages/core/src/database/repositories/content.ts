@@ -2096,7 +2096,8 @@ export class ContentRepository {
 		type: string,
 		filters: ContentFieldFilters | undefined,
 	): Promise<ResolvedFieldFilter[]> {
-		const fields = Object.keys(filters ?? {});
+		const resolvedFilters = filters ?? {};
+		const fields = Object.keys(resolvedFilters);
 		if (fields.length === 0) return [];
 		if (fields.length > MAX_INDEXED_FIELD_FILTERS) {
 			throw new EmDashValidationError(
@@ -2128,7 +2129,7 @@ export class ContentRepository {
 					`Cannot filter by field "${field}". Custom fields must be indexed before filtering.`,
 				);
 			}
-			return this.normalizeFieldFilter(field, fieldType, filters![field]!);
+			return this.normalizeFieldFilter(field, fieldType, resolvedFilters[field]);
 		});
 	}
 
