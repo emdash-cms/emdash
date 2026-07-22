@@ -5,6 +5,7 @@
  */
 
 import { sanitizeGalleryImages } from "./gallery.js";
+import { normalizeNestingAttrs } from "./nesting.js";
 import type {
 	ProseMirrorDocument,
 	ProseMirrorNode,
@@ -16,17 +17,30 @@ import type {
 	PortableTextImageBlock,
 	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
+	PortableTextNestingBlock,
+	PortableTextNestingColumn,
 } from "./types.js";
 
 /**
  * Convert Portable Text to ProseMirror document
  */
 export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMirrorDocument {
+	const content = convertBlocks(blocks);
+	return {
+		type: "doc",
+		content: content.length > 0 ? content : [{ type: "paragraph" }],
+	};
+}
+
+/**
+ * Convert an array of Portable Text blocks to ProseMirror content.
+ *
+ * Shared by the document root and by container blocks (e.g. `nestingBlock`)
+ * so that list and blockquote runs regroup correctly at every nesting level.
+ */
+function convertBlocks(blocks: PortableTextBlock[]): ProseMirrorNode[] {
 	if (!blocks || blocks.length === 0) {
-		return {
-			type: "doc",
-			content: [{ type: "paragraph" }],
-		};
+		return [];
 	}
 
 	const content: ProseMirrorNode[] = [];
@@ -102,10 +116,7 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 		}
 	}
 
-	return {
-		type: "doc",
-		content: content.length > 0 ? content : [{ type: "paragraph" }],
-	};
+	return content;
 }
 
 /**
@@ -146,6 +157,13 @@ function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
 }
 
 /**
+ * Type guard for nesting blocks
+ */
+function isNestingBlock(block: PortableTextBlock): block is PortableTextNestingBlock {
+	return block._type === "nestingBlock";
+}
+
+/**
  * Convert a single Portable Text block to ProseMirror node
  */
 function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
@@ -170,6 +188,9 @@ function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
 	}
 	if (isCodeBlock(block)) {
 		return convertCodeBlock(block);
+	}
+	if (isNestingBlock(block)) {
+		return convertNestingBlock(block);
 	}
 	if (block._type === "htmlBlock") {
 		const hb = block as PortableTextBlock & { html?: string };
@@ -501,6 +522,36 @@ function convertMalformedImage(block: PortableTextBlock): ProseMirrorNode {
 			displayWidth,
 			displayHeight,
 		},
+	};
+}
+
+/**
+ * Convert nesting block (grid/flex container) to ProseMirror.
+ *
+ * A nesting block holds `nestingColumn+`, each column holds `block+`. Column
+ * blocks recurse through `convertBlocks` so nested lists, quotes, and further
+ * nesting blocks regroup correctly. (The admin editor and render layer also
+ * tolerate legacy loose children, this canonical converter takes the typed
+ * column shape.)
+ */
+function convertNestingBlock(block: PortableTextNestingBlock): ProseMirrorNode {
+	const columns: ProseMirrorNode[] = (Array.isArray(block.children) ? block.children : []).map(
+		(column) => convertNestingColumn(column),
+	);
+	const attrs = normalizeNestingAttrs(block);
+	return {
+		type: "nestingBlock",
+		attrs: { ...attrs, columns: Math.max(1, columns.length) },
+		content:
+			columns.length > 0 ? columns : [{ type: "nestingColumn", content: [{ type: "paragraph" }] }],
+	};
+}
+
+function convertNestingColumn(column: PortableTextNestingColumn): ProseMirrorNode {
+	const content = convertBlocks(Array.isArray(column.children) ? column.children : []);
+	return {
+		type: "nestingColumn",
+		content: content.length > 0 ? content : [{ type: "paragraph" }],
 	};
 }
 
