@@ -313,30 +313,33 @@ export interface TrashedContentItem {
 
 /**
  * Resolve the columns a content-list search should match against. Always
- * includes `slug` (a standard column) and adds the `title`/`name` display
- * fields when the collection actually defines them, mirroring the admin's
- * item-title resolution (title -> name -> slug). Returning only existing
- * columns avoids "no such column" errors on collections without them.
+ * includes `slug` (a standard column), adds the `title`/`name` display fields
+ * when they exist, and includes every field explicitly marked searchable.
+ * Returning only schema-backed columns avoids "no such column" errors.
  */
 async function resolveSearchColumns(db: Kysely<Database>, collection: string): Promise<string[]> {
-	const columns = ["slug"];
 	const row = await db
 		.selectFrom("_emdash_collections")
 		.select("id")
 		.where("slug", "=", collection)
 		.executeTakeFirst();
-	if (!row) return columns;
+	if (!row) return ["slug"];
 
 	const fields = await db
 		.selectFrom("_emdash_fields")
-		.select("slug")
+		.select(["slug", "searchable"])
 		.where("collection_id", "=", row.id)
+		.orderBy("sort_order", "asc")
 		.execute();
+	const columns = new Set(["slug"]);
 	const fieldSlugs = new Set(fields.map((f) => f.slug));
 	for (const candidate of ["title", "name"]) {
-		if (fieldSlugs.has(candidate)) columns.push(candidate);
+		if (fieldSlugs.has(candidate)) columns.add(candidate);
 	}
-	return columns;
+	for (const field of fields) {
+		if (field.searchable === 1) columns.add(field.slug);
+	}
+	return [...columns];
 }
 
 /**

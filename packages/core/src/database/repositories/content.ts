@@ -904,7 +904,7 @@ export class ContentRepository {
 			eb.or(
 				columns.map((col) => {
 					validateIdentifier(col, "search column");
-					return eb(sql`lower(${sql.ref(col)})`, "like", sql`lower(${pattern}) escape '\\'`);
+					return sql<boolean>`lower(CAST(${sql.ref(col)} AS TEXT)) LIKE lower(${pattern}) ESCAPE '\\'`;
 				}),
 			),
 		);

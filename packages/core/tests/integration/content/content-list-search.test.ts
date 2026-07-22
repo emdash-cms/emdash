@@ -20,6 +20,12 @@ describeEachDialect("content list server-side search (#1219)", (dialect) => {
 		const registry = new SchemaRegistry(ctx.db);
 		await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
 		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("posts", {
+			slug: "ticket_number",
+			label: "Ticket number",
+			type: "integer",
+			searchable: true,
+		});
 
 		// Seed 60 ordinary posts plus a "deep" needle far past the first page.
 		for (let i = 0; i < 60; i++) {
@@ -31,7 +37,7 @@ describeEachDialect("content list server-side search (#1219)", (dialect) => {
 		}
 		const needle = await handleContentCreate(ctx.db, "posts", {
 			slug: "the-needle-post",
-			data: { title: "zzz Needle Headline" },
+			data: { title: "zzz Needle Headline", ticket_number: 2179 },
 		});
 		if (!needle.success) throw new Error("needle seed failed");
 
@@ -70,6 +76,11 @@ describeEachDialect("content list server-side search (#1219)", (dialect) => {
 
 	it("searches the slug as well as the title", async () => {
 		const result = await handleContentList(ctx.db, "posts", { q: "the-needle-post", limit: 20 });
+		expect(titlesOf(result)).toContain("zzz Needle Headline");
+	});
+
+	it("searches custom fields marked searchable", async () => {
+		const result = await handleContentList(ctx.db, "posts", { q: "2179", limit: 20 });
 		expect(titlesOf(result)).toContain("zzz Needle Headline");
 	});
 

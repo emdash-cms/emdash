@@ -146,7 +146,7 @@ export async function fetchContentList(
 		orderBy?: string;
 		/** Sort direction; defaults to "desc" on the server. */
 		order?: "asc" | "desc";
-		/** Case-insensitive substring search across title/name/slug. */
+		/** Search across display fields, slug, and searchable custom fields. */
 		search?: string;
 		/** Filter to entries authored by this user (the `author_id` column). */
 		authorId?: string;
