@@ -108,6 +108,23 @@ export function validateSeed(data: unknown): ValidationResult {
 					errors.push(`${prefix}: label is required`);
 				}
 
+				if (collection.admin !== undefined) {
+					if (!isRecord(collection.admin)) {
+						errors.push(`${prefix}.admin: must be an object`);
+					} else if (collection.admin.listColumns !== undefined) {
+						if (!Array.isArray(collection.admin.listColumns)) {
+							errors.push(`${prefix}.admin.listColumns: must be an array`);
+						} else {
+							for (let j = 0; j < collection.admin.listColumns.length; j++) {
+								const slug = collection.admin.listColumns[j];
+								if (typeof slug !== "string" || !COLLECTION_FIELD_SLUG_PATTERN.test(slug)) {
+									errors.push(`${prefix}.admin.listColumns[${j}]: must be a valid field slug`);
+								}
+							}
+						}
+					}
+				}
+
 				// Validate fields
 				if (!Array.isArray(collection.fields)) {
 					errors.push(`${prefix}.fields: must be an array`);
