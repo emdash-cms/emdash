@@ -8,7 +8,7 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
 import type { Plugin } from "vite";
@@ -67,6 +67,12 @@ import {
 } from "./virtual-modules.js";
 
 const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
+
+/** Windows paths in forward-slash (Vite id) form; a no-op on POSIX. */
+function toPosixPath(p: string): string {
+	return p.replace(/\\/g, "/");
+}
+
 /**
  * Vite plugin that compiles Lingui macros in admin source files.
  * Only active in dev mode when the admin package is aliased to source for HMR.
@@ -77,6 +83,12 @@ function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plug
 	// Resolve @babel/core from admin's devDependencies, not core's.
 	const adminRequire = createRequire(resolve(adminDistPath, "index.js"));
 	const babelCorePath = adminRequire.resolve("@babel/core");
+	// Vite module ids use forward slashes on every platform, while path.resolve()
+	// produces backslashes on Windows — a plain startsWith against the raw path
+	// never matches there, so the macro transform silently skips every admin file
+	// and raw `@lingui/*/macro` imports reach the browser. Compare in
+	// forward-slash space (a no-op on POSIX).
+	const adminSourcePrefix = toPosixPath(adminSourcePath);
 
 	return {
 		name: "emdash-lingui-macro",
@@ -85,15 +97,23 @@ function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plug
 			// Redirect relative locale catalog imports (e.g. ./de/messages.mjs) from
 			// within admin source to the compiled dist/locales/ directory, since
 			// lingui compile only runs during build — not in dev watch mode.
-			if (!importer?.startsWith(adminSourcePath)) return;
+			if (!importer || !toPosixPath(importer).startsWith(adminSourcePrefix)) return;
 			const match = id.match(LOCALE_MESSAGES_RE);
 			if (match?.[1]) {
-				return resolve(adminDistPath, "locales", match[1], "messages.mjs");
+				const redirected = resolve(adminDistPath, "locales", match[1], "messages.mjs");
+				// Node's ESM loader accepts bare absolute paths on POSIX but rejects
+				// Windows drive paths (import("C:/…") parses "c:" as a URL protocol),
+				// so hand it a file:// URL there. POSIX ids stay exactly as before.
+				return process.platform === "win32" ? pathToFileURL(redirected).href : redirected;
 			}
 		},
 		async transform(code, id) {
-			if (!id.startsWith(adminSourcePath) || !code.includes("@lingui")) return;
-			const { transformAsync } = (await import(babelCorePath)) as typeof import("@babel/core");
+			if (!toPosixPath(id).startsWith(adminSourcePrefix) || !code.includes("@lingui")) return;
+			// import() needs a file:// URL for Windows absolute paths; require.resolve
+			// gave us a plain platform path. pathToFileURL is correct on POSIX too.
+			const { transformAsync } = (await import(
+				pathToFileURL(babelCorePath).href
+			)) as typeof import("@babel/core");
 			const result = await transformAsync(code, {
 				filename: id,
 				plugins: ["@lingui/babel-plugin-lingui-macro"],
