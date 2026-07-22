@@ -71,6 +71,41 @@ export interface PortableTextImageBlock {
 }
 
 /**
+ * A single image inside a gallery block. Mirrors the shape produced by
+ * gutenberg-to-portable-text and consumed by Gallery.astro.
+ */
+export interface PortableTextGalleryImage {
+	_type: "image";
+	_key: string;
+	asset: {
+		/** Present on WordPress-imported galleries; always emitted on round-trip */
+		_type?: "reference";
+		_ref: string;
+		url?: string;
+		/** Provider ID for external media (e.g., "cloudflare-images") */
+		provider?: string;
+	};
+	alt?: string;
+	caption?: string;
+	width?: number;
+	height?: number;
+	/** LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
+}
+
+/**
+ * Gallery block (grid of images with optional per-image captions)
+ */
+export interface PortableTextGalleryBlock {
+	_type: "gallery";
+	_key: string;
+	images: PortableTextGalleryImage[];
+	columns?: number;
+}
+
+/**
  * Code block
  */
 export interface PortableTextCodeBlock {
@@ -105,6 +140,7 @@ export interface PortableTextUnknownBlock {
 export type PortableTextBlock =
 	| PortableTextTextBlock
 	| PortableTextImageBlock
+	| PortableTextGalleryBlock
 	| PortableTextCodeBlock
 	| PortableTextHtmlBlock
 	| PortableTextUnknownBlock;

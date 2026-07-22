@@ -58,6 +58,8 @@ import { getPluginBlocks } from "../lib/pluginBlocks";
 import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import {
 	PortableTextEditor,
@@ -373,177 +375,190 @@ export function Widgets() {
 	}
 
 	return (
-		<DndContext
-			sensors={sensors}
-			collisionDetection={collisionDetection}
-			onDragStart={handleDragStart}
-			onDragEnd={handleDragEnd}
-		>
-			<div className="space-y-6">
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-3xl font-bold">{t`Widgets`}</h1>
-						<p className="text-kumo-subtle">{t`Manage content widgets in your widget areas`}</p>
-					</div>
-					<Dialog.Root
-						open={isCreateAreaOpen}
-						onOpenChange={(open) => {
-							setIsCreateAreaOpen(open);
-							if (!open) setCreateAreaError(null);
-						}}
-					>
-						<Dialog.Trigger
-							render={(props) => (
-								<Button {...props} icon={<Plus />}>
-									{t`Add Widget Area`}
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="lg">
-							<div className="flex items-start justify-between gap-4 mb-4">
-								<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-									{t`Create Widget Area`}
-								</Dialog.Title>
-								<Dialog.Close
-									aria-label={t`Close`}
-									render={(props) => (
-										<Button
-											{...props}
-											variant="ghost"
-											shape="square"
-											aria-label={t`Close`}
-											className="absolute end-4 top-4"
-										>
-											<X className="h-4 w-4" />
-											<span className="sr-only">{t`Close`}</span>
-										</Button>
-									)}
-								/>
-							</div>
-							<form onSubmit={handleCreateArea} className="space-y-4">
-								<Input
-									label={t`Name`}
-									name="name"
-									required
-									placeholder="sidebar"
-									pattern="[a-z0-9\-]+"
-								/>
-								<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
-								<Input
-									label={t`Description`}
-									name="description"
-									placeholder={t`Appears on posts and pages`}
-								/>
-								<DialogError
-									message={createAreaError || getMutationError(createAreaMutation.error)}
-								/>
-								<div className="flex justify-end gap-2">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setIsCreateAreaOpen(false)}
-									>
-										{t`Cancel`}
+		<>
+			<DndContext
+				sensors={sensors}
+				collisionDetection={collisionDetection}
+				onDragStart={handleDragStart}
+				onDragEnd={handleDragEnd}
+			>
+				<div className="space-y-6">
+					<div className="flex items-center justify-between">
+						<div>
+							<h1 className="text-3xl font-bold">{t`Widgets`}</h1>
+							<p className="text-kumo-subtle">{t`Manage content widgets in your widget areas`}</p>
+						</div>
+						<Dialog.Root
+							open={isCreateAreaOpen}
+							onOpenChange={(open) => {
+								setIsCreateAreaOpen(open);
+								if (!open) setCreateAreaError(null);
+							}}
+						>
+							<Dialog.Trigger
+								render={(props) => (
+									<Button {...props} icon={<Plus />}>
+										{t`Add Widget Area`}
 									</Button>
-									<Button type="submit" disabled={createAreaMutation.isPending}>
-										{t`Create`}
-									</Button>
-								</div>
-							</form>
-						</Dialog>
-					</Dialog.Root>
-				</div>
-
-				<div className="grid grid-cols-12 gap-6">
-					{/* Available Widgets (draggable palette) */}
-					<div className="col-span-4">
-						<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
-							<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
-							<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
-							<div className="space-y-2">
-								{BUILTIN_WIDGETS.map((item) => (
-									<DraggablePaletteItem
-										key={item.id}
-										id={item.id}
-										label={t(item.label)}
-										description={t(item.description)}
-										widgetInput={{ ...item.input, title: t(item.label) }}
+								)}
+							/>
+							<Dialog className="p-6" size="lg">
+								<div className="flex items-start justify-between gap-4 mb-4">
+									<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
+										{t`Create Widget Area`}
+									</Dialog.Title>
+									<Dialog.Close
+										aria-label={t`Close`}
+										render={(props) => (
+											<Button
+												{...props}
+												variant="ghost"
+												shape="square"
+												aria-label={t`Close`}
+												className="absolute end-4 top-4"
+											>
+												<X className="h-4 w-4" />
+												<span className="sr-only">{t`Close`}</span>
+											</Button>
+										)}
 									/>
-								))}
-								{components.map((comp) => {
-									const meta = CORE_WIDGET_META[comp.id];
-									const label = meta ? t(meta.label) : comp.label;
-									const description = meta ? t(meta.description) : comp.description;
-									return (
-										<DraggablePaletteItem
-											key={`palette-comp-${comp.id}`}
-											id={`palette-comp-${comp.id}`}
-											label={label}
-											description={description}
-											widgetInput={{
-												type: "component",
-												title: label,
-												componentId: comp.id,
-											}}
-										/>
-									);
-								})}
-							</div>
-						</div>
+								</div>
+								<form onSubmit={handleCreateArea} className="space-y-4">
+									<Input
+										label={t`Name`}
+										name="name"
+										required
+										placeholder="sidebar"
+										pattern="[a-z0-9\-]+"
+									/>
+									<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
+									<Input
+										label={t`Description`}
+										name="description"
+										placeholder={t`Appears on posts and pages`}
+									/>
+									<DialogError
+										message={createAreaError || getMutationError(createAreaMutation.error)}
+									/>
+									<div className="flex justify-end gap-2">
+										<Button
+											type="button"
+											variant="outline"
+											onClick={() => setIsCreateAreaOpen(false)}
+										>
+											{t`Cancel`}
+										</Button>
+										<Button type="submit" disabled={createAreaMutation.isPending}>
+											{t`Create`}
+										</Button>
+									</div>
+								</form>
+							</Dialog>
+						</Dialog.Root>
 					</div>
 
-					{/* Widget Areas (droppable + sortable) */}
-					<div className="col-span-8 space-y-4">
-						{areas.length === 0 ? (
-							<div className="rounded-lg border bg-kumo-base p-12 text-center">
-								<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
+					<div className="grid grid-cols-12 gap-6">
+						{/* Available Widgets (draggable palette) */}
+						<div className="col-span-4">
+							<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
+								<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
+								<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
+								<div className="space-y-2">
+									{BUILTIN_WIDGETS.map((item) => (
+										<DraggablePaletteItem
+											key={item.id}
+											id={item.id}
+											label={t(item.label)}
+											description={t(item.description)}
+											widgetInput={{ ...item.input, title: t(item.label) }}
+										/>
+									))}
+									{components.map((comp) => {
+										const meta = CORE_WIDGET_META[comp.id];
+										const label = meta ? t(meta.label) : comp.label;
+										const description = meta ? t(meta.description) : comp.description;
+										return (
+											<DraggablePaletteItem
+												key={`palette-comp-${comp.id}`}
+												id={`palette-comp-${comp.id}`}
+												label={label}
+												description={description}
+												widgetInput={{
+													type: "component",
+													title: label,
+													componentId: comp.id,
+												}}
+											/>
+										);
+									})}
+								</div>
 							</div>
-						) : (
-							areas.map((area) => (
-								<WidgetAreaPanel
-									key={area.id}
-									area={area}
-									expandedWidgets={expandedWidgets}
-									onToggleWidget={toggleWidget}
-									isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
-									components={components}
-									pluginBlocks={pluginBlocks}
-									onBlockSidebarOpen={handleBlockSidebarOpen}
-									onBlockSidebarClose={handleBlockSidebarClose}
-								/>
-							))
-						)}
+						</div>
+
+						{/* Widget Areas (droppable + sortable) */}
+						<div className="col-span-8 space-y-4">
+							{areas.length === 0 ? (
+								<div className="rounded-lg border bg-kumo-base p-12 text-center">
+									<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
+								</div>
+							) : (
+								areas.map((area) => (
+									<WidgetAreaPanel
+										key={area.id}
+										area={area}
+										expandedWidgets={expandedWidgets}
+										onToggleWidget={toggleWidget}
+										isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
+										components={components}
+										pluginBlocks={pluginBlocks}
+										onBlockSidebarOpen={handleBlockSidebarOpen}
+										onBlockSidebarClose={handleBlockSidebarClose}
+									/>
+								))
+							)}
+						</div>
 					</div>
 				</div>
-			</div>
 
-			{/* Drag overlay — no drop animation for palette items (source stays in place).
+				{/* Drag overlay — no drop animation for palette items (source stays in place).
 			    Use ref because state is cleared in handleDragEnd before animation runs. */}
-			<DragOverlay dropAnimation={draggingFromPaletteRef.current ? null : undefined}>
-				{activePaletteLabel ? (
-					<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
-						<div className="font-medium">{activePaletteLabel}</div>
-					</div>
-				) : activeWidget ? (
-					<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
-						<div className="flex items-center gap-2">
-							<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
-							<span className="font-medium">{activeWidget.title || t`Untitled Widget`}</span>
-							<span className="text-xs text-kumo-subtle">({activeWidget.type})</span>
+				<DragOverlay dropAnimation={draggingFromPaletteRef.current ? null : undefined}>
+					{activePaletteLabel ? (
+						<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
+							<div className="font-medium">{activePaletteLabel}</div>
 						</div>
-					</div>
-				) : null}
-			</DragOverlay>
+					) : activeWidget ? (
+						<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
+							<div className="flex items-center gap-2">
+								<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
+								<span className="font-medium">{activeWidget.title || t`Untitled Widget`}</span>
+								<span className="text-xs text-kumo-subtle">({activeWidget.type})</span>
+							</div>
+						</div>
+					) : null}
+				</DragOverlay>
 
-			{/* A single block-sidebar panel for the whole page — ensures only one is ever
+				{/* A single block-sidebar panel for the whole page — ensures only one is ever
 			    open at a time, preventing stacked fixed overlays and duplicated window listeners. */}
-			{blockSidebarPanel?.type === "image" && (
-				<ImageDetailPanel
-					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+				{blockSidebarPanel?.type === "image" && (
+					<ImageDetailPanel
+						attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+						onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
+						onReplace={(attrs) =>
+							blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+						}
+						onDelete={() => {
+							blockSidebarPanel.onDelete();
+							setBlockSidebarPanel(null);
+						}}
+						onClose={handleBlockSidebarClose}
+					/>
+				)}
+			</DndContext>
+			{blockSidebarPanel?.type === "gallery" && (
+				<GalleryDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
 					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
-					onReplace={(attrs) =>
-						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
-					}
 					onDelete={() => {
 						blockSidebarPanel.onDelete();
 						setBlockSidebarPanel(null);
@@ -551,7 +566,7 @@ export function Widgets() {
 					onClose={handleBlockSidebarClose}
 				/>
 			)}
-		</DndContext>
+		</>
 	);
 }
 

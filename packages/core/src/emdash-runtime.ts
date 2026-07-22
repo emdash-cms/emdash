@@ -36,6 +36,8 @@ import type {
 	ContentDateField,
 } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
+import { getI18nConfig } from "./i18n/config.js";
+import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import {
@@ -71,6 +73,12 @@ import { createSingleFlightCache, singleFlightCached } from "./utils/single-flig
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
+const LOCALE_CASING_REPAIR_OPTION = "emdash:repair_locale_casing";
+
+function getLocaleCasingRepairVersion(locales: readonly string[]): string | null {
+	if (locales.length === 0) return null;
+	return `1:${locales.toSorted().join(",")}`;
+}
 
 /**
  * Parse a JSON column expected to contain an array of strings.
@@ -1130,6 +1138,10 @@ export class EmDashRuntime {
 		const storage = EmDashRuntime.getStorage(deps);
 
 		let pluginStates: Map<string, string> = new Map();
+		const configuredLocales: string[] =
+			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
+		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
+		let storedLocaleCasingRepairVersion: string | undefined;
 		let siteInfo:
 			| {
 					siteName?: string;
@@ -1175,7 +1187,9 @@ export class EmDashRuntime {
 				"emdash:site_title",
 				"emdash:site_url",
 				"emdash:locale",
+				LOCALE_CASING_REPAIR_OPTION,
 			]);
+			storedLocaleCasingRepairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
 			return {
 				siteName: siteOpts.get("emdash:site_title") ?? undefined,
 				siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
@@ -1240,6 +1254,20 @@ export class EmDashRuntime {
 		}
 
 		await Promise.all(coldStartReads);
+
+		if (
+			localeCasingRepairVersion &&
+			(configuredLocales.some(
+				(locale) => locale.includes("-") || locale !== locale.toLowerCase(),
+			) ||
+				storedLocaleCasingRepairVersion !== undefined) &&
+			storedLocaleCasingRepairVersion !== localeCasingRepairVersion
+		) {
+			await phase("rt.locale", "Repair locale casing", async () => {
+				await repairLocaleCasing(db, configuredLocales);
+				await new OptionsRepository(db).set(LOCALE_CASING_REPAIR_OPTION, localeCasingRepairVersion);
+			});
+		}
 
 		// Auto-seed the default schema for a first load that skipped the setup
 		// wizard (the wizard and dev-bypass apply seeds explicitly). Run under a
@@ -2965,7 +2993,7 @@ export class EmDashRuntime {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.id]);
 		}
 
-		// Run afterDelete hooks (fire-and-forget)
+		// Run afterDelete hooks (deferred past the response via after())
 		if (result.success) {
 			this.runAfterDeleteHooks(id, collection, false);
 		}
@@ -3052,7 +3080,7 @@ export class EmDashRuntime {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
 
-		// Run afterUnpublish hooks (fire-and-forget)
+		// Run afterUnpublish hooks (deferred past the response via after())
 		if (result.success && result.data) {
 			this.runAfterUnpublishHooks(contentItemToRecord(result.data.item), collection);
 		}
@@ -3746,24 +3774,34 @@ export class EmDashRuntime {
 	}
 
 	private runAfterDeleteHooks(id: string, collection: string, permanent: boolean): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterDelete")) {
-			this.hooks
-				.runContentAfterDelete(id, collection, permanent)
-				.catch((err) => console.error("EmDash afterDelete hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterDelete")) {
+				try {
+					await this.hooks.runContentAfterDelete(id, collection, permanent);
+				} catch (err) {
+					console.error("EmDash afterDelete hook error:", err);
+				}
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [pluginId] = pluginKey.split(":");
+				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
 
-			plugin
-				.invokeHook("content:afterDelete", { id, collection, permanent })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err),
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterDelete", { id, collection, permanent });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err);
+						}
+					})(),
 				);
-		}
+			}
+			await Promise.allSettled(tasks);
+		});
 	}
 
 	private runDeferredContentHook(
