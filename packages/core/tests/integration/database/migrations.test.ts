@@ -141,6 +141,7 @@ describe("Database Migrations (Integration)", () => {
 			"052_media_usage_read_index",
 			"053_plugin_mcp_tools",
 			"054_collection_admin_config",
+			"055_indexed_content_fields",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
