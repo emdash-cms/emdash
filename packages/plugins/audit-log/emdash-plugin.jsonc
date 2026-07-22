@@ -9,10 +9,14 @@
 	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
 	"description": "Tracks content and media changes (create / update / delete) for compliance and debugging.",
 
-	// Trust contract. Reads content to capture before-state in
-	// update audit entries; declares the `entries` storage collection
-	// where audit log lives. No outbound network.
-	"capabilities": ["content:read"],
+	// Trust contract. Reads content to capture before-state in update
+	// audit entries. `content:write` is required by the content:beforeSave
+	// hook (it can mutate content — this plugin only observes and returns
+	// the event unchanged) and `media:read` by media:afterUpload; without
+	// them the hook pipeline silently skips those hooks. Declares the
+	// `entries` storage collection where the audit log lives. No outbound
+	// network.
+	"capabilities": ["content:read", "content:write", "media:read"],
 	"allowedHosts": [],
 	"storage": {
 		"entries": { "indexes": ["timestamp", "action", "resourceType", "collection"] },
