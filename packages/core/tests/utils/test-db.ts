@@ -5,6 +5,7 @@ import { Kysely, SqliteDialect } from "kysely";
 import { Pool } from "pg";
 import { describe } from "vitest";
 
+import { resetContentTableNamesCache } from "../../src/database/content-tables-cache.js";
 import { getMigrationStatus, runMigrations } from "../../src/database/migrations/runner.js";
 import type { MigrationStatus } from "../../src/database/migrations/runner.js";
 import { FailFastPostgresDialect } from "../../src/database/pg-migration-lock.js";
@@ -25,6 +26,7 @@ import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
  */
 function resetSchemaCachesForTests(): void {
 	resetTaxonomyDefsCacheForTests();
+	resetContentTableNamesCache();
 }
 
 // ---------------------------------------------------------------------------

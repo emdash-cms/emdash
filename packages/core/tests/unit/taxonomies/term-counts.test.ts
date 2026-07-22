@@ -277,6 +277,54 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		expect(termPage?.count).toBe(1);
 	});
 
+	it("never sends a query referencing a missing ec_* table", async () => {
+		// Skipping a missing table must happen by resolving the existing tables
+		// upfront — not by probing it and retrying on the error. The database
+		// logs every failed statement (on D1 each one becomes an error span in
+		// Workers Observability), so a probe-and-retry produces one phantom
+		// `no such table: ec_*` error per taxonomy per uncached render. The
+		// migration-seeded defs make this the default experience: `category` and
+		// `tag` declare `["posts"]` whether or not that collection exists.
+		const term = await taxRepo.create({ name: "category", slug: "tech", label: "Technology" });
+		const post = await createEntry("post", "p1");
+		await taxRepo.attachToEntry("post", post.id, term.id);
+
+		const executor = ctx.db.getExecutor();
+		const executed: string[] = [];
+		const originalExecuteQuery = executor.executeQuery.bind(executor);
+		vi.spyOn(executor, "executeQuery").mockImplementation((compiledQuery, options) => {
+			executed.push(compiledQuery.sql);
+			return originalExecuteQuery(compiledQuery, options);
+		});
+
+		const counts = await fetchVisibleTermCounts(ctx.db, "category", ["ghost", "post"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(1);
+		expect(executed.filter((statement) => statement.includes("ec_ghost"))).toEqual([]);
+	});
+
+	it("recovers when the isolate-cached table list goes stale", async () => {
+		// The existing-table lookup is cached per isolate; a table dropped
+		// behind its back (another isolate's collection delete) must trigger a
+		// refresh-and-retry, not a throw.
+		await insertDef("topic", ["post", "page"]);
+		const term = await taxRepo.create({ name: "topic", slug: "science", label: "Science" });
+		const post = await createEntry("post", "p1");
+		const page = await createEntry("page", "g1");
+		await taxRepo.attachToEntry("post", post.id, term.id);
+		await taxRepo.attachToEntry("page", page.id, term.id);
+
+		// Warm the cache with both tables present.
+		const group = term.translationGroup ?? term.id;
+		const warm = await fetchVisibleTermCounts(ctx.db, "topic", ["post", "page"]);
+		expect(warm.get(group)).toBe(2);
+
+		// Drop ec_page without going through the registry — the cache is stale.
+		await sql`DROP TABLE ${sql.ref("ec_page")}`.execute(ctx.db);
+
+		const counts = await fetchVisibleTermCounts(ctx.db, "topic", ["post", "page"]);
+		expect(counts.get(group)).toBe(1);
+	});
+
 	it("does not share request-cached counts across differing collection scopes", async () => {
 		// Nothing forces per-locale rows of the same def to declare identical
 		// collections. When they drift, a request that renders both locales must

@@ -2,6 +2,7 @@ import type { ColumnDataType, CreateTableBuilder, Insertable, Kysely, Selectable
 import { sql } from "kysely";
 import { ulid } from "ulidx";
 
+import { resetContentTableNamesCache } from "../database/content-tables-cache.js";
 import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
@@ -264,6 +265,7 @@ export class SchemaRegistry {
 			// Create the content table for this collection
 			await this.createContentTable(input.slug, trx);
 		});
+		resetContentTableNamesCache();
 
 		const collection = await this.getCollection(input.slug);
 		if (!collection) {
@@ -506,6 +508,11 @@ export class SchemaRegistry {
 				await deleteContentMediaUsageCollection(this.db, slug);
 			}
 			throw error;
+		} finally {
+			// Even a failed delete may have dropped the ec_* table (D1 has no
+			// real transactions) — over-invalidation is harmless, a stale list
+			// is not.
+			if (contentTableDropped) resetContentTableNamesCache();
 		}
 	}
 
