@@ -37,6 +37,8 @@ export interface ManifestCollection {
 	 * — only the navigation link is dropped.
 	 */
 	hidden?: boolean;
+	/** Valid custom field slugs to render in the admin content list. */
+	listColumns?: string[];
 	fields: Record<
 		string,
 		{
