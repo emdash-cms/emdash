@@ -74,12 +74,14 @@ interface ImageRemotePattern {
  * `image.domains` / `image.remotePatterns` (relative URLs are never optimized —
  * see `isRemoteAllowed`). We authorize the media sources automatically:
  *
- *  1. The storage adapter's public URL host (R2 custom domain, S3/CDN).
+ *  1. The storage adapter's public URL host (R2 custom domain, S3/CDN), used
+ *     as the source when delegating to an external image service.
  *  2. The site's own origin, scoped to the media proxy route
  *     (`/_emdash/api/media/file/**`), so same-origin proxied media is optimized.
  *     The components absolutize the media URL against this origin; EmDash's
- *     wrapped image endpoint then serves the bytes from storage (so the absolute
- *     URL is never fetched). Only registered when `siteUrl` is known at build.
+ *     wrapped endpoint gives local services the bytes from storage (so the
+ *     absolute URL is never fetched). Only registered when `siteUrl` is known
+ *     at build.
  *  3. In `astro dev` the dev-server origin isn't known at build time, so we
  *     register a host-agnostic pattern scoped to the media route. Dev-only.
  *
@@ -164,8 +166,8 @@ const PASSTHROUGH_IMAGE_ENDPOINTS = new Set(["@astrojs/cloudflare/image-passthro
 
 /**
  * Decide which image endpoint to install (if any). EmDash wraps Astro's image
- * endpoint so EmDash media bytes load from storage; the wrapper delegates other
- * images back to the platform's stock endpoint.
+ * endpoint so EmDash media resolves through storage; the wrapper delegates
+ * other images back to the platform's stock endpoint.
  *
  * Returns `{ entrypoint }` to install, `{ warn }` to skip with a warning (a
  * custom endpoint we can't delegate to), or `{}` to skip silently (opted out).
@@ -494,9 +496,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					command,
 				);
 
-				// Wrap Astro's image endpoint so EmDash media bytes load straight from
-				// storage (Access-safe) instead of over HTTP. Skip when the user opts
-				// out or has a custom endpoint we can't delegate back to.
+				// Wrap Astro's image endpoint so EmDash media can load from storage or
+				// delegate its public URL to an external service. Skip when the user
+				// opts out or has a custom endpoint we can't delegate back to.
 				const { entrypoint: imageEndpoint, warn: imageEndpointWarning } = resolveImageEndpoint({
 					imagesDisabled: resolvedConfig.images === false,
 					currentEntrypoint: astroConfig.image?.endpoint?.entrypoint,

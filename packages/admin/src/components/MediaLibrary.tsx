@@ -720,7 +720,12 @@ function MediaGridItem({ item, selected, onClick }: MediaGridItemProps) {
 			<div className="aspect-square">
 				{isImage ? (
 					<img
-						src={getMediaThumbnailUrl(item.url, item.mimeType, MEDIA_THUMBNAIL_WIDTH)}
+						src={getMediaThumbnailUrl(
+							item.url,
+							item.mimeType,
+							MEDIA_THUMBNAIL_WIDTH,
+							item.storageKey,
+						)}
 						alt={item.alt || item.filename}
 						className="h-full w-full object-cover"
 						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
@@ -813,7 +818,7 @@ function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
 				<div className="h-10 w-10 overflow-hidden rounded">
 					{isImage ? (
 						<img
-							src={getMediaThumbnailUrl(item.url, item.mimeType, 80)}
+							src={getMediaThumbnailUrl(item.url, item.mimeType, 80, item.storageKey)}
 							alt={item.alt || item.filename}
 							className="h-full w-full object-cover"
 							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}

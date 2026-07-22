@@ -1,5 +1,6 @@
 ---
-"@emdash-cms/admin": patch
+"@emdash-cms/cloudflare": patch
+"emdash": patch
 ---
 
-Fixes broken thumbnails and public images for new HEIC and HEIF uploads by converting them to JPEG before saving them to the media library.
+Fixes HEIC media handling by using the configured image service for browser-ready renditions and rejecting uploads when that service cannot support HEIC input.

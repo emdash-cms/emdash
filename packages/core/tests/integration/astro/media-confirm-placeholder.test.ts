@@ -8,6 +8,10 @@ import type { Database } from "../../../src/database/types.js";
 import { JPEG_4x4 } from "../../utils/image-fixtures.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
+const configuredImageServiceSupportsHeic = vi.hoisted(() => vi.fn(async () => false));
+
+vi.mock("../../../src/astro/image-service.js", () => ({ configuredImageServiceSupportsHeic }));
+
 /** Storage stub matching the real interface: download returns a ReadableStream. */
 function storageWith(bytes: Uint8Array) {
 	return {
@@ -128,5 +132,32 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 		expect(row?.height).toBe(3000);
 		expect(row?.blurhash).toBeNull();
 		expect(row?.dominantColor).toBeNull();
+	});
+
+	it("fails and removes a signed HEIC upload when the image service is not capable", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.heic",
+			mimeType: "image/heic",
+			storageKey: "photo.heic",
+			authorId: "user-1",
+		});
+		const storage = {
+			exists: vi.fn(async () => true),
+			delete: vi.fn(async () => undefined),
+		};
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage,
+				body: { size: 1024 },
+			}),
+		);
+
+		expect(res.status).toBe(415);
+		expect(storage.delete).toHaveBeenCalledWith("photo.heic");
+		expect((await repo.findById(pending.id))?.status).toBe("failed");
 	});
 });
