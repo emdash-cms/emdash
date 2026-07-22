@@ -510,6 +510,101 @@ describe("ContentRepository", () => {
 			});
 		});
 
+		describe("indexed field filters", () => {
+			async function seedIndexedFields() {
+				await registry.createField("post", {
+					slug: "score",
+					label: "Score",
+					type: "number",
+					indexed: true,
+				});
+				await registry.createField("post", {
+					slug: "queue",
+					label: "Queue",
+					type: "string",
+					indexed: true,
+				});
+				await registry.createField("post", {
+					slug: "resolved",
+					label: "Resolved",
+					type: "boolean",
+					indexed: true,
+				});
+
+				const seeded = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+				});
+				const values = [
+					{ score: null, queue: "urgent", resolved: false },
+					{ score: 50, queue: "normal", resolved: false },
+					{ score: 80, queue: "urgent", resolved: true },
+					{ score: 90, queue: "high", resolved: false },
+					{ score: null, queue: "normal", resolved: false },
+				];
+				for (const [index, item] of seeded.items.entries()) {
+					await repo.update("post", item.id, { data: values[index] });
+				}
+			}
+
+			it("combines exact, membership, and range filters without changing total semantics", async () => {
+				await seedIndexedFields();
+
+				const result = await repo.findMany("post", {
+					where: {
+						fieldFilters: {
+							queue: { in: ["urgent", "high"] },
+							score: { gte: 80 },
+							resolved: false,
+						},
+					},
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-3"]);
+				expect(result.total).toBe(1);
+			});
+
+			it("paginates null matches while keeping the filtered total stable", async () => {
+				await seedIndexedFields();
+
+				const page1 = await repo.findMany("post", {
+					limit: 1,
+					orderBy: { field: "slug", direction: "asc" },
+					where: { fieldFilters: { score: null } },
+				});
+				const page2 = await repo.findMany("post", {
+					limit: 1,
+					cursor: page1.nextCursor,
+					orderBy: { field: "slug", direction: "asc" },
+					where: { fieldFilters: { score: null } },
+				});
+
+				expect(page1.items.map((item) => item.slug)).toEqual(["post-0"]);
+				expect(page2.items.map((item) => item.slug)).toEqual(["post-4"]);
+				expect(page1.total).toBe(2);
+				expect(page2.total).toBe(2);
+			});
+
+			it("rejects unindexed fields and values that do not match the field type", async () => {
+				await seedIndexedFields();
+				await registry.createField("post", {
+					slug: "internal_note",
+					label: "Internal note",
+					type: "string",
+				});
+
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { internal_note: "review" } },
+					}),
+				).rejects.toThrow(/must be indexed/);
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { score: "high" } },
+					}),
+				).rejects.toThrow(/finite number/);
+			});
+		});
+
 		describe("total", () => {
 			// Regression guard for the admin "denominator grows as you page
 			// forward" bug: each list response must include the full count so

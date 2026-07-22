@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import type { ContentFieldFilters } from "../../content-list-query.js";
 import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
@@ -429,6 +430,7 @@ export async function handleContentList(
 		dateField?: ContentDateField;
 		dateFrom?: string;
 		dateTo?: string;
+		fieldFilters?: ContentFieldFilters;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
@@ -437,6 +439,9 @@ export async function handleContentList(
 		if (params.status) where.status = params.status;
 		if (params.locale) where.locale = resolveConfiguredLocale(params.locale);
 		if (params.authorId) where.authorId = params.authorId;
+		if (params.fieldFilters && Object.keys(params.fieldFilters).length > 0) {
+			where.fieldFilters = params.fieldFilters;
+		}
 
 		// A date range requires a target column; ignore stray from/to without
 		// a field so a half-specified filter doesn't silently drop all rows.
