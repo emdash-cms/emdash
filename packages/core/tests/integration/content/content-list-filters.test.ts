@@ -28,6 +28,12 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		const registry = new SchemaRegistry(ctx.db);
 		await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
 		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("posts", {
+			slug: "priority",
+			label: "Priority",
+			type: "string",
+			indexed: true,
+		});
 
 		const users = new UserRepository(ctx.db);
 		const alice = await users.create({ email: "alice@example.com", name: "Alice" });
@@ -37,14 +43,32 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 
 		// Three posts across 2023/2024/2025, two by Alice and one by Bob.
 		const seed = [
-			{ slug: "y2023", title: "Old", authorId: aliceId, createdAt: "2023-06-01T12:00:00.000Z" },
-			{ slug: "y2024", title: "Mid", authorId: bobId, createdAt: "2024-06-01T12:00:00.000Z" },
-			{ slug: "y2025", title: "New", authorId: aliceId, createdAt: "2025-06-01T12:00:00.000Z" },
+			{
+				slug: "y2023",
+				title: "Old",
+				priority: "normal",
+				authorId: aliceId,
+				createdAt: "2023-06-01T12:00:00.000Z",
+			},
+			{
+				slug: "y2024",
+				title: "Mid",
+				priority: "urgent",
+				authorId: bobId,
+				createdAt: "2024-06-01T12:00:00.000Z",
+			},
+			{
+				slug: "y2025",
+				title: "New",
+				priority: "high",
+				authorId: aliceId,
+				createdAt: "2025-06-01T12:00:00.000Z",
+			},
 		];
 		for (const s of seed) {
 			const created = await handleContentCreate(ctx.db, "posts", {
 				slug: s.slug,
-				data: { title: s.title },
+				data: { title: s.title, priority: s.priority },
 				authorId: s.authorId,
 				createdAt: s.createdAt,
 			});
@@ -70,6 +94,16 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		expect(slugs).toEqual(["y2023", "y2025"]);
 		if (!result.success) throw new Error("list failed");
 		// total must reflect the filter, not the full collection.
+		expect(result.data.total).toBe(2);
+	});
+
+	it("passes indexed custom-field filters through the list handler", async () => {
+		const result = await handleContentList(ctx.db, "posts", {
+			fieldFilters: { priority: { in: ["urgent", "high"] } },
+		});
+
+		expect(slugsOf(result).toSorted()).toEqual(["y2024", "y2025"]);
+		if (!result.success) throw new Error("list failed");
 		expect(result.data.total).toBe(2);
 	});
 

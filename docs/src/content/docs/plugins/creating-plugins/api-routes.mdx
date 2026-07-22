@@ -53,6 +53,33 @@ export default {
 - `routeCtx` carries request-shaped data: `{ input, request, requestMeta }`.
 - `ctx` is the same `PluginContext` you get inside hooks — `ctx.storage`, `ctx.kv`, `ctx.content`, `ctx.http`, `ctx.log`, etc.
 
+### Filtering indexed content fields
+
+Plugins with the `content:read` capability can filter custom fields that a collection marks as
+`indexed`. Filters run in the database and combine with `AND` semantics:
+
+```typescript
+const result = await ctx.content.list("items", {
+	where: {
+		fieldFilters: {
+			priority: { in: ["urgent", "high"] },
+			score: { gte: 80 },
+			resolved: false,
+		},
+	},
+});
+```
+
+Scalar values use exact matching. Use `null` for null matching, `{ in: [...] }` for a set of exact
+values, or `gt`, `gte`, `lt`, and `lte` for range comparisons. EmDash rejects filters for fields
+that are not indexed, values that do not match the field type, and more than 20 field filters per
+query. An `in` filter accepts at most 100 values.
+
+<Aside type="caution">
+	Filtering is intentionally limited to indexed scalar fields. Prefix, substring, and arbitrary
+	JSON filtering require different index strategies and are not part of this API.
+</Aside>
+
 ## Route URLs
 
 Routes mount at `/_emdash/api/plugins/<slug>/<route-name>`. Route names can include slashes for nested paths.
