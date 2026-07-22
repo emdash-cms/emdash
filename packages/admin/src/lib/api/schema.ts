@@ -59,6 +59,7 @@ export interface SchemaField {
 	required: boolean;
 	unique: boolean;
 	searchable: boolean;
+	indexed: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -113,6 +114,7 @@ export interface CreateFieldInput {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -132,6 +134,7 @@ export interface UpdateFieldInput {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;

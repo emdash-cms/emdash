@@ -59,6 +59,7 @@ import * as m053 from "./053_plugin_mcp_tools.js";
 import * as m054 from "./054_media_upload_attempts.js";
 import * as m055 from "./055_content_translation_group_locale_index.js";
 import * as m056 from "./056_collection_admin_config.js";
+import * as m057 from "./057_indexed_content_fields.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -116,6 +117,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"054_media_upload_attempts": m054,
 	"055_content_translation_group_locale_index": m055,
 	"056_collection_admin_config": m056,
+	"057_indexed_content_fields": m057,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

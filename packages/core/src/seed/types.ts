@@ -90,6 +90,7 @@ export interface SeedField {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: Record<string, unknown>;
 	widget?: string;

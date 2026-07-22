@@ -126,6 +126,7 @@ export const createFieldBody = z
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 		translatable: z.boolean().optional(),
 	})
 	.meta({ id: "CreateFieldBody" });
@@ -142,6 +143,7 @@ export const updateFieldBody = z
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 		translatable: z.boolean().optional(),
 	})
 	.meta({ id: "UpdateFieldBody" });
@@ -208,6 +210,7 @@ export const fieldSchema = z
 		options: z.record(z.string(), z.unknown()).nullable(),
 		sortOrder: z.number().int(),
 		searchable: z.boolean(),
+		indexed: z.boolean(),
 		translatable: z.boolean(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
