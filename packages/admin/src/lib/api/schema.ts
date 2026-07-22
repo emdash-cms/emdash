@@ -32,6 +32,7 @@ export interface SchemaCollection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports: string[];
 	source?: string;
 	urlPattern?: string;
@@ -42,6 +43,10 @@ export interface SchemaCollection {
 	commentsAutoApproveUsers: boolean;
 	createdAt: string;
 	updatedAt: string;
+}
+
+export interface CollectionAdminConfig {
+	listColumns?: string[];
 }
 
 export interface SchemaField {
@@ -80,6 +85,7 @@ export interface CreateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: string[];
 	urlPattern?: string;
 	hasSeo?: boolean;
@@ -90,6 +96,7 @@ export interface UpdateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: string[];
 	urlPattern?: string;
 	hasSeo?: boolean;

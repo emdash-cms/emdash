@@ -155,6 +155,12 @@ export interface FieldWidgetOptions {
 	[key: string]: unknown;
 }
 
+/** Collection-level admin presentation options. */
+export interface CollectionAdminConfig {
+	/** Custom field slugs to show in the content list. */
+	listColumns?: string[];
+}
+
 /**
  * A collection definition
  */
@@ -165,6 +171,7 @@ export interface Collection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports: CollectionSupport[];
 	source?: CollectionSource;
 	/** Whether this collection has SEO metadata fields enabled */
@@ -215,6 +222,7 @@ export interface CreateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: CollectionSupport[];
 	source?: CollectionSource;
 	urlPattern?: string;
@@ -230,6 +238,7 @@ export interface UpdateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: CollectionSupport[];
 	urlPattern?: string;
 	hasSeo?: boolean;
