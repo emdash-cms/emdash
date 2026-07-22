@@ -508,6 +508,7 @@ describe("Widget System", () => {
 			expect(recentPosts?.props).toHaveProperty("count");
 			expect(recentPosts?.props).toHaveProperty("showThumbnails");
 			expect(recentPosts?.props).toHaveProperty("showDate");
+			expect(recentPosts?.props).toHaveProperty("urlTemplate");
 		});
 
 		it("should include categories component", () => {
