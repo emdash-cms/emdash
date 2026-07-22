@@ -17,6 +17,7 @@ import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
 import type {
+	AdminManifest,
 	BylineCreditInput,
 	BylineSummary,
 	ContentItem,
@@ -295,6 +296,7 @@ export interface ContentSettingsPanelProps {
 	collection: string;
 	item?: ContentItem | null;
 	isNew?: boolean;
+	manifest?: AdminManifest | null;
 	/** Locale this entry is bound to (URL `?locale=` for new entries). */
 	entryLocale?: string | null;
 	slug: string;
@@ -351,6 +353,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	collection,
 	item,
 	isNew,
+	manifest,
 	entryLocale,
 	slug,
 	onSlugChange,
