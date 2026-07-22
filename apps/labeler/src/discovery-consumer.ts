@@ -45,6 +45,7 @@ import {
 	automatedIdempotencyKey,
 	computeRunKey,
 	initialTriggerId,
+	TERMINAL_STATES,
 } from "./assessment-lifecycle.js";
 import {
 	buildAssessmentRunStatement,
@@ -596,22 +597,23 @@ async function transitionOrObserve(
 
 /**
  * Tombstones the subject (advancing its `delete_generation`) and retires every
- * run that could still carry a live positive `assessment-pending` — including
- * terminal `stale` runs, which self-transition on detecting a deleted subject and
- * do NOT negate their own pending. For each such run the negation is issued
- * BEFORE any cancellation, so a failed or paused negation (signing mid-rotation)
- * leaves a non-terminal run non-terminal and re-discoverable on redelivery;
- * cancelling first would drop it from the scan set, stranding the pending live
- * once the message acks.
+ * run that could still carry a live positive `assessment-pending` — including any
+ * terminal run still holding a committed, un-negated positive (a `stale` run that
+ * self-transitioned on a deleted/superseded subject, or a decision run that
+ * suppressed its own pending-negation while a sibling was in flight). For each such
+ * run the negation is issued BEFORE any cancellation, so a failed or paused
+ * negation (signing mid-rotation) leaves a non-terminal run non-terminal and
+ * re-discoverable on redelivery; cancelling first would drop it from the scan set,
+ * stranding the pending live once the message acks.
  *
  * The negation is keyed on the run having committed a live positive — NOT on its
  * lifecycle state — because an operator rerun issues its positive while the run is
- * still `observed`, and a stale run keeps its positive after going terminal.
- * Cancellation applies only to non-terminal runs (a stale run is already
- * terminal). The invariant: a run is cancelled only after any positive it
- * committed has been negated, and the message cannot ack while a negation is still
- * owed (a throw propagates to the delete handler's mutation-phase catch, which
- * always retries), so no active `assessment-pending` survives an acked delete.
+ * still `observed`, and a terminal run keeps its positive after finalizing.
+ * Cancellation applies only to non-terminal runs (a terminal run needs none). The
+ * invariant: a run is cancelled only after any positive it committed has been
+ * negated, and the message cannot ack while a negation is still owed (a throw
+ * propagates to the delete handler's mutation-phase catch, which always retries),
+ * so no active `assessment-pending` survives an acked delete.
  */
 async function applyDiscoveryDelete(
 	deps: DiscoveryConsumerDeps,
@@ -621,8 +623,8 @@ async function applyDiscoveryDelete(
 	await deleteSubjectsByUri(deps.db, { uri, now });
 	const runs = await listPendingBearingAssessmentsForUri(deps.db, uri);
 	for (const run of runs) {
-		// Negate (before any cancel) any run — non-terminal OR terminal `stale` —
-		// that committed a positive pending and has not already been negated.
+		// Negate (before any cancel) any run — non-terminal or terminal — that
+		// committed a positive pending and has not already been negated.
 		const positive = await readIssuedLabelByActionKey(
 			deps.db,
 			automatedIdempotencyKey(run.runKey, "assessment-pending", false),
@@ -634,7 +636,7 @@ async function applyDiscoveryDelete(
 			);
 			if (!negated) await negateRunPendingLabel(deps, run, now);
 		}
-		if (run.state === "stale") continue; // already terminal — negated, nothing to cancel
+		if (TERMINAL_STATES.has(run.state)) continue; // already terminal — negated, nothing to cancel
 		try {
 			await transitionAssessmentState(deps.db, {
 				id: run.id,

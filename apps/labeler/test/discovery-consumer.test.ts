@@ -900,6 +900,45 @@ describe("processDiscoveryMessage: delete", () => {
 		expect((await latestPending())?.neg).toBe(1);
 	});
 
+	it("negates a live pending positive still held by a terminal decision run on delete", async () => {
+		const job = await jobFor({ rkey: rkey() });
+		const deps = await buildDeps();
+		await processDiscoveryMessage(job, new FakeMessage(), { ...deps, verify: verifiedFor(job) });
+		const runKey = await runKeyFor(job);
+		const run = await getAssessmentByRunKey(testEnv.DB, runKey);
+
+		// A finalization that suppressed its own pending-negation (a sibling run was
+		// still in flight) leaves a terminal `passed` run that still holds a live
+		// positive assessment-pending — the orchestrator produces exactly this state.
+		await testEnv.DB.prepare(
+			`UPDATE assessments SET state = 'passed', completed_at = ?, completed_at_epoch_ms = ? WHERE id = ?`,
+		)
+			.bind(new Date().toISOString(), Date.now(), run!.id)
+			.run();
+
+		const latestPending = () =>
+			testEnv.DB.prepare(
+				`SELECT neg FROM issued_labels WHERE uri = ? AND val = 'assessment-pending'
+				 ORDER BY sequence DESC LIMIT 1`,
+			)
+				.bind(uriFor(job))
+				.first<{ neg: number }>();
+		expect((await latestPending())?.neg).toBe(0);
+
+		const deleteJob: DiscoveryJob = { ...job, operation: "delete", cid: "" };
+		const msg = new FakeMessage();
+		await processDiscoveryMessage(deleteJob, msg, {
+			...deps,
+			confirmDeleted: () => Promise.resolve(true),
+		});
+
+		expect(msg.acked).toBe(1);
+		expect(msg.retried).toBe(0);
+		// The delete cleanup reaches the terminal run's un-negated positive and clears
+		// it, so no active assessment-pending survives the delete.
+		expect((await latestPending())?.neg).toBe(1);
+	});
+
 	it("dead-letters a forged/premature delete whose record still resolves, suppressing nothing", async () => {
 		const job = await jobFor({ rkey: rkey() });
 		const deps = await buildDeps();
