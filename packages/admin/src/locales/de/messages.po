@@ -288,7 +288,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0} System + {1} benutzerdefinierte {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:347
+#: packages/admin/src/components/TaxonomySidebar.tsx:360
 msgid "{0} updated"
 msgstr "{0} aktualisiert"
 
@@ -315,7 +315,7 @@ msgstr "{0}/160 Zeichen"
 msgid "{base} to: {0}"
 msgstr "{base} zu: {0}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:345
+#: packages/admin/src/components/RevisionHistory.tsx:355
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# Änderung von nächster Revision} other {# Änderungen von nächster Revision}}"
 
@@ -417,11 +417,11 @@ msgstr ""
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:357
+#: packages/admin/src/components/RevisionHistory.tsx:367
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
 msgstr "{unchangedCount, plural, one {# unverändertes Element ausblenden} other {# unveränderte Elemente ausblenden}}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:358
+#: packages/admin/src/components/RevisionHistory.tsx:368
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {# unverändertes Element einblenden} other {# unveränderte Elemente einblenden}}"
 
@@ -613,9 +613,9 @@ msgid "Active"
 msgstr "Aktiv"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentSettingsPanel.tsx:840
+#: packages/admin/src/components/ContentSettingsPanel.tsx:871
 #: packages/admin/src/components/MenuEditor.tsx:441
-#: packages/admin/src/components/TaxonomySidebar.tsx:478
+#: packages/admin/src/components/TaxonomySidebar.tsx:491
 msgid "Add"
 msgstr ""
 
@@ -627,7 +627,7 @@ msgstr ""
 msgid "Add {0}"
 msgstr "{0} hinzufügen"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:266
+#: packages/admin/src/components/TaxonomySidebar.tsx:279
 msgid "Add {label}"
 msgstr "{label} hinzufügen"
 
@@ -726,7 +726,7 @@ msgid "Add New"
 msgstr "Neu hinzufügen"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:490
+#: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Add new {0}"
 msgstr "{0} hinzufügen"
 
@@ -758,7 +758,7 @@ msgstr "SEO-Metadatenfelder hinzufügen (Titel, Beschreibung, Bild) und in die S
 msgid "Add Sub-Field"
 msgstr "Untergeordnetes Feld hinzufügen"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:265
+#: packages/admin/src/components/TaxonomySidebar.tsx:278
 msgid "Add tags..."
 msgstr "Schlagwörter hinzufügen..."
 
@@ -949,7 +949,7 @@ msgstr "Alternativ kannst du den Export in WordPress unter Werkzeuge → Export 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:71
 #: packages/admin/src/components/settings/SeoSettings.tsx:45
 #: packages/admin/src/components/settings/SocialSettings.tsx:43
-#: packages/admin/src/components/TaxonomySidebar.tsx:352
+#: packages/admin/src/components/TaxonomySidebar.tsx:365
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:423
 #: packages/admin/src/router.tsx:438
@@ -1115,7 +1115,7 @@ msgstr "Die Anmeldung wurde abgebrochen oder hat zu lange gedauert. Bitte versuc
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:288
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1050
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1081
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1339,7 +1339,8 @@ msgstr ""
 msgid "Byline Schema"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:552
+#: packages/admin/src/components/ContentSettingsPanel.tsx:565
+#: packages/admin/src/components/ContentSettingsPanel.tsx:568
 #: packages/admin/src/components/Sidebar.tsx:242
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
@@ -1380,11 +1381,11 @@ msgstr "Kann Inhalte ansehen"
 #: packages/admin/src/components/ContentList.tsx:1054
 #: packages/admin/src/components/ContentList.tsx:1125
 #: packages/admin/src/components/ContentPickerModal.tsx:248
-#: packages/admin/src/components/ContentSettingsPanel.tsx:86
-#: packages/admin/src/components/ContentSettingsPanel.tsx:500
-#: packages/admin/src/components/ContentSettingsPanel.tsx:651
-#: packages/admin/src/components/ContentSettingsPanel.tsx:954
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1007
+#: packages/admin/src/components/ContentSettingsPanel.tsx:90
+#: packages/admin/src/components/ContentSettingsPanel.tsx:512
+#: packages/admin/src/components/ContentSettingsPanel.tsx:682
+#: packages/admin/src/components/ContentSettingsPanel.tsx:985
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1038
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:193
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:194
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
@@ -1476,7 +1477,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:1659
+#: packages/admin/src/components/ContentEditor.tsx:1682
 #: packages/admin/src/components/FieldEditor.tsx:402
 #: packages/admin/src/components/ImageFieldRenderer.tsx:133
 #: packages/admin/src/components/ImageFieldRenderer.tsx:162
@@ -1654,7 +1655,7 @@ msgstr ""
 msgid "Close panel"
 msgstr "Panel schließen"
 
-#: packages/admin/src/components/ContentEditor.tsx:1030
+#: packages/admin/src/components/ContentEditor.tsx:1053
 msgid "Close settings"
 msgstr ""
 
@@ -1764,7 +1765,7 @@ msgstr "Mit WordPress verbinden"
 msgid "Connected {0}"
 msgstr "{0} verbunden"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:179
+#: packages/admin/src/components/ContentSettingsPanel.tsx:183
 msgid "content"
 msgstr ""
 
@@ -1796,7 +1797,7 @@ msgstr "Inhalte gefunden:"
 msgid "Content has been scheduled for publishing"
 msgstr "Die Publizierung des Inhalts wurde geplant"
 
-#: packages/admin/src/components/RevisionHistory.tsx:123
+#: packages/admin/src/components/RevisionHistory.tsx:130
 msgid "Content has been updated to the selected revision."
 msgstr "Der Inhalt wurde auf die ausgewählte Revision aktualisiert."
 
@@ -1824,7 +1825,7 @@ msgstr "Inhalt ist nicht mehr öffentlich einsehbar"
 msgid "Content reverted to draft"
 msgstr "Inhalt zu Entwurf zurückgesetzt"
 
-#: packages/admin/src/components/RevisionHistory.tsx:304
+#: packages/admin/src/components/RevisionHistory.tsx:314
 msgid "Content snapshot:"
 msgstr "Momentaufnahme des Inhalts:"
 
@@ -1924,7 +1925,7 @@ msgstr ""
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "\"{draft}\" konnte keinem MIME-Typ zugeordnet werden. Gib den MIME-Typ direkt ein."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:846
+#: packages/admin/src/components/ContentSettingsPanel.tsx:877
 msgid "Couldn't search bylines. Please try again."
 msgstr ""
 
@@ -1937,7 +1938,7 @@ msgstr ""
 msgid "Count"
 msgstr "Anzahl"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:978
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1009
 #: packages/admin/src/components/MenuList.tsx:176
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
@@ -1947,7 +1948,7 @@ msgstr "Anzahl"
 msgid "Create"
 msgstr "Erstellen"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:292
+#: packages/admin/src/components/TaxonomySidebar.tsx:305
 msgid "Create \"{trimmedInput}\""
 msgstr "\"{trimmedInput}\" erstellen"
 
@@ -1973,7 +1974,7 @@ msgstr "Benutzerkonto erstellen"
 msgid "Create an account"
 msgstr "Erstelle ein Benutzerkonto"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:926
+#: packages/admin/src/components/ContentSettingsPanel.tsx:957
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "Autorenzeile erstellen"
@@ -2092,7 +2093,7 @@ msgid "Create, update, delete content"
 msgstr "Erstelle, aktualisiere und entferne Inhalte"
 
 #: packages/admin/src/components/ContentList.tsx:736
-#: packages/admin/src/components/ContentSettingsPanel.tsx:525
+#: packages/admin/src/components/ContentSettingsPanel.tsx:537
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "Erstellt"
@@ -2122,13 +2123,13 @@ msgstr "Erstellt am"
 msgid "Creating collections and fields..."
 msgstr "Erstelle Kollektionen und Felder..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:978
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1009
 #: packages/admin/src/components/MenuList.tsx:176
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
 #: packages/admin/src/components/TaxonomyManager.tsx:711
-#: packages/admin/src/components/TaxonomySidebar.tsx:292
+#: packages/admin/src/components/TaxonomySidebar.tsx:305
 msgid "Creating..."
 msgstr "Erstellen..."
 
@@ -2140,7 +2141,7 @@ msgstr ""
 msgid "current"
 msgstr "aktuell"
 
-#: packages/admin/src/components/RevisionHistory.tsx:272
+#: packages/admin/src/components/RevisionHistory.tsx:282
 msgid "Current"
 msgstr "Aktuell"
 
@@ -2579,8 +2580,8 @@ msgstr "Deaktivieren..."
 msgid "Discard"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:73
-#: packages/admin/src/components/ContentSettingsPanel.tsx:93
+#: packages/admin/src/components/ContentSettingsPanel.tsx:77
+#: packages/admin/src/components/ContentSettingsPanel.tsx:97
 msgid "Discard changes"
 msgstr "Änderungen verwerfen"
 
@@ -2588,7 +2589,7 @@ msgstr "Änderungen verwerfen"
 msgid "Discard changes?"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:78
+#: packages/admin/src/components/ContentSettingsPanel.tsx:82
 msgid "Discard draft changes?"
 msgstr "Änderungen verwerfen?"
 
@@ -2613,8 +2614,8 @@ msgstr "Ein Navigationsmenü anzeigen"
 msgid "Display category list"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:929
-#: packages/admin/src/components/ContentSettingsPanel.tsx:991
+#: packages/admin/src/components/ContentSettingsPanel.tsx:960
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
 #: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "Anzeigename"
@@ -2679,7 +2680,7 @@ msgstr "Noch kein Konto? <0>Registrieren</0>"
 msgid "Done"
 msgstr "Erledigt"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:872
+#: packages/admin/src/components/ContentSettingsPanel.tsx:903
 msgid "Down"
 msgstr "Runter"
 
@@ -2718,7 +2719,7 @@ msgstr "Entwurf"
 
 #: packages/admin/src/components/ContentList.tsx:730
 #: packages/admin/src/components/ContentPickerModal.tsx:212
-#: packages/admin/src/components/ContentSettingsPanel.tsx:442
+#: packages/admin/src/components/ContentSettingsPanel.tsx:454
 #: packages/admin/src/components/Dashboard.tsx:346
 msgid "Draft"
 msgstr "Entwurf"
@@ -2754,6 +2755,11 @@ msgstr "Ziehen zum Neuanordnen"
 #: packages/admin/src/components/Widgets.tsx:800
 msgid "Drag to reorder {0}"
 msgstr "Ziehen, um {0} neu anzuordnen"
+
+#: packages/admin/src/components/SortableContentSettingsSections.tsx:215
+#: packages/admin/src/components/SortableContentSettingsSections.tsx:216
+msgid "Drag to reorder {label}"
+msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:338
 msgid "Drag to reorder block"
@@ -2799,7 +2805,7 @@ msgstr "z. B. CI/CD-Pipeline"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "z. B. MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:881
+#: packages/admin/src/components/ContentSettingsPanel.tsx:912
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
@@ -2835,7 +2841,7 @@ msgstr ""
 msgid "Edit {title}"
 msgstr "{title} bearbeiten"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:988
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1019
 msgid "Edit byline"
 msgstr "Autorenzeile bearbeiten"
 
@@ -3004,7 +3010,7 @@ msgstr "Aktiviert"
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Gib eine URL (https://…) oder einen relativen Pfad (/…) ein"
 
-#: packages/admin/src/components/ContentEditor.tsx:1437
+#: packages/admin/src/components/ContentEditor.tsx:1460
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Gib eine gültige URL ein (z. B. https://beispiel.de)"
 
@@ -3024,7 +3030,7 @@ msgstr "E-Mail-Adresse eingeben"
 msgid "Enter HTML..."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1211
+#: packages/admin/src/components/ContentEditor.tsx:1234
 msgid "Enter markdown content..."
 msgstr "Markdown-Inhalt eingeben..."
 
@@ -3164,7 +3170,7 @@ msgstr "Erstellen des Administrators fehlgeschlagen"
 msgid "Failed to create backup"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:972
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
 msgid "Failed to create byline"
 msgstr "Erstellen der Autorenzeile fehlgeschlagen"
 
@@ -3184,7 +3190,7 @@ msgstr ""
 msgid "Failed to create some collections"
 msgstr "Erstellen einiger Kollektionen fehlgeschlagen"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:497
+#: packages/admin/src/components/TaxonomySidebar.tsx:510
 msgid "Failed to create term"
 msgstr "Erstellen des Begriffs fehlgeschlagen"
 
@@ -3336,7 +3342,7 @@ msgstr ""
 msgid "Failed to fetch email settings"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:93
+#: packages/admin/src/components/TaxonomySidebar.tsx:106
 msgid "Failed to fetch entry terms"
 msgstr "Abrufen der Begriffe des Eintrags fehlgeschlagen"
 
@@ -3394,7 +3400,7 @@ msgstr ""
 msgid "Failed to fetch setup status"
 msgstr "Abrufen des Einrichtungs-Status fehlgeschlagen"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:74
+#: packages/admin/src/components/TaxonomySidebar.tsx:87
 msgid "Failed to fetch terms"
 msgstr "Abrufen der Begriffe fehlgeschlagen"
 
@@ -3490,7 +3496,7 @@ msgstr "Laden der Erweiterungen fehlgeschlagen: {0}"
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "Laden der Erweiterungen fehlgeschlagen. Der Verzeichnisaggregator ist möglicherweise nicht erreichbar."
 
-#: packages/admin/src/components/RevisionHistory.tsx:188
+#: packages/admin/src/components/RevisionHistory.tsx:198
 msgid "Failed to load revisions"
 msgstr "Laden der Revisionen fehlgeschlagen"
 
@@ -3621,7 +3627,7 @@ msgstr "Senden der Test-E-Mail fehlgeschlagen"
 msgid "Failed to send verification email"
 msgstr "Senden der Bestätigungs-E-Mail fehlgeschlagen"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:116
+#: packages/admin/src/components/TaxonomySidebar.tsx:129
 msgid "Failed to set entry terms"
 msgstr "Setzen der Begriffe des Eintrags fehlgeschlagen"
 
@@ -3643,7 +3649,7 @@ msgid "Failed to update"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:351
+#: packages/admin/src/components/TaxonomySidebar.tsx:364
 msgid "Failed to update {0}"
 msgstr "Aktualisieren von {0} fehlgeschlagen"
 
@@ -3651,7 +3657,7 @@ msgstr "Aktualisieren von {0} fehlgeschlagen"
 msgid "Failed to update backup settings"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1053
 msgid "Failed to update byline"
 msgstr "Aktualisieren der Autorenzeile fehlgeschlagen"
 
@@ -4342,7 +4348,7 @@ msgstr "Zahl"
 msgid "Invalid invite link"
 msgstr "Ungültiger Einladungslink"
 
-#: packages/admin/src/components/ContentEditor.tsx:1506
+#: packages/admin/src/components/ContentEditor.tsx:1529
 msgid "Invalid JSON"
 msgstr "Ungültiges JSON"
 
@@ -4436,7 +4442,7 @@ msgstr ""
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:851
+#: packages/admin/src/components/ContentSettingsPanel.tsx:882
 msgid "Keep typing to narrow down more bylines."
 msgstr ""
 
@@ -4587,7 +4593,7 @@ msgstr "Listenansicht"
 
 #: packages/admin/src/components/ContentEditor.tsx:677
 #: packages/admin/src/components/ContentEditor.tsx:720
-#: packages/admin/src/components/ContentSettingsPanel.tsx:252
+#: packages/admin/src/components/ContentSettingsPanel.tsx:256
 msgid "Live View"
 msgstr "Live-Ansicht"
 
@@ -4768,7 +4774,7 @@ msgstr "Verwalten"
 msgid "Manage {0} for {1}"
 msgstr "{0} für {1} verwalten"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:813
+#: packages/admin/src/components/ContentSettingsPanel.tsx:844
 msgid "Manage bylines in {entryLocale}"
 msgstr "Autorenzeilen in {entryLocale} verwalten"
 
@@ -5061,14 +5067,14 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:466
 #: packages/admin/src/components/ContentList.tsx:1061
-#: packages/admin/src/components/ContentSettingsPanel.tsx:638
-#: packages/admin/src/components/ContentSettingsPanel.tsx:658
+#: packages/admin/src/components/ContentSettingsPanel.tsx:669
+#: packages/admin/src/components/ContentSettingsPanel.tsx:689
 msgid "Move to Trash"
 msgstr "In den Papierkorb verschieben"
 
 #: packages/admin/src/components/ContentList.tsx:444
 #: packages/admin/src/components/ContentList.tsx:1046
-#: packages/admin/src/components/ContentSettingsPanel.tsx:643
+#: packages/admin/src/components/ContentSettingsPanel.tsx:674
 msgid "Move to Trash?"
 msgstr "In den Papierkorb verschieben?"
 
@@ -5142,7 +5148,7 @@ msgid "NEW"
 msgstr "NEU"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:466
+#: packages/admin/src/components/TaxonomySidebar.tsx:479
 msgid "New {0}"
 msgstr "{0} erstellen"
 
@@ -5227,7 +5233,7 @@ msgid "No (shared across translations)"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:436
+#: packages/admin/src/components/TaxonomySidebar.tsx:449
 msgid "No {0} available."
 msgstr "Keine {0} verfügbar."
 
@@ -5262,7 +5268,7 @@ msgstr "Noch keine freigegebenen Kommentare."
 msgid "No byline fields yet."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:805
+#: packages/admin/src/components/ContentSettingsPanel.tsx:836
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "Keine Autorenzeile in {entryLocale} verfügbar. Erstelle zuerst auf der Seite Autorenzeilen eine Variante, bevor du sie diesem Eintrag zuweist."
 
@@ -5270,7 +5276,7 @@ msgstr "Keine Autorenzeile in {entryLocale} verfügbar. Erstelle zuerst auf der 
 msgid "No bylines found"
 msgstr "Keine Autorenzeile gefunden"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:913
+#: packages/admin/src/components/ContentSettingsPanel.tsx:944
 msgid "No bylines selected."
 msgstr "Keine Autorenzeile ausgewählt."
 
@@ -5330,11 +5336,11 @@ msgstr "Keine EmDash-Benutzer gefunden"
 msgid "No expiry"
 msgstr "Kein Ablaufdatum"
 
-#: packages/admin/src/components/RevisionHistory.tsx:335
+#: packages/admin/src/components/RevisionHistory.tsx:345
 msgid "No fields to compare"
 msgstr "Keine Felder zu vergleichen"
 
-#: packages/admin/src/components/editor/DocumentOutline.tsx:204
+#: packages/admin/src/components/editor/DocumentOutline.tsx:213
 msgid "No headings in document"
 msgstr "Keine Überschriften im Dokument"
 
@@ -5367,7 +5373,7 @@ msgstr "Kein zugeordneter Benutzer"
 msgid "No matches"
 msgstr "Keine Treffer"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:848
+#: packages/admin/src/components/ContentSettingsPanel.tsx:879
 msgid "No matching bylines."
 msgstr ""
 
@@ -5478,7 +5484,7 @@ msgstr "Keine Ergebnisse für \"{debouncedQuery}\". Versuche es mit einem andere
 msgid "No results found"
 msgstr "Keine Ergebnisse gefunden"
 
-#: packages/admin/src/components/RevisionHistory.tsx:191
+#: packages/admin/src/components/RevisionHistory.tsx:201
 msgid "No revisions yet"
 msgstr "Noch keine Revisionen"
 
@@ -5670,7 +5676,8 @@ msgstr "Reihenfolge gespeichert"
 msgid "Original:"
 msgstr "Original:"
 
-#: packages/admin/src/components/editor/DocumentOutline.tsx:182
+#: packages/admin/src/components/ContentSettingsPanel.tsx:636
+#: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "Gliederung"
 
@@ -5678,7 +5685,8 @@ msgstr "Gliederung"
 msgid "Overrides the page title in search engine results"
 msgstr "Überschreibt den Seitentitel in den Suchmaschinenergebnissen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:539
+#: packages/admin/src/components/ContentSettingsPanel.tsx:550
+#: packages/admin/src/components/ContentSettingsPanel.tsx:553
 msgid "Ownership"
 msgstr "Besitz"
 
@@ -5810,7 +5818,7 @@ msgstr "Ausstehend"
 msgid "Pending"
 msgstr "Ausstehend"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:441
+#: packages/admin/src/components/ContentSettingsPanel.tsx:453
 msgid "Pending changes"
 msgstr "Ausstehende Änderungen"
 
@@ -6006,7 +6014,7 @@ msgstr "Vorbereiten zum Herunterladen von Dateien von WordPress..."
 msgid "Preparing..."
 msgstr "Vorbereiten..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:154
+#: packages/admin/src/components/ContentSettingsPanel.tsx:158
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaLibrary.tsx:585
 msgid "Preview"
@@ -6016,7 +6024,7 @@ msgstr "Vorschau"
 msgid "Preview content before publishing"
 msgstr "Inhalt vor dem Publizieren ansehen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:154
+#: packages/admin/src/components/ContentSettingsPanel.tsx:158
 msgid "Preview draft"
 msgstr "Entwurf-Vorschau"
 
@@ -6046,15 +6054,16 @@ msgid "Provider:"
 msgstr "Anbieter:"
 
 #: packages/admin/src/components/ContentList.tsx:415
-#: packages/admin/src/components/ContentSettingsPanel.tsx:426
+#: packages/admin/src/components/ContentSettingsPanel.tsx:435
+#: packages/admin/src/components/ContentSettingsPanel.tsx:438
 msgid "Publish"
 msgstr "Publizieren"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:185
+#: packages/admin/src/components/ContentSettingsPanel.tsx:189
 msgid "Publish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:192
+#: packages/admin/src/components/ContentSettingsPanel.tsx:196
 msgid "Publish updates"
 msgstr ""
 
@@ -6065,7 +6074,7 @@ msgstr "Publiziert"
 #: packages/admin/src/components/ContentList.tsx:729
 #: packages/admin/src/components/ContentList.tsx:738
 #: packages/admin/src/components/ContentPickerModal.tsx:209
-#: packages/admin/src/components/ContentSettingsPanel.tsx:440
+#: packages/admin/src/components/ContentSettingsPanel.tsx:452
 #: packages/admin/src/components/Dashboard.tsx:245
 #: packages/admin/src/components/Dashboard.tsx:345
 #: packages/admin/src/router.tsx:1009
@@ -6093,7 +6102,7 @@ msgstr "Publiziert von"
 msgid "Python"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:921
+#: packages/admin/src/components/ContentSettingsPanel.tsx:952
 msgid "Quick create byline"
 msgstr "Neue Autorenzeile erstellen"
 
@@ -6233,7 +6242,7 @@ msgstr "Die Version ist zu neu, um installiert zu werden"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentSettingsPanel.tsx:890
+#: packages/admin/src/components/ContentSettingsPanel.tsx:921
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/PortableTextEditor.tsx:3790
 #: packages/admin/src/components/settings/GeneralSettings.tsx:194
@@ -6247,7 +6256,7 @@ msgstr "Entfernen"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:186
-#: packages/admin/src/components/TaxonomySidebar.tsx:246
+#: packages/admin/src/components/TaxonomySidebar.tsx:259
 msgid "Remove {0}"
 msgstr "{0} entfernen"
 
@@ -6255,7 +6264,7 @@ msgstr "{0} entfernen"
 msgid "Remove {entry}"
 msgstr "{entry} entfernen"
 
-#: packages/admin/src/components/ContentEditor.tsx:1667
+#: packages/admin/src/components/ContentEditor.tsx:1690
 msgid "Remove {label}"
 msgstr "{label} entfernen"
 
@@ -6402,7 +6411,7 @@ msgstr "In {resendCooldown} Sekunden erneut senden"
 msgid "Reset to original"
 msgstr "Original wiederherstellen"
 
-#: packages/admin/src/components/RevisionHistory.tsx:228
+#: packages/admin/src/components/RevisionHistory.tsx:238
 msgid "Restore"
 msgstr "Wiederherstellen"
 
@@ -6410,25 +6419,25 @@ msgstr "Wiederherstellen"
 msgid "Restore {title}"
 msgstr "{title} wiederherstellen"
 
-#: packages/admin/src/components/RevisionHistory.tsx:128
+#: packages/admin/src/components/RevisionHistory.tsx:135
 msgid "Restore failed"
 msgstr "Wiederherstellen fehlgeschlagen"
 
-#: packages/admin/src/components/RevisionHistory.tsx:222
+#: packages/admin/src/components/RevisionHistory.tsx:232
 msgid "Restore Revision?"
 msgstr "Revision wiederherstellen?"
 
-#: packages/admin/src/components/RevisionHistory.tsx:289
-#: packages/admin/src/components/RevisionHistory.tsx:290
+#: packages/admin/src/components/RevisionHistory.tsx:299
+#: packages/admin/src/components/RevisionHistory.tsx:300
 msgid "Restore this version"
 msgstr "Diese Version wiederherstellen"
 
 #. placeholder {0}: formatFullDate(restoreTarget.createdAt)
-#: packages/admin/src/components/RevisionHistory.tsx:225
+#: packages/admin/src/components/RevisionHistory.tsx:235
 msgid "Restore this version from {0}? This will update the current content to this revision's data."
 msgstr "Diese Version aus {0} wiederherstellen? Dadurch werden die aktuellen Inhalte auf den Stand dieser Revision aktualisiert."
 
-#: packages/admin/src/components/RevisionHistory.tsx:229
+#: packages/admin/src/components/RevisionHistory.tsx:239
 msgid "Restoring..."
 msgstr "Wiederherstellen..."
 
@@ -6456,12 +6465,13 @@ msgstr "Überprüfen"
 msgid "Review New Permissions"
 msgstr "Neue Berechtigungen überprüfen"
 
-#: packages/admin/src/components/RevisionHistory.tsx:122
+#: packages/admin/src/components/RevisionHistory.tsx:129
 msgid "Revision restored"
 msgstr "Revision wiederhergestellt"
 
+#: packages/admin/src/components/ContentSettingsPanel.tsx:644
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
-#: packages/admin/src/components/RevisionHistory.tsx:158
+#: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
 msgstr "Revisionen"
 
@@ -6509,7 +6519,7 @@ msgstr "Rolle"
 msgid "Role {role}"
 msgstr "Rolle {role}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:895
+#: packages/admin/src/components/ContentSettingsPanel.tsx:926
 msgid "Role label"
 msgstr "Rollenbezeichnung"
 
@@ -6535,7 +6545,7 @@ msgstr ""
 msgid "Same window"
 msgstr "Aktueller Tab"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1028
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
@@ -6600,7 +6610,7 @@ msgstr "Gespeichert"
 msgid "Saved \"{0}\"."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1028
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
@@ -6635,15 +6645,15 @@ msgstr ""
 msgid "SBOM · {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:489
+#: packages/admin/src/components/ContentSettingsPanel.tsx:501
 msgid "Schedule"
 msgstr "Planen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:475
+#: packages/admin/src/components/ContentSettingsPanel.tsx:487
 msgid "Schedule for"
 msgstr "Publizieren planen für"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:512
+#: packages/admin/src/components/ContentSettingsPanel.tsx:524
 msgid "Schedule for later"
 msgstr "Später publizieren"
 
@@ -6652,14 +6662,14 @@ msgid "scheduled"
 msgstr "Geplant"
 
 #: packages/admin/src/components/ContentList.tsx:731
-#: packages/admin/src/components/ContentSettingsPanel.tsx:443
+#: packages/admin/src/components/ContentSettingsPanel.tsx:455
 #: packages/admin/src/components/Dashboard.tsx:347
 #: packages/admin/src/router.tsx:1067
 msgid "Scheduled"
 msgstr "Geplant"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:463
+#: packages/admin/src/components/ContentSettingsPanel.tsx:475
 msgid "Scheduled for: {0}"
 msgstr "Geplant für: {0}"
 
@@ -6745,12 +6755,12 @@ msgstr ""
 msgid "Search by name or email..."
 msgstr "Suche anhand von Name oder E-Mail-Adresse"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:822
+#: packages/admin/src/components/ContentSettingsPanel.tsx:853
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr "Autorenzeilen durchsuchen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:821
+#: packages/admin/src/components/ContentSettingsPanel.tsx:852
 msgid "Search bylines to add..."
 msgstr ""
 
@@ -6828,7 +6838,7 @@ msgstr "Suchen..."
 msgid "Searchable"
 msgstr "Durchsuchbar"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:826
+#: packages/admin/src/components/ContentSettingsPanel.tsx:857
 msgid "Searching..."
 msgstr ""
 
@@ -6926,8 +6936,8 @@ msgid "Select"
 msgstr "Einfachauswahl"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:1679
-#: packages/admin/src/components/ContentEditor.tsx:1695
+#: packages/admin/src/components/ContentEditor.tsx:1702
+#: packages/admin/src/components/ContentEditor.tsx:1718
 #: packages/admin/src/components/ImageFieldRenderer.tsx:198
 msgid "Select {label}"
 msgstr "{label} auswählen"
@@ -6970,7 +6980,7 @@ msgstr "Standardbild für soziale Medien auswählen"
 msgid "Select Favicon"
 msgstr "Favicon auswählen"
 
-#: packages/admin/src/components/ContentEditor.tsx:1683
+#: packages/admin/src/components/ContentEditor.tsx:1706
 msgid "Select file"
 msgstr "Datei auswählen"
 
@@ -7069,7 +7079,8 @@ msgstr "Test-E-Mail senden"
 msgid "Sending..."
 msgstr "Senden..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:603
+#: packages/admin/src/components/ContentSettingsPanel.tsx:621
+#: packages/admin/src/components/ContentSettingsPanel.tsx:624
 #: packages/admin/src/components/ContentTypeEditor.tsx:472
 #: packages/admin/src/components/Settings.tsx:82
 msgid "SEO"
@@ -7125,7 +7136,7 @@ msgstr "Einrichten..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
 #: packages/admin/src/components/ContentEditor.tsx:809
-#: packages/admin/src/components/ContentEditor.tsx:1016
+#: packages/admin/src/components/ContentEditor.tsx:1039
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:471
@@ -7307,9 +7318,9 @@ msgid "Skipped"
 msgstr "Übersprungen"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentSettingsPanel.tsx:430
-#: packages/admin/src/components/ContentSettingsPanel.tsx:937
-#: packages/admin/src/components/ContentSettingsPanel.tsx:999
+#: packages/admin/src/components/ContentSettingsPanel.tsx:442
+#: packages/admin/src/components/ContentSettingsPanel.tsx:968
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1030
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:402
 #: packages/admin/src/components/ContentTypeList.tsx:97
@@ -7410,14 +7421,14 @@ msgstr ""
 msgid "Start Import"
 msgstr "Import starten"
 
-#: packages/admin/src/components/ContentEditor.tsx:1185
+#: packages/admin/src/components/ContentEditor.tsx:1208
 #: packages/admin/src/components/PortableTextEditor.tsx:2285
 #: packages/admin/src/components/PortableTextEditor.tsx:2286
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:511
-#: packages/admin/src/components/ContentSettingsPanel.tsx:437
+#: packages/admin/src/components/ContentSettingsPanel.tsx:449
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:472
 #: packages/admin/src/components/users/UserList.tsx:104
@@ -7526,7 +7537,8 @@ msgstr "Ziel"
 msgid "Target locale"
 msgstr "Zielsprache"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:543
+#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/TaxonomySidebar.tsx:550
 msgid "Taxonomies"
 msgstr "Taxonomien"
 
@@ -7677,7 +7689,7 @@ msgstr ""
 msgid "This field does not accept {sniffedMime} files."
 msgstr "Dieses Feld akzeptiert keine {sniffedMime}-Dateien."
 
-#: packages/admin/src/components/ContentEditor.tsx:1698
+#: packages/admin/src/components/ContentEditor.tsx:1721
 #: packages/admin/src/components/ImageFieldRenderer.tsx:201
 msgid "This field is required"
 msgstr "Das ist ein Pflichtfeld"
@@ -7751,7 +7763,7 @@ msgstr "Dadurch werden der Widget-Bereich und alle darin enthaltenen Widgets gel
 msgid "This will grant CLI access with your permissions."
 msgstr "Hierdurch wird CLI-Zugriff mit deinen Berechtigungen gewährt."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:645
+#: packages/admin/src/components/ContentSettingsPanel.tsx:676
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Dies verschiebt das Element in den Papierkorb. Du kannst es später von dort wiederherstellen."
 
@@ -7773,7 +7785,7 @@ msgstr "Dieser Kommentar wird endgültig entfernt. Diese Aktion kann nicht rück
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Hierdurch werden die Erweiterung und ihr Bundle von deiner Webseite entfernt."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:80
+#: packages/admin/src/components/ContentSettingsPanel.tsx:84
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Dies setzt den Inhalt auf die bereits publizierte Version zurück. Deine Entwurfsänderungen gehen verloren."
 
@@ -7888,6 +7900,7 @@ msgstr "Übersetze..."
 msgid "Translation created"
 msgstr "Übersetzung erstellt"
 
+#: packages/admin/src/components/ContentSettingsPanel.tsx:588
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Übersetzungen"
@@ -7996,8 +8009,8 @@ msgstr ""
 msgid "Unable to reach marketplace"
 msgstr "Verbinden mit dem Marktplatz fehlgeschlagen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1042
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1073
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1090
 msgid "Unassigned"
 msgstr "Nicht zugewiesen"
 
@@ -8057,7 +8070,7 @@ msgstr "Seitenverhältnis entsperren"
 msgid "Unnamed passkey"
 msgstr "Unbenannter Passkey"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:202
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
@@ -8069,7 +8082,7 @@ msgstr "Depubliziert"
 msgid "Unregistered Content Tables Found"
 msgstr "Unregistrierte Inhaltstabellen gefunden"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:465
+#: packages/admin/src/components/ContentSettingsPanel.tsx:477
 msgid "Unschedule"
 msgstr "Planung aufheben"
 
@@ -8086,7 +8099,7 @@ msgstr "Nicht unterstützter Widget-Elementtyp: {0}"
 msgid "Untitled"
 msgstr "Unbenannt"
 
-#: packages/admin/src/components/ContentEditor.tsx:1601
+#: packages/admin/src/components/ContentEditor.tsx:1624
 msgid "Untitled file"
 msgstr "Unbenannte Datei"
 
@@ -8099,7 +8112,7 @@ msgstr "Unbenanntes Widget"
 msgid "Unverified publisher"
 msgstr "Unverifizierter Herausgeber"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:869
+#: packages/admin/src/components/ContentSettingsPanel.tsx:900
 msgid "Up"
 msgstr "Hoch"
 
@@ -8135,7 +8148,7 @@ msgid "Update to v{0}"
 msgstr "Aktualisieren auf v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:737
-#: packages/admin/src/components/ContentSettingsPanel.tsx:529
+#: packages/admin/src/components/ContentSettingsPanel.tsx:541
 #: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
 msgstr ""
@@ -8296,7 +8309,7 @@ msgstr "Wird als Standard-Open-Graph-Bild verwendet, wenn eine Seite kein Bild e
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Wird als Kennung verwendet. Nur Kleinbuchstaben, Ziffern und Unterstriche."
 
-#: packages/admin/src/components/ContentEditor.tsx:1288
+#: packages/admin/src/components/ContentEditor.tsx:1311
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Wird als Hauptbild für diesen Beitrag auf Listenseiten und am Anfang des Beitrags verwendet"
 
