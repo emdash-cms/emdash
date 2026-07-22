@@ -21,6 +21,9 @@ import {
 	TextHOne,
 	TextHTwo,
 	TextHThree,
+	TextHFour,
+	TextHFive,
+	TextHSix,
 	Quotes,
 	Code,
 	List,
@@ -79,6 +82,30 @@ const blockTransforms: BlockTransform[] = [
 		icon: TextHThree,
 		transform: (editor) => {
 			editor.chain().focus().setNode("heading", { level: 3 }).run();
+		},
+	},
+	{
+		id: "heading4",
+		label: msg`Heading 4`,
+		icon: TextHFour,
+		transform: (editor) => {
+			editor.chain().focus().setNode("heading", { level: 4 }).run();
+		},
+	},
+	{
+		id: "heading5",
+		label: msg`Heading 5`,
+		icon: TextHFive,
+		transform: (editor) => {
+			editor.chain().focus().setNode("heading", { level: 5 }).run();
+		},
+	},
+	{
+		id: "heading6",
+		label: msg`Heading 6`,
+		icon: TextHSix,
+		transform: (editor) => {
+			editor.chain().focus().setNode("heading", { level: 6 }).run();
 		},
 	},
 	{

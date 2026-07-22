@@ -152,7 +152,7 @@ function typeIntoEditor(editor: Editor, text: string) {
 function textBlock(
 	text: string,
 	opts: {
-		style?: "normal" | "h1" | "h2" | "h3" | "blockquote";
+		style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 		marks?: string[];
 		listItem?: "bullet" | "number";
 		level?: number;
@@ -311,6 +311,14 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		const h1 = pm.querySelector("h1");
 		expect(h1).toBeTruthy();
 		expect(h1!.textContent).toBe("Title");
+	});
+
+	it("renders an h6 heading", async () => {
+		await render(<PortableTextEditor value={[textBlock("Detail", { style: "h6" })]} />);
+		const pm = await waitForEditor();
+		const h6 = pm.querySelector("h6");
+		expect(h6).toBeTruthy();
+		expect(h6!.textContent).toBe("Detail");
 	});
 
 	it("renders bold text", async () => {
@@ -691,6 +699,9 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 4" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 5" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 6" })).toBeInTheDocument();
 	});
 
 	it("has list buttons", async () => {
