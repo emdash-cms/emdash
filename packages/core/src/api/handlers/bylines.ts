@@ -7,7 +7,7 @@ import {
 } from "../../database/repositories/byline.js";
 import { EmDashValidationError, type BylineSummary } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
-import { getI18nConfig } from "../../i18n/config.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../../i18n/config.js";
 import type { ApiResult } from "../types.js";
 
 // `undefined → null` so a missing field in the create payload matches the
@@ -138,7 +138,8 @@ export async function handleBylineCreate(
 			};
 		}
 
-		const localeErr = rejectUnknownLocale(input.locale);
+		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
+		const localeErr = rejectUnknownLocale(locale);
 		if (localeErr) return localeErr;
 
 		const repo = new BylineRepository(db);
@@ -160,7 +161,7 @@ export async function handleBylineCreate(
 			sourceGroup = source.translationGroup ?? source.id;
 		}
 
-		const effectiveLocale = input.locale ?? getI18nConfig()?.defaultLocale ?? "en";
+		const effectiveLocale = locale ?? getI18nConfig()?.defaultLocale ?? "en";
 
 		// Translation-group guard: the row-per-locale model (PR #916)
 		// allows exactly one row per (translation_group, locale). Reject
@@ -216,7 +217,7 @@ export async function handleBylineCreate(
 			};
 		}
 
-		const byline = await repo.create(input);
+		const byline = await repo.create({ ...input, locale: effectiveLocale });
 		return { success: true, data: byline };
 	} catch (error) {
 		// Mirror handleBylineUpdate: surface customFields validation

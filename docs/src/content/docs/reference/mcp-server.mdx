@@ -27,7 +27,7 @@ Session cookies (from the admin UI) also work but aren't practical for external 
 
 ### Scopes
 
-Tokens are scoped to limit what operations a client can perform. Scopes are requested during OAuth authorization and enforced on every tool call.
+Tokens are scoped to limit what operations a client can perform. Scopes are requested during OAuth authorization and enforced on every tool call. On the authorization-code consent page, all requested scopes are selected by default for compatibility; the user can remove scopes before approval but cannot add scopes the client did not request. The effective grant is also restricted by the client's registered scopes and the user's role, and EmDash rejects an empty grant.
 
 | Scope | Grants access to |
 | --- | --- |

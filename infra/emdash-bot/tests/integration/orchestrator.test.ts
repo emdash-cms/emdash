@@ -20,6 +20,7 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, test } from "vitest";
 
+import { applyInvestigationResult } from "../../.flue/lib/investigation-result.js";
 import type { NormalizedEvent } from "../../.flue/lib/orchestrator.js";
 
 interface TestEnv {
@@ -128,6 +129,17 @@ describe("OrchestratorDO (workers-pool)", () => {
 			expect(outcome.runId).toBe("ghost-run");
 			expect(outcome.currentRunId).toBe(null);
 		}
+	});
+
+	test("investigation result handoff returns a durable step value", async () => {
+		await expect(
+			applyInvestigationResult(
+				{ issueNumber: 987_654_321, runId: "ghost-run" },
+				{ summary: "The investigation completed." },
+				true,
+				false,
+			),
+		).resolves.toBe(true);
 	});
 
 	test("applyAgentResult commits the transition before clearing run markers", async () => {

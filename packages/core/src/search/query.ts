@@ -10,6 +10,7 @@ import { sql } from "kysely";
 import { encodeCursor, decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { resolveConfiguredLocale } from "../i18n/config.js";
 import { getDb } from "../loader.js";
 import { FTSManager } from "./fts-manager.js";
 import type {
@@ -250,7 +251,7 @@ async function searchSingleCollection(
 	const contentTable = ftsManager.getContentTableName(collection);
 	const limit = options.limit ?? 20;
 	const status = options.status ?? "published";
-	const locale = options.locale;
+	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
 	// Check if FTS table exists
 	if (!(await ftsManager.ftsTableExists(collection))) {
@@ -397,7 +398,7 @@ export async function getSuggestions(
 	options: SuggestOptions = {},
 ): Promise<Suggestion[]> {
 	const limit = options.limit ?? 5;
-	const locale = options.locale;
+	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
 	// Get searchable collections
 	let collections = options.collections;

@@ -3,10 +3,13 @@
 
 import { Sandbox as BaseSandbox } from "@cloudflare/sandbox";
 
-import { gateGithubRequest, githubAuthHeader } from "./lib/github-proxy.js";
+import {
+	gateGithubRequest,
+	githubAuthHeader,
+	PUSH_CAPABILITY_HEADER,
+	verifyPushCapability,
+} from "./lib/github-proxy.js";
 import { mintInstallationToken, readAppCreds } from "./lib/github.js";
-
-const INVESTIGATE_CONTAINER_ID = /^investigate-(\d+)-/;
 
 // Subclass so we can attach an outbound proxy to github.com. The handler runs
 // in the Worker runtime (outside the sandbox) with full env access; the
@@ -37,9 +40,8 @@ export class Sandbox extends BaseSandbox {
 
 // Static, always-on handler for github hosts. Bound at module load via
 // `outboundByHost` so it survives sandbox restarts / runtime override drops.
-// Gates by host + repo (from env); does NOT gate by anchor issue number --
-// the per-anchor scoping was unreliable because runtime overrides could be
-// dropped mid-run, leaving subsequent requests with no handler.
+// Gates by host + repo (from env). Pushes additionally require an issue-scoped
+// capability supplied by the investigation sandbox.
 Sandbox.outboundByHost = {
 	"github.com": handleAuthenticatedGithub,
 	"api.github.com": handleAuthenticatedGithub,
@@ -50,11 +52,7 @@ console.log("[sandbox/outbound] module loaded; outboundByHost set", {
 	hosts: Object.keys(Sandbox.outboundByHost ?? {}),
 });
 
-async function handleAuthenticatedGithub(
-	request: Request,
-	env: Env,
-	context: { containerId: string },
-): Promise<Response> {
+async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Response> {
 	const url = new URL(request.url);
 	const owner = env.GITHUB_OWNER;
 	const repo = env.GITHUB_REPO;
@@ -63,8 +61,15 @@ async function handleAuthenticatedGithub(
 		return new Response("github proxy not configured", { status: 403 });
 	}
 
-	const issueNumber = issueNumberFromContainerId(context.containerId);
-	const denial = await gateGithubRequest(request, url, owner, repo, issueNumber);
+	const forwarded = new Request(request);
+	const issueNumber = await verifyPushCapability(
+		forwarded.headers.get(PUSH_CAPABILITY_HEADER),
+		env.GITHUB_WEBHOOK_SECRET,
+		owner,
+		repo,
+	);
+	forwarded.headers.delete(PUSH_CAPABILITY_HEADER);
+	const denial = await gateGithubRequest(forwarded, url, owner, repo, issueNumber ?? undefined);
 	if (denial) {
 		console.warn("[sandbox/outbound] denying", {
 			method: request.method,
@@ -90,7 +95,7 @@ async function handleAuthenticatedGithub(
 		console.error("[sandbox/outbound] token mint failed", { error: errorMessage(err) });
 		return new Response("token mint failed", { status: 502 });
 	}
-	const authed = new Request(request);
+	const authed = new Request(forwarded);
 	authed.headers.set("authorization", githubAuthHeader(url.host, token));
 	authed.headers.set("user-agent", "emdash-bot");
 	try {
@@ -108,13 +113,6 @@ async function handleAuthenticatedGithub(
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
-}
-
-function issueNumberFromContainerId(containerId: string): number | undefined {
-	const match = INVESTIGATE_CONTAINER_ID.exec(containerId);
-	if (!match?.[1]) return undefined;
-	const issueNumber = Number(match[1]);
-	return Number.isSafeInteger(issueNumber) ? issueNumber : undefined;
 }
 
 export { ContainerProxy } from "@cloudflare/sandbox";
