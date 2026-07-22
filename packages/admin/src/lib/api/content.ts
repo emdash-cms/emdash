@@ -203,6 +203,23 @@ export async function fetchContentAuthors(collection: string): Promise<ContentAu
 }
 
 /**
+ * Latest known `_rev` token per content id, captured from GET/PUT responses.
+ * `updateContent` echoes it into PUT bodies so the server's optimistic
+ * concurrency check (`validateRev`) can refuse stale saves instead of
+ * blind-writing over a newer draft revision (#2121). Centralized here so
+ * callers don't have to thread the token through.
+ */
+const knownRevs = new Map<string, string>();
+
+/** Test-only helpers for the `_rev` cache. */
+export function _getKnownRev(id: string): string | undefined {
+	return knownRevs.get(id);
+}
+export function _clearKnownRevs(): void {
+	knownRevs.clear();
+}
+
+/**
  * Fetch single content item
  */
 export async function fetchContent(
@@ -214,7 +231,11 @@ export async function fetchContent(
 	if (options?.locale) params.set("locale", options.locale);
 	const query = params.toString() ? `?${params}` : "";
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}${query}`);
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to fetch content");
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to fetch content",
+	);
+	if (data._rev) knownRevs.set(data.item.id, data._rev);
 	return data.item;
 }
 
@@ -253,12 +274,20 @@ export async function updateContent(
 	const params = new URLSearchParams();
 	if (options?.locale) params.set("locale", options.locale);
 	const query = params.toString() ? `?${params}` : "";
+	const rev = knownRevs.get(id);
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}${query}`, {
 		method: "PUT",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(input),
+		body: JSON.stringify(rev ? { ...input, _rev: rev } : input),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to update content");
+	// A conflict means our token is stale; drop it so the editor's refetch
+	// re-arms concurrency checking instead of failing every later save.
+	if (response.status === 409) knownRevs.delete(id);
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to update content",
+	);
+	if (data._rev) knownRevs.set(data.item.id, data._rev);
 	return data.item;
 }
 
