@@ -278,6 +278,20 @@ describe("MCP Authorization", () => {
 			outputSchema: z.object({ id: z.string() }),
 		};
 
+		it("normalizes scoped plugin IDs into valid, stable tool names", async () => {
+			({ client, cleanup } = await setupMcpPair({
+				userId: ADMIN_USER_ID,
+				userRole: Role.ADMIN,
+				pluginTools: [{ ...pluginTool, pluginId: "@emdash-cms/calendar" }],
+			}));
+
+			const { tools } = await client.listTools();
+			const toolNames = tools.map((tool) => tool.name);
+
+			expect(toolNames).toContain("emdash_cms__calendar__createEvent");
+			expect(toolNames).not.toContain("@emdash-cms/calendar__createEvent");
+		});
+
 		it("does not let the legacy admin scope bypass plugin-tool scope", async () => {
 			const handlers = createMockHandlers();
 			handlers.handlePluginMcpDenied = vi.fn().mockResolvedValue(undefined);

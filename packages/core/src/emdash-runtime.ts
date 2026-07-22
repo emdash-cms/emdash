@@ -38,6 +38,7 @@ import type {
 import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
+import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import {
@@ -3518,6 +3519,12 @@ export class EmDashRuntime {
 					continue;
 				}
 				seen.add(key);
+				const warnInvalidSchema = (schemaKind: "input" | "output") => (error: unknown) => {
+					console.warn(
+						`[emdash] Falling back after invalid ${schemaKind} schema for plugin MCP tool ${id}/${tool.name}:`,
+						error,
+					);
+				};
 				tools.push({
 					pluginId: id,
 					name: tool.name,
@@ -3525,8 +3532,10 @@ export class EmDashRuntime {
 					route: tool.route,
 					permission: tool.permission,
 					destructive: tool.destructive,
-					inputSchema: z.fromJSONSchema({ ...tool.inputSchema }),
-					outputSchema: tool.outputSchema ? z.fromJSONSchema({ ...tool.outputSchema }) : undefined,
+					inputSchema: safeJsonSchemaToZod({ ...tool.inputSchema }, warnInvalidSchema("input")),
+					outputSchema: tool.outputSchema
+						? safeJsonSchemaToZod({ ...tool.outputSchema }, warnInvalidSchema("output"))
+						: undefined,
 				});
 			}
 		};

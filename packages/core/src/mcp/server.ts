@@ -27,6 +27,7 @@ import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
+import { pluginToolName } from "./plugin-tool-name.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
@@ -533,7 +534,7 @@ export function createMcpServer(
 	for (const tool of pluginTools) {
 		if (!(tool.permission in Permissions)) continue;
 		server.registerTool(
-			`${tool.pluginId}__${tool.name}`,
+			pluginToolName(tool.pluginId, tool.name),
 			{
 				description: tool.description,
 				inputSchema: tool.inputSchema,
