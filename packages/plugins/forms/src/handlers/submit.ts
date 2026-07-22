@@ -9,6 +9,7 @@ import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
+import { buildContentEntry } from "../content-mapping.js";
 import { formatSubmissionText, formatWebhookPayload } from "../format.js";
 import type { SubmitInput } from "../schemas.js";
 import { verifyTurnstile } from "../turnstile.js";
@@ -184,7 +185,24 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		lastSubmissionAt: new Date().toISOString(),
 	});
 
-	// 7. Immediate email notifications (not digest)
+	// 7. Create a draft content entry when the form maps submissions to a
+	// collection. The submission is already stored above — a create failure
+	// must never lose it or fail the request, so errors are logged instead
+	// of thrown.
+	if (settings.contentMapping && ctx.content?.create) {
+		try {
+			const entry = buildContentEntry(settings.contentMapping, result.data);
+			await ctx.content.create(settings.contentMapping.collection, entry);
+		} catch (err: unknown) {
+			ctx.log.error("Failed to create content entry from submission", {
+				error: String(err),
+				submissionId,
+				collection: settings.contentMapping.collection,
+			});
+		}
+	}
+
+	// 8. Immediate email notifications (not digest)
 	if (settings.notifyEmails.length > 0 && !settings.digestEnabled && ctx.email) {
 		const text = formatSubmissionText(form, result.data, files);
 		for (const email of settings.notifyEmails) {
@@ -203,7 +221,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		}
 	}
 
-	// 8. Autoresponder
+	// 9. Autoresponder
 	if (settings.autoresponder && ctx.email) {
 		const emailField = allFields.find((f) => f.type === "email");
 		const submitterEmail = emailField ? result.data[emailField.name] : null;
@@ -220,7 +238,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		}
 	}
 
-	// 9. Webhook (fire and forget)
+	// 10. Webhook (fire and forget)
 	if (settings.webhookUrl && ctx.http) {
 		const payload = formatWebhookPayload(form, submissionId, result.data, files);
 		ctx.http
@@ -237,7 +255,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 			});
 	}
 
-	// 10. Return success
+	// 11. Return success
 	return {
 		success: true,
 		message: settings.confirmationMessage,

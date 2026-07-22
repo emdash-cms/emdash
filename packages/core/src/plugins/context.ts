@@ -17,6 +17,7 @@ import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxo
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
+import { getI18nConfig } from "../i18n/config.js";
 import {
 	resolveAndValidateExternalUrl,
 	SsrfError,
@@ -24,6 +25,7 @@ import {
 } from "../import/ssrf.js";
 import { enrichImageMetadata } from "../media/enrich.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
+import { SchemaRegistry } from "../schema/registry.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
@@ -36,6 +38,7 @@ import type {
 	KVAccess,
 	CronAccess,
 	EmailAccess,
+	CollectionInfo,
 	ContentAccess,
 	ContentAccessWithWrite,
 	MediaAccess,
@@ -181,6 +184,34 @@ function splitSeoFromInput(input: ContentWriteInput): {
 }
 
 /**
+ * Extract the reserved `seo` and `slug` keys from a plugin-supplied create
+ * input. `slug` is only honored on create — `update` ignores it.
+ */
+function splitCreateInput(input: ContentWriteInput): {
+	fields: Record<string, unknown>;
+	seo: ContentItemSeoInput | undefined;
+	slug: string | undefined;
+} {
+	const { slug, ...rest } = input;
+	// Reject non-string slug values rather than silently dropping them.
+	if (slug !== undefined && (typeof slug !== "string" || slug.length === 0)) {
+		throw new Error("content.slug must be a non-empty string");
+	}
+	const { fields, seo } = splitSeoFromInput(rest);
+	return { fields, seo, slug };
+}
+
+/**
+ * Derive slug source text from content fields. Matches `getSlugSource` in
+ * the REST content-create handler (api/handlers/content.ts).
+ */
+function getSlugSource(data: Record<string, unknown>): string | null {
+	if (typeof data.title === "string" && data.title.length > 0) return data.title;
+	if (typeof data.name === "string" && data.name.length > 0) return data.name;
+	return null;
+}
+
+/**
  * Reject writing SEO to a collection that does not have it enabled.
  * Matches the REST API behavior (VALIDATION_ERROR).
  */
@@ -236,8 +267,26 @@ function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
 export function createContentAccess(db: Kysely<Database>): ContentAccess {
 	const contentRepo = new ContentRepository(db);
 	const seoRepo = new SeoRepository(db);
+	const schemaRegistry = new SchemaRegistry(db);
 
 	return {
+		async getCollection(collection: string): Promise<CollectionInfo | null> {
+			const result = await schemaRegistry.getCollectionWithFields(collection);
+			if (!result) return null;
+
+			return {
+				slug: result.slug,
+				label: result.label,
+				labelSingular: result.labelSingular ?? null,
+				fields: result.fields.map((field) => ({
+					slug: field.slug,
+					label: field.label,
+					type: field.type,
+					required: field.required,
+				})),
+			};
+		},
+
 		async get(collection: string, id: string): Promise<ContentItem | null> {
 			const item = await contentRepo.findById(collection, id);
 			if (!item) return null;
@@ -374,7 +423,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 		...readAccess,
 
 		async create(collection: string, data: ContentWriteInput): Promise<ContentItem> {
-			const { fields, seo } = splitSeoFromInput(data);
+			const { fields, seo, slug: slugInput } = splitCreateInput(data);
 			let contentMutated = false;
 
 			try {
@@ -384,9 +433,24 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 
 					const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
 
+					// Same slug generation as the REST create path: the slug
+					// source — the reserved `slug` key, falling back to the
+					// entry's title/name — is slugified and de-duplicated by
+					// ContentRepository.generateUniqueSlug. Entries default to
+					// the site's configured default locale, and slug
+					// uniqueness is scoped to it, again matching the REST
+					// path.
+					const effectiveLocale = getI18nConfig()?.defaultLocale;
+					const slugSource = slugInput ?? getSlugSource(fields);
+					const slug = slugSource
+						? await trxContentRepo.generateUniqueSlug(collection, slugSource, effectiveLocale)
+						: null;
+
 					const item = await trxContentRepo.create({
 						type: collection,
+						slug,
 						data: fields,
+						locale: effectiveLocale,
 					});
 					contentMutated = true;
 

@@ -52,7 +52,39 @@ export interface FormSettings {
 	nextLabel?: string;
 	/** Label for Previous button on multi-page forms */
 	prevLabel?: string;
+	/** Create a draft content entry from each successful submission */
+	contentMapping?: ContentMapping;
 }
+
+// ─── Content Mapping ─────────────────────────────────────────────
+
+/**
+ * Maps form submissions to content entries.
+ *
+ * When configured, each successful submission also creates a draft entry
+ * in the target collection. The submission is always stored in the forms
+ * inbox regardless — content creation is additive and a create failure
+ * never loses the submission or fails the submit request.
+ */
+export interface ContentMapping {
+	/** Target collection slug, e.g. "events" */
+	collection: string;
+	/** Form field name → target collection field (optionally with a transform) */
+	fieldMappings: Record<string, string | ContentFieldMapping>;
+	/** Form field whose value derives the entry slug */
+	slugFrom?: string;
+	/** Constant fields merged into every created entry, e.g. { source: "form" } */
+	metadata?: Record<string, unknown>;
+}
+
+export interface ContentFieldMapping {
+	/** Target collection field slug */
+	field: string;
+	/** Coerce the submitted value before writing it to the entry */
+	transform?: ContentMappingTransform;
+}
+
+export type ContentMappingTransform = "portableText" | "string" | "number" | "date";
 
 // ─── Form Fields ─────────────────────────────────────────────────
 

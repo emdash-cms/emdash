@@ -243,6 +243,8 @@ export type {
 	PluginStorageConfig,
 	StorageCollection,
 	KVAccess,
+	CollectionFieldInfo,
+	CollectionInfo,
 	ContentAccess,
 	MediaAccess,
 	HttpAccess,
