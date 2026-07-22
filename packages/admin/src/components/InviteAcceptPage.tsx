@@ -66,7 +66,7 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 				type="text"
 				value={name}
 				onChange={(e) => setName(e.target.value)}
-				placeholder="Jane Doe"
+				placeholder={t`Jane Doe`}
 				autoComplete="name"
 				autoFocus
 			/>
