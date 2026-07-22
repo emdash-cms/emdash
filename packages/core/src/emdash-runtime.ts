@@ -176,7 +176,14 @@ import {
 import { getDb } from "./loader.js";
 import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
+import { createCloudflareEmailPlugin, loadCloudflareConfig } from "./plugins/email-cloudflare.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
+import {
+	createSmtpEmailDeliver,
+	createSmtpEmailDeliverFromDb,
+	loadSmtpConfigFromEnv,
+	SMTP_EMAIL_PLUGIN_ID,
+} from "./plugins/email-smtp.js";
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
@@ -1331,6 +1338,63 @@ export class EmDashRuntime {
 			} catch (error) {
 				console.warn("[email] Failed to register dev console email provider:", error);
 			}
+		}
+
+		// Register built-in SMTP email provider when EMAIL_SMTP_* env vars are
+		// present or when configured in the admin UI (stored in DB). This is the
+		// only transport that works with generic SMTP credentials (Brevo relay,
+		// Office365, Fastmail, self-hosted Postfix) because sandboxed plugins
+		// cannot open TCP sockets. Registered as a built-in so it participates
+		// in exclusive hook resolution like any other provider — explicitly-
+		// selected plugin transports still win.
+		const encryptionKey =
+			import.meta.env.EMDASH_ENCRYPTION_KEY ?? process.env.EMDASH_ENCRYPTION_KEY;
+		// Register the SMTP provider even when not yet configured — the admin
+		// settings UI needs it in the provider list. The handler loads the
+		// config lazily from the DB on every send, so saving settings takes
+		// effect immediately without a runtime restart.
+		try {
+			const smtpPlugin = definePlugin({
+				id: SMTP_EMAIL_PLUGIN_ID,
+				version: "1.0.0",
+				capabilities: ["hooks.email-transport:register"],
+				hooks: {
+					"email:deliver": {
+						exclusive: true,
+						// SMTP over public internet (EHLO → STARTTLS → AUTH → DATA)
+						// needs far more than the 5s default hook timeout.
+						timeout: 30_000,
+						handler: encryptionKey
+							? createSmtpEmailDeliverFromDb(db, encryptionKey)
+							: createSmtpEmailDeliver(
+									loadSmtpConfigFromEnv() ?? {
+										host: "",
+										port: 587,
+										secure: "starttls",
+										user: "",
+										pass: "",
+									},
+								),
+					},
+				},
+			});
+			allPipelinePlugins.push(smtpPlugin);
+			enabledPlugins.add(smtpPlugin.id);
+		} catch (error) {
+			console.warn("[email] Failed to register SMTP email provider:", error);
+		}
+
+		// Register built-in Cloudflare Email provider. Always registered
+		// (even unconfigured) so it appears in the Settings → Email list.
+		// Config comes from DB (Settings UI) or env vars; the send_email
+		// binding is checked at delivery time with a clear error message.
+		try {
+			const cloudflareConfig = await loadCloudflareConfig(db);
+			const cloudflarePlugin = createCloudflareEmailPlugin(cloudflareConfig);
+			allPipelinePlugins.push(cloudflarePlugin);
+			enabledPlugins.add(cloudflarePlugin.id);
+		} catch (error) {
+			console.warn("[email] Failed to register Cloudflare Email provider:", error);
 		}
 
 		// Register built-in default comment moderator.
