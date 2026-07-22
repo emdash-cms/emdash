@@ -1,5 +1,28 @@
 # emdash
 
+## 0.31.0
+
+### Minor Changes
+
+- [#1967](https://github.com/emdash-cms/emdash/pull/1967) [`f8e41cd`](https://github.com/emdash-cms/emdash/commit/f8e41cdddae07859b1854719fb15536533916f8b) Thanks [@Rimander](https://github.com/Rimander)! - Makes the Portable Text gallery block editable in the admin editor. Galleries imported from WordPress now load and stay editable instead of being invisible and lost on save, and you can insert new galleries from the toolbar or with /gallery: pick several images at once reorder them by drag and drop, set the column count, and click any image in the gallery to edit its alt text and caption or replace it. Multiple galleries per document are supported, and gallery blocks render on the public site as before.
+
+### Patch Changes
+
+- [#1588](https://github.com/emdash-cms/emdash/pull/1588) [`15d5a45`](https://github.com/emdash-cms/emdash/commit/15d5a454c4bdde456819b04ef67fcd846f191ead) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes plugin `content:afterDelete` and `content:afterUnpublish` hooks being dropped on Cloudflare Workers. Cleanup work in these hooks — removing uploaded files, clearing search indexes — now runs to completion after content is deleted or unpublished, instead of being canceled the moment the response is sent. Previously this could also leave plugin storage in a wedged state that hung later admin requests.
+
+- [#2174](https://github.com/emdash-cms/emdash/pull/2174) [`c568876`](https://github.com/emdash-cms/emdash/commit/c568876d78bfcb90d170e03212544a2bda81ddf2) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes locale-filtered content and search results for locales with uppercase region or script subtags. Existing content rows saved with lowercased locale values are repaired automatically.
+
+- [#2140](https://github.com/emdash-cms/emdash/pull/2140) [`c4d790e`](https://github.com/emdash-cms/emdash/commit/c4d790e9025b3fdba53953ec720e5e043fd153ab) Thanks [@dchaudhari7177](https://github.com/dchaudhari7177)! - Security: site secrets (`EMDASH_ENCRYPTION_KEY`, `EMDASH_PREVIEW_SECRET`, `EMDASH_IP_SALT`, and their legacy aliases) are no longer read through `import.meta.env`. In production builds Vite statically replaced that expression with the env loaded at build time, which embedded any secret present in `.env` on the build machine into the server bundle and made the stale build-time value silently shadow the real runtime secret (e.g. one set with `wrangler secret put`). The secrets module now reads only the runtime `process.env`. If you previously relied on a secret being baked in at build time, set it as a runtime secret/env var on your deployment platform instead — and rotate any key that shipped inside a bundle.
+
+- [#2188](https://github.com/emdash-cms/emdash/pull/2188) [`0eb389f`](https://github.com/emdash-cms/emdash/commit/0eb389f7a297d197e4f537eae44bfdee87e39396) Thanks [@saariuslystoned](https://github.com/saariuslystoned)! - Fixes OAuth authorization so users can remove unnecessary requested permissions before granting an MCP client access.
+
+- [#2193](https://github.com/emdash-cms/emdash/pull/2193) [`791c0eb`](https://github.com/emdash-cms/emdash/commit/791c0eb2836af9fbe3069c75dd1acfb901288592) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes PostgreSQL migrations failing in production builds that rename database adapter classes.
+
+- Updated dependencies [[`1614e2a`](https://github.com/emdash-cms/emdash/commit/1614e2ad77a467e382fec51fb312e13e26b42d10), [`d62a302`](https://github.com/emdash-cms/emdash/commit/d62a3024b597da976de8561b12826dc0f691b0a2), [`4f58eec`](https://github.com/emdash-cms/emdash/commit/4f58eec7ac510864d10af085fcf3b7d03026d81b), [`f8e41cd`](https://github.com/emdash-cms/emdash/commit/f8e41cdddae07859b1854719fb15536533916f8b)]:
+  - @emdash-cms/admin@0.31.0
+  - @emdash-cms/auth@0.31.0
+  - @emdash-cms/gutenberg-to-portable-text@0.31.0
+
 ## 0.30.0
 
 ### Minor Changes
