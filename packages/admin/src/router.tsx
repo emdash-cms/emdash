@@ -966,6 +966,14 @@ function ContentEditPage() {
 			}
 		},
 	});
+	const publishedAtMutation = useMutation({
+		mutationFn: (publishedAt: string) =>
+			updateContent(collection, id, { publishedAt }, { locale: rawItem?.locale ?? activeLocale }),
+		onSuccess: () => {
+			handleContentUpdateSuccess(id);
+		},
+		onError: handleContentUpdateError,
+	});
 
 	// Autosave mutation - skips revision creation
 	const autosaveMutation = useMutation({
@@ -1191,14 +1199,9 @@ function ContentEditPage() {
 	);
 	const handlePublishedAtChange = React.useCallback(
 		(publishedAt: string) => {
-			updateMutation.mutate({
-				targetId: id,
-				targetLocale: rawItem?.locale ?? activeLocale,
-				source: "auxiliary",
-				changes: { publishedAt },
-			});
+			publishedAtMutation.mutate(publishedAt);
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[publishedAtMutation.mutate],
 	);
 
 	const handleSeoChange = React.useCallback(
@@ -1265,7 +1268,7 @@ function ContentEditPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
 			fields={collectionConfig.fields}
-			isSaving={updateMutation.isPending}
+			isSaving={updateMutation.isPending || publishedAtMutation.isPending}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
@@ -1281,9 +1284,7 @@ function ContentEditPage() {
 			onUnschedule={handleUnschedule}
 			isScheduling={scheduleMutation.isPending}
 			onPublishedAtChange={handlePublishedAtChange}
-			isUpdatingPublishedAt={
-				updateMutation.isPending && updateMutation.variables?.changes.publishedAt !== undefined
-			}
+			isUpdatingPublishedAt={publishedAtMutation.isPending}
 			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
