@@ -290,7 +290,9 @@ async function searchSingleCollection(
 	// Using raw SQL because Kysely doesn't have FTS5 support
 	const bm25Expr = bm25Args ? `bm25("${ftsTable}", ${bm25Args})` : `bm25("${ftsTable}")`;
 
-	// Snippet column index is 2 (after id=0, locale=1, first searchable field=2)
+	// Negative column index tells FTS5 to scan every indexed column and
+	// extract the snippet from whichever one has the most matching
+	// tokens, instead of always the first searchable field (title).
 	let results;
 	try {
 		results = await sql<{
@@ -306,7 +308,7 @@ async function searchSingleCollection(
 			c.slug,
 			c.locale,
 			${titleExpr} as title,
-			snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) as snippet,
+			snippet("${sql.raw(ftsTable)}", -1, '<mark>', '</mark>', '...', 32) as snippet,
 			${sql.raw(bm25Expr)} as score
 		FROM "${sql.raw(ftsTable)}" f
 		JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
