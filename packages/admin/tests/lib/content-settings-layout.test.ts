@@ -48,6 +48,6 @@ describe("content settings layout", () => {
 		expect(layout.order.slice(0, 2)).toEqual([pluginSection, "seo"]);
 
 		const next = reorderContentSettingsLayout(layout, pluginSection, "ownership");
-		expect(next.order.indexOf(pluginSection)).toBe(next.order.indexOf("ownership") - 1);
+		expect(next.order.indexOf(pluginSection)).toBe(next.order.indexOf("ownership") + 1);
 	});
 });
