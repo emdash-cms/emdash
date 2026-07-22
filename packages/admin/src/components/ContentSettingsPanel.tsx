@@ -25,6 +25,7 @@ import type {
 	UserListItem,
 } from "../lib/api";
 import { fetchBylines } from "../lib/api";
+import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { cn, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
@@ -302,6 +303,8 @@ export interface ContentSettingsPanelProps {
 	onSchedule?: (scheduledAt: string) => void;
 	onUnschedule?: () => void;
 	isScheduling?: boolean;
+	onPublishedAtChange?: (publishedAt: string) => void;
+	isUpdatingPublishedAt?: boolean;
 	onDiscardDraft?: () => void;
 	onDelete?: () => void;
 	isDeleting?: boolean;
@@ -355,6 +358,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onSchedule,
 	onUnschedule,
 	isScheduling,
+	onPublishedAtChange,
+	isUpdatingPublishedAt,
 	onDiscardDraft,
 	onDelete,
 	isDeleting,
@@ -382,9 +387,17 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 	const [scheduleDate, setScheduleDate] = React.useState<string>("");
 	const [showScheduler, setShowScheduler] = React.useState(false);
+	const storedPublishedDate = toDatetimeLocalInputValue(item?.publishedAt);
+	const [publishedDate, setPublishedDate] = React.useState(storedPublishedDate);
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const hasApplicableTaxonomies = useHasApplicableTaxonomies(collection);
+	const canUpdatePublishedDate =
+		item?.publishedAt != null && (currentUser?.role ?? 0) >= ROLE_EDITOR && !!onPublishedAtChange;
+
+	React.useEffect(() => {
+		setPublishedDate(storedPublishedDate);
+	}, [item?.id, storedPublishedDate]);
 
 	const handleScheduleSubmit = () => {
 		if (scheduleDate && onSchedule) {
@@ -392,6 +405,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			onSchedule(date.toISOString());
 			setShowScheduler(false);
 			setScheduleDate("");
+		}
+	};
+
+	const handlePublishedDateSubmit = () => {
+		if (publishedDate && onPublishedAtChange) {
+			onPublishedAtChange(fromDatetimeLocalInputValue(publishedDate));
 		}
 	};
 
@@ -524,6 +543,32 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 											{t`Schedule for later`}
 										</Button>
 									)}
+								</div>
+							)}
+
+							{canUpdatePublishedDate && (
+								<div className="space-y-2 pt-2">
+									<Input
+										label={t`Publish date`}
+										type="datetime-local"
+										value={publishedDate}
+										onChange={(event) => setPublishedDate(event.target.value)}
+										disabled={isUpdatingPublishedAt}
+									/>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={handlePublishedDateSubmit}
+										disabled={
+											!publishedDate ||
+											publishedDate === storedPublishedDate ||
+											isUpdatingPublishedAt
+										}
+										icon={isUpdatingPublishedAt ? <Loader size="sm" /> : undefined}
+									>
+										{t`Update publish date`}
+									</Button>
 								</div>
 							)}
 						</div>
