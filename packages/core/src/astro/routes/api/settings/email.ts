@@ -248,7 +248,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 const smtpConfigSchema = z.object({
 	host: z.string().min(1),
-	port: z.number().int().min(1).max(65535),
+	port: z
+		.number()
+		.int()
+		.min(1)
+		.max(65535)
+		.refine((p) => p !== 25, {
+			message:
+				"Port 25 is not supported: Cloudflare blocks outbound port 25. Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
+		}),
 	secure: z.enum(["starttls", "tls"]),
 	user: z.string().min(1),
 	pass: z.string().min(1).optional(), // undefined = keep existing password

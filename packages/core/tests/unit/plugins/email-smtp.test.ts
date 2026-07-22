@@ -277,8 +277,16 @@ describe("deliverSmtp", () => {
 			connectFn,
 		);
 
+		// Dot-stuffing applies to the raw MIME before base64 encoding. The
+		// encoded body contains no leading dots, so we verify the stuffed
+		// line is present in the decoded text.
 		const transcript = written.join("");
-		expect(transcript).toContain("..Line two starts with dot");
+		const plainPartStart = transcript.indexOf("Content-Type: text/plain");
+		const plainBodyStart = transcript.indexOf("\r\n\r\n", plainPartStart) + 4;
+		const plainBodyEnd = transcript.indexOf("\r\n--", plainBodyStart);
+		const encodedBody = transcript.slice(plainBodyStart, plainBodyEnd);
+		const decodedBody = Buffer.from(encodedBody, "base64").toString("utf-8");
+		expect(decodedBody).toContain("Line one\n..Line two starts with dot\nLine three");
 	});
 });
 
@@ -450,7 +458,7 @@ describe("loadSmtpConfig", () => {
 	});
 });
 
-describe("Cloudflare socket edge cases (regression #1541)", () => {
+describe("Cloudflare socket edge cases", () => {
 	const message = {
 		to: "recipient@example.com",
 		subject: "Hello",
@@ -459,8 +467,8 @@ describe("Cloudflare socket edge cases (regression #1541)", () => {
 	};
 
 	it("performs the full STARTTLS upgrade flow (re-EHLO, AUTH)", async () => {
-		// Regression #1541: the Cloudflare STARTTLS path stalled after the
-		// upgrade. This verifies the deliverSmtp-level flow — the upgraded
+		// The Cloudflare STARTTLS path stalled after the upgrade. This verifies
+		// the deliverSmtp-level flow — the upgraded
 		// socket takes over reads/writes and the buffer resets. The
 		// writer-release fix itself lives in connectCloudflare and was
 		// verified against live Workers; it cannot be exercised here because

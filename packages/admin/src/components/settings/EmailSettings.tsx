@@ -6,6 +6,8 @@
  */
 
 import { Button, Input, Loader, Select, useKumoToastManager } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	CheckCircle,
@@ -29,10 +31,10 @@ import {
 import { getMutationError } from "../DialogError.js";
 import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
-const PROVIDER_OPTIONS: { value: EmailProviderChoice; label: string }[] = [
-	{ value: "none", label: "None" },
-	{ value: "smtp", label: "SMTP" },
-	{ value: "cloudflare", label: "Cloudflare Email" },
+const PROVIDER_OPTIONS: { value: EmailProviderChoice; label: MessageDescriptor }[] = [
+	{ value: "none", label: msg`None` },
+	{ value: "smtp", label: msg`SMTP` },
+	{ value: "cloudflare", label: msg`Cloudflare Email` },
 ];
 
 export function EmailSettings() {
@@ -260,7 +262,7 @@ export function EmailSettings() {
 						onValueChange={(value) => setProvider(value as EmailProviderChoice)}
 						items={PROVIDER_OPTIONS.map((opt) => ({
 							value: opt.value,
-							label: opt.label,
+							label: t(opt.label),
 							disabled: opt.value === "cloudflare" && !hasCloudflareProvider,
 						}))}
 					/>
@@ -301,8 +303,8 @@ export function EmailSettings() {
 										setSmtpSecure(value as "starttls" | "tls");
 									}}
 									items={[
-										{ value: "starttls", label: "STARTTLS (port 587)" },
-										{ value: "tls", label: "Implicit TLS (port 465)" },
+										{ value: "starttls", label: t`STARTTLS (port 587)` },
+										{ value: "tls", label: t`Implicit TLS (port 465)` },
 									]}
 								/>
 								<Input

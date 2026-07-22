@@ -5,10 +5,10 @@
  * Office365, Google Workspace, Fastmail, Amazon SES, self-hosted Postfix)
  * via raw TCP — the one network primitive sandboxed plugins cannot use.
  *
- * Registered as a built-in `email:deliver` provider when SMTP env vars are
- * present. On Cloudflare Workers it uses `cloudflare:sockets`; on Node it
- * uses `node:net` / `node:tls`. Configuration is env-only for the first
- * iteration — no admin UI yet.
+ * Registered as a built-in `email:deliver` provider. On Cloudflare Workers it
+ * uses `cloudflare:sockets`; on Node it uses `node:net` / `node:tls`.
+ * Configuration comes from env vars (see below) or the Settings → Email
+ * admin UI (stored encrypted in the database).
  *
  * Env vars:
  *   EMAIL_SMTP_HOST     smtp-relay.brevo.com
@@ -201,6 +201,14 @@ function sanitizeHeader(value: string): string {
 	return value.replace(CRLF_REGEX, " ");
 }
 
+/** RFC 2047 encoded-word for UTF-8 headers (Subject, From, Reply-To). */
+function encodeHeader(value: string): string {
+	const sanitized = sanitizeHeader(value);
+	// Only encode when non-ASCII is present — ASCII headers stay readable.
+	if (!/[^\x20-\x7E]/.test(sanitized)) return sanitized;
+	return `=?UTF-8?B?${btoa(unescape(encodeURIComponent(sanitized)))}?=`;
+}
+
 const ADDRESS_REGEX = /^\s*(?:"([^"]*)"|([^<]*))?\s*<([^>]+)>\s*$/;
 
 /** Parse "Name <email@example.com>" or bare "email@example.com". */
@@ -224,16 +232,20 @@ function buildMime(params: {
 }): string {
 	const { from, replyTo, to, subject, text, html } = params;
 	const headers: string[] = [
-		`From: ${from.name ? `"${sanitizeHeader(from.name)}" <${from.email}>` : from.email}`,
+		`From: ${from.name ? `"${encodeHeader(from.name)}" <${from.email}>` : from.email}`,
 		`To: ${to}`,
-		`Subject: ${sanitizeHeader(subject)}`,
+		`Subject: ${encodeHeader(subject)}`,
 		`Date: ${new Date().toUTCString()}`,
 		`Message-ID: <${crypto.randomUUID()}@emdash>`,
 		`MIME-Version: 1.0`,
 	];
 	if (replyTo) {
-		headers.push(`Reply-To: ${sanitizeHeader(replyTo)}`);
+		headers.push(`Reply-To: ${encodeHeader(replyTo)}`);
 	}
+
+	// Dot-stuff the raw text BEFORE base64 encoding — the encoded output
+	// has no leading dots, so stuffing must happen on the plain text.
+	const stuffedText = text.replace(/^\./gm, "..");
 
 	let body: string;
 	if (html) {
@@ -242,25 +254,23 @@ function buildMime(params: {
 		body = [
 			`--${boundary}`,
 			`Content-Type: text/plain; charset=utf-8`,
-			`Content-Transfer-Encoding: 7bit`,
+			`Content-Transfer-Encoding: base64`,
 			``,
-			text,
+			btoa(unescape(encodeURIComponent(stuffedText))),
 			`--${boundary}`,
 			`Content-Type: text/html; charset=utf-8`,
-			`Content-Transfer-Encoding: 7bit`,
+			`Content-Transfer-Encoding: base64`,
 			``,
-			html,
+			btoa(unescape(encodeURIComponent(html))),
 			`--${boundary}--`,
 		].join("\r\n");
 	} else {
 		headers.push(`Content-Type: text/plain; charset=utf-8`);
-		headers.push(`Content-Transfer-Encoding: 7bit`);
-		body = text;
+		headers.push(`Content-Transfer-Encoding: base64`);
+		body = btoa(unescape(encodeURIComponent(stuffedText)));
 	}
 
-	const message = `${headers.join("\r\n")}\r\n\r\n${body}`;
-	// Dot-stuffing: lines starting with "." get an extra "."
-	return message.replace(/^\./gm, "..");
+	return `${headers.join("\r\n")}\r\n\r\n${body}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -754,4 +764,25 @@ export function createSmtpEmailDeliver(
 	connectFn?: ConnectFn,
 ): (event: EmailDeliverEvent, ctx: PluginContext) => Promise<void> {
 	return async (event, ctx) => deliverSmtp(config, event.message, ctx, connectFn);
+}
+
+/**
+ * Build an email:deliver handler that loads the SMTP config lazily from the
+ * database on every send. This makes the provider work immediately after
+ * the admin saves settings — no runtime restart required.
+ */
+export function createSmtpEmailDeliverFromDb(
+	db: Kysely<Database>,
+	encryptionKey: string,
+	connectFn?: ConnectFn,
+): (event: EmailDeliverEvent, ctx: PluginContext) => Promise<void> {
+	return async (event, ctx) => {
+		const config = await loadSmtpConfigFromDb(db, encryptionKey);
+		if (!isSmtpConfigComplete(config)) {
+			throw new Error(
+				"SMTP is not configured. Save host, port, username and password in Settings → Email.",
+			);
+		}
+		return deliverSmtp(config, event.message, ctx, connectFn);
+	};
 }
