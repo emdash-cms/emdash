@@ -32,6 +32,7 @@ export interface SchemaCollection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports: string[];
 	source?: string;
 	urlPattern?: string;
@@ -44,6 +45,10 @@ export interface SchemaCollection {
 	updatedAt: string;
 }
 
+export interface CollectionAdminConfig {
+	listColumns?: string[];
+}
+
 export interface SchemaField {
 	id: string;
 	collectionId: string;
@@ -54,6 +59,7 @@ export interface SchemaField {
 	required: boolean;
 	unique: boolean;
 	searchable: boolean;
+	indexed: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -80,6 +86,7 @@ export interface CreateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: string[];
 	urlPattern?: string;
 	hasSeo?: boolean;
@@ -90,6 +97,7 @@ export interface UpdateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: string[];
 	urlPattern?: string;
 	hasSeo?: boolean;
@@ -106,6 +114,7 @@ export interface CreateFieldInput {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -125,6 +134,7 @@ export interface UpdateFieldInput {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;

@@ -8,6 +8,7 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { ContentFieldFilters } from "../content-list-query.js";
 import type { RouteMeta } from "../plugins/routes.js";
 
 // Re-export core types
@@ -31,6 +32,8 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	/** Valid custom field slugs to render in the admin content list. */
+	listColumns?: string[];
 	fields: Record<
 		string,
 		{
@@ -240,6 +243,7 @@ export interface EmDashHandlers {
 			dateField?: "createdAt" | "updatedAt" | "publishedAt";
 			dateFrom?: string;
 			dateTo?: string;
+			fieldFilters?: ContentFieldFilters;
 		},
 	) => Promise<HandlerResponse>;
 

@@ -19,6 +19,7 @@
 
 import mime from "mime/lite";
 
+import type { ContentFieldFilters } from "../content-list-query.js";
 import type { FieldSchema } from "./portable-text.js";
 import { convertDataForRead, convertDataForWrite } from "./portable-text.js";
 import type { Interceptor } from "./transport.js";
@@ -497,6 +498,8 @@ export class EmDashClient {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			/** AND-combined filters over custom fields explicitly marked as indexed. */
+			fieldFilters?: ContentFieldFilters;
 		},
 	): Promise<ListResult<ContentItem>> {
 		const params = new URLSearchParams();
@@ -506,6 +509,9 @@ export class EmDashClient {
 		if (options?.orderBy) params.set("orderBy", options.orderBy);
 		if (options?.order) params.set("order", options.order);
 		if (options?.locale) params.set("locale", options.locale);
+		if (options?.fieldFilters && Object.keys(options.fieldFilters).length > 0) {
+			params.set("fieldFilters", JSON.stringify(options.fieldFilters));
+		}
 
 		const qs = params.toString();
 		const path = `/content/${encodeURIComponent(collection)}${qs ? `?${qs}` : ""}`;
@@ -521,6 +527,8 @@ export class EmDashClient {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			/** AND-combined filters over custom fields explicitly marked as indexed. */
+			fieldFilters?: ContentFieldFilters;
 		},
 	): AsyncGenerator<ContentItem> {
 		let cursor: string | undefined;

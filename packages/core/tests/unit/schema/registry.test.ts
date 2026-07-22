@@ -128,6 +128,19 @@ describe("SchemaRegistry", () => {
 			expect(updated.supports).toEqual(["drafts"]);
 		});
 
+		it("persists collection admin list columns", async () => {
+			const created = await registry.createCollection({
+				slug: "tickets",
+				label: "Tickets",
+				admin: { listColumns: ["ticket_number", "priority"] },
+			});
+
+			expect(created.admin?.listColumns).toEqual(["ticket_number", "priority"]);
+
+			const updated = await registry.updateCollection("tickets", { label: "Support tickets" });
+			expect(updated.admin?.listColumns).toEqual(["ticket_number", "priority"]);
+		});
+
 		it("should throw when updating non-existent collection", async () => {
 			await expect(registry.updateCollection("nonexistent", { label: "Test" })).rejects.toThrow(
 				SchemaError,
@@ -194,6 +207,49 @@ describe("SchemaRegistry", () => {
 			expect(field.type).toBe("string");
 			expect(field.columnType).toBe("TEXT");
 			expect(field.required).toBe(true);
+		});
+
+		it("keeps an indexed field's physical index in sync", async () => {
+			const listFieldIndexes = async () =>
+				(
+					await sql<{ name: string }>`
+						SELECT name
+						FROM sqlite_master
+						WHERE type = 'index'
+							AND tbl_name = 'ec_posts'
+							AND name LIKE 'idx_cf_%'
+					`.execute(db)
+				).rows;
+
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+
+			expect(field.indexed).toBe(true);
+			expect(await listFieldIndexes()).toHaveLength(1);
+
+			await registry.updateField("posts", "priority", { indexed: false });
+			expect(await listFieldIndexes()).toHaveLength(0);
+
+			await registry.updateField("posts", "priority", { indexed: true });
+			expect(await listFieldIndexes()).toHaveLength(1);
+
+			await registry.deleteField("posts", "priority");
+			expect(await listFieldIndexes()).toHaveLength(0);
+		});
+
+		it("rejects indexes for non-scalar fields", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "body",
+					label: "Body",
+					type: "portableText",
+					indexed: true,
+				}),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
 		});
 
 		it("should add column to content table when creating field", async () => {

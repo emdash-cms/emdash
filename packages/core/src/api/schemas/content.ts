@@ -26,6 +26,57 @@ const contentDateBound = z
 	])
 	.optional();
 
+const contentFieldComparable = z.union([z.string().max(2048), z.number().finite()]);
+const contentFieldFilterScalar = z.union([contentFieldComparable, z.boolean(), z.null()]);
+const contentFieldFilterValue = z.union([
+	contentFieldFilterScalar,
+	z
+		.object({
+			in: z
+				.array(z.union([contentFieldComparable, z.boolean()]))
+				.min(1)
+				.max(100),
+		})
+		.strict(),
+	z
+		.object({
+			gt: contentFieldComparable.optional(),
+			gte: contentFieldComparable.optional(),
+			lt: contentFieldComparable.optional(),
+			lte: contentFieldComparable.optional(),
+		})
+		.strict()
+		.refine((value) => Object.values(value).some((bound) => bound !== undefined), {
+			message: "Range filter must include at least one bound",
+		}),
+]);
+
+/** AND-combined filters over custom fields explicitly marked as indexed. */
+export const contentFieldFiltersSchema = z
+	.record(
+		z
+			.string()
+			.max(128)
+			.regex(/^[a-z][a-z0-9_]*$/, "must be a safe field identifier"),
+		contentFieldFilterValue,
+	)
+	.refine((filters) => Object.keys(filters).length <= 20, {
+		message: "At most 20 indexed field filters are allowed",
+	});
+
+const contentFieldFiltersQuery = z
+	.string()
+	.max(8192)
+	.transform((value, ctx): unknown => {
+		try {
+			return JSON.parse(value);
+		} catch {
+			ctx.addIssue({ code: "custom", message: "must be valid JSON" });
+			return z.NEVER;
+		}
+	})
+	.pipe(contentFieldFiltersSchema);
+
 export const contentListQuery = cursorPaginationQuery
 	.extend({
 		status: z.string().optional(),
@@ -42,6 +93,8 @@ export const contentListQuery = cursorPaginationQuery
 		dateFrom: contentDateBound,
 		/** Inclusive upper bound for the date range. Requires `dateField`. */
 		dateTo: contentDateBound,
+		/** JSON-encoded indexed custom-field filters, combined with AND semantics. */
+		fieldFilters: contentFieldFiltersQuery.optional(),
 	})
 	.meta({ id: "ContentListQuery" });
 

@@ -1,7 +1,8 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createDatabase } from "../../src/database/connection.js";
+import * as indexedContentFields from "../../src/database/migrations/055_indexed_content_fields.js";
 import {
 	runMigrations,
 	getMigrationStatus,
@@ -77,6 +78,51 @@ describe("Database Migrations", () => {
 			expect(status.applied).toHaveLength(MIGRATION_COUNT); // derived from MIGRATIONS map in runner.ts
 		});
 
+		it("should remove custom field indexes when rolling back indexed field support", async () => {
+			await runMigrations(db);
+
+			const fieldId = "01J00000000000000000000000";
+			const indexName = `idx_cf_${fieldId.toLowerCase()}`;
+
+			await db
+				.insertInto("_emdash_collections")
+				.values({ id: "collection-1", slug: "posts", label: "Posts" })
+				.execute();
+			await db
+				.insertInto("_emdash_fields")
+				.values({
+					id: fieldId,
+					collection_id: "collection-1",
+					slug: "priority",
+					label: "Priority",
+					type: "integer",
+					column_type: "INTEGER",
+					required: 0,
+					unique: 0,
+					default_value: null,
+					validation: null,
+					widget: null,
+					options: null,
+					sort_order: 0,
+					indexed: 1,
+				})
+				.execute();
+			await sql`CREATE INDEX ${sql.ref(indexName)} ON _emdash_fields (id)`.execute(db);
+
+			await indexedContentFields.down(db);
+
+			const indexes = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master WHERE type = 'index' AND name = ${indexName}
+			`.execute(db);
+			const fieldsTable = (await db.introspection.getTables()).find(
+				(table) => table.name === "_emdash_fields",
+			);
+
+			expect(indexes.rows).toEqual([]);
+			expect(fieldsTable?.columns.map((column) => column.name)).not.toContain("indexed");
+			await expect(indexedContentFields.down(db)).resolves.not.toThrow();
+		});
+
 		it("should record migration in tracking table", async () => {
 			await runMigrations(db);
 
@@ -136,6 +182,7 @@ describe("Database Migrations", () => {
 			expect(columns).toContain("label_singular");
 			expect(columns).toContain("description");
 			expect(columns).toContain("icon");
+			expect(columns).toContain("admin_config");
 			expect(columns).toContain("supports");
 			expect(columns).toContain("source");
 			expect(columns).toContain("created_at");

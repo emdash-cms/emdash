@@ -42,7 +42,16 @@ import type { z } from "astro/zod";
 // Core Types
 // =============================================================================
 
+import type { ContentFieldFilters } from "../content-list-query.js";
 import type { FieldType } from "../schema/types.js";
+
+export type {
+	ContentFieldFilterScalar,
+	ContentFieldFilterValue,
+	ContentFieldFilters,
+	ContentFieldInFilter,
+	ContentFieldRangeFilter,
+} from "../content-list-query.js";
 
 export {
 	CAPABILITY_RENAMES,
@@ -227,6 +236,8 @@ export interface ContentListWhere {
 	status?: string;
 	/** Exact match on `locale` (e.g. `"en"`, `"fr-CA"`). */
 	locale?: string;
+	/** AND-combined filters over custom fields explicitly marked as indexed. */
+	fieldFilters?: ContentFieldFilters;
 }
 
 /**

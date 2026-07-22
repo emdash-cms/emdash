@@ -22,6 +22,7 @@ import type {
 import type { EmDashManifest, ManifestCollection } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
+import type { ContentFieldFilters } from "./content-list-query.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import {
@@ -224,6 +225,17 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	json: "json",
 	repeater: "repeater",
 };
+
+const LIST_COLUMN_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
+	"string",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"multiSelect",
+]);
+const MAX_LIST_COLUMNS = 4;
 
 /**
  * Sandboxed plugin entry from virtual module
@@ -2356,12 +2368,34 @@ export class EmDashRuntime {
 					fields[field.slug] = entry;
 				}
 
+				const configuredListColumns = collection.admin?.listColumns ?? [];
+				const fieldTypes = new Map(collection.fields.map((field) => [field.slug, field.type]));
+				const listColumns: string[] = [];
+				for (const slug of configuredListColumns) {
+					if (listColumns.includes(slug)) continue;
+					const fieldType = fieldTypes.get(slug);
+					if (!fieldType || !LIST_COLUMN_FIELD_TYPES.has(fieldType)) {
+						console.warn(
+							`EmDash: Ignoring unsupported or unknown list column "${slug}" in collection "${collection.slug}".`,
+						);
+						continue;
+					}
+					if (listColumns.length >= MAX_LIST_COLUMNS) {
+						console.warn(
+							`EmDash: Collection "${collection.slug}" declares more than ${MAX_LIST_COLUMNS} list columns; extra columns are ignored.`,
+						);
+						break;
+					}
+					listColumns.push(slug);
+				}
+
 				manifestCollections[collection.slug] = {
 					label: collection.label,
 					labelSingular: collection.labelSingular || collection.label,
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					listColumns: listColumns.length > 0 ? listColumns : undefined,
 					fields,
 				};
 			}
@@ -2610,6 +2644,7 @@ export class EmDashRuntime {
 			dateField?: ContentDateField;
 			dateFrom?: string;
 			dateTo?: string;
+			fieldFilters?: ContentFieldFilters;
 		},
 	) {
 		return handleContentList(this.db, collection, params);

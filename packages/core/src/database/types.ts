@@ -291,6 +291,7 @@ export interface CollectionTable {
 	label_singular: string | null;
 	description: string | null;
 	icon: string | null;
+	admin_config: Generated<string | null>; // JSON: { listColumns?: string[] }
 	supports: string | null; // JSON array
 	source: string | null;
 	search_config: string | null; // JSON: { enabled: boolean, weights: Record<string, number> }
@@ -331,6 +332,7 @@ export interface FieldTable {
 	options: string | null; // JSON
 	sort_order: number;
 	searchable: Generated<number>; // boolean as 0/1, defaults to 0
+	indexed: Generated<number>; // boolean as 0/1, defaults to 0
 	translatable: Generated<number>; // boolean as 0/1, defaults to 1
 	created_at: Generated<string>;
 }
