@@ -201,11 +201,13 @@ function sanitizeHeader(value: string): string {
 	return value.replace(CRLF_REGEX, " ");
 }
 
+const NON_ASCII_REGEX = /[^\x20-\x7E]/;
+
 /** RFC 2047 encoded-word for UTF-8 headers (Subject, From, Reply-To). */
 function encodeHeader(value: string): string {
 	const sanitized = sanitizeHeader(value);
 	// Only encode when non-ASCII is present — ASCII headers stay readable.
-	if (!/[^\x20-\x7E]/.test(sanitized)) return sanitized;
+	if (!NON_ASCII_REGEX.test(sanitized)) return sanitized;
 	return `=?UTF-8?B?${btoa(unescape(encodeURIComponent(sanitized)))}?=`;
 }
 
