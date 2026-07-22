@@ -1,0 +1,26 @@
+---
+title: Runbooks
+description: Operational runbooks for platform upkeep, validation, and incident response.
+---
+
+Runbooks are the practical checklists behind this repo. They are intentionally concrete and command-driven so an agent or maintainer can execute the same sequence quickly.
+
+## Available runbooks
+
+- [Cloudflare Post-Deploy Operations](./deployment/cloudflare-post-deploy-operations): verify API access, token-based ops, and infrastructure handoff after deploy.
+
+## Purpose and maintenance rhythm
+
+These runbooks are written for:
+
+- fast recovery after regressions in behavior-critical paths,
+- release prep where repeatable validation matters,
+- onboarding scripts for new automation actors (including the Master-Orchestrator).
+
+Each runbook includes:
+
+- expected prerequisites,
+- exact commands,
+- success criteria,
+- known failure modes,
+- a short note on what to do when the environment is not clean.
