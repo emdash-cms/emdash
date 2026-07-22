@@ -1,12 +1,11 @@
 /**
  * Portable helpers shared by the platform image-endpoint modules.
  *
- * EmDash wraps Astro's image endpoint (`image.endpoint`) so that source bytes
- * for EmDash media are read straight from the storage adapter instead of being
- * fetched over HTTP. The platform endpoint modules (Node: sharp via
- * `astro:assets`; Cloudflare: the `IMAGES` binding) do the actual transform;
- * this module holds the platform-agnostic bits they share: recognizing an
- * EmDash media URL and validating transform query params.
+ * EmDash wraps Astro's image endpoint (`image.endpoint`) so storage-backed
+ * media can be transformed without exposing an authenticated source route.
+ * Node delegates to Astro's configured local or external image service;
+ * Cloudflare uses the `IMAGES` binding. This module holds the portable pieces
+ * they share: recognizing EmDash media URLs and validating transform params.
  *
  * Kept free of `astro:*` / `virtual:emdash/*` imports so it stays in the
  * precompiled package and can be unit-tested directly.
@@ -48,6 +47,89 @@ export interface ImageTransformOptions {
 	 * {@link DEFAULT_TRANSFORM_QUALITY}); lossless PNG deliberately gets none.
 	 */
 	quality?: number;
+}
+
+/** HEIC-family MIME types browsers generally cannot render directly. */
+const HEIC_MIME_TYPES = new Set([
+	"image/heic",
+	"image/heif",
+	"image/heic-sequence",
+	"image/heif-sequence",
+]);
+
+/** HEIC-family extensions used when a client supplies a generic MIME type. */
+const HEIC_FILENAME_PATTERN = /\.(?:heic|heif|heics|heifs|hif)$/i;
+
+/** Whether a MIME type or filename identifies a HEIC-family image. */
+export function isHeicMedia(mimeType: string, filename?: string): boolean {
+	const normalizedMime = (mimeType.split(";")[0] ?? "").trim().toLowerCase();
+	return HEIC_MIME_TYPES.has(normalizedMime) || HEIC_FILENAME_PATTERN.test(filename ?? "");
+}
+
+/** Transform subset needed when delegating storage-backed media to an external service. */
+export interface ExternalImageMetadata {
+	src: string;
+	width: number;
+	height: number;
+	format: string;
+	orientation?: number;
+}
+
+export interface ExternalImageTransform {
+	src: string | ExternalImageMetadata;
+	width?: number;
+	height?: number;
+	format?: string;
+	quality?: string | number;
+	[key: string]: unknown;
+}
+
+/** Structural subset of Astro's external image-service contract. */
+export interface ExternalImageServiceLike<TConfig> {
+	getURL(options: ExternalImageTransform, imageConfig: TConfig): string | Promise<string>;
+	validateOptions?(
+		options: ExternalImageTransform,
+		imageConfig: TConfig,
+	): ExternalImageTransform | Promise<ExternalImageTransform>;
+}
+
+/**
+ * Ask an external Astro image service for a rendition URL.
+ *
+ * Returns an absolute http(s) URL, or `null` when the service passes the source
+ * through unchanged or produces a URL a browser must not follow. Keeping this
+ * portable lets the endpoint and upload-capability check share exactly the same
+ * delegation behavior.
+ */
+export async function resolveExternalImageServiceUrl<TConfig>(
+	service: ExternalImageServiceLike<TConfig>,
+	imageConfig: TConfig,
+	sourceUrl: string,
+	options: ImageTransformOptions,
+	requestOrigin: string,
+): Promise<string | null> {
+	const transform: ExternalImageTransform = {
+		src: sourceUrl,
+		width: options.width,
+		height: options.height,
+		format: options.format,
+	};
+	if (options.quality !== undefined) transform.quality = options.quality;
+
+	const validated = service.validateOptions
+		? await service.validateOptions(transform, imageConfig)
+		: transform;
+	const generated = await service.getURL(validated, imageConfig);
+
+	try {
+		const source = new URL(sourceUrl, requestOrigin);
+		const destination = new URL(generated, requestOrigin);
+		if (destination.protocol !== "http:" && destination.protocol !== "https:") return null;
+		if (destination.href === source.href) return null;
+		return destination.href;
+	} catch {
+		return null;
+	}
 }
 
 /** Long-lived immutable cache -- transform output is deterministic per key+params. */

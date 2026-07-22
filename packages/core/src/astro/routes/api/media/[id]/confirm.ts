@@ -15,7 +15,10 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { mediaConfirmBody } from "#api/schemas.js";
 import { enrichImageMetadata } from "#media/enrich.js";
+import { isHeicMedia } from "#media/image-endpoint.js";
 import type { MediaItem } from "#types";
+
+import { configuredImageServiceSupportsHeic } from "../../../../image-service.js";
 
 export const prerender = false;
 
@@ -80,6 +83,24 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			"media:edit_any",
 		);
 		if (ownerDenied) return ownerDenied;
+
+		if (
+			emdash.storage &&
+			isHeicMedia(existing.mimeType, existing.filename) &&
+			!(await configuredImageServiceSupportsHeic(emdash.storage, request.url))
+		) {
+			try {
+				await emdash.storage.delete(existing.storageKey);
+			} catch {
+				// Best-effort cleanup; the failed row remains hidden from the library.
+			}
+			await repo.markFailed(id);
+			return apiError(
+				"UNSUPPORTED_IMAGE_FORMAT",
+				"HEIC images require a configured HEIC-capable image service",
+				415,
+			);
+		}
 
 		// Optionally verify the file exists in storage
 		if (emdash.storage) {

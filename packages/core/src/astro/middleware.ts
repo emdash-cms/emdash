@@ -623,8 +623,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
 							// Exposed so the wrapped image endpoint (`/_image`) can read media
-							// bytes from storage on the anonymous fast path -- public `<img>`
-							// requests carry no session.
+							// bytes locally or resolve a public source for an external service.
+							// Public `<img>` requests carry no session.
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {

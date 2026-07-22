@@ -185,6 +185,32 @@ describe("handleMediaUpload (#620)", () => {
 		expect(storage.uploads.size).toBe(0);
 	});
 
+	it("rejects HEIC before storage when the configured image service is not capable", async () => {
+		const result = await handleMediaUpload(db, storage, {
+			filename: "photo.heic",
+			base64: PNG_BASE64,
+			contentType: "image/heic",
+			heicSupported: false,
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) expect(result.error.code).toBe("UNSUPPORTED_IMAGE_FORMAT");
+		expect(storage.uploads.size).toBe(0);
+	});
+
+	it("allows HEIC when the configured image service declares support", async () => {
+		const result = await handleMediaUpload(db, storage, {
+			filename: "photo.heic",
+			base64: PNG_BASE64,
+			contentType: "image/heic",
+			heicSupported: true,
+		});
+
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.item.mimeType).toBe("image/heic");
+		expect(storage.uploads.size).toBe(1);
+	});
+
 	it("rejects payloads over the size limit", async () => {
 		const result = await handleMediaUpload(db, storage, {
 			filename: "big.png",
