@@ -510,6 +510,40 @@ describe("soft-delete visibility", () => {
 	});
 });
 
+describe("content_list search", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("content_list filters by the q search parameter", async () => {
+		const apple = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "Apple harvest" } },
+		});
+		await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "Banana bread" } },
+		});
+
+		const list = await harness.client.callTool({
+			name: "content_list",
+			arguments: { collection: "post", q: "apple" },
+		});
+		const items = extractJson<{ items: Array<{ id: string }> }>(list).items;
+		expect(items).toHaveLength(1);
+		expect(items[0]?.id).toBe(extractJson<{ item: { id: string } }>(apple).item.id);
+	});
+});
+
 describe("edit-while-trashed", () => {
 	let db: Kysely<Database>;
 	let harness: McpHarness;
