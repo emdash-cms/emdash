@@ -282,6 +282,71 @@ export function pluginDataExtractExpr(
 }
 
 /**
+ * Build the new value of the `_plugin_storage.data` (text-JSON) column for a
+ * guarded `updateIf`, composing wholesale `set` fields and integer `delta`
+ * fields into a SINGLE dialect-correct expression.
+ *
+ * Both branches go through `json_set` / `jsonb_set` so the write never rewrites
+ * the whole column from JS (which would require a read-then-write and break the
+ * single-statement atomicity that makes no-oversell hold):
+ *
+ * - **set** field → the value is stored via `json(?)` (SQLite) / `?::jsonb`
+ *   (Postgres) with `JSON.stringify(value)`, uniformly handling scalars,
+ *   objects, arrays, and `null` (stored as JSON `null`, never SQL `NULL` — a
+ *   SQL `NULL` in `jsonb_set` would null the entire `data` column and hit the
+ *   `NOT NULL` constraint).
+ * - **delta** field → `COALESCE(<numeric extract>, 0) + n`, where the extract
+ *   is the type-guarded numeric form from {@link pluginDataExtractExpr} so a
+ *   missing / null / non-number stored value coalesces to `0` on BOTH dialects
+ *   instead of throwing (Postgres) or coercing oddly. Integer arithmetic stays
+ *   integer (Postgres `to_jsonb(numeric)` and SQLite integer `+` both round-trip
+ *   without a spurious `.0`).
+ *
+ * Field names are validated (`validateJsonFieldName` / `pluginDataExtractExpr`)
+ * before interpolation, so the JSON path is a safe identifier and values are
+ * bound parameters — no injection surface.
+ *
+ * SQLite:   json_set(json_set(data, '$.f1', json(?)), '$.f2', COALESCE(json_extract(...), 0) + ?)
+ * Postgres: (jsonb_set(jsonb_set(data::jsonb, '{f1}', ?::jsonb), '{f2}', to_jsonb(COALESCE(..., 0) + ?)))::text
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function pluginDataWriteExpr(
+	db: Kysely<any>,
+	setEntries: Array<[string, unknown]>,
+	deltaEntries: Array<[string, number]>,
+): RawBuilder<string> {
+	const pg = isPostgres(db);
+	let expr: RawBuilder<unknown> = pg ? sql`data::jsonb` : sql`data`;
+
+	for (const [field, value] of setEntries) {
+		validateJsonFieldName(field, "plugin storage set field name");
+		const json = JSON.stringify(value ?? null);
+		if (pg) {
+			expr = sql`jsonb_set(${expr}, ${sql.lit(`{${field}}`)}, ${json}::jsonb)`;
+		} else {
+			expr = sql`json_set(${expr}, ${sql.lit(`$.${field}`)}, json(${json}))`;
+		}
+	}
+
+	for (const [field, n] of deltaEntries) {
+		// Type-guarded numeric extract over the ORIGINAL `data` column so the
+		// arithmetic is total (non-number → NULL → COALESCE 0), matching the
+		// numeric-correctness posture on both dialects.
+		const numericExtract = pluginDataExtractExpr(db, field, { numeric: true });
+		if (pg) {
+			expr = sql`jsonb_set(${expr}, ${sql.lit(`{${field}}`)}, to_jsonb(COALESCE(${sql.raw(numericExtract)}, 0) + ${n}))`;
+		} else {
+			expr = sql`json_set(${expr}, ${sql.lit(`$.${field}`)}, COALESCE(${sql.raw(numericExtract)}, 0) + ${n})`;
+		}
+	}
+
+	if (pg) {
+		return sql<string>`(${expr})::text`;
+	}
+	return sql<string>`${expr}`;
+}
+
+/**
  * SQL expression for ordering plugin-storage rows by a `data` field.
  *
  * `ORDER BY` has no bound operand to infer numeric-vs-text from, so extracting
