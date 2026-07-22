@@ -346,7 +346,7 @@ export function ContentEditor({
 	const [bylinesTouched, setBylinesTouched] = React.useState(false);
 
 	// Staged reference-field selections, keyed by relation translation group.
-	// Seeded from the hydrated first page (Task 7); the picker fills titles for
+	// Seeded from the hydrated first page; the picker fills titles for
 	// newly added rows. Edges save inside the content payload — never via edge
 	// POSTs.
 	const [referenceState, setReferenceState] = React.useState<Record<string, ReferenceGroupState>>(

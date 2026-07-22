@@ -373,8 +373,7 @@ export async function handleReferenceChildrenGet(
  * Resolve a relation + parent entry + child ids and replace the parent's
  * children under that relation. Extracted from `handleReferenceChildrenSet` so
  * the content create/update transaction can reuse the same resolution logic
- * (see Task 6) — `db` accepts a `Kysely<Database>` or a `Transaction<Database>`
- * (assignable to `Kysely<Database>` for query building).
+ * with either a `Kysely<Database>` or a `Transaction<Database>`.
  *
  * Returns the resolved relation/entry translation_groups on success so callers
  * can re-read and echo the new set without re-deriving them.

@@ -951,6 +951,8 @@ export class SchemaRegistry {
 			.addColumn("translation_group", "text");
 
 		for (const field of fields) {
+			if (STORAGELESS_FIELD_TYPES.has(field.type)) continue;
+
 			const columnName = this.getColumnName(field.slug);
 			const columnType = COLUMN_TYPE_TO_DATA_TYPE[FIELD_TYPE_TO_COLUMN[field.type]];
 			table = table.addColumn(columnName, columnType, (column) => {

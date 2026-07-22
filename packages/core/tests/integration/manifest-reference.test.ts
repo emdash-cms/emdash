@@ -1,9 +1,7 @@
 /**
  * `_buildManifest` copies `field.validation` into the manifest descriptor
- * for `repeater`/`file`/`image` fields, but not `reference` fields. That
- * means the admin editor receives `kind: "reference"` (from
- * `FIELD_TYPE_TO_KIND`) but no `relation` / `targetCollection` / `multiple`
- * config to drive the reference picker widget.
+ * for reference fields so the admin editor receives the relation,
+ * target collection, and cardinality needed by the reference picker.
  */
 
 import type { Kysely } from "kysely";

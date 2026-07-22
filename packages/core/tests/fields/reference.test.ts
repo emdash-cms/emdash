@@ -97,6 +97,28 @@ describeEachDialect("reference field is storage-less in the registry", (dialect)
 		expect(await registry.getField("posts", "related")).toBeNull();
 	});
 
+	it("creates seeded reference fields without adding columns", async () => {
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createSeedCollection(
+			{ slug: "seeded_posts", label: "Seeded posts", labelSingular: "Seeded post" },
+			[
+				{ slug: "title", label: "Title", type: "string" },
+				{
+					slug: "related",
+					label: "Related",
+					type: "reference",
+					validation: { relation: "grp_x", targetCollection: "posts", multiple: true },
+				},
+			],
+		);
+
+		const table = (await ctx.db.introspection.getTables()).find(
+			(candidate) => candidate.name === "ec_seeded_posts",
+		);
+		expect(table?.columns.map((column) => column.name)).toContain("title");
+		expect(table?.columns.map((column) => column.name)).not.toContain("related");
+	});
+
 	it("rejects changing a field to or from reference", async () => {
 		const registry = new SchemaRegistry(ctx.db);
 		await registry.createField("posts", { slug: "title2", label: "Title2", type: "string" });
