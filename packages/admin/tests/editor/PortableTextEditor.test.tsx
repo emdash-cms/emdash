@@ -484,6 +484,21 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(pm.textContent).toContain("Bold italic");
 	});
 
+	it("renders subscript and superscript Portable Text marks", async () => {
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("Subscript", { marks: ["subscript"] }),
+					textBlock("Superscript", { marks: ["superscript"] }),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+
+		expect(pm.querySelector("sub")?.textContent).toBe("Subscript");
+		expect(pm.querySelector("sup")?.textContent).toBe("Superscript");
+	});
+
 	it("fires onChange with valid PT blocks when typing", async () => {
 		const onChange = vi.fn();
 		const { editor } = await renderAndGetEditor({ onChange });
@@ -681,7 +696,26 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Subscript" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Superscript" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+	});
+
+	it.each([
+		["Subscript", "subscript"],
+		["Superscript", "superscript"],
+	] as const)("persists %s formatting as a Portable Text mark", async (label, mark) => {
+		const onChange = vi.fn();
+		const { screen, editor } = await renderAndGetEditor({ onChange, value: [] });
+
+		await screen.getByRole("button", { name: label }).click();
+		typeIntoEditor(editor, "2");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ marks?: string[] }>;
+		}>;
+		expect(blocks[0]?.children?.[0]?.marks).toContain(mark);
 	});
 
 	it("has a heading menu", async () => {
