@@ -206,8 +206,7 @@ export function adaptSandboxEntry(
 	//
 	// Route entries can be bare functions or `{ handler, public?, input? }`
 	// config objects; normalise to the config shape inside the loop.
-	const usesPublicRouteContext =
-		"id" in definition && typeof definition.id === "string";
+	const usesPublicRouteContext = "id" in definition && typeof definition.id === "string";
 	const resolvedRoutes: Record<string, PluginRoute> = {};
 	if (definition.routes) {
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
