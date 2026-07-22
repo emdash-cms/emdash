@@ -2815,10 +2815,25 @@ export class EmDashRuntime {
 				if (collectionInfo?.supports?.includes("revisions")) {
 					usesDraftRevisions = true;
 					const revisionRepo = new RevisionRepository(this.db);
-					// Re-fetch to get latest state (resolvedItem may be stale after _rev check)
-					const existing = await repo.findById(collection, resolvedId);
+					validateIdentifier(collection, "collection");
+					const tableName = `ec_${collection}`;
 
-					if (existing) {
+					// Concurrent saves (autosave vs. explicit save, or two explicit
+					// saves) can both read the same draft pointer before either
+					// writes. Without a guard, the pointer-flip below is a blind
+					// last-writer-wins UPDATE, so the slower save can silently
+					// clobber the faster one's edit even though its own data is
+					// stale. D1 has no multi-statement transactions, so we can't
+					// wrap read+write in one; instead the pointer-flip UPDATE is a
+					// CAS keyed on the draft_revision_id we just read, and we retry
+					// against the fresh pointer if we lose the race.
+					const MAX_ATTEMPTS = 3;
+					for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+						// Re-fetch to get latest state (resolvedItem may be stale after
+						// the _rev check, or after a lost race on a prior attempt)
+						const existing = await repo.findById(collection, resolvedId);
+						if (!existing) break;
+
 						// Build the draft data: merge with existing draft revision if one exists,
 						// otherwise merge with the published data from the content table
 						let baseData: Record<string, unknown>;
@@ -2839,30 +2854,41 @@ export class EmDashRuntime {
 							// Autosave: update existing draft revision in place
 							await revisionRepo.updateData(existing.draftRevisionId, mergedData);
 							draftStorageChanged = true;
-						} else {
-							// Create new draft revision
-							const revision = await revisionRepo.create({
-								collection,
-								entryId: resolvedId,
-								data: mergedData,
-								authorId: bodyWithoutRev.authorId ?? undefined,
-							});
+							break;
+						}
 
-							// Update entry to point to new draft (metadata only, not data columns).
-							// No updated_at stamp: draft staging leaves live content untouched,
-							// so public "last modified" consumers must not see a change (#2143).
-							validateIdentifier(collection, "collection");
-							const tableName = `ec_${collection}`;
-							await sql`
-								UPDATE ${sql.ref(tableName)}
-								SET draft_revision_id = ${revision.id}
-								WHERE id = ${resolvedId}
-							`.execute(this.db);
+						// Create new draft revision
+						const revision = await revisionRepo.create({
+							collection,
+							entryId: resolvedId,
+							data: mergedData,
+							authorId: bodyWithoutRev.authorId ?? undefined,
+						});
+
+						// Point the entry at the new draft, but only if the pointer still
+						// matches what we read above (CAS). `COALESCE(..., '')` makes the
+						// comparison NULL-safe across both SQLite/D1 and Postgres without
+						// relying on dialect-specific NULL operators. No updated_at stamp:
+						// draft staging leaves live content untouched, so public "last
+						// modified" consumers must not see a change (#2143).
+						const pointerUpdate = await sql`
+							UPDATE ${sql.ref(tableName)}
+							SET draft_revision_id = ${revision.id}
+							WHERE id = ${resolvedId}
+							AND COALESCE(draft_revision_id, '') = ${existing.draftRevisionId ?? ""}
+						`.execute(this.db);
+
+						if ((pointerUpdate.numAffectedRows ?? 0n) > 0n) {
 							draftStorageChanged = true;
-
 							// Fire-and-forget: prune old revisions to prevent unbounded growth
 							void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
+							break;
 						}
+						// Lost the race: another save moved draft_revision_id between
+						// our read and this write. The revision row we just created
+						// is orphaned (harmless — pruneOldRevisions sweeps it up on a
+						// future successful save); retry against the fresh pointer
+						// instead of silently discarding this save.
 					}
 				}
 			} catch {
