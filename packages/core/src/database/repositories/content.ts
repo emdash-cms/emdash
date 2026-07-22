@@ -672,7 +672,7 @@ export class ContentRepository {
 				}
 				mappedResult.nextCursor = encodeIndexedFieldCursor(
 					orderField,
-					lastOrderValue as IndexedOrderValue,
+					lastOrderValue,
 					String(lastRow.id),
 				);
 			} else {
