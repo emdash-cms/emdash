@@ -3,11 +3,14 @@
  * Renders base SEO metadata, plugin-contributed metadata, and trusted head fragments.
  *
  * Base SEO metadata (meta tags, OG, Twitter Card, canonical, JSON-LD) is generated
- * from the page context's seo/articleMeta/siteName fields. Contributions are
- * composed in the order `[...plugin, ...site, ...base]` and resolved by
- * `resolvePageMetadata()` with first-wins dedup. Plugins sit at the front of
- * the array, so for any given key plugin contributions override site-level
- * ones, which override base ones.
+ * from the page context's seo/articleMeta/siteName fields. When the page renders
+ * a content entry (`page.content` is set), the entry's SEO panel values are
+ * fetched and overlaid onto the page context automatically (#1518), so they
+ * flow into the base contributions, the JSON-LD builders, and plugin hooks
+ * alike. Contributions are composed in the order `[...plugin, ...site,
+ * ...base]` and resolved by `resolvePageMetadata()` with first-wins dedup.
+ * Plugins sit at the front of the array, so for any given key plugin
+ * contributions override site-level ones, which override base ones.
  *
  * Usage:
  * ```astro
@@ -28,6 +31,7 @@ import {
 import { renderFragments } from "../page/fragments.js";
 import JsonLdScript from "./JsonLdScript.astro";
 import {
+	applySeoPanelToPageContext,
 	generateBaseSeoContributions,
 	generateSiteSeoContributions,
 } from "../page/seo-contributions.js";
@@ -37,6 +41,10 @@ import { getSiteSettings } from "../settings/index.js";
 import { absolutizeMediaUrl } from "../page/absolute-url.js";
 import { getHreflangAlternates } from "../seo/hreflang.js";
 import { isI18nEnabled } from "../i18n/config.js";
+import { getCollectionInfo } from "../schema/query.js";
+import { SeoRepository } from "../database/repositories/seo.js";
+import { getDb } from "../loader.js";
+import { requestCached } from "../request-cache.js";
 
 interface Props {
 	page: PublicPageContext;
@@ -51,21 +59,44 @@ let fragmentsHtml = "";
 let jsonLdScripts: ResolvedPageMetadata["jsonld"] = [];
 
 if (runtime) {
-	// Run independent async loads in parallel: site settings (SEO meta
-	// tags + favicon) and plugin page-metadata contributions. Plugin
-	// contributions come BEFORE site/base in the contribution array,
-	// so resolvePageMetadata's first-wins dedup lets plugins override
-	// defaults.
-	//
 	// `getSiteSettings()` is request-cached and worker-cached, so when
 	// a parent template has already called it (the standard pattern in
 	// `Base.astro`), this is free. Otherwise it's a single batched
 	// query that supersedes any per-key fetch this component would
-	// otherwise have done.
-	const [siteSettings, pluginContributions, fragments] = await Promise.all([
-		getSiteSettings(),
-		runtime.collectPageMetadata(page),
-		runtime.collectPageFragments(page),
+	// otherwise have done. Loaded first because the site URL feeds the
+	// SEO-panel overlay below.
+	const siteSettings = await getSiteSettings();
+	const siteUrl = page.siteUrl || siteSettings.url || new URL(page.url).origin;
+
+	// SEO panel values for the rendered content entry (#1518). Overlaid
+	// onto the page context before anything consumes it, so editor-set
+	// description/image/canonical/noindex take effect by default — in the
+	// rendered head tags, in the JSON-LD builders, and in what plugin
+	// hooks see — without the template wiring getSeoMeta(). Gated on the
+	// collection's hasSeo flag (getCollectionInfo is request- and
+	// worker-cached, and busted by invalidateUrlPatternCache() on schema
+	// mutations), so pages of collections without an SEO panel skip the
+	// _emdash_seo lookup entirely.
+	let resolvedPage = page;
+	if (page.content) {
+		const { collection, id } = page.content;
+		const info = await getCollectionInfo(collection);
+		if (info?.hasSeo) {
+			const panelSeo = await requestCached(`seo-panel:${collection}:${id}`, async () => {
+				const db = await getDb();
+				return new SeoRepository(db).get(collection, id);
+			});
+			resolvedPage = applySeoPanelToPageContext(page, panelSeo, { siteUrl });
+		}
+	}
+
+	// Plugin page-metadata contributions and body fragments run in
+	// parallel. Plugin contributions come BEFORE site/base in the
+	// contribution array, so resolvePageMetadata's first-wins dedup lets
+	// plugins override defaults.
+	const [pluginContributions, fragments] = await Promise.all([
+		runtime.collectPageMetadata(resolvedPage),
+		runtime.collectPageFragments(resolvedPage),
 	]);
 
 	// Site-level default OG image: applied per-page in base contributions
@@ -80,10 +111,10 @@ if (runtime) {
 	const defaultOgImage = absolutizeMediaUrl(
 		siteSettings.seo?.defaultOgImage?.url,
 		siteSettings.url,
-		page,
+		resolvedPage,
 	);
 	const baseContributions: PageMetadataContribution[] = generateBaseSeoContributions(
-		page,
+		resolvedPage,
 		defaultOgImage,
 	);
 
@@ -94,7 +125,6 @@ if (runtime) {
 	// key is the hreflang value).
 	let hreflangContributions: PageMetadataContribution[] = [];
 	if (page.content && isI18nEnabled()) {
-		const siteUrl = page.siteUrl || siteSettings.url || new URL(page.url).origin;
 		const alternates = await getHreflangAlternates(page.content.collection, page.content.id, {
 			siteUrl,
 		});

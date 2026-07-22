@@ -5,13 +5,18 @@
  * `[...plugin, ...site, ...base]` and feeds it to `resolvePageMetadata()`,
  * which is first-wins. That ordering means plugin contributions override
  * site-level ones override base ones for any given key — base values are
- * the fallback, not the source of truth.
+ * the fallback, not the source of truth. For content pages, the entry's
+ * SEO panel values are overlaid onto the page context before the base
+ * contributions (and JSON-LD) are generated, so editor-set values
+ * override the template-provided fields.
  *
  * This replaces the per-template SEO.astro components, eliminating
  * the class of XSS bugs where templates hand-rolled JSON-LD serialization.
  */
 
+import type { ContentSeo } from "../database/repositories/types.js";
 import type { PageMetadataContribution, PublicPageContext } from "../plugins/types.js";
+import { buildSeoImageUrl, resolveSeoCanonicalUrl } from "../seo/media-url.js";
 import type { SeoSettings } from "../settings/types.js";
 import { buildBlogPostingJsonLd, buildWebSiteJsonLd } from "./jsonld.js";
 
@@ -145,6 +150,52 @@ export function generateBaseSeoContributions(
 	}
 
 	return contributions;
+}
+
+/**
+ * Overlay a content entry's SEO panel data onto the page context (#1518).
+ *
+ * `EmDashHead` fetches the entry's `_emdash_seo` row when the page context
+ * references a content entry and applies this overlay before anything
+ * consumes the context: editor-set panel values override whatever the
+ * template passed in, and because the overlaid context feeds plugin hooks,
+ * the base contributions, and the JSON-LD builders alike, structured data
+ * and head tags always agree. Plugins still override the rendered output
+ * via first-wins dedup.
+ *
+ * The `<title>` element itself stays the template's responsibility —
+ * head components can't replace it — so `seo.title` feeds
+ * `og:title` / `twitter:title` / the JSON-LD headline only. Templates that
+ * want the panel title in `<title>` keep using `getSeoMeta()`.
+ *
+ * Unset panel fields fall back to the template-provided values, so pages
+ * without SEO data are unaffected.
+ */
+export function applySeoPanelToPageContext(
+	page: PublicPageContext,
+	seo: ContentSeo,
+	options: { siteUrl?: string | null } = {},
+): PublicPageContext {
+	const siteUrl = options.siteUrl ?? undefined;
+	const image = seo.image ? buildSeoImageUrl(seo.image, siteUrl) : null;
+	const canonical = seo.canonical ? resolveSeoCanonicalUrl(seo.canonical, siteUrl) : null;
+
+	return {
+		...page,
+		description: seo.description || page.description,
+		canonical: canonical || page.canonical,
+		// Mirror the resolved image into the top-level field too, so consumers
+		// reading page.image (e.g. page:metadata hooks) agree with og:image and
+		// the JSON-LD graph (#1518).
+		image: image || page.image,
+		seo: {
+			...page.seo,
+			ogTitle: seo.title || page.seo?.ogTitle,
+			ogDescription: seo.description || page.seo?.ogDescription,
+			ogImage: image || page.seo?.ogImage,
+			robots: seo.noIndex ? "noindex, nofollow" : page.seo?.robots,
+		},
+	};
 }
 
 /**

@@ -171,6 +171,13 @@ const platforms = [
 
 ### SEO Meta Tags
 
+<Aside>
+	On content pages that include the `<EmDashHead>` component, values from the entry's SEO panel
+	(title, description, image, canonical, noindex) are applied automatically — editors' panel
+	settings override whatever the template passed into the page context. Hand-rolled meta tags like
+	the component below bypass that behavior, so prefer `<EmDashHead>` for content pages.
+</Aside>
+
 The following component builds document and Open Graph meta tags from site settings:
 
 ```astro title="src/components/SEO.astro"
