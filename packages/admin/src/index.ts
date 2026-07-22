@@ -35,7 +35,7 @@ export type {
 	ContentListColumnHeaderContext,
 	ContentListColumnCellContext,
 	ContentListColumnExtension,
-} from "./lib/content-list-columns";
+} from "./lib/content-list-columns.js";
 
 // Auth provider context (for accessing pluggable auth provider components)
 export {
