@@ -3,8 +3,8 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MediaLibrary } from "../../src/components/MediaLibrary";
-import type { MediaItem } from "../../src/lib/api";
-import { deleteMedia } from "../../src/lib/api";
+import { deleteMedia, fetchMediaProviders, fetchProviderMedia } from "../../src/lib/api";
+import type { MediaItem, MediaProviderItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
@@ -89,6 +89,54 @@ describe("MediaLibrary", () => {
 			const img = screen.getByAltText("pic.jpg");
 			await expect.element(img).toBeInTheDocument();
 			await expect.element(img).toHaveAttribute("src", "https://example.com/photo.jpg");
+		});
+
+		it("grid thumbnails are natively lazy-loaded", async () => {
+			// A library page can hold up to 40 items; without `loading="lazy"` the
+			// browser fetches every thumbnail on mount instead of only the visible ones.
+			const items = [makeMediaItem({ id: "1", filename: "pic.jpg", mimeType: "image/jpeg" })];
+			const screen = await renderLibrary({ items });
+			await expect.element(screen.getByAltText("pic.jpg")).toHaveAttribute("loading", "lazy");
+		});
+	});
+
+	describe("provider thumbnails", () => {
+		function makeProviderItem(overrides: Partial<MediaProviderItem> = {}): MediaProviderItem {
+			return {
+				id: "provider_01",
+				filename: "cloud-pic.jpg",
+				mimeType: "image/jpeg",
+				previewUrl: "https://provider.example.com/cloud-pic.jpg",
+				width: 800,
+				height: 600,
+				...overrides,
+			};
+		}
+
+		function mockProvider(items: MediaProviderItem[]) {
+			vi.mocked(fetchMediaProviders).mockResolvedValue([
+				{
+					id: "acme",
+					name: "Acme Provider",
+					capabilities: { upload: false, search: false, delete: false },
+				},
+			]);
+			vi.mocked(fetchProviderMedia).mockResolvedValue({ items });
+		}
+
+		it("provider grid thumbnails are natively lazy-loaded", async () => {
+			mockProvider([makeProviderItem()]);
+			const screen = await renderLibrary();
+			await screen.getByRole("tab", { name: "Acme Provider" }).click();
+			await expect.element(screen.getByAltText("cloud-pic.jpg")).toHaveAttribute("loading", "lazy");
+		});
+
+		it("provider list thumbnails are natively lazy-loaded", async () => {
+			mockProvider([makeProviderItem()]);
+			const screen = await renderLibrary();
+			await screen.getByRole("tab", { name: "Acme Provider" }).click();
+			await screen.getByRole("tab", { name: "List view" }).click();
+			await expect.element(screen.getByAltText("cloud-pic.jpg")).toHaveAttribute("loading", "lazy");
 		});
 	});
 
@@ -267,6 +315,13 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("document.pdf")).toBeInTheDocument();
 			await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();
 			await expect.element(screen.getByText("1 MB")).toBeInTheDocument();
+		});
+
+		it("list view thumbnails are natively lazy-loaded", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "pic.jpg", mimeType: "image/jpeg" })];
+			const screen = await renderLibrary({ items });
+			await screen.getByRole("tab", { name: "List view" }).click();
+			await expect.element(screen.getByAltText("pic.jpg")).toHaveAttribute("loading", "lazy");
 		});
 	});
 
