@@ -4420,7 +4420,7 @@ msgstr "JavaScript"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:235
 msgid "Job title"
-msgstr "Puesto de trabajo"
+msgstr "Cargo"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:246
 msgid "job_title"
