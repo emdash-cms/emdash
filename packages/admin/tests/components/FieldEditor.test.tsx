@@ -42,6 +42,7 @@ function makeField(overrides: Partial<SchemaField> = {}): SchemaField {
 		required: true,
 		unique: false,
 		searchable: true,
+		indexed: false,
 		sortOrder: 0,
 		createdAt: new Date().toISOString(),
 		...overrides,
@@ -127,6 +128,7 @@ describe("FieldEditor", () => {
 		it("shows searchable checkbox for string type", async () => {
 			const screen = await render(<FieldEditor {...defaultProps} field={stringField} />);
 			await expect.element(screen.getByText("Searchable")).toBeInTheDocument();
+			await expect.element(screen.getByText("Indexed")).toBeInTheDocument();
 		});
 
 		it("shows min/max length validation for string type", async () => {
@@ -162,6 +164,7 @@ describe("FieldEditor", () => {
 			const screen = await render(<FieldEditor {...defaultProps} field={numberField} />);
 			await expect.element(screen.getByLabelText("Min Value")).toBeInTheDocument();
 			await expect.element(screen.getByLabelText("Max Value")).toBeInTheDocument();
+			await expect.element(screen.getByText("Indexed")).toBeInTheDocument();
 		});
 
 		it("does not show searchable for number type", async () => {
@@ -201,6 +204,7 @@ describe("FieldEditor", () => {
 		it("shows searchable checkbox for text type", async () => {
 			const screen = await render(<FieldEditor {...defaultProps} field={textField} />);
 			await expect.element(screen.getByText("Searchable")).toBeInTheDocument();
+			expect(screen.getByText("Indexed").query()).toBeNull();
 		});
 	});
 

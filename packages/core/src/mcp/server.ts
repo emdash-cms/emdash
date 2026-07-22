@@ -1805,6 +1805,7 @@ export function createMcpServer(
 					.boolean()
 					.optional()
 					.describe("Include in full-text search index (default false)"),
+				indexed: z.boolean().optional().describe("Create a physical index for structured sorting"),
 				translatable: z
 					.boolean()
 					.optional()
@@ -1831,6 +1832,7 @@ export function createMcpServer(
 					validation: args.validation,
 					options: args.options,
 					searchable: args.searchable,
+					indexed: args.indexed,
 					translatable: args.translatable,
 				});
 				return jsonResult(field);

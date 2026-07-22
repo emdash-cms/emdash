@@ -38,6 +38,7 @@ import {
 	type CollectionWithFields,
 	type FieldType,
 	FIELD_TYPE_TO_COLUMN,
+	isIndexableFieldType,
 	RESERVED_FIELD_SLUGS,
 	RESERVED_COLLECTION_SLUGS,
 } from "./types.js";
@@ -48,6 +49,7 @@ const EC_PREFIX_PATTERN = /^ec_/;
 const SINGLE_QUOTE_PATTERN = /'/g;
 const UNDERSCORE_PATTERN = /_/g;
 const WORD_BOUNDARY_PATTERN = /\b\w/g;
+const FIELD_ID_PATTERN = /^[0-9A-Z]{26}$/;
 
 /** Valid column types for runtime validation */
 const COLUMN_TYPES: ReadonlySet<string> = new Set(["TEXT", "REAL", "INTEGER", "JSON"]);
@@ -82,7 +84,7 @@ const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport
 	"seo",
 ]);
 
-// Each _emdash_fields row uses 15 bound parameters. Six rows keep every
+// Each _emdash_fields row uses 16 bound parameters. Six rows keep every
 // multi-row INSERT below D1's 100-parameter statement limit.
 const SEED_FIELD_INSERT_BATCH_SIZE = 6;
 
@@ -98,6 +100,15 @@ const UNORDERED_COLLECTION_RANK = 2147483647;
  * first (ascending), then alphabetically by slug.
  */
 const collectionOrder = sql<number>`coalesce(sort_order, ${sql.lit(UNORDERED_COLLECTION_RANK)})`;
+
+function assertIndexableField(type: FieldType, indexed: boolean | undefined, slug: string): void {
+	if (indexed && !isIndexableFieldType(type)) {
+		throw new SchemaError(
+			`Field "${slug}" cannot be indexed because type "${type}" is not a scalar query type`,
+			"FIELD_NOT_INDEXABLE",
+		);
+	}
+}
 
 function isCollectionSupport(value: unknown): value is CollectionSupport {
 	return typeof value === "string" && VALID_COLLECTION_SUPPORTS.has(value);
@@ -445,6 +456,7 @@ export class SchemaRegistry {
 		const fieldSlugs = new Set<string>();
 		for (const field of fields) {
 			this.validateSlug(field.slug, "field");
+			assertIndexableField(field.type, field.indexed, field.slug);
 			if (RESERVED_FIELD_SLUGS.includes(field.slug)) {
 				throw new SchemaError(`Field slug "${field.slug}" is reserved`, "RESERVED_SLUG");
 			}
@@ -496,6 +508,7 @@ export class SchemaRegistry {
 				options: field.options ? JSON.stringify(field.options) : null,
 				sort_order: sortOrder,
 				searchable: field.searchable ? 1 : 0,
+				indexed: field.indexed ? 1 : 0,
 				translatable: field.translatable === false ? 0 : 1,
 			};
 		});
@@ -561,8 +574,14 @@ export class SchemaRegistry {
 					}
 					await insert.execute();
 				}
+				let indexedRows: readonly { id: string; slug: string; indexed?: number }[] = rows;
 				if (capture.resuming) {
-					await this.assertSeedFieldDefinitions(capture.collectionId, fields, trx);
+					indexedRows = await this.assertSeedFieldDefinitions(capture.collectionId, fields, trx);
+				}
+				for (const field of indexedRows) {
+					if (field.indexed === 1) {
+						await this.createFieldIndex(input.slug, field.id, field.slug, trx);
+					}
 				}
 				if (capture.captureRequired) {
 					await finalizeMediaUsageCollectionCapture(trx, {
@@ -589,7 +608,7 @@ export class SchemaRegistry {
 		collectionId: string,
 		fields: readonly CreateFieldInput[],
 		db: Kysely<Database>,
-	): Promise<void> {
+	): Promise<Selectable<FieldTable>[]> {
 		const stored = await db
 			.selectFrom("_emdash_fields")
 			.selectAll()
@@ -618,11 +637,13 @@ export class SchemaRegistry {
 				row.options !== (field.options ? JSON.stringify(field.options) : null) ||
 				row.sort_order !== sortOrder ||
 				row.searchable !== (field.searchable ? 1 : 0) ||
+				row.indexed !== (field.indexed ? 1 : 0) ||
 				row.translatable !== (field.translatable === false ? 0 : 1)
 			) {
 				throw new SchemaError("Interrupted seed collection fields do not match", "CREATE_FAILED");
 			}
 		}
+		return stored;
 	}
 
 	/**
@@ -835,6 +856,7 @@ export class SchemaRegistry {
 
 		const id = ulid();
 		const columnType = FIELD_TYPE_TO_COLUMN[input.type];
+		assertIndexableField(input.type, input.indexed, input.slug);
 
 		// Get max sort order
 		const maxSort = await this.db
@@ -871,6 +893,7 @@ export class SchemaRegistry {
 						options: input.options ? JSON.stringify(input.options) : null,
 						sort_order: sortOrder,
 						searchable: input.searchable ? 1 : 0,
+						indexed: input.indexed ? 1 : 0,
 						translatable: input.translatable === false ? 0 : 1,
 					})
 					.execute();
@@ -887,6 +910,10 @@ export class SchemaRegistry {
 					},
 					trx,
 				);
+
+				if (input.indexed) {
+					await this.createFieldIndex(collectionSlug, id, input.slug, trx);
+				}
 
 				// Read the created field via trx (not this.db) to avoid connection mutex deadlock
 				const fieldRow = await trx
@@ -982,6 +1009,9 @@ export class SchemaRegistry {
 			collectionSlug,
 		);
 
+		const nextIndexed = input.indexed ?? field.indexed;
+		assertIndexableField(nextType, nextIndexed, fieldSlug);
+
 		let schemaMutated = false;
 		try {
 			const updatedField = await withTransaction(this.db, async (trx) => {
@@ -1002,6 +1032,7 @@ export class SchemaRegistry {
 								: field.searchable
 									? 1
 									: 0,
+						indexed: nextIndexed ? 1 : 0,
 						translatable:
 							input.translatable !== undefined
 								? input.translatable
@@ -1028,6 +1059,14 @@ export class SchemaRegistry {
 					.where("id", "=", field.id)
 					.execute();
 				schemaMutated = true;
+
+				if (nextIndexed !== field.indexed) {
+					if (nextIndexed) {
+						await this.createFieldIndex(collectionSlug, field.id, fieldSlug, trx);
+					} else {
+						await this.dropFieldIndex(field.id, trx);
+					}
+				}
 
 				// Read the updated field via trx (not this.db) to avoid connection mutex deadlock
 				const updatedRow = await trx
@@ -1151,6 +1190,10 @@ export class SchemaRegistry {
 				// If the deleted field was searchable, sync FTS state (removes old triggers)
 				if (field.searchable) {
 					await this.syncSearchState(collectionSlug, trx);
+				}
+
+				if (field.indexed) {
+					await this.dropFieldIndex(field.id, trx);
 				}
 
 				// Drop column from content table — safe now because FTS triggers are gone
@@ -1397,6 +1440,40 @@ export class SchemaRegistry {
 		`.execute(conn);
 	}
 
+	private getFieldIndexName(fieldId: string): string {
+		if (!FIELD_ID_PATTERN.test(fieldId)) {
+			throw new SchemaError(`Invalid field id "${fieldId}"`, "INVALID_FIELD_ID");
+		}
+		return `idx_cf_${fieldId.toLowerCase()}`;
+	}
+
+	private async createFieldIndex(
+		collectionSlug: string,
+		fieldId: string,
+		fieldSlug: string,
+		db?: Kysely<Database>,
+	): Promise<void> {
+		const conn = db ?? this.db;
+		const tableName = this.getTableName(collectionSlug);
+		const columnName = this.getColumnName(fieldSlug);
+		const indexName = this.getFieldIndexName(fieldId);
+
+		await sql`
+			CREATE INDEX ${sql.ref(indexName)}
+			ON ${sql.ref(tableName)} (
+				(${sql.ref(columnName)} IS NOT NULL),
+				${sql.ref(columnName)},
+				id
+			)
+			WHERE deleted_at IS NULL
+		`.execute(conn);
+	}
+
+	private async dropFieldIndex(fieldId: string, db?: Kysely<Database>): Promise<void> {
+		const conn = db ?? this.db;
+		await sql`DROP INDEX IF EXISTS ${sql.ref(this.getFieldIndexName(fieldId))}`.execute(conn);
+	}
+
 	/**
 	 * Add a column to a content table
 	 */
@@ -1634,6 +1711,7 @@ export class SchemaRegistry {
 			options: row.options ? JSON.parse(row.options) : undefined,
 			sortOrder: row.sort_order,
 			searchable: row.searchable === 1,
+			indexed: row.indexed === 1,
 			translatable: row.translatable !== 0,
 			createdAt: row.created_at,
 		};
