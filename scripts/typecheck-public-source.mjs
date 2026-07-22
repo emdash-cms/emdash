@@ -38,6 +38,7 @@ const pkgPath = resolve(repoRoot, "packages/core/package.json");
  */
 const RUNTIME_COUPLED = new Set([
 	"./ui", // src/ui.ts -- re-exports Astro <Image>/<PortableText> components
+	"./ui/comments", // src/ui-comments.ts -- re-exports Astro <Comments>/<CommentForm>
 	"./auth/providers/github-admin", // .tsx -- admin React + @cloudflare/kumo
 	"./auth/providers/google-admin", // .tsx -- admin React + @cloudflare/kumo
 ]);

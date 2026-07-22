@@ -1,6 +1,7 @@
 ---
 import { getEmDashEntry } from "emdash";
-import { PortableText, Comments, CommentForm } from "emdash/ui";
+import { PortableText } from "emdash/ui";
+import { Comments, CommentForm } from "emdash/ui/comments";
 
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect("/404");
