@@ -88,6 +88,14 @@ export function buildRouteMeta(route: {
 export interface RouteResult<T = unknown> {
 	success: boolean;
 	data?: T;
+	/**
+	 * Raw Response passthrough. Set when the route handler returned a `Response`
+	 * directly (e.g. an image or file with its own content type); the HTTP layer
+	 * must send it verbatim instead of wrapping it in the JSON envelope.
+	 * Trusted (configured) plugins only — a Response cannot cross the sandbox
+	 * serialization boundary.
+	 */
+	response?: Response;
 	error?: {
 		code: string;
 		message: string;
@@ -172,6 +180,16 @@ export class PluginRouteHandler {
 		// Execute handler
 		try {
 			const result = await route.handler(routeContext);
+			// A handler may return a Response directly to serve non-JSON content
+			// (images, files, custom content types) — pass it through untouched
+			// rather than JSON-wrapping it (#2110).
+			if (result instanceof Response) {
+				return {
+					success: true,
+					response: result,
+					status: result.status,
+				};
+			}
 			return {
 				success: true,
 				data: result,
