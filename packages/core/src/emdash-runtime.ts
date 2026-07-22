@@ -193,7 +193,12 @@ import {
 } from "./plugins/hooks.js";
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
-import { buildRouteMeta, PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
+import {
+	buildRouteMeta,
+	parseRouteInput,
+	PluginRouteRegistry,
+	type RouteMeta,
+} from "./plugins/routes.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
@@ -3446,12 +3451,8 @@ export class EmDashRuntime {
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
-			let body: unknown = undefined;
-			try {
-				body = await request.json();
-			} catch {
-				// No body or not JSON
-			}
+			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
+			const body = await parseRouteInput(request);
 
 			return routeRegistry.invoke(pluginId, routeKey, { request, body });
 		}
@@ -3893,12 +3894,8 @@ export class EmDashRuntime {
 	}> {
 		const routeName = path.replace(LEADING_SLASH_PATTERN, "");
 
-		let body: unknown = undefined;
-		try {
-			body = await request.json();
-		} catch {
-			// No body or not JSON
-		}
+		// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
+		const body = await parseRouteInput(request);
 
 		try {
 			const headers = sanitizeHeadersForSandbox(request.headers);

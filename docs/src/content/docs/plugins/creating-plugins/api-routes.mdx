@@ -161,7 +161,7 @@ An administrator must separately enable a plugin's MCP tools after reviewing the
 
 ## Input validation
 
-`input` accepts a Zod schema. The dispatcher parses the request body (POST/PUT/PATCH) or query string (GET/DELETE), validates it, and passes the typed result to your handler as `routeCtx.input`. Invalid input returns a 400 before your handler runs.
+`input` accepts a Zod schema. The dispatcher parses the request body (POST/PUT/PATCH) or the URL query string (GET/HEAD/DELETE), validates it, and passes the typed result to your handler as `routeCtx.input`. Invalid input returns a 400 before your handler runs.
 
 ```typescript
 routes: {
@@ -184,6 +184,35 @@ routes: {
 			});
 
 			return { success: true };
+		},
+	},
+},
+```
+
+### Query-string input (GET/HEAD/DELETE)
+
+Bodyless methods have no request body, so their input comes from the URL query
+string. The dispatcher turns the query into an object before validation:
+
+- A repeated key becomes an array — `?tag=a&tag=b` parses to `{ tag: ["a", "b"] }`,
+  so an `z.array(z.string())` field works.
+- A single key stays a scalar — `?tag=a` parses to `{ tag: "a" }`.
+
+Every query value is a **string**, so schemas for these routes should either accept
+strings or coerce. Use `z.coerce` for non-string fields:
+
+```typescript
+routes: {
+	list: {
+		// GET /_emdash/api/plugins/<slug>/list?status=open&limit=20&tag=a&tag=b
+		input: z.object({
+			status: z.enum(["open", "closed"]).optional(),
+			limit: z.coerce.number().int().max(100).default(20),
+			tag: z.array(z.string()).optional(),
+		}),
+		handler: async (routeCtx, ctx) => {
+			const { status, limit, tag } = routeCtx.input;
+			// ...
 		},
 	},
 },
