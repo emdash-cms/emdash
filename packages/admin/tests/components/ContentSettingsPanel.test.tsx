@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -142,6 +143,57 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
 		expect(screen.container.textContent).not.toContain("Ownership");
 		expect(screen.container.textContent).not.toContain("Bylines");
+	});
+
+	it("lets editors update the publish date of published content", async () => {
+		const onPublishedAtChange = vi.fn();
+		const previousLocale = i18n.locale;
+		i18n.load("ar", {});
+		i18n.activate("ar");
+		try {
+			const screen = await render(
+				<div dir="rtl">
+					<ContentSettingsPanel
+						{...makePanelProps({
+							item: makeItem({
+								status: "published",
+								publishedAt: "2025-01-15T10:30:00.000Z",
+							}),
+							isLive: true,
+							onPublishedAtChange,
+						})}
+					/>
+				</div>,
+			);
+
+			const input = screen.getByLabelText("Publish date");
+			await expect.element(input).toHaveValue("2025-01-15T10:30");
+			await input.fill("2020-06-01T08:45");
+			await screen.getByRole("button", { name: "Update publish date" }).click();
+
+			expect(onPublishedAtChange).toHaveBeenCalledWith("2020-06-01T08:45:00.000Z");
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
+	it("does not expose publish-date editing below the editor role", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						publishedAt: "2025-01-15T10:30:00.000Z",
+					}),
+					isLive: true,
+					currentUser: AUTHOR_ROLE,
+					onPublishedAtChange: vi.fn(),
+				})}
+			/>,
+		);
+
+		expect(screen.container.querySelector('input[type="datetime-local"]')).toBeNull();
+		expect(screen.container.textContent).not.toContain("Update publish date");
 	});
 
 	it("hides capability-gated sections when their flags are off", async () => {
