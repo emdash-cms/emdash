@@ -140,6 +140,7 @@ describe("Database Migrations (Integration)", () => {
 			"051_content_taxonomies_denorm",
 			"052_media_usage_read_index",
 			"053_plugin_mcp_tools",
+			"054_collection_admin_config",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

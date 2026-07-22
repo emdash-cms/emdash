@@ -14,6 +14,7 @@ import { FTSManager } from "../search/fts-manager.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import {
 	type Collection,
+	type CollectionAdminConfig,
 	type CollectionSource,
 	type CollectionSupport,
 	type ColumnType,
@@ -90,6 +91,22 @@ function parseSupports(raw: string | null | undefined): CollectionSupport[] {
 	const parsed: unknown = JSON.parse(raw);
 	if (!Array.isArray(parsed)) return [];
 	return parsed.filter(isCollectionSupport);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseCollectionAdmin(raw: string | null | undefined): CollectionAdminConfig | undefined {
+	if (!raw) return undefined;
+	const parsed: unknown = JSON.parse(raw);
+	if (!isRecord(parsed)) return undefined;
+	const listColumns = parsed.listColumns;
+	return {
+		listColumns: Array.isArray(listColumns)
+			? listColumns.filter((value): value is string => typeof value === "string")
+			: undefined,
+	};
 }
 
 /**
@@ -253,6 +270,7 @@ export class SchemaRegistry {
 					label_singular: input.labelSingular ?? null,
 					description: input.description ?? null,
 					icon: input.icon ?? null,
+					admin_config: input.admin ? JSON.stringify(input.admin) : null,
 					supports: JSON.stringify(supports),
 					source: input.source ?? "manual",
 					has_seo: hasSeo ? 1 : 0,
@@ -351,6 +369,7 @@ export class SchemaRegistry {
 						label_singular: input.labelSingular ?? null,
 						description: input.description ?? null,
 						icon: input.icon ?? null,
+						admin_config: input.admin ? JSON.stringify(input.admin) : null,
 						supports: JSON.stringify(supports),
 						source: "seed",
 						has_seo: hasSeo ? 1 : 0,
@@ -408,6 +427,12 @@ export class SchemaRegistry {
 					label_singular: input.labelSingular ?? existing.labelSingular ?? null,
 					description: input.description ?? existing.description ?? null,
 					icon: input.icon ?? existing.icon ?? null,
+					admin_config:
+						input.admin !== undefined
+							? JSON.stringify(input.admin)
+							: existing.admin
+								? JSON.stringify(existing.admin)
+								: null,
 					supports: input.supports
 						? JSON.stringify(input.supports)
 						: JSON.stringify(existing.supports),
@@ -1224,6 +1249,7 @@ export class SchemaRegistry {
 			labelSingular: row.label_singular ?? undefined,
 			description: row.description ?? undefined,
 			icon: row.icon ?? undefined,
+			admin: parseCollectionAdmin(row.admin_config),
 			supports: parseSupports(row.supports),
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,

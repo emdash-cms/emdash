@@ -5,7 +5,7 @@ export { Header } from "./Header";
 
 // Page components
 export { Dashboard, type DashboardProps } from "./Dashboard";
-export { ContentList, type ContentListProps } from "./ContentList";
+export { ContentList, type ContentListColumn, type ContentListProps } from "./ContentList";
 export { ContentEditor, type ContentEditorProps, type FieldDescriptor } from "./ContentEditor";
 export { MediaLibrary, type MediaLibraryProps } from "./MediaLibrary";
 export { MediaPickerModal, type MediaPickerModalProps } from "./MediaPickerModal";
