@@ -32,6 +32,7 @@ export type {
 	// Block sub-types
 	TableColumn,
 	StatItem,
+	ChecklistItem,
 	ChartSeries,
 	ChartConfig,
 	TimeseriesChartConfig,
@@ -56,6 +57,7 @@ export type {
 	MeterBlock,
 	EmptyBlock,
 	AccordionBlock,
+	ChecklistBlock,
 	Block,
 	// Interactions
 	BlockAction,
