@@ -15,7 +15,7 @@
  */
 
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import type { Database } from "../../../src/database/types.js";
@@ -72,6 +72,7 @@ describe("EmDashRuntime.getManifest()", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
 
@@ -157,5 +158,66 @@ describe("EmDashRuntime.getManifest()", () => {
 		for (let i = 0; i < 5; i++) {
 			expect(manifest.collections[`coll_${i}`]?.fields.title?.kind).toBe("string");
 		}
+	});
+
+	it("publishes only supported, existing list columns and caps them at four", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "tickets",
+			label: "Tickets",
+			admin: {
+				listColumns: [
+					"ticket_number",
+					"details",
+					"missing",
+					"priority",
+					"urgent",
+					"queue",
+					"opened_at",
+				],
+			},
+		});
+		await registry.createField("tickets", {
+			slug: "ticket_number",
+			label: "Ticket number",
+			type: "string",
+		});
+		await registry.createField("tickets", {
+			slug: "details",
+			label: "Details",
+			type: "json",
+		});
+		await registry.createField("tickets", {
+			slug: "priority",
+			label: "Priority",
+			type: "select",
+		});
+		await registry.createField("tickets", {
+			slug: "urgent",
+			label: "Urgent",
+			type: "boolean",
+		});
+		await registry.createField("tickets", {
+			slug: "queue",
+			label: "Queue",
+			type: "string",
+		});
+		await registry.createField("tickets", {
+			slug: "opened_at",
+			label: "Opened",
+			type: "datetime",
+		});
+
+		const runtime = buildRuntime(db);
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.collections.tickets?.listColumns).toEqual([
+			"ticket_number",
+			"priority",
+			"urgent",
+			"queue",
+		]);
+		expect(warn).toHaveBeenCalledTimes(3);
 	});
 });

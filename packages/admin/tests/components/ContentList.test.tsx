@@ -111,6 +111,47 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("Second")).toBeInTheDocument();
 			await expect.element(screen.getByText("Third")).toBeInTheDocument();
 		});
+
+		it("renders configured custom fields using their field metadata", async () => {
+			const items = [
+				makeItem({
+					data: {
+						title: "Support request",
+						ticket_number: "SUP-1042",
+						priority: "urgent",
+						labels: ["bug", "unknown"],
+						vip: true,
+					},
+				}),
+			];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					listColumns={[
+						{ slug: "ticket_number", label: "Ticket", kind: "string" },
+						{
+							slug: "priority",
+							label: "Priority",
+							kind: "select",
+							options: [{ value: "urgent", label: "Urgent" }],
+						},
+						{
+							slug: "labels",
+							label: "Labels",
+							kind: "multiSelect",
+							options: [{ value: "bug", label: "Bug" }],
+						},
+						{ slug: "vip", label: "VIP", kind: "boolean" },
+					]}
+				/>,
+			);
+
+			await expect.element(screen.getByText("SUP-1042")).toBeInTheDocument();
+			await expect.element(screen.getByText("Urgent")).toBeInTheDocument();
+			await expect.element(screen.getByText("Bug, unknown")).toBeInTheDocument();
+			await expect.element(screen.getByText("✓")).toBeInTheDocument();
+		});
 	});
 
 	describe("empty states", () => {

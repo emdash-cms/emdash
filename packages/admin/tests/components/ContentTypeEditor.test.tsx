@@ -42,6 +42,7 @@ function makeField(overrides: Partial<SchemaField> = {}): SchemaField {
 		required: false,
 		unique: false,
 		searchable: false,
+		indexed: false,
 		sortOrder: 0,
 		createdAt: "2025-01-01T00:00:00Z",
 		...overrides,

@@ -571,6 +571,19 @@ function ContentListPage() {
 		return <ErrorScreen error={error.message} />;
 	}
 
+	const listColumns = (collectionConfig.listColumns ?? []).flatMap((slug) => {
+		const field = collectionConfig.fields[slug];
+		if (!field) return [];
+		return [
+			{
+				slug,
+				label: field.label ?? slug,
+				kind: field.kind,
+				options: Array.isArray(field.options) ? field.options : undefined,
+			},
+		];
+	});
+
 	const handleLocaleChange = (locale: string) => {
 		// Update URL search params without full navigation
 		void navigate({
@@ -585,6 +598,7 @@ function ContentListPage() {
 			collection={collection}
 			collectionLabel={collectionConfig.label}
 			items={items}
+			listColumns={listColumns}
 			trashedItems={trashedData?.items || []}
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}

@@ -19,6 +19,7 @@ import type {
 } from "./types.js";
 import {
 	EmDashValidationError,
+	InvalidCursorError,
 	ScheduledNotDueError,
 	encodeCursor,
 	decodeCursor,
@@ -29,6 +30,51 @@ const ULID_PATTERN = /^[0-9A-Z]{26}$/;
 
 // LIKE wildcards that must be escaped so user search input is matched literally.
 const LIKE_WILDCARD_RE = /[\\%_]/g;
+
+interface ResolvedOrderField {
+	column: string;
+	indexedCustomField: boolean;
+}
+
+type IndexedOrderValue = string | number | null;
+
+interface IndexedFieldCursorPayload {
+	version: 1;
+	field: string;
+	value: IndexedOrderValue;
+}
+
+function encodeIndexedFieldCursor(field: string, value: IndexedOrderValue, id: string): string {
+	const payload: IndexedFieldCursorPayload = { version: 1, field, value };
+	return encodeCursor(JSON.stringify(payload), id);
+}
+
+function decodeIndexedFieldCursor(
+	cursor: string,
+	field: string,
+): { value: IndexedOrderValue; id: string } {
+	const { orderValue, id } = decodeCursor(cursor);
+	let payload: unknown;
+	try {
+		payload = JSON.parse(orderValue);
+	} catch {
+		throw new InvalidCursorError(cursor);
+	}
+
+	if (payload === null || typeof payload !== "object") {
+		throw new InvalidCursorError(cursor);
+	}
+	const candidate = payload as Partial<IndexedFieldCursorPayload>;
+	const validValue =
+		candidate.value === null ||
+		typeof candidate.value === "string" ||
+		typeof candidate.value === "number";
+	if (candidate.version !== 1 || candidate.field !== field || !validValue) {
+		throw new InvalidCursorError(cursor);
+	}
+
+	return { value: candidate.value as IndexedOrderValue, id };
+}
 
 /**
  * Whitelist mapping a public date-filter field to its physical column. Keeping
@@ -501,7 +547,8 @@ export class ContentRepository {
 		// Determine ordering
 		const orderField = options.orderBy?.field || "createdAt";
 		const orderDirection = options.orderBy?.direction || "desc";
-		const dbField = this.mapOrderField(orderField);
+		const resolvedOrderField = await this.resolveOrderField(type, orderField);
+		const dbField = resolvedOrderField.column;
 
 		// Validate order direction to prevent injection
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -533,26 +580,68 @@ export class ContentRepository {
 		// on malformed input; let it propagate so handlers surface a
 		// structured INVALID_CURSOR rather than silently returning page 1.
 		if (options.cursor) {
-			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
-
-			if (safeOrderDirection === "DESC") {
-				query = query.where((eb) =>
-					eb.or([
-						eb(dbField as any, "<", orderValue),
-						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-					]),
-				);
+			if (resolvedOrderField.indexedCustomField) {
+				const { value, id: cursorId } = decodeIndexedFieldCursor(options.cursor, orderField);
+				const isPresent = sql<boolean>`${sql.ref(dbField)} IS NOT NULL`;
+				const falseLiteral = sql<boolean>`FALSE`;
+				const trueLiteral = sql<boolean>`TRUE`;
+				if (safeOrderDirection === "ASC" && value === null) {
+					query = query.where(sql<boolean>`
+						(${isPresent}) > ${falseLiteral}
+						OR ((${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} > ${cursorId})
+					`);
+				} else if (safeOrderDirection === "DESC" && value === null) {
+					query = query.where(sql<boolean>`
+						(${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} < ${cursorId}
+					`);
+				} else if (safeOrderDirection === "ASC") {
+					query = query.where(sql<boolean>`
+						(${isPresent}) = ${trueLiteral}
+						AND (
+							${sql.ref(dbField)} > ${value}
+							OR (${sql.ref(dbField)} = ${value} AND ${sql.ref("id")} > ${cursorId})
+						)
+					`);
+				} else {
+					query = query.where(sql<boolean>`
+						(${isPresent}) < ${trueLiteral}
+						OR (
+							(${isPresent}) = ${trueLiteral}
+							AND (
+								${sql.ref(dbField)} < ${value}
+								OR (${sql.ref(dbField)} = ${value} AND ${sql.ref("id")} < ${cursorId})
+							)
+						)
+					`);
+				}
 			} else {
-				query = query.where((eb) =>
-					eb.or([
-						eb(dbField as any, ">", orderValue),
-						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-					]),
-				);
+				const { orderValue, id: cursorId } = decodeCursor(options.cursor);
+
+				if (safeOrderDirection === "DESC") {
+					query = query.where((eb) =>
+						eb.or([
+							eb(dbField as any, "<", orderValue),
+							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+						]),
+					);
+				} else {
+					query = query.where((eb) =>
+						eb.or([
+							eb(dbField as any, ">", orderValue),
+							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+						]),
+					);
+				}
 			}
 		}
 
 		// Apply ordering and limit
+		if (resolvedOrderField.indexedCustomField) {
+			query = query.orderBy(
+				sql<boolean>`${sql.ref(dbField)} IS NOT NULL`,
+				safeOrderDirection === "ASC" ? "asc" : "desc",
+			);
+		}
 		query = query
 			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
@@ -573,11 +662,26 @@ export class ContentRepository {
 		if (hasMore && items.length > 0) {
 			const lastRow = items.at(-1) as Record<string, unknown>;
 			const lastOrderValue = lastRow[dbField];
-			const orderStr =
-				typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
-					? String(lastOrderValue)
-					: "";
-			mappedResult.nextCursor = encodeCursor(orderStr, String(lastRow.id));
+			if (resolvedOrderField.indexedCustomField) {
+				if (
+					lastOrderValue !== null &&
+					typeof lastOrderValue !== "string" &&
+					typeof lastOrderValue !== "number"
+				) {
+					throw new EmDashValidationError(`Invalid indexed value for order field: ${orderField}`);
+				}
+				mappedResult.nextCursor = encodeIndexedFieldCursor(
+					orderField,
+					lastOrderValue,
+					String(lastRow.id),
+				);
+			} else {
+				const orderStr =
+					typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
+						? String(lastOrderValue)
+						: "";
+				mappedResult.nextCursor = encodeCursor(orderStr, String(lastRow.id));
+			}
 		}
 
 		return mappedResult;
@@ -1701,5 +1805,31 @@ export class ContentRepository {
 			throw new EmDashValidationError(`Invalid order field: ${field}`);
 		}
 		return mapped;
+	}
+
+	private async resolveOrderField(type: string, field: string): Promise<ResolvedOrderField> {
+		try {
+			return { column: this.mapOrderField(field), indexedCustomField: false };
+		} catch (error) {
+			if (!(error instanceof EmDashValidationError)) throw error;
+		}
+
+		const customField = await this.db
+			.selectFrom("_emdash_fields as field")
+			.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
+			.where("collection.slug", "=", type)
+			.where("field.slug", "=", field)
+			.where("field.indexed", "=", 1)
+			.select("field.slug")
+			.executeTakeFirst();
+
+		if (!customField) {
+			throw new EmDashValidationError(
+				`Invalid order field: ${field}. Custom fields must be indexed before sorting.`,
+			);
+		}
+
+		validateIdentifier(customField.slug, "content order field");
+		return { column: customField.slug, indexedCustomField: true };
 	}
 }
