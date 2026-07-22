@@ -17,6 +17,7 @@ import {
 	commentListQuery,
 	commentSchema,
 	commentStatusBody,
+	commentSubmitResponseSchema,
 	createCommentBody,
 	adminCommentListResponseSchema,
 	publicCommentListResponseSchema,
@@ -1150,7 +1151,7 @@ const commentsPaths = {
 					description: "Comment created (pending moderation)",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ id: z.string(), status: z.string() })),
+							schema: successEnvelope(commentSubmitResponseSchema),
 						},
 					},
 				},

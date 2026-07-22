@@ -114,6 +114,30 @@ describe("Comments Integration", () => {
 	});
 
 	// -----------------------------------------------------------------------
+	// No submission: `live` prop markup/script (opt-in + backward compat)
+	// -----------------------------------------------------------------------
+
+	it("does not emit live-display markup or script by default (backward compatible)", async () => {
+		const html = await fetchHtml(ctx, "/posts/first-post");
+		expect(html).not.toContain("data-ec-live");
+		expect(html).not.toContain("ec:comment:created");
+	});
+
+	it("emits live-display markup and script only when `live` is set", async () => {
+		const html = await fetchHtml(ctx, "/posts-live/first-post");
+
+		// Opt-in markers on both <Comments> and <CommentForm>
+		expect(html).toContain("data-ec-live");
+		expect(html).toContain("data-ec-threaded");
+
+		// Inline script wires up the created-comment event and renders the
+		// moderation-pending case in a visually distinct, muted state.
+		expect(html).toContain("ec:comment:created");
+		expect(html).toContain("ec-comment-pending");
+		expect(html).toContain("Awaiting moderation");
+	});
+
+	// -----------------------------------------------------------------------
 	// Submission #1: basic submit + rendering + auto-link + XSS escape
 	// -----------------------------------------------------------------------
 
@@ -128,10 +152,33 @@ describe("Comments Integration", () => {
 		});
 
 		expect(res.status).toBe(201);
-		const json = (await res.json()) as { data: { id: string; status: string; message: string } };
+		const json = (await res.json()) as {
+			data: {
+				id: string;
+				status: string;
+				message: string;
+				comment: {
+					id: string;
+					authorName: string;
+					isRegisteredUser: boolean;
+					body: string;
+					createdAt: string;
+					status: string;
+				};
+			};
+		};
 		expect(json.data.id).toBeDefined();
 		expect(json.data.status).toBe("approved");
 		expect(json.data.message).toBe("Comment published");
+
+		// New: serialized comment payload for opt-in live/optimistic display —
+		// additive fields alongside the existing id/status/message.
+		expect(json.data.comment.id).toBe(json.data.id);
+		expect(json.data.comment.authorName).toBe("Test User");
+		expect(json.data.comment.isRegisteredUser).toBe(false);
+		expect(json.data.comment.body).toContain("Check https://example.com");
+		expect(json.data.comment.createdAt).toBeDefined();
+		expect(json.data.comment.status).toBe("approved");
 
 		// Verify rendered page
 		const html = await fetchHtml(ctx, "/posts/first-post");
@@ -259,8 +306,16 @@ describe("Comments Integration", () => {
 			body: "This needs approval",
 		});
 		expect(submitRes.status).toBe(201);
-		const submitJson = (await submitRes.json()) as { data: { id: string; status: string } };
+		const submitJson = (await submitRes.json()) as {
+			data: { id: string; status: string; comment: { status: string; body: string } };
+		};
 		expect(submitJson.data.status).toBe("pending");
+
+		// New: the comment payload's own `status` matches — this is the signal
+		// <Comments live> uses to render the "awaiting moderation" muted state
+		// instead of a normal (publicly-visible-looking) comment row.
+		expect(submitJson.data.comment.status).toBe("pending");
+		expect(submitJson.data.comment.body).toBe("This needs approval");
 
 		// Pending comment should NOT appear on the rendered page
 		const htmlBefore = await fetchHtml(ctx, "/posts/second-post");
