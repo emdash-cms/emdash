@@ -110,6 +110,17 @@ async function openAdmin(admin: AdminPage, path: string, dir: string): Promise<v
 /** Settle fonts and freeze animation before capturing. */
 async function stabilize(admin: AdminPage): Promise<void> {
 	await admin.page.addStyleTag({ content: FREEZE_CSS });
+	// Drop focus before capturing. The editor pages mount a TipTap toolbar
+	// whose buttons reflect the editor's focus/active state; whether the editor
+	// grabs focus during hydration is a race, so a run can capture a focused
+	// (highlighted) toolbar button or an unfocused one. Blurring makes the
+	// capture depend on the rendered page, not on who won the focus race.
+	await admin.page.evaluate(() => {
+		const active = document.activeElement;
+		if (active instanceof HTMLElement && active !== document.body) {
+			active.blur();
+		}
+	});
 	// Await font loading without returning the FontFaceSet that
 	// document.fonts.ready fulfils with -- Playwright cannot serialize it.
 	await admin.page.evaluate(async () => {

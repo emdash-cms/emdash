@@ -11,7 +11,7 @@
  */
 
 import type { ColumnDataType, Kysely, RawBuilder } from "kysely";
-import { sql } from "kysely";
+import { PostgresAdapter, sql } from "kysely";
 
 import type { DatabaseDialectType } from "../db/adapters.js";
 import { validateIdentifier, validateJsonFieldName } from "./validate.js";
@@ -19,12 +19,11 @@ import { validateIdentifier, validateJsonFieldName } from "./validate.js";
 export type { DatabaseDialectType };
 
 /**
- * Detect dialect type from a Kysely instance via the adapter class name.
+ * Detect dialect type from a Kysely instance via the adapter class.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function detectDialect(db: Kysely<any>): DatabaseDialectType {
-	const name = db.getExecutor().adapter.constructor.name;
-	if (name === "PostgresAdapter") return "postgres";
+	if (db.getExecutor().adapter instanceof PostgresAdapter) return "postgres";
 	return "sqlite";
 }
 

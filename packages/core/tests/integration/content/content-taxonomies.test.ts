@@ -177,10 +177,7 @@ describeEachDialect("Content taxonomies field - create/update", (dialect) => {
 	it("resolves slugs in the entry's locale for i18n sites", async () => {
 		setI18nConfig({
 			defaultLocale: "en",
-			locales: [
-				{ code: "en", label: "English" },
-				{ code: "fr", label: "Français" },
-			],
+			locales: ["en", "fr"],
 		});
 
 		const taxRepo = new TaxonomyRepository(ctx.db);

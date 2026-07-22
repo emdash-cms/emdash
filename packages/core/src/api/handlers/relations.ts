@@ -10,6 +10,7 @@ import {
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { ContentItem } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
+import { resolveConfiguredLocale } from "../../i18n/config.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { ApiResult } from "../types.js";
 
@@ -70,7 +71,10 @@ export async function handleRelationCreate(
 			}
 		}
 
-		const relation = await repo.create(input);
+		const relation = await repo.create({
+			...input,
+			locale: input.locale ? resolveConfiguredLocale(input.locale) : undefined,
+		});
 		return { success: true, data: { relation } };
 	} catch (error) {
 		// A bad `translationOf` makes the repo throw loudly rather than mint an
@@ -127,7 +131,8 @@ export async function handleRelationList(
 ): Promise<ApiResult<{ relations: Relation[] }>> {
 	try {
 		const repo = new RelationRepository(db);
-		const relations = await repo.list(opts.locale);
+		const locale = opts.locale ? resolveConfiguredLocale(opts.locale) : undefined;
+		const relations = await repo.list(locale);
 		return { success: true, data: { relations } };
 	} catch {
 		return {

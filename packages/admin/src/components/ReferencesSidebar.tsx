@@ -6,10 +6,8 @@
  * collection, it lists the parent entries that reference the entry being
  * edited (the reverse direction of the parent-side reference field renderer).
  *
- * The panel renders nothing when there are no applicable relations, when the
- * relations read fails (e.g. the viewer lacks `schema:read`, a 403), or when
- * every applicable relation has an empty parents list — so collections that
- * nobody references stay out of the way rather than showing an empty state.
+ * The panel always renders its heading so it remains a stable, sortable
+ * content-settings section. Entries without backlinks show an empty state.
  */
 
 import { Button, Loader, Text } from "@cloudflare/kumo";
@@ -35,9 +33,7 @@ interface ReferencesSidebarProps {
 	/** Locale of the entry being edited. Scopes the relation definitions read so
 	 * labels localize to the entry's translation. */
 	entryLocale?: string;
-	/** Applied to the root element. The panel renders nothing (no chrome) when
-	 * there are no backlinks, so the caller passes section padding/border here
-	 * rather than wrapping — an empty wrapper would leave a stray gap. */
+	/** Applied to the root element. */
 	className?: string;
 }
 
@@ -176,90 +172,93 @@ export function ReferencesSidebar({
 		[collection, entryId],
 	);
 
-	// RENDER GATES (after all hooks) — the panel is optional context. While the
-	// relations list is still loading or has errored, stay out of the layout.
-	if (relationsQuery.isLoading || relationsQuery.error) return null;
-	if (applicableRelations.length === 0) return null;
-
 	const isPopulated = (rel: RelationDef): boolean => (parentsByRel[rel.id]?.items.length ?? 0) > 0;
-	if (!applicableRelations.some(isPopulated)) return null;
 	const populatedRels = applicableRelations.filter(isPopulated);
+	const isLoadingParents = applicableRelations.some((rel) => !parentsByRel[rel.id]);
 
 	return (
 		<div className={cn("space-y-4", className)}>
 			<Text bold as="h3">
 				{t`Referenced by`}
 			</Text>
-			<div className="space-y-4">
-				{populatedRels.map((rel) => {
-					const state = parentsByRel[rel.id];
-					// `state` is guarded by `isPopulated` above, but the TS narrowing
-					// across the .filter callback doesn't carry through.
-					if (!state) return null;
-					const heading = pluralLabelBySlug.get(rel.parentCollection) ?? rel.parentLabel;
-					return (
-						<div key={rel.id} className="space-y-2">
-							<h4 className="text-sm font-medium text-kumo-subtle">{heading}</h4>
-							<ul className="space-y-2">
-								{state.items.map((parent) => {
-									const label = parent.title || parent.slug || parent.id;
-									return (
-										<li
-											key={parent.id}
-											className="flex items-center gap-2 rounded-md border bg-kumo-base px-3 py-2"
-										>
-											<Link
-												to="/content/$collection/$id"
-												params={{ collection: parent.collection, id: parent.id }}
-												search={{ locale: parent.locale ?? undefined }}
-												className="group min-w-0 flex-1"
+			{relationsQuery.isLoading || isLoadingParents ? (
+				<Loader size="sm" />
+			) : relationsQuery.error ? (
+				<p className="text-sm text-kumo-subtle">{t`References unavailable.`}</p>
+			) : populatedRels.length === 0 ? (
+				<p className="text-sm text-kumo-subtle">{t`No references yet.`}</p>
+			) : (
+				<div className="space-y-4">
+					{populatedRels.map((rel) => {
+						const state = parentsByRel[rel.id];
+						// `state` is guarded by `isPopulated` above, but the TS narrowing
+						// across the .filter callback doesn't carry through.
+						if (!state) return null;
+						const heading = pluralLabelBySlug.get(rel.parentCollection) ?? rel.parentLabel;
+						return (
+							<div key={rel.id} className="space-y-2">
+								<h4 className="text-sm font-medium text-kumo-subtle">{heading}</h4>
+								<ul className="space-y-2">
+									{state.items.map((parent) => {
+										const label = parent.title || parent.slug || parent.id;
+										return (
+											<li
+												key={parent.id}
+												className="flex items-center gap-2 rounded-md border bg-kumo-base px-3 py-2"
 											>
-												<div className="truncate text-sm font-medium group-hover:underline">
-													{label}
-												</div>
-												{parent.slug && (
-													<div className="flex items-center gap-2 text-xs text-kumo-subtle">
-														<span className="truncate">{parent.slug}</span>
+												<Link
+													to="/content/$collection/$id"
+													params={{ collection: parent.collection, id: parent.id }}
+													search={{ locale: parent.locale ?? undefined }}
+													className="group min-w-0 flex-1"
+												>
+													<div className="truncate text-sm font-medium group-hover:underline">
+														{label}
 													</div>
-												)}
-											</Link>
-											<RouterLinkButton
-												to="/content/$collection/$id"
-												params={{ collection: parent.collection, id: parent.id }}
-												search={{ locale: parent.locale ?? undefined }}
-												target="_blank"
-												variant="ghost"
-												shape="square"
-												size="sm"
-												icon={<ArrowSquareOut className="h-4 w-4" />}
-												aria-label={t`Open ${label} in a new tab`}
-											/>
-										</li>
-									);
-								})}
-							</ul>
-							{state.nextCursor && (
-								<div className="pt-1">
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => void loadMore(rel)}
-										disabled={state.loading}
-									>
-										{state.loading ? (
-											<>
-												<Loader size="sm" /> {t`Loading...`}
-											</>
-										) : (
-											t`Load more`
-										)}
-									</Button>
-								</div>
-							)}
-						</div>
-					);
-				})}
-			</div>
+													{parent.slug && (
+														<div className="flex items-center gap-2 text-xs text-kumo-subtle">
+															<span className="truncate">{parent.slug}</span>
+														</div>
+													)}
+												</Link>
+												<RouterLinkButton
+													to="/content/$collection/$id"
+													params={{ collection: parent.collection, id: parent.id }}
+													search={{ locale: parent.locale ?? undefined }}
+													target="_blank"
+													variant="ghost"
+													shape="square"
+													size="sm"
+													icon={<ArrowSquareOut className="h-4 w-4" />}
+													aria-label={t`Open ${label} in a new tab`}
+												/>
+											</li>
+										);
+									})}
+								</ul>
+								{state.nextCursor && (
+									<div className="pt-1">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => void loadMore(rel)}
+											disabled={state.loading}
+										>
+											{state.loading ? (
+												<>
+													<Loader size="sm" /> {t`Loading...`}
+												</>
+											) : (
+												t`Load more`
+											)}
+										</Button>
+									</div>
+								)}
+							</div>
+						);
+					})}
+				</div>
+			)}
 		</div>
 	);
 }

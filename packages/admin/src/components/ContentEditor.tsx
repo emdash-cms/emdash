@@ -1176,6 +1176,7 @@ function MobileSidebarPortalGuard() {
 		const nestedOverlaySelector =
 			'[role="dialog"], [role="listbox"], [role="menu"], .kumo-tooltip-popup';
 		const keepSheetOpen = () => queueMicrotask(() => setOpenMobile(true));
+		const reopenSheetAfterDismiss = () => setTimeout(setOpenMobile, 0, true);
 		const promotePortal = (element: Element) => {
 			const overlay =
 				element.closest(nestedOverlaySelector) ?? element.querySelector(nestedOverlaySelector);
@@ -1188,7 +1189,19 @@ function MobileSidebarPortalGuard() {
 		const handleFocusOut = (event: FocusEvent) => {
 			const source = event.target;
 			const destination = event.relatedTarget;
-			if (!(source instanceof Element) || !(destination instanceof Element)) return;
+			if (!(source instanceof Element)) return;
+
+			// dnd-kit briefly blurs and then restores the activator after a
+			// pointer drop. Kumo interprets the null relatedTarget as leaving the
+			// sheet and closes it before focus is restored. Keep this transient
+			// sortable-handle blur inside the mobile settings interaction.
+			if (source.closest("[data-sortable-handle]") && destination === null) {
+				event.stopPropagation();
+				keepSheetOpen();
+				return;
+			}
+
+			if (!(destination instanceof Element)) return;
 
 			const sheet = source.closest('nav[data-sidebar="sidebar"][data-mobile="true"]');
 			if (!sheet || sheet.contains(destination)) return;
@@ -1201,7 +1214,17 @@ function MobileSidebarPortalGuard() {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key !== "Escape") return;
 			const target = event.target;
-			if (!(target instanceof Element) || !target.closest(nestedOverlaySelector)) return;
+			if (!(target instanceof Element)) return;
+
+			// Escape cancels a keyboard drag, but Kumo also treats it as a request
+			// to dismiss the mobile sheet. Let dnd-kit receive the key while
+			// restoring the sheet after its dismissal handler runs.
+			if (target.closest('[data-sortable-handle][data-sorting="true"]')) {
+				reopenSheetAfterDismiss();
+				return;
+			}
+
+			if (!target.closest(nestedOverlaySelector)) return;
 			keepSheetOpen();
 		};
 

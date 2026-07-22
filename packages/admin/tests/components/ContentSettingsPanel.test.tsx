@@ -1,3 +1,4 @@
+import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -21,6 +22,7 @@ vi.mock("../../src/components/RevisionHistory", () => ({
 
 vi.mock("../../src/components/TaxonomySidebar", () => ({
 	TaxonomySidebar: () => <div data-testid="taxonomy-sidebar">Taxonomy</div>,
+	useHasApplicableTaxonomies: () => true,
 }));
 
 vi.mock("../../src/components/editor/DocumentOutline", () => ({
@@ -33,6 +35,10 @@ vi.mock("../../src/components/editor/ImageDetailPanel", () => ({
 
 vi.mock("../../src/components/SeoPanel", () => ({
 	SeoPanel: () => <div data-testid="seo-panel">SEO fields</div>,
+}));
+
+vi.mock("../../src/components/ReferencesSidebar", () => ({
+	ReferencesSidebar: () => <h3>Referenced by</h3>,
 }));
 
 vi.mock("@tanstack/react-router", async () => {
@@ -118,7 +124,7 @@ describe("ContentSettingsPanel", () => {
 		vi.clearAllMocks();
 	});
 
-	it("renders all eight sections when every capability is enabled", async () => {
+	it("renders all nine sections when every capability is enabled", async () => {
 		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
 
 		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
@@ -126,10 +132,23 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByRole("heading", { name: "Bylines" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("heading", { name: "Translations" })).toBeInTheDocument();
 		await expect.element(screen.getByTestId("taxonomy-sidebar")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("heading", { name: "Referenced by" }))
+			.toBeInTheDocument();
 		await expect.element(screen.getByRole("heading", { name: "SEO" })).toBeInTheDocument();
 		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
 		await expect.element(screen.getByTestId("revision-history")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Drag to reorder Referenced by" }))
+			.toBeInTheDocument();
+
+		const referencesSection = screen
+			.getByRole("heading", { name: "Referenced by" })
+			.element()
+			.closest("section");
+		const seoSection = screen.getByRole("heading", { name: "SEO" }).element().closest("section");
+		expect(referencesSection?.nextElementSibling).toBe(seoSection);
 	});
 
 	it("hides Ownership and Bylines for users below the editor role", async () => {
@@ -198,6 +217,30 @@ describe("ContentSettingsPanel", () => {
 		const root = screen.container.firstElementChild;
 		const lastSection = root?.lastElementChild;
 		expect(lastSection?.textContent).toContain("Move to Trash");
+	});
+
+	it("hides destructive actions without collapsing their space while reordering", async () => {
+		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
+		const trashActions = screen.getByTestId("content-trash-actions").element();
+		const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+
+		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
+		expect(trashActions).not.toHaveAttribute("aria-hidden");
+
+		handle.focus();
+		await act(async () => {
+			fireEvent.keyDown(handle, { key: " ", code: "Space" });
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		});
+		expect(trashActions).toHaveClass("invisible", "pointer-events-none");
+		expect(trashActions).toHaveAttribute("aria-hidden", "true");
+
+		await act(async () => {
+			fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		});
+		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
+		expect(trashActions).not.toHaveAttribute("aria-hidden");
 	});
 });
 

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { localeCode } from "./common.js";
+
 const slugPattern = /^[a-z][a-z0-9_]*$/;
 const collectionSlug = z
 	.string()
@@ -18,7 +20,7 @@ export const createRelationBody = z
 		childCollection: collectionSlug.optional(),
 		parentLabel: z.string().min(1).max(200),
 		childLabel: z.string().min(1).max(200),
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})
 	// A translation inherits its structural fields (name, parentCollection,
