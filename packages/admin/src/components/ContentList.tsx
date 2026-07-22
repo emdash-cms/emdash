@@ -33,7 +33,7 @@ import type {
 	ContentDateField,
 	ContentItem,
 	TrashedContentItem,
-} from "../lib/api";
+} from "../lib/api.js";
 import {
 	ContentListColumnBoundary,
 	resolveContentListColumns,
