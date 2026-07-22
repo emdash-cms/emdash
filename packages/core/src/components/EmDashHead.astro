@@ -34,6 +34,7 @@ import {
 import { renderSiteIdentity } from "../page/site-identity.js";
 import { getPageRuntime } from "../page/index.js";
 import { getSiteSettings } from "../settings/index.js";
+import { EDGE_TAG_SETTINGS } from "../astro/edge-cache-tags.js";
 import { absolutizeMediaUrl } from "../page/absolute-url.js";
 import { getHreflangAlternates } from "../seo/hreflang.js";
 import { isI18nEnabled } from "../i18n/config.js";
@@ -67,6 +68,11 @@ if (runtime) {
 		runtime.collectPageMetadata(page),
 		runtime.collectPageFragments(page),
 	]);
+
+	// This page renders site settings, so it must be evicted when they change.
+	// Tag it with the reserved settings tag so the settings write path's purge
+	// reaches it (#2042). Merges with any tags the route already set.
+	Astro.cache.set({ tags: [EDGE_TAG_SETTINGS] });
 
 	// Site-level default OG image: applied per-page in base contributions
 	// rather than emitted unconditionally, so per-content images still win.

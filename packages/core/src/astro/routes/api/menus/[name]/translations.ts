@@ -14,6 +14,8 @@ import { handleMenuCreate, handleMenuGet, handleMenuTranslations } from "#api/ha
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery } from "#api/schemas.js";
 
+import { EDGE_TAG_MENUS, invalidateEdgeTag } from "../../../../edge-cache-tags.js";
+
 export const prerender = false;
 
 const createTranslationBody = z
@@ -47,7 +49,7 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	}
 };
 
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
 
@@ -75,6 +77,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			locale: body.locale,
 			translationOf: source.data.id,
 		});
+		if (result.success) await invalidateEdgeTag(cache, EDGE_TAG_MENUS);
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create menu translation", "MENU_TRANSLATION_CREATE_ERROR");
