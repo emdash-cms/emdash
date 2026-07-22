@@ -7,7 +7,7 @@ name: Visual Regression — Report
 # Responsibilities:
 #   - Publish the diff images to the `visual-snapshots` branch so they can be
 #     embedded in a comment (GitHub cannot host comment images via the API).
-#   - Upsert a sticky comment with the diffs and 👍-to-accept instructions.
+#   - Upsert a sticky comment with the diffs and /accept-baselines instructions.
 #   - Delete the sticky comment when a later run shows no drift (resolved).
 
 on:
@@ -236,11 +236,10 @@ jobs:
               ...rows,
               '',
               '---',
-              '**Maintainers:** react 👍 to this comment to accept these baselines. The',
-              '"Visual Regression — Apply" job (every ~10 min, or run it manually via',
-              'workflow_dispatch) will commit the regenerated Linux baselines to this PR.',
+              '**Maintainers:** if every change above is intended, comment `/accept-baselines`',
+              'to commit the regenerated Linux baselines to this PR.',
               '',
-              `<sub>Measured head: \`${headSha}\`. Reacting 👍 accepts the snapshots for this commit.</sub>`,
+              `<sub>Measured head: \`${headSha}\`. \`/accept-baselines\` accepts the snapshots for this commit.</sub>`,
             ].join('\n');
 
             const comments = await github.paginate(github.rest.issues.listComments, {

@@ -1,6 +1,78 @@
 const GIT_REF = /refs\/(?:heads|tags)\/\S+/g;
 const PKT_LINE_HEADER = /^[0-9a-fA-F]{4}$/;
 const MAX_RECEIVE_PACK_COMMAND_BYTES = 64 * 1024;
+export const PUSH_CAPABILITY_HEADER = "X-EmDash-Push-Capability";
+
+export async function createPushCapability(
+	secret: string,
+	owner: string,
+	repo: string,
+	issueNumber: number,
+): Promise<string> {
+	if (!secret) throw new Error("push capability secret is not configured");
+	const payload = String(issueNumber);
+	return `${payload}.${await signPushCapability(secret, `${owner}/${repo}/${payload}`)}`;
+}
+
+export async function verifyPushCapability(
+	capability: string | null,
+	secret: string,
+	owner: string,
+	repo: string,
+): Promise<number | null> {
+	if (!capability || !secret) return null;
+	const separator = capability.indexOf(".");
+	if (separator <= 0) return null;
+	const payload = capability.slice(0, separator);
+	const signature = capability.slice(separator + 1);
+	const issueNumber = Number(payload);
+	if (!Number.isSafeInteger(issueNumber) || issueNumber <= 0 || !signature) return null;
+
+	try {
+		const key = await importPushCapabilityKey(secret, ["verify"]);
+		const valid = await crypto.subtle.verify(
+			"HMAC",
+			key,
+			decodeBase64Url(signature),
+			new TextEncoder().encode(`${owner}/${repo}/${payload}`),
+		);
+		return valid ? issueNumber : null;
+	} catch {
+		return null;
+	}
+}
+
+async function signPushCapability(secret: string, payload: string): Promise<string> {
+	const key = await importPushCapabilityKey(secret, ["sign"]);
+	const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+	return encodeBase64Url(new Uint8Array(signature));
+}
+
+function importPushCapabilityKey(
+	secret: string,
+	usages: Array<"sign" | "verify">,
+): Promise<CryptoKey> {
+	return crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(secret),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		usages,
+	);
+}
+
+function encodeBase64Url(bytes: Uint8Array): string {
+	return btoa(String.fromCharCode(...bytes))
+		.replaceAll("+", "-")
+		.replaceAll("/", "_")
+		.replaceAll("=", "");
+}
+
+function decodeBase64Url(value: string): Uint8Array {
+	const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
+	const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+	return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+}
 
 /**
  * Auth scheme for the sandbox outbound GitHub proxy.
