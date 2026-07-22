@@ -11,6 +11,7 @@ import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
@@ -32,11 +33,13 @@ import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { STORAGELESS_FIELD_TYPES } from "../../schema/types.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
+import { resolveEntries, setReferenceChildren } from "./relations.js";
 import { validateMediaFields } from "./validate-media-fields.js";
 
 /**
@@ -162,6 +165,89 @@ async function hydrateBylines(
 
 	item.bylines = [];
 	item.byline = null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+/**
+ * Hydrate the first page of each reference field's children onto a single
+ * content item.
+ *
+ * Opt-in only: callers must have already decided `includeDrafts` (draft
+ * visibility is enforced by the caller, not this helper) because a resolved
+ * child can carry a draft/scheduled entry's id and slug. See
+ * `handleContentGet`'s `referenceOptions` param — the REST GET route is the
+ * only caller that currently opts in.
+ *
+ * Reference fields are storage-less (edges live only in
+ * `_emdash_content_references`); a field missing `validation.relation` or
+ * `validation.targetCollection` is a legacy field and contributes nothing.
+ */
+async function hydrateReferences(
+	db: Kysely<Database>,
+	collection: string,
+	item: ContentItem,
+	includeDrafts: boolean,
+): Promise<void> {
+	if (!item.translationGroup) return;
+
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	if (!collectionRow) return;
+
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select("validation")
+		.where("collection_id", "=", collectionRow.id)
+		.where("type", "=", "reference")
+		.execute();
+
+	const references: NonNullable<ContentItem["references"]> = {};
+	if (fields.length === 0) {
+		item.references = references;
+		return;
+	}
+
+	const repo = new RelationRepository(db);
+	const content = new ContentRepository(db);
+
+	for (const field of fields) {
+		let validation: Record<string, unknown> = {};
+		if (field.validation) {
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(field.validation);
+			} catch {
+				continue;
+			}
+			if (isRecord(parsed)) validation = parsed;
+		}
+		const relationGroup = typeof validation.relation === "string" ? validation.relation : undefined;
+		const childCollection =
+			typeof validation.targetCollection === "string" ? validation.targetCollection : undefined;
+		if (!relationGroup || !childCollection) continue; // legacy field: no edges to hydrate
+
+		const edges = await repo.getChildrenPage(relationGroup, item.translationGroup);
+		const children = await resolveEntries(
+			content,
+			childCollection,
+			edges.items,
+			(e) => e.childGroup,
+			item.locale,
+			includeDrafts,
+		);
+		references[relationGroup] = {
+			children,
+			...(edges.nextCursor ? { nextCursor: edges.nextCursor } : {}),
+		};
+	}
+
+	item.references = references;
 }
 
 /**
@@ -337,6 +423,39 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		if (fieldSlugs.has(candidate)) columns.push(candidate);
 	}
 	return columns;
+}
+
+/**
+ * Remove storage-less field keys (e.g. reference) from a content `data` payload
+ * before it reaches the column writer, which would otherwise throw "no such
+ * column". Defensive for direct API users; the admin sends references in the
+ * dedicated `references` key, not in `data`.
+ */
+async function stripStoragelessDataKeys(
+	db: Kysely<Database>,
+	collection: string,
+	data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	if (!collectionRow) return data;
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select(["slug", "type"])
+		.where("collection_id", "=", collectionRow.id)
+		.execute();
+	const storageless = new Set(
+		fields.filter((f) => STORAGELESS_FIELD_TYPES.has(f.type)).map((f) => f.slug),
+	);
+	if (storageless.size === 0) return data;
+	const cleaned: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(data)) {
+		if (!storageless.has(k)) cleaned[k] = v;
+	}
+	return cleaned;
 }
 
 /**
@@ -584,6 +703,7 @@ export async function handleContentGet(
 	collection: string,
 	id: string,
 	locale?: string,
+	referenceOptions?: { includeDrafts: boolean },
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
@@ -607,6 +727,12 @@ export async function handleContentGet(
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeo(db, collection, item, hasSeo);
 		await hydrateBylines(db, collection, item);
+		// Opt-in: hydration is skipped entirely unless the caller passes
+		// `referenceOptions`, since it can leak draft child ids/slugs — see
+		// `hydrateReferences`'s doc comment.
+		if (referenceOptions) {
+			await hydrateReferences(db, collection, item, referenceOptions.includeDrafts);
+		}
 
 		return {
 			success: true,
@@ -693,6 +819,8 @@ export async function handleContentCreate(
 		translationOf?: string;
 		seo?: ContentSeoInput;
 		taxonomies?: Record<string, string[]>;
+		/** Reference fields: relation translation_group → ordered child entry ids. */
+		references?: Record<string, string[]>;
 		createdAt?: string | null;
 		publishedAt?: string | null;
 	},
@@ -710,6 +838,8 @@ export async function handleContentCreate(
 				},
 			};
 		}
+
+		body.data = await stripStoragelessDataKeys(db, collection, body.data);
 
 		const mimeCheck = await validateMediaFields(db, collection, body.data);
 		if (!mimeCheck.success) return mimeCheck;
@@ -805,6 +935,27 @@ export async function handleContentCreate(
 				await assignTaxonomies(trx, collection, created.id, effectiveLocale, body.taxonomies);
 			}
 
+			// Attach reference edges in the same transaction: a relation or
+			// child id that fails to resolve throws with a structured
+			// `apiError`, aborting the whole save so no half-written entry
+			// (with taxonomies/bylines/SEO already committed) is left behind.
+			if (body.references) {
+				for (const [relationGroup, childIds] of Object.entries(body.references)) {
+					const set = await setReferenceChildren(
+						trx,
+						collection,
+						created.id,
+						relationGroup,
+						childIds,
+					);
+					if (!set.success) {
+						throw Object.assign(new Error(set.error.message), {
+							apiError: { code: set.error.code },
+						});
+					}
+				}
+			}
+
 			return created;
 		});
 
@@ -813,6 +964,14 @@ export async function handleContentCreate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		// Handle structured errors thrown from inside the transaction (e.g. a
+		// reference resolution failure from `setReferenceChildren`).
+		if (hasApiError(error)) {
+			return {
+				success: false,
+				error: { code: error.apiError.code, message: error.message },
+			};
+		}
 		if (isMissingTableError(error)) {
 			return {
 				success: false,
@@ -885,6 +1044,8 @@ export async function handleContentUpdate(
 		_rev?: string;
 		seo?: ContentSeoInput;
 		taxonomies?: Record<string, string[]>;
+		/** Reference fields: relation translation_group → ordered child entry ids. */
+		references?: Record<string, string[]>;
 		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
@@ -903,6 +1064,7 @@ export async function handleContentUpdate(
 		}
 
 		if (body.data) {
+			body.data = await stripStoragelessDataKeys(db, collection, body.data);
 			const mimeCheck = await validateMediaFields(db, collection, body.data);
 			if (!mimeCheck.success) return mimeCheck;
 		}
@@ -1005,6 +1167,26 @@ export async function handleContentUpdate(
 				);
 			}
 
+			// Replace reference edges in the same transaction. See the matching
+			// block in handleContentCreate: a resolution failure throws with a
+			// structured `apiError`, aborting the whole update.
+			if (body.references) {
+				for (const [relationGroup, childIds] of Object.entries(body.references)) {
+					const set = await setReferenceChildren(
+						trx,
+						collection,
+						resolvedId,
+						relationGroup,
+						childIds,
+					);
+					if (!set.success) {
+						throw Object.assign(new Error(set.error.message), {
+							apiError: { code: set.error.code },
+						});
+					}
+				}
+			}
+
 			return updated;
 		});
 
@@ -1086,7 +1268,18 @@ export async function handleContentDuplicate(
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const original = await repo.findById(collection, resolvedId);
 			const dup = await repo.duplicate(collection, resolvedId, authorId);
+
+			// Reference edges are storage-less (keyed by translation_group, not in
+			// `data`), so they don't ride along in the row copy — carry the original's
+			// outgoing references onto the duplicate explicitly.
+			if (original?.translationGroup && dup.translationGroup) {
+				await new RelationRepository(trx).copyParentEdges(
+					original.translationGroup,
+					dup.translationGroup,
+				);
+			}
 
 			const existingBylines = await bylineRepo.getContentBylines(collection, resolvedId);
 			if (existingBylines.length > 0) {

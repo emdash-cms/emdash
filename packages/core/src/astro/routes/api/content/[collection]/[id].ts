@@ -27,7 +27,9 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	const id = params.id!;
 	const locale = url.searchParams.get("locale") || undefined;
 
-	const result = await emdash.handleContentGet(collection, id, locale);
+	const result = await emdash.handleContentGet(collection, id, locale, {
+		includeDrafts: hasPermission(user, "content:read_drafts"),
+	});
 
 	// Hide non-published items from users without content:read_drafts. Return
 	// 404 (not 403) so subscribers can't enumerate draft IDs by status code.

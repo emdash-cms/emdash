@@ -228,10 +228,24 @@ export type EntryRef = {
 	id: string;
 	slug: string | null;
 	collection: string;
+	/**
+	 * Display label sourced from the entry's `title`, then `name`, field —
+	 * `null` when neither is set, leaving the client to fall back to slug/id.
+	 * A stopgap until declarative display fields land; mirrors the admin's own
+	 * title/name resolution.
+	 */
+	title: string | null;
 	/** The actual locale of the resolved variant — see `pickVariant`. */
 	locale: string | null;
 	sortOrder?: number;
 };
+
+/** Display title for a resolved entry: `title`, then `name`, else null. */
+function entryTitle(data: Record<string, unknown>): string | null {
+	if (typeof data.title === "string" && data.title.length > 0) return data.title;
+	if (typeof data.name === "string" && data.name.length > 0) return data.name;
+	return null;
+}
 
 /** Resolve a relation from an id OR its translation_group. */
 async function resolveRelation(
@@ -268,7 +282,7 @@ function pickVariant(items: ContentItem[], locale: string | null): ContentItem |
  * is restricted to published entries so a draft/scheduled entry referenced by an
  * edge is skipped exactly like a dangling one, never leaking its id/slug/locale.
  */
-async function resolveEntries(
+export async function resolveEntries(
 	content: ContentRepository,
 	collection: string,
 	edges: ContentReference[],
@@ -301,6 +315,7 @@ async function resolveEntries(
 			id: entry.id,
 			slug: entry.slug,
 			collection,
+			title: entryTitle(entry.data),
 			locale: entry.locale,
 			sortOrder: edge.sortOrder,
 		});
@@ -359,6 +374,69 @@ export async function handleReferenceChildrenGet(
 	}
 }
 
+/**
+ * Resolve a relation + parent entry + child ids and replace the parent's
+ * children under that relation. Extracted from `handleReferenceChildrenSet` so
+ * the content create/update transaction can reuse the same resolution logic
+ * with either a `Kysely<Database>` or a `Transaction<Database>`.
+ *
+ * Returns the resolved relation/entry translation_groups on success so callers
+ * can re-read and echo the new set without re-deriving them.
+ */
+export async function setReferenceChildren(
+	db: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	relation: string,
+	childIds: string[],
+): Promise<ApiResult<{ relationGroup: string; entryGroup: string }>> {
+	const repo = new RelationRepository(db);
+	const content = new ContentRepository(db);
+
+	const rel = await resolveRelation(repo, relation);
+	if (!rel) return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
+	if (collection !== rel.parentCollection) {
+		return {
+			success: false,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: "Entry is not the parent side of this relation",
+			},
+		};
+	}
+
+	const entry = await content.findByIdOrSlug(collection, entryId);
+	if (!entry?.translationGroup) {
+		return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
+	}
+
+	// Resolve every child within the relation's child_collection in one batch
+	// (constant queries, not an N+1 of point lookups for a set up to 1000). A
+	// child id that does not resolve there fails collection-agreement
+	// (invariant 3); order is preserved by iterating the caller's `childIds`.
+	const resolvedChildren = await content.findManyByIdOrSlug(rel.childCollection, childIds);
+	const childGroups: string[] = [];
+	for (const childId of childIds) {
+		const child = resolvedChildren.get(childId);
+		if (!child?.translationGroup) {
+			return {
+				success: false,
+				error: {
+					code: "NOT_FOUND",
+					message: `Child entry '${childId}' not found in ${rel.childCollection}`,
+				},
+			};
+		}
+		childGroups.push(child.translationGroup);
+	}
+
+	await repo.setChildren(rel.translationGroup, entry.translationGroup, childGroups);
+	return {
+		success: true,
+		data: { relationGroup: rel.translationGroup, entryGroup: entry.translationGroup },
+	};
+}
+
 export async function handleReferenceChildrenSet(
 	db: Kysely<Database>,
 	collection: string,
@@ -367,53 +445,27 @@ export async function handleReferenceChildrenSet(
 	childIds: string[],
 ): Promise<ApiResult<{ children: EntryRef[]; nextCursor?: string }>> {
 	try {
+		const set = await setReferenceChildren(db, collection, entryId, relation, childIds);
+		if (!set.success) return set;
+
 		const repo = new RelationRepository(db);
 		const content = new ContentRepository(db);
 
+		// Re-resolve the relation/entry for their locale + childCollection — cheap
+		// relative to the write above, and keeps this function independent of
+		// `setReferenceChildren`'s internals beyond the two returned groups.
 		const rel = await resolveRelation(repo, relation);
 		if (!rel)
 			return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
-		if (collection !== rel.parentCollection) {
-			return {
-				success: false,
-				error: {
-					code: "VALIDATION_ERROR",
-					message: "Entry is not the parent side of this relation",
-				},
-			};
-		}
-
 		const entry = await content.findByIdOrSlug(collection, entryId);
-		if (!entry?.translationGroup) {
+		if (!entry) {
 			return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
 		}
-
-		// Resolve every child within the relation's child_collection in one batch
-		// (constant queries, not an N+1 of point lookups for a set up to 1000). A
-		// child id that does not resolve there fails collection-agreement
-		// (invariant 3); order is preserved by iterating the caller's `childIds`.
-		const resolvedChildren = await content.findManyByIdOrSlug(rel.childCollection, childIds);
-		const childGroups: string[] = [];
-		for (const childId of childIds) {
-			const child = resolvedChildren.get(childId);
-			if (!child?.translationGroup) {
-				return {
-					success: false,
-					error: {
-						code: "NOT_FOUND",
-						message: `Child entry '${childId}' not found in ${rel.childCollection}`,
-					},
-				};
-			}
-			childGroups.push(child.translationGroup);
-		}
-
-		await repo.setChildren(rel.translationGroup, entry.translationGroup, childGroups);
 
 		// Return the first page of the new set, mirroring the GET shape. The actor
 		// holds an edit permission (gated by the route), so draft children are
 		// included in the echo.
-		const edges = await repo.getChildrenPage(rel.translationGroup, entry.translationGroup);
+		const edges = await repo.getChildrenPage(set.data.relationGroup, set.data.entryGroup);
 		const children = await resolveEntries(
 			content,
 			rel.childCollection,

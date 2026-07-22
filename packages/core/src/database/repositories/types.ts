@@ -266,6 +266,31 @@ export interface ContentItem {
 	 * revision history.
 	 */
 	liveData?: Record<string, unknown>;
+	/**
+	 * First page of resolved children per reference field, keyed by the
+	 * field's relation group. Only populated when the caller opts in via
+	 * `handleContentGet`'s `referenceOptions` param (see content.ts) —
+	 * hydration is never unconditional because it can leak draft child
+	 * ids/slugs to callers without `content:read_drafts`.
+	 *
+	 * Shape mirrors `EntryRef` from `api/handlers/relations.ts`, duplicated
+	 * here (rather than imported) so the database layer doesn't depend on
+	 * the api/handlers layer.
+	 */
+	references?: Record<
+		string,
+		{
+			children: Array<{
+				id: string;
+				slug: string | null;
+				collection: string;
+				title: string | null;
+				locale: string | null;
+				sortOrder?: number;
+			}>;
+			nextCursor?: string;
+		}
+	>;
 }
 
 export class EmDashValidationError extends Error {

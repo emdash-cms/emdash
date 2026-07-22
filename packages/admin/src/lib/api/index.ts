@@ -394,3 +394,13 @@ export {
 
 // Current user
 export { type CurrentUser, useCurrentUser } from "./current-user.js";
+
+// Relations (reference fields)
+export {
+	type RelationDef,
+	type EntryRef,
+	type ReferencePageOptions,
+	fetchRelations,
+	fetchReferenceChildren,
+	fetchReferenceParents,
+} from "./relations.js";

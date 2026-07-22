@@ -34,6 +34,7 @@ import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
+import { ReferencesSidebar } from "./ReferencesSidebar.js";
 import { RevisionHistory } from "./RevisionHistory";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
@@ -609,6 +610,17 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{item && hasApplicableTaxonomies && (
 					<SortableContentSettingsSection id="taxonomies" label={t`Taxonomies`}>
 						<TaxonomySidebar
+							className="p-4"
+							collection={collection}
+							entryId={item.id}
+							entryLocale={item.locale ?? entryLocale}
+						/>
+					</SortableContentSettingsSection>
+				)}
+
+				{item && !isNew && (
+					<SortableContentSettingsSection id="references" label={t`Referenced by`}>
+						<ReferencesSidebar
 							className="p-4"
 							collection={collection}
 							entryId={item.id}
