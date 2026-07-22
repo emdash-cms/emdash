@@ -135,6 +135,33 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("item_list", () => {
+			const result = validateBlocks([
+				{
+					type: "item_list",
+					density: "compact",
+					empty_text: "No items",
+					items: [
+						{
+							title: "Import queue",
+							description: "12 posts waiting for review.",
+							meta: "Updated 2m ago",
+							badge: "Active",
+							icon: "IQ",
+							avatar_url: "/avatar.png",
+							actions: [{ type: "button", action_id: "open", label: "Open" }],
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("item_list with empty items array", () => {
+			const result = validateBlocks([{ type: "item_list", items: [] }]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("repeater", () => {
 			const result = validateBlocks([
 				{
@@ -499,6 +526,30 @@ describe("validateBlocks", () => {
 			]);
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].default_open");
+		});
+
+		it("item_list missing items", () => {
+			const result = validateBlocks([{ type: "item_list" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].items");
+		});
+
+		it("item_list validates item fields", () => {
+			const result = validateBlocks([
+				{
+					type: "item_list",
+					items: [{ description: 42, actions: [{ type: "select", action_id: "x", label: "X" }] }],
+					density: "dense",
+					empty_text: false,
+				},
+			]);
+			expect(result.valid).toBe(false);
+			const paths = result.errors.map((e) => e.path);
+			expect(paths).toContain("blocks[0].items[0].title");
+			expect(paths).toContain("blocks[0].items[0].description");
+			expect(paths).toContain("blocks[0].items[0].actions[0].type");
+			expect(paths).toContain("blocks[0].density");
+			expect(paths).toContain("blocks[0].empty_text");
 		});
 
 		it("stats item missing label or value", () => {

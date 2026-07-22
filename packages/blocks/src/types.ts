@@ -201,6 +201,16 @@ export interface StatItem {
 	trend?: "up" | "down" | "neutral";
 }
 
+export interface ListItem {
+	title: string;
+	description?: string;
+	meta?: string;
+	badge?: string;
+	icon?: string;
+	avatar_url?: string;
+	actions?: ButtonElement[];
+}
+
 /** A single data series for a timeseries chart. */
 export interface ChartSeries {
 	/** Display name shown in tooltips and legends */
@@ -364,6 +374,13 @@ export interface AccordionBlock extends BlockBase {
 	default_open?: boolean;
 }
 
+export interface ItemListBlock extends BlockBase {
+	type: "item_list";
+	items: ListItem[];
+	empty_text?: string;
+	density?: "default" | "compact";
+}
+
 export type Block =
 	| HeaderBlock
 	| SectionBlock
@@ -382,7 +399,8 @@ export type Block =
 	| CodeBlock
 	| TabBlock
 	| EmptyBlock
-	| AccordionBlock;
+	| AccordionBlock
+	| ItemListBlock;
 
 // ── Interactions ─────────────────────────────────────────────────────────────
 

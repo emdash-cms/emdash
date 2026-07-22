@@ -24,6 +24,8 @@ import type {
 	FormField,
 	HeaderBlock,
 	ImageBlock,
+	ItemListBlock,
+	ListItem,
 	MediaPickerElement,
 	MeterBlock,
 	NumberInputElement,
@@ -495,6 +497,21 @@ function accordion(opts: {
 	};
 }
 
+function itemList(opts: {
+	blockId?: string;
+	items: ListItem[];
+	emptyText?: string;
+	density?: "default" | "compact";
+}): ItemListBlock {
+	return {
+		type: "item_list",
+		items: opts.items,
+		...(opts.emptyText !== undefined && { empty_text: opts.emptyText }),
+		...(opts.density !== undefined && { density: opts.density }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 export const blocks = {
@@ -517,6 +534,7 @@ export const blocks = {
 	tab: tabBlock,
 	empty,
 	accordion,
+	itemList,
 };
 
 export const elements = {

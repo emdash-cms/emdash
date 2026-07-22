@@ -16,6 +16,7 @@ const BLOCK_TYPES = new Set([
 	"code",
 	"empty",
 	"accordion",
+	"item_list",
 ]);
 
 const EMPTY_SIZES = new Set(["sm", "base", "lg"]);
@@ -44,6 +45,7 @@ const CODE_LANGUAGES = new Set(["ts", "tsx", "jsonc", "bash", "css"]);
 const BUTTON_STYLES = new Set(["primary", "danger", "secondary"]);
 const TREND_VALUES = new Set(["up", "down", "neutral"]);
 const BANNER_VARIANTS = new Set(["default", "alert", "error"]);
+const ITEM_LIST_DENSITIES = new Set(["default", "compact"]);
 
 /**
  * RFC 6838-style image MIME type or image-prefix.
@@ -610,6 +612,17 @@ function validateFormField(value: unknown, path: string, errors: ValidationError
 			});
 		}
 	}
+}
+
+function validateButtonAction(value: unknown, path: string, errors: ValidationError[]): void {
+	if (isRecord(value) && value.type !== "button") {
+		errors.push({
+			path: `${path}.type`,
+			message: "Action must be a button element",
+		});
+		return;
+	}
+	validateElement(value, path, errors);
 }
 
 const CHART_TYPES = new Set(["timeseries", "custom"]);
@@ -1193,6 +1206,64 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 				errors.push({
 					path: `${path}.default_open`,
 					message: "Field 'default_open' must be a boolean if provided",
+				});
+			}
+			break;
+		}
+		case "item_list": {
+			if (!Array.isArray(value.items)) {
+				errors.push({
+					path: `${path}.items`,
+					message: "Required field 'items' must be an array",
+				});
+			} else {
+				for (let i = 0; i < value.items.length; i++) {
+					const item = value.items[i] as unknown;
+					if (!isRecord(item)) {
+						errors.push({ path: `${path}.items[${i}]`, message: "Item must be an object" });
+						continue;
+					}
+					if (typeof item.title !== "string") {
+						errors.push({
+							path: `${path}.items[${i}].title`,
+							message: "Required field 'title' must be a string",
+						});
+					}
+					for (const key of ["description", "meta", "badge", "icon", "avatar_url"]) {
+						if (item[key] !== undefined && typeof item[key] !== "string") {
+							errors.push({
+								path: `${path}.items[${i}].${key}`,
+								message: `Field '${key}' must be a string if provided`,
+							});
+						}
+					}
+					if (item.actions !== undefined) {
+						if (!Array.isArray(item.actions)) {
+							errors.push({
+								path: `${path}.items[${i}].actions`,
+								message: "Field 'actions' must be an array if provided",
+							});
+						} else {
+							for (let j = 0; j < item.actions.length; j++) {
+								validateButtonAction(item.actions[j], `${path}.items[${i}].actions[${j}]`, errors);
+							}
+						}
+					}
+				}
+			}
+			if (
+				value.density !== undefined &&
+				(typeof value.density !== "string" || !ITEM_LIST_DENSITIES.has(value.density))
+			) {
+				errors.push({
+					path: `${path}.density`,
+					message: `Field 'density' must be one of: ${[...ITEM_LIST_DENSITIES].join(", ")}`,
+				});
+			}
+			if (value.empty_text !== undefined && typeof value.empty_text !== "string") {
+				errors.push({
+					path: `${path}.empty_text`,
+					message: "Field 'empty_text' must be a string if provided",
 				});
 			}
 			break;
