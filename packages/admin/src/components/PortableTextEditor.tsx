@@ -52,6 +52,9 @@ import {
 	TextHOne,
 	TextHTwo,
 	TextHThree,
+	TextHFour,
+	TextHFive,
+	TextHSix,
 	List,
 	ListNumbers,
 	Quotes,
@@ -1132,6 +1135,36 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		aliases: ["h3"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
+		},
+	},
+	{
+		id: "heading4",
+		title: msg`Heading 4`,
+		description: msg`Smaller section heading`,
+		icon: TextHFour,
+		aliases: ["h4"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 4 }).run();
+		},
+	},
+	{
+		id: "heading5",
+		title: msg`Heading 5`,
+		description: msg`Minor section heading`,
+		icon: TextHFive,
+		aliases: ["h5"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 5 }).run();
+		},
+	},
+	{
+		id: "heading6",
+		title: msg`Heading 6`,
+		description: msg`Smallest section heading`,
+		icon: TextHSix,
+		aliases: ["h6"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 6 }).run();
 		},
 	},
 	{
@@ -2493,7 +2526,7 @@ export function PortableTextEditor({
 		() => [
 			StarterKit.configure({
 				heading: {
-					levels: [1, 2, 3],
+					levels: [1, 2, 3, 4, 5, 6],
 				},
 				dropcursor: {
 					color: "#3b82f6",
@@ -3651,7 +3684,7 @@ function EditorToolbar({
 
 			{/* Headings */}
 			<ToolbarGroup>
-				<HeadingDropdownMenu editor={editor} levels={[1, 2, 3]} />
+				<HeadingDropdownMenu editor={editor} />
 			</ToolbarGroup>
 
 			<ToolbarSeparator />

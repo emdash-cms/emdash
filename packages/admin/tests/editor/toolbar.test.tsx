@@ -177,7 +177,7 @@ function expectAlignmentState(
 
 async function getHeadingMenuItem(
 	screen: Awaited<ReturnType<typeof render>>,
-	name: "Heading 1" | "Heading 2" | "Heading 3",
+	name: "Heading 1" | "Heading 2" | "Heading 3" | "Heading 4" | "Heading 5" | "Heading 6",
 ) {
 	const trigger = getToolbarButton(screen, "Headings");
 	trigger.element().click();
@@ -224,6 +224,9 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeVisible();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeVisible();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 4" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 5" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 6" })).toBeVisible();
 		expect(
 			screen
 				.getByRole("menuitem", { name: "Heading 1" })
@@ -235,7 +238,16 @@ describe("Toolbar Presence and Structure", () => {
 			document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
 			(item) => item.textContent?.trim(),
 		);
-		expect(headingLabels).not.toContain("Heading 4");
+		expect(headingLabels).toEqual(
+			expect.arrayContaining([
+				"Heading 1",
+				"Heading 2",
+				"Heading 3",
+				"Heading 4",
+				"Heading 5",
+				"Heading 6",
+			]),
+		);
 	});
 
 	it("has all list buttons", async () => {
@@ -496,6 +508,19 @@ describe("Formatting Button Toggle States", () => {
 		await vi.waitFor(() => {
 			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
 			expect(editor.isActive("heading", { level: 3 })).toBe(true);
+		});
+	});
+
+	it("Heading 6: click changes to h6", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus();
+
+		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 6");
+		item.element().click();
+
+		await vi.waitFor(() => {
+			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
+			expect(editor.isActive("heading", { level: 6 })).toBe(true);
 		});
 	});
 

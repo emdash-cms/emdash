@@ -307,7 +307,10 @@ body {
 	margin-bottom: 0.4em !important;
 }
 
-.ProseMirror.prose > h3 {
+.ProseMirror.prose > h3,
+.ProseMirror.prose > h4,
+.ProseMirror.prose > h5,
+.ProseMirror.prose > h6 {
 	margin-top: 0.3em !important;
 	margin-bottom: 0.3em !important;
 }
