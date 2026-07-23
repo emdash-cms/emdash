@@ -1,7 +1,7 @@
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ContentEditorProps } from "../../src/components/ContentEditor";
 import {
@@ -120,6 +120,11 @@ describe("ContentSettingsPanel", () => {
 		vi.clearAllMocks();
 	});
 
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
+	});
+
 	it("renders all eight sections when every capability is enabled", async () => {
 		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
 
@@ -224,6 +229,26 @@ describe("ContentSettingsPanel", () => {
 		});
 		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
 		expect(trashActions).not.toHaveAttribute("aria-hidden");
+	});
+
+	it("accepts and submits a near-future local schedule in a negative UTC offset", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-07-23T16:00:00.000Z"));
+		vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(240);
+		const onSchedule = vi.fn();
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ canSchedule: true, onSchedule })} />,
+		);
+
+		await screen.getByRole("button", { name: "Schedule for later" }).click();
+		const scheduleInput = screen.getByLabelText("Schedule for");
+
+		await expect.element(scheduleInput).toHaveAttribute("min", "2026-07-23T12:00");
+		await scheduleInput.fill("2026-07-23T12:30");
+		expect((scheduleInput.element() as HTMLInputElement).checkValidity()).toBe(true);
+
+		await screen.getByRole("button", { name: "Schedule" }).click();
+		expect(onSchedule).toHaveBeenCalledWith(new Date("2026-07-23T12:30").toISOString());
 	});
 });
 

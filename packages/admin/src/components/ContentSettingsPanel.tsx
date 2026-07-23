@@ -55,6 +55,11 @@ function formatScheduledDate(dateStr: string | null) {
 	return date.toLocaleString();
 }
 
+function formatDatetimeLocalValue(date: Date) {
+	const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+	return localDate.toISOString().slice(0, 16);
+}
+
 /**
  * Discard-draft confirmation shared by the settings action bar and the
  * distraction-free overlay, so the copy and behavior can't drift.
@@ -488,7 +493,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												type="datetime-local"
 												value={scheduleDate}
 												onChange={(e) => setScheduleDate(e.target.value)}
-												min={new Date().toISOString().slice(0, 16)}
+												min={formatDatetimeLocalValue(new Date())}
 											/>
 											<div className="flex gap-2">
 												<Button
