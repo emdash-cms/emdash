@@ -1,0 +1,25 @@
+.changeset/clean-badgers-frame.md
+  s_cc9dc2a14a8281::t_141607a862ff35 1-5
+packages/admin/src/components/ContentEditor.tsx
+  s_cc9dc2a14a8281::t_7acaade83558bb 1323
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_cc9dc2a14a8281::t_7b4637fdeac897 11,32-33,54,66,98-99,112-170,184-186,248-252
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_cc9dc2a14a8281::t_e2b51c52e4e11e 1-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9ebad17a16ca86ab89db6e9d655026b5a142df4c",
+  "prompts": {},
+  "sessions": {
+    "s_cc9dc2a14a8281": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8e9d-b3ec-7c32-9e56-c9142a5bafea",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
