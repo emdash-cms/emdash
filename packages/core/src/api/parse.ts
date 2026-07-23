@@ -113,21 +113,7 @@ function validate<T extends z.ZodType>(schema: T, data: unknown): ParseResult<z.
 		message: issue.message,
 	}));
 
-	return Response.json(
-		{
-			error: {
-				code: "VALIDATION_ERROR",
-				message: "Invalid request data",
-				details: { issues },
-			},
-		},
-		{
-			status: 400,
-			headers: {
-				"Cache-Control": "private, no-store",
-			},
-		},
-	);
+	return apiError("VALIDATION_ERROR", "Invalid request data", 400, { issues });
 }
 
 /**

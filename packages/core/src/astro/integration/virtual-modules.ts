@@ -69,6 +69,9 @@ export const RESOLVED_VIRTUAL_WAIT_UNTIL_ID = "\0" + VIRTUAL_WAIT_UNTIL_ID;
 export const VIRTUAL_SCHEDULER_ID = "virtual:emdash/scheduler";
 export const RESOLVED_VIRTUAL_SCHEDULER_ID = "\0" + VIRTUAL_SCHEDULER_ID;
 
+export const VIRTUAL_ENV_ID = "virtual:emdash/env";
+export const RESOLVED_VIRTUAL_ENV_ID = "\0" + VIRTUAL_ENV_ID;
+
 /**
  * Generates the config virtual module.
  */
@@ -276,6 +279,7 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					storage: descriptor.storage,
 					adminPages: descriptor.adminPages,
 					adminWidgets: descriptor.adminWidgets,
+					settingsSchema: descriptor.settingsSchema,
 					portableTextBlocks: descriptor.portableTextBlocks,
 					fieldWidgets: descriptor.fieldWidgets,
 				})})`,
@@ -475,6 +479,25 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
 }
 
 /**
+ * Generates the env virtual module.
+ *
+ * Under @astrojs/cloudflare, re-exports `env` from `cloudflare:workers` so
+ * routes can read Worker bindings/secrets without touching
+ * `Astro.locals.runtime.env`, which Astro 6+ removed (accessing it throws
+ * rather than returning undefined, so `locals.runtime?.env` optional-chaining
+ * doesn't help -- see #1736). For any other adapter, exports `undefined` so
+ * callers fall back to `import.meta.env`. Mirrors generateWaitUntilModule:
+ * core stays adapter-agnostic, with no direct `cloudflare:workers` import
+ * that would fail to resolve under a Node build.
+ */
+export function generateEnvModule(adapterName: string | undefined): string {
+	if (adapterName === "@astrojs/cloudflare") {
+		return `export { env } from "cloudflare:workers";`;
+	}
+	return `export const env = undefined;`;
+}
+
+/**
  * Generates the scheduler virtual module.
  *
  * Decides — at build time, from the Astro adapter — whether the runtime gets a
@@ -649,8 +672,10 @@ export const sandboxedPlugins = [];
     capabilities: ${JSON.stringify(descriptor.capabilities ?? [])},
     allowedHosts: ${JSON.stringify(descriptor.allowedHosts ?? [])},
     storage: ${JSON.stringify(descriptor.storage ?? {})},
+    mcp: ${JSON.stringify(descriptor.mcp)},
     adminPages: ${JSON.stringify(descriptor.adminPages ?? [])},
     adminWidgets: ${JSON.stringify(descriptor.adminWidgets ?? [])},
+    settingsSchema: ${JSON.stringify(descriptor.settingsSchema)},
     portableTextBlocks: ${JSON.stringify(descriptor.portableTextBlocks ?? [])},
     fieldWidgets: ${JSON.stringify(descriptor.fieldWidgets ?? [])},
     adminEntry: ${JSON.stringify(descriptor.adminEntry)},

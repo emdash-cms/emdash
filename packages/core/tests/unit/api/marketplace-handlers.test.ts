@@ -349,6 +349,47 @@ describe("Marketplace handlers", () => {
 			expect(state?.status).toBe("active");
 		});
 
+		it("requires explicit consent before installing plugin MCP tools", async () => {
+			const manifest: PluginManifest = {
+				...mockManifest("test-seo", "1.0.0"),
+				routes: [{ name: "events/create", permission: "content:create" }],
+				mcp: {
+					tools: [
+						{
+							name: "createEvent",
+							description: "Create a calendar event.",
+							route: "events/create",
+							permission: "content:create",
+							destructive: false,
+							inputSchema: { type: "object" },
+						},
+					],
+				},
+			};
+			const bundleBytes = await createMockBundle(manifest);
+			const detail = mockPluginDetail("test-seo", "1.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+
+			const result = await handleMarketplaceInstall(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					details: { mcpTools: [expect.objectContaining({ name: "createEvent" })] },
+				},
+			});
+			expect(await new PluginStateRepository(db).get("test-seo")).toBeNull();
+		});
+
 		it("rejects install if plugin already installed", async () => {
 			// Pre-install the plugin
 			const repo = new PluginStateRepository(db);

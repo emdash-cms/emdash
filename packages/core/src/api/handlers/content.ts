@@ -30,11 +30,11 @@ import { UserRepository } from "../../database/repositories/user.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
-import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
+import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
-import { isMissingTableError } from "../../utils/db-errors.js";
+import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 import { validateMediaFields } from "./validate-media-fields.js";
@@ -269,7 +269,11 @@ async function resolveId(
 	identifier: string,
 	locale?: string,
 ): Promise<string | null> {
-	const item = await repo.findByIdOrSlug(collection, identifier, locale);
+	const item = await repo.findByIdOrSlug(
+		collection,
+		identifier,
+		locale ? resolveConfiguredLocale(locale) : undefined,
+	);
 	return item?.id ?? null;
 }
 
@@ -283,7 +287,11 @@ async function resolveIdIncludingTrashed(
 	identifier: string,
 	locale?: string,
 ): Promise<string | null> {
-	const item = await repo.findByIdOrSlugIncludingTrashed(collection, identifier, locale);
+	const item = await repo.findByIdOrSlugIncludingTrashed(
+		collection,
+		identifier,
+		locale ? resolveConfiguredLocale(locale) : undefined,
+	);
 	return item?.id ?? null;
 }
 
@@ -427,7 +435,7 @@ export async function handleContentList(
 		const repo = new ContentRepository(db);
 		const where: FindManyOptions["where"] = {};
 		if (params.status) where.status = params.status;
-		if (params.locale) where.locale = params.locale;
+		if (params.locale) where.locale = resolveConfiguredLocale(params.locale);
 		if (params.authorId) where.authorId = params.authorId;
 
 		// A date range requires a target column; ignore stray from/to without
@@ -482,6 +490,15 @@ export async function handleContentList(
 				error: {
 					code: "COLLECTION_NOT_FOUND",
 					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (isMissingColumnError(error, "deleted_at")) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_SCHEMA_MISMATCH",
+					message: `Collection '${collection}' backing table is missing the 'deleted_at' column`,
 				},
 			};
 		}
@@ -570,7 +587,11 @@ export async function handleContentGet(
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
-		const item = await repo.findByIdOrSlug(collection, id, locale);
+		const item = await repo.findByIdOrSlug(
+			collection,
+			id,
+			locale ? resolveConfiguredLocale(locale) : undefined,
+		);
 
 		if (!item) {
 			return {
@@ -615,7 +636,11 @@ export async function handleContentGetIncludingTrashed(
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
-		const item = await repo.findByIdOrSlugIncludingTrashed(collection, id, locale);
+		const item = await repo.findByIdOrSlugIncludingTrashed(
+			collection,
+			id,
+			locale ? resolveConfiguredLocale(locale) : undefined,
+		);
 
 		if (!item) {
 			return {
@@ -697,7 +722,9 @@ export async function handleContentCreate(
 			// Default to the configured site locale rather than the repo's
 			// hard-coded "en" — otherwise non-English default-locale sites
 			// silently create entries in a locale the editor never chose.
-			const effectiveLocale = body.locale ?? getI18nConfig()?.defaultLocale;
+			const effectiveLocale = body.locale
+				? resolveConfiguredLocale(body.locale)
+				: getI18nConfig()?.defaultLocale;
 
 			let slug: string | null | undefined = body.slug;
 			if (!slug) {
@@ -1487,11 +1514,36 @@ export async function handleContentPublish(
 			};
 		}
 		if (error instanceof EmDashValidationError) {
+			// The staged-slug pre-check tags its error so it maps to the same
+			// 409 SLUG_CONFLICT as direct slug edits in create/update.
+			const details: unknown = error.details;
+			const isSlugConflict =
+				typeof details === "object" &&
+				details !== null &&
+				"code" in details &&
+				details.code === "SLUG_CONFLICT";
 			return {
 				success: false,
 				error: {
-					code: "VALIDATION_ERROR",
+					code: isSlugConflict ? "SLUG_CONFLICT" : "VALIDATION_ERROR",
 					message: error.message,
+				},
+			};
+		}
+		// Backstop for the pre-check inside repo.publish(): a concurrent write
+		// can still take the slug between the check and the UPDATE, in which
+		// case the `(slug, locale)` unique constraint fires. Same fingerprint
+		// mapping as create/update — never a raw SQLite error to the client.
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (
+			(message.includes("unique constraint failed") || message.includes("duplicate key")) &&
+			message.includes("slug")
+		) {
+			return {
+				success: false,
+				error: {
+					code: "SLUG_CONFLICT",
+					message: `The staged slug is already used by another entry in collection '${collection}'`,
 				},
 			};
 		}

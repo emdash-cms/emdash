@@ -19,7 +19,7 @@ import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
-import { getI18nConfig } from "../i18n/config.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { SchemaRegistry } from "../schema/registry.js";
@@ -224,36 +224,35 @@ export async function applySeed(
 				continue;
 			}
 
-			// Create collection
-			await registry.createCollection({
-				slug: collection.slug,
-				label: collection.label,
-				labelSingular: collection.labelSingular,
-				description: collection.description,
-				icon: collection.icon,
-				supports: collection.supports || [],
-				source: "seed",
-				urlPattern: collection.urlPattern,
-				commentsEnabled: collection.commentsEnabled,
-			});
-			result.collections.created++;
+			const fields = collection.fields.map((field) => ({
+				slug: field.slug,
+				label: field.label,
+				type: field.type,
+				required: field.required || false,
+				unique: field.unique || false,
+				searchable: field.searchable || false,
+				defaultValue: field.defaultValue,
+				validation: field.validation,
+				widget: field.widget,
+				options: field.options,
+			}));
 
-			// Create fields
-			for (const field of collection.fields) {
-				await registry.createField(collection.slug, {
-					slug: field.slug,
-					label: field.label,
-					type: field.type,
-					required: field.required || false,
-					unique: field.unique || false,
-					searchable: field.searchable || false,
-					defaultValue: field.defaultValue,
-					validation: field.validation,
-					widget: field.widget,
-					options: field.options,
-				});
-				result.fields.created++;
-			}
+			// Create a fresh seed schema in bulk to stay within D1's query budget.
+			await registry.createSeedCollection(
+				{
+					slug: collection.slug,
+					label: collection.label,
+					labelSingular: collection.labelSingular,
+					description: collection.description,
+					icon: collection.icon,
+					supports: collection.supports || [],
+					urlPattern: collection.urlPattern,
+					commentsEnabled: collection.commentsEnabled,
+				},
+				fields,
+			);
+			result.collections.created++;
+			result.fields.created += fields.length;
 		}
 	}
 
@@ -264,7 +263,7 @@ export async function applySeed(
 		const termSeedIdMap = new Map<string, string>();
 
 		for (const taxonomy of seed.taxonomies) {
-			const defLocale = taxonomy.locale ?? defaultLocale;
+			const defLocale = resolveConfiguredLocale(taxonomy.locale ?? defaultLocale);
 
 			// (name, locale) is the UNIQUE key after migration 036.
 			const existingDef = await db
@@ -341,7 +340,7 @@ export async function applySeed(
 					);
 				} else {
 					for (const term of taxonomy.terms) {
-						const termLocale = term.locale ?? defLocale;
+						const termLocale = resolveConfiguredLocale(term.locale ?? defLocale);
 						const existing = await termRepo.findBySlug(taxonomy.name, term.slug, termLocale);
 						if (existing) {
 							if (onConflict === "error") {
@@ -465,7 +464,7 @@ export async function applySeed(
 					// Resolve the entry's locale up front so a non-`en` single-locale
 					// export (which omits `locale`) is filed under the project default
 					// rather than `en` (#1421).
-					const entryLocale = entry.locale ?? defaultLocale;
+					const entryLocale = resolveConfiguredLocale(entry.locale ?? defaultLocale);
 
 					// Check if entry exists (by slug + locale for locale-aware lookup)
 					const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entryLocale);
@@ -622,7 +621,7 @@ export async function applySeed(
 		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 
 		for (const menu of seed.menus) {
-			const locale = menu.locale ?? defaultLocale;
+			const locale = resolveConfiguredLocale(menu.locale ?? defaultLocale);
 			let lookup = db
 				.selectFrom("_emdash_menus")
 				.selectAll()
@@ -868,6 +867,8 @@ async function applyHierarchicalTerms(
 ): Promise<void> {
 	// "locale::slug" -> id, so the same slug can resolve per locale.
 	const slugToId = new Map<string, string>();
+	const resolveTermLocale = (term: SeedTaxonomyTerm) =>
+		resolveConfiguredLocale(term.locale ?? defLocale);
 
 	// Multiple passes — handles deep nesting and translationOf forward refs.
 	let remaining = [...terms];
@@ -877,7 +878,7 @@ async function applyHierarchicalTerms(
 		const processedThisPass: string[] = [];
 
 		for (const term of remaining) {
-			const termLocale = term.locale ?? defLocale;
+			const termLocale = resolveTermLocale(term);
 			const parentReady = !term.parent || slugToId.has(`${termLocale}::${term.parent}`);
 			const translationReady = !term.translationOf || termSeedIdMap.has(term.translationOf);
 
@@ -922,7 +923,7 @@ async function applyHierarchicalTerms(
 		}
 
 		remaining = remaining.filter(
-			(t) => !processedThisPass.includes(t.slug + "::" + (t.locale ?? defLocale)),
+			(term) => !processedThisPass.includes(term.slug + "::" + resolveTermLocale(term)),
 		);
 		maxPasses--;
 	}

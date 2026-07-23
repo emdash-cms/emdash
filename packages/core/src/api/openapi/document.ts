@@ -2389,7 +2389,7 @@ export function generateOpenApiDocument(
 			title: "EmDash CMS API",
 			version: "0.1.0",
 			description:
-				"REST API for the EmDash CMS. All endpoints require authentication and return responses wrapped in a `{ data }` envelope.",
+				"REST API for the EmDash CMS. All endpoints require authentication and return responses wrapped in a `{ success, data }` envelope.",
 		},
 		servers: [
 			{

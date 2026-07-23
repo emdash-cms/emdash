@@ -1,5 +1,15 @@
 # @emdash-cms/plugin-types
 
+## 0.3.0
+
+### Minor Changes
+
+- [#2002](https://github.com/emdash-cms/emdash/pull/2002) [`e52dea9`](https://github.com/emdash-cms/emdash/commit/e52dea9b72b043d62348f8d01eefade2ce66484c) Thanks [@jcheese1](https://github.com/jcheese1)! - Adds explicitly declared, administrator-enabled plugin MCP tools with per-route permissions, plugin-scoped token access, install and update consent, structured output schemas, and invocation auditing.
+
+- [#1985](https://github.com/emdash-cms/emdash/pull/1985) [`3f8b778`](https://github.com/emdash-cms/emdash/commit/3f8b77822bf8e89b065884c53c7e8b7676788c48) Thanks [@swissky](https://github.com/swissky)! - Adds a `cacheControl` option for public plugin routes: successful GET responses carry the configured `Cache-Control` header, enabling CDN and browser caching for public plugin endpoints. Works for native, standard, and marketplace plugin formats. Private routes and errors keep the `private, no-store` default.
+
+- [#2067](https://github.com/emdash-cms/emdash/pull/2067) [`07c9f21`](https://github.com/emdash-cms/emdash/commit/07c9f210db300803f49ecf2b8a18fe173e459a28) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds plugin manifest schema validation (`pluginManifestSchema`, `reconcileManifestAccess`) and declared-access canonicalization helpers (`canonicalizeDeclaredAccess`, `diffDeclaredAccess`, escalation detection, and the `CanonicalDeclaredAccess` types) for validating plugin manifests and comparing the access a plugin declares.
+
 ## 0.2.0
 
 ### Minor Changes

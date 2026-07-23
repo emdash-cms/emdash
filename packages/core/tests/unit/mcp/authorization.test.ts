@@ -13,9 +13,10 @@ import type { RoleLevel } from "@emdash-cms/auth";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
 import type { EmDashHandlers } from "../../../src/astro/types.js";
-import { createMcpServer } from "../../../src/mcp/server.js";
+import { createMcpServer, type PluginMcpRegistration } from "../../../src/mcp/server.js";
 
 // ---------------------------------------------------------------------------
 // Test constants
@@ -225,9 +226,13 @@ async function setupMcpPair(opts: {
 	userRole: RoleLevel;
 	handlers?: EmDashHandlers;
 	tokenScopes?: string[];
+	pluginTools?: PluginMcpRegistration[];
 }): Promise<{ client: Client; cleanup: () => Promise<void> }> {
 	const handlers = opts.handlers ?? createMockHandlers();
-	const server = createMcpServer();
+	const server = createMcpServer(
+		opts.pluginTools,
+		new Request("https://example.com/_emdash/api/mcp", { method: "POST" }),
+	);
 	const [clientTransport, serverTransport] = createAuthenticatedPair({
 		emdash: handlers,
 		userId: opts.userId,
@@ -259,6 +264,102 @@ describe("MCP Authorization", () => {
 
 	afterEach(async () => {
 		if (cleanup) await cleanup();
+	});
+
+	describe("plugin-declared tools", () => {
+		const pluginTool: PluginMcpRegistration = {
+			pluginId: "calendar",
+			name: "createEvent",
+			description: "Create a calendar event.",
+			route: "events/create",
+			permission: "content:create",
+			destructive: false,
+			inputSchema: z.object({ title: z.string() }),
+			outputSchema: z.object({ id: z.string() }),
+		};
+
+		it("does not let the legacy admin scope bypass plugin-tool scope", async () => {
+			const handlers = createMockHandlers();
+			handlers.handlePluginMcpDenied = vi.fn().mockResolvedValue(undefined);
+			handlers.handlePluginMcpTool = vi.fn().mockResolvedValue({
+				success: true,
+				data: { id: "event-1" },
+			});
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.ADMIN,
+				tokenScopes: ["admin"],
+				handlers,
+				pluginTools: [pluginTool],
+			}));
+
+			const result = await client.callTool({
+				name: "calendar__createEvent",
+				arguments: { title: "Launch" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(result.content).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ text: expect.stringMatching(INSUFFICIENT_SCOPE_RE) }),
+				]),
+			);
+			expect(handlers.handlePluginMcpTool).not.toHaveBeenCalled();
+		});
+
+		it("dispatches with a plugin-specific scope and returns structured output", async () => {
+			const handlers = createMockHandlers();
+			handlers.handlePluginMcpTool = vi.fn().mockResolvedValue({
+				success: true,
+				data: { id: "event-1" },
+			});
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				tokenScopes: ["mcp:tools:calendar"],
+				handlers,
+				pluginTools: [pluginTool],
+			}));
+
+			const listed = await client.listTools();
+			expect(listed.tools.map((tool) => tool.name)).toContain("calendar__createEvent");
+			const result = await client.callTool({
+				name: "calendar__createEvent",
+				arguments: { title: "Launch" },
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(result.structuredContent).toEqual({ id: "event-1" });
+			expect(handlers.handlePluginMcpTool).toHaveBeenCalledWith(
+				"calendar",
+				"createEvent",
+				"events/create",
+				{ title: "Launch" },
+				AUTHOR_USER_ID,
+				expect.any(Request),
+			);
+		});
+
+		it("still enforces the route permission", async () => {
+			const handlers = createMockHandlers();
+			handlers.handlePluginMcpDenied = vi.fn().mockResolvedValue(undefined);
+			handlers.handlePluginMcpTool = vi.fn();
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				tokenScopes: ["mcp:tools"],
+				handlers,
+				pluginTools: [pluginTool],
+			}));
+
+			const result = await client.callTool({
+				name: "calendar__createEvent",
+				arguments: { title: "Launch" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(handlers.handlePluginMcpTool).not.toHaveBeenCalled();
+		});
 	});
 
 	// -----------------------------------------------------------------------
@@ -625,6 +726,65 @@ describe("MCP Authorization", () => {
 
 			expect(result.isError).toBeFalsy();
 			expect(handlers.handleMediaDelete).toHaveBeenCalled();
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// media_upload guards
+	// -----------------------------------------------------------------------
+
+	describe("media_upload guards", () => {
+		const uploadArgs = {
+			filename: "x.png",
+			base64: "aGVsbG8=",
+			contentType: "image/png",
+		};
+
+		it("SUBSCRIBER cannot upload media", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({ name: "media_upload", arguments: uploadArgs });
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(INSUFFICIENT_PERMISSIONS_RE);
+		});
+
+		it("rejects media_upload without media:write scope", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.ADMIN,
+				handlers,
+				tokenScopes: ["media:read"],
+			}));
+
+			const result = await client.callTool({ name: "media_upload", arguments: uploadArgs });
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(INSUFFICIENT_SCOPE_RE);
+		});
+
+		it("returns NO_STORAGE when storage is not configured", async () => {
+			// createMockHandlers has no storage adapter attached
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({ name: "media_upload", arguments: uploadArgs });
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toContain("NO_STORAGE");
 		});
 	});
 

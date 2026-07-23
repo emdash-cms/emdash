@@ -83,6 +83,7 @@ describe("EmDashRuntime.handlePluginApiRoute site context", () => {
 					name: "Example Site",
 					url: "https://example.com",
 					locale: "nl",
+					trailingSlash: "ignore",
 				},
 				url: "https://example.com/checkout/success",
 			},

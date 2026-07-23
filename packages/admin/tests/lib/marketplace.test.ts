@@ -9,6 +9,7 @@ import {
 	checkPluginUpdates,
 	describeCapability,
 	CAPABILITY_LABELS,
+	PluginMcpConsentRequiredError,
 } from "../../src/lib/api/marketplace";
 
 describe("marketplace API client", () => {
@@ -151,6 +152,54 @@ describe("marketplace API client", () => {
 				"Failed to install plugin: Server Error",
 			);
 		});
+
+		it.each([
+			["missing details", undefined],
+			["an empty tool list", { mcpTools: [] }],
+			["no valid tools", { mcpTools: [{ name: 42 }] }],
+		])("preserves the server error when MCP consent has %s", async (_label, details) => {
+			fetchSpy.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						error: {
+							code: "MCP_TOOL_CONSENT_REQUIRED",
+							message: "Consent payload is invalid",
+							...(details ? { details } : {}),
+						},
+					}),
+					{ status: 400 },
+				),
+			);
+
+			await expect(installMarketplacePlugin("my-plugin")).rejects.toThrow(
+				"Consent payload is invalid",
+			);
+		});
+
+		it("throws a consent error when the response contains valid MCP tools", async () => {
+			const tool = {
+				name: "sync",
+				description: "Sync content",
+				route: "sync",
+				permission: "content:write",
+				destructive: false,
+			};
+			fetchSpy.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						error: {
+							code: "MCP_TOOL_CONSENT_REQUIRED",
+							details: { mcpTools: [tool] },
+						},
+					}),
+					{ status: 409 },
+				),
+			);
+
+			const error = await installMarketplacePlugin("my-plugin").catch((reason: unknown) => reason);
+			expect(error).toBeInstanceOf(PluginMcpConsentRequiredError);
+			expect((error as PluginMcpConsentRequiredError).tools).toEqual([tool]);
+		});
 	});
 
 	// -----------------------------------------------------------------------
@@ -160,11 +209,11 @@ describe("marketplace API client", () => {
 	describe("updateMarketplacePlugin", () => {
 		it("POSTs to plugin update endpoint (not marketplace proxy)", async () => {
 			fetchSpy.mockResolvedValue(new Response("{}", { status: 200 }));
-			await updateMarketplacePlugin("my-plugin", { confirmCapabilities: true });
+			await updateMarketplacePlugin("my-plugin", { confirmCapabilityChanges: true });
 			const [url, init] = fetchSpy.mock.calls[0]!;
 			expect(url).toBe("/_emdash/api/admin/plugins/my-plugin/update");
 			expect(init.method).toBe("POST");
-			expect(JSON.parse(init.body)).toEqual({ confirmCapabilities: true });
+			expect(JSON.parse(init.body)).toEqual({ confirmCapabilityChanges: true });
 		});
 
 		it("throws error message from response body", async () => {

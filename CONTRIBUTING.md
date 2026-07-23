@@ -97,6 +97,18 @@ pnpm test:e2e    # Playwright
 
 Tests use real in-memory SQLite -- no mocking. Each test gets a fresh database. Typecheck and lint must pass.
 
+### Visual regression tests
+
+The admin UI has a Playwright visual-regression suite (`e2e/tests/visual-regression.spec.ts`) that screenshots key screens in both LTR (English) and RTL (Arabic). It is gated behind `EMDASH_VISUAL=1` so it stays out of the default `pnpm test:e2e` run:
+
+```bash
+EMDASH_VISUAL=1 pnpm test:e2e visual-regression
+```
+
+Baselines are platform-specific. **CI (Linux) is the source of truth** -- committed baselines are `*-chromium-linux.png`. Locally generated macOS/Windows baselines (`*-darwin.png`, `*-win32.png`) are gitignored; never commit them, they won't match CI.
+
+When a PR changes how a screen renders, the `Visual Regression` check goes red and a bot posts a sticky comment with the diff images. A maintainer reviews the diffs and, if the change is intended, comments `/accept-baselines`. The `Visual Regression — Apply` job then commits the regenerated Linux baselines to the PR branch. Baselines are never updated automatically on push -- a maintainer must accept each change.
+
 ### Building your own site in the monorepo
 
 Copy a template into `demos/`, give it a unique `name` in `package.json`, install, and run:

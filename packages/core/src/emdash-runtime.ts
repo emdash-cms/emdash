@@ -7,9 +7,11 @@
  * Created once per worker lifetime, cached and reused across requests.
  */
 
+import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
 import { Kysely, sql, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
+import { z } from "zod";
 
 import { validateRev } from "./api/rev.js";
 import type {
@@ -27,12 +29,15 @@ import {
 	MIGRATION_RACE_WAIT_MS,
 	runMigrations,
 } from "./database/migrations/runner.js";
+import { AuditRepository } from "./database/repositories/audit.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type {
 	ContentItem as ContentItemInternal,
 	ContentDateField,
 } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
+import { getI18nConfig } from "./i18n/config.js";
+import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import {
@@ -53,11 +58,13 @@ import type {
 	PluginManifest,
 	PluginCapability,
 	PluginStorageConfig,
+	PluginMcpManifestConfig,
 	PublicPageContext,
 	PageMetadataContribution,
 	PageFragmentContribution,
 	PortableTextBlockConfig,
 	FieldWidgetConfig,
+	SettingField,
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
@@ -66,6 +73,12 @@ import { createSingleFlightCache, singleFlightCached } from "./utils/single-flig
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
+const LOCALE_CASING_REPAIR_OPTION = "emdash:repair_locale_casing";
+
+function getLocaleCasingRepairVersion(locales: readonly string[]): string | null {
+	if (locales.length === 0) return null;
+	return `1:${locales.toSorted().join(",")}`;
+}
 
 /**
  * Parse a JSON column expected to contain an array of strings.
@@ -180,7 +193,7 @@ import {
 } from "./plugins/hooks.js";
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
-import { PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
+import { buildRouteMeta, PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
@@ -226,10 +239,14 @@ export interface SandboxedPluginEntry {
 	allowedHosts: string[];
 	/** Declared storage collections */
 	storage: PluginStorageConfig;
+	/** Serialized MCP declarations emitted at plugin build time. */
+	mcp?: PluginMcpManifestConfig;
 	/** Admin pages */
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
+	/** Settings schema for the auto-generated admin settings form */
+	settingsSchema?: Record<string, SettingField>;
 	/** Portable Text block types contributed to the editor (declarative Block Kit) */
 	portableTextBlocks?: PortableTextBlockConfig[];
 	/** Field widget types contributed for schema-field editing UIs */
@@ -352,7 +369,12 @@ export interface EmDashRuntimeParts {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		storage?: Storage;
-		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
+		siteInfo?: {
+			siteName?: string;
+			siteUrl?: string;
+			locale?: string;
+			trailingSlash?: "always" | "never" | "ignore";
+		};
 	};
 	runtimeDeps: RuntimeDependencies;
 	pipelineRef: { current: HookPipeline };
@@ -467,7 +489,9 @@ const marketplaceManifestCache = new Map<
 		admin?: {
 			pages?: PluginAdminPage[];
 			widgets?: PluginDashboardWidget[];
+			settingsSchema?: Record<string, SettingField>;
 		};
+		mcp?: PluginMcpManifestConfig;
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -534,7 +558,12 @@ export class EmDashRuntime {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		storage?: Storage;
-		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
+		siteInfo?: {
+			siteName?: string;
+			siteUrl?: string;
+			locale?: string;
+			trailingSlash?: "always" | "never" | "ignore";
+		};
 	};
 	/** Dependencies needed for exclusive hook resolution */
 	private runtimeDeps: RuntimeDependencies;
@@ -866,6 +895,7 @@ export class EmDashRuntime {
 					id: bundle.manifest.id,
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
+					mcp: bundle.manifest.mcp,
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -873,7 +903,7 @@ export class EmDashRuntime {
 					const routeMetaMap = new Map<string, RouteMeta>();
 					for (const entry of bundle.manifest.routes) {
 						const normalized = normalizeManifestRoute(entry);
-						routeMetaMap.set(normalized.name, { public: normalized.public === true });
+						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
 					}
 					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
 				} else {
@@ -980,12 +1010,13 @@ export class EmDashRuntime {
 					id: bundle.manifest.id,
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
+					mcp: bundle.manifest.mcp,
 				});
 				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
 					for (const entry of bundle.manifest.routes) {
 						const normalized = normalizeManifestRoute(entry);
-						routeMetaMap.set(normalized.name, { public: normalized.public === true });
+						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
 					}
 					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
 				} else {
@@ -1029,6 +1060,7 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
+						settingsSchema: bundle.manifest.admin?.settingsSchema,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -1106,7 +1138,18 @@ export class EmDashRuntime {
 		const storage = EmDashRuntime.getStorage(deps);
 
 		let pluginStates: Map<string, string> = new Map();
-		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
+		const configuredLocales: string[] =
+			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
+		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
+		let storedLocaleCasingRepairVersion: string | undefined;
+		let siteInfo:
+			| {
+					siteName?: string;
+					siteUrl?: string;
+					locale?: string;
+					trailingSlash?: "always" | "never" | "ignore";
+			  }
+			| undefined;
 		// "Already set up" by default so a read failure (e.g. tables absent on a
 		// pre-migration db) skips seeding rather than seeding a half-built db.
 		let seedGate = { collectionCount: 1, setupDone: true };
@@ -1144,11 +1187,17 @@ export class EmDashRuntime {
 				"emdash:site_title",
 				"emdash:site_url",
 				"emdash:locale",
+				LOCALE_CASING_REPAIR_OPTION,
 			]);
+			storedLocaleCasingRepairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
 			return {
 				siteName: siteOpts.get("emdash:site_title") ?? undefined,
 				siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
 				locale: siteOpts.get("emdash:locale") ?? undefined,
+				// trailingSlash is a build-time Astro routing decision, not a
+				// user-editable setting, so it comes from the Astro config
+				// (virtual:emdash/config), not the options table.
+				trailingSlash: virtualConfig?.trailingSlash,
 			};
 		};
 
@@ -1205,6 +1254,20 @@ export class EmDashRuntime {
 		}
 
 		await Promise.all(coldStartReads);
+
+		if (
+			localeCasingRepairVersion &&
+			(configuredLocales.some(
+				(locale) => locale.includes("-") || locale !== locale.toLowerCase(),
+			) ||
+				storedLocaleCasingRepairVersion !== undefined) &&
+			storedLocaleCasingRepairVersion !== localeCasingRepairVersion
+		) {
+			await phase("rt.locale", "Repair locale casing", async () => {
+				await repairLocaleCasing(db, configuredLocales);
+				await new OptionsRepository(db).set(LOCALE_CASING_REPAIR_OPTION, localeCasingRepairVersion);
+			});
+		}
 
 		// Auto-seed the default schema for a first load that skipped the setup
 		// wizard (the wizard and dev-bypass apply seeds explicitly). Run under a
@@ -1810,6 +1873,7 @@ export class EmDashRuntime {
 					storage: entry.storage as never,
 					adminPages,
 					adminWidgets,
+					settingsSchema: entry.settingsSchema,
 					portableTextBlocks: entry.portableTextBlocks,
 					fieldWidgets: entry.fieldWidgets,
 				});
@@ -1831,7 +1895,12 @@ export class EmDashRuntime {
 		deps: RuntimeDependencies,
 		db: Kysely<Database>,
 		mediaStorage?: Storage | null,
-		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string },
+		siteInfo?: {
+			siteName?: string;
+			siteUrl?: string;
+			locale?: string;
+			trailingSlash?: "always" | "never" | "ignore";
+		},
 	): Promise<Map<string, SandboxedPluginInstance>> {
 		// Return cached plugins if already loaded
 		if (sandboxedPluginCache.size > 0) {
@@ -1911,6 +1980,7 @@ export class EmDashRuntime {
 					hooks: [],
 					routes: [],
 					admin: {},
+					mcp: entry.mcp,
 				};
 
 				const plugin = await sandboxRunner.load(manifest, entry.code);
@@ -1946,7 +2016,12 @@ export class EmDashRuntime {
 		storage: Storage,
 		deps: RuntimeDependencies,
 		cache: Map<string, SandboxedPluginInstance>,
-		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string },
+		siteInfo?: {
+			siteName?: string;
+			siteUrl?: string;
+			locale?: string;
+			trailingSlash?: "always" | "never" | "ignore";
+		},
 	): Promise<void> {
 		// Ensure sandbox runner exists with media storage wired up.
 		// (storage here is the media Storage adapter from the runtime.)
@@ -2014,6 +2089,7 @@ export class EmDashRuntime {
 						id: bundle.manifest.id,
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
+						mcp: bundle.manifest.mcp,
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2021,7 +2097,7 @@ export class EmDashRuntime {
 						const routeMeta = new Map<string, RouteMeta>();
 						for (const entry of bundle.manifest.routes) {
 							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, { public: normalized.public === true });
+							routeMeta.set(normalized.name, buildRouteMeta(normalized));
 						}
 						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
 					}
@@ -2085,12 +2161,13 @@ export class EmDashRuntime {
 						id: bundle.manifest.id,
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
+						mcp: bundle.manifest.mcp,
 					});
 					if (bundle.manifest.routes.length > 0) {
 						const routeMeta = new Map<string, RouteMeta>();
 						for (const entry of bundle.manifest.routes) {
 							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, { public: normalized.public === true });
+							routeMeta.set(normalized.name, buildRouteMeta(normalized));
 						}
 						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
 					}
@@ -2120,6 +2197,7 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
+						settingsSchema: bundle.manifest.admin?.settingsSchema,
 					});
 					resolved.push(adapted);
 					console.log(
@@ -2798,13 +2876,14 @@ export class EmDashRuntime {
 								authorId: bodyWithoutRev.authorId ?? undefined,
 							});
 
-							// Update entry to point to new draft (metadata only, not data columns)
+							// Update entry to point to new draft (metadata only, not data columns).
+							// No updated_at stamp: draft staging leaves live content untouched,
+							// so public "last modified" consumers must not see a change (#2143).
 							validateIdentifier(collection, "collection");
 							const tableName = `ec_${collection}`;
 							await sql`
 								UPDATE ${sql.ref(tableName)}
-								SET draft_revision_id = ${revision.id},
-									updated_at = ${new Date().toISOString()}
+								SET draft_revision_id = ${revision.id}
 								WHERE id = ${resolvedId}
 							`.execute(this.db);
 							draftStorageChanged = true;
@@ -2914,7 +2993,7 @@ export class EmDashRuntime {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.id]);
 		}
 
-		// Run afterDelete hooks (fire-and-forget)
+		// Run afterDelete hooks (deferred past the response via after())
 		if (result.success) {
 			this.runAfterDeleteHooks(id, collection, false);
 		}
@@ -3001,7 +3080,7 @@ export class EmDashRuntime {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
 
-		// Run afterUnpublish hooks (fire-and-forget)
+		// Run afterUnpublish hooks (deferred past the response via after())
 		if (result.success && result.data) {
 			this.runAfterUnpublishHooks(contentItemToRecord(result.data.item), collection);
 		}
@@ -3196,7 +3275,10 @@ export class EmDashRuntime {
 
 		// Revision-capable collections: restore is "make this revision the
 		// current draft". The live row's data columns are left untouched
-		// (only `draft_revision_id` and `updated_at` change). The caller
+		// (only `draft_revision_id` changes — no `updated_at` stamp, since
+		// restoring to draft is the same kind of draft-only staging as
+		// Save/Autosave and must not register a phantom modification for
+		// sitemap <lastmod> / JSON-LD dateModified, #2143). The caller
 		// must then `content_publish` to promote the restored draft to
 		// live, matching the documented tool contract.
 		try {
@@ -3211,8 +3293,7 @@ export class EmDashRuntime {
 			const tableName = `ec_${revision.collection}`;
 			await sql`
 				UPDATE ${sql.ref(tableName)}
-				SET draft_revision_id = ${newDraft.id},
-					updated_at = ${new Date().toISOString()}
+				SET draft_revision_id = ${newDraft.id}
 				WHERE id = ${revision.entryId}
 			`.execute(this.db);
 
@@ -3297,7 +3378,7 @@ export class EmDashRuntime {
 		if (trustedPlugin) {
 			const route = trustedPlugin.routes[routeKey];
 			if (!route) return null;
-			return { public: route.public === true };
+			return buildRouteMeta(route);
 		}
 
 		// Check sandboxed plugin route metadata cache
@@ -3329,6 +3410,18 @@ export class EmDashRuntime {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Resolve the settings schema for a runtime-installed (marketplace or
+	 * registry) plugin from its cached manifest. Returns `{}` for a known
+	 * plugin without a schema and `null` for unknown plugins, matching the
+	 * contract of `getPluginSettingsSchema` for build-time plugins.
+	 */
+	getRuntimePluginSettingsSchema(pluginId: string): Record<string, SettingField> | null {
+		const meta = marketplaceManifestCache.get(pluginId);
+		if (!meta) return null;
+		return meta.admin?.settingsSchema ?? {};
 	}
 
 	async handlePluginApiRoute(pluginId: string, _method: string, path: string, request: Request) {
@@ -3373,6 +3466,168 @@ export class EmDashRuntime {
 			success: false,
 			error: { code: "NOT_FOUND", message: `Plugin not found: ${pluginId}` },
 		};
+	}
+
+	async getPluginMcpTools(pluginId?: string) {
+		const tools: Array<{
+			pluginId: string;
+			name: string;
+			description: string;
+			route: string;
+			permission: string;
+			destructive: boolean;
+			inputSchema: z.ZodType;
+			outputSchema?: z.ZodType;
+		}> = [];
+		const seen = new Set<string>();
+
+		for (const plugin of this.configuredPlugins) {
+			if (pluginId && plugin.id !== pluginId) continue;
+			for (const [name, tool] of Object.entries(plugin.mcp?.tools ?? {})) {
+				const route = plugin.routes[tool.route];
+				if (!route || route.public || !route.permission || !(route.permission in Permissions))
+					continue;
+				const key = `${plugin.id}__${name}`;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				tools.push({
+					pluginId: plugin.id,
+					name,
+					description: tool.description,
+					route: tool.route,
+					permission: route.permission,
+					destructive: tool.destructive ?? false,
+					inputSchema: tool.input,
+					outputSchema: tool.output,
+				});
+			}
+		}
+
+		const addManifestTools = (id: string, mcp: PluginMcpManifestConfig | undefined) => {
+			if (pluginId && id !== pluginId) return;
+			for (const tool of mcp?.tools ?? []) {
+				const key = `${id}__${tool.name}`;
+				const routeMeta = this.getPluginRouteMeta(id, tool.route);
+				if (
+					seen.has(key) ||
+					!routeMeta ||
+					routeMeta.public ||
+					routeMeta.permission !== tool.permission ||
+					!(tool.permission in Permissions)
+				) {
+					continue;
+				}
+				seen.add(key);
+				tools.push({
+					pluginId: id,
+					name: tool.name,
+					description: tool.description,
+					route: tool.route,
+					permission: tool.permission,
+					destructive: tool.destructive,
+					inputSchema: z.fromJSONSchema({ ...tool.inputSchema }),
+					outputSchema: tool.outputSchema ? z.fromJSONSchema({ ...tool.outputSchema }) : undefined,
+				});
+			}
+		};
+
+		for (const entry of this.sandboxedPluginEntries) addManifestTools(entry.id, entry.mcp);
+		for (const [id, manifest] of marketplaceManifestCache) addManifestTools(id, manifest.mcp);
+
+		return tools;
+	}
+
+	async getEnabledPluginMcpTools() {
+		const [tools, states] = await Promise.all([
+			this.getPluginMcpTools(),
+			new PluginStateRepository(this.db).getAll(),
+		]);
+		const stateByPlugin = new Map(states.map((state) => [state.pluginId, state]));
+		return tools.filter((tool) => {
+			const state = stateByPlugin.get(tool.pluginId);
+			if (
+				!state?.mcpToolsEnabled ||
+				state.status !== "active" ||
+				!this.isPluginEnabled(tool.pluginId)
+			) {
+				return false;
+			}
+			const consented = state.mcpToolsConsent;
+			return consented === this.serializePluginMcpConsent(tools, tool.pluginId);
+		});
+	}
+
+	serializePluginMcpConsent(
+		tools: Awaited<ReturnType<EmDashRuntime["getPluginMcpTools"]>>,
+		pluginId: string,
+	): string {
+		return JSON.stringify(
+			tools
+				.filter((tool) => tool.pluginId === pluginId)
+				.map((tool) => ({
+					name: tool.name,
+					description: tool.description,
+					route: tool.route,
+					permission: tool.permission,
+					destructive: tool.destructive,
+					inputSchema: z.toJSONSchema(tool.inputSchema, { target: "draft-7" }),
+					...(tool.outputSchema
+						? { outputSchema: z.toJSONSchema(tool.outputSchema, { target: "draft-7" }) }
+						: {}),
+				}))
+				.toSorted((a, b) => a.name.localeCompare(b.name)),
+		);
+	}
+
+	async handlePluginMcpTool(
+		pluginId: string,
+		toolName: string,
+		route: string,
+		input: unknown,
+		actorId: string,
+		request: Request,
+	) {
+		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
+		const audit = new AuditRepository(this.db);
+		const headers = new Headers(request.headers);
+		headers.delete("content-length");
+		headers.delete("content-encoding");
+		const internalRequest = new Request(request.url, {
+			method: "POST",
+			headers,
+			body: JSON.stringify(input),
+		});
+		const result = await this.handlePluginApiRoute(pluginId, "POST", route, internalRequest);
+		await audit.log({
+			actorId,
+			actorIp: requestMeta.ip ?? undefined,
+			action: "plugin_tool_invoke",
+			resourceType: "plugin_mcp_tool",
+			resourceId: `${pluginId}__${toolName}`,
+			details: { pluginId, tool: toolName, route },
+			status: result.success ? "success" : "failure",
+		});
+		return result;
+	}
+
+	async handlePluginMcpDenied(
+		pluginId: string,
+		toolName: string,
+		route: string,
+		actorId: string,
+		request: Request,
+		reason: string,
+	): Promise<void> {
+		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
+		await new AuditRepository(this.db).log({
+			actorId,
+			actorIp: requestMeta.ip ?? undefined,
+			action: "plugin_tool_invoke",
+			resourceType: "plugin_mcp_tool",
+			resourceId: `${pluginId}__${toolName}`,
+			details: { pluginId, tool: toolName, route, reason },
+			status: "denied",
+		});
 	}
 
 	// =========================================================================
@@ -3519,24 +3774,34 @@ export class EmDashRuntime {
 	}
 
 	private runAfterDeleteHooks(id: string, collection: string, permanent: boolean): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterDelete")) {
-			this.hooks
-				.runContentAfterDelete(id, collection, permanent)
-				.catch((err) => console.error("EmDash afterDelete hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterDelete")) {
+				try {
+					await this.hooks.runContentAfterDelete(id, collection, permanent);
+				} catch (err) {
+					console.error("EmDash afterDelete hook error:", err);
+				}
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [pluginId] = pluginKey.split(":");
+				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
 
-			plugin
-				.invokeHook("content:afterDelete", { id, collection, permanent })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err),
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterDelete", { id, collection, permanent });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err);
+						}
+					})(),
 				);
-		}
+			}
+			await Promise.allSettled(tasks);
+		});
 	}
 
 	private runDeferredContentHook(

@@ -12,6 +12,7 @@ import { ulid } from "ulidx";
 
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { Database, TaxonomyDefTable } from "../../database/types.js";
+import { resolveConfiguredLocale } from "../../i18n/config.js";
 import { invalidateTaxonomyDefsCache, invalidateTermCache } from "../../taxonomies/index.js";
 import { fetchVisibleTermCounts } from "../../taxonomies/term-counts.js";
 import type { ApiResult } from "../types.js";
@@ -174,8 +175,9 @@ export async function handleTaxonomyList(
 	options: { locale?: string } = {},
 ): Promise<ApiResult<TaxonomyListResponse>> {
 	try {
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 		let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
-		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
+		if (locale !== undefined) query = query.where("locale", "=", locale);
 		const [rows, collectionRows] = await Promise.all([
 			query.execute(),
 			db.selectFrom("_emdash_collections").select("slug").execute(),
@@ -216,6 +218,7 @@ export async function handleTaxonomyCreate(
 	},
 ): Promise<ApiResult<{ taxonomy: TaxonomyDef }>> {
 	try {
+		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
 		if (!NAME_PATTERN.test(input.name)) {
 			return {
 				success: false,
@@ -265,19 +268,19 @@ export async function handleTaxonomyCreate(
 
 		// Duplicate guard scoped to locale (so the same name can exist in ES
 		// and EN).
-		if (input.locale !== undefined) {
+		if (locale !== undefined) {
 			const existing = await db
 				.selectFrom("_emdash_taxonomy_defs")
 				.select("id")
 				.where("name", "=", input.name)
-				.where("locale", "=", input.locale)
+				.where("locale", "=", locale)
 				.executeTakeFirst();
 			if (existing) {
 				return {
 					success: false,
 					error: {
 						code: "CONFLICT",
-						message: `Taxonomy '${input.name}' already exists in locale '${input.locale}'`,
+						message: `Taxonomy '${input.name}' already exists in locale '${locale}'`,
 					},
 				};
 			}
@@ -293,7 +296,7 @@ export async function handleTaxonomyCreate(
 				label_singular: input.labelSingular ?? null,
 				hierarchical: input.hierarchical ? 1 : 0,
 				collections: JSON.stringify(collections),
-				...(input.locale !== undefined ? { locale: input.locale } : {}),
+				...(locale !== undefined ? { locale } : {}),
 				translation_group: translationGroup ?? id,
 			})
 			.execute();
@@ -390,7 +393,8 @@ export async function handleTermList(
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
-		const terms = await repo.findByName(taxonomyName, { locale: options.locale });
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const terms = await repo.findByName(taxonomyName, { locale });
 
 		// Counts match what visitors see on the public site: published (or
 		// scheduled-and-due) entries that aren't soft-deleted, scoped to the
@@ -535,6 +539,7 @@ export async function handleTermCreate(
 	},
 ): Promise<ApiResult<TermResponse>> {
 	try {
+		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
 		// Taxonomy definitions are per-locale, but terms can exist in any locale
 		// regardless of whether the def has been translated there. Look up the
 		// def across all locales — we only care that it *exists*.
@@ -548,14 +553,14 @@ export async function handleTermCreate(
 			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
 
 		// Conflict check is scoped to locale (per-locale slugs are unique).
-		const existing = await repo.findBySlug(taxonomyName, input.slug, input.locale);
+		const existing = await repo.findBySlug(taxonomyName, input.slug, locale);
 		if (existing) {
 			return {
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: input.locale
-						? `Term '${input.slug}' already exists in '${taxonomyName}' (${input.locale})`
+					message: locale
+						? `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`
 						: `Term with slug '${input.slug}' already exists in taxonomy '${taxonomyName}'`,
 				},
 			};
@@ -594,7 +599,7 @@ export async function handleTermCreate(
 			label: input.label,
 			parentId: parentId ?? undefined,
 			data: input.description ? { description: input.description } : undefined,
-			locale: input.locale,
+			locale,
 			translationOf: input.translationOf,
 		});
 
@@ -635,7 +640,8 @@ export async function handleTermGet(
 ): Promise<ApiResult<TermGetResponse>> {
 	try {
 		const repo = new TaxonomyRepository(db);
-		const term = await repo.findBySlug(taxonomyName, termSlug, options.locale);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const term = await repo.findBySlug(taxonomyName, termSlug, locale);
 
 		if (!term) {
 			return {
@@ -743,7 +749,8 @@ export async function handleTermUpdate(
 ): Promise<ApiResult<TermResponse>> {
 	try {
 		const repo = new TaxonomyRepository(db);
-		const term = await repo.findBySlug(taxonomyName, termSlug, options.locale);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const term = await repo.findBySlug(taxonomyName, termSlug, locale);
 
 		if (!term) {
 			return {
@@ -763,7 +770,7 @@ export async function handleTermUpdate(
 
 		// Check if new slug conflicts (per-locale uniqueness).
 		if (newSlug !== undefined && newSlug !== termSlug) {
-			const existing = await repo.findBySlug(taxonomyName, newSlug, options.locale);
+			const existing = await repo.findBySlug(taxonomyName, newSlug, locale);
 			if (existing && existing.id !== term.id) {
 				return {
 					success: false,
@@ -832,7 +839,8 @@ export async function handleTermDelete(
 ): Promise<ApiResult<{ deleted: true }>> {
 	try {
 		const repo = new TaxonomyRepository(db);
-		const term = await repo.findBySlug(taxonomyName, termSlug, options.locale);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const term = await repo.findBySlug(taxonomyName, termSlug, locale);
 
 		if (!term) {
 			return {

@@ -22,6 +22,8 @@ import type {
 	PluginStorageConfig,
 } from "./types.js";
 
+const MCP_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
 /**
  * Define a native EmDash plugin.
  *
@@ -110,6 +112,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		allowedHosts = [],
 		hooks = {},
 		routes = {},
+		mcp = { tools: {} },
 		admin = {},
 	} = definition;
 
@@ -130,6 +133,18 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	// Validate version format (basic semver)
 	if (!SEMVER_PATTERN.test(version)) {
 		throw new Error(`Invalid plugin version "${version}". Must be semver format (e.g., "1.0.0").`);
+	}
+
+	for (const [name, tool] of Object.entries(mcp.tools)) {
+		if (!MCP_TOOL_NAME_PATTERN.test(name)) {
+			throw new Error(`Invalid MCP tool name "${name}" in plugin "${id}".`);
+		}
+		const route = routes[tool.route];
+		if (!route) throw new Error(`MCP tool "${name}" references unknown route "${tool.route}".`);
+		if (route.public) throw new Error(`MCP tool "${name}" cannot reference a public route.`);
+		if (!route.permission) {
+			throw new Error(`MCP route "${tool.route}" must declare a permission.`);
+		}
 	}
 
 	// Validate capabilities. Both current names and deprecated aliases are
@@ -202,6 +217,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		storage,
 		hooks: resolvedHooks,
 		routes,
+		mcp,
 		admin,
 	};
 }

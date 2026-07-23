@@ -572,6 +572,7 @@ describe("Editor component behaviour", () => {
 		await waitForEditor();
 		const surface = document.querySelector("[data-emdash-editor-surface]");
 		expect(surface).not.toHaveClass("bg-kumo-base");
+		expect(surface).not.toHaveClass("-mx-4");
 		// Toolbar has role="toolbar" — should not exist
 		const toolbar = document.querySelector('[role="toolbar"]');
 		expect(toolbar).toBeNull();

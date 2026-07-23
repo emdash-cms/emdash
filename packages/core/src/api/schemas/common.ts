@@ -53,16 +53,17 @@ export const httpUrl = z
 	.url()
 	.refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
 
-/** BCP 47 locale code — language with optional script/region subtags (e.g. en, en-US, pt-BR, es-419, zh-Hant) */
-export const localeCode = z
-	.string()
-	.regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code")
-	.transform((v) => v.toLowerCase());
+/**
+ * BCP 47 locale code — language with optional script/region subtags (e.g. en, en-US, pt-BR, es-419, zh-Hant).
+ * Validation is case-insensitive, but the value is preserved verbatim because the site config, stored
+ * `locale` columns, and public query path all keep the raw BCP-47 casing.
+ */
+export const localeCode = z.string().regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code");
 
 /** Shared `?locale=xx` query shape for endpoints that filter by locale. */
 export const localeFilterQuery = z
 	.object({
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 	})
 	.meta({ id: "LocaleFilterQuery" });
 
@@ -73,6 +74,7 @@ export const localeFilterQuery = z
 /** Standard API error response */
 export const apiErrorSchema = z
 	.object({
+		success: z.literal(false).meta({ description: "Discriminant: always false for errors" }),
 		error: z.object({
 			code: z.string().meta({ description: "Machine-readable error code", example: "NOT_FOUND" }),
 			message: z.string().meta({ description: "Human-readable error message" }),
@@ -80,9 +82,12 @@ export const apiErrorSchema = z
 	})
 	.meta({ id: "ApiError" });
 
-/** Wrap a data schema in the standard success envelope: { data: T } */
+/** Wrap a data schema in the standard success envelope: { success: true, data: T } */
 export function successEnvelope<T extends z.ZodType>(dataSchema: T) {
-	return z.object({ data: dataSchema });
+	return z.object({
+		success: z.literal(true).meta({ description: "Discriminant: always true for success" }),
+		data: dataSchema,
+	});
 }
 
 /** Standard delete response */

@@ -140,7 +140,12 @@ const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 					<p>{adminConfig?.siteName ? `Loading ${adminConfig.siteName}...` : "Loading EmDash..."}</p>
 				</div>
 			</div>
-			<AdminWrapper client:only="react" locale={resolvedLocale} messages={messages} />
+			<AdminWrapper
+				client:only="react"
+				locale={resolvedLocale}
+				messages={messages}
+				adminBranding={{ logo: adminConfig?.logo, siteName: adminConfig?.siteName }}
+			/>
 		</div>
 	</body>
 </html>

@@ -109,10 +109,14 @@ export {
 // Plugins
 export {
 	type PluginInfo,
+	type SettingField,
 	fetchPlugins,
 	fetchPlugin,
+	fetchPluginSettings,
+	updatePluginSettings,
 	enablePlugin,
 	disablePlugin,
+	setPluginMcpEnabled,
 } from "./plugins.js";
 
 // Settings

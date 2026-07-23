@@ -49,6 +49,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "nb", label: "Norsk bokmål", enabled: true }, // Norwegian Bokmål
 	{ code: "pl", label: "Polski", enabled: true }, // Polish
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
+	{ code: "sr-Latn", label: "Srpski", enabled: true }, // Serbian (Latin script)
 	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)
 	{ code: "es-ES", label: "Español (España)", enabled: true }, // Spanish (Spain) - BCP 47
 	{ code: "sv", label: "Svenska", enabled: true }, // Swedish
