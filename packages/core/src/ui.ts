@@ -52,9 +52,6 @@ export {
 	// Shares the name with the `type Block` re-export above; the
 	// type and the component live in different namespaces.
 	Block,
-	// Comment components
-	Comments,
-	CommentForm,
 	// Widget components
 	WidgetArea,
 	// Components object for manual use
@@ -78,3 +75,7 @@ export {
 	EmDashBodyStart,
 	EmDashBodyEnd,
 } from "./components/index.js";
+
+// Kept as a separate import so that pages using only PortableText/block
+// components don't pull Comments/CommentForm's CSS into their chunk graph.
+export { Comments, CommentForm } from "./components/comments.js";

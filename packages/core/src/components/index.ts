@@ -22,10 +22,6 @@
 // Wrapper component with EmDash defaults
 export { default as PortableText } from "./PortableText.astro";
 
-// Comment components
-export { default as Comments } from "./Comments.astro";
-export { default as CommentForm } from "./CommentForm.astro";
-
 // Widget components
 export { default as WidgetArea } from "./WidgetArea.astro";
 
