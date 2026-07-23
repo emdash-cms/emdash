@@ -1319,6 +1319,8 @@ function MediaPage() {
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
+			staleTime: 0,
+			refetchOnMount: "always",
 		});
 
 	const uploadMutation = useMutation({

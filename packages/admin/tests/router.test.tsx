@@ -20,7 +20,7 @@
 import { Toasty } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -163,6 +163,66 @@ describe("ConfigurationLoadingScreen", () => {
 		await expect.element(loader).toHaveClass("emdash-configuration-spinner");
 		await expect.element(label).toHaveClass("emdash-configuration-label");
 		expect(label.element().parentElement).toHaveClass("loader-inner");
+	});
+});
+
+describe("MediaPage usage summary freshness", () => {
+	it("refetches a cached usage summary whenever the route remounts", async () => {
+		const mockFetch = createMockFetch();
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 60 } })
+			.on("GET", "/_emdash/api/media/providers", { data: { items: [] } })
+			.on("GET", "/_emdash/api/media?limit=100&includeUsage=1", {
+				data: { items: [], nextCursor: undefined },
+			});
+
+		const fetchWithMocks = globalThis.fetch;
+		let mediaRequestCount = 0;
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const rawUrl =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			const url = new URL(rawUrl, window.location.origin);
+			if (
+				(init?.method ?? "GET") === "GET" &&
+				url.pathname === "/_emdash/api/media" &&
+				url.searchParams.get("includeUsage") === "1"
+			) {
+				mediaRequestCount++;
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		const queryClient = new QueryClient({
+			defaultOptions: {
+				queries: { staleTime: 60_000, gcTime: 60_000, retry: false },
+			},
+		});
+		const router = createAdminRouter(queryClient);
+		function TestApp() {
+			return (
+				<I18nProvider i18n={i18n}>
+					<Toasty>
+						<QueryClientProvider client={queryClient}>
+							<RouterProvider router={router} />
+						</QueryClientProvider>
+					</Toasty>
+				</I18nProvider>
+			);
+		}
+
+		try {
+			await router.navigate({ to: "/media" });
+			const firstRender = await render(<TestApp />);
+			await waitFor(() => expect(mediaRequestCount).toBe(1));
+			await firstRender.unmount();
+
+			await render(<TestApp />);
+			await waitFor(() => expect(mediaRequestCount).toBe(2));
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+			mockFetch.restore();
+		}
 	});
 });
 

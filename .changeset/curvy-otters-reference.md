@@ -1,5 +1,6 @@
 ---
 "@emdash-cms/admin": patch
+"emdash": patch
 ---
 
-Adds admin API support for loading coverage-aware media usage summaries and reference details.
+Adds a Used in section to media details and automatically prepares usage information for existing content after upgrading.
