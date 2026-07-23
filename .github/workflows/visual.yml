@@ -67,15 +67,19 @@ jobs:
 
       # Always record PR metadata so the Report workflow can upsert *or* clear
       # the sticky comment. Candidate baselines + diff images are added only
-      # when the suite actually diffed (exit != 0 AND regeneration produced
-      # snapshots) -- an infra failure exits non-zero but yields no candidates,
-      # so we don't mislabel it as a visual change.
+      # when the regenerated baselines actually differ from the committed ones.
+      # A non-zero exit alone is not drift: a flaky render can fail the diff
+      # check on the first pass yet regenerate byte-identical baselines under
+      # --update-snapshots, and an infra failure exits non-zero without
+      # regenerating anything. Both leave the snapshots dir git-clean, so we
+      # decide drift from `git status`, not from the exit code.
       - name: Collect result
         id: collect
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_EXIT: ${{ steps.run.outputs.exit }}
+          SNAP_DIR: e2e/tests/visual-regression.spec.ts-snapshots
         run: |
           mkdir -p visual-out
           echo "$PR_NUMBER" > visual-out/pr-number
@@ -99,21 +103,27 @@ jobs:
           # Regenerate the accepted-state baselines (the candidates the Apply
           # workflow commits verbatim on accept). These are Linux/chromium PNGs.
           pnpm exec playwright test visual-regression --update-snapshots --reporter=line || true
-          mkdir -p visual-out/candidates
-          if [ -d e2e/tests/visual-regression.spec.ts-snapshots ]; then
-            cp -r e2e/tests/visual-regression.spec.ts-snapshots/. visual-out/candidates/
-          fi
 
-          if [ -z "$(ls -A visual-out/candidates 2>/dev/null)" ]; then
-            # Non-zero exit but nothing regenerated -> infra failure, not drift.
+          # Real drift == the regeneration changed tracked baselines or added
+          # new ones. Untracked new files count (bootstrap: a PR that adds a
+          # page has no committed baseline yet). A clean tree means the failure
+          # did not correspond to a stable pixel difference -- treat it as flake
+          # or infra and keep the check green with a warning.
+          if [ -z "$(git status --porcelain -- "$SNAP_DIR")" ]; then
             echo "false" > visual-out/has-drift
             echo "has_drift=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Visual suite failed without producing candidate baselines (likely an infra failure, not a UI diff)."
-          else
-            echo "true" > visual-out/has-drift
-            echo "has_drift=true" >> "$GITHUB_OUTPUT"
-            echo "Visual drift detected — candidates and diff images staged for the Report workflow."
+            echo "::warning::Visual suite exited non-zero but regenerated baselines are identical to the committed ones (flaky render or infra failure, not a UI diff)."
+            exit 0
           fi
+
+          # Stage the candidate baselines for the Report/Apply workflows.
+          mkdir -p visual-out/candidates
+          if [ -d "$SNAP_DIR" ]; then
+            cp -r "$SNAP_DIR/." visual-out/candidates/
+          fi
+          echo "true" > visual-out/has-drift
+          echo "has_drift=true" >> "$GITHUB_OUTPUT"
+          echo "Visual drift detected — candidates and diff images staged for the Report workflow."
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

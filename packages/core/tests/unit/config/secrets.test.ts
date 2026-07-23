@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
@@ -301,6 +304,26 @@ describe("config/secrets", () => {
 				/SECRET_PERSIST_FAILED|Failed to persist/,
 			);
 		});
+
+		it("reads the default env from process.env when no env map is passed", async () => {
+			// Regression test for #2139: secrets must come from the runtime
+			// process env, never from build-time `import.meta.env`
+			// substitution (which would embed the secret in the server
+			// bundle and shadow the platform-configured value).
+			const previous = process.env.EMDASH_PREVIEW_SECRET;
+			process.env.EMDASH_PREVIEW_SECRET = "proc-preview-secret";
+			try {
+				const result = await resolveSecrets({ db });
+				expect(result.previewSecret).toBe("proc-preview-secret");
+				expect(result.previewSecretSource).toBe("env");
+			} finally {
+				if (previous === undefined) {
+					delete process.env.EMDASH_PREVIEW_SECRET;
+				} else {
+					process.env.EMDASH_PREVIEW_SECRET = previous;
+				}
+			}
+		});
 	});
 
 	describe("validateEncryptionKeyAtStartup", () => {
@@ -370,6 +393,23 @@ describe("config/secrets", () => {
 			expect(c).not.toBe(a);
 			expect(c.ipSalt).toBe(a.ipSalt);
 			expect(c.previewSecret).toBe(a.previewSecret);
+		});
+	});
+
+	describe("source hygiene", () => {
+		it("never references import.meta.env in code (would be inlined into the server bundle at build time)", async () => {
+			// Regression guard for #2139. Vite statically replaces the bare
+			// `import.meta.env` expression with an object literal built from
+			// the build-time env, embedding secrets from `.env` into
+			// `dist/server` and shadowing platform-configured runtime values.
+			const source = await readFile(
+				fileURLToPath(new URL("../../../src/config/secrets.ts", import.meta.url)),
+				"utf8",
+			);
+			const withoutComments = source
+				.replace(/\/\*[\s\S]*?\*\//g, "")
+				.replace(/^[ \t]*\/\/.*$/gm, "");
+			expect(withoutComments).not.toContain("import.meta.env");
 		});
 	});
 });

@@ -108,8 +108,9 @@ export interface ResolveSecretsOptions {
 	db: Kysely<Database>;
 	/**
 	 * Optional explicit env override map. When omitted, falls back to
-	 * `import.meta.env` via the global accessor below. Tests pass an
-	 * explicit map to avoid leaking process state.
+	 * `process.env` via `readDefaultEnv` below (never `import.meta.env` —
+	 * see that function's docstring). Tests pass an explicit map to avoid
+	 * leaking process state.
 	 */
 	env?: SecretsEnv;
 	/**
@@ -514,29 +515,34 @@ function decodeBase64urlStrict(input: string): Uint8Array | null {
 /**
  * Default env reader.
  *
- * Note: this is the **only** code path in core that reads both
- * `import.meta.env` and `process.env`. Route handlers should not — they
- * always run inside the Astro/Vite bundle where `import.meta.env` is
- * the correct source. This resolver is shared with the CLI surface (via
- * `cli/commands/secrets.ts`) which runs outside the bundle, so we
- * deliberately consult both. `import.meta.env` wins so build-time
- * substitutions are honored when present.
+ * Reads **only** `process.env`. This module must never reference
+ * `import.meta.env`: in an Astro/Vite production build the bare
+ * `import.meta.env` expression is statically replaced with an object
+ * literal built from the env loaded at build time, which (a) embeds any
+ * secret present in `.env` on the build machine into the shipped server
+ * bundle, and (b) makes that stale build-time value silently shadow the
+ * real runtime secret configured on the deployment platform (e.g. via
+ * `wrangler secret put`). See #2139.
+ *
+ * `process.env` is the runtime source on Node/container deployments and
+ * on Cloudflare Workers with Node compatibility (the same source
+ * `resolveS3Config` in `../storage/s3.ts` uses). The CLI surface
+ * (`cli/commands/secrets.ts`) runs outside the bundle where
+ * `process.env` is native.
  *
  * The convention documented in AGENTS.md ("import.meta.env.EMDASH_X ||
- * import.meta.env.X") is the route-handler convention; this is the
- * shared-with-CLI exception.
+ * import.meta.env.X") is for public, build-time config in route
+ * handlers; secrets are deliberately excluded from it.
  */
 function readDefaultEnv(): SecretsEnv {
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- import.meta.env is loose by design
-	const meta = (import.meta.env ?? {}) as Record<string, string | undefined>;
 	const proc = typeof process !== "undefined" && process.env ? process.env : {};
 
 	return {
-		EMDASH_ENCRYPTION_KEY: meta.EMDASH_ENCRYPTION_KEY ?? proc.EMDASH_ENCRYPTION_KEY,
-		EMDASH_PREVIEW_SECRET: meta.EMDASH_PREVIEW_SECRET ?? proc.EMDASH_PREVIEW_SECRET,
-		PREVIEW_SECRET: meta.PREVIEW_SECRET ?? proc.PREVIEW_SECRET,
-		EMDASH_IP_SALT: meta.EMDASH_IP_SALT ?? proc.EMDASH_IP_SALT,
-		EMDASH_AUTH_SECRET: meta.EMDASH_AUTH_SECRET ?? proc.EMDASH_AUTH_SECRET,
-		AUTH_SECRET: meta.AUTH_SECRET ?? proc.AUTH_SECRET,
+		EMDASH_ENCRYPTION_KEY: proc.EMDASH_ENCRYPTION_KEY,
+		EMDASH_PREVIEW_SECRET: proc.EMDASH_PREVIEW_SECRET,
+		PREVIEW_SECRET: proc.PREVIEW_SECRET,
+		EMDASH_IP_SALT: proc.EMDASH_IP_SALT,
+		EMDASH_AUTH_SECRET: proc.EMDASH_AUTH_SECRET,
+		AUTH_SECRET: proc.AUTH_SECRET,
 	};
 }

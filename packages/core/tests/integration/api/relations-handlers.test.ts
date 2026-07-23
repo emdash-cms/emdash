@@ -15,6 +15,7 @@ import {
 	GET as listRelations,
 	POST as createRelation,
 } from "../../../src/astro/routes/api/relations/index.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -40,7 +41,16 @@ describeEachDialect("relations definition handlers", (dialect) => {
 		ctx = await setupForDialectWithCollections(dialect);
 	});
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownForDialect(ctx);
+	});
+
+	it("stores relation locales with the configured casing", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+		const result = await handleRelationCreate(ctx.db, { ...baseInput, locale: "zh-tw" });
+
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.relation.locale).toBe("zh-TW");
 	});
 
 	it("create returns the new relation; get fetches it by id", async () => {

@@ -63,6 +63,19 @@ async function fetchTaxonomyDefs(): Promise<TaxonomyDef[]> {
 	return data.taxonomies;
 }
 
+function useApplicableTaxonomies(collection: string): TaxonomyDef[] {
+	const { data: taxonomies = [] } = useQuery({
+		queryKey: ["taxonomy-defs"],
+		queryFn: fetchTaxonomyDefs,
+	});
+	return taxonomies.filter((taxonomy) => taxonomy.collections.includes(collection));
+}
+
+/** Whether the editor should include a taxonomy settings section. */
+export function useHasApplicableTaxonomies(collection: string): boolean {
+	return useApplicableTaxonomies(collection).length > 0;
+}
+
 /**
  * Fetch terms for a taxonomy, scoped to the entry's locale so only the matching
  * translation variants are offered.
@@ -524,13 +537,7 @@ export function TaxonomySidebar({
 	className,
 }: TaxonomySidebarProps) {
 	const { t } = useLingui();
-	const { data: taxonomies = [] } = useQuery({
-		queryKey: ["taxonomy-defs"],
-		queryFn: fetchTaxonomyDefs,
-	});
-
-	// Filter to taxonomies that apply to this collection
-	const applicableTaxonomies = taxonomies.filter((tax) => tax.collections.includes(collection));
+	const applicableTaxonomies = useApplicableTaxonomies(collection);
 
 	if (applicableTaxonomies.length === 0) {
 		return null;
