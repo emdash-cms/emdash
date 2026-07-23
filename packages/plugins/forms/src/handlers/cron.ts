@@ -8,6 +8,7 @@
 import type { PluginContext, StorageCollection } from "emdash";
 
 import { formatDigestText } from "../format.js";
+export { handleDelivery } from "../outbox.js";
 import type { FormDefinition, Submission } from "../types.js";
 
 /** Typed access to plugin storage collections */

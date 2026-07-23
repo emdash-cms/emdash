@@ -128,6 +128,70 @@ export interface Submission {
 	notes?: string;
 	createdAt: string;
 	meta: SubmissionMeta;
+	/** Versioned delivery plan captured before the submit request returns. */
+	delivery?: SubmissionDelivery;
+	/** Denormalized fields used to find due outbox work through plugin storage indexes. */
+	receiptId?: string;
+	deliveryStatus?: DeliveryAggregateStatus;
+	deliveryNextAttemptAt?: string | null;
+}
+
+export type DeliveryAggregateStatus =
+	| "pending"
+	| "processing"
+	| "retrying"
+	| "delivered"
+	| "terminal";
+
+export type DeliveryDestinationStatus =
+	| "pending"
+	| "processing"
+	| "retrying"
+	| "delivered"
+	| "terminal";
+
+interface DeliveryDestinationBase {
+	id: string;
+	status: DeliveryDestinationStatus;
+	attempts: number;
+	createdAt: string;
+	updatedAt: string;
+	nextAttemptAt: string | null;
+	claimedAt: string | null;
+	claimToken: string | null;
+	attemptedAt: string | null;
+	deliveredAt: string | null;
+	terminalAt: string | null;
+	lastError: string | null;
+}
+
+export interface EmailDeliveryDestination extends DeliveryDestinationBase {
+	type: "notification-email" | "autoresponder-email";
+	to: string;
+	subject: string;
+	text: string;
+}
+
+export interface WebhookDeliveryDestination extends DeliveryDestinationBase {
+	type: "webhook";
+	url: string;
+	body: Record<string, unknown>;
+}
+
+export type DeliveryDestination = EmailDeliveryDestination | WebhookDeliveryDestination;
+
+export interface SubmissionDelivery {
+	version: 1;
+	receiptId: string;
+	destinations: DeliveryDestination[];
+}
+
+export interface DeliveryHeartbeat {
+	version: 1;
+	status: "success" | "failure";
+	completedAt: string;
+	lastSuccessAt: string | null;
+	error: string | null;
 }
 
 export interface SubmissionFile {

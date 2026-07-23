@@ -19,6 +19,9 @@ export type FormsStorage = PluginStorageConfig & {
 			"createdAt",
 			["formId", "createdAt"],
 			["formId", "status"],
+			"receiptId",
+			"deliveryStatus",
+			"deliveryNextAttemptAt",
 		];
 	};
 };
@@ -36,6 +39,9 @@ export const FORMS_STORAGE_CONFIG = {
 			"createdAt",
 			["formId", "createdAt"],
 			["formId", "status"],
+			"receiptId",
+			"deliveryStatus",
+			"deliveryNextAttemptAt",
 		] as const,
 	},
 } satisfies PluginStorageConfig;

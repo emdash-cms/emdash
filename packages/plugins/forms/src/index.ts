@@ -22,7 +22,8 @@ import type { PluginDescriptor, ResolvedPlugin } from "emdash";
 import { definePlugin } from "emdash";
 
 import { version } from "../package.json";
-import { handleCleanup, handleDigest } from "./handlers/cron.js";
+import { handleCleanup, handleDelivery, handleDigest } from "./handlers/cron.js";
+import { deliveryHealthHandler, receiptStatusHandler } from "./handlers/delivery.js";
 import {
 	formsCreateHandler,
 	formsDeleteHandler,
@@ -38,6 +39,7 @@ import {
 	submissionUpdateHandler,
 } from "./handlers/submissions.js";
 import { definitionHandler, submitHandler } from "./handlers/submit.js";
+import { DELIVERY_CRON_NAME, DELIVERY_CRON_SCHEDULE } from "./outbox.js";
 import {
 	definitionSchema,
 	exportSchema,
@@ -48,6 +50,7 @@ import {
 	submissionDeleteSchema,
 	submissionGetSchema,
 	submissionsListSchema,
+	receiptStatusSchema,
 	submitSchema,
 	submissionUpdateSchema,
 } from "./schemas.js";
@@ -82,7 +85,17 @@ export function formsPlugin(
 		// Descriptor uses flat indexes only; composite indexes are in definePlugin
 		storage: {
 			forms: { indexes: ["status", "createdAt"], uniqueIndexes: ["slug"] },
-			submissions: { indexes: ["formId", "status", "starred", "createdAt"] },
+			submissions: {
+				indexes: [
+					"formId",
+					"status",
+					"starred",
+					"createdAt",
+					"receiptId",
+					"deliveryStatus",
+					"deliveryNextAttemptAt",
+				],
+			},
 		},
 	};
 }
@@ -104,6 +117,9 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 					// Schedule weekly cleanup for expired submissions
 					if (ctx.cron) {
 						await ctx.cron.schedule("cleanup", { schedule: "@weekly" });
+						await ctx.cron.schedule(DELIVERY_CRON_NAME, {
+							schedule: DELIVERY_CRON_SCHEDULE,
+						});
 					}
 				},
 			},
@@ -112,6 +128,8 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 				handler: async (event, ctx) => {
 					if (event.name === "cleanup") {
 						await handleCleanup(ctx);
+					} else if (event.name === DELIVERY_CRON_NAME) {
+						await handleDelivery(ctx);
 					} else if (event.name.startsWith("digest:")) {
 						const formId = event.name.slice("digest:".length);
 						await handleDigest(formId, ctx);
@@ -136,6 +154,19 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 				public: true,
 				input: definitionSchema,
 				handler: definitionHandler as never,
+			},
+
+			"delivery/receipt": {
+				public: true,
+				cacheControl: "no-store",
+				input: receiptStatusSchema,
+				handler: receiptStatusHandler as never,
+			},
+
+			"delivery/health": {
+				public: true,
+				cacheControl: "no-store",
+				handler: deliveryHealthHandler,
 			},
 
 			// --- Admin routes (require auth) ---

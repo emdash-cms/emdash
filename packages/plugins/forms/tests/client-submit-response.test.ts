@@ -10,9 +10,17 @@ describe("parseSubmitResponse", () => {
 					success: true,
 					message: "Thanks",
 					redirect: "/thanks",
+					submissionId: "submission-1",
+					receiptId: "receipt-1",
 				},
 			}),
-		).toEqual({ success: true, message: "Thanks", redirect: "/thanks" });
+		).toEqual({
+			success: true,
+			message: "Thanks",
+			redirect: "/thanks",
+			submissionId: "submission-1",
+			receiptId: "receipt-1",
+		});
 	});
 
 	it("keeps legacy top-level submit responses working", () => {

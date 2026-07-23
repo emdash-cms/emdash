@@ -9,7 +9,12 @@ import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
-import { formatSubmissionText, formatWebhookPayload } from "../format.js";
+import {
+	createSubmissionDelivery,
+	DELIVERY_CRON_NAME,
+	DELIVERY_CRON_SCHEDULE,
+	summarizeDelivery,
+} from "../outbox.js";
 import type { SubmitInput } from "../schemas.js";
 import { verifyTurnstile } from "../turnstile.js";
 import type { FormDefinition, Submission, SubmissionFile } from "../types.js";
@@ -27,6 +32,8 @@ function submissions(ctx: RouteContext): StorageCollection<Submission> {
 
 export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 	const input = ctx.input;
+	const submissionId = ulid();
+	const receiptId = ulid();
 
 	// 1. Load form definition (by ID first, then by slug)
 	let formId = input.formId;
@@ -88,6 +95,8 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 			return {
 				success: true,
 				message: settings.confirmationMessage,
+				submissionId,
+				receiptId,
 			};
 		}
 	}
@@ -98,6 +107,27 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	if (!result.valid) {
 		return { success: false, errors: result.errors };
+	}
+
+	// Existing active installations do not rerun plugin:activate on upgrade. Check
+	// the durable scheduler before any upload or submission write so a scheduling
+	// failure cannot leave an accepted submission without an outbox worker.
+	if (!ctx.cron) {
+		throw PluginRouteError.internal("Form delivery is temporarily unavailable");
+	}
+	try {
+		const tasks = await ctx.cron.list();
+		const deliveryTask = tasks.find((task) => task.name === DELIVERY_CRON_NAME);
+		if (!deliveryTask || deliveryTask.schedule !== DELIVERY_CRON_SCHEDULE) {
+			await ctx.cron.schedule(DELIVERY_CRON_NAME, {
+				schedule: DELIVERY_CRON_SCHEDULE,
+			});
+		}
+	} catch (error) {
+		ctx.log.error("Failed to ensure Forms delivery cron", {
+			error: String(error).slice(0, 500),
+		});
+		throw PluginRouteError.internal("Form delivery is temporarily unavailable");
 	}
 
 	// 4. Upload files
@@ -157,20 +187,33 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 	}
 
 	// 5. Store submission
-	const submissionId = ulid();
+	const createdAt = new Date().toISOString();
+	const delivery = createSubmissionDelivery({
+		form,
+		submissionId,
+		receiptId,
+		data: result.data,
+		files: files.length > 0 ? files : undefined,
+		createdAt,
+	});
+	const deliverySummary = summarizeDelivery(delivery);
 	const submission: Submission = {
 		formId,
 		data: result.data,
 		files: files.length > 0 ? files : undefined,
 		status: "new",
 		starred: false,
-		createdAt: new Date().toISOString(),
+		createdAt,
 		meta: {
 			ip: ctx.requestMeta.ip,
 			userAgent: ctx.requestMeta.userAgent,
 			referer: ctx.requestMeta.referer,
 			country: ctx.requestMeta.geo?.country ?? null,
 		},
+		delivery,
+		receiptId,
+		deliveryStatus: deliverySummary.status,
+		deliveryNextAttemptAt: deliverySummary.nextAttemptAt,
 	};
 
 	await submissions(ctx).put(submissionId, submission);
@@ -184,64 +227,13 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		lastSubmissionAt: new Date().toISOString(),
 	});
 
-	// 7. Immediate email notifications (not digest)
-	if (settings.notifyEmails.length > 0 && !settings.digestEnabled && ctx.email) {
-		const text = formatSubmissionText(form, result.data, files);
-		for (const email of settings.notifyEmails) {
-			await ctx.email
-				.send({
-					to: email,
-					subject: `New submission: ${form.name}`,
-					text,
-				})
-				.catch((err: unknown) => {
-					ctx.log.error("Failed to send notification email", {
-						error: String(err),
-						to: email,
-					});
-				});
-		}
-	}
-
-	// 8. Autoresponder
-	if (settings.autoresponder && ctx.email) {
-		const emailField = allFields.find((f) => f.type === "email");
-		const submitterEmail = emailField ? result.data[emailField.name] : null;
-		if (typeof submitterEmail === "string" && submitterEmail) {
-			await ctx.email
-				.send({
-					to: submitterEmail,
-					subject: settings.autoresponder.subject,
-					text: settings.autoresponder.body,
-				})
-				.catch((err: unknown) => {
-					ctx.log.error("Failed to send autoresponder", { error: String(err) });
-				});
-		}
-	}
-
-	// 9. Webhook (fire and forget)
-	if (settings.webhookUrl && ctx.http) {
-		const payload = formatWebhookPayload(form, submissionId, result.data, files);
-		ctx.http
-			.fetch(settings.webhookUrl, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			})
-			.catch((err: unknown) => {
-				ctx.log.error("Webhook failed", {
-					error: String(err),
-					url: settings.webhookUrl,
-				});
-			});
-	}
-
-	// 10. Return success
+	// 7. Return after the complete delivery plan is durably stored with the submission.
 	return {
 		success: true,
 		message: settings.confirmationMessage,
 		redirect: settings.redirectUrl,
+		submissionId,
+		receiptId,
 	};
 }
 

@@ -22,6 +22,8 @@ type SubmitResponse = {
 	success?: boolean;
 	message?: string;
 	redirect?: string;
+	submissionId?: string;
+	receiptId?: string;
 	errors?: Array<{ field: string; message: string }>;
 };
 
