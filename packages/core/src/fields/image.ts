@@ -4,10 +4,17 @@ import type { FieldDefinition, ImageValue } from "./types.js";
 
 const imageSchema = z.object({
 	id: z.string(),
-	src: z.string(),
+	src: z.string().optional(),
 	alt: z.string().optional(),
 	width: z.number().optional(),
 	height: z.number().optional(),
+	filename: z.string().optional(),
+	mimeType: z.string().optional(),
+	blurhash: z.string().optional(),
+	dominantColor: z.string().optional(),
+	provider: z.string().optional(),
+	previewUrl: z.string().optional(),
+	meta: z.record(z.string(), z.unknown()).optional(),
 });
 
 export interface ImageOptions {

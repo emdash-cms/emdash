@@ -139,6 +139,10 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 				alt: z.string().optional(),
 				width: z.number().optional(),
 				height: z.number().optional(),
+				filename: z.string().optional(),
+				mimeType: z.string().optional(),
+				blurhash: z.string().optional(),
+				dominantColor: z.string().optional(),
 				/** Provider ID (e.g. "local", "cloudflare-images") */
 				provider: z.string().optional(),
 				/** Admin-side preview URL for external providers (not persisted by plugins) */
@@ -412,7 +416,7 @@ function fieldTypeToTypeScript(field: Field): string {
 			return "PortableTextBlock[]";
 
 		case "image":
-			return "{ id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+			return "{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
 
 		case "file":
 			return "{ id: string; src?: string; filename?: string; mimeType?: string; size?: number; provider?: string; meta?: Record<string, unknown> }";
