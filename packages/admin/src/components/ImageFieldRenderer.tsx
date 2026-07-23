@@ -120,10 +120,10 @@ export function ImageFieldRenderer({
 	const metadata = [dimensions, mimeType].filter(Boolean).join(" · ");
 
 	const featuredCard = displayUrl ? (
-		<LayerCard className="grid w-full grid-cols-1 p-0 sm:grid-cols-[12rem_minmax(0,1fr)]">
-			<div className="aspect-[3/2] min-h-32 overflow-hidden bg-kumo-muted sm:aspect-auto">
+		<LayerCard className="grid w-full grid-cols-1 rounded-xl p-0 sm:grid-cols-[12rem_minmax(0,1fr)]">
+			<div className="m-2 aspect-[3/2] min-h-28 overflow-hidden rounded bg-kumo-muted ring ring-kumo-line sm:aspect-auto">
 				{imageBroken ? (
-					<div className="flex h-full min-h-32 items-center justify-center gap-2 text-kumo-subtle">
+					<div className="flex h-full min-h-28 items-center justify-center gap-2 text-kumo-subtle">
 						<ImageBroken className="h-5 w-5" aria-hidden="true" />
 						<Text as="span" variant="secondary">
 							{t`Image not found`}

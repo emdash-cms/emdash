@@ -62,10 +62,16 @@ describe("ImageFieldRenderer", () => {
 		const image = screen.container.querySelector("img");
 		expect(image).not.toBeNull();
 		expect(image).toHaveClass("h-full", "w-full", "object-cover");
-		expect(image?.parentElement).toHaveClass("aspect-[3/2]");
+		expect(image?.parentElement).toHaveClass(
+			"m-2",
+			"aspect-[3/2]",
+			"min-h-28",
+			"rounded",
+			"ring-kumo-line",
+		);
 
 		const card = screen.getByText("notes-on-simplicity.jpg").element().closest(".ring-kumo-line");
-		expect(card).toHaveClass("w-full");
+		expect(card).toHaveClass("w-full", "rounded-xl");
 		expect(card?.querySelector(".opacity-0")).toBeNull();
 	});
 
