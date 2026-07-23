@@ -1,0 +1,19 @@
+.changeset/media-library-project.md
+  s_cc9dc2a14a8281::t_ca171b5ebf1d0d 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9503ef4edd923b65c00fd8877d5f5c582506f558",
+  "prompts": {},
+  "sessions": {
+    "s_cc9dc2a14a8281": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8e9d-b3ec-7c32-9e56-c9142a5bafea",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
