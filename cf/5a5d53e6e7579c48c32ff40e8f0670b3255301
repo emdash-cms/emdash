@@ -1,0 +1,31 @@
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_cc9dc2a14a8281::t_afbb3d42a9a32f 83-99
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_cc9dc2a14a8281::t_9659981684b109 79-81
+packages/core/src/fields/image.ts
+  s_cc9dc2a14a8281::t_c4bdb91db0bbef 7,11-17
+packages/core/src/schema/zod-generator.ts
+  s_cc9dc2a14a8281::t_3a343d61aac438 142-145,419
+packages/core/tests/fields/image.test.ts
+  s_cc9dc2a14a8281::t_3a37cd0e2b8ebd 36-50,54
+packages/core/tests/unit/fields/all-fields.test.ts
+  s_cc9dc2a14a8281::t_3076fbfdc36137 252-253
+packages/core/tests/unit/schema/zod-generator.test.ts
+  s_cc9dc2a14a8281::t_21cf08c5b8a1d2 280-292,557-568,582-584
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "cf5a5d53e6e7579c48c32ff40e8f0670b3255301",
+  "prompts": {},
+  "sessions": {
+    "s_cc9dc2a14a8281": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8e9d-b3ec-7c32-9e56-c9142a5bafea",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
