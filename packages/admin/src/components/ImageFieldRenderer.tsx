@@ -121,7 +121,7 @@ export function ImageFieldRenderer({
 
 	const featuredCard = displayUrl ? (
 		<LayerCard className="grid w-full grid-cols-1 rounded-xl p-0 sm:grid-cols-[12rem_minmax(0,1fr)]">
-			<div className="m-2 aspect-[3/2] min-h-28 overflow-hidden rounded bg-kumo-muted ring ring-kumo-line sm:aspect-auto">
+			<div className="m-2 aspect-[3/2] min-h-28 overflow-hidden rounded bg-kumo-muted ring ring-kumo-line">
 				{imageBroken ? (
 					<div className="flex h-full min-h-28 items-center justify-center gap-2 text-kumo-subtle">
 						<ImageBroken className="h-5 w-5" aria-hidden="true" />
@@ -245,11 +245,7 @@ export function ImageFieldRenderer({
 				<Button
 					type="button"
 					variant="outline"
-					className={
-						isFeatured
-							? "h-32 w-full justify-center bg-kumo-control ring-kumo-line"
-							: "h-32 w-full justify-center border-dashed bg-kumo-control"
-					}
+					className="h-32 w-full justify-center border-dashed bg-kumo-control"
 					onClick={() => setPickerOpen(true)}
 				>
 					<div className="flex flex-col items-center gap-2 text-kumo-subtle">

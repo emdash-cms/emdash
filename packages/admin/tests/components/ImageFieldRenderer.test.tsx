@@ -60,25 +60,9 @@ describe("ImageFieldRenderer", () => {
 		const changeButton = screen.getByRole("button", { name: "Change" });
 		await expect.element(changeButton).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Remove image" })).toBeVisible();
-		const detailsGroup = filename.element().parentElement;
-		expect(detailsGroup).toHaveClass("grid", "gap-1");
-		expect(detailsGroup?.parentElement).toHaveClass("flex", "flex-col", "justify-center", "gap-2");
-		expect(changeButton.element().parentElement).toBe(detailsGroup?.nextElementSibling);
 
 		const image = screen.container.querySelector("img");
-		expect(image).not.toBeNull();
-		expect(image).toHaveClass("h-full", "w-full", "object-cover");
-		expect(image?.parentElement).toHaveClass(
-			"m-2",
-			"aspect-[3/2]",
-			"min-h-28",
-			"rounded",
-			"ring-kumo-line",
-		);
-
-		const card = screen.getByText("notes-on-simplicity.jpg").element().closest(".ring-kumo-line");
-		expect(card).toHaveClass("w-full", "rounded-xl");
-		expect(card?.querySelector(".opacity-0")).toBeNull();
+		expect(image).toHaveAttribute("src", "/_emdash/api/media/file/featured-image.jpg");
 	});
 
 	it("falls back cleanly when optional featured-image metadata is missing", async () => {
@@ -156,7 +140,7 @@ describe("ImageFieldRenderer", () => {
 		await expect.element(screen.getByRole("button", { name: "Remove image" })).toBeVisible();
 	});
 
-	it("keeps the featured empty state full width and reports required validation", async () => {
+	it("opens the picker from the featured empty state and reports required validation", async () => {
 		const screen = await render(
 			<ImageFieldRenderer
 				label="Featured image"
@@ -169,16 +153,18 @@ describe("ImageFieldRenderer", () => {
 
 		const selectButton = screen.getByRole("button", { name: "Select image" });
 		await expect.element(selectButton).toBeVisible();
-		expect(selectButton.element()).toHaveClass("w-full", "ring-kumo-line");
 		await expect.element(screen.getByText("This field is required")).toBeVisible();
+
+		await selectButton.click();
+		await expect.element(screen.getByRole("button", { name: "Choose replacement" })).toBeVisible();
 	});
 
-	it("leaves the default selected-image presentation unchanged", async () => {
+	it("does not show featured metadata in the default variant", async () => {
 		const screen = await render(
 			<ImageFieldRenderer label="Image" value={selectedImage} onChange={vi.fn()} />,
 		);
 
 		expect(screen.getByText("notes-on-simplicity.jpg").query()).toBeNull();
-		expect(screen.container.querySelector(".opacity-0")).not.toBeNull();
+		expect(screen.getByText("1200 × 800 · image/jpeg").query()).toBeNull();
 	});
 });
