@@ -19,7 +19,6 @@ import { describe, expect, it } from "vitest";
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 const EXPECTED_SOURCES: Record<string, string> = {
-	"Bluesky.astro": "@astro-community/astro-embed-bluesky",
 	"Gist.astro": "@astro-community/astro-embed-gist",
 	"LinkPreview.astro": "@astro-community/astro-embed-link-preview",
 	"Mastodon.astro": "@astro-community/astro-embed-mastodon",
@@ -47,5 +46,17 @@ describe("plugin-embeds does not import through astro-embed (#938)", () => {
 		for (const source of Object.values(EXPECTED_SOURCES)) {
 			expect(pkg.dependencies).toHaveProperty(source);
 		}
+	});
+
+	it("Bluesky.astro does not import astro-embed-bluesky or @atproto/api", () => {
+		const contents = readFileSync(`${PACKAGE_ROOT}src/astro/Bluesky.astro`, "utf-8");
+		expect(contents).not.toMatch(/from\s+["']@astro-community\/astro-embed-bluesky["']/);
+		expect(contents).not.toMatch(/from\s+["']@atproto\/api["']/);
+	});
+
+	it("package.json does not depend on astro-embed-bluesky or @atproto/api", () => {
+		const pkg = JSON.parse(readFileSync(`${PACKAGE_ROOT}package.json`, "utf-8"));
+		expect(pkg.dependencies).not.toHaveProperty("@astro-community/astro-embed-bluesky");
+		expect(pkg.dependencies).not.toHaveProperty("@atproto/api");
 	});
 });

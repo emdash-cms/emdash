@@ -28,7 +28,6 @@
 		"emdash": "workspace:>=0.15.0"
 	},
 	"dependencies": {
-		"@astro-community/astro-embed-bluesky": "^0.1.6",
 		"@astro-community/astro-embed-gist": "^0.1.0",
 		"@astro-community/astro-embed-link-preview": "^0.3.0",
 		"@astro-community/astro-embed-mastodon": "^0.1.0",

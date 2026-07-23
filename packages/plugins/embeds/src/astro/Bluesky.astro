@@ -2,21 +2,40 @@
 /**
  * Bluesky post embed component for Portable Text
  *
- * Wraps astro-embed's BlueskyPost component, extracting props from the PT block node.
+ * Renders via Bluesky's own oEmbed endpoint (embed.bsky.app) instead of
+ * @astro-community/astro-embed-bluesky: that package depends on @atproto/api,
+ * whose CommonJS build (transitively multiformats) crashes Astro's Cloudflare
+ * dev runner -- it evaluates modules one at a time inside workerd, which has
+ * no `require`/`exports` globals (#938).
+ *
  * astro-portabletext passes `node` (not `value`) for custom type components.
- * 
  * Accepts either `id` or `url` field for compatibility with different content sources.
  */
-import { BlueskyPost } from "@astro-community/astro-embed-bluesky";
 import type { BlueskyBlock } from "../schemas.js";
+import { resolveBlueskyPostUrl } from "./bluesky-url.js";
 
 interface Props {
 	node: BlueskyBlock & { url?: string };
 }
 
 const { node } = Astro.props;
-// Support both 'id' (schema) and 'url' (admin editor) field names
 const postId = node.id || node.url;
+const postUrl = postId ? resolveBlueskyPostUrl(postId) : null;
+
+let html: string | null = null;
+if (postUrl) {
+	try {
+		const response = await fetch(
+			`https://embed.bsky.app/oembed?url=${encodeURIComponent(postUrl)}&format=json`,
+		);
+		if (response.ok) {
+			const data = (await response.json()) as { html?: string };
+			html = data.html ?? null;
+		}
+	} catch {
+		html = null;
+	}
+}
 ---
 
-{postId && <BlueskyPost id={postId} />}
+{html && <Fragment set:html={html} />}
