@@ -27,6 +27,9 @@ export const DELIVERY_HEARTBEAT_STALE_MS = 3 * 60 * 1000;
 
 interface DeliveryProcessorOptions {
 	now?: Date;
+	clock?: () => Date;
+	retryFailures?: boolean;
+	submissionId?: string;
 }
 
 function submissions(ctx: PluginContext): StorageCollection<Submission> {
@@ -36,6 +39,7 @@ function submissions(ctx: PluginContext): StorageCollection<Submission> {
 function destinationBase(id: string, now: string) {
 	return {
 		id,
+		idempotencyKey: id,
 		status: "pending" as const,
 		attempts: 0,
 		createdAt: now,
@@ -43,6 +47,7 @@ function destinationBase(id: string, now: string) {
 		nextAttemptAt: now,
 		claimedAt: null,
 		claimToken: null,
+		sideEffectStartedAt: null,
 		attemptedAt: null,
 		deliveredAt: null,
 		terminalAt: null,
@@ -163,7 +168,7 @@ async function recordHeartbeat(
 	ctx: PluginContext,
 	status: DeliveryHeartbeat["status"],
 	completedAt: string,
-	error: unknown | null,
+	error: unknown,
 ): Promise<void> {
 	const previous = await ctx.kv.get<DeliveryHeartbeat>(DELIVERY_HEARTBEAT_KEY);
 	const heartbeat: DeliveryHeartbeat = {
@@ -192,11 +197,12 @@ async function claimDestination(
 	submissionId: string,
 	destinationId: string,
 	ctx: PluginContext,
-	now: Date,
+	clock: () => Date,
 ): Promise<{ submission: Submission; destination: DeliveryDestination } | null> {
 	const collection = submissions(ctx);
 	const current = await collection.get(submissionId);
 	const destination = current ? findDestination(current, destinationId) : undefined;
+	const now = clock();
 	if (
 		!current?.delivery ||
 		!destination ||
@@ -205,6 +211,36 @@ async function claimDestination(
 		!destination.nextAttemptAt ||
 		destination.nextAttemptAt > now.toISOString()
 	) {
+		return null;
+	}
+
+	if (
+		destination.type !== "webhook" &&
+		destination.status === "processing" &&
+		destination.sideEffectStartedAt
+	) {
+		const timestamp = now.toISOString();
+		const interrupted: DeliveryDestination = {
+			...destination,
+			status: "terminal",
+			updatedAt: timestamp,
+			nextAttemptAt: null,
+			claimToken: null,
+			terminalAt: timestamp,
+			lastError: "Email delivery outcome is unknown after an interrupted provider call",
+		};
+		await collection.put(
+			submissionId,
+			withDeliverySummary({
+				...current,
+				delivery: {
+					...current.delivery,
+					destinations: current.delivery.destinations.map((item) =>
+						item.id === destinationId ? interrupted : item,
+					),
+				},
+			}),
+		);
 		return null;
 	}
 
@@ -233,11 +269,9 @@ async function claimDestination(
 
 	await collection.put(submissionId, updated);
 
-	// Plugin storage has no compare-and-set operation. Read-back verification plus the
-	// lease is the strongest cross-isolate claim available; concurrent isolates can
-	// still both deliver if their writes and reads interleave before either observes
-	// the other's token. Provider-side idempotency is therefore required for strict
-	// exactly-once effects.
+	// Plugin storage has no compare-and-set operation. The platform's atomic claim
+	// of the single named delivery cron task is the cross-isolate exclusion seam.
+	// This token remains a defensive lease for interrupted runs and direct callers.
 	const verified = await collection.get(submissionId);
 	const verifiedDestination = verified ? findDestination(verified, destinationId) : undefined;
 	if (!verified || verifiedDestination?.claimToken !== claimToken) {
@@ -245,6 +279,49 @@ async function claimDestination(
 	}
 
 	return { submission: verified, destination: verifiedDestination };
+}
+
+async function markEmailSideEffectStarted(
+	submissionId: string,
+	destinationId: string,
+	claimToken: string,
+	ctx: PluginContext,
+	clock: () => Date,
+): Promise<DeliveryDestination | null> {
+	const collection = submissions(ctx);
+	const current = await collection.get(submissionId);
+	const destination = current ? findDestination(current, destinationId) : undefined;
+	if (
+		!current?.delivery ||
+		!destination ||
+		destination.type === "webhook" ||
+		destination.claimToken !== claimToken
+	) {
+		return null;
+	}
+
+	const timestamp = clock().toISOString();
+	const marked: DeliveryDestination = {
+		...destination,
+		updatedAt: timestamp,
+		sideEffectStartedAt: timestamp,
+	};
+	await collection.put(submissionId, {
+		...current,
+		delivery: {
+			...current.delivery,
+			destinations: current.delivery.destinations.map((item) =>
+				item.id === destinationId ? marked : item,
+			),
+		},
+	});
+
+	const verified = await collection.get(submissionId);
+	const verifiedDestination = verified ? findDestination(verified, destinationId) : undefined;
+	return verifiedDestination?.claimToken === claimToken &&
+		verifiedDestination.sideEffectStartedAt === timestamp
+		? verifiedDestination
+		: null;
 }
 
 async function deliverDestination(
@@ -258,7 +335,7 @@ async function deliverDestination(
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"Idempotency-Key": destination.id,
+				"Idempotency-Key": destination.idempotencyKey ?? destination.id,
 				"X-EmDash-Submission-Id": String(destination.body.submissionId),
 				"X-EmDash-Receipt-Id": submission.delivery?.receiptId ?? "",
 			},
@@ -282,17 +359,23 @@ async function finishDestination(
 	submissionId: string,
 	destinationId: string,
 	claimToken: string,
-	error: unknown | null,
+	error: unknown,
 	ctx: PluginContext,
-	now: Date,
+	clock: () => Date,
+	retryFailures: boolean,
 ): Promise<void> {
 	const collection = submissions(ctx);
 	const current = await collection.get(submissionId);
 	const destination = current ? findDestination(current, destinationId) : undefined;
 	if (!current?.delivery || !destination || destination.claimToken !== claimToken) return;
 
+	const now = clock();
 	const timestamp = now.toISOString();
-	const terminal = error !== null && destination.attempts >= MAX_ATTEMPTS;
+	const ambiguousEmailFailure =
+		error !== null && destination.type !== "webhook" && destination.sideEffectStartedAt != null;
+	const terminal =
+		error !== null &&
+		(!retryFailures || ambiguousEmailFailure || destination.attempts >= MAX_ATTEMPTS);
 	const finished: DeliveryDestination =
 		error === null
 			? {
@@ -313,7 +396,9 @@ async function finishDestination(
 						: new Date(now.getTime() + nextBackoff(destination.attempts)).toISOString(),
 					claimToken: null,
 					terminalAt: terminal ? timestamp : null,
-					lastError: boundedError(error),
+					lastError: ambiguousEmailFailure
+						? "Email provider failed after dispatch began; delivery outcome is unknown"
+						: boundedError(error),
 				};
 
 	await collection.put(
@@ -334,17 +419,31 @@ async function processSubmission(
 	submissionId: string,
 	submission: Submission,
 	ctx: PluginContext,
-	now: Date,
+	clock: () => Date,
+	retryFailures: boolean,
 ): Promise<void> {
 	if (submission.delivery?.version !== DELIVERY_VERSION) return;
 
 	for (const destination of submission.delivery.destinations) {
-		const claim = await claimDestination(submissionId, destination.id, ctx, now);
+		const claim = await claimDestination(submissionId, destination.id, ctx, clock);
 		if (!claim) continue;
 
-		let error: unknown | null = null;
+		let error: unknown = null;
 		try {
-			await deliverDestination(claim.destination, claim.submission, ctx);
+			let deliveryDestination = claim.destination;
+			if (deliveryDestination.type !== "webhook") {
+				if (!ctx.email) throw new Error("Email delivery is not configured");
+				const marked = await markEmailSideEffectStarted(
+					submissionId,
+					destination.id,
+					claim.destination.claimToken!,
+					ctx,
+					clock,
+				);
+				if (!marked) continue;
+				deliveryDestination = marked;
+			}
+			await deliverDestination(deliveryDestination, claim.submission, ctx);
 		} catch (cause) {
 			error = cause;
 			ctx.log.error("Forms outbox delivery failed", {
@@ -361,15 +460,34 @@ async function processSubmission(
 			claim.destination.claimToken!,
 			error,
 			ctx,
-			now,
+			clock,
+			retryFailures,
 		);
 	}
 }
 
+// The platform atomically claims the single named delivery cron task across
+// isolates. This queue covers same-isolate/direct calls; no-cron submits target
+// only their newly persisted submission instead of running the global scanner.
 let deliveryRun: Promise<void> = Promise.resolve();
 
 async function runDelivery(ctx: PluginContext, options: DeliveryProcessorOptions): Promise<void> {
-	const now = options.now ?? new Date();
+	const clock = options.clock ?? (() => options.now ?? new Date());
+	const now = clock();
+	if (options.submissionId) {
+		const submission = await submissions(ctx).get(options.submissionId);
+		if (submission) {
+			await processSubmission(
+				options.submissionId,
+				submission,
+				ctx,
+				clock,
+				options.retryFailures ?? true,
+			);
+		}
+		return;
+	}
+
 	const batch = await submissions(ctx).query({
 		where: { deliveryNextAttemptAt: { lte: now.toISOString() } },
 		orderBy: { deliveryNextAttemptAt: "asc" },
@@ -377,7 +495,7 @@ async function runDelivery(ctx: PluginContext, options: DeliveryProcessorOptions
 	});
 
 	for (const item of batch.items) {
-		await processSubmission(item.id, item.data, ctx, now);
+		await processSubmission(item.id, item.data, ctx, clock, options.retryFailures ?? true);
 	}
 }
 
@@ -385,15 +503,19 @@ export function handleDelivery(
 	ctx: PluginContext,
 	options: DeliveryProcessorOptions = {},
 ): Promise<void> {
-	const now = options.now ?? new Date();
 	const run = deliveryRun.then(async () => {
+		const clock = options.clock ?? (() => options.now ?? new Date());
 		try {
-			await runDelivery(ctx, { now });
-			const completedAt = options.now ?? new Date();
+			await runDelivery(ctx, {
+				clock,
+				retryFailures: options.retryFailures,
+				submissionId: options.submissionId,
+			});
+			const completedAt = clock();
 			await recordHeartbeat(ctx, "success", completedAt.toISOString(), null);
 			return undefined;
 		} catch (error) {
-			const completedAt = options.now ?? new Date();
+			const completedAt = clock();
 			try {
 				await recordHeartbeat(ctx, "failure", completedAt.toISOString(), error);
 			} catch (heartbeatError) {

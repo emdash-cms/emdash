@@ -261,12 +261,59 @@ describe("forms submission outbox", () => {
 			updatedAt: submission.createdAt,
 			nextAttemptAt: submission.createdAt,
 			claimedAt: null,
+			sideEffectStartedAt: null,
 			attemptedAt: null,
 			deliveredAt: null,
 			terminalAt: null,
 		});
 		expect(harness.send).not.toHaveBeenCalled();
 		expect(harness.fetch).not.toHaveBeenCalled();
+	});
+
+	it("delivers synchronously from the persisted outbox when cron is unavailable", async () => {
+		const harness = createHarness(makeForm({ autoresponder: undefined }));
+		harness.fetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
+		delete (harness.route as unknown as { cron?: unknown }).cron;
+		delete (harness.plugin as unknown as { cron?: unknown }).cron;
+
+		const response = await submitHandler(harness.route);
+		const [submissionId, persisted] = await onlySubmission(harness.submissions);
+		const submission = await harness.submissions.get(submissionId);
+
+		expect(response).toMatchObject({
+			success: true,
+			receiptId: persisted.receiptId,
+		});
+		expect(submission?.deliveryStatus).toBe("terminal");
+		expect(submission?.delivery?.destinations).toMatchObject([
+			{ type: "notification-email", status: "delivered" },
+			{ type: "webhook", status: "terminal", attempts: 1 },
+		]);
+		expect(harness.send).toHaveBeenCalledTimes(1);
+		expect(harness.fetch).toHaveBeenCalledTimes(1);
+	});
+
+	it("limits the no-cron fallback to the submission created by that request", async () => {
+		const harness = createHarness(makeForm({ autoresponder: undefined }));
+		await submitHandler(harness.route);
+		const [firstSubmissionId] = await onlySubmission(harness.submissions);
+		harness.send.mockClear();
+		harness.fetch.mockClear();
+		delete (harness.route as unknown as { cron?: unknown }).cron;
+		delete (harness.plugin as unknown as { cron?: unknown }).cron;
+		harness.route.input.data.email = "second@example.com";
+
+		const response = await submitHandler(harness.route);
+		if (!("receiptId" in response)) throw new Error("Expected a successful submission");
+		const first = await harness.submissions.get(firstSubmissionId);
+		const second = [...harness.submissions.records.values()].find(
+			(submission) => submission.receiptId === response.receiptId,
+		);
+
+		expect(first?.deliveryStatus).toBe("pending");
+		expect(second?.deliveryStatus).toBe("delivered");
+		expect(harness.send).toHaveBeenCalledTimes(1);
+		expect(harness.fetch).toHaveBeenCalledTimes(1);
 	});
 
 	it("self-heals an upgraded active plugin before acceptance without rescheduling every submit", async () => {
@@ -396,6 +443,134 @@ describe("forms submission outbox", () => {
 		expect(harness.send).toHaveBeenCalledTimes(1);
 		expect(harness.fetch).toHaveBeenCalledTimes(1);
 	});
+
+	it("delivers outbox rows created before dispatch idempotency fields existed", async () => {
+		const harness = createHarness(makeForm({ autoresponder: undefined }));
+		await submitHandler(harness.route);
+		const [submissionId, submission] = await onlySubmission(harness.submissions);
+		for (const destination of submission.delivery!.destinations) {
+			delete destination.idempotencyKey;
+			delete destination.sideEffectStartedAt;
+		}
+		await harness.submissions.put(submissionId, submission);
+
+		await handleDelivery(harness.plugin, {
+			now: new Date("2090-01-01T00:00:00.000Z"),
+		});
+		const delivered = await harness.submissions.get(submissionId);
+
+		expect(delivered?.deliveryStatus).toBe("delivered");
+		expect(harness.fetch.mock.calls[0]![1]!.headers).toMatchObject({
+			"Idempotency-Key": expect.stringContaining(":webhook"),
+		});
+	});
+
+	it("serializes concurrent processor calls so an email side effect runs once", async () => {
+		const harness = createHarness(makeForm({ autoresponder: undefined, webhookUrl: undefined }));
+		let releaseSend!: () => void;
+		harness.send.mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					releaseSend = resolve;
+				}),
+		);
+		await submitHandler(harness.route);
+
+		const first = handleDelivery(harness.plugin, {
+			now: new Date("2090-01-01T00:00:00.000Z"),
+		});
+		const second = handleDelivery(harness.plugin, {
+			now: new Date("2090-01-01T00:00:00.000Z"),
+		});
+		await vi.waitFor(() => expect(harness.send).toHaveBeenCalledTimes(1));
+		releaseSend();
+		await Promise.all([first, second]);
+
+		expect(harness.send).toHaveBeenCalledTimes(1);
+	});
+
+	it("terminalizes an expired email lease after dispatch began instead of duplicating it", async () => {
+		const harness = createHarness(makeForm({ autoresponder: undefined, webhookUrl: undefined }));
+		await submitHandler(harness.route);
+		const [submissionId, submission] = await onlySubmission(harness.submissions);
+		const destination = submission.delivery!.destinations[0]!;
+		submission.delivery!.destinations[0] = {
+			...destination,
+			status: "processing",
+			attempts: 1,
+			claimedAt: "2090-01-01T00:00:00.000Z",
+			claimToken: "abandoned",
+			sideEffectStartedAt: "2090-01-01T00:00:01.000Z",
+			attemptedAt: "2090-01-01T00:00:00.000Z",
+			nextAttemptAt: "2090-01-01T00:05:00.000Z",
+		};
+		submission.deliveryStatus = "processing";
+		submission.deliveryNextAttemptAt = "2090-01-01T00:05:00.000Z";
+		await harness.submissions.put(submissionId, submission);
+
+		await handleDelivery(harness.plugin, {
+			now: new Date("2090-01-01T00:06:00.000Z"),
+		});
+		const finished = await harness.submissions.get(submissionId);
+
+		expect(finished?.delivery?.destinations[0]).toMatchObject({
+			status: "terminal",
+			attempts: 1,
+			terminalAt: "2090-01-01T00:06:00.000Z",
+			lastError: expect.stringContaining("outcome is unknown"),
+		});
+		expect(finished?.deliveryStatus).toBe("terminal");
+		expect(harness.send).not.toHaveBeenCalled();
+	});
+
+	it("does not retry an ambiguous email provider failure", async () => {
+		const harness = createHarness(makeForm({ autoresponder: undefined, webhookUrl: undefined }));
+		harness.send.mockRejectedValueOnce(new Error("provider timeout"));
+		await submitHandler(harness.route);
+		const [submissionId] = await onlySubmission(harness.submissions);
+
+		await handleDelivery(harness.plugin, {
+			now: new Date("2090-01-01T00:00:00.000Z"),
+		});
+		await handleDelivery(harness.plugin, {
+			now: new Date("2091-01-01T00:00:00.000Z"),
+		});
+		const submission = await harness.submissions.get(submissionId);
+
+		expect(submission?.delivery?.destinations[0]).toMatchObject({
+			status: "terminal",
+			attempts: 1,
+			sideEffectStartedAt: "2090-01-01T00:00:00.000Z",
+			lastError: expect.stringContaining("outcome is unknown"),
+		});
+		expect(harness.send).toHaveBeenCalledTimes(1);
+	});
+
+	it("timestamps a long-running attempt and retry from the actual operation times", async () => {
+		const harness = createHarness({
+			...makeForm({ notifyEmails: [], autoresponder: undefined }),
+		});
+		harness.fetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
+		await submitHandler(harness.route);
+		const [submissionId] = await onlySubmission(harness.submissions);
+		const times = [
+			"2090-01-01T00:00:00.000Z",
+			"2090-01-01T00:00:01.000Z",
+			"2090-01-01T00:04:00.000Z",
+			"2090-01-01T00:04:01.000Z",
+		].map((value) => new Date(value));
+		const clock = () => times.shift() ?? new Date("2090-01-01T00:04:01.000Z");
+
+		await handleDelivery(harness.plugin, { clock });
+		const submission = await harness.submissions.get(submissionId);
+
+		expect(submission?.delivery?.destinations[0]).toMatchObject({
+			status: "retrying",
+			attemptedAt: "2090-01-01T00:00:01.000Z",
+			updatedAt: "2090-01-01T00:04:00.000Z",
+			nextAttemptAt: "2090-01-01T00:05:00.000Z",
+		});
+	});
 });
 
 describe("public delivery status", () => {
@@ -498,7 +673,7 @@ describe("public delivery health", () => {
 		const health = await deliveryHealthHandler(harness.route, now);
 		const serialized = JSON.stringify(health);
 		expect(health).toMatchObject({
-			heartbeatStatus: "fresh",
+			heartbeatStatus: "failing",
 			lastRunAt: now.toISOString(),
 			lastError: "Delivery processor failed",
 		});
@@ -548,5 +723,56 @@ describe("submission retention", () => {
 		expect(harness.submissions.records.has("expired")).toBe(false);
 		expect(harness.submissions.records.has("fresh")).toBe(true);
 		expect((await harness.forms.get("form-1"))?.submissionCount).toBe(1);
+	});
+
+	it("retains active delivery work and recent terminal receipts while deleting delivered work", async () => {
+		const form = makeForm({ retentionDays: 7, autoresponder: undefined });
+		const harness = createHarness(form);
+		await submitHandler(harness.route);
+		const [submissionId, pending] = await onlySubmission(harness.submissions);
+		const oldTimestamp = "2000-01-01T00:00:00.000Z";
+		const pendingDestination = pending.delivery!.destinations[0]!;
+		pending.createdAt = oldTimestamp;
+		pending.delivery!.destinations[0] = {
+			...pendingDestination,
+			createdAt: oldTimestamp,
+			updatedAt: oldTimestamp,
+			nextAttemptAt: oldTimestamp,
+		};
+		pending.deliveryNextAttemptAt = oldTimestamp;
+		await harness.submissions.put(submissionId, pending);
+
+		const terminal = structuredClone(pending);
+		const recentTerminalAt = new Date().toISOString();
+		terminal.receiptId = "terminal-receipt";
+		terminal.delivery!.receiptId = "terminal-receipt";
+		terminal.delivery!.destinations = terminal.delivery!.destinations.map((destination) => ({
+			...destination,
+			status: "terminal",
+			nextAttemptAt: null,
+			terminalAt: recentTerminalAt,
+		}));
+		terminal.deliveryStatus = "terminal";
+		terminal.deliveryNextAttemptAt = null;
+		await harness.submissions.put("terminal", terminal);
+
+		const delivered = structuredClone(pending);
+		delivered.receiptId = "delivered-receipt";
+		delivered.delivery!.receiptId = "delivered-receipt";
+		delivered.delivery!.destinations = delivered.delivery!.destinations.map((destination) => ({
+			...destination,
+			status: "delivered",
+			nextAttemptAt: null,
+			deliveredAt: oldTimestamp,
+		}));
+		delivered.deliveryStatus = "delivered";
+		delivered.deliveryNextAttemptAt = null;
+		await harness.submissions.put("delivered", delivered);
+
+		await handleCleanup(harness.plugin);
+
+		expect(harness.submissions.records.has(submissionId)).toBe(true);
+		expect(harness.submissions.records.has("terminal")).toBe(true);
+		expect(harness.submissions.records.has("delivered")).toBe(false);
 	});
 });

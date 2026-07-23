@@ -152,6 +152,8 @@ export type DeliveryDestinationStatus =
 
 interface DeliveryDestinationBase {
 	id: string;
+	/** Stable key for provider or persisted side-effect deduplication. */
+	idempotencyKey?: string;
 	status: DeliveryDestinationStatus;
 	attempts: number;
 	createdAt: string;
@@ -159,6 +161,11 @@ interface DeliveryDestinationBase {
 	nextAttemptAt: string | null;
 	claimedAt: string | null;
 	claimToken: string | null;
+	/**
+	 * Persisted immediately before an email provider call. If the process exits
+	 * after this point, the outcome is terminal/unknown rather than retried.
+	 */
+	sideEffectStartedAt?: string | null;
 	attemptedAt: string | null;
 	deliveredAt: string | null;
 	terminalAt: string | null;

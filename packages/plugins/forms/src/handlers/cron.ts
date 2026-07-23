@@ -9,7 +9,9 @@ import type { PluginContext, StorageCollection } from "emdash";
 
 import { formatDigestText } from "../format.js";
 export { handleDelivery } from "../outbox.js";
-import type { FormDefinition, Submission } from "../types.js";
+import type { DeliveryDestination, FormDefinition, Submission } from "../types.js";
+
+export const TERMINAL_DELIVERY_RETENTION_DAYS = 30;
 
 /** Typed access to plugin storage collections */
 function forms(ctx: PluginContext): StorageCollection<FormDefinition> {
@@ -49,11 +51,14 @@ export async function handleCleanup(ctx: PluginContext) {
 					limit: 100,
 					cursor,
 				});
+				const eligible = batch.items.filter((item) =>
+					canDeleteSubmission(item.data, cutoff, new Date()),
+				);
 
 				// Delete media files
 				if (ctx.media && "delete" in ctx.media) {
 					const mediaWithDelete = ctx.media as { delete(id: string): Promise<boolean> };
-					for (const item of batch.items) {
+					for (const item of eligible) {
 						if (item.data.files) {
 							for (const file of item.data.files) {
 								await mediaWithDelete.delete(file.mediaId).catch(() => {});
@@ -62,7 +67,7 @@ export async function handleCleanup(ctx: PluginContext) {
 					}
 				}
 
-				const ids = batch.items.map((item) => item.id);
+				const ids = eligible.map((item) => item.id);
 				if (ids.length > 0) {
 					await submissions(ctx).deleteMany(ids);
 					deletedCount += ids.length;
@@ -89,6 +94,45 @@ export async function handleCleanup(ctx: PluginContext) {
 
 		formsCursor = formsBatch.cursor;
 	} while (formsCursor);
+}
+
+function latestTimestamp(
+	destinations: DeliveryDestination[],
+	field: "deliveredAt" | "terminalAt",
+): Date | null {
+	const value = destinations
+		.map((destination) => destination[field])
+		.filter((timestamp): timestamp is string => timestamp !== null)
+		.toSorted()
+		.at(-1);
+	if (!value) return null;
+	const date = new Date(value);
+	return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function canDeleteSubmission(submission: Submission, formCutoff: Date, now: Date): boolean {
+	if (!submission.delivery || !submission.deliveryStatus) {
+		return new Date(submission.createdAt) < formCutoff;
+	}
+
+	if (
+		submission.deliveryStatus === "pending" ||
+		submission.deliveryStatus === "processing" ||
+		submission.deliveryStatus === "retrying"
+	) {
+		return false;
+	}
+
+	if (submission.deliveryStatus === "delivered") {
+		const deliveredAt = latestTimestamp(submission.delivery.destinations, "deliveredAt");
+		return deliveredAt !== null && deliveredAt < formCutoff;
+	}
+
+	const terminalAt = latestTimestamp(submission.delivery.destinations, "terminalAt");
+	if (!terminalAt) return false;
+	const terminalCutoff = new Date(now);
+	terminalCutoff.setDate(terminalCutoff.getDate() - TERMINAL_DELIVERY_RETENTION_DAYS);
+	return terminalAt < formCutoff && terminalAt < terminalCutoff;
 }
 
 /**

@@ -13,6 +13,7 @@ import {
 	createSubmissionDelivery,
 	DELIVERY_CRON_NAME,
 	DELIVERY_CRON_SCHEDULE,
+	handleDelivery,
 	summarizeDelivery,
 } from "../outbox.js";
 import type { SubmitInput } from "../schemas.js";
@@ -109,25 +110,24 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		return { success: false, errors: result.errors };
 	}
 
-	// Existing active installations do not rerun plugin:activate on upgrade. Check
-	// the durable scheduler before any upload or submission write so a scheduling
-	// failure cannot leave an accepted submission without an outbox worker.
-	if (!ctx.cron) {
-		throw PluginRouteError.internal("Form delivery is temporarily unavailable");
-	}
-	try {
-		const tasks = await ctx.cron.list();
-		const deliveryTask = tasks.find((task) => task.name === DELIVERY_CRON_NAME);
-		if (!deliveryTask || deliveryTask.schedule !== DELIVERY_CRON_SCHEDULE) {
-			await ctx.cron.schedule(DELIVERY_CRON_NAME, {
-				schedule: DELIVERY_CRON_SCHEDULE,
+	// Existing active installations do not rerun plugin:activate on upgrade.
+	// Self-heal the durable scheduler when available; runtimes without cron use
+	// the same persisted outbox synchronously after the submission write.
+	if (ctx.cron) {
+		try {
+			const tasks = await ctx.cron.list();
+			const deliveryTask = tasks.find((task) => task.name === DELIVERY_CRON_NAME);
+			if (!deliveryTask || deliveryTask.schedule !== DELIVERY_CRON_SCHEDULE) {
+				await ctx.cron.schedule(DELIVERY_CRON_NAME, {
+					schedule: DELIVERY_CRON_SCHEDULE,
+				});
+			}
+		} catch (error) {
+			ctx.log.error("Failed to ensure Forms delivery cron", {
+				error: String(error).slice(0, 500),
 			});
+			throw PluginRouteError.internal("Form delivery is temporarily unavailable");
 		}
-	} catch (error) {
-		ctx.log.error("Failed to ensure Forms delivery cron", {
-			error: String(error).slice(0, 500),
-		});
-		throw PluginRouteError.internal("Form delivery is temporarily unavailable");
 	}
 
 	// 4. Upload files
@@ -226,6 +226,18 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		submissionCount,
 		lastSubmissionAt: new Date().toISOString(),
 	});
+
+	if (!ctx.cron) {
+		try {
+			await handleDelivery(ctx, { retryFailures: false, submissionId });
+		} catch (error) {
+			ctx.log.error("Immediate Forms delivery processing failed", {
+				submissionId,
+				receiptId,
+				error: String(error).replaceAll(/\s+/g, " ").slice(0, 500),
+			});
+		}
+	}
 
 	// 7. Return after the complete delivery plan is durably stored with the submission.
 	return {

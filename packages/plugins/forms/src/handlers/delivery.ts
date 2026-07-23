@@ -101,9 +101,11 @@ export async function deliveryHealthHandler(ctx: RouteContext, now = new Date())
 	const freshness =
 		!heartbeat || !Number.isFinite(completedAtMs)
 			? "missing"
-			: now.getTime() - completedAtMs > DELIVERY_HEARTBEAT_STALE_MS
-				? "stale"
-				: "fresh";
+			: heartbeat.status === "failure"
+				? "failing"
+				: now.getTime() - completedAtMs > DELIVERY_HEARTBEAT_STALE_MS
+					? "stale"
+					: "fresh";
 
 	return {
 		heartbeatStatus: freshness,
