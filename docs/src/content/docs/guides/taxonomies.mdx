@@ -126,6 +126,14 @@ interface TaxonomyTerm {
 }
 ```
 
+Computing `count` aggregates every content–term assignment in the taxonomy's
+collections, which is the most expensive part of the call. If you only need
+labels and slugs, skip it — `count` is then omitted from the returned terms:
+
+```ts
+const tags = await getTaxonomyTerms("tag", { includeCounts: false });
+```
+
 ### Get a Single Term
 
 The following example fetches one term by taxonomy and slug:

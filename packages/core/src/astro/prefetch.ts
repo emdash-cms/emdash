@@ -40,10 +40,15 @@ async function prefetchWidgetAreas(): Promise<void> {
 	}
 }
 
-/** Warm every taxonomy's term list via the real helper (primes per-name keys). */
+/**
+ * Warm every taxonomy's term list via the real helper (primes per-name keys).
+ * Counts are left out: they cost an aggregate over the whole assignment pivot
+ * per taxonomy, and only a consumer that renders one can say it's needed. A
+ * consumer that does asks for it and reuses the term list warmed here.
+ */
 async function prefetchTaxonomyTerms(): Promise<void> {
 	const defs = await getTaxonomyDefs();
-	await Promise.allSettled(defs.map((def) => getTaxonomyTerms(def.name)));
+	await Promise.allSettled(defs.map((def) => getTaxonomyTerms(def.name, { includeCounts: false })));
 }
 
 /** Warm every menu via the real helper (primes `menu:${name}:${locale}`). */
