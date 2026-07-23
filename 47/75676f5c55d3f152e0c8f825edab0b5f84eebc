@@ -1,0 +1,21 @@
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_cc9dc2a14a8281::t_f5a764068b73bb 55-56,60-61,63-66
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_cc9dc2a14a8281::t_38e798043e9b07 141-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4775676f5c55d3f152e0c8f825edab0b5f84eebc",
+  "prompts": {},
+  "sessions": {
+    "s_cc9dc2a14a8281": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8e9d-b3ec-7c32-9e56-c9142a5bafea",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
