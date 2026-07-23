@@ -52,12 +52,18 @@ describe("ImageFieldRenderer", () => {
 			/>,
 		);
 
-		await expect.element(screen.getByText("notes-on-simplicity.jpg")).toBeVisible();
+		const filename = screen.getByText("notes-on-simplicity.jpg");
+		await expect.element(filename).toBeVisible();
 		const metadata = screen.getByText("1200 × 800 · image/jpeg");
 		await expect.element(metadata).toBeVisible();
 		expect(metadata.element()).toHaveAttribute("dir", "ltr");
-		await expect.element(screen.getByRole("button", { name: "Change" })).toBeVisible();
+		const changeButton = screen.getByRole("button", { name: "Change" });
+		await expect.element(changeButton).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Remove image" })).toBeVisible();
+		const detailsGroup = filename.element().parentElement;
+		expect(detailsGroup).toHaveClass("grid", "gap-1");
+		expect(detailsGroup?.parentElement).toHaveClass("flex", "flex-col", "justify-center", "gap-2");
+		expect(changeButton.element().parentElement).toBe(detailsGroup?.nextElementSibling);
 
 		const image = screen.container.querySelector("img");
 		expect(image).not.toBeNull();

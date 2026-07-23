@@ -138,8 +138,8 @@ export function ImageFieldRenderer({
 					/>
 				)}
 			</div>
-			<div className="flex min-w-0 flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
-				<div className="grid min-w-0 flex-1 gap-1">
+			<div className="flex min-w-0 flex-col justify-center gap-2 px-4 py-3">
+				<div className="grid min-w-0 gap-1">
 					<Text as="p" bold truncate>
 						{selectedFilename}
 					</Text>
