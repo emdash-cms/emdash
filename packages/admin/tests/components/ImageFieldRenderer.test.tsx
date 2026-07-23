@@ -80,6 +80,23 @@ describe("ImageFieldRenderer", () => {
 		expect(screen.container.textContent).not.toContain("·");
 	});
 
+	it("encodes path-unsafe characters in local storage keys", async () => {
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Featured image"
+				value={{
+					...selectedImage,
+					meta: { storageKey: "featured?draft#1.jpg" },
+				}}
+				onChange={vi.fn()}
+				variant="featured"
+			/>,
+		);
+
+		const image = screen.container.querySelector("img");
+		expect(image).toHaveAttribute("src", "/_emdash/api/media/file/featured%3Fdraft%231.jpg");
+	});
+
 	it("preserves filename and MIME type when a replacement is selected", async () => {
 		const onChange = vi.fn();
 		const screen = await render(

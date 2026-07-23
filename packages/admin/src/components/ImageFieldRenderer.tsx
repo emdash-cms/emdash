@@ -76,7 +76,9 @@ export function ImageFieldRenderer({
 			: value?.previewUrl ||
 				value?.src ||
 				(value && (!value.provider || value.provider === "local")
-					? `/_emdash/api/media/file/${typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id}`
+					? `/_emdash/api/media/file/${encodeURIComponent(
+							typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id,
+						)}`
 					: undefined);
 
 	React.useEffect(() => {
