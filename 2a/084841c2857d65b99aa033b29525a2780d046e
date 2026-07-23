@@ -1,0 +1,21 @@
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_cc9dc2a14a8281::t_498c93057cd6e5 123-124,126
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_cc9dc2a14a8281::t_95876d729a07a0 65-71,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2a084841c2857d65b99aa033b29525a2780d046e",
+  "prompts": {},
+  "sessions": {
+    "s_cc9dc2a14a8281": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8e9d-b3ec-7c32-9e56-c9142a5bafea",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
