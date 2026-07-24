@@ -7,6 +7,8 @@
  * DO NOT import Node.js-only modules here (fs, path, module, etc.)
  */
 
+import type { ManifestHookEntry, ManifestRouteEntry } from "@emdash-cms/plugin-types";
+
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
@@ -137,6 +139,20 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	storage?: Record<string, StorageCollectionDeclaration>;
 	/** Serialized MCP declarations emitted by the plugin build. */
 	mcp?: PluginMcpManifestConfig;
+	/**
+	 * Route declarations (name + `public`/`permission`/`cacheControl`), mirroring
+	 * the plugin's own `definePlugin({ routes })`. Required for `sandboxed: []`
+	 * registration -- unlike marketplace/registry installs, there is no bundled
+	 * `manifest.json` to read at build time, so route auth metadata can only come
+	 * from here. Omitted routes default to non-public.
+	 */
+	routes?: Array<ManifestRouteEntry | string>;
+	/**
+	 * Hook declarations this plugin implements, mirroring `definePlugin({ hooks })`.
+	 * Same rationale as `routes` -- needed for `sandboxed: []` since there's no
+	 * bundle manifest to read it from.
+	 */
+	hooks?: Array<ManifestHookEntry | string>;
 }
 
 /**

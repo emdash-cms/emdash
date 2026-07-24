@@ -241,6 +241,10 @@ export interface SandboxedPluginEntry {
 	storage: PluginStorageConfig;
 	/** Serialized MCP declarations emitted at plugin build time. */
 	mcp?: PluginMcpManifestConfig;
+	/** Route declarations (name + public/permission/cacheControl), used for route auth decisions */
+	routes?: PluginManifest["routes"];
+	/** Hook declarations this plugin implements */
+	hooks?: PluginManifest["hooks"];
 	/** Admin pages */
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
@@ -1977,8 +1981,8 @@ export class EmDashRuntime {
 					capabilities: entry.capabilities ?? [],
 					allowedHosts: entry.allowedHosts ?? [],
 					storage: entry.storage ?? {},
-					hooks: [],
-					routes: [],
+					hooks: entry.hooks ?? [],
+					routes: entry.routes ?? [],
 					admin: {},
 					mcp: entry.mcp,
 				};
@@ -1988,6 +1992,17 @@ export class EmDashRuntime {
 				console.log(
 					`EmDash: Loaded sandboxed plugin ${pluginKey} with capabilities: [${manifest.capabilities.join(", ")}]`,
 				);
+
+				if (manifest.routes.length > 0) {
+					const routeMetaMap = new Map<string, RouteMeta>();
+					for (const routeEntry of manifest.routes) {
+						const normalized = normalizeManifestRoute(routeEntry);
+						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
+					}
+					sandboxedRouteMetaCache.set(entry.id, routeMetaMap);
+				} else {
+					sandboxedRouteMetaCache.delete(entry.id);
+				}
 			} catch (error) {
 				console.error(`EmDash: Failed to load sandboxed plugin ${entry.id}:`, error);
 			}
