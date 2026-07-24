@@ -1,0 +1,19 @@
+packages/admin/src/components/MediaUsedIn.tsx
+  s_8f629307fccce8::t_ecddbfa9f065c4 189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "72fbdb66d747b476fb1c43719395c672be9c004b",
+  "prompts": {},
+  "sessions": {
+    "s_8f629307fccce8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f89f8-9808-7453-8722-e48cad1296a9",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
