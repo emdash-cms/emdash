@@ -26,7 +26,7 @@ import type {
 } from "../lib/api";
 import { fetchBylines } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
-import { cn, slugify } from "../lib/utils";
+import { cn, parseTimestamp, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
@@ -535,11 +535,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							>
 								<div className="flex items-center justify-between gap-2">
 									<dt>{t`Created`}</dt>
-									<dd>{new Date(item.createdAt).toLocaleString()}</dd>
+									<dd>{parseTimestamp(item.createdAt).toLocaleString()}</dd>
 								</div>
 								<div className="flex items-center justify-between gap-2">
 									<dt>{t`Updated`}</dt>
-									<dd>{new Date(item.updatedAt).toLocaleString()}</dd>
+									<dd>{parseTimestamp(item.updatedAt).toLocaleString()}</dd>
 								</div>
 							</dl>
 						)}
