@@ -1,0 +1,39 @@
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_8f629307fccce8::t_1a6041cb14c0c7 26
+packages/admin/src/components/PortableTextEditor.tsx
+  s_8f629307fccce8::t_feecb3f51dda8f 375,378-379,387,740,763,2858
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_8f629307fccce8::t_b1eebf99c451f1 32-33,122
+packages/admin/src/components/editor/ImageNode.tsx
+  s_8f629307fccce8::t_db25562239f20e 33-34,86,344-346,400-401
+packages/admin/tests/editor/image-lqip.test.ts
+  s_8f629307fccce8::t_654f8054882caf 20-22,83-100
+packages/core/src/content/converters/portable-text-to-prosemirror.ts
+  s_8f629307fccce8::t_2f05a150742606 455-456,465
+packages/core/src/content/converters/prosemirror-to-portable-text.ts
+  s_8f629307fccce8::t_bcb0e99ef16265 307,326
+packages/core/src/content/converters/types.ts
+  s_8f629307fccce8::t_56e8775cd60b53 60-64
+packages/core/src/media/usage/extractor.ts
+  s_8f629307fccce8::t_e98e2dc44cb28e 125
+packages/core/tests/integration/database/media-usage-content-snapshots.test.ts
+  s_8f629307fccce8::t_9a79f673b6591a 125,153-161,171
+packages/core/tests/unit/converters/image-dimensions.test.ts
+  s_8f629307fccce8::t_2ca3e813cb7d94 60-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d053c6e9548197a48207e1cf8d008cc20b8826bf",
+  "prompts": {},
+  "sessions": {
+    "s_8f629307fccce8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f89f8-9808-7453-8722-e48cad1296a9",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
