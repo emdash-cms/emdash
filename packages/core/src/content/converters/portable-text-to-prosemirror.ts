@@ -452,6 +452,8 @@ function convertMarks(
  * Convert image block to ProseMirror
  */
 function convertImage(block: PortableTextImageBlock): ProseMirrorNode {
+	const storageKey =
+		typeof block.asset.meta?.storageKey === "string" ? block.asset.meta.storageKey : undefined;
 	return {
 		type: "image",
 		attrs: {
@@ -460,6 +462,7 @@ function convertImage(block: PortableTextImageBlock): ProseMirrorNode {
 			title: block.caption || "",
 			mediaId: block.asset._ref,
 			provider: block.asset.provider,
+			storageKey,
 			width: block.width,
 			height: block.height,
 			displayWidth: block.displayWidth,

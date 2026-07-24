@@ -1,4 +1,12 @@
-import { sql } from "kysely";
+import {
+	sql,
+	type KyselyPlugin,
+	type PluginTransformQueryArgs,
+	type PluginTransformResultArgs,
+	type QueryResult,
+	type RootOperationNode,
+	type UnknownRow,
+} from "kysely";
 import { ulid } from "ulidx";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
@@ -6,6 +14,7 @@ import { RevisionRepository } from "../../../src/database/repositories/revision.
 import { loadContentMediaUsageSnapshots } from "../../../src/media/usage/content-snapshots.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { SQL_BATCH_SIZE } from "../../../src/utils/chunks.js";
 import {
 	describeEachDialect,
 	setupForDialect,
@@ -111,6 +120,140 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		const result = await loadContentMediaUsageSnapshots(ctx.db, "posts", "missing-content");
 
 		expect(result).toEqual({ success: false, error: "CONTENT_NOT_FOUND" });
+	});
+
+	it("canonicalizes legacy Portable Text media IDs from their storage key", async () => {
+		const actualMediaId = ulid();
+		const storageKey = `${ulid()}.jpg`;
+		await ctx.db
+			.insertInto("media")
+			.values({
+				id: actualMediaId,
+				filename: "legacy.jpg",
+				mime_type: "image/jpeg",
+				size: null,
+				width: null,
+				height: null,
+				alt: null,
+				caption: null,
+				storage_key: storageKey,
+				status: "ready",
+				content_hash: null,
+				blurhash: null,
+				dominant_color: null,
+				created_at: new Date().toISOString(),
+				author_id: null,
+			})
+			.execute();
+		const item = await insertPost(ctx, {
+			slug: "legacy-media",
+			status: "published",
+			data: {
+				title: "Legacy media",
+				body: [
+					{
+						_type: "image",
+						asset: {
+							_ref: storageKey.slice(0, -4),
+							meta: { storageKey },
+						},
+					},
+				],
+			},
+		});
+
+		const result = await loadContentMediaUsageSnapshots(ctx.db, "posts", item.id);
+
+		expect(result.success).toBe(true);
+		if (!result.success) throw new Error(result.error);
+		expect(getSnapshot(result, "columns").occurrences).toEqual([
+			expect.objectContaining({
+				fieldPath: "body[0].asset._ref",
+				mediaId: actualMediaId,
+				providerAssetId: actualMediaId,
+			}),
+		]);
+	});
+
+	it("canonicalizes local media IDs in D1-sized storage-key batches", async () => {
+		const media = Array.from({ length: SQL_BATCH_SIZE + 1 }, (_, index) => ({
+			id: ulid(),
+			storageKey: `${ulid()}-${index}.jpg`,
+		}));
+		await ctx.db
+			.insertInto("media")
+			.values(
+				media.map(({ id, storageKey }, index) => ({
+					id,
+					filename: `legacy-${index}.jpg`,
+					mime_type: "image/jpeg",
+					size: null,
+					width: null,
+					height: null,
+					alt: null,
+					caption: null,
+					storage_key: storageKey,
+					status: "ready",
+					content_hash: null,
+					blurhash: null,
+					dominant_color: null,
+					created_at: new Date().toISOString(),
+					author_id: null,
+				})),
+			)
+			.execute();
+		const item = await insertPost(ctx, {
+			slug: "many-legacy-media",
+			status: "published",
+			data: {
+				title: "Many legacy media",
+				sections: media.map(({ storageKey }) => ({
+					image: {
+						provider: "local",
+						id: storageKey.replace(/\.jpg$/, ""),
+						meta: { storageKey },
+					},
+				})),
+			},
+		});
+
+		const result = await loadContentMediaUsageSnapshots(
+			ctx.db.withPlugin(new D1BindLimitPlugin()),
+			"posts",
+			item.id,
+		);
+
+		expect(result.success).toBe(true);
+		if (!result.success) throw new Error(result.error);
+		expect(getSnapshot(result, "columns").occurrences.map(({ mediaId }) => mediaId)).toEqual(
+			media.map(({ id }) => id),
+		);
+	});
+
+	it("fails when a local media storage key cannot be resolved", async () => {
+		const storageKey = `${ulid()}.jpg`;
+		const item = await insertPost(ctx, {
+			slug: "missing-legacy-media",
+			status: "published",
+			data: {
+				title: "Missing legacy media",
+				hero: {
+					provider: "local",
+					id: storageKey.slice(0, -4),
+					meta: { storageKey },
+				},
+			},
+		});
+
+		const result = await loadContentMediaUsageSnapshots(ctx.db, "posts", item.id);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				success: false,
+				error: "LOCAL_MEDIA_NOT_FOUND",
+				source: expect.objectContaining({ sourceVariant: "columns" }),
+			}),
+		);
 	});
 
 	it("keeps JSON-looking stored display strings as strings", async () => {
@@ -429,8 +572,8 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		const secondColumns = getSnapshot(secondResult, "columns");
 		const secondOverlay = getSnapshot(secondResult, "draft_overlay");
 
-		expect(firstColumns.source.schemaVersion).toBe(1);
-		expect(firstOverlay.source.schemaVersion).toBe(1);
+		expect(firstColumns.source.schemaVersion).toBe(2);
+		expect(firstOverlay.source.schemaVersion).toBe(2);
 		expect(firstColumns.source.sourceFingerprint).toEqual(expect.stringMatching(/^[a-f0-9]{16}$/));
 		expect(firstOverlay.source.sourceFingerprint).toEqual(expect.stringMatching(/^[a-f0-9]{16}$/));
 		expect(firstOverlay.source.sourceFingerprint).not.toBe(firstColumns.source.sourceFingerprint);
@@ -633,4 +776,33 @@ function serializeFieldValue(value: unknown): unknown {
 	if (value === null || value === undefined) return null;
 	if (typeof value === "object") return JSON.stringify(value);
 	return value;
+}
+
+class D1BindLimitPlugin implements KyselyPlugin {
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		assertD1SizedValueLists(args.node);
+		return args.node;
+	}
+
+	transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return Promise.resolve(args.result);
+	}
+}
+
+function assertD1SizedValueLists(value: unknown): void {
+	if (Array.isArray(value)) {
+		for (const item of value) assertD1SizedValueLists(item);
+		return;
+	}
+	if (!value || typeof value !== "object") return;
+
+	const node = value as Record<string, unknown>;
+	if (
+		node.kind === "PrimitiveValueListNode" &&
+		Array.isArray(node.values) &&
+		node.values.length > SQL_BATCH_SIZE
+	) {
+		throw new Error(`Query exceeded the ${SQL_BATCH_SIZE}-value D1 test limit`);
+	}
+	for (const child of Object.values(node)) assertD1SizedValueLists(child);
 }

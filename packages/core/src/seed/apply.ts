@@ -1372,7 +1372,7 @@ async function resolveMedia(
 
 		// Create media record
 		const mediaRepo = new MediaRepository(ctx.db);
-		await mediaRepo.create({
+		const createdMedia = await mediaRepo.create({
 			filename: finalFilename,
 			mimeType: contentType,
 			size: body.length,
@@ -1387,7 +1387,7 @@ async function resolveMedia(
 		// Create the MediaValue - only store id, URL is built at runtime by EmDashMedia
 		const mediaValue: MediaValue = {
 			provider: "local",
-			id,
+			id: createdMedia.id,
 			alt: alt ?? undefined,
 			width,
 			height,

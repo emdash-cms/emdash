@@ -202,11 +202,13 @@ describe("$media seed resolution", () => {
 		// Check the content has resolved ImageValue
 		const contentRepo = new ContentRepository(db);
 		const entry = await contentRepo.findBySlug("posts", "hello");
+		const media = await db.selectFrom("media").select(["id", "storage_key"]).executeTakeFirst();
 
 		// ImageValue stores id (URL is built at runtime by EmDashImage)
 		expect(entry?.data.featured_image).toMatchObject({
-			id: expect.any(String),
+			id: media?.id,
 			alt: "Test image",
+			meta: { storageKey: media?.storage_key },
 		});
 	});
 

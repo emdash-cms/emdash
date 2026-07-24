@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MediaDetailPanel } from "../../src/components/MediaDetailPanel";
-import type { MediaItem } from "../../src/lib/api";
+import type { MediaItem, MediaUsageSummary } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 vi.mock("../../src/lib/api", async () => {
@@ -16,6 +16,40 @@ vi.mock("../../src/lib/api", async () => {
 	};
 });
 
+const navigateMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@tanstack/react-router", () => ({
+	useNavigate: () => navigateMock,
+}));
+
+vi.mock("../../src/components/MediaUsedIn", () => ({
+	MediaUsedIn: ({
+		onEntryClick,
+		navigationBlocked,
+	}: {
+		onEntryClick?: (
+			event: React.MouseEvent<HTMLAnchorElement>,
+			entry: { collection: string; contentId: string; locale: string | null },
+		) => void;
+		navigationBlocked?: boolean;
+	}) => (
+		<button
+			type="button"
+			data-testid="media-used-in"
+			disabled={navigationBlocked}
+			onClick={(event) =>
+				onEntryClick?.(event as unknown as React.MouseEvent<HTMLAnchorElement>, {
+					collection: "posts",
+					contentId: "post-1",
+					locale: "fr",
+				})
+			}
+		>
+			Open usage entry
+		</button>
+	),
+}));
+
 // Import the mocked functions for assertions
 import { updateMedia, deleteMedia, deleteFromProvider } from "../../src/lib/api";
 
@@ -25,6 +59,11 @@ function QueryWrapper({ children }: { children: React.ReactNode }) {
 	});
 	return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
+
+const completeUsage: MediaUsageSummary = {
+	count: 1,
+	coverage: { scope: "all_content_collections", status: "complete" },
+};
 
 function makeImageItem(overrides: Partial<MediaItem> = {}): MediaItem {
 	return {
@@ -72,6 +111,7 @@ function renderPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel
 describe("MediaDetailPanel", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		navigateMock.mockResolvedValue(undefined);
 	});
 
 	it("does not render dialog contents when closed", async () => {
@@ -109,8 +149,8 @@ describe("MediaDetailPanel", () => {
 
 		expect(body.className).toContain("grid-cols-1");
 		expect(body.className).toContain("md:grid-cols-2");
-		expect(dialog.style.height).toBe("");
-		expect(dialog.style.maxHeight).toBe("min(88dvh, 48rem)");
+		expect(dialog.style.height).toBe("min(88dvh, 48rem)");
+		expect(dialog.style.maxHeight).toBe("");
 		expect(dialog.className).toContain("data-starting-style:scale-90");
 		expect(dialog.className).toContain("data-starting-style:opacity-0");
 		expect(dialog.style.transitionProperty).toBe("scale, opacity");
@@ -131,6 +171,73 @@ describe("MediaDetailPanel", () => {
 		expect(detailsColumn.className).not.toContain(" min-h-0");
 		expect(fileFacts.className).toContain("space-y-3");
 		expect(footer.style.padding).toBe("1.25rem 2rem");
+	});
+
+	it("renders summarized local media usage and omits missing summaries and provider assets", async () => {
+		const screen = await renderPanel({ item: makeImageItem({ usage: completeUsage }) });
+		await expect.element(screen.getByTestId("media-used-in")).toBeVisible();
+
+		await screen.rerender(
+			<QueryWrapper>
+				<MediaDetailPanel open item={makeImageItem()} onClose={vi.fn()} />
+			</QueryWrapper>,
+		);
+
+		await expect
+			.element(screen.getByTestId("media-used-in"), { timeout: 100 })
+			.not.toBeInTheDocument();
+
+		await screen.rerender(
+			<QueryWrapper>
+				<MediaDetailPanel
+					open
+					item={makeImageItem({ provider: "cloudflare-images", usage: completeUsage })}
+					onClose={vi.fn()}
+				/>
+			</QueryWrapper>,
+		);
+
+		await expect
+			.element(screen.getByTestId("media-used-in"), { timeout: 100 })
+			.not.toBeInTheDocument();
+	});
+
+	it("confirms before navigating away from dirty metadata", async () => {
+		const screen = await renderPanel({
+			item: makeImageItem({ alt: "Original", usage: completeUsage }),
+		});
+
+		await screen.getByLabelText("Alt Text").fill("Changed");
+		screen.getByRole("button", { name: "Open usage entry" }).element().click();
+
+		await expect.element(screen.getByText("Discard changes?")).toBeVisible();
+		expect(navigateMock).not.toHaveBeenCalled();
+
+		screen.getByRole("button", { name: "Discard" }).element().click();
+		await vi.waitFor(() => {
+			expect(navigateMock).toHaveBeenCalledWith({
+				to: "/content/$collection/$id",
+				params: { collection: "posts", id: "post-1" },
+				search: { locale: "fr" },
+			});
+		});
+	});
+
+	it("does not intercept modified usage-link clicks when metadata is dirty", async () => {
+		const screen = await renderPanel({
+			item: makeImageItem({ alt: "Original", usage: completeUsage }),
+		});
+		await screen.getByLabelText("Alt Text").fill("Changed");
+
+		screen
+			.getByRole("button", { name: "Open usage entry" })
+			.element()
+			.dispatchEvent(new MouseEvent("click", { bubbles: true, metaKey: true }));
+
+		await expect
+			.element(screen.getByText("Discard changes?"), { timeout: 100 })
+			.not.toBeInTheDocument();
+		expect(navigateMock).not.toHaveBeenCalled();
 	});
 
 	it("shows image preview for image mimeTypes", async () => {
@@ -211,7 +318,11 @@ describe("MediaDetailPanel", () => {
 
 	it("save calls updateMedia with correct payload", async () => {
 		const onClose = vi.fn();
-		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
+		const item = makeImageItem({
+			alt: "Old alt",
+			caption: "Old caption",
+			usage: completeUsage,
+		});
 		const screen = await renderPanel({ item, onClose });
 
 		const altInput = screen.getByLabelText("Alt Text");
@@ -231,7 +342,11 @@ describe("MediaDetailPanel", () => {
 	});
 
 	it("saves empty strings when clearing alt text and caption", async () => {
-		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
+		const item = makeImageItem({
+			alt: "Old alt",
+			caption: "Old caption",
+			usage: completeUsage,
+		});
 		const screen = await renderPanel({ item });
 
 		await screen.getByLabelText("Alt Text").fill("");
@@ -252,7 +367,11 @@ describe("MediaDetailPanel", () => {
 			() => new Promise<MediaItem>((resolve) => (resolveUpdate = resolve)),
 		);
 		const onClose = vi.fn();
-		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
+		const item = makeImageItem({
+			alt: "Old alt",
+			caption: "Old caption",
+			usage: completeUsage,
+		});
 		const screen = await renderPanel({ item, onClose });
 
 		const altInput = screen.getByLabelText("Alt Text");
@@ -263,6 +382,7 @@ describe("MediaDetailPanel", () => {
 		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
 		await expect.element(screen.getByRole("button", { name: "Close" })).toBeDisabled();
 		await expect.element(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Open usage entry" })).toBeDisabled();
 
 		screen.getByRole("button", { name: "Close" }).element().click();
 		expect(onClose).not.toHaveBeenCalled();

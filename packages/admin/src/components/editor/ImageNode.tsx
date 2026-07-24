@@ -30,6 +30,8 @@ declare module "@tiptap/react" {
 				title?: string;
 				caption?: string;
 				mediaId?: string;
+				/** Local storage key retained for legacy media reference resolution. */
+				storageKey?: string;
 				/** Provider ID for external media (e.g., "cloudflare-images") */
 				provider?: string;
 				width?: number;
@@ -81,6 +83,7 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		title: node.attrs.title,
 		caption: node.attrs.caption,
 		mediaId: node.attrs.mediaId,
+		storageKey: node.attrs.storageKey,
 		width: node.attrs.width,
 		height: node.attrs.height,
 		blurhash: node.attrs.blurhash,
@@ -338,6 +341,9 @@ export const ImageExtension = Node.create({
 			mediaId: {
 				default: null,
 			},
+			storageKey: {
+				default: null,
+			},
 			/** Provider ID for external media (e.g., "cloudflare-images") */
 			provider: {
 				default: null,
@@ -391,6 +397,8 @@ export const ImageExtension = Node.create({
 					title?: string;
 					caption?: string;
 					mediaId?: string;
+					/** Local storage key retained for legacy media reference resolution. */
+					storageKey?: string;
 					provider?: string;
 					width?: number;
 					height?: number;

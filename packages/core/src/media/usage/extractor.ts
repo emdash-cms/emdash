@@ -16,6 +16,7 @@ interface MediaRef {
 	providerAssetId: string;
 	mediaKind: MediaKind | null;
 	mimeType: string | null;
+	storageKey?: string;
 }
 
 interface AddOccurrenceInput {
@@ -121,6 +122,7 @@ function extractPortableTextOccurrences(
 				provider,
 				mimeType: normalizeMimeValue(block.asset.mimeType),
 				fallbackKind: "image",
+				storageKey: provider === "local" ? readStorageKey(block.asset.meta) : null,
 			}),
 		});
 	}
@@ -164,6 +166,7 @@ function addRefOccurrence(
 		providerAssetId: input.ref.providerAssetId,
 		mediaKind: input.ref.mediaKind,
 		mimeType: input.ref.mimeType,
+		...(input.ref.storageKey ? { storageKey: input.ref.storageKey } : {}),
 	};
 
 	const key = [
@@ -198,6 +201,7 @@ function readMediaRef(value: unknown, fallbackKind: MediaKind | null): MediaRef 
 		provider,
 		mimeType: normalizeMimeValue(value.mimeType),
 		fallbackKind,
+		storageKey: provider === "local" ? readStorageKey(value.meta) : null,
 	});
 }
 
@@ -206,6 +210,7 @@ function buildMediaRef(input: {
 	provider: string;
 	mimeType: string | null;
 	fallbackKind: MediaKind | null;
+	storageKey?: string | null;
 }): MediaRef | null {
 	const provider = normalizeProvider(input.provider);
 	if (provider === "external") return null;
@@ -216,7 +221,14 @@ function buildMediaRef(input: {
 		providerAssetId: input.id,
 		mediaKind: mediaKindFromMime(input.mimeType) ?? input.fallbackKind,
 		mimeType: input.mimeType,
+		...(provider === "local" && input.storageKey ? { storageKey: input.storageKey } : {}),
 	};
+}
+
+function readStorageKey(value: unknown): string | null {
+	if (!isRecord(value)) return null;
+	const storageKey = readString(value.storageKey)?.trim();
+	return storageKey || null;
 }
 
 function readPortableTextAssetRef(

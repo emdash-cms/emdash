@@ -6,6 +6,7 @@ import type {
 } from "../../database/repositories/media-usage.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { hashString } from "../../utils/hash.js";
 import {
 	loadContentMediaUsageFields,
@@ -18,7 +19,7 @@ import {
 	type MediaUsageContentSourceVariant,
 } from "./source-key.js";
 
-export const CONTENT_SOURCE_SCHEMA_VERSION = 1;
+export const CONTENT_SOURCE_SCHEMA_VERSION = 2;
 
 const CONTENT_SYSTEM_COLUMNS = [
 	"id",
@@ -44,7 +45,8 @@ export type LoadContentMediaUsageSnapshotsResult =
 				| "CONTENT_NOT_FOUND"
 				| "DRAFT_REVISION_NOT_FOUND"
 				| "DRAFT_REVISION_MISMATCH"
-				| "DRAFT_REVISION_INVALID";
+				| "DRAFT_REVISION_INVALID"
+				| "LOCAL_MEDIA_NOT_FOUND";
 			source?: MediaUsageSourceInput;
 			snapshots?: ContentMediaUsageSnapshot[];
 	  };
@@ -75,10 +77,6 @@ export async function loadContentMediaUsageSnapshots(
 		discovery.extractionFields.map((field) => field.slug),
 	);
 	const displayData = projectRawData(row, discovery.displayFieldSlugs);
-	const occurrences = extractMediaUsageOccurrences({
-		fields: discovery.extractionFields,
-		data: columnsData,
-	});
 	const columnsRevisionId = readNullableString(row.live_revision_id);
 	const columnsFingerprint = await buildSourceFingerprint({
 		collectionSlug,
@@ -87,17 +85,32 @@ export async function loadContentMediaUsageSnapshots(
 		fields: discovery.extractionFields,
 		data: columnsData,
 	});
+	const columnsSource = buildContentSource({
+		collectionSlug,
+		row,
+		displayData,
+		sourceVariant: "columns",
+		revisionId: columnsRevisionId,
+		sourceFingerprint: columnsFingerprint,
+	});
+	const columnsOccurrences = await canonicalizeLocalMediaOccurrences(
+		db,
+		extractMediaUsageOccurrences({
+			fields: discovery.extractionFields,
+			data: columnsData,
+		}),
+	);
+	if (!columnsOccurrences.success) {
+		return {
+			success: false,
+			error: "LOCAL_MEDIA_NOT_FOUND",
+			source: columnsSource,
+		};
+	}
 	const snapshots: ContentMediaUsageSnapshot[] = [
 		{
-			source: buildContentSource({
-				collectionSlug,
-				row,
-				displayData,
-				sourceVariant: "columns",
-				revisionId: columnsRevisionId,
-				sourceFingerprint: columnsFingerprint,
-			}),
-			occurrences,
+			source: columnsSource,
+			occurrences: columnsOccurrences.occurrences,
 			fields: discovery.extractionFields,
 		},
 	];
@@ -153,20 +166,33 @@ export async function loadContentMediaUsageSnapshots(
 			fields: discovery.extractionFields,
 			data: draftOverlayData,
 		});
-		snapshots.push({
-			source: buildContentSource({
-				collectionSlug,
-				row,
-				displayData: draftDisplayData,
-				sourceVariant: "draft_overlay",
-				revisionId: draftRevisionId,
-				contentSlug: draftContentSlug,
-				sourceFingerprint: draftFingerprint,
-			}),
-			occurrences: extractMediaUsageOccurrences({
+		const draftSource = buildContentSource({
+			collectionSlug,
+			row,
+			displayData: draftDisplayData,
+			sourceVariant: "draft_overlay",
+			revisionId: draftRevisionId,
+			contentSlug: draftContentSlug,
+			sourceFingerprint: draftFingerprint,
+		});
+		const draftOccurrences = await canonicalizeLocalMediaOccurrences(
+			db,
+			extractMediaUsageOccurrences({
 				fields: discovery.extractionFields,
 				data: draftOverlayData,
 			}),
+		);
+		if (!draftOccurrences.success) {
+			return {
+				success: false,
+				error: "LOCAL_MEDIA_NOT_FOUND",
+				source: draftSource,
+				snapshots,
+			};
+		}
+		snapshots.push({
+			source: draftSource,
+			occurrences: draftOccurrences.occurrences,
 			fields: discovery.extractionFields,
 		});
 	}
@@ -174,6 +200,48 @@ export async function loadContentMediaUsageSnapshots(
 	return {
 		success: true,
 		snapshots,
+	};
+}
+
+async function canonicalizeLocalMediaOccurrences(
+	db: Kysely<Database>,
+	occurrences: ReturnType<typeof extractMediaUsageOccurrences>,
+): Promise<{ success: true; occurrences: MediaUsageOccurrenceInput[] } | { success: false }> {
+	const storageKeys = [
+		...new Set(
+			occurrences
+				.filter((occurrence) => occurrence.provider === "local")
+				.map((occurrence) => occurrence.storageKey)
+				.filter((key): key is string => Boolean(key)),
+		),
+	];
+	if (storageKeys.length === 0) {
+		return {
+			success: true,
+			occurrences: occurrences.map(({ storageKey: _storageKey, ...occurrence }) => occurrence),
+		};
+	}
+
+	const mediaIdByStorageKey = new Map<string, string>();
+	for (const storageKeyBatch of chunks(storageKeys, SQL_BATCH_SIZE)) {
+		const mediaRows = await db
+			.selectFrom("media")
+			.select(["id", "storage_key"])
+			.where("storage_key", "in", storageKeyBatch)
+			.execute();
+		for (const row of mediaRows) mediaIdByStorageKey.set(row.storage_key, row.id);
+	}
+	if (storageKeys.some((storageKey) => !mediaIdByStorageKey.has(storageKey))) {
+		return { success: false };
+	}
+
+	return {
+		success: true,
+		occurrences: occurrences.map(({ storageKey, ...occurrence }) => {
+			const canonicalId = storageKey ? mediaIdByStorageKey.get(storageKey) : undefined;
+			if (!canonicalId) return occurrence;
+			return { ...occurrence, mediaId: canonicalId, providerAssetId: canonicalId };
+		}),
 	};
 }
 

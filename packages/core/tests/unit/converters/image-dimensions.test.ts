@@ -57,4 +57,20 @@ describe("Image dimension round-trip", () => {
 		expect(restored.width).toBe(800);
 		expect(restored.height).toBe(600);
 	});
+
+	it("preserves a legacy local storage key through PT → PM → PT", () => {
+		const legacyImage = {
+			_type: "image",
+			_key: "legacy-image",
+			asset: {
+				_ref: "legacy-local-id",
+				meta: { storageKey: "01ABC.jpg" },
+			},
+		} as PortableTextImageBlock;
+
+		const pm = portableTextToProsemirror([legacyImage]);
+		const restored = prosemirrorToPortableText(pm)[0] as PortableTextImageBlock;
+
+		expect(restored.asset.meta?.storageKey).toBe("01ABC.jpg");
+	});
 });

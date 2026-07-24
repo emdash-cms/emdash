@@ -372,13 +372,11 @@ function convertPMNode(node: {
 		case "image": {
 			const attrs = node.attrs ?? {};
 			const provider = attrStr(attrs.provider);
+			const storageKey = attrStr(attrs.storageKey);
 			const blurhash = attrStr(attrs.blurhash);
 			const dominantColor = attrStr(attrs.dominantColor);
-			// Persist LQIP as first-class block fields, matching the image-field
-			// path (MediaValue.blurhash/dominantColor) so read sites and normalize
-			// don't need a `asset.meta` dual-shape. `asset.meta` is left to carry
-			// only provider-specific data (we don't reconstruct it here, so any
-			// non-LQIP meta keys are never silently dropped on editor round-trip).
+			// Persist LQIP as first-class block fields. Keep the local storage key
+			// in provider metadata so legacy references remain resolvable.
 			return {
 				_type: "image",
 				_key: generateKey(),
@@ -386,6 +384,7 @@ function convertPMNode(node: {
 					_ref: attrStr(attrs.mediaId) ?? "",
 					url: attrStr(attrs.src) ?? "",
 					provider: provider && provider !== "local" ? provider : undefined,
+					...(storageKey ? { meta: { storageKey } } : {}),
 				},
 				alt: attrStr(attrs.alt),
 				caption: attrStr(attrs.caption) ?? attrStr(attrs.title),
@@ -738,6 +737,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 			if (!isImageBlock(block)) return null;
 			const imageBlock = block;
 			const meta = imageBlock.asset.meta;
+			const storageKey = attrStr(meta?.storageKey);
 			// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy
 			// snapshots persisted before LQIP was promoted out of the provider meta bag.
 			const blurhash =
@@ -760,6 +760,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					title: imageBlock.caption || "",
 					caption: imageBlock.caption || "",
 					mediaId: imageBlock.asset._ref,
+					storageKey,
 					width: imageBlock.width,
 					height: imageBlock.height,
 					blurhash,
@@ -2854,6 +2855,7 @@ export function PortableTextEditor({
 					alt: item.alt || item.filename,
 					mediaId: item.id,
 					provider: item.provider || "local",
+					storageKey: item.storageKey,
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,
