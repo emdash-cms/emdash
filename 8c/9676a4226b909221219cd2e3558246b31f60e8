@@ -1,0 +1,31 @@
+.changeset/calm-dashboard-type.md
+  s_dcd7921d2054cc::t_8d3d00e40d75e9 1-5
+packages/admin/TYPOGRAPHY.md
+  s_dcd7921d2054cc::t_517c1d5494850d 1-200
+packages/admin/src/components/Dashboard.tsx
+  s_6470bb7a1f2241::t_a117f4b57a0463 48,50,128,184,226-228,241-243,285,308-310,322,325,329-332
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8c9676a4226b909221219cd2e3558246b31f60e8",
+  "prompts": {},
+  "sessions": {
+    "s_6470bb7a1f2241": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f9449-6fae-7b73-89a3-410a8c9563cf",
+        "model": "unknown"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    },
+    "s_dcd7921d2054cc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f93c5-3395-7072-a279-cf1f714c19d2",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Noah Pham <ptknguyen04@gmail.com>"
+    }
+  }
+}
