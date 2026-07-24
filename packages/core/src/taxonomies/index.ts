@@ -270,7 +270,7 @@ function getTermList(def: TaxonomyDef, locale: string | undefined): Promise<Taxo
 	return requestCached(`taxonomy-terms:${def.name}:${localeKey}`, () =>
 		cachedQuery({
 			namespace: CacheNamespace.TAXONOMIES,
-			key: `terms:${def.name}:${localeKey}`,
+			key: `termList:${def.name}:${localeKey}`,
 			load: () => loadTaxonomyTerms(def, locale),
 		}),
 	);
