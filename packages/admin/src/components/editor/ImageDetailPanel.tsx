@@ -29,6 +29,8 @@ export interface ImageAttributes {
 	title?: string;
 	caption?: string;
 	mediaId?: string;
+	/** Local storage key retained for legacy media reference resolution. */
+	storageKey?: string;
 	/** Original image width */
 	width?: number;
 	/** Original image height */
@@ -117,6 +119,7 @@ export function ImageDetailPanel({
 			src: item.url,
 			alt: item.alt || item.filename,
 			mediaId: item.id,
+			storageKey: item.storageKey,
 			width: item.width,
 			height: item.height,
 			blurhash: item.blurhash,

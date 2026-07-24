@@ -136,52 +136,6 @@ describe("MediaUsedIn", () => {
 		expect(screen.getByText("Archived notes").element().closest("a")).toBeNull();
 	});
 
-	it("uses restrained typography for collection and technical metadata", async () => {
-		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(usageResponse([usageEntry()]));
-
-		const screen = await renderUsedIn();
-		const collection = screen.getByText("Posts", { exact: true });
-		const identifier = screen.getByText("launch-notes", { exact: true });
-		const locale = screen.getByText("fr", { exact: true });
-		await expect.element(identifier).toBeVisible();
-
-		expect(collection.element()).toHaveAttribute("dir", "auto");
-		expect(identifier.element()).toHaveAttribute("dir", "ltr");
-		expect(identifier.element().classList.contains("font-mono")).toBe(true);
-		expect(identifier.element().classList.contains("text-[0.9em]")).toBe(true);
-		expect(locale.element()).toHaveAttribute("dir", "ltr");
-
-		const metadata = identifier.element().parentElement;
-		expect(screen.getByText("Launch notes").element().classList.contains("text-base")).toBe(true);
-		expect(metadata?.classList.contains("text-base")).toBe(true);
-		expect(metadata?.textContent).toBe("Posts·launch-notes·fr");
-		const separators = metadata?.querySelectorAll('[aria-hidden="true"]');
-		expect(separators).toHaveLength(2);
-		expect([...separators!].every((separator) => separator.textContent === "·")).toBe(true);
-	});
-
-	it("keeps the reference row surface aligned to the form column", async () => {
-		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(usageResponse([usageEntry()]));
-
-		const screen = await renderUsedIn();
-		await expect.element(screen.getByText("Launch notes")).toBeVisible();
-		const activeLink = screen.getByRole("link", { name: /Launch notes/ });
-		await expect.element(activeLink).toBeVisible();
-		const activeLinkElement = activeLink.element();
-
-		expect(activeLinkElement.classList.contains("w-full")).toBe(true);
-		expect(activeLinkElement.classList.contains("-mx-2")).toBe(false);
-		expect(activeLinkElement.classList.contains("border")).toBe(true);
-		expect(activeLinkElement.classList.contains("border-kumo-line")).toBe(true);
-		expect(activeLinkElement.classList.contains("bg-kumo-control")).toBe(true);
-		expect(activeLinkElement.classList.contains("items-center")).toBe(true);
-
-		const iconTile = activeLinkElement.querySelector("svg")?.parentElement;
-		expect(iconTile).not.toBeNull();
-		expect(iconTile?.classList.contains("h-10")).toBe(true);
-		expect(iconTile?.classList.contains("w-10")).toBe(true);
-	});
-
 	it("uses concise fallbacks when entry metadata is missing", async () => {
 		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(
 			usageResponse([

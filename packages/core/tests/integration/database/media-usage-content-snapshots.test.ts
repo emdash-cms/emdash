@@ -122,7 +122,7 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		expect(result).toEqual({ success: false, error: "CONTENT_NOT_FOUND" });
 	});
 
-	it("canonicalizes legacy local media IDs from their storage key", async () => {
+	it("canonicalizes legacy Portable Text media IDs from their storage key", async () => {
 		const actualMediaId = ulid();
 		const storageKey = `${ulid()}.jpg`;
 		await ctx.db
@@ -150,11 +150,15 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 			status: "published",
 			data: {
 				title: "Legacy media",
-				hero: {
-					provider: "local",
-					id: storageKey.slice(0, -4),
-					meta: { storageKey },
-				},
+				body: [
+					{
+						_type: "image",
+						asset: {
+							_ref: storageKey.slice(0, -4),
+							meta: { storageKey },
+						},
+					},
+				],
 			},
 		});
 
@@ -164,6 +168,7 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		if (!result.success) throw new Error(result.error);
 		expect(getSnapshot(result, "columns").occurrences).toEqual([
 			expect.objectContaining({
+				fieldPath: "body[0].asset._ref",
 				mediaId: actualMediaId,
 				providerAssetId: actualMediaId,
 			}),

@@ -122,6 +122,7 @@ function extractPortableTextOccurrences(
 				provider,
 				mimeType: normalizeMimeValue(block.asset.mimeType),
 				fallbackKind: "image",
+				storageKey: provider === "local" ? readStorageKey(block.asset.meta) : null,
 			}),
 		});
 	}

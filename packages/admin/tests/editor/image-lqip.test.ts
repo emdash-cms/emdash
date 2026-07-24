@@ -17,7 +17,9 @@ import {
 type ImagePMNode = { type: string; attrs?: Record<string, unknown> };
 type ImagePTBlock = {
 	_type: string;
-	asset?: { meta?: { blurhash?: string; dominantColor?: string } };
+	asset?: {
+		meta?: { blurhash?: string; dominantColor?: string; storageKey?: string };
+	};
 	blurhash?: string;
 	dominantColor?: string;
 };
@@ -77,5 +79,23 @@ describe("admin editor image LQIP round-trip", () => {
 		expect(restored.blurhash).toBe("L6PZfSi_.AyE_3t7t7R**0o#DgR4");
 		expect(restored.dominantColor).toBe("#112233");
 		expect(restored.asset?.meta?.blurhash).toBeUndefined();
+	});
+
+	it("preserves a legacy local storage key through PT → PM → PT", () => {
+		const block = {
+			_type: "image" as const,
+			_key: "img2",
+			asset: {
+				_ref: "legacy-local-id",
+				meta: { storageKey: "01ABC.jpg" },
+			},
+		};
+
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- test fixture
+		const pm = portableTextToProsemirror([block as never]);
+		const pt = prosemirrorToPortableText({ type: "doc", content: pm.content });
+		const restored = pt[0] as ImagePTBlock;
+
+		expect(restored.asset?.meta?.storageKey).toBe("01ABC.jpg");
 	});
 });

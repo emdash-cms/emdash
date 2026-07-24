@@ -23,7 +23,7 @@ import { useStableCallback } from "../lib/hooks";
 import { getFileIcon, formatFileSize } from "../lib/media-utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DialogError, getMutationError } from "./DialogError.js";
-import { MediaUsedIn } from "./MediaUsedIn";
+import { MediaUsedIn } from "./MediaUsedIn.js";
 
 const CLOSE_FALLBACK_MS = 500;
 
