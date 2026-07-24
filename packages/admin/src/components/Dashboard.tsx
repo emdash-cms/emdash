@@ -45,9 +45,9 @@ export function Dashboard({ manifest }: DashboardProps) {
 	const showDashboardData = !isError || hasDashboardData;
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 antialiased">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-3xl font-bold">{t`Dashboard`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight tracking-tight">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />
 			</div>
 
@@ -125,7 +125,7 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 						<LayerCard.Secondary>
 							<SkeletonLine minWidth={45} maxWidth={70} />
 						</LayerCard.Secondary>
-						<LayerCard.Primary className="text-2xl font-semibold">
+						<LayerCard.Primary className="text-3xl font-semibold leading-none tracking-tight">
 							<SkeletonLine minWidth={20} maxWidth={35} />
 						</LayerCard.Primary>
 					</LayerCard>
@@ -181,7 +181,7 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 						<metric.icon className="h-4 w-4" aria-hidden="true" />
 						<span>{metric.label}</span>
 					</LayerCard.Secondary>
-					<LayerCard.Primary className="text-2xl font-semibold tabular-nums">
+					<LayerCard.Primary className="text-3xl font-semibold leading-none tracking-tight tabular-nums">
 						{metric.value}
 					</LayerCard.Primary>
 				</LayerCard>
@@ -223,7 +223,9 @@ function CollectionList({
 				{loading ? (
 					<SkeletonRows count={3} />
 				) : collections.length === 0 ? (
-					<p className="px-3 text-sm text-kumo-subtle">{t`No collections configured`}</p>
+					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
+						{t`No collections configured`}
+					</p>
 				) : (
 					<div className="space-y-1">
 						{collections.map((col) => {
@@ -236,7 +238,9 @@ function CollectionList({
 									search={{ locale: undefined }}
 									className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
 								>
-									<span className="font-medium">{config?.label ?? col.label}</span>
+									<span className="text-sm font-medium leading-5">
+										{config?.label ?? col.label}
+									</span>
 									<span className="flex shrink-0 items-center gap-2">
 										<CountBadge
 											icon={CheckCircle}
@@ -278,7 +282,7 @@ function CountBadge({
 }) {
 	if (count === 0) return null;
 	return (
-		<Badge variant={variant} className="gap-1">
+		<Badge variant={variant} className="gap-1 tabular-nums">
 			<Icon className="h-3 w-3" aria-hidden="true" />
 			<span className="sr-only">{label}</span>
 			{count}
@@ -301,7 +305,9 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 				{loading ? (
 					<SkeletonRows count={5} />
 				) : items.length === 0 ? (
-					<p className="px-3 text-sm text-kumo-subtle">{t`No recent activity`}</p>
+					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
+						{t`No recent activity`}
+					</p>
 				) : (
 					<div className="space-y-1">
 						{items.map((item) => (
@@ -313,14 +319,17 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 							>
 								<div className="flex min-w-0 items-center gap-2">
 									<StatusDot status={item.status} />
-									<span className="truncate font-medium">
+									<span className="truncate text-sm font-medium leading-5">
 										{item.title || item.slug || t`Untitled`}
 									</span>
-									<span className="hidden shrink-0 text-xs text-kumo-subtle sm:inline">
+									<span className="hidden shrink-0 text-xs font-normal leading-5 text-kumo-subtle sm:inline">
 										{item.collectionLabel}
 									</span>
 								</div>
-								<span data-testid="activity-time" className="shrink-0 text-xs text-kumo-subtle">
+								<span
+									data-testid="activity-time"
+									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
+								>
 									{formatRelativeTime(item.updatedAt)}
 								</span>
 							</Link>
