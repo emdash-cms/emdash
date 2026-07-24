@@ -428,6 +428,15 @@ describe("ContentEditor", () => {
 			const slugInput = screen.getByLabelText("Slug");
 			await expect.element(slugInput).toBeEnabled();
 		});
+
+		it("normalizes a manually-typed slug to kebab-case on blur (#1567)", async () => {
+			const screen = await renderEditor({ isNew: true });
+			const slugInput = screen.getByLabelText("Slug");
+			await slugInput.fill("My Custom Post!");
+			// Blur by moving focus elsewhere, same as a real user tabbing away.
+			await screen.getByLabelText("Title").click();
+			await expect.element(slugInput).toHaveValue("my-custom-post");
+		});
 	});
 
 	describe("field rendering", () => {
