@@ -186,7 +186,7 @@ function UsageEntry({
 			<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-kumo-tint text-kumo-subtle">
 				<CollectionIcon className="h-4 w-4" aria-hidden="true" />
 			</span>
-			<span className="min-w-0 flex-1 space-y-1">
+			<span className="min-w-0 flex-1 space-y-0.5">
 				<span className="flex min-w-0 items-center gap-2">
 					<span className="truncate text-base font-medium text-kumo-default" dir="auto">
 						{title}

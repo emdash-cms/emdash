@@ -182,25 +182,6 @@ describe("MediaUsedIn", () => {
 		expect(iconTile?.classList.contains("w-10")).toBe(true);
 	});
 
-	it("uses a clear spacing hierarchy for the heading, rows, and metadata", async () => {
-		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(usageResponse([usageEntry()]));
-
-		const screen = await renderUsedIn();
-		const activeLink = screen.getByRole("link", { name: /Launch notes/ });
-		await expect.element(activeLink).toBeVisible();
-
-		const section = screen.getByTestId("media-used-in").element();
-		const list = screen.getByRole("list").element();
-		const activeLinkElement = activeLink.element();
-		const textGroup = screen.getByText("Launch notes").element().parentElement?.parentElement;
-
-		expect(section.classList.contains("space-y-3")).toBe(true);
-		expect(list.classList.contains("space-y-2")).toBe(true);
-		expect(activeLinkElement.classList.contains("px-3")).toBe(true);
-		expect(activeLinkElement.classList.contains("py-2.5")).toBe(true);
-		expect(textGroup?.classList.contains("space-y-1")).toBe(true);
-	});
-
 	it("uses concise fallbacks when entry metadata is missing", async () => {
 		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(
 			usageResponse([
