@@ -175,6 +175,79 @@ export async function columnExists(
 	return result.rows.length > 0;
 }
 
+/** A table's columns, in declaration order, as reported by the dialect. */
+export interface TableColumnInfo {
+	name: string;
+	/** SQLite storage class — `TEXT`, `INTEGER`, `REAL`, `BLOB`, or `JSON`. */
+	type: string;
+}
+
+/**
+ * Map a Postgres `information_schema.columns.data_type` onto the SQLite storage
+ * class that best represents it.
+ *
+ * Snapshots are consumed by SQLite targets (the Durable Object preview
+ * database recreates every table with these types), so the type strings a
+ * snapshot carries are SQLite's, not the source dialect's. The consumer
+ * allowlists `TEXT`/`INTEGER`/`REAL`/`BLOB`/`JSON` and falls back to `TEXT`,
+ * so an unmapped type is safe — just lossy. Booleans map to `INTEGER` to match
+ * how EmDash stores them on SQLite.
+ */
+function postgresTypeToSqliteStorageClass(dataType: string): string {
+	switch (dataType) {
+		case "smallint":
+		case "integer":
+		case "bigint":
+		case "boolean":
+			return "INTEGER";
+		case "real":
+		case "double precision":
+		case "numeric":
+			return "REAL";
+		case "bytea":
+			return "BLOB";
+		case "json":
+		case "jsonb":
+			return "JSON";
+		default:
+			return "TEXT";
+	}
+}
+
+/**
+ * List a table's columns in declaration order.
+ *
+ * sqlite:   PRAGMA table_info("table")
+ * postgres: information_schema.columns, ordered by ordinal_position
+ *
+ * Returns an empty array for a table that does not exist, on both dialects.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export async function listTableColumns(
+	db: Kysely<any>,
+	tableName: string,
+): Promise<TableColumnInfo[]> {
+	if (isPostgres(db)) {
+		// Scoped to the connection's active schema for the same reason as
+		// listTablesLike — per-tenant and per-test schemas must not read the
+		// wrong table's columns.
+		const result = await sql<{ column_name: string; data_type: string }>`
+			SELECT column_name, data_type FROM information_schema.columns
+			WHERE table_schema = current_schema() AND table_name = ${tableName}
+			ORDER BY ordinal_position
+		`.execute(db);
+		return result.rows.map((r) => ({
+			name: r.column_name,
+			type: postgresTypeToSqliteStorageClass(r.data_type),
+		}));
+	}
+
+	const result = await sql<{ name: string; type: string }>`
+		SELECT name, type FROM pragma_table_info(${tableName})
+	`.execute(db);
+	return result.rows.map((r) => ({ name: r.name, type: r.type || "TEXT" }));
+}
+
 /**
  * List tables matching a LIKE pattern.
  */
