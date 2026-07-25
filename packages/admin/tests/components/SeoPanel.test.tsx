@@ -294,4 +294,41 @@ describe("SeoPanel", () => {
 		expect(onChange).toHaveBeenCalledTimes(1);
 		expect(onChange.mock.lastCall?.[0]).toEqual(expectedSeo);
 	});
+	it("shows the derived title and description as placeholders", async () => {
+		// `getSeoMeta` falls back to the entry's own title/excerpt when this panel is
+		// empty. Surfacing those as placeholders is what stops an editor retyping the
+		// page title into the SEO title, or reading empty fields as "no SEO set".
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+					defaultTitle="About us"
+					defaultDescription="Who we are and what we do."
+				/>
+			</QueryWrapper>,
+		);
+
+		await expect
+			.element(screen.getByLabelText("SEO Title"))
+			.toHaveAttribute("placeholder", "About us");
+		await expect
+			.element(screen.getByLabelText("Meta Description"))
+			.toHaveAttribute("placeholder", "Who we are and what we do.");
+	});
+
+	it("omits placeholders when there is nothing to derive from", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+
+		await expect.element(screen.getByLabelText("SEO Title")).not.toHaveAttribute("placeholder");
+	});
 });
