@@ -38,6 +38,23 @@ export default defineConfig({
 
 When `i18n` is not present in the Astro config, all i18n features are disabled and EmDash behaves as a single-language CMS.
 
+<Aside type="caution" title="Do not prefix the default locale">
+Any Astro routing strategy that prefixes the default locale breaks the EmDash admin — that includes `routing: { prefixDefaultLocale: true }` and `routing: "prefix-always"`. With either enabled, every page route — including routes injected by integrations — requires a locale prefix, so `/_emdash/admin` and all its sub-paths (`/setup`, `/login`, `/content`, …) return **404**. The locale-prefixed variant (`/es/_emdash/admin/...`) does not work either, because the admin's client-side router expects to live at `/_emdash/admin`. API routes under `/_emdash/api/*` are unaffected — only injected page routes with spread parameters break. This is an upstream Astro limitation in how i18n routing interacts with `injectRoute` (see [#369](https://github.com/emdash-cms/emdash/issues/369)).
+
+Use Astro's default routing strategy (`prefix-other-locales`) instead, which serves the default locale unprefixed and works with the admin:
+
+```js title="astro.config.mjs"
+i18n: {
+	defaultLocale: "en",
+	locales: ["en", "fr", "es"],
+	fallback: { fr: "en", es: "en" },
+	// no `routing` block — the default (prefix-other-locales) is compatible
+},
+```
+
+If you need the default locale prefixed for public pages, handle it with a redirect or rewrite in front of the site (e.g. `/` → `/en/` at the edge) rather than `prefixDefaultLocale`.
+</Aside>
+
 ## How Translations Work
 
 EmDash uses a **row-per-locale** model. Each translation is its own row in the database with its own ID, slug, and status, linked to other translations via a shared `translation_group` identifier. A posts table with three translations looks like this:

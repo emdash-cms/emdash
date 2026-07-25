@@ -20,8 +20,10 @@ import * as React from "react";
 import {
 	fetchMarketplacePlugin,
 	installMarketplacePlugin,
+	PluginMcpConsentRequiredError,
 	uninstallMarketplacePlugin,
 	describeCapability,
+	type PluginMcpConsentTool,
 } from "../lib/api/marketplace.js";
 import { renderMarkdown } from "../lib/markdown.js";
 import { isSafeUrl, safeIconUrl } from "../lib/url.js";
@@ -44,6 +46,7 @@ export function MarketplacePluginDetail({
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const [showConsent, setShowConsent] = React.useState(false);
+	const [mcpConsentTools, setMcpConsentTools] = React.useState<PluginMcpConsentTool[]>([]);
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
 	const [lightboxIndex, setLightboxIndex] = React.useState<number | null>(null);
 
@@ -60,12 +63,20 @@ export function MarketplacePluginDetail({
 		mutationFn: () =>
 			installMarketplacePlugin(pluginId, {
 				version: plugin?.latestVersion?.version,
+				confirmMcpTools: mcpConsentTools.length > 0,
 			}),
 		onSuccess: () => {
 			setShowConsent(false);
+			setMcpConsentTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			void queryClient.invalidateQueries({ queryKey: ["marketplace"] });
+		},
+		onError: (mutationError) => {
+			if (mutationError instanceof PluginMcpConsentRequiredError) {
+				setMcpConsentTools(mutationError.tools);
+				setShowConsent(true);
+			}
 		},
 	});
 
@@ -337,12 +348,14 @@ export function MarketplacePluginDetail({
 					mode="install"
 					pluginName={plugin.name}
 					capabilities={plugin.capabilities}
+					mcpTools={mcpConsentTools}
 					auditVerdict={latest?.audit?.verdict}
 					isPending={installMutation.isPending}
 					error={getMutationError(installMutation.error)}
 					onConfirm={() => installMutation.mutate()}
 					onCancel={() => {
 						setShowConsent(false);
+						setMcpConsentTools([]);
 						installMutation.reset();
 					}}
 				/>

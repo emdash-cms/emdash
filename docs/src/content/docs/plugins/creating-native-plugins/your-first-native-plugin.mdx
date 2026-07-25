@@ -217,6 +217,8 @@ admin: {
 
 Field types: `string`, `number`, `boolean`, `select`, `secret`, `url`, `email`. Each accepts `label`, `description`, `default`, plus type-specific extras like `min`/`max`/`options`. Settings are persisted to the same per-plugin KV store sandboxed plugins use — read them with `ctx.kv.get<T>("settings:<key>")` from anywhere.
 
+The generated form appears behind the gear icon on the plugin's card in **Plugins** (admins only — editing plugin settings requires the `plugins:manage` permission). Secret fields are write-only: the admin never sees the stored value, only whether one is set.
+
 For richer settings UI than `settingsSchema` provides, ship custom React pages — see [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/).
 
 ## Complete example — audit log plugin

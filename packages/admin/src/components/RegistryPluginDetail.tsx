@@ -27,6 +27,10 @@ import * as React from "react";
 
 import { fetchManifest } from "../lib/api/client.js";
 import {
+	PluginMcpConsentRequiredError,
+	type PluginMcpConsentTool,
+} from "../lib/api/marketplace.js";
+import {
 	artifactProxyUrl,
 	canonicalCapabilitiesForDriftCheck,
 	extractMediaArtifacts,
@@ -60,6 +64,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const [showConsent, setShowConsent] = React.useState(false);
+	const [mcpConsentTools, setMcpConsentTools] = React.useState<PluginMcpConsentTool[]>([]);
 
 	// Plugins list — used to compute whether this package is already
 	// installed. Same query key as elsewhere so the install mutation's
@@ -358,13 +363,21 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				// permissions past an empty consent dialog -- the
 				// server will refuse with `DECLARED_ACCESS_REQUIRED`.
 				acknowledgedDeclaredAccess: capabilities,
+				acknowledgedMcpTools: mcpConsentTools,
 			});
 		},
 		onSuccess: () => {
 			setShowConsent(false);
+			setMcpConsentTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			void queryClient.invalidateQueries({ queryKey: ["registry"] });
+		},
+		onError: (error) => {
+			if (error instanceof PluginMcpConsentRequiredError) {
+				setMcpConsentTools(error.tools);
+				setShowConsent(true);
+			}
 		},
 	});
 
@@ -773,11 +786,13 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					mode="install"
 					pluginName={displayName ?? slug}
 					capabilities={capabilities}
+					mcpTools={mcpConsentTools}
 					isPending={installMutation.isPending}
 					error={getMutationError(installMutation.error)}
 					onConfirm={() => installMutation.mutate()}
 					onCancel={() => {
 						setShowConsent(false);
+						setMcpConsentTools([]);
 						installMutation.reset();
 					}}
 				/>

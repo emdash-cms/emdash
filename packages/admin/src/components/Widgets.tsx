@@ -58,6 +58,8 @@ import { getPluginBlocks } from "../lib/pluginBlocks";
 import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import {
 	PortableTextEditor,
@@ -104,6 +106,66 @@ const BUILTIN_WIDGETS: Array<{
 		input: { type: "menu" },
 	},
 ];
+
+/**
+ * Localized labels/descriptions for built-in core widget components. The server
+ * (packages/core/src/widgets/components.ts) ships these in English as stable
+ * data; the admin maps them to translated strings client-side, the same way
+ * error codes are localized. Plugin-provided components fall back to their
+ * server-provided strings.
+ */
+interface CoreWidgetMeta {
+	label: MessageDescriptor;
+	description: MessageDescriptor;
+	/** Prop-field labels keyed by prop key; `options` localizes select choices by option value. */
+	props?: Record<string, { label: MessageDescriptor; options?: Record<string, MessageDescriptor> }>;
+}
+
+const CORE_WIDGET_META: Record<string, CoreWidgetMeta> = {
+	"core:recent-posts": {
+		label: msg`Recent Posts`,
+		description: msg`Display a list of recent posts`,
+		props: {
+			count: { label: msg`Number of posts` },
+			showThumbnails: { label: msg`Show thumbnails` },
+			showDate: { label: msg`Show date` },
+		},
+	},
+	"core:categories": {
+		label: msg`Categories`,
+		description: msg`Display category list`,
+		props: {
+			showCount: { label: msg`Show post count` },
+			hierarchical: { label: msg`Show hierarchy` },
+		},
+	},
+	"core:tags": {
+		label: msg`Tags`,
+		description: msg`Display tag cloud`,
+		props: {
+			showCount: { label: msg`Show count` },
+			limit: { label: msg`Maximum tags` },
+		},
+	},
+	"core:search": {
+		label: msg`Search`,
+		description: msg`Search form`,
+		props: {
+			placeholder: { label: msg`Placeholder text` },
+		},
+	},
+	"core:archives": {
+		label: msg`Archives`,
+		description: msg`Monthly/yearly archives`,
+		props: {
+			type: {
+				label: msg`Group by`,
+				options: { monthly: msg`Monthly`, yearly: msg`Yearly` },
+			},
+			limit: { label: msg`Limit` },
+		},
+	},
+};
 
 export function Widgets() {
 	const { t } = useLingui();
@@ -313,172 +375,190 @@ export function Widgets() {
 	}
 
 	return (
-		<DndContext
-			sensors={sensors}
-			collisionDetection={collisionDetection}
-			onDragStart={handleDragStart}
-			onDragEnd={handleDragEnd}
-		>
-			<div className="space-y-6">
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-3xl font-bold">{t`Widgets`}</h1>
-						<p className="text-kumo-subtle">{t`Manage content widgets in your widget areas`}</p>
-					</div>
-					<Dialog.Root
-						open={isCreateAreaOpen}
-						onOpenChange={(open) => {
-							setIsCreateAreaOpen(open);
-							if (!open) setCreateAreaError(null);
-						}}
-					>
-						<Dialog.Trigger
-							render={(props) => (
-								<Button {...props} icon={<Plus />}>
-									{t`Add Widget Area`}
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="lg">
-							<div className="flex items-start justify-between gap-4 mb-4">
-								<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-									{t`Create Widget Area`}
-								</Dialog.Title>
-								<Dialog.Close
-									aria-label={t`Close`}
-									render={(props) => (
-										<Button
-											{...props}
-											variant="ghost"
-											shape="square"
-											aria-label={t`Close`}
-											className="absolute end-4 top-4"
-										>
-											<X className="h-4 w-4" />
-											<span className="sr-only">{t`Close`}</span>
-										</Button>
-									)}
-								/>
-							</div>
-							<form onSubmit={handleCreateArea} className="space-y-4">
-								<Input
-									label={t`Name`}
-									name="name"
-									required
-									placeholder="sidebar"
-									pattern="[a-z0-9\-]+"
-								/>
-								<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
-								<Input
-									label={t`Description`}
-									name="description"
-									placeholder={t`Appears on posts and pages`}
-								/>
-								<DialogError
-									message={createAreaError || getMutationError(createAreaMutation.error)}
-								/>
-								<div className="flex justify-end gap-2">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setIsCreateAreaOpen(false)}
-									>
-										{t`Cancel`}
+		<>
+			<DndContext
+				sensors={sensors}
+				collisionDetection={collisionDetection}
+				onDragStart={handleDragStart}
+				onDragEnd={handleDragEnd}
+			>
+				<div className="space-y-6">
+					<div className="flex items-center justify-between">
+						<div>
+							<h1 className="text-3xl font-bold">{t`Widgets`}</h1>
+							<p className="text-kumo-subtle">{t`Manage content widgets in your widget areas`}</p>
+						</div>
+						<Dialog.Root
+							open={isCreateAreaOpen}
+							onOpenChange={(open) => {
+								setIsCreateAreaOpen(open);
+								if (!open) setCreateAreaError(null);
+							}}
+						>
+							<Dialog.Trigger
+								render={(props) => (
+									<Button {...props} icon={<Plus />}>
+										{t`Add Widget Area`}
 									</Button>
-									<Button type="submit" disabled={createAreaMutation.isPending}>
-										{t`Create`}
-									</Button>
+								)}
+							/>
+							<Dialog className="p-6" size="lg">
+								<div className="flex items-start justify-between gap-4 mb-4">
+									<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
+										{t`Create Widget Area`}
+									</Dialog.Title>
+									<Dialog.Close
+										aria-label={t`Close`}
+										render={(props) => (
+											<Button
+												{...props}
+												variant="ghost"
+												shape="square"
+												aria-label={t`Close`}
+												className="absolute end-4 top-4"
+											>
+												<X className="h-4 w-4" />
+												<span className="sr-only">{t`Close`}</span>
+											</Button>
+										)}
+									/>
 								</div>
-							</form>
-						</Dialog>
-					</Dialog.Root>
-				</div>
+								<form onSubmit={handleCreateArea} className="space-y-4">
+									<Input
+										label={t`Name`}
+										name="name"
+										required
+										placeholder="sidebar"
+										pattern="[a-z0-9\-]+"
+									/>
+									<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
+									<Input
+										label={t`Description`}
+										name="description"
+										placeholder={t`Appears on posts and pages`}
+									/>
+									<DialogError
+										message={createAreaError || getMutationError(createAreaMutation.error)}
+									/>
+									<div className="flex justify-end gap-2">
+										<Button
+											type="button"
+											variant="outline"
+											onClick={() => setIsCreateAreaOpen(false)}
+										>
+											{t`Cancel`}
+										</Button>
+										<Button type="submit" disabled={createAreaMutation.isPending}>
+											{t`Create`}
+										</Button>
+									</div>
+								</form>
+							</Dialog>
+						</Dialog.Root>
+					</div>
 
-				<div className="grid grid-cols-12 gap-6">
-					{/* Available Widgets (draggable palette) */}
-					<div className="col-span-4">
-						<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
-							<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
-							<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
-							<div className="space-y-2">
-								{BUILTIN_WIDGETS.map((item) => (
-									<DraggablePaletteItem
-										key={item.id}
-										id={item.id}
-										label={t(item.label)}
-										description={t(item.description)}
-										widgetInput={{ ...item.input, title: t(item.label) }}
-									/>
-								))}
-								{components.map((comp) => (
-									<DraggablePaletteItem
-										key={`palette-comp-${comp.id}`}
-										id={`palette-comp-${comp.id}`}
-										label={comp.label}
-										description={comp.description}
-										widgetInput={{
-											type: "component",
-											title: comp.label,
-											componentId: comp.id,
-										}}
-									/>
-								))}
+					<div className="grid grid-cols-12 gap-6">
+						{/* Available Widgets (draggable palette) */}
+						<div className="col-span-4">
+							<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
+								<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
+								<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
+								<div className="space-y-2">
+									{BUILTIN_WIDGETS.map((item) => (
+										<DraggablePaletteItem
+											key={item.id}
+											id={item.id}
+											label={t(item.label)}
+											description={t(item.description)}
+											widgetInput={{ ...item.input, title: t(item.label) }}
+										/>
+									))}
+									{components.map((comp) => {
+										const meta = CORE_WIDGET_META[comp.id];
+										const label = meta ? t(meta.label) : comp.label;
+										const description = meta ? t(meta.description) : comp.description;
+										return (
+											<DraggablePaletteItem
+												key={`palette-comp-${comp.id}`}
+												id={`palette-comp-${comp.id}`}
+												label={label}
+												description={description}
+												widgetInput={{
+													type: "component",
+													title: label,
+													componentId: comp.id,
+												}}
+											/>
+										);
+									})}
+								</div>
 							</div>
 						</div>
-					</div>
 
-					{/* Widget Areas (droppable + sortable) */}
-					<div className="col-span-8 space-y-4">
-						{areas.length === 0 ? (
-							<div className="rounded-lg border bg-kumo-base p-12 text-center">
-								<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
-							</div>
-						) : (
-							areas.map((area) => (
-								<WidgetAreaPanel
-									key={area.id}
-									area={area}
-									expandedWidgets={expandedWidgets}
-									onToggleWidget={toggleWidget}
-									isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
-									components={components}
-									pluginBlocks={pluginBlocks}
-									onBlockSidebarOpen={handleBlockSidebarOpen}
-									onBlockSidebarClose={handleBlockSidebarClose}
-								/>
-							))
-						)}
+						{/* Widget Areas (droppable + sortable) */}
+						<div className="col-span-8 space-y-4">
+							{areas.length === 0 ? (
+								<div className="rounded-lg border bg-kumo-base p-12 text-center">
+									<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
+								</div>
+							) : (
+								areas.map((area) => (
+									<WidgetAreaPanel
+										key={area.id}
+										area={area}
+										expandedWidgets={expandedWidgets}
+										onToggleWidget={toggleWidget}
+										isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
+										components={components}
+										pluginBlocks={pluginBlocks}
+										onBlockSidebarOpen={handleBlockSidebarOpen}
+										onBlockSidebarClose={handleBlockSidebarClose}
+									/>
+								))
+							)}
+						</div>
 					</div>
 				</div>
-			</div>
 
-			{/* Drag overlay — no drop animation for palette items (source stays in place).
+				{/* Drag overlay — no drop animation for palette items (source stays in place).
 			    Use ref because state is cleared in handleDragEnd before animation runs. */}
-			<DragOverlay dropAnimation={draggingFromPaletteRef.current ? null : undefined}>
-				{activePaletteLabel ? (
-					<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
-						<div className="font-medium">{activePaletteLabel}</div>
-					</div>
-				) : activeWidget ? (
-					<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
-						<div className="flex items-center gap-2">
-							<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
-							<span className="font-medium">{activeWidget.title || t`Untitled Widget`}</span>
-							<span className="text-xs text-kumo-subtle">({activeWidget.type})</span>
+				<DragOverlay dropAnimation={draggingFromPaletteRef.current ? null : undefined}>
+					{activePaletteLabel ? (
+						<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
+							<div className="font-medium">{activePaletteLabel}</div>
 						</div>
-					</div>
-				) : null}
-			</DragOverlay>
+					) : activeWidget ? (
+						<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
+							<div className="flex items-center gap-2">
+								<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
+								<span className="font-medium">{activeWidget.title || t`Untitled Widget`}</span>
+								<span className="text-xs text-kumo-subtle">({activeWidget.type})</span>
+							</div>
+						</div>
+					) : null}
+				</DragOverlay>
 
-			{/* A single block-sidebar panel for the whole page — ensures only one is ever
+				{/* A single block-sidebar panel for the whole page — ensures only one is ever
 			    open at a time, preventing stacked fixed overlays and duplicated window listeners. */}
-			{blockSidebarPanel?.type === "image" && (
-				<ImageDetailPanel
-					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+				{blockSidebarPanel?.type === "image" && (
+					<ImageDetailPanel
+						attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+						onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
+						onReplace={(attrs) =>
+							blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+						}
+						onDelete={() => {
+							blockSidebarPanel.onDelete();
+							setBlockSidebarPanel(null);
+						}}
+						onClose={handleBlockSidebarClose}
+					/>
+				)}
+			</DndContext>
+			{blockSidebarPanel?.type === "gallery" && (
+				<GalleryDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
 					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
-					onReplace={(attrs) =>
-						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
-					}
 					onDelete={() => {
 						blockSidebarPanel.onDelete();
 						setBlockSidebarPanel(null);
@@ -486,7 +566,7 @@ export function Widgets() {
 					onClose={handleBlockSidebarClose}
 				/>
 			)}
-		</DndContext>
+		</>
 	);
 }
 
@@ -864,20 +944,29 @@ function WidgetEditor({
 								}
 							}
 						}}
-						items={Object.fromEntries(components.map((c) => [c.id, c.label]))}
+						items={Object.fromEntries(
+							components.map((c) => {
+								const meta = CORE_WIDGET_META[c.id];
+								return [c.id, meta ? t(meta.label) : c.label];
+							}),
+						)}
 					>
 						<Select.Option value="">{t`Select a component...`}</Select.Option>
-						{components.map((c) => (
-							<Select.Option key={c.id} value={c.id}>
-								{c.label}
-							</Select.Option>
-						))}
+						{components.map((c) => {
+							const meta = CORE_WIDGET_META[c.id];
+							return (
+								<Select.Option key={c.id} value={c.id}>
+									{meta ? t(meta.label) : c.label}
+								</Select.Option>
+							);
+						})}
 					</Select>
 
 					{selectedComponent &&
 						Object.entries(selectedComponent.props).map(([key, def]) => (
 							<ComponentPropField
 								key={key}
+								componentId={selectedComponent.id}
 								propKey={key}
 								def={def}
 								value={componentProps[key] ?? def.default ?? ""}
@@ -898,20 +987,32 @@ function WidgetEditor({
 
 /** Renders a single prop field for a component widget based on PropDef type */
 function ComponentPropField({
+	componentId,
+	propKey,
 	def,
 	value,
 	onChange,
 }: {
+	componentId: string;
 	propKey: string;
 	def: WidgetComponent["props"][string];
 	value: unknown;
 	onChange: (value: unknown) => void;
 }) {
+	const { t } = useLingui();
+	// Localize built-in core widget prop labels/options; fall back to the
+	// server-provided string for plugin-registered components.
+	const propMeta = CORE_WIDGET_META[componentId]?.props?.[propKey];
+	const label = propMeta ? t(propMeta.label) : def.label;
+	const optionLabel = (optValue: string, fallback: string) => {
+		const descriptor = propMeta?.options?.[optValue];
+		return descriptor ? t(descriptor) : fallback;
+	};
 	switch (def.type) {
 		case "string":
 			return (
 				<Input
-					label={def.label}
+					label={label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
 				/>
@@ -919,29 +1020,29 @@ function ComponentPropField({
 		case "number":
 			return (
 				<Input
-					label={def.label}
+					label={label}
 					type="number"
 					value={typeof value === "number" ? value : ""}
 					onChange={(e) => onChange(Number(e.target.value))}
 				/>
 			);
 		case "boolean":
-			return <Switch label={def.label} checked={Boolean(value)} onCheckedChange={onChange} />;
+			return <Switch label={label} checked={Boolean(value)} onCheckedChange={onChange} />;
 		case "select": {
 			const items: Record<string, string> = {};
 			for (const opt of def.options ?? []) {
-				items[opt.value] = opt.label;
+				items[opt.value] = optionLabel(opt.value, opt.label);
 			}
 			return (
 				<Select
-					label={def.label}
+					label={label}
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(v ?? "")}
 					items={items}
 				>
 					{def.options?.map((opt) => (
 						<Select.Option key={opt.value} value={opt.value}>
-							{opt.label}
+							{optionLabel(opt.value, opt.label)}
 						</Select.Option>
 					))}
 				</Select>
@@ -950,7 +1051,7 @@ function ComponentPropField({
 		default:
 			return (
 				<Input
-					label={def.label}
+					label={label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
 				/>

@@ -15,9 +15,10 @@ import { useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { useAdminBranding } from "../lib/admin-branding-context";
 import { requestSignup, verifySignupToken, type SignupVerifyResult } from "../lib/api";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
-import { LogoLockup } from "./Logo.js";
+import { BrandLogo } from "./Logo.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
 // ============================================================================
@@ -289,6 +290,7 @@ function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
 // ============================================================================
 
 export function SignupPage() {
+	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
 	const [step, setStep] = React.useState<SignupStep>("email");
 	const [email, setEmail] = React.useState("");
 	const [error, setError] = React.useState<string | undefined>();
@@ -394,7 +396,7 @@ export function SignupPage() {
 			<div className="w-full max-w-md">
 				{/* Header */}
 				<div className="text-center mb-8">
-					<LogoLockup className="h-10 mx-auto mb-2" />
+					<BrandLogo logoUrl={brandLogo} siteName={brandSiteName} className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{step === "email" && t`Create an account`}
 						{step === "check-email" && t`Check your email`}

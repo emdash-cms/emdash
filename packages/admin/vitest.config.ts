@@ -6,7 +6,10 @@ export default defineConfig({
 	plugins: [
 		react({
 			babel: {
-				plugins: ["@lingui/babel-plugin-lingui-macro"],
+				plugins: [
+					// Match the admin package build so production-fallback tests keep source messages.
+					["@lingui/babel-plugin-lingui-macro", { stripMessageField: false }],
+				],
 			},
 		}),
 	],

@@ -195,6 +195,12 @@ export interface Storage {
 	 * Get public URL for a file
 	 */
 	getPublicUrl(key: string): string;
+
+	/**
+	 * Get the origin the browser connects to for direct client uploads.
+	 * Used by the admin CSP when the storage descriptor has no static endpoint.
+	 */
+	getClientUploadOrigin?(): string;
 }
 
 /**

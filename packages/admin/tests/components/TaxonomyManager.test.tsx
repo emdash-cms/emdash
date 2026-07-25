@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { TaxonomyManager } from "../../src/components/TaxonomyManager";
+import { getAvailableParentTerms, TaxonomyManager } from "../../src/components/TaxonomyManager";
 import { render } from "../utils/render.tsx";
 
 const taxonomyResponse = JSON.stringify({
@@ -41,6 +41,55 @@ const termsResponse = JSON.stringify({
 				parentId: null,
 				children: [],
 				count: 3,
+			},
+		],
+	},
+});
+
+const hierarchicalTermsResponse = JSON.stringify({
+	data: {
+		terms: [
+			{
+				id: "design",
+				name: "design",
+				slug: "design",
+				label: "Design",
+				parentId: null,
+				translationGroup: "design-group",
+				children: [
+					{
+						id: "test",
+						name: "test",
+						slug: "test",
+						label: "Test",
+						parentId: "design-group",
+						translationGroup: "test-group",
+						children: [
+							{
+								id: "test-child",
+								name: "test-child",
+								slug: "test-child",
+								label: "Test child",
+								parentId: "test-group",
+								translationGroup: "test-child-group",
+								children: [],
+								count: 0,
+							},
+						],
+						count: 0,
+					},
+				],
+				count: 1,
+			},
+			{
+				id: "development",
+				name: "development",
+				slug: "development",
+				label: "Development",
+				parentId: null,
+				translationGroup: "development-group",
+				children: [],
+				count: 4,
 			},
 		],
 	},
@@ -178,6 +227,32 @@ describe("TaxonomyManager", () => {
 		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
 
 		await expect.element(screen.getByLabelText(PARENT_SELECTOR_REGEX)).toBeInTheDocument();
+	});
+
+	it("lists each nested term once in the parent selector", () => {
+		const terms = JSON.parse(hierarchicalTermsResponse).data.terms;
+		const labels = getAvailableParentTerms(terms).map((term) => term.label);
+
+		expect(labels).toEqual(["Design", "Test", "Test child", "Development"]);
+	});
+
+	it("excludes the edited term and all descendants from parent choices", () => {
+		const terms = JSON.parse(hierarchicalTermsResponse).data.terms;
+		const labels = getAvailableParentTerms(terms, terms[0]).map((term) => term.label);
+
+		expect(labels).toEqual(["Development"]);
+	});
+
+	it("selects the current parent by translation group when editing a nested term", async () => {
+		mockApiFetch(hierarchicalTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		await expect.element(screen.getByText("Test", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Edit Test", exact: true }).click();
+
+		await expect.element(screen.getByLabelText(PARENT_SELECTOR_REGEX)).toHaveTextContent("Design");
 	});
 
 	it("edit button opens dialog", async () => {

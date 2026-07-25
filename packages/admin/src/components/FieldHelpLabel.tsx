@@ -7,15 +7,17 @@ export function FieldHelpLabel({
 	help,
 	helpLabel,
 	htmlFor,
+	labelClassName = "text-sm font-medium text-kumo-default",
 }: {
 	children: ReactNode;
 	help: ReactNode;
 	helpLabel: string;
 	htmlFor?: string;
+	labelClassName?: string;
 }) {
 	return (
 		<div className="flex items-center gap-1.5">
-			<Label htmlFor={htmlFor} className="text-sm font-medium text-kumo-default">
+			<Label htmlFor={htmlFor} className={labelClassName}>
 				{children}
 			</Label>
 			<Tooltip

@@ -9,6 +9,7 @@
  *
  */
 
+import type { Permission } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
@@ -28,7 +29,9 @@ import {
 	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
+	type ManifestMcpTool,
 	type ManifestRouteEntry,
+	type PluginMcpManifestConfig,
 	type PluginCapability,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
@@ -52,7 +55,9 @@ export {
 	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
+	type ManifestMcpTool,
 	type ManifestRouteEntry,
+	type PluginMcpManifestConfig,
 	type PluginCapability,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
@@ -213,6 +218,8 @@ export interface ContentItem {
 	createdAt: string;
 	updatedAt: string;
 	publishedAt: string | null;
+	/** Scheduled publication time, if set (e.g. scheduled items or scheduled draft changes). */
+	scheduledAt?: string | null;
 }
 
 export interface ContentListWhere {
@@ -417,6 +424,14 @@ export interface SiteInfo {
 	url: string;
 	/** Site locale (from settings, defaults to "en") */
 	locale: string;
+	/**
+	 * Astro's `trailingSlash` routing policy, from the host's Astro config.
+	 * Plugins that build absolute URLs (sitemap, canonical, hreflang) should
+	 * honor this so the URLs they emit match what the site serves. `createSiteInfo`
+	 * always populates it (defaulting to `"ignore"`, Astro's default); it is
+	 * optional on the type so pre-existing `SiteInfo` construction stays valid.
+	 */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -1173,8 +1188,29 @@ export interface PluginRoute<TInput = unknown> {
 	 * Public routes skip session/token auth and CSRF checks.
 	 */
 	public?: boolean;
+	/** RBAC permission required to invoke the route. Legacy routes default to plugins:manage. */
+	permission?: Permission;
+	/**
+	 * `Cache-Control` header value for successful GET responses, e.g.
+	 * `"public, max-age=60, stale-while-revalidate=300"`. Only honored on
+	 * routes that are also `public: true` — authenticated responses always
+	 * keep the default `private, no-store`. Errors are never cached.
+	 */
+	cacheControl?: string;
 	/** Route handler */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
+}
+
+export interface PluginMcpToolDefinition {
+	description: string;
+	route: string;
+	input: z.ZodType;
+	output?: z.ZodType;
+	destructive?: boolean;
+}
+
+export interface PluginMcpConfig {
+	tools: Record<string, PluginMcpToolDefinition>;
 }
 
 // =============================================================================
@@ -1358,6 +1394,9 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 	/** API routes */
 	routes?: Record<string, PluginRoute>;
 
+	/** Routes explicitly exposed as agent-callable MCP tools. */
+	mcp?: PluginMcpConfig;
+
 	/** Admin UI configuration */
 	admin?: PluginAdminConfig;
 }
@@ -1373,6 +1412,7 @@ export interface ResolvedPlugin<TStorage extends PluginStorageConfig = PluginSto
 	storage: TStorage;
 	hooks: ResolvedPluginHooks;
 	routes: Record<string, PluginRoute>;
+	mcp?: PluginMcpConfig;
 	admin: PluginAdminConfig;
 }
 
@@ -1453,6 +1493,7 @@ export interface PluginManifest {
 	hooks: Array<ManifestHookEntry | HookName>;
 	/** Route declarations — either plain name strings or structured objects */
 	routes: Array<ManifestRouteEntry | string>;
+	mcp?: PluginMcpManifestConfig;
 	admin: PluginAdminConfig;
 }
 

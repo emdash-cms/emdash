@@ -19,24 +19,25 @@ Run commands with `npx emdash` or add scripts to `package.json`. The binary is a
 
 ## Authentication
 
-Commands that talk to a running EmDash instance resolve authentication in this order:
+Commands using the shared remote client resolve authentication in this order:
 
 1. **`--token` flag** — explicit token on the command line
 2. **`EMDASH_TOKEN` env var**
 3. **Stored credentials** from `~/.config/emdash/auth.json` (saved by `emdash login`)
 4. **Dev bypass** — if the URL is localhost and no token is available, automatically authenticates via the dev bypass endpoint
 
-Most commands accept `--url` (default `http://localhost:4321`) and `--token` flags. When targeting a local dev server, no token is needed.
+These commands accept `--url` (from `EMDASH_URL`, falling back to `http://localhost:4321`) and `--token` flags. Authentication commands have their own connection options. When targeting a local dev server, no token is needed.
 
 ## Common Flags
 
-These flags are available on all remote commands:
+These flags are available on commands using the shared remote client:
 
-| Flag      | Alias | Description                 | Default                  |
-| --------- | ----- | --------------------------- | ------------------------ |
-| `--url`   | `-u`  | EmDash instance URL       | `http://localhost:4321`  |
-| `--token` | `-t`  | Auth token                  | From env/stored creds    |
-| `--json`  |       | Output as JSON (for piping) | Auto-detected from TTY   |
+| Flag                    | Alias | Description                            | Default                          |
+| ----------------------- | ----- | -------------------------------------- | -------------------------------- |
+| `--url`                 | `-u`  | EmDash instance URL                    | `EMDASH_URL` or `http://localhost:4321` |
+| `--token`               | `-t`  | Auth token                             | From env/stored creds            |
+| `--header "Name: Value"` | `-H`  | Custom request header; may be repeated | From `EMDASH_HEADERS`/stored creds |
+| `--json`                |       | Output as JSON (for piping)            | Auto-detected from TTY           |
 
 ## Output
 
@@ -388,6 +389,27 @@ npx emdash media get 01MEDIA123
 npx emdash media delete 01MEDIA123
 ```
 
+#### `media repair-usage`
+
+Repair content media usage indexes for one collection or for every content collection. Use this after imports or direct database writes when usage coverage is stale or untrusted.
+
+```bash
+npx emdash media repair-usage --collection posts
+npx emdash media repair-usage --all
+npx emdash media repair-usage --all --json
+```
+
+| Option         | Alias | Description                    |
+| -------------- | ----- | ------------------------------ |
+| `--collection` | `-c`  | Repair one content collection  |
+| `--all`        |       | Repair every content collection |
+
+Pass exactly one of `--collection` or `--all`. Remote repair requires an Admin user and an auth token with the `admin` scope.
+
+All-content repair runs synchronously and can be slow or expensive on large sites. Prefer `--collection` when you only need to repair one collection.
+
+Structured `complete`, `partial`, and `stale` repair results exit `0`; structured `failed` results exit `1`. Automation and cron jobs should use `--json` and parse `status`, `failedSourceCount`, `skippedSourceCount`, and per-collection summaries instead of treating exit `0` as complete coverage.
+
 ### `emdash search`
 
 Full-text search across content.
@@ -557,7 +579,8 @@ The command also writes a raw schema export for tooling:
 | ------------------------- | ---------------------------------------- |
 | `EMDASH_DATABASE_URL`     | Database URL (set automatically by `dev`) |
 | `EMDASH_TOKEN`            | Auth token for remote operations          |
-| `EMDASH_URL`              | Default remote URL for `types` and `dev --types` |
+| `EMDASH_URL`              | Default URL for commands using the shared remote client |
+| `EMDASH_HEADERS`          | Newline-separated custom request headers for the shared remote client and `login` |
 | `EMDASH_ENCRYPTION_KEY`   | Key for encrypting plugin secrets at rest. Operator-provided — never stored in the database. Generate with `emdash secrets generate`. |
 | `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, EmDash generates and persists one in the options table. |
 | `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, EmDash generates and persists one in the options table. |

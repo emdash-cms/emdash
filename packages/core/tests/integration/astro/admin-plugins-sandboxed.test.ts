@@ -70,6 +70,7 @@ function facade(runtime: EmDashRuntime) {
 		sandboxedPluginEntries: runtime.sandboxedPluginEntries,
 		config: runtime.config,
 		setPluginStatus: runtime.setPluginStatus.bind(runtime),
+		getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
 	};
 }
 

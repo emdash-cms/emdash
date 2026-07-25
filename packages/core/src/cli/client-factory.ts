@@ -17,7 +17,6 @@ export const connectionArgs = {
 		type: "string" as const,
 		alias: "u",
 		description: "EmDash instance URL",
-		default: "http://localhost:4321",
 	},
 	token: {
 		type: "string" as const,

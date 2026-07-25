@@ -1,6 +1,7 @@
 import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { handleMediaUsageSummaries } from "../../../src/api/handlers/media-usage.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
@@ -9,6 +10,7 @@ import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 } from "../../../src/media/usage/content-refresh.js";
+import { CONTENT_SOURCE_SCHEMA_VERSION } from "../../../src/media/usage/content-snapshots.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
@@ -274,6 +276,87 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 			}),
 		]);
 		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-after-failure")).toEqual([]);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				lastErrorCode: "DRAFT_REVISION_INVALID",
+			}),
+		);
+	});
+
+	it("suppresses draft columns usage after a real runtime overlay refresh failure", async () => {
+		const mediaId = "media-columns-before-failed-overlay";
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "failed-first-overlay",
+			status: "draft",
+			data: {
+				title: "Failed First Overlay",
+				hero: mediaRef(mediaId),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		const contentId = created.data.item.id;
+
+		expect(await usageRepo.findSource(sourceKey("posts", contentId, "columns"))).toEqual(
+			expect.objectContaining({
+				contentStatus: "draft",
+				sourceCompleteness: "complete",
+			}),
+		);
+		for (const scopeKey of ["posts", "plain_posts", "localized_posts"]) {
+			await usageRepo.upsertIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey,
+				status: "complete",
+				schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
+				lastErrorCode: null,
+			});
+		}
+
+		expect(await handleMediaUsageSummaries(ctx.db, [mediaId], { includeCount: true })).toEqual({
+			success: true,
+			data: {
+				[mediaId]: {
+					count: 1,
+					coverage: { scope: "all_content_collections", status: "complete" },
+				},
+			},
+		});
+
+		await corruptFuturePostDraftRevisionSnapshots(ctx);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+		const updated = await runtime
+			.handleContentUpdate("posts", contentId, {
+				data: { hero: mediaRef("media-overlay-after-failure") },
+			})
+			.finally(() => consoleError.mockRestore());
+
+		expect(updated.success).toBe(true);
+		expect(await usageRepo.findSource(sourceKey("posts", contentId, "draft_overlay"))).toEqual(
+			expect.objectContaining({
+				contentStatus: "draft",
+				sourceCompleteness: "failed",
+				lastErrorCode: "DRAFT_REVISION_INVALID",
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId(mediaId)).toHaveLength(1);
+		expect(await handleMediaUsageSummaries(ctx.db, [mediaId], { includeCount: true })).toEqual({
+			success: true,
+			data: {
+				[mediaId]: {
+					count: 0,
+					coverage: { scope: "all_content_collections", status: "stale" },
+				},
+			},
+		});
 		expect(
 			await usageRepo.findIndexStatus({
 				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,

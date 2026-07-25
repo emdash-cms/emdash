@@ -232,7 +232,7 @@ describe("tokenInterceptor", () => {
 // ---------------------------------------------------------------------------
 
 describe("refreshInterceptor", () => {
-	it("unwraps { data: { access_token } } envelope from token endpoint", async () => {
+	it("unwraps { success, data: { access_token } } envelope from token endpoint", async () => {
 		let retryAuth: string | null = null;
 		let refreshedToken: string | null = null;
 		let refreshedRefresh: string | null = null;
@@ -253,9 +253,10 @@ describe("refreshInterceptor", () => {
 		globalThis.fetch = async (input: string | URL | Request) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 			if (url.includes("/oauth/token/refresh")) {
-				// Server wraps in { data: ... } via apiSuccess/unwrapResult
+				// Server wraps in { success, data: ... } via apiSuccess/unwrapResult
 				return new Response(
 					JSON.stringify({
+						success: true,
 						data: {
 							access_token: "new_access",
 							refresh_token: "new_refresh",

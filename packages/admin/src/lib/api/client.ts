@@ -18,20 +18,48 @@ export function apiFetch(input: string | URL | Request, init?: RequestInit): Pro
 	return fetch(input, { ...init, headers });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+/**
+ * Extract per-field validation issue messages from a `VALIDATION_ERROR`
+ * response's `error.details.issues` array (see `packages/core/src/api/parse.ts`).
+ * Returns undefined when the shape doesn't match, so callers can fall back
+ * to the generic top-level message.
+ */
+function formatValidationIssues(error: Record<string, unknown>): string | undefined {
+	if (error.code !== "VALIDATION_ERROR") return undefined;
+	if (!isRecord(error.details)) return undefined;
+	const issues = error.details.issues;
+	if (!Array.isArray(issues) || issues.length === 0) return undefined;
+
+	const messages = issues
+		.map((issue: unknown) => {
+			if (!isRecord(issue)) return undefined;
+			const { path, message } = issue;
+			if (typeof message !== "string") return undefined;
+			return typeof path === "string" && path.length > 0 ? `${path}: ${message}` : message;
+		})
+		.filter((m): m is string => m !== undefined);
+
+	return messages.length > 0 ? messages.join("; ") : undefined;
+}
+
 /**
  * Throw an error with the message from the API response body if available,
  * falling back to a generic message. All API error responses use the shape
- * `{ error: { code, message } }`.
+ * `{ success: false, error: { code, message, details? } }`. For validation
+ * errors, the field-level messages in `error.details.issues` are surfaced
+ * instead of the generic "Invalid request data" top-level message.
  */
 export async function throwResponseError(res: Response, fallback: string): Promise<never> {
 	const body: unknown = await res.json().catch(() => ({}));
 	let message: string | undefined;
-	if (typeof body === "object" && body !== null && "error" in body) {
+	if (isRecord(body) && isRecord(body.error)) {
 		const { error } = body;
-		if (typeof error === "object" && error !== null && "message" in error) {
-			const { message: errorMessage } = error;
-			if (typeof errorMessage === "string") message = errorMessage;
-		}
+		message = formatValidationIssues(error);
+		if (!message && typeof error.message === "string") message = error.message;
 	}
 	throw new Error(message || `${fallback}: ${res.statusText}`);
 }
@@ -188,7 +216,7 @@ export interface AdminManifest {
 }
 
 /**
- * Parse an API response with the { data: T } envelope.
+ * Parse an API response with the { success, data: T } envelope.
  *
  * Handles error responses via throwResponseError, then unwraps the data envelope.
  * Replaces both bare `response.json()` and field-unwrap patterns.

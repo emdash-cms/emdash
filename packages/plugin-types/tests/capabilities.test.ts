@@ -7,6 +7,7 @@ import {
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
+	pluginManifestSchema,
 } from "../src/index.js";
 
 describe("isDeprecatedCapability", () => {
@@ -80,6 +81,22 @@ describe("normalizeCapabilities", () => {
 });
 
 describe("declaredAccess facet mapping", () => {
+	it("validates taxonomy access in plugin manifests", () => {
+		expect(
+			pluginManifestSchema.safeParse({
+				id: "taxonomy-reader",
+				version: "1.0.0",
+				declaredAccess: { taxonomies: { read: {} } },
+				capabilities: ["taxonomies:read"],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: [],
+				admin: {},
+			}).success,
+		).toBe(true);
+	});
+
 	it("maps each hook-registration capability to its participation facet", () => {
 		expect(capabilitiesToDeclaredAccess(["hooks.email-transport:register"], [])).toEqual({
 			email: { transport: {} },

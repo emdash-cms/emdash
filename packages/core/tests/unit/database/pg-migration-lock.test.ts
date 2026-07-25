@@ -1,6 +1,7 @@
-import { PostgresDialect } from "kysely";
+import { Kysely, PostgresDialect } from "kysely";
 import { describe, expect, it } from "vitest";
 
+import { detectDialect } from "../../../src/database/dialect-helpers.js";
 import { FailFastPostgresDialect } from "../../../src/database/pg-migration-lock.js";
 
 /**
@@ -22,12 +23,19 @@ describe("FailFastPostgresDialect", () => {
 		expect(adapter.supportsMultipleConnections).toBe(stock.supportsMultipleConnections ?? true);
 	});
 
-	it("still identifies as PostgresAdapter for dialect detection", () => {
-		// detectDialect() (dialect-helpers.ts) matches on the adapter's
-		// constructor name; a differently-named adapter class would make
-		// every dialect helper emit SQLite SQL against Postgres.
-		const adapter = new FailFastPostgresDialect({ pool: {} as never }).createAdapter();
-		expect(adapter.constructor.name).toBe("PostgresAdapter");
+	it("detects Postgres when a bundler renames the adapter class", () => {
+		const db = new Kysely({
+			dialect: new FailFastPostgresDialect({ pool: {} as never }),
+		});
+		const constructor = db.getExecutor().adapter.constructor;
+		const originalName = Object.getOwnPropertyDescriptor(constructor, "name");
+
+		try {
+			Object.defineProperty(constructor, "name", { value: "a", configurable: true });
+			expect(detectDialect(db)).toBe("postgres");
+		} finally {
+			if (originalName) Object.defineProperty(constructor, "name", originalName);
+		}
 	});
 
 	it("remains a PostgresDialect for the public dialect type", () => {

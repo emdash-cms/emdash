@@ -156,16 +156,19 @@ test.describe("Content CRUD", () => {
 			});
 
 			// Publish the draft
-			const publishButton = admin.page.getByRole("button", { name: "Publish", exact: true });
+			const publishButton = admin.page.getByRole("button", {
+				name: "Publish Post",
+				exact: true,
+			});
 			await expect(publishButton).toBeVisible();
 			await publishButton.click();
 			await admin.waitForLoading();
 
-			// Once live with no pending changes, the action flips to "Unpublish",
+			// Once live with no pending changes, the action flips to "Unpublish Post",
 			// confirming the status actually changed.
-			await expect(admin.page.getByRole("button", { name: "Unpublish" })).toBeVisible({
-				timeout: 10000,
-			});
+			await expect(
+				admin.page.getByRole("button", { name: "Unpublish Post", exact: true }),
+			).toBeVisible({ timeout: 10000 });
 		});
 	});
 });

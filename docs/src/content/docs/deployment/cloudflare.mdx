@@ -47,6 +47,7 @@ Update your Astro configuration to use D1 and R2:
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
+import react from "@astrojs/react";
 import emdash from "emdash/astro";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 
@@ -54,6 +55,7 @@ export default defineConfig({
 	output: "server",
 	adapter: cloudflare(),
 	integrations: [
+		react(), // Required — the admin UI is a React app
 		emdash({
 			database: d1({ binding: "DB" }),
 			storage: r2({ binding: "MEDIA" }),
@@ -314,6 +316,8 @@ needs to share the secret with your main site.
 | `EMDASH_AUTH_SECRET` | Optional. If set, it is used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which takes precedence), keeping commenter-IP hashes stable for installs that already rely on it. Leave it unset for a new deployment. |
 
 Access environment variables in your configuration using `import.meta.env` or the Cloudflare `env` binding.
+
+For the complete inventory of every secret EmDash uses — including storage locations, rotation steps, and what breaks when a key is lost — see [Secrets & Key Management](/deployment/secrets/).
 
 ## Preview Deployments
 

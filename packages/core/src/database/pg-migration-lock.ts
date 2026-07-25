@@ -38,10 +38,7 @@ const KYSELY_PG_MIGRATION_LOCK_ID = BigInt("3853314791062309107");
 
 /**
  * Extends the stock adapter so every capability flag and `instanceof` check
- * is inherited, and keeps the class NAME `PostgresAdapter` because
- * `detectDialect()` (dialect-helpers.ts) identifies the dialect via
- * `adapter.constructor.name` — a differently-named adapter would make every
- * dialect helper fall back to SQLite SQL against a Postgres database.
+ * is inherited.
  */
 class PostgresAdapter extends KyselyPostgresAdapter {
 	// eslint-disable-next-line typescript/no-explicit-any -- matches the DialectAdapter signature

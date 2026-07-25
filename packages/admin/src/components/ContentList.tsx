@@ -997,7 +997,9 @@ function ContentListItem({
 					</span>
 				</td>
 			)}
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
+			<td data-testid="content-updated" className="px-4 py-3 text-sm text-kumo-subtle">
+				{date.toLocaleDateString()}
+			</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (

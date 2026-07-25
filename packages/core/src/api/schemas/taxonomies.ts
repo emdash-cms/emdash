@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { localeCode } from "./common.js";
+
 // ---------------------------------------------------------------------------
 // Taxonomy definitions: Input schemas
 // ---------------------------------------------------------------------------
@@ -24,7 +26,7 @@ export const createTaxonomyDefBody = z
 			.max(100)
 			.optional()
 			.default([]),
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTaxonomyDefBody" });
@@ -39,7 +41,7 @@ export const createTermBody = z
 		label: z.string().min(1),
 		parentId: z.string().nullish(),
 		description: z.string().optional(),
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTermBody" });

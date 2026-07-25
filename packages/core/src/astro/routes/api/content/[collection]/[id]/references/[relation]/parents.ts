@@ -19,15 +19,14 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { collection, id, relation } = params;
 
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const denied = requirePerm(user, "content:read");
 	if (denied) return denied;
 
 	if (!collection || !id || !relation) {
 		return apiError("VALIDATION_ERROR", "Collection, id, and relation required", 400);
 	}
-
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
 
 	const query = parseQuery(new URL(request.url), cursorPaginationQuery);
 	if (isParseError(query)) return query;

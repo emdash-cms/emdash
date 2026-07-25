@@ -262,6 +262,7 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		config,
 		type: "sqlite",
 		supportsRequestScope: true,
+		supportsCoalescing: true,
 	};
 }
 
@@ -370,6 +371,7 @@ export function durableObjects(config: DurableObjectsConfig): DatabaseDescriptor
 		config,
 		type: "sqlite",
 		supportsRequestScope: true,
+		supportsCoalescing: true,
 	};
 }
 

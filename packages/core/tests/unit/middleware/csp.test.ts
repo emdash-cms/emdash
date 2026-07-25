@@ -127,6 +127,15 @@ describe("getConfiguredStorageEndpoint", () => {
 		).toBeUndefined();
 	});
 
+	it("falls back to the runtime upload origin for a custom storage adapter", () => {
+		expect(
+			getConfiguredStorageEndpoint(
+				{ entrypoint: "./custom-storage.mjs", config: {} },
+				{ getClientUploadOrigin: () => "https://xxx.r2.cloudflarestorage.com" },
+			),
+		).toBe("https://xxx.r2.cloudflarestorage.com");
+	});
+
 	it("returns undefined when S3_ENDPOINT is unset and config has no endpoint", () => {
 		expect(
 			getConfiguredStorageEndpoint({ entrypoint: "emdash/storage/s3", config: {} }),

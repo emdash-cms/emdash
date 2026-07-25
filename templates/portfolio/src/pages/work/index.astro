@@ -20,7 +20,8 @@ const [{ entries: sortedProjects, cacheHint }, tags] = await Promise.all([
 		orderBy: { published_at: "desc" },
 		...(activeTag ? { where: { tag: activeTag } } : {}),
 	}),
-	getTaxonomyTerms("tag"),
+	// The filter pills show labels only, so skip the visible-entry counts.
+	getTaxonomyTerms("tag", { includeCounts: false }),
 ]);
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);

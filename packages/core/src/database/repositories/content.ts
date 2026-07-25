@@ -590,11 +590,16 @@ export class ContentRepository {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
-		// Build update object with parameterized values
-		const updates: Record<string, unknown> = {
-			updated_at: now,
-			version: sql`version + 1`,
-		};
+		// Build update object with parameterized values. `version` bumps on
+		// every update so the _rev optimistic-concurrency token
+		// (version:updated_at) always moves — concurrent editors still get a
+		// 409 on stale saves. `updated_at` is stamped only when the request
+		// actually carries column writes: a draft-only save on a
+		// revision-supporting collection resolves to a column no-op here (all
+		// data went into draft storage), and stamping it anyway would register
+		// a phantom modification for public "last modified" consumers like
+		// sitemap <lastmod> and JSON-LD dateModified (#2143).
+		const updates: Record<string, unknown> = {};
 
 		if (input.status !== undefined) {
 			updates.status = input.status;
@@ -629,6 +634,12 @@ export class ContentRepository {
 				}
 			}
 		}
+
+		const hasColumnWrites = Object.keys(updates).length > 0;
+		if (hasColumnWrites) {
+			updates.updated_at = now;
+		}
+		updates.version = sql`version + 1`;
 
 		await this.db
 			.updateTable(tableName as keyof Database)
@@ -1339,16 +1350,39 @@ export class ContentRepository {
 			// so the content table always holds the published version
 			const revision = await revisionRepo.findById(revisionToPublish);
 			if (revision) {
-				await this.syncDataColumns(type, id, revision.data);
+				// A staged slug lands on the live column only here — it never
+				// passes through update(), so its uniqueness was never checked.
+				// Validate before any write: the `(slug, locale)` unique index
+				// covers every row (drafts and trashed entries included), and
+				// letting the constraint fire mid-publish would surface as an
+				// opaque 500 after draft data already hit the live columns.
+				// A NULL locale never collides (unique indexes treat NULLs as
+				// distinct), so the check only applies to localized rows.
+				const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
+				if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
+					const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
+					if (conflict && conflict.id !== id) {
+						throw new EmDashValidationError(
+							`Cannot publish: slug '${stagedSlug}' is already used by another entry` +
+								` in this collection (id: ${conflict.id}). Choose a different slug.`,
+							{ code: "SLUG_CONFLICT" },
+						);
+					}
+				}
 
-				// Sync slug from revision if stored there
-				if (typeof revision.data._slug === "string") {
+				// Write the slug before the data columns: the slug UPDATE is the
+				// only statement here that can hit the unique constraint (if a
+				// concurrent write took the slug after the check above), and on
+				// D1 there is no transaction to roll back earlier statements.
+				if (stagedSlug !== null) {
 					await sql`
 						UPDATE ${sql.ref(tableName)}
-						SET slug = ${revision.data._slug}
+						SET slug = ${stagedSlug}
 						WHERE id = ${id}
 					`.execute(this.db);
 				}
+
+				await this.syncDataColumns(type, id, revision.data);
 			}
 
 			if (publishedAt !== undefined) {
@@ -1496,7 +1530,6 @@ export class ContentRepository {
 	 */
 	async setDraftRevision(type: string, id: string, revisionId: string): Promise<void> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
 
 		const existing = await this.findById(type, id);
 		if (!existing) {
@@ -1513,10 +1546,12 @@ export class ContentRepository {
 			throw new EmDashValidationError("Revision does not belong to the specified content item");
 		}
 
+		// Draft staging leaves live content untouched, so it must not bump
+		// updated_at — public "content last modified" consumers (sitemap
+		// <lastmod>, dateModified) would see a phantom modification (#2143).
 		await sql`
 			UPDATE ${sql.ref(tableName)}
-			SET draft_revision_id = ${revisionId},
-				updated_at = ${now}
+			SET draft_revision_id = ${revisionId}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);
@@ -1532,7 +1567,6 @@ export class ContentRepository {
 	 */
 	async discardDraft(type: string, id: string): Promise<ContentItem> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
 
 		const existing = await this.findById(type, id);
 		if (!existing) {
@@ -1544,10 +1578,12 @@ export class ContentRepository {
 			return existing;
 		}
 
+		// Discarding a draft restores the state from before the draft was
+		// staged — nothing about the live entry changed in between, so
+		// updated_at stays at its pre-draft value (#2143).
 		await sql`
 			UPDATE ${sql.ref(tableName)}
-			SET draft_revision_id = NULL,
-				updated_at = ${now}
+			SET draft_revision_id = NULL
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);

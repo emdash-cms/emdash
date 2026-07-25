@@ -10,12 +10,32 @@ import {
 	computeS256Challenge,
 	encrypt,
 	decrypt,
+	validateScopes,
 } from "./tokens.js";
 
 const BASE64URL_REGEX = /^[A-Za-z0-9_-]+$/;
 const NO_PADDING_REGEX = /^[A-Za-z0-9_-]+$/;
 
 describe("tokens", () => {
+	describe("validateScopes", () => {
+		it("accepts only plugin MCP scopes with valid plugin identifiers", () => {
+			expect(validateScopes(["mcp:tools", "mcp:tools:calendar-plugin"])).toEqual([]);
+			expect(
+				validateScopes([
+					"mcp:tools:",
+					"mcp:tools:@acme/calendar",
+					"mcp:tools:Calendar",
+					"mcp:tools:-calendar",
+				]),
+			).toEqual([
+				"mcp:tools:",
+				"mcp:tools:@acme/calendar",
+				"mcp:tools:Calendar",
+				"mcp:tools:-calendar",
+			]);
+		});
+	});
+
 	describe("generateToken", () => {
 		it("generates a base64url-encoded token", () => {
 			const token = generateToken();
