@@ -60,15 +60,6 @@ describe("DragHandleWrapper", () => {
 	});
 });
 
-/**
- * The draggable unit is a row, and these assert both halves of that claim.
- *
- * The rule replaces TipTap's default rules rather than joining them, so the tests
- * have to show that nothing the defaults guarded is lost: table internals and
- * inline content must still be excluded, by the rule rather than by assumption.
- * They also pin the behaviour outside a container, which enabling nested targeting
- * must not change.
- */
 describe("rows are the draggable unit", () => {
 	// Node views are React renderers and are not needed to exercise the schema.
 	const Block = NestingBlockExtension.extend({ addNodeView: undefined });
@@ -138,9 +129,6 @@ describe("rows are the draggable unit", () => {
 		`<div data-emdash-nesting-block><div data-emdash-nesting-column>${inner}</div></div>`;
 
 	it("targets a list as one row, not its items, in the body", () => {
-		// This is what the editor did before nested targeting was enabled. Picking
-		// TipTap's defaults instead would target the item and make a list impossible
-		// to move as a block anywhere in the document.
 		withEditor("<ul><li><p>Top item</p></li></ul>", (editor) => {
 			expect(targetFor(editor, "Top item")).toBe("bulletList");
 		});
@@ -167,7 +155,7 @@ describe("rows are the draggable unit", () => {
 		});
 	});
 
-	it("never targets table internals, which the default rules used to guard", () => {
+	it("never targets table internals", () => {
 		withEditor("<table><tbody><tr><td><p>Cell</p></td></tr></tbody></table>", (editor) => {
 			// The table is the row; everything inside it is the row's structure.
 			expect(targetFor(editor, "Cell")).toBe("table");
@@ -194,8 +182,6 @@ describe("nested drag options", () => {
 	const normalized = normalizeNestedOptions(_nestedDragOptions);
 
 	it("replaces the default rules rather than joining them", () => {
-		// Deliberate: the defaults resolve the unit inside a structure, this resolves
-		// which structures are units. See _rowsOnlyRule for why both cannot hold.
 		expect(normalized.defaultRules).toBe(false);
 		expect(normalized.rules.map((rule) => rule.id)).toEqual(["emdashRowsOnly"]);
 	});

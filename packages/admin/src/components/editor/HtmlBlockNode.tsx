@@ -85,9 +85,6 @@ function HtmlBlockNodeView({ node, updateAttributes, selected, deleteNode }: Nod
 			contentEditable={false}
 			data-drag-handle
 		>
-			{/* No grip of its own -- see PluginBlockNode. The editor's drag handle covers
-			    every block, and -start-8 puts this one in a gutter a nesting column does
-			    not have. */}
 			<div className="relative group">
 				{/* Main block */}
 				<div

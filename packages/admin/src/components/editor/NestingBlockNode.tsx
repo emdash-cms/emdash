@@ -13,6 +13,7 @@
  */
 
 import { Button, Select } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { CaretDown, CaretRight, Plus, Rows, SquaresFour, Trash, X } from "@phosphor-icons/react";
 import { Node, mergeAttributes } from "@tiptap/core";
@@ -45,9 +46,8 @@ const MIN_COLUMNS = 1;
 const MAX_COLUMNS = 6;
 
 /**
- * Width reserved inside every row of a column for its drag handle, wide enough for
- * the handle cluster plus a small gap. Exported so the drag handle can offset itself
- * into it -- the two numbers have to agree or the handle lands on the row's content.
+ * Gutter reserved inside each row of a column for its drag handle. Must agree with
+ * `_dragHandleOffset` or the handle lands on the row's content.
  */
 export const NESTING_GUTTER_PX = 52;
 
@@ -84,24 +84,14 @@ const NESTING_STYLES = `
 .nesting-column-content {
 	min-height: 2.5rem;
 }
-/*
- * The drag handle's gutter belongs to each row, not to the column.
- *
- * Padding the column instead would put the gutter outside every row's box, so a
- * pointer there resolves to the column, which is never a drag target, and the
- * container wins instead. In use that reads as the handle jumping away exactly
- * as you reach for it. Owning the padding keeps a pointer in the gutter inside
- * the row it belongs to.
- */
+/* Padded onto each row, not the column, so a pointer in the gutter still
+ * resolves to the row it belongs to. */
 .nesting-column-content > [data-node-view-content-react] > * {
 	padding-inline-start: var(--nesting-gutter);
 }
-/*
- * A row that indents its own content keeps that indent on top of the gutter.
- * Setting the gutter alone replaces it, which pulls list markers and a quote's
- * rule back into the gutter and leaves them under the drag handle. The added
- * values are the editor's own defaults for these elements.
- */
+/* A row with its own indent adds it to the gutter; setting the gutter alone
+ * replaces it and draws markers under the handle. Added values are the
+ * editor's defaults for these elements. */
 .nesting-column-content > [data-node-view-content-react] > :is(ul, ol) {
 	padding-inline-start: calc(var(--nesting-gutter) + 1.625rem);
 }
@@ -125,9 +115,9 @@ function ensureNestingStyles(): void {
 }
 
 /**
- * `grid-template-columns` for a width preset. Mirrors `nestingTemplateColumns`
- * in @emdash-cms/core so the editor preview matches what the site renders; the
- * admin does not depend on core, hence the duplication (as with GAP_TO_CSS).
+ * `grid-template-columns` for a width preset. Mirrors `nestingTemplateColumns` in
+ * @emdash-cms/core, which the admin cannot import; they have to stay in step or the
+ * editor preview and the rendered page disagree.
  */
 function templateColumns(widths: NestingWidths, columnCount: number): string {
 	const n = Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, columnCount));
@@ -182,8 +172,7 @@ function NestingColumnNodeView({ editor, getPos, node }: NodeViewProps) {
 
 	return (
 		<NodeViewWrapper
-			// The drag handle's gutter is padded onto each row rather than onto the column
-			// -- see NESTING_STYLES for why.
+			// The handle's gutter is padded onto each row, not here. See NESTING_STYLES.
 			className="nesting-column group/col relative rounded-md border border-kumo-line p-2"
 			data-emdash-nesting-column
 		>
@@ -258,18 +247,12 @@ function NestingBlockNodeView({
 
 	const columnCount = node.childCount;
 
-	/**
-	 * Collapsed is view state, not content: it is deliberately not a node attribute,
-	 * so folding a container away is never a document change and never lands in a
-	 * revision. It resets on reload, which matches how editors expect a disclosure to
-	 * behave.
-	 */
+	// View state, not a node attribute: folding a container is not a document change
+	// and must not reach a revision.
 	const [collapsed, setCollapsed] = React.useState(false);
 
-	// Ties the disclosure button to the region it shows and hides.
 	const contentId = React.useId();
 
-	// What the container holds, for the summary shown when it is folded away.
 	const blockCount = React.useMemo(() => {
 		let total = 0;
 		node.forEach((column) => {
@@ -301,12 +284,6 @@ function NestingBlockNodeView({
 				className="flex flex-wrap items-center gap-2 border-b border-kumo-line px-3 py-2"
 				contentEditable={false}
 			>
-				{/* The title is the grab area, the way a window is dragged by its bar. There
-				    was a separate grip here, permanently visible, which nothing else in the
-				    editor has: every other row is dragged from a handle that appears in the
-				    gutter on hover. A container is a row too, but hovering one resolves to
-				    the deepest row inside it, so it still needs somewhere of its own to be
-				    picked up -- its header, rather than an icon that is always on screen. */}
 				<Button
 					type="button"
 					variant="ghost"
@@ -332,22 +309,13 @@ function NestingBlockNodeView({
 				>
 					{layout === "grid" ? <SquaresFour className="h-4 w-4" /> : <Rows className="h-4 w-4" />}
 					<span className="text-sm font-medium">{t`Nesting container`}</span>
-					{/* Counts sit outside the translated words rather than inside a plural
-					    message, so the summary reads correctly before catalogs are extracted.
-					    A `<Plural>` here renders its own ICU source until then, which is worse
-					    to look at than an unagreed plural. */}
 					{collapsed && (
 						<span className="text-kumo-subtle/70 text-sm">
-							{columnCount} {t`columns`}
-							{", "}
-							{blockCount} {t`blocks`}
+							{t`${plural(columnCount, { one: "# column", other: "# columns" })}, ${plural(blockCount, { one: "# block", other: "# blocks" })}`}
 						</span>
 					)}
 				</div>
 
-				{/* Layout controls describe content that is not on screen while collapsed, so
-				    they fold away with it. Delete stays: an unwanted container should not have
-				    to be opened first. */}
 				<div className="ms-auto flex flex-wrap items-center gap-2">
 					{!collapsed && (
 						<>
@@ -374,11 +342,8 @@ function NestingBlockNodeView({
 									stretch: t`Stretch`,
 								}}
 							/>
-							{/* Equal columns cannot express a content-plus-sidebar page, which is the
-					    most common two-column layout, so the weighted presets exist for that.
-					    Grid only: a flex container sizes its columns from their content, and
-					    the site renderer ignores widths there too, so it is disabled rather
-					    than left to look like it works. */}
+							{/* Grid only: a flex container sizes columns from their content, and the
+							    site renderer ignores widths there. */}
 							<Select
 								label={t`Widths`}
 								value={widths}
@@ -419,9 +384,8 @@ function NestingBlockNodeView({
 					</Button>
 				</div>
 			</div>
-			{/* Hidden rather than unmounted: ProseMirror owns this element as the node's
-			    contentDOM, and removing it detaches the container's content from the
-			    document. */}
+			{/* Hidden, not unmounted: ProseMirror owns this element as the node's
+			    contentDOM. */}
 			<NodeViewContent
 				id={contentId}
 				className={cn("nesting-block-content p-3", collapsed && "hidden")}

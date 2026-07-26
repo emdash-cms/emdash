@@ -21,10 +21,7 @@ vi.mock("@tiptap/extension-drag-handle-react", () => ({
 			className="drag-handle"
 			draggable="true"
 			data-placement={computePositionConfig.placement}
-			// The offset is a function so it can differ for a row inside a nesting
-			// column, which carries the handle's gutter as its own padding. Resolve it
-			// the way floating-ui would; with nothing hovered it reports the top level
-			// value. `_dragHandleOffset` is unit tested directly for both cases.
+			// Resolve the offset the way floating-ui would: it may be a function.
 			data-offset={(() => {
 				const option = computePositionConfig.middleware?.find(({ name }) => name === "offset")
 					?.options?.[0];

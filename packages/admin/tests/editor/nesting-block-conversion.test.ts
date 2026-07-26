@@ -1,11 +1,7 @@
 /**
- * Nesting Block Conversion Tests (admin editor seam)
- *
- * The admin editor carries its own Portable Text converters, separate from the
- * ones in @emdash-cms/core. Core's round-trip tests therefore say nothing about
- * what an editor actually saves: a nesting attribute can be handled correctly in
- * core, pass its tests, and still be dropped on every real save. That is what
- * happened to `widths` -- the container reverted to equal columns on reload.
+ * The admin editor carries its own Portable Text converters, separate from the ones
+ * in @emdash-cms/core, and a save goes through these. Core's round-trip tests do not
+ * cover them: an attribute can round-trip in core and still be dropped on every save.
  */
 
 import { describe, it, expect } from "vitest";

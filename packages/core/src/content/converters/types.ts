@@ -132,10 +132,9 @@ export type NestingLayout = "grid" | "flex";
 export type NestingGap = "none" | "sm" | "md" | "lg";
 export type NestingAlign = "start" | "center" | "end" | "stretch";
 /**
- * Relative column widths. `equal` keeps every column the same size; the others
- * weight the first or last column, which is what a content-plus-sidebar page needs.
- * Ratios are applied to the first/last column and the rest stay equal, so the value
- * stays meaningful at any column count.
+ * Relative column widths. `equal` sizes every column the same; the others weight the
+ * first or last column and leave the rest equal, so the value stays meaningful at any
+ * column count.
  */
 export type NestingWidths = "equal" | "wide-first" | "wide-last" | "narrow-first" | "narrow-last";
 

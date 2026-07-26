@@ -264,12 +264,6 @@ function PluginBlockNodeView({
 			contentEditable={false}
 			data-drag-handle
 		>
-			{/* No grip of its own: the editor's drag handle already offers one for every
-			    block, and the wrapper above carries data-drag-handle, so a third one only
-			    ever sat underneath the other two. It was positioned at -start-8, in the
-			    editor's left gutter, which does not exist inside a nesting column -- there
-			    the grip hung outside the column, over its neighbour or outside the
-			    container entirely. */}
 			<div className="relative group">
 				{/* Main block content */}
 				<div
@@ -278,10 +272,8 @@ function PluginBlockNodeView({
 						selected ? "border-kumo-brand/50 bg-kumo-tint/30" : "hover:border-kumo-line",
 					)}
 				>
-					{/* Header with icon, label, and actions.
-					    Wraps because the action buttons hold their width even while hidden: in a
-					    narrow container (a sidebar column of a nesting block) they left the label
-					    a few pixels and it broke one character per line. */}
+					{/* Wraps because the action buttons hold their width while hidden, leaving
+					    the label almost none in a narrow column. */}
 					<div className="flex flex-wrap items-center gap-3 px-4 py-3">
 						{/* Icon */}
 						<div
