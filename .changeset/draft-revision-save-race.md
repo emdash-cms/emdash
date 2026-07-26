@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Fixes a race where two saves to the same draft (e.g. an autosave firing just before or after a manual save) could silently discard one of the edits. The losing save now retries against the latest draft instead of overwriting it.
+Fixes a race where two saves to the same draft (e.g. an autosave firing just before or after a manual save) could silently discard one of the edits. The losing save now retries against the latest draft instead of overwriting it; if the draft is still contested after retrying, the save now fails with a conflict error instead of silently dropping the edit.

@@ -2858,6 +2858,7 @@ export class EmDashRuntime {
 					// CAS keyed on the draft_revision_id we just read, and we retry
 					// against the fresh pointer if we lose the race.
 					const MAX_ATTEMPTS = 3;
+					let lostEveryCasAttempt = false;
 					for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
 						// Re-fetch to get latest state (resolvedItem may be stale after
 						// the _rev check, or after a lost race on a prior attempt)
@@ -2919,6 +2920,16 @@ export class EmDashRuntime {
 						// is orphaned (harmless — pruneOldRevisions sweeps it up on a
 						// future successful save); retry against the fresh pointer
 						// instead of silently discarding this save.
+						lostEveryCasAttempt = true;
+					}
+					if (lostEveryCasAttempt && !draftStorageChanged) {
+						return {
+							success: false as const,
+							error: {
+								code: "DRAFT_SAVE_CONFLICT",
+								message: "Could not save draft due to concurrent edits; please retry.",
+							},
+						};
 					}
 				}
 			} catch {
