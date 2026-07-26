@@ -114,14 +114,14 @@ describe("MediaLibrary", () => {
 		}
 
 		function mockProvider(items: MediaProviderItem[]) {
-			vi.mocked(fetchMediaProviders).mockResolvedValue([
+			vi.mocked(fetchMediaProviders).mockResolvedValueOnce([
 				{
 					id: "acme",
 					name: "Acme Provider",
 					capabilities: { upload: false, search: false, delete: false },
 				},
 			]);
-			vi.mocked(fetchProviderMedia).mockResolvedValue({ items });
+			vi.mocked(fetchProviderMedia).mockResolvedValueOnce({ items });
 		}
 
 		it("provider grid thumbnails are natively lazy-loaded", async () => {
