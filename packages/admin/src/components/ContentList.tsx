@@ -322,7 +322,7 @@ export function ContentList({
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-4">
-					<h1 className="text-2xl font-bold">{collectionLabel}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{collectionLabel}</h1>
 					{i18n && activeLocale && onLocaleChange && (
 						<LocaleSwitcher
 							locales={i18n.locales}

@@ -365,8 +365,8 @@ export function MenuEditor() {
 						<ArrowPrev className="h-4 w-4" />
 					</Button>
 					<div>
-						<h1 className="text-3xl font-bold">{menu.label}</h1>
-						<p className="text-kumo-subtle">{t`Edit menu items`}</p>
+						<h1 className="text-2xl font-semibold leading-tight">{menu.label}</h1>
+						<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">{t`Edit menu items`}</p>
 					</div>
 				</div>
 				<div className="flex gap-2">

@@ -51,7 +51,7 @@ export function UserList({
 		<div className="space-y-4">
 			{/* Header */}
 			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-bold">{t`Users`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Users`}</h1>
 				<Button onClick={onInviteUser} icon={<UserPlus />}>
 					{t`Invite User`}
 				</Button>

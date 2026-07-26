@@ -130,7 +130,7 @@ export function BackupSettings() {
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
 					<BackToSettingsLink />
-					<h1 className="text-2xl font-bold">{t`Backups`}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Backups`}</h1>
 				</div>
 				<DialogError message={getMutationError(fetchError) || t`Failed to load backup settings`} />
 			</div>
@@ -145,7 +145,7 @@ export function BackupSettings() {
 			{/* Header */}
 			<div className="flex items-center gap-3">
 				<BackToSettingsLink />
-				<h1 className="text-2xl font-bold">{t`Backups`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Backups`}</h1>
 			</div>
 
 			{/* One-click download */}

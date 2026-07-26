@@ -67,7 +67,7 @@ export function SocialSettings() {
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
 					<BackToSettingsLink />
-					<h1 className="text-2xl font-bold">{t`Social Links`}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Social Links`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">{t`Loading settings...`}</p>
@@ -92,7 +92,7 @@ export function SocialSettings() {
 					</Button>
 				}
 			>
-				<h1 className="text-2xl font-bold truncate">{t`Social Links`}</h1>
+				<h1 className="truncate text-2xl font-semibold">{t`Social Links`}</h1>
 			</EditorHeader>
 
 			<form id="social-settings-form" onSubmit={handleSubmit} className="space-y-6">

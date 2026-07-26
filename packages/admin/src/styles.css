@@ -57,7 +57,7 @@
 	/* Text hierarchy */
 	--text-color-kumo-default: #1d2327;
 	--text-color-kumo-strong: #50575e;
-	--text-color-kumo-subtle: #787c82;
+	--text-color-kumo-subtle: #646970;
 	--text-color-kumo-inactive: #a7aaad;
 	--text-color-kumo-link: #2271b1;
 
@@ -108,6 +108,8 @@
 body {
 	background-color: var(--color-kumo-elevated);
 	color: var(--text-color-kumo-default);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 /*
