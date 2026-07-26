@@ -249,6 +249,7 @@ const attrNum = (v: unknown): number | undefined => (typeof v === "number" && v 
 // Nesting block layout coercion
 const NESTING_GAPS = ["none", "sm", "md", "lg"] as const;
 const NESTING_ALIGNS = ["start", "center", "end", "stretch"] as const;
+const NESTING_WIDTHS = ["equal", "wide-first", "wide-last", "narrow-first", "narrow-last"] as const;
 
 function pickNestingGap(v: unknown): (typeof NESTING_GAPS)[number] {
 	return NESTING_GAPS.find((g) => g === v) ?? "md";
@@ -256,6 +257,10 @@ function pickNestingGap(v: unknown): (typeof NESTING_GAPS)[number] {
 
 function pickNestingAlign(v: unknown): (typeof NESTING_ALIGNS)[number] {
 	return NESTING_ALIGNS.find((a) => a === v) ?? "start";
+}
+
+function pickNestingWidths(v: unknown): (typeof NESTING_WIDTHS)[number] {
+	return NESTING_WIDTHS.find((w) => w === v) ?? "equal";
 }
 
 // ProseMirror to Portable Text converter
@@ -415,6 +420,7 @@ function convertPMNode(node: {
 				columns: Math.max(1, columns.length),
 				gap: pickNestingGap(attrs.gap),
 				align: pickNestingAlign(attrs.align),
+				widths: pickNestingWidths(attrs.widths),
 				children: columns,
 			};
 		}
@@ -928,7 +934,13 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		}
 
 		case "nestingBlock": {
-			const nb = block as { layout?: unknown; gap?: unknown; align?: unknown; children?: unknown };
+			const nb = block as {
+				layout?: unknown;
+				gap?: unknown;
+				align?: unknown;
+				widths?: unknown;
+				children?: unknown;
+			};
 			const rawChildren = Array.isArray(nb.children) ? nb.children : [];
 
 			const columns = rawChildren.map((child) => {
@@ -947,6 +959,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					layout: nb.layout === "flex" ? "flex" : "grid",
 					gap: pickNestingGap(nb.gap),
 					align: pickNestingAlign(nb.align),
+					widths: pickNestingWidths(nb.widths),
 				},
 				content:
 					columns.length > 0

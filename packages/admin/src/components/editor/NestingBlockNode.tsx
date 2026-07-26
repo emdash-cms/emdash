@@ -14,7 +14,7 @@
 
 import { Button, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { DotsSixVertical, Plus, Rows, SquaresFour, Trash, X } from "@phosphor-icons/react";
+import { Plus, Rows, SquaresFour, Trash, X } from "@phosphor-icons/react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
@@ -25,8 +25,17 @@ import { cn } from "../../lib/utils";
 type NestingLayout = "grid" | "flex";
 type NestingGap = "none" | "sm" | "md" | "lg";
 type NestingAlign = "start" | "center" | "end" | "stretch";
+type NestingWidths = "equal" | "wide-first" | "wide-last" | "narrow-first" | "narrow-last";
+const NESTING_WIDTHS = new Set<string>([
+	"equal",
+	"wide-first",
+	"wide-last",
+	"narrow-first",
+	"narrow-last",
+]);
 
 const DEFAULTS = {
+	widths: "equal" as NestingWidths,
 	layout: "grid" as NestingLayout,
 	gap: "md" as NestingGap,
 	align: "start" as NestingAlign,
@@ -34,6 +43,13 @@ const DEFAULTS = {
 
 const MIN_COLUMNS = 1;
 const MAX_COLUMNS = 6;
+
+/**
+ * Width reserved inside every row of a column for its drag handle, wide enough for
+ * the handle cluster plus a small gap. Exported so the drag handle can offset itself
+ * into it -- the two numbers have to agree or the handle lands on the row's content.
+ */
+export const NESTING_GUTTER_PX = 52;
 
 /** CSS gap value per named size. */
 const GAP_TO_CSS: Record<NestingGap, string> = {
@@ -51,6 +67,9 @@ const GAP_TO_CSS: Record<NestingGap, string> = {
  */
 const STYLE_ID = "emdash-nesting-block-style";
 const NESTING_STYLES = `
+.nesting-column-content > [data-node-view-content-react] {
+	--nesting-gutter: ${NESTING_GUTTER_PX}px;
+}
 .nesting-block-content > [data-node-view-content-react] {
 	display: var(--nesting-display, grid);
 	grid-template-columns: var(--nesting-cols, repeat(2, minmax(0, 1fr)));
@@ -64,6 +83,30 @@ const NESTING_STYLES = `
 }
 .nesting-column-content {
 	min-height: 2.5rem;
+}
+/*
+ * The drag handle's gutter belongs to each row, not to the column.
+ *
+ * Padding the column instead would put the gutter outside every row's box, so a
+ * pointer there resolves to the column, which is never a drag target, and the
+ * container wins instead. In use that reads as the handle jumping away exactly
+ * as you reach for it. Owning the padding keeps a pointer in the gutter inside
+ * the row it belongs to.
+ */
+.nesting-column-content > [data-node-view-content-react] > * {
+	padding-inline-start: var(--nesting-gutter);
+}
+/*
+ * A row that indents its own content keeps that indent on top of the gutter.
+ * Setting the gutter alone replaces it, which pulls list markers and a quote's
+ * rule back into the gutter and leaves them under the drag handle. The added
+ * values are the editor's own defaults for these elements.
+ */
+.nesting-column-content > [data-node-view-content-react] > :is(ul, ol) {
+	padding-inline-start: calc(var(--nesting-gutter) + 1.625rem);
+}
+.nesting-column-content > [data-node-view-content-react] > blockquote {
+	padding-inline-start: calc(var(--nesting-gutter) + 1rem);
 }
 .nesting-column-content > [data-node-view-content-react] > *:first-child {
 	margin-top: 0;
@@ -81,15 +124,30 @@ function ensureNestingStyles(): void {
 	document.head.appendChild(style);
 }
 
+/**
+ * `grid-template-columns` for a width preset. Mirrors `nestingTemplateColumns`
+ * in @emdash-cms/core so the editor preview matches what the site renders; the
+ * admin does not depend on core, hence the duplication (as with GAP_TO_CSS).
+ */
+function templateColumns(widths: NestingWidths, columnCount: number): string {
+	const n = Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, columnCount));
+	if (widths === "equal" || n < 2) return `repeat(${n}, minmax(0, 1fr))`;
+	const weightedIndex = widths === "wide-first" || widths === "narrow-last" ? 0 : n - 1;
+	return Array.from({ length: n }, (_, i) =>
+		i === weightedIndex ? "minmax(0, 2fr)" : "minmax(0, 1fr)",
+	).join(" ");
+}
+
 function containerVars(
 	layout: NestingLayout,
 	columnCount: number,
 	gap: NestingGap,
 	align: NestingAlign,
+	widths: NestingWidths,
 ): React.CSSProperties {
 	return {
 		"--nesting-display": layout === "grid" ? "grid" : "flex",
-		"--nesting-cols": `repeat(${columnCount}, minmax(0, 1fr))`,
+		"--nesting-cols": templateColumns(widths, columnCount),
 		"--nesting-gap": GAP_TO_CSS[gap],
 		"--nesting-align": align,
 	} as React.CSSProperties;
@@ -124,6 +182,8 @@ function NestingColumnNodeView({ editor, getPos, node }: NodeViewProps) {
 
 	return (
 		<NodeViewWrapper
+			// The drag handle's gutter is padded onto each row rather than onto the column
+			// -- see NESTING_STYLES for why.
 			className="nesting-column group/col relative rounded-md border border-kumo-line p-2"
 			data-emdash-nesting-column
 		>
@@ -183,6 +243,10 @@ function NestingBlockNodeView({
 	}, []);
 
 	const layout: NestingLayout = node.attrs.layout === "flex" ? "flex" : "grid";
+	const widths: NestingWidths =
+		typeof node.attrs.widths === "string" && NESTING_WIDTHS.has(node.attrs.widths)
+			? (node.attrs.widths as NestingWidths)
+			: DEFAULTS.widths;
 	const gap: NestingGap = (["none", "sm", "md", "lg"] as const).includes(node.attrs.gap)
 		? node.attrs.gap
 		: DEFAULTS.gap;
@@ -217,15 +281,17 @@ function NestingBlockNodeView({
 				className="flex flex-wrap items-center gap-2 border-b border-kumo-line px-3 py-2"
 				contentEditable={false}
 			>
+				{/* The title is the grab area, the way a window is dragged by its bar. There
+				    was a separate grip here, permanently visible, which nothing else in the
+				    editor has: every other row is dragged from a handle that appears in the
+				    gutter on hover. A container is a row too, but hovering one resolves to
+				    the deepest row inside it, so it still needs somewhere of its own to be
+				    picked up -- its header, rather than an icon that is always on screen. */}
 				<div
-					className="cursor-grab text-kumo-subtle/60 active:cursor-grabbing"
+					className="flex cursor-grab items-center gap-1.5 text-kumo-subtle active:cursor-grabbing"
 					data-drag-handle
-					aria-hidden="true"
+					title={t`Drag to move this container`}
 				>
-					<DotsSixVertical className="h-5 w-5" />
-				</div>
-
-				<div className="flex items-center gap-1.5 text-kumo-subtle">
 					{layout === "grid" ? <SquaresFour className="h-4 w-4" /> : <Rows className="h-4 w-4" />}
 					<span className="text-sm font-medium">{t`Nesting container`}</span>
 				</div>
@@ -252,6 +318,24 @@ function NestingBlockNodeView({
 							center: t`Center`,
 							end: t`Bottom`,
 							stretch: t`Stretch`,
+						}}
+					/>
+					{/* Equal columns cannot express a content-plus-sidebar page, which is the
+					    most common two-column layout, so the weighted presets exist for that.
+					    Grid only: a flex container sizes its columns from their content, and
+					    the site renderer ignores widths there too, so it is disabled rather
+					    than left to look like it works. */}
+					<Select
+						label={t`Widths`}
+						value={widths}
+						disabled={layout !== "grid"}
+						onValueChange={(v) => updateAttributes({ widths: v ?? DEFAULTS.widths })}
+						items={{
+							equal: t`Equal`,
+							"wide-first": t`Wide first`,
+							"wide-last": t`Wide last`,
+							"narrow-first": t`Narrow first`,
+							"narrow-last": t`Narrow last`,
 						}}
 					/>
 					<Button
@@ -281,7 +365,7 @@ function NestingBlockNodeView({
 			</div>
 			<NodeViewContent
 				className="nesting-block-content p-3"
-				style={containerVars(layout, Math.max(MIN_COLUMNS, columnCount), gap, align)}
+				style={containerVars(layout, Math.max(MIN_COLUMNS, columnCount), gap, align, widths)}
 			/>
 		</NodeViewWrapper>
 	);
@@ -318,6 +402,13 @@ export const NestingBlockExtension = Node.create({
 				parseHTML: (el: HTMLElement) => el.getAttribute("data-align") ?? DEFAULTS.align,
 				renderHTML: (attrs: Record<string, unknown>) => ({
 					"data-align": typeof attrs.align === "string" ? attrs.align : DEFAULTS.align,
+				}),
+			},
+			widths: {
+				default: DEFAULTS.widths,
+				parseHTML: (el: HTMLElement) => el.getAttribute("data-widths") ?? DEFAULTS.widths,
+				renderHTML: (attrs: Record<string, unknown>) => ({
+					"data-widths": typeof attrs.widths === "string" ? attrs.widths : DEFAULTS.widths,
 				}),
 			},
 		};

@@ -15,7 +15,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	DotsSixVertical,
 	Trash,
 	Pencil,
 	X,
@@ -265,18 +264,13 @@ function PluginBlockNodeView({
 			contentEditable={false}
 			data-drag-handle
 		>
+			{/* No grip of its own: the editor's drag handle already offers one for every
+			    block, and the wrapper above carries data-drag-handle, so a third one only
+			    ever sat underneath the other two. It was positioned at -start-8, in the
+			    editor's left gutter, which does not exist inside a nesting column -- there
+			    the grip hung outside the column, over its neighbour or outside the
+			    container entirely. */}
 			<div className="relative group">
-				{/* Drag handle - appears in left gutter */}
-				<div
-					className={cn(
-						"absolute -start-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing",
-						selected && "opacity-100",
-					)}
-					data-drag-handle
-				>
-					<DotsSixVertical className="h-5 w-5 text-kumo-subtle/50" />
-				</div>
-
 				{/* Main block content */}
 				<div
 					className={cn(
@@ -284,8 +278,11 @@ function PluginBlockNodeView({
 						selected ? "border-kumo-brand/50 bg-kumo-tint/30" : "hover:border-kumo-line",
 					)}
 				>
-					{/* Header with icon, label, and actions */}
-					<div className="flex items-center gap-3 px-4 py-3">
+					{/* Header with icon, label, and actions.
+					    Wraps because the action buttons hold their width even while hidden: in a
+					    narrow container (a sidebar column of a nesting block) they left the label
+					    a few pixels and it broke one character per line. */}
+					<div className="flex flex-wrap items-center gap-3 px-4 py-3">
 						{/* Icon */}
 						<div
 							className={cn(
@@ -297,7 +294,7 @@ function PluginBlockNodeView({
 						</div>
 
 						{/* Label and ID */}
-						<div className="flex-1 min-w-0">
+						<div className="min-w-0 flex-1 basis-24">
 							<div className="text-sm font-medium">{label}</div>
 							{!isEditing && (
 								<div className="text-xs text-kumo-subtle truncate font-mono">{displayId}</div>

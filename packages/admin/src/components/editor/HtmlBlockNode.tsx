@@ -12,7 +12,7 @@
 
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { BracketsAngle, DotsSixVertical, Trash } from "@phosphor-icons/react";
+import { BracketsAngle, Trash } from "@phosphor-icons/react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
@@ -85,18 +85,10 @@ function HtmlBlockNodeView({ node, updateAttributes, selected, deleteNode }: Nod
 			contentEditable={false}
 			data-drag-handle
 		>
+			{/* No grip of its own -- see PluginBlockNode. The editor's drag handle covers
+			    every block, and -start-8 puts this one in a gutter a nesting column does
+			    not have. */}
 			<div className="relative group">
-				{/* Drag handle */}
-				<div
-					className={cn(
-						"absolute -start-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing",
-						selected && "opacity-100",
-					)}
-					data-drag-handle
-				>
-					<DotsSixVertical className="h-5 w-5 text-kumo-subtle/50" />
-				</div>
-
 				{/* Main block */}
 				<div
 					className={cn(
