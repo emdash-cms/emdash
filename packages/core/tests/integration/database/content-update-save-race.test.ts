@@ -157,7 +157,7 @@ describeEachDialect("concurrent draft-revision saves", (dialect) => {
 			spy.mockRestore();
 		}
 
-		expect(calls).toBe(3);
+		expect(calls).toBe(8);
 		expect(result.success).toBe(false);
 		if (result.success) throw new Error("expected failure");
 		expect(result.error.code).toBe("DRAFT_SAVE_CONFLICT");

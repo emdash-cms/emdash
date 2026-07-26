@@ -2857,9 +2857,14 @@ export class EmDashRuntime {
 					// wrap read+write in one; instead the pointer-flip UPDATE is a
 					// CAS keyed on the draft_revision_id we just read, and we retry
 					// against the fresh pointer if we lose the race.
-					const MAX_ATTEMPTS = 3;
+					const MAX_ATTEMPTS = 8;
 					let lostEveryCasAttempt = false;
 					for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+						if (attempt > 0) {
+							// Jittered backoff: without it, N concurrent savers all retry
+							// in lockstep and keep re-colliding on the same tick.
+							await new Promise((resolve) => setTimeout(resolve, Math.random() * 10 * attempt));
+						}
 						// Re-fetch to get latest state (resolvedItem may be stale after
 						// the _rev check, or after a lost race on a prior attempt)
 						const existing = await repo.findById(collection, resolvedId);
