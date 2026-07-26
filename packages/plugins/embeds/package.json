@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-embeds",
-	"version": "0.1.38",
+	"version": "0.1.39",
 	"description": "Embed blocks for EmDash CMS - YouTube, Vimeo, Twitter, Bluesky, Mastodon, and more",
 	"type": "module",
 	"main": "src/index.ts",
@@ -28,13 +28,8 @@
 		"emdash": "workspace:>=0.15.0"
 	},
 	"dependencies": {
-		"@astro-community/astro-embed-gist": "^0.1.0",
-		"@astro-community/astro-embed-link-preview": "^0.3.0",
-		"@astro-community/astro-embed-mastodon": "^0.1.0",
-		"@astro-community/astro-embed-twitter": "^0.5.10",
-		"@astro-community/astro-embed-vimeo": "^0.3.12",
-		"@astro-community/astro-embed-youtube": "^0.5.10",
-		"@emdash-cms/blocks": "workspace:*"
+		"@emdash-cms/blocks": "workspace:*",
+		"astro-embed": "^0.12.0"
 	},
 	"devDependencies": {
 		"vitest": "^4.1.9"
