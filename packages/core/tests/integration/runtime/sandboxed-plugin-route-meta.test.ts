@@ -1,9 +1,5 @@
 /**
- * A `sandboxed: []` (config-declared, non-marketplace) plugin never got its
- * route auth metadata populated -- unlike marketplace/registry installs,
- * which read `bundle.manifest.routes` off a downloaded bundle. Every one of
- * its non-admin routes fell through to the sandbox's `{ public: false }`
- * fallback regardless of what the plugin itself declared. See #2078.
+ * Integration tests for route auth metadata on config-declared sandboxed plugins.
  */
 
 import { randomUUID } from "node:crypto";

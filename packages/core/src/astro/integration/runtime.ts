@@ -140,17 +140,14 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	/** Serialized MCP declarations emitted by the plugin build. */
 	mcp?: PluginMcpManifestConfig;
 	/**
-	 * Route declarations (name + `public`/`permission`/`cacheControl`), mirroring
-	 * the plugin's own `definePlugin({ routes })`. Required for `sandboxed: []`
-	 * registration -- unlike marketplace/registry installs, there is no bundled
-	 * `manifest.json` to read at build time, so route auth metadata can only come
-	 * from here. Omitted routes default to non-public.
+	 * Route declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ routes }) and drives route auth decisions; omitted routes
+	 * default to non-public.
 	 */
 	routes?: Array<ManifestRouteEntry | string>;
 	/**
-	 * Hook declarations this plugin implements, mirroring `definePlugin({ hooks })`.
-	 * Same rationale as `routes` -- needed for `sandboxed: []` since there's no
-	 * bundle manifest to read it from.
+	 * Hook declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ hooks }).
 	 */
 	hooks?: Array<ManifestHookEntry | string>;
 }
