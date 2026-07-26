@@ -14,7 +14,7 @@
 
 import { Button, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Rows, SquaresFour, Trash, X } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, Plus, Rows, SquaresFour, Trash, X } from "@phosphor-icons/react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
@@ -258,6 +258,26 @@ function NestingBlockNodeView({
 
 	const columnCount = node.childCount;
 
+	/**
+	 * Collapsed is view state, not content: it is deliberately not a node attribute,
+	 * so folding a container away is never a document change and never lands in a
+	 * revision. It resets on reload, which matches how editors expect a disclosure to
+	 * behave.
+	 */
+	const [collapsed, setCollapsed] = React.useState(false);
+
+	// Ties the disclosure button to the region it shows and hides.
+	const contentId = React.useId();
+
+	// What the container holds, for the summary shown when it is folded away.
+	const blockCount = React.useMemo(() => {
+		let total = 0;
+		node.forEach((column) => {
+			total += column.childCount;
+		});
+		return total;
+	}, [node]);
+
 	const addColumn = () => {
 		if (typeof getPos !== "function" || columnCount >= MAX_COLUMNS) return;
 		const pos = getPos();
@@ -287,6 +307,24 @@ function NestingBlockNodeView({
 				    gutter on hover. A container is a row too, but hovering one resolves to
 				    the deepest row inside it, so it still needs somewhere of its own to be
 				    picked up -- its header, rather than an icon that is always on screen. */}
+				<Button
+					type="button"
+					variant="ghost"
+					shape="square"
+					className="h-6 w-6 flex-none text-kumo-subtle"
+					onClick={() => setCollapsed((open) => !open)}
+					aria-expanded={!collapsed}
+					aria-controls={contentId}
+					title={collapsed ? t`Expand container` : t`Collapse container`}
+					aria-label={collapsed ? t`Expand container` : t`Collapse container`}
+				>
+					{collapsed ? (
+						<CaretRight className="h-4 w-4" aria-hidden="true" />
+					) : (
+						<CaretDown className="h-4 w-4" aria-hidden="true" />
+					)}
+				</Button>
+
 				<div
 					className="flex cursor-grab items-center gap-1.5 text-kumo-subtle active:cursor-grabbing"
 					data-drag-handle
@@ -294,62 +332,80 @@ function NestingBlockNodeView({
 				>
 					{layout === "grid" ? <SquaresFour className="h-4 w-4" /> : <Rows className="h-4 w-4" />}
 					<span className="text-sm font-medium">{t`Nesting container`}</span>
+					{/* Counts sit outside the translated words rather than inside a plural
+					    message, so the summary reads correctly before catalogs are extracted.
+					    A `<Plural>` here renders its own ICU source until then, which is worse
+					    to look at than an unagreed plural. */}
+					{collapsed && (
+						<span className="text-kumo-subtle/70 text-sm">
+							{columnCount} {t`columns`}
+							{", "}
+							{blockCount} {t`blocks`}
+						</span>
+					)}
 				</div>
 
+				{/* Layout controls describe content that is not on screen while collapsed, so
+				    they fold away with it. Delete stays: an unwanted container should not have
+				    to be opened first. */}
 				<div className="ms-auto flex flex-wrap items-center gap-2">
-					<Select
-						label={t`Layout`}
-						value={layout}
-						onValueChange={(v) => updateAttributes({ layout: v === "flex" ? "flex" : "grid" })}
-						items={{ grid: t`Grid`, flex: t`Flex` }}
-					/>
-					<Select
-						label={t`Gap`}
-						value={gap}
-						onValueChange={(v) => updateAttributes({ gap: v ?? DEFAULTS.gap })}
-						items={{ none: t`None`, sm: t`Small`, md: t`Medium`, lg: t`Large` }}
-					/>
-					<Select
-						label={t`Align`}
-						value={align}
-						onValueChange={(v) => updateAttributes({ align: v ?? DEFAULTS.align })}
-						items={{
-							start: t`Top`,
-							center: t`Center`,
-							end: t`Bottom`,
-							stretch: t`Stretch`,
-						}}
-					/>
-					{/* Equal columns cannot express a content-plus-sidebar page, which is the
+					{!collapsed && (
+						<>
+							<Select
+								label={t`Layout`}
+								value={layout}
+								onValueChange={(v) => updateAttributes({ layout: v === "flex" ? "flex" : "grid" })}
+								items={{ grid: t`Grid`, flex: t`Flex` }}
+							/>
+							<Select
+								label={t`Gap`}
+								value={gap}
+								onValueChange={(v) => updateAttributes({ gap: v ?? DEFAULTS.gap })}
+								items={{ none: t`None`, sm: t`Small`, md: t`Medium`, lg: t`Large` }}
+							/>
+							<Select
+								label={t`Align`}
+								value={align}
+								onValueChange={(v) => updateAttributes({ align: v ?? DEFAULTS.align })}
+								items={{
+									start: t`Top`,
+									center: t`Center`,
+									end: t`Bottom`,
+									stretch: t`Stretch`,
+								}}
+							/>
+							{/* Equal columns cannot express a content-plus-sidebar page, which is the
 					    most common two-column layout, so the weighted presets exist for that.
 					    Grid only: a flex container sizes its columns from their content, and
 					    the site renderer ignores widths there too, so it is disabled rather
 					    than left to look like it works. */}
-					<Select
-						label={t`Widths`}
-						value={widths}
-						disabled={layout !== "grid"}
-						onValueChange={(v) => updateAttributes({ widths: v ?? DEFAULTS.widths })}
-						items={{
-							equal: t`Equal`,
-							"wide-first": t`Wide first`,
-							"wide-last": t`Wide last`,
-							"narrow-first": t`Narrow first`,
-							"narrow-last": t`Narrow last`,
-						}}
-					/>
-					<Button
-						type="button"
-						variant="secondary"
-						className="h-8 gap-1"
-						onClick={addColumn}
-						disabled={columnCount >= MAX_COLUMNS}
-						title={t`Add column`}
-						aria-label={t`Add column`}
-					>
-						<Plus className="h-4 w-4" />
-						{t`Column`}
-					</Button>
+							<Select
+								label={t`Widths`}
+								value={widths}
+								disabled={layout !== "grid"}
+								onValueChange={(v) => updateAttributes({ widths: v ?? DEFAULTS.widths })}
+								items={{
+									equal: t`Equal`,
+									"wide-first": t`Wide first`,
+									"wide-last": t`Wide last`,
+									"narrow-first": t`Narrow first`,
+									"narrow-last": t`Narrow last`,
+								}}
+							/>
+							<Button
+								type="button"
+								variant="secondary"
+								className="h-8 gap-1"
+								onClick={addColumn}
+								disabled={columnCount >= MAX_COLUMNS}
+								title={t`Add column`}
+								aria-label={t`Add column`}
+							>
+								<Plus className="h-4 w-4" />
+								{t`Column`}
+							</Button>
+						</>
+					)}
 					<Button
 						type="button"
 						variant="ghost"
@@ -363,8 +419,12 @@ function NestingBlockNodeView({
 					</Button>
 				</div>
 			</div>
+			{/* Hidden rather than unmounted: ProseMirror owns this element as the node's
+			    contentDOM, and removing it detaches the container's content from the
+			    document. */}
 			<NodeViewContent
-				className="nesting-block-content p-3"
+				id={contentId}
+				className={cn("nesting-block-content p-3", collapsed && "hidden")}
 				style={containerVars(layout, Math.max(MIN_COLUMNS, columnCount), gap, align, widths)}
 			/>
 		</NodeViewWrapper>
