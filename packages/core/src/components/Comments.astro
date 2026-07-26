@@ -134,21 +134,7 @@ const REACTION_SCRIPT = `
 })();
 `;
 
-// Progressive-enhancement script for live/optimistic display. Emitted
-// verbatim (is:inline) only when `live` is enabled, so pages that don't opt
-// in ship zero extra JS. Listens for the `ec:comment:created` event that a
-// sibling <CommentForm live> dispatches on successful submission, and
-// inserts the new comment client-side — respecting the active sort. Both
-// "oldest" and "best" (Wilson-ranked) place a brand-new, zero-reaction
-// comment at the very end of its list: chronologically it's the newest, and
-// under Wilson ranking a zero-reaction comment scores exactly 0 (the
-// minimum), tying with any other zero-reaction comments and losing every
-// oldest-first tiebreak against them since it's the newest of the group. So
-// "append at the end" is correct for both sorts — no client-side ranking
-// math needed. Replies always stay chronological (per the SSR list), so
-// appending to the end of the parent's reply list is correct there too.
-// Mirrors the escaping/autolink logic in formatBody() above (duplicated,
-// not imported — this runs in the browser).
+// Client-side replica of the SSR rendering; emitted verbatim as an is:inline script.
 const LIVE_SCRIPT = `
 (() => {
   const URL_RE = /https?:\\/\\/[^\\s<>"')\\]]+/g;
@@ -166,7 +152,8 @@ const LIVE_SCRIPT = `
   }
 
   function renderComment(section, comment, isReply) {
-    const pending = comment.status !== 'approved';
+    if (comment.status === 'spam' || comment.status === 'trash') return null;
+    const pending = comment.status === 'pending';
     const li = document.createElement('li');
     const article = document.createElement('article');
     article.className = 'ec-comment' + (isReply ? ' ec-comment-reply' : '') + (pending ? ' ec-comment-pending' : '');
@@ -248,15 +235,18 @@ const LIVE_SCRIPT = `
           repliesList.className = 'ec-comment-replies';
           parentArticle.appendChild(repliesList);
         }
-        repliesList.appendChild(renderComment(section, comment, true));
+        const replyEl = renderComment(section, comment, true);
+        if (replyEl) repliesList.appendChild(replyEl);
       } else {
+        const commentEl = renderComment(section, comment, false);
+        if (!commentEl) return;
         let list = section.querySelector('.ec-comments-list');
         if (!list) {
           list = document.createElement('ol');
           list.className = 'ec-comments-list';
           section.appendChild(list);
         }
-        list.appendChild(renderComment(section, comment, false));
+        list.appendChild(commentEl);
       }
 
       updateHeading(section);

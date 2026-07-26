@@ -1110,7 +1110,7 @@ const commentsPaths = {
 			requestBody: { content: { [JSON_CONTENT]: { schema: createCommentBody } } },
 			responses: {
 				"201": {
-					description: "Comment created (pending moderation)",
+					description: "Comment created",
 					content: {
 						[JSON_CONTENT]: {
 							schema: successEnvelope(commentSubmitResponseSchema),
