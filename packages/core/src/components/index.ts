@@ -44,6 +44,7 @@ export { default as Gallery } from "./Gallery.astro";
 export { default as Columns } from "./Columns.astro";
 export { default as Break } from "./Break.astro";
 export { default as HtmlBlock } from "./HtmlBlock.astro";
+export { default as NestingBlock } from "./NestingBlock.astro";
 export { default as Table } from "./Table.astro";
 export { default as Button } from "./Button.astro";
 export { default as Buttons } from "./Buttons.astro";
@@ -73,6 +74,7 @@ import HtmlBlockComponent from "./HtmlBlock.astro";
 // Pre-configured components object for PortableText
 import ImageComponent from "./Image.astro";
 import { emdashMarkComponents } from "./marks.js";
+import NestingBlockComponent from "./NestingBlock.astro";
 import PullquoteComponent from "./Pullquote.astro";
 import TableComponent from "./Table.astro";
 
@@ -95,6 +97,7 @@ export const emdashComponents = {
 		embed: EmbedComponent,
 		gallery: GalleryComponent,
 		columns: ColumnsComponent,
+		nestingBlock: NestingBlockComponent,
 		break: BreakComponent,
 		htmlBlock: HtmlBlockComponent,
 		table: TableComponent,

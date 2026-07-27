@@ -126,6 +126,38 @@ export interface PortableTextHtmlBlock {
 }
 
 /**
+ * Nesting block (grid/flex container holding other blocks as children)
+ */
+export type NestingLayout = "grid" | "flex";
+export type NestingGap = "none" | "sm" | "md" | "lg";
+export type NestingAlign = "start" | "center" | "end" | "stretch";
+/**
+ * Relative column widths. `equal` sizes every column the same; the others weight the
+ * first or last column and leave the rest equal, so the value stays meaningful at any
+ * column count.
+ */
+export type NestingWidths = "equal" | "wide-first" | "wide-last" | "narrow-first" | "narrow-last";
+
+/** A single column (cell) inside a nesting block, holding its own blocks. */
+export interface PortableTextNestingColumn {
+	_type: "nestingColumn";
+	_key: string;
+	children: PortableTextBlock[];
+}
+
+export interface PortableTextNestingBlock {
+	_type: "nestingBlock";
+	_key: string;
+	layout: NestingLayout;
+	/** Number of columns; kept in sync with `children.length`. */
+	columns: number;
+	gap: NestingGap;
+	align: NestingAlign;
+	widths: NestingWidths;
+	children: PortableTextNestingColumn[];
+}
+
+/**
  * Unknown/custom block (preserved for plugin compatibility)
  */
 export interface PortableTextUnknownBlock {
@@ -143,6 +175,7 @@ export type PortableTextBlock =
 	| PortableTextGalleryBlock
 	| PortableTextCodeBlock
 	| PortableTextHtmlBlock
+	| PortableTextNestingBlock
 	| PortableTextUnknownBlock;
 
 /**

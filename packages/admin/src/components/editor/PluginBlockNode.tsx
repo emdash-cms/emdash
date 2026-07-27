@@ -15,7 +15,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	DotsSixVertical,
 	Trash,
 	Pencil,
 	X,
@@ -266,17 +265,6 @@ function PluginBlockNodeView({
 			data-drag-handle
 		>
 			<div className="relative group">
-				{/* Drag handle - appears in left gutter */}
-				<div
-					className={cn(
-						"absolute -start-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing",
-						selected && "opacity-100",
-					)}
-					data-drag-handle
-				>
-					<DotsSixVertical className="h-5 w-5 text-kumo-subtle/50" />
-				</div>
-
 				{/* Main block content */}
 				<div
 					className={cn(
@@ -284,8 +272,9 @@ function PluginBlockNodeView({
 						selected ? "border-kumo-brand/50 bg-kumo-tint/30" : "hover:border-kumo-line",
 					)}
 				>
-					{/* Header with icon, label, and actions */}
-					<div className="flex items-center gap-3 px-4 py-3">
+					{/* Wraps because the action buttons hold their width while hidden, leaving
+					    the label almost none in a narrow column. */}
+					<div className="flex flex-wrap items-center gap-3 px-4 py-3">
 						{/* Icon */}
 						<div
 							className={cn(
@@ -297,7 +286,7 @@ function PluginBlockNodeView({
 						</div>
 
 						{/* Label and ID */}
-						<div className="flex-1 min-w-0">
+						<div className="min-w-0 flex-1 basis-24">
 							<div className="text-sm font-medium">{label}</div>
 							{!isEditing && (
 								<div className="text-xs text-kumo-subtle truncate font-mono">{displayId}</div>

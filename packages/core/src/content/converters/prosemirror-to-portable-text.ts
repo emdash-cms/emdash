@@ -5,6 +5,7 @@
  */
 
 import { sanitizeGalleryImages } from "./gallery.js";
+import { normalizeNestingAttrs } from "./nesting.js";
 import type {
 	ProseMirrorDocument,
 	ProseMirrorNode,
@@ -17,6 +18,7 @@ import type {
 	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
 	PortableTextHtmlBlock,
+	PortableTextNestingBlock,
 } from "./types.js";
 
 /**
@@ -34,9 +36,19 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 		return [];
 	}
 
+	return convertNodes(doc.content);
+}
+
+/**
+ * Convert an array of ProseMirror nodes to Portable Text blocks.
+ *
+ * Shared by the document root and by container nodes (e.g. `nestingBlock`),
+ * flattening the block-or-blocks return of `convertNode`.
+ */
+function convertNodes(nodes: ProseMirrorNode[]): PortableTextBlock[] {
 	const blocks: PortableTextBlock[] = [];
 
-	for (const node of doc.content) {
+	for (const node of nodes) {
 		const converted = convertNode(node);
 		if (converted) {
 			if (Array.isArray(converted)) {
@@ -81,6 +93,9 @@ function convertNode(node: ProseMirrorNode): PortableTextBlock | PortableTextBlo
 
 		case "gallery":
 			return convertGallery(node);
+
+		case "nestingBlock":
+			return convertNestingBlock(node);
 
 		case "horizontalRule":
 			return {
@@ -294,6 +309,28 @@ function convertHtmlBlock(node: ProseMirrorNode): PortableTextHtmlBlock {
 		_type: "htmlBlock",
 		_key: generateKey(),
 		html: typeof rawHtml === "string" ? rawHtml : "",
+	};
+}
+
+/**
+ * Convert nesting block (grid/flex container) to Portable Text.
+ * The container holds `nestingColumn` nodes, each becomes a column object with
+ * its own `children` blocks. `columns` is derived from the column count.
+ */
+function convertNestingBlock(node: ProseMirrorNode): PortableTextNestingBlock {
+	const columns = (node.content ?? [])
+		.filter((child) => child.type === "nestingColumn")
+		.map((col) => ({
+			_type: "nestingColumn" as const,
+			_key: generateKey(),
+			children: convertNodes(col.content ?? []),
+		}));
+	return {
+		_type: "nestingBlock",
+		_key: generateKey(),
+		...normalizeNestingAttrs(node.attrs ?? {}),
+		columns: Math.max(1, columns.length),
+		children: columns,
 	};
 }
 

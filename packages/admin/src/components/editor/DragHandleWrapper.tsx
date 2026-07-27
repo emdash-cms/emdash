@@ -13,6 +13,7 @@ import { offset } from "@floating-ui/react";
 import { useLingui } from "@lingui/react/macro";
 import { DotsSixVertical, Plus } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/core";
+import type { DragHandleRule } from "@tiptap/extension-drag-handle";
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import * as React from "react";
@@ -20,6 +21,7 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 import { getLocaleDir } from "../../locales/config.js";
 import { BlockMenu } from "./BlockMenu";
+import { NESTING_GUTTER_PX } from "./NestingBlockNode";
 
 interface DragHandleWrapperProps {
 	editor: Editor;
@@ -34,6 +36,51 @@ interface HoveredNode {
 export function _getDragHandlePlacement(direction: "ltr" | "rtl") {
 	return direction === "rtl" ? ("right-start" as const) : ("left-start" as const);
 }
+
+/**
+ * A top level row's handle sits outside it, in the editor's own gutter. A row in a
+ * column carries that gutter as its own leading padding, so the handle moves back
+ * across the row's edge to land inside it. Must agree with NESTING_GUTTER_PX.
+ */
+export function _dragHandleOffset(insideColumn: boolean): number {
+	return insideColumn ? -(NESTING_GUTTER_PX - 4) : 4;
+}
+
+/**
+ * Resolved from the document rather than the hovered element, which is virtual and
+ * carries only a rect. `pos` is the position before the row, so its parent is the
+ * column that would hold it.
+ */
+export function _isInsideNestingColumn(editor: Editor, pos: number): boolean {
+	if (pos < 0) return false;
+	try {
+		return editor.state.doc.resolve(pos).parent.type.name === "nestingColumn";
+	} catch {
+		// A stale position between transactions -- treat as top level.
+		return false;
+	}
+}
+
+/**
+ * Drag unit: direct children of the document or of a nesting column.
+ * Table internals and inline content are excluded by the schema.
+ */
+export const _rowsOnlyRule: DragHandleRule = {
+	id: "emdashRowsOnly",
+	evaluate: ({ node, depth, $pos }) => {
+		const EXCLUDE = 1000;
+		if (node.type.name === "nestingColumn") return EXCLUDE;
+		if (depth <= 1) return 0;
+		return $pos.node(depth - 1).type.name === "nestingColumn" ? 0 : EXCLUDE;
+	},
+};
+
+/** Module level: DragHandle re-registers its plugin if this identity changes. */
+export const _nestedDragOptions = {
+	rules: [_rowsOnlyRule],
+	defaultRules: false,
+	edgeDetection: "none" as const,
+};
 
 /**
  * DragHandleWrapper - Official TipTap drag handle with BlockMenu integration
@@ -113,9 +160,13 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 		editor.commands.setMeta("lockDragHandle", false);
 	}, [editor]);
 
+	// Set in onNodeChange, read by the offset middleware that runs straight after it.
+	const insideColumnRef = React.useRef(false);
+
 	// Handle node change from drag handle
 	const handleNodeChange = React.useCallback(
 		(data: { node: PMNode | null; editor: Editor; pos: number }) => {
+			insideColumnRef.current = data.node ? _isInsideNestingColumn(data.editor, data.pos) : false;
 			if (data.node) {
 				setHoveredNode({ node: data.node, pos: data.pos });
 			} else {
@@ -135,7 +186,7 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 		() => ({
 			placement: _getDragHandlePlacement(direction),
 			strategy: "absolute" as const,
-			middleware: [offset(4)],
+			middleware: [offset(() => _dragHandleOffset(insideColumnRef.current))],
 		}),
 		[direction],
 	);
@@ -146,6 +197,7 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 				editor={editor}
 				onNodeChange={handleNodeChange}
 				computePositionConfig={computePositionConfig}
+				nested={_nestedDragOptions}
 			>
 				<div className="flex translate-y-0.5 items-center gap-0 rtl:flex-row-reverse">
 					<Button

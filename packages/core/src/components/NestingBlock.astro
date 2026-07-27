@@ -1,0 +1,116 @@
+---
+/**
+ * Portable Text nesting block component
+ *
+ * Renders a `nestingBlock`: a grid or flex layout container made of explicit
+ * columns. Each column's blocks recurse through the bare `astro-portabletext`
+ * renderer with the EmDash component set passed in, so nested content
+ * (including further nesting blocks) renders with the same components.
+ *
+ * `children` (columns) and each column's `children` (blocks) are remapped to
+ * `content` by remapNestingBlocks before render. See portable-text-nesting.ts.
+ */
+
+import { PortableText } from "astro-portabletext";
+
+import { emdashComponents } from "./index.js";
+import { nestingTemplateColumns, normalizeNestingAttrs } from "../content/converters/nesting.js";
+import type { NestingWidths } from "../content/converters/types.js";
+
+type NestingLayout = "grid" | "flex";
+type NestingGap = "none" | "sm" | "md" | "lg";
+type NestingAlign = "start" | "center" | "end" | "stretch";
+
+interface NestingColumn {
+	content?: unknown[];
+}
+
+export interface Props {
+	node: {
+		_type: "nestingBlock";
+		_key: string;
+		layout?: NestingLayout;
+		gap?: NestingGap;
+		align?: NestingAlign;
+		widths?: NestingWidths;
+		// `children` (the columns) is remapped to `content` before render.
+		content?: NestingColumn[];
+	};
+}
+
+const GAP_TO_CSS: Record<NestingGap, string> = {
+	none: "0",
+	sm: "0.5rem",
+	md: "1rem",
+	lg: "2rem",
+};
+
+const { node } = Astro.props;
+const columns = Array.isArray(node?.content) ? node.content : [];
+
+const layout: NestingLayout = node?.layout === "flex" ? "flex" : "grid";
+const gap: NestingGap = (["none", "sm", "md", "lg"] as const).includes(node?.gap as NestingGap)
+	? (node!.gap as NestingGap)
+	: "md";
+const align: NestingAlign = (["start", "center", "end", "stretch"] as const).includes(
+	node?.align as NestingAlign,
+)
+	? (node!.align as NestingAlign)
+	: "start";
+
+if (!columns.length) {
+	return null;
+}
+
+const widths = normalizeNestingAttrs({ widths: node?.widths }).widths;
+const style = [
+	`--nesting-gap: ${GAP_TO_CSS[gap]}`,
+	`--nesting-align: ${align}`,
+	`--nesting-columns: ${columns.length}`,
+	`--nesting-template: ${nestingTemplateColumns(widths, columns.length)}`,
+].join("; ");
+---
+
+<div class="emdash-nesting" data-layout={layout} style={style}>
+	{
+		columns.map((column) => (
+			<div class="emdash-nesting-col">
+				<PortableText
+					value={(Array.isArray(column?.content) ? column.content : []) as never}
+					components={emdashComponents}
+				/>
+			</div>
+		))
+	}
+</div>
+
+<style>
+	.emdash-nesting {
+		gap: var(--nesting-gap);
+		align-items: var(--nesting-align);
+		margin: 1.5rem 0;
+	}
+	.emdash-nesting[data-layout="grid"] {
+		display: grid;
+		grid-template-columns: var(--nesting-template, repeat(var(--nesting-columns), minmax(0, 1fr)));
+	}
+	.emdash-nesting[data-layout="flex"] {
+		display: flex;
+		flex-wrap: wrap;
+	}
+	.emdash-nesting[data-layout="flex"] > .emdash-nesting-col {
+		flex: 1 1 0;
+		min-width: min(100%, 12rem);
+	}
+	.emdash-nesting-col > :first-child {
+		margin-top: 0;
+	}
+	.emdash-nesting-col > :last-child {
+		margin-bottom: 0;
+	}
+	@media (max-width: 768px) {
+		.emdash-nesting[data-layout="grid"] {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

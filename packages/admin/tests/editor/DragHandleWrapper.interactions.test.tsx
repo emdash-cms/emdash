@@ -14,16 +14,19 @@ vi.mock("@tiptap/extension-drag-handle-react", () => ({
 		children: React.ReactNode;
 		computePositionConfig: {
 			placement: string;
-			middleware?: Array<{ name: string; options?: [number?] }>;
+			middleware?: Array<{ name: string; options?: [(number | (() => number))?] }>;
 		};
 	}) => (
 		<div
 			className="drag-handle"
 			draggable="true"
 			data-placement={computePositionConfig.placement}
-			data-offset={
-				computePositionConfig.middleware?.find(({ name }) => name === "offset")?.options?.[0] ?? ""
-			}
+			// Resolve the offset the way floating-ui would: it may be a function.
+			data-offset={(() => {
+				const option = computePositionConfig.middleware?.find(({ name }) => name === "offset")
+					?.options?.[0];
+				return (typeof option === "function" ? option() : option) ?? "";
+			})()}
 		>
 			{children}
 		</div>
