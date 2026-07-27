@@ -6,10 +6,21 @@ import { parseAllowedMimeTypes } from "../../media/mime.js";
 /**
  * MIME types allowed for upload by default (when no field-specific list
  * overrides this). Entries ending with "/" are prefix-matched (e.g.
- * "image/" matches "image/jpeg", "image/png", etc.).
+ * "video/" matches "video/mp4", "video/webm", etc.).
+ *
+ * Image types are enumerated explicitly rather than using a bare "image/"
+ * prefix so that "image/svg+xml" is excluded by default: there is no
+ * upload-time content validation for SVG, so an unvalidated bare-prefix
+ * allowlist would let a Contributor+ upload an SVG with an embedded
+ * `<script>`. Fields that genuinely need SVG uploads can still opt in via
+ * their own `allowedMimeTypes` (see `resolveFieldAllowlist` below), which is
+ * unaffected by this default.
  */
 export const GLOBAL_UPLOAD_ALLOWLIST: readonly string[] = [
-	"image/",
+	"image/png",
+	"image/jpeg",
+	"image/gif",
+	"image/webp",
 	"video/",
 	"audio/",
 	"application/pdf",
