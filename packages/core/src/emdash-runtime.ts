@@ -197,6 +197,7 @@ import { buildRouteMeta, PluginRouteRegistry, type RouteMeta } from "./plugins/r
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
+import { isRecord } from "./plugin-utils.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
@@ -3696,12 +3697,11 @@ export class EmDashRuntime {
 				.map((sub) => sub.slug);
 			if (mediaSubFieldSlugs.length === 0) continue;
 
+			const items: unknown[] = value;
 			result[field.slug] = await Promise.all(
-				value.map(async (item) => {
-					if (item == null || typeof item !== "object" || Array.isArray(item)) {
-						return item;
-					}
-					const normalizedItem = { ...(item as Record<string, unknown>) };
+				items.map(async (item) => {
+					if (!isRecord(item)) return item;
+					const normalizedItem: Record<string, unknown> = { ...item };
 					for (const slug of mediaSubFieldSlugs) {
 						const subValue = normalizedItem[slug];
 						if (subValue == null) continue;
