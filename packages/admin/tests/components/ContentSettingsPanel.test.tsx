@@ -148,6 +148,23 @@ describe("ContentSettingsPanel", () => {
 	it("lets editors update the publish date of published content", async () => {
 		const onPublishedAtChange = vi.fn();
 		const previousLocale = i18n.locale;
+		const NativeDate = Date;
+		class NonUtcDate extends NativeDate {
+			constructor(value?: string | number | Date) {
+				if (value === "2020-06-01T08:45") {
+					super("2020-06-01T12:45:00.000Z");
+				} else if (typeof value === "string") {
+					super(value);
+				} else if (typeof value === "number") {
+					super(value);
+				} else if (value instanceof NativeDate) {
+					super(value.valueOf());
+				} else {
+					super();
+				}
+			}
+		}
+		vi.stubGlobal("Date", NonUtcDate);
 		i18n.load("ar", {});
 		i18n.activate("ar");
 		try {
@@ -171,9 +188,10 @@ describe("ContentSettingsPanel", () => {
 			await input.fill("2020-06-01T08:45");
 			await screen.getByRole("button", { name: "Update publish date" }).click();
 
-			expect(onPublishedAtChange).toHaveBeenCalledWith("2020-06-01T08:45:00.000Z");
+			expect(onPublishedAtChange).toHaveBeenCalledWith("2020-06-01T12:45:00.000Z");
 		} finally {
 			i18n.activate(previousLocale);
+			vi.unstubAllGlobals();
 		}
 	});
 
