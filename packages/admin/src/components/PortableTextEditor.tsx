@@ -609,10 +609,6 @@ function convertMark(
 		case "strike":
 		case "strikethrough":
 			return "strike-through";
-		case "subscript":
-			return "subscript";
-		case "superscript":
-			return "superscript";
 		case "code":
 			return "code";
 		case "link": {
