@@ -243,6 +243,9 @@ describe("BlockMenu", () => {
 			expect(findButtonByText(updatedMenu, "Heading 1")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Heading 2")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Heading 3")).toBeTruthy();
+			expect(findButtonByText(updatedMenu, "Heading 4")).toBeTruthy();
+			expect(findButtonByText(updatedMenu, "Heading 5")).toBeTruthy();
+			expect(findButtonByText(updatedMenu, "Heading 6")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Quote")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Code Block")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Bullet List")).toBeTruthy();

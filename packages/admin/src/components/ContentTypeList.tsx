@@ -37,8 +37,10 @@ export function ContentTypeList({
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">{t`Content Types`}</h1>
-					<p className="text-kumo-subtle text-sm">{t`Define the structure of your content`}</p>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Content Types`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Define the structure of your content`}
+					</p>
 				</div>
 				<RouterLinkButton to="/content-types/new" icon={<Plus />}>
 					{t`New Content Type`}

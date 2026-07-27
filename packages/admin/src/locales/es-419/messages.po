@@ -73,7 +73,7 @@ msgstr "(con su puerto de desarrollo)."
 
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
-#: packages/admin/src/components/ContentTypeList.tsx:69
+#: packages/admin/src/components/ContentTypeList.tsx:71
 #: packages/admin/src/components/RepeaterField.tsx:152
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# elemento)} other {(# elementos)}}"
@@ -116,12 +116,12 @@ msgstr "{0, plural, one {# elemento seleccionado} other {# elementos seleccionad
 #. placeholder {0}: items.length
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MediaPickerModal.tsx:636
-#: packages/admin/src/components/MenuList.tsx:218
+#: packages/admin/src/components/MenuList.tsx:220
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# elemento} other {# elementos}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:419
+#: packages/admin/src/components/PluginManager.tsx:420
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# herramienta MCP} other {# herramientas MCP}}"
 
@@ -146,8 +146,8 @@ msgid "{0, plural, one {# menu will be imported} other {# menus will be imported
 msgstr "{0, plural, one {se importará # menú} other {se importarán # menús}}"
 
 #. placeholder {0}: plugin.capabilities.length
-#: packages/admin/src/components/MarketplaceBrowse.tsx:288
-#: packages/admin/src/components/PluginManager.tsx:433
+#: packages/admin/src/components/MarketplaceBrowse.tsx:290
+#: packages/admin/src/components/PluginManager.tsx:434
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# permiso} other {# permisos}}"
 
@@ -157,7 +157,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# entrada} other {# entradas}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:445
+#: packages/admin/src/components/Redirects.tsx:447
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# redirección es parte de un bucle.} other {# redirecciones son parte de un bucle.}}"
 
@@ -187,12 +187,12 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {campo personalizado} other {campos personalizados}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:160
+#: packages/admin/src/components/Dashboard.tsx:164
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr "{0, plural, one {Archivo multimedia} other {Archivos multimedia}}"
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:165
+#: packages/admin/src/components/Dashboard.tsx:168
 msgid "{0, plural, one {User} other {Users}}"
 msgstr "{0, plural, one {Usuario} other {Usuarios}}"
 
@@ -204,8 +204,8 @@ msgid "{0} {1} required — you have {2}."
 msgstr "Se requiere {0} {1} — tiene {2}."
 
 #. placeholder {0}: menu.name
-#. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ADMIN_NAV_ICONS.menus className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
-#: packages/admin/src/components/MenuList.tsx:216
+#. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-2xl font-semibold leading-tight">{t`Menus`}</h1> <p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle"> {t`Manage navigation menus for your site`} </p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ADMIN_NAV_ICONS.menus className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
+#: packages/admin/src/components/MenuList.tsx:218
 msgid "{0} • {1}"
 msgstr "{0} • {1}"
 
@@ -225,7 +225,7 @@ msgid "{0} has been deactivated"
 msgstr "{0} ha sido desactivado"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:323
+#: packages/admin/src/components/PluginManager.tsx:324
 msgid "{0} has been removed"
 msgstr "{0} ha sido eliminado"
 
@@ -271,7 +271,7 @@ msgid "{0} of {total} could not be updated"
 msgstr "{0} de {total} no se pudieron actualizar"
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:174
+#: packages/admin/src/components/PluginManager.tsx:179
 msgid "{0} plugins"
 msgstr "{0} plugins"
 
@@ -282,7 +282,7 @@ msgstr "{0} vista previa"
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
-#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="text-2xl font-bold truncate"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
+#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
 #: packages/admin/src/components/ContentTypeEditor.tsx:583
 msgid "{0} system + {1} custom {2}"
 msgstr "{0} del sistema + {1} {2}"
@@ -294,7 +294,7 @@ msgstr "Se actualizó {0}"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:269
+#: packages/admin/src/components/PluginManager.tsx:270
 msgid "{0} updated to v{1}"
 msgstr "{0} actualizado a v{1}"
 
@@ -409,11 +409,11 @@ msgstr "{total, plural, one {Archivo subido} other {# archivos subidos}}"
 msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
 msgstr "{total, plural, one {Error en la carga} other {Error en todas las # cargas}}"
 
-#: packages/admin/src/components/Dashboard.tsx:146
+#: packages/admin/src/components/Dashboard.tsx:152
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr "{totalDrafts, plural, one {Borrador} other {Borradores}}"
 
-#: packages/admin/src/components/Dashboard.tsx:153
+#: packages/admin/src/components/Dashboard.tsx:158
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {Programado} other {Programados}}"
 
@@ -513,7 +513,7 @@ msgstr "4. Haga clic en \"Descargar archivo de exportación\"."
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Ingrese \"EmDash\" y haga clic en \"Agregar nuevo\"."
 
-#: packages/admin/src/components/Redirects.tsx:395
+#: packages/admin/src/components/Redirects.tsx:397
 msgid "404 Errors"
 msgstr "Errores 404"
 
@@ -601,7 +601,7 @@ msgstr "Campos ACF"
 #: packages/admin/src/components/comments/CommentInbox.tsx:300
 #: packages/admin/src/components/ContentList.tsx:528
 #: packages/admin/src/components/ContentList.tsx:649
-#: packages/admin/src/components/ContentTypeList.tsx:106
+#: packages/admin/src/components/ContentTypeList.tsx:108
 #: packages/admin/src/components/TaxonomyManager.tsx:843
 #: packages/admin/src/routes/byline-schema.tsx:249
 msgid "Actions"
@@ -621,7 +621,7 @@ msgstr "Agregar"
 
 #. placeholder {0}: field.item_label
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/PortableTextEditor.tsx:1830
+#: packages/admin/src/components/PortableTextEditor.tsx:1863
 #: packages/admin/src/components/TaxonomyManager.tsx:378
 #: packages/admin/src/components/TaxonomyManager.tsx:834
 msgid "Add {0}"
@@ -643,11 +643,11 @@ msgstr "Agregar un dominio permitido"
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Agregue al menos un subcampo para definir la estructura del repetidor."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3337
+#: packages/admin/src/components/PortableTextEditor.tsx:3370
 msgid "Add column after"
 msgstr "Agregar columna después"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3331
+#: packages/admin/src/components/PortableTextEditor.tsx:3364
 msgid "Add column before"
 msgstr "Agregar columna antes"
 
@@ -701,7 +701,7 @@ msgstr "Agregar imágenes"
 msgid "Add images to gallery"
 msgstr "Agregar imágenes a la galería"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1830
+#: packages/admin/src/components/PortableTextEditor.tsx:1863
 msgid "Add item"
 msgstr "Agregar elemento"
 
@@ -709,7 +709,7 @@ msgstr "Agregar elemento"
 msgid "Add Item"
 msgstr "Agregar elemento"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3266
+#: packages/admin/src/components/PortableTextEditor.tsx:3299
 msgid "Add link"
 msgstr "Agregar enlace"
 
@@ -738,15 +738,15 @@ msgstr "Agregar metaetiqueta noindex"
 msgid "Add Passkey"
 msgstr "Agregar Passkey"
 
-#: packages/admin/src/components/PluginManager.tsx:210
+#: packages/admin/src/components/PluginManager.tsx:211
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Agregue plugins a su astro.config.mjs para ampliar la funcionalidad de EmDash."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3358
+#: packages/admin/src/components/PortableTextEditor.tsx:3391
 msgid "Add row after"
 msgstr "Agregar fila después"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3352
+#: packages/admin/src/components/PortableTextEditor.tsx:3385
 msgid "Add row before"
 msgstr "Agregar fila antes"
 
@@ -762,7 +762,7 @@ msgstr "Agregar subcampo"
 msgid "Add tags..."
 msgstr "Añadir etiquetas..."
 
-#: packages/admin/src/components/Widgets.tsx:401
+#: packages/admin/src/components/Widgets.tsx:403
 msgid "Add Widget Area"
 msgstr "Agregar área de widgets"
 
@@ -801,12 +801,12 @@ msgstr "Administrador"
 msgid "After send:"
 msgstr "Después del envío:"
 
-#: packages/admin/src/components/PluginManager.tsx:542
+#: packages/admin/src/components/PluginManager.tsx:543
 msgid "Agent access"
 msgstr "Acceso de agentes"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:334
+#: packages/admin/src/components/PluginManager.tsx:335
 msgid "Agent access for {0} has been updated"
 msgstr "Se actualizó el acceso de agentes para {0}"
 
@@ -814,15 +814,15 @@ msgstr "Se actualizó el acceso de agentes para {0}"
 msgid "Agent-callable MCP tools"
 msgstr "Herramientas MCP invocables por agentes"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3705
+#: packages/admin/src/components/PortableTextEditor.tsx:3738
 msgid "Align Center"
 msgstr "Alinear al centro"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3698
+#: packages/admin/src/components/PortableTextEditor.tsx:3731
 msgid "Align Left"
 msgstr "Alinear a la izquierda"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3712
+#: packages/admin/src/components/PortableTextEditor.tsx:3745
 msgid "Align Right"
 msgstr "Alinear a la derecha"
 
@@ -844,7 +844,7 @@ msgstr "Todos los autores"
 msgid "All bylines"
 msgstr "Todas las firmas"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:108
+#: packages/admin/src/components/MarketplaceBrowse.tsx:110
 msgid "All capabilities"
 msgstr "Todas las capacidades"
 
@@ -874,16 +874,16 @@ msgid "All Sources"
 msgstr "Todas las fuentes"
 
 #: packages/admin/src/components/ContentList.tsx:728
-#: packages/admin/src/components/Redirects.tsx:419
+#: packages/admin/src/components/Redirects.tsx:421
 msgid "All statuses"
 msgstr "Todos los estados"
 
 #: packages/admin/src/components/MediaLibrary.tsx:433
-#: packages/admin/src/components/Redirects.tsx:425
+#: packages/admin/src/components/Redirects.tsx:427
 msgid "All types"
 msgstr "Todos los tipos"
 
-#: packages/admin/src/components/PluginManager.tsx:544
+#: packages/admin/src/components/PluginManager.tsx:545
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr "Permitir que los tokens MCP con alcance plugin-tool invoquen estas rutas."
 
@@ -907,7 +907,7 @@ msgstr "Tipos permitidos"
 msgid "Already have an account?"
 msgstr "¿Ya tienes una cuenta?"
 
-#: packages/admin/src/components/PluginManager.tsx:718
+#: packages/admin/src/components/PluginManager.tsx:719
 msgid "Also delete plugin storage data"
 msgstr "Eliminar también los datos de almacenamiento del plugin"
 
@@ -924,8 +924,8 @@ msgstr "Texto alternativo"
 msgid "Alt Text"
 msgstr "Texto alternativo"
 
-#: packages/admin/src/components/MediaLibrary.tsx:833
-#: packages/admin/src/components/MediaLibrary.tsx:890
+#: packages/admin/src/components/MediaLibrary.tsx:835
+#: packages/admin/src/components/MediaLibrary.tsx:892
 msgid "Alt text set"
 msgstr "Texto alternativo establecido"
 
@@ -934,7 +934,7 @@ msgid "Alternatively, you can export from WordPress (Tools → Export) and uploa
 msgstr "Alternativamente, puede exportar desde WordPress (Herramientas → Exportar) y cargar el archivo."
 
 #: packages/admin/src/components/DialogError.tsx:14
-#: packages/admin/src/components/MarketplaceBrowse.tsx:133
+#: packages/admin/src/components/MarketplaceBrowse.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:121
 #: packages/admin/src/components/PluginSettings.tsx:75
@@ -1000,7 +1000,7 @@ msgstr "Se permite cualquier tipo de medio (sujeto a los límites globales)."
 msgid "API Tokens"
 msgstr "Tokens de API"
 
-#: packages/admin/src/components/Widgets.tsx:438
+#: packages/admin/src/components/Widgets.tsx:440
 msgid "Appears on posts and pages"
 msgstr "Aparece en entradas y páginas"
 
@@ -1008,7 +1008,7 @@ msgstr "Aparece en entradas y páginas"
 msgid "Application Password"
 msgstr "Contraseña de la aplicación"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3794
+#: packages/admin/src/components/PortableTextEditor.tsx:3827
 msgid "Apply"
 msgstr "Aplicar"
 
@@ -1017,8 +1017,8 @@ msgstr "Aplicar"
 msgid "Apply language"
 msgstr "Aplicar lenguaje"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3206
-#: packages/admin/src/components/PortableTextEditor.tsx:3207
+#: packages/admin/src/components/PortableTextEditor.tsx:3239
+#: packages/admin/src/components/PortableTextEditor.tsx:3240
 msgid "Apply link"
 msgstr "Aplicar enlace"
 
@@ -1045,7 +1045,7 @@ msgid "archived"
 msgstr "archivado"
 
 #: packages/admin/src/components/ContentList.tsx:732
-#: packages/admin/src/components/Dashboard.tsx:350
+#: packages/admin/src/components/Dashboard.tsx:355
 msgid "Archived"
 msgstr "Archivado"
 
@@ -1060,7 +1060,7 @@ msgid "Are you sure you want to delete \"{0}\"? No stored values reference this 
 msgstr "¿Está seguro de que desea eliminar \"{0}\"? Ningún valor almacenado hace referencia a este campo."
 
 #. placeholder {0}: deleteTarget.label
-#: packages/admin/src/components/ContentTypeList.tsx:145
+#: packages/admin/src/components/ContentTypeList.tsx:147
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
 msgstr "¿Está seguro de que desea eliminar \"{0}\"? Esto también eliminará todo el contenido de esta colección."
 
@@ -1069,7 +1069,7 @@ msgstr "¿Está seguro de que desea eliminar \"{0}\"? Esto también eliminará t
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr "¿Está seguro de que desea eliminar el campo \"{0}\"?"
 
-#: packages/admin/src/components/MenuList.tsx:255
+#: packages/admin/src/components/MenuList.tsx:257
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 msgstr "¿Está seguro de que desea eliminar este menú? Esto también eliminará todos los elementos del menú. Esta acción no se puede deshacer."
 
@@ -1149,11 +1149,11 @@ msgstr "Autorizando..."
 msgid "Authors"
 msgstr "Autores"
 
-#: packages/admin/src/components/Redirects.tsx:522
+#: packages/admin/src/components/Redirects.tsx:524
 msgid "auto"
 msgstr "auto"
 
-#: packages/admin/src/components/Redirects.tsx:425
+#: packages/admin/src/components/Redirects.tsx:427
 msgid "Auto (slug change)"
 msgstr "Auto (cambio de slug)"
 
@@ -1185,7 +1185,7 @@ msgstr "Medios disponibles"
 msgid "Available Providers"
 msgstr "Proveedores disponibles"
 
-#: packages/admin/src/components/Widgets.tsx:464
+#: packages/admin/src/components/Widgets.tsx:466
 msgid "Available Widgets"
 msgstr "Widgets disponibles"
 
@@ -1194,7 +1194,7 @@ msgstr "Widgets disponibles"
 msgid "Avatar"
 msgstr "Avatar"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:257
+#: packages/admin/src/components/editor/BlockMenu.tsx:284
 #: packages/admin/src/components/MenuEditor.tsx:362
 #: packages/admin/src/components/WordPressImport.tsx:1510
 #: packages/admin/src/components/WordPressImport.tsx:2527
@@ -1288,8 +1288,8 @@ msgstr "Biografía"
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "Acciones de bloque: arrastre para reordenar, haga clic para abrir el menú"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3230
-#: packages/admin/src/components/PortableTextEditor.tsx:3616
+#: packages/admin/src/components/PortableTextEditor.tsx:3263
+#: packages/admin/src/components/PortableTextEditor.tsx:3649
 msgid "Bold"
 msgstr "Negrita"
 
@@ -1303,11 +1303,11 @@ msgstr "Booleano"
 msgid "Brief summary shown below the title in search results"
 msgstr "Breve resumen que se muestra debajo del título en los resultados de búsqueda."
 
-#: packages/admin/src/components/RegistryBrowse.tsx:72
+#: packages/admin/src/components/RegistryBrowse.tsx:73
 msgid "Browse and install plugins published to the decentralized registry."
 msgstr "Explore e instale plugins publicados en el registro descentralizado."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:88
+#: packages/admin/src/components/MarketplaceBrowse.tsx:89
 msgid "Browse and install plugins to extend your site."
 msgstr "Explore e instale plugins para ampliar su sitio."
 
@@ -1316,7 +1316,7 @@ msgstr "Explore e instale plugins para ampliar su sitio."
 msgid "Browse Files"
 msgstr "Explorar archivos"
 
-#: packages/admin/src/components/PluginManager.tsx:203
+#: packages/admin/src/components/PluginManager.tsx:204
 msgid "Browse the"
 msgstr "Navega por el"
 
@@ -1324,9 +1324,9 @@ msgstr "Navega por el"
 msgid "Browse themes and preview them with your own content."
 msgstr "Explore temas y obtenga una vista previa de ellos con su propio contenido."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:102
-#: packages/admin/src/components/PortableTextEditor.tsx:1139
-#: packages/admin/src/components/PortableTextEditor.tsx:3664
+#: packages/admin/src/components/editor/BlockMenu.tsx:129
+#: packages/admin/src/components/PortableTextEditor.tsx:1172
+#: packages/admin/src/components/PortableTextEditor.tsx:3697
 msgid "Bullet List"
 msgstr "Lista de viñetas"
 
@@ -1397,9 +1397,9 @@ msgstr "Puede ver contenido"
 #: packages/admin/src/components/MediaPickerModal.tsx:805
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
-#: packages/admin/src/components/MenuList.tsx:173
-#: packages/admin/src/components/PluginManager.tsx:724
-#: packages/admin/src/components/PortableTextEditor.tsx:3778
+#: packages/admin/src/components/MenuList.tsx:175
+#: packages/admin/src/components/PluginManager.tsx:725
+#: packages/admin/src/components/PortableTextEditor.tsx:3811
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
@@ -1412,7 +1412,7 @@ msgstr "Puede ver contenido"
 #: packages/admin/src/components/TaxonomyManager.tsx:494
 #: packages/admin/src/components/TaxonomyManager.tsx:708
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
-#: packages/admin/src/components/Widgets.tsx:449
+#: packages/admin/src/components/Widgets.tsx:451
 #: packages/admin/src/components/WordPressImport.tsx:1917
 msgid "Cancel"
 msgstr "Cancelar"
@@ -1438,7 +1438,7 @@ msgstr "No se puede determinar el tipo MIME a partir de la URL. Use una URL que 
 msgid "Canonical URL"
 msgstr "URL canónica"
 
-#: packages/admin/src/components/PluginManager.tsx:518
+#: packages/admin/src/components/PluginManager.tsx:519
 msgid "Capabilities"
 msgstr "Capacidades"
 
@@ -1516,7 +1516,7 @@ msgstr "Cambios descartados"
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Carácter entre el título de la página y el nombre del sitio (por ejemplo, \"Mi entrada | Mi sitio\")"
 
-#: packages/admin/src/components/PluginManager.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:171
 msgid "Check for updates"
 msgstr "Buscar actualizaciones"
 
@@ -1608,12 +1608,12 @@ msgstr "Haga clic en el enlace del correo electrónico para iniciar sesión."
 #: packages/admin/src/components/MenuEditor.tsx:576
 #: packages/admin/src/components/MenuEditor.tsx:582
 #: packages/admin/src/components/MenuEditor.tsx:586
-#: packages/admin/src/components/MenuList.tsx:137
-#: packages/admin/src/components/MenuList.tsx:143
-#: packages/admin/src/components/MenuList.tsx:147
-#: packages/admin/src/components/PortableTextEditor.tsx:1614
-#: packages/admin/src/components/PortableTextEditor.tsx:1620
-#: packages/admin/src/components/PortableTextEditor.tsx:1624
+#: packages/admin/src/components/MenuList.tsx:139
+#: packages/admin/src/components/MenuList.tsx:145
+#: packages/admin/src/components/MenuList.tsx:149
+#: packages/admin/src/components/PortableTextEditor.tsx:1647
+#: packages/admin/src/components/PortableTextEditor.tsx:1653
+#: packages/admin/src/components/PortableTextEditor.tsx:1657
 #: packages/admin/src/components/Redirects.tsx:115
 #: packages/admin/src/components/Redirects.tsx:121
 #: packages/admin/src/components/SectionPickerModal.tsx:61
@@ -1637,9 +1637,9 @@ msgstr "Haga clic en el enlace del correo electrónico para iniciar sesión."
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
 #: packages/admin/src/components/users/InviteUserModal.tsx:98
 #: packages/admin/src/components/WelcomeModal.tsx:54
-#: packages/admin/src/components/Widgets.tsx:411
-#: packages/admin/src/components/Widgets.tsx:417
-#: packages/admin/src/components/Widgets.tsx:421
+#: packages/admin/src/components/Widgets.tsx:413
+#: packages/admin/src/components/Widgets.tsx:419
+#: packages/admin/src/components/Widgets.tsx:423
 msgid "Close"
 msgstr "Cerrar"
 
@@ -1659,23 +1659,23 @@ msgstr "Cerrar panel"
 msgid "Close settings"
 msgstr "Cerrar configuración"
 
-#: packages/admin/src/components/ContentTypeList.tsx:242
-#: packages/admin/src/components/PortableTextEditor.tsx:3258
-#: packages/admin/src/components/Redirects.tsx:470
+#: packages/admin/src/components/ContentTypeList.tsx:244
+#: packages/admin/src/components/PortableTextEditor.tsx:3291
+#: packages/admin/src/components/Redirects.tsx:472
 msgid "Code"
 msgstr "Código"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:94
-#: packages/admin/src/components/PortableTextEditor.tsx:1169
-#: packages/admin/src/components/PortableTextEditor.tsx:3685
+#: packages/admin/src/components/editor/BlockMenu.tsx:121
+#: packages/admin/src/components/PortableTextEditor.tsx:1202
+#: packages/admin/src/components/PortableTextEditor.tsx:3718
 msgid "Code Block"
 msgstr "Bloque de código"
 
-#: packages/admin/src/components/PluginManager.tsx:505
+#: packages/admin/src/components/PluginManager.tsx:506
 msgid "Collapse"
 msgstr "Colapsar"
 
-#: packages/admin/src/components/PluginManager.tsx:499
+#: packages/admin/src/components/PluginManager.tsx:500
 msgid "Collapse details"
 msgstr "Contraer detalles"
 
@@ -1730,7 +1730,7 @@ msgstr "Los comentarios de los usuarios del CMS con sesión iniciada se aprueban
 msgid "Complete signup"
 msgstr "Registro completo"
 
-#: packages/admin/src/components/Widgets.tsx:929
+#: packages/admin/src/components/Widgets.tsx:931
 msgid "Component"
 msgstr "Componente"
 
@@ -1773,10 +1773,10 @@ msgstr "contenido"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:294
 #: packages/admin/src/components/Dashboard.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:2428
+#: packages/admin/src/components/PortableTextEditor.tsx:2461
 #: packages/admin/src/components/SectionEditor.tsx:195
 #: packages/admin/src/components/Sidebar.tsx:365
-#: packages/admin/src/components/Widgets.tsx:897
+#: packages/admin/src/components/Widgets.tsx:899
 msgid "Content"
 msgstr "Contenido"
 
@@ -1901,7 +1901,7 @@ msgstr "Copiar URL"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "No se pudo copiar automáticamente. Seleccione la URL de arriba y cópiela manualmente."
 
-#: packages/admin/src/components/Dashboard.tsx:84
+#: packages/admin/src/components/Dashboard.tsx:75
 msgid "Could not load dashboard data"
 msgstr "No se pudieron cargar los datos del panel"
 
@@ -1939,11 +1939,11 @@ msgid "Count"
 msgstr "Contar"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1009
-#: packages/admin/src/components/MenuList.tsx:176
+#: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:501
-#: packages/admin/src/components/Widgets.tsx:452
+#: packages/admin/src/components/Widgets.tsx:454
 #: packages/admin/src/routes/bylines.tsx:579
 msgid "Create"
 msgstr "Crear"
@@ -1952,7 +1952,7 @@ msgstr "Crear"
 msgid "Create \"{trimmedInput}\""
 msgstr "Crear \"{trimmedInput}\""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1140
+#: packages/admin/src/components/PortableTextEditor.tsx:1173
 msgid "Create a bullet list"
 msgstr "Crear una lista con viñetas"
 
@@ -1961,7 +1961,7 @@ msgstr "Crear una lista con viñetas"
 msgid "Create a new {0}"
 msgstr "Crear un nuevo {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1150
+#: packages/admin/src/components/PortableTextEditor.tsx:1183
 msgid "Create a numbered list"
 msgstr "Crear una lista numerada"
 
@@ -1987,12 +1987,12 @@ msgstr "Crear tipo de contenido"
 msgid "Create field"
 msgstr "Crear campo"
 
-#: packages/admin/src/components/MenuList.tsx:127
-#: packages/admin/src/components/MenuList.tsx:190
+#: packages/admin/src/components/MenuList.tsx:129
+#: packages/admin/src/components/MenuList.tsx:192
 msgid "Create Menu"
 msgstr "Crear menú"
 
-#: packages/admin/src/components/MenuList.tsx:134
+#: packages/admin/src/components/MenuList.tsx:136
 msgid "Create New Menu"
 msgstr "Crear nuevo menú"
 
@@ -2022,7 +2022,7 @@ msgstr "Crear redirección para {0}"
 msgid "Create redirect for this path"
 msgstr "Crear redirección para esta ruta"
 
-#: packages/admin/src/components/Redirects.tsx:462
+#: packages/admin/src/components/Redirects.tsx:464
 msgid "Create redirect rules to manage URL changes."
 msgstr "Cree reglas de redirección para administrar los cambios de URL."
 
@@ -2049,7 +2049,7 @@ msgstr "Crear taxonomía"
 msgid "Create Token"
 msgstr "Crear token"
 
-#: packages/admin/src/components/Widgets.tsx:408
+#: packages/admin/src/components/Widgets.tsx:410
 msgid "Create Widget Area"
 msgstr "Crear área de widgets"
 
@@ -2057,12 +2057,12 @@ msgstr "Crear área de widgets"
 msgid "Create your account"
 msgstr "Crea tu cuenta"
 
-#: packages/admin/src/components/MenuList.tsx:188
+#: packages/admin/src/components/MenuList.tsx:190
 msgid "Create your first navigation menu to get started"
 msgstr "Crea tu primer menú de navegación para comenzar"
 
 #: packages/admin/src/components/ContentList.tsx:556
-#: packages/admin/src/components/ContentTypeList.tsx:122
+#: packages/admin/src/components/ContentTypeList.tsx:124
 msgid "Create your first one"
 msgstr "Crea el primero"
 
@@ -2124,7 +2124,7 @@ msgid "Creating collections and fields..."
 msgstr "Creando colecciones y campos..."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1009
-#: packages/admin/src/components/MenuList.tsx:176
+#: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
@@ -2182,8 +2182,8 @@ msgid "Dark"
 msgstr "Oscuro"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:130
-#: packages/admin/src/components/ContentTypeList.tsx:244
-#: packages/admin/src/components/Dashboard.tsx:50
+#: packages/admin/src/components/ContentTypeList.tsx:246
+#: packages/admin/src/components/Dashboard.tsx:41
 #: packages/admin/src/components/Sidebar.tsx:206
 #: packages/admin/src/components/Sidebar.tsx:356
 msgid "Dashboard"
@@ -2244,7 +2244,7 @@ msgstr "Definir una nueva taxonomía para clasificar contenidos"
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
 msgstr "Defina campos personalizados que se almacenan en cada firma: cargo, pronombres, perfiles de redes sociales y más."
 
-#: packages/admin/src/components/ContentTypeList.tsx:41
+#: packages/admin/src/components/ContentTypeList.tsx:42
 msgid "Define the structure of your content"
 msgstr "Define la estructura de tu contenido"
 
@@ -2255,20 +2255,20 @@ msgstr "Definido en código"
 #: packages/admin/src/components/comments/CommentInbox.tsx:268
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:672
-#: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/editor/BlockMenu.tsx:301
+#: packages/admin/src/components/ContentTypeList.tsx:150
+#: packages/admin/src/components/editor/BlockMenu.tsx:328
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:453
 #: packages/admin/src/components/MenuEditor.tsx:549
-#: packages/admin/src/components/MenuList.tsx:256
-#: packages/admin/src/components/Redirects.tsx:583
+#: packages/admin/src/components/MenuList.tsx:258
+#: packages/admin/src/components/Redirects.tsx:585
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/settings/BackupSettings.tsx:284
 #: packages/admin/src/components/TaxonomyManager.tsx:906
-#: packages/admin/src/components/Widgets.tsx:714
+#: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
 #: packages/admin/src/routes/bylines.tsx:588
 #: packages/admin/src/routes/bylines.tsx:624
@@ -2283,12 +2283,12 @@ msgstr "¿Eliminar \"{0}\"? Esto no se puede deshacer."
 #. placeholder {0}: archive.name
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#: packages/admin/src/components/ContentTypeList.tsx:227
+#: packages/admin/src/components/ContentTypeList.tsx:229
 #: packages/admin/src/components/Sections.tsx:408
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:252
 #: packages/admin/src/components/settings/BackupSettings.tsx:245
 #: packages/admin/src/components/TaxonomyManager.tsx:117
-#: packages/admin/src/components/Widgets.tsx:815
+#: packages/admin/src/components/Widgets.tsx:817
 #: packages/admin/src/routes/byline-schema.tsx:458
 msgid "Delete {0}"
 msgstr "Eliminar {0}"
@@ -2299,12 +2299,12 @@ msgid "Delete {0} field"
 msgstr "Eliminar el campo {0}"
 
 #. placeholder {0}: menu.name
-#: packages/admin/src/components/MenuList.tsx:238
+#: packages/admin/src/components/MenuList.tsx:240
 msgid "Delete {0} menu"
 msgstr "Eliminar menú {0}"
 
 #. placeholder {0}: area.label
-#: packages/admin/src/components/Widgets.tsx:662
+#: packages/admin/src/components/Widgets.tsx:664
 msgid "Delete {0} widget area"
 msgstr "Eliminar el área de widgets {0}"
 
@@ -2325,7 +2325,7 @@ msgstr "¿Eliminar campo de firma?"
 msgid "Delete Byline?"
 msgstr "¿Eliminar firma?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3343
+#: packages/admin/src/components/PortableTextEditor.tsx:3376
 msgid "Delete column"
 msgstr "Eliminar columna"
 
@@ -2333,7 +2333,7 @@ msgstr "Eliminar columna"
 msgid "Delete Comment?"
 msgstr "¿Eliminar comentario?"
 
-#: packages/admin/src/components/ContentTypeList.tsx:142
+#: packages/admin/src/components/ContentTypeList.tsx:144
 msgid "Delete Content Type?"
 msgstr "¿Eliminar tipo de contenido?"
 
@@ -2364,7 +2364,7 @@ msgstr "Eliminar imagen"
 msgid "Delete Media?"
 msgstr "¿Eliminar medios?"
 
-#: packages/admin/src/components/MenuList.tsx:254
+#: packages/admin/src/components/MenuList.tsx:256
 msgid "Delete Menu"
 msgstr "Eliminar menú"
 
@@ -2381,20 +2381,20 @@ msgstr "Eliminar permanentemente"
 msgid "Delete Permanently?"
 msgstr "¿Eliminar permanentemente?"
 
-#: packages/admin/src/components/Redirects.tsx:536
+#: packages/admin/src/components/Redirects.tsx:538
 msgid "Delete redirect"
 msgstr "Eliminar redirección"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:537
+#: packages/admin/src/components/Redirects.tsx:539
 msgid "Delete redirect {0}"
 msgstr "Eliminar redirección {0}"
 
-#: packages/admin/src/components/Redirects.tsx:581
+#: packages/admin/src/components/Redirects.tsx:583
 msgid "Delete Redirect?"
 msgstr "¿Eliminar redirección?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3362
+#: packages/admin/src/components/PortableTextEditor.tsx:3395
 msgid "Delete row"
 msgstr "Eliminar fila"
 
@@ -2402,11 +2402,11 @@ msgstr "Eliminar fila"
 msgid "Delete Section?"
 msgstr "¿Eliminar sección?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3377
+#: packages/admin/src/components/PortableTextEditor.tsx:3410
 msgid "Delete table"
 msgstr "Eliminar tabla"
 
-#: packages/admin/src/components/Widgets.tsx:712
+#: packages/admin/src/components/Widgets.tsx:714
 msgid "Delete Widget Area?"
 msgstr "¿Eliminar área de widgets?"
 
@@ -2422,15 +2422,15 @@ msgstr "Eliminar \"{0}\" también quitará {1, plural, one {# valor almacenado} 
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:409
 #: packages/admin/src/components/ContentTypeEditor.tsx:673
-#: packages/admin/src/components/ContentTypeList.tsx:149
+#: packages/admin/src/components/ContentTypeList.tsx:151
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:454
-#: packages/admin/src/components/MenuList.tsx:257
-#: packages/admin/src/components/Redirects.tsx:584
+#: packages/admin/src/components/MenuList.tsx:259
+#: packages/admin/src/components/Redirects.tsx:586
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/settings/BackupSettings.tsx:285
 #: packages/admin/src/components/TaxonomyManager.tsx:907
-#: packages/admin/src/components/Widgets.tsx:715
+#: packages/admin/src/components/Widgets.tsx:717
 #: packages/admin/src/routes/bylines.tsx:625
 msgid "Deleting..."
 msgstr "Eliminando..."
@@ -2479,7 +2479,7 @@ msgstr "Describe para qué sirve esta sección..."
 #: packages/admin/src/components/RegistryPluginDetail.tsx:805
 #: packages/admin/src/components/SectionEditor.tsx:274
 #: packages/admin/src/components/Sections.tsx:200
-#: packages/admin/src/components/Widgets.tsx:436
+#: packages/admin/src/components/Widgets.tsx:438
 msgid "Description"
 msgstr "Descripción"
 
@@ -2487,7 +2487,7 @@ msgstr "Descripción"
 msgid "Description (optional)"
 msgstr "Descripción (opcional)"
 
-#: packages/admin/src/components/Redirects.tsx:469
+#: packages/admin/src/components/Redirects.tsx:471
 msgid "Destination"
 msgstr "Destino"
 
@@ -2496,11 +2496,11 @@ msgid "Destination path"
 msgstr "Ruta de destino"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:153
-#: packages/admin/src/components/PluginManager.tsx:563
+#: packages/admin/src/components/PluginManager.tsx:564
 msgid "Destructive"
 msgstr "Destructiva"
 
-#: packages/admin/src/components/PluginManager.tsx:505
+#: packages/admin/src/components/PluginManager.tsx:506
 msgid "details"
 msgstr "detalles"
 
@@ -2536,15 +2536,15 @@ msgstr "Dimensiones:"
 msgid "Disable"
 msgstr "Desactivar"
 
-#: packages/admin/src/components/PluginManager.tsx:493
+#: packages/admin/src/components/PluginManager.tsx:494
 msgid "Disable plugin"
 msgstr "Deshabilitar plugin"
 
-#: packages/admin/src/components/PluginManager.tsx:553
+#: packages/admin/src/components/PluginManager.tsx:554
 msgid "Disable plugin MCP tools"
 msgstr "Deshabilitar herramientas MCP del plugin"
 
-#: packages/admin/src/components/Redirects.tsx:505
+#: packages/admin/src/components/Redirects.tsx:507
 msgid "Disable redirect"
 msgstr "Deshabilitar redirección"
 
@@ -2556,14 +2556,14 @@ msgstr "Deshabilitar usuario"
 msgid "Disable User?"
 msgstr "¿Deshabilitar usuario?"
 
-#: packages/admin/src/components/PluginManager.tsx:382
-#: packages/admin/src/components/Redirects.tsx:419
+#: packages/admin/src/components/PluginManager.tsx:383
+#: packages/admin/src/components/Redirects.tsx:421
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr "Desactivado"
 
-#: packages/admin/src/components/PluginManager.tsx:613
+#: packages/admin/src/components/PluginManager.tsx:614
 msgid "Disabled:"
 msgstr "Desactivado:"
 
@@ -2620,7 +2620,7 @@ msgstr "Mostrar lista de categorías"
 msgid "Display name"
 msgstr "Nombre para mostrar"
 
-#: packages/admin/src/components/MenuList.tsx:168
+#: packages/admin/src/components/MenuList.tsx:170
 msgid "Display name for admin interface"
 msgstr "Nombre para mostrar para la interfaz de administración"
 
@@ -2642,7 +2642,7 @@ msgstr "Se muestra debajo de la imagen como leyenda visible."
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Modo sin distracciones (⌘⇧\\)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1194
+#: packages/admin/src/components/PortableTextEditor.tsx:1227
 msgid "Divider"
 msgstr "Divisor"
 
@@ -2720,7 +2720,7 @@ msgstr "borrador"
 #: packages/admin/src/components/ContentList.tsx:730
 #: packages/admin/src/components/ContentPickerModal.tsx:212
 #: packages/admin/src/components/ContentSettingsPanel.tsx:454
-#: packages/admin/src/components/Dashboard.tsx:346
+#: packages/admin/src/components/Dashboard.tsx:351
 msgid "Draft"
 msgstr "Borrador"
 
@@ -2729,7 +2729,7 @@ msgid "draft, published, or archived"
 msgstr "borrador, publicado o archivado"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:251
+#: packages/admin/src/components/Dashboard.tsx:254
 msgid "Drafts"
 msgstr "Borradores"
 
@@ -2741,18 +2741,18 @@ msgstr "Borradores y contenido privado"
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Arrastre y suelte o haga clic para explorar (.xml)"
 
-#: packages/admin/src/components/Widgets.tsx:698
+#: packages/admin/src/components/Widgets.tsx:700
 msgid "Drag here to add"
 msgstr "Arrastre aquí para agregar"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2006
+#: packages/admin/src/components/PortableTextEditor.tsx:2039
 msgid "Drag to reorder"
 msgstr "Arrastre para reordenar"
 
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
 #: packages/admin/src/components/ContentTypeEditor.tsx:716
-#: packages/admin/src/components/Widgets.tsx:800
+#: packages/admin/src/components/Widgets.tsx:802
 msgid "Drag to reorder {0}"
 msgstr "Arrastre para reordenar {0}"
 
@@ -2761,19 +2761,19 @@ msgstr "Arrastre para reordenar {0}"
 msgid "Drag to reorder {label}"
 msgstr ""
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:338
+#: packages/admin/src/components/editor/BlockMenu.tsx:365
 msgid "Drag to reorder block"
 msgstr "Arrastre para reordenar el bloque"
 
-#: packages/admin/src/components/Widgets.tsx:702
+#: packages/admin/src/components/Widgets.tsx:704
 msgid "Drag widgets here to add them"
 msgstr "Arrastre widgets aquí para agregarlos"
 
-#: packages/admin/src/components/Widgets.tsx:465
+#: packages/admin/src/components/Widgets.tsx:467
 msgid "Drag widgets into an area to add them"
 msgstr "Arrastre widgets a un área para agregarlos"
 
-#: packages/admin/src/components/Widgets.tsx:698
+#: packages/admin/src/components/Widgets.tsx:700
 msgid "Drop to add widget"
 msgstr "Suelte para agregar el widget"
 
@@ -2781,7 +2781,7 @@ msgstr "Suelte para agregar el widget"
 msgid "Drop your WordPress export file here"
 msgstr "Suelta tu archivo de exportación de WordPress aquí"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:292
+#: packages/admin/src/components/editor/BlockMenu.tsx:319
 msgid "Duplicate"
 msgstr "Duplicar"
 
@@ -2809,7 +2809,7 @@ msgstr "por ejemplo, MacBook Pro, iPhone"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
-#: packages/admin/src/components/MenuList.tsx:232
+#: packages/admin/src/components/MenuList.tsx:234
 #: packages/admin/src/components/Sections.tsx:392
 #: packages/admin/src/components/TranslationsPanel.tsx:93
 msgid "Edit"
@@ -2818,8 +2818,8 @@ msgstr "Editar"
 #. placeholder {0}: block?.label || ""
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#: packages/admin/src/components/ContentTypeList.tsx:218
-#: packages/admin/src/components/PortableTextEditor.tsx:1611
+#: packages/admin/src/components/ContentTypeList.tsx:220
+#: packages/admin/src/components/PortableTextEditor.tsx:1644
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:243
 #: packages/admin/src/components/TaxonomyManager.tsx:109
 #: packages/admin/src/components/TaxonomyManager.tsx:377
@@ -2862,7 +2862,7 @@ msgstr "Editar campo"
 msgid "Edit image {0}"
 msgstr "Editar imagen {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3266
+#: packages/admin/src/components/PortableTextEditor.tsx:3299
 msgid "Edit link"
 msgstr "Editar enlace"
 
@@ -2874,7 +2874,7 @@ msgstr "Editar elemento del menú"
 msgid "Edit menu items"
 msgstr "Editar elementos del menú"
 
-#: packages/admin/src/components/Redirects.tsx:528
+#: packages/admin/src/components/Redirects.tsx:530
 msgid "Edit redirect"
 msgstr "Editar redirección"
 
@@ -2883,7 +2883,7 @@ msgid "Edit Redirect"
 msgstr "Editar redirección"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:529
+#: packages/admin/src/components/Redirects.tsx:531
 msgid "Edit redirect {0}"
 msgstr "Editar redirección {0}"
 
@@ -2959,11 +2959,11 @@ msgid "Email verified!"
 msgstr "Correo electrónico verificado!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2442
+#: packages/admin/src/components/PortableTextEditor.tsx:2475
 msgid "Embed a {0}"
 msgstr "Incrustar un {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2445
+#: packages/admin/src/components/PortableTextEditor.tsx:2478
 msgid "Embeds"
 msgstr "Incrustaciones"
 
@@ -2991,20 +2991,20 @@ msgstr "Habilitar comentarios"
 msgid "Enable full-text search on this collection"
 msgstr "Habilitar la búsqueda de texto completo en esta colección"
 
-#: packages/admin/src/components/PluginManager.tsx:493
+#: packages/admin/src/components/PluginManager.tsx:494
 msgid "Enable plugin"
 msgstr "Habilitar plugin"
 
-#: packages/admin/src/components/PluginManager.tsx:554
+#: packages/admin/src/components/PluginManager.tsx:555
 msgid "Enable plugin MCP tools"
 msgstr "Habilitar herramientas MCP del plugin"
 
-#: packages/admin/src/components/Redirects.tsx:505
+#: packages/admin/src/components/Redirects.tsx:507
 msgid "Enable redirect"
 msgstr "Habilitar redirección"
 
 #: packages/admin/src/components/Redirects.tsx:176
-#: packages/admin/src/components/Redirects.tsx:419
+#: packages/admin/src/components/Redirects.tsx:421
 msgid "Enabled"
 msgstr "Activado"
 
@@ -3066,7 +3066,7 @@ msgstr "Ingrese la URL de su sitio de WordPress"
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
-#: packages/admin/src/components/Widgets.tsx:767
+#: packages/admin/src/components/Widgets.tsx:769
 #: packages/admin/src/router.tsx:2174
 msgid "Error"
 msgstr "Error"
@@ -3083,7 +3083,7 @@ msgstr "Error al reordenar los widgets"
 msgid "Error saving section"
 msgstr "Error al guardar la sección"
 
-#: packages/admin/src/components/Widgets.tsx:782
+#: packages/admin/src/components/Widgets.tsx:784
 msgid "Error updating widget"
 msgstr "Error al actualizar el widget"
 
@@ -3099,15 +3099,15 @@ msgstr "existe"
 msgid "Exit distraction-free mode"
 msgstr "Salir del modo sin distracciones"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3830
+#: packages/admin/src/components/PortableTextEditor.tsx:3863
 msgid "Exit Spotlight Mode"
 msgstr "Salir del modo de enfoque"
 
-#: packages/admin/src/components/PluginManager.tsx:505
+#: packages/admin/src/components/PluginManager.tsx:506
 msgid "Expand"
 msgstr "Expandir"
 
-#: packages/admin/src/components/PluginManager.tsx:499
+#: packages/admin/src/components/PluginManager.tsx:500
 msgid "Expand details"
 msgstr "Ampliar detalles"
 
@@ -3132,7 +3132,7 @@ msgstr "Exporta tu contenido desde WordPress para importarlo todo, incluidos los
 msgid "Facebook"
 msgstr "Facebook"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:343
+#: packages/admin/src/components/MarketplaceBrowse.tsx:345
 msgid "Fail"
 msgstr "Fallar"
 
@@ -3495,7 +3495,7 @@ msgstr "No se pudo cargar la configuración del plugin"
 msgid "Failed to load plugins: {0}"
 msgstr "No se pudieron cargar los plugins: {0}"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:96
+#: packages/admin/src/components/RegistryBrowse.tsx:98
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "No se pudieron cargar los plugins. Es posible que el agregador del registro no esté disponible."
 
@@ -3739,7 +3739,7 @@ msgid "Featured Images"
 msgstr "Imágenes destacadas"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:440
-#: packages/admin/src/components/ContentTypeList.tsx:103
+#: packages/admin/src/components/ContentTypeList.tsx:105
 msgid "Features"
 msgstr "Características"
 
@@ -3814,7 +3814,7 @@ msgstr "archivos importados"
 msgid "Filter by author"
 msgstr "Filtrar por autor"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:113
+#: packages/admin/src/components/MarketplaceBrowse.tsx:115
 msgid "Filter by capability"
 msgstr "Filtrar por capacidad"
 
@@ -3831,12 +3831,12 @@ msgid "Filter by source"
 msgstr "Filtrar por fuente"
 
 #: packages/admin/src/components/ContentList.tsx:754
-#: packages/admin/src/components/Redirects.tsx:420
+#: packages/admin/src/components/Redirects.tsx:422
 msgid "Filter by status"
 msgstr "Filtrar por estado"
 
 #: packages/admin/src/components/MediaLibrary.tsx:439
-#: packages/admin/src/components/Redirects.tsx:426
+#: packages/admin/src/components/Redirects.tsx:428
 msgid "Filter by type"
 msgstr "Filtrar por tipo"
 
@@ -3878,7 +3878,7 @@ msgid "Full admin access"
 msgstr "Acceso completo de administrador"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:171
-#: packages/admin/src/components/PortableTextEditor.tsx:2409
+#: packages/admin/src/components/PortableTextEditor.tsx:2442
 msgid "Gallery"
 msgstr "Galería"
 
@@ -3949,33 +3949,39 @@ msgstr "Firma invitada"
 msgid "Guest only"
 msgstr "Solo invitadas"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:62
+#: packages/admin/src/components/editor/BlockMenu.tsx:65
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:32
-#: packages/admin/src/components/PortableTextEditor.tsx:1109
+#: packages/admin/src/components/PortableTextEditor.tsx:1112
 msgid "Heading 1"
 msgstr "Título 1"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:70
+#: packages/admin/src/components/editor/BlockMenu.tsx:73
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1119
+#: packages/admin/src/components/PortableTextEditor.tsx:1122
 msgid "Heading 2"
 msgstr "Título 2"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:78
+#: packages/admin/src/components/editor/BlockMenu.tsx:81
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1129
+#: packages/admin/src/components/PortableTextEditor.tsx:1132
 msgid "Heading 3"
 msgstr "Título 3"
 
+#: packages/admin/src/components/editor/BlockMenu.tsx:89
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
+#: packages/admin/src/components/PortableTextEditor.tsx:1142
 msgid "Heading 4"
 msgstr "Título 4"
 
+#: packages/admin/src/components/editor/BlockMenu.tsx:97
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
+#: packages/admin/src/components/PortableTextEditor.tsx:1152
 msgid "Heading 5"
 msgstr "Título 5"
 
+#: packages/admin/src/components/editor/BlockMenu.tsx:105
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
+#: packages/admin/src/components/PortableTextEditor.tsx:1162
 msgid "Heading 6"
 msgstr "Título 6"
 
@@ -4011,7 +4017,7 @@ msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Jerárquico (como categorías, con relaciones padre/hijo)"
 
 #: packages/admin/src/components/Redirects.tsx:226
-#: packages/admin/src/components/Redirects.tsx:471
+#: packages/admin/src/components/Redirects.tsx:473
 msgid "Hits"
 msgstr "Visitas"
 
@@ -4023,7 +4029,7 @@ msgstr "Hogar"
 msgid "Homepage"
 msgstr "Página principal"
 
-#: packages/admin/src/components/PluginManager.tsx:413
+#: packages/admin/src/components/PluginManager.tsx:414
 msgid "Hooks"
 msgstr "Hooks"
 
@@ -4033,7 +4039,7 @@ msgstr "Cómo crear una contraseña de aplicación"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1179
+#: packages/admin/src/components/PortableTextEditor.tsx:1212
 msgid "HTML"
 msgstr "HTML"
 
@@ -4041,8 +4047,8 @@ msgstr "HTML"
 msgid "HTML source"
 msgstr "Código fuente HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3193
-#: packages/admin/src/components/PortableTextEditor.tsx:3760
+#: packages/admin/src/components/PortableTextEditor.tsx:3226
+#: packages/admin/src/components/PortableTextEditor.tsx:3793
 msgid "https://..."
 msgstr "https://..."
 
@@ -4058,7 +4064,7 @@ msgstr "https://example.com/image.jpg"
 msgid "https://yoursite.com"
 msgstr "https://susitio.com"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:241
+#: packages/admin/src/components/MarketplaceBrowse.tsx:243
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:153
 msgid "Icon blurred due to image audit"
 msgstr "Icono borroso debido a auditoría de imagen"
@@ -4073,7 +4079,7 @@ msgstr "Si existe una cuenta para <0>{email}</0>, le enviamos un enlace de inici
 
 #: packages/admin/src/components/FieldEditor.tsx:204
 #: packages/admin/src/components/FieldEditor.tsx:587
-#: packages/admin/src/components/PortableTextEditor.tsx:2394
+#: packages/admin/src/components/PortableTextEditor.tsx:2427
 msgid "Image"
 msgstr "Imagen"
 
@@ -4225,7 +4231,7 @@ msgstr "Incompatible"
 msgid "Indexed"
 msgstr "Indexado"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3644
+#: packages/admin/src/components/PortableTextEditor.tsx:3677
 msgid "Inline Code"
 msgstr "Código en línea"
 
@@ -4235,44 +4241,44 @@ msgid "Insert"
 msgstr "Insertar"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1611
+#: packages/admin/src/components/PortableTextEditor.tsx:1644
 msgid "Insert {0}"
 msgstr "Insertar {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1160
+#: packages/admin/src/components/PortableTextEditor.tsx:1193
 msgid "Insert a blockquote"
 msgstr "Insertar una cita en bloque"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1170
+#: packages/admin/src/components/PortableTextEditor.tsx:1203
 msgid "Insert a code block"
 msgstr "Insertar un bloque de código"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1195
+#: packages/admin/src/components/PortableTextEditor.tsx:1228
 msgid "Insert a horizontal rule"
 msgstr "Insertar una regla horizontal"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2425
+#: packages/admin/src/components/PortableTextEditor.tsx:2458
 msgid "Insert a reusable section"
 msgstr "Insertar una sección reutilizable"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1205
+#: packages/admin/src/components/PortableTextEditor.tsx:1238
 msgid "Insert a table"
 msgstr "Insertar una tabla"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2395
+#: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Insert an image"
 msgstr "Insertar una imagen"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2410
+#: packages/admin/src/components/PortableTextEditor.tsx:2443
 msgid "Insert an image gallery"
 msgstr "Insertar una galería de imágenes"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1439
+#: packages/admin/src/components/PortableTextEditor.tsx:1472
 msgid "Insert block"
 msgstr "Insertar bloque"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3596
-#: packages/admin/src/components/PortableTextEditor.tsx:3606
+#: packages/admin/src/components/PortableTextEditor.tsx:3629
+#: packages/admin/src/components/PortableTextEditor.tsx:3639
 msgid "Insert block after current block"
 msgstr "Insertar bloque después del bloque actual"
 
@@ -4284,12 +4290,12 @@ msgstr "Insertar bloque debajo"
 msgid "Insert from URL"
 msgstr "Insertar desde URL"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3730
-#: packages/admin/src/components/PortableTextEditor.tsx:3744
+#: packages/admin/src/components/PortableTextEditor.tsx:3763
+#: packages/admin/src/components/PortableTextEditor.tsx:3777
 msgid "Insert Link"
 msgstr "Insertar enlace"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1180
+#: packages/admin/src/components/PortableTextEditor.tsx:1213
 msgid "Insert raw HTML"
 msgstr "Insertar HTML sin procesar"
 
@@ -4322,19 +4328,19 @@ msgstr "Instale el plugin EmDash Exporter en su sitio de WordPress y genere una 
 msgid "Installation"
 msgstr "Instalación"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:261
+#: packages/admin/src/components/MarketplaceBrowse.tsx:263
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:184
-#: packages/admin/src/components/RegistryBrowse.tsx:199
+#: packages/admin/src/components/RegistryBrowse.tsx:201
 #: packages/admin/src/components/RegistryPluginDetail.tsx:546
 msgid "Installed"
 msgstr "Instalado"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:582
+#: packages/admin/src/components/PluginManager.tsx:583
 msgid "Installed from marketplace (v{0})"
 msgstr "Instalado desde Marketplace (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:601
+#: packages/admin/src/components/PluginManager.tsx:602
 msgid "Installed:"
 msgstr "Instalado:"
 
@@ -4388,13 +4394,13 @@ msgstr "Invocar herramientas MCP de todos los plugins activados"
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr "Invocar solo las herramientas MCP activadas de este plugin"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3237
-#: packages/admin/src/components/PortableTextEditor.tsx:3623
+#: packages/admin/src/components/PortableTextEditor.tsx:3270
+#: packages/admin/src/components/PortableTextEditor.tsx:3656
 msgid "Italic"
 msgstr "Cursiva"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1992
+#: packages/admin/src/components/PortableTextEditor.tsx:2025
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
 msgstr "Artículo {0}"
@@ -4464,9 +4470,9 @@ msgstr "Kotlin"
 #: packages/admin/src/components/FieldEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:416
 #: packages/admin/src/components/MenuEditor.tsx:593
-#: packages/admin/src/components/MenuList.tsx:167
+#: packages/admin/src/components/MenuList.tsx:169
 #: packages/admin/src/components/TaxonomyManager.tsx:645
-#: packages/admin/src/components/Widgets.tsx:434
+#: packages/admin/src/components/Widgets.tsx:436
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
 msgstr "Etiqueta"
@@ -4486,11 +4492,11 @@ msgstr "Etiqueta (singular)"
 msgid "Language"
 msgstr "Idioma"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1110
+#: packages/admin/src/components/PortableTextEditor.tsx:1113
 msgid "Large section heading"
 msgstr "Encabezado de sección grande"
 
-#: packages/admin/src/components/PluginManager.tsx:607
+#: packages/admin/src/components/PluginManager.tsx:608
 msgid "Last enabled:"
 msgstr "Última habilitación:"
 
@@ -4601,8 +4607,8 @@ msgid "Live View"
 msgstr "Vista en vivo"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:236
-#: packages/admin/src/components/MarketplaceBrowse.tsx:198
-#: packages/admin/src/components/RegistryBrowse.tsx:144
+#: packages/admin/src/components/MarketplaceBrowse.tsx:200
+#: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/routes/bylines.tsx:468
 msgid "Load more"
@@ -4624,7 +4630,7 @@ msgstr "Cargando"
 msgid "Loading byline fields…"
 msgstr "Cargando campos de firma…"
 
-#: packages/admin/src/components/ContentTypeList.tsx:114
+#: packages/admin/src/components/ContentTypeList.tsx:116
 msgid "Loading collections..."
 msgstr "Cargando colecciones..."
 
@@ -4641,7 +4647,7 @@ msgstr "Cargando configuración..."
 msgid "Loading content..."
 msgstr "Cargando contenido..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2985
+#: packages/admin/src/components/PortableTextEditor.tsx:3018
 msgid "Loading editor..."
 msgstr "Cargando editor..."
 
@@ -4657,7 +4663,7 @@ msgstr "Cargando menús..."
 msgid "Loading plugins..."
 msgstr "Cargando plugins..."
 
-#: packages/admin/src/components/Redirects.tsx:457
+#: packages/admin/src/components/Redirects.tsx:459
 msgid "Loading redirects..."
 msgstr "Cargando redirecciones..."
 
@@ -4690,11 +4696,11 @@ msgstr "Cargando widgets..."
 #: packages/admin/src/components/ContentList.tsx:659
 #: packages/admin/src/components/ContentList.tsx:687
 #: packages/admin/src/components/ContentPickerModal.tsx:233
-#: packages/admin/src/components/MarketplaceBrowse.tsx:198
+#: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:775
-#: packages/admin/src/components/PortableTextEditor.tsx:2119
-#: packages/admin/src/components/RegistryBrowse.tsx:144
+#: packages/admin/src/components/PortableTextEditor.tsx:2152
+#: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:161
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/TaxonomyManager.tsx:801
@@ -4753,7 +4759,7 @@ msgstr "Sólo letras minúsculas, números y guiones"
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "Letras minúsculas, números y guiones bajos únicamente, comenzando con una letra"
 
-#: packages/admin/src/components/Widgets.tsx:434
+#: packages/admin/src/components/Widgets.tsx:436
 msgid "Main Sidebar"
 msgstr "Barra lateral principal"
 
@@ -4781,19 +4787,19 @@ msgstr "Administrar {0} para {1}"
 msgid "Manage bylines in {entryLocale}"
 msgstr "Administrar firmas en {entryLocale}"
 
-#: packages/admin/src/components/Widgets.tsx:389
+#: packages/admin/src/components/Widgets.tsx:390
 msgid "Manage content widgets in your widget areas"
 msgstr "Administre los widgets de contenido en sus áreas de widgets"
 
-#: packages/admin/src/components/PluginManager.tsx:179
+#: packages/admin/src/components/PluginManager.tsx:160
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "Administrar plugins instalados. Habilite o deshabilite plugins para controlar su funcionalidad."
 
-#: packages/admin/src/components/MenuList.tsx:105
+#: packages/admin/src/components/MenuList.tsx:106
 msgid "Manage navigation menus for your site"
 msgstr "Administrar menús de navegación para su sitio"
 
-#: packages/admin/src/components/Redirects.tsx:360
+#: packages/admin/src/components/Redirects.tsx:361
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Administre redirecciones de URL y vea errores 404."
 
@@ -4809,7 +4815,7 @@ msgstr "Administrado por {providerName}"
 msgid "Managed by an external media provider"
 msgstr "Administrado por un proveedor de medios externo"
 
-#: packages/admin/src/components/Redirects.tsx:425
+#: packages/admin/src/components/Redirects.tsx:427
 msgid "Manual"
 msgstr "Manual"
 
@@ -4839,13 +4845,13 @@ msgstr "Marcar como spam"
 msgid "Markdown"
 msgstr "Markdown"
 
-#: packages/admin/src/components/PluginManager.tsx:205
+#: packages/admin/src/components/PluginManager.tsx:206
 msgid "marketplace"
 msgstr "mercado"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:171
-#: packages/admin/src/components/PluginManager.tsx:383
+#: packages/admin/src/components/PluginManager.tsx:176
+#: packages/admin/src/components/PluginManager.tsx:384
 #: packages/admin/src/components/Sidebar.tsx:272
 msgid "Marketplace"
 msgstr "Mercado"
@@ -4870,8 +4876,8 @@ msgstr "Máximo de etiquetas"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2398
-#: packages/admin/src/components/PortableTextEditor.tsx:2413
+#: packages/admin/src/components/PortableTextEditor.tsx:2431
+#: packages/admin/src/components/PortableTextEditor.tsx:2446
 #: packages/admin/src/components/Sidebar.tsx:216
 #: packages/admin/src/components/WordPressImport.tsx:752
 #: packages/admin/src/components/WordPressImport.tsx:1145
@@ -4913,12 +4919,12 @@ msgstr "Lectura de medios"
 msgid "Media Write"
 msgstr "Escritura de medios"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1120
+#: packages/admin/src/components/PortableTextEditor.tsx:1123
 msgid "Medium section heading"
 msgstr "Encabezado de sección media"
 
 #: packages/admin/src/components/Widgets.tsx:104
-#: packages/admin/src/components/Widgets.tsx:912
+#: packages/admin/src/components/Widgets.tsx:914
 msgid "Menu"
 msgstr "Menú"
 
@@ -5009,6 +5015,10 @@ msgstr "Longitud mínima"
 #: packages/admin/src/components/FieldEditor.tsx:493
 msgid "Min Value"
 msgstr "Valor mínimo"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1153
+msgid "Minor section heading"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:504
 msgid "Moderation"
@@ -5109,15 +5119,15 @@ msgstr "Múltiples opciones de opciones"
 msgid "My Awesome Blog"
 msgstr "Mi blog impresionante"
 
-#: packages/admin/src/components/ContentTypeList.tsx:94
+#: packages/admin/src/components/ContentTypeList.tsx:96
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
-#: packages/admin/src/components/MenuList.tsx:155
+#: packages/admin/src/components/MenuList.tsx:157
 #: packages/admin/src/components/TaxonomyManager.tsx:405
 #: packages/admin/src/components/TaxonomyManager.tsx:654
 #: packages/admin/src/components/TaxonomyManager.tsx:841
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
-#: packages/admin/src/components/Widgets.tsx:428
+#: packages/admin/src/components/Widgets.tsx:430
 msgid "Name"
 msgstr "Nombre"
 
@@ -5168,7 +5178,7 @@ msgid "New collection"
 msgstr "Nueva colección"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:355
-#: packages/admin/src/components/ContentTypeList.tsx:44
+#: packages/admin/src/components/ContentTypeList.tsx:46
 msgid "New Content Type"
 msgstr "Nuevo tipo de contenido"
 
@@ -5181,7 +5191,7 @@ msgid "New public routes"
 msgstr "Nuevas rutas públicas"
 
 #: packages/admin/src/components/Redirects.tsx:106
-#: packages/admin/src/components/Redirects.tsx:363
+#: packages/admin/src/components/Redirects.tsx:365
 msgid "New Redirect"
 msgstr "Nueva redirección"
 
@@ -5254,8 +5264,8 @@ msgstr "Aún no hay {0}. Crea uno para comenzar."
 msgid "No 404 errors recorded yet."
 msgstr "Aún no se han registrado errores 404."
 
-#: packages/admin/src/components/MediaLibrary.tsx:833
-#: packages/admin/src/components/MediaLibrary.tsx:890
+#: packages/admin/src/components/MediaLibrary.tsx:835
+#: packages/admin/src/components/MediaLibrary.tsx:892
 msgid "No alt text"
 msgstr "Sin texto alternativo"
 
@@ -5307,7 +5317,7 @@ msgstr "No se encontró contenido"
 msgid "No content in this collection"
 msgstr "No hay contenido en esta colección."
 
-#: packages/admin/src/components/ContentTypeList.tsx:120
+#: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "No content types yet."
 msgstr "Aún no hay tipos de contenido."
 
@@ -5359,7 +5369,7 @@ msgstr "No hay versiones instalables"
 msgid "No invite token provided"
 msgstr "No se proporcionó ningún token de invitación"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1915
+#: packages/admin/src/components/PortableTextEditor.tsx:1948
 #: packages/admin/src/components/RepeaterField.tsx:165
 msgid "No items yet"
 msgstr "Aún no hay artículos"
@@ -5411,7 +5421,7 @@ msgstr "No se encontraron medios"
 msgid "No menu items yet"
 msgstr "Aún no hay elementos de menú"
 
-#: packages/admin/src/components/MenuList.tsx:187
+#: packages/admin/src/components/MenuList.tsx:189
 msgid "No menus yet"
 msgstr "Aún no hay menús"
 
@@ -5436,19 +5446,19 @@ msgstr "No hay claves registradas"
 msgid "No passkeys registered yet."
 msgstr "Aún no se han registrado claves de acceso."
 
-#: packages/admin/src/components/PluginManager.tsx:199
+#: packages/admin/src/components/PluginManager.tsx:200
 msgid "No plugins configured"
 msgstr "No hay plugins configurados"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:173
+#: packages/admin/src/components/MarketplaceBrowse.tsx:175
 msgid "No plugins found"
 msgstr "No se encontraron plugins"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:118
+#: packages/admin/src/components/RegistryBrowse.tsx:120
 msgid "No plugins have been published to this registry yet."
 msgstr "Aún no se ha publicado ningún plugin en este registro."
 
-#: packages/admin/src/components/RegistryBrowse.tsx:117
+#: packages/admin/src/components/RegistryBrowse.tsx:119
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "Ningún plugin coincide con \"{debouncedQuery}\"."
 
@@ -5460,15 +5470,15 @@ msgstr "Sin vista previa"
 msgid "No public URL available"
 msgstr "No hay URL pública disponible"
 
-#: packages/admin/src/components/Dashboard.tsx:304
+#: packages/admin/src/components/Dashboard.tsx:305
 msgid "No recent activity"
 msgstr "Ninguna actividad reciente"
 
-#: packages/admin/src/components/Redirects.tsx:461
+#: packages/admin/src/components/Redirects.tsx:463
 msgid "No redirects yet"
 msgstr "Aún no hay redirecciones"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1464
+#: packages/admin/src/components/PortableTextEditor.tsx:1497
 #: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "Sin resultados"
@@ -5478,7 +5488,7 @@ msgstr "Sin resultados"
 msgid "No results for \"{activeSearch}\""
 msgstr "Sin resultados para \"{activeSearch}\""
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:176
+#: packages/admin/src/components/MarketplaceBrowse.tsx:178
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:152
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "No hay resultados para \"{debouncedQuery}\". Pruebe con un término de búsqueda diferente."
@@ -5520,7 +5530,7 @@ msgstr "No se encontraron usuarios que coincidan con sus filtros."
 msgid "No users yet."
 msgstr "Aún no hay usuarios."
 
-#: packages/admin/src/components/Widgets.tsx:502
+#: packages/admin/src/components/Widgets.tsx:504
 msgid "No widget areas yet. Create one to get started."
 msgstr "Aún no hay áreas de widgets. Cree una para comenzar."
 
@@ -5554,9 +5564,9 @@ msgstr "Número de entradas"
 msgid "Number of posts to show per page on list views"
 msgstr "Número de entradas a mostrar por página en las vistas de lista"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:110
-#: packages/admin/src/components/PortableTextEditor.tsx:1149
-#: packages/admin/src/components/PortableTextEditor.tsx:3671
+#: packages/admin/src/components/editor/BlockMenu.tsx:137
+#: packages/admin/src/components/PortableTextEditor.tsx:1182
+#: packages/admin/src/components/PortableTextEditor.tsx:3704
 msgid "Numbered List"
 msgstr "Lista numerada"
 
@@ -5581,7 +5591,7 @@ msgstr "Sólo autoriza códigos que reconozcas."
 msgid "Only email addresses from allowed domains can sign up."
 msgstr "Sólo se pueden registrar direcciones de correo electrónico de dominios permitidos."
 
-#: packages/admin/src/components/MenuList.tsx:160
+#: packages/admin/src/components/MenuList.tsx:162
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "Sólo letras minúsculas, números y guiones"
 
@@ -5693,7 +5703,7 @@ msgstr "Anula el título de la página en los resultados del motor de búsqueda.
 msgid "Ownership"
 msgstr "Propiedad"
 
-#: packages/admin/src/components/PluginManager.tsx:591
+#: packages/admin/src/components/PluginManager.tsx:592
 msgid "Package"
 msgstr "Paquete"
 
@@ -5701,12 +5711,12 @@ msgstr "Paquete"
 msgid "Page Not Found"
 msgstr "Página no encontrada"
 
-#: packages/admin/src/components/PluginManager.tsx:401
+#: packages/admin/src/components/PluginManager.tsx:402
 #: packages/admin/src/components/WordPressImport.tsx:1328
 msgid "Pages"
 msgstr "paginas"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:54
+#: packages/admin/src/components/editor/BlockMenu.tsx:57
 msgid "Paragraph"
 msgstr "Párrafo"
 
@@ -5715,8 +5725,8 @@ msgstr "Párrafo"
 msgid "Parent"
 msgstr "Padre"
 
-#: packages/admin/src/components/Redirects.tsx:510
-#: packages/admin/src/components/Redirects.tsx:516
+#: packages/admin/src/components/Redirects.tsx:512
+#: packages/admin/src/components/Redirects.tsx:518
 msgid "Part of a redirect loop"
 msgstr "Parte de un bucle de redirección"
 
@@ -5724,7 +5734,7 @@ msgstr "Parte de un bucle de redirección"
 msgid "Partial"
 msgstr "Parcial"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:322
+#: packages/admin/src/components/MarketplaceBrowse.tsx:324
 msgid "Pass"
 msgstr "Aprobar"
 
@@ -5817,7 +5827,7 @@ msgid "pending"
 msgstr "pendiente"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:198
-#: packages/admin/src/components/Dashboard.tsx:348
+#: packages/admin/src/components/Dashboard.tsx:353
 msgid "Pending"
 msgstr "Pendiente"
 
@@ -5904,7 +5914,7 @@ msgstr "Error del plugin"
 msgid "Plugin error ({0})"
 msgstr "Error de plugin ({0})"
 
-#: packages/admin/src/components/PluginManager.tsx:333
+#: packages/admin/src/components/PluginManager.tsx:334
 msgid "Plugin MCP access updated"
 msgstr "Acceso MCP del plugin actualizado"
 
@@ -5928,7 +5938,7 @@ msgstr "Plugin no encontrado. El identificador del editor o el slug pueden ser i
 msgid "plugin on your WordPress site."
 msgstr "plugin en su sitio de WordPress."
 
-#: packages/admin/src/components/PluginManager.tsx:482
+#: packages/admin/src/components/PluginManager.tsx:483
 msgid "Plugin pages"
 msgstr "Páginas del plugin"
 
@@ -5950,7 +5960,7 @@ msgstr "El plugin respondió con {0}: {text}"
 msgid "Plugin tools: {0}"
 msgstr "Herramientas del plugin: {0}"
 
-#: packages/admin/src/components/PluginManager.tsx:322
+#: packages/admin/src/components/PluginManager.tsx:323
 msgid "Plugin uninstalled"
 msgstr "Plugin desinstalado"
 
@@ -5958,7 +5968,7 @@ msgstr "Plugin desinstalado"
 msgid "Plugin update requires re-consent"
 msgstr "La actualización del plugin requiere un nuevo consentimiento"
 
-#: packages/admin/src/components/PluginManager.tsx:268
+#: packages/admin/src/components/PluginManager.tsx:269
 msgid "Plugin updated"
 msgstr "Plugin actualizado"
 
@@ -5969,7 +5979,7 @@ msgstr "Error del widget del plugin"
 #: packages/admin/src/components/AdminCommandPalette.tsx:218
 #: packages/admin/src/components/PluginManager.tsx:139
 #: packages/admin/src/components/PluginManager.tsx:148
-#: packages/admin/src/components/PluginManager.tsx:157
+#: packages/admin/src/components/PluginManager.tsx:158
 #: packages/admin/src/components/Sidebar.tsx:256
 #: packages/admin/src/components/Sidebar.tsx:391
 msgid "Plugins"
@@ -6044,11 +6054,11 @@ msgstr "Pagina anterior"
 msgid "Previous screenshot"
 msgstr "Captura de pantalla anterior"
 
-#: packages/admin/src/components/MenuList.tsx:167
+#: packages/admin/src/components/MenuList.tsx:169
 msgid "Primary Navigation"
 msgstr "Navegación primaria"
 
-#: packages/admin/src/components/Dashboard.tsx:349
+#: packages/admin/src/components/Dashboard.tsx:354
 msgid "Private"
 msgstr "Privado"
 
@@ -6078,8 +6088,8 @@ msgstr "publicado"
 #: packages/admin/src/components/ContentList.tsx:738
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/ContentSettingsPanel.tsx:452
-#: packages/admin/src/components/Dashboard.tsx:245
-#: packages/admin/src/components/Dashboard.tsx:345
+#: packages/admin/src/components/Dashboard.tsx:248
+#: packages/admin/src/components/Dashboard.tsx:350
 #: packages/admin/src/router.tsx:1009
 msgid "Published"
 msgstr "Publicado"
@@ -6114,9 +6124,9 @@ msgstr "Creación rápida de firma"
 msgid "Quick edit alt text"
 msgstr "Edición rápida del texto alternativo"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:86
-#: packages/admin/src/components/PortableTextEditor.tsx:1159
-#: packages/admin/src/components/PortableTextEditor.tsx:3678
+#: packages/admin/src/components/editor/BlockMenu.tsx:113
+#: packages/admin/src/components/PortableTextEditor.tsx:1192
+#: packages/admin/src/components/PortableTextEditor.tsx:3711
 msgid "Quote"
 msgstr "Cita"
 
@@ -6162,7 +6172,7 @@ msgstr "Lectura"
 msgid "Ready"
 msgstr "Listo"
 
-#: packages/admin/src/components/Dashboard.tsx:298
+#: packages/admin/src/components/Dashboard.tsx:299
 msgid "Recent Activity"
 msgstr "Actividad reciente"
 
@@ -6184,7 +6194,7 @@ msgstr "Correo electrónico del destinatario"
 msgid "Recovery link sent to {0}"
 msgstr "Enlace de recuperación enviado a {0}"
 
-#: packages/admin/src/components/Redirects.tsx:443
+#: packages/admin/src/components/Redirects.tsx:445
 msgid "Redirect loop detected"
 msgstr "Bucle de redirección detectado"
 
@@ -6193,12 +6203,12 @@ msgid "Redirecting to login..."
 msgstr "Redirigiendo para iniciar sesión..."
 
 #: packages/admin/src/components/Redirects.tsx:359
-#: packages/admin/src/components/Redirects.tsx:378
+#: packages/admin/src/components/Redirects.tsx:380
 #: packages/admin/src/components/Sidebar.tsx:229
 msgid "Redirects"
 msgstr "Redirecciones"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3817
+#: packages/admin/src/components/PortableTextEditor.tsx:3850
 msgid "Redo"
 msgstr "Rehacer"
 
@@ -6210,11 +6220,11 @@ msgstr "Referencia"
 msgid "Referenced favicon unavailable."
 msgstr "El favicon referenciado no está disponible."
 
-#: packages/admin/src/components/Dashboard.tsx:85
+#: packages/admin/src/components/Dashboard.tsx:76
 msgid "Refresh the page or try again."
 msgstr "Actualice la página o intente de nuevo."
 
-#: packages/admin/src/components/ContentTypeList.tsx:78
+#: packages/admin/src/components/ContentTypeList.tsx:80
 msgid "Register"
 msgstr "Registro"
 
@@ -6247,7 +6257,7 @@ msgstr "La versión es demasiado reciente para instalarse"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
 #: packages/admin/src/components/ContentSettingsPanel.tsx:921
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
-#: packages/admin/src/components/PortableTextEditor.tsx:3790
+#: packages/admin/src/components/PortableTextEditor.tsx:3823
 #: packages/admin/src/components/settings/GeneralSettings.tsx:194
 #: packages/admin/src/components/settings/GeneralSettings.tsx:248
 #: packages/admin/src/components/settings/PasskeyItem.tsx:185
@@ -6300,13 +6310,13 @@ msgid "Remove Image?"
 msgstr "¿Quitar imagen?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2031
+#: packages/admin/src/components/PortableTextEditor.tsx:2064
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
 msgstr "Eliminar elemento {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3218
-#: packages/admin/src/components/PortableTextEditor.tsx:3219
+#: packages/admin/src/components/PortableTextEditor.tsx:3251
+#: packages/admin/src/components/PortableTextEditor.tsx:3252
 msgid "Remove link"
 msgstr "Quitar enlace"
 
@@ -6444,7 +6454,7 @@ msgstr "¿Restaurar esta versión desde {0}? Esto actualizará el contenido actu
 msgid "Restoring..."
 msgstr "Restaurando..."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:141
+#: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/router.tsx:2177
@@ -6529,7 +6539,7 @@ msgstr "Etiqueta de rol"
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:149
-#: packages/admin/src/components/PluginManager.tsx:567
+#: packages/admin/src/components/PluginManager.tsx:568
 msgid "Route: {0} · Permission: {1}"
 msgstr "Ruta: {0} · Permiso: {1}"
 
@@ -6558,7 +6568,7 @@ msgstr "Misma ventana"
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/SaveButton.tsx:32
 #: packages/admin/src/components/settings/BackupSettings.tsx:192
-#: packages/admin/src/components/Widgets.tsx:981
+#: packages/admin/src/components/Widgets.tsx:983
 #: packages/admin/src/routes/bylines.tsx:579
 msgid "Save"
 msgstr "Guardar"
@@ -6630,7 +6640,7 @@ msgstr "Se guardó \"{0}\"."
 #: packages/admin/src/components/settings/SocialSettings.tsx:147
 #: packages/admin/src/components/TaxonomyManager.tsx:498
 #: packages/admin/src/components/users/UserDetail.tsx:311
-#: packages/admin/src/components/Widgets.tsx:981
+#: packages/admin/src/components/Widgets.tsx:983
 #: packages/admin/src/routes/bylines.tsx:579
 msgid "Saving..."
 msgstr "Salvando..."
@@ -6666,7 +6676,7 @@ msgstr "programado"
 
 #: packages/admin/src/components/ContentList.tsx:731
 #: packages/admin/src/components/ContentSettingsPanel.tsx:455
-#: packages/admin/src/components/Dashboard.tsx:347
+#: packages/admin/src/components/Dashboard.tsx:352
 #: packages/admin/src/router.tsx:1067
 msgid "Scheduled"
 msgstr "Programado"
@@ -6800,13 +6810,13 @@ msgstr "Buscar medios"
 msgid "Search pages and content..."
 msgstr "Buscar páginas y contenido..."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:101
-#: packages/admin/src/components/RegistryBrowse.tsx:85
+#: packages/admin/src/components/MarketplaceBrowse.tsx:103
+#: packages/admin/src/components/RegistryBrowse.tsx:87
 msgid "Search plugins"
 msgstr "Buscar plugins"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:97
-#: packages/admin/src/components/RegistryBrowse.tsx:81
+#: packages/admin/src/components/MarketplaceBrowse.tsx:99
+#: packages/admin/src/components/RegistryBrowse.tsx:83
 msgid "Search plugins..."
 msgstr "Buscar plugins..."
 
@@ -6815,7 +6825,7 @@ msgstr "Buscar plugins..."
 msgid "Search sections..."
 msgstr "Buscar secciones..."
 
-#: packages/admin/src/components/Redirects.tsx:410
+#: packages/admin/src/components/Redirects.tsx:412
 msgid "Search source or destination..."
 msgstr "Buscar origen o destino..."
 
@@ -6845,7 +6855,7 @@ msgstr "Buscable"
 msgid "Searching..."
 msgstr "Buscando..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2424
+#: packages/admin/src/components/PortableTextEditor.tsx:2457
 msgid "Section"
 msgstr "Sección"
 
@@ -6897,11 +6907,11 @@ msgstr "Seguridad"
 msgid "Security Audit"
 msgstr "Auditoría de seguridad"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:340
+#: packages/admin/src/components/MarketplaceBrowse.tsx:342
 msgid "Security audit failed"
 msgstr "La auditoría de seguridad falló"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:330
+#: packages/admin/src/components/MarketplaceBrowse.tsx:332
 msgid "Security audit flagged concerns"
 msgstr "La auditoría de seguridad señaló preocupaciones"
 
@@ -6913,7 +6923,7 @@ msgstr "La auditoría de seguridad detectó posibles problemas con este plugin."
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "La auditoría de seguridad marcó este plugin como potencialmente inseguro."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:319
+#: packages/admin/src/components/MarketplaceBrowse.tsx:321
 msgid "Security audit passed"
 msgstr "Auditoría de seguridad superada"
 
@@ -6949,11 +6959,11 @@ msgstr "Seleccione {label}"
 msgid "Select {title}"
 msgstr "Seleccionar {title}"
 
-#: packages/admin/src/components/Widgets.tsx:954
+#: packages/admin/src/components/Widgets.tsx:956
 msgid "Select a component..."
 msgstr "Seleccione un componente..."
 
-#: packages/admin/src/components/Widgets.tsx:917
+#: packages/admin/src/components/Widgets.tsx:919
 msgid "Select a menu..."
 msgstr "Seleccione un menú..."
 
@@ -6991,7 +7001,7 @@ msgstr "Seleccionar archivo"
 msgid "Select File"
 msgstr "Seleccionar archivo"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3061
+#: packages/admin/src/components/PortableTextEditor.tsx:3094
 msgid "Select Gallery Images"
 msgstr "Seleccionar imágenes para la galería"
 
@@ -7000,7 +7010,7 @@ msgid "Select image"
 msgstr "Seleccionar imagen"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:150
-#: packages/admin/src/components/PortableTextEditor.tsx:3047
+#: packages/admin/src/components/PortableTextEditor.tsx:3080
 #: packages/admin/src/components/settings/SeoSettings.tsx:188
 msgid "Select Image"
 msgstr "Seleccionar imagen"
@@ -7027,12 +7037,12 @@ msgid "Select which content types to import."
 msgstr "Seleccione qué tipos de contenido importar."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2126
+#: packages/admin/src/components/PortableTextEditor.tsx:2159
 #: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "Seleccionar..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1455
+#: packages/admin/src/components/PortableTextEditor.tsx:1488
 msgid "Selected {selectedItemTitle}"
 msgstr "Se seleccionó {selectedItemTitle}"
 
@@ -7142,7 +7152,7 @@ msgstr "Configurando..."
 #: packages/admin/src/components/ContentEditor.tsx:1039
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
-#: packages/admin/src/components/PluginManager.tsx:471
+#: packages/admin/src/components/PluginManager.tsx:472
 #: packages/admin/src/components/Settings.tsx:63
 #: packages/admin/src/components/Sidebar.tsx:294
 #: packages/admin/src/components/WordPressImport.tsx:1811
@@ -7326,7 +7336,7 @@ msgstr "Saltado"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1030
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:402
-#: packages/admin/src/components/ContentTypeList.tsx:97
+#: packages/admin/src/components/ContentTypeList.tsx:99
 #: packages/admin/src/components/FieldEditor.tsx:228
 #: packages/admin/src/components/FieldEditor.tsx:418
 #: packages/admin/src/components/SectionEditor.tsx:259
@@ -7345,9 +7355,17 @@ msgstr "Slug copiado al portapapeles"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "Los slugs no se pueden cambiar después de crear el campo."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1130
+#: packages/admin/src/components/PortableTextEditor.tsx:1133
 msgid "Small section heading"
 msgstr "Encabezado de sección pequeña"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1143
+msgid "Smaller section heading"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1163
+msgid "Smallest section heading"
+msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:76
 #: packages/admin/src/components/settings/SocialSettings.tsx:70
@@ -7376,7 +7394,7 @@ msgstr "Algunos tipos de contenido no se pueden importar"
 msgid "Something went wrong"
 msgstr "algo salió mal"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:123
+#: packages/admin/src/components/MarketplaceBrowse.tsx:125
 msgid "Sort plugins"
 msgstr "Ordenar plugins"
 
@@ -7384,12 +7402,12 @@ msgstr "Ordenar plugins"
 msgid "Sort themes"
 msgstr "Ordenar temas"
 
-#: packages/admin/src/components/ContentTypeList.tsx:100
+#: packages/admin/src/components/ContentTypeList.tsx:102
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:225
-#: packages/admin/src/components/PluginManager.tsx:579
-#: packages/admin/src/components/Redirects.tsx:467
+#: packages/admin/src/components/PluginManager.tsx:580
+#: packages/admin/src/components/Redirects.tsx:469
 #: packages/admin/src/components/SectionEditor.tsx:294
 msgid "Source"
 msgstr "Fuente"
@@ -7408,7 +7426,7 @@ msgstr "correo basura"
 msgid "Spam"
 msgstr "Correo basura"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3830
+#: packages/admin/src/components/PortableTextEditor.tsx:3863
 msgid "Spotlight Mode"
 msgstr "Modo de enfoque"
 
@@ -7425,15 +7443,15 @@ msgid "Start Import"
 msgstr "Iniciar importación"
 
 #: packages/admin/src/components/ContentEditor.tsx:1208
-#: packages/admin/src/components/PortableTextEditor.tsx:2285
-#: packages/admin/src/components/PortableTextEditor.tsx:2286
+#: packages/admin/src/components/PortableTextEditor.tsx:2318
+#: packages/admin/src/components/PortableTextEditor.tsx:2319
 msgid "Start writing, or type '/' for commands"
 msgstr "Comience a escribir o ingrese '/' para comandos"
 
 #: packages/admin/src/components/ContentList.tsx:511
 #: packages/admin/src/components/ContentSettingsPanel.tsx:449
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
-#: packages/admin/src/components/Redirects.tsx:472
+#: packages/admin/src/components/Redirects.tsx:474
 #: packages/admin/src/components/users/UserList.tsx:104
 msgid "Status"
 msgstr "Estado"
@@ -7442,7 +7460,7 @@ msgstr "Estado"
 msgid "Status code"
 msgstr "Código de estado"
 
-#: packages/admin/src/components/Dashboard.tsx:357
+#: packages/admin/src/components/Dashboard.tsx:362
 msgid "Status: {status}"
 msgstr "Estado: {status}"
 
@@ -7458,8 +7476,8 @@ msgstr "Respaldos almacenados"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Almacenado por locale — cada traducción de una firma tiene su propio valor."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3251
-#: packages/admin/src/components/PortableTextEditor.tsx:3637
+#: packages/admin/src/components/PortableTextEditor.tsx:3284
+#: packages/admin/src/components/PortableTextEditor.tsx:3670
 msgid "Strikethrough"
 msgstr "Tachado"
 
@@ -7508,11 +7526,11 @@ msgstr "Sistema ({resolvedLabel})"
 msgid "System Fields"
 msgstr "Campos del sistema"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1204
+#: packages/admin/src/components/PortableTextEditor.tsx:1237
 msgid "Table"
 msgstr "Tabla"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3326
+#: packages/admin/src/components/PortableTextEditor.tsx:3359
 msgid "Table controls"
 msgstr "Controles de tabla"
 
@@ -7585,7 +7603,7 @@ msgstr "Término eliminado"
 msgid "test@example.com"
 msgstr "prueba@ejemplo.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3588
+#: packages/admin/src/components/PortableTextEditor.tsx:3621
 msgid "Text formatting"
 msgstr "Formato de texto"
 
@@ -7597,7 +7615,7 @@ msgstr "No se concederá acceso al dispositivo."
 msgid "The existing collection has fields with incompatible types."
 msgstr "La colección existente tiene campos con tipos incompatibles."
 
-#: packages/admin/src/components/ContentTypeList.tsx:58
+#: packages/admin/src/components/ContentTypeList.tsx:60
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
 msgstr "Las siguientes tablas contienen contenido pero no están registradas como colecciones. Regístrelos para administrar este contenido en el administrador."
 
@@ -7610,7 +7628,7 @@ msgstr "El usuario invitado tendrá este rol una vez que complete el registro."
 msgid "The link will expire in 15 minutes."
 msgstr "El enlace caducará en 15 minutos."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:177
+#: packages/admin/src/components/MarketplaceBrowse.tsx:179
 msgid "The marketplace is empty. Check back later for new plugins."
 msgstr "El mercado está vacío. Vuelve más tarde para ver nuevos plugins."
 
@@ -7734,7 +7752,7 @@ msgstr "Este plugin no requiere permisos especiales."
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr "Este editor reclama un nombre cuya propiedad no pudo demostrar — posiblemente esté suplantando a otra persona. La instalación está desactivada. Si conoce al editor y confía en él, pídale que corrija la configuración de su identidad antes de volver a intentarlo."
 
-#: packages/admin/src/components/Redirects.tsx:582
+#: packages/admin/src/components/Redirects.tsx:584
 msgid "This redirect rule will be permanently removed."
 msgstr "Esta regla de redirección se eliminará permanentemente."
 
@@ -7758,7 +7776,7 @@ msgstr "Esta sección fue importada de otro sistema."
 msgid "This update exposes the following routes without authentication:"
 msgstr "Esta actualización expone las siguientes rutas sin autenticación:"
 
-#: packages/admin/src/components/Widgets.tsx:713
+#: packages/admin/src/components/Widgets.tsx:715
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Esto eliminará el área de widgets y todos sus widgets. Esta acción no se puede deshacer."
 
@@ -7784,7 +7802,7 @@ msgstr "Esto eliminará permanentemente \"{0}\". Esta acción no se puede deshac
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Esto eliminará permanentemente este comentario. Esta acción no se puede deshacer."
 
-#: packages/admin/src/components/PluginManager.tsx:713
+#: packages/admin/src/components/PluginManager.tsx:714
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Esto eliminará el plugin y su paquete de su sitio."
 
@@ -7808,7 +7826,7 @@ msgstr "Zona horaria para mostrar fechas (por ejemplo, América/Nueva_York)"
 #: packages/admin/src/components/ContentList.tsx:643
 #: packages/admin/src/components/SectionEditor.tsx:251
 #: packages/admin/src/components/Sections.tsx:170
-#: packages/admin/src/components/Widgets.tsx:889
+#: packages/admin/src/components/Widgets.tsx:891
 msgid "Title"
 msgstr "Título"
 
@@ -7833,7 +7851,7 @@ msgstr "cerrar"
 msgid "To date"
 msgstr "Fecha de fin"
 
-#: packages/admin/src/components/PluginManager.tsx:207
+#: packages/admin/src/components/PluginManager.tsx:208
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr "para instalar plugins o agregarlos a su astro.config.mjs."
 
@@ -7841,7 +7859,7 @@ msgstr "para instalar plugins o agregarlos a su astro.config.mjs."
 msgid "to select"
 msgstr "para seleccionar"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3371
+#: packages/admin/src/components/PortableTextEditor.tsx:3404
 msgid "Toggle header row"
 msgstr "Alternar fila de encabezado"
 
@@ -7983,7 +8001,7 @@ msgstr "prueba con mis datos"
 msgid "TSX"
 msgstr "TSX"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:282
+#: packages/admin/src/components/editor/BlockMenu.tsx:309
 msgid "Turn into"
 msgstr "Convertir en"
 
@@ -8007,7 +8025,7 @@ msgstr "El tipo no coincide ({0})"
 msgid "TypeScript"
 msgstr "TypeScript"
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:131
+#: packages/admin/src/components/MarketplaceBrowse.tsx:133
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:112
 msgid "Unable to reach marketplace"
 msgstr "No se puede llegar al mercado"
@@ -8017,30 +8035,30 @@ msgstr "No se puede llegar al mercado"
 msgid "Unassigned"
 msgstr "No asignado"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3244
-#: packages/admin/src/components/PortableTextEditor.tsx:3630
+#: packages/admin/src/components/PortableTextEditor.tsx:3277
+#: packages/admin/src/components/PortableTextEditor.tsx:3663
 msgid "Underline"
 msgstr "Subrayado"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3810
+#: packages/admin/src/components/PortableTextEditor.tsx:3843
 msgid "Undo"
 msgstr "Deshacer"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:191
-#: packages/admin/src/components/PluginManager.tsx:629
-#: packages/admin/src/components/PluginManager.tsx:727
+#: packages/admin/src/components/PluginManager.tsx:630
+#: packages/admin/src/components/PluginManager.tsx:728
 msgid "Uninstall"
 msgstr "Desinstalar"
 
-#: packages/admin/src/components/PluginManager.tsx:711
+#: packages/admin/src/components/PluginManager.tsx:712
 msgid "Uninstall {pluginName}?"
 msgstr "¿Desinstalar {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:706
+#: packages/admin/src/components/PluginManager.tsx:707
 msgid "Uninstall confirmation"
 msgstr "Confirmación de desinstalación"
 
-#: packages/admin/src/components/PluginManager.tsx:727
+#: packages/admin/src/components/PluginManager.tsx:728
 msgid "Uninstalling..."
 msgstr "Desinstalando..."
 
@@ -8081,7 +8099,7 @@ msgstr "Despublicar {itemLabel}"
 msgid "Unpublished"
 msgstr "Despublicado"
 
-#: packages/admin/src/components/ContentTypeList.tsx:55
+#: packages/admin/src/components/ContentTypeList.tsx:57
 msgid "Unregistered Content Tables Found"
 msgstr "Se encontraron tablas de contenido no registrado"
 
@@ -8098,7 +8116,7 @@ msgstr "Desprogramado"
 msgid "Unsupported widget element type: {0}"
 msgstr "Tipo de elemento de widget no compatible: {0}"
 
-#: packages/admin/src/components/Dashboard.tsx:317
+#: packages/admin/src/components/Dashboard.tsx:319
 msgid "Untitled"
 msgstr "Intitulado"
 
@@ -8106,8 +8124,8 @@ msgstr "Intitulado"
 msgid "Untitled file"
 msgstr "Archivo sin título"
 
-#: packages/admin/src/components/Widgets.tsx:534
-#: packages/admin/src/components/Widgets.tsx:807
+#: packages/admin/src/components/Widgets.tsx:536
+#: packages/admin/src/components/Widgets.tsx:809
 msgid "Untitled Widget"
 msgstr "Widget sin título"
 
@@ -8146,7 +8164,7 @@ msgid "Update this redirect rule."
 msgstr "Actualice esta regla de redirección."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:451
+#: packages/admin/src/components/PluginManager.tsx:452
 msgid "Update to v{0}"
 msgstr "Actualizar a v{0}"
 
@@ -8165,7 +8183,7 @@ msgid "Updating content URLs..."
 msgstr "Actualizando URL de contenido..."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:197
-#: packages/admin/src/components/PluginManager.tsx:451
+#: packages/admin/src/components/PluginManager.tsx:452
 msgid "Updating..."
 msgstr "Actualizando..."
 
@@ -8228,7 +8246,7 @@ msgstr "Subir imagen"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Suba imágenes, videos y documentos para mantener los recursos reutilizables en un solo lugar."
 
-#: packages/admin/src/components/Dashboard.tsx:111
+#: packages/admin/src/components/Dashboard.tsx:114
 msgid "Upload Media"
 msgstr "Subir medios"
 
@@ -8269,9 +8287,9 @@ msgstr "Subiendo..."
 #: packages/admin/src/components/FieldEditor.tsx:586
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
-#: packages/admin/src/components/PortableTextEditor.tsx:3198
-#: packages/admin/src/components/PortableTextEditor.tsx:3755
-#: packages/admin/src/components/PortableTextEditor.tsx:3765
+#: packages/admin/src/components/PortableTextEditor.tsx:3231
+#: packages/admin/src/components/PortableTextEditor.tsx:3788
+#: packages/admin/src/components/PortableTextEditor.tsx:3798
 msgid "URL"
 msgstr "URL"
 
@@ -8284,7 +8302,7 @@ msgstr "Patrón de URL"
 msgid "URL-friendly identifier"
 msgstr "Identificador compatible con URL"
 
-#: packages/admin/src/components/MenuList.tsx:163
+#: packages/admin/src/components/MenuList.tsx:165
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 msgstr "Identificador compatible con URL (por ejemplo, \"principal\", \"pie de página\")"
 
@@ -8364,7 +8382,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Los usuarios con direcciones de correo electrónico de estos dominios pueden registrarse sin invitación. Se les asignará el rol especificado automáticamente."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:386
+#: packages/admin/src/components/PluginManager.tsx:387
 msgid "v{0} available"
 msgstr "v{0} disponible"
 
@@ -8373,7 +8391,7 @@ msgstr "v{0} disponible"
 msgid "Validation"
 msgstr "Validación"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:187
+#: packages/admin/src/components/RegistryBrowse.tsx:189
 #: packages/admin/src/components/RegistryPluginDetail.tsx:462
 msgid "Verified publisher"
 msgstr "Editor verificado"
@@ -8422,7 +8440,7 @@ msgstr "Video"
 msgid "View email provider status and send test emails"
 msgstr "Ver el estado del proveedor de correo electrónico y enviar correos electrónicos de prueba"
 
-#: packages/admin/src/components/PluginManager.tsx:463
+#: packages/admin/src/components/PluginManager.tsx:464
 msgid "View in Marketplace"
 msgstr "Ver en el mercado"
 
@@ -8446,7 +8464,7 @@ msgstr "Ver código fuente"
 msgid "View the {license} license on spdx.org"
 msgstr "Ver la licencia {license} en spdx.org"
 
-#: packages/admin/src/components/Redirects.tsx:449
+#: packages/admin/src/components/Redirects.tsx:451
 msgid "Visitors hitting these paths will see an error."
 msgstr "Los visitantes que lleguen a estos caminos verán un error."
 
@@ -8459,7 +8477,7 @@ msgstr "Vue"
 msgid "Waiting for passkey..."
 msgstr "Esperando la Passkey..."
 
-#: packages/admin/src/components/MarketplaceBrowse.tsx:333
+#: packages/admin/src/components/MarketplaceBrowse.tsx:335
 msgid "Warn"
 msgstr "Advertir"
 
@@ -8570,8 +8588,8 @@ msgstr "¿Por qué es importante?"
 msgid "Wide"
 msgstr "Ancha"
 
-#: packages/admin/src/components/Widgets.tsx:800
-#: packages/admin/src/components/Widgets.tsx:815
+#: packages/admin/src/components/Widgets.tsx:802
+#: packages/admin/src/components/Widgets.tsx:817
 msgid "widget"
 msgstr "widget"
 
@@ -8583,24 +8601,24 @@ msgstr "Widget agregado"
 msgid "Widget area created"
 msgstr "Área de widgets creada"
 
-#: packages/admin/src/components/Widgets.tsx:643
+#: packages/admin/src/components/Widgets.tsx:645
 msgid "Widget area deleted"
 msgstr "Área de widgets eliminada"
 
-#: packages/admin/src/components/Widgets.tsx:763
+#: packages/admin/src/components/Widgets.tsx:765
 msgid "Widget deleted"
 msgstr "Widget eliminado"
 
-#: packages/admin/src/components/Widgets.tsx:892
+#: packages/admin/src/components/Widgets.tsx:894
 msgid "Widget title"
 msgstr "Título del widget"
 
-#: packages/admin/src/components/Widgets.tsx:778
+#: packages/admin/src/components/Widgets.tsx:780
 msgid "Widget updated"
 msgstr "Widget actualizado"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:168
-#: packages/admin/src/components/PluginManager.tsx:407
+#: packages/admin/src/components/PluginManager.tsx:408
 #: packages/admin/src/components/Sidebar.tsx:233
 #: packages/admin/src/components/Widgets.tsx:388
 #: packages/admin/src/components/WordPressImport.tsx:1157
@@ -8640,7 +8658,7 @@ msgstr "Nombre de usuario de WordPress"
 msgid "Working on {selectedCount} items…"
 msgstr "Procesando {selectedCount} elementos…"
 
-#: packages/admin/src/components/Widgets.tsx:902
+#: packages/admin/src/components/Widgets.tsx:904
 msgid "Write widget content..."
 msgstr "Escriba el contenido del widget..."
 

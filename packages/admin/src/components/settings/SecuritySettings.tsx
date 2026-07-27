@@ -92,7 +92,7 @@ export function SecuritySettings() {
 	const settingsHeader = (
 		<div className="flex items-center gap-3">
 			<BackToSettingsLink />
-			<h1 className="text-2xl font-bold">{t`Security Settings`}</h1>
+			<h1 className="text-2xl font-semibold leading-tight">{t`Security Settings`}</h1>
 		</div>
 	);
 

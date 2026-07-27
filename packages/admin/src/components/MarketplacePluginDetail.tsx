@@ -159,7 +159,7 @@ export function MarketplacePluginDetail({
 					)}
 
 					<div>
-						<h1 className="text-2xl font-bold">{plugin.name}</h1>
+						<h1 className="text-2xl font-semibold leading-tight">{plugin.name}</h1>
 						<div className="mt-1 flex items-center gap-2 text-sm text-kumo-subtle">
 							<span>{plugin.author.name}</span>
 							{plugin.author.verified && <ShieldCheck className="h-4 w-4 text-kumo-brand" />}

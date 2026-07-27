@@ -42,7 +42,7 @@ export interface EditorHeaderProps {
  *       leading={<BackLink />}
  *       actions={<SaveButton ... />}
  *   >
- *       <h1 className="text-2xl font-bold">{title}</h1>
+ *       <h1 className="truncate text-2xl font-semibold">{title}</h1>
  *   </EditorHeader>
  */
 export function EditorHeader({ leading, children, actions, className }: EditorHeaderProps) {

@@ -1,15 +1,7 @@
 import { Badge, Banner, LayerCard, SkeletonLine } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	Plus,
-	Upload,
-	CircleDashed,
-	CheckCircle,
-	PencilSimple,
-	CalendarBlank,
-	Users,
-} from "@phosphor-icons/react";
+import { Plus, Upload, CircleDashed, CheckCircle, PencilSimple } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
@@ -17,8 +9,7 @@ import type { AdminManifest } from "../lib/api";
 import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/dashboard";
 import { fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
-import { formatRelativeTime } from "../lib/utils";
-import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
+import { cn, formatRelativeTime } from "../lib/utils";
 import { ArrowNext } from "./ArrowIcons";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
@@ -47,7 +38,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 	return (
 		<div className="space-y-6">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-3xl font-bold">{t`Dashboard`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />
 			</div>
 
@@ -87,6 +78,18 @@ function DashboardDataError() {
 	);
 }
 
+function DashboardCardHeading({ children }: { children: React.ReactNode }) {
+	return (
+		<LayerCard.Secondary>
+			<h2 className="px-3">{children}</h2>
+		</LayerCard.Secondary>
+	);
+}
+
+function DashboardCardInset({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+	return <div className={cn("px-3", className)} {...props} />;
+}
+
 // --- Quick actions ---
 
 function QuickActions({ manifest }: { manifest: AdminManifest }) {
@@ -123,10 +126,14 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 				{[1, 2, 3].map((i) => (
 					<LayerCard key={i}>
 						<LayerCard.Secondary>
-							<SkeletonLine minWidth={45} maxWidth={70} />
+							<DashboardCardInset>
+								<SkeletonLine minWidth={45} maxWidth={70} />
+							</DashboardCardInset>
 						</LayerCard.Secondary>
-						<LayerCard.Primary className="text-2xl font-semibold">
-							<SkeletonLine minWidth={20} maxWidth={35} />
+						<LayerCard.Primary className="text-3xl font-semibold leading-none">
+							<DashboardCardInset>
+								<SkeletonLine minWidth={20} maxWidth={35} />
+							</DashboardCardInset>
 						</LayerCard.Primary>
 					</LayerCard>
 				))}
@@ -140,28 +147,24 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 	const totalScheduled = stats.collections.reduce((sum, c) => sum + c.scheduled, 0);
 	const hasScheduledContent = totalScheduled > 0;
 
-	const metrics: Array<{ icon: React.ElementType; label: string; value: number }> = [
+	const metrics: Array<{ label: string; value: number }> = [
 		{
-			icon: PencilSimple,
 			label: plural(totalDrafts, { one: "Draft", other: "Drafts" }),
 			value: totalDrafts,
 		},
 		...(hasScheduledContent
 			? [
 					{
-						icon: CalendarBlank,
 						label: plural(totalScheduled, { one: "Scheduled", other: "Scheduled" }),
 						value: totalScheduled,
 					},
 				]
 			: []),
 		{
-			icon: ADMIN_NAV_ICONS.media,
 			label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
 			value: stats.mediaCount,
 		},
 		{
-			icon: Users,
 			label: plural(stats.userCount, { one: "User", other: "Users" }),
 			value: stats.userCount,
 		},
@@ -176,13 +179,12 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 			}
 		>
 			{metrics.map((metric) => (
-				<LayerCard key={metric.label}>
-					<LayerCard.Secondary className="flex items-center gap-2 text-kumo-subtle">
-						<metric.icon className="h-4 w-4" aria-hidden="true" />
-						<span>{metric.label}</span>
-					</LayerCard.Secondary>
-					<LayerCard.Primary className="text-2xl font-semibold tabular-nums">
-						{metric.value}
+				<LayerCard key={metric.label} data-testid="dashboard-metric">
+					<DashboardCardHeading>{metric.label}</DashboardCardHeading>
+					<LayerCard.Primary className="text-3xl font-semibold leading-none tabular-nums">
+						<DashboardCardInset data-testid="dashboard-metric-value">
+							{metric.value}
+						</DashboardCardInset>
 					</LayerCard.Primary>
 				</LayerCard>
 			))}
@@ -192,11 +194,11 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 
 function SkeletonRows({ count }: { count: number }) {
 	return (
-		<div className="space-y-3 px-3">
+		<DashboardCardInset className="space-y-3">
 			{Array.from({ length: count }, (_, i) => (
 				<SkeletonLine key={i} blockHeight={40} minWidth={65} maxWidth={95} />
 			))}
-		</div>
+		</DashboardCardInset>
 	);
 }
 
@@ -215,15 +217,14 @@ function CollectionList({
 
 	return (
 		<LayerCard className="h-full">
-			<LayerCard.Secondary>
-				{/* px-3 matches the row Link inset below so the heading aligns with row text */}
-				<h2 className="px-3">{t`Content`}</h2>
-			</LayerCard.Secondary>
+			<DashboardCardHeading>{t`Content`}</DashboardCardHeading>
 			<LayerCard.Primary className="flex-1">
 				{loading ? (
 					<SkeletonRows count={3} />
 				) : collections.length === 0 ? (
-					<p className="px-3 text-sm text-kumo-subtle">{t`No collections configured`}</p>
+					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
+						{t`No collections configured`}
+					</p>
 				) : (
 					<div className="space-y-1">
 						{collections.map((col) => {
@@ -236,7 +237,9 @@ function CollectionList({
 									search={{ locale: undefined }}
 									className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
 								>
-									<span className="font-medium">{config?.label ?? col.label}</span>
+									<span className="text-base font-medium leading-5">
+										{config?.label ?? col.label}
+									</span>
 									<span className="flex shrink-0 items-center gap-2">
 										<CountBadge
 											icon={CheckCircle}
@@ -278,7 +281,7 @@ function CountBadge({
 }) {
 	if (count === 0) return null;
 	return (
-		<Badge variant={variant} className="gap-1">
+		<Badge variant={variant} className="gap-1 tabular-nums">
 			<Icon className="h-3 w-3" aria-hidden="true" />
 			<span className="sr-only">{label}</span>
 			{count}
@@ -293,15 +296,14 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 
 	return (
 		<LayerCard className="h-full">
-			<LayerCard.Secondary>
-				{/* px-3 matches the row Link inset below so the heading aligns with row text */}
-				<h2 className="px-3">{t`Recent Activity`}</h2>
-			</LayerCard.Secondary>
+			<DashboardCardHeading>{t`Recent Activity`}</DashboardCardHeading>
 			<LayerCard.Primary className="flex-1">
 				{loading ? (
 					<SkeletonRows count={5} />
 				) : items.length === 0 ? (
-					<p className="px-3 text-sm text-kumo-subtle">{t`No recent activity`}</p>
+					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
+						{t`No recent activity`}
+					</p>
 				) : (
 					<div className="space-y-1">
 						{items.map((item) => (
@@ -313,14 +315,17 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 							>
 								<div className="flex min-w-0 items-center gap-2">
 									<StatusDot status={item.status} />
-									<span className="truncate font-medium">
+									<span className="truncate text-base font-medium leading-5">
 										{item.title || item.slug || t`Untitled`}
 									</span>
-									<span className="hidden shrink-0 text-xs text-kumo-subtle sm:inline">
+									<span className="hidden shrink-0 text-xs font-normal leading-5 text-kumo-subtle sm:inline">
 										{item.collectionLabel}
 									</span>
 								</div>
-								<span data-testid="activity-time" className="shrink-0 text-xs text-kumo-subtle">
+								<span
+									data-testid="activity-time"
+									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
+								>
 									{formatRelativeTime(item.updatedAt)}
 								</span>
 							</Link>
@@ -406,19 +411,15 @@ function PluginWidgetCard({
 
 	return (
 		<LayerCard className="h-full">
-			<LayerCard.Secondary>
-				{/* px-3 matches the Content/Recent Activity card headings for cross-card alignment */}
-				<h2 className="px-3">{widget.title || widget.id}</h2>
-			</LayerCard.Secondary>
+			<DashboardCardHeading>{widget.title || widget.id}</DashboardCardHeading>
 			<LayerCard.Primary className="flex-1">
-				{/* px-3 aligns the widget body with the heading and the other cards' content */}
-				<div className="px-3">
+				<DashboardCardInset>
 					{WidgetComponent ? (
 						<WidgetComponent />
 					) : (
 						<SandboxedPluginWidget pluginId={widget.pluginId} widgetId={widget.id} />
 					)}
-				</div>
+				</DashboardCardInset>
 			</LayerCard.Primary>
 		</LayerCard>
 	);
