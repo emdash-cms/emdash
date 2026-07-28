@@ -141,9 +141,10 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 					)}
 				</div>
 
-				<div className="mt-5 border-t border-kumo-line pt-4">
+				<div className="mt-5 border-t border-kumo-line pt-5">
 					<Button
 						variant="primary"
+						size="lg"
 						className="w-full justify-center"
 						onClick={handleGetStarted}
 						loading={dismissMutation.isPending}
