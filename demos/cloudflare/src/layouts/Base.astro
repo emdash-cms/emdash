@@ -926,12 +926,10 @@ const isLoggedIn = !!Astro.locals.user;
 		</style>
 
 		<script>
-			// Registers the Cloudflare AI Search web components (e.g. search-modal-snippet).
 			import * as aiSearchSnippet from "@cloudflare/ai-search-snippet";
 
 			void aiSearchSnippet;
 
-			// The modal opens with Cmd/Ctrl+K by default; also wire the visible nav button.
 			const searchModal = document.getElementById("site-search") as HTMLElement & {
 				open?: () => void;
 			};
