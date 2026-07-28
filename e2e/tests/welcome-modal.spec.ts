@@ -47,7 +47,13 @@ test("wrapped welcome title lines do not collide", async ({ page }) => {
 		}));
 	});
 
-	expect(lineRects).toHaveLength(2);
+	expect(lineRects.length).toBeGreaterThanOrEqual(2);
+	for (let i = 0; i < lineRects.length - 1; i++) {
+		const currentLine = lineRects[i]!;
+		const nextLine = lineRects[i + 1]!;
+		const overlap = Math.max(0, currentLine.bottom - nextLine.top);
+		expect(overlap / currentLine.height).toBeLessThanOrEqual(MAX_LINE_BOX_OVERLAP_RATIO);
+	}
 	const [firstLine, secondLine] = lineRects;
 	const overlap = Math.max(0, firstLine!.bottom - secondLine!.top);
 	expect(overlap / firstLine!.height).toBeLessThanOrEqual(MAX_LINE_BOX_OVERLAP_RATIO);
