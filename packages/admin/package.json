@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/admin",
-  "version": "0.31.0",
+  "version": "0.31.1",
   "description": "Admin UI for EmDash CMS",
   "type": "module",
   "main": "dist/index.js",
@@ -58,6 +58,8 @@
     "@tiptap/extension-link": "catalog:",
     "@tiptap/extension-node-range": "catalog:",
     "@tiptap/extension-placeholder": "catalog:",
+    "@tiptap/extension-subscript": "catalog:",
+    "@tiptap/extension-superscript": "catalog:",
     "@tiptap/extension-table": "catalog:",
     "@tiptap/extension-table-cell": "catalog:",
     "@tiptap/extension-table-header": "catalog:",

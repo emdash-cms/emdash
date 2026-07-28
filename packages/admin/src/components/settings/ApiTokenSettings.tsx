@@ -190,8 +190,8 @@ export function ApiTokenSettings() {
 			<div className="flex items-center gap-3">
 				<BackToSettingsLink />
 				<div>
-					<h1 className="text-2xl font-bold">{t(msg`API Tokens`)}</h1>
-					<p className="text-sm text-kumo-subtle">
+					<h1 className="text-2xl font-semibold leading-tight">{t(msg`API Tokens`)}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t(msg`Create personal access tokens for programmatic API access`)}
 					</p>
 				</div>

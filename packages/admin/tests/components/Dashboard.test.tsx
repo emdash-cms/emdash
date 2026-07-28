@@ -104,4 +104,14 @@ describe("Dashboard", () => {
 			.element(screen.getByRole("link", { name: "Page" }))
 			.toHaveAttribute("href", "/content/pages/new");
 	});
+
+	it("uses the same heading level for every dashboard card title", async () => {
+		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		for (const name of ["Drafts", "Media files", "Users", "Content", "Recent Activity"]) {
+			await expect.element(screen.getByRole("heading", { level: 2, name })).toBeInTheDocument();
+		}
+	});
 });

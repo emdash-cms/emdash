@@ -149,7 +149,7 @@ export function AllowedDomainsSettings() {
 	const settingsHeader = (
 		<div className="flex items-center gap-3">
 			<BackToSettingsLink />
-			<h1 className="text-2xl font-bold">{t`Self-Signup Domains`}</h1>
+			<h1 className="text-2xl font-semibold leading-tight">{t`Self-Signup Domains`}</h1>
 		</div>
 	);
 

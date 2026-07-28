@@ -813,8 +813,8 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between gap-4 flex-wrap">
 				<div>
-					<h1 className="text-3xl font-bold">{taxonomyDef.label}</h1>
-					<p className="text-kumo-subtle mt-1">
+					<h1 className="text-2xl font-semibold leading-tight">{taxonomyDef.label}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t`Manage ${taxonomyDef.label.toLowerCase()} for ${taxonomyDef.collections.join(", ")}`}
 					</p>
 				</div>

@@ -93,7 +93,7 @@ export function GeneralSettings() {
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
 					<BackToSettingsLink />
-					<h1 className="text-2xl font-bold">{t`General Settings`}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{t`General Settings`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">{t`Loading settings...`}</p>
@@ -121,7 +121,7 @@ export function GeneralSettings() {
 					</Button>
 				}
 			>
-				<h1 className="text-2xl font-bold truncate">{t`General Settings`}</h1>
+				<h1 className="truncate text-2xl font-semibold">{t`General Settings`}</h1>
 			</EditorHeader>
 
 			<form id="general-settings-form" onSubmit={handleSubmit} className="space-y-6">

@@ -688,8 +688,8 @@ export function WordPressImport() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-2xl font-bold">{t`Import from WordPress`}</h1>
-				<p className="text-kumo-subtle mt-1">
+				<h1 className="text-2xl font-semibold leading-tight">{t`Import from WordPress`}</h1>
+				<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 					{t`Import posts, pages, and custom post types from WordPress.`}
 				</p>
 			</div>
@@ -1318,19 +1318,19 @@ function ProbeResultStep({
 					<div className="grid grid-cols-3 gap-4 text-center">
 						{bestMatch.preview.posts !== undefined && (
 							<div>
-								<p className="text-2xl font-bold">{bestMatch.preview.posts}</p>
+								<p className="text-2xl font-semibold tabular-nums">{bestMatch.preview.posts}</p>
 								<p className="text-xs text-kumo-subtle">{t`Posts`}</p>
 							</div>
 						)}
 						{bestMatch.preview.pages !== undefined && (
 							<div>
-								<p className="text-2xl font-bold">{bestMatch.preview.pages}</p>
+								<p className="text-2xl font-semibold tabular-nums">{bestMatch.preview.pages}</p>
 								<p className="text-xs text-kumo-subtle">{t`Pages`}</p>
 							</div>
 						)}
 						{bestMatch.preview.media !== undefined && (
 							<div>
-								<p className="text-2xl font-bold">{bestMatch.preview.media}</p>
+								<p className="text-2xl font-semibold tabular-nums">{bestMatch.preview.media}</p>
 								<p className="text-xs text-kumo-subtle">{t`Media`}</p>
 							</div>
 						)}

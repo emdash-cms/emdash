@@ -87,7 +87,7 @@ export function SeoSettings() {
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
 					<BackToSettingsLink />
-					<h1 className="text-2xl font-bold">{t`SEO Settings`}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{t`SEO Settings`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">{t`Loading settings...`}</p>
@@ -112,7 +112,7 @@ export function SeoSettings() {
 					</Button>
 				}
 			>
-				<h1 className="text-2xl font-bold truncate">{t`SEO Settings`}</h1>
+				<h1 className="truncate text-2xl font-semibold">{t`SEO Settings`}</h1>
 			</EditorHeader>
 
 			<form id="seo-settings-form" onSubmit={handleSubmit} className="space-y-6">

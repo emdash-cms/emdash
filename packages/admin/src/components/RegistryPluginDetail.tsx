@@ -444,7 +444,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				</div>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<h1 className="truncate text-3xl font-bold">{displayName ?? slug}</h1>
+						<h1 className="truncate text-2xl font-semibold">{displayName ?? slug}</h1>
 						{verified ? (
 							<Tooltip
 								content={

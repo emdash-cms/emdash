@@ -121,7 +121,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 						</div>
 					)}
 					<div>
-						<h1 className="text-2xl font-bold">{theme.name}</h1>
+						<h1 className="text-2xl font-semibold leading-tight">{theme.name}</h1>
 						<div className="mt-1 flex items-center gap-2 text-sm text-kumo-subtle">
 							<span>{theme.author.name}</span>
 							{theme.author.verified && <ShieldCheck className="h-4 w-4 text-kumo-brand" />}

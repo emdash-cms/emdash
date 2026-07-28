@@ -48,10 +48,15 @@ import {
 	TextItalic,
 	TextUnderline,
 	TextStrikethrough,
+	TextSubscript,
+	TextSuperscript,
 	Code,
 	TextHOne,
 	TextHTwo,
 	TextHThree,
+	TextHFour,
+	TextHFive,
+	TextHSix,
 	List,
 	ListNumbers,
 	Quotes,
@@ -88,6 +93,8 @@ import { Extension, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import Placeholder from "@tiptap/extension-placeholder";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
 import { Table } from "@tiptap/extension-table";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
@@ -1053,6 +1060,12 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 			case "strike-through":
 				pmMarks.push({ type: "strike" });
 				break;
+			case "subscript":
+				pmMarks.push({ type: "subscript" });
+				break;
+			case "superscript":
+				pmMarks.push({ type: "superscript" });
+				break;
 			case "code":
 				pmMarks.push({ type: "code" });
 				break;
@@ -1132,6 +1145,36 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		aliases: ["h3"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
+		},
+	},
+	{
+		id: "heading4",
+		title: msg`Heading 4`,
+		description: msg`Smaller section heading`,
+		icon: TextHFour,
+		aliases: ["h4"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 4 }).run();
+		},
+	},
+	{
+		id: "heading5",
+		title: msg`Heading 5`,
+		description: msg`Minor section heading`,
+		icon: TextHFive,
+		aliases: ["h5"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 5 }).run();
+		},
+	},
+	{
+		id: "heading6",
+		title: msg`Heading 6`,
+		description: msg`Smallest section heading`,
+		icon: TextHSix,
+		aliases: ["h6"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 6 }).run();
 		},
 	},
 	{
@@ -2493,7 +2536,7 @@ export function PortableTextEditor({
 		() => [
 			StarterKit.configure({
 				heading: {
-					levels: [1, 2, 3],
+					levels: [1, 2, 3, 4, 5, 6],
 				},
 				dropcursor: {
 					color: "#3b82f6",
@@ -2517,6 +2560,8 @@ export function PortableTextEditor({
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
+			Subscript,
+			Superscript,
 			Table.configure({
 				resizable: true,
 			}),
@@ -3112,6 +3157,8 @@ function EditorBubbleMenu({
 			italic: activeEditor.isActive("italic"),
 			underline: activeEditor.isActive("underline"),
 			strike: activeEditor.isActive("strike"),
+			subscript: activeEditor.isActive("subscript"),
+			superscript: activeEditor.isActive("superscript"),
 			code: activeEditor.isActive("code"),
 			link: activeEditor.isActive("link"),
 		}),
@@ -3251,6 +3298,20 @@ function EditorBubbleMenu({
 						title={t`Strikethrough`}
 					>
 						<TextStrikethrough className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleSubscript().run()}
+						active={activeMarks.subscript}
+						title={t`Subscript`}
+					>
+						<TextSubscript className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleSuperscript().run()}
+						active={activeMarks.superscript}
+						title={t`Superscript`}
+					>
+						<TextSuperscript className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleCode().run()}
@@ -3485,6 +3546,8 @@ function EditorToolbar({
 				isItalic: ctx.editor.isActive("italic"),
 				isUnderline: ctx.editor.isActive("underline"),
 				isStrike: ctx.editor.isActive("strike"),
+				isSubscript: ctx.editor.isActive("subscript"),
+				isSuperscript: ctx.editor.isActive("superscript"),
 				isCode: ctx.editor.isActive("code"),
 				isBulletList: ctx.editor.isActive("bulletList"),
 				isOrderedList: ctx.editor.isActive("orderedList"),
@@ -3639,6 +3702,20 @@ function EditorToolbar({
 					<TextStrikethrough className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
+					onClick={() => editor.chain().focus().toggleSubscript().run()}
+					active={editorState.isSubscript}
+					title={t`Subscript`}
+				>
+					<TextSubscript className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
+					onClick={() => editor.chain().focus().toggleSuperscript().run()}
+					active={editorState.isSuperscript}
+					title={t`Superscript`}
+				>
+					<TextSuperscript className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCode().run()}
 					active={editorState.isCode}
 					title={t`Inline Code`}
@@ -3651,7 +3728,7 @@ function EditorToolbar({
 
 			{/* Headings */}
 			<ToolbarGroup>
-				<HeadingDropdownMenu editor={editor} levels={[1, 2, 3]} />
+				<HeadingDropdownMenu editor={editor} />
 			</ToolbarGroup>
 
 			<ToolbarSeparator />

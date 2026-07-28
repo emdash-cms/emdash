@@ -385,8 +385,10 @@ export function Widgets() {
 				<div className="space-y-6">
 					<div className="flex items-center justify-between">
 						<div>
-							<h1 className="text-3xl font-bold">{t`Widgets`}</h1>
-							<p className="text-kumo-subtle">{t`Manage content widgets in your widget areas`}</p>
+							<h1 className="text-2xl font-semibold leading-tight">{t`Widgets`}</h1>
+							<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+								{t`Manage content widgets in your widget areas`}
+							</p>
 						</div>
 						<Dialog.Root
 							open={isCreateAreaOpen}

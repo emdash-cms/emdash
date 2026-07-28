@@ -74,7 +74,7 @@ export function EmailSettings() {
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
 					<BackToSettingsLink />
-					<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Email Settings`}</h1>
 				</div>
 				<div className="flex items-center gap-2 rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
 					<WarningCircle className="h-4 w-4 flex-shrink-0" />
@@ -89,7 +89,7 @@ export function EmailSettings() {
 			{/* Header */}
 			<div className="flex items-center gap-3">
 				<BackToSettingsLink />
-				<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Email Settings`}</h1>
 			</div>
 
 			{/* Pipeline status */}
