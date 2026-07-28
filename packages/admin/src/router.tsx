@@ -2190,7 +2190,7 @@ function NotFoundPage({ message }: { message?: string }) {
 				<p className="mt-2 text-sm text-kumo-subtle">
 					{message ?? t`The page you're looking for doesn't exist.`}
 				</p>
-				<Link to="/" className="mt-4 inline-block text-kumo-brand">
+				<Link to="/" className="mt-4 inline-block text-kumo-link">
 					{t`Go to Dashboard`}
 				</Link>
 			</div>

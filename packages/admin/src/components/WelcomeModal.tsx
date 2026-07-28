@@ -131,7 +131,7 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 				<div className="space-y-4 py-4">
 					<div className="rounded-lg bg-kumo-tint p-4">
 						<div className="text-sm font-medium">{t(MSG_YOUR_ROLE)}</div>
-						<div className="text-lg font-semibold text-kumo-brand">{roleLabel}</div>
+						<div className="text-lg font-semibold text-kumo-link">{roleLabel}</div>
 						<p className="text-sm text-kumo-subtle mt-1">{t(scopeDescriptor(isAdmin, userRole))}</p>
 					</div>
 

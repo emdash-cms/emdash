@@ -693,7 +693,7 @@ function WidgetAreaPanel({
 					<div
 						className={`text-center py-4 rounded border-2 border-dashed transition-colors ${
 							isOver
-								? "border-kumo-brand bg-kumo-brand/5 text-kumo-brand"
+								? "border-kumo-brand bg-kumo-brand/5 text-kumo-link"
 								: "border-kumo-subtle/30 text-kumo-subtle"
 						}`}
 					>

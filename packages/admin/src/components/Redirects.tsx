@@ -373,7 +373,7 @@ export function Redirects() {
 					className={cn(
 						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
 						tab === "redirects"
-							? "border-kumo-brand text-kumo-brand"
+							? "border-kumo-brand text-kumo-link"
 							: "border-transparent text-kumo-subtle hover:text-kumo-default",
 					)}
 				>
@@ -390,7 +390,7 @@ export function Redirects() {
 					className={cn(
 						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
 						tab === "404s"
-							? "border-kumo-brand text-kumo-brand"
+							? "border-kumo-brand text-kumo-link"
 							: "border-transparent text-kumo-subtle hover:text-kumo-default",
 					)}
 				>
