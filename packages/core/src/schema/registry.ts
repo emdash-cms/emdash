@@ -822,7 +822,12 @@ export class SchemaRegistry {
 		const ftsActive = config?.enabled === true;
 
 		if (wantsSearch && searchableFields.length > 0 && ftsActive) {
-			await ftsManager.rebuildIndex(collectionSlug, searchableFields, config?.weights);
+			await ftsManager.rebuildIndex(
+				collectionSlug,
+				searchableFields,
+				config?.weights,
+				config?.tokenize,
+			);
 		} else if (ftsActive && (!wantsSearch || searchableFields.length === 0)) {
 			await ftsManager.disableSearch(collectionSlug);
 		}
