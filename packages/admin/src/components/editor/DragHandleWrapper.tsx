@@ -186,6 +186,8 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 						onClick={handleClick}
 						data-block-handle
 						aria-label={t`Block actions - drag to reorder, click for menu`}
+						aria-haspopup="menu"
+						aria-expanded={menuOpen}
 					>
 						<DotsSixVertical className="h-4 w-4" aria-hidden="true" />
 					</Button>

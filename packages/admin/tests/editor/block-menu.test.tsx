@@ -180,15 +180,15 @@ function getBlockMenu(): HTMLElement | null {
 	return null;
 }
 
-/** Get all text buttons in the menu */
-function getMenuButtons(menu: HTMLElement): HTMLButtonElement[] {
-	return [...menu.querySelectorAll("button")];
+/** Get all actionable items in the menu */
+function getMenuItems(menu: HTMLElement): HTMLElement[] {
+	return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')];
 }
 
-/** Find a button by its text content */
-function findButtonByText(menu: HTMLElement, text: string): HTMLButtonElement | null {
-	const buttons = getMenuButtons(menu);
-	return buttons.find((btn) => btn.textContent?.includes(text)) ?? null;
+/** Find a menu item by its text content */
+function findButtonByText(menu: HTMLElement, text: string): HTMLElement | null {
+	const items = getMenuItems(menu);
+	return items.find((item) => item.textContent?.includes(text)) ?? null;
 }
 
 // =============================================================================
@@ -220,6 +220,22 @@ describe("BlockMenu", () => {
 		expect(findButtonByText(menu, "Turn into")).toBeTruthy();
 		expect(findButtonByText(menu, "Duplicate")).toBeTruthy();
 		expect(findButtonByText(menu, "Delete")).toBeTruthy();
+	});
+
+	it("exposes block actions as an accessible menu", async () => {
+		const { editor } = await getEditor();
+		const onClose = vi.fn();
+
+		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
+
+		await vi.waitFor(() => {
+			expect(document.querySelector('[role="menu"]')).toBeTruthy();
+		});
+
+		const menu = document.querySelector('[role="menu"]')!;
+		const items = [...menu.querySelectorAll('[role="menuitem"]')];
+
+		expect(items.map((item) => item.textContent)).toEqual(["Turn into", "Duplicate", "Delete"]);
 	});
 
 	it("shows Turn into submenu when Turn into is clicked", async () => {
