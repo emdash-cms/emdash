@@ -36,7 +36,6 @@ function roleDescriptor(role: number): MessageDescriptor {
 	return MSG_ROLE_SUBSCRIBER;
 }
 
-/** Limited to variants clearing WCAG AA at the badge's 12px type; `info` measures 3.6:1 here. */
 function roleBadgeVariant(role: number): React.ComponentProps<typeof Badge>["variant"] {
 	if (role >= 50) return "primary";
 	if (role >= 30) return "secondary";
