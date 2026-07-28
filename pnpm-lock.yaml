@@ -1566,6 +1566,9 @@ importers:
 
   packages/cloudflare:
     dependencies:
+      '@cloudflare/ai-search-snippet':
+        specifier: ^0.0.42
+        version: 0.0.42
       astro:
         specifier: '>=6.0.0-beta.0'
         version: 7.0.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(rollup@4.55.2)(tsx@4.21.0)(yaml@2.9.0)
@@ -3706,6 +3709,10 @@ packages:
 
   '@cloudflare/ai-search-snippet@0.0.40':
     resolution: {integrity: sha512-DB2sUIT7ZASoIv2bGNK6OzfUSEF6qNZJ/pz7opbLasgMPDz9e5ArtNEp3UyyNjy8Pfj+2sGsNcHpESHUkbGTuw==, tarball: https://registry.npmjs.org/@cloudflare/ai-search-snippet/-/ai-search-snippet-0.0.40.tgz}
+    engines: {node: '>=16.0.0'}
+
+  '@cloudflare/ai-search-snippet@0.0.42':
+    resolution: {integrity: sha512-LSNCvszcgEb+hgH1jpKCGaBrXScbahpjFVoXuDGiUyC9Td7hDR57+YdMMcBbhDa7S4GYaoCO1aziJYjvC0fwnw==, tarball: https://registry.npmjs.org/@cloudflare/ai-search-snippet/-/ai-search-snippet-0.0.42.tgz}
     engines: {node: '>=16.0.0'}
 
   '@cloudflare/codemode@0.3.8':
@@ -14262,6 +14269,8 @@ snapshots:
       sisteransi: 1.0.5
 
   '@cloudflare/ai-search-snippet@0.0.40': {}
+
+  '@cloudflare/ai-search-snippet@0.0.42': {}
 
   '@cloudflare/codemode@0.3.8(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.1))(ai@6.0.172(zod@4.4.1))(zod@4.4.1)':
     dependencies:
