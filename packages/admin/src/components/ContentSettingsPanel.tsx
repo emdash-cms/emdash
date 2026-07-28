@@ -25,7 +25,7 @@ import type {
 	UserListItem,
 } from "../lib/api";
 import { fetchBylines } from "../lib/api";
-import { toDatetimeLocalInputValue } from "../lib/datetime-local.js";
+import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { cn, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
@@ -410,7 +410,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 	const handlePublishedDateSubmit = () => {
 		if (publishedDate && onPublishedAtChange) {
-			onPublishedAtChange(new Date(publishedDate).toISOString());
+			onPublishedAtChange(fromDatetimeLocalInputValue(publishedDate));
 		}
 	};
 
