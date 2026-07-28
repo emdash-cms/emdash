@@ -417,6 +417,36 @@ describe("BlockMenu", () => {
 		});
 	});
 
+	it("deletes a selected table when Delete is clicked", async () => {
+		const { editor, pm } = await getEditor();
+		const onClose = vi.fn();
+
+		editor.chain().focus("start").insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run();
+
+		let tablePos = -1;
+		editor.state.doc.descendants((node, pos) => {
+			if (node.type.name !== "table") return true;
+			tablePos = pos;
+			return false;
+		});
+		expect(tablePos).toBeGreaterThanOrEqual(0);
+
+		editor.commands.setNodeSelection(tablePos);
+
+		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
+
+		await vi.waitFor(() => {
+			expect(getBlockMenu()).toBeTruthy();
+		});
+
+		findButtonByText(getBlockMenu()!, "Delete")!.click();
+
+		expect(onClose).toHaveBeenCalled();
+		await vi.waitFor(() => {
+			expect(pm.querySelector("table")).toBeNull();
+		});
+	});
+
 	it("duplicates the current block when Duplicate is clicked", async () => {
 		const { editor, pm } = await getEditor();
 		const onClose = vi.fn();

@@ -2563,6 +2563,7 @@ export function PortableTextEditor({
 			Subscript,
 			Superscript,
 			Table.configure({
+				allowTableNodeSelection: true,
 				resizable: true,
 			}),
 			TableRow,
