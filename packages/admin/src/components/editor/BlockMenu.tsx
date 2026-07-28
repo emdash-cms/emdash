@@ -140,6 +140,8 @@ const blockTransforms: BlockTransform[] = [
 	},
 ];
 
+const POPOVER_TRANSITION_MS = 150;
+
 interface BlockMenuProps {
 	editor: Editor;
 	/** The DOM element of the selected block (for positioning) */
@@ -157,15 +159,20 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 	const { i18n, t } = useLingui();
 	const [showTransforms, setShowTransforms] = React.useState(false);
 	const anchorRef = React.useRef<HTMLElement | null>(anchorElement);
+	const menuActionsRef = React.useRef<{ unmount: () => void; close: () => void } | null>(null);
 	const direction = getLocaleDir(i18n.locale);
 
 	if (anchorElement) anchorRef.current = anchorElement;
 
-	// Reset submenu state when menu closes
 	React.useEffect(() => {
-		if (!isOpen) {
-			setShowTransforms(false);
-		}
+		if (isOpen) return;
+
+		setShowTransforms(false);
+		const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+			? 0
+			: POPOVER_TRANSITION_MS;
+		const timer = window.setTimeout(() => menuActionsRef.current?.unmount(), delay);
+		return () => window.clearTimeout(timer);
 	}, [isOpen]);
 
 	const handleDuplicate = () => {
@@ -200,6 +207,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 
 	return (
 		<DropdownMenu
+			actionsRef={menuActionsRef}
 			open={isOpen}
 			modal={false}
 			onOpenChange={(open, eventDetails) => {
@@ -209,6 +217,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 					setShowTransforms(false);
 					return;
 				}
+				eventDetails.preventUnmountOnClose();
 				onClose();
 			}}
 		>
@@ -222,7 +231,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 					"bg-kumo-base text-sm shadow-kumo-tip-shadow ring-kumo-fill",
 					"origin-(--transform-origin) transition-[transform,scale,opacity] duration-150",
 					"data-starting-style:scale-90 data-starting-style:opacity-0",
-					"data-ending-style:scale-90 data-ending-style:opacity-0 data-instant:duration-0",
+					"data-ending-style:scale-90 data-ending-style:opacity-0",
 					"data-[state=open]:animate-none data-[state=closed]:animate-none motion-reduce:transition-none",
 				)}
 			>
