@@ -80,6 +80,11 @@ export default defineConfig({
 					binding: "AI_SEARCH",
 					// Hybrid search (vector + keyword). Default: true.
 					hybridSearch: true,
+					// Public result URLs returned to the AI Search snippet.
+					urlTemplates: {
+						posts: "/posts/{slug}?lang={locale}",
+						pages: "/pages/{slug}?lang={locale}",
+					},
 				}),
 			],
 			// Sandboxed plugins (run in isolated workers)

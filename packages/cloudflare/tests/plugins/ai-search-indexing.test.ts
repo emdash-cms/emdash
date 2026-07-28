@@ -17,6 +17,8 @@ const { uploads, deletions, createConfigs, controls, pendingUploads, fakeEnv } =
 		holdUploads: false,
 		instanceMissing: false,
 		searchError: null as Error | null,
+		searchChunks: [] as Array<Record<string, unknown>>,
+		searchRequests: [] as Array<Record<string, unknown>>,
 	};
 	const pending = new Map<
 		string,
@@ -27,10 +29,12 @@ const { uploads, deletions, createConfigs, controls, pendingUploads, fakeEnv } =
 			state.instanceMissing
 				? Promise.reject(new Error("instance not found"))
 				: Promise.resolve({ id: "emdash-content" }),
-		search: () =>
-			state.searchError
+		search: (request: Record<string, unknown>) => {
+			state.searchRequests.push(request);
+			return state.searchError
 				? Promise.reject(state.searchError)
-				: Promise.resolve({ search_query: "query", chunks: [] }),
+				: Promise.resolve({ search_query: "query", chunks: state.searchChunks });
+		},
 		items: {
 			upload: (key: string, content: string, options?: { metadata?: Record<string, unknown> }) => {
 				if (state.uploadFailures > 0) {
@@ -69,7 +73,8 @@ const { uploads, deletions, createConfigs, controls, pendingUploads, fakeEnv } =
 
 vi.mock("cloudflare:workers", () => ({ env: fakeEnv, waitUntil: () => {} }));
 
-const { createPlugin, unpackTitleDescription } = await import("../../src/plugins/ai-search.js");
+const { createPlugin, handleAISearchSnippetRequest, unpackTitleDescription } =
+	await import("../../src/plugins/ai-search.js");
 
 /** Minimal in-memory KV + site context sufficient for the indexing hooks. */
 function makeContext(content?: PluginContext["content"]): PluginContext {
@@ -99,6 +104,18 @@ function routeContext(ctx: PluginContext, input: Record<string, unknown>, method
 		input,
 		request: new Request("http://localhost/_emdash/api/plugins/ai-search/reindex", { method }),
 	};
+}
+
+function snippetRequest(body: unknown): Request {
+	return new Request("https://example.com/api/ai-search/search", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+}
+
+function snippetOptions(ctx: PluginContext, config = {}) {
+	return { config, kv: ctx.kv, defaultLocale: "en" };
 }
 
 async function runReindexCron(plugin: ReturnType<typeof createPlugin>, ctx: PluginContext) {
@@ -292,29 +309,84 @@ describe("ai-search reindex jobs", () => {
 	});
 });
 
-describe("ai-search route errors", () => {
-	it("uses structured HTTP errors instead of successful error payloads", async () => {
+describe("AI Search snippet endpoint", () => {
+	it("returns metadata-only snippet results using configured URL templates", async () => {
+		controls.searchRequests.length = 0;
+		controls.searchChunks = [
+			{
+				id: "chunk-1",
+				type: "text",
+				score: 0.9,
+				text: "not returned",
+				item: {
+					key: "posts/post-1.md",
+					metadata: {
+						title_desc: "Hello\u001FA useful result",
+						slug: "hello",
+					},
+				},
+			},
+		];
+		const ctx = makeContext();
+		const response = await handleAISearchSnippetRequest(
+			snippetRequest({
+				messages: [{ role: "user", content: "hello" }],
+				locale: "fr",
+				ai_search_options: { retrieval: { max_num_results: 5 } },
+			}),
+			snippetOptions(ctx, { urlTemplates: { posts: "/writing/{slug}?lang={locale}" } }),
+		);
+
+		expect(response.status).toBe(200);
+		expect(controls.searchRequests.at(-1)).toMatchObject({
+			ai_search_options: {
+				retrieval: {
+					metadata_only: true,
+					filters: { locale: { $eq: "fr" } },
+				},
+			},
+		});
+		await expect(response.json()).resolves.toMatchObject({
+			success: true,
+			result: {
+				chunks: [
+					{
+						item: {
+							key: "/writing/hello?lang=fr",
+							metadata: {
+								title: "Hello",
+								description: "A useful result",
+							},
+						},
+					},
+				],
+			},
+		});
+	});
+});
+
+describe("ai-search endpoint and route errors", () => {
+	it("uses structured errors instead of successful error payloads", async () => {
 		const plugin = createPlugin();
 		const ctx = makeContext();
 
-		await expect(
-			plugin.routes.query!.handler(routeContext(ctx, { locale: "en" }) as never),
-		).rejects.toMatchObject({ status: 400, code: "BAD_REQUEST" });
 		await expect(
 			plugin.routes.config!.handler(routeContext(ctx, { collections: 42 }) as never),
 		).rejects.toMatchObject({ status: 400, code: "BAD_REQUEST" });
 	});
 
-	it("does not expose an upstream search error through the public route", async () => {
+	it("does not expose an upstream search error through the snippet endpoint", async () => {
 		controls.searchError = new Error("secret upstream details");
-		const plugin = createPlugin();
 		const ctx = makeContext();
 
-		await expect(
-			plugin.routes.query!.handler(routeContext(ctx, { q: "query", locale: "en" }) as never),
-		).rejects.toMatchObject({
-			status: 503,
-			message: "Search is temporarily unavailable",
+		const response = await handleAISearchSnippetRequest(
+			snippetRequest({ messages: [{ role: "user", content: "query" }] }),
+			snippetOptions(ctx),
+		);
+		expect(response.status).toBe(503);
+		await expect(response.json()).resolves.toEqual({
+			success: false,
+			error: "Search is temporarily unavailable",
 		});
 		controls.searchError = null;
 	});

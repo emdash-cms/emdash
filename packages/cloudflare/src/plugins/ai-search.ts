@@ -30,18 +30,33 @@
  *   ]
  * }
  * ```
+ *
+ * @example
+ * ```typescript
+ * // src/pages/api/ai-search/search.ts
+ * export { POST, prerender } from "@emdash-cms/cloudflare/plugins/ai-search";
+ * ```
  */
 
+import type { APIRoute } from "astro";
 import type {
 	ContentDeleteEvent,
 	ContentHookEvent,
 	ContentPublishStateChangeEvent,
+	KVAccess,
 	PluginContext,
 	PluginDescriptor,
 	ResolvedPlugin,
 	RouteContext,
 } from "emdash";
-import { definePlugin, extractPlainText, PluginRouteError } from "emdash";
+import {
+	definePlugin,
+	extractPlainText,
+	getI18nConfig,
+	OptionsRepository,
+	PluginRouteError,
+} from "emdash";
+import type { EmDashRuntime } from "emdash/middleware";
 
 const MD_EXT = /\.md$/;
 const ITEM_PREFIX = /^item:/;
@@ -57,6 +72,21 @@ export interface AISearchConfig {
 	binding?: string;
 	/** Enable hybrid search (vector + keyword). @default true */
 	hybridSearch?: boolean;
+	/** Public URL templates keyed by collection slug. @default "/{collection}/{slug}" */
+	urlTemplates?: Record<string, string>;
+}
+
+const ACTIVE_CONFIG_KEY = Symbol.for("emdash.ai-search.config");
+
+function activeConfigHolder(): { value: AISearchConfig } {
+	const globals = globalThis as typeof globalThis & {
+		[ACTIVE_CONFIG_KEY]?: { value: AISearchConfig };
+	};
+	return (globals[ACTIVE_CONFIG_KEY] ??= { value: {} });
+}
+
+export function getActiveAISearchConfig(): AISearchConfig {
+	return activeConfigHolder().value;
 }
 
 /**
@@ -571,6 +601,161 @@ export function applySynonyms(query: string, rewriter: SynonymRewriter): string 
 	return query.replace(rewriter.re, (match) => rewriter.lookup.get(match.toLowerCase()) ?? match);
 }
 
+let synonymCache: { key: string; rewriter: SynonymRewriter } | null = null;
+
+async function getSynonymRewriter(kv: KVReader): Promise<SynonymRewriter> {
+	const synonyms = (await kv.get<Synonym[]>(CONFIG_SYNONYMS_KEY)) ?? [];
+	const key = JSON.stringify(synonyms);
+	if (synonymCache?.key !== key) synonymCache = { key, rewriter: compileSynonyms(synonyms) };
+	return synonymCache.rewriter;
+}
+
+interface AISearchQueryInput {
+	query: string;
+	locale: string;
+	limit: number;
+	collection?: string;
+}
+
+interface AISearchSnippetResponse {
+	search_query: string;
+	chunks: Array<{
+		id: string;
+		type: string;
+		score: number;
+		item: {
+			key: string;
+			timestamp?: number;
+			metadata: { title: string; description: string; image?: string };
+		};
+	}>;
+}
+
+interface KVReader {
+	get<T>(key: string): Promise<T | null>;
+}
+
+function renderResultUrl(
+	config: AISearchConfig,
+	result: { collection: string; id: string; slug: string },
+	locale: string,
+): string {
+	const template = config.urlTemplates?.[result.collection] ?? "/{collection}/{slug}";
+	return template
+		.replaceAll("{collection}", encodeURIComponent(result.collection))
+		.replaceAll("{id}", encodeURIComponent(result.id))
+		.replaceAll("{slug}", encodeURIComponent(result.slug))
+		.replaceAll("{locale}", encodeURIComponent(locale));
+}
+
+async function resolveBinding(config: AISearchConfig): Promise<AiSearchNamespace | null> {
+	const env = await getCloudflareEnv();
+	if (!env) return null;
+	const candidate: unknown = Reflect.get(env, config.binding ?? "AI_SEARCH");
+	return isAiSearchNamespace(candidate) ? candidate : null;
+}
+
+async function ensureAISearchInstance(
+	ns: AiSearchNamespace,
+	config: AISearchConfig,
+): Promise<AiSearchInstance> {
+	const instanceName = config.instanceName ?? "emdash-content";
+	const handle = ns.get(instanceName);
+	try {
+		await handle.info();
+		return handle;
+	} catch {
+		return ns.create({
+			id: instanceName,
+			index_method: { vector: true, keyword: config.hybridSearch ?? true },
+			custom_metadata: [
+				{ field_name: "visible_after", data_type: "number" },
+				{ field_name: "title_desc", data_type: "text" },
+				{ field_name: "slug", data_type: "text" },
+				{ field_name: "image", data_type: "text" },
+				{ field_name: "locale", data_type: "text" },
+			],
+		});
+	}
+}
+
+export async function searchAISearch(
+	config: AISearchConfig,
+	input: AISearchQueryInput,
+	kv: KVReader,
+	defaultLocale: string,
+): Promise<AISearchSnippetResponse> {
+	const ns = await resolveBinding(config);
+	if (!ns) {
+		throw new PluginRouteError("SEARCH_UNAVAILABLE", "Search is not available", 503);
+	}
+
+	const effectiveQuery = applySynonyms(input.query, await getSynonymRewriter(kv));
+	const instance = await ensureAISearchInstance(ns, config);
+	const nowSeconds = Math.floor(Date.now() / 1000);
+
+	const searchLocale = async (locale: string): Promise<AISearchSnippetResponse> => {
+		const response = await instance.search({
+			messages: [{ role: "user", content: effectiveQuery }],
+			ai_search_options: {
+				retrieval: {
+					max_num_results: input.limit,
+					filters: {
+						visible_after: { $lte: nowSeconds },
+						locale: { $eq: locale },
+					},
+					metadata_only: true,
+				},
+			},
+		});
+
+		const collections = input.collection?.split(",").map((value) => value.trim());
+		const chunks = collections?.length
+			? response.chunks.filter((chunk) =>
+					collections.some((collection) => chunk.item.key.startsWith(`${collection}/`)),
+				)
+			: response.chunks;
+		const bestByKey = new Map<string, (typeof chunks)[number]>();
+		for (const chunk of chunks) {
+			const existing = bestByKey.get(chunk.item.key);
+			if (!existing || chunk.score > existing.score) bestByKey.set(chunk.item.key, chunk);
+		}
+
+		return {
+			search_query: response.search_query,
+			chunks: Array.from(bestByKey.values(), (chunk) => {
+				const parsed = parseContentKey(chunk.item.key);
+				const metadata = chunk.item.metadata ?? {};
+				const packed = typeof metadata.title_desc === "string" ? metadata.title_desc : "";
+				const { title, description } = unpackTitleDescription(packed);
+				const slug = typeof metadata.slug === "string" && metadata.slug ? metadata.slug : parsed.id;
+				const image =
+					typeof metadata.image === "string" && metadata.image ? metadata.image : undefined;
+				return {
+					id: chunk.id,
+					type: chunk.type,
+					score: chunk.score,
+					item: {
+						key: renderResultUrl(config, { ...parsed, slug }, locale),
+						...(chunk.item.timestamp === undefined ? {} : { timestamp: chunk.item.timestamp }),
+						metadata: {
+							title: title || slug,
+							description,
+							...(image ? { image } : {}),
+						},
+					},
+				};
+			}),
+		};
+	};
+
+	let response = await searchLocale(input.locale);
+	if (response.chunks.length === 0 && input.locale !== defaultLocale) {
+		response = await searchLocale(defaultLocale);
+	}
+	return response;
+}
+
 // =============================================================================
 // Descriptor (for astro.config.mjs)
 // =============================================================================
@@ -592,6 +777,7 @@ export function aiSearch(config: AISearchConfig = {}): PluginDescriptor<AISearch
 // =============================================================================
 
 export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
+	activeConfigHolder().value = config;
 	const instanceName = config.instanceName ?? "emdash-content";
 	const bindingName = config.binding ?? "AI_SEARCH";
 	const hybridSearch = config.hybridSearch ?? true;
@@ -620,20 +806,6 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		return Array.isArray(saved) ? saved : [];
 	}
 
-	// Cache the compiled synonym regex across requests in this isolate so we only
-	// recompile when the configured set actually changes (keyed by its JSON).
-	let synonymCache: { key: string; rewriter: SynonymRewriter } | null = null;
-
-	/** Read synonyms from KV and return a compiled (cached) rewriter. */
-	async function getSynonymRewriter(ctx: PluginContext): Promise<SynonymRewriter> {
-		const synonyms = await getConfiguredSynonyms(ctx);
-		const key = JSON.stringify(synonyms);
-		if (synonymCache?.key !== key) {
-			synonymCache = { key, rewriter: compileSynonyms(synonyms) };
-		}
-		return synonymCache.rewriter;
-	}
-
 	/** Persist the operator's query synonyms from the dashboard. */
 	async function saveConfiguredSynonyms(ctx: PluginContext, synonyms: Synonym[]): Promise<void> {
 		await ctx.kv.set(CONFIG_SYNONYMS_KEY, synonyms);
@@ -651,33 +823,11 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 	}
 
 	async function getBinding(): Promise<AiSearchNamespace | null> {
-		const env = await getCloudflareEnv();
-		if (!env) return null;
-		const candidate: unknown = Reflect.get(env, bindingName);
-		return isAiSearchNamespace(candidate) ? candidate : null;
+		return resolveBinding(config);
 	}
 
 	async function ensureInstance(ns: AiSearchNamespace): Promise<AiSearchInstance> {
-		const handle = ns.get(instanceName);
-		try {
-			await handle.info();
-			return handle;
-		} catch {
-			return ns.create({
-				id: instanceName,
-				index_method: { vector: true, keyword: hybridSearch },
-				// AI Search allows at most 5 custom metadata fields, so title and
-				// description are packed into a single `title_desc` field to make
-				// room for `locale`.
-				custom_metadata: [
-					{ field_name: "visible_after", data_type: "number" },
-					{ field_name: "title_desc", data_type: "text" },
-					{ field_name: "slug", data_type: "text" },
-					{ field_name: "image", data_type: "text" },
-					{ field_name: "locale", data_type: "text" },
-				],
-			});
-		}
+		return ensureAISearchInstance(ns, config);
 	}
 
 	/**
@@ -1012,152 +1162,6 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		},
 
 		routes: {
-			query: {
-				public: true,
-				handler: async (ctx: RouteContext): Promise<unknown> => {
-					const start = Date.now();
-
-					// Support both JSON body input and URL query params (for GET requests)
-					const input = isRecord(ctx.input) ? ctx.input : undefined;
-					const url = new URL(ctx.request.url);
-					const params = url.searchParams;
-
-					const ns = await getBinding();
-					if (!ns) {
-						console.warn("[ai-search] Query failed: binding not available");
-						throw new PluginRouteError("SEARCH_UNAVAILABLE", "Search is not available", 503);
-					}
-
-					const q =
-						(typeof input?.q === "string" ? input.q : undefined) ?? params.get("q") ?? undefined;
-					if (!q) {
-						throw PluginRouteError.badRequest("Query parameter 'q' is required");
-					}
-
-					const locale =
-						(typeof input?.locale === "string" ? input.locale : undefined) ??
-						params.get("locale") ??
-						undefined;
-					if (!locale) {
-						throw PluginRouteError.badRequest("Query parameter 'locale' is required");
-					}
-
-					const limit =
-						(typeof input?.limit === "number" ? input.limit : undefined) ??
-						(params.has("limit") ? Number(params.get("limit")) : undefined) ??
-						10;
-					const collection =
-						(typeof input?.collection === "string" ? input.collection : undefined) ??
-						params.get("collection") ??
-						undefined;
-
-					// Transparently substitute configured synonym terms so the query
-					// sent to AI Search uses the canonical wording that indexes better.
-					const rewriter = await getSynonymRewriter(ctx);
-					const effectiveQuery = applySynonyms(q, rewriter);
-
-					console.log(
-						`[ai-search] Query: q=${JSON.stringify(q)}${
-							effectiveQuery === q ? "" : ` -> ${JSON.stringify(effectiveQuery)}`
-						} limit=${limit} collection=${collection ?? "all"}`,
-					);
-
-					try {
-						const instance = await ensureInstance(ns);
-						const nowSeconds = Math.floor(Date.now() / 1000);
-
-						// Run a search for a specific locale and return deduped, mapped
-						// results. Extracted so the locale fallback can reuse it verbatim.
-						const searchLocale = async (searchLocaleCode: string) => {
-							const response = await instance.search({
-								messages: [{ role: "user", content: effectiveQuery }],
-								ai_search_options: {
-									retrieval: {
-										max_num_results: limit,
-										filters: {
-											visible_after: { $lte: nowSeconds },
-											locale: { $eq: searchLocaleCode },
-										},
-										// Metadata-only retrieval is always used: results are
-										// rendered from the packed title/description metadata,
-										// skipping the slower full-text chunk retrieval.
-										metadata_only: true,
-									},
-								},
-							});
-
-							let chunks = response.chunks;
-							if (collection) {
-								const cols = collection.split(",").map((c) => c.trim());
-								chunks = chunks.filter((c) => cols.some((col) => c.item.key.startsWith(`${col}/`)));
-							}
-
-							// Deduplicate by item key, keeping the highest-scoring chunk per item
-							const bestByKey = new Map<string, (typeof chunks)[number]>();
-							for (const c of chunks) {
-								const existing = bestByKey.get(c.item.key);
-								if (!existing || c.score > existing.score) {
-									bestByKey.set(c.item.key, c);
-								}
-							}
-							const uniqueChunks = [...bestByKey.values()];
-
-							// Resolve slug/title/description for each result. Title and
-							// description are packed into the `title_desc` metadata field
-							// (present in both normal and metadata-only mode); unpack it.
-							// The snippet uses the full-text chunk when available, otherwise
-							// the description (the only text available in metadata-only mode).
-							const mapped = uniqueChunks.map((c) => {
-								const parsed = parseContentKey(c.item.key);
-								const md = c.item.metadata ?? {};
-								const slug = typeof md.slug === "string" && md.slug ? md.slug : null;
-								const packed = typeof md.title_desc === "string" ? md.title_desc : "";
-								const { title: rawTitle, description: rawDescription } =
-									unpackTitleDescription(packed);
-								const title = rawTitle ? rawTitle : null;
-								const description = rawDescription ? rawDescription : null;
-								const image = typeof md.image === "string" && md.image ? md.image : null;
-
-								const snippet = c.text && c.text.trim() ? c.text : (description ?? "");
-								return {
-									...parsed,
-									slug,
-									title,
-									description,
-									image,
-									score: c.score,
-									snippet,
-								};
-							});
-
-							return { searchQuery: response.search_query, results: mapped };
-						};
-
-						let { searchQuery, results } = await searchLocale(locale);
-
-						// Fall back to the site default locale when the requested locale
-						// returns nothing, so untranslated content is still discoverable.
-						if (results.length === 0 && ctx.site?.locale && locale !== ctx.site.locale) {
-							({ searchQuery, results } = await searchLocale(ctx.site.locale));
-						}
-
-						const elapsed = Date.now() - start;
-						console.log(
-							`[ai-search] Query complete: ${results.length} results in ${elapsed}ms (rewritten: ${JSON.stringify(searchQuery)})`,
-						);
-						return { query: searchQuery, results };
-					} catch (error) {
-						const elapsed = Date.now() - start;
-						console.error(`[ai-search] Query failed after ${elapsed}ms:`, error);
-						throw new PluginRouteError(
-							"SEARCH_UNAVAILABLE",
-							"Search is temporarily unavailable",
-							503,
-						);
-					}
-				},
-			},
-
 			status: {
 				handler: async (ctx: RouteContext): Promise<unknown> => {
 					if (!ctx.content) {
@@ -1328,3 +1332,87 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 }
 
 export default createPlugin;
+
+interface SnippetSearchBody {
+	messages?: Array<{ role?: unknown; content?: unknown }>;
+	locale?: unknown;
+	collection?: unknown;
+	ai_search_options?: {
+		retrieval?: { max_num_results?: unknown };
+	};
+}
+
+interface SnippetHandlerOptions {
+	config: AISearchConfig;
+	kv: Pick<KVAccess, "get">;
+	defaultLocale: string;
+}
+
+export async function handleAISearchSnippetRequest(
+	request: Request,
+	options: SnippetHandlerOptions,
+): Promise<Response> {
+	let body: SnippetSearchBody;
+	try {
+		const parsed: unknown = await request.json();
+		if (!isRecord(parsed)) throw new Error("Invalid request body");
+		body = parsed;
+	} catch {
+		return Response.json({ success: false, error: "Invalid request body" }, { status: 400 });
+	}
+
+	const query = body.messages?.findLast(
+		(message) => message.role === "user" && typeof message.content === "string",
+	)?.content;
+	if (typeof query !== "string" || !query.trim()) {
+		return Response.json({ success: true, result: { search_query: "", chunks: [] } });
+	}
+
+	const requestedLimit = body.ai_search_options?.retrieval?.max_num_results;
+	const limit =
+		typeof requestedLimit === "number" && Number.isFinite(requestedLimit)
+			? Math.max(1, Math.min(Math.floor(requestedLimit), 100))
+			: 30;
+	const locale =
+		typeof body.locale === "string" && body.locale ? body.locale : options.defaultLocale;
+	const collection =
+		typeof body.collection === "string" && body.collection ? body.collection : undefined;
+
+	try {
+		const result = await searchAISearch(
+			options.config,
+			{ query: query.trim(), locale, limit, collection },
+			options.kv,
+			options.defaultLocale,
+		);
+		return Response.json({ success: true, result });
+	} catch (error) {
+		const status = error instanceof PluginRouteError ? error.status : 503;
+		const message = status === 503 ? "Search is temporarily unavailable" : "Search failed";
+		console.error("[ai-search] Snippet search failed:", error);
+		return Response.json({ success: false, error: message }, { status });
+	}
+}
+
+export function createAISearchSnippetEndpoint(config?: AISearchConfig): APIRoute {
+	return async ({ request, locals }) => {
+		const emdash = (locals as typeof locals & { emdash?: EmDashRuntime }).emdash;
+		if (!emdash) {
+			return Response.json({ success: false, error: "Search is not available" }, { status: 503 });
+		}
+
+		const options = new OptionsRepository(emdash.db);
+		const prefix = "plugin:ai-search:";
+		const kv: Pick<KVAccess, "get"> = {
+			get: <T>(key: string) => options.get<T>(`${prefix}${key}`),
+		};
+		return handleAISearchSnippetRequest(request, {
+			config: config ?? getActiveAISearchConfig(),
+			kv,
+			defaultLocale: getI18nConfig()?.defaultLocale ?? "en",
+		});
+	};
+}
+
+export const prerender = false;
+export const POST: APIRoute = createAISearchSnippetEndpoint();
