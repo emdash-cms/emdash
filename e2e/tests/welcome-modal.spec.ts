@@ -54,7 +54,4 @@ test("wrapped welcome title lines do not collide", async ({ page }) => {
 		const overlap = Math.max(0, currentLine.bottom - nextLine.top);
 		expect(overlap / currentLine.height).toBeLessThanOrEqual(MAX_LINE_BOX_OVERLAP_RATIO);
 	}
-	const [firstLine, secondLine] = lineRects;
-	const overlap = Math.max(0, firstLine!.bottom - secondLine!.top);
-	expect(overlap / firstLine!.height).toBeLessThanOrEqual(MAX_LINE_BOX_OVERLAP_RATIO);
 });

@@ -514,7 +514,7 @@ export function MenuEditor() {
 										{item.type === "custom" ? (
 											item.customUrl
 										) : (
-											<span className="inline-flex items-center rounded-full bg-kumo-brand/10 px-2 py-0.5 text-xs font-medium text-kumo-brand">
+											<span className="inline-flex items-center rounded-full bg-kumo-brand/10 px-2 py-0.5 text-xs font-medium text-kumo-link">
 												{item.referenceCollection ?? item.type}
 											</span>
 										)}

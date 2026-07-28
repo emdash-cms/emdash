@@ -29,13 +29,6 @@
  * Overrides kumo CSS custom properties with classic CMS admin values.
  * Applied via data-theme="classic" on <html> so portals inherit too.
  */
-[data-theme="classic"] {
-	/* Primary brand blue */
-	--color-kumo-brand: #2271b1;
-	--color-kumo-brand-hover: #135e96;
-	--text-color-kumo-brand: #2271b1;
-}
-
 [data-theme="classic"]:not([data-mode="dark"]) {
 	/* Surfaces */
 	--color-kumo-canvas: oklch(98.75% 0 0);
@@ -52,14 +45,12 @@
 
 	/* Borders */
 	--color-kumo-line: oklch(14.5% 0 0 / 0.1);
-	--color-kumo-ring: #2271b1;
 
 	/* Text hierarchy */
 	--text-color-kumo-default: #1d2327;
 	--text-color-kumo-strong: #50575e;
 	--text-color-kumo-subtle: #646970;
 	--text-color-kumo-inactive: #a7aaad;
-	--text-color-kumo-link: #2271b1;
 
 	/* Semantic colors */
 	--color-kumo-info: #72aee6;
