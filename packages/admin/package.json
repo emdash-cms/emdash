@@ -58,6 +58,8 @@
     "@tiptap/extension-link": "catalog:",
     "@tiptap/extension-node-range": "catalog:",
     "@tiptap/extension-placeholder": "catalog:",
+    "@tiptap/extension-subscript": "catalog:",
+    "@tiptap/extension-superscript": "catalog:",
     "@tiptap/extension-table": "catalog:",
     "@tiptap/extension-table-cell": "catalog:",
     "@tiptap/extension-table-header": "catalog:",
