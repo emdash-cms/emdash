@@ -8,7 +8,7 @@ import { Badge, Button, Dialog } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { User, X } from "@phosphor-icons/react";
+import { UserCircleIcon, X } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -131,7 +131,7 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 					<div className="flex items-center gap-2">
 						<span className="text-sm text-kumo-subtle">{t(MSG_YOUR_ROLE)}</span>
 						<Badge variant={roleBadgeVariant(userRole)} className="gap-1">
-							<User className="h-3 w-3" weight="fill" aria-hidden="true" />
+							<UserCircleIcon weight="fill" aria-hidden="true" />
 							{roleLabel}
 						</Badge>
 					</div>
