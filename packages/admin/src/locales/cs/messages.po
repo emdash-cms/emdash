@@ -551,7 +551,7 @@ msgstr "Úvodní panel přes celou šířku s nadpisem, textem a tlačítkem vý
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:142
 msgid "A short description of your site"
-msgstr "Stručný popis vašeho webu"
+msgstr "Stručný popis webu"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:201
 msgid "Accept & Install"
@@ -576,7 +576,7 @@ msgstr "Přístup odepřen"
 #: packages/admin/src/lib/api/marketplace.ts:282
 #: packages/admin/src/lib/api/marketplace.ts:290
 msgid "Access your media library"
-msgstr "Přístup k vaší knihovně médií"
+msgstr "Přístup ke knihovně médií"
 
 #: packages/admin/src/components/SetupWizard.tsx:354
 msgid "Account"
@@ -683,7 +683,7 @@ msgstr "Přidejte pole jako „Pracovní pozice“ nebo „Zájmena“ a obohať
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:613
 msgid "Add fields to define the structure of your content"
-msgstr "Přidejte pole, která definují strukturu vašeho obsahu"
+msgstr "Přidejte pole a definujte strukturu obsahu"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:616
 msgid "Add First Field"
@@ -2469,7 +2469,7 @@ msgstr "Popište obrázek..."
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:536
 #: packages/admin/src/components/MediaDetailPanel.tsx:374
 msgid "Describe this image for accessibility"
-msgstr "Popište tento obrázek pro přístupnost"
+msgstr "Popište obrázek pro čtečky obrazovky"
 
 #: packages/admin/src/components/SectionEditor.tsx:277
 msgid "Describe what this section is for..."
@@ -3052,7 +3052,7 @@ msgstr "Zadejte URL..."
 
 #: packages/admin/src/components/LoginPage.tsx:327
 msgid "Enter your handle to sign in."
-msgstr "Pro přihlášení zadejte své uživatelské jméno."
+msgstr "Zadejte uživatelské jméno."
 
 #: packages/admin/src/components/WordPressImport.tsx:1459
 msgid "Enter your WordPress credentials to import content directly."
@@ -3842,7 +3842,7 @@ msgstr "Filtrovat podle typu"
 
 #: packages/admin/src/routes/bylines.tsx:408
 msgid "Filter byline type"
-msgstr "Filtrovat typ autorského podpisu"
+msgstr "Filtrovat podle typu autorského podpisu"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
@@ -3910,7 +3910,7 @@ msgstr "GitHub"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:337
 msgid "Give this passkey a name to help you identify it later."
-msgstr "Pojmenujte tento přístupový klíč, abyste jej později snadno poznali."
+msgstr "Pojmenujte klíč, ať jej později snadno poznáte."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:36
 msgid "Go"
@@ -6158,11 +6158,11 @@ msgstr "Číst uživatelské účty"
 #: packages/admin/src/lib/api/marketplace.ts:279
 #: packages/admin/src/lib/api/marketplace.ts:288
 msgid "Read your content"
-msgstr "Číst váš obsah"
+msgstr "Číst obsah"
 
 #: packages/admin/src/lib/api/marketplace.ts:281
 msgid "Read your taxonomies and terms"
-msgstr "Číst vaše taxonomie a jejich položky"
+msgstr "Číst taxonomie a jejich položky"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:269
 msgid "Reading"
@@ -8724,7 +8724,7 @@ msgstr "Můžete web prohlížet a přispívat do něj."
 
 #: packages/admin/src/components/users/UserDetail.tsx:175
 msgid "You cannot change your own role"
-msgstr "Vlastní roli nelze změnit"
+msgstr "Vlastní roli nemůžete změnit"
 
 #: packages/admin/src/components/WelcomeModal.tsx:41
 msgid "You have full access to manage this site, including users, settings, and all content."
