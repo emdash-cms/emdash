@@ -29,12 +29,6 @@
  * Overrides kumo CSS custom properties with classic CMS admin values.
  * Applied via data-theme="classic" on <html> so portals inherit too.
  */
-[data-theme="classic"] {
-	/* Kumo reserves brand text for the Cloudflare orange wordmark; the admin uses
-	 * `text-kumo-brand` for links and accents, so it tracks the link colour. */
-	--text-color-kumo-brand: var(--text-color-kumo-link);
-}
-
 [data-theme="classic"]:not([data-mode="dark"]) {
 	/* Surfaces */
 	--color-kumo-canvas: oklch(98.75% 0 0);

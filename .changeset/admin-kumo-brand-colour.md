@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Updates the admin's brand colour to Kumo's blue, so primary buttons, links, and accents read brighter and more saturated.
+Updates the admin to Kumo's brand colours: primary buttons and fills become a brighter blue, and brand text and accents pick up Kumo's orange.
