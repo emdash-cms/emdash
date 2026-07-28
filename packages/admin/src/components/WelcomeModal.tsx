@@ -141,8 +141,13 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 					)}
 				</div>
 
-				<div className="mt-5 flex justify-end border-t border-kumo-line pt-4">
-					<Button variant="primary" onClick={handleGetStarted} loading={dismissMutation.isPending}>
+				<div className="mt-5 border-t border-kumo-line pt-4">
+					<Button
+						variant="primary"
+						className="w-full justify-center"
+						onClick={handleGetStarted}
+						loading={dismissMutation.isPending}
+					>
 						{t`Get Started`}
 					</Button>
 				</div>
