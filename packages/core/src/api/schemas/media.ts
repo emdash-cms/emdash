@@ -178,3 +178,10 @@ export const mediaConfirmResponseSchema = z
 		item: mediaItemSchema.extend({ url: z.string() }),
 	})
 	.meta({ id: "MediaConfirmResponse" });
+
+export const mediaStreamUploadResponseSchema = z
+	.object({
+		uploaded: z.literal(true),
+		size: z.number().int().positive(),
+	})
+	.meta({ id: "MediaStreamUploadResponse" });

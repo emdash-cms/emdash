@@ -25,11 +25,11 @@ function storageWith(bytes: Uint8Array) {
 }
 
 /** Storage stub whose download is spyable (to assert read-back never happens). */
-function spyableStorage(bytes: Uint8Array) {
+function spyableStorage(bytes: Uint8Array, reportedSize = bytes.byteLength) {
 	const download = vi.fn(async () => ({
 		body: new Response(bytes).body as ReadableStream<Uint8Array>,
 		contentType: "image/jpeg",
-		size: bytes.byteLength,
+		size: reportedSize,
 	}));
 	return {
 		exists: vi.fn(async () => true),
@@ -42,6 +42,7 @@ function buildContext(opts: {
 	id: string;
 	storage: unknown;
 	body: Record<string, unknown>;
+	role?: 20 | 50;
 }): APIContext {
 	const request = new Request(`http://localhost/_emdash/api/media/${opts.id}/confirm`, {
 		method: "POST",
@@ -54,7 +55,7 @@ function buildContext(opts: {
 		request,
 		locals: {
 			emdash: { db: opts.db, storage: opts.storage },
-			user: { id: "user-1", email: "t@example.com", name: "T", role: 50 as const },
+			user: { id: "user-1", email: "t@example.com", name: "T", role: opts.role ?? 50 },
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
@@ -97,15 +98,81 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 		expect(row?.dominantColor).toMatch(/^rgb\(/);
 	});
 
-	it("skips placeholder read-back for oversized images (OOM guard) but still confirms", async () => {
+	it("allows a contributing uploader to confirm their own pending file", async () => {
 		const repo = new MediaRepository(db);
 		const pending = await repo.createPending({
-			filename: "huge.jpg",
+			filename: "document.pdf",
+			mimeType: "application/pdf",
+			size: 3,
+			storageKey: "document.pdf",
+			authorId: "user-1",
+		});
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage: {
+					async exists() {
+						return true;
+					},
+					async download() {
+						return {
+							body: new Response(new Uint8Array([1, 2, 3])).body as ReadableStream<Uint8Array>,
+							contentType: "application/pdf",
+							size: 3,
+						};
+					},
+				},
+				body: { size: 3 },
+				role: 20,
+			}),
+		);
+
+		expect(res.status).toBe(200);
+		expect(await repo.findById(pending.id)).toMatchObject({ status: "ready" });
+	});
+
+	it("rejects a client size that disagrees with the pending upload", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.jpg",
 			mimeType: "image/jpeg",
-			storageKey: "huge.jpg",
+			size: JPEG_4x4.byteLength,
+			storageKey: "photo.jpg",
 			authorId: "user-1",
 		});
 		const storage = spyableStorage(JPEG_4x4);
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage,
+				body: { size: 1 },
+				role: 20,
+			}),
+		);
+
+		expect(res.status).toBe(400);
+		expect(storage.download).not.toHaveBeenCalled();
+		expect(await repo.findById(pending.id)).toMatchObject({
+			status: "pending",
+			size: JPEG_4x4.byteLength,
+		});
+	});
+
+	it("skips placeholder read-back for oversized images (OOM guard) but still confirms", async () => {
+		const repo = new MediaRepository(db);
+		const reportedSize = 64 * 1024 * 1024;
+		const pending = await repo.createPending({
+			filename: "huge.jpg",
+			mimeType: "image/jpeg",
+			size: reportedSize,
+			storageKey: "huge.jpg",
+			authorId: "user-1",
+		});
+		const storage = spyableStorage(JPEG_4x4, reportedSize);
 
 		// Confirm claims a size far above the download cap. The signed-URL flow
 		// exists so large files bypass server buffering; confirm must not re-read
@@ -115,12 +182,12 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 				db,
 				id: pending.id,
 				storage,
-				body: { size: 64 * 1024 * 1024, width: 4000, height: 3000 },
+				body: { size: reportedSize, width: 4000, height: 3000 },
 			}),
 		);
 
 		expect(res.status).toBe(200);
-		expect(storage.download).not.toHaveBeenCalled();
+		expect(storage.download).toHaveBeenCalledOnce();
 		const row = await repo.findById(pending.id);
 		expect(row?.status).toBe("ready");
 		// Client-supplied dimensions are still recorded even when LQIP is skipped.

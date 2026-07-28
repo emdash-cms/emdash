@@ -54,6 +54,7 @@ import {
 	mediaListResponseSchema,
 	mediaReadResponseSchema,
 	mediaResponseSchema,
+	mediaStreamUploadResponseSchema,
 	mediaUpdateBody,
 	mediaUploadUrlBody,
 	mediaUploadUrlResponseSchema,
@@ -828,6 +829,36 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/{id}/upload": {
+			put: {
+				operationId: "uploadPendingMedia",
+				summary: "Upload a pending media file through EmDash",
+				description:
+					"Streams a file to storage when the configured adapter cannot provide a signed upload URL. The Content-Type and byte count must match the pending media item.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+				},
+				requestBody: {
+					required: true,
+					content: {
+						"*/*": {
+							schema: z.string().meta({ format: "binary" }),
+						},
+					},
+				},
+				responses: {
+					"200": {
+						description: "File uploaded and ready for confirmation",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaStreamUploadResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 413, 500),
 				},
 			},
 		},

@@ -35,6 +35,7 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/media/{id}/usage");
 		expect(paths).toContain("/_emdash/api/media/upload-url");
 		expect(paths).toContain("/_emdash/api/media/{id}/confirm");
+		expect(paths).toContain("/_emdash/api/media/{id}/upload");
 		expect(paths).toContain("/_emdash/api/admin/media-usage/repair");
 	});
 

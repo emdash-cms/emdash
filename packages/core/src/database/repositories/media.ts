@@ -138,6 +138,22 @@ export class MediaRepository {
 		});
 	}
 
+	async publishPendingStorageKey(
+		id: string,
+		expectedStorageKey: string,
+		storageKey: string,
+	): Promise<boolean> {
+		const result = await this.db
+			.updateTable("media")
+			.set({ storage_key: storageKey })
+			.where("id", "=", id)
+			.where("status", "=", "pending")
+			.where("storage_key", "=", expectedStorageKey)
+			.executeTakeFirst();
+
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
 	/**
 	 * Confirm upload (mark as ready)
 	 */

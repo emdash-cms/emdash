@@ -8,7 +8,7 @@
  */
 
 import type { APIRoute } from "astro";
-import { MediaRepository } from "emdash";
+import { MediaRepository, type DownloadResult } from "emdash";
 
 import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
@@ -36,6 +36,14 @@ function addUrlToMedia(item: MediaItem): MediaItem & { url: string } {
 		...item,
 		url: `/_emdash/api/media/file/${item.storageKey}`,
 	};
+}
+
+async function cancelDownload(download: DownloadResult): Promise<void> {
+	try {
+		await download.body.cancel();
+	} catch (error) {
+		console.error("[media] confirm download cancellation failed:", error);
+	}
 }
 
 /**
@@ -76,12 +84,22 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		const ownerDenied = requireOwnerPerm(
 			user,
 			existing.authorId ?? "",
-			"media:edit_own",
+			"media:upload",
 			"media:edit_any",
 		);
 		if (ownerDenied) return ownerDenied;
 
-		// Optionally verify the file exists in storage
+		if (body.size !== undefined && existing.size !== null && body.size !== existing.size) {
+			return apiError(
+				"UPLOAD_SIZE_MISMATCH",
+				"Confirmed size does not match the pending media item",
+				400,
+			);
+		}
+
+		let confirmedSize = existing.size ?? body.size;
+		let storedFile: DownloadResult | undefined;
+
 		if (emdash.storage) {
 			const exists = await emdash.storage.exists(existing.storageKey);
 			if (!exists) {
@@ -89,6 +107,17 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				await repo.markFailed(id);
 				return apiError("FILE_NOT_FOUND", "File was not uploaded to storage", 400);
 			}
+
+			storedFile = await emdash.storage.download(existing.storageKey);
+			if (confirmedSize !== undefined && storedFile.size !== confirmedSize) {
+				await cancelDownload(storedFile);
+				return apiError(
+					"UPLOAD_SIZE_MISMATCH",
+					"Stored file size does not match the pending media item",
+					400,
+				);
+			}
+			confirmedSize = storedFile.size;
 		}
 
 		// For images, read the just-uploaded bytes back from storage once to
@@ -103,14 +132,12 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		let dominantColor: string | undefined;
 		let width = body.width;
 		let height = body.height;
-		if (emdash.storage && existing.mimeType.startsWith("image/")) {
-			const knownSize = body.size ?? existing.size ?? undefined;
-			const tooLarge = knownSize != null && knownSize > MAX_PLACEHOLDER_DOWNLOAD_BYTES;
+		if (storedFile && existing.mimeType.startsWith("image/")) {
+			const tooLarge = storedFile.size > MAX_PLACEHOLDER_DOWNLOAD_BYTES;
 			if (!tooLarge) {
 				try {
-					const { body: stream } = await emdash.storage.download(existing.storageKey);
-					const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
-					// Defense-in-depth for the unknown-size case: even though we
+					const bytes = new Uint8Array(await new Response(storedFile.body).arrayBuffer());
+					// Defense-in-depth for incorrect storage metadata: even though we
 					// already buffered it, refuse the decode so we don't also pay
 					// the (larger) RGBA allocation.
 					if (bytes.byteLength > MAX_PLACEHOLDER_DOWNLOAD_BYTES) {
@@ -133,15 +160,18 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 					console.error("[media] confirm placeholder generation failed:", error);
 				}
 			} else {
+				await cancelDownload(storedFile);
 				console.warn(
-					`[media] confirm skipping placeholder: object ${existing.storageKey} reported size ${knownSize} bytes (> ${MAX_PLACEHOLDER_DOWNLOAD_BYTES})`,
+					`[media] confirm skipping placeholder: object ${existing.storageKey} reported size ${storedFile.size} bytes (> ${MAX_PLACEHOLDER_DOWNLOAD_BYTES})`,
 				);
 			}
+		} else if (storedFile) {
+			await cancelDownload(storedFile);
 		}
 
 		// Confirm the upload
 		const item = await repo.confirmUpload(id, {
-			size: body.size,
+			size: confirmedSize,
 			width,
 			height,
 			blurhash,
