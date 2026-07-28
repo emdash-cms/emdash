@@ -74,6 +74,11 @@ export interface SeedCollection {
 	icon?: string;
 	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
 	urlPattern?: string;
+	/**
+	 * Explicit position in the admin sidebar (ascending). Collections without
+	 * a `sortOrder` keep the alphabetical order and follow the ordered ones.
+	 */
+	sortOrder?: number;
 	/** Enable comments on this collection */
 	commentsEnabled?: boolean;
 	fields: SeedField[];

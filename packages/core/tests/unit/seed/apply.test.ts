@@ -163,6 +163,35 @@ describe("applySeed", () => {
 			expect(row.rows[0]?.title).toBe("Untitled");
 		});
 
+		it("#474: applies sortOrder from the seed and orders the list by it", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "education",
+						label: "Education",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "projects",
+						label: "Projects",
+						sortOrder: 0,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("projects"))?.sortOrder).toBe(0);
+			expect((await registry.getCollection("education"))?.sortOrder).toBeUndefined();
+			expect((await registry.listCollections()).map((c) => c.slug)).toEqual([
+				"projects",
+				"education",
+			]);
+		});
+
 		it("should skip existing collections", async () => {
 			// Create collection first
 			const registry = new SchemaRegistry(db);

@@ -424,6 +424,43 @@ export async function handleSchemaFieldDelete(
 }
 
 /**
+ * Reorder collections in the admin sidebar
+ */
+export async function handleSchemaCollectionReorder(
+	db: Kysely<Database>,
+	slugs: string[],
+): Promise<ApiResult<{ success: boolean }>> {
+	try {
+		const registry = new SchemaRegistry(db);
+		await registry.reorderCollections(slugs);
+
+		return {
+			success: true,
+			data: { success: true },
+		};
+	} catch (error) {
+		if (error instanceof SchemaError) {
+			return {
+				success: false,
+				error: {
+					code: error.code,
+					message: error.message,
+					details: error.details,
+				},
+			};
+		}
+		console.error("[emdash] Failed to reorder collections:", error);
+		return {
+			success: false,
+			error: {
+				code: "SCHEMA_COLLECTION_REORDER_ERROR",
+				message: "Failed to reorder collections",
+			},
+		};
+	}
+}
+
+/**
  * Reorder fields
  */
 export async function handleSchemaFieldReorder(

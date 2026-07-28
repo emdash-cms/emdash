@@ -73,6 +73,23 @@ const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport
 // multi-row INSERT below D1's 100-parameter statement limit.
 const SEED_FIELD_INSERT_BATCH_SIZE = 6;
 
+/**
+ * Sentinel used to sort collections without an explicit `sort_order` after
+ * the ordered ones. SQLite sorts NULL first on ASC while Postgres sorts it
+ * last, so the fallback is materialised with COALESCE instead of relying on
+ * either dialect's NULL ordering. Matches SQLite's max signed 32-bit
+ * INTEGER-literal comfort zone and is far above any hand-assigned position.
+ */
+const UNORDERED_COLLECTION_RANK = 2147483647;
+
+/**
+ * Collection ordering shared by every list read: explicit `sort_order`
+ * first (ascending), then alphabetically by slug — which is both the
+ * tie-break within one position and the complete order for a site that
+ * has never reordered anything.
+ */
+const collectionOrder = sql<number>`coalesce(sort_order, ${sql.lit(UNORDERED_COLLECTION_RANK)})`;
+
 function isCollectionSupport(value: unknown): value is CollectionSupport {
 	return typeof value === "string" && VALID_COLLECTION_SUPPORTS.has(value);
 }
@@ -126,6 +143,7 @@ export class SchemaRegistry {
 		const rows = await this.db
 			.selectFrom("_emdash_collections")
 			.selectAll()
+			.orderBy(collectionOrder, "asc")
 			.orderBy("slug", "asc")
 			.execute();
 
@@ -177,6 +195,7 @@ export class SchemaRegistry {
 		const collectionRows = await this.db
 			.selectFrom("_emdash_collections")
 			.selectAll()
+			.orderBy(collectionOrder, "asc")
 			.orderBy("slug", "asc")
 			.execute();
 
@@ -256,6 +275,7 @@ export class SchemaRegistry {
 					supports: JSON.stringify(supports),
 					source: input.source ?? "manual",
 					has_seo: hasSeo ? 1 : 0,
+					sort_order: input.sortOrder ?? null,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
 					url_pattern: input.urlPattern ?? null,
 				})
@@ -354,6 +374,7 @@ export class SchemaRegistry {
 						supports: JSON.stringify(supports),
 						source: "seed",
 						has_seo: hasSeo ? 1 : 0,
+						sort_order: input.sortOrder ?? null,
 						comments_enabled: input.commentsEnabled ? 1 : 0,
 						url_pattern: input.urlPattern ?? null,
 					})
@@ -416,6 +437,8 @@ export class SchemaRegistry {
 							? (input.urlPattern ?? null)
 							: (existing.urlPattern ?? null),
 					has_seo: hasSeo ? 1 : 0,
+					sort_order:
+						input.sortOrder !== undefined ? input.sortOrder : (existing.sortOrder ?? null),
 					comments_enabled:
 						input.commentsEnabled !== undefined
 							? input.commentsEnabled
@@ -877,6 +900,64 @@ export class SchemaRegistry {
 	}
 
 	/**
+	 * Reorder collections in the admin sidebar.
+	 *
+	 * `slugs` is the full desired order: every listed collection gets its
+	 * index as `sort_order`, and any collection left out has its explicit
+	 * position cleared, dropping it back to the alphabetical tail. That keeps
+	 * the stored state a faithful picture of what the admin renders rather
+	 * than a sparse set of positions the UI would have to reconcile.
+	 *
+	 * Unknown slugs are rejected up front so a stale client can't silently
+	 * reorder half the sidebar.
+	 */
+	async reorderCollections(slugs: string[]): Promise<void> {
+		const known = new Set((await this.listCollections()).map((collection) => collection.slug));
+
+		const unknown = slugs.filter((slug) => !known.has(slug));
+		if (unknown.length > 0) {
+			throw new SchemaError(
+				`Unknown collection${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}`,
+				"COLLECTION_NOT_FOUND",
+				{ slugs: unknown },
+			);
+		}
+
+		const duplicates = slugs.filter((slug, index) => slugs.indexOf(slug) !== index);
+		if (duplicates.length > 0) {
+			throw new SchemaError(
+				`Duplicate collection${duplicates.length > 1 ? "s" : ""}: ${[...new Set(duplicates)].join(", ")}`,
+				"DUPLICATE_SLUG",
+				{ slugs: [...new Set(duplicates)] },
+			);
+		}
+
+		const now = new Date().toISOString();
+		const ordered = new Set(slugs);
+
+		await withTransaction(this.db, async (trx) => {
+			for (const [index, slug] of slugs.entries()) {
+				await trx
+					.updateTable("_emdash_collections")
+					.set({ sort_order: index, updated_at: now })
+					.where("slug", "=", slug)
+					.execute();
+			}
+
+			const cleared = [...known].filter((slug) => !ordered.has(slug));
+			// Chunked to stay under D1's bound-parameter limit; typical sites
+			// clear far fewer than one chunk.
+			for (const slugChunk of chunks(cleared, SQL_BATCH_SIZE)) {
+				await trx
+					.updateTable("_emdash_collections")
+					.set({ sort_order: null, updated_at: now })
+					.where("slug", "in", slugChunk)
+					.execute();
+			}
+		});
+	}
+
+	/**
 	 * Reorder fields
 	 */
 	async reorderFields(collectionSlug: string, fieldSlugs: string[]): Promise<void> {
@@ -1228,6 +1309,7 @@ export class SchemaRegistry {
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,
 			urlPattern: row.url_pattern ?? undefined,
+			sortOrder: row.sort_order ?? undefined,
 			commentsEnabled: row.comments_enabled === 1,
 			commentsModeration:
 				moderation === "all" || moderation === "first_time" || moderation === "none"
