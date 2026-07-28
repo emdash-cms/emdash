@@ -171,6 +171,13 @@ export interface Collection {
 	hasSeo: boolean;
 	/** URL pattern with {slug} placeholder (e.g. "/{slug}", "/blog/{slug}") */
 	urlPattern?: string;
+	/**
+	 * Omit this collection's auto-generated entry from the admin sidebar.
+	 * The collection stays fully functional everywhere else (API, MCP, hooks,
+	 * direct `/content/:collection` URLs) — this only hides the nav link, so a
+	 * plugin that owns the collection can point editors at its own admin UI.
+	 */
+	hidden: boolean;
 	/** Whether comments are enabled for this collection */
 	commentsEnabled: boolean;
 	/** Moderation strategy: "all" | "first_time" | "none" */
@@ -219,6 +226,8 @@ export interface CreateCollectionInput {
 	source?: CollectionSource;
 	urlPattern?: string;
 	hasSeo?: boolean;
+	/** Omit the auto-generated admin sidebar entry (defaults to false) */
+	hidden?: boolean;
 	commentsEnabled?: boolean;
 }
 
@@ -233,6 +242,8 @@ export interface UpdateCollectionInput {
 	supports?: CollectionSupport[];
 	urlPattern?: string;
 	hasSeo?: boolean;
+	/** Omit the auto-generated admin sidebar entry */
+	hidden?: boolean;
 	commentsEnabled?: boolean;
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;

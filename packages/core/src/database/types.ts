@@ -296,6 +296,7 @@ export interface CollectionTable {
 	search_config: string | null; // JSON: { enabled: boolean, weights: Record<string, number> }
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
+	hidden: Generated<number>; // 0 or 1 — omit the auto-generated admin sidebar entry
 	comments_enabled: Generated<number>; // 0 or 1
 	comments_moderation: Generated<string>; // 'all' | 'first_time' | 'none'
 	comments_closed_after_days: Generated<number>; // 0 = never close

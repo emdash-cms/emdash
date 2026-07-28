@@ -57,9 +57,24 @@ export function filterNavItemsByRole<T extends { minRole?: number }>(
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
 }
 
+/**
+ * Manifest collections that get an auto-generated sidebar entry, in manifest
+ * order. Pure function — exported so tests can pin the `hidden` contract
+ * without rendering the sidebar.
+ *
+ * A hidden collection is still shipped in the manifest and stays fully
+ * routable at `/content/:collection`; it only loses its nav link, so a plugin
+ * that owns the collection end to end can steer editors to its own admin UI.
+ */
+export function visibleCollectionEntries<T extends { hidden?: boolean }>(
+	collections: Record<string, T>,
+): Array<[string, T]> {
+	return Object.entries(collections).filter(([, config]) => !config.hidden);
+}
+
 export interface SidebarNavProps {
 	manifest: {
-		collections: Record<string, { label: string }>;
+		collections: Record<string, { label: string; hidden?: boolean }>;
 		plugins: Record<
 			string,
 			{
@@ -205,7 +220,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const contentItems: NavItem[] = [
 		{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard },
 	];
-	for (const [name, config] of Object.entries(manifest.collections)) {
+	for (const [name, config] of visibleCollectionEntries(manifest.collections)) {
 		contentItems.push({
 			to: "/content/$collection",
 			label: config.label,

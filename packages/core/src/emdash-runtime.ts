@@ -2362,6 +2362,9 @@ export class EmDashRuntime {
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					// Only emitted when set, so the manifest payload is unchanged
+					// for the overwhelmingly common visible collection.
+					...(collection.hidden ? { hidden: true } : {}),
 					fields,
 				};
 			}
