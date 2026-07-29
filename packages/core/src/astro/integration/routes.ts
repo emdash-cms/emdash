@@ -308,6 +308,15 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/schema/collections/index.ts"),
 	});
 
+	// Order matters: the static `reorder` route must precede the dynamic
+	// `[slug]` route so Astro's resolver dispatches POST
+	// /schema/collections/reorder to the reorder handler instead of treating
+	// "reorder" as a collection slug.
+	injectRoute({
+		pattern: "/_emdash/api/schema/collections/reorder",
+		entrypoint: resolveRoute("api/schema/collections/reorder.ts"),
+	});
+
 	injectRoute({
 		pattern: "/_emdash/api/schema/collections/[slug]",
 		entrypoint: resolveRoute("api/schema/collections/[slug]/index.ts"),

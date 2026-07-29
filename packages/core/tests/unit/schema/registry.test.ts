@@ -95,6 +95,98 @@ describe("SchemaRegistry", () => {
 			expect(collections.map((c) => c.slug)).toEqual(["pages", "posts"]); // sorted
 		});
 
+		describe("sidebar sort order", () => {
+			it("has no explicit order by default", async () => {
+				const collection = await registry.createCollection({ slug: "posts", label: "Posts" });
+
+				expect(collection.sortOrder).toBeUndefined();
+			});
+
+			it("lists explicitly ordered collections first, then the rest alphabetically", async () => {
+				// `projects` sorts last alphabetically but is pinned first;
+				// `education`/`certifications` have no position and keep the
+				// alphabetical fallback behind it.
+				await registry.createCollection({ slug: "education", label: "Education" });
+				await registry.createCollection({ slug: "projects", label: "Projects", sortOrder: 0 });
+				await registry.createCollection({ slug: "certifications", label: "Certifications" });
+				await registry.createCollection({ slug: "positions", label: "Positions", sortOrder: 1 });
+
+				const collections = await registry.listCollections();
+
+				expect(collections.map((c) => c.slug)).toEqual([
+					"projects",
+					"positions",
+					"certifications",
+					"education",
+				]);
+			});
+
+			it("applies the same order to listCollectionsWithFields (the manifest path)", async () => {
+				await registry.createCollection({ slug: "education", label: "Education" });
+				await registry.createCollection({ slug: "projects", label: "Projects", sortOrder: 0 });
+
+				const collections = await registry.listCollectionsWithFields();
+
+				expect(collections.map((c) => c.slug)).toEqual(["projects", "education"]);
+			});
+
+			it("reorderCollections assigns positions in the given order", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts" });
+				await registry.createCollection({ slug: "pages", label: "Pages" });
+				await registry.createCollection({ slug: "authors", label: "Authors" });
+
+				await registry.reorderCollections(["posts", "authors", "pages"]);
+
+				const collections = await registry.listCollections();
+				expect(collections.map((c) => c.slug)).toEqual(["posts", "authors", "pages"]);
+				expect(collections.map((c) => c.sortOrder)).toEqual([0, 1, 2]);
+			});
+
+			it("reorderCollections clears the position of collections left out", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts", sortOrder: 0 });
+				await registry.createCollection({ slug: "pages", label: "Pages", sortOrder: 1 });
+
+				await registry.reorderCollections(["pages"]);
+
+				// `posts` loses its pin and falls back to the alphabetical tail,
+				// so it must sort *after* the still-ordered `pages`.
+				const collections = await registry.listCollections();
+				expect(collections.map((c) => c.slug)).toEqual(["pages", "posts"]);
+				expect(await registry.getCollection("posts").then((c) => c?.sortOrder)).toBeUndefined();
+			});
+
+			it("reorderCollections rejects unknown slugs without touching the order", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts" });
+				await registry.createCollection({ slug: "pages", label: "Pages" });
+
+				await expect(registry.reorderCollections(["posts", "ghosts"])).rejects.toThrow(SchemaError);
+
+				const collections = await registry.listCollections();
+				expect(collections.map((c) => c.sortOrder)).toEqual([undefined, undefined]);
+			});
+
+			it("reorderCollections rejects duplicate slugs", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts" });
+
+				await expect(registry.reorderCollections(["posts", "posts"])).rejects.toThrow(SchemaError);
+			});
+
+			it("update preserves the position when sortOrder is omitted, and clears it on null", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts", sortOrder: 3 });
+
+				expect((await registry.updateCollection("posts", { label: "Blog" })).sortOrder).toBe(3);
+				expect((await registry.updateCollection("posts", { sortOrder: null })).sortOrder).toBe(
+					undefined,
+				);
+			});
+
+			it("rejects `reorder` as a collection slug (shadowed by the reorder route)", async () => {
+				await expect(
+					registry.createCollection({ slug: "reorder", label: "Reorder" }),
+				).rejects.toThrow(SchemaError);
+			});
+		});
+
 		it("should get a collection by slug", async () => {
 			await registry.createCollection({
 				slug: "products",

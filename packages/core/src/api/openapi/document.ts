@@ -87,6 +87,7 @@ import {
 	createCollectionBody,
 	createFieldBody,
 	fieldListResponseSchema,
+	collectionReorderBody,
 	fieldReorderBody,
 	fieldResponseSchema,
 	orphanedTableListResponseSchema,
@@ -1027,6 +1028,28 @@ const schemaPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
+			},
+		},
+	},
+	"/_emdash/api/schema/collections/reorder": {
+		post: {
+			operationId: "reorderCollections",
+			summary: "Reorder collections in the admin sidebar",
+			description:
+				"Sets the sidebar order. Collections omitted from the list lose their explicit position and fall back to alphabetical order after the ordered ones.",
+			tags: ["Schema"],
+			requestBody: { content: { [JSON_CONTENT]: { schema: collectionReorderBody } } },
+			responses: {
+				"200": {
+					description: "Reordered",
+					content: {
+						[JSON_CONTENT]: {
+							schema: successEnvelope(z.object({ success: z.literal(true) })),
+						},
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
 			},
 		},
 	},

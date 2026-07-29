@@ -171,6 +171,12 @@ export interface Collection {
 	hasSeo: boolean;
 	/** URL pattern with {slug} placeholder (e.g. "/{slug}", "/blog/{slug}") */
 	urlPattern?: string;
+	/**
+	 * Explicit position in the admin sidebar. Collections with a `sortOrder`
+	 * come first, in ascending order; the rest keep the alphabetical-by-slug
+	 * order and follow. `undefined` means "no explicit position".
+	 */
+	sortOrder?: number;
 	/** Whether comments are enabled for this collection */
 	commentsEnabled: boolean;
 	/** Moderation strategy: "all" | "first_time" | "none" */
@@ -219,6 +225,8 @@ export interface CreateCollectionInput {
 	source?: CollectionSource;
 	urlPattern?: string;
 	hasSeo?: boolean;
+	/** Explicit admin sidebar position (omit for the alphabetical fallback) */
+	sortOrder?: number | null;
 	commentsEnabled?: boolean;
 }
 
@@ -233,6 +241,8 @@ export interface UpdateCollectionInput {
 	supports?: CollectionSupport[];
 	urlPattern?: string;
 	hasSeo?: boolean;
+	/** Explicit admin sidebar position; `null` clears it back to alphabetical */
+	sortOrder?: number | null;
 	commentsEnabled?: boolean;
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
@@ -331,6 +341,9 @@ export const RESERVED_COLLECTION_SLUGS = [
 	"taxonomies",
 	"options",
 	"audit_logs",
+	// Shadowed by the static POST /schema/collections/reorder route: a
+	// collection with this slug could never be addressed at its own URL.
+	"reorder",
 ];
 
 /**

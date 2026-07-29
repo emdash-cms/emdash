@@ -179,6 +179,7 @@ export async function applySeed(
 						icon: collection.icon,
 						supports: collection.supports || [],
 						urlPattern: collection.urlPattern,
+						sortOrder: collection.sortOrder,
 						commentsEnabled: collection.commentsEnabled,
 					});
 					result.collections.updated++;
@@ -247,6 +248,7 @@ export async function applySeed(
 					icon: collection.icon,
 					supports: collection.supports || [],
 					urlPattern: collection.urlPattern,
+					sortOrder: collection.sortOrder,
 					commentsEnabled: collection.commentsEnabled,
 				},
 				fields,
