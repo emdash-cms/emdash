@@ -503,6 +503,38 @@ describe("BlockMenu", () => {
 		expect(onClose).toHaveBeenCalled();
 	});
 
+	it("stays open when the pointer leaves a highlighted menu item", async () => {
+		const { editor, pm } = await getEditor();
+		const onClose = vi.fn();
+
+		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
+
+		await vi.waitFor(() => {
+			expect(getBlockMenu()).toBeTruthy();
+		});
+
+		await userEvent.hover(findButtonByText(getBlockMenu()!, "Duplicate")!);
+		await userEvent.hover(pm.querySelectorAll("p")[1]!);
+
+		expect(onClose).not.toHaveBeenCalled();
+		expect(getBlockMenu()).toBeTruthy();
+	});
+
+	it("closes when the user clicks outside the menu", async () => {
+		const { editor, pm } = await getEditor();
+		const onClose = vi.fn();
+
+		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
+
+		await vi.waitFor(() => {
+			expect(getBlockMenu()).toBeTruthy();
+		});
+
+		await userEvent.click(pm.querySelectorAll("p")[1]!);
+
+		expect(onClose).toHaveBeenCalled();
+	});
+
 	it("closes transform submenu on Escape (returns to main, not full close)", async () => {
 		const { editor } = await getEditor();
 		const onClose = vi.fn();

@@ -119,13 +119,10 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 			if (data.node) {
 				setHoveredNode({ node: data.node, pos: data.pos });
 			} else {
-				// Only clear if menu is not open
-				if (!menuOpen) {
-					setHoveredNode(null);
-				}
+				setHoveredNode(null);
 			}
 		},
-		[menuOpen],
+		[],
 	);
 
 	// Stable reference — DragHandle's useEffect depends on this by reference.

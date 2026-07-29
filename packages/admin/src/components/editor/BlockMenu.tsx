@@ -212,6 +212,10 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 			modal={false}
 			onOpenChange={(open, eventDetails) => {
 				if (open) return;
+				if (eventDetails.reason === "trigger-hover") {
+					eventDetails.cancel();
+					return;
+				}
 				if (showTransforms && eventDetails.reason === "escape-key") {
 					eventDetails.cancel();
 					setShowTransforms(false);
