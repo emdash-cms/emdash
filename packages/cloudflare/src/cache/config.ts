@@ -31,6 +31,8 @@ import type { CloudflareCacheConfig } from "./runtime.js";
 
 export type { CloudflareCacheConfig };
 
+let deprecationWarned = false;
+
 /**
  * Legacy Cloudflare Cache API route cache provider.
  *
@@ -64,6 +66,16 @@ export type { CloudflareCacheConfig };
 export function cloudflareCache(
 	config: CloudflareCacheConfig = {},
 ): CacheProviderConfig<CloudflareCacheConfig> {
+	if (!deprecationWarned) {
+		deprecationWarned = true;
+		console.warn(
+			"[@emdash-cms/cloudflare] cloudflareCache() is deprecated. " +
+				'Prefer native Workers Caching: wrangler "cache": { "enabled": true } ' +
+				"and cacheCloudflare() from @astrojs/cloudflare/cache " +
+				"(purge via cache.purge() — no CF_ZONE_ID / CF_CACHE_PURGE_TOKEN). " +
+				"See https://docs.emdashcms.com/deployment/cloudflare#workers-cache",
+		);
+	}
 	return {
 		// Resolved by Vite/Astro at build time — points to the runtime module
 		entrypoint: "@emdash-cms/cloudflare/cache",
