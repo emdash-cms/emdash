@@ -170,7 +170,9 @@ export function BlockMenu({
 	const menuActionsRef = React.useRef<{ unmount: () => void; close: () => void } | null>(null);
 	const direction = getLocaleDir(i18n.locale);
 
-	if (anchorElement) anchorRef.current = anchorElement;
+	React.useLayoutEffect(() => {
+		if (anchorElement) anchorRef.current = anchorElement;
+	}, [anchorElement]);
 
 	React.useEffect(() => {
 		if (isOpen) return;

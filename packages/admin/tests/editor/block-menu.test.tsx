@@ -7,8 +7,8 @@
  * and click-outside dismissal.
  *
  * BlockMenu is a standalone component that takes an editor instance,
- * an anchor element, and open/close callbacks. It renders via
- * createPortal to document.body.
+ * an anchor element, and open/close callbacks. It renders through
+ * Kumo's dropdown primitive, anchored to the selected block.
  */
 
 import type { Editor } from "@tiptap/react";
