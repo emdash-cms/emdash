@@ -59,6 +59,12 @@ declare module "virtual:emdash/dialect" {
 			set(name: string, value: string, options: Record<string, unknown>): void;
 		};
 		url: URL;
+		/**
+		 * ms-epoch of the last content-namespace object-cache invalidation.
+		 * Hyperdrive uses this (with `preferUncachedAfterWriteMs`) to briefly
+		 * prefer the primary uncached binding after a publish.
+		 */
+		lastContentWriteAt?: number;
 	}
 	export interface RequestScopedDb {
 		db: Kysely<unknown>;

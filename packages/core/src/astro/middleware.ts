@@ -47,6 +47,7 @@ import {
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
+import { getLastContentWriteAt } from "../object-cache/index.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
@@ -346,6 +347,7 @@ async function runOutsideRequest<T>(
 ): Promise<T> {
 	const runtime = await getRuntime(config);
 
+	const lastContentWriteAt = await getLastContentWriteAt();
 	const scoped = createRequestScopedDb({
 		config: config.database?.config,
 		isAuthenticated: false,
@@ -354,6 +356,7 @@ async function runOutsideRequest<T>(
 		isWrite: true,
 		cookies: NOOP_COOKIE_JAR,
 		url: CRON_EVENT_URL,
+		lastContentWriteAt,
 	});
 	if (!scoped?.close) {
 		// Stateless adapter (or no per-request scoping): the singleton is safe
@@ -647,12 +650,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Even on the anonymous fast path we ask the adapter for a per-request
 				// scoped db. For D1 with read replication this routes anonymous reads
 				// to the nearest replica; for other adapters it's a no-op.
+				const lastContentWriteAt = await getLastContentWriteAt();
 				const anonScoped = createRequestScopedDb({
 					config: config?.database?.config,
 					isAuthenticated: false,
 					isWrite: request.method !== "GET" && request.method !== "HEAD",
 					cookies,
 					url,
+					lastContentWriteAt,
 				});
 				const runAnon = async () => {
 					const t0 = performance.now();
@@ -855,12 +860,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// it in ALS so the runtime's db getter and loader's getDb() pick it up,
 			// then call commit() after next() so the adapter can persist any
 			// per-request state (e.g. a D1 bookmark cookie for read-your-writes).
+			const lastContentWriteAt = await getLastContentWriteAt();
 			const scoped = createRequestScopedDb({
 				config: config?.database?.config,
 				isAuthenticated: !!sessionUser || hasBearerAuth,
 				isWrite: request.method !== "GET" && request.method !== "HEAD",
 				cookies: context.cookies,
 				url,
+				lastContentWriteAt,
 			});
 
 			const renderAndFinalize = async () => {

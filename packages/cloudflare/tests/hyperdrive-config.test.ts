@@ -42,4 +42,23 @@ describe("hyperdrive()", () => {
 			cachedBinding: "HYPERDRIVE_CACHED",
 		});
 	});
+
+	it("omits preferUncachedAfterWriteMs from the descriptor when not provided", () => {
+		const result = hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" });
+		expect(result.config).not.toHaveProperty("preferUncachedAfterWriteMs");
+	});
+
+	it("passes through preferUncachedAfterWriteMs", () => {
+		const result = hyperdrive({
+			binding: "HYPERDRIVE",
+			cachedBinding: "HYPERDRIVE_CACHED",
+			preferUncachedAfterWriteMs: 120_000,
+		});
+		expect(result.config).toEqual({
+			binding: "HYPERDRIVE",
+			max: undefined,
+			cachedBinding: "HYPERDRIVE_CACHED",
+			preferUncachedAfterWriteMs: 120_000,
+		});
+	});
 });
