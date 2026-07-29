@@ -488,6 +488,15 @@ describe("last content write stamp", () => {
 		expect(backend.store.get("em:last-content-write-at")).toBe(String(local));
 	});
 
+	it("caches a confirmed zero marker within the revalidate window", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 60_000, defaultTtl: 3600 });
+		expect(await getLastContentWriteAt()).toBe(0);
+		expect(backend.get).toHaveBeenCalledTimes(1);
+		expect(await getLastContentWriteAt()).toBe(0);
+		expect(backend.get).toHaveBeenCalledTimes(1);
+	});
+
 	it("merges a fresher backend stamp on cold isolate read", async () => {
 		const backend = spyBackend();
 		backend.store.set("em:last-content-write-at", "1700000000000");

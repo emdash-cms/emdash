@@ -569,7 +569,9 @@ function stampLastContentWrite(): void {
 export async function getLastContentWriteAt(): Promise<number> {
 	const local = lastContentWrite.value;
 	const now = Date.now();
-	if (local > 0 && now - lastContentWrite.at < holder.config.revalidate) {
+	// Cache a confirmed miss (`0`) the same way as a positive stamp — otherwise
+	// every logged-out request re-reads the backend until the first content write.
+	if (now - lastContentWrite.at < holder.config.revalidate) {
 		return local;
 	}
 
