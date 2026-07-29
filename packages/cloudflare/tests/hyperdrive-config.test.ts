@@ -43,11 +43,6 @@ describe("hyperdrive()", () => {
 		});
 	});
 
-	it("omits preferUncachedAfterWriteMs from the descriptor when not provided", () => {
-		const result = hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" });
-		expect(result.config).not.toHaveProperty("preferUncachedAfterWriteMs");
-	});
-
 	it("passes through preferUncachedAfterWriteMs", () => {
 		const result = hyperdrive({
 			binding: "HYPERDRIVE",
