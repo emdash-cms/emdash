@@ -168,6 +168,31 @@ function BlockMenuTestWrapper({
 	);
 }
 
+function ClosingBlockMenuTestWrapper({
+	editor,
+	onCloseComplete,
+}: {
+	editor: Editor;
+	onCloseComplete: () => void;
+}) {
+	const [isOpen, setIsOpen] = React.useState(true);
+	const anchorRef = React.useRef<HTMLDivElement>(null);
+
+	return (
+		<>
+			<div ref={anchorRef}>Anchor</div>
+			<button type="button">Outside menu</button>
+			<BlockMenu
+				editor={editor}
+				anchorElement={anchorRef.current}
+				isOpen={isOpen}
+				onClose={() => setIsOpen(false)}
+				onCloseComplete={onCloseComplete}
+			/>
+		</>
+	);
+}
+
 /** Get the block menu portal element */
 function getBlockMenu(): HTMLElement | null {
 	const portals = document.querySelectorAll("body > div");
@@ -533,6 +558,24 @@ describe("BlockMenu", () => {
 		await userEvent.click(pm.querySelectorAll("p")[1]!);
 
 		expect(onClose).toHaveBeenCalled();
+	});
+
+	it("reports when the menu exit transition completes", async () => {
+		const { editor } = await getEditor();
+		const onCloseComplete = vi.fn();
+		const screen = await render(
+			<ClosingBlockMenuTestWrapper editor={editor} onCloseComplete={onCloseComplete} />,
+		);
+
+		await vi.waitFor(() => {
+			expect(getBlockMenu()).toBeTruthy();
+		});
+
+		await userEvent.click(screen.getByRole("button", { name: "Outside menu" }));
+
+		await vi.waitFor(() => {
+			expect(onCloseComplete).toHaveBeenCalledOnce();
+		});
 	});
 
 	it("closes transform submenu on Escape (returns to main, not full close)", async () => {

@@ -150,12 +150,20 @@ interface BlockMenuProps {
 	isOpen: boolean;
 	/** Callback to close the menu */
 	onClose: () => void;
+	/** Callback after the menu's exit transition completes */
+	onCloseComplete?: () => void;
 }
 
 /**
  * Block Menu - floating menu for block-level actions
  */
-export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuProps) {
+export function BlockMenu({
+	editor,
+	anchorElement,
+	isOpen,
+	onClose,
+	onCloseComplete,
+}: BlockMenuProps) {
 	const { i18n, t } = useLingui();
 	const [showTransforms, setShowTransforms] = React.useState(false);
 	const anchorRef = React.useRef<HTMLElement | null>(anchorElement);
@@ -210,6 +218,9 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 			actionsRef={menuActionsRef}
 			open={isOpen}
 			modal={false}
+			onOpenChangeComplete={(open) => {
+				if (!open) onCloseComplete?.();
+			}}
 			onOpenChange={(open, eventDetails) => {
 				if (open) return;
 				if (eventDetails.reason === "trigger-hover") {

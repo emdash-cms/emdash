@@ -12,6 +12,8 @@ type NodeChangeHandler = (data: { node: PMNode | null; editor: Editor; pos: numb
 let dragHandleLocked = false;
 let dragHandleNodeChange: NodeChangeHandler | null = null;
 let moveDragHandle: ((pos: number) => void) | null = null;
+let closeBlockMenu: (() => void) | null = null;
+let completeBlockMenuExit: (() => void) | null = null;
 
 async function hoverBlock(editor: Editor, node: PMNode, pos: number) {
 	await React.act(async () => {
@@ -65,13 +67,26 @@ vi.mock("@tiptap/extension-drag-handle-react", () => ({
 }));
 
 vi.mock("../../src/components/editor/BlockMenu", () => ({
-	BlockMenu: ({ anchorElement, isOpen }: { anchorElement: HTMLElement | null; isOpen: boolean }) =>
-		isOpen ? (
+	BlockMenu: ({
+		anchorElement,
+		isOpen,
+		onClose,
+		onCloseComplete,
+	}: {
+		anchorElement: HTMLElement | null;
+		isOpen: boolean;
+		onClose: () => void;
+		onCloseComplete?: () => void;
+	}) => {
+		closeBlockMenu = onClose;
+		completeBlockMenuExit = onCloseComplete ?? null;
+		return isOpen ? (
 			<div
 				role="menu"
 				data-anchor-position={anchorElement?.closest(".drag-handle")?.dataset.nodePosition}
 			/>
-		) : null,
+		) : null;
+	},
 }));
 
 describe("DragHandleWrapper interactions", () => {
@@ -79,6 +94,8 @@ describe("DragHandleWrapper interactions", () => {
 		dragHandleLocked = false;
 		dragHandleNodeChange = null;
 		moveDragHandle = null;
+		closeBlockMenu = null;
+		completeBlockMenuExit = null;
 	});
 
 	it("uses Kumo buttons for both drag-handle controls", async () => {
@@ -197,5 +214,51 @@ describe("DragHandleWrapper interactions", () => {
 			actionsButton.element().closest(".drag-handle")?.getAttribute("data-node-position"),
 		).toBe("1");
 		expect(selectedPositions).toEqual([1]);
+	});
+
+	it("keeps the drag handle pinned until the menu exit completes", async () => {
+		const setMeta = vi.fn((_key: string, locked: boolean) => {
+			dragHandleLocked = locked;
+			return true;
+		});
+		const editor = {
+			view: { dom: document.createElement("div") },
+			commands: { setMeta },
+			chain: () => ({
+				setNodeSelection() {
+					return this;
+				},
+				run: () => true,
+			}),
+		} as unknown as Editor;
+		const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
+		const actionsButton = screen.getByRole("button", {
+			name: "Block actions - drag to reorder, click for menu",
+		});
+		const firstNode = { nodeSize: 2 } as PMNode;
+		const secondNode = { nodeSize: 3 } as PMNode;
+
+		await hoverBlock(editor, firstNode, 1);
+		actionsButton.element().click();
+		await vi.waitFor(() => {
+			expect(screen.getByRole("menu").element().dataset.anchorPosition).toBe("1");
+		});
+
+		await React.act(async () => closeBlockMenu?.());
+		await expect.element(actionsButton).toHaveAttribute("aria-expanded", "false");
+		expect(setMeta).toHaveBeenLastCalledWith("lockDragHandle", true);
+
+		await hoverBlock(editor, secondNode, 5);
+		expect(
+			actionsButton.element().closest(".drag-handle")?.getAttribute("data-node-position"),
+		).toBe("1");
+
+		await React.act(async () => completeBlockMenuExit?.());
+		expect(setMeta).toHaveBeenLastCalledWith("lockDragHandle", false);
+
+		await hoverBlock(editor, secondNode, 5);
+		expect(
+			actionsButton.element().closest(".drag-handle")?.getAttribute("data-node-position"),
+		).toBe("5");
 	});
 });

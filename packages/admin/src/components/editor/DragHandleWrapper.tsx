@@ -109,6 +109,9 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 	// Close the menu
 	const handleCloseMenu = React.useCallback(() => {
 		setMenuOpen(false);
+	}, []);
+
+	const handleMenuCloseComplete = React.useCallback(() => {
 		setMenuAnchor(null);
 		editor.commands.setMeta("lockDragHandle", false);
 	}, [editor]);
@@ -197,6 +200,7 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 				anchorElement={menuAnchor}
 				isOpen={menuOpen}
 				onClose={handleCloseMenu}
+				onCloseComplete={handleMenuCloseComplete}
 			/>
 		</>
 	);
