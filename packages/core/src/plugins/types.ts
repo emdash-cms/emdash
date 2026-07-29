@@ -537,14 +537,15 @@ export interface CacheAccess {
 	}>;
 
 	/**
-	 * Whether Workers Cache purge credentials are configured
-	 * (`CF_ZONE_ID` + `CF_CACHE_PURGE_TOKEN`, same as `cloudflareCache()`).
+	 * Whether native Workers Caching purge is available
+	 * (`cache.purge` from `cloudflare:workers`, with wrangler
+	 * `"cache": { "enabled": true }`).
 	 */
 	getWorkersCacheStatus(): Promise<{ configured: boolean }>;
 
 	/**
-	 * Purge all edge-cached pages for the zone (`purge_everything`).
-	 * Returns `configured: false` when credentials are missing.
+	 * Purge all edge-cached pages for this Worker (`purgeEverything`).
+	 * Returns `configured: false` when native purge is unavailable.
 	 */
 	purgeWorkersCache(): Promise<{ configured: boolean; purged: boolean }>;
 }

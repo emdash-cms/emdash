@@ -56,7 +56,7 @@ describe("workers-cache purge route", () => {
 			data: { configured: boolean };
 		};
 		expect(json.success).toBe(true);
-		// No CF credentials in unit tests
+		// Unit tests run outside Workers — native purge unavailable
 		expect(json.data.configured).toBe(false);
 	});
 
@@ -70,7 +70,7 @@ describe("workers-cache purge route", () => {
 		expect(response.status).toBe(403);
 	});
 
-	it("POST returns configured:false for admins without credentials", async () => {
+	it("POST returns configured:false for admins outside Workers", async () => {
 		const response = await purgePost(makePostContext({ id: "u1", role: Role.ADMIN }));
 		expect(response.status).toBe(200);
 		const json = (await response.json()) as {

@@ -171,12 +171,12 @@ export {
 	type ObjectCacheStatus,
 } from "./object-cache.js";
 
-// Workers Cache (edge page cache) purge
+// Workers Cache (native Workers Caching) purge
 export {
 	handleWorkersCachePurge,
 	handleWorkersCacheStatus,
-	resolveWorkersCacheCredentials,
-	type WorkersCacheCredentials,
+	resolveWorkersCachePurgeApi,
+	type WorkersCachePurgeApi,
 	type WorkersCachePurgeResult,
 	type WorkersCacheStatus,
 } from "./workers-cache.js";
