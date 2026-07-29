@@ -350,6 +350,10 @@ export function injectCoreRoutes(
 		pattern: "/_emdash/api/admin/cache/object",
 		entrypoint: resolveRoute("api/admin/cache/object.ts"),
 	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/cache/workers",
+		entrypoint: resolveRoute("api/admin/cache/workers.ts"),
+	});
 
 	// Email settings route
 	injectRoute({

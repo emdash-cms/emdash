@@ -75,6 +75,8 @@ export {
 	handleRevisionRestore,
 	handleObjectCachePurge,
 	handleObjectCacheStatus,
+	handleWorkersCachePurge,
+	handleWorkersCacheStatus,
 	generateManifest,
 } from "./api/index.js";
 export type {

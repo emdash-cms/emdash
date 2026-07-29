@@ -512,15 +512,14 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 	email?: EmailAccess;
 
 	/**
-	 * Object-cache purge — only if `cache:purge` capability is declared.
-	 * Bumps epochs for CMS read caches (KV / memory). No-ops when no
-	 * object cache is configured on the site.
+	 * Cache purge — only if `cache:purge` capability is declared.
+	 * Covers CMS object cache (KV / memory) and Workers Cache (edge pages).
 	 */
 	cache?: CacheAccess;
 }
 
 /**
- * Plugin access to CMS object-cache invalidation.
+ * Plugin access to CMS + edge cache invalidation.
  */
 export interface CacheAccess {
 	/** Whether an object-cache backend is configured for this site. */
@@ -536,6 +535,18 @@ export interface CacheAccess {
 		active: boolean;
 		purged: string[];
 	}>;
+
+	/**
+	 * Whether Workers Cache purge credentials are configured
+	 * (`CF_ZONE_ID` + `CF_CACHE_PURGE_TOKEN`, same as `cloudflareCache()`).
+	 */
+	getWorkersCacheStatus(): Promise<{ configured: boolean }>;
+
+	/**
+	 * Purge all edge-cached pages for the zone (`purge_everything`).
+	 * Returns `configured: false` when credentials are missing.
+	 */
+	purgeWorkersCache(): Promise<{ configured: boolean; purged: boolean }>;
 }
 
 // =============================================================================

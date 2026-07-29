@@ -326,6 +326,8 @@ function createContext() {
 	const cache = ${hasCachePurge} ? {
 		getObjectCacheStatus: () => bridgeCall("cache/getObjectCacheStatus", {}),
 		purgeObjectCache: (options) => bridgeCall("cache/purgeObjectCache", options || {}),
+		getWorkersCacheStatus: () => bridgeCall("cache/getWorkersCacheStatus", {}),
+		purgeWorkersCache: () => bridgeCall("cache/purgeWorkersCache", {}),
 	} : undefined;
 
 	return {

@@ -13,6 +13,8 @@ import type { SandboxEmailSendCallback } from "emdash";
 import {
 	handleObjectCachePurge,
 	handleObjectCacheStatus,
+	handleWorkersCachePurge,
+	handleWorkersCacheStatus,
 	ulid,
 	PluginStorageRepository,
 } from "emdash";
@@ -1208,6 +1210,30 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		const result = await handleObjectCachePurge(db as never, {
 			namespaces: options?.namespaces,
 		});
+		if (!result.success) {
+			throw new Error(result.error.message);
+		}
+		return result.data;
+	}
+
+	async getWorkersCacheStatus(): Promise<{ configured: boolean }> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("cache:purge")) {
+			throw new Error("Missing capability: cache:purge");
+		}
+		const result = await handleWorkersCacheStatus();
+		if (!result.success) {
+			throw new Error(result.error.message);
+		}
+		return result.data;
+	}
+
+	async purgeWorkersCache(): Promise<{ configured: boolean; purged: boolean }> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("cache:purge")) {
+			throw new Error("Missing capability: cache:purge");
+		}
+		const result = await handleWorkersCachePurge();
 		if (!result.success) {
 			throw new Error(result.error.message);
 		}

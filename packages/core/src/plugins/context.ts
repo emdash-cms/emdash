@@ -9,6 +9,10 @@ import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { handleObjectCachePurge, handleObjectCacheStatus } from "../api/handlers/object-cache.js";
+import {
+	handleWorkersCachePurge,
+	handleWorkersCacheStatus,
+} from "../api/handlers/workers-cache.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
@@ -952,7 +956,7 @@ function toUserInfo(user: {
  * Excludes sensitive fields (password hashes, sessions, passkeys, avatar URL, data).
  */
 /**
- * Create object-cache purge access for plugins with `cache:purge`.
+ * Create cache purge access for plugins with `cache:purge`.
  */
 export function createCacheAccess(db: Kysely<Database>): CacheAccess {
 	return {
@@ -967,6 +971,20 @@ export function createCacheAccess(db: Kysely<Database>): CacheAccess {
 			const result = await handleObjectCachePurge(db, {
 				namespaces: options?.namespaces,
 			});
+			if (!result.success) {
+				throw new Error(result.error.message);
+			}
+			return result.data;
+		},
+		async getWorkersCacheStatus() {
+			const result = await handleWorkersCacheStatus();
+			if (!result.success) {
+				throw new Error(result.error.message);
+			}
+			return result.data;
+		},
+		async purgeWorkersCache() {
+			const result = await handleWorkersCachePurge();
 			if (!result.success) {
 				throw new Error(result.error.message);
 			}

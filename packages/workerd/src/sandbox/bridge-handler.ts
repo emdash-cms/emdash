@@ -19,6 +19,8 @@ import {
 	createUnrestrictedHttpAccess,
 	handleObjectCachePurge,
 	handleObjectCacheStatus,
+	handleWorkersCachePurge,
+	handleWorkersCacheStatus,
 	PluginStorageRepository,
 } from "emdash";
 import type { Database, SandboxEmailSendCallback } from "emdash";
@@ -262,7 +264,7 @@ async function dispatch(
 			return null;
 		}
 
-		// ── Object cache ────────────────────────────────────────────────
+		// ── Cache purge ─────────────────────────────────────────────────
 		case "cache/getObjectCacheStatus": {
 			requireCapability(opts, "cache:purge");
 			const status = await handleObjectCacheStatus();
@@ -279,6 +281,22 @@ async function dispatch(
 					? namespaces.filter((n): n is string => typeof n === "string")
 					: undefined,
 			});
+			if (!result.success) {
+				throw new Error(result.error.message);
+			}
+			return result.data;
+		}
+		case "cache/getWorkersCacheStatus": {
+			requireCapability(opts, "cache:purge");
+			const status = await handleWorkersCacheStatus();
+			if (!status.success) {
+				throw new Error(status.error.message);
+			}
+			return status.data;
+		}
+		case "cache/purgeWorkersCache": {
+			requireCapability(opts, "cache:purge");
+			const result = await handleWorkersCachePurge();
 			if (!result.success) {
 				throw new Error(result.error.message);
 			}

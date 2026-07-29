@@ -7,4 +7,4 @@
 "@emdash-cms/blocks": minor
 ---
 
-Adds an admin API to purge the CMS object cache (`GET`/`POST /_emdash/api/admin/cache/object`) and a `cache:purge` plugin capability so sandboxed plugins can clear KV/memory object-cache namespaces via `ctx.cache`. Block Kit buttons also support optional `disabled` and `title` (tooltip) fields.
+Adds admin APIs and a `cache:purge` plugin capability for clearing CMS caches: object cache (`GET`/`POST /_emdash/api/admin/cache/object`, `ctx.cache.purgeObjectCache`) and Workers Cache / edge pages (`GET`/`POST /_emdash/api/admin/cache/workers`, `ctx.cache.purgeWorkersCache`, Cloudflare `purge_everything` via `CF_ZONE_ID` + `CF_CACHE_PURGE_TOKEN`). Block Kit buttons also support optional `disabled` and `title` (tooltip) fields.

@@ -171,6 +171,16 @@ export {
 	type ObjectCacheStatus,
 } from "./object-cache.js";
 
+// Workers Cache (edge page cache) purge
+export {
+	handleWorkersCachePurge,
+	handleWorkersCacheStatus,
+	resolveWorkersCacheCredentials,
+	type WorkersCacheCredentials,
+	type WorkersCachePurgeResult,
+	type WorkersCacheStatus,
+} from "./workers-cache.js";
+
 // Taxonomy handlers
 export {
 	handleTaxonomyList,

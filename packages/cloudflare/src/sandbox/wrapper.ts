@@ -175,10 +175,12 @@ function createContext(env) {
 		send: (message) => bridge.emailSend(message)
 	} : undefined;
 
-	// Object-cache purge - proxies to bridge (capability enforced by bridge)
+	// Cache purge - proxies to bridge (capability enforced by bridge)
 	const cache = ${hasCachePurge} ? {
 		getObjectCacheStatus: () => bridge.getObjectCacheStatus(),
-		purgeObjectCache: (options) => bridge.purgeObjectCache(options)
+		purgeObjectCache: (options) => bridge.purgeObjectCache(options),
+		getWorkersCacheStatus: () => bridge.getWorkersCacheStatus(),
+		purgeWorkersCache: () => bridge.purgeWorkersCache()
 	} : undefined;
 	
 	return {
