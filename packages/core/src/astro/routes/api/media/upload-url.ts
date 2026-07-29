@@ -75,6 +75,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 		const body = await parseBody(request, mediaUploadUrlBody(maxSize));
 		if (isParseError(body)) return body;
+		const normalizedContentType = normalizeMime(body.contentType);
 
 		// Validate content type (field-aware widening)
 		const fieldAllowlist = body.fieldId
@@ -91,7 +92,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Check for existing content with same hash (deduplication)
 		if (body.contentHash && body.size > 0) {
 			const existing = await repo.findByContentHash(body.contentHash);
-			if (existing) {
+			if (existing && existing.mimeType === normalizedContentType && existing.size === body.size) {
 				const response: ExistingMediaResponse = {
 					existing: true,
 					mediaId: existing.id,
@@ -120,7 +121,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			signedUrl = null;
 		}
 
-		const normalizedContentType = normalizeMime(body.contentType);
 		const mediaItem = await repo.createPending({
 			filename: body.filename,
 			mimeType: normalizedContentType,

@@ -106,6 +106,50 @@ it("uploads without deduplication when Web Crypto is unavailable", async () => {
 	expect(item.id).toBe("new-media");
 });
 
+it("uploads without deduplication when content hashing fails", async () => {
+	vi.stubGlobal("crypto", {
+		subtle: {
+			digest: vi.fn().mockRejectedValue(new Error("SHA-1 unavailable")),
+		},
+	});
+	let uploadUrlBody: Record<string, unknown> | undefined;
+	const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		if (url === "/_emdash/api/media/upload-url") {
+			if (typeof init?.body !== "string") throw new TypeError("Expected a JSON request body");
+			uploadUrlBody = JSON.parse(init.body) as Record<string, unknown>;
+			return new Response(null, { status: 501 });
+		}
+		if (url === "/_emdash/api/media") {
+			return Response.json({
+				success: true,
+				data: {
+					item: {
+						id: "new-media",
+						filename: "new.pdf",
+						mimeType: "application/pdf",
+						url: "/_emdash/api/media/file/new.pdf",
+						storageKey: "new.pdf",
+						size: 3,
+						createdAt: "2026-01-01T00:00:00.000Z",
+					},
+				},
+			});
+		}
+		return new Response(null, { status: 500 });
+	});
+	const file = new File([new Uint8Array([1, 2, 3])], "new.pdf", {
+		type: "application/pdf",
+	});
+
+	const item = await uploadMedia(file);
+
+	expect(uploadUrlBody).not.toHaveProperty("contentHash");
+	expect(item.id).toBe("new-media");
+	expect(fetch).toHaveBeenCalledTimes(2);
+});
+
 it("does not deduplicate empty files by their shared hash", async () => {
 	let uploadUrlBody: Record<string, unknown> | undefined;
 	vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {

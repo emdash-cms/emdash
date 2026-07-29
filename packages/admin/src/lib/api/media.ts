@@ -115,11 +115,15 @@ const MAX_CLIENT_HASH_BYTES = 8 * 1024 * 1024;
 async function computeContentHash(file: File): Promise<string | undefined> {
 	const subtle = globalThis.crypto?.subtle;
 	if (!subtle || file.size === 0 || file.size > MAX_CLIENT_HASH_BYTES) return undefined;
-	const hash = await subtle.digest("SHA-1", await file.arrayBuffer());
-	const hex = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join(
-		"",
-	);
-	return `sha1:${hex}`;
+	try {
+		const hash = await subtle.digest("SHA-1", await file.arrayBuffer());
+		const hex = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join(
+			"",
+		);
+		return `sha1:${hex}`;
+	} catch {
+		return undefined;
+	}
 }
 
 /**

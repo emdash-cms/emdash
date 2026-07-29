@@ -170,6 +170,45 @@ describe("streamed media upload fallback", () => {
 		});
 	});
 
+	it.each([
+		{ difference: "MIME type", contentType: "video/mp4", size: 3 },
+		{ difference: "size", contentType: "audio/mp4", size: 4 },
+	])(
+		"does not deduplicate to media with a different $difference",
+		async ({ contentType, size }) => {
+			const repo = new MediaRepository(db);
+			const contentHash = "sha1:a9993e364706816aba3e25717850c26c9cd0d89d";
+			const existing = await repo.create({
+				filename: "sound.mp4",
+				mimeType: "audio/mp4",
+				size: 3,
+				storageKey: "sound.mp4",
+				contentHash,
+			});
+			const request = new Request("http://localhost/_emdash/api/media/upload-url", {
+				method: "POST",
+				headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+				body: JSON.stringify({
+					filename: "movie.mp4",
+					contentType,
+					size,
+					contentHash,
+				}),
+			});
+
+			const response = await postUploadUrl(
+				buildContext({ db, request, storage: unsupportedSignedUrlStorage() }),
+			);
+
+			expect(response.status).toBe(200);
+			const body = (await response.json()) as {
+				data: { existing?: boolean; mediaId: string };
+			};
+			expect(body.data.existing).not.toBe(true);
+			expect(body.data.mediaId).not.toBe(existing.id);
+		},
+	);
+
 	it("does not deduplicate an empty file by the shared empty hash", async () => {
 		const repo = new MediaRepository(db);
 		const existing = await repo.create({
@@ -574,6 +613,56 @@ describe("streamed media upload fallback", () => {
 		expect(storage.objects.size).toBe(1);
 		const published = await repo.findById(pending.id);
 		expect(storage.objects.get(published!.storageKey)).toEqual(new Uint8Array([1, 2, 3]));
+	});
+
+	it("rejects a losing concurrent upload when its content differs", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		let uploadsStarted = 0;
+		let releaseUploads: (() => void) | undefined;
+		const bothUploadsStarted = new Promise<void>((resolve) => {
+			releaseUploads = resolve;
+		});
+		storage.upload.mockImplementation(async (options) => {
+			const bytes = new Uint8Array(await new Response(options.body).arrayBuffer());
+			storage.objects.set(options.key, bytes);
+			uploadsStarted++;
+			if (uploadsStarted === 2) releaseUploads?.();
+			await bothUploadsStarted;
+			return { key: options.key, url: `/media/${options.key}`, size: bytes.byteLength };
+		});
+
+		const [firstResponse, secondResponse] = await Promise.all([
+			putUpload(
+				buildContext({
+					db,
+					id: pending.id,
+					request: uploadRequest(pending.id, new Uint8Array([1, 2, 3])),
+					storage,
+				}),
+			),
+			putUpload(
+				buildContext({
+					db,
+					id: pending.id,
+					request: uploadRequest(pending.id, new Uint8Array([4, 5, 6])),
+					storage,
+				}),
+			),
+		]);
+
+		const statuses = [firstResponse.status, secondResponse.status];
+		expect(statuses.filter((status) => status === 200)).toHaveLength(1);
+		expect(statuses.filter((status) => status === 400)).toHaveLength(1);
+		expect(storage.delete).toHaveBeenCalledOnce();
+		expect(storage.objects.size).toBe(1);
 	});
 
 	it("preserves an object when publication commits before reporting an error", async () => {

@@ -57,22 +57,33 @@ async function forgetUploadAttempt(repo: MediaRepository, storageKey: string): P
 }
 
 async function consumeDownload(download: DownloadResult): Promise<Uint8Array> {
-	const bytes = new Uint8Array(download.size);
 	const reader = download.body.getReader();
-	let receivedSize = 0;
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		if (receivedSize + value.byteLength > bytes.byteLength) {
-			throw new Error("Stored file exceeds its reported size");
+	try {
+		const bytes = new Uint8Array(download.size);
+		let receivedSize = 0;
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (receivedSize + value.byteLength > bytes.byteLength) {
+				throw new Error("Stored file exceeds its reported size");
+			}
+			bytes.set(value, receivedSize);
+			receivedSize += value.byteLength;
 		}
-		bytes.set(value, receivedSize);
-		receivedSize += value.byteLength;
+		if (receivedSize !== download.size) {
+			throw new Error("Stored file size does not match its reported size");
+		}
+		return bytes;
+	} catch (error) {
+		try {
+			await reader.cancel(error);
+		} catch (cancelError) {
+			console.error("[media] confirm download cancellation failed:", cancelError);
+		}
+		throw error;
+	} finally {
+		reader.releaseLock();
 	}
-	if (receivedSize !== download.size) {
-		throw new Error("Stored file size does not match its reported size");
-	}
-	return bytes;
 }
 
 /**

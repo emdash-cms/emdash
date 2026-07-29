@@ -70,6 +70,7 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
 
@@ -133,6 +134,41 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 
 		expect(res.status).toBe(200);
 		expect(await repo.findById(pending.id)).toMatchObject({ status: "ready" });
+	});
+
+	it("cancels a stored download whose bytes exceed its reported size", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "document.pdf",
+			mimeType: "application/pdf",
+			size: 1,
+			storageKey: "document.pdf",
+			authorId: "user-1",
+		});
+		const cancel = vi.fn();
+		const storage = {
+			async exists() {
+				return true;
+			},
+			async download() {
+				return {
+					body: new ReadableStream<Uint8Array>({
+						start(controller) {
+							controller.enqueue(new Uint8Array([1, 2]));
+						},
+						cancel,
+					}),
+					contentType: "application/pdf",
+					size: 1,
+				};
+			},
+		};
+
+		const res = await postConfirm(buildContext({ db, id: pending.id, storage, body: { size: 1 } }));
+
+		expect(res.status).toBe(500);
+		expect(cancel).toHaveBeenCalledOnce();
 	});
 
 	it("does not re-read a proxied non-image after the server hashed it", async () => {

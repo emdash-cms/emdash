@@ -245,6 +245,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 				current &&
 				(current.status === "pending" || current.status === "ready") &&
 				current.size === expectedSize &&
+				(current.storageKey === attemptKey ||
+					expectedSize === 0 ||
+					(contentHash !== undefined && current.contentHash === contentHash)) &&
 				(await getStoredSize(emdash.storage, current.storageKey)) === expectedSize
 			) {
 				if (current.storageKey !== attemptKey) {
