@@ -126,7 +126,6 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	// Missing flag defaults to invalidate (safe for mocks / older callers).
 	if (cache?.enabled && result.liveContentChanged !== false) {
 		await cache.invalidate({ tags: [collection, resolvedId] });
 	}
