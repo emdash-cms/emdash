@@ -163,7 +163,7 @@ describe("applySeed", () => {
 			expect(row.rows[0]?.title).toBe("Untitled");
 		});
 
-		it("#1131: applies the hidden flag from the seed", async () => {
+		it("applies the hidden flag from the seed", async () => {
 			const seed: SeedFile = {
 				version: "1",
 				collections: [
@@ -188,7 +188,7 @@ describe("applySeed", () => {
 			expect((await registry.getCollection("posts"))?.hidden).toBe(false);
 		});
 
-		it("#1131: updates the hidden flag when re-applying with onConflict update", async () => {
+		it("updates the hidden flag when re-applying with onConflict update", async () => {
 			const collection = {
 				slug: "contact_submissions",
 				label: "Contact Submissions",

@@ -128,13 +128,13 @@ describe("SchemaRegistry", () => {
 			expect(updated.supports).toEqual(["drafts"]);
 		});
 
-		it("#1131: collections are visible in the sidebar by default", async () => {
+		it("collections are visible in the sidebar by default", async () => {
 			const collection = await registry.createCollection({ slug: "posts", label: "Posts" });
 
 			expect(collection.hidden).toBe(false);
 		});
 
-		it("#1131: creates a collection hidden from the sidebar", async () => {
+		it("creates a collection hidden from the sidebar", async () => {
 			const collection = await registry.createCollection({
 				slug: "contact_submissions",
 				label: "Contact Submissions",
@@ -150,14 +150,14 @@ describe("SchemaRegistry", () => {
 			expect(await registry.getCollection("contact_submissions")).not.toBeNull();
 		});
 
-		it("#1131: toggles hidden on an existing collection", async () => {
+		it("toggles hidden on an existing collection", async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts" });
 
 			expect((await registry.updateCollection("posts", { hidden: true })).hidden).toBe(true);
 			expect((await registry.updateCollection("posts", { hidden: false })).hidden).toBe(false);
 		});
 
-		it("#1131: preserves hidden when an update omits it", async () => {
+		it("preserves hidden when an update omits it", async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts", hidden: true });
 
 			const updated = await registry.updateCollection("posts", { label: "Blog Posts" });

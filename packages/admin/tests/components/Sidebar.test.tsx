@@ -106,7 +106,7 @@ describe("filterNavItemsByRole", () => {
 	});
 });
 
-describe("visibleCollectionEntries (#1131)", () => {
+describe("visibleCollectionEntries", () => {
 	const collections = {
 		posts: { label: "Posts" },
 		contact_submissions: { label: "Contact Submissions", hidden: true },

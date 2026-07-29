@@ -79,6 +79,7 @@ import type { PortableTextBlock } from "emdash";
 				description: c.description,
 				icon: c.icon,
 				supports: c.supports,
+				hidden: c.hidden,
 				fields: c.fields.map((f) => ({
 					slug: f.slug,
 					label: f.label,

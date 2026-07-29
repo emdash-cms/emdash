@@ -181,6 +181,7 @@ export const collectionSchema = z
 		source: z.string().nullable(),
 		urlPattern: z.string().nullable(),
 		hasSeo: z.boolean(),
+		hidden: z.boolean(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
 	})
