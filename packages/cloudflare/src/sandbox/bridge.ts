@@ -1228,12 +1228,16 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return result.data;
 	}
 
-	async purgeWorkersCache(): Promise<{ configured: boolean; purged: boolean }> {
+	async purgeWorkersCache(options?: {
+		pathPrefixes?: string[];
+	}): Promise<{ configured: boolean; purged: boolean; pathPrefixes?: string[] }> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("cache:purge")) {
 			throw new Error("Missing capability: cache:purge");
 		}
-		const result = await handleWorkersCachePurge();
+		const result = await handleWorkersCachePurge({
+			pathPrefixes: options?.pathPrefixes,
+		});
 		if (!result.success) {
 			throw new Error(result.error.message);
 		}

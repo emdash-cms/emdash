@@ -544,10 +544,16 @@ export interface CacheAccess {
 	getWorkersCacheStatus(): Promise<{ configured: boolean }>;
 
 	/**
-	 * Purge all edge-cached pages for this Worker (`purgeEverything`).
+	 * Purge Workers Caching for this Worker.
+	 * Omit options (or empty pathPrefixes) for purgeEverything; pass
+	 * pathPrefixes to invalidate matching path prefixes only.
 	 * Returns `configured: false` when native purge is unavailable.
 	 */
-	purgeWorkersCache(): Promise<{ configured: boolean; purged: boolean }>;
+	purgeWorkersCache(options?: { pathPrefixes?: string[] }): Promise<{
+		configured: boolean;
+		purged: boolean;
+		pathPrefixes?: string[];
+	}>;
 }
 
 // =============================================================================

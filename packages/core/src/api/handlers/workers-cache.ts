@@ -17,18 +17,70 @@ export interface WorkersCacheStatus {
 	configured: boolean;
 }
 
+export interface WorkersCachePurgeInput {
+	/**
+	 * Path prefixes to invalidate (e.g. `/posts/hello`). Omit or pass empty
+	 * to purge everything for this Worker entrypoint.
+	 */
+	pathPrefixes?: string[];
+}
+
 export interface WorkersCachePurgeResult {
 	/** Whether native `cache.purge` was available. */
 	configured: boolean;
 	/** True when purge ran and reported success. */
 	purged: boolean;
+	/** Path prefixes that were purged (empty when purge-everything). */
+	pathPrefixes?: string[];
 }
 
 export interface WorkersCachePurgeApi {
 	purge(options: {
 		purgeEverything?: boolean;
 		tags?: string[];
+		pathPrefixes?: string[];
 	}): Promise<{ success?: boolean; errors?: { message?: string }[] } | unknown>;
+}
+
+/**
+ * Normalize a user-supplied path or full URL into a Workers Caching path prefix.
+ * Strips origin, query, and hash; ensures a leading slash.
+ */
+export function normalizeWorkersCachePathPrefix(
+	raw: string,
+): { ok: true; path: string } | { ok: false; message: string } {
+	const trimmed = raw.trim();
+	if (!trimmed) {
+		return { ok: false, message: "Path is required" };
+	}
+
+	let path: string;
+	if (/^[a-zA-Z][a-zA-Z+\-.]*:\/\//.test(trimmed)) {
+		try {
+			const url = new URL(trimmed);
+			path = url.pathname || "/";
+		} catch {
+			return { ok: false, message: "Invalid URL" };
+		}
+	} else {
+		// Strip query/hash if pasted without a scheme
+		const withoutHash = trimmed.split("#")[0] ?? trimmed;
+		const withoutQuery = withoutHash.split("?")[0] ?? withoutHash;
+		path = withoutQuery;
+	}
+
+	if (!path.startsWith("/")) {
+		path = `/${path}`;
+	}
+
+	// Collapse duplicate slashes except we keep a single leading /
+	path = path.replace(/\/{2,}/g, "/");
+
+	if (path.length > 2048) {
+		return { ok: false, message: "Path is too long" };
+	}
+
+	return { ok: true, path };
 }
 
 /**
@@ -78,10 +130,11 @@ export async function handleWorkersCacheStatus(
 }
 
 /**
- * Purge all edge-cached responses for this Worker entrypoint
- * (`purgeEverything: true`).
+ * Purge Workers Caching for this entrypoint.
+ * With `pathPrefixes`, purges those prefixes; otherwise `purgeEverything`.
  */
 export async function handleWorkersCachePurge(
+	input: WorkersCachePurgeInput = {},
 	api?: WorkersCachePurgeApi | null,
 ): Promise<ApiResult<WorkersCachePurgeResult>> {
 	try {
@@ -94,7 +147,40 @@ export async function handleWorkersCachePurge(
 			};
 		}
 
-		const result = await resolved.purge({ purgeEverything: true });
+		const rawPrefixes = input.pathPrefixes ?? [];
+		const normalized: string[] = [];
+		const seen = new Set<string>();
+
+		for (const raw of rawPrefixes) {
+			if (typeof raw !== "string") {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: "Each path prefix must be a string",
+					},
+				};
+			}
+			const result = normalizeWorkersCachePathPrefix(raw);
+			if (!result.ok) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: result.message,
+					},
+				};
+			}
+			if (!seen.has(result.path)) {
+				seen.add(result.path);
+				normalized.push(result.path);
+			}
+		}
+
+		const purgeOptions =
+			normalized.length > 0 ? { pathPrefixes: normalized } : { purgeEverything: true as const };
+
+		const result = await resolved.purge(purgeOptions);
 
 		if (isPurgeFailure(result)) {
 			const detail = formatPurgeErrors(result);
@@ -109,7 +195,11 @@ export async function handleWorkersCachePurge(
 
 		return {
 			success: true,
-			data: { configured: true, purged: true },
+			data: {
+				configured: true,
+				purged: true,
+				...(normalized.length > 0 ? { pathPrefixes: normalized } : {}),
+			},
 		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Unknown error";

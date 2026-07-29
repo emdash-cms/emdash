@@ -180,7 +180,7 @@ function createContext(env) {
 		getObjectCacheStatus: () => bridge.getObjectCacheStatus(),
 		purgeObjectCache: (options) => bridge.purgeObjectCache(options),
 		getWorkersCacheStatus: () => bridge.getWorkersCacheStatus(),
-		purgeWorkersCache: () => bridge.purgeWorkersCache()
+		purgeWorkersCache: (options) => bridge.purgeWorkersCache(options)
 	} : undefined;
 	
 	return {

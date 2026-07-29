@@ -983,8 +983,10 @@ export function createCacheAccess(db: Kysely<Database>): CacheAccess {
 			}
 			return result.data;
 		},
-		async purgeWorkersCache() {
-			const result = await handleWorkersCachePurge();
+		async purgeWorkersCache(options) {
+			const result = await handleWorkersCachePurge({
+				pathPrefixes: options?.pathPrefixes,
+			});
 			if (!result.success) {
 				throw new Error(result.error.message);
 			}

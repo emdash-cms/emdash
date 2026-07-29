@@ -218,7 +218,9 @@ export interface PluginBridgeBinding {
 		namespaces?: string[];
 	}): Promise<{ configured: boolean; active: boolean; purged: string[] }>;
 	getWorkersCacheStatus(): Promise<{ configured: boolean }>;
-	purgeWorkersCache(): Promise<{ configured: boolean; purged: boolean }>;
+	purgeWorkersCache(options?: {
+		pathPrefixes?: string[];
+	}): Promise<{ configured: boolean; purged: boolean; pathPrefixes?: string[] }>;
 	// Logging
 	log(level: "debug" | "info" | "warn" | "error", msg: string, data?: unknown): void;
 }

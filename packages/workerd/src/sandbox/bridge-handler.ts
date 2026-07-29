@@ -296,7 +296,12 @@ async function dispatch(
 		}
 		case "cache/purgeWorkersCache": {
 			requireCapability(opts, "cache:purge");
-			const result = await handleWorkersCachePurge();
+			const pathPrefixes = body.pathPrefixes;
+			const result = await handleWorkersCachePurge({
+				pathPrefixes: Array.isArray(pathPrefixes)
+					? pathPrefixes.filter((p): p is string => typeof p === "string")
+					: undefined,
+			});
 			if (!result.success) {
 				throw new Error(result.error.message);
 			}

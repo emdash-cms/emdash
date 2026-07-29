@@ -175,8 +175,10 @@ export {
 export {
 	handleWorkersCachePurge,
 	handleWorkersCacheStatus,
+	normalizeWorkersCachePathPrefix,
 	resolveWorkersCachePurgeApi,
 	type WorkersCachePurgeApi,
+	type WorkersCachePurgeInput,
 	type WorkersCachePurgeResult,
 	type WorkersCacheStatus,
 } from "./workers-cache.js";

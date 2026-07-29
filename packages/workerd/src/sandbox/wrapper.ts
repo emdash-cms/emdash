@@ -327,7 +327,7 @@ function createContext() {
 		getObjectCacheStatus: () => bridgeCall("cache/getObjectCacheStatus", {}),
 		purgeObjectCache: (options) => bridgeCall("cache/purgeObjectCache", options || {}),
 		getWorkersCacheStatus: () => bridgeCall("cache/getWorkersCacheStatus", {}),
-		purgeWorkersCache: () => bridgeCall("cache/purgeWorkersCache", {}),
+		purgeWorkersCache: (options) => bridgeCall("cache/purgeWorkersCache", options || {}),
 	} : undefined;
 
 	return {
