@@ -13,7 +13,6 @@ import {
 	generateEnvModule,
 	generateSchedulerModule,
 	generateSeedModule,
-	generateWorkersCacheModule,
 	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
 } from "../../../../src/astro/integration/virtual-modules.js";
@@ -136,19 +135,6 @@ describe("generateEnvModule", () => {
 	it("exports undefined when no adapter is configured", () => {
 		const out = generateEnvModule(undefined);
 		expect(out).toBe("export const env = undefined;");
-	});
-});
-
-describe("generateWorkersCacheModule", () => {
-	it("re-exports cloudflare:workers' cache under the Cloudflare adapter", () => {
-		const out = generateWorkersCacheModule("@astrojs/cloudflare");
-		expect(out).toBe('export { cache } from "cloudflare:workers";');
-	});
-
-	it("exports undefined for non-Cloudflare adapters", () => {
-		const out = generateWorkersCacheModule("@astrojs/node");
-		expect(out).toBe("export const cache = undefined;");
-		expect(out).not.toContain("cloudflare:workers");
 	});
 });
 

@@ -345,16 +345,6 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/settings.ts"),
 	});
 
-	// Object-cache purge (KV / memory CMS read cache)
-	injectRoute({
-		pattern: "/_emdash/api/admin/cache/object",
-		entrypoint: resolveRoute("api/admin/cache/object.ts"),
-	});
-	injectRoute({
-		pattern: "/_emdash/api/admin/cache/workers",
-		entrypoint: resolveRoute("api/admin/cache/workers.ts"),
-	});
-
 	// Email settings route
 	injectRoute({
 		pattern: "/_emdash/api/settings/email",

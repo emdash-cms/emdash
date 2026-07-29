@@ -350,7 +350,6 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"media:read",
 	"media:write",
 	"users:read",
-	"cache:purge",
 	"email:send",
 	"hooks.email-transport:register",
 	"hooks.email-events:register",

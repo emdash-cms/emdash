@@ -73,10 +73,6 @@ export {
 	handleRevisionList,
 	handleRevisionGet,
 	handleRevisionRestore,
-	handleObjectCachePurge,
-	handleObjectCacheStatus,
-	handleWorkersCachePurge,
-	handleWorkersCacheStatus,
 	generateManifest,
 } from "./api/index.js";
 export type {
@@ -206,8 +202,6 @@ export {
 	invalidateMenuObjectCache,
 	invalidateSchemaObjectCache,
 	invalidateCommentObjectCache,
-	isObjectCacheActive,
-	isObjectCacheConfigured,
 	contentNamespace,
 	contentNamespaces,
 	CacheNamespace,

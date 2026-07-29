@@ -170,23 +170,6 @@ declare module "virtual:emdash/env" {
 	export const env: Record<string, unknown> | undefined;
 }
 
-declare module "virtual:emdash/workers-cache" {
-	/**
-	 * Native Workers Caching API (`cache.purge`). Resolves to Cloudflare's
-	 * `cache` export under @astrojs/cloudflare when available; `undefined`
-	 * on Node or older runtimes without Workers Caching.
-	 */
-	export const cache:
-		| {
-				purge(options: {
-					purgeEverything?: boolean;
-					tags?: string[];
-					pathPrefixes?: string[];
-				}): Promise<{ success: boolean; errors: { code?: number; message: string }[] }>;
-		  }
-		| undefined;
-}
-
 declare module "virtual:emdash/scheduler" {
 	import type { CreateSchedulerFn } from "./emdash-runtime.js";
 	/**

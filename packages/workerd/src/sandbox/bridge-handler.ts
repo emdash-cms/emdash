@@ -14,15 +14,7 @@
  * must produce same outputs, same return shapes, same error messages.
  */
 
-import {
-	createHttpAccess,
-	createUnrestrictedHttpAccess,
-	handleObjectCachePurge,
-	handleObjectCacheStatus,
-	handleWorkersCachePurge,
-	handleWorkersCacheStatus,
-	PluginStorageRepository,
-} from "emdash";
+import { createHttpAccess, createUnrestrictedHttpAccess, PluginStorageRepository } from "emdash";
 import type { Database, SandboxEmailSendCallback } from "emdash";
 import { sql, type Kysely, type RawBuilder } from "kysely";
 
@@ -262,50 +254,6 @@ async function dispatch(
 			if (!emailSend) throw new Error("Email is not configured. No email provider is available.");
 			await emailSend(message, pluginId);
 			return null;
-		}
-
-		// ── Cache purge ─────────────────────────────────────────────────
-		case "cache/getObjectCacheStatus": {
-			requireCapability(opts, "cache:purge");
-			const status = await handleObjectCacheStatus();
-			if (!status.success) {
-				throw new Error(status.error.message);
-			}
-			return status.data;
-		}
-		case "cache/purgeObjectCache": {
-			requireCapability(opts, "cache:purge");
-			const namespaces = body.namespaces;
-			const result = await handleObjectCachePurge(db, {
-				namespaces: Array.isArray(namespaces)
-					? namespaces.filter((n): n is string => typeof n === "string")
-					: undefined,
-			});
-			if (!result.success) {
-				throw new Error(result.error.message);
-			}
-			return result.data;
-		}
-		case "cache/getWorkersCacheStatus": {
-			requireCapability(opts, "cache:purge");
-			const status = await handleWorkersCacheStatus();
-			if (!status.success) {
-				throw new Error(status.error.message);
-			}
-			return status.data;
-		}
-		case "cache/purgeWorkersCache": {
-			requireCapability(opts, "cache:purge");
-			const pathPrefixes = body.pathPrefixes;
-			const result = await handleWorkersCachePurge({
-				pathPrefixes: Array.isArray(pathPrefixes)
-					? pathPrefixes.filter((p): p is string => typeof p === "string")
-					: undefined,
-			});
-			if (!result.success) {
-				throw new Error(result.error.message);
-			}
-			return result.data;
 		}
 
 		// ── Users ───────────────────────────────────────────────────────

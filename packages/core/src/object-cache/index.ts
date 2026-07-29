@@ -463,15 +463,10 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 	return value;
 }
 
-/** Whether an object-cache backend is configured for this site. */
-export async function isObjectCacheConfigured(): Promise<boolean> {
-	const backend = await getBackend();
-	return backend !== null;
-}
-
 /** Whether object-cache reads are active for the current request. */
 export async function isObjectCacheActive(): Promise<boolean> {
-	return (await isObjectCacheConfigured()) && !shouldBypass();
+	const backend = await getBackend();
+	return backend !== null && !shouldBypass();
 }
 
 /**

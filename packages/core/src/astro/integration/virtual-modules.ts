@@ -72,9 +72,6 @@ export const RESOLVED_VIRTUAL_SCHEDULER_ID = "\0" + VIRTUAL_SCHEDULER_ID;
 export const VIRTUAL_ENV_ID = "virtual:emdash/env";
 export const RESOLVED_VIRTUAL_ENV_ID = "\0" + VIRTUAL_ENV_ID;
 
-export const VIRTUAL_WORKERS_CACHE_ID = "virtual:emdash/workers-cache";
-export const RESOLVED_VIRTUAL_WORKERS_CACHE_ID = "\0" + VIRTUAL_WORKERS_CACHE_ID;
-
 /**
  * Generates the config virtual module.
  */
@@ -498,21 +495,6 @@ export function generateEnvModule(adapterName: string | undefined): string {
 		return `export { env } from "cloudflare:workers";`;
 	}
 	return `export const env = undefined;`;
-}
-
-/**
- * Generates the workers-cache virtual module.
- *
- * Under @astrojs/cloudflare, re-exports `cache` from `cloudflare:workers` so
- * admin/plugin purge can call `cache.purge()` without a direct
- * `cloudflare:workers` import in core (which fails under Node and can fail
- * under Vite dynamic import). Other adapters get `undefined`.
- */
-export function generateWorkersCacheModule(adapterName: string | undefined): string {
-	if (adapterName === "@astrojs/cloudflare") {
-		return `export { cache } from "cloudflare:workers";`;
-	}
-	return `export const cache = undefined;`;
 }
 
 /**

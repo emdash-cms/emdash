@@ -48,13 +48,10 @@ import {
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
 	VIRTUAL_ENV_ID,
 	RESOLVED_VIRTUAL_ENV_ID,
-	VIRTUAL_WORKERS_CACHE_ID,
-	RESOLVED_VIRTUAL_WORKERS_CACHE_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
 	generateEnvModule,
-	generateWorkersCacheModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
@@ -236,9 +233,6 @@ export function createVirtualModulesPlugin(
 			if (id === VIRTUAL_ENV_ID) {
 				return RESOLVED_VIRTUAL_ENV_ID;
 			}
-			if (id === VIRTUAL_WORKERS_CACHE_ID) {
-				return RESOLVED_VIRTUAL_WORKERS_CACHE_ID;
-			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -338,11 +332,6 @@ export function createVirtualModulesPlugin(
 			// the Cloudflare adapter, undefined otherwise (#1736).
 			if (id === RESOLVED_VIRTUAL_ENV_ID) {
 				return generateEnvModule(astroConfig.adapter?.name);
-			}
-			// Generate workers-cache module — re-exports cloudflare:workers'
-			// cache under the Cloudflare adapter for native cache.purge().
-			if (id === RESOLVED_VIRTUAL_WORKERS_CACHE_ID) {
-				return generateWorkersCacheModule(astroConfig.adapter?.name);
 			}
 		},
 	};

@@ -176,18 +176,6 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 					message: `Field 'style' must be one of: ${[...BUTTON_STYLES].join(", ")}`,
 				});
 			}
-			if (value.disabled !== undefined && typeof value.disabled !== "boolean") {
-				errors.push({
-					path: `${path}.disabled`,
-					message: "Field 'disabled' must be a boolean",
-				});
-			}
-			if (value.title !== undefined && typeof value.title !== "string") {
-				errors.push({
-					path: `${path}.title`,
-					message: "Field 'title' must be a string",
-				});
-			}
 			if (value.confirm !== undefined) {
 				validateConfirmDialog(value.confirm, `${path}.confirm`, errors);
 			}
