@@ -74,6 +74,11 @@ export interface SeedCollection {
 	icon?: string;
 	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
 	urlPattern?: string;
+	/**
+	 * Omit this collection from the admin sidebar. It stays reachable through
+	 * the API, MCP, plugin hooks, and direct `/content/:collection` URLs.
+	 */
+	hidden?: boolean;
 	/** Enable comments on this collection */
 	commentsEnabled?: boolean;
 	fields: SeedField[];

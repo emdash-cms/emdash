@@ -36,6 +36,8 @@ export interface SchemaCollection {
 	source?: string;
 	urlPattern?: string;
 	hasSeo: boolean;
+	/** Sidebar entry omitted in the admin; the collection stays reachable by URL */
+	hidden: boolean;
 	commentsEnabled: boolean;
 	commentsModeration: "all" | "first_time" | "none";
 	commentsClosedAfterDays: number;
@@ -83,6 +85,7 @@ export interface CreateCollectionInput {
 	supports?: string[];
 	urlPattern?: string;
 	hasSeo?: boolean;
+	hidden?: boolean;
 }
 
 export interface UpdateCollectionInput {
@@ -93,6 +96,7 @@ export interface UpdateCollectionInput {
 	supports?: string[];
 	urlPattern?: string;
 	hasSeo?: boolean;
+	hidden?: boolean;
 	commentsEnabled?: boolean;
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;

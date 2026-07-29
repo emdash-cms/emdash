@@ -256,6 +256,7 @@ export class SchemaRegistry {
 					supports: JSON.stringify(supports),
 					source: input.source ?? "manual",
 					has_seo: hasSeo ? 1 : 0,
+					hidden: input.hidden ? 1 : 0,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
 					url_pattern: input.urlPattern ?? null,
 				})
@@ -354,6 +355,7 @@ export class SchemaRegistry {
 						supports: JSON.stringify(supports),
 						source: "seed",
 						has_seo: hasSeo ? 1 : 0,
+						hidden: input.hidden ? 1 : 0,
 						comments_enabled: input.commentsEnabled ? 1 : 0,
 						url_pattern: input.urlPattern ?? null,
 					})
@@ -416,6 +418,7 @@ export class SchemaRegistry {
 							? (input.urlPattern ?? null)
 							: (existing.urlPattern ?? null),
 					has_seo: hasSeo ? 1 : 0,
+					hidden: input.hidden !== undefined ? (input.hidden ? 1 : 0) : existing.hidden ? 1 : 0,
 					comments_enabled:
 						input.commentsEnabled !== undefined
 							? input.commentsEnabled
@@ -1228,6 +1231,7 @@ export class SchemaRegistry {
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,
 			urlPattern: row.url_pattern ?? undefined,
+			hidden: row.hidden === 1,
 			commentsEnabled: row.comments_enabled === 1,
 			commentsModeration:
 				moderation === "all" || moderation === "first_time" || moderation === "none"

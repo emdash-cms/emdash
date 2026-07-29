@@ -128,6 +128,44 @@ describe("SchemaRegistry", () => {
 			expect(updated.supports).toEqual(["drafts"]);
 		});
 
+		it("collections are visible in the sidebar by default", async () => {
+			const collection = await registry.createCollection({ slug: "posts", label: "Posts" });
+
+			expect(collection.hidden).toBe(false);
+		});
+
+		it("creates a collection hidden from the sidebar", async () => {
+			const collection = await registry.createCollection({
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				hidden: true,
+			});
+
+			expect(collection.hidden).toBe(true);
+			// A hidden collection is only hidden from the sidebar — it must still
+			// be listed by the registry so its routes, editor, API, and MCP tools
+			// keep resolving.
+			const listed = await registry.listCollections();
+			expect(listed.map((c) => c.slug)).toContain("contact_submissions");
+			expect(await registry.getCollection("contact_submissions")).not.toBeNull();
+		});
+
+		it("toggles hidden on an existing collection", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+
+			expect((await registry.updateCollection("posts", { hidden: true })).hidden).toBe(true);
+			expect((await registry.updateCollection("posts", { hidden: false })).hidden).toBe(false);
+		});
+
+		it("preserves hidden when an update omits it", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts", hidden: true });
+
+			const updated = await registry.updateCollection("posts", { label: "Blog Posts" });
+
+			expect(updated.label).toBe("Blog Posts");
+			expect(updated.hidden).toBe(true);
+		});
+
 		it("should throw when updating non-existent collection", async () => {
 			await expect(registry.updateCollection("nonexistent", { label: "Test" })).rejects.toThrow(
 				SchemaError,

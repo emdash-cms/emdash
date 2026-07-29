@@ -316,6 +316,7 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 			icon: collection.icon || undefined,
 			supports: collection.supports.length > 0 ? collection.supports : undefined,
 			urlPattern: collection.urlPattern || undefined,
+			hidden: collection.hidden || undefined,
 			fields: fields.map(
 				(field): SeedField => ({
 					slug: field.slug,
