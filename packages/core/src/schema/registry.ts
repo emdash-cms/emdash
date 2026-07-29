@@ -74,19 +74,15 @@ const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport
 const SEED_FIELD_INSERT_BATCH_SIZE = 6;
 
 /**
- * Sentinel used to sort collections without an explicit `sort_order` after
- * the ordered ones. SQLite sorts NULL first on ASC while Postgres sorts it
- * last, so the fallback is materialised with COALESCE instead of relying on
- * either dialect's NULL ordering. Matches SQLite's max signed 32-bit
- * INTEGER-literal comfort zone and is far above any hand-assigned position.
+ * Rank given to collections without an explicit `sort_order`. SQLite sorts
+ * NULL first on ASC while Postgres sorts it last, so the fallback is
+ * materialised with COALESCE rather than left to the dialect.
  */
 const UNORDERED_COLLECTION_RANK = 2147483647;
 
 /**
  * Collection ordering shared by every list read: explicit `sort_order`
- * first (ascending), then alphabetically by slug — which is both the
- * tie-break within one position and the complete order for a site that
- * has never reordered anything.
+ * first (ascending), then alphabetically by slug.
  */
 const collectionOrder = sql<number>`coalesce(sort_order, ${sql.lit(UNORDERED_COLLECTION_RANK)})`;
 
@@ -904,12 +900,8 @@ export class SchemaRegistry {
 	 *
 	 * `slugs` is the full desired order: every listed collection gets its
 	 * index as `sort_order`, and any collection left out has its explicit
-	 * position cleared, dropping it back to the alphabetical tail. That keeps
-	 * the stored state a faithful picture of what the admin renders rather
-	 * than a sparse set of positions the UI would have to reconcile.
-	 *
-	 * Unknown slugs are rejected up front so a stale client can't silently
-	 * reorder half the sidebar.
+	 * position cleared, dropping it back to the alphabetical tail. Unknown or
+	 * duplicate slugs throw before anything is written.
 	 */
 	async reorderCollections(slugs: string[]): Promise<void> {
 		const known = new Set((await this.listCollections()).map((collection) => collection.slug));

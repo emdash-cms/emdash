@@ -95,7 +95,7 @@ describe("SchemaRegistry", () => {
 			expect(collections.map((c) => c.slug)).toEqual(["pages", "posts"]); // sorted
 		});
 
-		describe("#474: sidebar sort order", () => {
+		describe("sidebar sort order", () => {
 			it("has no explicit order by default", async () => {
 				const collection = await registry.createCollection({ slug: "posts", label: "Posts" });
 

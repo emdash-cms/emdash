@@ -36,8 +36,8 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /**
- * Apply a drag-and-drop move to the collection order. Pure and exported so
- * tests can pin the reordering contract without driving a pointer.
+ * Apply a drag-and-drop move to the collection order. Returns the input array
+ * unchanged when the move is a no-op.
  */
 export function moveCollection(slugs: string[], activeSlug: string, overSlug: string): string[] {
 	const from = slugs.indexOf(activeSlug);

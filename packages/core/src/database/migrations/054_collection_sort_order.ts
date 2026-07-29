@@ -5,12 +5,9 @@ import { columnExists } from "../dialect-helpers.js";
 /**
  * Migration: explicit collection order in the admin sidebar.
  *
- * Adds `sort_order` to `_emdash_collections`. The column is nullable on
- * purpose: NULL means "no explicit position", and those collections keep
- * falling back to the alphabetical-by-slug order the sidebar has always
- * used. Reads sort explicitly-ordered collections first (see
- * `COLLECTION_ORDER_SQL` in the schema registry), so existing sites are
- * untouched until someone reorders.
+ * Adds `sort_order` to `_emdash_collections`. A NULL `sort_order` means no
+ * explicit position: those collections sort after the ordered ones, keeping
+ * the alphabetical-by-slug order.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
 	if (!(await columnExists(db, "_emdash_collections", "sort_order"))) {

@@ -341,10 +341,8 @@ export const RESERVED_COLLECTION_SLUGS = [
 	"taxonomies",
 	"options",
 	"audit_logs",
-	// Shadowed by the static POST /schema/collections/reorder route — a
-	// collection with this slug could never be addressed at
-	// /schema/collections/reorder. Reserved at the data layer as defence in
-	// depth, mirroring RESERVED_BYLINE_FIELD_SLUGS.
+	// Shadowed by the static POST /schema/collections/reorder route: a
+	// collection with this slug could never be addressed at its own URL.
 	"reorder",
 ];
 

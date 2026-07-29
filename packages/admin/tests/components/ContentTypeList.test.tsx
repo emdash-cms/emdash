@@ -223,7 +223,7 @@ describe("ContentTypeList", () => {
 		});
 	});
 
-	describe("#474: reordering", () => {
+	describe("reordering", () => {
 		const twoCollections = [
 			makeCollection({ id: "1", slug: "posts", label: "Posts" }),
 			makeCollection({ id: "2", slug: "pages", label: "Pages" }),
@@ -269,7 +269,7 @@ describe("ContentTypeList", () => {
 		});
 	});
 
-	describe("#474: moveCollection", () => {
+	describe("moveCollection", () => {
 		it("moves an item down to the drop target index", () => {
 			expect(moveCollection(["a", "b", "c"], "a", "c")).toEqual(["b", "c", "a"]);
 		});

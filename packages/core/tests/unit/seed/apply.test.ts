@@ -163,7 +163,7 @@ describe("applySeed", () => {
 			expect(row.rows[0]?.title).toBe("Untitled");
 		});
 
-		it("#474: applies sortOrder from the seed and orders the list by it", async () => {
+		it("applies sortOrder from the seed and orders the list by it", async () => {
 			const seed: SeedFile = {
 				version: "1",
 				collections: [
