@@ -110,6 +110,82 @@ describe("selectBindingName", () => {
 			),
 		).toBe("HYPERDRIVE");
 	});
+
+	it("uses the primary binding for anonymous public reads soon after a content write", () => {
+		const name = selectBindingName(cfg, {
+			isAuthenticated: false,
+			isWrite: false,
+			url: publicUrl,
+			lastContentWriteAt: Date.now() - 1_000,
+		});
+		expect(name).toBe("HYPERDRIVE");
+	});
+
+	it("uses the cached binding once the prefer-uncached window has elapsed", () => {
+		const name = selectBindingName(cfg, {
+			isAuthenticated: false,
+			isWrite: false,
+			url: publicUrl,
+			lastContentWriteAt: Date.now() - 61_000,
+		});
+		expect(name).toBe("HYPERDRIVE_CACHED");
+	});
+
+	it("uses the cached binding when lastContentWriteAt is zero or missing", () => {
+		expect(
+			selectBindingName(cfg, {
+				isAuthenticated: false,
+				isWrite: false,
+				url: publicUrl,
+				lastContentWriteAt: 0,
+			}),
+		).toBe("HYPERDRIVE_CACHED");
+		expect(
+			selectBindingName(cfg, {
+				isAuthenticated: false,
+				isWrite: false,
+				url: publicUrl,
+			}),
+		).toBe("HYPERDRIVE_CACHED");
+	});
+
+	it("respects a custom preferUncachedAfterWriteMs", () => {
+		const custom = {
+			binding: "HYPERDRIVE",
+			cachedBinding: "HYPERDRIVE_CACHED",
+			preferUncachedAfterWriteMs: 5_000,
+		};
+		expect(
+			selectBindingName(custom, {
+				isAuthenticated: false,
+				isWrite: false,
+				url: publicUrl,
+				lastContentWriteAt: Date.now() - 2_000,
+			}),
+		).toBe("HYPERDRIVE");
+		expect(
+			selectBindingName(custom, {
+				isAuthenticated: false,
+				isWrite: false,
+				url: publicUrl,
+				lastContentWriteAt: Date.now() - 6_000,
+			}),
+		).toBe("HYPERDRIVE_CACHED");
+	});
+
+	it("ignores lastContentWriteAt when no cachedBinding is set", () => {
+		expect(
+			selectBindingName(
+				{ binding: "HYPERDRIVE" },
+				{
+					isAuthenticated: false,
+					isWrite: false,
+					url: publicUrl,
+					lastContentWriteAt: Date.now(),
+				},
+			),
+		).toBe("HYPERDRIVE");
+	});
 });
 
 describe("createRequestScopedDb binding routing", () => {
@@ -125,6 +201,19 @@ describe("createRequestScopedDb binding routing", () => {
 		expect(scoped).not.toBeNull();
 		expect(poolCalls).toHaveLength(1);
 		expect(poolCalls[0]!.connectionString).toBe("postgres://replica/cached");
+	});
+
+	it("builds the pool from the primary binding when lastContentWriteAt is recent", () => {
+		poolCalls.length = 0;
+		createRequestScopedDb({
+			config: { binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" },
+			isAuthenticated: false,
+			isWrite: false,
+			cookies,
+			url,
+			lastContentWriteAt: Date.now() - 500,
+		});
+		expect(poolCalls[0]!.connectionString).toBe("postgres://primary/uncached");
 	});
 
 	it("builds the pool from the primary binding for authenticated reads", () => {
