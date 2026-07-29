@@ -39,8 +39,7 @@ export interface WrapperOptions {
 export function generatePluginWrapper(manifest: PluginManifest, options: WrapperOptions): string {
 	const site = options.site ?? { name: "", url: "", locale: "en" };
 	const hasReadUsers =
-		manifest.capabilities.includes("read:users") ||
-		manifest.capabilities.includes("users:read");
+		manifest.capabilities.includes("read:users") || manifest.capabilities.includes("users:read");
 	const hasEmailSend = manifest.capabilities.includes("email:send");
 	const hasCachePurge = manifest.capabilities.includes("cache:purge");
 
