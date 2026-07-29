@@ -39,8 +39,11 @@ export interface WorkersCachePurgeApi {
 		purgeEverything?: boolean;
 		tags?: string[];
 		pathPrefixes?: string[];
-	}): Promise<{ success?: boolean; errors?: { message?: string }[] } | unknown>;
+	}): Promise<unknown>;
 }
+
+/** Matches an absolute URL scheme prefix (e.g. `https://`). */
+const ABSOLUTE_URL_RE = /^[a-zA-Z][a-zA-Z+\-.]*:\/\//;
 
 /**
  * Normalize a user-supplied path or full URL into a Workers Caching path prefix.
@@ -55,7 +58,7 @@ export function normalizeWorkersCachePathPrefix(
 	}
 
 	let path: string;
-	if (/^[a-zA-Z][a-zA-Z+\-.]*:\/\//.test(trimmed)) {
+	if (ABSOLUTE_URL_RE.test(trimmed)) {
 		try {
 			const url = new URL(trimmed);
 			path = url.pathname || "/";

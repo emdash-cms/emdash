@@ -27,8 +27,8 @@ vi.mock("@cloudflare/kumo", () => ({
 		</button>
 	),
 	TooltipProvider: ({ children }: any) => <>{children}</>,
-	Tooltip: ({ content, children, render }: any) => {
-		const trigger = render ?? <span />;
+	Tooltip: ({ content, children, render: triggerRender }: any) => {
+		const trigger = triggerRender ?? <span />;
 		return (
 			<div data-testid="tooltip" data-content={content}>
 				{React.isValidElement(trigger)

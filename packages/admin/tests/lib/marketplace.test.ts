@@ -312,6 +312,7 @@ describe("CAPABILITY_LABELS", () => {
 			"media:read",
 			"media:write",
 			"users:read",
+			"cache:purge",
 			"network:request",
 			"network:request:unrestricted",
 			// Legacy aliases
