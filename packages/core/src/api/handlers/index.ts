@@ -159,6 +159,18 @@ export {
 // Settings handlers
 export { handleSettingsGet, handleSettingsUpdate } from "./settings.js";
 
+// Object-cache purge
+export {
+	FIXED_OBJECT_CACHE_NAMESPACES,
+	handleObjectCachePurge,
+	handleObjectCacheStatus,
+	resolveObjectCacheNamespaces,
+	type FixedObjectCacheNamespace,
+	type ObjectCachePurgeInput,
+	type ObjectCachePurgeResult,
+	type ObjectCacheStatus,
+} from "./object-cache.js";
+
 // Taxonomy handlers
 export {
 	handleTaxonomyList,

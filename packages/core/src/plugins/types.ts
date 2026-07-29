@@ -510,6 +510,32 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** Email access - only if email:send capability and a provider is configured */
 	email?: EmailAccess;
+
+	/**
+	 * Object-cache purge — only if `cache:purge` capability is declared.
+	 * Bumps epochs for CMS read caches (KV / memory). No-ops when no
+	 * object cache is configured on the site.
+	 */
+	cache?: CacheAccess;
+}
+
+/**
+ * Plugin access to CMS object-cache invalidation.
+ */
+export interface CacheAccess {
+	/** Whether an object-cache backend is configured for this site. */
+	getObjectCacheStatus(): Promise<{ configured: boolean }>;
+
+	/**
+	 * Purge object-cache namespaces.
+	 * Omit `namespaces` (or pass `["*"]`) to purge every known namespace.
+	 */
+	purgeObjectCache(options?: { namespaces?: string[] }): Promise<{
+		configured: boolean;
+		/** @deprecated Use {@link configured}. */
+		active: boolean;
+		purged: string[];
+	}>;
 }
 
 // =============================================================================

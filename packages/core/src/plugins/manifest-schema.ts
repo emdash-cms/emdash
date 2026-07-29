@@ -32,6 +32,7 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"media:read",
 	"media:write",
 	"users:read",
+	"cache:purge",
 	"email:send",
 	"hooks.email-transport:register",
 	"hooks.email-events:register",

@@ -15,11 +15,28 @@ const CollapsibleContext = React.createContext<{
 }>({});
 
 vi.mock("@cloudflare/kumo", () => ({
-	Button: ({ children, onClick, variant, type }: any) => (
-		<button onClick={onClick} data-variant={variant} type={type || "button"}>
+	Button: ({ children, onClick, variant, type, disabled, title }: any) => (
+		<button
+			onClick={onClick}
+			data-variant={variant}
+			type={type || "button"}
+			disabled={disabled}
+			title={typeof title === "string" ? title : undefined}
+		>
 			{children}
 		</button>
 	),
+	TooltipProvider: ({ children }: any) => <>{children}</>,
+	Tooltip: ({ content, children, render }: any) => {
+		const trigger = render ?? <span />;
+		return (
+			<div data-testid="tooltip" data-content={content}>
+				{React.isValidElement(trigger)
+					? React.cloneElement(trigger as React.ReactElement<any>, {}, children)
+					: children}
+			</div>
+		);
+	},
 	Badge: ({ children }: any) => <span data-testid="badge">{children}</span>,
 	Input: ({ label, value, defaultValue, onChange, onBlur, placeholder, type, min, max }: any) => (
 		<div>
@@ -391,6 +408,34 @@ describe("BlockRenderer", () => {
 		]);
 		expect(screen.getByText("Save")).toBeTruthy();
 		expect(screen.getByText("Cancel")).toBeTruthy();
+	});
+
+	it("disabled button with title wraps a tooltip and does not fire actions", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "button",
+							action_id: "clear",
+							label: "Clear object cache",
+							disabled: true,
+							title: "Object Cache Not Configured",
+						},
+					],
+				},
+			],
+			onAction,
+		);
+		const btn = screen.getByText("Clear object cache") as HTMLButtonElement;
+		expect(btn.disabled).toBe(true);
+		expect(screen.getByTestId("tooltip").getAttribute("data-content")).toBe(
+			"Object Cache Not Configured",
+		);
+		fireEvent.click(btn);
+		expect(onAction).not.toHaveBeenCalled();
 	});
 
 	it("stats block renders stat cards with values", () => {

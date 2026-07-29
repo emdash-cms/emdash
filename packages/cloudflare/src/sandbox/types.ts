@@ -212,6 +212,11 @@ export interface PluginBridgeBinding {
 	): Promise<{ status: number; headers: Record<string, string>; text: string }>;
 	// Email
 	emailSend(message: { to: string; subject: string; text: string; html?: string }): Promise<void>;
+	// Object cache (gated on cache:purge)
+	getObjectCacheStatus(): Promise<{ configured: boolean }>;
+	purgeObjectCache(options?: {
+		namespaces?: string[];
+	}): Promise<{ configured: boolean; active: boolean; purged: string[] }>;
 	// Logging
 	log(level: "debug" | "info" | "warn" | "error", msg: string, data?: unknown): void;
 }

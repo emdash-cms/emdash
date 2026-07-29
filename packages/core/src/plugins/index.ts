@@ -36,6 +36,7 @@ export {
 	createBlockedHttpAccess,
 	createLogAccess,
 	createUserAccess,
+	createCacheAccess,
 	createUrlHelper,
 	createSiteInfo,
 } from "./context.js";
@@ -139,6 +140,9 @@ export type {
 	MediaAfterUploadEvent,
 	LifecycleEvent,
 	UninstallEvent,
+
+	// Cache types
+	CacheAccess,
 
 	// Email types
 	EmailAccess,
