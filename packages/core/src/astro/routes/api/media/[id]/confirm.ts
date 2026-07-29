@@ -184,14 +184,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			}
 		}
 
-		// For images, read the just-uploaded bytes back from storage once to
-		// generate LQIP placeholders (and server-side dimensions as a fallback).
-		// The signed-URL flow uploads directly to storage, so this confirm is the
-		// only point at which the server sees the bytes. Best-effort: a decode
-		// failure must not block the upload from being marked ready. We also cap
-		// the download size — buffering a large original into a Worker heap to
-		// compute a 32px blurhash would OOM on the uploads the signed-URL path
-		// exists to support, so oversized files skip the server-side placeholder.
+		// LQIP is best-effort; oversized images skip server-side placeholders.
 		let blurhash: string | undefined;
 		let dominantColor: string | undefined;
 		let width = body.width;

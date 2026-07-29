@@ -13,10 +13,6 @@ import {
 	type FindManyResult,
 } from "./client.js";
 
-/**
- * Maximum length of the media filename search term. Mirrors the server-side
- * zod schema (`q: z.string().trim().min(1).max(200)`); keep in sync.
- */
 export const MEDIA_SEARCH_MAX_LENGTH = 200;
 
 /** Trim and clamp a search term to the server-accepted range. */
