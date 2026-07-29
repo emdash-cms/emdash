@@ -196,4 +196,83 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 		expect(row?.blurhash).toBeNull();
 		expect(row?.dominantColor).toBeNull();
 	});
+
+	it("reports invalid state when another request resolves the pending upload first", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "document.pdf",
+			mimeType: "application/pdf",
+			size: 3,
+			storageKey: "document.pdf",
+			authorId: "user-1",
+		});
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage: {
+					async exists() {
+						return true;
+					},
+					async download() {
+						await db
+							.updateTable("media")
+							.set({ status: "failed" })
+							.where("id", "=", pending.id)
+							.execute();
+						return {
+							body: new Response(new Uint8Array([1, 2, 3])).body as ReadableStream<Uint8Array>,
+							contentType: "application/pdf",
+							size: 3,
+						};
+					},
+				},
+				body: { size: 3 },
+			}),
+		);
+
+		expect(res.status).toBe(400);
+		await expect(res.json()).resolves.toMatchObject({
+			error: { code: "INVALID_STATE" },
+		});
+		expect(await repo.findById(pending.id)).toMatchObject({ status: "failed" });
+	});
+
+	it("reports not found when pending cleanup deletes the row first", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "document.pdf",
+			mimeType: "application/pdf",
+			size: 3,
+			storageKey: "document.pdf",
+			authorId: "user-1",
+		});
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage: {
+					async exists() {
+						return true;
+					},
+					async download() {
+						await db.deleteFrom("media").where("id", "=", pending.id).execute();
+						return {
+							body: new Response(new Uint8Array([1, 2, 3])).body as ReadableStream<Uint8Array>,
+							contentType: "application/pdf",
+							size: 3,
+						};
+					},
+				},
+				body: { size: 3 },
+			}),
+		);
+
+		expect(res.status).toBe(404);
+		await expect(res.json()).resolves.toMatchObject({
+			error: { code: "NOT_FOUND" },
+		});
+	});
 });

@@ -179,6 +179,13 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		});
 
 		if (!item) {
+			const current = await repo.findById(id);
+			if (!current) {
+				return apiError("NOT_FOUND", `Media item not found: ${id}`, 404);
+			}
+			if (current.status !== "pending") {
+				return apiError("INVALID_STATE", `Media item is not pending: ${current.status}`, 400);
+			}
 			return apiError("CONFIRM_FAILED", "Failed to confirm upload", 500);
 		}
 

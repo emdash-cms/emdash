@@ -256,11 +256,6 @@ export class MediaRepository {
 			dominantColor?: string;
 		},
 	): Promise<MediaItem | null> {
-		const existing = await this.findById(id);
-		if (!existing) {
-			return null;
-		}
-
 		const updates: Partial<MediaRow> = {
 			status: "ready",
 		};
@@ -270,9 +265,15 @@ export class MediaRepository {
 		if (metadata?.blurhash !== undefined) updates.blurhash = metadata.blurhash;
 		if (metadata?.dominantColor !== undefined) updates.dominant_color = metadata.dominantColor;
 
-		await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
+		const row = await this.db
+			.updateTable("media")
+			.set(updates)
+			.where("id", "=", id)
+			.where("status", "=", "pending")
+			.returningAll()
+			.executeTakeFirst();
 
-		return this.findById(id);
+		return row ? this.rowToItem(row) : null;
 	}
 
 	/**
@@ -471,21 +472,11 @@ export class MediaRepository {
 	async cleanupPendingUploads(maxAgeMs: number = 60 * 60 * 1000): Promise<string[]> {
 		const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
 
-		// Select the storage keys first -- SQLite doesn't support RETURNING
-		// on DELETE in all drivers, and Kysely's RETURNING isn't universal.
 		const rows = await this.db
-			.selectFrom("media")
-			.select("storage_key")
-			.where("status", "=", "pending")
-			.where("created_at", "<", cutoff)
-			.execute();
-
-		if (rows.length === 0) return [];
-
-		await this.db
 			.deleteFrom("media")
 			.where("status", "=", "pending")
 			.where("created_at", "<", cutoff)
+			.returning("storage_key")
 			.execute();
 
 		return rows.map((r) => r.storage_key);

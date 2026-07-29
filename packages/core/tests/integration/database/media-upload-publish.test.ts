@@ -56,4 +56,56 @@ describeEachDialect("pending media upload publication", (dialect) => {
 
 		expect(await repo.findUploadAttemptsForCleanup()).not.toContain("fresh-attempt.png");
 	});
+
+	it("returns only storage keys deleted by pending cleanup", async () => {
+		const expired = await repo.createPending({
+			filename: "expired.png",
+			mimeType: "image/png",
+			storageKey: "expired.png",
+		});
+		const ready = await repo.create({
+			filename: "ready.png",
+			mimeType: "image/png",
+			storageKey: "ready.png",
+			status: "ready",
+		});
+		await ctx.db
+			.updateTable("media")
+			.set({ created_at: new Date(0).toISOString() })
+			.where("id", "in", [expired.id, ready.id])
+			.execute();
+
+		expect(await repo.cleanupPendingUploads()).toEqual([expired.storageKey]);
+		expect(await repo.findById(expired.id)).toBeNull();
+		expect(await repo.findById(ready.id)).toMatchObject({ status: "ready" });
+	});
+
+	it("keeps cleanup and confirmation outcomes consistent under concurrency", async () => {
+		for (let i = 0; i < 10; i++) {
+			const pending = await repo.createPending({
+				filename: `race-${i}.png`,
+				mimeType: "image/png",
+				storageKey: `race-${i}.png`,
+			});
+			await ctx.db
+				.updateTable("media")
+				.set({ created_at: new Date(0).toISOString() })
+				.where("id", "=", pending.id)
+				.execute();
+
+			const [confirmed, deletedKeys] = await Promise.all([
+				repo.confirmUpload(pending.id),
+				repo.cleanupPendingUploads(),
+			]);
+			const stored = await repo.findById(pending.id);
+
+			if (confirmed) {
+				expect(stored).toMatchObject({ status: "ready" });
+				expect(deletedKeys).not.toContain(pending.storageKey);
+			} else {
+				expect(stored).toBeNull();
+				expect(deletedKeys).toContain(pending.storageKey);
+			}
+		}
+	});
 });

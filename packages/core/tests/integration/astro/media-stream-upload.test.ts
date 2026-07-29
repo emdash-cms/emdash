@@ -1,5 +1,5 @@
 import type { APIContext } from "astro";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleMediaDelete, handleMediaGet } from "../../../src/api/handlers/media.js";
@@ -449,6 +449,42 @@ describe("streamed media upload fallback", () => {
 		expect(storage.objects.size).toBe(1);
 		const published = await repo.findById(pending.id);
 		expect(storage.objects.has(published!.storageKey)).toBe(true);
+	});
+
+	it("preserves an object confirmed at the pending-cleanup delete boundary", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "expired.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "expired.png",
+			authorId: "user-1",
+		});
+		await db
+			.updateTable("media")
+			.set({ created_at: new Date(0).toISOString() })
+			.where("id", "=", pending.id)
+			.execute();
+
+		const storage = streamingStorage();
+		storage.objects.set(pending.storageKey, new Uint8Array([1, 2, 3]));
+
+		await sql`
+			CREATE TRIGGER confirm_during_pending_cleanup
+			BEFORE DELETE ON media
+			WHEN OLD.status = 'pending'
+			BEGIN
+				UPDATE media SET status = 'ready' WHERE id = OLD.id;
+				SELECT RAISE(IGNORE);
+			END
+		`.execute(db);
+
+		const result = await runSystemCleanup(db, storage);
+
+		expect(result.pendingUploads).toBe(0);
+		expect(result.pendingUploadFiles).toBe(0);
+		expect(await repo.findById(pending.id)).toMatchObject({ status: "ready" });
+		expect(storage.objects.has(pending.storageKey)).toBe(true);
 	});
 
 	it("does not strand the published object when deletion races an upload", async () => {
