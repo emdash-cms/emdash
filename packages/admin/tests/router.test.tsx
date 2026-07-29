@@ -219,12 +219,17 @@ describe("MediaPage – upload completion", () => {
 
 		const interceptedFetch = globalThis.fetch;
 		let rejectUploadUrl: ((reason: Error) => void) | undefined;
+		let markUploadUrlStarted: () => void = () => undefined;
+		const uploadUrlStarted = new Promise<void>((resolve) => {
+			markUploadUrlStarted = resolve;
+		});
 		globalThis.fetch = (input, init) => {
 			const url =
 				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 			if (url === "/_emdash/api/media/upload-url" && init?.method === "POST") {
 				return new Promise<Response>((_resolve, reject) => {
 					rejectUploadUrl = reject;
+					markUploadUrlStarted();
 				});
 			}
 			return interceptedFetch(input, init);
@@ -234,7 +239,9 @@ describe("MediaPage – upload completion", () => {
 			await screen.getByRole("button", { name: "Upload test file" }).click();
 			await expect.element(screen.getByText("uploading")).toBeInTheDocument();
 
-			rejectUploadUrl?.(new Error("connection closed"));
+			await uploadUrlStarted;
+			if (!rejectUploadUrl) throw new Error("Upload URL request was not intercepted");
+			rejectUploadUrl(new Error("connection closed"));
 			await expect.element(screen.getByText("error")).toBeInTheDocument();
 		} finally {
 			globalThis.fetch = interceptedFetch;
