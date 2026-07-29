@@ -30,6 +30,10 @@ describeEachDialect("pending media upload publication", (dialect) => {
 			size: 3,
 			storageKey: "pending.png",
 		});
+		await Promise.all([
+			repo.createUploadAttempt(pending.id, "attempt-a.png"),
+			repo.createUploadAttempt(pending.id, "attempt-b.png"),
+		]);
 
 		const results = await Promise.all([
 			repo.publishPendingStorageKey(pending.id, "pending.png", "attempt-a.png"),
@@ -39,5 +43,17 @@ describeEachDialect("pending media upload publication", (dialect) => {
 		expect(results).toContain(true);
 		expect(results).toContain(false);
 		expect((await repo.findById(pending.id))?.storageKey).toMatch(/^attempt-[ab]\.png$/);
+	});
+
+	it("does not claim a fresh active attempt for cleanup", async () => {
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "pending.png",
+		});
+		await repo.createUploadAttempt(pending.id, "fresh-attempt.png");
+
+		expect(await repo.findUploadAttemptsForCleanup()).not.toContain("fresh-attempt.png");
 	});
 });

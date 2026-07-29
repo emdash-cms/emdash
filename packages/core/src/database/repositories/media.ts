@@ -85,6 +85,9 @@ export interface FindManyMediaOptions {
 	q?: string;
 }
 
+const UPLOAD_ATTEMPT_CLEANUP_AGE_MS = 60 * 60 * 1000;
+const UPLOAD_ATTEMPT_CLEANUP_BATCH_SIZE = 100;
+
 /**
  * Media repository for database operations
  */
@@ -138,6 +141,82 @@ export class MediaRepository {
 		});
 	}
 
+	async createUploadAttempt(mediaId: string, storageKey: string): Promise<void> {
+		const now = new Date().toISOString();
+		await this.db
+			.insertInto("_emdash_media_upload_attempts")
+			.values({
+				media_id: mediaId,
+				storage_key: storageKey,
+				status: "active",
+				created_at: now,
+				updated_at: now,
+			})
+			.execute();
+	}
+
+	async hasUploadAttempt(storageKey: string): Promise<boolean> {
+		const row = await this.db
+			.selectFrom("_emdash_media_upload_attempts")
+			.select("storage_key")
+			.where("storage_key", "=", storageKey)
+			.executeTakeFirst();
+		return row !== undefined;
+	}
+
+	async claimUploadAttemptForCleanup(storageKey: string): Promise<boolean> {
+		const result = await this.db
+			.updateTable("_emdash_media_upload_attempts")
+			.set({ status: "cleanup", updated_at: new Date().toISOString() })
+			.where("storage_key", "=", storageKey)
+			.where((eb) =>
+				eb.not(
+					eb.exists(
+						eb
+							.selectFrom("media")
+							.select("media.id")
+							.whereRef("media.storage_key", "=", "_emdash_media_upload_attempts.storage_key"),
+					),
+				),
+			)
+			.executeTakeFirst();
+
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	async deleteUploadAttempt(storageKey: string): Promise<void> {
+		await this.db
+			.deleteFrom("_emdash_media_upload_attempts")
+			.where("storage_key", "=", storageKey)
+			.execute();
+	}
+
+	async findUploadAttemptsForCleanup(
+		maxAgeMs: number = UPLOAD_ATTEMPT_CLEANUP_AGE_MS,
+		limit: number = UPLOAD_ATTEMPT_CLEANUP_BATCH_SIZE,
+	): Promise<string[]> {
+		const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+		const rows = await this.db
+			.selectFrom("_emdash_media_upload_attempts")
+			.select("storage_key")
+			.where((eb) => eb.or([eb("status", "=", "cleanup"), eb("created_at", "<", cutoff)]))
+			.where((eb) =>
+				eb.not(
+					eb.exists(
+						eb
+							.selectFrom("media")
+							.select("media.id")
+							.whereRef("media.storage_key", "=", "_emdash_media_upload_attempts.storage_key"),
+					),
+				),
+			)
+			.orderBy("created_at", "asc")
+			.limit(limit)
+			.execute();
+
+		return rows.map((row) => row.storage_key);
+	}
+
 	async publishPendingStorageKey(
 		id: string,
 		expectedStorageKey: string,
@@ -149,6 +228,16 @@ export class MediaRepository {
 			.where("id", "=", id)
 			.where("status", "=", "pending")
 			.where("storage_key", "=", expectedStorageKey)
+			.where((eb) =>
+				eb.exists(
+					eb
+						.selectFrom("_emdash_media_upload_attempts")
+						.select("storage_key")
+						.where("media_id", "=", id)
+						.where("storage_key", "=", storageKey)
+						.where("status", "=", "active"),
+				),
+			)
 			.executeTakeFirst();
 
 		return Number(result.numUpdatedRows ?? 0) > 0;
@@ -335,10 +424,26 @@ export class MediaRepository {
 	/**
 	 * Delete media item
 	 */
-	async delete(id: string): Promise<boolean> {
-		const result = await this.db.deleteFrom("media").where("id", "=", id).executeTakeFirst();
+	async deleteWithStorageKey(id: string): Promise<string | null> {
+		while (true) {
+			const current = await this.db
+				.selectFrom("media")
+				.select("storage_key")
+				.where("id", "=", id)
+				.executeTakeFirst();
+			if (!current) return null;
 
-		return (result.numDeletedRows ?? 0) > 0;
+			const result = await this.db
+				.deleteFrom("media")
+				.where("id", "=", id)
+				.where("storage_key", "=", current.storage_key)
+				.executeTakeFirst();
+			if (Number(result.numDeletedRows ?? 0) > 0) return current.storage_key;
+		}
+	}
+
+	async delete(id: string): Promise<boolean> {
+		return (await this.deleteWithStorageKey(id)) !== null;
 	}
 
 	/**

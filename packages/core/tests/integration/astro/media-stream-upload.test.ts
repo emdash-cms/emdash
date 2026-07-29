@@ -2,8 +2,11 @@ import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { handleMediaDelete, handleMediaGet } from "../../../src/api/handlers/media.js";
+import { DELETE as deleteMedia } from "../../../src/astro/routes/api/media/[id].js";
 import { PUT as putUpload } from "../../../src/astro/routes/api/media/[id]/upload.js";
 import { POST as postUploadUrl } from "../../../src/astro/routes/api/media/upload-url.js";
+import { runSystemCleanup } from "../../../src/cleanup.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
 import { EmDashStorageError } from "../../../src/storage/types.js";
@@ -89,7 +92,9 @@ describe("streamed media upload fallback", () => {
 	});
 
 	afterEach(async () => {
+		vi.useRealTimers();
 		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
 		await teardownTestDatabase(db);
 	});
 
@@ -161,6 +166,53 @@ describe("streamed media upload fallback", () => {
 		expect(uploadedBody).toBeInstanceOf(ReadableStream);
 		const uploaded = await repo.findById(pending.id);
 		expect(uploaded).toMatchObject({ status: "pending" });
+		expect(storage.objects.get(uploaded!.storageKey)).toEqual(new Uint8Array([1, 2, 3]));
+	});
+
+	it("preserves the known body length for Worker storage bindings", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		const fixedLengths = new WeakMap<ReadableStream<Uint8Array>, number>();
+		class TestFixedLengthStream {
+			readonly readable: ReadableStream<Uint8Array>;
+			readonly writable: WritableStream<Uint8Array>;
+
+			constructor(expectedLength: number | bigint) {
+				const stream = new TransformStream<Uint8Array, Uint8Array>();
+				this.readable = stream.readable;
+				this.writable = stream.writable;
+				fixedLengths.set(this.readable, Number(expectedLength));
+			}
+		}
+		vi.stubGlobal("FixedLengthStream", TestFixedLengthStream);
+		storage.upload.mockImplementationOnce(async (options) => {
+			if (fixedLengths.get(options.body) !== 3) {
+				throw new TypeError("Provided readable stream must have a known length");
+			}
+			const bytes = new Uint8Array(await new Response(options.body).arrayBuffer());
+			storage.objects.set(options.key, bytes);
+			return { key: options.key, url: `/media/${options.key}`, size: bytes.byteLength };
+		});
+
+		const response = await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, new Uint8Array([1, 2, 3])),
+				storage,
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(storage.upload).toHaveBeenCalledOnce();
+		const uploaded = await repo.findById(pending.id);
 		expect(storage.objects.get(uploaded!.storageKey)).toEqual(new Uint8Array([1, 2, 3]));
 	});
 
@@ -315,6 +367,147 @@ describe("streamed media upload fallback", () => {
 		expect(storage.objects.size).toBe(1);
 		const published = await repo.findById(pending.id);
 		expect(storage.objects.get(published!.storageKey)).toEqual(new Uint8Array([1, 2, 3]));
+	});
+
+	it("preserves an object when publication commits before reporting an error", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		const publish = MediaRepository.prototype.publishPendingStorageKey;
+		vi.spyOn(MediaRepository.prototype, "publishPendingStorageKey").mockImplementationOnce(
+			async function (
+				this: MediaRepository,
+				id: string,
+				expectedStorageKey: string,
+				storageKey: string,
+			) {
+				await publish.call(this, id, expectedStorageKey, storageKey);
+				throw new Error("publication acknowledgement lost");
+			},
+		);
+
+		const response = await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, new Uint8Array([1, 2, 3])),
+				storage,
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		const published = await repo.findById(pending.id);
+		expect(published?.storageKey).not.toBe(pending.storageKey);
+		expect(storage.objects.get(published!.storageKey)).toEqual(new Uint8Array([1, 2, 3]));
+	});
+
+	it("retries cleanup for an unreferenced upload attempt", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		storage.delete.mockRejectedValueOnce(new Error("temporary R2 failure"));
+
+		const responses = await Promise.all([
+			putUpload(
+				buildContext({
+					db,
+					id: pending.id,
+					request: uploadRequest(pending.id, new Uint8Array([1, 2, 3])),
+					storage,
+				}),
+			),
+			putUpload(
+				buildContext({
+					db,
+					id: pending.id,
+					request: uploadRequest(pending.id, new Uint8Array([1, 2, 3])),
+					storage,
+				}),
+			),
+		]);
+
+		expect(responses.map((response) => response.status)).toEqual([200, 200]);
+		expect(storage.objects.size).toBe(2);
+		await repo.confirmUpload(pending.id);
+
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date(Date.now() + 2 * 60 * 60 * 1000));
+		await runSystemCleanup(db, storage);
+
+		expect(storage.objects.size).toBe(1);
+		const published = await repo.findById(pending.id);
+		expect(storage.objects.has(published!.storageKey)).toBe(true);
+	});
+
+	it("does not strand the published object when deletion races an upload", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		let startDelete: (() => void) | undefined;
+		const deleteStarted = new Promise<void>((resolve) => {
+			startDelete = resolve;
+		});
+		let finishDelete: (() => void) | undefined;
+		const allowDelete = new Promise<void>((resolve) => {
+			finishDelete = resolve;
+		});
+
+		const deletion = deleteMedia({
+			params: { id: pending.id },
+			locals: {
+				emdash: {
+					db,
+					storage,
+					handleMediaGet: (id: string) => handleMediaGet(db, id),
+					handleMediaDelete: async (id: string) => {
+						startDelete?.();
+						await allowDelete;
+						return handleMediaDelete(db, id);
+					},
+				},
+				user: {
+					id: "user-1",
+					email: "test@example.com",
+					name: "Test User",
+					role: 30,
+				},
+			},
+		} as unknown as APIContext);
+		await deleteStarted;
+
+		const uploadResponse = await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, new Uint8Array([1, 2, 3])),
+				storage,
+			}),
+		);
+		finishDelete?.();
+		const deleteResponse = await deletion;
+
+		expect(uploadResponse.status).toBe(200);
+		expect(deleteResponse.status).toBe(200);
+		expect(await repo.findById(pending.id)).toBeNull();
+		expect(storage.objects.size).toBe(0);
 	});
 
 	it("rejects a non-owner without media:edit_any", async () => {

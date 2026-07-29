@@ -6,15 +6,22 @@ import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { normalizeMime } from "#media/mime.js";
+import { removeUploadAttempt } from "#media/upload-attempts.js";
 
 export const prerender = false;
 
-async function removeUploadedObject(storage: Storage, key: string): Promise<void> {
-	try {
-		await storage.delete(key);
-	} catch (error) {
-		console.error("[media] upload cleanup failed:", error);
-	}
+type FixedLengthStreamConstructor = new (
+	expectedLength: number | bigint,
+) => TransformStream<ArrayBuffer | ArrayBufferView, Uint8Array>;
+
+declare const FixedLengthStream: FixedLengthStreamConstructor | undefined;
+
+function preserveKnownLength(
+	body: ReadableStream<Uint8Array>,
+	expectedLength: number,
+): ReadableStream<Uint8Array> {
+	if (typeof FixedLengthStream === "undefined") return body;
+	return body.pipeThrough(new FixedLengthStream(expectedLength));
 }
 
 function createUploadAttemptKey(key: string): string {
@@ -112,7 +119,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		}
 
 		let receivedSize = 0;
-		const body = request.body.pipeThrough(
+		const checkedBody = request.body.pipeThrough(
 			new TransformStream<Uint8Array, Uint8Array>({
 				transform(chunk, controller) {
 					receivedSize += chunk.byteLength;
@@ -124,48 +131,70 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 				},
 			}),
 		);
+		const body = preserveKnownLength(checkedBody, expectedSize);
 
 		const attemptKey = createUploadAttemptKey(media.storageKey);
-		let keepAttempt = false;
+		await repo.createUploadAttempt(id, attemptKey);
+
+		let attemptSize: number;
 		try {
-			let attemptSize: number;
+			const result = await emdash.storage.upload({
+				key: attemptKey,
+				body,
+				contentType: media.mimeType,
+			});
+			attemptSize = result.size;
+		} catch (error) {
+			await removeUploadAttempt(emdash.storage, repo, attemptKey);
+			if (receivedSize > expectedSize) {
+				return apiError("PAYLOAD_TOO_LARGE", "Upload exceeds the expected size", 413);
+			}
+			return handleError(error, "Upload failed", "UPLOAD_ERROR");
+		}
+
+		if (receivedSize !== expectedSize || attemptSize !== expectedSize) {
+			await removeUploadAttempt(emdash.storage, repo, attemptKey);
+			return apiError("UPLOAD_SIZE_MISMATCH", "Upload size does not match the media item", 400);
+		}
+
+		let published: boolean;
+		try {
+			published = await repo.publishPendingStorageKey(id, media.storageKey, attemptKey);
+		} catch (error) {
 			try {
-				const result = await emdash.storage.upload({
-					key: attemptKey,
-					body,
-					contentType: media.mimeType,
-				});
-				attemptSize = result.size;
-			} catch (error) {
-				if (receivedSize > expectedSize) {
-					return apiError("PAYLOAD_TOO_LARGE", "Upload exceeds the expected size", 413);
-				}
-				return handleError(error, "Upload failed", "UPLOAD_ERROR");
-			}
-
-			if (receivedSize !== expectedSize || attemptSize !== expectedSize) {
-				return apiError("UPLOAD_SIZE_MISMATCH", "Upload size does not match the media item", 400);
-			}
-
-			const published = await repo.publishPendingStorageKey(id, media.storageKey, attemptKey);
-			if (!published) {
 				const current = await repo.findById(id);
 				if (
-					current &&
+					current?.storageKey === attemptKey &&
 					(current.status === "pending" || current.status === "ready") &&
 					current.size === expectedSize &&
-					(await getStoredSize(emdash.storage, current.storageKey)) === expectedSize
+					(await getStoredSize(emdash.storage, attemptKey)) === expectedSize
 				) {
 					return apiSuccess({ uploaded: true, size: expectedSize });
 				}
-				return apiError("INVALID_STATE", "Media item is no longer pending", 400);
+			} catch (verificationError) {
+				console.error("[media] upload publication verification failed:", verificationError);
 			}
-
-			keepAttempt = true;
-			return apiSuccess({ uploaded: true, size: receivedSize });
-		} finally {
-			if (!keepAttempt) await removeUploadedObject(emdash.storage, attemptKey);
+			return handleError(error, "Upload failed", "UPLOAD_ERROR");
 		}
+
+		if (!published) {
+			const current = await repo.findById(id);
+			if (
+				current &&
+				(current.status === "pending" || current.status === "ready") &&
+				current.size === expectedSize &&
+				(await getStoredSize(emdash.storage, current.storageKey)) === expectedSize
+			) {
+				if (current.storageKey !== attemptKey) {
+					await removeUploadAttempt(emdash.storage, repo, attemptKey);
+				}
+				return apiSuccess({ uploaded: true, size: expectedSize });
+			}
+			await removeUploadAttempt(emdash.storage, repo, attemptKey);
+			return apiError("INVALID_STATE", "Media item is no longer pending", 400);
+		}
+
+		return apiSuccess({ uploaded: true, size: receivedSize });
 	} catch (error) {
 		return handleError(error, "Upload failed", "UPLOAD_ERROR");
 	}
