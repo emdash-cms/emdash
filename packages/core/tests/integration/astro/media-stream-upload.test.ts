@@ -4,12 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleMediaDelete, handleMediaGet } from "../../../src/api/handlers/media.js";
 import { DELETE as deleteMedia } from "../../../src/astro/routes/api/media/[id].js";
+import { POST as postConfirm } from "../../../src/astro/routes/api/media/[id]/confirm.js";
 import { PUT as putUpload } from "../../../src/astro/routes/api/media/[id]/upload.js";
 import { POST as postUploadUrl } from "../../../src/astro/routes/api/media/upload-url.js";
 import { runSystemCleanup } from "../../../src/cleanup.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
 import { EmDashStorageError } from "../../../src/storage/types.js";
+import { computeContentHash } from "../../../src/utils/hash.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 function buildContext(options: {
@@ -40,6 +42,19 @@ function uploadUrlRequest() {
 		method: "POST",
 		headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
 		body: JSON.stringify({ filename: "photo.png", contentType: "image/png", size: 3 }),
+	});
+}
+
+function uploadUrlRequestWithHash(contentHash: string) {
+	return new Request("http://localhost/_emdash/api/media/upload-url", {
+		method: "POST",
+		headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+		body: JSON.stringify({
+			filename: "photo.png",
+			contentType: "image/png",
+			size: 3,
+			contentHash,
+		}),
 	});
 }
 
@@ -139,6 +154,55 @@ describe("streamed media upload fallback", () => {
 		expect(await new MediaRepository(db).findMany({ status: "all" })).toMatchObject({ items: [] });
 	});
 
+	it("uses a client content hash only as a deduplication probe", async () => {
+		const response = await postUploadUrl(
+			buildContext({
+				db,
+				request: uploadUrlRequestWithHash("sha1:a9993e364706816aba3e25717850c26c9cd0d89d"),
+				storage: unsupportedSignedUrlStorage(),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as { data: { mediaId: string } };
+		expect(await new MediaRepository(db).findById(body.data.mediaId)).toMatchObject({
+			contentHash: null,
+		});
+	});
+
+	it("does not deduplicate an empty file by the shared empty hash", async () => {
+		const repo = new MediaRepository(db);
+		const existing = await repo.create({
+			filename: "legacy-empty.txt",
+			mimeType: "text/plain",
+			size: 0,
+			storageKey: "legacy-empty.txt",
+			contentHash: "sha1:da39a3ee5e6b4b0d3255bfef95601890afd80709",
+		});
+		const request = new Request("http://localhost/_emdash/api/media/upload-url", {
+			method: "POST",
+			headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+			body: JSON.stringify({
+				filename: "empty.pdf",
+				contentType: "application/pdf",
+				size: 0,
+				contentHash: "sha1:da39a3ee5e6b4b0d3255bfef95601890afd80709",
+			}),
+		});
+
+		const response = await postUploadUrl(
+			buildContext({ db, request, storage: unsupportedSignedUrlStorage() }),
+		);
+
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as { data: { mediaId: string } };
+		expect(body.data.mediaId).not.toBe(existing.id);
+		expect(await repo.findById(body.data.mediaId)).toMatchObject({
+			filename: "empty.pdf",
+			contentHash: null,
+		});
+	});
+
 	it("streams the exact request body to storage and leaves confirmation separate", async () => {
 		const repo = new MediaRepository(db);
 		const pending = await repo.createPending({
@@ -165,8 +229,52 @@ describe("streamed media upload fallback", () => {
 		const uploadedBody = storage.upload.mock.calls[0]?.[0].body;
 		expect(uploadedBody).toBeInstanceOf(ReadableStream);
 		const uploaded = await repo.findById(pending.id);
-		expect(uploaded).toMatchObject({ status: "pending" });
+		expect(uploaded).toMatchObject({
+			status: "pending",
+			contentHash: "sha1:7037807198c22a7d2b0807371d763779a84fdfcf",
+		});
 		expect(storage.objects.get(uploaded!.storageKey)).toEqual(new Uint8Array([1, 2, 3]));
+	});
+
+	it("hashes a fragmented upload across buffer growth", async () => {
+		const size = 64 * 1024 + 1;
+		const bytes = new Uint8Array(size);
+		bytes[size - 1] = 1;
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "fragmented.pdf",
+			mimeType: "application/pdf",
+			size,
+			storageKey: "fragmented.pdf",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		const body = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(bytes.subarray(0, size - 1));
+				controller.enqueue(bytes.subarray(size - 1));
+				controller.close();
+			},
+		});
+		const request = new Request(`http://localhost/_emdash/api/media/${pending.id}/upload`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/pdf",
+				"Content-Length": String(size),
+				"X-EmDash-Request": "1",
+			},
+			body,
+			duplex: "half",
+		} as RequestInit & { duplex: "half" });
+
+		const response = await putUpload(
+			buildContext({ db, id: pending.id, request, storage, user: { id: "user-1", role: 20 } }),
+		);
+
+		expect(response.status).toBe(200);
+		expect(await repo.findById(pending.id)).toMatchObject({
+			contentHash: await computeContentHash(bytes),
+		});
 	});
 
 	it("preserves the known body length for Worker storage bindings", async () => {
@@ -214,6 +322,105 @@ describe("streamed media upload fallback", () => {
 		expect(storage.upload).toHaveBeenCalledOnce();
 		const uploaded = await repo.findById(pending.id);
 		expect(storage.objects.get(uploaded!.storageKey)).toEqual(new Uint8Array([1, 2, 3]));
+	});
+
+	it("reports a truncated fixed-length upload as a size mismatch", async () => {
+		const pending = await new MediaRepository(db).createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		class TestFixedLengthStream {
+			readonly readable: ReadableStream<Uint8Array>;
+			readonly writable: WritableStream<Uint8Array>;
+
+			constructor(expectedLength: number | bigint) {
+				let received = 0;
+				const stream = new TransformStream<Uint8Array, Uint8Array>({
+					transform(chunk, controller) {
+						received += chunk.byteLength;
+						controller.enqueue(chunk);
+					},
+					flush(controller) {
+						if (received !== Number(expectedLength)) {
+							controller.error(new TypeError("Fixed-length stream ended early"));
+						}
+					},
+				});
+				this.readable = stream.readable;
+				this.writable = stream.writable;
+			}
+		}
+		vi.stubGlobal("FixedLengthStream", TestFixedLengthStream);
+
+		const response = await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, new Uint8Array([1, 2])),
+				storage,
+			}),
+		);
+
+		expect(response.status).toBe(400);
+		await expect(response.json()).resolves.toMatchObject({
+			error: { code: "UPLOAD_SIZE_MISMATCH" },
+		});
+	});
+
+	it("accepts an empty file", async () => {
+		const pending = await new MediaRepository(db).createPending({
+			filename: "empty.pdf",
+			mimeType: "application/pdf",
+			size: 0,
+			storageKey: "empty.pdf",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+
+		const request = new Request(`http://localhost/_emdash/api/media/${pending.id}/upload`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/pdf",
+				"Content-Length": "0",
+				"X-EmDash-Request": "1",
+			},
+		});
+		const response = await putUpload(buildContext({ db, id: pending.id, request, storage }));
+
+		expect(response.status).toBe(200);
+		const uploaded = await new MediaRepository(db).findById(pending.id);
+		expect(storage.objects.get(uploaded!.storageKey)).toEqual(new Uint8Array());
+		expect(uploaded?.contentHash).toBeNull();
+	});
+
+	it("does not hash large uploads on the Worker request path", async () => {
+		const size = 8 * 1024 * 1024 + 1;
+		const pending = await new MediaRepository(db).createPending({
+			filename: "large.pdf",
+			mimeType: "application/pdf",
+			size,
+			storageKey: "large.pdf",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+
+		const response = await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, new Uint8Array(size), "application/pdf"),
+				storage,
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		expect(await new MediaRepository(db).findById(pending.id)).toMatchObject({
+			contentHash: null,
+		});
 	});
 
 	it("rejects a mismatched MIME type without writing to storage", async () => {
@@ -386,8 +593,9 @@ describe("streamed media upload fallback", () => {
 				id: string,
 				expectedStorageKey: string,
 				storageKey: string,
+				contentHash: string,
 			) {
-				await publish.call(this, id, expectedStorageKey, storageKey);
+				await publish.call(this, id, expectedStorageKey, storageKey, contentHash);
 				throw new Error("publication acknowledgement lost");
 			},
 		);
@@ -485,6 +693,78 @@ describe("streamed media upload fallback", () => {
 		expect(result.pendingUploadFiles).toBe(0);
 		expect(await repo.findById(pending.id)).toMatchObject({ status: "ready" });
 		expect(storage.objects.has(pending.storageKey)).toBe(true);
+	});
+
+	it("does not keep retrying when the database vetoes a media deletion", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "guarded.png",
+			mimeType: "image/png",
+			storageKey: "guarded.png",
+		});
+		await sql`CREATE TABLE delete_guard (attempts integer NOT NULL)`.execute(db);
+		await sql`INSERT INTO delete_guard (attempts) VALUES (0)`.execute(db);
+		await sql`
+			CREATE TRIGGER veto_first_media_deletes
+			BEFORE DELETE ON media
+			WHEN (SELECT attempts FROM delete_guard) < 4
+			BEGIN
+				UPDATE delete_guard SET attempts = attempts + 1;
+				SELECT RAISE(IGNORE);
+			END
+		`.execute(db);
+
+		await expect(repo.deleteWithStorageKey(pending.id)).resolves.toBeNull();
+		expect(await repo.findById(pending.id)).not.toBeNull();
+	});
+
+	it("removes the upload attempt after confirmation and allows confirmation retries", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.attempt.png",
+			authorId: "user-1",
+		});
+		await repo.createUploadAttempt(pending.id, pending.storageKey);
+		const storage = streamingStorage();
+		storage.objects.set(pending.storageKey, new Uint8Array([1, 2, 3]));
+		const confirm = () =>
+			postConfirm(
+				buildContext({
+					db,
+					id: pending.id,
+					request: new Request(`http://localhost/_emdash/api/media/${pending.id}/confirm`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+						body: JSON.stringify({ size: 3 }),
+					}),
+					storage,
+				}),
+			);
+
+		expect((await confirm()).status).toBe(200);
+		expect(await repo.hasUploadAttempt(pending.storageKey)).toBe(false);
+		expect((await confirm()).status).toBe(200);
+	});
+
+	it("reaps completed upload-attempt bookkeeping without deleting the live object", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.attempt.png",
+		});
+		await repo.createUploadAttempt(pending.id, pending.storageKey);
+		await repo.confirmUpload(pending.id);
+
+		const result = await runSystemCleanup(db);
+
+		expect(result.uploadAttempts).toBe(1);
+		expect(await repo.hasUploadAttempt(pending.storageKey)).toBe(false);
+		expect(await repo.findById(pending.id)).toMatchObject({ status: "ready" });
 	});
 
 	it("does not strand the published object when deletion races an upload", async () => {

@@ -7,10 +7,8 @@ export async function removeUploadAttempt(
 	storageKey: string,
 	options: { allowUntracked?: boolean } = {},
 ): Promise<boolean> {
-	let claimed: boolean;
 	try {
-		claimed = await repo.claimUploadAttemptForCleanup(storageKey);
-		if (!claimed) {
+		if (!(await repo.claimUploadAttemptForCleanup(storageKey))) {
 			const tracked = await repo.hasUploadAttempt(storageKey);
 			if (tracked || !options.allowUntracked) return false;
 		}

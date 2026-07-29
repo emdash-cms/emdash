@@ -111,12 +111,13 @@ export async function runSystemCleanup(
 
 	// 4. Uploaded objects that lost publication races or outlived their media row
 	try {
+		const mediaRepo = new MediaRepository(db);
+		const completedAttemptsDeleted = await mediaRepo.deleteCompletedUploadAttempts();
 		if (!storage) {
-			result.uploadAttempts = 0;
+			result.uploadAttempts = completedAttemptsDeleted;
 		} else {
-			const mediaRepo = new MediaRepository(db);
 			const storageKeys = await mediaRepo.findUploadAttemptsForCleanup();
-			let attemptsDeleted = 0;
+			let attemptsDeleted = completedAttemptsDeleted;
 			for (const storageKey of storageKeys) {
 				if (await removeUploadAttempt(storage, mediaRepo, storageKey)) {
 					attemptsDeleted++;

@@ -789,9 +789,9 @@ function buildMediaPaths(maxUploadSize: number) {
 		"/_emdash/api/media/upload-url": {
 			post: {
 				operationId: "getMediaUploadUrl",
-				summary: "Get a signed URL for direct upload",
+				summary: "Get a media upload target",
 				description:
-					"Returns a signed URL for direct-to-storage upload. Creates a pending media record.",
+					"Returns either a signed direct-to-storage URL or a same-origin streaming target. Creates a pending media record.",
 				tags: ["Media"],
 				requestBody: { content: { [JSON_CONTENT]: { schema: mediaUploadUrlBody(maxUploadSize) } } },
 				responses: {

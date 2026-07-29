@@ -247,6 +247,24 @@ describe("mediaUploadUrlBody schema factory", () => {
 		expect(result.size).toBe(500);
 	});
 
+	it("accepts an empty file", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		const result = schema.parse({ filename: "empty.pdf", contentType: "application/pdf", size: 0 });
+		expect(result.size).toBe(0);
+	});
+
+	it("rejects malformed client content hashes", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		expect(
+			schema.safeParse({
+				filename: "a.jpg",
+				contentType: "image/jpeg",
+				size: 500,
+				contentHash: "not-a-content-hash",
+			}).success,
+		).toBe(false);
+	});
+
 	it("each call returns an independent schema with its own limit", () => {
 		const strict = mediaUploadUrlBody(100);
 		const loose = mediaUploadUrlBody(1_000_000);

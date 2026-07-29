@@ -59,6 +59,7 @@ export function formatFileSize(bytes: number): string {
 // Matches a full MIME type (type/subtype) with an optional semicolon-delimited
 // parameter section. Forbids CR/LF to prevent header injection.
 export const CONTENT_TYPE_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]+(\s*;[^\r\n]*)?$/i;
+const CONTENT_HASH_RE = /^sha1:[0-9a-f]{40}$/;
 
 export function mediaUploadUrlBody(maxSize: number) {
 	if (!Number.isFinite(maxSize) || maxSize <= 0) {
@@ -74,9 +75,9 @@ export function mediaUploadUrlBody(maxSize: number) {
 			size: z
 				.number()
 				.int()
-				.positive()
+				.nonnegative()
 				.max(maxSize, `File size must not exceed ${formatFileSize(maxSize)}`),
-			contentHash: z.string().optional(),
+			contentHash: z.string().max(80).regex(CONTENT_HASH_RE, "Invalid content hash").optional(),
 			fieldId: z.string().optional(),
 		})
 		.meta({ id: "MediaUploadUrlBody" });
@@ -84,7 +85,7 @@ export function mediaUploadUrlBody(maxSize: number) {
 
 export const mediaConfirmBody = z
 	.object({
-		size: z.number().int().positive().optional(),
+		size: z.number().int().nonnegative().optional(),
 		width: z.number().int().positive().optional(),
 		height: z.number().int().positive().optional(),
 	})
@@ -182,6 +183,6 @@ export const mediaConfirmResponseSchema = z
 export const mediaStreamUploadResponseSchema = z
 	.object({
 		uploaded: z.literal(true),
-		size: z.number().int().positive(),
+		size: z.number().int().nonnegative(),
 	})
 	.meta({ id: "MediaStreamUploadResponse" });

@@ -36,8 +36,18 @@ describeEachDialect("pending media upload publication", (dialect) => {
 		]);
 
 		const results = await Promise.all([
-			repo.publishPendingStorageKey(pending.id, "pending.png", "attempt-a.png"),
-			repo.publishPendingStorageKey(pending.id, "pending.png", "attempt-b.png"),
+			repo.publishPendingStorageKey(
+				pending.id,
+				"pending.png",
+				"attempt-a.png",
+				"sha1:a9993e364706816aba3e25717850c26c9cd0d89d",
+			),
+			repo.publishPendingStorageKey(
+				pending.id,
+				"pending.png",
+				"attempt-b.png",
+				"sha1:a9993e364706816aba3e25717850c26c9cd0d89d",
+			),
 		]);
 
 		expect(results).toContain(true);

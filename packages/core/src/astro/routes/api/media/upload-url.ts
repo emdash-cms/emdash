@@ -89,7 +89,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const repo = new MediaRepository(emdash.db);
 
 		// Check for existing content with same hash (deduplication)
-		if (body.contentHash) {
+		if (body.contentHash && body.size > 0) {
 			const existing = await repo.findByContentHash(body.contentHash);
 			if (existing) {
 				const response: ExistingMediaResponse = {
@@ -126,7 +126,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			mimeType: normalizedContentType,
 			size: body.size,
 			storageKey,
-			contentHash: body.contentHash,
 			authorId: user?.id,
 		});
 

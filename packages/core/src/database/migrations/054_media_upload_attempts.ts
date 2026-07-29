@@ -26,8 +26,16 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.on("_emdash_media_upload_attempts")
 		.columns(["status", "created_at"])
 		.execute();
+
+	await db.schema
+		.createIndex("idx_media_storage_key")
+		.ifNotExists()
+		.on("media")
+		.column("storage_key")
+		.execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
+	await db.schema.dropIndex("idx_media_storage_key").ifExists().execute();
 	await db.schema.dropTable("_emdash_media_upload_attempts").ifExists().execute();
 }

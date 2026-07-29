@@ -191,6 +191,23 @@ export class MediaRepository {
 			.execute();
 	}
 
+	async deleteCompletedUploadAttempts(): Promise<number> {
+		const result = await this.db
+			.deleteFrom("_emdash_media_upload_attempts")
+			.where((eb) =>
+				eb.exists(
+					eb
+						.selectFrom("media")
+						.select("media.id")
+						.whereRef("media.id", "=", "_emdash_media_upload_attempts.media_id")
+						.whereRef("media.storage_key", "=", "_emdash_media_upload_attempts.storage_key")
+						.where("media.status", "=", "ready"),
+				),
+			)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
+	}
+
 	async findUploadAttemptsForCleanup(
 		maxAgeMs: number = UPLOAD_ATTEMPT_CLEANUP_AGE_MS,
 		limit: number = UPLOAD_ATTEMPT_CLEANUP_BATCH_SIZE,
@@ -221,10 +238,14 @@ export class MediaRepository {
 		id: string,
 		expectedStorageKey: string,
 		storageKey: string,
+		contentHash?: string,
 	): Promise<boolean> {
 		const result = await this.db
 			.updateTable("media")
-			.set({ storage_key: storageKey })
+			.set({
+				storage_key: storageKey,
+				...(contentHash !== undefined ? { content_hash: contentHash } : {}),
+			})
 			.where("id", "=", id)
 			.where("status", "=", "pending")
 			.where("storage_key", "=", expectedStorageKey)
@@ -254,6 +275,7 @@ export class MediaRepository {
 			size?: number;
 			blurhash?: string;
 			dominantColor?: string;
+			contentHash?: string | null;
 		},
 	): Promise<MediaItem | null> {
 		const updates: Partial<MediaRow> = {
@@ -264,6 +286,7 @@ export class MediaRepository {
 		if (metadata?.size !== undefined) updates.size = metadata.size;
 		if (metadata?.blurhash !== undefined) updates.blurhash = metadata.blurhash;
 		if (metadata?.dominantColor !== undefined) updates.dominant_color = metadata.dominantColor;
+		if (metadata?.contentHash !== undefined) updates.content_hash = metadata.contentHash;
 
 		const row = await this.db
 			.updateTable("media")
@@ -426,21 +449,13 @@ export class MediaRepository {
 	 * Delete media item
 	 */
 	async deleteWithStorageKey(id: string): Promise<string | null> {
-		while (true) {
-			const current = await this.db
-				.selectFrom("media")
-				.select("storage_key")
-				.where("id", "=", id)
-				.executeTakeFirst();
-			if (!current) return null;
-
-			const result = await this.db
-				.deleteFrom("media")
-				.where("id", "=", id)
-				.where("storage_key", "=", current.storage_key)
-				.executeTakeFirst();
-			if (Number(result.numDeletedRows ?? 0) > 0) return current.storage_key;
-		}
+		const deleted = await this.db
+			.deleteFrom("media")
+			.where("id", "=", id)
+			.returning("storage_key")
+			.executeTakeFirst();
+		if (deleted) return deleted.storage_key;
+		return null;
 	}
 
 	async delete(id: string): Promise<boolean> {

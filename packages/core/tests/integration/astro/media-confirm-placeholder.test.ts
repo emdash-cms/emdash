@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as postConfirm } from "../../../src/astro/routes/api/media/[id]/confirm.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
+import { computeContentHash } from "../../../src/utils/hash.js";
 import { JPEG_4x4 } from "../../utils/image-fixtures.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -96,6 +97,7 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 		expect(row?.width).toBe(4);
 		expect(row?.blurhash).toBeTruthy();
 		expect(row?.dominantColor).toMatch(/^rgb\(/);
+		expect(row?.contentHash).toBe(await computeContentHash(JPEG_4x4));
 	});
 
 	it("allows a contributing uploader to confirm their own pending file", async () => {
@@ -131,6 +133,47 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 
 		expect(res.status).toBe(200);
 		expect(await repo.findById(pending.id)).toMatchObject({ status: "ready" });
+	});
+
+	it("does not re-read a proxied non-image after the server hashed it", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "document.pdf",
+			mimeType: "application/pdf",
+			size: 3,
+			storageKey: "document.attempt.pdf",
+			contentHash: "sha1:7037807198c22a7d2b0807371d763779a84fdfcf",
+			authorId: "user-1",
+		});
+		await repo.createUploadAttempt(pending.id, pending.storageKey);
+		let bodyRead = false;
+		const cancel = vi.fn(async () => undefined);
+		const storage = {
+			async exists() {
+				return true;
+			},
+			async download() {
+				return {
+					body: {
+						getReader() {
+							bodyRead = true;
+							throw new Error("Body should not be read");
+						},
+						cancel,
+					},
+					contentType: "application/pdf",
+					size: 3,
+				};
+			},
+		};
+
+		const res = await postConfirm(
+			buildContext({ db, id: pending.id, storage, body: { size: 3 }, role: 20 }),
+		);
+
+		expect(res.status).toBe(200);
+		expect(bodyRead).toBe(false);
+		expect(cancel).toHaveBeenCalledOnce();
 	});
 
 	it("rejects a client size that disagrees with the pending upload", async () => {
@@ -170,8 +213,10 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 			mimeType: "image/jpeg",
 			size: reportedSize,
 			storageKey: "huge.jpg",
+			contentHash: "sha1:a9993e364706816aba3e25717850c26c9cd0d89d",
 			authorId: "user-1",
 		});
+		await repo.createUploadAttempt(pending.id, pending.storageKey);
 		const storage = spyableStorage(JPEG_4x4, reportedSize);
 
 		// Confirm claims a size far above the download cap. The signed-URL flow
@@ -195,6 +240,34 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 		expect(row?.height).toBe(3000);
 		expect(row?.blurhash).toBeNull();
 		expect(row?.dominantColor).toBeNull();
+	});
+
+	it("does not read back an oversized signed upload to compute a hash", async () => {
+		const repo = new MediaRepository(db);
+		const reportedSize = 64 * 1024 * 1024;
+		const pending = await repo.createPending({
+			filename: "signed-huge.jpg",
+			mimeType: "image/jpeg",
+			size: reportedSize,
+			storageKey: "signed-huge.jpg",
+			authorId: "user-1",
+		});
+		const storage = spyableStorage(JPEG_4x4, reportedSize);
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage,
+				body: { size: reportedSize, width: 4000, height: 3000 },
+			}),
+		);
+
+		expect(res.status).toBe(200);
+		expect(await repo.findById(pending.id)).toMatchObject({
+			status: "ready",
+			contentHash: null,
+		});
 	});
 
 	it("reports invalid state when another request resolves the pending upload first", async () => {
