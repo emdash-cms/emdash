@@ -31,6 +31,8 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	titleField?: string;
+	dateField?: string;
 	fields: Record<
 		string,
 		{

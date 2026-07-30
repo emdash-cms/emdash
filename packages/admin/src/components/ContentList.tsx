@@ -28,6 +28,7 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import type { ContentAuthor, ContentDateField, ContentItem, TrashedContentItem } from "../lib/api";
+import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
@@ -35,8 +36,12 @@ import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
-/** Sortable content list columns. Maps to the server's order field whitelist. */
-export type ContentListSortField = "title" | "status" | "locale" | "updatedAt";
+/**
+ * Sortable content list columns. The named values map to the server's system
+ * order fields; a collection's configured titleField/dateField slug is also
+ * accepted, which the server validates against the collection.
+ */
+export type ContentListSortField = "title" | "status" | "locale" | "updatedAt" | (string & {});
 export interface ContentListSort {
 	field: ContentListSortField;
 	direction: "asc" | "desc";
@@ -83,6 +88,10 @@ export interface ContentListProps {
 	onLocaleChange?: (locale: string) => void;
 	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
 	urlPattern?: string;
+	/** Collection field slug powering the Title column (falls back to the title chain). */
+	titleField?: string;
+	/** Collection field slug (datetime) powering the Date column (falls back to updated date). */
+	dateField?: string;
 	/**
 	 * Controlled sort state. When `onSortChange` is also provided, the column
 	 * headers become sort controls that invoke it. Uncontrolled sort keeps
@@ -139,15 +148,19 @@ type ViewTab = "all" | "trash";
 
 const PAGE_SIZE = 20;
 
-function getItemTitle(item: { data: Record<string, unknown>; slug: string | null; id: string }) {
-	const rawTitle = item.data.title;
-	const rawName = item.data.name;
-	return (
-		(typeof rawTitle === "string" ? rawTitle : "") ||
-		(typeof rawName === "string" ? rawName : "") ||
-		item.slug ||
-		item.id
-	);
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Parse a dateField value for the Date column. Returns null if missing or
+ * unparseable (so the caller falls back to a system date instead of showing
+ * "Invalid Date"). Bare `YYYY-MM-DD` is read as local midnight to avoid a
+ * previous-day shift in negative-UTC timezones.
+ */
+function parseListDate(value: unknown): Date | null {
+	if (typeof value !== "string" || !value) return null;
+	const normalized = DATE_ONLY_RE.test(value) ? `${value}T00:00:00` : value;
+	const parsed = new Date(normalized);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 /**
@@ -173,6 +186,8 @@ export function ContentList({
 	activeLocale,
 	onLocaleChange,
 	urlPattern,
+	titleField,
+	dateField,
 	sort,
 	onSortChange,
 	total,
@@ -217,8 +232,8 @@ export function ContentList({
 	const filteredItems = React.useMemo(() => {
 		if (serverSearch || !searchQuery) return items;
 		const query = searchQuery.toLowerCase();
-		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [items, searchQuery, serverSearch]);
+		return items.filter((item) => getEntryTitle(item, titleField).toLowerCase().includes(query));
+	}, [items, searchQuery, serverSearch, titleField]);
 
 	// The query the current `items` reflect: server-side filtering lags behind
 	// typing by the debounce, so the empty-state message must use the debounced
@@ -498,8 +513,10 @@ export function ContentList({
 											/>
 										</th>
 									)}
+									{/* The Title/Date columns sort by the collection's configured
+									    titleField/dateField when set */}
 									<SortableTh
-										field="title"
+										field={titleField ?? "title"}
 										sort={sort}
 										onSortChange={onSortChange}
 										label={t`Title`}
@@ -519,7 +536,7 @@ export function ContentList({
 										/>
 									)}
 									<SortableTh
-										field="updatedAt"
+										field={dateField ?? "updatedAt"}
 										sort={sort}
 										onSortChange={onSortChange}
 										label={t`Date`}
@@ -575,6 +592,8 @@ export function ContentList({
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
 											urlPattern={urlPattern}
+											titleField={titleField}
+											dateField={dateField}
 											selectable={bulkEnabled}
 											selected={selectedIds.has(item.id)}
 											onToggleSelect={toggleOne}
@@ -671,6 +690,7 @@ export function ContentList({
 										<TrashedListItem
 											key={item.id}
 											item={item}
+											titleField={titleField}
 											onRestore={onRestore}
 											onPermanentDelete={onPermanentDelete}
 										/>
@@ -943,6 +963,8 @@ interface ContentListItemProps {
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	urlPattern?: string;
+	titleField?: string;
+	dateField?: string;
 	selectable?: boolean;
 	selected?: boolean;
 	onToggleSelect?: (id: string) => void;
@@ -955,13 +977,18 @@ function ContentListItem({
 	onDuplicate,
 	showLocale,
 	urlPattern,
+	titleField,
+	dateField,
 	selectable,
 	selected,
 	onToggleSelect,
 }: ContentListItemProps) {
 	const { t } = useLingui();
-	const title = getItemTitle(item);
-	const date = new Date(item.updatedAt || item.createdAt);
+	const title = getEntryTitle(item, titleField);
+	// A configured dateField drives the Date column; fall back to the
+	// last-updated / created date when it's unset, empty, or unparseable.
+	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
+	const date = customDate ?? new Date(item.updatedAt || item.createdAt);
 
 	return (
 		<tr className={cn("hover:bg-kumo-tint/25", selected && "bg-kumo-tint/40")}>
@@ -1073,13 +1100,14 @@ function ContentListItem({
 
 interface TrashedListItemProps {
 	item: TrashedContentItem;
+	titleField?: string;
 	onRestore?: (id: string) => void;
 	onPermanentDelete?: (id: string) => void;
 }
 
-function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItemProps) {
+function TrashedListItem({ item, titleField, onRestore, onPermanentDelete }: TrashedListItemProps) {
 	const { t } = useLingui();
-	const title = getItemTitle(item);
+	const title = getEntryTitle(item, titleField);
 	const deletedDate = new Date(item.deletedAt);
 
 	return (
