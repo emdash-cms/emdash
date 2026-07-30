@@ -1,11 +1,11 @@
 /**
  * Node image endpoint -- the `image.endpoint` EmDash installs on non-Cloudflare
- * platforms whose image service is local (sharp).
+ * platforms.
  *
- * It wraps Astro's generic endpoint: for an EmDash media URL it loads the source
- * bytes straight from the storage adapter (no HTTP, so it works behind any auth
- * gate) and runs the configured image service's `transform`; every other image
- * is delegated to the stock endpoint unchanged.
+ * It wraps Astro's generic endpoint: local services transform bytes loaded
+ * directly from the storage adapter, while external services receive the
+ * storage adapter's public URL through Astro's `validateOptions`/`getURL`
+ * contract. Every non-EmDash image is delegated to the stock endpoint.
  */
 
 import type { APIRoute } from "astro";
@@ -16,9 +16,13 @@ import { getConfiguredImageService, imageConfig } from "astro:assets";
 
 import {
 	IMMUTABLE_IMAGE_CACHE,
+	isHeicMedia,
 	matchInternalMediaKey,
 	originalMediaHeaders,
+	parseTransformParams,
+	resolveExternalImageServiceUrl,
 } from "../media/image-endpoint.js";
+import { imageServiceConfigSupportsHeic, resolveStorageImageSource } from "./image-service.js";
 
 export const prerender = false;
 
@@ -42,6 +46,10 @@ function streamOriginal(body: ReadableStream<Uint8Array>, contentType: string): 
 	return new Response(body, { status: 200, headers: originalMediaHeaders(contentType) });
 }
 
+function unsupportedHeic(): Response {
+	return new Response("HEIC is not supported by the configured image service", { status: 415 });
+}
+
 export const GET: APIRoute = async (ctx) => {
 	const url = new URL(ctx.request.url);
 	const key = matchInternalMediaKey(url.searchParams.get("href"));
@@ -52,10 +60,44 @@ export const GET: APIRoute = async (ctx) => {
 	if (!key || !storage) return genericGET(ctx);
 
 	const service = await getConfiguredImageService();
-	if (!("transform" in service)) return genericGET(ctx);
+	let transformingHeic = false;
 
 	try {
+		if (!("transform" in service)) {
+			const parsed = parseTransformParams(url.searchParams);
+			if (!parsed.ok) return new Response(parsed.message, { status: 400 });
+			if (isHeicMedia("", key) && !imageServiceConfigSupportsHeic(imageConfig.service.config)) {
+				return unsupportedHeic();
+			}
+
+			const sourceUrl = resolveStorageImageSource(storage, key, url);
+			const externalUrl = sourceUrl
+				? await resolveExternalImageServiceUrl(
+						service,
+						imageConfig,
+						sourceUrl,
+						parsed.options,
+						url.origin,
+					)
+				: null;
+			if (externalUrl) {
+				return new Response(null, {
+					status: 302,
+					headers: {
+						Location: externalUrl,
+						"Cache-Control": IMMUTABLE_IMAGE_CACHE,
+						"X-Content-Type-Options": "nosniff",
+					},
+				});
+			}
+			if (isHeicMedia("", key)) return unsupportedHeic();
+
+			const source = await storage.download(key);
+			return streamOriginal(source.body, source.contentType);
+		}
+
 		const source = await storage.download(key);
+		transformingHeic = isHeicMedia(source.contentType, key);
 
 		// Only raster images are transformable; serve anything else unchanged.
 		if (!source.contentType.startsWith("image/")) {
@@ -78,6 +120,7 @@ export const GET: APIRoute = async (ctx) => {
 		});
 	} catch (error) {
 		if (isNotFound(error)) return new Response("Not Found", { status: 404 });
+		if (transformingHeic) return unsupportedHeic();
 		console.error("[emdash] image transform failed:", error);
 		return new Response("Internal Server Error", { status: 500 });
 	}

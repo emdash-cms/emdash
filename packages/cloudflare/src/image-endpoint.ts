@@ -17,6 +17,7 @@ import { env } from "cloudflare:workers";
 import type { Storage } from "emdash";
 import {
 	IMMUTABLE_IMAGE_CACHE,
+	isHeicMedia,
 	matchInternalMediaKey,
 	originalMediaHeaders,
 	parseTransformParams,
@@ -65,9 +66,11 @@ export const GET: APIRoute = async (ctx) => {
 	// Not EmDash media, or storage unavailable: let the adapter's endpoint handle
 	// it (bundled assets via ASSETS, allowed remote via fetch).
 	if (!key || !storage) return adapterGET(ctx);
+	let transformingHeic = false;
 
 	try {
 		const source = await storage.download(key);
+		transformingHeic = isHeicMedia(source.contentType, key);
 
 		// Only raster images are transformable; serve anything else unchanged.
 		if (!source.contentType.startsWith("image/")) {
@@ -79,6 +82,11 @@ export const GET: APIRoute = async (ctx) => {
 
 		// No binding or unparseable params: serve the original so the URL resolves.
 		if (!images || !parsed.ok) {
+			if (transformingHeic) {
+				return new Response("HEIC is not supported by the configured image service", {
+					status: 415,
+				});
+			}
 			return streamOriginal(source.body, source.contentType);
 		}
 
@@ -110,6 +118,11 @@ export const GET: APIRoute = async (ctx) => {
 		});
 	} catch (error) {
 		if (isNotFound(error)) return new Response("Not Found", { status: 404 });
+		if (transformingHeic) {
+			return new Response("HEIC is not supported by the configured image service", {
+				status: 415,
+			});
+		}
 		console.error("[emdash] image transform failed:", error);
 		return new Response("Internal Server Error", { status: 500 });
 	}

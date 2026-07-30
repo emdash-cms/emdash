@@ -20,6 +20,9 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaUploadUrlBody } from "#api/schemas.js";
 import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
 
+import { isHeicMedia } from "../../../../media/image-endpoint.js";
+import { configuredImageServiceSupportsHeic } from "../../../image-service.js";
+
 export const prerender = false;
 
 interface UploadUrlResponse {
@@ -80,6 +83,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		if (!matchesMimeAllowlist(body.contentType, allowlist)) {
 			return apiError("INVALID_TYPE", "File type not allowed", 400);
+		}
+		if (
+			isHeicMedia(body.contentType, body.filename) &&
+			!(await configuredImageServiceSupportsHeic(emdash.storage, request.url))
+		) {
+			return apiError(
+				"UNSUPPORTED_IMAGE_FORMAT",
+				"HEIC images require a configured HEIC-capable image service",
+				415,
+			);
 		}
 
 		const repo = new MediaRepository(emdash.db);

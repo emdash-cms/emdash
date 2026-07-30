@@ -27,10 +27,11 @@ import {
 } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
 import {
-	providerItemToMediaItem,
+	MEDIA_THUMBNAIL_WIDTH,
+	fallbackToOriginalThumbnail,
 	getFileIcon,
 	getMediaThumbnailUrl,
-	fallbackToOriginalThumbnail,
+	providerItemToMediaItem,
 } from "../lib/media-utils";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
@@ -839,7 +840,9 @@ function MediaPickerItem({
 	// known. When they're missing we display the original so `onLoad` can read
 	// the true `naturalWidth`/`naturalHeight` to backfill them — a resized
 	// rendition would report the thumbnail's dimensions and corrupt the record.
-	const displayUrl = needsDimensions ? item.url : getMediaThumbnailUrl(item.url, item.mimeType);
+	const displayUrl = needsDimensions
+		? item.url
+		: getMediaThumbnailUrl(item.url, item.mimeType, MEDIA_THUMBNAIL_WIDTH, item.storageKey);
 
 	const handleImageLoad = React.useCallback(
 		(e: React.SyntheticEvent<HTMLImageElement>) => {

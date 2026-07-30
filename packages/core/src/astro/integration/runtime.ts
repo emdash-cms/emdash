@@ -214,11 +214,12 @@ export interface EmDashConfig {
 	 * Image optimization.
 	 *
 	 * By default EmDash wraps Astro's image endpoint so media served from
-	 * storage is optimized through the normal `<Image>` / `getImage` pipeline,
-	 * loading source bytes directly from the storage adapter (works behind
-	 * Cloudflare Access). Set to `false` to leave Astro's image endpoint
-	 * untouched -- media then renders as a plain `<img>` unless your image
-	 * service can fetch it over HTTP.
+	 * storage is optimized through the normal `<Image>` / `getImage` pipeline.
+	 * Local services and the Cloudflare Images binding receive storage bytes
+	 * directly; external Node services receive the storage adapter's public URL.
+	 * To accept HEIC uploads with an external service, include `"heic"` or
+	 * `"heif"` in `image.service.config.supportedInputFormats`. Set this to
+	 * `false` to leave Astro's image endpoint untouched.
 	 */
 	images?: boolean;
 	/**

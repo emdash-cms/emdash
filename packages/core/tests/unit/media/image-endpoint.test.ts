@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 
 import {
 	matchInternalMediaKey,
+	resolveExternalImageServiceUrl,
 	isSafeTransformKey,
+	isHeicMedia,
 	parseTransformParams,
 	resolveTransformQuality,
 	isTransformFormat,
@@ -10,6 +12,74 @@ import {
 	DEFAULT_TRANSFORM_QUALITY,
 	MAX_TRANSFORM_DIMENSION,
 } from "../../../src/media/image-endpoint.js";
+
+describe("isHeicMedia", () => {
+	it("recognizes HEIC-family MIME types and filename extensions", () => {
+		expect(isHeicMedia("image/heic")).toBe(true);
+		expect(isHeicMedia("image/heif-sequence")).toBe(true);
+		expect(isHeicMedia("application/octet-stream", "photo.HEIC")).toBe(true);
+		expect(isHeicMedia("image/jpeg", "photo.jpg")).toBe(false);
+	});
+});
+
+describe("resolveExternalImageServiceUrl", () => {
+	it("delegates a storage URL and validated transform to an external service", async () => {
+		const service = {
+			validateOptions: vi.fn(async (options: Record<string, unknown>) => ({
+				...options,
+				quality: 72,
+			})),
+			getURL: vi.fn(async (options: Record<string, unknown>) => {
+				return `https://images.example.com/w_${String(options.width)},q_${String(options.quality)}/${String(options.src)}`;
+			}),
+		};
+		const imageConfig = { service: { config: { account: "example" } } };
+
+		const result = await resolveExternalImageServiceUrl(
+			service,
+			imageConfig,
+			"https://media.example.com/photo.heic",
+			{ width: 400, format: "webp", quality: undefined },
+			"https://site.example.com",
+		);
+
+		expect(result).toBe(
+			"https://images.example.com/w_400,q_72/https://media.example.com/photo.heic",
+		);
+		expect(service.validateOptions).toHaveBeenCalledWith(
+			{
+				src: "https://media.example.com/photo.heic",
+				width: 400,
+				format: "webp",
+			},
+			imageConfig,
+		);
+	});
+
+	it("rejects passthrough and non-http service URLs", async () => {
+		const source = "https://media.example.com/photo.heic";
+		const options = { width: 400, format: "webp" as const, quality: undefined };
+
+		await expect(
+			resolveExternalImageServiceUrl(
+				{ getURL: async () => source },
+				{},
+				source,
+				options,
+				"https://site.example.com",
+			),
+		).resolves.toBeNull();
+		await expect(
+			resolveExternalImageServiceUrl(
+				{ getURL: async () => "javascript:alert(1)" },
+				{},
+				source,
+				options,
+				"https://site.example.com",
+			),
+		).resolves.toBeNull();
+	});
+});
 
 describe("matchInternalMediaKey", () => {
 	it("extracts the key from a relative internal media URL", () => {

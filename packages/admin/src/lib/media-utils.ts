@@ -59,16 +59,23 @@ export const MEDIA_THUMBNAIL_WIDTH = 400;
  *
  * Returns the URL unchanged for non-raster media (an icon renders instead),
  * SVGs (vector — nothing to downscale, and some services reject them), and
- * anything not served from the local media route (external/provider URLs are
- * already remote renditions, not same-origin originals).
+ * external/provider URLs that are not backed by EmDash storage (they are
+ * already remote renditions, not same-origin originals). Storage-backed items
+ * with a configured public URL still use the internal source path here so the
+ * endpoint can identify the storage key and delegate it to the configured
+ * image service.
  */
 export function getMediaThumbnailUrl(
 	originalUrl: string,
 	mimeType: string,
 	width: number = MEDIA_THUMBNAIL_WIDTH,
+	storageKey?: string,
 ): string {
 	if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") return originalUrl;
-	if (!originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
+	const sourceUrl = storageKey
+		? `${INTERNAL_MEDIA_PREFIX}${encodeURIComponent(storageKey)}`
+		: originalUrl;
+	if (!sourceUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
 
 	// Astro authorizes the media route by absolute origin (see the
 	// `image.remotePatterns` entry the EmDash integration registers), so the
@@ -78,7 +85,7 @@ export function getMediaThumbnailUrl(
 	if (!origin) return originalUrl;
 
 	const params = new URLSearchParams({
-		href: `${origin}${originalUrl}`,
+		href: `${origin}${sourceUrl}`,
 		w: String(width),
 		f: "webp",
 	});

@@ -40,6 +40,18 @@ describe("getMediaThumbnailUrl", () => {
 		const external = "https://images.example.com/photo.jpg";
 		expect(getMediaThumbnailUrl(external, "image/jpeg")).toBe(external);
 	});
+
+	it("routes storage-backed public URLs through /_image using their storage key", () => {
+		const publicUrl = "https://media.example.com/01ABC.heic";
+		const result = getMediaThumbnailUrl(publicUrl, "image/heic", 400, "01ABC.heic");
+		const url = new URL(result, window.location.origin);
+
+		expect(url.pathname).toBe("/_image");
+		expect(url.searchParams.get("href")).toBe(
+			`${window.location.origin}/_emdash/api/media/file/01ABC.heic`,
+		);
+		expect(url.searchParams.get("f")).toBe("webp");
+	});
 });
 
 describe("fallbackToOriginalThumbnail", () => {
