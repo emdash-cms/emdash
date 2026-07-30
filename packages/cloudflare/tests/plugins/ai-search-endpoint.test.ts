@@ -65,8 +65,7 @@ vi.mock("emdash", async (importOriginal) => {
 // real handle, regardless of request auth. This is the whole point of the fix.
 const { runtimeDbHandle } = vi.hoisted(() => ({ runtimeDbHandle: { selectFrom: () => ({}) } }));
 vi.mock("emdash/middleware", () => ({
-	withEmDashRuntime: async (run: (rt: { db: unknown }) => unknown) =>
-		run({ db: runtimeDbHandle }),
+	withEmDashRuntime: async (run: (rt: { db: unknown }) => unknown) => run({ db: runtimeDbHandle }),
 }));
 
 const { createAISearchSnippetEndpoint } = await import("../../src/plugins/ai-search.js");
@@ -99,7 +98,9 @@ describe("createAISearchSnippetEndpoint() on the anonymous request path", () => 
 		];
 
 		const endpoint = createAISearchSnippetEndpoint();
-		const response = await endpoint(anonymousContext({ messages: [{ role: "user", content: "hi" }] }));
+		const response = await endpoint(
+			anonymousContext({ messages: [{ role: "user", content: "hi" }] }),
+		);
 
 		// Before the fix this threw synchronously (undefined db) -> 503/500.
 		expect(response.status).toBe(200);
