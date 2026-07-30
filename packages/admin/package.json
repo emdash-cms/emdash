@@ -49,6 +49,7 @@
     "@tanstack/react-router": "catalog:",
     "@tiptap/core": "catalog:",
     "@tiptap/extension-character-count": "catalog:",
+    "@tiptap/extension-code": "catalog:",
     "@tiptap/extension-code-block": "catalog:",
     "@tiptap/extension-collaboration": "catalog:",
     "@tiptap/extension-drag-handle": "catalog:",

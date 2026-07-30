@@ -135,6 +135,9 @@ catalogs:
     '@tiptap/extension-character-count':
       specifier: ^3.20.0
       version: 3.20.0
+    '@tiptap/extension-code':
+      specifier: ^3.20.0
+      version: 3.20.0
     '@tiptap/extension-code-block':
       specifier: ^3.20.0
       version: 3.20.0
@@ -1167,6 +1170,9 @@ importers:
       '@tiptap/extension-character-count':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/extensions@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))
+      '@tiptap/extension-code':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))
       '@tiptap/extension-code-block':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
@@ -1679,6 +1685,9 @@ importers:
       '@tiptap/core':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/pm@3.20.0)
+      '@tiptap/extension-code':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))
       '@tiptap/extension-code-block':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)

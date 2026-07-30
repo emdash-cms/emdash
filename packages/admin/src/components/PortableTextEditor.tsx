@@ -2545,7 +2545,7 @@ export function PortableTextEditor({
 				},
 				// Replaced with CodeBlockExtension below (adds language picker node view).
 				codeBlock: false,
-				// Replaced with CodeMark below so inline code can combine with link/etc.
+				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
 				code: false,
 				// StarterKit v3 includes Link and Underline
 				link: {

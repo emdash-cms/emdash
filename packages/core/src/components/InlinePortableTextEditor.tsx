@@ -1943,7 +1943,7 @@ export function InlinePortableTextEditor({
 				dropcursor: { color: "#3b82f6", width: 2 },
 				// Replaced with InlineCodeBlockExtension below (adds language picker).
 				codeBlock: false,
-				// Replaced with CodeMark below so inline code can combine with link/etc.
+				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
 				code: false,
 			}),
 			CodeMarkExtension,
