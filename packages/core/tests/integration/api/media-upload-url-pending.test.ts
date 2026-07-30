@@ -1,22 +1,4 @@
-/**
- * The signed-upload endpoint must not leave a `pending` media row behind when
- * storage cannot pre-sign.
- *
- * `POST /_emdash/api/media/upload-url` is the first call the admin's
- * `uploadMedia()` makes; it falls back to direct multipart upload when the
- * endpoint answers 501. Two shipped adapters can never pre-sign and always
- * throw NOT_SUPPORTED — local storage (`LocalStorage.getSignedUploadUrl`) and
- * R2 accessed through a Worker binding (`R2Storage.getSignedUploadUrl`) — so
- * on those setups the 501 fallback is the *normal* path, taken on every single
- * upload.
- *
- * The route used to create the pending record before asking storage for the
- * URL, so each of those attempts committed a `status='pending'` row with no
- * object behind it. The rows are invisible (`findMany` defaults to
- * `status='ready'` and the list query exposes no status filter) and are only
- * removed by `cleanupPendingUploads()`, which nothing schedules — so the table
- * grew by one dead row per upload attempt, indefinitely.
- */
+/** The signed-upload endpoint must not leave a pending media row behind when storage cannot pre-sign. */
 import { Role } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
