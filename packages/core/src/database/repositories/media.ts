@@ -277,6 +277,7 @@ export class MediaRepository {
 			dominantColor?: string;
 			contentHash?: string | null;
 		},
+		expectedStorageKey?: string,
 	): Promise<MediaItem | null> {
 		const updates: Partial<MediaRow> = {
 			status: "ready",
@@ -288,13 +289,16 @@ export class MediaRepository {
 		if (metadata?.dominantColor !== undefined) updates.dominant_color = metadata.dominantColor;
 		if (metadata?.contentHash !== undefined) updates.content_hash = metadata.contentHash;
 
-		const row = await this.db
+		let query = this.db
 			.updateTable("media")
 			.set(updates)
 			.where("id", "=", id)
-			.where("status", "=", "pending")
-			.returningAll()
-			.executeTakeFirst();
+			.where("status", "=", "pending");
+		if (expectedStorageKey !== undefined) {
+			query = query.where("storage_key", "=", expectedStorageKey);
+		}
+
+		const row = await query.returningAll().executeTakeFirst();
 
 		return row ? this.rowToItem(row) : null;
 	}
@@ -302,15 +306,14 @@ export class MediaRepository {
 	/**
 	 * Mark upload as failed
 	 */
-	async markFailed(id: string): Promise<MediaItem | null> {
-		const existing = await this.findById(id);
-		if (!existing) {
-			return null;
+	async markFailed(id: string, expectedStorageKey?: string): Promise<MediaItem | null> {
+		let query = this.db.updateTable("media").set({ status: "failed" }).where("id", "=", id);
+		if (expectedStorageKey !== undefined) {
+			query = query.where("status", "=", "pending").where("storage_key", "=", expectedStorageKey);
 		}
 
-		await this.db.updateTable("media").set({ status: "failed" }).where("id", "=", id).execute();
-
-		return this.findById(id);
+		const row = await query.returningAll().executeTakeFirst();
+		return row ? this.rowToItem(row) : null;
 	}
 
 	/**

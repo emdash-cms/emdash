@@ -172,8 +172,7 @@ describe("streamed media upload fallback", () => {
 
 	it("accepts existing client hash formats for deduplication", async () => {
 		const repo = new MediaRepository(db);
-		const contentHash =
-			"sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+		const contentHash = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 		const existing = await repo.create({
 			filename: "photo.png",
 			mimeType: "image/png",
@@ -641,6 +640,154 @@ describe("streamed media upload fallback", () => {
 		expect(storage.objects.get(retried!.storageKey)).toEqual(new Uint8Array([4, 5, 6]));
 		expect(storage.objects.has(firstUpload!.storageKey)).toBe(false);
 		expect(storage.delete).toHaveBeenCalledOnce();
+	});
+
+	it("does not confirm stale metadata after a replacement upload", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "document.pdf",
+			mimeType: "application/pdf",
+			size: 3,
+			storageKey: "document.pdf",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		const firstBytes = new Uint8Array([1, 2, 3]);
+		const replacementBytes = new Uint8Array([4, 5, 6]);
+
+		await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, firstBytes, "application/pdf"),
+				storage,
+			}),
+		);
+
+		let markConfirmationReading: () => void = () => undefined;
+		const confirmationReading = new Promise<void>((resolve) => {
+			markConfirmationReading = resolve;
+		});
+		let finishConfirmation: () => void = () => undefined;
+		const confirmationCanFinish = new Promise<void>((resolve) => {
+			finishConfirmation = resolve;
+		});
+		storage.download.mockImplementationOnce(async (key: string) => {
+			const bytes = storage.objects.get(key);
+			if (!bytes) throw new EmDashStorageError("File not found", "NOT_FOUND");
+			return {
+				body: new ReadableStream<Uint8Array>({
+					cancel() {
+						markConfirmationReading();
+						return confirmationCanFinish;
+					},
+				}),
+				contentType: "application/pdf",
+				size: bytes.byteLength,
+			};
+		});
+
+		const confirm = () =>
+			postConfirm(
+				buildContext({
+					db,
+					id: pending.id,
+					request: new Request(`http://localhost/_emdash/api/media/${pending.id}/confirm`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+						body: "{}",
+					}),
+					storage,
+				}),
+			);
+		const staleConfirmation = confirm();
+		await confirmationReading;
+
+		await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, replacementBytes, "application/pdf"),
+				storage,
+			}),
+		);
+		finishConfirmation();
+
+		expect((await staleConfirmation).status).toBe(409);
+		const replacement = await repo.findById(pending.id);
+		expect(replacement).toMatchObject({
+			status: "pending",
+			contentHash: await computeContentHash(replacementBytes),
+		});
+		expect(storage.objects.get(replacement!.storageKey)).toEqual(replacementBytes);
+
+		expect((await confirm()).status).toBe(200);
+		expect(await repo.findById(pending.id)).toMatchObject({
+			status: "ready",
+			contentHash: await computeContentHash(replacementBytes),
+		});
+	});
+
+	it("does not mark a replacement upload as failed from a stale storage check", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "document.pdf",
+			mimeType: "application/pdf",
+			size: 3,
+			storageKey: "document.pdf",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		const replacementBytes = new Uint8Array([4, 5, 6]);
+
+		let markStorageChecked: () => void = () => undefined;
+		const storageChecked = new Promise<void>((resolve) => {
+			markStorageChecked = resolve;
+		});
+		let finishStorageCheck: () => void = () => undefined;
+		const storageCheckCanFinish = new Promise<void>((resolve) => {
+			finishStorageCheck = resolve;
+		});
+		storage.exists.mockImplementationOnce(async () => {
+			markStorageChecked();
+			await storageCheckCanFinish;
+			return false;
+		});
+
+		const confirm = () =>
+			postConfirm(
+				buildContext({
+					db,
+					id: pending.id,
+					request: new Request(`http://localhost/_emdash/api/media/${pending.id}/confirm`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+						body: "{}",
+					}),
+					storage,
+				}),
+			);
+		const staleConfirmation = confirm();
+		await storageChecked;
+
+		await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, replacementBytes, "application/pdf"),
+				storage,
+			}),
+		);
+		finishStorageCheck();
+
+		expect((await staleConfirmation).status).toBe(409);
+		expect(await repo.findById(pending.id)).toMatchObject({
+			status: "pending",
+			contentHash: await computeContentHash(replacementBytes),
+		});
+
+		expect((await confirm()).status).toBe(200);
+		expect(await repo.findById(pending.id)).toMatchObject({ status: "ready" });
 	});
 
 	it("publishes only one object when two uploads race", async () => {

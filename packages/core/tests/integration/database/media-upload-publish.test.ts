@@ -55,6 +55,32 @@ describeEachDialect("pending media upload publication", (dialect) => {
 		expect((await repo.findById(pending.id))?.storageKey).toMatch(/^attempt-[ab]\.png$/);
 	});
 
+	it("does not apply stale confirmation state after the storage key changes", async () => {
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "pending.png",
+		});
+		await repo.createUploadAttempt(pending.id, "replacement.png");
+		await repo.publishPendingStorageKey(
+			pending.id,
+			pending.storageKey,
+			"replacement.png",
+			"sha1:589c22335a381f122d129225f5c0ba3056ed5811",
+		);
+
+		await expect(
+			repo.confirmUpload(pending.id, { width: 100 }, pending.storageKey),
+		).resolves.toBeNull();
+		await expect(repo.markFailed(pending.id, pending.storageKey)).resolves.toBeNull();
+		expect(await repo.findById(pending.id)).toMatchObject({
+			status: "pending",
+			storageKey: "replacement.png",
+			width: null,
+		});
+	});
+
 	it("does not claim a fresh active attempt for cleanup", async () => {
 		const pending = await repo.createPending({
 			filename: "photo.png",

@@ -828,7 +828,7 @@ function buildMediaPaths(maxUploadSize: number) {
 						},
 					},
 					...authErrors,
-					...standardErrors(400, 404, 500),
+					...standardErrors(400, 404, 409, 500),
 				},
 			},
 		},

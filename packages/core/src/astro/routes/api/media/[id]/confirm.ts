@@ -56,6 +56,21 @@ async function forgetUploadAttempt(repo: MediaRepository, storageKey: string): P
 	}
 }
 
+async function confirmationConflict(repo: MediaRepository, id: string): Promise<Response> {
+	const current = await repo.findById(id);
+	if (!current) {
+		return apiError("NOT_FOUND", `Media item not found: ${id}`, 404);
+	}
+	if (current.status === "ready") {
+		await forgetUploadAttempt(repo, current.storageKey);
+		return apiSuccess({ item: addUrlToMedia(current) });
+	}
+	if (current.status === "pending") {
+		return apiError("INVALID_STATE", "Media item changed during confirmation", 409);
+	}
+	return apiError("INVALID_STATE", `Media item is not pending: ${current.status}`, 400);
+}
+
 async function consumeDownload(download: DownloadResult): Promise<Uint8Array> {
 	const reader = download.body.getReader();
 	try {
@@ -148,8 +163,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (emdash.storage) {
 			const exists = await emdash.storage.exists(existing.storageKey);
 			if (!exists) {
-				// Mark as failed
-				await repo.markFailed(id);
+				const failed = await repo.markFailed(id, existing.storageKey);
+				if (!failed) return await confirmationConflict(repo, id);
 				return apiError("FILE_NOT_FOUND", "File was not uploaded to storage", 400);
 			}
 
@@ -207,28 +222,21 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		}
 
 		// Confirm the upload
-		const item = await repo.confirmUpload(id, {
-			size: confirmedSize,
-			width,
-			height,
-			blurhash,
-			dominantColor,
-			contentHash,
-		});
+		const item = await repo.confirmUpload(
+			id,
+			{
+				size: confirmedSize,
+				width,
+				height,
+				blurhash,
+				dominantColor,
+				contentHash,
+			},
+			existing.storageKey,
+		);
 
 		if (!item) {
-			const current = await repo.findById(id);
-			if (!current) {
-				return apiError("NOT_FOUND", `Media item not found: ${id}`, 404);
-			}
-			if (current.status === "ready") {
-				await forgetUploadAttempt(repo, current.storageKey);
-				return apiSuccess({ item: addUrlToMedia(current) });
-			}
-			if (current.status !== "pending") {
-				return apiError("INVALID_STATE", `Media item is not pending: ${current.status}`, 400);
-			}
-			return apiError("CONFIRM_FAILED", "Failed to confirm upload", 500);
+			return await confirmationConflict(repo, id);
 		}
 
 		await forgetUploadAttempt(repo, item.storageKey);
