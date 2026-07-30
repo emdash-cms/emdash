@@ -143,11 +143,6 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			}
 		}
 
-		const storedSize = await getStoredSize(emdash.storage, media.storageKey);
-		if (storedSize === expectedSize) {
-			return apiSuccess({ uploaded: true, size: expectedSize });
-		}
-
 		let receivedSize = 0;
 		const shouldHash = expectedSize > 0 && expectedSize <= MAX_CONTENT_HASH_BYTES;
 		let hashBytes: Uint8Array | null = null;
@@ -259,6 +254,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			return apiError("INVALID_STATE", "Media item is no longer pending", 400);
 		}
 
+		await removeUploadAttempt(emdash.storage, repo, media.storageKey);
 		return apiSuccess({ uploaded: true, size: receivedSize });
 	} catch (error) {
 		return handleError(error, "Upload failed", "UPLOAD_ERROR");

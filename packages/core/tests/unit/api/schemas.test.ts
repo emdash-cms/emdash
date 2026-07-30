@@ -253,16 +253,16 @@ describe("mediaUploadUrlBody schema factory", () => {
 		expect(result.size).toBe(0);
 	});
 
-	it("rejects malformed client content hashes", () => {
+	it("accepts client content hashes in existing formats", () => {
 		const schema = mediaUploadUrlBody(1_000);
-		expect(
-			schema.safeParse({
-				filename: "a.jpg",
-				contentType: "image/jpeg",
-				size: 500,
-				contentHash: "not-a-content-hash",
-			}).success,
-		).toBe(false);
+		const contentHash = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+		const result = schema.parse({
+			filename: "a.jpg",
+			contentType: "image/jpeg",
+			size: 500,
+			contentHash,
+		});
+		expect(result.contentHash).toBe(contentHash);
 	});
 
 	it("each call returns an independent schema with its own limit", () => {

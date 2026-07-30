@@ -170,6 +170,31 @@ describe("streamed media upload fallback", () => {
 		});
 	});
 
+	it("accepts existing client hash formats for deduplication", async () => {
+		const repo = new MediaRepository(db);
+		const contentHash =
+			"sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+		const existing = await repo.create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			contentHash,
+		});
+
+		const response = await postUploadUrl(
+			buildContext({
+				db,
+				request: uploadUrlRequestWithHash(contentHash),
+				storage: unsupportedSignedUrlStorage(),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as { data: { existing?: boolean; mediaId: string } };
+		expect(body.data).toMatchObject({ existing: true, mediaId: existing.id });
+	});
+
 	it.each([
 		{ difference: "MIME type", contentType: "video/mp4", size: 3 },
 		{ difference: "size", contentType: "audio/mp4", size: 4 },
@@ -533,7 +558,7 @@ describe("streamed media upload fallback", () => {
 		expect(storage.objects.size).toBe(0);
 	});
 
-	it("keeps a completed object when the upload request is retried", async () => {
+	it("preserves a completed object when a retry upload fails", async () => {
 		const repo = new MediaRepository(db);
 		const pending = await repo.createPending({
 			filename: "photo.png",
@@ -571,9 +596,51 @@ describe("streamed media upload fallback", () => {
 			}),
 		);
 
-		expect(retryResponse.status).toBe(200);
-		expect(storage.upload).toHaveBeenCalledOnce();
+		expect(retryResponse.status).toBe(500);
+		expect(storage.upload).toHaveBeenCalledTimes(2);
+		expect(await repo.findById(pending.id)).toMatchObject({ storageKey: completedKey });
 		expect(storage.objects.get(completedKey)).toEqual(new Uint8Array([1, 2, 3]));
+	});
+
+	it("processes different same-size bytes when an upload target is retried", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+
+		const firstResponse = await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, new Uint8Array([1, 2, 3])),
+				storage,
+			}),
+		);
+		expect(firstResponse.status).toBe(200);
+		const firstUpload = await repo.findById(pending.id);
+		expect(firstUpload).not.toBeNull();
+
+		const secondResponse = await putUpload(
+			buildContext({
+				db,
+				id: pending.id,
+				request: uploadRequest(pending.id, new Uint8Array([4, 5, 6])),
+				storage,
+			}),
+		);
+
+		expect(secondResponse.status).toBe(200);
+		expect(storage.upload).toHaveBeenCalledTimes(2);
+		const retried = await repo.findById(pending.id);
+		expect(retried?.storageKey).not.toBe(firstUpload!.storageKey);
+		expect(storage.objects.get(retried!.storageKey)).toEqual(new Uint8Array([4, 5, 6]));
+		expect(storage.objects.has(firstUpload!.storageKey)).toBe(false);
+		expect(storage.delete).toHaveBeenCalledOnce();
 	});
 
 	it("publishes only one object when two uploads race", async () => {
