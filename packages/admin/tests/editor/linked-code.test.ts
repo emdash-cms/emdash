@@ -73,7 +73,13 @@ describe("linked inline code marks", () => {
 
 	it("allows code and link inside a heading", () => {
 		editor.commands.setContent("<h2>fetch</h2>");
-		editor.chain().focus().selectAll().toggleCode().setLink({ href: "https://example.com/api" }).run();
+		editor
+			.chain()
+			.focus()
+			.selectAll()
+			.toggleCode()
+			.setLink({ href: "https://example.com/api" })
+			.run();
 
 		expect(firstBlockType(editor)).toBe("heading");
 		expect(editor.state.doc.firstChild?.attrs.level).toBe(2);
