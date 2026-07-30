@@ -103,6 +103,24 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const ext = path.extname(body.filename) || "";
 		const storageKey = `${id}${ext}`;
 
+		// Get signed upload URL from storage.
+		//
+		// This must happen BEFORE the pending record is created. Adapters that
+		// cannot pre-sign -- local storage, and R2 accessed through a Worker
+		// binding -- throw NOT_SUPPORTED here, which the catch below turns into a
+		// 501 so the client falls back to direct upload. Creating the record first
+		// meant every such request committed a `status='pending'` row with no
+		// object behind it: invisible in the library (findMany defaults to
+		// `status='ready'`, and the list query exposes no status filter) and only
+		// ever removed by cleanupPendingUploads(), which nothing schedules. On
+		// those setups the table grew by one dead row per upload attempt.
+		const signedUrl = await emdash.storage.getSignedUploadUrl({
+			key: storageKey,
+			contentType: body.contentType,
+			size: body.size,
+			expiresIn: 3600, // 1 hour
+		});
+
 		// Create pending media record with content hash
 		const mediaItem = await repo.createPending({
 			filename: body.filename,
@@ -111,14 +129,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			storageKey,
 			contentHash: body.contentHash,
 			authorId: user?.id,
-		});
-
-		// Get signed upload URL from storage
-		const signedUrl = await emdash.storage.getSignedUploadUrl({
-			key: storageKey,
-			contentType: body.contentType,
-			size: body.size,
-			expiresIn: 3600, // 1 hour
 		});
 
 		const response: UploadUrlResponse = {
