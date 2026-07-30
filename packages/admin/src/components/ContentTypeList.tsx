@@ -120,7 +120,7 @@ export function ContentTypeList({
 							<tr>
 								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
 									{t`No content types yet.`}{" "}
-									<Link to="/content-types/new" className="text-kumo-brand underline">
+									<Link to="/content-types/new" className="text-kumo-link underline">
 										{t`Create your first one`}
 									</Link>
 								</td>
@@ -187,7 +187,7 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 						<Link
 							to="/content-types/$slug"
 							params={{ slug: collection.slug }}
-							className="font-medium hover:text-kumo-brand"
+							className="font-medium hover:text-kumo-link"
 						>
 							{collection.label}
 						</Link>

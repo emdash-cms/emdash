@@ -202,7 +202,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 						{hasMarketplace ? (
 							<>
 								{t`Browse the`}{" "}
-								<Link to="/plugins/marketplace" className="text-kumo-brand hover:underline">
+								<Link to="/plugins/marketplace" className="text-kumo-link hover:underline">
 									{t`marketplace`}
 								</Link>{" "}
 								{t`to install plugins, or add them to your astro.config.mjs.`}
@@ -370,7 +370,7 @@ function PluginCard({
 							)}
 						>
 							<ADMIN_NAV_ICONS.plugins
-								className={cn("h-5 w-5", plugin.enabled ? "text-kumo-brand" : "text-kumo-subtle")}
+								className={cn("h-5 w-5", plugin.enabled ? "text-kumo-link" : "text-kumo-subtle")}
 							/>
 						</div>
 					)}
@@ -383,7 +383,7 @@ function PluginCard({
 							{!plugin.enabled && <Badge variant="secondary">{t`Disabled`}</Badge>}
 							{isMarketplace && <Badge variant="secondary">{t`Marketplace`}</Badge>}
 							{hasUpdate && (
-								<Badge variant="outline" className="border-kumo-brand text-kumo-brand">
+								<Badge variant="outline" className="border-kumo-brand text-kumo-link">
 									{t`v${updateInfo.latest} available`}
 								</Badge>
 							)}

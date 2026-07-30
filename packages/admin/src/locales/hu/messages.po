@@ -89,7 +89,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1465
+#: packages/admin/src/router.tsx:1467
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# hozzászólás frissítve} other {# hozzászólás frissítve}}"
 
@@ -569,7 +569,7 @@ msgstr "Meghívás elfogadása"
 msgid "Access denied"
 msgstr "Hozzáférés megtagadva"
 
-#: packages/admin/src/router.tsx:1485
+#: packages/admin/src/router.tsx:1487
 msgid "Access Denied"
 msgstr "Hozzáférés megtagadva"
 
@@ -643,11 +643,11 @@ msgstr "Engedélyezett domain hozzáadása"
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Adj hozzá legalább egy almezőt az ismétlődő struktúra meghatározásához."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3398
+#: packages/admin/src/components/PortableTextEditor.tsx:3399
 msgid "Add column after"
 msgstr "Oszlop hozzáadása utána"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3392
+#: packages/admin/src/components/PortableTextEditor.tsx:3393
 msgid "Add column before"
 msgstr "Oszlop hozzáadása elé"
 
@@ -709,7 +709,7 @@ msgstr "Elem hozzáadása"
 msgid "Add Item"
 msgstr "Elem hozzáadása"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3327
+#: packages/admin/src/components/PortableTextEditor.tsx:3328
 msgid "Add link"
 msgstr "Link hozzáadása"
 
@@ -742,11 +742,11 @@ msgstr "Passkey hozzáadása"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Adj hozzá plugineket az astro.config.mjs fájlhoz az EmDash funkcióinak bővítéséhez."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3419
+#: packages/admin/src/components/PortableTextEditor.tsx:3420
 msgid "Add row after"
 msgstr "Sor hozzáadása utána"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3413
+#: packages/admin/src/components/PortableTextEditor.tsx:3414
 msgid "Add row before"
 msgstr "Sor hozzáadása elé"
 
@@ -814,15 +814,15 @@ msgstr ""
 msgid "Agent-callable MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3782
+#: packages/admin/src/components/PortableTextEditor.tsx:3783
 msgid "Align Center"
 msgstr "Középre igazítás"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3775
+#: packages/admin/src/components/PortableTextEditor.tsx:3776
 msgid "Align Left"
 msgstr "Balra igazítás"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3789
+#: packages/admin/src/components/PortableTextEditor.tsx:3790
 msgid "Align Right"
 msgstr "Jobbra igazítás"
 
@@ -964,10 +964,10 @@ msgstr "Másik lehetőségként exportálhatsz WordPressből (Eszközök → Exp
 #: packages/admin/src/router.tsx:1095
 #: packages/admin/src/router.tsx:1126
 #: packages/admin/src/router.tsx:1146
-#: packages/admin/src/router.tsx:1430
-#: packages/admin/src/router.tsx:1446
-#: packages/admin/src/router.tsx:1471
-#: packages/admin/src/router.tsx:1960
+#: packages/admin/src/router.tsx:1432
+#: packages/admin/src/router.tsx:1448
+#: packages/admin/src/router.tsx:1473
+#: packages/admin/src/router.tsx:1962
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1008,7 +1008,7 @@ msgstr "Bejegyzéseken és oldalakon jelenik meg"
 msgid "Application Password"
 msgstr "Alkalmazásjelszó"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3871
+#: packages/admin/src/components/PortableTextEditor.tsx:3872
 msgid "Apply"
 msgstr "Alkalmaz"
 
@@ -1017,8 +1017,8 @@ msgstr "Alkalmaz"
 msgid "Apply language"
 msgstr "Nyelv alkalmazása"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3253
 #: packages/admin/src/components/PortableTextEditor.tsx:3254
+#: packages/admin/src/components/PortableTextEditor.tsx:3255
 msgid "Apply link"
 msgstr "Link alkalmazása"
 
@@ -1073,7 +1073,7 @@ msgstr "Biztosan törlöd a(z) \"{0}\" mezőt?"
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 msgstr "Biztosan törlöd ezt a menüt? Ez az összes menüelemet is törli. A művelet nem vonható vissza."
 
-#: packages/admin/src/components/WelcomeModal.tsx:53
+#: packages/admin/src/components/WelcomeModal.tsx:59
 msgid "As an administrator, you can invite other users from the Users section."
 msgstr "Adminisztrátorként a Felhasználók szakaszból hívhatsz meg további felhasználókat."
 
@@ -1194,7 +1194,7 @@ msgstr "Elérhető widgetek"
 msgid "Avatar"
 msgstr "Avatár"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:284
+#: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/MenuEditor.tsx:362
 #: packages/admin/src/components/WordPressImport.tsx:1510
 #: packages/admin/src/components/WordPressImport.tsx:2527
@@ -1288,8 +1288,8 @@ msgstr "Bemutatkozás"
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "Blokkműveletek – húzással átrendezhető, kattintásra menü nyílik"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3277
-#: packages/admin/src/components/PortableTextEditor.tsx:3679
+#: packages/admin/src/components/PortableTextEditor.tsx:3278
+#: packages/admin/src/components/PortableTextEditor.tsx:3680
 msgid "Bold"
 msgstr "Félkövér"
 
@@ -1324,9 +1324,9 @@ msgstr "Böngészés:"
 msgid "Browse themes and preview them with your own content."
 msgstr "Témák böngészése és előnézete a saját tartalmaddal."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:129
+#: packages/admin/src/components/editor/BlockMenu.tsx:127
 #: packages/admin/src/components/PortableTextEditor.tsx:1182
-#: packages/admin/src/components/PortableTextEditor.tsx:3741
+#: packages/admin/src/components/PortableTextEditor.tsx:3742
 msgid "Bullet List"
 msgstr "Felsorolás"
 
@@ -1399,7 +1399,7 @@ msgstr "Tartalmat tekinthet meg"
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/PluginManager.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:3855
+#: packages/admin/src/components/PortableTextEditor.tsx:3856
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
@@ -1636,7 +1636,7 @@ msgstr "A bejelentkezéshez kattints az e-mailben lévő linkre."
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
 #: packages/admin/src/components/users/InviteUserModal.tsx:98
-#: packages/admin/src/components/WelcomeModal.tsx:54
+#: packages/admin/src/components/WelcomeModal.tsx:60
 #: packages/admin/src/components/Widgets.tsx:413
 #: packages/admin/src/components/Widgets.tsx:419
 #: packages/admin/src/components/Widgets.tsx:423
@@ -1660,14 +1660,14 @@ msgid "Close settings"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:244
-#: packages/admin/src/components/PortableTextEditor.tsx:3319
+#: packages/admin/src/components/PortableTextEditor.tsx:3320
 #: packages/admin/src/components/Redirects.tsx:472
 msgid "Code"
 msgstr "Kód"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:121
+#: packages/admin/src/components/editor/BlockMenu.tsx:119
 #: packages/admin/src/components/PortableTextEditor.tsx:1212
-#: packages/admin/src/components/PortableTextEditor.tsx:3762
+#: packages/admin/src/components/PortableTextEditor.tsx:3763
 msgid "Code Block"
 msgstr "Kódblokk"
 
@@ -2256,7 +2256,7 @@ msgstr "Kódban definiálva"
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:672
 #: packages/admin/src/components/ContentTypeList.tsx:150
-#: packages/admin/src/components/editor/BlockMenu.tsx:328
+#: packages/admin/src/components/editor/BlockMenu.tsx:318
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
@@ -2325,7 +2325,7 @@ msgstr "Törlöd a szerzői leírás mezőjét?"
 msgid "Delete Byline?"
 msgstr "Törlöd a szerzőt?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3404
+#: packages/admin/src/components/PortableTextEditor.tsx:3405
 msgid "Delete column"
 msgstr "Oszlop törlése"
 
@@ -2394,7 +2394,7 @@ msgstr "{0} átirányítás törlése"
 msgid "Delete Redirect?"
 msgstr "Törlöd az átirányítást?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3423
+#: packages/admin/src/components/PortableTextEditor.tsx:3424
 msgid "Delete row"
 msgstr "Sor törlése"
 
@@ -2402,7 +2402,7 @@ msgstr "Sor törlése"
 msgid "Delete Section?"
 msgstr "Törlöd a szakaszt?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3438
+#: packages/admin/src/components/PortableTextEditor.tsx:3439
 msgid "Delete table"
 msgstr "Táblázat törlése"
 
@@ -2761,7 +2761,7 @@ msgstr "Húzd az átrendezéshez: {0}"
 msgid "Drag to reorder {label}"
 msgstr ""
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:365
+#: packages/admin/src/components/editor/BlockMenu.tsx:355
 msgid "Drag to reorder block"
 msgstr "Húzd a blokk átrendezéséhez"
 
@@ -2781,7 +2781,7 @@ msgstr "Engedd el a widget hozzáadásához"
 msgid "Drop your WordPress export file here"
 msgstr "Húzd ide a WordPress exportfájlt"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:319
+#: packages/admin/src/components/editor/BlockMenu.tsx:309
 msgid "Duplicate"
 msgstr "Duplikálás"
 
@@ -2862,7 +2862,7 @@ msgstr "Mező szerkesztése"
 msgid "Edit image {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3327
+#: packages/admin/src/components/PortableTextEditor.tsx:3328
 msgid "Edit link"
 msgstr "Link szerkesztése"
 
@@ -3067,7 +3067,7 @@ msgstr "Add meg a WordPress weboldal URL-jét"
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2174
+#: packages/admin/src/router.tsx:2176
 msgid "Error"
 msgstr "Hiba"
 
@@ -3099,7 +3099,7 @@ msgstr "Létezik"
 msgid "Exit distraction-free mode"
 msgstr "Kilépés a zavarásmentes módból"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3907
+#: packages/admin/src/components/PortableTextEditor.tsx:3908
 msgid "Exit Spotlight Mode"
 msgstr "Kilépés a Spotlight módból"
 
@@ -3160,7 +3160,7 @@ msgstr "Nem sikerült WordPress weboldal elemzése"
 msgid "Failed to communicate with plugin"
 msgstr "Nem sikerült kommunikálni a pluginnel"
 
-#: packages/admin/src/lib/api/media.ts:155
+#: packages/admin/src/lib/api/media.ts:179
 msgid "Failed to confirm upload"
 msgstr "Nem sikerült megerősíteni a feltöltést"
 
@@ -3229,7 +3229,7 @@ msgid "Failed to delete collection"
 msgstr "Nem sikerült gyűjteményt törölni"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1445
+#: packages/admin/src/router.tsx:1447
 msgid "Failed to delete comment"
 msgstr "Nem sikerült hozzászólást törölni"
 
@@ -3242,11 +3242,11 @@ msgstr "Nem sikerült tartalmat törölni"
 msgid "Failed to delete field"
 msgstr "Nem sikerült mezőt törölni"
 
-#: packages/admin/src/lib/api/media.ts:389
+#: packages/admin/src/lib/api/media.ts:416
 msgid "Failed to delete from provider"
 msgstr "Nem sikerült törölni a szolgáltatóból"
 
-#: packages/admin/src/lib/api/media.ts:259
+#: packages/admin/src/lib/api/media.ts:286
 msgid "Failed to delete media"
 msgstr "Nem sikerült médiát törölni"
 
@@ -3299,7 +3299,7 @@ msgstr "Nem sikerült felhasználót letiltani"
 msgid "Failed to discard changes"
 msgstr "Nem sikerült módosításokat elvetni"
 
-#: packages/admin/src/components/WelcomeModal.tsx:70
+#: packages/admin/src/components/WelcomeModal.tsx:76
 msgid "Failed to dismiss welcome"
 msgstr "Nem sikerült üdvözlést bezárni"
 
@@ -3353,15 +3353,15 @@ msgstr "Nem sikerült bejegyzés kifejezéseit lekérni"
 msgid "Failed to fetch manifest"
 msgstr "Nem sikerült manifestet lekérni"
 
-#: packages/admin/src/lib/api/media.ts:76
+#: packages/admin/src/lib/api/media.ts:72
 msgid "Failed to fetch media"
 msgstr "Nem sikerült médiát lekérni"
 
-#: packages/admin/src/lib/api/media.ts:89
+#: packages/admin/src/lib/api/media.ts:85
 msgid "Failed to fetch media item"
 msgstr "Nem sikerült médiaelemet lekérni"
 
-#: packages/admin/src/lib/api/media.ts:325
+#: packages/admin/src/lib/api/media.ts:352
 msgid "Failed to fetch media providers"
 msgstr "Nem sikerült médiaszolgáltatókat lekérni"
 
@@ -3378,7 +3378,7 @@ msgstr ""
 msgid "Failed to fetch plugins"
 msgstr "Nem sikerült plugineket lekérni"
 
-#: packages/admin/src/lib/api/media.ts:355
+#: packages/admin/src/lib/api/media.ts:382
 msgid "Failed to fetch provider media"
 msgstr "Nem sikerült szolgáltatói médiát lekérni"
 
@@ -3411,7 +3411,7 @@ msgstr "Nem sikerült kifejezéseket lekérni"
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
 #: packages/admin/src/router.tsx:852
-#: packages/admin/src/router.tsx:1376
+#: packages/admin/src/router.tsx:1378
 msgid "Failed to fetch user"
 msgstr "Nem sikerült felhasználót lekérni"
 
@@ -3431,7 +3431,7 @@ msgstr "Nem sikerült hitelesítési opciókat lekérni"
 msgid "Failed to get registration options"
 msgstr "Nem sikerült regisztrációs opciókat lekérni"
 
-#: packages/admin/src/lib/api/media.ts:131
+#: packages/admin/src/lib/api/media.ts:154
 msgid "Failed to get upload URL"
 msgstr "Nem sikerült feltöltési URL-t lekérni"
 
@@ -3520,7 +3520,7 @@ msgstr "Nem sikerült betölteni a felhasználókat: {0}"
 msgid "Failed to load widget"
 msgstr "Nem sikerült betölteni a widgetet"
 
-#: packages/admin/src/router.tsx:1470
+#: packages/admin/src/router.tsx:1472
 msgid "Failed to perform bulk action"
 msgstr "Nem sikerült tömeges műveletet végrehajtani"
 
@@ -3589,7 +3589,7 @@ msgid "Failed to rewrite URLs"
 msgstr "URL-ek átírása nem sikerült"
 
 #: packages/admin/src/router.tsx:942
-#: packages/admin/src/router.tsx:1959
+#: packages/admin/src/router.tsx:1961
 msgid "Failed to save"
 msgstr "Nem sikerült a mentés"
 
@@ -3672,7 +3672,7 @@ msgstr "Nem sikerült a szerzői sor mezőjét frissíteni"
 msgid "Failed to update domain"
 msgstr "Domain frissítése nem sikerült"
 
-#: packages/admin/src/lib/api/media.ts:276
+#: packages/admin/src/lib/api/media.ts:303
 msgid "Failed to update media"
 msgstr "Nem sikerült a média frissítése"
 
@@ -3697,19 +3697,19 @@ msgstr "Nem sikerült a szakasz frissítése"
 msgid "Failed to update settings"
 msgstr "Nem sikerült frissíteni a beállításokat"
 
-#: packages/admin/src/router.tsx:1429
+#: packages/admin/src/router.tsx:1431
 msgid "Failed to update status"
 msgstr "Nem sikerült frissíteni az állapotot"
 
-#: packages/admin/src/lib/api/media.ts:173
+#: packages/admin/src/lib/api/media.ts:197
 msgid "Failed to upload file"
 msgstr "Fájl feltöltése sikertelen"
 
-#: packages/admin/src/lib/api/media.ts:218
+#: packages/admin/src/lib/api/media.ts:242
 msgid "Failed to upload media"
 msgstr "Média feltöltése sikertelen"
 
-#: packages/admin/src/lib/api/media.ts:377
+#: packages/admin/src/lib/api/media.ts:404
 msgid "Failed to upload to provider"
 msgstr "Nem sikerült feltölteni a szolgáltatóhoz"
 
@@ -3900,7 +3900,7 @@ msgstr "Általános beállítások"
 msgid "Genres"
 msgstr "Műfajok"
 
-#: packages/admin/src/components/WelcomeModal.tsx:143
+#: packages/admin/src/components/WelcomeModal.tsx:154
 msgid "Get Started"
 msgstr "Kezdés"
 
@@ -3917,7 +3917,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2194
+#: packages/admin/src/router.tsx:2196
 msgid "Go to Dashboard"
 msgstr "Ugrás a vezérlőpultra"
 
@@ -3949,37 +3949,37 @@ msgstr "Vendég szerző"
 msgid "Guest only"
 msgstr "Csak vendég"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:65
+#: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:32
 #: packages/admin/src/components/PortableTextEditor.tsx:1122
 msgid "Heading 1"
 msgstr "Címsor 1"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:73
+#: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
 #: packages/admin/src/components/PortableTextEditor.tsx:1132
 msgid "Heading 2"
 msgstr "Címsor 2"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:81
+#: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
 #: packages/admin/src/components/PortableTextEditor.tsx:1142
 msgid "Heading 3"
 msgstr "Címsor 3"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:89
+#: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
 #: packages/admin/src/components/PortableTextEditor.tsx:1152
 msgid "Heading 4"
 msgstr ""
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:97
+#: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
 #: packages/admin/src/components/PortableTextEditor.tsx:1162
 msgid "Heading 5"
 msgstr ""
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:105
+#: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
 #: packages/admin/src/components/PortableTextEditor.tsx:1172
 msgid "Heading 6"
@@ -4047,8 +4047,8 @@ msgstr "HTML"
 msgid "HTML source"
 msgstr "HTML-forrás"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3240
-#: packages/admin/src/components/PortableTextEditor.tsx:3837
+#: packages/admin/src/components/PortableTextEditor.tsx:3241
+#: packages/admin/src/components/PortableTextEditor.tsx:3838
 msgid "https://..."
 msgstr ""
 
@@ -4231,7 +4231,7 @@ msgstr "Nem kompatibilis"
 msgid "Indexed"
 msgstr "Indexelve"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3721
+#: packages/admin/src/components/PortableTextEditor.tsx:3722
 msgid "Inline Code"
 msgstr "Soron belüli kód"
 
@@ -4277,8 +4277,8 @@ msgstr ""
 msgid "Insert block"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3659
-#: packages/admin/src/components/PortableTextEditor.tsx:3669
+#: packages/admin/src/components/PortableTextEditor.tsx:3660
+#: packages/admin/src/components/PortableTextEditor.tsx:3670
 msgid "Insert block after current block"
 msgstr ""
 
@@ -4290,8 +4290,8 @@ msgstr ""
 msgid "Insert from URL"
 msgstr "Beszúrás URL-ből"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3807
-#: packages/admin/src/components/PortableTextEditor.tsx:3821
+#: packages/admin/src/components/PortableTextEditor.tsx:3808
+#: packages/admin/src/components/PortableTextEditor.tsx:3822
 msgid "Insert Link"
 msgstr "Link beszúrása"
 
@@ -4394,8 +4394,8 @@ msgstr ""
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3284
-#: packages/admin/src/components/PortableTextEditor.tsx:3686
+#: packages/admin/src/components/PortableTextEditor.tsx:3285
+#: packages/admin/src/components/PortableTextEditor.tsx:3687
 msgid "Italic"
 msgstr "Dőlt"
 
@@ -4622,7 +4622,7 @@ msgstr "Továbbiak betöltése"
 msgid "Load More"
 msgstr "Továbbiak betöltése"
 
-#: packages/admin/src/router.tsx:2149
+#: packages/admin/src/router.tsx:2151
 msgid "Loading"
 msgstr ""
 
@@ -4638,8 +4638,8 @@ msgstr "Gyűjtemények betöltése..."
 msgid "Loading comments..."
 msgstr "Hozzászólások betöltése..."
 
-#: packages/admin/src/router.tsx:2151
-#: packages/admin/src/router.tsx:2163
+#: packages/admin/src/router.tsx:2153
+#: packages/admin/src/router.tsx:2165
 msgid "Loading configuration..."
 msgstr "Konfiguráció betöltése..."
 
@@ -4647,7 +4647,7 @@ msgstr "Konfiguráció betöltése..."
 msgid "Loading content..."
 msgstr "Tartalom betöltése..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3030
+#: packages/admin/src/components/PortableTextEditor.tsx:3031
 msgid "Loading editor..."
 msgstr "Szerkesztő betöltése..."
 
@@ -4708,7 +4708,6 @@ msgstr "Widgetek betöltése..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
-#: packages/admin/src/components/WelcomeModal.tsx:143
 #: packages/admin/src/routes/bylines.tsx:468
 msgid "Loading..."
 msgstr "Betöltés..."
@@ -5564,9 +5563,9 @@ msgstr ""
 msgid "Number of posts to show per page on list views"
 msgstr "Listanézetben oldalanként megjelenő bejegyzések száma"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:137
+#: packages/admin/src/components/editor/BlockMenu.tsx:135
 #: packages/admin/src/components/PortableTextEditor.tsx:1192
-#: packages/admin/src/components/PortableTextEditor.tsx:3748
+#: packages/admin/src/components/PortableTextEditor.tsx:3749
 msgid "Numbered List"
 msgstr "Számozott lista"
 
@@ -5707,7 +5706,7 @@ msgstr "Tulajdonjog"
 msgid "Package"
 msgstr "Csomag"
 
-#: packages/admin/src/router.tsx:2189
+#: packages/admin/src/router.tsx:2191
 msgid "Page Not Found"
 msgstr "Az oldal nem található"
 
@@ -5716,7 +5715,7 @@ msgstr "Az oldal nem található"
 msgid "Pages"
 msgstr "Oldalak"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:57
+#: packages/admin/src/components/editor/BlockMenu.tsx:55
 msgid "Paragraph"
 msgstr "Bekezdés"
 
@@ -6124,9 +6123,9 @@ msgstr "Szerző gyors létrehozása"
 msgid "Quick edit alt text"
 msgstr "Alternatív szöveg gyors szerkesztése"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:113
+#: packages/admin/src/components/editor/BlockMenu.tsx:111
 #: packages/admin/src/components/PortableTextEditor.tsx:1202
-#: packages/admin/src/components/PortableTextEditor.tsx:3755
+#: packages/admin/src/components/PortableTextEditor.tsx:3756
 msgid "Quote"
 msgstr "Idézet"
 
@@ -6208,7 +6207,7 @@ msgstr "Átirányítás a bejelentkezéshez..."
 msgid "Redirects"
 msgstr "Átirányítások"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3894
+#: packages/admin/src/components/PortableTextEditor.tsx:3895
 msgid "Redo"
 msgstr "Újra"
 
@@ -6257,7 +6256,7 @@ msgstr "A kiadás túl új a telepítéshez"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
 #: packages/admin/src/components/ContentSettingsPanel.tsx:921
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
-#: packages/admin/src/components/PortableTextEditor.tsx:3867
+#: packages/admin/src/components/PortableTextEditor.tsx:3868
 #: packages/admin/src/components/settings/GeneralSettings.tsx:194
 #: packages/admin/src/components/settings/GeneralSettings.tsx:248
 #: packages/admin/src/components/settings/PasskeyItem.tsx:185
@@ -6315,8 +6314,8 @@ msgstr "Eltávolítod a képet?"
 msgid "Remove item {0}"
 msgstr "{0} elem eltávolítása"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3265
 #: packages/admin/src/components/PortableTextEditor.tsx:3266
+#: packages/admin/src/components/PortableTextEditor.tsx:3267
 msgid "Remove link"
 msgstr "Link eltávolítása"
 
@@ -6457,7 +6456,7 @@ msgstr "Visszaállítás..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:2177
+#: packages/admin/src/router.tsx:2179
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Újrapróbálkozás"
@@ -7001,7 +7000,7 @@ msgstr "Fájl kiválasztása"
 msgid "Select File"
 msgstr "Fájl kiválasztása"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3106
+#: packages/admin/src/components/PortableTextEditor.tsx:3107
 msgid "Select Gallery Images"
 msgstr ""
 
@@ -7010,7 +7009,7 @@ msgid "Select image"
 msgstr "Kép kiválasztása"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:150
-#: packages/admin/src/components/PortableTextEditor.tsx:3092
+#: packages/admin/src/components/PortableTextEditor.tsx:3093
 #: packages/admin/src/components/settings/SeoSettings.tsx:188
 msgid "Select Image"
 msgstr "Kép kiválasztása"
@@ -7426,7 +7425,7 @@ msgstr "spam"
 msgid "Spam"
 msgstr "Spam"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3907
+#: packages/admin/src/components/PortableTextEditor.tsx:3908
 msgid "Spotlight Mode"
 msgstr "Spotlight mód"
 
@@ -7476,8 +7475,8 @@ msgstr ""
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Nyelvi változatonként tárolva — a szerzői sor minden fordítása saját értéket kap."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3298
-#: packages/admin/src/components/PortableTextEditor.tsx:3700
+#: packages/admin/src/components/PortableTextEditor.tsx:3299
+#: packages/admin/src/components/PortableTextEditor.tsx:3701
 msgid "Strikethrough"
 msgstr "Áthúzott"
 
@@ -7498,13 +7497,13 @@ msgstr "Almezők"
 msgid "Subscriber"
 msgstr "Feliratkozó"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3305
-#: packages/admin/src/components/PortableTextEditor.tsx:3707
+#: packages/admin/src/components/PortableTextEditor.tsx:3306
+#: packages/admin/src/components/PortableTextEditor.tsx:3708
 msgid "Subscript"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3312
-#: packages/admin/src/components/PortableTextEditor.tsx:3714
+#: packages/admin/src/components/PortableTextEditor.tsx:3313
+#: packages/admin/src/components/PortableTextEditor.tsx:3715
 msgid "Superscript"
 msgstr ""
 
@@ -7540,7 +7539,7 @@ msgstr "Rendszermezők"
 msgid "Table"
 msgstr "Táblázat"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3387
+#: packages/admin/src/components/PortableTextEditor.tsx:3388
 msgid "Table controls"
 msgstr ""
 
@@ -7613,7 +7612,7 @@ msgstr "Kifejezés törölve"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3651
+#: packages/admin/src/components/PortableTextEditor.tsx:3652
 msgid "Text formatting"
 msgstr "Szövegformázás"
 
@@ -7650,7 +7649,7 @@ msgstr "A menü törölve lett."
 msgid "The name of your site, used in the header and metadata"
 msgstr "A weboldal neve, amely a fejlécben és a metaadatokban jelenik meg"
 
-#: packages/admin/src/router.tsx:2191
+#: packages/admin/src/router.tsx:2193
 msgid "The page you're looking for doesn't exist."
 msgstr "A keresett oldal nem létezik."
 
@@ -7869,7 +7868,7 @@ msgstr "pluginek telepítéséhez, vagy add hozzá őket az astro.config.mjs fá
 msgid "to select"
 msgstr "kiválaszt"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3432
+#: packages/admin/src/components/PortableTextEditor.tsx:3433
 msgid "Toggle header row"
 msgstr "Fejlécsor ki-/bekapcsolása"
 
@@ -8011,7 +8010,7 @@ msgstr "Kipróbálás saját adatokkal"
 msgid "TSX"
 msgstr "TSX"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:309
+#: packages/admin/src/components/editor/BlockMenu.tsx:297
 msgid "Turn into"
 msgstr "Átalakítás erre"
 
@@ -8045,12 +8044,12 @@ msgstr "A piactér nem érhető el"
 msgid "Unassigned"
 msgstr "Nincs hozzárendelve"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3291
-#: packages/admin/src/components/PortableTextEditor.tsx:3693
+#: packages/admin/src/components/PortableTextEditor.tsx:3292
+#: packages/admin/src/components/PortableTextEditor.tsx:3694
 msgid "Underline"
 msgstr "Aláhúzás"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3887
+#: packages/admin/src/components/PortableTextEditor.tsx:3888
 msgid "Undo"
 msgstr "Visszavonás"
 
@@ -8297,9 +8296,9 @@ msgstr "Feltöltés..."
 #: packages/admin/src/components/FieldEditor.tsx:586
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
-#: packages/admin/src/components/PortableTextEditor.tsx:3245
-#: packages/admin/src/components/PortableTextEditor.tsx:3832
-#: packages/admin/src/components/PortableTextEditor.tsx:3842
+#: packages/admin/src/components/PortableTextEditor.tsx:3246
+#: packages/admin/src/components/PortableTextEditor.tsx:3833
+#: packages/admin/src/components/PortableTextEditor.tsx:3843
 msgid "URL"
 msgstr "URL"
 
@@ -8530,11 +8529,11 @@ msgstr "Weboldal"
 msgid "Website URL"
 msgstr "Weboldal URL"
 
-#: packages/admin/src/components/WelcomeModal.tsx:96
+#: packages/admin/src/components/WelcomeModal.tsx:102
 msgid "Welcome to EmDash, {firstName}!"
 msgstr "Üdv az EmDashben, {firstName}!"
 
-#: packages/admin/src/components/WelcomeModal.tsx:96
+#: packages/admin/src/components/WelcomeModal.tsx:102
 msgid "Welcome to EmDash!"
 msgstr "Üdv az EmDashben!"
 
@@ -8706,11 +8705,11 @@ msgstr ""
 msgid "You can close this page and return to your terminal."
 msgstr "Bezárhatod ezt az oldalt, és visszatérhetsz a terminálhoz."
 
-#: packages/admin/src/components/WelcomeModal.tsx:43
+#: packages/admin/src/components/WelcomeModal.tsx:49
 msgid "You can create and edit your own content."
 msgstr "Létrehozhatod és szerkesztheted a saját tartalmaidat."
 
-#: packages/admin/src/components/WelcomeModal.tsx:42
+#: packages/admin/src/components/WelcomeModal.tsx:48
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Kezelheted a tartalmakat, médiát, menüket és taxonómiákat."
 
@@ -8718,7 +8717,7 @@ msgstr "Kezelheted a tartalmakat, médiát, menüket és taxonómiákat."
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "A fenti rögzített mezőket továbbra is szerkesztheted. A mentés nem módosítja a tárolt egyéni mezőértékeket."
 
-#: packages/admin/src/components/WelcomeModal.tsx:44
+#: packages/admin/src/components/WelcomeModal.tsx:50
 msgid "You can view and contribute to the site."
 msgstr "Megtekintheted a weboldalet és közreműködhetsz benne."
 
@@ -8726,7 +8725,7 @@ msgstr "Megtekintheted a weboldalet és közreműködhetsz benne."
 msgid "You cannot change your own role"
 msgstr "A saját szerepkörödet nem módosíthatod"
 
-#: packages/admin/src/components/WelcomeModal.tsx:41
+#: packages/admin/src/components/WelcomeModal.tsx:47
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "Teljes hozzáférésed van a weboldal kezeléséhez, beleértve a felhasználókat, beállításokat és minden tartalmat."
 
@@ -8734,7 +8733,7 @@ msgstr "Teljes hozzáférésed van a weboldal kezeléséhez, beleértve a felhas
 msgid "You need admin permissions to manage byline schema."
 msgstr "A szerzői sor sémájának kezeléséhez admin jogosultság szükséges."
 
-#: packages/admin/src/router.tsx:1486
+#: packages/admin/src/router.tsx:1488
 msgid "You need Editor permissions to moderate comments."
 msgstr "A hozzászólások moderálásához szerkesztői jogosultság szükséges."
 
@@ -8781,7 +8780,7 @@ msgstr "you@company.com"
 msgid "you@example.com"
 msgstr "you@example.com"
 
-#: packages/admin/src/components/WelcomeModal.tsx:39
+#: packages/admin/src/components/WelcomeModal.tsx:45
 msgid "Your account has been created successfully."
 msgstr "A fiókod sikeresen létrejött."
 
@@ -8829,7 +8828,7 @@ msgstr "Neved"
 msgid "Your name (optional)"
 msgstr "Neved (opcionális)"
 
-#: packages/admin/src/components/WelcomeModal.tsx:40
+#: packages/admin/src/components/WelcomeModal.tsx:46
 msgid "Your Role"
 msgstr "Szerepköröd"
 

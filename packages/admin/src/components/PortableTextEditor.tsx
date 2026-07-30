@@ -2549,7 +2549,7 @@ export function PortableTextEditor({
 					openOnClick: false,
 					enableClickSelection: true,
 					HTMLAttributes: {
-						class: "text-kumo-brand underline",
+						class: "text-kumo-link underline",
 					},
 				},
 				underline: {},
@@ -2563,6 +2563,7 @@ export function PortableTextEditor({
 			Subscript,
 			Superscript,
 			Table.configure({
+				allowTableNodeSelection: true,
 				resizable: true,
 			}),
 			TableRow,

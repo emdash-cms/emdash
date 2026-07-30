@@ -670,7 +670,7 @@ function MediaEmptyIllustration({ hero: Hero }: { hero: Icon }) {
 			}}
 			aria-hidden="true"
 		>
-			<Hero size={36} className="text-kumo-brand" aria-hidden="true" />
+			<Hero size={36} className="text-kumo-link" aria-hidden="true" />
 		</div>
 	);
 }

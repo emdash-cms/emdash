@@ -113,7 +113,7 @@ function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckE
 		<div className="space-y-6 text-center">
 			<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mx-auto">
 				<svg
-					className="w-8 h-8 text-kumo-brand"
+					className="w-8 h-8 text-kumo-link"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -437,7 +437,7 @@ export function SignupPage() {
 				{step === "email" && (
 					<p className="text-center mt-6 text-sm text-kumo-subtle">
 						{t`Already have an account?`}{" "}
-						<Link to="/login" className="text-kumo-brand hover:underline font-medium">
+						<Link to="/login" className="text-kumo-link hover:underline font-medium">
 							{t`Sign in`}
 						</Link>
 					</p>

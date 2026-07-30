@@ -551,7 +551,7 @@ export function ContentList({
 														to="/content/$collection/new"
 														params={{ collection }}
 														search={{ locale: activeLocale }}
-														className="text-kumo-brand underline"
+														className="text-kumo-link underline"
 													>
 														{t`Create your first one`}
 													</Link>
@@ -883,7 +883,7 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 				type="button"
 				onClick={handleClick}
 				className={cn(
-					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-brand",
+					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-link",
 					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
 				)}
 			>
@@ -979,7 +979,7 @@ function ContentListItem({
 					to="/content/$collection/$id"
 					params={{ collection, id: item.id }}
 					search={{ locale: item.locale }}
-					className="font-medium hover:text-kumo-brand"
+					className="font-medium hover:text-kumo-link"
 				>
 					{title}
 				</Link>
@@ -1096,7 +1096,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 						aria-label={t`Restore ${title}`}
 						onClick={() => onRestore?.(item.id)}
 					>
-						<ArrowCounterClockwise className="h-4 w-4 text-kumo-brand" aria-hidden="true" />
+						<ArrowCounterClockwise className="h-4 w-4 text-kumo-link" aria-hidden="true" />
 					</Button>
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger

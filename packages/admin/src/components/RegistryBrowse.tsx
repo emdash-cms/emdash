@@ -185,7 +185,7 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 						<h2 className="truncate font-semibold">{name ?? pkg.slug}</h2>
 						{verified ? (
 							<ShieldCheck
-								className="h-4 w-4 shrink-0 text-kumo-brand"
+								className="h-4 w-4 shrink-0 text-kumo-link"
 								aria-label={t`Verified publisher`}
 							/>
 						) : null}
