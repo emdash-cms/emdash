@@ -1341,11 +1341,6 @@ function MediaPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			hasMore={!!hasNextPage}
 			onLoadMore={() => void fetchNextPage()}
-			// mutateAsync, not mutate: MediaLibrary awaits this call and counts
-			// rejections to decide between the success and error banner. mutate()
-			// never rejects, so a failed upload was scored as a success -- the
-			// green "File uploaded" banner appeared and nothing was added to the
-			// list, with the API's reason discarded.
 			onUpload={async (file) => {
 				await uploadMutation.mutateAsync(file);
 			}}

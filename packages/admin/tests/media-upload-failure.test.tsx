@@ -1,25 +1,4 @@
 import { Toasty } from "@cloudflare/kumo";
-/**
- * MediaPage must surface a failed upload as a failure.
- *
- * `MediaLibrary.handleFileSelect` awaits the `onUpload` prop and decides between
- * the success and error banner by counting rejections:
- *
- *     try { await onUpload?.(file); uploaded++ }
- *     catch { failed++ }
- *     ...
- *     if (failed === 0) setUploadState({ status: "success", ... })
- *
- * MediaPage used to pass `uploadMutation.mutate`, which is fire-and-forget — it
- * returns `undefined` and never rejects. So `failed` stayed 0 no matter what the
- * API said, and a rejected upload rendered the green "File uploaded" banner
- * while nothing was added to the list, with the API's reason discarded. Passing
- * `mutateAsync` propagates the real error to that catch.
- *
- * The assertion is on the prop contract rather than the rendered banner: the
- * banner is MediaLibrary's behaviour (and is already correct), whereas the bug
- * was purely in how MediaPage wired the handler.
- */
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -117,8 +96,6 @@ describe("MediaPage upload failure reporting", () => {
 		const onUpload = await renderMediaPage();
 		expect(onUpload).toBeDefined();
 
-		// mutate() would resolve to undefined here and the failure would be
-		// silently scored as a success.
 		await expect(
 			Promise.resolve(onUpload?.(new File(["x"], "notes.txt", { type: "text/plain" }))),
 		).rejects.toThrow("File type not allowed");
@@ -137,9 +114,6 @@ describe("MediaPage upload failure reporting", () => {
 		const onUpload = await renderMediaPage();
 		expect(onUpload).toBeDefined();
 
-		// Companion check on the happy path -- the regression guard is the test
-		// above. The handler resolves to void, so the assertion is only that it
-		// settles without rejecting and that the upload was actually attempted.
 		await expect(
 			Promise.resolve(onUpload?.(new File(["x"], "photo.png", { type: "image/png" }))),
 		).resolves.toBeUndefined();
