@@ -116,6 +116,7 @@ import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
+import { CodeMarkExtension } from "./editor/CodeMarkExtension";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
@@ -2544,6 +2545,8 @@ export function PortableTextEditor({
 				},
 				// Replaced with CodeBlockExtension below (adds language picker node view).
 				codeBlock: false,
+				// Replaced with CodeMark below so inline code can combine with link/etc.
+				code: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
 					openOnClick: false,
@@ -2554,6 +2557,7 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			CodeMarkExtension,
 			CodeBlockExtension,
 			HtmlBlockExtension,
 			GalleryExtension,
