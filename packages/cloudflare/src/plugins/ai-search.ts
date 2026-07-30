@@ -1395,21 +1395,30 @@ export async function handleAISearchSnippetRequest(
 }
 
 export function createAISearchSnippetEndpoint(config?: AISearchConfig): APIRoute {
-	return async ({ request, locals }) => {
-		const emdash = (locals as typeof locals & { emdash?: EmDashRuntime }).emdash;
-		if (!emdash) {
-			return Response.json({ success: false, error: "Search is not available" }, { status: 503 });
-		}
-
-		const options = new OptionsRepository(emdash.db);
-		const prefix = "plugin:ai-search:";
-		const kv: Pick<KVAccess, "get"> = {
-			get: <T>(key: string) => options.get<T>(`${prefix}${key}`),
-		};
-		return handleAISearchSnippetRequest(request, {
-			config: config ?? getActiveAISearchConfig(),
-			kv,
-			defaultLocale: getI18nConfig()?.defaultLocale ?? "en",
+	return async ({ request }) => {
+		// The snippet endpoint is public: anonymous site visitors hit it for
+		// site search. On the anonymous request path `locals.emdash` is the
+		// partial fast-path facade whose `db` getter is undefined, so reading
+		// `locals.emdash.db` throws when we load synonyms. Resolve a real,
+		// request-scoped runtime via withEmDashRuntime() so `runtime.db` works
+		// regardless of auth.
+		//
+		// Imported lazily: `emdash/middleware` references `astro:` virtual
+		// modules, which the Astro config loader (plain Node ESM) cannot
+		// resolve. A top-level import would drag that into config evaluation
+		// via `aiSearch()` and break `astro build`.
+		const { withEmDashRuntime } = await import("emdash/middleware");
+		return withEmDashRuntime(async (runtime: EmDashRuntime) => {
+			const options = new OptionsRepository(runtime.db);
+			const prefix = "plugin:ai-search:";
+			const kv: Pick<KVAccess, "get"> = {
+				get: <T>(key: string) => options.get<T>(`${prefix}${key}`),
+			};
+			return handleAISearchSnippetRequest(request, {
+				config: config ?? getActiveAISearchConfig(),
+				kv,
+				defaultLocale: getI18nConfig()?.defaultLocale ?? "en",
+			});
 		});
 	};
 }
