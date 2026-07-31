@@ -565,7 +565,6 @@ async function getSynonymRewriter(kv: KVReader): Promise<SynonymRewriter> {
 interface AISearchQueryInput {
 	query: string;
 	locale: string;
-	limit: number;
 	collection?: string;
 }
 
@@ -651,7 +650,6 @@ export async function searchAISearch(
 			messages: [{ role: "user", content: effectiveQuery }],
 			ai_search_options: {
 				retrieval: {
-					max_num_results: input.limit,
 					filters: {
 						visible_after: { $lte: nowSeconds },
 						locale: { $eq: locale },
@@ -1316,11 +1314,7 @@ export async function handleAISearchSnippetRequest(
 		return Response.json({ success: true, result: { search_query: "", chunks: [] } });
 	}
 
-	const requestedLimit = body.ai_search_options?.retrieval?.max_num_results;
-	const limit =
-		typeof requestedLimit === "number" && Number.isFinite(requestedLimit)
-			? Math.max(1, Math.min(Math.floor(requestedLimit), 100))
-			: 30;
+
 	const locale =
 		typeof body.locale === "string" && body.locale ? body.locale : options.defaultLocale;
 	const collection =
@@ -1329,7 +1323,7 @@ export async function handleAISearchSnippetRequest(
 	try {
 		const result = await searchAISearch(
 			options.config,
-			{ query: query.trim(), locale, limit, collection },
+			{ query: query.trim(), locale, collection },
 			options.kv,
 			options.defaultLocale,
 		);
