@@ -347,6 +347,23 @@ function entryEditOptions(entry: { data?: unknown }): EditableOptions {
 	return { status, hasDraft };
 }
 
+function stripRevisionMetadata(entry: { data?: unknown }): void {
+	const data = entryData(entry);
+	delete data.draftRevisionId;
+	delete data.liveRevisionId;
+}
+
+function canExposeRevisionMetadata(
+	entry: { id: string; data?: unknown },
+	collection: string,
+): boolean {
+	const ctx = getRequestContext();
+	if (ctx?.editMode) return true;
+	if (ctx?.preview?.collection !== collection) return false;
+	const dbId = entryDatabaseId(entry);
+	return ctx.preview.id === dbId || ctx.preview.id === entry.id;
+}
+
 /**
  * Get all entries of a content type
  *
@@ -441,7 +458,11 @@ async function loadCollectionCached<T extends string, D = InferCollectionData<T>
 		return { entries: [], error: snapshot.error, cacheHint: snapshot.cacheHint };
 	}
 	return {
-		entries: snapshot.value.entries.map((entry) => reviveEntry<D>(entry)),
+		entries: snapshot.value.entries.map((entry) => {
+			const revived = reviveEntry<D>(entry);
+			if (!canExposeRevisionMetadata(revived, type)) stripRevisionMetadata(revived);
+			return revived;
+		}),
 		nextCursor: snapshot.value.nextCursor,
 		hasMore: snapshot.value.hasMore,
 		cacheHint: snapshot.value.cacheHint,
@@ -729,6 +750,9 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		if (isEditMode) {
 			tagEditableFields(entryData(entry), type, dbId);
 		}
+		if (!canExposeRevisionMetadata(entry, type)) {
+			stripRevisionMetadata(entry);
+		}
 		return {
 			...entry,
 			edit: isEditMode ? createEditable(type, dbId, entryEditOptions(entry)) : createNoop(),
@@ -833,6 +857,7 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 		wrapped: ContentEntry<D>,
 		opts: { isPreview: boolean; fallbackLocale?: string; cacheHint: CacheHint },
 	): Promise<EntryResult<D>> {
+		if (!opts.isPreview) stripRevisionMetadata(wrapped);
 		// Hydrate terms in the entry's resolved locale (fallback-aware) so a
 		// localized entry never picks up default-locale taxonomy terms (#1441).
 		// When i18n is disabled we leave the locale unset to preserve the
@@ -984,8 +1009,10 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 	if (!snapshot.ok) {
 		return { entry: null, error: snapshot.error, isPreview: false, cacheHint: snapshot.cacheHint };
 	}
+	const revived = snapshot.value.entry ? reviveEntry<D>(snapshot.value.entry) : null;
+	if (revived && !canExposeRevisionMetadata(revived, type)) stripRevisionMetadata(revived);
 	return {
-		entry: snapshot.value.entry ? reviveEntry<D>(snapshot.value.entry) : null,
+		entry: revived,
 		isPreview: snapshot.value.isPreview,
 		fallbackLocale: snapshot.value.fallbackLocale,
 		cacheHint: snapshot.value.cacheHint,

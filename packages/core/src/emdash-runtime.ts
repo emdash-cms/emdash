@@ -225,6 +225,8 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	repeater: "repeater",
 };
 
+const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision"]);
+
 /**
  * Sandboxed plugin entry from virtual module
  */
@@ -2910,13 +2912,9 @@ export class EmDashRuntime {
 		});
 
 		// Public HTML comes from live columns / SEO / taxonomies, not draft revisions.
-		const liveMetaTouched =
-			bodyWithoutRev.status !== undefined ||
-			bodyWithoutRev.authorId !== undefined ||
-			bodyWithoutRev.bylines !== undefined ||
-			bodyWithoutRev.seo !== undefined ||
-			bodyWithoutRev.taxonomies !== undefined ||
-			bodyWithoutRev.publishedAt !== undefined;
+		const liveMetaTouched = Object.entries(bodyWithoutRev).some(
+			([key, value]) => value !== undefined && !DRAFT_ONLY_UPDATE_KEYS.has(key),
+		);
 		const liveContentChanged = usesDraftRevisions
 			? liveMetaTouched
 			: Boolean(processedData || bodyWithoutRev.slug !== undefined || liveMetaTouched);

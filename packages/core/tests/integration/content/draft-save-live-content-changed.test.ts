@@ -85,6 +85,22 @@ describe("handleContentUpdate liveContentChanged", () => {
 		expect(saved.success && saved.liveContentChanged).toBe(true);
 	});
 
+	it("defaults unclassified update fields to live-changing", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Live" },
+			slug: "future-meta",
+		});
+		const id = created.data!.item.id;
+		await runtime.handleContentPublish("posts", id);
+
+		const saved = await runtime.handleContentUpdate("posts", id, {
+			// @ts-expect-error - simulates a future live field before it joins the public input type
+			futureLiveField: "changed",
+		});
+		expect(saved.success).toBe(true);
+		expect(saved.success && saved.liveContentChanged).toBe(true);
+	});
+
 	it("is true for data updates on collections without revisions", async () => {
 		const created = await runtime.handleContentCreate("plain_posts", {
 			data: { title: "Plain" },

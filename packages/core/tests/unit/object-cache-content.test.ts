@@ -9,8 +9,11 @@ vi.mock("astro:content", () => ({
 
 import { getLiveCollection, getLiveEntry } from "astro:content";
 
+import { ContentRepository } from "../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import type { Database } from "../../src/database/types.js";
 import { CURSOR_RAW_VALUES } from "../../src/loader.js";
+import { encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
 	invalidateCollectionCache,
@@ -18,6 +21,7 @@ import {
 } from "../../src/object-cache/index.js";
 import { getEmDashCollection, getEmDashEntry } from "../../src/query.js";
 import { runWithContext } from "../../src/request-context.js";
+import { createPostFixture } from "../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
 function spyBackend(): ObjectCacheBackend {
@@ -32,6 +36,15 @@ function spyBackend(): ObjectCacheBackend {
 			store.delete(key);
 			return Promise.resolve();
 		},
+	};
+}
+
+function backendWithCachedValue(value: unknown): ObjectCacheBackend {
+	const encoded = encode({ e: [0, 0, 0], v: value });
+	return {
+		get: (key) => Promise.resolve(key.includes(":epoch:") ? null : encoded),
+		set: () => Promise.resolve(),
+		delete: () => Promise.resolve(),
 	};
 }
 
@@ -59,6 +72,8 @@ describe("object cache: content read-through", () => {
 			id: "db-1",
 			title: "Hello",
 			status: "published",
+			liveRevisionId: "live-1",
+			draftRevisionId: "draft-1",
 			createdAt: new Date("2025-01-01T00:00:00.000Z"),
 		};
 		// The loader attaches raw date strings under a non-enumerable symbol;
@@ -95,6 +110,121 @@ describe("object cache: content read-through", () => {
 		});
 	});
 
+	it("omits revision metadata from anonymous collection results", async () => {
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		const result = await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		expect(result.entries[0]!.data).not.toHaveProperty("liveRevisionId");
+		expect(result.entries[0]!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("omits revision metadata from anonymous entry results", async () => {
+		const [entry] = mockEntries();
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry,
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello"),
+		);
+
+		expect(result.entry!.data).not.toHaveProperty("liveRevisionId");
+		expect(result.entry!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("sanitizes anonymous collection snapshots written by earlier releases", async () => {
+		const [entry] = mockEntries();
+		__setObjectCacheBackendForTests(
+			backendWithCachedValue({
+				ok: true,
+				value: {
+					entries: [{ ...entry, data: { ...entry!.data, __emdashCursorRaw: {} } }],
+					cacheHint: {},
+				},
+			}),
+		);
+
+		const result = await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		expect(getLiveCollection).not.toHaveBeenCalled();
+		expect(result.entries[0]!.data).not.toHaveProperty("liveRevisionId");
+		expect(result.entries[0]!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("sanitizes anonymous entry snapshots written by earlier releases", async () => {
+		const [entry] = mockEntries();
+		__setObjectCacheBackendForTests(
+			backendWithCachedValue({
+				ok: true,
+				value: {
+					entry: { ...entry, data: { ...entry!.data, __emdashCursorRaw: {} } },
+					isPreview: false,
+					cacheHint: {},
+				},
+			}),
+		);
+
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello"),
+		);
+
+		expect(getLiveEntry).not.toHaveBeenCalled();
+		expect(result.entry!.data).not.toHaveProperty("liveRevisionId");
+		expect(result.entry!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("retains revision metadata in preview entry results", async () => {
+		const [entry] = mockEntries();
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry,
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		const result = await runWithContext(
+			{ editMode: false, preview: { collection: "post", id: "db-1" }, db },
+			() => getEmDashEntry("post", "hello"),
+		);
+
+		expect(result.isPreview).toBe(true);
+		expect(result.entry!.data).toHaveProperty("liveRevisionId", "live-1");
+		expect(result.entry!.data).toHaveProperty("draftRevisionId", "draft-1");
+	});
+
+	it("retains revision metadata only for the previewed collection entry", async () => {
+		const [previewed] = mockEntries();
+		const [other] = mockEntries();
+		other!.id = "other";
+		other!.slug = "other";
+		other!.data.id = "db-2";
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: [previewed, other],
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		const result = await runWithContext(
+			{ editMode: false, preview: { collection: "post", id: "db-1" }, db },
+			() => getEmDashCollection("post"),
+		);
+
+		expect(result.entries[0]!.data).toHaveProperty("liveRevisionId", "live-1");
+		expect(result.entries[0]!.data).toHaveProperty("draftRevisionId", "draft-1");
+		expect(result.entries[1]!.data).not.toHaveProperty("liveRevisionId");
+		expect(result.entries[1]!.data).not.toHaveProperty("draftRevisionId");
+	});
+
 	it("reloads after the collection is invalidated by a write", async () => {
 		vi.mocked(getLiveCollection).mockResolvedValue({
 			entries: mockEntries(),
@@ -115,6 +245,57 @@ describe("object cache: content read-through", () => {
 		expect(getLiveCollection).toHaveBeenCalledTimes(2);
 	});
 
+	it("keeps cached public content after a version-only content update", async () => {
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+		const repo = new ContentRepository(db);
+		const created = await repo.create(createPostFixture({ slug: "version-only" }));
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+
+		await repo.update("post", created.id, {});
+		await flush();
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps cached public content when a draft revision is staged or discarded", async () => {
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+		const repo = new ContentRepository(db);
+		const created = await repo.create(createPostFixture({ slug: "draft-pointer" }));
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: created.id,
+			data: { title: "Draft" },
+		});
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		await flush();
+
+		await repo.setDraftRevision("post", created.id, draft.id);
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		await repo.discardDraft("post", created.id);
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+	});
+
 	it("bypasses the cache in edit mode", async () => {
 		vi.mocked(getLiveCollection).mockResolvedValue({
 			entries: mockEntries(),
@@ -125,8 +306,10 @@ describe("object cache: content read-through", () => {
 
 		await runWithContext({ editMode: true, db }, () => getEmDashCollection("post"));
 		await flush();
-		await runWithContext({ editMode: true, db }, () => getEmDashCollection("post"));
+		const second = await runWithContext({ editMode: true, db }, () => getEmDashCollection("post"));
 		expect(getLiveCollection).toHaveBeenCalledTimes(2);
+		expect(second.entries[0]!.data).toHaveProperty("liveRevisionId", "live-1");
+		expect(second.entries[0]!.data).toHaveProperty("draftRevisionId", "draft-1");
 	});
 
 	it("invalidates the content cache when a field is created or deleted", async () => {

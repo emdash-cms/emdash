@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Stops draft-only content saves from purging the public edge cache. Edge tags are invalidated when live public content actually changes (including publish), not when edits are only staged as drafts on revision-supporting collections.
+Stops draft-only content saves from purging public caches and removes internal revision IDs from anonymous content query results. Public caches are invalidated when live content changes, while preview and edit requests retain the revision metadata needed to load drafts.
