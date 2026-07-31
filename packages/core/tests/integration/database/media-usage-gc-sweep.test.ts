@@ -4,12 +4,13 @@
  * Every content save writes a fresh generation of occurrence rows and leaves
  * the superseded generation behind; reads join on current_generation, so
  * stale rows are dead weight that grows one generation per save. The sweep
- * composes the repository GC methods behind a safety window and is exercised
- * here without the scheduler.
+ * composes the repository GC methods behind a safety window and runs from
+ * runSystemCleanup.
  */
 
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { runSystemCleanup } from "../../../src/cleanup.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { cleanupMediaUsageGenerations } from "../../../src/media/usage/gc.js";
 import {
@@ -116,5 +117,23 @@ describeEachDialect("media-usage GC sweep", (dialect) => {
 		expect(result.staleGenerations).toBe(0);
 		const rows = await ctx.db.selectFrom("_emdash_media_usage").select("id").execute();
 		expect(rows).toHaveLength(2);
+	});
+
+	it("runs as part of the periodic system cleanup", async () => {
+		const first = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-old"),
+		]);
+		await repo.replaceSource(contentSource("entry1", "columns"), [occurrence("hero", "media-new")]);
+		await ctx.db
+			.updateTable("_emdash_media_usage")
+			.set({ created_at: "2026-01-01T00:00:00.000Z" })
+			.where("generation", "=", first.currentGeneration)
+			.execute();
+
+		const result = await runSystemCleanup(ctx.db);
+
+		expect(result.mediaUsageStaleGenerations).toBe(1);
+		const rows = await ctx.db.selectFrom("_emdash_media_usage").select("generation").execute();
+		expect(rows.map((r) => r.generation)).not.toContain(first.currentGeneration);
 	});
 });
