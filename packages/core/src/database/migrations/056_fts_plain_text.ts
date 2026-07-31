@@ -169,7 +169,11 @@ async function rebuildIndex(
 	const columnList = ["id UNINDEXED", "locale UNINDEXED", ...slugs].join(", ");
 	const fieldList = slugs.join(", ");
 	const newValueList = fields.map((f) => searchValueExpr(`NEW.${f.slug}`, f.type)).join(", ");
-	const selectValueList = fields.map((f) => searchValueExpr(`"${f.slug}"`, f.type)).join(", ");
+	// Table-qualified: a bare column reference inside the json_tree extraction
+	// subquery binds to json_tree's own key/value/type/... columns.
+	const selectValueList = fields
+		.map((f) => searchValueExpr(`"${contentTable}"."${f.slug}"`, f.type))
+		.join(", ");
 
 	await sql.raw(`DROP TRIGGER IF EXISTS "${ftsTable}_insert"`).execute(db);
 	await sql.raw(`DROP TRIGGER IF EXISTS "${ftsTable}_update"`).execute(db);

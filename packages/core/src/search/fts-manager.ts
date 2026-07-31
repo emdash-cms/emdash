@@ -307,8 +307,11 @@ export class FTSManager {
 		const contentTable = this.getContentTableName(collectionSlug);
 		const fieldTypes = await this.getFieldTypes(collectionSlug);
 		const fieldList = searchableFields.join(", ");
+		// Table-qualified references: json_tree exposes columns named
+		// key/value/type/path/..., and inside the extraction subquery a bare
+		// column reference binds to those instead of the ec_* column.
 		const valueList = searchableFields
-			.map((f) => this.searchValueExpr(`"${f}"`, fieldTypes.get(f)))
+			.map((f) => this.searchValueExpr(`"${contentTable}"."${f}"`, fieldTypes.get(f)))
 			.join(", ");
 
 		// Insert all existing content into FTS table
