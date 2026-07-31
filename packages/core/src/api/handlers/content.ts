@@ -376,6 +376,15 @@ async function createSlugChangeRedirect(
 	newSlug: string,
 	contentId: string,
 ): Promise<void> {
+	// A URL pattern has no locale token, so every locale variant of an entry
+	// generates the same URL, and slugs are unique per (slug, locale) — a
+	// translation may still hold the old slug. Redirecting away from a URL
+	// another row still answers on would take that page down: the redirect
+	// middleware runs `order: "pre"`, so routing never gets a chance.
+	// Any surviving row counts, published or not: a draft that publishes later
+	// would otherwise be shadowed by the redirect.
+	if (await slugStillTaken(db, collection, oldSlug, contentId)) return;
+
 	const collectionRow = await db
 		.selectFrom("_emdash_collections")
 		.select("url_pattern")
@@ -391,6 +400,24 @@ async function createSlugChangeRedirect(
 		collectionRow?.url_pattern ?? null,
 	);
 	invalidateRedirectCache();
+}
+
+/** Whether a row other than `contentId` still holds `slug` in this collection. */
+async function slugStillTaken(
+	db: Kysely<Database>,
+	collection: string,
+	slug: string,
+	contentId: string,
+): Promise<boolean> {
+	validateIdentifier(collection, "collection slug");
+	const result = await sql<{ id: string }>`
+		SELECT id FROM ${sql.ref(`ec_${collection}`)}
+		WHERE slug = ${slug}
+		AND id != ${contentId}
+		AND deleted_at IS NULL
+		LIMIT 1
+	`.execute(db);
+	return result.rows.length > 0;
 }
 
 /** Matches a date-only `YYYY-MM-DD` bound (no time component). */
