@@ -178,6 +178,50 @@ describe("redirect middleware — issue #808", () => {
 	});
 });
 
+describe("redirect middleware — 404 logging excludes the site error page", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("logs a real missing path exactly once", async () => {
+		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
+		const { context } = buildContext({ pathname: "/no-such-page" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await onRequest(context, next);
+
+		expect(log404).toHaveBeenCalledTimes(1);
+		expect(log404).toHaveBeenCalledWith(expect.objectContaining({ path: "/no-such-page" }));
+		// Await the fire-and-forget write before reading the table.
+		await log404.mock.results[0]!.value;
+		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
+		expect(rows.map((r) => r.path)).toEqual(["/no-such-page"]);
+		log404.mockRestore();
+	});
+
+	it("does not log the site's own /404 error page render", async () => {
+		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
+		for (const pathname of ["/404", "/404/"]) {
+			const { context } = buildContext({ pathname });
+			const next = vi.fn(async () => new Response("not found", { status: 404 }));
+			await onRequest(context, next);
+		}
+
+		expect(log404).not.toHaveBeenCalled();
+		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
+		expect(rows).toEqual([]);
+		log404.mockRestore();
+	});
+});
+
 describe("redirect middleware — trailing-slash normalisation (issue #1271)", () => {
 	let db: Kysely<Database>;
 
