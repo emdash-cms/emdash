@@ -147,6 +147,7 @@ describe("Database Migrations (Integration)", () => {
 			"058_collection_sort_order",
 			"059_revision_prune_queue",
 			"060_collection_admin_config",
+			"061_fts_plain_text",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
