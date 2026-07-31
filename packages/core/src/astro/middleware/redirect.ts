@@ -112,11 +112,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// No redirect matched -- proceed and check for 404
 		const response = await next();
 
-		// Log 404s for unmatched paths (fire-and-forget). The site's own error
-		// page is excluded: its route answers 404 on every render — including
-		// the follow-up request after a content miss redirects to /404 — so
-		// logging it counts every real miss twice under one meaningless
-		// "/404" row while the missed path is already logged on the first pass.
+		// Log 404s for unmatched paths (fire-and-forget). Skip /404 itself — Astro
+		// serves the site error page there with status 404 on every render, so logging
+		// it would double-count the original miss after templates redirect here.
 		if (response.status === 404 && pathname !== "/404" && pathname !== "/404/") {
 			const referrer = context.request.headers.get("referer") ?? null;
 			const userAgent = context.request.headers.get("user-agent") ?? null;
