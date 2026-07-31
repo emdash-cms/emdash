@@ -1356,6 +1356,9 @@ export function createAISearchSnippetEndpoint(config?: AISearchConfig): APIRoute
 		// via `aiSearch()` and break `astro build`.
 		const { withEmDashRuntime } = await import("emdash/middleware");
 		return withEmDashRuntime(async (runtime: EmDashRuntime) => {
+			if (!runtime.getPluginRouteMeta("ai-search", "status")) {
+				return Response.json({ success: false, error: "Search is not available" }, { status: 404 });
+			}
 			const options = new OptionsRepository(runtime.db);
 			const prefix = "plugin:ai-search:";
 			const kv: Pick<KVAccess, "get"> = {

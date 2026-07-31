@@ -14,6 +14,7 @@ import { describe, it, expect, vi } from "vitest";
 
 const { fakeEnv, controls } = vi.hoisted(() => {
 	const state = {
+		pluginEnabled: true,
 		searchChunks: [] as Array<Record<string, unknown>>,
 		searchRequests: [] as Array<Record<string, unknown>>,
 	};
@@ -65,7 +66,13 @@ vi.mock("emdash", async (importOriginal) => {
 // real handle, regardless of request auth. This is the whole point of the fix.
 const { runtimeDbHandle } = vi.hoisted(() => ({ runtimeDbHandle: { selectFrom: () => ({}) } }));
 vi.mock("emdash/middleware", () => ({
-	withEmDashRuntime: async (run: (rt: { db: unknown }) => unknown) => run({ db: runtimeDbHandle }),
+	withEmDashRuntime: async (
+		run: (rt: { db: unknown; getPluginRouteMeta: (id: string, path: string) => object | null }) => unknown,
+	) =>
+		run({
+			db: runtimeDbHandle,
+			getPluginRouteMeta: () => (controls.pluginEnabled ? {} : null),
+		}),
 }));
 
 const { createAISearchSnippetEndpoint } = await import("../../src/plugins/ai-search.js");
@@ -85,6 +92,7 @@ function anonymousContext(body: unknown) {
 
 describe("createAISearchSnippetEndpoint() on the anonymous request path", () => {
 	it("does not read locals.emdash.db and succeeds when it is undefined (regression)", async () => {
+		controls.pluginEnabled = true;
 		optionsConstructedWith.length = 0;
 		controls.searchRequests.length = 0;
 		controls.searchChunks = [
@@ -113,6 +121,7 @@ describe("createAISearchSnippetEndpoint() on the anonymous request path", () => 
 	});
 
 	it("still works when locals has no emdash at all", async () => {
+		controls.pluginEnabled = true;
 		optionsConstructedWith.length = 0;
 		controls.searchChunks = [];
 		const endpoint = createAISearchSnippetEndpoint();
@@ -128,5 +137,20 @@ describe("createAISearchSnippetEndpoint() on the anonymous request path", () => 
 		const response = await endpoint(ctx);
 		expect(response.status).toBe(200);
 		expect(optionsConstructedWith).toContain(runtimeDbHandle);
+	});
+
+	it("does not search when the plugin is disabled", async () => {
+		controls.pluginEnabled = false;
+		controls.searchRequests.length = 0;
+		optionsConstructedWith.length = 0;
+		const endpoint = createAISearchSnippetEndpoint();
+
+		const response = await endpoint(
+			anonymousContext({ messages: [{ role: "user", content: "hi" }] }),
+		);
+
+		expect(response.status).toBe(404);
+		expect(controls.searchRequests).toHaveLength(0);
+		expect(optionsConstructedWith).toHaveLength(0);
 	});
 });
