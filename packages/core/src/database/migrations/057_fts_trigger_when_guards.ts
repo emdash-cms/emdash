@@ -18,7 +18,10 @@ import { validateIdentifier } from "../validate.js";
  * search-enabled collection with a WHEN guard on the update trigger that
  * compares raw column values (null-safe IS NOT): the trigger now fires only
  * when an indexed value, the row's locale, or its trash state actually
- * changed. Index contents are untouched — no repopulate needed.
+ * changed. A repopulate follows the trigger swap: D1 has no migration lock,
+ * so a concurrent isolate can write inside the drop/create window, and a
+ * lost UPDATE leaves row counts equal — invisible to verifyAndRepairIndex's
+ * parity check. INSERT OR REPLACE makes the heal idempotent.
  *
  * The trigger SQL emitted here MUST stay in lock-step with
  * `FTSManager.createTriggers` in `src/search/fts-manager.ts`. If that
@@ -139,6 +142,11 @@ async function recreateTriggers(
 	const slugs = fields.map((f) => f.slug);
 	const fieldList = slugs.join(", ");
 	const newValueList = fields.map((f) => searchValueExpr(`NEW.${f.slug}`, f.type)).join(", ");
+	// Table-qualified: a bare column reference inside the json_tree extraction
+	// subquery binds to json_tree's own key/value/type/... columns.
+	const selectValueList = fields
+		.map((f) => searchValueExpr(`"${contentTable}"."${f.slug}"`, f.type))
+		.join(", ");
 	const changedCondition = ["deleted_at", "locale", ...slugs]
 		.map((f) => `OLD.${f} IS NOT NEW.${f}`)
 		.join(" OR ");
@@ -180,6 +188,14 @@ async function recreateTriggers(
 		BEGIN
 			DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
 		END
+	`)
+		.execute(db);
+
+	await sql
+		.raw(`
+		INSERT OR REPLACE INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
+		SELECT rowid, id, locale, ${selectValueList} FROM "${contentTable}"
+		WHERE deleted_at IS NULL
 	`)
 		.execute(db);
 }

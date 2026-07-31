@@ -112,4 +112,33 @@ describe("migration 057: FTS trigger WHEN guards", () => {
 		`.execute(db);
 		expect(Number(matches.rows[0]?.count)).toBe(1);
 	});
+
+	it("heals an edit that landed while the triggers were absent", async () => {
+		// D1 has no migration lock, so a concurrent isolate can write inside
+		// the drop/create window. A lost UPDATE leaves row counts equal, which
+		// verifyAndRepairIndex's parity check cannot detect.
+		await sql.raw(`DROP TRIGGER IF EXISTS "_emdash_fts_pages_update"`).execute(db);
+		await sql`
+			UPDATE ec_pages SET title = 'A midnight screening' WHERE id = ${entryId}
+		`.execute(db);
+
+		const lost = await sql<{ count: number }>`
+			SELECT COUNT(*) as count FROM "_emdash_fts_pages"
+			WHERE "_emdash_fts_pages" MATCH 'midnight'
+		`.execute(db);
+		expect(Number(lost.rows[0]?.count)).toBe(0);
+
+		await runMigration057();
+
+		const healed = await sql<{ count: number }>`
+			SELECT COUNT(*) as count FROM "_emdash_fts_pages"
+			WHERE "_emdash_fts_pages" MATCH 'midnight'
+		`.execute(db);
+		expect(Number(healed.rows[0]?.count)).toBe(1);
+		const stale = await sql<{ count: number }>`
+			SELECT COUNT(*) as count FROM "_emdash_fts_pages"
+			WHERE "_emdash_fts_pages" MATCH 'haunted'
+		`.execute(db);
+		expect(Number(stale.rows[0]?.count)).toBe(0);
+	});
 });
