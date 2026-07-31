@@ -1022,6 +1022,11 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 			"content:afterSave": {
 				handler: async (event: ContentHookEvent, ctx: PluginContext): Promise<void> => {
 					const { content, collection } = event;
+					const hasPendingDraft =
+						content.status === "published" &&
+						typeof content.draftRevisionId === "string" &&
+						content.draftRevisionId !== content.liveRevisionId;
+					if (hasPendingDraft) return;
 					if (!(await shouldSync(collection, ctx))) return;
 
 					// Sync based on the current status: published content is visible

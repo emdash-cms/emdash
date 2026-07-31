@@ -521,4 +521,29 @@ describe("ai-search content:afterSave indexing", () => {
 		expect(uploaded!.content).not.toContain("2026-06-08T13:00:03.516Z");
 		expect(uploaded!.content).not.toContain("01GROUP");
 	});
+
+	it("does not index a pending draft for published content", async () => {
+		uploads.length = 0;
+		const plugin = createPlugin();
+		const ctx = makeContext();
+
+		await plugin.hooks["content:afterSave"]!.handler(
+			{
+				content: {
+					id: "published-with-draft",
+					slug: "published-with-draft",
+					status: "published",
+					liveRevisionId: "live-revision",
+					draftRevisionId: "draft-revision",
+					data: { title: "Unpublished title", body: "Unpublished body" },
+					liveData: { title: "Published title", body: "Published body" },
+				},
+				collection: "posts",
+				isNew: false,
+			},
+			ctx,
+		);
+
+		expect(uploads).toHaveLength(0);
+	});
 });
