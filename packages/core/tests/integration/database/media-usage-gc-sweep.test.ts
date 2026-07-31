@@ -4,8 +4,8 @@
  * Every content save writes a fresh generation of occurrence rows and leaves
  * the superseded generation behind; reads join on current_generation, so
  * stale rows are dead weight that grows one generation per save. The sweep
- * composes the repository GC methods behind a safety window and runs from
- * runSystemCleanup (untestable here directly — see tests/unit/cleanup.test.ts).
+ * composes the repository GC methods behind a safety window and is exercised
+ * here without the scheduler.
  */
 
 import { afterEach, beforeEach, expect, it } from "vitest";

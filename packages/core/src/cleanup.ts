@@ -143,7 +143,6 @@ export async function runSystemCleanup(
 		console.error("[cleanup] Failed to prune revisions:", error);
 	}
 
-	// 6. Media-usage occurrence rows superseded by newer generations
 	try {
 		const usage = await cleanupMediaUsageGenerations(db);
 		result.mediaUsageStaleGenerations = usage.staleGenerations;
