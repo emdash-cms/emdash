@@ -322,6 +322,7 @@ export class ContentRepository {
 			data: newData,
 			status: "draft",
 			authorId: authorId || original.authorId || undefined,
+			locale: original.locale ?? undefined,
 		});
 	}
 
