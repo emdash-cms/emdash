@@ -110,3 +110,56 @@ describe("Portable Text FTS indexing", () => {
 		expect(snippet).not.toContain("{");
 	});
 });
+
+describe("Portable Text FTS indexing — json_tree column-name collisions", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("populates fields whose slug collides with a json_tree output column", async () => {
+		// json_tree exposes columns named key/value/type/path/...; an
+		// unqualified column reference inside the extraction subquery binds to
+		// those instead of the ec_* column, silently indexing NULL.
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "notes",
+			label: "Notes",
+			labelSingular: "Note",
+			supports: ["search"],
+		});
+		await registry.createField("notes", {
+			slug: "value",
+			label: "Value",
+			type: "portableText",
+			searchable: true,
+		});
+
+		// Create before enabling search so the row flows through
+		// populateFromContent (the bare-reference path), not the triggers.
+		await new ContentRepository(db).create({
+			type: "notes",
+			slug: "n1",
+			status: "published",
+			data: {
+				value: [
+					{
+						_type: "block",
+						_key: "b1",
+						style: "normal",
+						children: [{ _type: "span", _key: "s1", text: "A spectral apparition." }],
+					},
+				],
+			},
+		});
+		await new FTSManager(db).enableSearch("notes");
+
+		const { items } = await searchWithDb(db, "spectral", { collections: ["notes"] });
+		expect(items).toHaveLength(1);
+	});
+});
