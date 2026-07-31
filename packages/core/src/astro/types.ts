@@ -210,7 +210,6 @@ export interface EmDashManifest {
 export interface HandlerResponse<T = unknown> {
 	success: boolean;
 	data?: T;
-	/** Server-only; omitted from API JSON via unwrapResult. */
 	liveContentChanged?: boolean;
 	error?: {
 		code: string;
