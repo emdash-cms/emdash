@@ -493,6 +493,7 @@ const marketplaceManifestCache = new Map<
 			settingsSchema?: Record<string, SettingField>;
 		};
 		mcp?: PluginMcpManifestConfig;
+		storage?: PluginManifest["storage"];
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -707,7 +708,13 @@ export class EmDashRuntime {
 	async syncPluginStorageIndexesOnce(): Promise<void> {
 		if (this.storageIndexesSynced) return;
 		this.storageIndexesSynced = true;
-		await syncDeclaredStorageIndexes(this.db, this.allPipelinePlugins);
+		// Sandboxed marketplace/registry plugins never join allPipelinePlugins;
+		// their manifests are cached at bundle load. Without them, plugins
+		// installed before this feature shipped would never get their indexes.
+		await syncDeclaredStorageIndexes(this.db, [
+			...this.allPipelinePlugins,
+			...marketplaceManifestCache.values(),
+		]);
 	}
 
 	/**
@@ -917,6 +924,7 @@ export class EmDashRuntime {
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -1032,6 +1040,7 @@ export class EmDashRuntime {
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
 				});
 				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
@@ -2116,6 +2125,7 @@ export class EmDashRuntime {
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2188,6 +2198,7 @@ export class EmDashRuntime {
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
 					});
 					if (bundle.manifest.routes.length > 0) {
 						const routeMeta = new Map<string, RouteMeta>();
