@@ -241,7 +241,7 @@ describe("ai-search reindex jobs", () => {
 		expect(complete.indexed).toBe(3);
 	});
 
-	it("replaces an item already mirrored by EmDash", async () => {
+	it("overwrites an item already mirrored by EmDash without deleting it first", async () => {
 		uploads.length = 0;
 		deletions.length = 0;
 		controls.uploadFailures = 0;
@@ -271,11 +271,13 @@ describe("ai-search reindex jobs", () => {
 		await handler(routeContext(ctx, { collections: ["posts"] }) as never);
 		await runReindexCron(plugin, ctx);
 
-		expect(deletions).toContain("old-item-id");
 		expect(uploads).toHaveLength(1);
+		expect(uploads[0]?.key).toBe("posts/existing.md");
+		expect(deletions).toHaveLength(0);
+		expect(await ctx.kv.get("item:posts/existing.md")).toBe("item-1");
 	});
 
-	it("clears a stale mirror when replacement uploads exhaust their retries", async () => {
+	it("preserves the mirrored item when replacement uploads exhaust their retries", async () => {
 		uploads.length = 0;
 		deletions.length = 0;
 		controls.uploadFailures = 3;
@@ -305,7 +307,8 @@ describe("ai-search reindex jobs", () => {
 		await handler(routeContext(ctx, { collections: ["posts"] }) as never);
 		await runReindexCron(plugin, ctx);
 
-		expect(await ctx.kv.get("item:posts/broken.md")).toBeNull();
+		expect(deletions).toHaveLength(0);
+		expect(await ctx.kv.get("item:posts/broken.md")).toBe("old-item-id");
 	});
 });
 

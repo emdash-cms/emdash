@@ -419,66 +419,18 @@ async function retry<T>(operation: () => Promise<T>): Promise<T> {
 	throw lastError;
 }
 
-interface UploadItemOptions {
-	/** Called as soon as AI Search accepts the upload, before mirror bookkeeping. */
-	onUploaded?: (item: AiSearchItemInfo) => Promise<void>;
-	/** Leave accepted uploads in place when mirror bookkeeping fails. */
-	tolerateMirrorFailure?: boolean;
-}
-
-/** Replace a mirrored item before uploading because AI Search keys are unique. */
+/** Upload an item and mirror its AI Search item ID for later deletion. */
 async function uploadItem(
 	instance: AiSearchInstance,
 	key: string,
 	markdown: string,
 	metadata: Record<string, string>,
 	ctx: PluginContext,
-	options: UploadItemOptions = {},
 ): Promise<void> {
 	const mirrorKey = `item:${key}`;
-	const previousId = await ctx.kv.get<string>(mirrorKey);
-	let previousRemoved = false;
-	if (previousId) {
-		try {
-			await instance.items.delete(previousId);
-			previousRemoved = true;
-		} catch {
-			// A stale mirror is harmless: upload will either succeed or surface
-			// the real key conflict to the caller.
-		}
-	}
+	const item = await instance.items.upload(key, markdown, { metadata });
 
-	let item: AiSearchItemInfo;
-	try {
-		item = await instance.items.upload(key, markdown, { metadata });
-	} catch (error) {
-		if (previousRemoved) await ctx.kv.delete(mirrorKey);
-		throw error;
-	}
-	// AI Search's non-polling upload call returning without throwing is the
-	// acceptance boundary. Reindex progress is checkpointed here; indexing may
-	// continue asynchronously inside AI Search.
-	await options.onUploaded?.(item);
-
-	if (!item?.id) {
-		if (options.tolerateMirrorFailure) return;
-		throw new Error(`upload for ${key} returned no item id`);
-	}
-	try {
-		await ctx.kv.set(mirrorKey, item.id);
-	} catch (error) {
-		if (options.tolerateMirrorFailure) {
-			console.error(`[ai-search] Failed to mirror accepted upload ${key}:`, error);
-			return;
-		}
-		// Hook-driven writes retain their stronger rollback guarantee. Reindexing
-		// can reconcile an accepted-but-unmirrored upload in a later pass.
-		try {
-			await instance.items.delete(item.id);
-		} catch {}
-		if (previousRemoved) await ctx.kv.delete(mirrorKey);
-		throw error;
-	}
+	await ctx.kv.set(mirrorKey, item.id);
 }
 
 function createReindexJob(collections: string[], onlyMissing: boolean): ReindexJob {
@@ -1006,12 +958,8 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					};
 					const image = extractImageUrl(record);
 					if (image) metadata.image = image;
-					await retry(() =>
-						uploadItem(instance, key, markdown, metadata, ctx, {
-							onUploaded: () => checkpointAcceptedUpload(key),
-							tolerateMirrorFailure: true,
-						}),
-					);
+					await retry(() => uploadItem(instance, key, markdown, metadata, ctx));
+					await checkpointAcceptedUpload(key);
 				} catch (error) {
 					console.error(`[ai-search] Failed to index ${collection}/${item.id}:`, error);
 					job.errors++;
