@@ -74,6 +74,42 @@ describe("migration 039: rebuild FTS5 triggers", () => {
 			.execute(db);
 	}
 
+	/**
+	 * Rebuild the collection's FTS table in the pre-fix *external-content*
+	 * shape (`content='ec_<slug>'`) that every site running a pre-fix EmDash
+	 * version actually had. The current FTSManager builds self-contained FTS
+	 * tables — on those, the "broken" contentless-style triggers sync
+	 * correctly, so the historical corruption can only be reproduced against
+	 * the historical table shape.
+	 */
+	async function installExternalContentFts(
+		collectionSlug: string,
+		fields: string[],
+	): Promise<void> {
+		const ftsTable = `_emdash_fts_${collectionSlug}`;
+		const contentTable = `ec_${collectionSlug}`;
+		const fieldList = fields.join(", ");
+
+		await sql.raw(`DROP TABLE IF EXISTS "${ftsTable}"`).execute(db);
+		await sql
+			.raw(`
+			CREATE VIRTUAL TABLE "${ftsTable}" USING fts5(
+				id UNINDEXED, locale UNINDEXED, ${fieldList},
+				content='${contentTable}',
+				content_rowid='rowid',
+				tokenize='porter unicode61'
+			)
+		`)
+			.execute(db);
+		await sql
+			.raw(`
+			INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
+			SELECT rowid, id, locale, ${fieldList} FROM "${contentTable}"
+			WHERE deleted_at IS NULL
+		`)
+			.execute(db);
+	}
+
 	async function setupSearchEnabledPages(): Promise<void> {
 		await registry.createCollection({
 			slug: "pages",
@@ -137,11 +173,12 @@ describe("migration 039: rebuild FTS5 triggers", () => {
 			data: { title: "About", body: "Some searchable body text." },
 		});
 
-		// Simulate the pre-fix state: broken triggers + a published row.
-		// The legacy triggers are functional on INSERT (the contentless and
-		// external-content forms agree there), so the row is in the index
-		// at this point. The migration must replace the triggers without
-		// losing that row.
+		// Simulate the pre-fix state: external-content FTS table + broken
+		// triggers + a published row. The legacy triggers are functional on
+		// INSERT (the contentless and external-content forms agree there),
+		// so the row is in the index at this point. The migration must
+		// replace the triggers without losing that row.
+		await installExternalContentFts("pages", ["title", "body"]);
 		await installPreFixTriggers("pages", ["title", "body"]);
 
 		await runMigration039();
@@ -187,16 +224,17 @@ describe("migration 039: rebuild FTS5 triggers", () => {
 			data: { title: "Corrupt me", body: "Original aardvark body." },
 		});
 
-		// Install the broken triggers and then *fire them* by issuing the
-		// kind of UPDATE the publish path does. The broken trigger's
-		// `DELETE FROM fts WHERE rowid = OLD.rowid` on an external-content
-		// table reads NEW values from the content table when removing
-		// tokens, so the OLD tokens are left behind in the inverted index
-		// even though the content table no longer holds them. The result
-		// is a stale-token leak: searches for words from the OLD body
-		// keep matching the (now updated) row, and segment metadata
-		// drifts out of sync until SQLite eventually surfaces it as
-		// SQLITE_CORRUPT_VTAB.
+		// Install the historical external-content table and broken triggers,
+		// then *fire them* by issuing the kind of UPDATE the publish path
+		// does. The broken trigger's `DELETE FROM fts WHERE rowid = OLD.rowid`
+		// on an external-content table reads NEW values from the content
+		// table when removing tokens, so the OLD tokens are left behind in
+		// the inverted index even though the content table no longer holds
+		// them. The result is a stale-token leak: searches for words from
+		// the OLD body keep matching the (now updated) row, and segment
+		// metadata drifts out of sync until SQLite eventually surfaces it
+		// as SQLITE_CORRUPT_VTAB.
+		await installExternalContentFts("pages", ["title", "body"]);
 		await installPreFixTriggers("pages", ["title", "body"]);
 
 		// Sanity check: the OLD content's unique token is indexed before
