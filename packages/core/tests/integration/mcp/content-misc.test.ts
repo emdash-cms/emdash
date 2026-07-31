@@ -542,6 +542,14 @@ describe("content_list search", () => {
 		expect(items).toHaveLength(1);
 		expect(items[0]?.id).toBe(extractJson<{ item: { id: string } }>(apple).item.id);
 	});
+
+	it("rejects a blank q, matching the REST contract", async () => {
+		const result = await harness.client.callTool({
+			name: "content_list",
+			arguments: { collection: "post", q: "   " },
+		});
+		expect(result.isError).toBe(true);
+	});
 });
 
 describe("edit-while-trashed", () => {
