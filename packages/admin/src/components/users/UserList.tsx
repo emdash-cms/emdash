@@ -120,7 +120,7 @@ export function UserList({
 											{t`No users found matching your filters.`}{" "}
 											<button
 												type="button"
-												className="text-kumo-brand underline"
+												className="text-kumo-link underline"
 												onClick={() => {
 													onSearchChange("");
 													onRoleFilterChange(undefined);
@@ -134,7 +134,7 @@ export function UserList({
 											{t`No users yet.`}{" "}
 											<button
 												type="button"
-												className="text-kumo-brand underline"
+												className="text-kumo-link underline"
 												onClick={onInviteUser}
 											>
 												{t`Invite your first team member`}

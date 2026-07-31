@@ -217,12 +217,12 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 			{/* Info */}
 			<div className="p-4">
 				<Link to={"/themes/marketplace/$themeId"} params={{ themeId: theme.id }} className="block">
-					<h3 className="font-semibold group-hover:text-kumo-brand truncate">{theme.name}</h3>
+					<h3 className="font-semibold group-hover:text-kumo-link truncate">{theme.name}</h3>
 				</Link>
 
 				<div className="flex items-center gap-2 mt-1 text-xs text-kumo-subtle">
 					<span>{theme.author.name}</span>
-					{theme.author.verified && <ShieldCheck className="h-3 w-3 text-kumo-brand" />}
+					{theme.author.verified && <ShieldCheck className="h-3 w-3 text-kumo-link" />}
 				</div>
 
 				{theme.description && (

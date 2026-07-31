@@ -249,7 +249,7 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 				{/* Name + meta */}
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<h3 className="truncate font-semibold group-hover:text-kumo-brand">{plugin.name}</h3>
+						<h3 className="truncate font-semibold group-hover:text-kumo-link">{plugin.name}</h3>
 						{isInstalled && (
 							<span
 								role="link"
@@ -266,7 +266,7 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 					</div>
 					<div className="flex items-center gap-2 text-xs text-kumo-subtle">
 						<span>{plugin.author.name}</span>
-						{plugin.author.verified && <ShieldCheck className="h-3 w-3 text-kumo-brand" />}
+						{plugin.author.verified && <ShieldCheck className="h-3 w-3 text-kumo-link" />}
 						{plugin.latestVersion?.version && <span>v{plugin.latestVersion.version}</span>}
 					</div>
 				</div>
@@ -306,7 +306,7 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 function PluginAvatar({ name }: { name: string }) {
 	const initial = name.charAt(0).toUpperCase();
 	return (
-		<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kumo-brand/10 text-kumo-brand font-bold text-lg">
+		<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kumo-brand/10 text-kumo-link font-bold text-lg">
 			{initial}
 		</div>
 	);

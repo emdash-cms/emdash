@@ -119,6 +119,7 @@ catalog:
   "@tanstack/react-router": 1.163.2
   "@tiptap/core": ^3.20.0
   "@tiptap/extension-character-count": ^3.20.0
+  "@tiptap/extension-code": ^3.20.0
   "@tiptap/extension-code-block": ^3.20.0
   "@tiptap/extension-collaboration": ^3.20.0
   "@tiptap/extension-drag-handle": ^3.20.0

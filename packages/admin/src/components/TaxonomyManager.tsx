@@ -749,8 +749,10 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 		queryFn: () => fetchTaxonomyDef(taxonomyName),
 	});
 
+	// The count mode belongs in the key: the editor's taxonomy picker reads the
+	// same endpoint without counts, and this page renders them.
 	const { data: terms = [], isLoading: termsLoading } = useQuery({
-		queryKey: ["taxonomy-terms", taxonomyName, activeLocale],
+		queryKey: ["taxonomy-terms", taxonomyName, activeLocale, { includeCounts: true }],
 		queryFn: () => fetchTerms(taxonomyName, { locale: activeLocale }),
 	});
 
