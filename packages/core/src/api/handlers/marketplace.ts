@@ -479,7 +479,6 @@ export async function handleMarketplaceInstall(
 			description: pluginDetail.description ?? undefined,
 		});
 
-		// Materialize declared storage indexes (logs failures, never throws)
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
 		// Fire-and-forget install stat
@@ -720,7 +719,6 @@ export async function handleMarketplaceUpdate(
 			mcpToolsConsent: null,
 		});
 
-		// Sync declared storage indexes — declarations can change between versions
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
 		// Clean up old bundle from R2 (best-effort)
@@ -796,8 +794,6 @@ export async function handleMarketplaceUninstall(
 			}
 		}
 
-		// Drop declared storage indexes — the plugin is gone either way, and
-		// orphaned indexes tax every _plugin_storage write
 		try {
 			await removeAllPluginIndexes(db, pluginId);
 		} catch {

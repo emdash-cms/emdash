@@ -69,6 +69,23 @@ describe("Plugin Storage Indexes Integration", () => {
 			expect(indexes.map((i) => JSON.parse(i.fields))).toContainEqual(["userId"]);
 		});
 
+		it("accepts collection names that are not SQL identifiers", async () => {
+			// The manifest schema allows arbitrary collection keys and the
+			// repository stores collection as opaque text — kebab-case names
+			// like "form-submissions" must index too.
+			const result = await createStorageIndexes(db, "forms", "form-submissions", ["slug"]);
+
+			expect(result.errors).toHaveLength(0);
+			expect(result.created).toContain("idx_plugin_forms_form-submissions_slug");
+
+			const indexes = await db
+				.selectFrom("_plugin_indexes")
+				.select("index_name")
+				.where("plugin_id", "=", "forms")
+				.execute();
+			expect(indexes).toHaveLength(1);
+		});
+
 		it("should be idempotent", async () => {
 			await createStorageIndexes(db, "my-plugin", "events", ["eventType"]);
 			const result = await createStorageIndexes(db, "my-plugin", "events", ["eventType"]);

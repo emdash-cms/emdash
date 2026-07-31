@@ -1185,7 +1185,6 @@ export async function handleRegistryInstall(
 			throw stateErr;
 		}
 
-		// Materialize declared storage indexes (logs failures, never throws)
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
 		return {
@@ -1295,8 +1294,6 @@ export async function handleRegistryUninstall(
 			await deleteBundleFromR2(storage, pluginId, version, "registry");
 		}
 
-		// Drop declared storage indexes — the plugin is gone either way, and
-		// orphaned indexes tax every _plugin_storage write
 		try {
 			await removeAllPluginIndexes(db, pluginId);
 		} catch {
@@ -1661,7 +1658,6 @@ export async function handleRegistryUpdate(
 			mcpToolsConsent: null,
 		});
 
-		// Sync declared storage indexes — declarations can change between versions
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
 		// Best-effort cleanup of the old bundle. Failures here don't roll

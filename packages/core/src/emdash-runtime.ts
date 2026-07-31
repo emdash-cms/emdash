@@ -701,10 +701,8 @@ export class EmDashRuntime {
 	/**
 	 * Materialize plugin-declared storage indexes, once per process.
 	 *
-	 * Runs on the scheduler tick — never the request path — because it is the
-	 * only moment configured (in-config) plugins pass through: unlike
-	 * marketplace/registry plugins they have no install handler. CREATE INDEX
-	 * IF NOT EXISTS is idempotent, so concurrent isolates converge.
+	 * Called from the scheduler path, not from request handlers — configured
+	 * plugins have no install handler, so the tick is their only sync moment.
 	 */
 	async syncPluginStorageIndexesOnce(): Promise<void> {
 		if (this.storageIndexesSynced) return;

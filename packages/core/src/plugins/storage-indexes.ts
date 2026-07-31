@@ -11,11 +11,7 @@ import { sql } from "kysely";
 
 import { jsonExtractExpr, isPostgres } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
-import {
-	validateIdentifier,
-	validateJsonFieldName,
-	validatePluginIdentifier,
-} from "../database/validate.js";
+import { validateJsonFieldName, validatePluginIdentifier } from "../database/validate.js";
 
 /**
  * Generate a deterministic index name.
@@ -36,8 +32,9 @@ export function generateIndexName(
 /**
  * Generate a Kysely sql expression for creating an expression index.
  *
- * Validates all identifiers before interpolation to prevent SQL injection.
- * Plugin ID and collection values are parameterized in the WHERE clause.
+ * The plugin ID and field names are validated before interpolation; the
+ * collection is an opaque text value (the manifest schema allows arbitrary
+ * keys) and only appears inside the index name, which `sql.ref` quotes.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function generateCreateIndexSql(
@@ -47,9 +44,7 @@ export function generateCreateIndexSql(
 	fields: string[],
 	options?: { unique?: boolean },
 ): RawBuilder<unknown> {
-	// Validate all identifiers
 	validatePluginIdentifier(pluginId, "plugin ID");
-	validateIdentifier(collection, "collection name");
 	for (const field of fields) {
 		validateJsonFieldName(field, "index field name");
 	}
