@@ -67,7 +67,10 @@ vi.mock("emdash", async (importOriginal) => {
 const { runtimeDbHandle } = vi.hoisted(() => ({ runtimeDbHandle: { selectFrom: () => ({}) } }));
 vi.mock("emdash/middleware", () => ({
 	withEmDashRuntime: async (
-		run: (rt: { db: unknown; getPluginRouteMeta: (id: string, path: string) => object | null }) => unknown,
+		run: (rt: {
+			db: unknown;
+			getPluginRouteMeta: (id: string, path: string) => object | null;
+		}) => unknown,
 	) =>
 		run({
 			db: runtimeDbHandle,

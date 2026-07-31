@@ -1319,7 +1319,6 @@ export async function handleAISearchSnippetRequest(
 		return Response.json({ success: true, result: { search_query: "", chunks: [] } });
 	}
 
-
 	const locale =
 		typeof body.locale === "string" && body.locale ? body.locale : options.defaultLocale;
 	const collection =
