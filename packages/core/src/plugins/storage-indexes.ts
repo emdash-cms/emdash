@@ -11,7 +11,11 @@ import { sql } from "kysely";
 
 import { jsonExtractExpr, isPostgres } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
-import { validateJsonFieldName, validatePluginIdentifier } from "../database/validate.js";
+import {
+	validateJsonFieldName,
+	validatePluginIdentifier,
+	validateStorageCollectionName,
+} from "../database/validate.js";
 
 /**
  * Generate a deterministic index name.
@@ -32,9 +36,10 @@ export function generateIndexName(
 /**
  * Generate a Kysely sql expression for creating an expression index.
  *
- * The plugin ID and field names are validated before interpolation; the
- * collection is an opaque text value (the manifest schema allows arbitrary
- * keys) and only appears inside the index name, which `sql.ref` quotes.
+ * Validates all inputs before interpolation. The collection uses the
+ * permissive manifest-key rules rather than SQL-identifier rules — it is
+ * stored as opaque text and only reaches SQL inside the generated index
+ * name — so kebab-case collections index like any other.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function generateCreateIndexSql(
@@ -45,6 +50,7 @@ export function generateCreateIndexSql(
 	options?: { unique?: boolean },
 ): RawBuilder<unknown> {
 	validatePluginIdentifier(pluginId, "plugin ID");
+	validateStorageCollectionName(collection, "collection name");
 	for (const field of fields) {
 		validateJsonFieldName(field, "index field name");
 	}
