@@ -784,6 +784,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					handlePluginApiRoute: runtime.handlePluginApiRoute.bind(runtime),
 					handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
 					getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
+					getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
+					getEnabledPluginMcpTools: runtime.getEnabledPluginMcpTools.bind(runtime),
+					serializePluginMcpConsent: runtime.serializePluginMcpConsent.bind(runtime),
+					handlePluginMcpTool: runtime.handlePluginMcpTool.bind(runtime),
+					handlePluginMcpDenied: runtime.handlePluginMcpDenied.bind(runtime),
 
 					// Media provider methods
 					getMediaProvider: runtime.getMediaProvider.bind(runtime),

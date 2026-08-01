@@ -338,6 +338,8 @@ Comments are **not**:
 
 Never reference issues, PRs, or review threads in comments -- they're stale narrative the moment the change merges; that context belongs in the commit message and PR description. Never number comments.
 
+Tool directives are exempt from all of the above: `eslint-disable`, `oxlint-disable`, `@ts-expect-error`, `@ts-ignore`, `prettier-ignore`, `v8 ignore`, and similar are machine instructions, not prose, and the short reason attached to one (`// oxlint-disable-next-line no-await-in-loop -- sequential on purpose`) states why the rule doesn't apply at that site. Keep the reason; don't flag it as justification.
+
 ## Imports
 
 - **Internal imports** use `.js` extensions (ESM): `import { X } from "../foo.js"`.

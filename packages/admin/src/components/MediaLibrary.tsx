@@ -318,7 +318,7 @@ export function MediaLibrary({
 		<div className="space-y-4">
 			{/* Header: page title (start) + primary upload action (end) */}
 			<div className="flex flex-wrap items-center justify-between gap-4">
-				<h1 ref={mediaHeadingRef} tabIndex={-1} className="text-2xl font-bold">
+				<h1 ref={mediaHeadingRef} tabIndex={-1} className="text-2xl font-semibold leading-tight">
 					{t`Media Library`}
 				</h1>
 				<div className="flex items-center gap-3">
@@ -441,7 +441,7 @@ export function MediaLibrary({
 						)}
 					</div>
 					<div className="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
-						<span className="text-sm text-kumo-subtle" aria-live="polite">
+						<span className="text-sm text-kumo-subtle tabular-nums" aria-live="polite">
 							{resultCountText}
 						</span>
 						<div role="group" aria-label={t`View mode`}>
@@ -670,7 +670,7 @@ function MediaEmptyIllustration({ hero: Hero }: { hero: Icon }) {
 			}}
 			aria-hidden="true"
 		>
-			<Hero size={36} className="text-kumo-brand" aria-hidden="true" />
+			<Hero size={36} className="text-kumo-link" aria-hidden="true" />
 		</div>
 	);
 }
@@ -691,8 +691,8 @@ function MediaEmptyState({ hero, title, description, action }: MediaEmptyStatePr
 		>
 			<MediaEmptyIllustration hero={hero} />
 			<div className="flex flex-col items-center" style={{ gap: "0.75rem" }}>
-				<h2 className="text-2xl font-semibold leading-none tracking-tight">{title}</h2>
-				<p className="max-w-md text-base leading-6 text-kumo-subtle">{description}</p>
+				<h2 className="text-xl font-semibold leading-tight text-balance">{title}</h2>
+				<p className="max-w-md text-base leading-6 text-pretty text-kumo-subtle">{description}</p>
 			</div>
 			{action && <div style={{ marginTop: "0.25rem" }}>{action}</div>}
 		</div>
@@ -825,9 +825,11 @@ function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
 					)}
 				</div>
 			</td>
-			<td className="px-4 py-3 font-medium">{item.filename}</td>
+			<td className="px-4 py-3 text-base font-medium leading-5">{item.filename}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{item.mimeType}</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{formatFileSize(item.size)}</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle tabular-nums">
+				{formatFileSize(item.size)}
+			</td>
 			<td className="px-4 py-3 text-end">
 				<span className="text-sm text-kumo-subtle">
 					{item.alt ? t`Alt text set` : t`No alt text`}
@@ -880,9 +882,9 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 					)}
 				</div>
 			</td>
-			<td className="px-4 py-3 font-medium">{item.filename}</td>
+			<td className="px-4 py-3 text-base font-medium leading-5">{item.filename}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{item.mimeType}</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">
+			<td className="px-4 py-3 text-sm text-kumo-subtle tabular-nums">
 				{item.size ? formatFileSize(item.size) : "—"}
 			</td>
 			<td className="px-4 py-3 text-end">

@@ -2,10 +2,13 @@ import { describe, it, expect } from "vitest";
 
 import {
 	contentCreateBody,
+	contentListQuery,
 	contentUpdateBody,
 	createFieldBody,
 	updateFieldBody,
 	httpUrl,
+	localeCode,
+	localeFilterQuery,
 	mediaUploadUrlBody,
 	DEFAULT_MAX_UPLOAD_SIZE,
 } from "../../../src/api/schemas/index.js";
@@ -121,6 +124,46 @@ describe("contentUpdateBody schema", () => {
 	});
 });
 
+describe("localeCode validator", () => {
+	// The site config, stored locale columns, and public query path keep raw
+	// BCP-47 casing, so the schema must preserve it instead of normalizing it.
+	it("preserves region/script subtag casing", () => {
+		expect(localeCode.parse("zh-TW")).toBe("zh-TW");
+		expect(localeCode.parse("pt-BR")).toBe("pt-BR");
+		expect(localeCode.parse("zh-Hant")).toBe("zh-Hant");
+	});
+
+	it("leaves plain language codes unchanged", () => {
+		expect(localeCode.parse("en")).toBe("en");
+	});
+
+	it("still accepts mixed-case input (case-insensitive validation)", () => {
+		expect(localeCode.parse("EN-us")).toBe("EN-us");
+	});
+
+	it("rejects malformed locale codes", () => {
+		expect(() => localeCode.parse("english")).toThrow();
+		expect(() => localeCode.parse("e")).toThrow();
+		expect(() => localeCode.parse("en_US")).toThrow();
+	});
+
+	it("contentListQuery keeps the ?locale= filter casing", () => {
+		const result = contentListQuery.parse({ locale: "zh-TW" });
+		expect(result.locale).toBe("zh-TW");
+	});
+
+	it("contentCreateBody keeps the locale casing", () => {
+		const result = contentCreateBody.parse({ data: { title: "Hi" }, locale: "pt-BR" });
+		expect(result.locale).toBe("pt-BR");
+	});
+
+	it("localeFilterQuery keeps the ?locale= casing and rejects malformed values", () => {
+		expect(localeFilterQuery.parse({ locale: "zh-TW" }).locale).toBe("zh-TW");
+		expect(localeFilterQuery.parse({}).locale).toBeUndefined();
+		expect(() => localeFilterQuery.parse({ locale: "_invalid_" })).toThrow();
+	});
+});
+
 describe("httpUrl validator", () => {
 	it("accepts http URLs", () => {
 		expect(httpUrl.parse("http://example.com")).toBe("http://example.com");
@@ -202,6 +245,24 @@ describe("mediaUploadUrlBody schema factory", () => {
 		const schema = mediaUploadUrlBody(1_000);
 		const result = schema.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 500 });
 		expect(result.size).toBe(500);
+	});
+
+	it("accepts an empty file", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		const result = schema.parse({ filename: "empty.pdf", contentType: "application/pdf", size: 0 });
+		expect(result.size).toBe(0);
+	});
+
+	it("accepts client content hashes in existing formats", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		const contentHash = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+		const result = schema.parse({
+			filename: "a.jpg",
+			contentType: "image/jpeg",
+			size: 500,
+			contentHash,
+		});
+		expect(result.contentHash).toBe(contentHash);
 	});
 
 	it("each call returns an independent schema with its own limit", () => {

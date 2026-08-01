@@ -312,11 +312,31 @@ export interface ManifestHookEntry {
 export interface ManifestRouteEntry {
 	name: string;
 	public?: boolean;
+	/** RBAC permission required to invoke this route. */
+	permission?: string;
 	/**
 	 * Cache-Control value for successful GET responses. Only honored on
 	 * routes that are also `public: true`.
 	 */
 	cacheControl?: string;
+}
+
+/** JSON Schema persisted in plugin manifests for cross-isolate discovery. */
+export type PluginJsonSchema = Record<string, unknown>;
+
+/** An explicitly agent-callable plugin route. Tool names are local to the plugin. */
+export interface ManifestMcpTool {
+	name: string;
+	description: string;
+	route: string;
+	permission: string;
+	destructive: boolean;
+	inputSchema: PluginJsonSchema;
+	outputSchema?: PluginJsonSchema;
+}
+
+export interface PluginMcpManifestConfig {
+	tools: ManifestMcpTool[];
 }
 
 /**
@@ -408,6 +428,8 @@ export interface PluginManifest {
 	hooks: Array<ManifestHookEntry | string>;
 	/** Route declarations -- plain name strings or structured objects. */
 	routes: Array<ManifestRouteEntry | string>;
+	/** Explicit, opt-in MCP surface. Absent manifests expose no plugin tools. */
+	mcp?: PluginMcpManifestConfig;
 	admin: PluginAdminConfig;
 }
 

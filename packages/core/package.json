@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.29.0",
+  "version": "0.31.1",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -218,6 +218,7 @@
     "@oslojs/encoding": "catalog:",
     "@portabletext/toolkit": "^5.0.1",
     "@tiptap/core": "catalog:",
+    "@tiptap/extension-code": "catalog:",
     "@tiptap/extension-code-block": "catalog:",
     "@tiptap/extension-focus": "catalog:",
     "@tiptap/extension-image": "catalog:",

@@ -15,7 +15,7 @@ import {
 	validateWhereClause,
 	validateOrderByClause,
 	getIndexedFields,
-	jsonExtract,
+	jsonOrderExtract,
 } from "../../plugins/storage-query.js";
 import type {
 	StorageCollection,
@@ -245,7 +245,9 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		// Build ORDER BY using sql template
 		if (Object.keys(orderBy).length > 0) {
 			for (const [field, direction] of Object.entries(orderBy)) {
-				const extract = jsonExtract(this.db, field);
+				// Order over the jsonb-native value on Postgres so numeric fields sort
+				// numerically, not lexically. See pluginDataOrderExpr.
+				const extract = jsonOrderExtract(this.db, field);
 				const orderExpr =
 					direction === "desc" ? sql`${sql.raw(extract)} desc` : sql`${sql.raw(extract)} asc`;
 				query = query.orderBy(orderExpr);

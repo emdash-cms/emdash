@@ -730,7 +730,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     manifestPromise = ecFetch("/_emdash/api/manifest", { credentials: "same-origin" })
       .then(function(r) { return r.json(); })
       .then(function(m) {
-        // The manifest endpoint wraps the payload in a { data } envelope (ApiResponse shape).
+        // The manifest endpoint wraps the payload in a { success, data } envelope (ApiResponse shape).
         // Unwrap it so getFieldKind can read manifest.collections directly.
         manifestCache = m && m.data ? m.data : m;
         return manifestCache;

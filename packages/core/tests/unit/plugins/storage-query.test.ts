@@ -210,8 +210,12 @@ describe("storage-query", () => {
 		});
 
 		it("should handle number values", () => {
+			// Numeric operands use a type-guarded extract so the comparison is
+			// numeric (not lexical text) and total across schemaless documents.
 			const result = buildCondition(db, "count", 42);
-			expect(result.sql).toBe("json_extract(data, '$.count') = ?");
+			expect(result.sql).toBe(
+				"CASE WHEN json_type(data, '$.count') IN ('integer', 'real') THEN json_extract(data, '$.count') END = ?",
+			);
 			expect(result.params).toEqual([42]);
 		});
 
@@ -239,35 +243,38 @@ describe("storage-query", () => {
 			expect(buildCondition(db, "name", { startsWith: "c:\\dir" }).params).toEqual(["c:\\\\dir%"]);
 		});
 
+		// Numeric range bounds are type-guarded so `'9' >= '10'` can't sneak in
+		// via lexical text comparison.
+		const ageNum =
+			"CASE WHEN json_type(data, '$.age') IN ('integer', 'real') THEN json_extract(data, '$.age') END";
+
 		it("should handle range filters with gt", () => {
 			const result = buildCondition(db, "age", { gt: 18 });
-			expect(result.sql).toBe("json_extract(data, '$.age') > ?");
+			expect(result.sql).toBe(`${ageNum} > ?`);
 			expect(result.params).toEqual([18]);
 		});
 
 		it("should handle range filters with gte", () => {
 			const result = buildCondition(db, "age", { gte: 18 });
-			expect(result.sql).toBe("json_extract(data, '$.age') >= ?");
+			expect(result.sql).toBe(`${ageNum} >= ?`);
 			expect(result.params).toEqual([18]);
 		});
 
 		it("should handle range filters with lt", () => {
 			const result = buildCondition(db, "age", { lt: 65 });
-			expect(result.sql).toBe("json_extract(data, '$.age') < ?");
+			expect(result.sql).toBe(`${ageNum} < ?`);
 			expect(result.params).toEqual([65]);
 		});
 
 		it("should handle range filters with lte", () => {
 			const result = buildCondition(db, "age", { lte: 65 });
-			expect(result.sql).toBe("json_extract(data, '$.age') <= ?");
+			expect(result.sql).toBe(`${ageNum} <= ?`);
 			expect(result.params).toEqual([65]);
 		});
 
 		it("should handle combined range filters", () => {
 			const result = buildCondition(db, "age", { gte: 18, lt: 65 });
-			expect(result.sql).toBe(
-				"json_extract(data, '$.age') >= ? AND json_extract(data, '$.age') < ?",
-			);
+			expect(result.sql).toBe(`${ageNum} >= ? AND ${ageNum} < ?`);
 			expect(result.params).toEqual([18, 65]);
 		});
 	});

@@ -98,6 +98,31 @@ vi.mock("../src/components/ContentEditor", () => ({
 	),
 }));
 
+vi.mock("../src/components/MediaLibrary", () => ({
+	MediaLibrary: ({ onUpload }: { onUpload?: (file: File) => Promise<unknown> | void }) => {
+		const [uploadStatus, setUploadStatus] = React.useState("idle");
+
+		const upload = async () => {
+			setUploadStatus("uploading");
+			try {
+				await onUpload?.(new File([new Uint8Array([1, 2, 3])], "photo.png", { type: "image/png" }));
+				setUploadStatus("success");
+			} catch {
+				setUploadStatus("error");
+			}
+		};
+
+		return (
+			<div>
+				<button type="button" onClick={() => void upload()}>
+					Upload test file
+				</button>
+				<span>{uploadStatus}</span>
+			</div>
+		);
+	},
+}));
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -163,6 +188,64 @@ describe("ConfigurationLoadingScreen", () => {
 		await expect.element(loader).toHaveClass("emdash-configuration-spinner");
 		await expect.element(label).toHaveClass("emdash-configuration-label");
 		expect(label.element().parentElement).toHaveClass("loader-inner");
+	});
+});
+
+describe("MediaPage – upload completion", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", {
+				data: { id: "user_01", role: 60 },
+			})
+			.on("GET", "/_emdash/api/media", {
+				data: { items: [], nextCursor: undefined },
+			});
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("waits for the upload request and propagates its failure", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+
+		const screen = await render(<TestApp />);
+		await expect.element(screen.getByText("idle")).toBeInTheDocument();
+
+		const interceptedFetch = globalThis.fetch;
+		let rejectUploadUrl: ((reason: Error) => void) | undefined;
+		let markUploadUrlStarted: () => void = () => undefined;
+		const uploadUrlStarted = new Promise<void>((resolve) => {
+			markUploadUrlStarted = resolve;
+		});
+		globalThis.fetch = (input, init) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (url === "/_emdash/api/media/upload-url" && init?.method === "POST") {
+				return new Promise<Response>((_resolve, reject) => {
+					rejectUploadUrl = reject;
+					markUploadUrlStarted();
+				});
+			}
+			return interceptedFetch(input, init);
+		};
+
+		try {
+			await screen.getByRole("button", { name: "Upload test file" }).click();
+			await expect.element(screen.getByText("uploading")).toBeInTheDocument();
+
+			await uploadUrlStarted;
+			if (!rejectUploadUrl) throw new Error("Upload URL request was not intercepted");
+			rejectUploadUrl(new Error("connection closed"));
+			await expect.element(screen.getByText("error")).toBeInTheDocument();
+		} finally {
+			globalThis.fetch = interceptedFetch;
+		}
 	});
 });
 

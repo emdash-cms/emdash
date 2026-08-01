@@ -223,6 +223,11 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/media/[id]/confirm.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/media/[id]/upload",
+		entrypoint: resolveRoute("api/media/[id]/upload.ts"),
+	});
+
 	// Media provider routes
 	injectRoute({
 		pattern: "/_emdash/api/media/providers",
@@ -423,6 +428,15 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/[id]/disable",
 		entrypoint: resolveRoute("api/admin/plugins/[id]/disable.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/[id]/mcp",
+		entrypoint: resolveRoute("api/admin/plugins/[id]/mcp.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/[id]/settings",
+		entrypoint: resolveRoute("api/admin/plugins/[id]/settings.ts"),
 	});
 
 	// Marketplace plugin routes

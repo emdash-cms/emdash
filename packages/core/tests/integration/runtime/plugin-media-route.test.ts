@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 
 import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
@@ -108,6 +108,47 @@ describe("EmDashRuntime.handlePluginApiRoute — media:write", () => {
 			expect(data.mediaId).toBeTruthy();
 			expect(data.storageKey).toMatch(/\.png$/);
 			expect(uploads.has(data.storageKey)).toBe(true);
+		} finally {
+			await runtime.stopCron();
+		}
+	});
+});
+
+describe("EmDashRuntime.handlePluginMcpTool", () => {
+	it("removes stale representation headers when replacing the request body", async () => {
+		const { storage } = createFakeStorage();
+		const runtime = await EmDashRuntime.create(createDeps(storage));
+		let capturedRequest: Request | undefined;
+		vi.spyOn(runtime, "handlePluginApiRoute").mockImplementation(
+			async (_pluginId, _method, _route, request) => {
+				capturedRequest = request;
+				return { success: true, data: { ok: true } };
+			},
+		);
+
+		try {
+			const input = { message: "short" };
+			await runtime.handlePluginMcpTool(
+				"media-uploader",
+				"echo",
+				"echo",
+				input,
+				"test-actor",
+				new Request("http://test.local/_emdash/api/mcp", {
+					method: "POST",
+					headers: {
+						"content-type": "application/json",
+						"content-length": "4096",
+						"content-encoding": "gzip",
+					},
+					body: JSON.stringify({ jsonrpc: "2.0", method: "tools/call", params: input }),
+				}),
+			);
+
+			expect(capturedRequest).toBeDefined();
+			expect(capturedRequest!.headers.get("content-length")).toBeNull();
+			expect(capturedRequest!.headers.get("content-encoding")).toBeNull();
+			expect(await capturedRequest!.json()).toEqual(input);
 		} finally {
 			await runtime.stopCron();
 		}

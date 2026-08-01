@@ -1115,11 +1115,13 @@ describe("Capability Enforcement Integration (v2)", () => {
 				siteName: "My Site",
 				siteUrl: "https://example.com/",
 				locale: "fr",
+				trailingSlash: "never",
 			});
 
 			expect(info.name).toBe("My Site");
 			expect(info.url).toBe("https://example.com"); // trailing slash stripped
 			expect(info.locale).toBe("fr");
+			expect(info.trailingSlash).toBe("never");
 		});
 
 		it("uses defaults for missing values", () => {
@@ -1128,6 +1130,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 			expect(info.name).toBe("");
 			expect(info.url).toBe("");
 			expect(info.locale).toBe("en");
+			expect(info.trailingSlash).toBe("ignore"); // Astro's default
 		});
 
 		it("strips trailing slash from URL", () => {

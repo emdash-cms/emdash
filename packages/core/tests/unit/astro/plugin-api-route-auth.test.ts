@@ -5,8 +5,8 @@
  * (the HTTP method never selects a different handler), a route reached via GET
  * or HEAD runs the same code as one reached via POST. The route must not tier
  * permission or CSRF by method — every private invocation needs
- * `plugins:manage` and the CSRF header, so an editor or a cross-origin HEAD
- * can't invoke a mutating admin route by choosing the method.
+ * the route's declared permission (defaulting to `plugins:manage`) and the
+ * CSRF header, so a caller cannot change authorization by choosing the method.
  */
 
 import type { RoleLevel } from "@emdash-cms/auth";
@@ -16,14 +16,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "../../../src/astro/routes/api/plugins/[pluginId]/[...path].js";
 
-function createLocals(role: RoleLevel | null, routePublic: boolean) {
+function createLocals(role: RoleLevel | null, routePublic: boolean, permission?: string) {
 	const handlePluginApiRoute = vi.fn(async () => ({ success: true, data: { ok: true } }));
 	return {
 		locals: {
 			user: role == null ? null : { id: "u1", role },
 			emdash: {
 				handlePluginApiRoute,
-				getPluginRouteMeta: () => ({ public: routePublic }),
+				getPluginRouteMeta: () => ({ public: routePublic, permission }),
 			},
 		},
 		handlePluginApiRoute,
@@ -70,6 +70,13 @@ describe("plugin API catch-all auth (#1853)", () => {
 		const res = await invoke(POST, "POST", locals);
 		expect(res.status).toBe(403);
 		expect(handlePluginApiRoute).not.toHaveBeenCalled();
+	});
+
+	it("honors a private route's explicitly declared permission", async () => {
+		const { locals, handlePluginApiRoute } = createLocals(Role.EDITOR, false, "content:create");
+		const res = await invoke(POST, "POST", locals);
+		expect(res.status).toBe(200);
+		expect(handlePluginApiRoute).toHaveBeenCalledOnce();
 	});
 
 	it("rejects a private GET without the CSRF header even for an admin", async () => {

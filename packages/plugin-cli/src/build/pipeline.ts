@@ -266,6 +266,7 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 		storage: entries.manifest.storage,
 		hooks: {},
 		routes: {},
+		mcp: { tools: {} },
 		admin: {
 			pages: entries.manifest.admin.pages,
 			widgets: entries.manifest.admin.widgets,
@@ -334,6 +335,9 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 		for (const [routeName, routeEntry] of Object.entries(parsed.routes)) {
 			resolvedPlugin.routes[routeName] = assembleRoute(routeEntry);
 		}
+	}
+	if (parsed.mcp) {
+		resolvedPlugin.mcp = parsed.mcp;
 	}
 
 	return resolvedPlugin;
@@ -475,7 +479,11 @@ function assembleHook(entry: ProbedHookEntry, pluginId: string): ResolvedPlugin[
 }
 
 function assembleRoute(entry: ProbedRouteEntry): ResolvedPlugin["routes"][string] {
-	return { handler: entry.handler, public: entry.public };
+	return {
+		handler: entry.handler,
+		public: entry.public,
+		permission: entry.permission,
+	};
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {

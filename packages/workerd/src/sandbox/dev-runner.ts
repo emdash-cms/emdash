@@ -51,7 +51,12 @@ const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
  */
 export class MiniflareDevRunner implements SandboxRunner {
 	private options: SandboxOptions;
-	private siteInfo?: { name: string; url: string; locale: string };
+	private siteInfo?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
 
 	/** Miniflare instance (lazily created) */

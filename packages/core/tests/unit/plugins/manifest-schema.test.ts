@@ -121,6 +121,52 @@ describe("pluginManifestSchema — route entries", () => {
 	});
 });
 
+describe("pluginManifestSchema — MCP tools", () => {
+	it("keeps MCP declarations optional for backwards compatibility", () => {
+		expect(pluginManifestSchema.safeParse(makeManifest({})).success).toBe(true);
+	});
+
+	it("accepts a plugin-scoped MCP tool declaration", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mcp: {
+				tools: [
+					{
+						name: "createEvent",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						destructive: false,
+						inputSchema: { type: "object", properties: { title: { type: "string" } } },
+						outputSchema: { type: "object", properties: { id: { type: "string" } } },
+					},
+				],
+			},
+		});
+
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects unsafe local tool names", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mcp: {
+				tools: [
+					{
+						name: "calendar.create",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						inputSchema: { type: "object" },
+					},
+				],
+			},
+		});
+
+		expect(result.success).toBe(false);
+	});
+});
+
 describe("normalizeManifestRoute", () => {
 	it("should convert a plain string to { name } object", () => {
 		expect(normalizeManifestRoute("webhook")).toEqual({ name: "webhook" });

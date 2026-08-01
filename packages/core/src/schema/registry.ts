@@ -1,5 +1,4 @@
-import type { Kysely } from "kysely";
-import type { Selectable } from "kysely";
+import type { ColumnDataType, CreateTableBuilder, Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 import { ulid } from "ulidx";
 
@@ -39,6 +38,12 @@ const WORD_BOUNDARY_PATTERN = /\b\w/g;
 
 /** Valid column types for runtime validation */
 const COLUMN_TYPES: ReadonlySet<string> = new Set(["TEXT", "REAL", "INTEGER", "JSON"]);
+const COLUMN_TYPE_TO_DATA_TYPE = {
+	TEXT: "text",
+	REAL: "real",
+	INTEGER: "integer",
+	JSON: "json",
+} satisfies Record<ColumnType, ColumnDataType>;
 
 /** Valid collection source prefixes/values */
 const VALID_SOURCES: ReadonlySet<string> = new Set(["manual", "discovered", "seed"]);
@@ -63,6 +68,10 @@ const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport
 	"search",
 	"seo",
 ]);
+
+// Each _emdash_fields row uses 15 bound parameters. Six rows keep every
+// multi-row INSERT below D1's 100-parameter statement limit.
+const SEED_FIELD_INSERT_BATCH_SIZE = 6;
 
 function isCollectionSupport(value: unknown): value is CollectionSupport {
 	return typeof value === "string" && VALID_COLLECTION_SUPPORTS.has(value);
@@ -262,6 +271,113 @@ export class SchemaRegistry {
 		}
 
 		return collection;
+	}
+
+	/**
+	 * Create a seed-owned collection and all of its fields in bulk.
+	 *
+	 * Fresh seeds can define dozens of fields. Creating them through
+	 * `createField` performs multiple reads, one ALTER TABLE, and one media
+	 * usage invalidation per field, which can exhaust D1's per-request query
+	 * budget. This path validates the full schema before mutating it, creates
+	 * the complete content table in one statement, and inserts field metadata
+	 * in parameter-safe batches.
+	 */
+	async createSeedCollection(
+		input: Omit<CreateCollectionInput, "source">,
+		fields: readonly CreateFieldInput[],
+	): Promise<void> {
+		this.validateSlug(input.slug, "collection");
+		if (RESERVED_COLLECTION_SLUGS.includes(input.slug)) {
+			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
+		}
+
+		const existing = await this.getCollection(input.slug);
+		if (existing) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
+
+		const fieldSlugs = new Set<string>();
+		for (const field of fields) {
+			this.validateSlug(field.slug, "field");
+			if (RESERVED_FIELD_SLUGS.includes(field.slug)) {
+				throw new SchemaError(`Field slug "${field.slug}" is reserved`, "RESERVED_SLUG");
+			}
+			if (fieldSlugs.has(field.slug)) {
+				throw new SchemaError(
+					`Field "${field.slug}" already exists in collection "${input.slug}"`,
+					"FIELD_EXISTS",
+				);
+			}
+			fieldSlugs.add(field.slug);
+		}
+
+		const collectionId = ulid();
+		const supports = input.supports ?? ["drafts", "revisions"];
+		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
+		let maxSortOrder = -1;
+		const fieldRows: Insertable<FieldTable>[] = fields.map((field) => {
+			const sortOrder = field.sortOrder ?? maxSortOrder + 1;
+			maxSortOrder = Math.max(maxSortOrder, sortOrder);
+
+			return {
+				id: ulid(),
+				collection_id: collectionId,
+				slug: field.slug,
+				label: field.label,
+				type: field.type,
+				column_type: FIELD_TYPE_TO_COLUMN[field.type],
+				required: field.required ? 1 : 0,
+				unique: field.unique ? 1 : 0,
+				default_value: field.defaultValue !== undefined ? JSON.stringify(field.defaultValue) : null,
+				validation: field.validation ? JSON.stringify(field.validation) : null,
+				widget: field.widget ?? null,
+				options: field.options ? JSON.stringify(field.options) : null,
+				sort_order: sortOrder,
+				searchable: field.searchable ? 1 : 0,
+				translatable: field.translatable === false ? 0 : 1,
+			};
+		});
+
+		let schemaMutated = false;
+		try {
+			await withTransaction(this.db, async (trx) => {
+				await trx
+					.insertInto("_emdash_collections")
+					.values({
+						id: collectionId,
+						slug: input.slug,
+						label: input.label,
+						label_singular: input.labelSingular ?? null,
+						description: input.description ?? null,
+						icon: input.icon ?? null,
+						supports: JSON.stringify(supports),
+						source: "seed",
+						has_seo: hasSeo ? 1 : 0,
+						comments_enabled: input.commentsEnabled ? 1 : 0,
+						url_pattern: input.urlPattern ?? null,
+					})
+					.execute();
+				schemaMutated = true;
+
+				await this.createContentTable(input.slug, trx, fields);
+
+				for (const fieldBatch of chunks(fieldRows, SEED_FIELD_INSERT_BATCH_SIZE)) {
+					await trx.insertInto("_emdash_fields").values(fieldBatch).execute();
+				}
+			});
+
+			await markContentMediaUsageCollectionStaleSafely(this.db, input.slug, "CONTENT_USAGE_STALE");
+		} catch (error) {
+			if (schemaMutated) {
+				await markContentMediaUsageCollectionStaleSafely(
+					this.db,
+					input.slug,
+					"CONTENT_USAGE_STALE",
+				);
+			}
+			throw error;
+		}
 	}
 
 	/**
@@ -787,11 +903,15 @@ export class SchemaRegistry {
 	/**
 	 * Create a content table for a collection
 	 */
-	private async createContentTable(slug: string, db?: Kysely<Database>): Promise<void> {
+	private async createContentTable(
+		slug: string,
+		db?: Kysely<Database>,
+		fields: readonly CreateFieldInput[] = [],
+	): Promise<void> {
 		const conn = db ?? this.db;
 		const tableName = this.getTableName(slug);
 
-		await conn.schema
+		let table: CreateTableBuilder<string, string> = conn.schema
 			.createTable(tableName)
 			.addColumn("id", "text", (col) => col.primaryKey())
 			.addColumn("slug", "text")
@@ -807,7 +927,23 @@ export class SchemaRegistry {
 			.addColumn("live_revision_id", "text", (col) => col.references("revisions.id"))
 			.addColumn("draft_revision_id", "text", (col) => col.references("revisions.id"))
 			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
-			.addColumn("translation_group", "text")
+			.addColumn("translation_group", "text");
+
+		for (const field of fields) {
+			const columnName = this.getColumnName(field.slug);
+			const columnType = COLUMN_TYPE_TO_DATA_TYPE[FIELD_TYPE_TO_COLUMN[field.type]];
+			table = table.addColumn(columnName, columnType, (column) => {
+				if (!field.required) return column;
+
+				const defaultValue =
+					field.defaultValue !== undefined
+						? this.formatDefaultValue(field.defaultValue, field.type)
+						: this.getEmptyDefault(field.type);
+				return column.notNull().defaultTo(sql.raw(defaultValue));
+			});
+		}
+
+		await table
 			.addUniqueConstraint(`${tableName}_slug_locale_unique`, ["slug", "locale"])
 			.execute();
 

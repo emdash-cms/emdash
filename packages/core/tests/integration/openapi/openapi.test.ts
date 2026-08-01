@@ -60,7 +60,7 @@ describe("OpenAPI spec validation", () => {
 		}
 	});
 
-	it("wraps all success responses in the { data } envelope", () => {
+	it("wraps all success responses in the { success, data } envelope", () => {
 		const doc = generateOpenApiDocument();
 		const paths = doc.paths ?? {};
 
@@ -85,8 +85,9 @@ describe("OpenAPI spec validation", () => {
 						`${method.toUpperCase()} ${path} ${statusCode} missing schema`,
 					).toBeDefined();
 
-					// The envelope must have a "data" property (either directly or via $ref that wraps it)
-					// Check for direct properties or allOf/oneOf patterns
+					// The envelope must have "success" and "data" properties (either
+					// directly or via $ref that wraps them). Check for direct
+					// properties or allOf/oneOf patterns.
 					const props = (schema as Record<string, unknown>)?.properties as
 						| Record<string, unknown>
 						| undefined;
@@ -95,6 +96,10 @@ describe("OpenAPI spec validation", () => {
 							props,
 							`${method.toUpperCase()} ${path} ${statusCode} envelope missing "data" property`,
 						).toHaveProperty("data");
+						expect(
+							props,
+							`${method.toUpperCase()} ${path} ${statusCode} envelope missing "success" property`,
+						).toHaveProperty("success");
 					}
 				}
 			}
@@ -186,8 +191,37 @@ describe("OpenAPI spec validation", () => {
 						schema,
 						`${method.toUpperCase()} ${path} ${statusCode} error missing schema`,
 					).toBeDefined();
+
+					// Error responses either $ref the shared ApiError component or
+					// inline its shape; both must carry the `success` discriminant.
+					const props = (schema as Record<string, unknown>)?.properties as
+						| Record<string, unknown>
+						| undefined;
+					const ref = (schema as Record<string, unknown>)?.$ref as string | undefined;
+					const usesApiError = typeof ref === "string" && ref.endsWith("/ApiError");
+					if (props) {
+						expect(
+							props,
+							`${method.toUpperCase()} ${path} ${statusCode} error envelope missing "success"`,
+						).toHaveProperty("success");
+					} else {
+						expect(
+							usesApiError,
+							`${method.toUpperCase()} ${path} ${statusCode} error is neither a $ref to ApiError nor inline`,
+						).toBe(true);
+					}
 				}
 			}
 		}
+	});
+
+	it("declares the success discriminant on the ApiError component", () => {
+		const doc = generateOpenApiDocument();
+		const apiError = (doc.components?.schemas ?? {})["ApiError"] as
+			| { properties?: Record<string, unknown> }
+			| undefined;
+		expect(apiError, "ApiError component missing").toBeDefined();
+		expect(apiError?.properties).toHaveProperty("success");
+		expect(apiError?.properties).toHaveProperty("error");
 	});
 });

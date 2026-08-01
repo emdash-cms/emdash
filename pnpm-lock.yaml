@@ -135,6 +135,9 @@ catalogs:
     '@tiptap/extension-character-count':
       specifier: ^3.20.0
       version: 3.20.0
+    '@tiptap/extension-code':
+      specifier: ^3.20.0
+      version: 3.20.0
     '@tiptap/extension-code-block':
       specifier: ^3.20.0
       version: 3.20.0
@@ -163,6 +166,12 @@ catalogs:
       specifier: ^3.20.0
       version: 3.20.0
     '@tiptap/extension-placeholder':
+      specifier: ^3.20.0
+      version: 3.20.0
+    '@tiptap/extension-subscript':
+      specifier: ^3.20.0
+      version: 3.20.0
+    '@tiptap/extension-superscript':
       specifier: ^3.20.0
       version: 3.20.0
     '@tiptap/extension-table':
@@ -651,6 +660,9 @@ importers:
       '@emdash-cms/plugin-color':
         specifier: workspace:*
         version: link:../../packages/plugins/color
+      '@emdash-cms/plugin-mcp-smoke':
+        specifier: workspace:*
+        version: link:../../packages/plugins/mcp-smoke
       astro:
         specifier: 'catalog:'
         version: 7.0.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(rollup@4.55.2)(tsx@4.21.0)(yaml@2.9.0)
@@ -1158,6 +1170,9 @@ importers:
       '@tiptap/extension-character-count':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/extensions@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))
+      '@tiptap/extension-code':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))
       '@tiptap/extension-code-block':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
@@ -1185,6 +1200,12 @@ importers:
       '@tiptap/extension-placeholder':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/extensions@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))
+      '@tiptap/extension-subscript':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+      '@tiptap/extension-superscript':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
       '@tiptap/extension-table':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
@@ -1664,6 +1685,9 @@ importers:
       '@tiptap/core':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/pm@3.20.0)
+      '@tiptap/extension-code':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))
       '@tiptap/extension-code-block':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
@@ -2182,6 +2206,15 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+
+  packages/plugins/mcp-smoke:
+    dependencies:
+      emdash:
+        specifier: workspace:*
+        version: link:../../core
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.1
 
   packages/plugins/sandboxed-test:
     dependencies:
@@ -7370,6 +7403,18 @@ packages:
     resolution: {integrity: sha512-ZhYD3L5m16ydSe2z8vqz+RdtAG/iOQaFHHedFct70tKRoLqi2ajF5kgpemu8DwpaRTcyiCN4G99J/+MqehKNjQ==}
     peerDependencies:
       '@tiptap/extensions': ^3.20.0
+
+  '@tiptap/extension-subscript@3.20.0':
+    resolution: {integrity: sha512-EX3GPey4Gp9W04zM2MsP5OfMnwGtQTh1Q0ZokJAdENHpyXbche9WjK31FTzwEmTSqlU5stSsH5KwhSYlDwm5rA==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.0
+      '@tiptap/pm': ^3.20.0
+
+  '@tiptap/extension-superscript@3.20.0':
+    resolution: {integrity: sha512-NNFv58LM/7JMu4aq9Apq8yuaB8MDL5dvVZ7R6qMuQNZDVGAGgoiBqtglA1RXldNl/9IFcVg67rT8oF86qykYKA==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.0
+      '@tiptap/pm': ^3.20.0
 
   '@tiptap/extension-strike@3.20.0':
     resolution: {integrity: sha512-0vcTZRRAiDfon3VM1mHBr9EFmTkkUXMhm0Xtdtn0bGe+sIqufyi+hUYTEw93EQOD9XNsPkrud6jzQNYpX2H3AQ==}
@@ -17480,6 +17525,16 @@ snapshots:
   '@tiptap/extension-placeholder@3.20.0(@tiptap/extensions@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))':
     dependencies:
       '@tiptap/extensions': 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+
+  '@tiptap/extension-subscript@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)':
+    dependencies:
+      '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
+      '@tiptap/pm': 3.20.0
+
+  '@tiptap/extension-superscript@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)':
+    dependencies:
+      '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
+      '@tiptap/pm': 3.20.0
 
   '@tiptap/extension-strike@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))':
     dependencies:

@@ -245,12 +245,12 @@ Portable Text fields edit in TipTap (ProseMirror). Content is converted at the l
 
 ### Signed uploads
 
-Media uploads bypass Worker body-size limits with direct-to-storage signed URLs:
+Media uploads use direct-to-storage signed URLs when the adapter supports them and a same-origin streaming endpoint otherwise:
 
 <Steps>
 
 1. The client requests an upload URL (`POST /api/media/upload-url`).
-2. The client uploads directly to the signed URL (R2 or S3).
+2. The client uploads to the returned target. S3-compatible adapters can return a signed URL that bypasses Worker body-size limits; native R2 bindings and local storage return an EmDash streaming endpoint.
 3. The client confirms (`POST /api/media/:id/confirm`).
 4. The server extracts metadata (dimensions, MIME type).
 

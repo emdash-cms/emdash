@@ -36,6 +36,7 @@ const updateBodySchema = z.object({
 	 * version newly exposes a public (unauthenticated) route.
 	 */
 	confirmRouteVisibilityChanges: z.boolean().optional(),
+	confirmMcpTools: z.boolean().optional(),
 });
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
@@ -67,6 +68,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				version: body.version,
 				confirmCapabilityChanges: body.confirmCapabilityChanges,
 				confirmRouteVisibilityChanges: body.confirmRouteVisibilityChanges,
+				confirmMcpTools: body.confirmMcpTools,
 				hostEnv: hostEnvFromVersions(VERSION, emdash.config.astroVersion),
 			},
 		);

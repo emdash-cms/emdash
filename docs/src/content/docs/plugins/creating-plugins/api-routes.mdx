@@ -70,11 +70,21 @@ Routes mount at `/_emdash/api/plugins/<slug>/<route-name>`. Route names can incl
 
 ## Authentication and CSRF
 
-**Plugin routes are authenticated by default.** The dispatcher requires a session (or a token with the `admin` scope) before it'll call your handler:
+**Plugin routes are authenticated by default.** The dispatcher requires a session (or a token with the `admin` scope) before it'll call your handler. Private routes default to the `plugins:manage` permission for backwards compatibility. Set `permission` to a narrower EmDash RBAC permission when the operation belongs to an existing content, media, schema, or settings capability:
 
-- Read methods (`GET`, `HEAD`, `OPTIONS`) require the `plugins:read` permission.
-- Write methods (`POST`, `PUT`, `PATCH`, `DELETE`) require `plugins:manage`.
-- State-changing methods on private routes also require the `X-EmDash-Request: 1` CSRF header (the admin UI's `usePluginAPI()` hook sends it automatically; cookie-authed external callers need to set it themselves; token-authed requests are exempt).
+```typescript
+routes: {
+	create: {
+		permission: "content:create",
+		input: z.object({ title: z.string() }),
+		handler: async (routeCtx, ctx) => {
+			// ...
+		},
+	},
+},
+```
+
+Private routes require the `X-EmDash-Request: 1` CSRF header for cookie-authenticated requests. The admin UI sends it automatically; token-authenticated requests are exempt.
 
 To opt a route out of auth and CSRF, mark it `public: true`:
 
@@ -110,6 +120,44 @@ routes: {
 ```
 
 The header is applied only to **successful GET responses of public routes**. Errors are never cached, other methods keep the default, and setting `cacheControl` on a private route has no effect — authenticated responses always stay `private, no-store`.
+
+## Exposing a route as an MCP tool
+
+Plugins may explicitly expose selected private routes through EmDash's MCP server. MCP exposure is never inferred from the route list:
+
+```typescript
+const createEventInput = z.object({
+	title: z.string().min(1),
+	startsAt: z.string().datetime(),
+});
+
+export default {
+	routes: {
+		"events/create": {
+			permission: "content:create",
+			input: createEventInput,
+			handler: async (routeCtx, ctx) => {
+				return { id: await createEvent(routeCtx.input, ctx) };
+			},
+		},
+	},
+	mcp: {
+		tools: {
+			createEvent: {
+				description: "Create a calendar event when the user asks to add one.",
+				route: "events/create",
+				input: createEventInput,
+				output: z.object({ id: z.string() }),
+				destructive: false,
+			},
+		},
+	},
+} satisfies SandboxedPlugin;
+```
+
+EmDash exposes this as `<pluginId>__createEvent`. The referenced route must be private and declare `permission`. Input schemas are required; output schemas are optional. Set `destructive: true` for tools that delete, overwrite, publish, charge, or otherwise perform a difficult-to-reverse action.
+
+An administrator must separately enable a plugin's MCP tools after reviewing their names, descriptions, routes, permissions, and destructive flags. Calling the tool then requires both the route permission and either the `mcp:tools` token scope or `mcp:tools:<pluginId>`.
 
 ## Input validation
 

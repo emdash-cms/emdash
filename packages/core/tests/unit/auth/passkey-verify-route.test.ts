@@ -49,6 +49,7 @@ describe("passkey verify route", () => {
 
 		expect(response.status).toBe(401);
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: {
 				code: "UNAUTHORIZED",
 				message: "Authentication failed",

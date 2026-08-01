@@ -26,6 +26,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { computeThumbnailSize } from "../media/thumbnail.js";
+import { CodeMarkExtension } from "./code-mark.js";
 import { InlineCodeBlockExtension } from "./inline-code-block.js";
 
 // ── Portable Text types ────────────────────────────────────────────
@@ -1942,7 +1943,10 @@ export function InlinePortableTextEditor({
 				dropcursor: { color: "#3b82f6", width: 2 },
 				// Replaced with InlineCodeBlockExtension below (adds language picker).
 				codeBlock: false,
+				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
+				code: false,
 			}),
+			CodeMarkExtension,
 			InlineCodeBlockExtension,
 			Image.extend({
 				addAttributes() {
