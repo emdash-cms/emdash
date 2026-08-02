@@ -730,16 +730,19 @@ export class ContentRepository {
 		}
 
 		// Apply ordering and limit
-		if (resolvedOrderField.indexedCustomField) {
+		const indexedOrderFilter = resolvedOrderField.indexedCustomField
+			? resolvedFieldFilters.find((filter) => filter.column === dbField)
+			: undefined;
+		if (resolvedOrderField.indexedCustomField && !indexedOrderFilter) {
 			query = query.orderBy(
 				sql<boolean>`${sql.ref(dbField)} IS NOT NULL`,
 				safeOrderDirection === "ASC" ? "asc" : "desc",
 			);
 		}
-		query = query
-			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
-			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
-			.limit(limit + 1);
+		if (indexedOrderFilter?.kind !== "null") {
+			query = query.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc");
+		}
+		query = query.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc").limit(limit + 1);
 
 		// Run the page fetch and the unbounded count together — the UI needs
 		// both to render a stable denominator (kept on every page intentionally),
@@ -2152,13 +2155,14 @@ export class ContentRepository {
 		let next = query;
 		for (const filter of filters) {
 			const column = sql.ref(filter.column);
+			const isPresent = sql<boolean>`${column} IS NOT NULL`;
 			if (filter.kind === "null") {
-				next = next.where(() => sql<boolean>`${column} IS NULL`);
+				next = next.where(() => sql<boolean>`(${isPresent}) = FALSE AND ${column} IS NULL`);
 				continue;
 			}
 			if (filter.kind === "exact") {
 				next = next.where(
-					() => sql<boolean>`${column} IS NOT NULL AND ${column} = ${filter.value}`,
+					() => sql<boolean>`(${isPresent}) = TRUE AND ${column} = ${filter.value}`,
 				);
 				continue;
 			}
@@ -2167,11 +2171,11 @@ export class ContentRepository {
 					filter.values.map((value) => sql`${value}`),
 					sql`, `,
 				);
-				next = next.where(() => sql<boolean>`${column} IS NOT NULL AND ${column} IN (${values})`);
+				next = next.where(() => sql<boolean>`(${isPresent}) = TRUE AND ${column} IN (${values})`);
 				continue;
 			}
 
-			next = next.where(() => sql<boolean>`${column} IS NOT NULL`);
+			next = next.where(() => sql<boolean>`(${isPresent}) = TRUE`);
 			if (filter.bounds.gt !== undefined) {
 				next = next.where(() => sql<boolean>`${column} > ${filter.bounds.gt}`);
 			}
