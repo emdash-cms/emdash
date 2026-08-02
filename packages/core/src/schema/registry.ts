@@ -1459,8 +1459,9 @@ export class SchemaRegistry {
 		const indexName = this.getFieldIndexName(fieldId);
 
 		await sql`
-			CREATE INDEX ${sql.ref(indexName)}
+			CREATE INDEX IF NOT EXISTS ${sql.ref(indexName)}
 			ON ${sql.ref(tableName)} (
+				deleted_at,
 				(${sql.ref(columnName)} IS NOT NULL),
 				${sql.ref(columnName)},
 				id
