@@ -6,6 +6,7 @@ import {
 	handleContentList,
 } from "../../../src/api/handlers/content.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
+import { createContentAccess } from "../../../src/plugins/context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -105,6 +106,16 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		expect(slugsOf(result).toSorted()).toEqual(["y2024", "y2025"]);
 		if (!result.success) throw new Error("list failed");
 		expect(result.data.total).toBe(2);
+	});
+
+	it("passes indexed custom-field filters through plugin content access", async () => {
+		const content = createContentAccess(ctx.db);
+		const result = await content.list("posts", {
+			where: { fieldFilters: { priority: "urgent" } },
+		});
+
+		expect(result.items.map((item) => item.slug)).toEqual(["y2024"]);
+		expect(result.hasMore).toBe(false);
 	});
 
 	it("filters by an inclusive createdAt date range", async () => {

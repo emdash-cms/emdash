@@ -178,6 +178,43 @@ describe("localeCode validator", () => {
 		).toThrow();
 	});
 
+	it("contentListQuery enforces indexed field filter boundaries", () => {
+		const twentyFilters = Object.fromEntries(
+			Array.from({ length: 20 }, (_, index) => [`field_${index}`, index]),
+		);
+		expect(
+			contentListQuery.parse({ fieldFilters: JSON.stringify(twentyFilters) }).fieldFilters,
+		).toEqual(twentyFilters);
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ ...twentyFilters, field_20: 20 }),
+			}),
+		).toThrow();
+
+		const hundredValues = Array.from({ length: 100 }, (_, index) => index);
+		expect(
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ score: { in: hundredValues } }),
+			}).fieldFilters,
+		).toEqual({ score: { in: hundredValues } });
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ score: { in: [...hundredValues, 100] } }),
+			}),
+		).toThrow();
+
+		expect(
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ queue: "x".repeat(2048) }),
+			}).fieldFilters,
+		).toEqual({ queue: "x".repeat(2048) });
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ queue: "x".repeat(2049) }),
+			}),
+		).toThrow();
+	});
+
 	it("contentCreateBody keeps the locale casing", () => {
 		const result = contentCreateBody.parse({ data: { title: "Hi" }, locale: "pt-BR" });
 		expect(result.locale).toBe("pt-BR");
