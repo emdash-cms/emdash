@@ -628,6 +628,7 @@ export function ContentList({
 										<ContentListItem
 											key={item.id}
 											item={item}
+											visibleItems={paginatedItems}
 											collection={collection}
 											onDelete={onDelete}
 											onDuplicate={onDuplicate}
@@ -1034,6 +1035,7 @@ function renderItemCount({
 
 interface ContentListItemProps {
 	item: ContentItem;
+	visibleItems: readonly ContentItem[];
 	collection: string;
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
@@ -1048,6 +1050,7 @@ interface ContentListItemProps {
 
 function ContentListItem({
 	item,
+	visibleItems,
 	collection,
 	onDelete,
 	onDuplicate,
@@ -1118,7 +1121,12 @@ function ContentListItem({
 							pluginId={pluginId}
 							columnId={extension.id}
 						>
-							<Cell collection={collection} item={item} locale={item.locale} />
+							<Cell
+								collection={collection}
+								item={item}
+								locale={item.locale}
+								visibleItems={visibleItems}
+							/>
 						</ContentListColumnBoundary>
 					</td>
 				);
