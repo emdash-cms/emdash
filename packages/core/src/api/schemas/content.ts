@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { bylineSummarySchema, bylineCreditSchema, contentBylineInputSchema } from "./bylines.js";
 import { cursorPaginationQuery, httpUrl, localeCode } from "./common.js";
 
@@ -69,7 +70,7 @@ const contentFieldFilterValue = z.union([
 			in: z
 				.array(z.union([contentFieldComparable, z.boolean()]))
 				.min(1)
-				.max(100),
+				.max(SQL_BATCH_SIZE),
 		})
 		.strict(),
 	z
@@ -85,6 +86,13 @@ const contentFieldFilterValue = z.union([
 		}),
 ]);
 
+function contentFieldFilterOperandCount(value: unknown): number {
+	if (value === null) return 0;
+	if (!value || typeof value !== "object" || Array.isArray(value)) return 1;
+	if ("in" in value && Array.isArray(value.in)) return value.in.length;
+	return Object.values(value).filter((bound) => bound !== undefined).length;
+}
+
 /** AND-combined filters over custom fields explicitly marked as indexed. */
 export const contentFieldFiltersSchema = z
 	.record(
@@ -96,7 +104,17 @@ export const contentFieldFiltersSchema = z
 	)
 	.refine((filters) => Object.keys(filters).length <= 20, {
 		message: "At most 20 indexed field filters are allowed",
-	});
+	})
+	.refine(
+		(filters) =>
+			Object.values(filters).reduce<number>(
+				(total, value) => total + contentFieldFilterOperandCount(value),
+				0,
+			) <= SQL_BATCH_SIZE,
+		{
+			message: `Indexed field filters have a total operand budget of ${SQL_BATCH_SIZE}`,
+		},
+	);
 
 const contentFieldFiltersQuery = z
 	.string()

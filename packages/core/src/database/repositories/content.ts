@@ -37,7 +37,7 @@ const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
 // LIKE wildcards that must be escaped so user search input is matched literally.
 const LIKE_WILDCARD_RE = /[\\%_]/g;
 const MAX_INDEXED_FIELD_FILTERS = 20;
-const MAX_IN_FILTER_VALUES = 100;
+const MAX_IN_FILTER_VALUES = SQL_BATCH_SIZE;
 const MAX_FILTER_STRING_LENGTH = 2048;
 
 type NormalizedFilterScalar = string | number;
@@ -2122,7 +2122,7 @@ export class ContentRepository {
 			.execute();
 		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
 
-		return fields.map((field) => {
+		const normalized = fields.map((field) => {
 			const fieldType = metadata.get(field);
 			if (!fieldType || !isIndexableFieldType(fieldType)) {
 				throw new EmDashValidationError(
@@ -2131,6 +2131,18 @@ export class ContentRepository {
 			}
 			return this.normalizeFieldFilter(field, fieldType, resolvedFilters[field]);
 		});
+		const operandCount = normalized.reduce((total, filter) => {
+			if (filter.kind === "null") return total;
+			if (filter.kind === "exact") return total + 1;
+			if (filter.kind === "in") return total + filter.values.length;
+			return total + Object.keys(filter.bounds).length;
+		}, 0);
+		if (operandCount > SQL_BATCH_SIZE) {
+			throw new EmDashValidationError(
+				`Indexed field filters have a total operand budget of ${SQL_BATCH_SIZE}`,
+			);
+		}
+		return normalized;
 	}
 
 	private applyFieldFilters<QB extends { where: (cb: (eb: any) => unknown) => QB }>(

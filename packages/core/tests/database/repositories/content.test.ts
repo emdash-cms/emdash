@@ -717,21 +717,31 @@ describe("ContentRepository", () => {
 
 			it("enforces direct repository filter boundaries", async () => {
 				await seedIndexedFields();
-				const hundredValues = [
-					...Array.from({ length: 99 }, (_, index) => `queue-${index}`),
+				const fiftyValues = [
+					...Array.from({ length: 49 }, (_, index) => `queue-${index}`),
 					"urgent",
 				];
 
 				await expect(
 					repo.findMany("post", {
-						where: { fieldFilters: { queue: { in: hundredValues } } },
+						where: { fieldFilters: { queue: { in: fiftyValues } } },
 					}),
 				).resolves.toMatchObject({ total: 2 });
 				await expect(
 					repo.findMany("post", {
-						where: { fieldFilters: { queue: { in: [...hundredValues, "overflow"] } } },
+						where: { fieldFilters: { queue: { in: [...fiftyValues, "overflow"] } } },
 					}),
-				).rejects.toThrow(/exceeds 100 values/);
+				).rejects.toThrow(/exceeds 50 values/);
+				await expect(
+					repo.findMany("post", {
+						where: {
+							fieldFilters: {
+								queue: { in: Array.from({ length: 30 }, (_, index) => `queue-${index}`) },
+								resolved: { in: Array.from({ length: 21 }, (_, index) => index % 2 === 0) },
+							},
+						},
+					}),
+				).rejects.toThrow(/total operand budget of 50/);
 				await expect(
 					repo.findMany("post", {
 						where: { fieldFilters: { queue: "x".repeat(2049) } },

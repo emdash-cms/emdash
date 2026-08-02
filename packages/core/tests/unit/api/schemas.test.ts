@@ -191,15 +191,23 @@ describe("localeCode validator", () => {
 			}),
 		).toThrow();
 
-		const hundredValues = Array.from({ length: 100 }, (_, index) => index);
+		const fiftyValues = Array.from({ length: 50 }, (_, index) => index);
 		expect(
 			contentListQuery.parse({
-				fieldFilters: JSON.stringify({ score: { in: hundredValues } }),
+				fieldFilters: JSON.stringify({ score: { in: fiftyValues } }),
 			}).fieldFilters,
-		).toEqual({ score: { in: hundredValues } });
+		).toEqual({ score: { in: fiftyValues } });
 		expect(() =>
 			contentListQuery.parse({
-				fieldFilters: JSON.stringify({ score: { in: [...hundredValues, 100] } }),
+				fieldFilters: JSON.stringify({ score: { in: [...fiftyValues, 50] } }),
+			}),
+		).toThrow();
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({
+					queue: { in: Array.from({ length: 30 }, (_, index) => `queue-${index}`) },
+					resolved: { in: Array.from({ length: 21 }, (_, index) => index % 2 === 0) },
+				}),
 			}),
 		).toThrow();
 

@@ -73,7 +73,8 @@ const result = await ctx.content.list("items", {
 Scalar values use exact matching. Use `null` for null matching, `{ in: [...] }` for a set of exact
 values, or `gt`, `gte`, `lt`, and `lte` for range comparisons. EmDash rejects filters for fields
 that are not indexed, values that do not match the field type, and more than 20 field filters per
-query. An `in` filter accepts at most 100 values.
+query. An `in` filter accepts at most 50 values, and all exact values, range bounds, and `in`
+members together have a 50-operand budget per query. Null matches do not consume that budget.
 
 <Aside type="caution">
 	Filtering is intentionally limited to indexed scalar fields. Prefix, substring, and arbitrary
