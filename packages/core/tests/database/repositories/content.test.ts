@@ -572,16 +572,42 @@ describe("ContentRepository", () => {
 					type: "boolean",
 					indexed: true,
 				});
+				await registry.createField("post", {
+					slug: "starts_at",
+					label: "Starts at",
+					type: "datetime",
+					indexed: true,
+				});
 
 				const seeded = await repo.findMany("post", {
 					orderBy: { field: "slug", direction: "asc" },
 				});
 				const values = [
-					{ score: null, queue: "urgent", resolved: false },
-					{ score: 50, queue: "normal", resolved: false },
-					{ score: 80, queue: "urgent", resolved: true },
-					{ score: 90, queue: "high", resolved: false },
-					{ score: null, queue: "normal", resolved: false },
+					{
+						score: null,
+						queue: "urgent",
+						resolved: false,
+						starts_at: "2026-01-01T00:00:00.000Z",
+					},
+					{
+						score: 50,
+						queue: "normal",
+						resolved: false,
+						starts_at: "2026-02-01T00:00:00.000Z",
+					},
+					{
+						score: 80,
+						queue: "urgent",
+						resolved: true,
+						starts_at: "2026-03-01T00:00:00.000Z",
+					},
+					{
+						score: 90,
+						queue: "high",
+						resolved: false,
+						starts_at: "2026-04-01T00:00:00.000Z",
+					},
+					{ score: null, queue: "normal", resolved: false, starts_at: null },
 				];
 				for (const [index, item] of seeded.items.entries()) {
 					await repo.update("post", item.id, { data: values[index] });
@@ -605,6 +631,27 @@ describe("ContentRepository", () => {
 				expect(result.total).toBe(1);
 			});
 
+			it("supports exact boolean and datetime range filters with AND semantics", async () => {
+				await seedIndexedFields();
+
+				const result = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+					where: {
+						fieldFilters: {
+							queue: "urgent",
+							resolved: true,
+							starts_at: {
+								gte: "2026-02-01T00:00:00.000Z",
+								lte: "2026-03-01T00:00:00.000Z",
+							},
+						},
+					},
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-2"]);
+				expect(result.total).toBe(1);
+			});
+
 			it("paginates null matches while keeping the filtered total stable", async () => {
 				await seedIndexedFields();
 
@@ -624,6 +671,86 @@ describe("ContentRepository", () => {
 				expect(page2.items.map((item) => item.slug)).toEqual(["post-4"]);
 				expect(page1.total).toBe(2);
 				expect(page2.total).toBe(2);
+			});
+
+			it("combines filtering and indexed sorting across cursor pages without duplicates", async () => {
+				await seedIndexedFields();
+
+				const items = [];
+				const totals = [];
+				let cursor: string | undefined;
+				do {
+					const page = await repo.findMany("post", {
+						limit: 1,
+						cursor,
+						orderBy: { field: "score", direction: "asc" },
+						where: { fieldFilters: { resolved: false } },
+					});
+					items.push(...page.items);
+					totals.push(page.total);
+					cursor = page.nextCursor;
+				} while (cursor);
+
+				expect(items.map((item) => item.data.score ?? null)).toEqual([null, null, 50, 90]);
+				expect(new Set(items.map((item) => item.id)).size).toBe(4);
+				expect(totals).toEqual([4, 4, 4, 4]);
+				expect(await repo.count("post", { fieldFilters: { resolved: false } })).toBe(4);
+			});
+
+			it("parameterizes exact filter values", async () => {
+				await seedIndexedFields();
+				const injectedValue = "urgent' OR 1=1 --";
+				const target = (
+					await repo.findMany("post", {
+						orderBy: { field: "slug", direction: "asc" },
+					})
+				).items[1]!;
+				await repo.update("post", target.id, { data: { queue: injectedValue } });
+
+				const result = await repo.findMany("post", {
+					where: { fieldFilters: { queue: injectedValue } },
+				});
+
+				expect(result.items.map((item) => item.id)).toEqual([target.id]);
+				expect(result.total).toBe(1);
+			});
+
+			it("enforces direct repository filter boundaries", async () => {
+				await seedIndexedFields();
+				const hundredValues = [
+					...Array.from({ length: 99 }, (_, index) => `queue-${index}`),
+					"urgent",
+				];
+
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { queue: { in: hundredValues } } },
+					}),
+				).resolves.toMatchObject({ total: 2 });
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { queue: { in: [...hundredValues, "overflow"] } } },
+					}),
+				).rejects.toThrow(/exceeds 100 values/);
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { queue: "x".repeat(2049) } },
+					}),
+				).rejects.toThrow(/exceeds 2048 characters/);
+				await expect(
+					repo.findMany("post", {
+						where: {
+							fieldFilters: Object.fromEntries(
+								Array.from({ length: 21 }, (_, index) => [`field_${index}`, index]),
+							),
+						},
+					}),
+				).rejects.toThrow(/at most 20 indexed field filters/);
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { "queue;drop": "urgent" } },
+					}),
+				).rejects.toThrow(/Invalid content filter field/);
 			});
 
 			it("rejects unindexed fields and values that do not match the field type", async () => {
