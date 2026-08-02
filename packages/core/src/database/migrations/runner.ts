@@ -63,6 +63,8 @@ import * as m057 from "./057_collection_hidden.js";
 import * as m058 from "./058_collection_sort_order.js";
 import * as m059 from "./059_revision_prune_queue.js";
 import * as m060 from "./060_collection_admin_config.js";
+import * as m061 from "./061_media_usage_cleanup.js";
+import * as m062 from "./062_media_usage_cleanup_fence.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -124,6 +126,8 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"058_collection_sort_order": m058,
 	"059_revision_prune_queue": m059,
 	"060_collection_admin_config": m060,
+	"061_media_usage_cleanup": m061,
+	"062_media_usage_cleanup_fence": m062,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

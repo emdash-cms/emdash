@@ -140,6 +140,44 @@ export interface MediaUsageTable {
 	media_kind: string | null;
 	mime_type: string | null;
 	created_at: Generated<string>;
+	cleanup_lease_token: Generated<string | null>;
+}
+
+export interface MediaUsageCleanupTable {
+	task_key: string;
+	lease_token: string | null;
+	lease_expires_at: string | null;
+	next_eligible_at: string;
+	cursor_created_at: string | null;
+	cursor_id: string | null;
+	scan_before_at: string | null;
+	consecutive_failures: Generated<number>;
+	last_started_at: string | null;
+	last_completed_at: string | null;
+	last_candidate_count: Generated<number>;
+	last_deleted_orphans: Generated<number>;
+	last_deleted_stale: Generated<number>;
+	last_deleted_abandoned: Generated<number>;
+	last_deleted_write_leases: Generated<number>;
+	last_backlog_lower_bound: Generated<number>;
+	last_scan_has_more: Generated<number>;
+	last_duration_ms: Generated<number>;
+	last_error_code: string | null;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageGenerationWriteTable {
+	source_key: string;
+	generation: string;
+	lease_token: string;
+	expires_at: string;
+	created_at: Generated<string>;
+}
+
+export interface MediaUsageGenerationFenceTable {
+	task_key: string;
+	generation_floor: string;
+	updated_at: Generated<string>;
 }
 
 export interface MediaUsageIndexStatusTable {
@@ -520,6 +558,9 @@ export interface Database {
 	_emdash_media_upload_attempts: MediaUploadAttemptTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
+	_emdash_media_usage_cleanup: MediaUsageCleanupTable;
+	_emdash_media_usage_generation_writes: MediaUsageGenerationWriteTable;
+	_emdash_media_usage_cleanup_fence: MediaUsageGenerationFenceTable;
 	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;
 	users: UserTable;
 	credentials: CredentialTable;
