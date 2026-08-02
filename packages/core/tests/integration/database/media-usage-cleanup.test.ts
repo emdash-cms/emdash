@@ -333,8 +333,6 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 		const reclaimed = await cleanupMediaUsage(db);
 		expect(reclaimed).toEqual(expect.objectContaining({ deletedRows: 1, deletedWriteLeases: 1 }));
 	});
-
-
 	it("derives generation-write and occurrence timestamps from database time", async () => {
 		vi.setSystemTime(new Date("2099-01-01T00:00:00.000Z"));
 		let expiresAt: string | undefined;
@@ -351,7 +349,7 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 		const original = internals.upsertSource.bind(repo);
 		vi.spyOn(internals, "upsertSource").mockImplementation(
 			async (transaction, source, generation, now, leaseToken) => {
-				const [writeLease, occurrence] = await Promise.all([
+				const [writeLease, storedOccurrence] = await Promise.all([
 					transaction
 						.selectFrom("_emdash_media_usage_generation_writes")
 						.select("expires_at")
@@ -364,7 +362,7 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 						.executeTakeFirstOrThrow(),
 				]);
 				expiresAt = writeLease.expires_at;
-				occurrenceCreatedAt = occurrence.created_at;
+				occurrenceCreatedAt = storedOccurrence.created_at;
 				return original(transaction, source, generation, now, leaseToken);
 			},
 		);
@@ -413,7 +411,7 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 		expect(await repo.findCurrentUsageByMediaId("media-current")).toHaveLength(1);
 	});
 
-	it("does not advance the promotion fence for normal source deletion", async () => {
+	it("does not advance the promotion fence when normal source deletion removes a cleanup-marked occurrence", async () => {
 		const current = await repo.replaceSource(contentSource("entry-normal-delete"), [
 			occurrence("media-normal-delete"),
 		]);
@@ -425,11 +423,180 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 				sweepSafetyWindowSeconds: 60 * 60,
 			}),
 		).not.toBeNull();
+		await db
+			.updateTable("_emdash_media_usage")
+			.set({ cleanup_lease_token: "normal-delete-cleanup-owner" })
+			.where("source_key", "=", current.sourceKey)
+			.execute();
 
 		expect(await repo.deleteSource(current.sourceKey)).toBe(1);
+		expect(await db.selectFrom("_emdash_media_usage_cleanup_fence").selectAll().execute()).toEqual(
+			[],
+		);
+	});
+
+	it("takes the PostgreSQL cleanup lock before source deletion locks occurrences", async () => {
+		if (dialect !== "postgres") return;
+
+		const current = await repo.replaceSource(contentSource("entry-delete-lock-order"), [
+			occurrence("media-delete-lock-order"),
+		]);
 		expect(
-			await db.selectFrom("_emdash_media_usage_cleanup_fence").selectAll().execute(),
-		).toEqual([]);
+			await repo.claimMediaUsageCleanup({
+				leaseToken: "delete-lock-order-owner",
+				leaseDurationSeconds: 5 * 60,
+				nextEligibleDelaySeconds: 60,
+				sweepSafetyWindowSeconds: 60 * 60,
+			}),
+		).not.toBeNull();
+		await db
+			.updateTable("_emdash_media_usage")
+			.set({ cleanup_lease_token: "delete-lock-order-owner" })
+			.where("source_key", "=", current.sourceKey)
+			.execute();
+
+		let releaseCleanupLock!: () => void;
+		const cleanupLockRelease = new Promise<void>((resolve) => {
+			releaseCleanupLock = resolve;
+		});
+		let signalCleanupLockAcquired!: () => void;
+		const cleanupLockAcquired = new Promise<void>((resolve) => {
+			signalCleanupLockAcquired = resolve;
+		});
+		const cleanupLockHolder = db.transaction().execute(async (trx) => {
+			await sql`
+				SELECT 1
+				FROM _emdash_media_usage_cleanup
+				WHERE task_key = 'projection_gc'
+				FOR UPDATE
+			`.execute(trx);
+			signalCleanupLockAcquired();
+			await cleanupLockRelease;
+		});
+		await cleanupLockAcquired;
+
+		let deletionFinished = false;
+		const deleting = repo.deleteSource(current.sourceKey).then((deleted) => {
+			deletionFinished = true;
+			return deleted;
+		});
+		await sql`SELECT pg_sleep(0.1)`.execute(db);
+		const finishedWhileCleanupLockHeld = deletionFinished;
+		releaseCleanupLock();
+
+		expect(await deleting).toBe(1);
+		await cleanupLockHolder;
+		expect(finishedWhileCleanupLockHeld).toBe(false);
+	});
+
+	it("serializes previous-version PostgreSQL source deletion at the cleanup singleton", async () => {
+		if (dialect !== "postgres") return;
+
+		const current = await repo.replaceSource(contentSource("entry-old-delete-lock-order"), [
+			occurrence("media-old-delete-lock-order"),
+		]);
+		expect(
+			await repo.claimMediaUsageCleanup({
+				leaseToken: "old-delete-lock-order-owner",
+				leaseDurationSeconds: 5 * 60,
+				nextEligibleDelaySeconds: 60,
+				sweepSafetyWindowSeconds: 60 * 60,
+			}),
+		).not.toBeNull();
+		await db
+			.updateTable("_emdash_media_usage")
+			.set({ cleanup_lease_token: "old-delete-lock-order-owner" })
+			.where("source_key", "=", current.sourceKey)
+			.execute();
+
+		let releaseCleanupLock!: () => void;
+		const cleanupLockRelease = new Promise<void>((resolve) => {
+			releaseCleanupLock = resolve;
+		});
+		let signalCleanupLockAcquired!: () => void;
+		const cleanupLockAcquired = new Promise<void>((resolve) => {
+			signalCleanupLockAcquired = resolve;
+		});
+		const cleanupLockHolder = db.transaction().execute(async (trx) => {
+			await sql`
+				SELECT 1
+				FROM _emdash_media_usage_cleanup
+				WHERE task_key = 'projection_gc'
+				FOR UPDATE
+			`.execute(trx);
+			signalCleanupLockAcquired();
+			await cleanupLockRelease;
+		});
+		await cleanupLockAcquired;
+
+		let deletionFinished = false;
+		const deleting = db
+			.transaction()
+			.execute(async (trx) => {
+				await trx
+					.deleteFrom("_emdash_media_usage_sources")
+					.where("source_key", "=", current.sourceKey)
+					.execute();
+				await trx
+					.deleteFrom("_emdash_media_usage")
+					.where("source_key", "=", current.sourceKey)
+					.execute();
+			})
+			.then(() => {
+				deletionFinished = true;
+				return true;
+			});
+		await sql`SELECT pg_sleep(0.1)`.execute(db);
+		const finishedWhileCleanupLockHeld = deletionFinished;
+		releaseCleanupLock();
+
+		await Promise.all([deleting, cleanupLockHolder]);
+		expect(finishedWhileCleanupLockHeld).toBe(false);
+	});
+
+	it("takes the PostgreSQL cleanup lock before source promotion locks the source row", async () => {
+		if (dialect !== "postgres") return;
+
+		const current = await repo.replaceSource(contentSource("entry-promotion-lock-order"), [
+			occurrence("media-before-promotion-lock"),
+		]);
+		let signalCleanupLockAcquired!: () => void;
+		const cleanupLockAcquired = new Promise<void>((resolve) => {
+			signalCleanupLockAcquired = resolve;
+		});
+		let startSourceDelete!: () => void;
+		const sourceDeleteStart = new Promise<void>((resolve) => {
+			startSourceDelete = resolve;
+		});
+		const deleting = db.transaction().execute(async (trx) => {
+			await sql`
+				SELECT 1
+				FROM _emdash_media_usage_cleanup
+				WHERE task_key = 'projection_gc'
+				FOR UPDATE
+			`.execute(trx);
+			signalCleanupLockAcquired();
+			await sourceDeleteStart;
+			return trx
+				.deleteFrom("_emdash_media_usage_sources")
+				.where("source_key", "=", current.sourceKey)
+				.executeTakeFirst();
+		});
+		await cleanupLockAcquired;
+
+		const replacing = repo.replaceSourceIfCurrent(
+			contentSource("entry-promotion-lock-order"),
+			[occurrence("media-after-promotion-lock")],
+			current.currentGeneration,
+		);
+		await sql`SELECT pg_sleep(0.1)`.execute(db);
+		startSourceDelete();
+		const outcomes = await Promise.allSettled([deleting, replacing]);
+
+		expect(outcomes.every((outcome) => outcome.status === "fulfilled")).toBe(true);
+		if (outcomes[1]?.status === "fulfilled") {
+			expect(outcomes[1].value.replaced).toBe(false);
+		}
 	});
 
 	it("uses database time to reject delayed cleanup work after claim expiry", async () => {
@@ -456,7 +623,7 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 			.where("task_key", "=", "projection_gc")
 			.execute();
 
-		const delayedLease = { leaseToken: "delayed-owner", checkedAt: "1970-01-01T00:00:00.000Z" };
+		const delayedLease = { leaseToken: "delayed-owner" };
 		const deleted = await repo.deleteStaleGenerationsOlderThan(
 			new Date(Date.now() + MEDIA_USAGE_CLEANUP_INTERVAL_MS).toISOString(),
 			1,

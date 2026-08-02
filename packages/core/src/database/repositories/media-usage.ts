@@ -767,6 +767,7 @@ export class MediaUsageRepository {
 	): Promise<MediaUsageGuardedDeleteResult> {
 		let deleted = false;
 		await withTransaction(this.db, async (trx) => {
+			await this.lockCleanupBeforeSourceDelete(trx);
 			const result = await trx
 				.deleteFrom("_emdash_media_usage_sources")
 				.where("source_key", "=", sourceKey)
@@ -789,6 +790,7 @@ export class MediaUsageRepository {
 	): Promise<MediaUsageGuardedDeleteResult> {
 		let deleted = false;
 		await withTransaction(this.db, async (trx) => {
+			await this.lockCleanupBeforeSourceDelete(trx);
 			const result = await trx
 				.deleteFrom("_emdash_media_usage_sources")
 				.where("source_key", "=", sourceKey)
@@ -819,6 +821,7 @@ export class MediaUsageRepository {
 		const tableName = `ec_${collectionSlug}`;
 		let deleted = false;
 		await withTransaction(this.db, async (trx) => {
+			await this.lockCleanupBeforeSourceDelete(trx);
 			const result = await trx
 				.deleteFrom("_emdash_media_usage_sources")
 				.where("source_key", "=", sourceKey)
@@ -1625,6 +1628,7 @@ export class MediaUsageRepository {
 		if (uniqueSourceKeys.length === 0) return 0;
 
 		return withTransaction(this.db, async (trx) => {
+			await this.lockCleanupBeforeSourceDelete(trx);
 			let deleted = 0;
 			for (const sourceKeyBatch of chunks(uniqueSourceKeys, SQL_BATCH_SIZE)) {
 				const result = await trx
@@ -1633,6 +1637,11 @@ export class MediaUsageRepository {
 					.executeTakeFirst();
 				deleted += Number(result.numDeletedRows ?? 0);
 
+				await trx
+					.updateTable("_emdash_media_usage")
+					.set({ cleanup_lease_token: null })
+					.where("source_key", "in", sourceKeyBatch)
+					.execute();
 				await trx
 					.deleteFrom("_emdash_media_usage")
 					.where("source_key", "in", sourceKeyBatch)
@@ -1650,10 +1659,26 @@ export class MediaUsageRepository {
 		// Guarded source deletes remove only the generation that won the source CAS;
 		// unmatched generations become invisible orphans reclaimed by age-gated cleanup.
 		await db
+			.updateTable("_emdash_media_usage")
+			.set({ cleanup_lease_token: null })
+			.where("source_key", "=", sourceKey)
+			.where("generation", "=", generation)
+			.execute();
+		await db
 			.deleteFrom("_emdash_media_usage")
 			.where("source_key", "=", sourceKey)
 			.where("generation", "=", generation)
 			.execute();
+	}
+
+	private async lockCleanupBeforeSourceDelete(db: DatabaseExecutor): Promise<void> {
+		if (!isPostgres(this.db)) return;
+		await sql`
+			SELECT 1
+			FROM _emdash_media_usage_cleanup
+			WHERE task_key = 'projection_gc'
+			FOR UPDATE
+		`.execute(db);
 	}
 
 	private async insertOccurrences(
@@ -2254,11 +2279,11 @@ function rowToUsageRecord(row: JoinedUsageRow): MediaUsageRecord {
 			media_id: row.media_id,
 			provider: row.provider,
 			provider_asset_id: row.provider_asset_id,
-				media_kind: row.media_kind,
-				mime_type: row.mime_type,
-				created_at: row.occurrence_created_at,
-				cleanup_lease_token: null,
-			}),
+			media_kind: row.media_kind,
+			mime_type: row.mime_type,
+			created_at: row.occurrence_created_at,
+			cleanup_lease_token: null,
+		}),
 	};
 }
 
