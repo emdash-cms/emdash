@@ -818,6 +818,32 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
 		});
 
+		it("keeps configured and plugin columns aligned in rows and empty states", async () => {
+			function ScoreCell({ item }: { item: ContentItem }) {
+				return <span>{String(item.data.score)}</span>;
+			}
+			const columns = [{ id: "score", label: "SEO score", align: "end", cell: ScoreCell }] as const;
+			const listColumns = [{ slug: "ticket_number", label: "Ticket", kind: "string" }];
+			const screen = await renderWithColumns(columns, {
+				items: [
+					makeItem({
+						data: { title: "Plugin Post", ticket_number: "SUP-1042", score: 82 },
+					}),
+				],
+				listColumns,
+			});
+
+			await expect.element(screen.getByRole("columnheader", { name: "Ticket" })).toBeVisible();
+			await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
+			await expect.element(screen.getByText("SUP-1042")).toBeVisible();
+			await expect.element(screen.getByText("82")).toBeVisible();
+
+			await screen.rerender(listWithColumns(columns, { items: [], isLoading: true, listColumns }));
+			await expect
+				.element(screen.getByRole("cell", { name: "Loading..." }))
+				.toHaveAttribute("colspan", "6");
+		});
+
 		it("isolates broken headers and cells while healthy columns and core rows remain", async () => {
 			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
 			function Broken(): React.ReactNode {
