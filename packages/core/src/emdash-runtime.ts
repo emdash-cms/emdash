@@ -2906,7 +2906,7 @@ export class EmDashRuntime {
 						// comparison NULL-safe across both SQLite/D1 and Postgres without
 						// relying on dialect-specific NULL operators. No updated_at stamp:
 						// draft staging leaves live content untouched, so public "last
-						// modified" consumers must not see a change (#2143).
+						// modified" consumers must not see a change.
 						const pointerUpdate = await sql`
 							UPDATE ${sql.ref(tableName)}
 							SET draft_revision_id = ${revision.id}
@@ -2927,7 +2927,12 @@ export class EmDashRuntime {
 						// instead of silently discarding this save.
 						lostEveryCasAttempt = true;
 					}
-					if (lostEveryCasAttempt && !draftStorageChanged) {
+					if (
+						lostEveryCasAttempt &&
+						!draftStorageChanged &&
+						processedData &&
+						Object.keys(processedData).length > 0
+					) {
 						return {
 							success: false as const,
 							error: {
@@ -3333,7 +3338,7 @@ export class EmDashRuntime {
 		// (only `draft_revision_id` changes — no `updated_at` stamp, since
 		// restoring to draft is the same kind of draft-only staging as
 		// Save/Autosave and must not register a phantom modification for
-		// sitemap <lastmod> / JSON-LD dateModified, #2143). The caller
+		// sitemap <lastmod> / JSON-LD dateModified). The caller
 		// must then `content_publish` to promote the restored draft to
 		// live, matching the documented tool contract.
 		try {
