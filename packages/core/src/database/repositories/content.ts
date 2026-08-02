@@ -654,22 +654,13 @@ export class ContentRepository {
 					`);
 				} else if (safeOrderDirection === "ASC") {
 					query = query.where(sql<boolean>`
-						(${isPresent}) = ${trueLiteral}
-						AND (
-							${sql.ref(dbField)} > ${value}
-							OR (${sql.ref(dbField)} = ${value} AND ${sql.ref("id")} > ${cursorId})
-						)
+						(${isPresent}, ${sql.ref(dbField)}, ${sql.ref("id")})
+							> (${trueLiteral}, ${value}, ${cursorId})
 					`);
 				} else {
 					query = query.where(sql<boolean>`
-						(${isPresent}) < ${trueLiteral}
-						OR (
-							(${isPresent}) = ${trueLiteral}
-							AND (
-								${sql.ref(dbField)} < ${value}
-								OR (${sql.ref(dbField)} = ${value} AND ${sql.ref("id")} < ${cursorId})
-							)
-						)
+						(${isPresent}, ${sql.ref(dbField)}, ${sql.ref("id")})
+							< (${trueLiteral}, ${value}, ${cursorId})
 					`);
 				}
 			} else {
