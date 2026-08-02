@@ -32,8 +32,23 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 			)
 			.execute(db);
 		await sql
+			.raw(
+				"DROP TRIGGER IF EXISTS emdash_media_usage_lock_cleanup_update ON _emdash_media_usage_sources",
+			)
+			.execute(db);
+		await sql
+			.raw(
+				"DROP TRIGGER IF EXISTS emdash_media_usage_lock_cleanup_insert ON _emdash_media_usage_sources",
+			)
+			.execute(db);
+		await sql
+			.raw(
+				"DROP TRIGGER IF EXISTS emdash_media_usage_lock_cleanup_delete ON _emdash_media_usage_sources",
+			)
+			.execute(db);
+		await sql
 			.raw(`
-			CREATE OR REPLACE FUNCTION emdash_media_usage_fence_source_generation()
+			CREATE OR REPLACE FUNCTION emdash_media_usage_lock_cleanup()
 			RETURNS trigger
 			LANGUAGE plpgsql
 			AS $$
@@ -42,7 +57,18 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 				FROM _emdash_media_usage_cleanup AS cleanup
 				WHERE cleanup.task_key = 'projection_gc'
 				FOR UPDATE;
-
+				RETURN NULL;
+			END;
+			$$
+		`)
+			.execute(db);
+		await sql
+			.raw(`
+			CREATE OR REPLACE FUNCTION emdash_media_usage_fence_source_generation()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
 				IF EXISTS (
 					SELECT 1
 					FROM _emdash_media_usage_cleanup_fence AS fence
@@ -60,6 +86,30 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 				RETURN NEW;
 			END;
 			$$
+		`)
+			.execute(db);
+		await sql
+			.raw(`
+			CREATE TRIGGER emdash_media_usage_lock_cleanup_insert
+			BEFORE INSERT ON _emdash_media_usage_sources
+			FOR EACH STATEMENT
+			EXECUTE FUNCTION emdash_media_usage_lock_cleanup()
+		`)
+			.execute(db);
+		await sql
+			.raw(`
+			CREATE TRIGGER emdash_media_usage_lock_cleanup_update
+			BEFORE UPDATE OF current_generation ON _emdash_media_usage_sources
+			FOR EACH STATEMENT
+			EXECUTE FUNCTION emdash_media_usage_lock_cleanup()
+		`)
+			.execute(db);
+		await sql
+			.raw(`
+			CREATE TRIGGER emdash_media_usage_lock_cleanup_delete
+			BEFORE DELETE ON _emdash_media_usage_sources
+			FOR EACH STATEMENT
+			EXECUTE FUNCTION emdash_media_usage_lock_cleanup()
 		`)
 			.execute(db);
 		await sql
@@ -115,6 +165,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 			CREATE TRIGGER emdash_media_usage_record_cleanup_fence
 			BEFORE DELETE ON _emdash_media_usage
 			FOR EACH ROW
+			WHEN (OLD.cleanup_lease_token IS NOT NULL)
 			EXECUTE FUNCTION emdash_media_usage_record_cleanup_fence()
 		`)
 			.execute(db);
@@ -208,10 +259,26 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 				"DROP TRIGGER IF EXISTS emdash_media_usage_fence_source_generation_insert ON _emdash_media_usage_sources",
 			)
 			.execute(db);
+		await sql
+			.raw(
+				"DROP TRIGGER IF EXISTS emdash_media_usage_lock_cleanup_update ON _emdash_media_usage_sources",
+			)
+			.execute(db);
+		await sql
+			.raw(
+				"DROP TRIGGER IF EXISTS emdash_media_usage_lock_cleanup_insert ON _emdash_media_usage_sources",
+			)
+			.execute(db);
+		await sql
+			.raw(
+				"DROP TRIGGER IF EXISTS emdash_media_usage_lock_cleanup_delete ON _emdash_media_usage_sources",
+			)
+			.execute(db);
 		await sql.raw("DROP FUNCTION IF EXISTS emdash_media_usage_record_cleanup_fence()").execute(db);
 		await sql
 			.raw("DROP FUNCTION IF EXISTS emdash_media_usage_fence_source_generation()")
 			.execute(db);
+		await sql.raw("DROP FUNCTION IF EXISTS emdash_media_usage_lock_cleanup()").execute(db);
 	} else {
 		await sql.raw("DROP TRIGGER IF EXISTS emdash_media_usage_record_cleanup_fence").execute(db);
 		await sql
