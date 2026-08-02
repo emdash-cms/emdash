@@ -13,6 +13,9 @@ export const GLOBAL_UPLOAD_ALLOWLIST: readonly string[] = [
 	"video/",
 	"audio/",
 	"application/pdf",
+	// Caption/subtitle formats (matches AllowedTypesEditor Captions preset)
+	"text/vtt",
+	"application/x-subrip",
 ];
 
 /**

@@ -359,7 +359,7 @@ export function MediaLibrary({
 								ref={fileInputRef}
 								type="file"
 								multiple
-								accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
+								accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.vtt,.srt"
 								className="sr-only"
 								onChange={handleFileSelect}
 								aria-label={t`Upload files`}

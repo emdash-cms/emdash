@@ -1,10 +1,31 @@
 import { describe, it, expect } from "vitest";
 
+import { GLOBAL_UPLOAD_ALLOWLIST } from "../../../src/api/handlers/media-allowlist.js";
 import {
 	matchesMimeAllowlist,
 	normalizeMime,
 	expandExtensionShorthand,
 } from "../../../src/media/mime.js";
+
+describe("GLOBAL_UPLOAD_ALLOWLIST", () => {
+	it("allows WebVTT and SubRip caption uploads", () => {
+		expect(matchesMimeAllowlist("text/vtt", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+		expect(matchesMimeAllowlist("application/x-subrip", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+	});
+
+	it("still allows existing media and document types", () => {
+		expect(matchesMimeAllowlist("image/png", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+		expect(matchesMimeAllowlist("video/mp4", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+		expect(matchesMimeAllowlist("audio/mpeg", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+		expect(matchesMimeAllowlist("application/pdf", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+	});
+
+	it("still rejects unrelated types", () => {
+		expect(matchesMimeAllowlist("application/zip", GLOBAL_UPLOAD_ALLOWLIST)).toBe(false);
+		expect(matchesMimeAllowlist("text/plain", GLOBAL_UPLOAD_ALLOWLIST)).toBe(false);
+		expect(matchesMimeAllowlist("text/html", GLOBAL_UPLOAD_ALLOWLIST)).toBe(false);
+	});
+});
 
 describe("matchesMimeAllowlist", () => {
 	it("matches exact MIME types", () => {
