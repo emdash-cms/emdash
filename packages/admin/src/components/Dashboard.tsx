@@ -11,6 +11,7 @@ import { fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
 import { cn, formatRelativeTime } from "../lib/utils";
 import { ArrowNext } from "./ArrowIcons";
+import { PublishingActivityChart } from "./PublishingActivityChart";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
 
@@ -47,7 +48,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 			{showDashboardData && (
 				<>
 					<SummaryMetrics stats={stats} loading={isLoading} />
-
+				<PublishingActivityChart collectionManifest={manifest.collections} />
 					{/* Collections + Recent activity */}
 					<div className="grid gap-6 lg:grid-cols-2">
 						<CollectionList

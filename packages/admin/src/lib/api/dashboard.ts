@@ -41,3 +41,27 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 	const response = await apiFetch(`${API_BASE}/dashboard`);
 	return parseApiResponse<DashboardStats>(response, i18n._(msg`Failed to fetch dashboard stats`));
 }
+
+export type ActivityPeriod = "day" | "week" | "month";
+
+export interface ActivityBucket {
+	label: string;
+	total: number;
+	byCollection: Record<string, number>;
+}
+
+export interface ActivityData {
+	period: ActivityPeriod;
+	buckets: ActivityBucket[];
+}
+
+/**
+ * Fetch publishing activity data for the dashboard chart
+ */
+export async function fetchDashboardActivity(period: ActivityPeriod): Promise<ActivityData> {
+	const response = await apiFetch(`${API_BASE}/dashboard/activity?period=${period}`);
+	return parseApiResponse<ActivityData>(
+		response,
+		i18n._(msg`Failed to fetch publishing activity`),
+	);
+}

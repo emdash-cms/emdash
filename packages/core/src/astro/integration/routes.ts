@@ -102,6 +102,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/dashboard/activity",
+		entrypoint: resolveRoute("api/dashboard/activity.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]",
 		entrypoint: resolveRoute("api/content/[collection]/index.ts"),
 	});

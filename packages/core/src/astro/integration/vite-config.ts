@@ -8,7 +8,7 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
 import type { Plugin } from "vite";
@@ -75,8 +75,17 @@ const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
  */
 function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plugin {
 	// Resolve @babel/core from admin's devDependencies, not core's.
+	// Use a file:// URL: Node's ESM loader rejects bare absolute paths on
+	// Windows (a "D:\..." path is read as the "d:" protocol).
 	const adminRequire = createRequire(resolve(adminDistPath, "index.js"));
-	const babelCorePath = adminRequire.resolve("@babel/core");
+	const babelCoreUrl = pathToFileURL(adminRequire.resolve("@babel/core")).href;
+
+	// Vite normalizes module ids to forward slashes, but `resolve()` produces
+	// backslashes on Windows. Normalize before comparing so the source-file
+	// checks match on every platform.
+	const normalizedSource = adminSourcePath.replace(/\\/g, "/");
+	const isAdminSource = (p: string | undefined) =>
+		p !== undefined && p.replace(/\\/g, "/").startsWith(normalizedSource);
 
 	return {
 		name: "emdash-lingui-macro",
@@ -85,15 +94,15 @@ function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plug
 			// Redirect relative locale catalog imports (e.g. ./de/messages.mjs) from
 			// within admin source to the compiled dist/locales/ directory, since
 			// lingui compile only runs during build — not in dev watch mode.
-			if (!importer?.startsWith(adminSourcePath)) return;
+			if (!isAdminSource(importer)) return;
 			const match = id.match(LOCALE_MESSAGES_RE);
 			if (match?.[1]) {
 				return resolve(adminDistPath, "locales", match[1], "messages.mjs");
 			}
 		},
 		async transform(code, id) {
-			if (!id.startsWith(adminSourcePath) || !code.includes("@lingui")) return;
-			const { transformAsync } = (await import(babelCorePath)) as typeof import("@babel/core");
+			if (!isAdminSource(id) || !code.includes("@lingui")) return;
+			const { transformAsync } = (await import(babelCoreUrl)) as typeof import("@babel/core");
 			const result = await transformAsync(code, {
 				filename: id,
 				plugins: ["@lingui/babel-plugin-lingui-macro"],
