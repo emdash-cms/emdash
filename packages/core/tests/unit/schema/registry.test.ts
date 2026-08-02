@@ -241,6 +241,61 @@ describe("SchemaRegistry", () => {
 			expect(await listFieldIndexes()).toHaveLength(0);
 		});
 
+		it("reuses an existing generated index when enabling indexed metadata", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+
+			await sql`
+				CREATE INDEX ${sql.ref(indexName)}
+				ON ec_posts (deleted_at, (priority IS NOT NULL), priority, id)
+				WHERE deleted_at IS NULL
+			`.execute(db);
+
+			await expect(
+				registry.updateField("posts", "priority", { indexed: true }),
+			).resolves.toMatchObject({ indexed: true });
+
+			const indexes = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master WHERE type = 'index' AND name = ${indexName}
+			`.execute(db);
+			expect(indexes.rows).toHaveLength(1);
+		});
+
+		it("uses the generated index for indexed custom field ordering", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+
+			const ascending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+				ORDER BY (priority IS NOT NULL) ASC, priority ASC, id ASC
+				LIMIT 51
+			`.execute(db);
+			const descending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+				ORDER BY (priority IS NOT NULL) DESC, priority DESC, id DESC
+				LIMIT 51
+			`.execute(db);
+
+			for (const plan of [ascending, descending]) {
+				const details = plan.rows.map((row) => row.detail).join("\n");
+				expect(details).toContain(indexName);
+				expect(details).not.toContain("USE TEMP B-TREE");
+			}
+		});
+
 		it("rejects indexes for non-scalar fields", async () => {
 			await expect(
 				registry.createField("posts", {
