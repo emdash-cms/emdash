@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { ContentList } from "../../src/components/ContentList";
 import type { ContentItem, TrashedContentItem } from "../../src/lib/api";
-import type { ContentListColumnExtension } from "../../src/lib/content-list-columns.js";
+import type {
+	ContentListColumnCellContext,
+	ContentListColumnExtension,
+} from "../../src/lib/content-list-columns.js";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context.js";
 import { render } from "../utils/render.tsx";
 
@@ -816,6 +819,32 @@ describe("ContentList", () => {
 			await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
 			await expect.element(screen.getByText("82")).toBeVisible();
 			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+		});
+
+		it("passes the current visible page to contributed cells", async () => {
+			const pages: string[][] = [];
+			const items = Array.from({ length: 21 }, (_, index) =>
+				makeItem({
+					id: `item-${index}`,
+					data: { title: `Post ${index + 1}` },
+				}),
+			);
+			function PageCell({ item, visibleItems }: ContentListColumnCellContext) {
+				if (item.id === "item-0" || item.id === "item-20") {
+					pages.push(visibleItems.map((visibleItem) => visibleItem.id));
+				}
+				return null;
+			}
+
+			const screen = await renderWithColumns(
+				[{ id: "page", label: "Page context", cell: PageCell }],
+				{ items },
+			);
+
+			expect(pages).toContainEqual(items.slice(0, 20).map((item) => item.id));
+			await screen.getByRole("button", { name: "Next page" }).click();
+			await expect.element(screen.getByText("Post 21")).toBeVisible();
+			expect(pages).toContainEqual(["item-20"]);
 		});
 
 		it("keeps configured and plugin columns aligned in rows and empty states", async () => {

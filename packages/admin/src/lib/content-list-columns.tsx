@@ -12,6 +12,8 @@ export interface ContentListColumnHeaderContext {
 /** Context passed to a trusted plugin's content-list column cell. */
 export interface ContentListColumnCellContext extends ContentListColumnHeaderContext {
 	item: ContentItem;
+	/** Items rendered on the current page after host filtering and pagination. */
+	visibleItems: readonly ContentItem[];
 }
 
 /** A content-list column contributed by a trusted React plugin. */
