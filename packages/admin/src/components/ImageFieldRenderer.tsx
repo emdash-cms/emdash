@@ -8,7 +8,7 @@
  * sub-fields) can reuse the same picker without a circular import.
  */
 
-import { Button, Label } from "@cloudflare/kumo";
+import { Button, Label, LayerCard, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Image as ImageIcon, ImageBroken, X } from "@phosphor-icons/react";
 import * as React from "react";
@@ -29,6 +29,8 @@ export interface ImageFieldValue {
 	src?: string;
 	/** Preview URL for admin display (separate from src used for rendering) */
 	previewUrl?: string;
+	filename?: string;
+	mimeType?: string;
 	alt?: string;
 	width?: number;
 	height?: number;
@@ -49,6 +51,7 @@ export interface ImageFieldRendererProps {
 	required?: boolean;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
+	variant?: "default" | "featured";
 }
 
 export function ImageFieldRenderer({
@@ -60,6 +63,7 @@ export function ImageFieldRenderer({
 	required,
 	allowedMimeTypes,
 	fieldId,
+	variant = "default",
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
@@ -72,7 +76,9 @@ export function ImageFieldRenderer({
 			: value?.previewUrl ||
 				value?.src ||
 				(value && (!value.provider || value.provider === "local")
-					? `/_emdash/api/media/file/${typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id}`
+					? `/_emdash/api/media/file/${encodeURIComponent(
+							typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id,
+						)}`
 					: undefined);
 
 	React.useEffect(() => {
@@ -91,6 +97,8 @@ export function ImageFieldRenderer({
 			alt: item.alt || "",
 			width: item.width,
 			height: item.height,
+			filename: item.filename,
+			mimeType: item.mimeType,
 			// Cache LQIP alongside dimensions so embeds render a placeholder without a
 			// runtime lookup. Fall back to `meta` for providers that stash it there.
 			blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
@@ -102,6 +110,65 @@ export function ImageFieldRenderer({
 	const handleRemove = () => {
 		onChange(null);
 	};
+
+	const isFeatured = variant === "featured";
+	const selectedFilename =
+		typeof value === "object" && value.filename ? value.filename : t`Selected image`;
+	const dimensions =
+		typeof value === "object" && typeof value.width === "number" && typeof value.height === "number"
+			? `${value.width} × ${value.height}`
+			: undefined;
+	const mimeType = typeof value === "object" && value.mimeType ? value.mimeType : undefined;
+	const metadata = [dimensions, mimeType].filter(Boolean).join(" · ");
+
+	const featuredCard = displayUrl ? (
+		<LayerCard className="grid w-full grid-cols-1 rounded-xl p-0 sm:grid-cols-[12rem_minmax(0,1fr)]">
+			<div className="m-2 aspect-[3/2] min-h-28 overflow-hidden rounded bg-kumo-muted ring ring-kumo-line">
+				{imageBroken ? (
+					<div className="flex h-full min-h-28 items-center justify-center gap-2 text-kumo-subtle">
+						<ImageBroken className="h-5 w-5" aria-hidden="true" />
+						<Text as="span" variant="secondary">
+							{t`Image not found`}
+						</Text>
+					</div>
+				) : (
+					<img
+						src={displayUrl}
+						alt=""
+						className="h-full w-full object-cover"
+						onError={() => setImageBroken(true)}
+					/>
+				)}
+			</div>
+			<div className="flex min-w-0 flex-col justify-center gap-2 px-4 py-3">
+				<div className="grid min-w-0 gap-1">
+					<Text as="p" bold truncate>
+						{selectedFilename}
+					</Text>
+					{metadata && (
+						<Text as="p" variant="secondary" truncate>
+							<bdi dir="ltr">{metadata}</bdi>
+						</Text>
+					)}
+				</div>
+				<div className="flex shrink-0 items-center gap-2">
+					<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
+						{t`Change`}
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						shape="square"
+						variant="secondary-destructive"
+						onClick={handleRemove}
+						aria-label={t`Remove image`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			</div>
+		</LayerCard>
+	) : null;
 
 	return (
 		<div id={id} className="grid gap-2">
@@ -116,7 +183,9 @@ export function ImageFieldRenderer({
 			) : (
 				<Label>{label}</Label>
 			)}
-			{displayUrl ? (
+			{isFeatured && displayUrl ? (
+				featuredCard
+			) : displayUrl ? (
 				imageBroken ? (
 					<div className="relative group">
 						<div className="min-h-20 rounded-lg border bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">

@@ -1320,6 +1320,7 @@ function FieldRenderer({
 							: undefined
 					}
 					fieldId={field.id}
+					variant={name === "featured_image" ? "featured" : "default"}
 				/>
 			);
 		}

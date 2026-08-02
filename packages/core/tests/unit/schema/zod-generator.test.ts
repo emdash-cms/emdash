@@ -277,8 +277,19 @@ describe("Zod Generator", () => {
 			};
 
 			const schema = generateFieldSchema(field);
-			const validImage = { id: "img123", alt: "A photo" };
-			expect(schema.parse(validImage)).toMatchObject(validImage);
+			const validImage = {
+				id: "img123",
+				provider: "local",
+				filename: "photo.webp",
+				mimeType: "image/webp",
+				alt: "A photo",
+				width: 1200,
+				height: 800,
+				blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+				dominantColor: "#d9d2c5",
+				meta: { storageKey: "photo.webp" },
+			};
+			expect(schema.parse(validImage)).toEqual(validImage);
 		});
 
 		it("should make field optional when required is false", () => {
@@ -543,6 +554,18 @@ describe("Zod Generator", () => {
 						sortOrder: 3,
 						createdAt: new Date().toISOString(),
 					},
+					{
+						id: "f5",
+						collectionId: "c1",
+						slug: "hero",
+						label: "Hero",
+						type: "image",
+						columnType: "TEXT",
+						required: true,
+						unique: false,
+						sortOrder: 4,
+						createdAt: new Date().toISOString(),
+					},
 				],
 			};
 
@@ -556,6 +579,9 @@ describe("Zod Generator", () => {
 			expect(ts).toContain("content: PortableTextBlock[];");
 			expect(ts).toContain("featured?: boolean;");
 			expect(ts).toContain('status: "draft" | "published";');
+			expect(ts).toContain(
+				"hero: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> };",
+			);
 			// Hydrated by getEmDashCollection/getEmDashEntry
 			expect(ts).toContain("bylines?: ContentBylineCredit[];");
 			expect(ts).toContain("terms?: Record<string, TaxonomyTerm[]>;");
