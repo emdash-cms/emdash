@@ -47,7 +47,10 @@ afterAll(async () => {
 
 function getListPlan() {
 	const listQuery = captured.find(
-		(query) => query.sql.includes("select *") && query.sql.includes('from "ec_post"'),
+		(query) =>
+			query.sql.includes('from "ec_post"') &&
+			query.sql.includes("order by") &&
+			query.sql.includes("limit"),
 	);
 	expect(listQuery, "expected to capture the content list query").toBeDefined();
 	return sqlite
