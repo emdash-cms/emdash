@@ -51,6 +51,9 @@ describe("Database Migrations (Integration)", () => {
 			"_emdash_byline_field_group_values",
 			"_emdash_media_usage_sources",
 			"_emdash_media_usage",
+			"_emdash_media_usage_cleanup",
+			"_emdash_media_usage_generation_writes",
+			"_emdash_media_usage_cleanup_fence",
 			"_emdash_media_usage_index_status",
 		];
 
@@ -147,6 +150,8 @@ describe("Database Migrations (Integration)", () => {
 			"058_collection_sort_order",
 			"059_revision_prune_queue",
 			"060_collection_admin_config",
+			"061_media_usage_cleanup",
+			"062_media_usage_cleanup_fence",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
