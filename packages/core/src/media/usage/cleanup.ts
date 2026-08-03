@@ -14,7 +14,7 @@ export const MEDIA_USAGE_CLEANUP_WRITE_LEASE_DELETE_LIMIT = 49;
 export const MEDIA_USAGE_CLEANUP_INTERVAL_MS = 60 * 1000;
 export const MEDIA_USAGE_CLEANUP_LEASE_MS = 5 * 60 * 1000;
 export const MEDIA_USAGE_CLEANUP_SAFETY_WINDOW_MS = 60 * 60 * 1000;
-export const MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS = 5 * 1000;
+const MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS = 5 * 1000;
 
 export interface MediaUsageCleanupResult {
 	status: "completed" | "failed" | "skipped";
@@ -141,7 +141,8 @@ export async function cleanupMediaUsage(db: Kysely<Database>): Promise<MediaUsag
 			const hasIncompleteTargets = selected.entries.some(
 				(entry) => entry.target !== null && !completedTargets.has(entry.target),
 			);
-			sweepComplete = !scanHasMore && !hasIncompleteTargets;
+			sweepComplete =
+				!scanHasMore && selected.entries.length === candidates.length && !hasIncompleteTargets;
 			nextCursor = sweepComplete
 				? null
 				: cursorAfterCompletedCandidates(selected, completedTargets, claim.cursor);
