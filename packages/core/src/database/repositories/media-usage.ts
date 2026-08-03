@@ -191,6 +191,7 @@ export interface MediaUsageCleanupDeleteOptions {
 export interface MediaUsageCleanupCompletion {
 	leaseToken: string;
 	nextCursor: MediaUsageCleanupCursor | null;
+	sweepComplete: boolean;
 	candidateCount: number;
 	deletedOrphans: number;
 	deletedStale: number;
@@ -919,8 +920,7 @@ export class MediaUsageRepository {
 				last_started_at: claimedAt,
 				updated_at: claimedAt,
 				scan_before_at: sql<string>`CASE
-					WHEN cursor_created_at IS NULL OR cursor_id IS NULL OR scan_before_at IS NULL
-						THEN ${sweepBeforeAt}
+					WHEN scan_before_at IS NULL THEN ${sweepBeforeAt}
 					ELSE scan_before_at
 				END`,
 			})
@@ -1012,9 +1012,9 @@ export class MediaUsageRepository {
 		const updates = {
 			lease_token: null,
 			lease_expires_at: null,
-			cursor_created_at: input.nextCursor?.createdAt ?? null,
-			cursor_id: input.nextCursor?.id ?? null,
-			...(input.nextCursor ? {} : { scan_before_at: null }),
+			cursor_created_at: input.sweepComplete ? null : (input.nextCursor?.createdAt ?? null),
+			cursor_id: input.sweepComplete ? null : (input.nextCursor?.id ?? null),
+			...(input.sweepComplete ? { scan_before_at: null } : {}),
 			consecutive_failures: 0,
 			last_completed_at: this.cleanupTimestampOffset(0),
 			last_candidate_count: input.candidateCount,
