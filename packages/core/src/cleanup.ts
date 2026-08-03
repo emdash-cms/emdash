@@ -139,7 +139,6 @@ export async function runSystemCleanup(
 		console.error("[cleanup] Failed to prune revisions:", error);
 	}
 
-	// Media usage projection generations
 	try {
 		const mediaUsage = await cleanupMediaUsage(db);
 		result.mediaUsage = mediaUsage.status === "failed" ? -1 : mediaUsage.deletedRows;
