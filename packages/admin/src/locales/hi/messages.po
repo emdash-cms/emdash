@@ -15,11 +15,11 @@ msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:446
 msgid " - Guest"
-msgstr "- अतिथि"
+msgstr " - अतिथि"
 
 #: packages/admin/src/routes/bylines.tsx:446
 msgid " - Linked"
-msgstr "- जुड़ा हुआ"
+msgstr " - जुड़ा हुआ"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:72
 #: packages/admin/src/components/TranslationsPanel.tsx:81
@@ -28,12 +28,12 @@ msgstr " (डिफ़ॉल्ट)"
 
 #: packages/admin/src/components/MenuEditor.tsx:521
 msgid " (opens in new window)"
-msgstr "(नई विंडो में खुलता है)"
+msgstr " (नई विंडो में खुलता है)"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:867
 #: packages/admin/src/components/MediaPickerModal.tsx:950
 msgid " (selected)"
-msgstr "(चयनित)"
+msgstr " (चयनित)"
 
 #: packages/admin/src/routes/bylines.tsx:706
 msgid "-- Select --"
