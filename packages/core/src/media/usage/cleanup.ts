@@ -47,8 +47,7 @@ interface CleanupCandidateEntry {
  * Reclaims a bounded window of obsolete media-usage occurrences.
  *
  * The persisted claim makes a cron tick single-flight across Worker isolates
- * and Node processes. This function is intentionally only called from the
- * scheduler path; request paths never claim or inspect cleanup state.
+ * and Node processes.
  */
 export async function cleanupMediaUsage(db: Kysely<Database>): Promise<MediaUsageCleanupResult> {
 	const startedMs = Date.now();
