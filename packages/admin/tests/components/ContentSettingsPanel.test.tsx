@@ -285,6 +285,36 @@ describe("ContentSettingsPanel", () => {
 		expect(errorSpy).toHaveBeenCalled();
 	});
 
+	it("recovers a failed plugin panel when Retry is pressed", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		// Driven by the test rather than a render counter: React invokes the
+		// component more than once per mount, so a counter would recover on its
+		// own and never reach the boundary.
+		let shouldFail = true;
+		function FlakyPanel(): React.ReactNode {
+			if (shouldFail) throw new Error("panel failed");
+			return <div data-testid="flaky-panel">Recovered</div>;
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [{ id: "flaky", title: "Flaky insights", component: FlakyPanel }],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Plugin panel unavailable.");
+
+		shouldFail = false;
+		await screen.getByRole("button", { name: "Retry" }).click();
+
+		await expect.element(screen.getByTestId("flaky-panel")).toBeInTheDocument();
+		expect(screen.getByRole("alert").query()).toBeNull();
+		expect(errorSpy).toHaveBeenCalled();
+	});
+
 	it("hides Ownership and Bylines for users below the editor role", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ currentUser: AUTHOR_ROLE })} />,
