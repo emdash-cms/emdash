@@ -351,7 +351,12 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			required,
 			unique,
 			searchable: isSearchableType ? searchable : undefined,
-			indexed: isIndexableType ? indexed : undefined,
+			// `false`, not `undefined`: the server reads an absent `indexed` as
+			// "keep the stored value", so switching an indexed field to a type
+			// that cannot be indexed would keep the flag set and then fail its
+			// own validation. The Indexed switch is hidden for those types, so
+			// the editor could not clear it either.
+			indexed: isIndexableType ? indexed : false,
 			validation: Object.keys(validation).length > 0 ? validation : null,
 		};
 
