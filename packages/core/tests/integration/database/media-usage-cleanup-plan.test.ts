@@ -230,6 +230,80 @@ it.each([
 	expect(remaining.every((row) => row.cleanup_lease_token === null)).toBe(true);
 });
 
+it("retains the sweep after reaching the delete cap on a short page", async () => {
+	const stale = await repo.replaceSource(
+		contentSource("entry-short-delete-cap"),
+		Array.from({ length: MEDIA_USAGE_CLEANUP_DELETE_LIMIT + 1 }, (_, index) =>
+			occurrence(`media-stale-cap-${index}`, `stale-cap-${index}`),
+		),
+	);
+	const current = await repo.replaceSource(contentSource("entry-short-delete-cap"), [
+		occurrence("media-before-stale-cap", "before-stale-cap"),
+	]);
+	await db
+		.updateTable("_emdash_media_usage")
+		.set({ created_at: "2026-02-01T18:00:00.000Z" })
+		.where("generation", "=", stale.currentGeneration)
+		.execute();
+	await db
+		.updateTable("_emdash_media_usage")
+		.set({ created_at: "2026-02-01T17:00:00.000Z" })
+		.where("generation", "=", current.currentGeneration)
+		.execute();
+	const priorCursor = await db
+		.selectFrom("_emdash_media_usage")
+		.select(["id", "created_at"])
+		.where("generation", "=", current.currentGeneration)
+		.executeTakeFirstOrThrow();
+	const staleCandidates = await db
+		.selectFrom("_emdash_media_usage")
+		.select(["id", "created_at"])
+		.where("generation", "=", stale.currentGeneration)
+		.orderBy("created_at", "asc")
+		.orderBy("id", "asc")
+		.execute();
+	const expectedCursor = staleCandidates[MEDIA_USAGE_CLEANUP_DELETE_LIMIT - 1]!;
+	const expectedRemaining = staleCandidates[MEDIA_USAGE_CLEANUP_DELETE_LIMIT]!;
+	const scanBeforeAt = "2026-02-02T00:00:00.000Z";
+	await db
+		.updateTable("_emdash_media_usage_cleanup")
+		.set({
+			cursor_created_at: priorCursor.created_at,
+			cursor_id: priorCursor.id,
+			scan_before_at: scanBeforeAt,
+		})
+		.where("task_key", "=", "projection_gc")
+		.execute();
+
+	const result = await cleanupMediaUsage(db);
+
+	expect(result).toEqual(
+		expect.objectContaining({
+			candidateRows: MEDIA_USAGE_CLEANUP_DELETE_LIMIT + 1,
+			deletedRows: MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
+			scanHasMore: false,
+		}),
+	);
+	expect(
+		await db
+			.selectFrom("_emdash_media_usage_cleanup")
+			.select(["cursor_created_at", "cursor_id", "scan_before_at"])
+			.where("task_key", "=", "projection_gc")
+			.executeTakeFirstOrThrow(),
+	).toEqual({
+		cursor_created_at: expectedCursor.created_at,
+		cursor_id: expectedCursor.id,
+		scan_before_at: scanBeforeAt,
+	});
+	expect(
+		await db
+			.selectFrom("_emdash_media_usage")
+			.select("id")
+			.where("generation", "=", stale.currentGeneration)
+			.execute(),
+	).toEqual([{ id: expectedRemaining.id }]);
+});
+
 it("does not delete writer leases after their scan consumes the time budget", async () => {
 	await db
 		.insertInto("_emdash_media_usage_generation_writes")
@@ -272,6 +346,17 @@ it("does not delete writer leases after their scan consumes the time budget", as
 			.where("lease_token", "=", "expired-writer-lease")
 			.execute(),
 	).toHaveLength(1);
+	expect(
+		await db
+			.selectFrom("_emdash_media_usage_cleanup")
+			.select(["cursor_created_at", "cursor_id", "scan_before_at"])
+			.where("task_key", "=", "projection_gc")
+			.executeTakeFirstOrThrow(),
+	).toEqual({
+		cursor_created_at: null,
+		cursor_id: null,
+		scan_before_at: expect.any(String),
+	});
 });
 
 it("reserves a failure update within the fixed statement and bind budget", async () => {
