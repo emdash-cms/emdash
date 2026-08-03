@@ -241,6 +241,31 @@ describe("SchemaRegistry", () => {
 			expect(await listFieldIndexes()).toHaveLength(0);
 		});
 
+		it("drops the index when an indexed field moves to a type that cannot carry one", async () => {
+			// The admin has to send `indexed: false` here. Omitting it means
+			// "keep the stored value", which would leave the flag set on a type
+			// that rejects it, and the update would fail its own validation with
+			// no way for the editor to clear the flag first.
+			await registry.createField("posts", {
+				slug: "summary",
+				label: "Summary",
+				type: "string",
+				indexed: true,
+			});
+
+			await expect(
+				registry.updateField("posts", "summary", { type: "text" }),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
+
+			const updated = await registry.updateField("posts", "summary", {
+				type: "text",
+				indexed: false,
+			});
+
+			expect(updated.type).toBe("text");
+			expect(updated.indexed).toBe(false);
+		});
+
 		it("reuses an existing generated index when enabling indexed metadata", async () => {
 			const field = await registry.createField("posts", {
 				slug: "priority",
