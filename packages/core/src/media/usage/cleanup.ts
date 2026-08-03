@@ -70,6 +70,7 @@ export async function cleanupMediaUsage(db: Kysely<Database>): Promise<MediaUsag
 	let backlogLowerBound = 0;
 	let scanHasMore = false;
 	let nextCursor = claim.cursor;
+	let sweepComplete = false;
 
 	try {
 		if (canIssueStatement()) {
@@ -137,15 +138,20 @@ export async function cleanupMediaUsage(db: Kysely<Database>): Promise<MediaUsag
 					completedTargets.add("abandoned");
 				}
 			}
-			nextCursor = scanHasMore
-				? cursorAfterCompletedCandidates(selected, completedTargets, claim.cursor)
-				: null;
+			const hasIncompleteTargets = selected.entries.some(
+				(entry) => entry.target !== null && !completedTargets.has(entry.target),
+			);
+			sweepComplete = !scanHasMore && !hasIncompleteTargets;
+			nextCursor = sweepComplete
+				? null
+				: cursorAfterCompletedCandidates(selected, completedTargets, claim.cursor);
 		}
 
 		const durationMs = elapsedSince(startedMs);
 		const completed = await repo.completeMediaUsageCleanup({
 			leaseToken,
 			nextCursor,
+			sweepComplete,
 			candidateCount: candidateRows,
 			deletedOrphans,
 			deletedStale,

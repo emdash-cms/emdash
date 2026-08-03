@@ -134,7 +134,15 @@ it("does not dispatch a delete after marking consumes the time budget", async ()
 	).toHaveLength(1);
 });
 
-it("does not advance the cursor past a partially deleted target", async () => {
+it.each([
+	{
+		name: "full page after prior progress",
+		currentRows: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT - MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
+		hasPriorCursor: true,
+	},
+	{ name: "short page after prior progress", currentRows: 0, hasPriorCursor: true },
+	{ name: "short first page", currentRows: 0, hasPriorCursor: false },
+])("preserves finite sweep state for a partial $name", async ({ currentRows, hasPriorCursor }) => {
 	const stale = await repo.replaceSource(
 		contentSource("entry-partial-deadline"),
 		Array.from({ length: MEDIA_USAGE_CLEANUP_DELETE_LIMIT }, (_, index) =>
@@ -142,10 +150,9 @@ it("does not advance the cursor past a partially deleted target", async () => {
 		),
 	);
 	const current = await repo.replaceSource(contentSource("entry-partial-deadline"), [
-		occurrence("media-before-stale", "before-stale"),
-		...Array.from(
-			{ length: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT - MEDIA_USAGE_CLEANUP_DELETE_LIMIT },
-			(_, index) => occurrence(`media-current-${index}`, `current-${index}`),
+		...(hasPriorCursor ? [occurrence("media-before-stale", "before-stale")] : []),
+		...Array.from({ length: currentRows }, (_, index) =>
+			occurrence(`media-current-${index}`, `current-${index}`),
 		),
 	]);
 	await db
@@ -164,18 +171,20 @@ it("does not advance the cursor past a partially deleted target", async () => {
 		.where("generation", "=", current.currentGeneration)
 		.where("field_path", "=", "before-stale")
 		.execute();
-	const priorCursor = await db
-		.selectFrom("_emdash_media_usage")
-		.select(["id", "created_at"])
-		.where("generation", "=", current.currentGeneration)
-		.where("field_path", "=", "before-stale")
-		.executeTakeFirstOrThrow();
+	const priorCursor = hasPriorCursor
+		? await db
+				.selectFrom("_emdash_media_usage")
+				.select(["id", "created_at"])
+				.where("generation", "=", current.currentGeneration)
+				.where("field_path", "=", "before-stale")
+				.executeTakeFirstOrThrow()
+		: null;
 	const scanBeforeAt = "2026-02-02T00:00:00.000Z";
 	await db
 		.updateTable("_emdash_media_usage_cleanup")
 		.set({
-			cursor_created_at: priorCursor.created_at,
-			cursor_id: priorCursor.id,
+			cursor_created_at: priorCursor?.created_at ?? null,
+			cursor_id: priorCursor?.id ?? null,
 			scan_before_at: scanBeforeAt,
 		})
 		.where("task_key", "=", "projection_gc")
@@ -192,7 +201,7 @@ it("does not advance the cursor past a partially deleted target", async () => {
 	const result = await cleanupMediaUsage(db);
 
 	expect(firstDeleteCompleted).toBe(true);
-	expect(result.candidateRows).toBe(MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT);
+	expect(result.candidateRows).toBe(MEDIA_USAGE_CLEANUP_DELETE_LIMIT + currentRows);
 	expect(result.deletedRows).toBeGreaterThan(0);
 	expect(result.deletedRows).toBeLessThan(MEDIA_USAGE_CLEANUP_DELETE_LIMIT);
 	afterQuery = undefined;
@@ -208,8 +217,8 @@ it("does not advance the cursor past a partially deleted target", async () => {
 			.where("task_key", "=", "projection_gc")
 			.executeTakeFirstOrThrow(),
 	).toEqual({
-		cursor_created_at: priorCursor.created_at,
-		cursor_id: priorCursor.id,
+		cursor_created_at: priorCursor?.created_at ?? null,
+		cursor_id: priorCursor?.id ?? null,
 		scan_before_at: scanBeforeAt,
 	});
 	const remaining = await db
