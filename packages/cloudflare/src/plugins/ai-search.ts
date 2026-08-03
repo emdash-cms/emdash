@@ -516,7 +516,6 @@ export interface SynonymRewriter {
 	lookup: Map<string, string>;
 }
 
-
 export function compileSynonyms(synonyms: Synonym[]): SynonymRewriter {
 	// Longer phrases first so multi-word terms win over their sub-words.
 	const sorted = synonyms.filter((s) => s.from).toSorted((a, b) => b.from.length - a.from.length);
