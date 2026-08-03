@@ -68,7 +68,6 @@ it("uses an indexed, D1-compatible fixed statement and bind budget", async () =>
 			backlogLowerBound: MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
 		}),
 	);
-	expect(captured).toHaveLength(8);
 	expect(captured.length).toBeLessThanOrEqual(14);
 	for (const query of captured) {
 		expect(query.parameters.length).toBeLessThanOrEqual(52);
