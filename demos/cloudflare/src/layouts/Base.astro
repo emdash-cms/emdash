@@ -22,7 +22,6 @@ interface Props {
 	publishedTime?: string | null;
 	modifiedTime?: string | null;
 	author?: string | null;
-	/** Pass content reference for plugin page contributions on content pages */
 	content?: { collection: string; id: string; slug?: string | null };
 }
 
@@ -40,22 +39,14 @@ const {
 	content,
 } = Astro.props;
 const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(await getSiteSettings());
-// If title already includes site title (from getSeoMeta), use as-is
 const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
 
-// Fetch primary menu defined in seed
 const menu = await getMenu("primary");
 
-// Optional "social" menu. If a site defines a `social` menu in its seed,
-// it'll render in the footer's "Connect" column. Otherwise that column
-// just shows RSS, avoiding duplication with the "Navigate" column above.
 const socialMenu = await getMenu("social");
 
-// Fetch pages for footer
 const { entries: pages } = await getEmDashCollection("pages");
 
-// Build public page context for plugin contributions
-// SEO data is passed here and rendered securely by EmDashHead
 const pageCtx = createPublicPageContext({
 	Astro,
 	kind: content ? "content" : "custom",
@@ -71,7 +62,6 @@ const pageCtx = createPublicPageContext({
 	siteName: siteTitle,
 });
 
-// Check if user is logged in (for showing admin link)
 const isLoggedIn = !!Astro.locals.user;
 ---
 
@@ -290,7 +280,6 @@ const isLoggedIn = !!Astro.locals.user;
 		</footer>
 
 		<script>
-			// Theme switcher
 			const THEME_REGEX = /theme=([^;]+)/;
 			const themeBtns =
 				document.querySelectorAll<HTMLButtonElement>(".theme-btn");
@@ -335,7 +324,6 @@ const isLoggedIn = !!Astro.locals.user;
 				return match ? match[1] : "system";
 			}
 
-			// Initialize
 			const storedTheme = getStoredTheme();
 			setTheme(storedTheme);
 
@@ -345,7 +333,6 @@ const isLoggedIn = !!Astro.locals.user;
 				});
 			});
 
-			// Listen for system preference changes
 			window
 				.matchMedia("(prefers-color-scheme: dark)")
 				.addEventListener("change", (e) => {
