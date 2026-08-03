@@ -1656,8 +1656,6 @@ export class MediaUsageRepository {
 		sourceKey: string,
 		generation: string,
 	): Promise<void> {
-		// Guarded source deletes remove only the generation that won the source CAS;
-		// unmatched generations become invisible orphans reclaimed by age-gated cleanup.
 		await db
 			.updateTable("_emdash_media_usage")
 			.set({ cleanup_lease_token: null })
