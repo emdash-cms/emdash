@@ -5,17 +5,26 @@
  * Opens when clicking an item in the MediaLibrary.
  */
 
-import { Button, ClipboardText, Dialog, Input, InputArea, Tooltip } from "@cloudflare/kumo";
+import { Button, ClipboardText, Dialog, Input, InputArea } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { X, Trash, Calendar, HardDrive, LinkSimple, Ruler, Info } from "@phosphor-icons/react";
+import { X, Trash, Calendar, HardDrive, LinkSimple, Ruler } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
-import { updateMedia, deleteMedia, deleteFromProvider, type MediaItem } from "../lib/api";
+import {
+	updateMedia,
+	deleteMedia,
+	deleteFromProvider,
+	type MediaItem,
+	type MediaUsageEntryDetail,
+} from "../lib/api";
 import { useStableCallback } from "../lib/hooks";
 import { getFileIcon, formatFileSize } from "../lib/media-utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { FieldHelpLabel } from "./FieldHelpLabel.js";
+import { MediaUsedIn } from "./MediaUsedIn.js";
 
 const CLOSE_FALLBACK_MS = 500;
 
@@ -47,6 +56,7 @@ export function MediaDetailPanel({
 }: MediaDetailPanelProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 	const restoreFocusAfterDeleteRef = React.useRef(false);
 	const closeFallbackTimerRef = React.useRef<number | null>(null);
 	const closeFinishedRef = React.useRef(false);
@@ -63,6 +73,11 @@ export function MediaDetailPanel({
 	const [caption, setCaption] = React.useState(item.caption ?? "");
 	const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 	const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
+	const [pendingUsageEntry, setPendingUsageEntry] = React.useState<MediaUsageEntryDetail | null>(
+		null,
+	);
+	const filenameInputId = React.useId();
+	const altTextInputId = React.useId();
 
 	React.useEffect(() => {
 		if (!open) return;
@@ -77,6 +92,7 @@ export function MediaDetailPanel({
 		setCaption(item.caption ?? "");
 		setShowDeleteConfirm(false);
 		setShowDiscardConfirm(false);
+		setPendingUsageEntry(null);
 	}, [item.id, open]);
 
 	React.useEffect(() => {
@@ -154,6 +170,7 @@ export function MediaDetailPanel({
 		if (isBusy) return;
 		if (isConfirmOpen) return;
 		if (hasChanges) {
+			setPendingUsageEntry(null);
 			setShowDiscardConfirm(true);
 			return;
 		}
@@ -174,8 +191,33 @@ export function MediaDetailPanel({
 	};
 
 	const handleDiscardConfirm = () => {
+		const usageEntry = pendingUsageEntry;
 		setShowDiscardConfirm(false);
+		setPendingUsageEntry(null);
 		closeDialog();
+		if (usageEntry) {
+			void navigate({
+				to: "/content/$collection/$id",
+				params: { collection: usageEntry.collection, id: usageEntry.contentId },
+				search: { locale: usageEntry.locale ?? undefined },
+			});
+		}
+	};
+
+	const handleUsageEntryClick = (
+		event: React.MouseEvent<HTMLAnchorElement>,
+		entry: MediaUsageEntryDetail,
+	) => {
+		if (isBusy) {
+			event.preventDefault();
+			return;
+		}
+		if (!hasChanges || event.button !== 0) return;
+		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+		event.preventDefault();
+		setPendingUsageEntry(entry);
+		setShowDiscardConfirm(true);
 	};
 
 	const stableHandleSave = useStableCallback(handleSave);
@@ -210,7 +252,7 @@ export function MediaDetailPanel({
 				<Dialog
 					size="xl"
 					className="flex flex-col overflow-hidden p-0"
-					style={{ width: "min(94vw, 72rem)", maxHeight: "min(88dvh, 48rem)" }}
+					style={{ width: "min(94vw, 72rem)", height: "min(88dvh, 48rem)" }}
 				>
 					<div
 						className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line"
@@ -320,26 +362,17 @@ export function MediaDetailPanel({
 							)}
 
 							<div className="space-y-4">
-								<div className="w-full space-y-2">
-									<div className="flex items-center gap-1.5">
-										<span className="text-sm font-medium text-kumo-default">{t`Filename`}</span>
-										<Tooltip
-											content={filenameHelp}
-											delay={0}
-											closeDelay={0}
-											render={
-												<button
-													type="button"
-													className="inline-flex cursor-help rounded-full text-kumo-subtle hover:text-kumo-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
-													aria-label={filenameHelpLabel}
-												>
-													<Info className="h-4 w-4" aria-hidden="true" />
-												</button>
-											}
-										/>
-									</div>
+								<div className="grid gap-2">
+									<FieldHelpLabel
+										htmlFor={filenameInputId}
+										help={filenameHelp}
+										helpLabel={filenameHelpLabel}
+										labelClassName="m-0 text-base font-medium text-kumo-default"
+									>
+										{t`Filename`}
+									</FieldHelpLabel>
 									<Input
-										aria-label={t`Filename`}
+										id={filenameInputId}
 										value={filename}
 										onChange={(event) => setFilename(event.target.value)}
 										disabled
@@ -349,26 +382,17 @@ export function MediaDetailPanel({
 
 								{canEditMetadata && (
 									<>
-										<div className="w-full space-y-2">
-											<div className="flex items-center gap-1.5">
-												<span className="text-sm font-medium text-kumo-default">{t`Alt Text`}</span>
-												<Tooltip
-													content={altTextHelp}
-													delay={0}
-													closeDelay={0}
-													render={
-														<button
-															type="button"
-															className="inline-flex cursor-help rounded-full text-kumo-subtle hover:text-kumo-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
-															aria-label={altTextHelpLabel}
-														>
-															<Info className="h-4 w-4" aria-hidden="true" />
-														</button>
-													}
-												/>
-											</div>
+										<div className="grid gap-2">
+											<FieldHelpLabel
+												htmlFor={altTextInputId}
+												help={altTextHelp}
+												helpLabel={altTextHelpLabel}
+												labelClassName="m-0 text-base font-medium text-kumo-default"
+											>
+												{t`Alt Text`}
+											</FieldHelpLabel>
 											<Input
-												aria-label={t`Alt Text`}
+												id={altTextInputId}
 												value={alt}
 												onChange={(event) => setAlt(event.target.value)}
 												placeholder={t`Describe this image for accessibility`}
@@ -390,6 +414,18 @@ export function MediaDetailPanel({
 							</div>
 
 							<DialogError message={getMutationError(updateMutation.error)} />
+
+							{!isProviderAsset && item.usage && (
+								<div className="border-t border-kumo-line pt-4">
+									<MediaUsedIn
+										mediaId={item.id}
+										open={open}
+										summary={item.usage}
+										navigationBlocked={isBusy}
+										onEntryClick={handleUsageEntryClick}
+									/>
+								</div>
+							)}
 						</div>
 					</div>
 
@@ -432,7 +468,10 @@ export function MediaDetailPanel({
 
 			<ConfirmDialog
 				open={showDiscardConfirm}
-				onClose={() => setShowDiscardConfirm(false)}
+				onClose={() => {
+					setShowDiscardConfirm(false);
+					setPendingUsageEntry(null);
+				}}
 				title={t`Discard changes?`}
 				description={t`Your unsaved media changes will be lost.`}
 				confirmLabel={t`Discard`}

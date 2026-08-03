@@ -113,6 +113,41 @@ describeEachDialect("content media usage refresh", (dialect) => {
 		]);
 	});
 
+	it("marks coverage partial when a legacy media storage key cannot be resolved", async () => {
+		const storageKey = `${ulid()}.jpg`;
+		const item = await insertPost(ctx, {
+			slug: "unresolved-legacy-media",
+			status: "published",
+			data: {
+				title: "Unresolved legacy media",
+				hero: {
+					provider: "local",
+					id: storageKey.slice(0, -4),
+					meta: { storageKey },
+				},
+			},
+		});
+
+		const result = await refreshContentMediaUsage(ctx.db, "posts", item.id);
+
+		expect(result).toEqual({
+			success: true,
+			refreshedSourceCount: 1,
+			deletedSourceCount: 0,
+			failedSourceCount: 0,
+		});
+		expect(await usageRepo.findSource(sourceKey(item.id, "columns"))).toEqual(
+			expect.objectContaining({ sourceCompleteness: "partial", lastErrorCode: null }),
+		);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(expect.objectContaining({ status: "partial", lastErrorCode: null }));
+	});
+
 	it("refreshes columns and draft overlay sources when a draft exists", async () => {
 		const item = await insertPost(ctx, {
 			slug: "live-post",

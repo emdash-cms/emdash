@@ -191,6 +191,46 @@ describeEachDialect("content media usage repair", (dialect) => {
 		);
 	});
 
+	it("keeps valid usages but finalizes partial coverage for unresolved legacy media", async () => {
+		const storageKey = `${ulid()}.jpg`;
+		const item = await insertPost(ctx, {
+			slug: "unresolved-legacy-media",
+			status: "published",
+			data: {
+				title: "Unresolved legacy media",
+				hero: {
+					provider: "local",
+					id: storageKey.slice(0, -4),
+					meta: { storageKey },
+				},
+			},
+		});
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "partial",
+				indexedSourceCount: 1,
+				failedSourceCount: 0,
+				skippedSourceCount: 1,
+				lastErrorCode: null,
+			}),
+		);
+		expect(await usageRepo.findSource(sourceKey(item.id, "columns"))).toEqual(
+			expect.objectContaining({ sourceCompleteness: "partial", lastErrorCode: null }),
+		);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(
+			expect.objectContaining({ status: "partial", failedSourceCount: 0, lastErrorCode: null }),
+		);
+	});
+
 	it("does not mark empty collections complete when field discovery fails", async () => {
 		await registry.createField("posts", { slug: "sections", label: "Sections", type: "repeater" });
 		await ctx.db

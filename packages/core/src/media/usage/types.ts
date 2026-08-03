@@ -43,4 +43,6 @@ export interface ExtractedMediaUsageOccurrence {
 	providerAssetId: string;
 	mediaKind: MediaKind | null;
 	mimeType: string | null;
+	/** Exact local storage key used to repair legacy references whose ID was the key stem. */
+	storageKey?: string;
 }

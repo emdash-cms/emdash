@@ -57,6 +57,11 @@ export interface PortableTextImageBlock {
 		url?: string;
 		/** Provider ID for external media (e.g., "cloudflare-images") */
 		provider?: string;
+		meta?: {
+			/** Local storage key retained for legacy media reference resolution. */
+			storageKey?: string;
+			[key: string]: unknown;
+		};
 	};
 	alt?: string;
 	caption?: string;

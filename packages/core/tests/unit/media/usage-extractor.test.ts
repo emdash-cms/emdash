@@ -192,7 +192,7 @@ describe("extractMediaUsageOccurrences", () => {
 		]);
 	});
 
-	it("ignores unsupported repeater file subfields", () => {
+	it("extracts repeater file subfields with stable paths", () => {
 		const occurrences = extractMediaUsageOccurrences({
 			fields: [
 				field("sections", "repeater", {
@@ -213,7 +213,30 @@ describe("extractMediaUsageOccurrences", () => {
 			},
 		});
 
-		expect(occurrences).toEqual([]);
+		expect(occurrences).toEqual([
+			{
+				fieldSlug: "sections",
+				fieldPath: "sections[0].download",
+				occurrenceIndex: 0,
+				referenceType: "file_field",
+				mediaId: "file-1",
+				provider: "local",
+				providerAssetId: "file-1",
+				mediaKind: "archive",
+				mimeType: "application/zip",
+			},
+			{
+				fieldSlug: "sections",
+				fieldPath: "sections[1].download",
+				occurrenceIndex: 0,
+				referenceType: "file_field",
+				mediaId: null,
+				provider: "mux",
+				providerAssetId: "video-1",
+				mediaKind: "video",
+				mimeType: "video/mp4",
+			},
+		]);
 	});
 
 	it("extracts Portable Text image block asset refs", () => {
