@@ -137,7 +137,9 @@ export async function cleanupMediaUsage(db: Kysely<Database>): Promise<MediaUsag
 					completedTargets.add("abandoned");
 				}
 			}
-			nextCursor = scanHasMore ? cursorAfterCompletedCandidates(selected, completedTargets) : null;
+			nextCursor = scanHasMore
+				? cursorAfterCompletedCandidates(selected, completedTargets, claim.cursor)
+				: null;
 		}
 
 		const durationMs = elapsedSince(startedMs);
@@ -251,8 +253,9 @@ function cursorFor(candidate: MediaUsageCleanupCandidate): MediaUsageCleanupCurs
 function cursorAfterCompletedCandidates(
 	selected: CleanupCandidates,
 	completedTargets: ReadonlySet<CleanupTarget>,
+	priorCursor: MediaUsageCleanupCursor | null,
 ): MediaUsageCleanupCursor | null {
-	let cursor: MediaUsageCleanupCursor | null = null;
+	let cursor = priorCursor;
 	for (const entry of selected.entries) {
 		if (entry.target !== null && !completedTargets.has(entry.target)) break;
 		cursor = cursorFor(entry.candidate);

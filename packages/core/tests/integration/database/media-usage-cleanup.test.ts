@@ -9,7 +9,6 @@ import {
 	MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
 	MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
 	MEDIA_USAGE_CLEANUP_INTERVAL_MS,
-	MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS,
 } from "../../../src/media/usage/cleanup.js";
 import {
 	describeEachDialect,
@@ -17,6 +16,8 @@ import {
 	teardownForDialect,
 	type DialectTestContext,
 } from "../../utils/test-db.js";
+
+const MAX_CLEANUP_ADMISSION_TIME_MS = 5_000;
 
 describeEachDialect("scheduled media usage cleanup", (dialect) => {
 	let ctx: DialectTestContext;
@@ -276,7 +277,7 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 		vi.spyOn(MediaUsageRepository.prototype, "findMediaUsageCleanupCandidates").mockImplementation(
 			async function (this: MediaUsageRepository, input) {
 				const candidates = await original.call(this, input);
-				vi.advanceTimersByTime(MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS);
+				vi.advanceTimersByTime(MAX_CLEANUP_ADMISSION_TIME_MS);
 				return candidates;
 			},
 		);
@@ -286,7 +287,7 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 			expect.objectContaining({
 				candidateRows: 1,
 				deletedRows: 0,
-				durationMs: MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS,
+				durationMs: MAX_CLEANUP_ADMISSION_TIME_MS,
 			}),
 		);
 		expect(
