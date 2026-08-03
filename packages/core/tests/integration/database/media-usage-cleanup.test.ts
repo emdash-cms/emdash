@@ -283,7 +283,11 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 
 		const result = await cleanupMediaUsage(db);
 		expect(result).toEqual(
-			expect.objectContaining({ candidateRows: 1, deletedRows: 0, durationMs: 5000 }),
+			expect.objectContaining({
+				candidateRows: 1,
+				deletedRows: 0,
+				durationMs: MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS,
+			}),
 		);
 		expect(
 			await db

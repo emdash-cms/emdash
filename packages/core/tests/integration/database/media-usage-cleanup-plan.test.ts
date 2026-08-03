@@ -16,6 +16,9 @@ interface CapturedQuery {
 	parameters: readonly unknown[];
 }
 
+const MAX_CLEANUP_STATEMENTS_PER_TICK = 14;
+const MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT = 52;
+
 let sqlite: Database.Database;
 let db: Kysely<DatabaseSchema>;
 let repo: MediaUsageRepository;
@@ -68,9 +71,11 @@ it("uses an indexed, D1-compatible fixed statement and bind budget", async () =>
 			backlogLowerBound: MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
 		}),
 	);
-	expect(captured.length).toBeLessThanOrEqual(14);
+	expect(captured.length).toBeLessThanOrEqual(MAX_CLEANUP_STATEMENTS_PER_TICK);
 	for (const query of captured) {
-		expect(query.parameters.length).toBeLessThanOrEqual(52);
+		expect(query.parameters.length).toBeLessThanOrEqual(
+			MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT,
+		);
 	}
 
 	const candidateQuery = captured.find(
@@ -136,10 +141,26 @@ it("reserves a failure update within the fixed statement and bind budget", async
 	);
 	vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-	expect((await cleanupMediaUsage(db)).status).toBe("failed");
-	expect(captured.length).toBeLessThanOrEqual(14);
+	const result = await cleanupMediaUsage(db);
+	expect(result).toEqual(
+		expect.objectContaining({
+			status: "failed",
+			candidateRows: MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
+			deletedRows: MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
+			deletedOrphans: MEDIA_USAGE_CLEANUP_DELETE_LIMIT - 2,
+			deletedStale: 1,
+			deletedAbandoned: 1,
+			deletedWriteLeases: 1,
+		}),
+	);
+	expect(
+		captured.some((query) => query.parameters.includes("MEDIA_USAGE_CLEANUP_FAILED")),
+	).toBe(true);
+	expect(captured.length).toBeLessThanOrEqual(MAX_CLEANUP_STATEMENTS_PER_TICK);
 	for (const query of captured) {
-		expect(query.parameters.length).toBeLessThanOrEqual(52);
+		expect(query.parameters.length).toBeLessThanOrEqual(
+			MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT,
+		);
 	}
 });
 
