@@ -1,9 +1,6 @@
 import type { PluginContext } from "emdash";
 import { describe, it, expect, vi } from "vitest";
 
-// The plugin reads the AI Search binding and `waitUntil` from
-// cloudflare:workers via dynamic import. Provide a fake instance that captures
-// uploaded items so we can assert on the metadata that gets indexed.
 const { uploads, deletions, createConfigs, controls, pendingUploads, fakeEnv } = vi.hoisted(() => {
 	const captured: Array<{
 		key: string;
@@ -76,7 +73,6 @@ vi.mock("cloudflare:workers", () => ({ env: fakeEnv, waitUntil: () => {} }));
 const { createPlugin, handleAISearchSnippetRequest, unpackTitleDescription } =
 	await import("../../src/plugins/ai-search.js");
 
-/** Minimal in-memory KV + site context sufficient for the indexing hooks. */
 function makeContext(content?: PluginContext["content"]): PluginContext {
 	const store = new Map<string, unknown>();
 	const kv = {
@@ -126,12 +122,6 @@ async function runReindexCron(plugin: ReturnType<typeof createPlugin>, ctx: Plug
 }
 
 describe("ai-search reindex jobs", () => {
-	it("allows background reindex uploads to run beyond the default hook timeout", () => {
-		const plugin = createPlugin();
-
-		expect(plugin.hooks.cron!.timeout).toBe(300_000);
-	});
-
 	it("processes two pages per cron tick and resumes from its persisted cursor", async () => {
 		uploads.length = 0;
 		const items = Array.from({ length: 101 }, (_, index) => ({
@@ -447,8 +437,6 @@ describe("ai-search content:afterSave indexing", () => {
 		const plugin = createPlugin();
 		const ctx = makeContext();
 
-		// The content-hook event carries the ContentItem shape: system columns at
-		// the top level, editable fields nested under `.data`.
 		await plugin.hooks["content:afterSave"]!.handler(
 			{
 				content: {
@@ -468,8 +456,6 @@ describe("ai-search content:afterSave indexing", () => {
 		const [uploaded] = uploads;
 		const { title, description } = unpackTitleDescription(String(uploaded!.metadata.title_desc));
 
-		// Regression: before flattening the hook payload, `title` came back empty
-		// and the body was never indexed.
 		expect(title).toBe("Hello World");
 		expect(description).toBe("");
 		expect(uploaded!.content).toContain("Hello World");

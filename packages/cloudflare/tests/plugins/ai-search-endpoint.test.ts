@@ -1,17 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 
-// The AI Search snippet endpoint is PUBLIC: anonymous site visitors hit it for
-// site search. On the anonymous request path EmDash attaches only a partial
-// `locals.emdash` facade whose `db` getter is undefined. The endpoint must NOT
-// read `locals.emdash.db` directly (that throws
-// "Cannot read properties of undefined (reading 'selectFrom')" when it loads
-// synonyms); it must resolve a real, request-scoped runtime via
-// `withEmDashRuntime()`.
-//
-// These tests mock the AI Search binding, `emdash` (OptionsRepository), and
-// `emdash/middleware` (withEmDashRuntime) so we can drive the endpoint wrapper
-// exactly the way an anonymous request does.
-
 const { fakeEnv, controls } = vi.hoisted(() => {
 	const state = {
 		pluginEnabled: true,
@@ -38,8 +26,6 @@ const { fakeEnv, controls } = vi.hoisted(() => {
 
 vi.mock("cloudflare:workers", () => ({ env: fakeEnv, waitUntil: () => {} }));
 
-// A tracked OptionsRepository that records the db handle it was constructed
-// with, so we can assert the endpoint never passes `undefined`.
 const { optionsConstructedWith } = vi.hoisted(() => ({
 	optionsConstructedWith: [] as unknown[],
 }));
@@ -50,8 +36,6 @@ vi.mock("emdash", async (importOriginal) => {
 		constructor(db: unknown) {
 			optionsConstructedWith.push(db);
 			if (db === undefined || db === null) {
-				// Mirror the real failure mode: OptionsRepository.get() calls
-				// this.db.selectFrom(...), which throws on a nullish db.
 				throw new TypeError("Cannot read properties of undefined (reading 'selectFrom')");
 			}
 		}
@@ -62,8 +46,6 @@ vi.mock("emdash", async (importOriginal) => {
 	return { ...actual, OptionsRepository: TrackingOptionsRepository };
 });
 
-// withEmDashRuntime yields a fully-initialized runtime whose `.db` is always a
-// real handle, regardless of request auth. This is the whole point of the fix.
 const { runtimeDbHandle } = vi.hoisted(() => ({ runtimeDbHandle: { selectFrom: () => ({}) } }));
 vi.mock("emdash/middleware", () => ({
 	withEmDashRuntime: async (
@@ -80,7 +62,6 @@ vi.mock("emdash/middleware", () => ({
 
 const { createAISearchSnippetEndpoint } = await import("../../src/plugins/ai-search.js");
 
-/** Build an APIContext-ish object with the ANONYMOUS fast-path facade. */
 function anonymousContext(body: unknown) {
 	return {
 		request: new Request("https://example.com/api/ai-search/search", {
@@ -88,7 +69,6 @@ function anonymousContext(body: unknown) {
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
 		}),
-		// The anonymous fast-path facade: `emdash` exists but has NO `db`.
 		locals: { emdash: {} },
 	} as never;
 }
@@ -113,12 +93,9 @@ describe("createAISearchSnippetEndpoint() on the anonymous request path", () => 
 			anonymousContext({ messages: [{ role: "user", content: "hi" }] }),
 		);
 
-		// Before the fix this threw synchronously (undefined db) -> 503/500.
 		expect(response.status).toBe(200);
 		await expect(response.json()).resolves.toMatchObject({ success: true });
 
-		// The OptionsRepository must have been built from the withEmDashRuntime
-		// db handle, never from the (undefined) locals facade db.
 		expect(optionsConstructedWith).toContain(runtimeDbHandle);
 		expect(optionsConstructedWith).not.toContain(undefined);
 	});
