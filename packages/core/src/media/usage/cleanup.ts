@@ -51,6 +51,7 @@ interface CleanupCandidateEntry {
  */
 export async function cleanupMediaUsage(db: Kysely<Database>): Promise<MediaUsageCleanupResult> {
 	const startedMs = Date.now();
+	const canIssueStatement = () => withinBudget(startedMs);
 	const repo = new MediaUsageRepository(db);
 	const leaseToken = ulid();
 	const claim = await repo.claimMediaUsageCleanup({
@@ -71,14 +72,15 @@ export async function cleanupMediaUsage(db: Kysely<Database>): Promise<MediaUsag
 	let nextCursor = claim.cursor;
 
 	try {
-		if (withinBudget(startedMs)) {
+		if (canIssueStatement()) {
 			deletedWriteLeases = await repo.deleteExpiredGenerationWriteLeases(
 				MEDIA_USAGE_CLEANUP_WRITE_LEASE_DELETE_LIMIT,
 				cleanupLease(leaseToken),
+				canIssueStatement,
 			);
 		}
 
-		if (withinBudget(startedMs)) {
+		if (canIssueStatement()) {
 			const cutoff = claim.scanBeforeAt;
 			const candidates = await repo.findMediaUsageCleanupCandidates({
 				cutoff,
@@ -95,40 +97,45 @@ export async function cleanupMediaUsage(db: Kysely<Database>): Promise<MediaUsag
 			const completedTargets = new Set<CleanupTarget>();
 			let canContinue = true;
 
-			if (withinBudget(startedMs) && selected.orphanIds.length > 0) {
+			if (canIssueStatement() && selected.orphanIds.length > 0) {
 				deletedOrphans = await repo.deleteOrphanOccurrencesOlderThan(
 					cutoff,
 					selected.orphanIds.length,
 					{
 						candidateIds: selected.orphanIds,
 						cleanupLease: cleanupLease(leaseToken),
+						canIssueStatement,
 					},
 				);
-				completedTargets.add("orphan");
 				canContinue = deletedOrphans === selected.orphanIds.length;
+				if (canContinue) completedTargets.add("orphan");
 			}
-			if (canContinue && withinBudget(startedMs) && selected.staleIds.length > 0) {
+			if (canContinue && canIssueStatement() && selected.staleIds.length > 0) {
 				deletedStale = await repo.deleteStaleGenerationsOlderThan(
 					cutoff,
 					selected.staleIds.length,
 					{
 						candidateIds: selected.staleIds,
 						cleanupLease: cleanupLease(leaseToken),
+						canIssueStatement,
 					},
 				);
-				completedTargets.add("stale");
 				canContinue = deletedStale === selected.staleIds.length;
+				if (canContinue) completedTargets.add("stale");
 			}
-			if (canContinue && withinBudget(startedMs) && selected.abandonedIds.length > 0) {
+			if (canContinue && canIssueStatement() && selected.abandonedIds.length > 0) {
 				deletedAbandoned = await repo.deleteAbandonedGenerationsOlderThan(
 					cutoff,
 					selected.abandonedIds.length,
 					{
 						candidateIds: selected.abandonedIds,
 						cleanupLease: cleanupLease(leaseToken),
+						canIssueStatement,
 					},
 				);
-				completedTargets.add("abandoned");
+				if (deletedAbandoned === selected.abandonedIds.length) {
+					completedTargets.add("abandoned");
+				}
 			}
 			nextCursor = scanHasMore ? cursorAfterCompletedCandidates(selected, completedTargets) : null;
 		}
