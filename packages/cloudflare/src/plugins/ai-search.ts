@@ -1289,7 +1289,10 @@ interface SnippetSearchBody {
 	locale?: unknown;
 	collection?: unknown;
 	ai_search_options?: {
-		retrieval?: { max_num_results?: unknown };
+		retrieval?: {
+			/** Configured in the AI Search backoffice rather than controlled by public clients. */
+			max_num_results?: unknown;
+		};
 	};
 }
 
