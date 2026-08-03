@@ -7,6 +7,7 @@ import { MediaUsageRepository } from "../../../src/database/repositories/media-u
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import {
 	cleanupMediaUsage,
+	MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
 	MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
 	MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS,
 } from "../../../src/media/usage/cleanup.js";
@@ -131,6 +132,61 @@ it("does not dispatch a delete after marking consumes the time budget", async ()
 			.where("generation", "=", stale.currentGeneration)
 			.execute(),
 	).toHaveLength(1);
+});
+
+it("does not advance the cursor past a partially deleted target", async () => {
+	const stale = await repo.replaceSource(
+		contentSource("entry-partial-deadline"),
+		Array.from({ length: MEDIA_USAGE_CLEANUP_DELETE_LIMIT }, (_, index) =>
+			occurrence(`media-stale-${index}`, `stale-${index}`),
+		),
+	);
+	await repo.replaceSource(
+		contentSource("entry-partial-deadline"),
+		Array.from(
+			{ length: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT - MEDIA_USAGE_CLEANUP_DELETE_LIMIT },
+			(_, index) => occurrence(`media-current-${index}`, `current-${index}`),
+		),
+	);
+	await db
+		.updateTable("_emdash_media_usage")
+		.set({ created_at: "2026-02-01T18:00:00.000Z" })
+		.where("generation", "=", stale.currentGeneration)
+		.execute();
+	await db
+		.updateTable("_emdash_media_usage")
+		.set({ created_at: "2026-02-01T19:00:00.000Z" })
+		.where("generation", "!=", stale.currentGeneration)
+		.execute();
+	captured = [];
+	let firstDeleteCompleted = false;
+	afterQuery = (query) => {
+		if (!firstDeleteCompleted && query.sql.startsWith('delete from "_emdash_media_usage"')) {
+			firstDeleteCompleted = true;
+			vi.advanceTimersByTime(MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS);
+		}
+	};
+
+	const result = await cleanupMediaUsage(db);
+
+	expect(firstDeleteCompleted).toBe(true);
+	expect(result.candidateRows).toBe(MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT);
+	expect(result.deletedRows).toBeGreaterThan(0);
+	expect(result.deletedRows).toBeLessThan(MEDIA_USAGE_CLEANUP_DELETE_LIMIT);
+	afterQuery = undefined;
+	expect(
+		await db
+			.selectFrom("_emdash_media_usage_cleanup")
+			.select(["cursor_created_at", "cursor_id", "scan_before_at"])
+			.where("task_key", "=", "projection_gc")
+			.executeTakeFirstOrThrow(),
+	).toEqual({ cursor_created_at: null, cursor_id: null, scan_before_at: null });
+	const remaining = await db
+		.selectFrom("_emdash_media_usage")
+		.select(({ fn }) => fn.countAll<number>().as("count"))
+		.where("generation", "=", stale.currentGeneration)
+		.executeTakeFirstOrThrow();
+	expect(Number(remaining.count)).toBe(MEDIA_USAGE_CLEANUP_DELETE_LIMIT - result.deletedRows);
 });
 
 it("does not delete writer leases after their scan consumes the time budget", async () => {
