@@ -356,6 +356,81 @@ describe("AI Search snippet endpoint", () => {
 			},
 		});
 	});
+
+	it("refreshes synonyms at most once per minute", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date("2100-01-01T00:00:00.000Z"));
+		try {
+			const ctx = makeContext();
+			const plugin = createPlugin();
+			await plugin.routes.config!.handler(
+				routeContext(ctx, { synonyms: [{ from: "autorag", to: "AI Search" }] }) as never,
+			);
+			const get = vi.spyOn(ctx.kv, "get");
+
+			await handleAISearchSnippetRequest(
+				snippetRequest({ messages: [{ role: "user", content: "autorag" }] }),
+				snippetOptions(ctx),
+			);
+			await handleAISearchSnippetRequest(
+				snippetRequest({ messages: [{ role: "user", content: "autorag" }] }),
+				snippetOptions(ctx),
+			);
+
+			expect(get).toHaveBeenCalledTimes(1);
+			expect(controls.searchRequests.at(-1)).toMatchObject({
+				messages: [{ role: "user", content: "AI Search" }],
+			});
+
+			vi.advanceTimersByTime(60_001);
+			await handleAISearchSnippetRequest(
+				snippetRequest({ messages: [{ role: "user", content: "autorag" }] }),
+				snippetOptions(ctx),
+			);
+			expect(get).toHaveBeenCalledTimes(2);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("coalesces concurrent synonym refreshes", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date("2101-01-01T00:00:00.000Z"));
+		const ctx = makeContext();
+		const plugin = createPlugin();
+		await plugin.routes.config!.handler(
+			routeContext(ctx, { synonyms: [{ from: "autorag", to: "AI Search" }] }) as never,
+		);
+		const originalGet = ctx.kv.get.bind(ctx.kv);
+		let releaseRead!: () => void;
+		const readGate = new Promise<void>((resolve) => {
+			releaseRead = resolve;
+		});
+		const get = vi.spyOn(ctx.kv, "get").mockImplementation(async <T>(key: string) => {
+			await readGate;
+			return originalGet<T>(key);
+		});
+		const searchCount = controls.searchRequests.length;
+
+		const first = handleAISearchSnippetRequest(
+			snippetRequest({ messages: [{ role: "user", content: "autorag" }] }),
+			snippetOptions(ctx),
+		);
+		await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(1));
+		const second = handleAISearchSnippetRequest(
+			snippetRequest({ messages: [{ role: "user", content: "autorag" }] }),
+			snippetOptions(ctx),
+		);
+		await vi.waitFor(() => expect(controls.searchRequests.length).toBeGreaterThan(searchCount));
+		expect(get).toHaveBeenCalledTimes(1);
+
+		try {
+			releaseRead();
+			await Promise.all([first, second]);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });
 
 describe("ai-search endpoint and route errors", () => {

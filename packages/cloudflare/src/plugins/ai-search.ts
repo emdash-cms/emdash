@@ -516,14 +516,7 @@ export interface SynonymRewriter {
 	lookup: Map<string, string>;
 }
 
-/**
- * Compile a synonym set into a single reusable regex. Benchmarking showed that
- * recompiling a regex per synonym per query is O(synonyms) and dominates the
- * cost (~29µs at 100 synonyms), while one combined precompiled alternation is
- * flat (~0.2µs) and still supports multi-word phrases — unlike a word-split
- * `Map`/`find` lookup. Callers cache the result so compilation happens only
- * when the synonym set changes.
- */
+
 export function compileSynonyms(synonyms: Synonym[]): SynonymRewriter {
 	// Longer phrases first so multi-word terms win over their sub-words.
 	const sorted = synonyms.filter((s) => s.from).toSorted((a, b) => b.from.length - a.from.length);
@@ -540,25 +533,27 @@ export function compileSynonyms(synonyms: Synonym[]): SynonymRewriter {
 	};
 }
 
-/**
- * Transparently rewrite a query by substituting configured synonym terms in
- * place, using a precompiled rewriter. Whole-word (case-insensitive)
- * occurrences of each `from` anywhere in the query are replaced with `to` —
- * e.g. with `autorag` -> `AI Search`, "what is autorag" becomes "what is AI
- * Search".
- */
 export function applySynonyms(query: string, rewriter: SynonymRewriter): string {
 	if (!rewriter.re) return query;
 	rewriter.re.lastIndex = 0;
 	return query.replace(rewriter.re, (match) => rewriter.lookup.get(match.toLowerCase()) ?? match);
 }
 
-let synonymCache: { key: string; rewriter: SynonymRewriter } | null = null;
+const SYNONYM_CACHE_TTL_MS = 60_000;
+
+let synonymCache = {
+	rewriter: compileSynonyms([]),
+	refreshAfter: 0,
+};
 
 async function getSynonymRewriter(kv: KVReader): Promise<SynonymRewriter> {
+	const now = Date.now();
+	if (now < synonymCache.refreshAfter) return synonymCache.rewriter;
+
+	synonymCache.refreshAfter = now + SYNONYM_CACHE_TTL_MS;
 	const synonyms = (await kv.get<Synonym[]>(CONFIG_SYNONYMS_KEY)) ?? [];
-	const key = JSON.stringify(synonyms);
-	if (synonymCache?.key !== key) synonymCache = { key, rewriter: compileSynonyms(synonyms) };
+	synonymCache.rewriter = compileSynonyms(synonyms);
+
 	return synonymCache.rewriter;
 }
 
