@@ -342,6 +342,41 @@ describe("FieldEditor", () => {
 		});
 	});
 
+	describe("indexed flag", () => {
+		// The dialog overlay blocks Playwright's actionability check, so submit
+		// through the DOM node the way gallery-detail-panel.test.tsx does.
+		const save = async (screen: Awaited<ReturnType<typeof render>>) => {
+			const button = screen.getByRole("button", { name: "Update Field" });
+			await expect.element(button).toBeEnabled();
+			button.element().click();
+		};
+
+		it("clears the flag when the field type cannot be indexed", async () => {
+			// The server reads an absent `indexed` as "keep the stored value", so
+			// sending `undefined` would leave the flag set on a type that cannot
+			// carry an index, and the update then fails its own validation. The
+			// Indexed switch is hidden for these types, so nothing else can clear it.
+			const onSave = vi.fn();
+			const field = makeField({ slug: "body", label: "Body", type: "text", indexed: true });
+			const screen = await render(<FieldEditor {...defaultProps} field={field} onSave={onSave} />);
+
+			expect(screen.getByText("Indexed").query()).toBeNull();
+			await save(screen);
+
+			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ indexed: false }));
+		});
+
+		it("keeps the flag for a field type that can be indexed", async () => {
+			const onSave = vi.fn();
+			const field = makeField({ slug: "priority", label: "Priority", indexed: true });
+			const screen = await render(<FieldEditor {...defaultProps} field={field} onSave={onSave} />);
+
+			await save(screen);
+
+			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ indexed: true }));
+		});
+	});
+
 	describe("config step (file field)", () => {
 		const fileField = makeField({
 			slug: "attachment",
