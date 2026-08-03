@@ -8,6 +8,7 @@ import type { Database as DatabaseSchema } from "../../../src/database/types.js"
 import {
 	cleanupMediaUsage,
 	MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
+	MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS,
 } from "../../../src/media/usage/cleanup.js";
 import { hasPgTestDatabase, setupForDialect, teardownForDialect } from "../../utils/test-db.js";
 
@@ -23,17 +24,21 @@ let sqlite: Database.Database;
 let db: Kysely<DatabaseSchema>;
 let repo: MediaUsageRepository;
 let captured: CapturedQuery[];
+let afterQuery: ((query: CapturedQuery) => void) | undefined;
 
 beforeEach(async () => {
 	vi.useFakeTimers();
 	vi.setSystemTime(new Date());
 	captured = [];
+	afterQuery = undefined;
 	sqlite = new Database(":memory:");
 	db = new Kysely<DatabaseSchema>({
 		dialect: new SqliteDialect({ database: sqlite }),
 		log(event) {
 			if (event.level === "query") {
-				captured.push({ sql: event.query.sql, parameters: event.query.parameters });
+				const query = { sql: event.query.sql, parameters: event.query.parameters };
+				captured.push(query);
+				afterQuery?.(query);
 			}
 		},
 	});
@@ -73,9 +78,7 @@ it("uses an indexed, D1-compatible fixed statement and bind budget", async () =>
 	);
 	expect(captured.length).toBeLessThanOrEqual(MAX_CLEANUP_STATEMENTS_PER_TICK);
 	for (const query of captured) {
-		expect(query.parameters.length).toBeLessThanOrEqual(
-			MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT,
-		);
+		expect(query.parameters.length).toBeLessThanOrEqual(MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT);
 	}
 
 	const candidateQuery = captured.find(
@@ -87,6 +90,91 @@ it("uses an indexed, D1-compatible fixed statement and bind budget", async () =>
 	const plan = explain(candidateQuery!);
 	expect(plan).toContain("idx__emdash_media_usage_cleanup_scan");
 	expect(plan).not.toContain("USE TEMP B-TREE FOR ORDER BY");
+});
+
+it("does not dispatch a delete after marking consumes the time budget", async () => {
+	const stale = await repo.replaceSource(contentSource("entry-deadline"), [
+		occurrence("media-before-deadline"),
+	]);
+	await repo.replaceSource(contentSource("entry-deadline"), [occurrence("media-current")]);
+	await db
+		.updateTable("_emdash_media_usage")
+		.set({ created_at: "2026-02-01T19:00:00.000Z" })
+		.where("generation", "=", stale.currentGeneration)
+		.execute();
+	captured = [];
+	let marked = false;
+	afterQuery = (query) => {
+		if (query.sql.startsWith('update "_emdash_media_usage" set "cleanup_lease_token"')) {
+			marked = true;
+			vi.advanceTimersByTime(MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS);
+		}
+	};
+
+	const result = await cleanupMediaUsage(db);
+
+	expect(marked).toBe(true);
+	expect(result).toEqual(
+		expect.objectContaining({
+			candidateRows: 1,
+			deletedRows: 0,
+			durationMs: MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS,
+		}),
+	);
+	expect(captured.some((query) => query.sql.startsWith('delete from "_emdash_media_usage"'))).toBe(
+		false,
+	);
+	expect(
+		await db
+			.selectFrom("_emdash_media_usage")
+			.select("id")
+			.where("generation", "=", stale.currentGeneration)
+			.execute(),
+	).toHaveLength(1);
+});
+
+it("does not delete writer leases after their scan consumes the time budget", async () => {
+	await db
+		.insertInto("_emdash_media_usage_generation_writes")
+		.values({
+			source_key: "expired-source",
+			generation: "expired-generation",
+			lease_token: "expired-writer-lease",
+			expires_at: "2026-02-01T00:00:00.000Z",
+			created_at: "2026-02-01T00:00:00.000Z",
+		})
+		.execute();
+	captured = [];
+	let scanned = false;
+	afterQuery = (query) => {
+		if (query.sql.startsWith('select "lease_token" from "_emdash_media_usage_generation_writes"')) {
+			scanned = true;
+			vi.advanceTimersByTime(MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS);
+		}
+	};
+
+	const result = await cleanupMediaUsage(db);
+
+	expect(scanned).toBe(true);
+	expect(result).toEqual(
+		expect.objectContaining({
+			deletedWriteLeases: 0,
+			durationMs: MEDIA_USAGE_CLEANUP_TIME_BUDGET_MS,
+		}),
+	);
+	expect(
+		captured.some((query) =>
+			query.sql.startsWith('delete from "_emdash_media_usage_generation_writes"'),
+		),
+	).toBe(false);
+	afterQuery = undefined;
+	expect(
+		await db
+			.selectFrom("_emdash_media_usage_generation_writes")
+			.select("lease_token")
+			.where("lease_token", "=", "expired-writer-lease")
+			.execute(),
+	).toHaveLength(1);
 });
 
 it("reserves a failure update within the fixed statement and bind budget", async () => {
@@ -153,14 +241,12 @@ it("reserves a failure update within the fixed statement and bind budget", async
 			deletedWriteLeases: 1,
 		}),
 	);
-	expect(
-		captured.some((query) => query.parameters.includes("MEDIA_USAGE_CLEANUP_FAILED")),
-	).toBe(true);
+	expect(captured.some((query) => query.parameters.includes("MEDIA_USAGE_CLEANUP_FAILED"))).toBe(
+		true,
+	);
 	expect(captured.length).toBeLessThanOrEqual(MAX_CLEANUP_STATEMENTS_PER_TICK);
 	for (const query of captured) {
-		expect(query.parameters.length).toBeLessThanOrEqual(
-			MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT,
-		);
+		expect(query.parameters.length).toBeLessThanOrEqual(MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT);
 	}
 });
 

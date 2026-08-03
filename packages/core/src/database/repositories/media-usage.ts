@@ -43,6 +43,10 @@ function cleanupDeleteBatchSize(cleanupLease: MediaUsageCleanupLease | undefined
 	return cleanupLease ? SQL_BATCH_SIZE - 3 : SQL_BATCH_SIZE;
 }
 
+function canIssueCleanupStatement(canIssueStatement: (() => boolean) | undefined): boolean {
+	return canIssueStatement?.() ?? true;
+}
+
 function cleanupDurationSeconds(value: number): number {
 	if (!Number.isSafeInteger(value) || value < 0) {
 		throw new Error("Media usage cleanup duration must be a non-negative whole number of seconds");
@@ -181,6 +185,7 @@ export interface MediaUsageCleanupLease {
 export interface MediaUsageCleanupDeleteOptions {
 	candidateIds?: readonly string[];
 	cleanupLease?: MediaUsageCleanupLease;
+	canIssueStatement?: () => boolean;
 }
 
 export interface MediaUsageCleanupCompletion {
@@ -1072,8 +1077,10 @@ export class MediaUsageRepository {
 				options.candidateIds.slice(0, batchLimit),
 				cutoff,
 				options.cleanupLease,
+				options.canIssueStatement,
 			);
 		}
+		if (!canIssueCleanupStatement(options.canIssueStatement)) return 0;
 
 		let query = this.db
 			.selectFrom("_emdash_media_usage as u")
@@ -1101,6 +1108,7 @@ export class MediaUsageRepository {
 			rows.map((row) => row.id),
 			cutoff,
 			options.cleanupLease,
+			options.canIssueStatement,
 		);
 	}
 
@@ -1116,8 +1124,10 @@ export class MediaUsageRepository {
 				options.candidateIds.slice(0, batchLimit),
 				cutoff,
 				options.cleanupLease,
+				options.canIssueStatement,
 			);
 		}
+		if (!canIssueCleanupStatement(options.canIssueStatement)) return 0;
 
 		let query = this.db
 			.selectFrom("_emdash_media_usage as u")
@@ -1146,6 +1156,7 @@ export class MediaUsageRepository {
 			rows.map((row) => row.id),
 			cutoff,
 			options.cleanupLease,
+			options.canIssueStatement,
 		);
 	}
 
@@ -1161,8 +1172,10 @@ export class MediaUsageRepository {
 				options.candidateIds.slice(0, batchLimit),
 				cutoff,
 				options.cleanupLease,
+				options.canIssueStatement,
 			);
 		}
+		if (!canIssueCleanupStatement(options.canIssueStatement)) return 0;
 
 		let query = this.db
 			.selectFrom("_emdash_media_usage as u")
@@ -1191,15 +1204,17 @@ export class MediaUsageRepository {
 			rows.map((row) => row.id),
 			cutoff,
 			options.cleanupLease,
+			options.canIssueStatement,
 		);
 	}
 
 	async deleteExpiredGenerationWriteLeases(
 		limit: number,
 		cleanupLease?: MediaUsageCleanupLease,
+		canIssueStatement?: () => boolean,
 	): Promise<number> {
 		const batchLimit = Math.floor(limit);
-		if (batchLimit <= 0) return 0;
+		if (batchLimit <= 0 || !canIssueCleanupStatement(canIssueStatement)) return 0;
 		let query = this.db
 			.selectFrom("_emdash_media_usage_generation_writes")
 			.select("lease_token")
@@ -1209,7 +1224,7 @@ export class MediaUsageRepository {
 			.limit(batchLimit);
 		if (cleanupLease) query = query.where(this.activeCleanupLeaseExpression(cleanupLease));
 		const rows = await query.execute();
-		if (rows.length === 0) return 0;
+		if (rows.length === 0 || !canIssueCleanupStatement(canIssueStatement)) return 0;
 		let deleteQuery = this.db
 			.deleteFrom("_emdash_media_usage_generation_writes")
 			.where(
@@ -1399,11 +1414,14 @@ export class MediaUsageRepository {
 		ids: readonly string[],
 		cutoff: string,
 		cleanupLease?: MediaUsageCleanupLease,
+		canIssueStatement?: () => boolean,
 	): Promise<number> {
 		let deleted = 0;
 		for (const idBatch of chunks([...ids], cleanupDeleteBatchSize(cleanupLease))) {
+			if (!canIssueCleanupStatement(canIssueStatement)) break;
 			if (cleanupLease) {
 				await this.markOrphanCandidatesForCleanup(idBatch, cutoff, cleanupLease);
+				if (!canIssueCleanupStatement(canIssueStatement)) break;
 			}
 			let query = this.db
 				.deleteFrom("_emdash_media_usage")
@@ -1428,11 +1446,14 @@ export class MediaUsageRepository {
 		ids: readonly string[],
 		cutoff: string,
 		cleanupLease?: MediaUsageCleanupLease,
+		canIssueStatement?: () => boolean,
 	): Promise<number> {
 		let deleted = 0;
 		for (const idBatch of chunks([...ids], cleanupDeleteBatchSize(cleanupLease))) {
+			if (!canIssueCleanupStatement(canIssueStatement)) break;
 			if (cleanupLease) {
 				await this.markStaleCandidatesForCleanup(idBatch, cutoff, cleanupLease);
+				if (!canIssueCleanupStatement(canIssueStatement)) break;
 			}
 			let query = this.db
 				.deleteFrom("_emdash_media_usage")
@@ -1464,11 +1485,14 @@ export class MediaUsageRepository {
 		ids: readonly string[],
 		cutoff: string,
 		cleanupLease?: MediaUsageCleanupLease,
+		canIssueStatement?: () => boolean,
 	): Promise<number> {
 		let deleted = 0;
 		for (const idBatch of chunks([...ids], cleanupDeleteBatchSize(cleanupLease))) {
+			if (!canIssueCleanupStatement(canIssueStatement)) break;
 			if (cleanupLease) {
 				await this.markAbandonedCandidatesForCleanup(idBatch, cutoff, cleanupLease);
+				if (!canIssueCleanupStatement(canIssueStatement)) break;
 			}
 			let query = this.db
 				.deleteFrom("_emdash_media_usage")
