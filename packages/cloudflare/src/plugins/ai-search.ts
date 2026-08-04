@@ -1040,16 +1040,6 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		},
 
 		hooks: {
-			"plugin:install": {
-				handler: async (_event: unknown, ctx: PluginContext): Promise<void> => {
-					const collections = (await getConfiguredCollections(ctx)) ?? ["posts", "pages"];
-					await saveConfiguredCollections(ctx, collections);
-					const job = createReindexJob(collections, false);
-					await ctx.kv.set(REINDEX_JOB_KEY, job);
-					await ctx.cron?.schedule(REINDEX_CRON_TASK, { schedule: "* * * * *" });
-				},
-			},
-
 			cron: {
 				// The default five-second plugin hook timeout can expire while a page
 				// of accepted uploads is still checkpointing. Keep the scheduled event
