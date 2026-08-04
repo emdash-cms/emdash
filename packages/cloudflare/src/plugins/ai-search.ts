@@ -574,21 +574,34 @@ export function applySynonyms(query: string, rewriter: SynonymRewriter): string 
 }
 
 const SYNONYM_CACHE_TTL_MS = 60_000;
+const SYNONYM_CACHE_KEY = Symbol.for("emdash.ai-search.synonym-cache");
 
-let synonymCache = {
-	rewriter: compileSynonyms([]),
-	refreshAfter: 0,
-};
+interface SynonymCache {
+	rewriter: SynonymRewriter;
+	refreshAfter: number;
+	generation: number;
+}
+
+function synonymCacheHolder(): SynonymCache {
+	const globals = globalThis as typeof globalThis & { [SYNONYM_CACHE_KEY]?: SynonymCache };
+	return (globals[SYNONYM_CACHE_KEY] ??= {
+		rewriter: compileSynonyms([]),
+		refreshAfter: 0,
+		generation: 0,
+	});
+}
 
 async function getSynonymRewriter(kv: KVReader): Promise<SynonymRewriter> {
+	const cache = synonymCacheHolder();
 	const now = Date.now();
-	if (now < synonymCache.refreshAfter) return synonymCache.rewriter;
+	if (now < cache.refreshAfter) return cache.rewriter;
 
-	synonymCache.refreshAfter = now + SYNONYM_CACHE_TTL_MS;
+	const generation = cache.generation;
+	cache.refreshAfter = now + SYNONYM_CACHE_TTL_MS;
 	const synonyms = (await kv.get<Synonym[]>(CONFIG_SYNONYMS_KEY)) ?? [];
-	synonymCache.rewriter = compileSynonyms(synonyms);
+	if (cache.generation === generation) cache.rewriter = compileSynonyms(synonyms);
 
-	return synonymCache.rewriter;
+	return cache.rewriter;
 }
 
 interface AISearchQueryInput {
@@ -784,6 +797,10 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 	/** Persist the operator's query synonyms from the dashboard. */
 	async function saveConfiguredSynonyms(ctx: PluginContext, synonyms: Synonym[]): Promise<void> {
 		await ctx.kv.set(CONFIG_SYNONYMS_KEY, synonyms);
+		const cache = synonymCacheHolder();
+		cache.generation++;
+		cache.rewriter = compileSynonyms(synonyms);
+		cache.refreshAfter = Date.now() + SYNONYM_CACHE_TTL_MS;
 	}
 
 	/**

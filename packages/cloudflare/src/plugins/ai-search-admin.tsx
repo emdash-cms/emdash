@@ -554,6 +554,9 @@ function SettingsPage() {
 					left, it is transparently replaced with the term on the right — e.g. “autorag” → “AI
 					Search”. Matching is whole-word and case-insensitive.
 				</p>
+				<p className="text-muted-foreground mb-4 text-sm">
+					Changes can take up to 60 seconds to reach all edge locations.
+				</p>
 
 				<div className="space-y-3">
 					{synonyms.length === 0 && (
