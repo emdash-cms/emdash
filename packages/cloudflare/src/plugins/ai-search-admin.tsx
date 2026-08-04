@@ -228,9 +228,7 @@ function SettingsPage() {
 			);
 			setMetadataValid(data.valid);
 		} catch (err) {
-			setMetadataError(
-				err instanceof Error ? err.message : "Failed to fix metadata configuration",
-			);
+			setMetadataError(err instanceof Error ? err.message : "Failed to fix metadata configuration");
 		} finally {
 			setIsRepairingMetadata(false);
 		}
