@@ -5,39 +5,66 @@
  * (posts per page, date format, timezone).
  */
 
-import { Button, Input, Label, useKumoToastManager } from "@cloudflare/kumo";
+import { Banner, Button, Field, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { FloppyDisk, WarningCircle, Upload, X } from "@phosphor-icons/react";
+import { WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
-import { EditorHeader } from "../EditorHeader";
 import { MediaPickerModal } from "../MediaPickerModal";
-import { BackToSettingsLink } from "./BackToSettingsLink.js";
+import { SaveButton } from "../SaveButton.js";
+import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
+
+function generalSettingsSnapshot(settings: Partial<SiteSettings>) {
+	return JSON.stringify({
+		title: settings.title ?? "",
+		tagline: settings.tagline ?? "",
+		url: settings.url ?? "",
+		logo: settings.logo ?? null,
+		favicon: settings.favicon ?? null,
+		postsPerPage: settings.postsPerPage ?? 10,
+		dateFormat: settings.dateFormat ?? "MMMM d, yyyy",
+		timezone: settings.timezone ?? "UTC",
+	});
+}
 
 export function GeneralSettings() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 
-	const { data: settings, isLoading } = useQuery({
+	const {
+		data: settings,
+		isLoading,
+		error: loadError,
+	} = useQuery({
 		queryKey: ["settings"],
 		queryFn: fetchSettings,
 		staleTime: Infinity,
 	});
 
 	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
+	const [savedFormData, setSavedFormData] = React.useState<Partial<SiteSettings>>({});
 	const [logoPickerOpen, setLogoPickerOpen] = React.useState(false);
 	const [faviconPickerOpen, setFaviconPickerOpen] = React.useState(false);
 
 	React.useEffect(() => {
-		if (settings) setFormData(settings);
+		if (settings) {
+			setFormData(settings);
+			setSavedFormData(settings);
+		}
 	}, [settings]);
+
+	const isDirty = React.useMemo(
+		() => generalSettingsSnapshot(formData) !== generalSettingsSnapshot(savedFormData),
+		[formData, savedFormData],
+	);
 
 	const saveMutation = useMutation({
 		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
-		onSuccess: () => {
+		onSuccess: (_savedSettings, submittedSettings) => {
+			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
 			toastManager.add({
 				title: t`Settings saved successfully`,
@@ -88,93 +115,102 @@ export function GeneralSettings() {
 		setFormData((prev) => ({ ...prev, favicon: undefined }));
 	};
 
+	const title = t`General settings`;
+	const description = t`Manage your site identity and reading defaults.`;
+
 	if (isLoading) {
 		return (
-			<div className="space-y-6">
-				<div className="flex items-center gap-3">
-					<BackToSettingsLink />
-					<h1 className="text-2xl font-semibold leading-tight">{t`General Settings`}</h1>
+			<SettingsFrame title={title} description={description}>
+				<div
+					className="flex items-center gap-2 rounded-xl border border-kumo-line bg-kumo-base px-4 py-4 text-sm text-kumo-subtle"
+					role="status"
+				>
+					<Loader size="sm" />
+					<span>{t`Loading settings…`}</span>
 				</div>
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-subtle">{t`Loading settings...`}</p>
-				</div>
-			</div>
+			</SettingsFrame>
+		);
+	}
+
+	if (loadError) {
+		return (
+			<SettingsFrame title={title} description={description}>
+				<Banner
+					variant="error"
+					title={t`Unable to load general settings`}
+					description={loadError instanceof Error ? loadError.message : t`Failed to load settings`}
+					role="alert"
+				/>
+			</SettingsFrame>
 		);
 	}
 
 	return (
-		<div className="space-y-6">
-			{/* Sticky header — keeps Save in view while users scroll a long
-			    settings form. The bottom "Save Settings" button is preserved
-			    below so the natural last-control DOM order works for keyboard
-			    and screen-reader users. */}
-			<EditorHeader
-				leading={<BackToSettingsLink />}
-				actions={
-					<Button
-						type="submit"
-						form="general-settings-form"
-						disabled={saveMutation.isPending}
-						icon={<FloppyDisk />}
-					>
-						{saveMutation.isPending ? t`Saving...` : t`Save Settings`}
-					</Button>
-				}
-			>
-				<h1 className="truncate text-2xl font-semibold">{t`General Settings`}</h1>
-			</EditorHeader>
-
-			<form id="general-settings-form" onSubmit={handleSubmit} className="space-y-6">
-				{/* Site Identity */}
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<h2 className="mb-4 text-lg font-semibold">{t`Site Identity`}</h2>
-					<div className="space-y-4">
+		<SettingsFrame
+			title={title}
+			description={description}
+			actions={
+				<SaveButton
+					type="submit"
+					form="general-settings-form"
+					isDirty={isDirty}
+					isSaving={saveMutation.isPending}
+				/>
+			}
+		>
+			<form id="general-settings-form" onSubmit={handleSubmit} className="grid gap-8">
+				<SettingsSection
+					title={t`Site identity`}
+					description={t`Set your site title, tagline, address, logo, and favicon.`}
+				>
+					<SettingRow>
 						<Input
-							label={t`Site Title`}
-							value={formData.title || ""}
+							label={t`Site title`}
+							value={formData.title ?? ""}
 							onChange={(e) => handleChange("title", e.target.value)}
-							description={t`The name of your site, used in the header and metadata`}
+							description={t`The name shown in your site header and metadata.`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
 							label={t`Tagline`}
-							value={formData.tagline || ""}
+							value={formData.tagline ?? ""}
 							onChange={(e) => handleChange("tagline", e.target.value)}
-							description={t`A short description of your site`}
+							description={t`A short description of your site.`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
 							label={t`Site URL`}
 							type="url"
-							value={formData.url || ""}
+							value={formData.url ?? ""}
 							onChange={(e) => handleChange("url", e.target.value)}
-							description={t`The public URL of your site (used for canonical links and sitemaps)`}
+							description={t`The public URL used for canonical links and sitemaps.`}
 						/>
+					</SettingRow>
 
-						{/* Logo Picker --
-						    "configured" gates on `mediaId`, not `url`, so an orphaned
-						    reference (media row deleted, or a stale provider id stored
-						    pre-localOnly fix) still renders Remove. Otherwise the user
-						    would see "Select Logo" and silently re-save the dangling
-						    `mediaId` on any unrelated change. */}
-						<div>
-							<Label>{t`Logo`}</Label>
+					<SettingRow>
+						<Field label={t`Logo`} description={t`Used in your site header and branding.`}>
 							{formData.logo?.mediaId ? (
-								<div className="mt-2 space-y-2">
+								<div className="grid gap-3">
 									{formData.logo.url ? (
 										<img
 											src={formData.logo.url}
 											alt={formData.logo.alt || t`Logo`}
-											className="h-16 rounded border bg-kumo-tint object-contain p-2"
+											className="h-16 max-w-full rounded border border-kumo-line bg-kumo-tint object-contain p-2"
 										/>
 									) : (
 										<div
-											className="flex min-h-16 items-center gap-2 rounded border border-dashed bg-kumo-tint px-3 py-2 text-sm text-kumo-subtle"
+											className="flex min-h-16 items-start gap-2 rounded border border-dashed border-kumo-line bg-kumo-tint px-3 py-2 text-sm leading-5 text-kumo-subtle"
 											role="status"
 										>
-											<WarningCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+											<span className="h-lh flex shrink-0 items-center" aria-hidden="true">
+												<WarningCircle className="h-4 w-4" />
+											</span>
 											<span>{t`The referenced logo is no longer available. Pick a new one or remove the reference.`}</span>
 										</div>
 									)}
-									<div className="flex gap-2">
+									<div className="flex flex-wrap gap-3">
 										<Button
 											type="button"
 											variant="outline"
@@ -182,7 +218,7 @@ export function GeneralSettings() {
 											icon={<Upload />}
 											onClick={() => setLogoPickerOpen(true)}
 										>
-											{t`Change Logo`}
+											{t`Change logo`}
 										</Button>
 										<Button
 											type="button"
@@ -201,34 +237,38 @@ export function GeneralSettings() {
 									variant="outline"
 									icon={<Upload />}
 									onClick={() => setLogoPickerOpen(true)}
-									className="mt-2"
 								>
-									{t`Select Logo`}
+									{t`Select logo`}
 								</Button>
 							)}
-						</div>
+						</Field>
+					</SettingRow>
 
-						{/* Favicon Picker — see Logo Picker for the orphan-state rationale. */}
-						<div>
-							<Label>{t`Favicon`}</Label>
+					<SettingRow>
+						<Field
+							label={t`Favicon`}
+							description={t`The icon shown in browser tabs and bookmarks.`}
+						>
 							{formData.favicon?.mediaId ? (
-								<div className="mt-2 space-y-2">
+								<div className="grid gap-3">
 									{formData.favicon.url ? (
 										<img
 											src={formData.favicon.url}
 											alt={t`Favicon`}
-											className="h-8 w-8 rounded border bg-kumo-tint object-contain p-1"
+											className="h-8 w-8 rounded border border-kumo-line bg-kumo-tint object-contain p-1"
 										/>
 									) : (
 										<div
-											className="flex min-h-8 items-center gap-2 rounded border border-dashed bg-kumo-tint px-2 py-1 text-xs text-kumo-subtle"
+											className="flex min-h-8 items-start gap-2 rounded border border-dashed border-kumo-line bg-kumo-tint px-3 py-2 text-sm leading-5 text-kumo-subtle"
 											role="status"
 										>
-											<WarningCircle className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-											<span>{t`Referenced favicon unavailable.`}</span>
+											<span className="h-lh flex shrink-0 items-center" aria-hidden="true">
+												<WarningCircle className="h-4 w-4" />
+											</span>
+											<span>{t`The referenced favicon is no longer available. Pick a new one or remove the reference.`}</span>
 										</div>
 									)}
-									<div className="flex gap-2">
+									<div className="flex flex-wrap gap-3">
 										<Button
 											type="button"
 											variant="outline"
@@ -236,7 +276,7 @@ export function GeneralSettings() {
 											icon={<Upload />}
 											onClick={() => setFaviconPickerOpen(true)}
 										>
-											{t`Change Favicon`}
+											{t`Change favicon`}
 										</Button>
 										<Button
 											type="button"
@@ -255,62 +295,64 @@ export function GeneralSettings() {
 									variant="outline"
 									icon={<Upload />}
 									onClick={() => setFaviconPickerOpen(true)}
-									className="mt-2"
 								>
-									{t`Select Favicon`}
+									{t`Select favicon`}
 								</Button>
 							)}
-						</div>
-					</div>
-				</div>
+						</Field>
+					</SettingRow>
+				</SettingsSection>
 
-				{/* Reading Settings */}
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<h2 className="mb-4 text-lg font-semibold">{t`Reading`}</h2>
-					<div className="space-y-4">
+				<SettingsSection
+					title={t`Reading`}
+					description={t`Choose how posts and dates are displayed.`}
+				>
+					<SettingRow>
 						<Input
-							label={t`Posts Per Page`}
+							label={t`Posts per page`}
 							type="number"
-							value={formData.postsPerPage || 10}
+							value={formData.postsPerPage ?? 10}
 							onChange={(e) => handleChange("postsPerPage", parseInt(e.target.value, 10))}
 							min={1}
 							max={100}
-							description={t`Number of posts to show per page on list views`}
+							description={t`The number of posts shown on each listing page.`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
-							label={t`Date Format`}
-							value={formData.dateFormat || "MMMM d, yyyy"}
+							label={t`Date format`}
+							value={formData.dateFormat ?? "MMMM d, yyyy"}
 							onChange={(e) => handleChange("dateFormat", e.target.value)}
-							description={`Example: ${formData.dateFormat || "MMMM d, yyyy"} → January 23, 2026`}
+							description={t`Example: ${formData.dateFormat ?? "MMMM d, yyyy"} → January 23, 2026`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
 							label={t`Timezone`}
-							value={formData.timezone || "UTC"}
+							value={formData.timezone ?? "UTC"}
 							onChange={(e) => handleChange("timezone", e.target.value)}
-							description={t`Timezone for displaying dates (e.g., America/New_York)`}
+							description={t`The timezone used to display dates, for example America/New_York.`}
 						/>
-					</div>
-				</div>
+					</SettingRow>
+				</SettingsSection>
 
-				{/* Save Button */}
 				<div className="flex justify-end">
-					<Button type="submit" disabled={saveMutation.isPending} icon={<FloppyDisk />}>
-						{saveMutation.isPending ? t`Saving...` : t`Save Settings`}
-					</Button>
+					<SaveButton
+						type="submit"
+						isDirty={isDirty}
+						isSaving={saveMutation.isPending}
+						announce={false}
+					/>
 				</div>
 			</form>
 
-			{/* Media Picker Modals --
-			    localOnly: site settings only persist a local `mediaId`. URL/provider
-			    selections would be stripped on save, leaving an unresolvable reference.
-			    See MediaPickerModalProps.localOnly. */}
 			<MediaPickerModal
 				open={logoPickerOpen}
 				onOpenChange={setLogoPickerOpen}
 				onSelect={handleLogoSelect}
 				mimeTypeFilter="image/"
 				localOnly
-				title={t`Select Logo`}
+				title={t`Select logo`}
 			/>
 			<MediaPickerModal
 				open={faviconPickerOpen}
@@ -318,9 +360,9 @@ export function GeneralSettings() {
 				onSelect={handleFaviconSelect}
 				mimeTypeFilter="image/"
 				localOnly
-				title={t`Select Favicon`}
+				title={t`Select favicon`}
 			/>
-		</div>
+		</SettingsFrame>
 	);
 }
 
