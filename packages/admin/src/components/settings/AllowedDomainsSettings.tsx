@@ -212,7 +212,11 @@ export function AllowedDomainsSettings() {
 						</Button>
 					)
 				}
-				contentClassName={domains && domains.length > 0 ? undefined : "border-dashed"}
+				contentClassName={
+					domains && domains.length > 0
+						? undefined
+						: "border-2 border-dashed border-kumo-subtle/40"
+				}
 			>
 				{domains && domains.length > 0 ? (
 					domains.map((domain) => (

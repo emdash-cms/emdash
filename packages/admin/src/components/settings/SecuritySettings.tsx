@@ -134,7 +134,11 @@ export function SecuritySettings() {
 				<SettingsSection
 					title={t`Passkeys`}
 					description={t`Use passkeys to sign in securely without a password.`}
-					contentClassName={passkeys && passkeys.length > 0 ? undefined : "border-dashed"}
+					contentClassName={
+						passkeys && passkeys.length > 0
+							? undefined
+							: "border-2 border-dashed border-kumo-subtle/40"
+					}
 				>
 					<SettingRow className="p-0">
 						{passkeys && passkeys.length > 0 ? (
