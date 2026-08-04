@@ -7,7 +7,7 @@
 
 import { Button, Dialog, Input, Loader, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
+import { CheckCircle, MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -195,18 +195,20 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 									>
 										<div className="font-medium">{getItemTitle(item)}</div>
 										<div className="text-sm text-kumo-subtle flex items-center gap-2">
-											<span
-												className={cn(
-													"inline-block h-2 w-2 rounded-full",
-													status === "published"
-														? "bg-kumo-success"
-														: status === "published_with_changes"
+											{status === "published" ? (
+												<CheckCircle className="h-3.5 w-3.5 text-kumo-success" aria-hidden="true" />
+											) : (
+												<span
+													className={cn(
+														"inline-block h-2 w-2 rounded-full",
+														status === "published_with_changes"
 															? "bg-kumo-warning"
 															: "bg-kumo-fill",
-												)}
-											/>
+													)}
+												/>
+											)}
 											{status === "published"
-												? t`Published`
+												? t`Publish`
 												: status === "published_with_changes"
 													? t`Modified`
 													: t`Draft`}

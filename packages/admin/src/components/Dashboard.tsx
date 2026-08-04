@@ -245,7 +245,7 @@ function CollectionList({
 											icon={CheckCircle}
 											count={col.published}
 											variant="success"
-											label={t`Published`}
+											label={t`Publish`}
 										/>
 										<CountBadge
 											icon={PencilSimple}
@@ -347,7 +347,7 @@ function StatusDot({ status }: { status: string }) {
 		scheduled: "text-kumo-info",
 	};
 	const labels: Record<string, string> = {
-		published: t`Published`,
+		published: t`Publish`,
 		draft: t`Draft`,
 		scheduled: t`Scheduled`,
 		pending: t`Pending`,

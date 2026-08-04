@@ -10,7 +10,15 @@ import {
 	Text,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowSquareOut, Eye, EyeSlash, Trash, Upload, X } from "@phosphor-icons/react";
+import {
+	ArrowSquareOut,
+	CheckCircle,
+	Eye,
+	EyeSlash,
+	Trash,
+	Upload,
+	X,
+} from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -186,14 +194,14 @@ export function PublishActions({
 	if (!isLive) {
 		return (
 			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish ${itemLabel}`}
+				{t`Publish`}
 			</Button>
 		);
 	}
 	if (hasPendingChanges) {
 		return (
 			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish updates`}
+				{t`Publish`}
 			</Button>
 		);
 	}
@@ -449,7 +457,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<Label>{t`Status`}</Label>
 									{supportsDrafts ? (
 										<>
-											{isLive && <Badge variant="success">{t`Published`}</Badge>}
+											{isLive && (
+												<Badge variant="success" className="gap-1">
+													<CheckCircle className="h-3 w-3" aria-hidden="true" />
+													{t`Publish`}
+												</Badge>
+											)}
 											{hasPendingChanges && <Badge variant="secondary">{t`Pending changes`}</Badge>}
 											{!isLive && !hasSchedule && <Badge variant="secondary">{t`Draft`}</Badge>}
 											{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}

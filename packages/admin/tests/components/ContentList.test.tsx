@@ -165,10 +165,38 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("draft")).toBeInTheDocument();
 		});
 
-		it("shows published status", async () => {
+		it("shows the normalized Publish status", async () => {
 			const items = [makeItem({ id: "1", status: "published" })];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			await expect.element(screen.getByText("published")).toBeInTheDocument();
+			await expect.element(screen.getByText("Publish")).toBeInTheDocument();
+		});
+
+		it("keeps the Publish icon before its label in Arabic RTL mode", async () => {
+			const previousLanguage = document.documentElement.lang;
+			const previousDirection = document.documentElement.dir;
+			document.documentElement.lang = "ar";
+			document.documentElement.dir = "rtl";
+
+			try {
+				const items = [makeItem({ id: "1", status: "published" })];
+				const screen = await render(<ContentList {...defaultProps} items={items} />);
+				const badge = screen.getByText("Publish").element();
+				const icon = badge.querySelector("svg");
+				const textNode = [...badge.childNodes].find(
+					(node) => node.nodeType === Node.TEXT_NODE && node.textContent?.includes("Publish"),
+				);
+
+				expect(icon).not.toBeNull();
+				expect(textNode).toBeDefined();
+				const textRange = document.createRange();
+				textRange.selectNode(textNode!);
+				expect(icon!.getBoundingClientRect().left).toBeGreaterThan(
+					textRange.getBoundingClientRect().left,
+				);
+			} finally {
+				document.documentElement.lang = previousLanguage;
+				document.documentElement.dir = previousDirection;
+			}
 		});
 
 		it("shows pending badge when draftRevisionId differs from liveRevisionId", async () => {

@@ -22,6 +22,8 @@ import {
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
+	CheckCircle,
+	Upload,
 	X,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
@@ -411,6 +413,7 @@ export function ContentList({
 										variant="secondary"
 										disabled={bulkBusy}
 										onClick={() => runBulk(onBulkPublish)}
+										icon={<Upload />}
 									>
 										{t`Publish`}
 									</Button>
@@ -726,10 +729,21 @@ function FilterBar({
 
 	const statusItems: Record<string, string> = {
 		all: t`All statuses`,
-		published: t`Published`,
+		published: t`Publish`,
 		draft: t`Draft`,
 		scheduled: t`Scheduled`,
 		archived: t`Archived`,
+	};
+	const renderStatusLabel = (value: string) => {
+		const label = statusItems[value] ?? value;
+		return value === "published" ? (
+			<span className="flex items-center gap-1.5">
+				<CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
+				{label}
+			</span>
+		) : (
+			label
+		);
 	};
 
 	const dateFieldItems: Record<string, string> = {
@@ -754,11 +768,12 @@ function FilterBar({
 				aria-label={t`Filter by status`}
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
+				renderValue={(v) => renderStatusLabel(typeof v === "string" ? v : "")}
 				items={statusItems}
 			>
-				{Object.entries(statusItems).map(([value, label]) => (
+				{Object.entries(statusItems).map(([value]) => (
 					<Select.Option key={value} value={value}>
-						{label}
+						{renderStatusLabel(value)}
 					</Select.Option>
 				))}
 			</Select>
@@ -1157,7 +1172,7 @@ function StatusBadge({
 
 	const statusLabel =
 		status === "published"
-			? t`published`
+			? t`Publish`
 			: status === "draft"
 				? t`draft`
 				: status === "scheduled"
@@ -1180,6 +1195,9 @@ function StatusBadge({
 					status === "archived" && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
 				)}
 			>
+				{status === "published" && (
+					<CheckCircle className="me-1.5 h-3.5 w-3.5" aria-hidden="true" />
+				)}
 				{statusLabel}
 			</span>
 			{hasPendingChanges && <Badge variant="secondary">{t`pending`}</Badge>}
