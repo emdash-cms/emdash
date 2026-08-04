@@ -349,6 +349,7 @@ describe("AI Search snippet endpoint", () => {
 		expect(controls.searchRequests.at(-1)).toMatchObject({
 			ai_search_options: {
 				retrieval: {
+					max_num_results: 5,
 					metadata_only: true,
 					filters: { locale: { $eq: "fr" } },
 				},
@@ -369,6 +370,22 @@ describe("AI Search snippet endpoint", () => {
 					},
 				],
 			},
+		});
+	});
+
+	it.each([0, 51, 1.5, "5"])("rejects invalid max_num_results value %j", async (value) => {
+		const response = await handleAISearchSnippetRequest(
+			snippetRequest({
+				messages: [{ role: "user", content: "hello" }],
+				ai_search_options: { retrieval: { max_num_results: value } },
+			}),
+			snippetOptions(makeContext()),
+		);
+
+		expect(response.status).toBe(400);
+		await expect(response.json()).resolves.toEqual({
+			success: false,
+			error: "max_num_results must be an integer between 1 and 50",
 		});
 	});
 

@@ -594,6 +594,7 @@ async function getSynonymRewriter(kv: KVReader): Promise<SynonymRewriter> {
 interface AISearchQueryInput {
 	query: string;
 	locale: string;
+	maxResults?: number;
 	collection?: string;
 }
 
@@ -673,6 +674,7 @@ export async function searchAISearch(
 			messages: [{ role: "user", content: effectiveQuery }],
 			ai_search_options: {
 				retrieval: {
+					...(input.maxResults === undefined ? {} : { max_num_results: input.maxResults }),
 					filters: {
 						visible_after: { $lte: nowSeconds },
 						locale: { $eq: locale },
@@ -1391,11 +1393,24 @@ export async function handleAISearchSnippetRequest(
 		typeof body.locale === "string" && body.locale ? body.locale : options.defaultLocale;
 	const collection =
 		typeof body.collection === "string" && body.collection ? body.collection : undefined;
+	const maxResults = body.ai_search_options?.retrieval?.max_num_results;
+	if (
+		maxResults !== undefined &&
+		(typeof maxResults !== "number" ||
+			!Number.isInteger(maxResults) ||
+			maxResults < 1 ||
+			maxResults > 50)
+	) {
+		return Response.json(
+			{ success: false, error: "max_num_results must be an integer between 1 and 50" },
+			{ status: 400 },
+		);
+	}
 
 	try {
 		const result = await searchAISearch(
 			options.config,
-			{ query: query.trim(), locale, collection },
+			{ query: query.trim(), locale, maxResults, collection },
 			options.kv,
 			options.defaultLocale,
 		);
