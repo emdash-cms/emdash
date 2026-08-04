@@ -98,6 +98,11 @@ export function getActiveAISearchConfig(): AISearchConfig {
 const CONFIG_COLLECTIONS_KEY = "config:collections";
 const DEFAULT_COLLECTIONS = ["posts", "pages"];
 
+/** KV prefix of the id-map mirrors (`item:{collection}/{id}.md` -> item id). */
+const MIRROR_PREFIX = "item:";
+/** Parallel deletions when purging mirrors of deselected collections. */
+const PURGE_CONCURRENCY = 4;
+
 /**
  * KV key holding query synonyms configured in the admin dashboard. Each entry
  * maps a term/phrase (`from`) to a replacement (`to`) that is substituted into
@@ -831,6 +836,56 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		await ctx.kv.set(CONFIG_COLLECTIONS_KEY, collections);
 	}
 
+	/**
+	 * Persist the operator's collection selection and purge every mirrored
+	 * document whose collection is no longer selected.
+	 *
+	 * The selection is stored before any deletion so concurrent content hooks
+	 * stop indexing deselected collections while the purge runs. An explicit
+	 * empty selection therefore removes every mirrored document.
+	 */
+	async function applyConfiguredCollections(
+		ctx: PluginContext,
+		collections: string[],
+	): Promise<void> {
+		await saveConfiguredCollections(ctx, collections);
+
+		const selected = new Set(collections);
+		const mirrors = await ctx.kv.list(MIRROR_PREFIX);
+		const excluded = mirrors
+			.map((entry) => entry.key.replace(ITEM_PREFIX, ""))
+			.filter((key) => !selected.has(parseContentKey(key).collection));
+		if (excluded.length === 0) return;
+
+		let cursor = 0;
+		let failures = 0;
+		await Promise.all(
+			Array.from({ length: Math.min(PURGE_CONCURRENCY, excluded.length) }, async () => {
+				// `cursor` advances synchronously between awaits, so each worker
+				// claims a distinct mirror.
+				while (cursor < excluded.length) {
+					const key = excluded[cursor++]!;
+					try {
+						const itemId = await ctx.kv.get<string>(`${MIRROR_PREFIX}${key}`);
+						if (!itemId) continue;
+						await deleteIndexedItem(key, itemId, ctx);
+					} catch (error) {
+						failures++;
+						console.error(`[ai-search] Failed to remove deselected ${key}:`, error);
+					}
+				}
+			}),
+		);
+
+		if (failures > 0) {
+			throw new PluginRouteError(
+				"AI_SEARCH_PURGE_FAILED",
+				`Collections saved, but ${failures} deselected item(s) could not be removed from the index`,
+				503,
+			);
+		}
+	}
+
 	/** Read the query synonyms configured in the dashboard. */
 	async function getConfiguredSynonyms(ctx: PluginContext): Promise<Synonym[]> {
 		const saved = await ctx.kv.get<Synonym[]>(CONFIG_SYNONYMS_KEY);
@@ -916,27 +971,35 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		}
 	}
 
+	/**
+	 * Delete one mirrored document from AI Search and drop its KV mirror.
+	 * Throws, so callers decide whether a failure is fatal.
+	 */
+	async function deleteIndexedItem(key: string, itemId: string, ctx: PluginContext): Promise<void> {
+		const ns = await getBinding();
+		if (!ns) return;
+
+		const instance = await ensureInstance(ns);
+		await instance.items.delete(itemId);
+		// Do not erase a replacement written by a concurrent save/reindex.
+		if ((await ctx.kv.get<string>(`item:${key}`)) === itemId) {
+			await ctx.kv.delete(`item:${key}`);
+		}
+		console.log(`[ai-search] Removed ${key} (item: ${itemId})`);
+	}
+
 	/** Remove a content item from the AI Search index. */
 	async function removeFromIndex(
 		collection: string,
 		id: string,
 		ctx: PluginContext,
 	): Promise<void> {
-		const ns = await getBinding();
-		if (!ns) return;
-
 		const key = contentKey(collection, id);
 		try {
 			const itemId = await ctx.kv.get<string>(`item:${key}`);
 			if (!itemId) return;
 
-			const instance = await ensureInstance(ns);
-			await instance.items.delete(itemId);
-			// Do not erase a replacement written by a concurrent save/reindex.
-			if ((await ctx.kv.get<string>(`item:${key}`)) === itemId) {
-				await ctx.kv.delete(`item:${key}`);
-			}
-			console.log(`[ai-search] Removed ${key} (item: ${itemId})`);
+			await deleteIndexedItem(key, itemId, ctx);
 		} catch (error) {
 			console.error("[ai-search] Error removing content:", error);
 		}
@@ -1339,7 +1402,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 								"collections must be an array or comma-separated list of collection slugs",
 							);
 						}
-						await saveConfiguredCollections(ctx, collections);
+						await applyConfiguredCollections(ctx, collections);
 					}
 
 					if (input?.synonyms !== undefined) {
@@ -1384,7 +1447,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 								"No collections specified. Select collections in the dashboard first.",
 							);
 						}
-						await saveConfiguredCollections(ctx, collections);
+						await applyConfiguredCollections(ctx, collections);
 						job = createReindexJob(collections, input?.onlyMissing === true);
 						await ctx.kv.set(REINDEX_JOB_KEY, job);
 					}

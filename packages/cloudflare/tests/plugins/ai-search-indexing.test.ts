@@ -672,6 +672,47 @@ describe("ai-search collection configuration", () => {
 			plugin.routes.config!.handler(routeContext(ctx, {}, "GET") as never),
 		).resolves.toMatchObject({ collections: [] });
 	});
+
+	it("removes already-indexed items of a deselected collection", async () => {
+		uploads.length = 0;
+		deletions.length = 0;
+		createConfigs.length = 0;
+		controls.uploadFailures = 0;
+		controls.holdUploads = false;
+		controls.instanceMissing = false;
+		const plugin = createPlugin();
+		const ctx = makeContext();
+
+		const index = async (collection: string, id: string) => {
+			await plugin.hooks["content:afterSave"]!.handler(
+				{
+					content: {
+						id,
+						slug: id,
+						status: "published",
+						locale: "en",
+						data: { title: `Title ${id}`, body: `Body ${id}` },
+					},
+					collection,
+					isNew: true,
+				},
+				ctx,
+			);
+		};
+
+		await index("posts", "stale-post");
+		await index("pages", "kept-page");
+		const staleItemId = await ctx.kv.get<string>("item:posts/stale-post.md");
+		const keptItemId = await ctx.kv.get<string>("item:pages/kept-page.md");
+		expect(staleItemId).toBeTruthy();
+		expect(keptItemId).toBeTruthy();
+
+		await plugin.routes.config!.handler(routeContext(ctx, { collections: ["pages"] }) as never);
+
+		expect(deletions).toEqual([staleItemId]);
+		await expect(ctx.kv.get("item:posts/stale-post.md")).resolves.toBeNull();
+		await expect(ctx.kv.get("item:pages/kept-page.md")).resolves.toBe(keptItemId);
+	});
 });
 
 describe("ai-search metadata schema route", () => {
