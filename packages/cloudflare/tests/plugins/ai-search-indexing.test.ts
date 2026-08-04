@@ -1,5 +1,5 @@
 import type { PluginContext } from "emdash";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const { uploads, deletions, createConfigs, updates, controls, pendingUploads, fakeEnv } =
 	vi.hoisted(() => {
@@ -15,6 +15,8 @@ const { uploads, deletions, createConfigs, updates, controls, pendingUploads, fa
 			uploadFailures: 0,
 			holdUploads: false,
 			instanceMissing: false,
+			infoError: null as Error | null,
+			createError: null as Error | null,
 			searchError: null as Error | null,
 			searchChunks: [] as Array<Record<string, unknown>>,
 			searchRequests: [] as Array<Record<string, unknown>>,
@@ -26,6 +28,7 @@ const { uploads, deletions, createConfigs, updates, controls, pendingUploads, fa
 		>();
 		const instance = {
 			info: () => {
+				if (state.infoError) return Promise.reject(state.infoError);
 				if (!state.instanceMissing) return Promise.resolve(state.instanceInfo);
 				const error = new Error("ai_search_not_found");
 				error.name = "AiSearchNotFoundError";
@@ -71,6 +74,7 @@ const { uploads, deletions, createConfigs, updates, controls, pendingUploads, fa
 				configs.push(config);
 				state.instanceMissing = false;
 				state.instanceInfo = config;
+				if (state.createError) return Promise.reject(state.createError);
 				return Promise.resolve(instance);
 			},
 		};
@@ -1010,5 +1014,49 @@ describe("ai-search content:afterSave indexing", () => {
 		);
 
 		expect(uploads).toHaveLength(0);
+	});
+});
+
+describe("ai-search instance creation", () => {
+	beforeEach(() => {
+		createConfigs.length = 0;
+		controls.searchChunks = [];
+		controls.searchError = null;
+		controls.infoError = null;
+		controls.createError = null;
+		controls.instanceMissing = false;
+		controls.instanceInfo = { id: "emdash-content" };
+	});
+
+	afterEach(() => {
+		controls.infoError = null;
+		controls.createError = null;
+		controls.instanceMissing = false;
+		controls.instanceInfo = { id: "emdash-content" };
+	});
+
+	it("does not create an instance when the info probe fails transiently", async () => {
+		controls.infoError = new Error("internal error");
+
+		const response = await handleAISearchSnippetRequest(
+			snippetRequest({ messages: [{ role: "user", content: "query" }] }),
+			snippetOptions(makeContext()),
+		);
+
+		expect(response.status).toBe(503);
+		expect(createConfigs).toHaveLength(0);
+	});
+
+	it("searches successfully after losing a concurrent create race", async () => {
+		controls.instanceMissing = true;
+		controls.createError = new Error("instance already exists");
+
+		const response = await handleAISearchSnippetRequest(
+			snippetRequest({ messages: [{ role: "user", content: "query" }] }),
+			snippetOptions(makeContext()),
+		);
+
+		expect(response.status).toBe(200);
+		expect(createConfigs).toHaveLength(1);
 	});
 });

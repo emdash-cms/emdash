@@ -658,12 +658,25 @@ async function ensureAISearchInstance(
 	try {
 		await handle.info();
 		return handle;
-	} catch {
-		return ns.create({
+	} catch (error) {
+		if (!isMissingAISearchInstanceError(error)) throw error;
+	}
+
+	try {
+		return await ns.create({
 			id: instanceName,
 			index_method: { vector: true, keyword: config.hybridSearch ?? true },
 			custom_metadata: REQUIRED_CUSTOM_METADATA,
 		});
+	} catch (createError) {
+		// A concurrent initializer may have won the create; the failure is only
+		// fatal if the instance still is not there.
+		try {
+			await handle.info();
+		} catch {
+			throw createError;
+		}
+		return handle;
 	}
 }
 
