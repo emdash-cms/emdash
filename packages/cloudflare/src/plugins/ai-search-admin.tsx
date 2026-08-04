@@ -102,6 +102,7 @@ function SettingsPage() {
 	const [available, setAvailable] = React.useState<CollectionOption[]>([]);
 	const [loadingCollections, setLoadingCollections] = React.useState(true);
 	const [collectionsError, setCollectionsError] = React.useState<string | null>(null);
+	const [collectionsSaveError, setCollectionsSaveError] = React.useState<string | null>(null);
 	const [selected, setSelected] = React.useState<string[]>([]);
 
 	const [status, setStatus] = React.useState<IndexStatus | null>(null);
@@ -163,13 +164,7 @@ function SettingsPage() {
 
 				const valid = new Set(options.map((c) => c.slug));
 				const saved = (configData.collections ?? []).filter((slug) => valid.has(slug));
-				// Restore the last configured selection; fall back to the common
-				// content collections when nothing has been configured yet.
-				const initial =
-					saved.length > 0
-						? saved
-						: options.filter((c) => c.slug === "posts" || c.slug === "pages").map((c) => c.slug);
-				setSelected(initial);
+				setSelected(saved);
 			} catch (err) {
 				if (!cancelled) {
 					setCollectionsError(err instanceof Error ? err.message : "Failed to load collections");
@@ -195,15 +190,18 @@ function SettingsPage() {
 		[available],
 	);
 
-	// Persist the operator's selection so it is restored on the next visit.
-	const persistSelection = React.useCallback((next: string[]) => {
-		void apiFetch(`${API_BASE}/config`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ collections: next }),
-		}).catch(() => {
-			// Non-critical: selection still applies for this session.
-		});
+	const persistSelection = React.useCallback(async (next: string[]) => {
+		setCollectionsSaveError(null);
+		try {
+			const response = await apiFetch(`${API_BASE}/config`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ collections: next }),
+			});
+			await parseApiResponse(response, "Failed to save collections");
+		} catch (err) {
+			setCollectionsSaveError(err instanceof Error ? err.message : "Failed to save collections");
+		}
 	}, []);
 
 	const handleSelectionChange = React.useCallback(
@@ -444,6 +442,14 @@ function SettingsPage() {
 								</Combobox.List>
 							</Combobox.Content>
 						</Combobox>
+					)}
+
+					{collectionsSaveError && (
+						<Banner
+							variant="error"
+							title="Could not save collections"
+							description={collectionsSaveError}
+						/>
 					)}
 
 					<div className="flex items-center gap-3">

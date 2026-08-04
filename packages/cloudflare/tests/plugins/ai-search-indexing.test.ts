@@ -645,6 +645,29 @@ describe("ai-search endpoint and route errors", () => {
 	});
 });
 
+describe("ai-search collection configuration", () => {
+	it("returns effective defaults without persisting them", async () => {
+		const plugin = createPlugin();
+		const ctx = makeContext();
+
+		await expect(
+			plugin.routes.config!.handler(routeContext(ctx, {}, "GET") as never),
+		).resolves.toMatchObject({ collections: ["posts", "pages"] });
+		await expect(ctx.kv.get("config:collections")).resolves.toBeNull();
+	});
+
+	it("preserves an explicitly empty collection selection", async () => {
+		const plugin = createPlugin();
+		const ctx = makeContext();
+
+		await plugin.routes.config!.handler(routeContext(ctx, { collections: [] }) as never);
+
+		await expect(
+			plugin.routes.config!.handler(routeContext(ctx, {}, "GET") as never),
+		).resolves.toMatchObject({ collections: [] });
+	});
+});
+
 describe("ai-search metadata schema route", () => {
 	const requiredSchema = [
 		{ field_name: "visible_after", data_type: "number" },
@@ -753,6 +776,27 @@ describe("ai-search metadata schema route", () => {
 });
 
 describe("ai-search content:afterSave indexing", () => {
+	it("uses the effective default collections before configuration is saved", async () => {
+		uploads.length = 0;
+		const plugin = createPlugin();
+
+		await plugin.hooks["content:afterSave"]!.handler(
+			{
+				content: {
+					id: "product",
+					slug: "product",
+					status: "published",
+					data: { title: "Product" },
+				},
+				collection: "products",
+				isNew: true,
+			},
+			makeContext(),
+		);
+
+		expect(uploads).toHaveLength(0);
+	});
+
 	it("creates new instances with the current index_method configuration", async () => {
 		uploads.length = 0;
 		createConfigs.length = 0;

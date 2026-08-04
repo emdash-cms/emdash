@@ -96,6 +96,7 @@ export function getActiveAISearchConfig(): AISearchConfig {
  * the content hooks know which collections to index.
  */
 const CONFIG_COLLECTIONS_KEY = "config:collections";
+const DEFAULT_COLLECTIONS = ["posts", "pages"];
 
 /**
  * KV key holding query synonyms configured in the admin dashboard. Each entry
@@ -786,6 +787,10 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		return Array.isArray(saved) ? saved : null;
 	}
 
+	async function getEffectiveCollections(ctx: PluginContext): Promise<string[]> {
+		return (await getConfiguredCollections(ctx)) ?? DEFAULT_COLLECTIONS;
+	}
+
 	/** Persist the operator's collection selection from the dashboard. */
 	async function saveConfiguredCollections(
 		ctx: PluginContext,
@@ -811,13 +816,11 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 
 	/**
 	 * Whether a content hook should act on the given collection. Content is
-	 * synced only for collections the operator selected in the dashboard. When
-	 * nothing has been configured yet, all collections are indexed so the
-	 * plugin works out of the box until the operator narrows the selection.
+	 * synced only for collections the operator selected in the dashboard, or the
+	 * default collections when no selection has been saved yet.
 	 */
 	async function shouldSync(collection: string, ctx: PluginContext): Promise<boolean> {
-		const configured = await getConfiguredCollections(ctx);
-		return configured === null || configured.includes(collection);
+		return (await getEffectiveCollections(ctx)).includes(collection);
 	}
 
 	async function getBinding(): Promise<AiSearchNamespace | null> {
@@ -1300,7 +1303,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 				handler: async (ctx: RouteContext): Promise<unknown> => {
 					if (ctx.request.method.toUpperCase() === "GET") {
 						return {
-							collections: (await getConfiguredCollections(ctx)) ?? [],
+							collections: await getEffectiveCollections(ctx),
 							synonyms: await getConfiguredSynonyms(ctx),
 						};
 					}
@@ -1328,7 +1331,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					}
 
 					return {
-						collections: (await getConfiguredCollections(ctx)) ?? [],
+						collections: await getEffectiveCollections(ctx),
 						synonyms: await getConfiguredSynonyms(ctx),
 					};
 				},
@@ -1353,7 +1356,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					let job = current?.status === "running" ? current : null;
 					if (!job) {
 						const collections =
-							parseCollections(input?.collections) ?? (await getConfiguredCollections(ctx)) ?? [];
+							parseCollections(input?.collections) ?? (await getEffectiveCollections(ctx));
 						if (collections.length === 0) {
 							throw PluginRouteError.badRequest(
 								"No collections specified. Select collections in the dashboard first.",
