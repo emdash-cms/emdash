@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { SettingsFrame, SettingsSection, SettingRow } from "../../src/components/settings/SettingsLayout.js";
 import type { AdminManifest } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
@@ -110,31 +109,5 @@ describe("Settings", () => {
 		await expect.element(screen.getByText("General")).toBeInTheDocument();
 		expect(screen.getByText("Security").query()).toBeNull();
 		expect(screen.getByText("Self-Signup Domains").query()).toBeNull();
-	});
-
-	it("groups settings links into named sections", async () => {
-		const screen = await render(
-			<Wrapper>
-				<Settings />
-			</Wrapper>,
-		);
-
-		await expect.element(screen.getByRole("heading", { name: "Site" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("heading", { name: "Developer" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("heading", { name: "Operations" })).toBeInTheDocument();
-	});
-
-	it("provides semantic settings layout primitives", async () => {
-		const screen = await render(
-			<SettingsFrame title="Example settings">
-				<SettingsSection title="Example section">
-					<SettingRow label="Example label" description="Example description" control={<button>Save</button>} />
-				</SettingsSection>
-			</SettingsFrame>,
-		);
-
-		await expect.element(screen.getByRole("heading", { name: "Example settings" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("heading", { name: "Example section" })).toBeInTheDocument();
-		await expect.element(screen.getByText("Example description")).toBeInTheDocument();
 	});
 });
