@@ -56,7 +56,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 				PERFORM 1
 				FROM _emdash_media_usage_cleanup AS cleanup
 				WHERE cleanup.task_key = 'projection_gc'
-				FOR UPDATE;
+				FOR SHARE;
 				RETURN NULL;
 			END;
 			$$

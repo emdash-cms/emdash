@@ -90,7 +90,38 @@ it("uses an indexed, D1-compatible fixed statement and bind budget", async () =>
 	expect(candidateQuery).toBeDefined();
 	const plan = explain(candidateQuery!);
 	expect(plan).toContain("idx__emdash_media_usage_cleanup_scan");
-	expect(plan).not.toContain("USE TEMP B-TREE FOR ORDER BY");
+	expect(plan).not.toContain("USE TEMP B-TREE");
+});
+
+it("uses the expiry index without sorting generation write leases", async () => {
+	await db
+		.insertInto("_emdash_media_usage_generation_writes")
+		.values(
+			Array.from({ length: 20 }, (_, index) => ({
+				source_key: `expired-source-${index}`,
+				generation: `expired-generation-${index}`,
+				lease_token: `expired-writer-lease-${index}`,
+				expires_at: "2026-02-01T00:00:00.000Z",
+				created_at: "2026-02-01T00:00:00.000Z",
+			})),
+		)
+		.execute();
+	captured = [];
+	afterQuery = (query) => {
+		if (query.sql.startsWith('select "lease_token" from "_emdash_media_usage_generation_writes"')) {
+			vi.advanceTimersByTime(MAX_CLEANUP_ADMISSION_TIME_MS);
+		}
+	};
+
+	await cleanupMediaUsage(db);
+
+	const expiryQuery = captured.find((query) =>
+		query.sql.startsWith('select "lease_token" from "_emdash_media_usage_generation_writes"'),
+	);
+	expect(expiryQuery).toBeDefined();
+	const plan = explain(expiryQuery!);
+	expect(plan).toContain("idx__emdash_media_usage_generation_writes_expiry");
+	expect(plan).not.toContain("USE TEMP B-TREE");
 });
 
 it("does not dispatch a delete after marking consumes the time budget", async () => {
@@ -495,11 +526,11 @@ it.skipIf(!hasPgTestDatabase)("uses the cleanup scan index in PostgreSQL", async
 	const context = await setupForDialect("postgres");
 	try {
 		const now = new Date();
-		for (let batchStart = 0; batchStart < 600; batchStart += 100) {
+		for (let batchStart = 0; batchStart < 6_000; batchStart += 1_000) {
 			await context.db
 				.insertInto("_emdash_media_usage")
 				.values(
-					Array.from({ length: 100 }, (_, offset) => {
+					Array.from({ length: 1_000 }, (_, offset) => {
 						const index = batchStart + offset;
 						return {
 							id: `plan-${index}`,
@@ -522,14 +553,37 @@ it.skipIf(!hasPgTestDatabase)("uses the cleanup scan index in PostgreSQL", async
 		}
 
 		await sql`ANALYZE _emdash_media_usage`.execute(context.db);
+		await context.db
+			.updateTable("_emdash_media_usage_cleanup")
+			.set({
+				lease_token: "plan-cleanup-lease",
+				lease_expires_at: "2100-01-01T00:00:00.000Z",
+			})
+			.where("task_key", "=", "projection_gc")
+			.execute();
 		const result = await sql<{ "QUERY PLAN": string }>`
 			EXPLAIN (COSTS OFF)
-			SELECT u.id
+			SELECT
+				u.id,
+				u.source_key,
+				u.generation,
+				u.created_at,
+				s.current_generation,
+				s.indexed_at,
+				writer.expires_at AS write_lease_expires_at
 			FROM _emdash_media_usage AS u
 			LEFT JOIN _emdash_media_usage_sources AS s ON s.source_key = u.source_key
 			LEFT JOIN _emdash_media_usage_generation_writes AS writer
 				ON writer.source_key = u.source_key AND writer.generation = u.generation
 			WHERE u.created_at < ${now.toISOString()}
+				AND EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_cleanup AS cleanup
+					WHERE cleanup.task_key = 'projection_gc'
+						AND cleanup.lease_token = 'plan-cleanup-lease'
+						AND cleanup.lease_expires_at::timestamptz > clock_timestamp()
+					FOR UPDATE
+				)
 			ORDER BY u.created_at ASC, u.id ASC
 			LIMIT 250
 		`.execute(context.db);

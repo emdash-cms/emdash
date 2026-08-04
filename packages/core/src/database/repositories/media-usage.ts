@@ -499,15 +499,19 @@ export class MediaUsageRepository {
 	}
 
 	async markSourceAttempted(source: MediaUsageSourceInput): Promise<MediaUsageSource> {
-		const now = new Date().toISOString();
-		const row = this.buildAttemptedSourceRow(source, now);
-		const updates = this.attemptedSourceUpdateSet(source, row);
-
-		await this.db
-			.insertInto("_emdash_media_usage_sources")
-			.values(row)
-			.onConflict((oc) => oc.column("source_key").doUpdateSet(updates))
-			.execute();
+		const generation = ulid();
+		await this.withGenerationWriteLease(source.sourceKey, generation, async (leaseToken, now) => {
+			const row = this.buildAttemptedSourceRow(source, generation, now);
+			const updates = this.attemptedSourceUpdateSet(source, row);
+			const result = await this.db
+				.insertInto("_emdash_media_usage_sources")
+				.values(row)
+				.onConflict((oc) => oc.column("source_key").doUpdateSet(updates))
+				.executeTakeFirst();
+			if ((result.numInsertedOrUpdatedRows ?? 0n) <= 0n) {
+				throw new Error(`Media usage generation lease expired for ${source.sourceKey}`);
+			}
+		});
 
 		const attempted = await this.findSource(source.sourceKey);
 		if (!attempted) {
@@ -520,18 +524,21 @@ export class MediaUsageRepository {
 		source: MediaUsageSourceInput,
 		expectedSource: MediaUsageSource | null,
 	): Promise<MediaUsageGuardedAttemptResult> {
-		const now = new Date().toISOString();
-		const row = this.buildAttemptedSourceRow(source, now);
+		const generation = ulid();
 		let attempted = false;
 
 		if (expectedSource === null) {
-			const result = await this.db
-				.insertInto("_emdash_media_usage_sources")
-				.values(row)
-				.onConflict((oc) => oc.column("source_key").doNothing())
-				.executeTakeFirst();
-			attempted = (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
+			await this.withGenerationWriteLease(source.sourceKey, generation, async (leaseToken, now) => {
+				const row = this.buildAttemptedSourceRow(source, generation, now);
+				const result = await this.db
+					.insertInto("_emdash_media_usage_sources")
+					.values(row)
+					.onConflict((oc) => oc.column("source_key").doNothing())
+					.executeTakeFirst();
+				attempted = (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
+			});
 		} else {
+			const row = this.buildAttemptedSourceRow(source, generation, new Date().toISOString());
 			attempted = await this.updateAttemptedSourceIfMatching(this.db, source, row, expectedSource);
 		}
 
@@ -1699,7 +1706,7 @@ export class MediaUsageRepository {
 			SELECT 1
 			FROM _emdash_media_usage_cleanup
 			WHERE task_key = 'projection_gc'
-			FOR UPDATE
+			FOR SHARE
 		`.execute(db);
 	}
 
@@ -2050,7 +2057,7 @@ export class MediaUsageRepository {
 		};
 	}
 
-	private buildAttemptedSourceRow(source: MediaUsageSourceInput, now: string) {
+	private buildAttemptedSourceRow(source: MediaUsageSourceInput, generation: string, now: string) {
 		return {
 			source_key: source.sourceKey,
 			source_type: source.sourceType,
@@ -2065,7 +2072,7 @@ export class MediaUsageRepository {
 			content_scheduled_at: source.contentScheduledAt ?? null,
 			content_deleted_at: source.contentDeletedAt ?? null,
 			revision_id: source.revisionId ?? null,
-			current_generation: ulid(),
+			current_generation: generation,
 			schema_version: source.schemaVersion ?? 1,
 			source_updated_at: source.sourceUpdatedAt ?? null,
 			source_version: source.sourceVersion ?? null,

@@ -56,7 +56,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.createIndex("idx__emdash_media_usage_generation_writes_expiry")
 		.ifNotExists()
 		.on("_emdash_media_usage_generation_writes")
-		.columns(["expires_at", "source_key", "generation"])
+		.columns(["expires_at", "lease_token"])
 		.execute();
 
 	await sql`
