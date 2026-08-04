@@ -607,4 +607,80 @@ describe("ai-search content:afterSave indexing", () => {
 
 		expect(uploads).toHaveLength(0);
 	});
+
+	it("removes non-public content even when its collection is deselected", async () => {
+		deletions.length = 0;
+		const plugin = createPlugin();
+		const ctx = makeContext();
+		await plugin.routes.config!.handler(routeContext(ctx, { collections: ["pages"] }) as never);
+		for (const id of ["saved-draft", "restored-draft"]) {
+			await ctx.kv.set(`item:posts/${id}.md`, `item-${id}`);
+		}
+
+		await plugin.hooks["content:afterSave"]!.handler(
+			{
+				content: { id: "saved-draft", slug: "saved-draft", status: "draft", data: {} },
+				collection: "posts",
+				isNew: false,
+			},
+			ctx,
+		);
+		await plugin.hooks["content:afterRestore"]!.handler(
+			{
+				content: { id: "restored-draft", slug: "restored-draft", status: "draft", data: {} },
+				collection: "posts",
+			} as never,
+			ctx,
+		);
+
+		expect(deletions).toEqual(["item-saved-draft", "item-restored-draft"]);
+	});
+
+	it("always removes unpublished, unscheduled, and deleted content from deselected collections", async () => {
+		deletions.length = 0;
+		const plugin = createPlugin();
+		const ctx = makeContext();
+		await plugin.routes.config!.handler(routeContext(ctx, { collections: ["pages"] }) as never);
+		for (const id of ["unpublished", "unscheduled", "deleted"]) {
+			await ctx.kv.set(`item:posts/${id}.md`, `item-${id}`);
+		}
+
+		await plugin.hooks["content:afterUnpublish"]!.handler(
+			{ content: { id: "unpublished" }, collection: "posts" } as never,
+			ctx,
+		);
+		await plugin.hooks["content:afterUnschedule"]!.handler(
+			{ content: { id: "unscheduled" }, collection: "posts" } as never,
+			ctx,
+		);
+		await plugin.hooks["content:afterDelete"]!.handler(
+			{ id: "deleted", collection: "posts" } as never,
+			ctx,
+		);
+
+		expect(deletions).toEqual(["item-unpublished", "item-unscheduled", "item-deleted"]);
+	});
+
+	it("still gates public additions when a collection is deselected", async () => {
+		uploads.length = 0;
+		const plugin = createPlugin();
+		const ctx = makeContext();
+		await plugin.routes.config!.handler(routeContext(ctx, { collections: ["pages"] }) as never);
+
+		await plugin.hooks["content:afterSave"]!.handler(
+			{
+				content: {
+					id: "published",
+					slug: "published",
+					status: "published",
+					data: { title: "Published" },
+				},
+				collection: "posts",
+				isNew: true,
+			},
+			ctx,
+		);
+
+		expect(uploads).toHaveLength(0);
+	});
 });

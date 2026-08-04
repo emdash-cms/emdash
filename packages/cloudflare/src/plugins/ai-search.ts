@@ -1021,7 +1021,11 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 						typeof content.draftRevisionId === "string" &&
 						content.draftRevisionId !== content.liveRevisionId;
 					if (hasPendingDraft) return;
-					if (!(await shouldSync(collection, ctx))) return;
+					if (
+						(content.status === "published" || content.status === "scheduled") &&
+						!(await shouldSync(collection, ctx))
+					)
+						return;
 
 					// Sync based on the current status: published content is visible
 					// immediately (visible_after=0), scheduled content is indexed but
@@ -1048,7 +1052,6 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					ctx: PluginContext,
 				): Promise<void> => {
 					const { content, collection } = event;
-					if (!(await shouldSync(collection, ctx))) return;
 
 					return waitForSync(removeFromIndex(collection, String(content.id), ctx));
 				},
@@ -1074,7 +1077,6 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					ctx: PluginContext,
 				): Promise<void> => {
 					const { content, collection } = event;
-					if (!(await shouldSync(collection, ctx))) return;
 
 					// Unscheduling returns the item to a draft state — drop it from
 					// the index.
@@ -1088,7 +1090,11 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					ctx: PluginContext,
 				): Promise<void> => {
 					const { content, collection } = event;
-					if (!(await shouldSync(collection, ctx))) return;
+					if (
+						(content.status === "published" || content.status === "scheduled") &&
+						!(await shouldSync(collection, ctx))
+					)
+						return;
 
 					// Restored content re-enters the index according to its restored
 					// status (published/scheduled index, otherwise remove).
@@ -1099,7 +1105,6 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 			"content:afterDelete": {
 				handler: async (event: ContentDeleteEvent, ctx: PluginContext): Promise<void> => {
 					const { id, collection } = event;
-					if (!(await shouldSync(collection, ctx))) return;
 
 					return waitForSync(removeFromIndex(collection, id, ctx));
 				},
