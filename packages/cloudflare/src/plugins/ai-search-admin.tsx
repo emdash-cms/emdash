@@ -112,6 +112,32 @@ function SettingsPage() {
 	const [isSavingSynonyms, setIsSavingSynonyms] = React.useState(false);
 	const [synonymsSaved, setSynonymsSaved] = React.useState(false);
 	const [synonymsError, setSynonymsError] = React.useState<string | null>(null);
+	const [metadataValid, setMetadataValid] = React.useState<boolean | null>(null);
+	const [isLoadingMetadata, setIsLoadingMetadata] = React.useState(true);
+	const [isRepairingMetadata, setIsRepairingMetadata] = React.useState(false);
+	const [metadataError, setMetadataError] = React.useState<string | null>(null);
+
+	React.useEffect(() => {
+		let cancelled = false;
+		void (async () => {
+			try {
+				const response = await apiFetch(`${API_BASE}/metadata`);
+				const data = await parseApiResponse<{ valid: boolean }>(response);
+				if (!cancelled) setMetadataValid(data.valid);
+			} catch (err) {
+				if (!cancelled) {
+					setMetadataError(
+						err instanceof Error ? err.message : "Failed to check metadata configuration",
+					);
+				}
+			} finally {
+				if (!cancelled) setIsLoadingMetadata(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	React.useEffect(() => {
 		let cancelled = false;
@@ -186,10 +212,31 @@ function SettingsPage() {
 				? value.filter((item): item is string => typeof item === "string")
 				: [];
 			setSelected(next);
-			persistSelection(next);
+			void persistSelection(next);
 		},
 		[persistSelection],
 	);
+
+	const handleRepairMetadata = async () => {
+		setIsRepairingMetadata(true);
+		setMetadataError(null);
+		try {
+			const response = await apiFetch(`${API_BASE}/metadata`, {
+				method: "POST",
+			});
+			const data = await parseApiResponse<{ valid: true }>(
+				response,
+				"Failed to fix metadata configuration",
+			);
+			setMetadataValid(data.valid);
+		} catch (err) {
+			setMetadataError(
+				err instanceof Error ? err.message : "Failed to fix metadata configuration",
+			);
+		} finally {
+			setIsRepairingMetadata(false);
+		}
+	};
 
 	const runSync = React.useCallback(
 		async (body: Record<string, unknown>, mode: "full" | "missing") => {
@@ -312,6 +359,42 @@ function SettingsPage() {
 	return (
 		<div className="space-y-6">
 			<h1 className="text-3xl font-bold">AI Search</h1>
+
+			{isLoadingMetadata && (
+				<div className="flex items-center gap-2">
+					<Loader size="sm" />
+					<span className="text-muted-foreground text-sm">Checking metadata configuration…</span>
+				</div>
+			)}
+
+			{metadataValid === false && (
+				<div className="space-y-3">
+					<Banner
+						variant="alert"
+						title="AI Search metadata is incorrect"
+						description="Search may work inconsistently until the metadata settings are corrected."
+					/>
+					<Button
+						onClick={() => void handleRepairMetadata()}
+						loading={isRepairingMetadata}
+						disabled={isRepairingMetadata}
+					>
+						Fix metadata
+					</Button>
+					<p className="text-muted-foreground text-sm">
+						Fixing metadata triggers a full background reindex. Search results may be temporarily
+						inconsistent while it completes.
+					</p>
+				</div>
+			)}
+
+			{metadataError && (
+				<Banner
+					variant="error"
+					title={metadataValid === false ? "Could not fix metadata" : "Could not check metadata"}
+					description={metadataError}
+				/>
+			)}
 
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<h2 className="mb-1 text-lg font-semibold">Sync Content</h2>

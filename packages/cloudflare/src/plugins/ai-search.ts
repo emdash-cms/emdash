@@ -60,6 +60,7 @@ import type { EmDashRuntime } from "emdash/middleware";
 
 const MD_EXT = /\.md$/;
 const ITEM_PREFIX = /^item:/;
+const INSTANCE_NOT_FOUND_MESSAGE = /instance.*not found|not found.*instance/i;
 
 // =============================================================================
 // Configuration
@@ -209,19 +210,30 @@ interface AiSearchItemInfo {
 	metadata?: Record<string, unknown>;
 }
 
+interface AiSearchCustomMetadata {
+	field_name: string;
+	data_type: "text" | "number" | "boolean" | "datetime";
+}
+
 interface AiSearchConfig {
 	id: string;
 	type?: string;
 	source?: string;
 	index_method?: { vector: boolean; keyword: boolean };
-	custom_metadata?: Array<{ field_name: string; data_type: "text" | "number" | "boolean" }>;
+	custom_metadata?: AiSearchCustomMetadata[];
+	[key: string]: unknown;
+}
+
+interface AiSearchInstanceInfo {
+	id: string;
+	custom_metadata?: AiSearchCustomMetadata[];
 	[key: string]: unknown;
 }
 
 interface AiSearchInstance {
 	search(params: AiSearchSearchRequest): Promise<AiSearchSearchResponse>;
 	update(config: Partial<AiSearchConfig>): Promise<unknown>;
-	info(): Promise<{ id: string; [key: string]: unknown }>;
+	info(): Promise<AiSearchInstanceInfo>;
 	items: {
 		upload(
 			name: string,
@@ -231,6 +243,14 @@ interface AiSearchInstance {
 		delete(itemId: string): Promise<void>;
 	};
 }
+
+const REQUIRED_CUSTOM_METADATA: AiSearchCustomMetadata[] = [
+	{ field_name: "visible_after", data_type: "number" },
+	{ field_name: "title_desc", data_type: "text" },
+	{ field_name: "slug", data_type: "text" },
+	{ field_name: "image", data_type: "text" },
+	{ field_name: "locale", data_type: "text" },
+];
 
 interface AiSearchNamespace {
 	get(name: string): AiSearchInstance;
@@ -243,6 +263,11 @@ interface AiSearchNamespace {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isMissingAISearchInstanceError(error: unknown): boolean {
+	if (isRecord(error) && (error.status === 404 || error.code === "NOT_FOUND")) return true;
+	return error instanceof Error && INSTANCE_NOT_FOUND_MESSAGE.test(error.message);
 }
 
 function isAiSearchNamespace(value: unknown): value is AiSearchNamespace {
@@ -482,6 +507,16 @@ function parseCollections(value: unknown): string[] | null {
 	return raw.map((c) => c.trim()).filter(Boolean);
 }
 
+function hasRequiredMetadataSchema(config: AiSearchInstanceInfo): boolean {
+	const actual = config.custom_metadata;
+	if (!actual || actual.length !== REQUIRED_CUSTOM_METADATA.length) return false;
+
+	const fields = new Map(actual.map((field) => [field.field_name, field.data_type]));
+	return REQUIRED_CUSTOM_METADATA.every(
+		(field) => fields.get(field.field_name) === field.data_type,
+	);
+}
+
 /**
  * Normalize a `synonyms` request field into a validated `Synonym[]`. Accepts an
  * array of `{ from, to }` objects; trims whitespace and drops entries missing
@@ -613,13 +648,7 @@ async function ensureAISearchInstance(
 		return ns.create({
 			id: instanceName,
 			index_method: { vector: true, keyword: config.hybridSearch ?? true },
-			custom_metadata: [
-				{ field_name: "visible_after", data_type: "number" },
-				{ field_name: "title_desc", data_type: "text" },
-				{ field_name: "slug", data_type: "text" },
-				{ field_name: "image", data_type: "text" },
-				{ field_name: "locale", data_type: "text" },
-			],
+			custom_metadata: REQUIRED_CUSTOM_METADATA,
 		});
 	}
 }
@@ -1112,6 +1141,43 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		},
 
 		routes: {
+			metadata: {
+				handler: async (ctx: RouteContext): Promise<unknown> => {
+					const method = ctx.request.method.toUpperCase();
+					if (method !== "GET" && method !== "POST") {
+						throw new PluginRouteError("METHOD_NOT_ALLOWED", "Method not allowed", 405);
+					}
+
+					const ns = await getBinding();
+					if (!ns) {
+						throw new PluginRouteError(
+							"AI_SEARCH_UNAVAILABLE",
+							"AI Search binding is not available",
+							503,
+						);
+					}
+
+					if (method === "GET") {
+						try {
+							const info = await ns.get(instanceName).info();
+							return { valid: hasRequiredMetadataSchema(info) };
+						} catch (error) {
+							if (isMissingAISearchInstanceError(error)) return { valid: true };
+							throw new PluginRouteError(
+								"AI_SEARCH_UNAVAILABLE",
+								"AI Search instance information is not available",
+								503,
+							);
+						}
+					}
+
+					const instance = await ensureInstance(ns);
+					const valid = hasRequiredMetadataSchema(await instance.info());
+					if (!valid) await instance.update({ custom_metadata: REQUIRED_CUSTOM_METADATA });
+					return { valid: true };
+				},
+			},
+
 			status: {
 				handler: async (ctx: RouteContext): Promise<unknown> => {
 					if (!ctx.content) {

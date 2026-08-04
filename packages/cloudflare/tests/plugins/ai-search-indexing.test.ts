@@ -1,72 +1,87 @@
 import type { PluginContext } from "emdash";
 import { describe, it, expect, vi } from "vitest";
 
-const { uploads, deletions, createConfigs, controls, pendingUploads, fakeEnv } = vi.hoisted(() => {
-	const captured: Array<{
-		key: string;
-		content: string;
-		metadata: Record<string, unknown>;
-	}> = [];
-	const removed: string[] = [];
-	const configs: Array<Record<string, unknown>> = [];
-	const state = {
-		uploadFailures: 0,
-		holdUploads: false,
-		instanceMissing: false,
-		searchError: null as Error | null,
-		searchChunks: [] as Array<Record<string, unknown>>,
-		searchRequests: [] as Array<Record<string, unknown>>,
-	};
-	const pending = new Map<
-		string,
-		{ resolve: (item: { id: string }) => void; reject: (error: Error) => void }
-	>();
-	const instance = {
-		info: () =>
-			state.instanceMissing
-				? Promise.reject(new Error("instance not found"))
-				: Promise.resolve({ id: "emdash-content" }),
-		search: (request: Record<string, unknown>) => {
-			state.searchRequests.push(request);
-			return state.searchError
-				? Promise.reject(state.searchError)
-				: Promise.resolve({ search_query: "query", chunks: state.searchChunks });
-		},
-		items: {
-			upload: (key: string, content: string, options?: { metadata?: Record<string, unknown> }) => {
-				if (state.uploadFailures > 0) {
-					state.uploadFailures--;
-					return Promise.reject(new Error("upload failed"));
-				}
-				captured.push({ key, content, metadata: options?.metadata ?? {} });
-				const item = { id: `item-${captured.length}` };
-				if (!state.holdUploads) return Promise.resolve(item);
-				return new Promise<{ id: string }>((resolve, reject) => {
-					pending.set(key, { resolve, reject });
-				});
-			},
-			delete: (id: string) => {
-				removed.push(id);
+const { uploads, deletions, createConfigs, updates, controls, pendingUploads, fakeEnv } =
+	vi.hoisted(() => {
+		const captured: Array<{
+			key: string;
+			content: string;
+			metadata: Record<string, unknown>;
+		}> = [];
+		const removed: string[] = [];
+		const configs: Array<Record<string, unknown>> = [];
+		const instanceUpdates: Array<Record<string, unknown>> = [];
+		const state = {
+			uploadFailures: 0,
+			holdUploads: false,
+			instanceMissing: false,
+			searchError: null as Error | null,
+			searchChunks: [] as Array<Record<string, unknown>>,
+			searchRequests: [] as Array<Record<string, unknown>>,
+			instanceInfo: { id: "emdash-content" } as Record<string, unknown>,
+		};
+		const pending = new Map<
+			string,
+			{ resolve: (item: { id: string }) => void; reject: (error: Error) => void }
+		>();
+		const instance = {
+			info: () =>
+				state.instanceMissing
+					? Promise.reject(new Error("instance not found"))
+					: Promise.resolve(state.instanceInfo),
+			update: (config: Record<string, unknown>) => {
+				instanceUpdates.push(config);
+				state.instanceInfo = { ...state.instanceInfo, ...config };
 				return Promise.resolve();
 			},
-		},
-	};
-	const namespace = {
-		get: () => instance,
-		create: (config: Record<string, unknown>) => {
-			configs.push(config);
-			return Promise.resolve(instance);
-		},
-	};
-	return {
-		uploads: captured,
-		deletions: removed,
-		createConfigs: configs,
-		controls: state,
-		pendingUploads: pending,
-		fakeEnv: { AI_SEARCH: namespace },
-	};
-});
+			search: (request: Record<string, unknown>) => {
+				state.searchRequests.push(request);
+				return state.searchError
+					? Promise.reject(state.searchError)
+					: Promise.resolve({ search_query: "query", chunks: state.searchChunks });
+			},
+			items: {
+				upload: (
+					key: string,
+					content: string,
+					options?: { metadata?: Record<string, unknown> },
+				) => {
+					if (state.uploadFailures > 0) {
+						state.uploadFailures--;
+						return Promise.reject(new Error("upload failed"));
+					}
+					captured.push({ key, content, metadata: options?.metadata ?? {} });
+					const item = { id: `item-${captured.length}` };
+					if (!state.holdUploads) return Promise.resolve(item);
+					return new Promise<{ id: string }>((resolve, reject) => {
+						pending.set(key, { resolve, reject });
+					});
+				},
+				delete: (id: string) => {
+					removed.push(id);
+					return Promise.resolve();
+				},
+			},
+		};
+		const namespace = {
+			get: () => instance,
+			create: (config: Record<string, unknown>) => {
+				configs.push(config);
+				state.instanceMissing = false;
+				state.instanceInfo = config;
+				return Promise.resolve(instance);
+			},
+		};
+		return {
+			uploads: captured,
+			deletions: removed,
+			createConfigs: configs,
+			updates: instanceUpdates,
+			controls: state,
+			pendingUploads: pending,
+			fakeEnv: { AI_SEARCH: namespace },
+		};
+	});
 
 vi.mock("cloudflare:workers", () => ({ env: fakeEnv, waitUntil: () => {} }));
 
@@ -477,6 +492,113 @@ describe("ai-search endpoint and route errors", () => {
 	});
 });
 
+describe("ai-search metadata schema route", () => {
+	const requiredSchema = [
+		{ field_name: "visible_after", data_type: "number" },
+		{ field_name: "title_desc", data_type: "text" },
+		{ field_name: "slug", data_type: "text" },
+		{ field_name: "image", data_type: "text" },
+		{ field_name: "locale", data_type: "text" },
+	];
+
+	it("reports a bare existing instance as invalid without mutating it", async () => {
+		createConfigs.length = 0;
+		updates.length = 0;
+		controls.instanceInfo = { id: "emdash-content" };
+		const plugin = createPlugin();
+		const ctx = makeContext();
+
+		await expect(
+			plugin.routes.metadata!.handler(routeContext(ctx, {}, "GET") as never),
+		).resolves.toEqual({ valid: false });
+		expect(updates).toHaveLength(0);
+		expect(createConfigs).toHaveLength(0);
+	});
+
+	it("treats a missing instance as valid without creating or updating it", async () => {
+		createConfigs.length = 0;
+		updates.length = 0;
+		controls.instanceMissing = true;
+		const plugin = createPlugin();
+
+		try {
+			await expect(
+				plugin.routes.metadata!.handler(routeContext(makeContext(), {}, "GET") as never),
+			).resolves.toEqual({ valid: true });
+			expect(createConfigs).toHaveLength(0);
+			expect(updates).toHaveLength(0);
+		} finally {
+			controls.instanceMissing = false;
+		}
+	});
+
+	it("rejects unsupported methods without repairing the instance", async () => {
+		createConfigs.length = 0;
+		updates.length = 0;
+		controls.instanceInfo = { id: "emdash-content", custom_metadata: [] };
+		const plugin = createPlugin();
+
+		await expect(
+			plugin.routes.metadata!.handler(routeContext(makeContext(), {}, "PUT") as never),
+		).rejects.toMatchObject({ status: 405, code: "METHOD_NOT_ALLOWED" });
+		expect(createConfigs).toHaveLength(0);
+		expect(updates).toHaveLength(0);
+	});
+
+	it("does not mutate a bare existing instance during normal search", async () => {
+		updates.length = 0;
+		controls.instanceInfo = { id: "emdash-content" };
+		controls.searchChunks = [];
+
+		await handleAISearchSnippetRequest(
+			snippetRequest({ messages: [{ role: "user", content: "query" }] }),
+			snippetOptions(makeContext()),
+		);
+
+		expect(updates).toHaveLength(0);
+	});
+
+	it("updates an invalid instance to the required schema", async () => {
+		updates.length = 0;
+		controls.instanceInfo = { id: "emdash-content", custom_metadata: [] };
+		const plugin = createPlugin();
+		const ctx = makeContext();
+
+		await expect(
+			plugin.routes.metadata!.handler(routeContext(ctx, {}, "POST") as never),
+		).resolves.toEqual({ valid: true });
+		expect(updates).toEqual([{ custom_metadata: requiredSchema }]);
+	});
+
+	it("accepts an equivalent schema in a different order without updating it", async () => {
+		updates.length = 0;
+		controls.instanceInfo = {
+			id: "emdash-content",
+			custom_metadata: requiredSchema.toReversed(),
+		};
+		const plugin = createPlugin();
+		const ctx = makeContext();
+
+		await expect(
+			plugin.routes.metadata!.handler(routeContext(ctx, {}, "POST") as never),
+		).resolves.toEqual({ valid: true });
+		expect(updates).toHaveLength(0);
+	});
+
+	it("returns a structured 503 when the binding is missing", async () => {
+		const binding = fakeEnv.AI_SEARCH;
+		Reflect.deleteProperty(fakeEnv, "AI_SEARCH");
+		try {
+			const plugin = createPlugin();
+			await expect(
+				plugin.routes.metadata!.handler(routeContext(makeContext(), {}, "GET") as never),
+			).rejects.toMatchObject({ status: 503, code: "AI_SEARCH_UNAVAILABLE" });
+		} finally {
+			fakeEnv.AI_SEARCH = binding;
+		}
+	});
+});
+
 describe("ai-search content:afterSave indexing", () => {
 	it("creates new instances with the current index_method configuration", async () => {
 		uploads.length = 0;
@@ -503,6 +625,13 @@ describe("ai-search content:afterSave indexing", () => {
 		expect(createConfigs).toHaveLength(1);
 		expect(createConfigs[0]).toMatchObject({
 			index_method: { vector: true, keyword: true },
+			custom_metadata: [
+				{ field_name: "visible_after", data_type: "number" },
+				{ field_name: "title_desc", data_type: "text" },
+				{ field_name: "slug", data_type: "text" },
+				{ field_name: "image", data_type: "text" },
+				{ field_name: "locale", data_type: "text" },
+			],
 		});
 		expect(createConfigs[0]).not.toHaveProperty("hybrid_search_enabled");
 		controls.instanceMissing = false;
