@@ -16,6 +16,7 @@ import { cleanupExpiredChallenges } from "./auth/challenge-store.js";
 import { MediaRepository } from "./database/repositories/media.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { Database } from "./database/types.js";
+import { removeUploadAttempt } from "./media/upload-attempts.js";
 import type { Storage } from "./storage/types.js";
 
 /**
@@ -27,6 +28,7 @@ export interface CleanupResult {
 	expiredTokens: number;
 	pendingUploads: number;
 	pendingUploadFiles: number;
+	uploadAttempts: number;
 	revisionsPruned: number;
 }
 
@@ -56,6 +58,7 @@ export async function runSystemCleanup(
 		expiredTokens: -1,
 		pendingUploads: -1,
 		pendingUploadFiles: -1,
+		uploadAttempts: -1,
 		revisionsPruned: -1,
 	};
 
@@ -106,7 +109,27 @@ export async function runSystemCleanup(
 		console.error("[cleanup] Failed to clean pending uploads:", error);
 	}
 
-	// 4. Revision pruning -- trim entries with excessive revision counts
+	// 4. Uploaded objects that lost publication races or outlived their media row
+	try {
+		const mediaRepo = new MediaRepository(db);
+		const completedAttemptsDeleted = await mediaRepo.deleteCompletedUploadAttempts();
+		if (!storage) {
+			result.uploadAttempts = completedAttemptsDeleted;
+		} else {
+			const storageKeys = await mediaRepo.findUploadAttemptsForCleanup();
+			let attemptsDeleted = completedAttemptsDeleted;
+			for (const storageKey of storageKeys) {
+				if (await removeUploadAttempt(storage, mediaRepo, storageKey)) {
+					attemptsDeleted++;
+				}
+			}
+			result.uploadAttempts = attemptsDeleted;
+		}
+	} catch (error) {
+		console.error("[cleanup] Failed to clean media upload attempts:", error);
+	}
+
+	// 5. Revision pruning -- trim entries with excessive revision counts
 	try {
 		result.revisionsPruned = await pruneExcessiveRevisions(db);
 	} catch (error) {

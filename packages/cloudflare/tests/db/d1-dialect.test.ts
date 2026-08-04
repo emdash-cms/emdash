@@ -24,7 +24,7 @@ interface MockStatement {
 	all: () => Promise<unknown>;
 }
 
-function createMockD1() {
+function createMockD1(rows: Record<string, unknown>[] = []) {
 	const allCalls: string[] = [];
 	let inFlight = 0;
 	let maxInFlight = 0;
@@ -45,7 +45,7 @@ function createMockD1() {
 					await new Promise((resolve) => setTimeout(resolve, 5));
 					inFlight--;
 					allCalls.push(sql);
-					return { success: true, results: [], meta: { changes: 0, last_row_id: 0 } };
+					return { success: true, results: rows, meta: { changes: 0, last_row_id: 0 } };
 				},
 			};
 			return stmt;
@@ -107,5 +107,24 @@ describe("EmDashD1Dialect (session path keeps the mutex)", () => {
 		]);
 
 		expect(maxInFlight()).toBe(1);
+	});
+});
+
+describe("D1 write results", () => {
+	it.each([
+		["raw binding", RawBindingD1Dialect],
+		["session", EmDashD1Dialect],
+	])("preserves DELETE RETURNING rows through the %s dialect", async (_name, Dialect) => {
+		const rows = [{ storage_key: "expired.png" }];
+		const { database } = createMockD1(rows);
+		const db = new Kysely<any>({ dialect: new Dialect({ database }) });
+
+		const result = await db.executeQuery(
+			CompiledQuery.raw('delete from "media" where "status" = ? returning "storage_key"', [
+				"pending",
+			]),
+		);
+
+		expect(result.rows).toEqual(rows);
 	});
 });

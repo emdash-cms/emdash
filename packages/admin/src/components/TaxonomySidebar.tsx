@@ -78,10 +78,13 @@ export function useHasApplicableTaxonomies(collection: string): boolean {
 
 /**
  * Fetch terms for a taxonomy, scoped to the entry's locale so only the matching
- * translation variants are offered.
+ * translation variants are offered. The picker shows no usage counts, so it
+ * opts out of the per-collection count aggregate the endpoint runs by default.
  */
 async function fetchTerms(taxonomyName: string, locale?: string): Promise<TaxonomyTerm[]> {
-	const res = await apiFetch(withLocale(`/_emdash/api/taxonomies/${taxonomyName}/terms`, locale));
+	const res = await apiFetch(
+		withLocale(`/_emdash/api/taxonomies/${taxonomyName}/terms?includeCounts=false`, locale),
+	);
 	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(
 		res,
 		i18n._(msg`Failed to fetch terms`),
@@ -334,8 +337,10 @@ function TaxonomySection({
 	const [newCategoryLabel, setNewCategoryLabel] = React.useState("");
 	const [showCategoryInput, setShowCategoryInput] = React.useState(false);
 
+	// The count mode belongs in the key: the Taxonomies settings page reads the
+	// same endpoint with counts and must not be served this count-free list.
 	const { data: terms = EMPTY_TERMS } = useQuery({
-		queryKey: ["taxonomy-terms", taxonomy.name, entryLocale],
+		queryKey: ["taxonomy-terms", taxonomy.name, entryLocale, { includeCounts: false }],
 		queryFn: () => fetchTerms(taxonomy.name, entryLocale),
 	});
 

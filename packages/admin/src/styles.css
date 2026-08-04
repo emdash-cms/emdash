@@ -146,8 +146,9 @@ body {
 	}
 }
 
-/* Keep heading choices visibly distinct from the dropdown surface. */
-[data-emdash-heading-item][data-highlighted] {
+/* Keep editor menu choices visibly distinct from their dropdown surfaces. */
+[data-emdash-heading-item][data-highlighted],
+[data-emdash-block-menu-item][data-highlighted] {
 	background-color: var(--color-kumo-interact) !important;
 }
 

@@ -81,6 +81,15 @@ export interface MediaTable {
 	author_id: string | null;
 }
 
+export interface MediaUploadAttemptTable {
+	storage_key: string;
+	// No foreign key: this row must survive media deletion until storage cleanup succeeds.
+	media_id: string;
+	status: string; // 'active' | 'cleanup'
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 export interface MediaUsageSourceTable {
 	source_key: string;
 	source_type: string;
@@ -495,6 +504,7 @@ export interface Database {
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	_emdash_media_upload_attempts: MediaUploadAttemptTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
 	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;
