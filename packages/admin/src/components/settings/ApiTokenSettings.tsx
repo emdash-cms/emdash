@@ -4,11 +4,11 @@
  * Allows admins to list, create, and revoke Personal Access Tokens.
  */
 
-import { Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
+import { Banner, Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Copy, Eye, EyeSlash, Key, Plus, Trash, WarningCircle } from "@phosphor-icons/react";
+import { Copy, Eye, EyeSlash, Key, Plus, Trash } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -21,8 +21,8 @@ import {
 	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
 import { fetchPlugins } from "../../lib/api/plugins.js";
-import { getMutationError } from "../DialogError.js";
-import { BackToSettingsLink } from "./BackToSettingsLink.js";
+import { ConfirmDialog } from "../ConfirmDialog.js";
+import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
 // =============================================================================
 // Expiry options
@@ -43,57 +43,57 @@ const API_TOKEN_SCOPE_VALUES: {
 }[] = [
 	{
 		scope: API_TOKEN_SCOPES.ContentRead,
-		label: msg`Content Read`,
+		label: msg`Content read`,
 		description: msg`Read content entries`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.ContentWrite,
-		label: msg`Content Write`,
+		label: msg`Content write`,
 		description: msg`Create, update, delete content`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.MediaRead,
-		label: msg`Media Read`,
+		label: msg`Media read`,
 		description: msg`Read media files`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.MediaWrite,
-		label: msg`Media Write`,
+		label: msg`Media write`,
 		description: msg`Upload and delete media`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.SchemaRead,
-		label: msg`Schema Read`,
+		label: msg`Schema read`,
 		description: msg`Read collection schemas`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.SchemaWrite,
-		label: msg`Schema Write`,
+		label: msg`Schema write`,
 		description: msg`Modify collection schemas`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.TaxonomiesManage,
-		label: msg`Taxonomies Manage`,
+		label: msg`Manage taxonomies`,
 		description: msg`Create, update, and delete taxonomy terms`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.MenusManage,
-		label: msg`Menus Manage`,
+		label: msg`Manage menus`,
 		description: msg`Create, update, and delete navigation menus`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.SettingsRead,
-		label: msg`Settings Read`,
+		label: msg`Settings read`,
 		description: msg`Read site settings`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.SettingsManage,
-		label: msg`Settings Manage`,
+		label: msg`Manage settings`,
 		description: msg`Update site settings`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.McpTools,
-		label: msg`Plugin MCP Tools`,
+		label: msg`Plugin MCP tools`,
 		description: msg`Invoke MCP tools from all enabled plugins`,
 	},
 	{
@@ -129,8 +129,11 @@ export function ApiTokenSettings() {
 	const [copied, setCopied] = React.useState(false);
 	const [revokeConfirmId, setRevokeConfirmId] = React.useState<string | null>(null);
 
-	// Queries
-	const { data: tokens, isLoading } = useQuery({
+	const {
+		data: tokens,
+		isLoading,
+		error: loadError,
+	} = useQuery({
 		queryKey: ["api-tokens"],
 		queryFn: fetchApiTokens,
 	});
@@ -139,7 +142,6 @@ export function ApiTokenSettings() {
 		queryFn: fetchPlugins,
 	});
 
-	// Create mutation
 	const createMutation = useMutation({
 		mutationFn: createApiToken,
 		onSuccess: (result) => {
@@ -151,7 +153,6 @@ export function ApiTokenSettings() {
 		},
 	});
 
-	// Revoke mutation
 	const revokeMutation = useMutation({
 		mutationFn: revokeApiToken,
 		onSuccess: () => {
@@ -160,7 +161,6 @@ export function ApiTokenSettings() {
 		},
 	});
 
-	// Clean up copy feedback timeout on unmount
 	const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	React.useEffect(() => {
 		return () => {
@@ -183,175 +183,208 @@ export function ApiTokenSettings() {
 		() => Object.fromEntries(EXPIRY_OPTIONS.map((o) => [o.value, t(o.label)])),
 		[t],
 	);
+	const tokenToRevoke = tokens?.find((token) => token.id === revokeConfirmId);
+	const revokeDescription = tokenToRevoke
+		? t`Revoke ${tokenToRevoke.name}? Any integration using it will immediately lose access.`
+		: t`Revoke this token? Any integration using it will immediately lose access.`;
+	const title = t`API tokens`;
+	const description = t`Create and revoke tokens for API access.`;
+
+	if (isLoading) {
+		return (
+			<SettingsFrame title={title} description={description}>
+				<div
+					className="flex items-center gap-2 rounded-xl border border-kumo-line bg-kumo-base px-4 py-4 text-sm text-kumo-subtle"
+					role="status"
+				>
+					<Loader size="sm" />
+					<span>{t`Loading API tokens…`}</span>
+				</div>
+			</SettingsFrame>
+		);
+	}
+
+	if (loadError) {
+		return (
+			<SettingsFrame title={title} description={description}>
+				<Banner
+					variant="error"
+					title={t`Unable to load API tokens`}
+					description={
+						loadError instanceof Error ? loadError.message : t`Failed to load API tokens`
+					}
+					role="alert"
+				/>
+			</SettingsFrame>
+		);
+	}
 
 	return (
-		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center gap-3">
-				<BackToSettingsLink />
-				<div>
-					<h1 className="text-2xl font-semibold leading-tight">{t(msg`API Tokens`)}</h1>
-					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-						{t(msg`Create personal access tokens for programmatic API access`)}
-					</p>
-				</div>
-			</div>
-
-			{/* New token banner */}
-			{newToken && (
-				<div className="rounded-lg border border-kumo-success/50 bg-kumo-success-tint p-4">
-					<div className="flex items-start gap-3">
-						<Key className="h-5 w-5 text-kumo-success mt-0.5 shrink-0" />
-						<div className="flex-1 min-w-0">
-							<p className="font-medium text-kumo-success">
-								{t(msg`Token created: ${newToken.info.name}`)}
-							</p>
-							<p className="text-sm text-kumo-subtle mt-1">
-								{t(msg`Copy this token now — it won't be shown again.`)}
-							</p>
-							<div className="mt-3 flex items-center gap-2">
-								<code className="flex-1 rounded bg-kumo-base px-3 py-2 text-sm font-mono border truncate">
-									{tokenVisible ? newToken.token : "••••••••••••••••••••••••••••"}
-								</code>
-								<Button
-									variant="ghost"
-									shape="square"
-									onClick={() => setTokenVisible(!tokenVisible)}
-									aria-label={tokenVisible ? t(msg`Hide token`) : t(msg`Show token`)}
-								>
-									{tokenVisible ? <EyeSlash /> : <Eye />}
-								</Button>
-								<Button
-									variant="ghost"
-									shape="square"
-									onClick={handleCopyToken}
-									aria-label={t(msg`Copy token`)}
-								>
-									<Copy />
-								</Button>
-							</div>
-							{copied && (
-								<p className="text-xs text-kumo-success mt-1">{t(msg`Copied to clipboard`)}</p>
-							)}
-						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setNewToken(null)}
-							aria-label={t(msg`Dismiss`)}
-						>
-							{t(msg`Dismiss`)}
-						</Button>
-					</div>
-				</div>
-			)}
-
-			{/* Create form */}
-			{showCreateForm ? (
-				<CreateTokenForm
-					expirySelectItems={expirySelectItems}
-					isCreating={createMutation.isPending}
-					error={createMutation.error?.message ?? null}
-					pluginScopes={plugins
-						.filter((plugin) => (plugin.mcpTools?.length ?? 0) > 0)
-						.map((plugin) => ({ scope: `mcp:tools:${plugin.id}`, name: plugin.name }))}
-					onSubmit={(input) =>
-						createMutation.mutate({
-							name: input.name,
-							scopes: input.scopes,
-							expiresAt: input.expiresAt,
-						})
+		<SettingsFrame title={title} description={description}>
+			<div className="grid gap-8">
+				<SettingsSection
+					title={t`Create a token`}
+					description={t`Choose a name, permissions, and expiration for a new token.`}
+					actions={
+						showCreateForm ? (
+							<Button variant="ghost" size="sm" onClick={() => setShowCreateForm(false)}>
+								{t`Cancel`}
+							</Button>
+						) : (
+							<Button icon={<Plus />} onClick={() => setShowCreateForm(true)}>
+								{t`Create token`}
+							</Button>
+						)
 					}
-					onCancel={() => setShowCreateForm(false)}
-				/>
-			) : (
-				<Button icon={<Plus />} onClick={() => setShowCreateForm(true)}>
-					{t(msg`Create Token`)}
-				</Button>
-			)}
-
-			{/* Token list */}
-			<div className="rounded-lg border bg-kumo-base">
-				{isLoading ? (
-					<div className="flex items-center justify-center py-8">
-						<Loader />
-					</div>
-				) : !tokens || tokens.length === 0 ? (
-					<div className="py-8 text-center text-sm text-kumo-subtle">
-						{t(msg`No API tokens yet. Create one to get started.`)}
-					</div>
-				) : (
-					<div className="divide-y">
-						{tokens.map((token) => (
-							<div key={token.id} className="flex items-center justify-between p-4">
-								<div className="min-w-0">
-									<div className="flex items-center gap-2">
-										<span className="font-medium truncate">{token.name}</span>
-										<code className="text-xs text-kumo-subtle bg-kumo-tint px-1.5 py-0.5 rounded">
-											{token.prefix}...
-										</code>
-									</div>
-									<div className="flex gap-3 mt-1 text-xs text-kumo-subtle">
-										<span>{t(msg`Scopes: ${token.scopes.join(", ")}`)}</span>
-										{token.expiresAt && (
-											<span>
-												{t(msg`Expires ${new Date(token.expiresAt).toLocaleDateString()}`)}
-											</span>
+				>
+					{newToken && (
+						<SettingRow className="bg-kumo-success-tint">
+							<div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+								<div className="flex min-w-0 flex-1 items-start gap-3">
+									<span
+										className="h-lh flex shrink-0 items-center text-kumo-success"
+										aria-hidden="true"
+									>
+										<Key className="h-5 w-5" />
+									</span>
+									<div className="min-w-0 flex-1">
+										<p className="text-sm font-medium text-kumo-success">
+											{t`Token created: ${newToken.info.name}`}
+										</p>
+										<p className="mt-1 text-sm leading-5 text-kumo-subtle">
+											{t`Copy this token now — it won't be shown again.`}
+										</p>
+										<div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+											<code className="min-w-0 flex-1 truncate rounded border border-kumo-line bg-kumo-base px-3 py-2 font-mono text-[0.9em]">
+												{tokenVisible ? newToken.token : "••••••••••••••••••••••••••••"}
+											</code>
+											<div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
+												<Button
+													variant="ghost"
+													shape="square"
+													onClick={() => setTokenVisible(!tokenVisible)}
+													aria-label={tokenVisible ? t`Hide token` : t`Show token`}
+												>
+													{tokenVisible ? <EyeSlash /> : <Eye />}
+												</Button>
+												<Button
+													variant="ghost"
+													shape="square"
+													onClick={handleCopyToken}
+													aria-label={t`Copy token`}
+												>
+													<Copy />
+												</Button>
+											</div>
+										</div>
+										{copied && (
+											<p className="mt-1 text-sm text-kumo-success" role="status">
+												{t`Copied to clipboard`}
+											</p>
 										)}
-										{token.lastUsedAt && (
-											<span>
-												{t(msg`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`)}
-											</span>
-										)}
-									</div>
-									<div className="text-xs text-kumo-subtle mt-0.5">
-										{t(msg`Created ${new Date(token.createdAt).toLocaleDateString()}`)}
 									</div>
 								</div>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="self-end sm:self-start"
+									onClick={() => setNewToken(null)}
+								>
+									{t`Dismiss`}
+								</Button>
+							</div>
+						</SettingRow>
+					)}
+					{showCreateForm ? (
+						<SettingRow>
+							<CreateTokenForm
+								expirySelectItems={expirySelectItems}
+								isCreating={createMutation.isPending}
+								error={createMutation.error?.message ?? null}
+								pluginScopes={plugins
+									.filter((plugin) => (plugin.mcpTools?.length ?? 0) > 0)
+									.map((plugin) => ({ scope: `mcp:tools:${plugin.id}`, name: plugin.name }))}
+								onSubmit={(input) => createMutation.mutate(input)}
+							/>
+						</SettingRow>
+					) : (
+						!newToken && (
+							<SettingRow className="text-sm leading-5 text-kumo-subtle">
+								{t`Tokens grant programmatic access to your site. Only select the permissions an integration needs.`}
+							</SettingRow>
+						)
+					)}
+				</SettingsSection>
 
-								{revokeConfirmId === token.id ? (
-									<div className="flex items-center gap-2 shrink-0">
-										{revokeMutation.error && (
-											<span className="text-sm text-kumo-danger">
-												{getMutationError(revokeMutation.error)}
-											</span>
-										)}
-										<span className="text-sm text-kumo-danger">{t(msg`Revoke?`)}</span>
-										<Button
-											variant="destructive"
-											size="sm"
-											disabled={revokeMutation.isPending}
-											onClick={() => revokeMutation.mutate(token.id)}
-										>
-											{revokeMutation.isPending ? t(msg`Revoking...`) : t(msg`Confirm`)}
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => {
-												setRevokeConfirmId(null);
-												revokeMutation.reset();
-											}}
-										>
-											{t(msg`Cancel`)}
-										</Button>
+				<SettingsSection
+					title={t`Active tokens`}
+					description={t`Review and revoke tokens that can access your site.`}
+					contentClassName={
+						tokens && tokens.length > 0 ? undefined : "border-2 border-dashed border-kumo-subtle/60"
+					}
+				>
+					{tokens && tokens.length > 0 ? (
+						tokens.map((token) => (
+							<SettingRow key={token.id}>
+								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+									<div className="min-w-0">
+										<div className="flex min-w-0 flex-wrap items-center gap-2">
+											<span className="truncate text-sm font-medium">{token.name}</span>
+											<code className="rounded bg-kumo-tint px-1.5 py-0.5 font-mono text-[0.8em] text-kumo-subtle">
+												{token.prefix}...
+											</code>
+										</div>
+										<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm leading-5 text-kumo-subtle">
+											<span>{t`Scopes: ${token.scopes.join(", ")}`}</span>
+											{token.expiresAt && (
+												<span>{t`Expires ${new Date(token.expiresAt).toLocaleDateString()}`}</span>
+											)}
+											{token.lastUsedAt && (
+												<span>{t`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`}</span>
+											)}
+										</div>
+										<div className="text-sm leading-5 text-kumo-subtle">
+											{t`Created ${new Date(token.createdAt).toLocaleDateString()}`}
+										</div>
 									</div>
-								) : (
 									<Button
 										variant="ghost"
 										shape="square"
-										onClick={() => setRevokeConfirmId(token.id)}
-										aria-label={t(msg`Revoke token`)}
+										className="self-end sm:self-auto"
+										onClick={() => {
+											revokeMutation.reset();
+											setRevokeConfirmId(token.id);
+										}}
+										aria-label={t`Revoke ${token.name}`}
 									>
-										<Trash className="h-4 w-4 text-kumo-subtle hover:text-kumo-danger" />
+										<Trash className="h-4 w-4 text-kumo-danger" />
 									</Button>
-								)}
-							</div>
-						))}
-					</div>
-				)}
+								</div>
+							</SettingRow>
+						))
+					) : (
+						<SettingRow className="py-8 text-center text-sm text-kumo-subtle">
+							{t`No API tokens yet. Create one to get started.`}
+						</SettingRow>
+					)}
+				</SettingsSection>
 			</div>
-		</div>
+
+			<ConfirmDialog
+				open={revokeConfirmId !== null}
+				onClose={() => {
+					setRevokeConfirmId(null);
+					revokeMutation.reset();
+				}}
+				title={t`Revoke token?`}
+				description={revokeDescription}
+				confirmLabel={t`Revoke token`}
+				pendingLabel={t`Revoking…`}
+				isPending={revokeMutation.isPending}
+				error={revokeMutation.error}
+				onConfirm={() => revokeConfirmId && revokeMutation.mutate(revokeConfirmId)}
+			/>
+		</SettingsFrame>
 	);
 }
 
@@ -365,7 +398,6 @@ interface CreateTokenFormProps {
 	error: string | null;
 	pluginScopes: Array<{ scope: string; name: string }>;
 	onSubmit: (input: { name: string; scopes: string[]; expiresAt?: string }) => void;
-	onCancel: () => void;
 }
 
 function CreateTokenForm({
@@ -374,7 +406,6 @@ function CreateTokenForm({
 	error,
 	pluginScopes,
 	onSubmit,
-	onCancel,
 }: CreateTokenFormProps) {
 	const { t } = useLingui();
 	const [name, setName] = React.useState("");
@@ -405,39 +436,39 @@ function CreateTokenForm({
 	const isValid = name.trim().length > 0 && selectedScopes.size > 0;
 
 	return (
-		<div className="rounded-lg border bg-kumo-base p-6">
-			<h2 className="text-lg font-semibold mb-4">{t(msg`Create New Token`)}</h2>
-
+		<div className="grid gap-4">
 			{error && (
-				<div className="mb-4 rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-3 flex items-center gap-2 text-sm text-kumo-danger">
-					<WarningCircle className="h-4 w-4 shrink-0" />
-					{error}
-				</div>
+				<Banner
+					variant="error"
+					title={t`Unable to create token`}
+					description={error}
+					role="alert"
+				/>
 			)}
 
-			<form onSubmit={handleSubmit} className="space-y-4">
+			<form onSubmit={handleSubmit} className="grid gap-4">
 				<Input
-					label={t(msg`Token Name`)}
+					label={t(msg`Token name`)}
 					value={name}
 					onChange={(e) => setName(e.target.value)}
-					placeholder={t(msg`e.g., CI/CD Pipeline`)}
+					placeholder={t(msg`e.g., CI/CD pipeline`)}
 					required
 					autoFocus
 				/>
 
-				<div>
-					<div className="text-sm font-medium mb-2">{t(msg`Scopes`)}</div>
-					<div className="space-y-2">
+				<div className="grid gap-2">
+					<div className="text-sm font-medium">{t(msg`Scopes`)}</div>
+					<div className="grid gap-3">
 						{API_TOKEN_SCOPE_VALUES.map(({ scope, label, description }) => {
 							return (
-								<label key={scope} className="flex items-start gap-2 cursor-pointer">
+								<label key={scope} className="flex cursor-pointer items-start gap-2">
 									<Checkbox
 										checked={selectedScopes.has(scope)}
 										onCheckedChange={() => toggleScope(scope)}
 									/>
-									<div>
+									<div className="min-w-0">
 										<div className="text-sm font-medium">{t(label)}</div>
-										<div className="text-xs text-kumo-subtle">{t(description)}</div>
+										<div className="text-sm leading-5 text-kumo-subtle">{t(description)}</div>
 									</div>
 								</label>
 							);
@@ -448,9 +479,9 @@ function CreateTokenForm({
 									checked={selectedScopes.has(plugin.scope)}
 									onCheckedChange={() => toggleScope(plugin.scope)}
 								/>
-								<div>
+								<div className="min-w-0">
 									<div className="text-sm font-medium">{t`Plugin tools: ${plugin.name}`}</div>
-									<div className="text-xs text-kumo-subtle">
+									<div className="text-sm leading-5 text-kumo-subtle">
 										{t`Invoke only this plugin's enabled MCP tools`}
 									</div>
 								</div>
@@ -460,7 +491,7 @@ function CreateTokenForm({
 				</div>
 
 				<Select
-					label={t(msg`Expiry`)}
+					label={t(msg`Expiration`)}
 					value={expiry}
 					onValueChange={(v) => v !== null && setExpiry(v)}
 					items={expirySelectItems}
@@ -472,12 +503,9 @@ function CreateTokenForm({
 					))}
 				</Select>
 
-				<div className="flex gap-2 pt-2">
+				<div className="flex flex-wrap gap-2 pt-2">
 					<Button type="submit" disabled={!isValid || isCreating}>
-						{isCreating ? t(msg`Creating...`) : t(msg`Create Token`)}
-					</Button>
-					<Button type="button" variant="outline" onClick={onCancel}>
-						{t(msg`Cancel`)}
+						{isCreating ? t(msg`Creating…`) : t(msg`Create token`)}
 					</Button>
 				</div>
 			</form>
