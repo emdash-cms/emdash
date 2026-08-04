@@ -215,7 +215,7 @@ export function AllowedDomainsSettings() {
 				contentClassName={
 					domains && domains.length > 0
 						? undefined
-						: "border-2 border-dashed border-kumo-subtle/40"
+						: "border-2 border-dashed border-kumo-subtle/60"
 				}
 			>
 				{domains && domains.length > 0 ? (

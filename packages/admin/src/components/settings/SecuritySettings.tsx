@@ -137,7 +137,7 @@ export function SecuritySettings() {
 					contentClassName={
 						passkeys && passkeys.length > 0
 							? undefined
-							: "border-2 border-dashed border-kumo-subtle/40"
+							: "border-2 border-dashed border-kumo-subtle/60"
 					}
 				>
 					<SettingRow className="p-0">
