@@ -4,11 +4,11 @@
  * Allows admins to list, create, and revoke Personal Access Tokens.
  */
 
-import { Button, Checkbox, Input, Select } from "@cloudflare/kumo";
+import { Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Copy, Eye, EyeSlash, Key, Plus, Trash } from "@phosphor-icons/react";
+import { Copy, Eye, EyeSlash, Key, Plus, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -21,16 +21,8 @@ import {
 	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
 import { fetchPlugins } from "../../lib/api/plugins.js";
-import { ConfirmDialog } from "../ConfirmDialog.js";
-import { DialogError, getMutationError } from "../DialogError.js";
+import { getMutationError } from "../DialogError.js";
 import { BackToSettingsLink } from "./BackToSettingsLink.js";
-import {
-	SettingsEmptyState,
-	SettingsErrorState,
-	SettingsFrame,
-	SettingsLoadingState,
-	SettingsSection,
-} from "./SettingsLayout.js";
 
 // =============================================================================
 // Expiry options
@@ -138,11 +130,7 @@ export function ApiTokenSettings() {
 	const [revokeConfirmId, setRevokeConfirmId] = React.useState<string | null>(null);
 
 	// Queries
-	const {
-		data: tokens,
-		isLoading,
-		error: tokensError,
-	} = useQuery({
+	const { data: tokens, isLoading } = useQuery({
 		queryKey: ["api-tokens"],
 		queryFn: fetchApiTokens,
 	});
@@ -195,188 +183,175 @@ export function ApiTokenSettings() {
 		() => Object.fromEntries(EXPIRY_OPTIONS.map((o) => [o.value, t(o.label)])),
 		[t],
 	);
-	const tokenToRevoke = tokens?.find((token) => token.id === revokeConfirmId);
-
-	if (isLoading) {
-		return (
-			<SettingsFrame title={t(msg`API Tokens`)} leading={<BackToSettingsLink />}>
-				<SettingsLoadingState />
-			</SettingsFrame>
-		);
-	}
-
-	if (tokensError) {
-		return (
-			<SettingsFrame title={t(msg`API Tokens`)} leading={<BackToSettingsLink />}>
-				<SettingsErrorState
-					message={getMutationError(tokensError) ?? t`Failed to load API tokens`}
-				/>
-			</SettingsFrame>
-		);
-	}
 
 	return (
-		<SettingsFrame
-			title={t(msg`API Tokens`)}
-			description={t(msg`Create personal access tokens for programmatic API access`)}
-			leading={<BackToSettingsLink />}
-		>
-			<div className="space-y-8">
-				{/* New token banner */}
-				{newToken && (
-					<div className="rounded-lg border border-kumo-success/50 bg-kumo-success-tint p-4">
-						<div className="flex items-start gap-3">
-							<Key className="h-5 w-5 text-kumo-success mt-0.5 shrink-0" />
-							<div className="flex-1 min-w-0">
-								<p className="font-medium text-kumo-success">
-									{t(msg`Token created: ${newToken.info.name}`)}
-								</p>
-								<p className="text-sm text-kumo-subtle mt-1">
-									{t(msg`Copy this token now — it won't be shown again.`)}
-								</p>
-								<div className="mt-3 flex items-center gap-2">
-									<code className="flex-1 rounded bg-kumo-base px-3 py-2 text-sm font-mono border truncate">
-										{tokenVisible ? newToken.token : "••••••••••••••••••••••••••••"}
-									</code>
-									<Button
-										type="button"
-										variant="ghost"
-										shape="square"
-										onClick={() => setTokenVisible(!tokenVisible)}
-										aria-label={tokenVisible ? t(msg`Hide token`) : t(msg`Show token`)}
-									>
-										{tokenVisible ? <EyeSlash /> : <Eye />}
-									</Button>
-									<Button
-										type="button"
-										variant="ghost"
-										shape="square"
-										onClick={handleCopyToken}
-										aria-label={t(msg`Copy token`)}
-									>
-										<Copy />
-									</Button>
-								</div>
-								{copied && (
-									<p className="text-xs text-kumo-success mt-1">{t(msg`Copied to clipboard`)}</p>
-								)}
-							</div>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onClick={() => setNewToken(null)}
-								aria-label={t(msg`Dismiss`)}
-							>
-								{t(msg`Dismiss`)}
-							</Button>
-						</div>
-					</div>
-				)}
+		<div className="space-y-6">
+			{/* Header */}
+			<div className="flex items-center gap-3">
+				<BackToSettingsLink />
+				<div>
+					<h1 className="text-2xl font-semibold leading-tight">{t(msg`API Tokens`)}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t(msg`Create personal access tokens for programmatic API access`)}
+					</p>
+				</div>
+			</div>
 
-				<SettingsSection
-					title={t(msg`Create a token`)}
-					description={t(msg`Create a personal access token with only the scopes it needs.`)}
-				>
-					{showCreateForm ? (
-						<CreateTokenForm
-							expirySelectItems={expirySelectItems}
-							isCreating={createMutation.isPending}
-							error={getMutationError(createMutation.error)}
-							pluginScopes={plugins
-								.filter((plugin) => (plugin.mcpTools?.length ?? 0) > 0)
-								.map((plugin) => ({ scope: `mcp:tools:${plugin.id}`, name: plugin.name }))}
-							onSubmit={(input) =>
-								createMutation.mutate({
-									name: input.name,
-									scopes: input.scopes,
-									expiresAt: input.expiresAt,
-								})
-							}
-							onCancel={() => setShowCreateForm(false)}
-						/>
-					) : (
-						<Button type="button" icon={<Plus />} onClick={() => setShowCreateForm(true)}>
-							{t(msg`Create Token`)}
-						</Button>
-					)}
-				</SettingsSection>
-
-				<SettingsSection title={t(msg`Active tokens`)}>
-					{!tokens || tokens.length === 0 ? (
-						<SettingsEmptyState>
-							{t(msg`No API tokens yet. Create one to get started.`)}
-						</SettingsEmptyState>
-					) : (
-						<ul className="divide-y divide-kumo-line">
-							{tokens.map((token) => (
-								<li
-									key={token.id}
-									className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
+			{/* New token banner */}
+			{newToken && (
+				<div className="rounded-lg border border-kumo-success/50 bg-kumo-success-tint p-4">
+					<div className="flex items-start gap-3">
+						<Key className="h-5 w-5 text-kumo-success mt-0.5 shrink-0" />
+						<div className="flex-1 min-w-0">
+							<p className="font-medium text-kumo-success">
+								{t(msg`Token created: ${newToken.info.name}`)}
+							</p>
+							<p className="text-sm text-kumo-subtle mt-1">
+								{t(msg`Copy this token now — it won't be shown again.`)}
+							</p>
+							<div className="mt-3 flex items-center gap-2">
+								<code className="flex-1 rounded bg-kumo-base px-3 py-2 text-sm font-mono border truncate">
+									{tokenVisible ? newToken.token : "••••••••••••••••••••••••••••"}
+								</code>
+								<Button
+									variant="ghost"
+									shape="square"
+									onClick={() => setTokenVisible(!tokenVisible)}
+									aria-label={tokenVisible ? t(msg`Hide token`) : t(msg`Show token`)}
 								>
-									<div className="min-w-0">
-										<div className="flex items-center gap-2">
-											<span className="font-medium truncate">{token.name}</span>
-											<code className="text-xs text-kumo-subtle bg-kumo-tint px-1.5 py-0.5 rounded">
-												{token.prefix}...
-											</code>
-										</div>
-										<div className="flex gap-3 mt-1 text-xs text-kumo-subtle">
-											<span>{t(msg`Scopes: ${token.scopes.join(", ")}`)}</span>
-											{token.expiresAt && (
-												<span>
-													{t(msg`Expires ${new Date(token.expiresAt).toLocaleDateString()}`)}
-												</span>
-											)}
-											{token.lastUsedAt && (
-												<span>
-													{t(msg`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`)}
-												</span>
-											)}
-										</div>
-										<div className="text-xs text-kumo-subtle mt-0.5">
-											{t(msg`Created ${new Date(token.createdAt).toLocaleDateString()}`)}
-										</div>
-									</div>
+									{tokenVisible ? <EyeSlash /> : <Eye />}
+								</Button>
+								<Button
+									variant="ghost"
+									shape="square"
+									onClick={handleCopyToken}
+									aria-label={t(msg`Copy token`)}
+								>
+									<Copy />
+								</Button>
+							</div>
+							{copied && (
+								<p className="text-xs text-kumo-success mt-1">{t(msg`Copied to clipboard`)}</p>
+							)}
+						</div>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setNewToken(null)}
+							aria-label={t(msg`Dismiss`)}
+						>
+							{t(msg`Dismiss`)}
+						</Button>
+					</div>
+				</div>
+			)}
 
+			{/* Create form */}
+			{showCreateForm ? (
+				<CreateTokenForm
+					expirySelectItems={expirySelectItems}
+					isCreating={createMutation.isPending}
+					error={createMutation.error?.message ?? null}
+					pluginScopes={plugins
+						.filter((plugin) => (plugin.mcpTools?.length ?? 0) > 0)
+						.map((plugin) => ({ scope: `mcp:tools:${plugin.id}`, name: plugin.name }))}
+					onSubmit={(input) =>
+						createMutation.mutate({
+							name: input.name,
+							scopes: input.scopes,
+							expiresAt: input.expiresAt,
+						})
+					}
+					onCancel={() => setShowCreateForm(false)}
+				/>
+			) : (
+				<Button icon={<Plus />} onClick={() => setShowCreateForm(true)}>
+					{t(msg`Create Token`)}
+				</Button>
+			)}
+
+			{/* Token list */}
+			<div className="rounded-lg border bg-kumo-base">
+				{isLoading ? (
+					<div className="flex items-center justify-center py-8">
+						<Loader />
+					</div>
+				) : !tokens || tokens.length === 0 ? (
+					<div className="py-8 text-center text-sm text-kumo-subtle">
+						{t(msg`No API tokens yet. Create one to get started.`)}
+					</div>
+				) : (
+					<div className="divide-y">
+						{tokens.map((token) => (
+							<div key={token.id} className="flex items-center justify-between p-4">
+								<div className="min-w-0">
+									<div className="flex items-center gap-2">
+										<span className="font-medium truncate">{token.name}</span>
+										<code className="text-xs text-kumo-subtle bg-kumo-tint px-1.5 py-0.5 rounded">
+											{token.prefix}...
+										</code>
+									</div>
+									<div className="flex gap-3 mt-1 text-xs text-kumo-subtle">
+										<span>{t(msg`Scopes: ${token.scopes.join(", ")}`)}</span>
+										{token.expiresAt && (
+											<span>
+												{t(msg`Expires ${new Date(token.expiresAt).toLocaleDateString()}`)}
+											</span>
+										)}
+										{token.lastUsedAt && (
+											<span>
+												{t(msg`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`)}
+											</span>
+										)}
+									</div>
+									<div className="text-xs text-kumo-subtle mt-0.5">
+										{t(msg`Created ${new Date(token.createdAt).toLocaleDateString()}`)}
+									</div>
+								</div>
+
+								{revokeConfirmId === token.id ? (
+									<div className="flex items-center gap-2 shrink-0">
+										{revokeMutation.error && (
+											<span className="text-sm text-kumo-danger">
+												{getMutationError(revokeMutation.error)}
+											</span>
+										)}
+										<span className="text-sm text-kumo-danger">{t(msg`Revoke?`)}</span>
+										<Button
+											variant="destructive"
+											size="sm"
+											disabled={revokeMutation.isPending}
+											onClick={() => revokeMutation.mutate(token.id)}
+										>
+											{revokeMutation.isPending ? t(msg`Revoking...`) : t(msg`Confirm`)}
+										</Button>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => {
+												setRevokeConfirmId(null);
+												revokeMutation.reset();
+											}}
+										>
+											{t(msg`Cancel`)}
+										</Button>
+									</div>
+								) : (
 									<Button
-										type="button"
 										variant="ghost"
 										shape="square"
-										onClick={() => {
-											revokeMutation.reset();
-											setRevokeConfirmId(token.id);
-										}}
+										onClick={() => setRevokeConfirmId(token.id)}
 										aria-label={t(msg`Revoke token`)}
 									>
 										<Trash className="h-4 w-4 text-kumo-subtle hover:text-kumo-danger" />
 									</Button>
-								</li>
-							))}
-						</ul>
-					)}
-				</SettingsSection>
-			</div>
-
-			<ConfirmDialog
-				open={revokeConfirmId !== null}
-				onClose={() => {
-					setRevokeConfirmId(null);
-					revokeMutation.reset();
-				}}
-				title={t(msg`Revoke token?`)}
-				description={t(
-					msg`The token ${tokenToRevoke?.name ?? ""} will stop working immediately. This action cannot be undone.`,
+								)}
+							</div>
+						))}
+					</div>
 				)}
-				confirmLabel={t(msg`Revoke`)}
-				pendingLabel={t(msg`Revoking...`)}
-				isPending={revokeMutation.isPending}
-				error={revokeMutation.error}
-				onConfirm={() => {
-					if (revokeConfirmId) revokeMutation.mutate(revokeConfirmId);
-				}}
-			/>
-		</SettingsFrame>
+			</div>
+		</div>
 	);
 }
 
@@ -430,8 +405,15 @@ function CreateTokenForm({
 	const isValid = name.trim().length > 0 && selectedScopes.size > 0;
 
 	return (
-		<div className="space-y-4">
-			{error && <DialogError message={error} />}
+		<div className="rounded-lg border bg-kumo-base p-6">
+			<h2 className="text-lg font-semibold mb-4">{t(msg`Create New Token`)}</h2>
+
+			{error && (
+				<div className="mb-4 rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-3 flex items-center gap-2 text-sm text-kumo-danger">
+					<WarningCircle className="h-4 w-4 shrink-0" />
+					{error}
+				</div>
+			)}
 
 			<form onSubmit={handleSubmit} className="space-y-4">
 				<Input
@@ -452,7 +434,6 @@ function CreateTokenForm({
 									<Checkbox
 										checked={selectedScopes.has(scope)}
 										onCheckedChange={() => toggleScope(scope)}
-										aria-label={t(label)}
 									/>
 									<div>
 										<div className="text-sm font-medium">{t(label)}</div>
@@ -466,7 +447,6 @@ function CreateTokenForm({
 								<Checkbox
 									checked={selectedScopes.has(plugin.scope)}
 									onCheckedChange={() => toggleScope(plugin.scope)}
-									aria-label={t`Plugin tools: ${plugin.name}`}
 								/>
 								<div>
 									<div className="text-sm font-medium">{t`Plugin tools: ${plugin.name}`}</div>
