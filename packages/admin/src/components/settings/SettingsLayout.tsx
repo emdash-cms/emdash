@@ -39,23 +39,41 @@ export function SettingsFrame({ title, description, actions, children }: Setting
 interface SettingsSectionProps {
 	title: React.ReactNode;
 	description?: React.ReactNode;
+	actions?: React.ReactNode;
+	contentClassName?: string;
 	children: React.ReactNode;
 }
 
-export function SettingsSection({ title, description, children }: SettingsSectionProps) {
+export function SettingsSection({
+	title,
+	description,
+	actions,
+	contentClassName,
+	children,
+}: SettingsSectionProps) {
 	const headingId = React.useId();
 
 	return (
 		<section aria-labelledby={headingId}>
-			<div className="grid gap-1">
-				<h2 id={headingId} className="text-lg font-semibold leading-6 text-balance">
-					{title}
-				</h2>
-				{description && (
-					<p className="max-w-2xl text-sm leading-5 text-pretty text-kumo-subtle">{description}</p>
-				)}
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<div className="grid gap-1">
+					<h2 id={headingId} className="text-lg font-semibold leading-6 text-balance">
+						{title}
+					</h2>
+					{description && (
+						<p className="max-w-2xl text-sm leading-5 text-pretty text-kumo-subtle">
+							{description}
+						</p>
+					)}
+				</div>
+				{actions && <div className="flex shrink-0 justify-end sm:pt-0.5">{actions}</div>}
 			</div>
-			<div className="mt-3 divide-y divide-kumo-line overflow-hidden rounded-xl border border-kumo-line bg-kumo-base">
+			<div
+				className={cn(
+					"mt-3 divide-y divide-kumo-line overflow-hidden rounded-xl border border-kumo-line bg-kumo-base",
+					contentClassName,
+				)}
+			>
 				{children}
 			</div>
 		</section>

@@ -104,8 +104,8 @@ export function PasskeyItem({
 		passkey.deviceType === "multiDevice" ? t`Synced passkey` : t`Device-bound passkey`;
 
 	return (
-		<li className="flex items-center justify-between p-4 border rounded-lg bg-kumo-base">
-			<div className="flex items-start gap-3">
+		<li className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+			<div className="flex min-w-0 items-start gap-3">
 				{/* Icon */}
 				<div className="mt-0.5 p-2 rounded-md bg-kumo-tint">
 					{passkey.deviceType === "multiDevice" ? (
@@ -116,17 +116,18 @@ export function PasskeyItem({
 				</div>
 
 				{/* Info */}
-				<div>
+				<div className="min-w-0 flex-1">
 					{isEditing ? (
-						<div className="flex items-center gap-2">
+						<div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
 							<Input
 								ref={inputRef}
 								type="text"
 								value={editName}
 								onChange={(e) => setEditName(e.target.value)}
 								onKeyDown={handleKeyDown}
-								className="h-8 w-48"
+								className="h-8 w-full sm:w-48"
 								placeholder={t`Passkey name`}
+								aria-label={t`Passkey name`}
 								disabled={isRenaming}
 							/>
 							<Button
@@ -163,7 +164,7 @@ export function PasskeyItem({
 
 			{/* Actions */}
 			{!isEditing && (
-				<div className="flex items-center gap-1">
+				<div className="flex self-end items-center gap-1 sm:self-center">
 					<Button
 						variant="ghost"
 						size="sm"
