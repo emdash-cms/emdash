@@ -60,7 +60,7 @@ import type { EmDashRuntime } from "emdash/middleware";
 
 const MD_EXT = /\.md$/;
 const ITEM_PREFIX = /^item:/;
-const INSTANCE_NOT_FOUND_MESSAGE = /instance.*not found|not found.*instance/i;
+const INSTANCE_NOT_FOUND_MESSAGE = /ai_search_not_found|instance.*not found|not found.*instance/i;
 
 // =============================================================================
 // Configuration

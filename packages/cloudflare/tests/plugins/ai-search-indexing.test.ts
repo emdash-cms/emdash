@@ -25,10 +25,12 @@ const { uploads, deletions, createConfigs, updates, controls, pendingUploads, fa
 			{ resolve: (item: { id: string }) => void; reject: (error: Error) => void }
 		>();
 		const instance = {
-			info: () =>
-				state.instanceMissing
-					? Promise.reject(new Error("instance not found"))
-					: Promise.resolve(state.instanceInfo),
+			info: () => {
+				if (!state.instanceMissing) return Promise.resolve(state.instanceInfo);
+				const error = new Error("ai_search_not_found");
+				error.name = "AiSearchNotFoundError";
+				return Promise.reject(error);
+			},
 			update: (config: Record<string, unknown>) => {
 				instanceUpdates.push(config);
 				state.instanceInfo = { ...state.instanceInfo, ...config };
@@ -691,7 +693,7 @@ describe("ai-search metadata schema route", () => {
 		expect(createConfigs).toHaveLength(0);
 	});
 
-	it("treats a missing instance as valid without creating or updating it", async () => {
+	it("treats Cloudflare's ai_search_not_found error as valid without creating or updating the instance", async () => {
 		createConfigs.length = 0;
 		updates.length = 0;
 		controls.instanceMissing = true;
