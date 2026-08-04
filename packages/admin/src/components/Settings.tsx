@@ -40,7 +40,7 @@ function SettingsLinkRow({ to, icon, title, description }: SettingsLinkProps) {
 				{icon}
 			</span>
 			<span className="min-w-0 flex-1">
-				<span className="block font-medium leading-5">{title}</span>
+				<span className="block text-base font-medium leading-5">{title}</span>
 				<span className="mt-0.5 block text-sm leading-5 text-pretty text-kumo-subtle">
 					{description}
 				</span>
@@ -64,7 +64,7 @@ function SettingsSection({
 
 	return (
 		<section aria-labelledby={headingId}>
-			<h2 id={headingId} className="text-base font-semibold leading-6 text-balance">
+			<h2 id={headingId} className="text-lg font-semibold leading-6 text-balance">
 				{title}
 			</h2>
 			<div className="mt-3 divide-y divide-kumo-line overflow-hidden rounded-xl border border-kumo-line bg-kumo-base">
@@ -91,8 +91,8 @@ export function Settings() {
 		<div className="max-w-4xl pb-6">
 			<header>
 				<h1 className="text-2xl font-semibold leading-tight text-balance">{t`Settings`}</h1>
-				<p className="mt-1.5 max-w-2xl text-sm leading-5 text-pretty text-kumo-subtle">
-					{t`Manage your site, access, integrations, and admin preferences.`}
+				<p className="mt-1.5 max-w-2xl text-base leading-5 text-pretty text-kumo-subtle">
+					{t`Configure your site, access, integrations, and admin preferences.`}
 				</p>
 			</header>
 
@@ -102,60 +102,60 @@ export function Settings() {
 						to="/settings/general"
 						icon={<Gear className="h-5 w-5" />}
 						title={t`General`}
-						description={t`Site identity, logo, favicon, and reading preferences`}
+						description={t`Set your site name, logo, favicon, and reading defaults.`}
 					/>
 					<SettingsLinkRow
 						to="/settings/social"
 						icon={<ShareNetwork className="h-5 w-5" />}
-						title={t`Social Links`}
-						description={t`Social media profile links`}
+						title={t`Social links`}
+						description={t`Add links to your social profiles.`}
 					/>
 					<SettingsLinkRow
 						to="/settings/seo"
 						icon={<MagnifyingGlass className="h-5 w-5" />}
 						title={t`SEO`}
-						description={t`Search engine optimization and verification`}
+						description={t`Control search appearance, social sharing, and site verification.`}
 					/>
 				</SettingsSection>
 
 				{showSecuritySettings && (
-					<SettingsSection title={t`Access`}>
+					<SettingsSection title={t`Security and access`}>
 						<SettingsLinkRow
 							to="/settings/security"
 							icon={<Shield className="h-5 w-5" />}
 							title={t`Security`}
-							description={t`Manage your passkeys and authentication`}
+							description={t`Manage passkeys and sign-in settings.`}
 						/>
 						<SettingsLinkRow
 							to="/settings/allowed-domains"
 							icon={<Globe className="h-5 w-5" />}
-							title={t`Self-Signup Domains`}
-							description={t`Allow users from specific domains to sign up`}
+							title={t`Self-signup domains`}
+							description={t`Choose which email domains can create accounts.`}
 						/>
 					</SettingsSection>
 				)}
 
-				<SettingsSection title={t`Developer`}>
+				<SettingsSection title={t`Developer tools`}>
 					<SettingsLinkRow
 						to="/settings/api-tokens"
 						icon={<Key className="h-5 w-5" />}
-						title={t`API Tokens`}
-						description={t`Create personal access tokens for programmatic API access`}
+						title={t`API tokens`}
+						description={t`Create and revoke tokens for API access.`}
 					/>
 				</SettingsSection>
 
-				<SettingsSection title={t`Operations`}>
+				<SettingsSection title={t`Email and backups`}>
 					<SettingsLinkRow
 						to="/settings/email"
 						icon={<Envelope className="h-5 w-5" />}
 						title={t`Email`}
-						description={t`View email provider status and send test emails`}
+						description={t`Check email delivery and send a test message.`}
 					/>
 					<SettingsLinkRow
 						to="/settings/backups"
 						icon={<DownloadSimple className="h-5 w-5" />}
 						title={t`Backups`}
-						description={t`Download backups and schedule automatic backups to storage`}
+						description={t`Download, schedule, restore, and manage backups.`}
 					/>
 				</SettingsSection>
 
@@ -170,9 +170,9 @@ export function Settings() {
 									<GlobeSimple className="h-5 w-5" />
 								</span>
 								<div className="min-w-0">
-									<p className="font-medium leading-5">{t`Language`}</p>
+									<p className="text-base font-medium leading-5">{t`Language`}</p>
 									<p className="mt-0.5 text-sm leading-5 text-pretty text-kumo-subtle">
-										{t`Choose your preferred admin language`}
+										{t`Choose the language used in the admin.`}
 									</p>
 								</div>
 							</div>

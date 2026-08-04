@@ -62,7 +62,7 @@ describe("Settings", () => {
 		);
 		await expect.element(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
 		await expect
-			.element(screen.getByText("Manage your site, access, integrations, and admin preferences."))
+			.element(screen.getByText("Configure your site, access, integrations, and admin preferences."))
 			.toBeInTheDocument();
 	});
 
@@ -73,7 +73,7 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("General")).toBeInTheDocument();
-		await expect.element(screen.getByText("Social Links")).toBeInTheDocument();
+		await expect.element(screen.getByText("Social links")).toBeInTheDocument();
 		await expect.element(screen.getByText("SEO")).toBeInTheDocument();
 	});
 
@@ -83,7 +83,7 @@ describe("Settings", () => {
 				<Settings />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("API Tokens")).toBeInTheDocument();
+		await expect.element(screen.getByText("API tokens")).toBeInTheDocument();
 		await expect.element(screen.getByText("Email", { exact: true })).toBeInTheDocument();
 	});
 
@@ -94,7 +94,13 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 
-		for (const name of ["Site", "Access", "Developer", "Operations", "Preferences"]) {
+		for (const name of [
+			"Site",
+			"Security and access",
+			"Developer tools",
+			"Email and backups",
+			"Preferences",
+		]) {
 			await expect.element(screen.getByRole("heading", { name, level: 2 })).toBeInTheDocument();
 		}
 	});
@@ -110,7 +116,7 @@ describe("Settings", () => {
 			"href",
 			"/settings/general",
 		);
-		expect(screen.getByRole("link", { name: /API Tokens/ }).element()).toHaveAttribute(
+		expect(screen.getByRole("link", { name: /API tokens/ }).element()).toHaveAttribute(
 			"href",
 			"/settings/api-tokens",
 		);
@@ -123,8 +129,8 @@ describe("Settings", () => {
 				<Settings />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("Security")).toBeInTheDocument();
-		await expect.element(screen.getByText("Self-Signup Domains")).toBeInTheDocument();
+		await expect.element(screen.getByText("Security", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("Self-signup domains")).toBeInTheDocument();
 	});
 
 	it("security link hidden when authMode is not passkey", async () => {
@@ -140,6 +146,6 @@ describe("Settings", () => {
 		// Wait for the page to render by checking a link that's always visible
 		await expect.element(screen.getByText("General")).toBeInTheDocument();
 		expect(screen.getByText("Security").query()).toBeNull();
-		expect(screen.getByText("Self-Signup Domains").query()).toBeNull();
+		expect(screen.getByText("Self-signup domains").query()).toBeNull();
 	});
 });
