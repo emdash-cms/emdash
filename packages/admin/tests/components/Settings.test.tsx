@@ -61,6 +61,9 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Manage your site, access, integrations, and admin preferences."))
+			.toBeInTheDocument();
 	});
 
 	it("shows links to General, Social, and SEO sub-pages", async () => {
@@ -82,6 +85,35 @@ describe("Settings", () => {
 		);
 		await expect.element(screen.getByText("API Tokens")).toBeInTheDocument();
 		await expect.element(screen.getByText("Email", { exact: true })).toBeInTheDocument();
+	});
+
+	it("groups settings into clear semantic sections", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+
+		for (const name of ["Site", "Access", "Developer", "Operations", "Preferences"]) {
+			await expect.element(screen.getByRole("heading", { name, level: 2 })).toBeInTheDocument();
+		}
+	});
+
+	it("preserves the settings destinations", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+
+		expect(screen.getByRole("link", { name: /General/ }).element()).toHaveAttribute(
+			"href",
+			"/settings/general",
+		);
+		expect(screen.getByRole("link", { name: /API Tokens/ }).element()).toHaveAttribute(
+			"href",
+			"/settings/api-tokens",
+		);
 	});
 
 	it("security link shown when authMode is passkey", async () => {
