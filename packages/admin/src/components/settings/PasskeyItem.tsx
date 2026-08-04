@@ -125,7 +125,6 @@ export function PasskeyItem({
 								value={editName}
 								onChange={(e) => setEditName(e.target.value)}
 								onKeyDown={handleKeyDown}
-								aria-label={t`Passkey name`}
 								className="h-8 w-48"
 								placeholder={t`Passkey name`}
 								disabled={isRenaming}

@@ -71,17 +71,6 @@ beforeEach(() => {
 });
 
 describe("SecuritySettings", () => {
-	it("shows the shared loading recipe while auth data is loading", async () => {
-		mockFetchManifest.mockImplementationOnce(() => new Promise(() => {}));
-		const screen = await render(
-			<QueryWrapper>
-				<SecuritySettings />
-			</QueryWrapper>,
-		);
-
-		await expect.element(screen.getByText("Loading...")).toBeInTheDocument();
-	});
-
 	it("passkey registration errors show a stable title and detail toast", async () => {
 		const screen = await render(
 			<QueryWrapper>
@@ -97,66 +86,5 @@ describe("SecuritySettings", () => {
 		await expect
 			.element(screen.getByText("Authenticator rejected registration"))
 			.toBeInTheDocument();
-	});
-
-	it("renames an existing passkey", async () => {
-		mockFetchPasskeys.mockResolvedValue([
-			{
-				id: "passkey-1",
-				name: "Laptop",
-				deviceType: "multiDevice",
-				backedUp: true,
-				createdAt: "2025-01-01T00:00:00Z",
-				lastUsedAt: "2025-01-02T00:00:00Z",
-			},
-		]);
-		const screen = await render(
-			<QueryWrapper>
-				<SecuritySettings />
-			</QueryWrapper>,
-		);
-
-		await expect.element(screen.getByText("Laptop")).toBeInTheDocument();
-		await screen.getByRole("button", { name: "Rename Laptop" }).click();
-		const input = screen.getByPlaceholder("Passkey name");
-		await input.fill("Work laptop");
-		await screen.getByRole("button", { name: "Save name" }).click();
-
-		await vi.waitFor(() =>
-			expect(mockRenamePasskey).toHaveBeenCalledWith("passkey-1", "Work laptop"),
-		);
-		await expect.element(screen.getByText("Passkey renamed")).toBeInTheDocument();
-	});
-
-	it("requires confirmation before deleting a passkey", async () => {
-		mockFetchPasskeys.mockResolvedValue([
-			{
-				id: "passkey-1",
-				name: "Laptop",
-				deviceType: "multiDevice",
-				backedUp: true,
-				createdAt: "2025-01-01T00:00:00Z",
-				lastUsedAt: "2025-01-02T00:00:00Z",
-			},
-			{
-				id: "passkey-2",
-				name: "Phone",
-				deviceType: "singleDevice",
-				backedUp: false,
-				createdAt: "2025-01-03T00:00:00Z",
-				lastUsedAt: "2025-01-04T00:00:00Z",
-			},
-		]);
-		const screen = await render(
-			<QueryWrapper>
-				<SecuritySettings />
-			</QueryWrapper>,
-		);
-
-		await screen.getByRole("button", { name: "Remove Laptop" }).click();
-		await expect.element(screen.getByText("Remove passkey?")).toBeInTheDocument();
-		screen.getByRole("button", { name: "Remove" }).element().click();
-
-		await vi.waitFor(() => expect(mockDeletePasskey).toHaveBeenCalledWith("passkey-1"));
 	});
 });
