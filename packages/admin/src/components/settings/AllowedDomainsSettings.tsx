@@ -7,7 +7,7 @@
 
 import { Button, Dialog, Input, Select, Switch, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Globe, Plus, Trash, Pencil, Info } from "@phosphor-icons/react";
+import { Plus, Trash, Pencil, Info } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -20,7 +20,15 @@ import {
 	fetchManifest,
 	type AllowedDomain,
 } from "../../lib/api";
+import { getMutationError } from "../DialogError.js";
 import { BackToSettingsLink } from "./BackToSettingsLink.js";
+import {
+	SettingsEmptyState,
+	SettingsErrorState,
+	SettingsFrame,
+	SettingsLoadingState,
+	SettingsSection,
+} from "./SettingsLayout.js";
 import { useAllowedDomainsRolesConfig } from "./useAllowedDomainsRolesConfig.js";
 
 export function AllowedDomainsSettings() {
@@ -68,7 +76,7 @@ export function AllowedDomainsSettings() {
 		onError: (mutationError) => {
 			toastManager.add({
 				title: t`Failed to add domain`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				description: getMutationError(mutationError) ?? t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
 			});
@@ -92,7 +100,7 @@ export function AllowedDomainsSettings() {
 		onError: (mutationError) => {
 			toastManager.add({
 				title: t`Failed to update domain`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				description: getMutationError(mutationError) ?? t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
 			});
@@ -110,7 +118,7 @@ export function AllowedDomainsSettings() {
 		onError: (mutationError) => {
 			toastManager.add({
 				title: t`Failed to remove domain`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				description: getMutationError(mutationError) ?? t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
 			});
@@ -146,76 +154,53 @@ export function AllowedDomainsSettings() {
 		}
 	};
 
-	const settingsHeader = (
-		<div className="flex items-center gap-3">
-			<BackToSettingsLink />
-			<h1 className="text-2xl font-semibold leading-tight">{t`Self-Signup Domains`}</h1>
-		</div>
-	);
-
 	if (manifestLoading || isLoading) {
 		return (
-			<div className="space-y-6">
-				{settingsHeader}
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-subtle">{t`Loading...`}</p>
-				</div>
-			</div>
+			<SettingsFrame title={t`Self-Signup Domains`} leading={<BackToSettingsLink />}>
+				<SettingsLoadingState label={t`Loading...`} />
+			</SettingsFrame>
 		);
 	}
 
 	// Show message when external auth is configured
 	if (isExternalAuth) {
 		return (
-			<div className="space-y-6">
-				{settingsHeader}
-				<div className="rounded-lg border bg-kumo-base p-6">
+			<SettingsFrame title={t`Self-Signup Domains`} leading={<BackToSettingsLink />}>
+				<SettingsSection title={t`Authentication provider`}>
 					<div className="flex items-start gap-3">
-						<Info className="h-5 w-5 text-kumo-subtle mt-0.5 flex-shrink-0" />
+						<Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-kumo-subtle" aria-hidden="true" />
 						<div className="space-y-2">
 							<p className="text-kumo-subtle">
 								{t`User access is managed by an external provider (${manifest?.authMode}). Self-signup domain settings are not available when using external authentication.`}
 							</p>
 						</div>
 					</div>
-				</div>
-			</div>
+				</SettingsSection>
+			</SettingsFrame>
 		);
 	}
 
 	if (error) {
 		return (
-			<div className="space-y-6">
-				{settingsHeader}
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-danger">
-						{error instanceof Error ? error.message : t`Failed to load allowed domains`}
-					</p>
-				</div>
-			</div>
+			<SettingsFrame title={t`Self-Signup Domains`} leading={<BackToSettingsLink />}>
+				<SettingsErrorState
+					message={getMutationError(error) ?? t`Failed to load allowed domains`}
+				/>
+			</SettingsFrame>
 		);
 	}
 
 	return (
-		<div className="space-y-6">
-			{settingsHeader}
-
-			{/* Domains Section */}
-			<div className="rounded-lg border bg-kumo-base p-6">
-				<div className="flex items-center gap-2 mb-4">
-					<Globe className="h-5 w-5 text-kumo-subtle" />
-					<h2 className="text-lg font-semibold">{t`Allowed Domains`}</h2>
-				</div>
-
-				<p className="text-sm text-kumo-subtle mb-6">
-					{t`Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically.`}
-				</p>
-
+		<SettingsFrame title={t`Self-Signup Domains`} leading={<BackToSettingsLink />}>
+			<SettingsSection
+				title={t`Allowed Domains`}
+				description={t`Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically.`}
+			>
 				{/* Domain list */}
 				{domains && domains.length > 0 ? (
-					<div className="space-y-2">
+					<ul className="space-y-3">
 						{domains.map((domain) => (
-							<div
+							<li
 								key={domain.domain}
 								className={`flex items-center justify-between p-4 rounded-lg border ${
 									domain.enabled ? "bg-kumo-base" : "bg-kumo-tint/50 opacity-60"
@@ -226,6 +211,7 @@ export function AllowedDomainsSettings() {
 										checked={domain.enabled}
 										onCheckedChange={() => handleToggleEnabled(domain)}
 										disabled={updateMutation.isPending}
+										aria-label={t`Enable ${domain.domain}`}
 									/>
 									<div>
 										<div className="font-medium">{domain.domain}</div>
@@ -254,13 +240,13 @@ export function AllowedDomainsSettings() {
 										<Trash className="h-4 w-4 text-kumo-danger" />
 									</Button>
 								</div>
-							</div>
+							</li>
 						))}
-					</div>
+					</ul>
 				) : (
-					<div className="rounded-lg border border-dashed p-6 text-center text-kumo-subtle">
+					<SettingsEmptyState>
 						{t`No domains configured. Users must be invited individually.`}
-					</div>
+					</SettingsEmptyState>
 				)}
 
 				{/* Add domain section */}
@@ -270,6 +256,7 @@ export function AllowedDomainsSettings() {
 							<div className="flex items-center justify-between">
 								<h3 className="font-medium">{t`Add an allowed domain`}</h3>
 								<Button
+									type="button"
 									variant="ghost"
 									size="sm"
 									onClick={() => {
@@ -305,6 +292,7 @@ export function AllowedDomainsSettings() {
 								</div>
 							</div>
 							<Button
+								type="button"
 								onClick={handleAddDomain}
 								disabled={!newDomain.trim() || createMutation.isPending}
 							>
@@ -317,7 +305,7 @@ export function AllowedDomainsSettings() {
 						</Button>
 					)}
 				</div>
-			</div>
+			</SettingsSection>
 
 			{/* Edit Domain Dialog */}
 			<Dialog.Root
@@ -401,7 +389,7 @@ export function AllowedDomainsSettings() {
 					</div>
 				</Dialog>
 			</Dialog.Root>
-		</div>
+		</SettingsFrame>
 	);
 }
 
