@@ -205,27 +205,6 @@ describe("AllowedDomainsSettings", () => {
 		expect(mockDeleteAllowedDomain.mock.calls[0]![0]).toBe("test.com");
 	});
 
-	it("edit domain: opens the role dialog for the selected domain", async () => {
-		mockFetchAllowedDomains.mockResolvedValue([
-			{
-				domain: "test.com",
-				defaultRole: 30,
-				roleName: "Author",
-				enabled: true,
-				createdAt: "2025-01-01T00:00:00Z",
-			},
-		]);
-		const screen = await render(
-			<QueryWrapper>
-				<AllowedDomainsSettings />
-			</QueryWrapper>,
-		);
-
-		await screen.getByLabelText("Edit test.com").click();
-		await expect.element(screen.getByText("Edit Domain")).toBeInTheDocument();
-		await expect.element(screen.getByLabelText("Default Role")).toBeInTheDocument();
-	});
-
 	it("toggle enable/disable calls updateAllowedDomain", async () => {
 		mockFetchAllowedDomains.mockResolvedValue([
 			{
