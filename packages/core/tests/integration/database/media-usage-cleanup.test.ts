@@ -440,6 +440,199 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 		);
 	});
 
+	it("allows attempt-only sources behind the cleanup generation fence", async () => {
+		await db
+			.insertInto("_emdash_media_usage_cleanup_fence")
+			.values({ task_key: "projection_gc", generation_floor: "ZZZZZZZZZZZZZZZZZZZZZZZZZZ" })
+			.execute();
+
+		const attempted = await repo.markSourceAttempted({
+			...contentSource("entry-attempt-only"),
+			lastErrorCode: "MEDIA_USAGE_INDEX_FAILED",
+		});
+		const guarded = await repo.markSourceAttemptedIfMatching(
+			{
+				...contentSource("entry-guarded-attempt-only"),
+				lastErrorCode: "MEDIA_USAGE_INDEX_FAILED",
+			},
+			null,
+		);
+
+		expect(attempted.sourceKey).toBe("content:posts:entry-attempt-only:columns");
+		expect(attempted.lastErrorCode).toBe("MEDIA_USAGE_INDEX_FAILED");
+		expect(guarded).toEqual({ attempted: true, source: null });
+		expect(
+			await repo.findSource("content:posts:entry-guarded-attempt-only:columns"),
+		).not.toBeNull();
+		expect(
+			await db
+				.selectFrom("_emdash_media_usage")
+				.select("id")
+				.where("source_key", "in", [
+					attempted.sourceKey,
+					"content:posts:entry-guarded-attempt-only:columns",
+				])
+				.execute(),
+		).toEqual([]);
+	});
+
+	it("allows unrelated PostgreSQL source writes to overlap", async () => {
+		if (dialect !== "postgres") return;
+
+		let releaseFirst!: () => void;
+		const firstRelease = new Promise<void>((resolve) => {
+			releaseFirst = resolve;
+		});
+		let signalFirstInserted!: () => void;
+		const firstInserted = new Promise<void>((resolve) => {
+			signalFirstInserted = resolve;
+		});
+		const first = db.transaction().execute(async (trx) => {
+			await trx
+				.insertInto("_emdash_media_usage_sources")
+				.values({
+					source_key: "concurrent-source-a",
+					source_type: "content",
+					source_variant: "columns",
+					current_generation: "concurrent-generation-a",
+				})
+				.execute();
+			signalFirstInserted();
+			await firstRelease;
+		});
+		await firstInserted;
+
+		let secondError: unknown;
+		try {
+			await db.transaction().execute(async (trx) => {
+				await sql`SET LOCAL lock_timeout = '250ms'`.execute(trx);
+				await trx
+					.insertInto("_emdash_media_usage_sources")
+					.values({
+						source_key: "concurrent-source-b",
+						source_type: "content",
+						source_variant: "columns",
+						current_generation: "concurrent-generation-b",
+					})
+					.execute();
+			});
+		} catch (error) {
+			secondError = error;
+		}
+		releaseFirst();
+		await first;
+
+		expect(secondError).toBeUndefined();
+	});
+
+	it("allows an unrelated PostgreSQL source write during source deletion", async () => {
+		if (dialect !== "postgres") return;
+
+		const current = await repo.replaceSource(contentSource("entry-concurrent-delete"), [
+			occurrence("media-concurrent-delete"),
+		]);
+		const internals = repo as unknown as {
+			deleteSourceGenerationOccurrences(
+				database: Kysely<Database> | Transaction<Database>,
+				sourceKey: string,
+				generation: string,
+			): Promise<void>;
+		};
+		const original = internals.deleteSourceGenerationOccurrences.bind(repo);
+		let releaseDelete!: () => void;
+		const deleteRelease = new Promise<void>((resolve) => {
+			releaseDelete = resolve;
+		});
+		let signalDeleteStarted!: () => void;
+		const deleteStarted = new Promise<void>((resolve) => {
+			signalDeleteStarted = resolve;
+		});
+		vi.spyOn(internals, "deleteSourceGenerationOccurrences").mockImplementation(
+			async (database, sourceKey, generation) => {
+				signalDeleteStarted();
+				await deleteRelease;
+				return original(database, sourceKey, generation);
+			},
+		);
+		const deleting = repo.deleteSourceIfCurrent(current.sourceKey, current.currentGeneration);
+		await deleteStarted;
+
+		let sourceWriteError: unknown;
+		try {
+			await db.transaction().execute(async (trx) => {
+				await sql`SET LOCAL lock_timeout = '250ms'`.execute(trx);
+				await trx
+					.insertInto("_emdash_media_usage_sources")
+					.values({
+						source_key: "source-during-delete",
+						source_type: "content",
+						source_variant: "columns",
+						current_generation: "generation-during-delete",
+					})
+					.execute();
+			});
+		} catch (error) {
+			sourceWriteError = error;
+		}
+		releaseDelete();
+
+		expect(await deleting).toEqual({ deleted: true, source: null });
+		expect(sourceWriteError).toBeUndefined();
+	});
+
+	it("makes PostgreSQL cleanup wait for an in-flight source write", async () => {
+		if (dialect !== "postgres") return;
+
+		let releaseSourceWrite!: () => void;
+		const sourceWriteRelease = new Promise<void>((resolve) => {
+			releaseSourceWrite = resolve;
+		});
+		let signalSourceInserted!: () => void;
+		const sourceInserted = new Promise<void>((resolve) => {
+			signalSourceInserted = resolve;
+		});
+		const writing = db.transaction().execute(async (trx) => {
+			await trx
+				.insertInto("_emdash_media_usage_sources")
+				.values({
+					source_key: "cleanup-fence-source",
+					source_type: "content",
+					source_variant: "columns",
+					current_generation: "cleanup-fence-generation",
+				})
+				.execute();
+			signalSourceInserted();
+			await sourceWriteRelease;
+		});
+		await sourceInserted;
+
+		let claimError: unknown;
+		try {
+			await db.transaction().execute(async (trx) => {
+				await sql`SET LOCAL lock_timeout = '250ms'`.execute(trx);
+				await new MediaUsageRepository(trx).claimMediaUsageCleanup({
+					leaseToken: "blocked-source-write-claimant",
+					leaseDurationSeconds: 5 * 60,
+					nextEligibleDelaySeconds: 60,
+					sweepSafetyWindowSeconds: 60 * 60,
+				});
+			});
+		} catch (error) {
+			claimError = error;
+		}
+		releaseSourceWrite();
+		await writing;
+		const claim = await repo.claimMediaUsageCleanup({
+			leaseToken: "source-write-claimant",
+			leaseDurationSeconds: 5 * 60,
+			nextEligibleDelaySeconds: 60,
+			sweepSafetyWindowSeconds: 60 * 60,
+		});
+
+		expect(claimError).toMatchObject({ code: "55P03" });
+		expect(claim).not.toBeNull();
+	});
+
 	it("takes the PostgreSQL cleanup lock before source deletion locks occurrences", async () => {
 		if (dialect !== "postgres") return;
 
