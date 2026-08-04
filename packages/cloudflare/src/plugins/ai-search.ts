@@ -275,11 +275,28 @@ function isAiSearchNamespace(value: unknown): value is AiSearchNamespace {
 	return isRecord(value) && typeof value.get === "function" && typeof value.create === "function";
 }
 
+const WORKERS_MODULE_KEY = Symbol.for("emdash.ai-search.workers-module");
+
+type WorkersModule = typeof import("cloudflare:workers");
+
+/**
+ * Import `cloudflare:workers` once per isolate. Several call sites need it, and
+ * a rejected import is not cached so a later call can retry.
+ */
+function loadWorkersModule(): Promise<WorkersModule> {
+	const globals = globalThis as typeof globalThis & {
+		[WORKERS_MODULE_KEY]?: Promise<WorkersModule>;
+	};
+	return (globals[WORKERS_MODULE_KEY] ??= import("cloudflare:workers").catch((error: unknown) => {
+		delete globals[WORKERS_MODULE_KEY];
+		throw error;
+	}));
+}
+
 /** Get Cloudflare runtime env via cloudflare:workers. */
 async function getCloudflareEnv(): Promise<object | null> {
 	try {
-		const { env } = await import("cloudflare:workers");
-		return env;
+		return (await loadWorkersModule()).env;
 	} catch {
 		return null;
 	}
@@ -291,7 +308,9 @@ async function getCloudflareEnv(): Promise<object | null> {
  * Silently no-ops outside Workers (e.g. during local dev).
  */
 function cfWaitUntil(promise: Promise<unknown>): void {
-	import("cloudflare:workers").then(({ waitUntil }) => waitUntil(promise)).catch(() => {});
+	loadWorkersModule()
+		.then(({ waitUntil }) => waitUntil(promise))
+		.catch(() => {});
 }
 
 const SYSTEM_CONTENT_KEYS = new Set([
