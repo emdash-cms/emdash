@@ -263,9 +263,13 @@ The AI Search plugin indexes published EmDash content and adds smart search inte
 	```bash
 	pnpm deploy
 	```
+
+6. Open **Cloudflare AI Search** in the EmDash admin panel, select the collections to index, and click **Sync All Content**.
+
+	This initial sync is required: the plugin's content hooks only fire for content created or updated after it was enabled, so anything published beforehand stays missing from the index until you run a full sync.
 </Steps>
 
-After deployment, open **Settings > AI Search** in the EmDash admin panel to choose which collections to index and monitor indexing progress. New and updated published content is kept in sync automatically.
+Content published or updated after setup is kept in sync automatically. The same page shows indexing progress.
 
 ## Email
 
