@@ -619,7 +619,6 @@ interface AISearchSnippetResponse {
 		score: number;
 		item: {
 			key: string;
-			timestamp?: number;
 			metadata: { title: string; description: string; image?: string };
 		};
 	}>;
@@ -725,7 +724,6 @@ export async function searchAISearch(
 					score: chunk.score,
 					item: {
 						key: renderResultUrl(config, { ...parsed, slug }, locale),
-						...(chunk.item.timestamp === undefined ? {} : { timestamp: chunk.item.timestamp }),
 						metadata: {
 							title: title || slug,
 							description,

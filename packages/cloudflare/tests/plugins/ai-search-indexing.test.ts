@@ -328,6 +328,7 @@ describe("AI Search snippet endpoint", () => {
 				text: "not returned",
 				item: {
 					key: "posts/post-1.md",
+					timestamp: 123,
 					metadata: {
 						title_desc: "Hello\u001FA useful result",
 						slug: "hello",
@@ -355,7 +356,10 @@ describe("AI Search snippet endpoint", () => {
 				},
 			},
 		});
-		await expect(response.json()).resolves.toMatchObject({
+		const body = (await response.json()) as {
+			result: { chunks: Array<{ item: Record<string, unknown> }> };
+		};
+		expect(body).toMatchObject({
 			success: true,
 			result: {
 				chunks: [
@@ -371,6 +375,7 @@ describe("AI Search snippet endpoint", () => {
 				],
 			},
 		});
+		expect(body.result.chunks[0]?.item).not.toHaveProperty("timestamp");
 	});
 
 	it.each([0, 51, 1.5, "5"])("rejects invalid max_num_results value %j", async (value) => {
