@@ -394,6 +394,58 @@ describe("AI Search snippet endpoint", () => {
 		});
 	});
 
+	it("pushes one collection into the folder filter and excludes mismatched upstream results", async () => {
+		controls.searchRequests.length = 0;
+		controls.searchChunks = [
+			{
+				id: "chunk-from-another-folder",
+				type: "text",
+				score: 0.9,
+				text: "",
+				item: {
+					key: "pages/page-1.md",
+					timestamp: 123,
+					metadata: { title_desc: "Page\u001FDescription", slug: "page-1" },
+				},
+			},
+		];
+		const ctx = makeContext();
+
+		const response = await handleAISearchSnippetRequest(
+			snippetRequest({
+				messages: [{ role: "user", content: "query" }],
+				collection: " posts ",
+			}),
+			snippetOptions(ctx),
+		);
+
+		expect(controls.searchRequests.at(-1)).toMatchObject({
+			ai_search_options: { retrieval: { filters: { folder: "posts/" } } },
+		});
+		const body = (await response.json()) as { result: { chunks: Array<Record<string, unknown>> } };
+		expect(body.result.chunks).toHaveLength(0);
+	});
+
+	it("pushes multiple collections into a built-in folder $in filter", async () => {
+		controls.searchRequests.length = 0;
+		controls.searchChunks = [];
+		const ctx = makeContext();
+
+		await handleAISearchSnippetRequest(
+			snippetRequest({
+				messages: [{ role: "user", content: "query" }],
+				collection: "posts, pages",
+			}),
+			snippetOptions(ctx),
+		);
+
+		expect(controls.searchRequests.at(-1)).toMatchObject({
+			ai_search_options: {
+				retrieval: { filters: { folder: { $in: ["posts/", "pages/"] } } },
+			},
+		});
+	});
+
 	it("refreshes synonyms at most once per minute", async () => {
 		vi.useFakeTimers({ toFake: ["Date"] });
 		vi.setSystemTime(new Date("2100-01-01T00:00:00.000Z"));

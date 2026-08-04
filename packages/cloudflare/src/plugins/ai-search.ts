@@ -680,6 +680,13 @@ export async function searchAISearch(
 	const effectiveQuery = applySynonyms(input.query, await getSynonymRewriter(kv));
 	const instance = await ensureAISearchInstance(ns, config);
 	const nowSeconds = Math.floor(Date.now() / 1000);
+	const requestedCollections = parseCollections(input.collection) ?? [];
+	const folderFilter =
+		requestedCollections.length === 1
+			? `${requestedCollections[0]!}/`
+			: requestedCollections.length > 1
+				? { $in: requestedCollections.map((collection) => `${collection}/`) }
+				: undefined;
 
 	const searchLocale = async (locale: string): Promise<AISearchSnippetResponse> => {
 		const response = await instance.search({
@@ -690,18 +697,19 @@ export async function searchAISearch(
 					filters: {
 						visible_after: { $lte: nowSeconds },
 						locale: { $eq: locale },
+						...(folderFilter === undefined ? {} : { folder: folderFilter }),
 					},
 					metadata_only: true,
 				},
 			},
 		});
 
-		const collections = input.collection?.split(",").map((value) => value.trim());
-		const chunks = collections?.length
-			? response.chunks.filter((chunk) =>
-					collections.some((collection) => chunk.item.key.startsWith(`${collection}/`)),
-				)
-			: response.chunks;
+		const chunks =
+			requestedCollections.length === 0
+				? response.chunks
+				: response.chunks.filter((chunk) =>
+						requestedCollections.some((collection) => chunk.item.key.startsWith(`${collection}/`)),
+					);
 		const bestByKey = new Map<string, (typeof chunks)[number]>();
 		for (const chunk of chunks) {
 			const existing = bestByKey.get(chunk.item.key);
