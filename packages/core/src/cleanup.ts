@@ -17,6 +17,7 @@ import { MediaRepository } from "./database/repositories/media.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { Database } from "./database/types.js";
 import { removeUploadAttempt } from "./media/upload-attempts.js";
+import { cleanupMediaUsage } from "./media/usage/cleanup.js";
 import type { Storage } from "./storage/types.js";
 
 /**
@@ -30,6 +31,7 @@ export interface CleanupResult {
 	pendingUploadFiles: number;
 	uploadAttempts: number;
 	revisionsPruned: number;
+	mediaUsage: number;
 }
 
 /** Max revisions to keep per entry during periodic pruning */
@@ -60,6 +62,7 @@ export async function runSystemCleanup(
 		pendingUploadFiles: -1,
 		uploadAttempts: -1,
 		revisionsPruned: -1,
+		mediaUsage: -1,
 	};
 
 	// 1. Passkey challenges (expire after 60s, clean anything past 5 min)
@@ -134,6 +137,13 @@ export async function runSystemCleanup(
 		result.revisionsPruned = await pruneExcessiveRevisions(db);
 	} catch (error) {
 		console.error("[cleanup] Failed to prune revisions:", error);
+	}
+
+	try {
+		const mediaUsage = await cleanupMediaUsage(db);
+		result.mediaUsage = mediaUsage.status === "failed" ? -1 : mediaUsage.deletedRows;
+	} catch (error) {
+		console.error("[cleanup] Failed to clean media usage:", error);
 	}
 
 	return result;

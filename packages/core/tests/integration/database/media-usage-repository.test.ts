@@ -925,6 +925,23 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(await repo.findCurrentUsageByMediaId("media-live")).toHaveLength(1);
 	});
 
+	it("does not promote a generation reclaimed during a D1-style write", async () => {
+		await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-before-race"),
+		]);
+		await installCleanupBeforePromotionTrigger(ctx);
+		vi.resetModules();
+		const { MediaUsageRepository: D1LikeMediaUsageRepository } =
+			await import("../../../src/database/repositories/media-usage.js");
+		const d1LikeRepo = new D1LikeMediaUsageRepository(withoutTransactions(ctx.db));
+
+		await d1LikeRepo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-after-race"),
+		]);
+
+		expect(await repo.findCurrentUsageByMediaId("media-after-race")).toHaveLength(1);
+	});
+
 	it("deletes content sources by collection", async () => {
 		await repo.replaceSource(contentSource("entry1", "columns"), [
 			occurrence("hero", "media-live"),
@@ -1460,6 +1477,53 @@ async function installSourceDeleteFailureTrigger(ctx: DialectTestContext): Promi
 		BEFORE DELETE ON _emdash_media_usage_sources
 		BEGIN
 			SELECT RAISE(ABORT, 'source delete failed');
+		END
+	`.execute(ctx.db);
+}
+
+async function installCleanupBeforePromotionTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_cleanup_before_promotion()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				DELETE FROM _emdash_media_usage AS usage
+				WHERE usage.source_key = NEW.source_key
+					AND usage.generation = NEW.current_generation
+					AND NOT EXISTS (
+						SELECT 1
+						FROM _emdash_media_usage_generation_writes AS writer
+						WHERE writer.source_key = usage.source_key
+							AND writer.generation = usage.generation
+					);
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_cleanup_before_promotion
+			BEFORE UPDATE OF current_generation ON _emdash_media_usage_sources
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_cleanup_before_promotion()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_cleanup_before_promotion
+		BEFORE UPDATE OF current_generation ON _emdash_media_usage_sources
+		BEGIN
+			DELETE FROM _emdash_media_usage
+			WHERE source_key = NEW.source_key
+				AND generation = NEW.current_generation
+				AND NOT EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_generation_writes AS writer
+					WHERE writer.source_key = _emdash_media_usage.source_key
+						AND writer.generation = _emdash_media_usage.generation
+				);
 		END
 	`.execute(ctx.db);
 }

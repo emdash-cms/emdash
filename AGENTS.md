@@ -367,7 +367,7 @@ In libraries used in a Worker but not themselves Workers, install `@cloudflare/w
 # Testing
 
 - **Framework:** vitest. Tests in `packages/core/tests/`.
-- **No mocks for the DB.** SQLite (`better-sqlite3`) by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `PG_CONNECTION_STRING` to opt in).
+- **No mocks for the DB.** SQLite (`better-sqlite3`) by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `EMDASH_TEST_PG` to a connection string for a role with `CREATEDB` to opt in).
 - **Utilities:** `tests/utils/test-db.ts` exposes `setupTestDatabase()`, `setupTestDatabaseWithCollections()`, `teardownTestDatabase()` for SQLite and `setupTestPostgresDatabase()` etc. for Postgres. Dialect-agnostic: `setupForDialect`, `setupForDialectWithCollections`, `teardownForDialect`, plus `describeEachDialect(name, fn)`. Use the dialect wrapper for query-builder code -- regressions tend to be dialect-specific.
 - **Structure:** `tests/unit/`, `tests/integration/`, `tests/e2e/` (Playwright). Test files mirror source structure. Each test gets a fresh DB.
 
