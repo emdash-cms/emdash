@@ -102,6 +102,7 @@ export interface MediaUploadAttemptTable {
 export interface MediaUsageSourceTable {
 	source_key: string;
 	source_type: string;
+	collection_id: Generated<string | null>;
 	collection_slug: string | null;
 	content_id: string | null;
 	source_variant: string;
@@ -118,6 +119,7 @@ export interface MediaUsageSourceTable {
 	source_updated_at: Generated<string | null>;
 	source_version: Generated<number | null>;
 	source_fingerprint: Generated<string | null>;
+	identity_version: Generated<number | null>;
 	source_completeness: Generated<string>;
 	last_attempted_at: Generated<string | null>;
 	last_error_code: Generated<string | null>;
@@ -192,6 +194,54 @@ export interface MediaUsageIndexStatusTable {
 	indexed_source_count: Generated<number>;
 	failed_source_count: Generated<number>;
 	last_error_code: Generated<string | null>;
+	updated_at: Generated<string>;
+	collection_id: Generated<string | null>;
+	change_epoch: Generated<number | string>;
+	reconciliation_required: Generated<number>;
+	last_incremental_success_at: Generated<string | null>;
+	capture_state: Generated<string | null>;
+	cleanup_state: Generated<string | null>;
+	cleanup_phase: Generated<string | null>;
+	cleanup_work_cursor: Generated<string | null>;
+	cleanup_source_key: Generated<string | null>;
+	cleanup_occurrence_cursor: Generated<string | null>;
+	cleanup_lease_token: Generated<string | null>;
+	cleanup_lease_expires_at: Generated<string | null>;
+	cleanup_attempt_count: Generated<number>;
+	cleanup_next_attempt_at: Generated<string | null>;
+	cleanup_last_error_code: Generated<string | null>;
+}
+
+export interface MediaUsageActivationTable {
+	task_key: string;
+	state: Generated<string>;
+	runtime_generation: Generated<number>;
+	collection_cursor: Generated<string | null>;
+	drain_confirmed_at: Generated<string | null>;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
+	attempt_count: Generated<number>;
+	last_attempted_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	activated_at: Generated<string | null>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageWorkTable {
+	collection_id: string;
+	collection_slug: string;
+	content_id: string;
+	change_epoch: number | string;
+	work_version: Generated<number | string>;
+	state: Generated<string>;
+	attempt_count: Generated<number>;
+	next_attempt_at: string;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
+	last_attempted_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
 
@@ -562,6 +612,8 @@ export interface Database {
 	_emdash_media_usage_generation_writes: MediaUsageGenerationWriteTable;
 	_emdash_media_usage_cleanup_fence: MediaUsageGenerationFenceTable;
 	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;
+	_emdash_media_usage_activation: MediaUsageActivationTable;
+	_emdash_media_usage_work: MediaUsageWorkTable;
 	users: UserTable;
 	credentials: CredentialTable;
 	auth_tokens: AuthTokenTable;
