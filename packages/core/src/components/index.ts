@@ -81,7 +81,8 @@ import TableComponent from "./Table.astro";
  *
  * Includes renderers for:
  * - Block styles: paragraph, h1..h6, blockquote — with `textAlign` honoured
- *   as a WordPress-style `has-text-align-{value}` class (#1201)
+ *   as a WordPress-style `has-text-align-{value}` class (#1201), and heading
+ *   `id`s slugged from text (plus stable block-key / existing-id extras)
  * - Block types: image, code, embed, gallery, columns, break, htmlBlock, table,
  *   button, buttons, cover, file, pullquote
  * - Marks: superscript, subscript, underline, strike-through, link

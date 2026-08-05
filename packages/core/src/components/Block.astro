@@ -3,21 +3,33 @@
  * EmDash custom block override for `astro-portabletext`.
  *
  * Renders the same HTML as the upstream Block component (h1..h6, blockquote,
- * `<p>` for `normal`) and additionally surfaces `textAlign` from the rich-text
- * editor as a WordPress-style `has-text-align-{value}` class on the rendered
- * paragraph or heading.
+ * `<p>` for `normal`) and additionally:
+ * - surfaces `textAlign` as a WordPress-style `has-text-align-{value}` class
+ * - gives headings a slug `id` from their text (plus any pre-assigned extras)
  *
  * `left` is the editor default and intentionally does not produce a class —
  * paragraphs/headings without explicit alignment render exactly as they did
- * before this fix, so existing content is byte-for-byte unchanged.
+ * before text-align support.
  *
- * Related: https://github.com/emdash-cms/emdash/issues/1201
+ * Heading ids are normally stamped by `PortableText.astro` via
+ * `assignHeadingIds` (document-wide uniqueness). When this component is used
+ * standalone, it still allocates a per-heading id from the block text.
  */
 import type { BlockProps } from "astro-portabletext/types";
 
+import {
+	allocateHeadingId,
+	isHeadingStyle,
+	isSafeHtmlId,
+} from "./portable-text-heading-id.js";
 import { textAlignClassName } from "./portable-text-text-align.js";
 
-type TextAlignedNode = BlockProps["node"] & { textAlign?: string };
+type TextAlignedNode = BlockProps["node"] & {
+	textAlign?: string;
+	id?: string;
+	_key?: string;
+	_headingExtraIds?: string[];
+};
 type Props = Omit<BlockProps, "node"> & { node: TextAlignedNode };
 
 const props = Astro.props as Props;
@@ -28,43 +40,89 @@ const styleIs = (style: string) => style === node.style;
 // Allowlist-based; attacker-controlled PT data cannot inject arbitrary classes.
 // See `./portable-text-text-align.ts`.
 const alignClass = textAlignClassName(node.textAlign);
+
+let headingId: string | undefined;
+let headingExtraIds: string[] = [];
+
+if (isHeadingStyle(node.style)) {
+	if (typeof node.id === "string" && isSafeHtmlId(node.id)) {
+		// Pre-assigned by assignHeadingIds (or an explicit block id).
+		headingId = node.id;
+		headingExtraIds = Array.isArray(node._headingExtraIds)
+			? node._headingExtraIds.filter((id) => typeof id === "string" && isSafeHtmlId(id))
+			: [];
+	} else {
+		const allocated = allocateHeadingId({
+			style: node.style,
+			children: node.children,
+			blockKey: node._key,
+			existingId: undefined,
+			usedIds: new Set(),
+		});
+		if (allocated) {
+			headingId = allocated.id;
+			headingExtraIds = allocated.extraIds;
+		}
+	}
+}
+
+const { id: _ignoredId, ...headingAttrs } = attrs as Record<string, unknown> & { id?: unknown };
+const restAttrs = isHeadingStyle(node.style) ? headingAttrs : attrs;
 ---
 
 {
 	styleIs("h1") ? (
-		<h1 class={alignClass} {...attrs}>
+		<h1 class={alignClass} id={headingId} {...restAttrs}>
+			{headingExtraIds.map((extra) => (
+				<span id={extra} />
+			))}
 			<slot />
 		</h1>
 	) : styleIs("h2") ? (
-		<h2 class={alignClass} {...attrs}>
+		<h2 class={alignClass} id={headingId} {...restAttrs}>
+			{headingExtraIds.map((extra) => (
+				<span id={extra} />
+			))}
 			<slot />
 		</h2>
 	) : styleIs("h3") ? (
-		<h3 class={alignClass} {...attrs}>
+		<h3 class={alignClass} id={headingId} {...restAttrs}>
+			{headingExtraIds.map((extra) => (
+				<span id={extra} />
+			))}
 			<slot />
 		</h3>
 	) : styleIs("h4") ? (
-		<h4 class={alignClass} {...attrs}>
+		<h4 class={alignClass} id={headingId} {...restAttrs}>
+			{headingExtraIds.map((extra) => (
+				<span id={extra} />
+			))}
 			<slot />
 		</h4>
 	) : styleIs("h5") ? (
-		<h5 class={alignClass} {...attrs}>
+		<h5 class={alignClass} id={headingId} {...restAttrs}>
+			{headingExtraIds.map((extra) => (
+				<span id={extra} />
+			))}
 			<slot />
 		</h5>
 	) : styleIs("h6") ? (
-		<h6 class={alignClass} {...attrs}>
+		<h6 class={alignClass} id={headingId} {...restAttrs}>
+			{headingExtraIds.map((extra) => (
+				<span id={extra} />
+			))}
 			<slot />
 		</h6>
 	) : styleIs("blockquote") ? (
-		<blockquote class={alignClass} {...attrs}>
+		<blockquote class={alignClass} {...restAttrs}>
 			<slot />
 		</blockquote>
 	) : styleIs("normal") ? (
-		<p class={alignClass} {...attrs}>
+		<p class={alignClass} {...restAttrs}>
 			<slot />
 		</p>
 	) : (
-		<p class={alignClass} {...attrs}>
+		<p class={alignClass} {...restAttrs}>
 			<slot />
 		</p>
 	)
