@@ -12,9 +12,11 @@ import { handleMenuItemCreate } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createMenuItemBody, localeFilterQuery } from "#api/schemas.js";
 
+import { EDGE_TAG_MENUS, invalidateEdgeTag } from "../../../../edge-cache-tags.js";
+
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
 
@@ -29,6 +31,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const result = await handleMenuItemCreate(emdash.db, name, body, { locale: localeQ.locale });
+		if (result.success) await invalidateEdgeTag(cache, EDGE_TAG_MENUS);
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create menu item", "MENU_ITEM_CREATE_ERROR");

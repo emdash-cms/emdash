@@ -1,6 +1,7 @@
 ---
 import type { Widget } from "../widgets/types.js";
 import { getMenu } from "../menus/index.js";
+import { EDGE_TAG_MENUS } from "../astro/edge-cache-tags.js";
 import { sanitizeHref } from "../utils/url.js";
 import PortableText from "./PortableText.astro";
 import RecentPosts from "./widgets/RecentPosts.astro";
@@ -28,6 +29,9 @@ const componentMap = {
 let menuData = null;
 if (widget.type === "menu" && widget.menuName) {
 	menuData = await getMenu(widget.menuName);
+	// This page renders a menu, so it must be evicted when any menu changes.
+	// Tag it with the reserved menus tag so menu write paths purge it (#2042).
+	Astro.cache.set({ tags: [EDGE_TAG_MENUS] });
 }
 
 // For component widgets, get the component
