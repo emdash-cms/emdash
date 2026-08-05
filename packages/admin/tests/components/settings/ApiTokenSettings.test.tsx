@@ -152,6 +152,23 @@ describe("ApiTokenSettings", () => {
 		clipboardWrite.mockRestore();
 	});
 
+	it("keeps the one-time token visible when the token list refetch fails", async () => {
+		mockFetchApiTokens
+			.mockResolvedValueOnce([])
+			.mockRejectedValueOnce(new Error("Token list refetch failed"));
+		const screen = await renderApiTokenSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Create Token" }));
+		await screen.getByRole("textbox", { name: "Token Name" }).fill("CI token");
+		await userEvent.click(screen.getByRole("checkbox", { name: /Content Read/ }));
+		await userEvent.click(screen.getByRole("button", { name: "Create Token" }));
+
+		await vi.waitFor(() => expect(mockFetchApiTokens.mock.calls.length).toBeGreaterThanOrEqual(2));
+		await expect.element(screen.getByText("Token created: CI token")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Show token" })).toBeInTheDocument();
+		expect(screen.getByRole("alert").query()).toBeNull();
+	});
+
 	it("requires confirmation before revoking a token", async () => {
 		mockFetchApiTokens.mockResolvedValue([token]);
 		const screen = await renderApiTokenSettings();

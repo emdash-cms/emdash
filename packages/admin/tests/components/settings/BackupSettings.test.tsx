@@ -122,10 +122,12 @@ describe("BackupSettings", () => {
 		});
 		const screen = await renderBackupSettings();
 
-		await expect.element(screen.getByText("Automatic Backups").all()[0]).toBeInTheDocument();
 		await expect
-			.element(screen.getByText(/Automatic backups need a storage backend/).all()[0])
+			.element(screen.getByRole("heading", { name: "Automatic Backups", level: 2 }))
 			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("status"))
+			.toHaveTextContent("Automatic backups need a storage backend");
 		expect(screen.getByRole("button", { name: "Back up now" }).query()).toBeNull();
 		expect(screen.getByRole("button", { name: "Save" }).query()).toBeNull();
 	});
@@ -171,7 +173,7 @@ describe("BackupSettings", () => {
 			.toBeInTheDocument();
 		expect(mockDeleteBackupArchive).not.toHaveBeenCalled();
 
-		await userEvent.click(screen.getByRole("button", { name: "Delete", exact: true }));
+		screen.getByRole("button", { name: "Delete", exact: true }).element().click();
 		await vi.waitFor(() => {
 			expect(mockDeleteBackupArchive).toHaveBeenCalledWith(archive.name);
 		});

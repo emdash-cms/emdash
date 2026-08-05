@@ -208,7 +208,7 @@ export function ApiTokenSettings() {
 		);
 	}
 
-	if (loadError) {
+	if (loadError && tokens === undefined) {
 		return (
 			<SettingsFrame title={title} description={description}>
 				<Banner
@@ -494,6 +494,7 @@ function CreateTokenForm({
 									<Checkbox
 										checked={selectedScopes.has(scope)}
 										onCheckedChange={() => toggleScope(scope)}
+										aria-label={t(label)}
 									/>
 									<div className="min-w-0">
 										<div className="text-sm font-medium">{t(label)}</div>
@@ -507,6 +508,7 @@ function CreateTokenForm({
 								<Checkbox
 									checked={selectedScopes.has(plugin.scope)}
 									onCheckedChange={() => toggleScope(plugin.scope)}
+									aria-label={t`Plugin tools: ${plugin.name}`}
 								/>
 								<div className="min-w-0">
 									<div className="text-sm font-medium">{t`Plugin tools: ${plugin.name}`}</div>

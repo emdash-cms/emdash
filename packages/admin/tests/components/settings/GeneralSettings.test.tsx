@@ -159,6 +159,21 @@ describe("GeneralSettings", () => {
 		for (const button of savedButtons) await expect.element(button).toBeDisabled();
 	});
 
+	it("keeps cached settings visible when the post-save refetch fails", async () => {
+		mockUpdateSettings.mockImplementation(async (settings) => {
+			mockFetchSettings.mockRejectedValue(new Error("Settings refetch failed"));
+			return settings;
+		});
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Site Title").fill("A better blog");
+
+		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+
+		await vi.waitFor(() => expect(mockFetchSettings.mock.calls.length).toBeGreaterThanOrEqual(2));
+		await expect.element(screen.getByLabelText("Site Title")).toHaveValue("A better blog");
+		expect(screen.getByRole("alert").query()).toBeNull();
+	});
+
 	it("keeps the form dirty and reports a failed save", async () => {
 		mockUpdateSettings.mockRejectedValue(new Error("Could not persist settings"));
 		const screen = await renderGeneralSettings();

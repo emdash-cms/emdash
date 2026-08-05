@@ -129,10 +129,14 @@ describe("SeoSettings", () => {
 		const screen = await renderSeoSettings();
 
 		await expect.element(screen.getByLabelText("Title Separator")).toHaveValue("—");
-		await expect.element(screen.getByLabelText("Google Verification")).toHaveValue("google-code");
-		await expect.element(screen.getByLabelText("Bing Verification")).toHaveValue("bing-code");
 		await expect
-			.element(screen.getByLabelText("robots.txt"))
+			.element(screen.getByRole("textbox", { name: "Google Verification", exact: true }))
+			.toHaveValue("google-code");
+		await expect
+			.element(screen.getByRole("textbox", { name: "Bing Verification", exact: true }))
+			.toHaveValue("bing-code");
+		await expect
+			.element(screen.getByRole("textbox", { name: "robots.txt", exact: true }))
 			.toHaveValue("User-agent: *\nDisallow: /private/");
 		await expect
 			.element(screen.getByRole("img", { name: "Existing social card" }))
@@ -145,7 +149,9 @@ describe("SeoSettings", () => {
 
 	it("submits the bottom save action and returns both actions to pristine", async () => {
 		const screen = await renderSeoSettings();
-		await screen.getByLabelText("Google Verification").fill("updated-google-code");
+		await screen
+			.getByRole("textbox", { name: "Google Verification", exact: true })
+			.fill("updated-google-code");
 
 		const dirtyButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
 		expect(dirtyButtons).toHaveLength(2);
@@ -168,10 +174,31 @@ describe("SeoSettings", () => {
 		for (const button of savedButtons) await expect.element(button).toBeDisabled();
 	});
 
+	it("keeps cached SEO settings visible when the post-save refetch fails", async () => {
+		mockUpdateSettings.mockImplementation(async (settings) => {
+			mockFetchSettings.mockRejectedValue(new Error("Settings refetch failed"));
+			return settings;
+		});
+		const screen = await renderSeoSettings();
+		await screen
+			.getByRole("textbox", { name: "Google Verification", exact: true })
+			.fill("updated-google-code");
+
+		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+
+		await vi.waitFor(() => expect(mockFetchSettings.mock.calls.length).toBeGreaterThanOrEqual(2));
+		await expect
+			.element(screen.getByRole("textbox", { name: "Google Verification", exact: true }))
+			.toHaveValue("updated-google-code");
+		expect(screen.getByRole("alert").query()).toBeNull();
+	});
+
 	it("keeps the form dirty when the header save action fails", async () => {
 		mockUpdateSettings.mockRejectedValue(new Error("Could not persist settings"));
 		const screen = await renderSeoSettings();
-		await screen.getByLabelText("Bing Verification").fill("updated-bing-code");
+		await screen
+			.getByRole("textbox", { name: "Bing Verification", exact: true })
+			.fill("updated-bing-code");
 
 		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
 		await expect.element(screen.getByText("Failed to save settings")).toBeInTheDocument();

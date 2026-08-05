@@ -131,7 +131,7 @@ export function SeoSettings() {
 		);
 	}
 
-	if (loadError) {
+	if (loadError && settings === undefined) {
 		return (
 			<SettingsFrame title={title} description={description}>
 				<Banner

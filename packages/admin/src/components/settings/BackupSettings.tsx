@@ -199,7 +199,7 @@ export function BackupSettings() {
 					</SettingRow>
 				</SettingsSection>
 
-				<form id="automatic-backups-form" onSubmit={handleSave}>
+				<form id="automatic-backups-form" onSubmit={handleSave} noValidate>
 					<SettingsSection
 						title={t`Automatic Backups`}
 						description={t`Store a daily backup in your site's storage bucket. Old backups are removed automatically.`}
@@ -230,13 +230,18 @@ export function BackupSettings() {
 								<SettingRow>
 									<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
 										<div className="grid gap-1">
-											<label htmlFor="backup-retention" className="text-sm font-medium">
+											<label
+												id="backup-retention-label"
+												htmlFor="backup-retention"
+												className="text-sm font-medium"
+											>
 												{t`Backups to keep`}
 											</label>
 										</div>
 										<div className="flex justify-end">
 											<Input
 												id="backup-retention"
+												aria-labelledby="backup-retention-label"
 												className="w-full max-w-48"
 												type="number"
 												min={1}

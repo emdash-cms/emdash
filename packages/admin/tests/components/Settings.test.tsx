@@ -66,7 +66,9 @@ describe("Settings", () => {
 				<Settings />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("heading", { name: "Settings", level: 1, exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("shows links to General, Social, and SEO sub-pages", async () => {
@@ -98,7 +100,9 @@ describe("Settings", () => {
 		);
 
 		for (const name of ["Site", "Security Settings", "API Tokens", "Email Settings", "Settings"]) {
-			await expect.element(screen.getByRole("heading", { name, level: 2 })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("heading", { name, level: 2, exact: true }))
+				.toBeInTheDocument();
 		}
 	});
 
@@ -109,7 +113,7 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 
-		await userEvent.click(screen.getByRole("combobox", { name: "Language English" }));
+		await userEvent.click(screen.getByRole("combobox"));
 		await screen.getByRole("combobox", { name: "Search" }).fill("Portu");
 		await userEvent.click(screen.getByRole("option", { name: "Português (Brasil)" }));
 

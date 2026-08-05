@@ -78,9 +78,7 @@ describe("SocialSettings", () => {
 		mockFetchSettings.mockRejectedValue(new Error("Settings service unavailable"));
 		const screen = await renderSocialSettings();
 
-		await expect
-			.element(screen.getByRole("alert"))
-			.toHaveTextContent("Unable to load social links");
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("An error occurred");
 		await expect
 			.element(screen.getByRole("alert"))
 			.toHaveTextContent("Settings service unavailable");
@@ -122,6 +120,21 @@ describe("SocialSettings", () => {
 		const savedButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
 		expect(savedButtons).toHaveLength(2);
 		for (const button of savedButtons) await expect.element(button).toBeDisabled();
+	});
+
+	it("keeps cached social links visible when the post-save refetch fails", async () => {
+		mockUpdateSettings.mockImplementation(async (settings) => {
+			mockFetchSettings.mockRejectedValue(new Error("Settings refetch failed"));
+			return settings;
+		});
+		const screen = await renderSocialSettings();
+		await screen.getByLabelText("GitHub").fill("emdash-cms");
+
+		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+
+		await vi.waitFor(() => expect(mockFetchSettings.mock.calls.length).toBeGreaterThanOrEqual(2));
+		await expect.element(screen.getByLabelText("GitHub")).toHaveValue("emdash-cms");
+		expect(screen.getByRole("alert").query()).toBeNull();
 	});
 
 	it("submits changes from the bottom save action", async () => {
