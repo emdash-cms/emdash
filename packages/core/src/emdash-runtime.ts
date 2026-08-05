@@ -225,6 +225,8 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	repeater: "repeater",
 };
 
+const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision"]);
+
 /**
  * Sandboxed plugin entry from virtual module
  */
@@ -2909,6 +2911,14 @@ export class EmDashRuntime {
 			bylines: bodyWithoutRev.bylines,
 		});
 
+		// Public HTML comes from live columns / SEO / taxonomies, not draft revisions.
+		const liveMetaTouched = Object.entries(bodyWithoutRev).some(
+			([key, value]) => value !== undefined && !DRAFT_ONLY_UPDATE_KEYS.has(key),
+		);
+		const liveContentChanged = usesDraftRevisions
+			? liveMetaTouched
+			: Boolean(processedData || bodyWithoutRev.slug !== undefined || liveMetaTouched);
+
 		// Hydrate draft data BEFORE firing afterSave hooks so the hook sees
 		// the same effective data the response surfaces — for revision-
 		// supporting collections, that's the just-saved draft, not the live
@@ -2957,6 +2967,9 @@ export class EmDashRuntime {
 			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false);
 		}
 
+		if (hydrated.success) {
+			return { ...hydrated, liveContentChanged };
+		}
 		return hydrated;
 	}
 

@@ -157,7 +157,7 @@ test.describe("Content CRUD", () => {
 
 			// Publish the draft
 			const publishButton = admin.page.getByRole("button", {
-				name: "Publish Post",
+				name: "Publish",
 				exact: true,
 			});
 			await expect(publishButton).toBeVisible();

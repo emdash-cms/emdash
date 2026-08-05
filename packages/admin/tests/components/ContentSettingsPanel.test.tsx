@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -134,6 +135,44 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
 	});
 
+	it("shows the normalized pending changes label", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ isLive: true, hasPendingChanges: true })} />,
+		);
+
+		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
+	});
+
+	it("shows Scheduled without a Draft companion", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ hasSchedule: true })} />,
+		);
+
+		await expect.element(screen.getByText("Scheduled", { exact: true })).toBeInTheDocument();
+		expect(screen.container.textContent).not.toContain("Draft");
+	});
+
+	it("normalizes recognized statuses for collections without draft support", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ status: "published", supportsDrafts: false })} />,
+		);
+		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+
+		expect(statusRow.textContent).toContain("Publish");
+		expect(statusRow.textContent).not.toContain("Published");
+		expect(statusRow.querySelector("svg")).not.toBeNull();
+	});
+
+	it("preserves custom statuses for collections without draft support", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ status: "reviewing", supportsDrafts: false })} />,
+		);
+		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+
+		expect(statusRow.textContent).toContain("Reviewing");
+		expect(statusRow.querySelector("svg")).toBeNull();
+	});
+
 	it("hides Ownership and Bylines for users below the editor role", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ currentUser: AUTHOR_ROLE })} />,
@@ -142,6 +181,57 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
 		expect(screen.container.textContent).not.toContain("Ownership");
 		expect(screen.container.textContent).not.toContain("Bylines");
+	});
+
+	it("lets editors update the publish date of published content", async () => {
+		const onPublishedAtChange = vi.fn();
+		const previousLocale = i18n.locale;
+		i18n.load("ar", {});
+		i18n.activate("ar");
+		try {
+			const screen = await render(
+				<div dir="rtl">
+					<ContentSettingsPanel
+						{...makePanelProps({
+							item: makeItem({
+								status: "published",
+								publishedAt: "2025-01-15T10:30:00.000Z",
+							}),
+							isLive: true,
+							onPublishedAtChange,
+						})}
+					/>
+				</div>,
+			);
+
+			const input = screen.getByLabelText("Publish date");
+			await expect.element(input).toHaveValue("2025-01-15T10:30");
+			await input.fill("2020-06-01T08:45");
+			await screen.getByRole("button", { name: "Update publish date" }).click();
+
+			expect(onPublishedAtChange).toHaveBeenCalledWith("2020-06-01T08:45:00.000Z");
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
+	it("does not expose publish-date editing below the editor role", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						publishedAt: "2025-01-15T10:30:00.000Z",
+					}),
+					isLive: true,
+					currentUser: AUTHOR_ROLE,
+					onPublishedAtChange: vi.fn(),
+				})}
+			/>,
+		);
+
+		expect(screen.container.querySelector('input[type="datetime-local"]')).toBeNull();
+		expect(screen.container.textContent).not.toContain("Update publish date");
 	});
 
 	it("hides capability-gated sections when their flags are off", async () => {
@@ -251,30 +341,30 @@ describe("SettingsActionBar", () => {
 		vi.clearAllMocks();
 	});
 
-	it("shows Publish Post for an unpublished draft", async () => {
+	it("shows Publish for an unpublished draft", async () => {
 		const screen = await render(<SettingsActionBar {...makeBarProps()} />);
-		const publish = screen.getByRole("button", { name: "Publish Post" });
+		const publish = screen.getByRole("button", { name: "Publish", exact: true });
 
 		await expect.element(publish).toBeInTheDocument();
 		expect(publish.element().className).toContain("button-emphasis-bg");
 		expect(screen.container.textContent).not.toContain("Unpublish Post");
 	});
 
-	it("preserves configured collection label casing", async () => {
+	it("uses the normalized Publish label for every collection", async () => {
 		const screen = await render(
 			<SettingsActionBar {...makeBarProps({ collectionLabel: "API Docs" })} />,
 		);
 
 		await expect
-			.element(screen.getByRole("button", { name: "Publish API Docs", exact: true }))
+			.element(screen.getByRole("button", { name: "Publish", exact: true }))
 			.toBeInTheDocument();
 	});
 
-	it("shows Publish updates for a live item with edits", async () => {
+	it("shows Publish for a live item with edits", async () => {
 		const props = makeBarProps({ isLive: true, hasPendingChanges: true });
 		const screen = await render(<SettingsActionBar {...props} />);
 
-		const publishChanges = screen.getByRole("button", { name: "Publish updates" });
+		const publishChanges = screen.getByRole("button", { name: "Publish", exact: true });
 		await expect.element(publishChanges).toBeInTheDocument();
 		expect(publishChanges.element().className).toContain("button-emphasis-bg");
 
@@ -328,7 +418,7 @@ describe("SettingsActionBar", () => {
 			screen.getByRole("button", { name: "Saved" }).element(),
 			screen.getByRole("link", { name: "Live View" }).element(),
 			screen.getByRole("button", { name: "Preview draft" }).element(),
-			screen.getByRole("button", { name: "Publish updates" }).element(),
+			screen.getByRole("button", { name: "Publish", exact: true }).element(),
 		];
 		const slots = actions.map((action) => action.parentElement);
 

@@ -322,6 +322,7 @@ export class ContentRepository {
 			data: newData,
 			status: "draft",
 			authorId: authorId || original.authorId || undefined,
+			locale: original.locale ?? undefined,
 		});
 	}
 
@@ -660,7 +661,7 @@ export class ContentRepository {
 			await this.restampEntryPivot(type, id);
 		}
 
-		invalidateCollectionCache(type);
+		if (hasColumnWrites) invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
@@ -1555,8 +1556,6 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);
-
-		invalidateCollectionCache(type);
 	}
 
 	/**
@@ -1587,8 +1586,6 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);
-
-		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
