@@ -90,6 +90,26 @@ describe("EmDashOrderedList", () => {
 		expect(lists[1]!.attrs.start).toBe(1);
 	});
 
+	it("keeps lists in separate blockquotes independent", () => {
+		const editor = createEditor({
+			type: "doc",
+			content: [
+				{
+					type: "blockquote",
+					content: [list({ start: 1, listStart: 1, listId: "first" }, ["One"])],
+				},
+				{
+					type: "blockquote",
+					content: [list({ start: 1, listStart: 1, listId: "second" }, ["Independent"])],
+				},
+			],
+		});
+		const lists = orderedNodes(editor);
+		editor.commands.setTextSelection(lists[1]!.pos + 2);
+
+		expect(editor.can().continueOrderedList()).toBe(false);
+	});
+
 	it("disables continuity commands for linked or multi-segment selections", () => {
 		const editor = createEditor({
 			type: "doc",

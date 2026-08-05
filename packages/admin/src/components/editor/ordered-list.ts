@@ -72,6 +72,10 @@ function collectLists(doc: ProseMirrorNode): ListDescriptor[] {
 				break;
 			}
 		}
+		if (contextPos === null && resolved.depth > 0) {
+			contextPos = resolved.before(resolved.depth);
+			context = `${resolved.node(resolved.depth).type.name}:${contextPos}`;
+		}
 		lists.push({ node, pos, depth: resolved.depth, context, contextPos });
 	});
 	return lists;
