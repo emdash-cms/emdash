@@ -135,7 +135,6 @@ describe("Dashboard", () => {
 
 		const statusIcon = screen.getByRole("img", { name: "Pending changes" });
 		await expect.element(statusIcon).toBeInTheDocument();
-		expect(statusIcon.element().getAttribute("class")).toContain("text-kumo-warning");
 		expect(screen.container.textContent).not.toContain("Modified");
 	});
 

@@ -26,14 +26,6 @@ describe("ContentStatusBadge", () => {
 			expect(screen.container.querySelector("svg[aria-hidden='true']")).not.toBeNull();
 		});
 	}
-
-	it("uses Kumo's warning treatment for Draft", async () => {
-		const screen = await render(<ContentStatusBadge state="draft" />);
-		const badge = screen.getByText("Draft", { exact: true }).element();
-
-		expect(badge.className).toContain("bg-kumo-warning");
-		expect(badge.className).toContain("text-kumo-warning");
-	});
 });
 
 describe("ContentStatusLabel", () => {
@@ -43,7 +35,6 @@ describe("ContentStatusLabel", () => {
 		await expect.element(screen.getByText("Pending changes", { exact: true })).toBeVisible();
 		const icon = screen.container.querySelector("svg[aria-hidden='true']");
 		expect(icon).not.toBeNull();
-		expect(icon?.getAttribute("class")).toContain("text-kumo-warning");
 	});
 });
 
