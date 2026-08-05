@@ -13,7 +13,7 @@ describe("resolveOAuthEnv", () => {
 		expect(loadEnv).not.toHaveBeenCalled();
 	});
 
-	it("falls back to cloudflare:workers env when runtime locals are absent", async () => {
+	it("falls back to an injected env source when runtime locals are absent", async () => {
 		const env = { GITHUB_CLIENT_ID: "workers-id" };
 
 		await expect(
@@ -51,7 +51,7 @@ describe("resolveOAuthEnv", () => {
 		);
 	});
 
-	it("fails closed to import.meta.env when the workers env import is unavailable", async () => {
+	it("fails closed to import.meta.env when the injected env source throws", async () => {
 		const fallbackEnv = { GITHUB_CLIENT_ID: "fallback-id" };
 
 		await expect(

@@ -29,23 +29,10 @@ function readRuntimeEnv(locals: unknown): Record<string, unknown> | undefined {
 	}
 }
 
-async function loadWorkersEnv(): Promise<Record<string, unknown> | undefined> {
-	try {
-		const { env } = await import("cloudflare:workers");
-		if (typeof env === "object" && env !== null) {
-			return Object.fromEntries(Object.entries(env));
-		}
-
-		return undefined;
-	} catch {
-		return undefined;
-	}
-}
-
 export async function resolveOAuthEnv(
 	locals: unknown,
 	fallbackEnv: Record<string, unknown>,
-	loadEnv: () => Promise<Record<string, unknown> | undefined> = loadWorkersEnv,
+	loadEnv: () => Promise<Record<string, unknown> | undefined> = async () => undefined,
 ): Promise<Record<string, unknown>> {
 	const runtimeEnv = readRuntimeEnv(locals);
 	if (runtimeEnv) return runtimeEnv;
@@ -54,8 +41,8 @@ export async function resolveOAuthEnv(
 	if (virtualEnv) return virtualEnv;
 
 	try {
-		const workersEnv = await loadEnv();
-		return workersEnv ?? fallbackEnv;
+		const injectedEnv = await loadEnv();
+		return injectedEnv ?? fallbackEnv;
 	} catch {
 		return fallbackEnv;
 	}
