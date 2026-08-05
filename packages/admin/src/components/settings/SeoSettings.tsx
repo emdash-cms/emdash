@@ -186,7 +186,7 @@ export function SeoSettings() {
 											className="flex min-h-32 items-start gap-2 rounded border border-dashed border-kumo-line bg-kumo-tint px-3 py-2 text-sm leading-5 text-kumo-subtle"
 											role="status"
 										>
-											<span className="h-lh flex shrink-0 items-center" aria-hidden="true">
+											<span className="flex h-5 shrink-0 items-center" aria-hidden="true">
 												<WarningCircle className="h-4 w-4" />
 											</span>
 											<span>{t`The referenced image is no longer available. Pick a new one or remove the reference.`}</span>

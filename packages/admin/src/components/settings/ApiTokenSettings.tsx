@@ -244,7 +244,7 @@ export function ApiTokenSettings() {
 							<div className="grid gap-4">
 								<div className="flex items-start gap-3">
 									<span
-										className="h-lh flex shrink-0 items-center text-kumo-success"
+										className="flex h-5 shrink-0 items-center text-kumo-success"
 										aria-hidden="true"
 									>
 										<Key className="h-5 w-5" />

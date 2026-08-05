@@ -158,7 +158,7 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 		<>
 			<SettingRow>
 				<div className="flex items-start gap-3">
-					<span className="h-lh flex shrink-0 items-center text-kumo-success" aria-hidden="true">
+					<span className="flex h-5 shrink-0 items-center text-kumo-success" aria-hidden="true">
 						<CheckCircle className="h-5 w-5" />
 					</span>
 					<div className="min-w-0 grid gap-1">
@@ -176,7 +176,7 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 			{(settings.middleware.beforeSend.length > 0 || settings.middleware.afterSend.length > 0) && (
 				<SettingRow>
 					<div className="flex items-start gap-3">
-						<span className="h-lh flex shrink-0 items-center text-kumo-subtle" aria-hidden="true">
+						<span className="flex h-5 shrink-0 items-center text-kumo-subtle" aria-hidden="true">
 							<PlugsConnected className="h-5 w-5" />
 						</span>
 						<div className="min-w-0 grid gap-1">

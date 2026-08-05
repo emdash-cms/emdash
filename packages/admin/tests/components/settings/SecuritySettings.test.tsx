@@ -1,4 +1,5 @@
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -181,6 +182,34 @@ describe("SecuritySettings", () => {
 			expect(mockRenamePasskey).toHaveBeenCalledWith("passkey-1", "Office key");
 		});
 		await expect.element(screen.getByText("Passkey renamed")).toBeInTheDocument();
+	});
+
+	it("formats passkey activity in the active locale", async () => {
+		const previousLocale = i18n.locale;
+		const lastUsedAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+		const oldLastUsedAt = "2020-01-02T00:00:00.000Z";
+		const expectedRelativeTime = new Intl.RelativeTimeFormat("ar", { numeric: "auto" }).format(
+			-5,
+			"minute",
+		);
+		const expectedDate = new Date(oldLastUsedAt).toLocaleDateString("ar", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+		});
+		mockFetchPasskeys.mockResolvedValue([
+			{ ...passkeys[0], lastUsedAt },
+			{ ...passkeys[1], lastUsedAt: oldLastUsedAt },
+		]);
+		i18n.activate("ar");
+
+		try {
+			const screen = await renderSecuritySettings();
+			await expect.element(screen.getByText(expectedRelativeTime)).toBeInTheDocument();
+			await expect.element(screen.getByText(expectedDate)).toBeInTheDocument();
+		} finally {
+			i18n.activate(previousLocale);
+		}
 	});
 
 	it("requires confirmation before deleting a passkey", async () => {
