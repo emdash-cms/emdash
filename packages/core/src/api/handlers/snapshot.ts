@@ -12,6 +12,11 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import {
+	buildStatusCondition,
+	listTableColumns,
+	listTablesLike,
+} from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
 
 // ─�� Preview signature verification ──────────────────────────────
@@ -211,12 +216,6 @@ function isExcluded(tableName: string): boolean {
 	return EXCLUDED_PREFIXES.some((prefix) => tableName.startsWith(prefix));
 }
 
-/** Column info from PRAGMA table_info */
-interface ColumnInfo {
-	name: string;
-	type: string;
-}
-
 export interface GenerateSnapshotOptions {
 	/** Include draft and scheduled content (default: false) */
 	includeDrafts?: boolean;
@@ -247,15 +246,9 @@ export async function generateSnapshot(
 	const includeTrashed = options?.includeTrashed ?? false;
 	const optionPrefixes = options?.optionPrefixes ?? SAFE_OPTIONS_PREFIXES;
 
-	// Discover all ec_* content tables
-	const tableResult = await sql<{ name: string }>`
-		SELECT name FROM sqlite_master
-		WHERE type = 'table'
-		AND name LIKE 'ec_%'
-		ORDER BY name
-	`.execute(db);
-
-	const contentTables = tableResult.rows.map((r) => r.name);
+	// Discover all ec_* content tables. Dialect-aware: sqlite_master does not
+	// exist on Postgres, where this threw 42P01 and failed every snapshot.
+	const contentTables = (await listTablesLike(db, "ec_%")).sort();
 
 	// Build list of all tables to export
 	const allTables = [...contentTables, ...SYSTEM_TABLES];
@@ -267,22 +260,21 @@ export async function generateSnapshot(
 		if (isExcluded(tableName)) continue;
 
 		// Validate identifier before interpolating into sql.raw().
-		// SYSTEM_TABLES are hardcoded and safe, but ec_* names come from
-		// sqlite_master and must be validated.
+		// SYSTEM_TABLES are hardcoded and safe, but ec_* names come from the
+		// database catalog and must be validated.
 		if (!SAFE_TABLE_NAME.test(tableName)) continue;
 
 		try {
-			// Get column info via PRAGMA
-			const pragmaResult = await sql<ColumnInfo>`
-				PRAGMA table_info(${sql.raw(`"${tableName}"`)})
-			`.execute(db);
+			// Column info, dialect-aware (PRAGMA table_info on SQLite,
+			// information_schema.columns on Postgres).
+			const columnInfo = await listTableColumns(db, tableName);
 
-			if (pragmaResult.rows.length === 0) continue;
+			if (columnInfo.length === 0) continue;
 
-			const columns = pragmaResult.rows.map((r) => r.name);
+			const columns = columnInfo.map((c) => c.name);
 			const types: Record<string, string> = {};
-			for (const row of pragmaResult.rows) {
-				types[row.name] = row.type || "TEXT";
+			for (const column of columnInfo) {
+				types[column.name] = column.type;
 			}
 
 			schema[tableName] = { columns, types };
@@ -307,12 +299,14 @@ export async function generateSnapshot(
 					`.execute(db)
 					).rows;
 				} else {
-					// Only export published content
+					// Only export published content. buildStatusCondition keeps the
+					// scheduled-and-due arm dialect-correct — the inline strftime()
+					// this replaced is SQLite-only and threw on Postgres.
 					rows = (
 						await sql<Record<string, unknown>>`
 						SELECT * FROM ${sql.raw(`"${tableName}"`)}
 						WHERE deleted_at IS NULL
-						AND (status = 'published' OR (status = 'scheduled' AND scheduled_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))
+						AND ${buildStatusCondition(db, "published")}
 					`.execute(db)
 					).rows;
 				}
