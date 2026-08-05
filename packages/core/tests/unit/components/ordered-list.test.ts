@@ -90,6 +90,53 @@ describe("EmDashOrderedList", () => {
 		expect(lists[1]!.attrs.start).toBe(1);
 	});
 
+	it("disables continuity commands for linked or multi-segment selections", () => {
+		const editor = createEditor({
+			type: "doc",
+			content: [
+				list({ start: 1, listStart: 1, listId: "shared" }, ["One"]),
+				{ type: "paragraph", content: [{ type: "text", text: "Between" }] },
+				list({ start: 2, listStart: 1, listId: "shared" }, ["Two"]),
+			],
+		});
+		const lists = orderedNodes(editor);
+		editor.commands.setTextSelection(lists[1]!.pos + 2);
+		expect(editor.can().continueOrderedList()).toBe(false);
+
+		editor.commands.setTextSelection({
+			from: lists[0]!.pos + 2,
+			to: lists[1]!.pos + 2,
+		});
+		expect(editor.can().continueOrderedList()).toBe(false);
+		expect(editor.can().restartOrderedList()).toBe(false);
+	});
+
+	it("renumbers later segments after direct items are inserted or deleted", () => {
+		const editor = createEditor({
+			type: "doc",
+			content: [
+				list({ start: 1, listStart: 1, listId: "shared" }, ["One", "Two"]),
+				{ type: "paragraph", content: [{ type: "text", text: "Between" }] },
+				list({ start: 3, listStart: 1, listId: "shared" }, ["Three"]),
+			],
+		});
+		let first = orderedNodes(editor)[0]!;
+		let firstNode = editor.state.doc.nodeAt(first.pos)!;
+		const inserted = firstNode.child(0).copy(firstNode.child(0).content);
+		editor.view.dispatch(editor.state.tr.insert(first.pos + firstNode.nodeSize - 1, inserted));
+		expect(orderedNodes(editor).map((node) => node.attrs.start)).toEqual([1, 4]);
+
+		first = orderedNodes(editor)[0]!;
+		firstNode = editor.state.doc.nodeAt(first.pos)!;
+		let lastOffset = 0;
+		firstNode.forEach((_child, offset, index) => {
+			if (index === firstNode.childCount - 1) lastOffset = offset;
+		});
+		const from = first.pos + 1 + lastOffset;
+		editor.view.dispatch(editor.state.tr.delete(from, from + firstNode.lastChild!.nodeSize));
+		expect(orderedNodes(editor).map((node) => node.attrs.start)).toEqual([1, 3]);
+	});
+
 	it("gives a newly toggled list a stable identity", () => {
 		const editor = createEditor({
 			type: "doc",
@@ -100,6 +147,18 @@ describe("EmDashOrderedList", () => {
 		expect(typeof attrs.listId).toBe("string");
 		expect(attrs.listStart).toBe(1);
 		expect(attrs.start).toBe(1);
+	});
+
+	it("creates an explicitly started list from a numeric input rule", () => {
+		const editor = createEditor({ type: "doc", content: [{ type: "paragraph" }] });
+		const { from, to } = editor.state.selection;
+		const handled = editor.view.someProp("handleTextInput", (handler) =>
+			handler(editor.view, from, to, "2. "),
+		);
+
+		expect(handled).toBe(true);
+		expect(orderedNodes(editor)[0]?.attrs).toMatchObject({ start: 2, listStart: 2 });
+		expect(typeof orderedNodes(editor)[0]?.attrs.listId).toBe("string");
 	});
 
 	it("restarts a standalone explicitly started list", () => {
@@ -211,6 +270,24 @@ describe("EmDashOrderedList", () => {
 		expect(second.listId).toBe(first.listId);
 		expect(first.listStart).toBe(3);
 		expect(second.listStart).toBe(3);
+	});
+
+	it("assigns independent identities to external list runs", () => {
+		const editor = createEditor({ type: "doc", content: [{ type: "paragraph" }] });
+		const slice = Slice.fromJSON(editor.schema, {
+			content: [
+				list({ start: 7 }, ["Seven"]),
+				{ type: "paragraph", content: [{ type: "text", text: "Between" }] },
+				list({ start: 9 }, ["Nine"]),
+			],
+			openStart: 0,
+			openEnd: 0,
+		});
+
+		const pasted = remapPastedSlice(slice).content.toJSON() as JSONContent[];
+		expect(pasted[0]?.attrs).toMatchObject({ start: 7, listStart: 7 });
+		expect(pasted[2]?.attrs).toMatchObject({ start: 9, listStart: 9 });
+		expect(pasted[0]?.attrs?.listId).not.toBe(pasted[2]?.attrs?.listId);
 	});
 
 	it("does not intercept a paste without an ordered list", () => {

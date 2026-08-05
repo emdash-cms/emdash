@@ -53,6 +53,16 @@ function orderedLists(doc: ProseMirrorDocument): ProseMirrorNode[] {
 	return doc.content.filter((node) => node.type === "orderedList");
 }
 
+function allOrderedLists(doc: ProseMirrorDocument): ProseMirrorNode[] {
+	const lists: ProseMirrorNode[] = [];
+	const visit = (node: ProseMirrorNode) => {
+		if (node.type === "orderedList") lists.push(node);
+		node.content?.forEach(visit);
+	};
+	doc.content.forEach(visit);
+	return lists;
+}
+
 describe("numbered-list Portable Text conversion", () => {
 	it("keeps the inline and reusable legacy identities equivalent", () => {
 		const blocks: PortableTextBlock[] = [
@@ -150,6 +160,30 @@ describe("numbered-list Portable Text conversion", () => {
 		const lists = orderedLists(portableTextToProsemirror(blocks));
 		expect(lists.map((list) => list.attrs?.listStart)).toEqual([5, 5]);
 		expect(lists.map((list) => list.attrs?.start)).toEqual([5, 6]);
+	});
+
+	it("uses a later valid base when an earlier segment has no base", () => {
+		const blocks: PortableTextBlock[] = [
+			{ ...ptListItem("a", "Five", "list-a"), listStart: undefined },
+			paragraph("aside", "Between"),
+			ptListItem("b", "Six", "list-a", 5),
+		];
+
+		const lists = orderedLists(portableTextToProsemirror(blocks));
+		expect(lists.map((list) => list.attrs?.listStart)).toEqual([5, 5]);
+		expect(lists.map((list) => list.attrs?.start)).toEqual([5, 6]);
+	});
+
+	it("keeps a reused root and nested identity in separate numbering scopes", () => {
+		const root = ptListItem("root", "Root", "shared", 1);
+		const nested = { ...ptListItem("nested", "Nested", "shared", 5), level: 2 };
+		const rootTwo = ptListItem("root-two", "Root two", "shared", 1);
+		const lists = allOrderedLists(portableTextToProsemirror([root, nested, rootTwo]));
+
+		expect(lists).toHaveLength(2);
+		expect(lists.map((list) => list.attrs?.listStart)).toEqual([1, 5]);
+		expect(lists.map((list) => list.attrs?.start)).toEqual([1, 5]);
+		expect(lists[1]?.attrs?.listId).not.toBe("shared");
 	});
 
 	it("bounds and canonicalizes untrusted metadata", () => {

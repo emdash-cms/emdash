@@ -255,7 +255,13 @@ const attrNum = (v: unknown): number | undefined => (typeof v === "number" && v 
 const MAX_ORDERED_LIST_START = 2_147_483_647;
 
 type OrderedListMetadata = { listId: string; listStart: number };
-type OrderedListCounter = OrderedListMetadata & { count: number };
+type PortableTextProseMirrorNode = {
+	type: string;
+	attrs?: Record<string, unknown>;
+	content?: PortableTextProseMirrorNode[];
+	marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
+	text?: string;
+};
 
 function normalizeListId(value: unknown): string | undefined {
 	if (typeof value !== "string") return undefined;
@@ -293,21 +299,111 @@ function readOrderedListMetadata(
 	};
 }
 
-function takeOrderedListStart(
-	counters: Map<string, OrderedListCounter>,
-	metadata: OrderedListMetadata,
-	directItemCount: number,
-): number {
-	const current = counters.get(metadata.listId);
-	const listStart = current?.listStart ?? metadata.listStart;
-	const count = current?.count ?? 0;
-	const start = normalizeListStart(listStart + count) ?? 1;
-	counters.set(metadata.listId, {
-		...metadata,
-		listStart,
-		count: count + directItemCount,
+function clonePortableTextProseMirrorNode(
+	node: PortableTextProseMirrorNode,
+): PortableTextProseMirrorNode {
+	return {
+		...node,
+		attrs: node.attrs ? { ...node.attrs } : undefined,
+		content: node.content?.map(clonePortableTextProseMirrorNode),
+		marks: node.marks?.map((mark) => ({
+			...mark,
+			attrs: mark.attrs ? { ...mark.attrs } : undefined,
+		})),
+	};
+}
+
+function normalizeOrderedListJson(doc: { type: "doc"; content: PortableTextProseMirrorNode[] }): {
+	type: "doc";
+	content: PortableTextProseMirrorNode[];
+} {
+	type Descriptor = {
+		node: PortableTextProseMirrorNode;
+		path: string;
+		depth: number;
+		context: string;
+	};
+	const normalized = {
+		...doc,
+		content: doc.content.map(clonePortableTextProseMirrorNode),
+	};
+	const lists: Descriptor[] = [];
+	const visit = (
+		node: PortableTextProseMirrorNode,
+		path: string,
+		depth: number,
+		context: string,
+	) => {
+		if (node.type === "orderedList") lists.push({ node, path, depth, context });
+		for (const [index, child] of (node.content ?? []).entries()) {
+			const childPath = `${path}:${index}`;
+			visit(
+				child,
+				childPath,
+				depth + 1,
+				child.type === "listItem" ? `listItem:${childPath}` : context,
+			);
+		}
+	};
+	for (const [index, node] of normalized.content.entries()) {
+		visit(node, `root:${index}`, 0, "root");
+	}
+
+	const canonicalBySourceScope = new Map<string, string>();
+	const assignedIds = new Set<string>();
+	const descriptors = lists.map((list) => {
+		const sourceId =
+			normalizeListId(list.node.attrs?.listId) ??
+			deriveLegacyListId(`pm-json:${list.path}:${list.depth}:${list.context}`);
+		const scope = JSON.stringify([list.depth, list.context]);
+		const sourceScope = JSON.stringify([sourceId, scope]);
+		let listId = canonicalBySourceScope.get(sourceScope);
+		if (!listId) {
+			if (!assignedIds.has(sourceId)) {
+				listId = sourceId;
+			} else {
+				let attempt = 0;
+				do {
+					const suffix = `:${attempt.toString(36)}`;
+					const base = deriveLegacyListId(`repair:${sourceId}:${scope}`);
+					listId = `${base.slice(0, 128 - suffix.length)}${suffix}`;
+					attempt++;
+				} while (assignedIds.has(listId));
+			}
+			canonicalBySourceScope.set(sourceScope, listId);
+			assignedIds.add(listId);
+		}
+		return {
+			...list,
+			listId,
+			scopeKey: JSON.stringify([listId, list.depth, list.context]),
+		};
 	});
-	return start;
+
+	const bases = new Map<string, number>();
+	for (const list of descriptors) {
+		const listStart = normalizeListStart(list.node.attrs?.listStart);
+		if (listStart !== undefined && !bases.has(list.scopeKey)) {
+			bases.set(list.scopeKey, listStart);
+		}
+	}
+	for (const list of descriptors) {
+		if (!bases.has(list.scopeKey)) {
+			bases.set(list.scopeKey, normalizeListStart(list.node.attrs?.start) ?? 1);
+		}
+	}
+
+	const counts = new Map<string, number>();
+	for (const list of descriptors) {
+		const listStart = bases.get(list.scopeKey)!;
+		const count = counts.get(list.scopeKey) ?? 0;
+		const start = normalizeListStart(listStart + count) ?? 1;
+		const directItemCount =
+			list.node.content?.filter((node) => node.type === "listItem").length ?? 0;
+		counts.set(list.scopeKey, count + directItemCount);
+		list.node.attrs = { ...list.node.attrs, listId: list.listId, listStart, start };
+	}
+	return normalized;
 }
 
 // ProseMirror to Portable Text converter
@@ -749,8 +845,6 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 	}
 
 	const content: unknown[] = [];
-	const counters = new Map<string, OrderedListCounter>();
-	const canonicalStarts = collectCanonicalStarts(blocks);
 	let i = 0;
 
 	while (i < blocks.length) {
@@ -783,9 +877,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 				}
 			}
 
-			content.push(
-				convertPTList(listBlocks, listType, counters, canonicalStarts, `root:${runStart}`),
-			);
+			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else {
 			const converted = convertPTBlock(block);
 			if (converted) {
@@ -795,34 +887,23 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		}
 	}
 
-	return {
+	return normalizeOrderedListJson({
 		type: "doc",
-		content: content.length > 0 ? content : [{ type: "paragraph" }],
-	};
-}
-
-function collectCanonicalStarts(blocks: PortableTextBlock[]): Map<string, number> {
-	const starts = new Map<string, number>();
-	for (const block of blocks) {
-		if (!isTextBlock(block) || block.listItem !== "number") continue;
-		const listId = normalizeListId(block.listId);
-		const listStart = normalizeListStart(block.listStart);
-		if (listId && listStart !== undefined && !starts.has(listId)) {
-			starts.set(listId, listStart);
-		}
-	}
-	return starts;
+		content: (content.length > 0
+			? content
+			: [{ type: "paragraph" }]) as PortableTextProseMirrorNode[],
+	});
 }
 
 function getListMetadata(
 	item: PortableTextTextBlock,
-	canonicalStarts: Map<string, number>,
 	fallbackSeed: string,
-): OrderedListMetadata {
+): { listId: string; listStart?: number } {
 	const listId = normalizeListId(item.listId) ?? deriveLegacyListId(fallbackSeed);
+	const listStart = normalizeListStart(item.listStart);
 	return {
 		listId,
-		listStart: canonicalStarts.get(listId) ?? normalizeListStart(item.listStart) ?? 1,
+		...(listStart === undefined ? {} : { listStart }),
 	};
 }
 
@@ -1059,8 +1140,6 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 function convertPTList(
 	items: PortableTextTextBlock[],
 	listType: "bullet" | "number",
-	counters: Map<string, OrderedListCounter>,
-	canonicalStarts: Map<string, number>,
 	context: string,
 ): unknown {
 	// Group items into root-level items (level === 1) and their nested
@@ -1082,42 +1161,23 @@ function convertPTList(
 				i++;
 			}
 			rootItems.push(
-				convertPTListItem(
-					item,
-					nestedItems,
-					listType,
-					counters,
-					canonicalStarts,
-					`${context}:${rootItems.length}`,
-				),
+				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
 			);
 		} else {
 			// Orphan nested item with no preceding level=1 anchor — treat as root
 			// so we don't drop content.
-			rootItems.push(
-				convertPTListItem(
-					item,
-					[],
-					listType,
-					counters,
-					canonicalStarts,
-					`${context}:${rootItems.length}`,
-				),
-			);
+			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
 			i++;
 		}
 	}
 
 	const firstItem = items[0]!;
 	const metadata =
-		listType === "number"
-			? getListMetadata(firstItem, canonicalStarts, `${context}:${firstItem._key}`)
-			: undefined;
-	const start = metadata ? takeOrderedListStart(counters, metadata, rootItems.length) : undefined;
+		listType === "number" ? getListMetadata(firstItem, `${context}:${firstItem._key}`) : undefined;
 
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
-		attrs: metadata ? { ...metadata, start } : undefined,
+		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
 		content: rootItems,
 	};
 }
@@ -1126,8 +1186,6 @@ function convertPTListItem(
 	item: PortableTextTextBlock,
 	nestedItems: PortableTextTextBlock[],
 	parentListType: "bullet" | "number",
-	counters: Map<string, OrderedListCounter>,
-	canonicalStarts: Map<string, number>,
 	context: string,
 ): unknown {
 	const content: unknown[] = [];
@@ -1175,13 +1233,7 @@ function convertPTListItem(
 					level: (ni.level || 2) - 1,
 				}));
 				content.push(
-					convertPTList(
-						adjustedGroup,
-						anchorType,
-						counters,
-						canonicalStarts,
-						`${context}:nested:${j - nestedGroup.length}`,
-					),
+					convertPTList(adjustedGroup, anchorType, `${context}:nested:${j - nestedGroup.length}`),
 				);
 			}
 		}

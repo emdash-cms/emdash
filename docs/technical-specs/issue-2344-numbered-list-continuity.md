@@ -1,6 +1,6 @@
 # Numbered-list continuity across blocks
 
-Status: Proposed  
+Status: Proposed
 Issue: [#2344](https://github.com/emdash-cms/emdash/issues/2344)
 
 ## Summary

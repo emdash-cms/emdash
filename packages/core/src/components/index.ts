@@ -50,6 +50,7 @@ export { default as Buttons } from "./Buttons.astro";
 export { default as Cover } from "./Cover.astro";
 export { default as File } from "./File.astro";
 export { default as Pullquote } from "./Pullquote.astro";
+export { default as OrderedList } from "./OrderedList.astro";
 
 // Mark components
 export { default as Superscript } from "./marks/Superscript.astro";
@@ -73,6 +74,7 @@ import HtmlBlockComponent from "./HtmlBlock.astro";
 // Pre-configured components object for PortableText
 import ImageComponent from "./Image.astro";
 import { emdashMarkComponents } from "./marks.js";
+import OrderedListComponent from "./OrderedList.astro";
 import PullquoteComponent from "./Pullquote.astro";
 import TableComponent from "./Table.astro";
 
@@ -88,6 +90,9 @@ import TableComponent from "./Table.astro";
  */
 export const emdashComponents = {
 	block: BlockComponent,
+	list: {
+		number: OrderedListComponent,
+	},
 	type: {
 		blockquoteGroup: BlockquoteGroupComponent,
 		image: ImageComponent,

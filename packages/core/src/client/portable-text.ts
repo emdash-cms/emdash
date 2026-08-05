@@ -7,6 +7,9 @@
  *   Tier 3: Unknown blocks <-> opaque HTML comment fences (preserved, not editable)
  */
 
+import { normalizeListId, normalizeListStart } from "../content/converters/numbered-list.js";
+import { getNumberedListOrdinals } from "../content/portable-text-lists.js";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -55,6 +58,7 @@ interface ParsedInline {
  */
 export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 	const lines: string[] = [];
+	const ordinals = getNumberedListOrdinals(blocks);
 	let prevWasList = false;
 
 	for (let i = 0; i < blocks.length; i++) {
@@ -62,13 +66,16 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 
 		if (block._type === "block") {
 			const isList = !!block.listItem;
+			const previous = blocks[i - 1];
+			const independentNumberedRun =
+				isList && previous ? startsIndependentNumberedRun(previous, block) : false;
 
 			// Blank line between non-contiguous block types
-			if (i > 0 && (!isList || !prevWasList)) {
+			if (i > 0 && (!isList || !prevWasList || independentNumberedRun)) {
 				lines.push("");
 			}
 
-			lines.push(renderStandardBlock(block));
+			lines.push(renderStandardBlock(block, ordinals.get(block)));
 			prevWasList = isList;
 		} else if (block._type === "code") {
 			if (i > 0) lines.push("");
@@ -95,13 +102,22 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 	return lines.join("\n") + "\n";
 }
 
-function renderStandardBlock(block: PortableTextBlock): string {
+function startsIndependentNumberedRun(
+	previous: PortableTextBlock,
+	current: PortableTextBlock,
+): boolean {
+	if (previous.listItem !== "number" || current.listItem !== "number") return false;
+	if ((previous.level ?? 1) !== (current.level ?? 1)) return false;
+	return normalizeListId(previous.listId) !== normalizeListId(current.listId);
+}
+
+function renderStandardBlock(block: PortableTextBlock, ordinal?: number): string {
 	const text = renderSpans(block.children ?? [], block.markDefs ?? []);
 
 	// List items
 	if (block.listItem) {
 		const indent = "  ".repeat(Math.max(0, (block.level ?? 1) - 1));
-		const marker = block.listItem === "number" ? "1." : "-";
+		const marker = block.listItem === "number" ? `${ordinal ?? 1}.` : "-";
 		return `${indent}${marker} ${text}`;
 	}
 
@@ -169,7 +185,7 @@ function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
 const OPAQUE_FENCE_PATTERN = /^<!--ec:block (.+) -->$/;
 const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
 const UNORDERED_LIST_PATTERN = /^(\s*)[-*+]\s+(.+)$/;
-const ORDERED_LIST_PATTERN = /^(\s*)\d+\.\s+(.+)$/;
+const ORDERED_LIST_PATTERN = /^(\s*)(\d+)\.\s+(.+)$/;
 const IMAGE_PATTERN = /^!\[([^\]]*)\]\(([^)]+)\)$/;
 const INLINE_MARKDOWN_PATTERN =
 	/(\*\*(.+?)\*\*)|(_(.+?)_)|(`(.+?)`)|(\[(.+?)\]\((.+?)\))|(~~(.+?)~~)/g;
@@ -181,6 +197,14 @@ const INLINE_MARKDOWN_PATTERN =
 export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 	const blocks: PortableTextBlock[] = [];
 	const lines = markdown.split("\n");
+	const orderedGroups = new Map<string, { listId: string; listStart: number }>();
+	const lastListItems = new Map<number, string>();
+	const lastListTypes = new Map<number, string>();
+	const resetListState = () => {
+		orderedGroups.clear();
+		lastListItems.clear();
+		lastListTypes.clear();
+	};
 	let i = 0;
 
 	while (i < lines.length) {
@@ -189,6 +213,7 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 		// Opaque fence
 		const opaqueMatch = line.match(OPAQUE_FENCE_PATTERN);
 		if (opaqueMatch) {
+			resetListState();
 			try {
 				blocks.push(JSON.parse(opaqueMatch[1]) as PortableTextBlock);
 			} catch {
@@ -200,6 +225,7 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 
 		// Code fence
 		if (line.startsWith("```")) {
+			resetListState();
 			const lang = line.slice(3).trim();
 			const codeLines: string[] = [];
 			i++;
@@ -219,6 +245,7 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 
 		// Blank line
 		if (line.trim() === "") {
+			resetListState();
 			i++;
 			continue;
 		}
@@ -226,6 +253,7 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 		// Heading
 		const headingMatch = line.match(HEADING_PATTERN);
 		if (headingMatch) {
+			resetListState();
 			blocks.push(makeBlock(headingMatch[2], `h${headingMatch[1].length}`));
 			i++;
 			continue;
@@ -233,6 +261,7 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 
 		// Blockquote
 		if (line.startsWith("> ")) {
+			resetListState();
 			blocks.push(makeBlock(line.slice(2), "blockquote"));
 			i++;
 			continue;
@@ -242,7 +271,16 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 		const ulMatch = line.match(UNORDERED_LIST_PATTERN);
 		if (ulMatch) {
 			const level = Math.floor(ulMatch[1].length / 2) + 1;
-			blocks.push(makeListBlock(ulMatch[2], "bullet", level));
+			for (const itemLevel of lastListItems.keys()) {
+				if (itemLevel > level) lastListItems.delete(itemLevel);
+			}
+			for (const typeLevel of lastListTypes.keys()) {
+				if (typeLevel > level) lastListTypes.delete(typeLevel);
+			}
+			const block = makeListBlock(ulMatch[2], "bullet", level);
+			blocks.push(block);
+			lastListItems.set(level, block._key!);
+			lastListTypes.set(level, "bullet");
 			i++;
 			continue;
 		}
@@ -251,7 +289,34 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 		const olMatch = line.match(ORDERED_LIST_PATTERN);
 		if (olMatch) {
 			const level = Math.floor(olMatch[1].length / 2) + 1;
-			blocks.push(makeListBlock(olMatch[2], "number", level));
+			for (const itemLevel of lastListItems.keys()) {
+				if (itemLevel > level) lastListItems.delete(itemLevel);
+			}
+			for (const typeLevel of lastListTypes.keys()) {
+				if (typeLevel > level) lastListTypes.delete(typeLevel);
+			}
+			let parentContext = "root";
+			for (let parentLevel = level - 1; parentLevel >= 1; parentLevel--) {
+				const parent = lastListItems.get(parentLevel);
+				if (!parent) continue;
+				parentContext = parent;
+				break;
+			}
+			const groupKey = JSON.stringify([level, parentContext]);
+			let group = orderedGroups.get(groupKey);
+			if (!group || lastListTypes.get(level) !== "number") {
+				group = {
+					listId: createListId(),
+					listStart: normalizeListStart(Number(olMatch[2])) ?? 1,
+				};
+				orderedGroups.set(groupKey, group);
+			}
+			const block = makeListBlock(olMatch[3], "number", level);
+			block.listId = group.listId;
+			block.listStart = group.listStart;
+			blocks.push(block);
+			lastListItems.set(level, block._key!);
+			lastListTypes.set(level, "number");
 			i++;
 			continue;
 		}
@@ -259,6 +324,7 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 		// Image
 		const imgMatch = line.match(IMAGE_PATTERN);
 		if (imgMatch) {
+			resetListState();
 			blocks.push({
 				_type: "image",
 				_key: generateKey(),
@@ -270,6 +336,7 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 		}
 
 		// Paragraph
+		resetListState();
 		blocks.push(makeBlock(line));
 		i++;
 	}
@@ -297,6 +364,13 @@ function makeListBlock(text: string, listItem: string, level: number): PortableT
 		markDefs,
 		children: spans,
 	};
+}
+
+function createListId(): string {
+	return (
+		globalThis.crypto?.randomUUID?.() ??
+		`list-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+	);
 }
 
 /**

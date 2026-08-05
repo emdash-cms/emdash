@@ -7,11 +7,9 @@
 import { sanitizeGalleryImages } from "./gallery.js";
 import {
 	deriveLegacyListId,
+	normalizeProseMirrorOrderedListJson,
 	normalizeListId,
 	normalizeListStart,
-	takeOrderedListStart,
-	type OrderedListCounter,
-	type OrderedListMetadata,
 } from "./numbered-list.js";
 import type {
 	ProseMirrorDocument,
@@ -38,8 +36,6 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 	}
 
 	const content: ProseMirrorNode[] = [];
-	const counters = new Map<string, OrderedListCounter>();
-	const canonicalStarts = collectCanonicalStarts(blocks);
 	let i = 0;
 
 	while (i < blocks.length) {
@@ -79,9 +75,7 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 				}
 			}
 
-			content.push(
-				convertList(listBlocks, listType, counters, canonicalStarts, `root:${runStart}`),
-			);
+			content.push(convertList(listBlocks, listType, `root:${runStart}`));
 		} else if (isTextBlock(block) && block.style === "blockquote") {
 			// Collect a blockquote "run": Portable Text is flat, so a
 			// multi-paragraph quote is stored as consecutive blocks with
@@ -122,34 +116,21 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 		}
 	}
 
-	return {
+	return normalizeProseMirrorOrderedListJson({
 		type: "doc",
 		content: content.length > 0 ? content : [{ type: "paragraph" }],
-	};
-}
-
-function collectCanonicalStarts(blocks: PortableTextBlock[]): Map<string, number> {
-	const starts = new Map<string, number>();
-	for (const block of blocks) {
-		if (!isTextBlock(block) || block.listItem !== "number") continue;
-		const listId = normalizeListId(block.listId);
-		const listStart = normalizeListStart(block.listStart);
-		if (listId && listStart !== undefined && !starts.has(listId)) {
-			starts.set(listId, listStart);
-		}
-	}
-	return starts;
+	});
 }
 
 function getListMetadata(
 	item: PortableTextTextBlock,
-	canonicalStarts: Map<string, number>,
 	fallbackSeed: string,
-): OrderedListMetadata {
+): { listId: string; listStart?: number } {
 	const listId = normalizeListId(item.listId) ?? deriveLegacyListId(fallbackSeed);
+	const listStart = normalizeListStart(item.listStart);
 	return {
 		listId,
-		listStart: canonicalStarts.get(listId) ?? normalizeListStart(item.listStart) ?? 1,
+		...(listStart === undefined ? {} : { listStart }),
 	};
 }
 
@@ -308,8 +289,6 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 function convertList(
 	items: PortableTextTextBlock[],
 	listType: "bullet" | "number",
-	counters: Map<string, OrderedListCounter>,
-	canonicalStarts: Map<string, number>,
 	context: string,
 ): ProseMirrorNode {
 	// Group items by level
@@ -331,40 +310,21 @@ function convertList(
 			}
 
 			rootItems.push(
-				convertListItem(
-					item,
-					nestedItems,
-					listType,
-					counters,
-					canonicalStarts,
-					`${context}:${rootItems.length}`,
-				),
+				convertListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
 			);
 		} else {
 			// Orphan nested item - treat as root
-			rootItems.push(
-				convertListItem(
-					item,
-					[],
-					listType,
-					counters,
-					canonicalStarts,
-					`${context}:${rootItems.length}`,
-				),
-			);
+			rootItems.push(convertListItem(item, [], listType, `${context}:${rootItems.length}`));
 			i++;
 		}
 	}
 
 	const metadata =
-		listType === "number"
-			? getListMetadata(items[0], canonicalStarts, `${context}:${items[0]._key}`)
-			: undefined;
-	const start = metadata ? takeOrderedListStart(counters, metadata, rootItems.length) : undefined;
+		listType === "number" ? getListMetadata(items[0], `${context}:${items[0]._key}`) : undefined;
 
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
-		attrs: metadata ? { ...metadata, start } : undefined,
+		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
 		content: rootItems,
 	};
 }
@@ -376,8 +336,6 @@ function convertListItem(
 	item: PortableTextTextBlock,
 	nestedItems: PortableTextTextBlock[],
 	parentListType: "bullet" | "number",
-	counters: Map<string, OrderedListCounter>,
-	canonicalStarts: Map<string, number>,
 	context: string,
 ): ProseMirrorNode {
 	const content: ProseMirrorNode[] = [];
@@ -427,13 +385,7 @@ function convertListItem(
 					level: (ni.level || 2) - 1,
 				}));
 				content.push(
-					convertList(
-						adjustedGroup,
-						anchorType,
-						counters,
-						canonicalStarts,
-						`${context}:nested:${j - nestedGroup.length}`,
-					),
+					convertList(adjustedGroup, anchorType, `${context}:nested:${j - nestedGroup.length}`),
 				);
 			}
 		}

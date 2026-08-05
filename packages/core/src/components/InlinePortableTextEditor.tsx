@@ -27,11 +27,10 @@ import { createPortal } from "react-dom";
 
 import {
 	deriveLegacyListId,
+	normalizeProseMirrorOrderedListJson,
 	normalizeListId,
 	normalizeListStart,
 	readOrderedListMetadata,
-	takeOrderedListStart,
-	type OrderedListCounter,
 } from "../content/converters/numbered-list.js";
 import { computeThumbnailSize } from "../media/thumbnail.js";
 import { CodeMarkExtension } from "./code-mark.js";
@@ -168,9 +167,9 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			};
 		}
 		case "bulletList":
-			return convertPMList(node.content || [], "bullet", undefined);
+			return convertPMList(node.content || [], "bullet", 1, node.attrs, path);
 		case "orderedList":
-			return convertPMList(node.content || [], "number", readOrderedListMetadata(node.attrs, path));
+			return convertPMList(node.content || [], "number", 1, node.attrs, path);
 		case "blockquote": {
 			const blocks: PTTextBlock[] = [];
 			for (const child of node.content || []) {
@@ -259,12 +258,17 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 function convertPMList(
 	items: PMNode[],
 	listItem: "bullet" | "number",
-	metadata: { listId: string; listStart: number } | undefined,
+	level: number,
+	attrs: Record<string, unknown> | undefined,
+	path: string,
 ): PTTextBlock[] {
 	const blocks: PTTextBlock[] = [];
-	for (const item of items) {
+	const metadata = listItem === "number" ? readOrderedListMetadata(attrs, path) : undefined;
+	for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+		const item = items[itemIndex]!;
 		if (item.type === "listItem") {
-			for (const child of item.content || []) {
+			for (let childIndex = 0; childIndex < (item.content?.length ?? 0); childIndex++) {
+				const child = item.content![childIndex]!;
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInline(child.content || []);
 					if (children.length > 0) {
@@ -273,12 +277,23 @@ function convertPMList(
 							_key: k(),
 							style: "normal",
 							listItem,
-							level: 1,
+							level,
 							...metadata,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
+				} else if (child.type === "bulletList" || child.type === "orderedList") {
+					const childListItem = child.type === "bulletList" ? "bullet" : "number";
+					blocks.push(
+						...convertPMList(
+							child.content || [],
+							childListItem,
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				}
 			}
 		}
@@ -362,17 +377,7 @@ function convertPMMark(
 function portableTextToPM(blocks: PTBlock[]): JSONContent {
 	if (!blocks || blocks.length === 0) return { type: "doc", content: [{ type: "paragraph" }] };
 
-	const content: JSONContent[] = [];
-	const counters = new Map<string, OrderedListCounter>();
-	const canonicalStarts = new Map<string, number>();
-	for (const block of blocks) {
-		if (!isPTTextBlock(block) || block.listItem !== "number") continue;
-		const listId = normalizeListId(block.listId);
-		const listStart = normalizeListStart(block.listStart);
-		if (listId && listStart !== undefined && !canonicalStarts.has(listId)) {
-			canonicalStarts.set(listId, listStart);
-		}
-	}
+	const content: PMNode[] = [];
 	let i = 0;
 
 	while (i < blocks.length) {
@@ -388,20 +393,19 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 			while (i < blocks.length) {
 				const cur = blocks[i];
-				const currentId =
-					cur && isPTTextBlock(cur) && cur.listItem === "number"
-						? normalizeListId(cur.listId)
-						: undefined;
+				if (!cur || !isPTTextBlock(cur) || !cur.listItem) break;
+				const level = cur.level || 1;
+				const currentId = cur.listItem === "number" ? normalizeListId(cur.listId) : undefined;
 				const sameIdentity =
-					listType !== "number" || (rootId ? currentId === rootId : currentId === undefined);
-				if (cur && isPTTextBlock(cur) && cur.listItem === listType && sameIdentity) {
+					listType !== "number" ||
+					level > 1 ||
+					(rootId ? currentId === rootId : currentId === undefined);
+				if (level > 1 || (cur.listItem === listType && sameIdentity)) {
 					listBlocks.push(cur);
 					i++;
 				} else break;
 			}
-			content.push(
-				convertPTList(listBlocks, listType, counters, canonicalStarts, `root:${runStart}`),
-			);
+			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else if (
 			isPTTextBlock(block) &&
 			block.style === "blockquote" &&
@@ -443,10 +447,13 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 		}
 	}
 
-	return { type: "doc", content: content.length > 0 ? content : [{ type: "paragraph" }] };
+	return normalizeProseMirrorOrderedListJson({
+		type: "doc",
+		content: content.length > 0 ? content : [{ type: "paragraph" }],
+	});
 }
 
-function convertPTBlock(block: PTBlock): JSONContent | null {
+function convertPTBlock(block: PTBlock): PMNode | null {
 	if (isPTTextBlock(block)) {
 		const { style = "normal", children, markDefs = [], textAlign } = block;
 		const pmContent = convertPTSpans(children, markDefs);
@@ -569,38 +576,115 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 function convertPTList(
 	items: PTTextBlock[],
 	listType: "bullet" | "number",
-	counters: Map<string, OrderedListCounter>,
-	canonicalStarts: Map<string, number>,
 	context: string,
-): JSONContent {
+): PMNode {
+	const rootItems: PMNode[] = [];
+	let index = 0;
+
+	while (index < items.length) {
+		const item = items[index]!;
+		const level = item.level || 1;
+		if (level === 1) {
+			const nestedItems: PTTextBlock[] = [];
+			index++;
+			while (index < items.length && (items[index]!.level || 1) > 1) {
+				nestedItems.push(items[index]!);
+				index++;
+			}
+			rootItems.push(
+				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
+			);
+		} else {
+			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
+			index++;
+		}
+	}
+
 	const firstItem = items[0]!;
 	const listId =
 		normalizeListId(firstItem.listId) ?? deriveLegacyListId(`${context}:${firstItem._key}`);
+	const listStart = normalizeListStart(firstItem.listStart);
 	const metadata =
 		listType === "number"
 			? {
 					listId,
-					listStart: canonicalStarts.get(listId) ?? normalizeListStart(firstItem.listStart) ?? 1,
+					...(listStart === undefined ? {} : { listStart }),
 				}
 			: undefined;
-	const start = metadata ? takeOrderedListStart(counters, metadata, items.length) : undefined;
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
-		attrs: metadata ? { ...metadata, start } : undefined,
-		content: items.map((item) => ({
-			type: "listItem",
-			content: [
-				{
-					type: "paragraph",
-					content: convertPTSpans(item.children, item.markDefs || []),
-				},
-			],
-		})),
+		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
+		content: rootItems,
 	};
 }
 
-function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): JSONContent[] {
-	const nodes: JSONContent[] = [];
+function belongsToNestedPTGroup(
+	item: PTTextBlock,
+	minLevel: number,
+	parentListType: "bullet" | "number",
+	anchorType: "bullet" | "number",
+	anchorId: string | undefined,
+): boolean {
+	if ((item.level || 2) > minLevel) return true;
+	if ((item.listItem || parentListType) !== anchorType) return false;
+	if (anchorType !== "number") return true;
+	const itemId = normalizeListId(item.listId);
+	return anchorId ? itemId === anchorId : itemId === undefined;
+}
+
+function convertPTListItem(
+	item: PTTextBlock,
+	nestedItems: PTTextBlock[],
+	parentListType: "bullet" | "number",
+	context: string,
+): PMNode {
+	const content: PMNode[] = [
+		{
+			type: "paragraph",
+			content: convertPTSpans(item.children, item.markDefs || []),
+		},
+	];
+
+	if (nestedItems.length > 0) {
+		let minLevel = Infinity;
+		for (const nestedItem of nestedItems) {
+			const level = nestedItem.level || 2;
+			if (level < minLevel) minLevel = level;
+		}
+
+		let index = 0;
+		while (index < nestedItems.length) {
+			const groupStart = index;
+			const anchorType = nestedItems[index]!.listItem || parentListType;
+			const anchorId =
+				anchorType === "number" ? normalizeListId(nestedItems[index]!.listId) : undefined;
+			const nestedGroup: PTTextBlock[] = [];
+			do {
+				nestedGroup.push(nestedItems[index]!);
+				index++;
+			} while (
+				index < nestedItems.length &&
+				belongsToNestedPTGroup(nestedItems[index]!, minLevel, parentListType, anchorType, anchorId)
+			);
+
+			content.push(
+				convertPTList(
+					nestedGroup.map((nestedItem) => ({
+						...nestedItem,
+						level: (nestedItem.level || 2) - 1,
+					})),
+					anchorType,
+					`${context}:nested:${groupStart}`,
+				),
+			);
+		}
+	}
+
+	return { type: "listItem", content };
+}
+
+function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): PMNode[] {
+	const nodes: PMNode[] = [];
 	const mdMap = new Map(markDefs.map((md) => [md._key, md]));
 
 	for (const span of spans) {
@@ -610,7 +694,7 @@ function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): JSONContent[] {
 			const text = parts[i];
 			if (text && text.length > 0) {
 				const marks = convertPTMarks(span.marks || [], mdMap);
-				const node: JSONContent = {
+				const node: PMNode = {
 					type: "text",
 					text,
 				};

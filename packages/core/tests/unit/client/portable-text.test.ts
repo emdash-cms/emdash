@@ -147,7 +147,116 @@ describe("portableTextToMarkdown", () => {
 				children: [{ _type: "span", text: "Second", marks: [] }],
 			},
 		];
-		expect(portableTextToMarkdown(blocks)).toBe("1. First\n1. Second\n");
+		expect(portableTextToMarkdown(blocks)).toBe("1. First\n2. Second\n");
+	});
+
+	it("emits exact continuation and nested item markers", () => {
+		const blocks: PortableTextBlock[] = [
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "root",
+				listStart: 3,
+				children: [{ _type: "span", text: "Three" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 2,
+				listId: "nested",
+				listStart: 8,
+				children: [{ _type: "span", text: "Nested eight" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 2,
+				listId: "nested",
+				listStart: 8,
+				children: [{ _type: "span", text: "Nested nine" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "root",
+				listStart: 3,
+				children: [{ _type: "span", text: "Four" }],
+			},
+		];
+
+		expect(portableTextToMarkdown(blocks)).toBe(
+			"3. Three\n  8. Nested eight\n  9. Nested nine\n4. Four\n",
+		);
+	});
+
+	it("separates adjacent independent numbered runs for EmDash re-import", () => {
+		const blocks: PortableTextBlock[] = [
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "first",
+				listStart: 1,
+				children: [{ _type: "span", text: "First" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "second",
+				listStart: 4,
+				children: [{ _type: "span", text: "Fourth" }],
+			},
+		];
+		const markdown = portableTextToMarkdown(blocks);
+		const imported = markdownToPortableText(markdown);
+
+		expect(markdown).toBe("1. First\n\n4. Fourth\n");
+		expect(imported[0].listId).not.toBe(imported[1].listId);
+		expect(imported.map((block) => block.listStart)).toEqual([1, 4]);
+	});
+
+	it("preserves visible continuation starts but not identity through Markdown", () => {
+		const blocks: PortableTextBlock[] = [
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "shared",
+				listStart: 1,
+				children: [{ _type: "span", text: "One" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "shared",
+				listStart: 1,
+				children: [{ _type: "span", text: "Two" }],
+			},
+			{
+				_type: "block",
+				style: "normal",
+				children: [{ _type: "span", text: "Between" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "shared",
+				listStart: 1,
+				children: [{ _type: "span", text: "Three" }],
+			},
+		];
+		const markdown = portableTextToMarkdown(blocks);
+		const imported = markdownToPortableText(markdown);
+
+		expect(markdown).toBe("1. One\n2. Two\n\nBetween\n\n3. Three\n");
+		expect(imported[0].listId).toBe(imported[1].listId);
+		expect(imported[3].listId).not.toBe(imported[1].listId);
+		expect(imported[3].listStart).toBe(3);
 	});
 
 	it("converts code blocks", () => {
@@ -304,6 +413,17 @@ describe("markdownToPortableText", () => {
 		expect(blocks).toHaveLength(2);
 		expect(blocks[0].listItem).toBe("number");
 		expect(blocks[1].listItem).toBe("number");
+		expect(blocks[0].listId).toBe(blocks[1].listId);
+		expect(blocks.map((block) => block.listStart)).toEqual([1, 1]);
+	});
+
+	it("preserves ordered starts and separates blank or block boundaries", () => {
+		const blocks = markdownToPortableText("3. Three\n4. Four\n\n8. Eight\nBetween\n2. Two\n");
+
+		expect(blocks.map((block) => block.listStart)).toEqual([3, 3, 8, undefined, 2]);
+		expect(blocks[0].listId).toBe(blocks[1].listId);
+		expect(blocks[2].listId).not.toBe(blocks[1].listId);
+		expect(blocks[4].listId).not.toBe(blocks[2].listId);
 	});
 
 	it("converts code fences", () => {
