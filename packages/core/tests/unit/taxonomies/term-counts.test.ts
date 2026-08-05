@@ -357,6 +357,14 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			expect(enTerms[0]!.count).toBe(1);
 			expect(frTerms[0]!.count).toBe(2);
 		});
+
+		const frList = await handleTermList(ctx.db, "drifty", { locale: "fr" });
+		if (!frList.success) throw new Error(frList.error.message);
+		expect(frList.data.terms[0]!.count).toBe(2);
+
+		const frTerm = await handleTermGet(ctx.db, "drifty", "partage", { locale: "fr" });
+		if (!frTerm.success) throw new Error(frTerm.error.message);
+		expect(frTerm.data.term.count).toBe(2);
 	});
 
 	it("returns an empty map when the taxonomy declares no collections", async () => {

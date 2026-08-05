@@ -37,6 +37,7 @@ import {
 	BYLINE_SCHEMA_NAV_ITEM,
 	filterNavItemsByRole,
 	getSidebarTaxonomies,
+	resolveItemPath,
 	resolveNavIcon,
 	resolvePluginPageLabel,
 	toPhosphorIconName,
@@ -73,6 +74,20 @@ describe("getSidebarTaxonomies", () => {
 	it("falls back to the configured default locale, then deterministically", () => {
 		expect(getSidebarTaxonomies(taxonomies, "it", "fr")[0]?.label).toBe("Types de plats");
 		expect(getSidebarTaxonomies(taxonomies, "it")[0]?.label).toBe("Gänge");
+	});
+});
+
+describe("resolveItemPath", () => {
+	it("preserves the active locale on taxonomy-management links", () => {
+		expect(
+			resolveItemPath({
+				to: "/taxonomies/$taxonomy",
+				label: "Gänge",
+				icon: Gear,
+				params: { taxonomy: "course" },
+				search: { locale: "de" },
+			}),
+		).toBe("/taxonomies/course?locale=de");
 	});
 });
 

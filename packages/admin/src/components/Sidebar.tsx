@@ -115,6 +115,7 @@ interface NavItem {
 	label: string;
 	icon: React.ElementType;
 	params?: Record<string, string>;
+	search?: Record<string, string>;
 	/** Minimum role level required to see this item */
 	minRole?: number;
 	/** Optional badge count (e.g., pending comments) */
@@ -179,12 +180,15 @@ export function resolvePluginPageLabel(
 }
 
 /** Resolves a nav item's route path by substituting $param placeholders. */
-function resolveItemPath(item: NavItem): string {
+export function resolveItemPath(item: NavItem): string {
 	let path = item.to;
 	if (item.params) {
 		for (const [key, value] of Object.entries(item.params)) {
 			path = path.replace(`$${key}`, value);
 		}
+	}
+	if (item.search && Object.keys(item.search).length > 0) {
+		path += `?${new URLSearchParams(item.search).toString()}`;
 	}
 	return path;
 }
@@ -257,6 +261,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				label: tax.label,
 				icon: getTaxonomyNavIcon(tax.name),
 				params: { taxonomy: tax.name },
+				search: routeLocale ? { locale: routeLocale } : undefined,
 				minRole: ROLE_EDITOR,
 			}),
 		),
