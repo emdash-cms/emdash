@@ -30,8 +30,8 @@ interface CountRow {
 
 /**
  * Per-collection count branch. `taxonomy_id` stores the term's
- * translation_group, so results are keyed by group (locale-independent) and
- * each assignment is counted once no matter how many locales the term has.
+ * translation_group, so results are keyed by group while entry rows are
+ * optionally scoped to the active locale.
  *
  * Scoping to the taxonomy uses `translation_group IN (...)` rather than a
  * join on `taxonomies.id` — the anchor row (id == group) can be deleted while
@@ -46,6 +46,7 @@ function collectionBranch(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	collection: string,
+	locale?: string,
 ): ReturnType<typeof sql> {
 	return sql`
 		SELECT ct.taxonomy_id AS taxonomy_id, COUNT(*) AS count
@@ -54,6 +55,7 @@ function collectionBranch(
 		WHERE e.id = ct.entry_id
 			AND ct.collection = ${collection}
 			AND ct.taxonomy_id IN (SELECT translation_group FROM taxonomies WHERE name = ${taxonomyName})
+			${locale ? sql`AND e.locale = ${locale}` : sql``}
 			AND ${buildStatusCondition(db, "published", "e")}
 			AND e.deleted_at IS NULL
 		GROUP BY ct.taxonomy_id`;
@@ -63,8 +65,11 @@ async function runCounts(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	collections: string[],
+	locale?: string,
 ): Promise<Map<string, number>> {
-	const branches = collections.map((collection) => collectionBranch(db, taxonomyName, collection));
+	const branches = collections.map((collection) =>
+		collectionBranch(db, taxonomyName, collection, locale),
+	);
 	const union = sql.join(branches, sql` UNION ALL `);
 	const result = await sql<CountRow>`
 		SELECT taxonomy_id, SUM(count) AS count
@@ -79,6 +84,8 @@ async function runCounts(
 /**
  * Count publicly-visible term assignments for one taxonomy, keyed by the
  * term's translation_group (what `content_taxonomies.taxonomy_id` stores).
+ * When `locale` is provided, only entries in that locale contribute. Omitting
+ * it preserves the locale-agnostic API used by legacy callers.
  *
  * Counts are scoped to the taxonomy's declared collections — pass
  * `TaxonomyDef.collections` (`_emdash_taxonomy_defs.collections`). Collections
@@ -95,13 +102,14 @@ export async function fetchVisibleTermCounts(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	collections: string[],
+	locale?: string,
 ): Promise<Map<string, number>> {
 	const unique = [...new Set(collections)];
 	for (const collection of unique) validateIdentifier(collection, "collection slug");
 	if (unique.length === 0) return new Map();
 
 	try {
-		return await runCounts(db, taxonomyName, unique);
+		return await runCounts(db, taxonomyName, unique, locale);
 	} catch (error) {
 		if (!isMissingTableError(error)) throw error;
 	}
@@ -111,7 +119,7 @@ export async function fetchVisibleTermCounts(
 	const counts = new Map<string, number>();
 	for (const collection of unique) {
 		try {
-			for (const [group, count] of await runCounts(db, taxonomyName, [collection])) {
+			for (const [group, count] of await runCounts(db, taxonomyName, [collection], locale)) {
 				counts.set(group, (counts.get(group) ?? 0) + count);
 			}
 		} catch (error) {

@@ -389,12 +389,12 @@ export async function handleTermList(
 ): Promise<ApiResult<TermListResponse>> {
 	try {
 		// Definitions are per-locale but terms aren't bound to the def's locale —
-		// just ensure the taxonomy exists somewhere.
-		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		// use the active definition for its collection scope.
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const lookup = await requireTaxonomyDef(db, taxonomyName, locale);
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
-		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 		const terms = await repo.findByName(taxonomyName, { locale });
 
 		// Counts match what visitors see on the public site: published (or
@@ -404,7 +404,7 @@ export async function handleTermList(
 		// look up by group and map back to each term's id.
 		const includeCounts = options.includeCounts ?? true;
 		const countsByGroup = includeCounts
-			? await fetchVisibleTermCounts(db, taxonomyName, defCollections(lookup.def))
+			? await fetchVisibleTermCounts(db, taxonomyName, defCollections(lookup.def), locale)
 			: undefined;
 
 		const termData: TermWithCount[] = terms.map((term) => ({
@@ -656,11 +656,12 @@ export async function handleTermGet(
 		// Count matches public visibility (published or scheduled-and-due, not
 		// soft-deleted) scoped to the def's declared collections. The def lookup
 		// is lenient: a term whose def is missing still resolves, with count 0.
-		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		const lookup = await requireTaxonomyDef(db, taxonomyName, locale);
 		const counts = await fetchVisibleTermCounts(
 			db,
 			taxonomyName,
 			lookup.success ? defCollections(lookup.def) : [],
+			locale ?? term.locale,
 		);
 		const count = counts.get(term.translationGroup ?? term.id) ?? 0;
 		// Children share this term's translation_group as their parent_id; scope

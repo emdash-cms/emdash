@@ -16,6 +16,7 @@ import * as React from "react";
 
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
 import { createTerm, withLocale } from "../lib/api/taxonomies.js";
+import { resolveTaxonomyDefinitions } from "../lib/taxonomy-definitions.js";
 import { termExactMatches, termMatches } from "../lib/taxonomy-match.js";
 import { cn, slugify } from "../lib/utils.js";
 
@@ -35,6 +36,8 @@ interface TaxonomyDef {
 	labelSingular?: string;
 	hierarchical: boolean;
 	collections: string[];
+	locale?: string;
+	translationGroup?: string | null;
 }
 
 interface TaxonomySidebarProps {
@@ -43,6 +46,8 @@ interface TaxonomySidebarProps {
 	/** Locale of the entry being edited. Scopes term reads/writes so only the
 	 * matching translation variants are shown — see issue #1218. */
 	entryLocale?: string;
+	/** Site default used when this logical taxonomy has no entry-locale definition. */
+	defaultLocale?: string;
 	onChange?: (taxonomyName: string, termIds: string[]) => void;
 	/** Applied to the root when the section renders. Omitted when the section
 	 * is empty so the caller doesn't need to guess whether to draw chrome. */
@@ -63,17 +68,27 @@ async function fetchTaxonomyDefs(): Promise<TaxonomyDef[]> {
 	return data.taxonomies;
 }
 
-function useApplicableTaxonomies(collection: string): TaxonomyDef[] {
+function useApplicableTaxonomies(
+	collection: string,
+	activeLocale?: string,
+	defaultLocale?: string,
+): TaxonomyDef[] {
 	const { data: taxonomies = [] } = useQuery({
 		queryKey: ["taxonomy-defs"],
 		queryFn: fetchTaxonomyDefs,
 	});
-	return taxonomies.filter((taxonomy) => taxonomy.collections.includes(collection));
+	return resolveTaxonomyDefinitions(taxonomies, activeLocale, defaultLocale).filter((taxonomy) =>
+		taxonomy.collections.includes(collection),
+	);
 }
 
 /** Whether the editor should include a taxonomy settings section. */
-export function useHasApplicableTaxonomies(collection: string): boolean {
-	return useApplicableTaxonomies(collection).length > 0;
+export function useHasApplicableTaxonomies(
+	collection: string,
+	activeLocale?: string,
+	defaultLocale?: string,
+): boolean {
+	return useApplicableTaxonomies(collection, activeLocale, defaultLocale).length > 0;
 }
 
 /**
@@ -538,11 +553,12 @@ export function TaxonomySidebar({
 	collection,
 	entryId,
 	entryLocale,
+	defaultLocale,
 	onChange,
 	className,
 }: TaxonomySidebarProps) {
 	const { t } = useLingui();
-	const applicableTaxonomies = useApplicableTaxonomies(collection);
+	const applicableTaxonomies = useApplicableTaxonomies(collection, entryLocale, defaultLocale);
 
 	if (applicableTaxonomies.length === 0) {
 		return null;

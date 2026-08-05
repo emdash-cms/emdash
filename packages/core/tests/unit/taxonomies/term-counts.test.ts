@@ -191,7 +191,7 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		expect(tagCounts.get(tag.translationGroup ?? tag.id)).toBe(1);
 	});
 
-	it("counts per entry row across locales, keyed by translation_group", async () => {
+	it("counts only entry rows in the requested locale, keyed by translation_group", async () => {
 		// Defs are per-locale — translate the seeded `category` def into FR so
 		// the FR widget view resolves (same declared collections).
 		const enDef = await ctx.db
@@ -212,6 +212,19 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 				translation_group: enDef.translation_group ?? enDef.id,
 			})
 			.execute();
+		await ctx.db
+			.insertInto("_emdash_taxonomy_defs")
+			.values({
+				id: ulid(),
+				name: "category",
+				label: "Kategorien",
+				label_singular: null,
+				hierarchical: enDef.hierarchical,
+				collections: enDef.collections,
+				locale: "de",
+				translation_group: enDef.translation_group ?? enDef.id,
+			})
+			.execute();
 
 		const enTerm = await taxRepo.create({
 			name: "category",
@@ -224,6 +237,13 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			slug: "actualites",
 			label: "Actualités",
 			locale: "fr",
+			translationOf: enTerm.id,
+		});
+		const deTerm = await taxRepo.create({
+			name: "category",
+			slug: "nachrichten",
+			label: "Nachrichten",
+			locale: "de",
 			translationOf: enTerm.id,
 		});
 
@@ -242,19 +262,31 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			locale: "fr",
 			translationOf: enPost.id,
 		});
+		const dePost = await contentRepo.create({
+			type: "post",
+			slug: "hallo",
+			status: "published",
+			data: { title: "Hallo" },
+			locale: "de",
+			translationOf: enPost.id,
+		});
 		// Attaching via either locale's term id resolves to the shared group.
 		await taxRepo.attachToEntry("post", enPost.id, enTerm.id);
 		await taxRepo.attachToEntry("post", frPost.id, frTerm.id);
+		await taxRepo.attachToEntry("post", dePost.id, deTerm.id);
 
-		const counts = await fetchVisibleTermCounts(ctx.db, "category", ["post"]);
-		// One count per entry row, shared by every locale variant of the term.
-		expect(counts.get(enTerm.translationGroup ?? enTerm.id)).toBe(2);
+		for (const locale of ["en", "fr", "de"]) {
+			const counts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], locale);
+			expect(counts.get(enTerm.translationGroup ?? enTerm.id)).toBe(1);
+		}
 
-		// Both locale views of the taxonomy surface the same group count.
+		// Each locale view surfaces the count for entries visible in that locale.
 		const enTerms = await getTaxonomyTerms("category", { locale: "en" });
 		const frTerms = await getTaxonomyTerms("category", { locale: "fr" });
-		expect(enTerms[0]!.count).toBe(2);
-		expect(frTerms[0]!.count).toBe(2);
+		const deTerms = await getTaxonomyTerms("category", { locale: "de" });
+		expect(enTerms[0]!.count).toBe(1);
+		expect(frTerms[0]!.count).toBe(1);
+		expect(deTerms[0]!.count).toBe(1);
 	});
 
 	it("skips missing ec_* tables and returns a partial count", async () => {
@@ -300,8 +332,20 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		});
 
 		const post = await createEntry("post", "p1");
-		const page1 = await createEntry("page", "g1");
-		const page2 = await createEntry("page", "g2");
+		const page1 = await contentRepo.create({
+			type: "page",
+			slug: "g1",
+			status: "published",
+			data: { title: "g1" },
+			locale: "fr",
+		});
+		const page2 = await contentRepo.create({
+			type: "page",
+			slug: "g2",
+			status: "published",
+			data: { title: "g2" },
+			locale: "fr",
+		});
 		await taxRepo.attachToEntry("post", post.id, enTerm.id);
 		await taxRepo.attachToEntry("page", page1.id, enTerm.id);
 		await taxRepo.attachToEntry("page", page2.id, enTerm.id);
@@ -313,6 +357,14 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			expect(enTerms[0]!.count).toBe(1);
 			expect(frTerms[0]!.count).toBe(2);
 		});
+
+		const frList = await handleTermList(ctx.db, "drifty", { locale: "fr" });
+		if (!frList.success) throw new Error(frList.error.message);
+		expect(frList.data.terms[0]!.count).toBe(2);
+
+		const frTerm = await handleTermGet(ctx.db, "drifty", "partage", { locale: "fr" });
+		if (!frTerm.success) throw new Error(frTerm.error.message);
+		expect(frTerm.data.term.count).toBe(2);
 	});
 
 	it("returns an empty map when the taxonomy declares no collections", async () => {
