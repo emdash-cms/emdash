@@ -18,6 +18,8 @@ export interface PortableTextBlock {
 	style?: string;
 	level?: number;
 	listItem?: string;
+	listId?: string;
+	listStart?: number;
 	markDefs?: MarkDef[];
 	children?: PortableTextSpan[];
 	[key: string]: unknown;

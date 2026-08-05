@@ -57,6 +57,7 @@
     "@tiptap/extension-dropcursor": "catalog:",
     "@tiptap/extension-focus": "catalog:",
     "@tiptap/extension-link": "catalog:",
+    "@tiptap/extension-list": "catalog:",
     "@tiptap/extension-node-range": "catalog:",
     "@tiptap/extension-placeholder": "catalog:",
     "@tiptap/extension-subscript": "catalog:",

@@ -5,6 +5,14 @@
  */
 
 import { sanitizeGalleryImages } from "./gallery.js";
+import {
+	deriveLegacyListId,
+	normalizeListId,
+	normalizeListStart,
+	takeOrderedListStart,
+	type OrderedListCounter,
+	type OrderedListMetadata,
+} from "./numbered-list.js";
 import type {
 	ProseMirrorDocument,
 	ProseMirrorNode,
@@ -30,6 +38,8 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 	}
 
 	const content: ProseMirrorNode[] = [];
+	const counters = new Map<string, OrderedListCounter>();
+	const canonicalStarts = collectCanonicalStarts(blocks);
 	let i = 0;
 
 	while (i < blocks.length) {
@@ -48,12 +58,20 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 			// child).
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
+			const runStart = i;
+			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 
 			while (i < blocks.length) {
 				const current = blocks[i];
 				if (!isTextBlock(current) || !current.listItem) break;
 				const level = current.level || 1;
-				if (level > 1 || current.listItem === listType) {
+				const currentId =
+					current.listItem === "number" ? normalizeListId(current.listId) : undefined;
+				const sameRootIdentity =
+					listType !== "number" ||
+					level > 1 ||
+					(rootId ? currentId === rootId : currentId === undefined);
+				if (level > 1 || (current.listItem === listType && sameRootIdentity)) {
 					listBlocks.push(current);
 					i++;
 				} else {
@@ -61,7 +79,9 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 				}
 			}
 
-			content.push(convertList(listBlocks, listType));
+			content.push(
+				convertList(listBlocks, listType, counters, canonicalStarts, `root:${runStart}`),
+			);
 		} else if (isTextBlock(block) && block.style === "blockquote") {
 			// Collect a blockquote "run": Portable Text is flat, so a
 			// multi-paragraph quote is stored as consecutive blocks with
@@ -106,6 +126,45 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 		type: "doc",
 		content: content.length > 0 ? content : [{ type: "paragraph" }],
 	};
+}
+
+function collectCanonicalStarts(blocks: PortableTextBlock[]): Map<string, number> {
+	const starts = new Map<string, number>();
+	for (const block of blocks) {
+		if (!isTextBlock(block) || block.listItem !== "number") continue;
+		const listId = normalizeListId(block.listId);
+		const listStart = normalizeListStart(block.listStart);
+		if (listId && listStart !== undefined && !starts.has(listId)) {
+			starts.set(listId, listStart);
+		}
+	}
+	return starts;
+}
+
+function getListMetadata(
+	item: PortableTextTextBlock,
+	canonicalStarts: Map<string, number>,
+	fallbackSeed: string,
+): OrderedListMetadata {
+	const listId = normalizeListId(item.listId) ?? deriveLegacyListId(fallbackSeed);
+	return {
+		listId,
+		listStart: canonicalStarts.get(listId) ?? normalizeListStart(item.listStart) ?? 1,
+	};
+}
+
+function belongsToNestedGroup(
+	item: PortableTextTextBlock,
+	minLevel: number,
+	parentListType: "bullet" | "number",
+	anchorType: "bullet" | "number",
+	anchorId: string | undefined,
+): boolean {
+	if ((item.level || 2) > minLevel) return true;
+	if ((item.listItem || parentListType) !== anchorType) return false;
+	if (anchorType !== "number") return true;
+	const itemId = normalizeListId(item.listId);
+	return anchorId ? itemId === anchorId : itemId === undefined;
 }
 
 /**
@@ -249,6 +308,9 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 function convertList(
 	items: PortableTextTextBlock[],
 	listType: "bullet" | "number",
+	counters: Map<string, OrderedListCounter>,
+	canonicalStarts: Map<string, number>,
+	context: string,
 ): ProseMirrorNode {
 	// Group items by level
 	const rootItems: ProseMirrorNode[] = [];
@@ -268,16 +330,41 @@ function convertList(
 				i++;
 			}
 
-			rootItems.push(convertListItem(item, nestedItems, listType));
+			rootItems.push(
+				convertListItem(
+					item,
+					nestedItems,
+					listType,
+					counters,
+					canonicalStarts,
+					`${context}:${rootItems.length}`,
+				),
+			);
 		} else {
 			// Orphan nested item - treat as root
-			rootItems.push(convertListItem(item, [], listType));
+			rootItems.push(
+				convertListItem(
+					item,
+					[],
+					listType,
+					counters,
+					canonicalStarts,
+					`${context}:${rootItems.length}`,
+				),
+			);
 			i++;
 		}
 	}
 
+	const metadata =
+		listType === "number"
+			? getListMetadata(items[0], canonicalStarts, `${context}:${items[0]._key}`)
+			: undefined;
+	const start = metadata ? takeOrderedListStart(counters, metadata, rootItems.length) : undefined;
+
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
+		attrs: metadata ? { ...metadata, start } : undefined,
 		content: rootItems,
 	};
 }
@@ -289,6 +376,9 @@ function convertListItem(
 	item: PortableTextTextBlock,
 	nestedItems: PortableTextTextBlock[],
 	parentListType: "bullet" | "number",
+	counters: Map<string, OrderedListCounter>,
+	canonicalStarts: Map<string, number>,
+	context: string,
 ): ProseMirrorNode {
 	const content: ProseMirrorNode[] = [];
 
@@ -319,6 +409,7 @@ function convertListItem(
 		let j = 0;
 		while (j < nestedItems.length) {
 			const anchorType: "bullet" | "number" = nestedItems[j].listItem || parentListType;
+			const anchorId = anchorType === "number" ? normalizeListId(nestedItems[j].listId) : undefined;
 			const nestedGroup: PortableTextTextBlock[] = [];
 
 			do {
@@ -326,8 +417,7 @@ function convertListItem(
 				j++;
 			} while (
 				j < nestedItems.length &&
-				((nestedItems[j].level || 2) > minLevel ||
-					(nestedItems[j].listItem || parentListType) === anchorType)
+				belongsToNestedGroup(nestedItems[j], minLevel, parentListType, anchorType, anchorId)
 			);
 
 			if (nestedGroup.length > 0) {
@@ -336,7 +426,15 @@ function convertListItem(
 					...ni,
 					level: (ni.level || 2) - 1,
 				}));
-				content.push(convertList(adjustedGroup, anchorType));
+				content.push(
+					convertList(
+						adjustedGroup,
+						anchorType,
+						counters,
+						canonicalStarts,
+						`${context}:nested:${j - nestedGroup.length}`,
+					),
+				);
 			}
 		}
 	}

@@ -25,9 +25,18 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import {
+	deriveLegacyListId,
+	normalizeListId,
+	normalizeListStart,
+	readOrderedListMetadata,
+	takeOrderedListStart,
+	type OrderedListCounter,
+} from "../content/converters/numbered-list.js";
 import { computeThumbnailSize } from "../media/thumbnail.js";
 import { CodeMarkExtension } from "./code-mark.js";
 import { InlineCodeBlockExtension } from "./inline-code-block.js";
+import { EmDashOrderedList } from "./ordered-list.js";
 
 // ── Portable Text types ────────────────────────────────────────────
 
@@ -50,6 +59,8 @@ interface PTTextBlock {
 	style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 	listItem?: "bullet" | "number";
 	level?: number;
+	listId?: string;
+	listStart?: number;
 	children: PTSpan[];
 	markDefs?: PTMarkDef[];
 	textAlign?: "left" | "center" | "right" | "justify";
@@ -106,8 +117,8 @@ function attrNum(attrs: Record<string, unknown> | undefined, key: string): numbe
 function pmToPortableText(doc: PMNode): PTBlock[] {
 	if (!doc || doc.type !== "doc" || !doc.content) return [];
 	const blocks: PTBlock[] = [];
-	for (const node of doc.content) {
-		const r = convertPMNode(node);
+	for (let i = 0; i < doc.content.length; i++) {
+		const r = convertPMNode(doc.content[i]!, `root:${i}`);
 		if (r) {
 			if (Array.isArray(r)) blocks.push(...r);
 			else blocks.push(r);
@@ -116,7 +127,7 @@ function pmToPortableText(doc: PMNode): PTBlock[] {
 	return blocks;
 }
 
-function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
+function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 	switch (node.type) {
 		case "paragraph": {
 			const { children, markDefs } = convertInline(node.content || []);
@@ -157,9 +168,9 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 			};
 		}
 		case "bulletList":
-			return convertPMList(node.content || [], "bullet");
+			return convertPMList(node.content || [], "bullet", undefined);
 		case "orderedList":
-			return convertPMList(node.content || [], "number");
+			return convertPMList(node.content || [], "number", readOrderedListMetadata(node.attrs, path));
 		case "blockquote": {
 			const blocks: PTTextBlock[] = [];
 			for (const child of node.content || []) {
@@ -245,7 +256,11 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 	}
 }
 
-function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBlock[] {
+function convertPMList(
+	items: PMNode[],
+	listItem: "bullet" | "number",
+	metadata: { listId: string; listStart: number } | undefined,
+): PTTextBlock[] {
 	const blocks: PTTextBlock[] = [];
 	for (const item of items) {
 		if (item.type === "listItem") {
@@ -259,6 +274,7 @@ function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBl
 							style: "normal",
 							listItem,
 							level: 1,
+							...metadata,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
@@ -347,6 +363,16 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 	if (!blocks || blocks.length === 0) return { type: "doc", content: [{ type: "paragraph" }] };
 
 	const content: JSONContent[] = [];
+	const counters = new Map<string, OrderedListCounter>();
+	const canonicalStarts = new Map<string, number>();
+	for (const block of blocks) {
+		if (!isPTTextBlock(block) || block.listItem !== "number") continue;
+		const listId = normalizeListId(block.listId);
+		const listStart = normalizeListStart(block.listStart);
+		if (listId && listStart !== undefined && !canonicalStarts.has(listId)) {
+			canonicalStarts.set(listId, listStart);
+		}
+	}
 	let i = 0;
 
 	while (i < blocks.length) {
@@ -358,14 +384,24 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 		if (isPTTextBlock(block) && block.listItem) {
 			const listBlocks: PTTextBlock[] = [];
 			const listType = block.listItem;
+			const runStart = i;
+			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 			while (i < blocks.length) {
 				const cur = blocks[i];
-				if (cur && isPTTextBlock(cur) && cur.listItem === listType) {
+				const currentId =
+					cur && isPTTextBlock(cur) && cur.listItem === "number"
+						? normalizeListId(cur.listId)
+						: undefined;
+				const sameIdentity =
+					listType !== "number" || (rootId ? currentId === rootId : currentId === undefined);
+				if (cur && isPTTextBlock(cur) && cur.listItem === listType && sameIdentity) {
 					listBlocks.push(cur);
 					i++;
 				} else break;
 			}
-			content.push(convertPTList(listBlocks, listType));
+			content.push(
+				convertPTList(listBlocks, listType, counters, canonicalStarts, `root:${runStart}`),
+			);
 		} else if (
 			isPTTextBlock(block) &&
 			block.style === "blockquote" &&
@@ -530,9 +566,27 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	};
 }
 
-function convertPTList(items: PTTextBlock[], listType: "bullet" | "number"): JSONContent {
+function convertPTList(
+	items: PTTextBlock[],
+	listType: "bullet" | "number",
+	counters: Map<string, OrderedListCounter>,
+	canonicalStarts: Map<string, number>,
+	context: string,
+): JSONContent {
+	const firstItem = items[0]!;
+	const listId =
+		normalizeListId(firstItem.listId) ?? deriveLegacyListId(`${context}:${firstItem._key}`);
+	const metadata =
+		listType === "number"
+			? {
+					listId,
+					listStart: canonicalStarts.get(listId) ?? normalizeListStart(firstItem.listStart) ?? 1,
+				}
+			: undefined;
+	const start = metadata ? takeOrderedListStart(counters, metadata, items.length) : undefined;
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
+		attrs: metadata ? { ...metadata, start } : undefined,
 		content: items.map((item) => ({
 			type: "listItem",
 			content: [
@@ -1945,7 +1999,9 @@ export function InlinePortableTextEditor({
 				codeBlock: false,
 				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
 				code: false,
+				orderedList: false,
 			}),
+			EmDashOrderedList,
 			CodeMarkExtension,
 			InlineCodeBlockExtension,
 			Image.extend({

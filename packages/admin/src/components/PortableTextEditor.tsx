@@ -124,6 +124,7 @@ import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
+import { EmDashOrderedList } from "./editor/ordered-list";
 import {
 	type PluginBlockDef,
 	PluginBlockExtension,
@@ -163,6 +164,8 @@ interface PortableTextTextBlock {
 	style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 	listItem?: "bullet" | "number";
 	level?: number;
+	listId?: string;
+	listStart?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
 	textAlign?: "left" | "center" | "right" | "justify";
@@ -249,6 +252,64 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 const attrNum = (v: unknown): number | undefined => (typeof v === "number" && v ? v : undefined);
 
+const MAX_ORDERED_LIST_START = 2_147_483_647;
+
+type OrderedListMetadata = { listId: string; listStart: number };
+type OrderedListCounter = OrderedListMetadata & { count: number };
+
+function normalizeListId(value: unknown): string | undefined {
+	if (typeof value !== "string") return undefined;
+	const normalized = value.trim();
+	return normalized.length > 0 && normalized.length <= 128 ? normalized : undefined;
+}
+
+function normalizeListStart(value: unknown): number | undefined {
+	return typeof value === "number" &&
+		Number.isInteger(value) &&
+		value >= 1 &&
+		value <= MAX_ORDERED_LIST_START
+		? value
+		: undefined;
+}
+
+function deriveLegacyListId(seed: string): string {
+	const readable = `legacy:${seed}`;
+	if (readable.length <= 128) return readable;
+	let hash = 2_166_136_261;
+	for (let i = 0; i < seed.length; i++) {
+		hash ^= seed.charCodeAt(i);
+		hash = Math.imul(hash, 16_777_619);
+	}
+	return `legacy:${seed.slice(0, 96)}:${(hash >>> 0).toString(36)}:${seed.length.toString(36)}`;
+}
+
+function readOrderedListMetadata(
+	attrs: Record<string, unknown> | undefined,
+	fallbackId: string,
+): OrderedListMetadata {
+	return {
+		listId: normalizeListId(attrs?.listId) ?? deriveLegacyListId(fallbackId),
+		listStart: normalizeListStart(attrs?.listStart) ?? normalizeListStart(attrs?.start) ?? 1,
+	};
+}
+
+function takeOrderedListStart(
+	counters: Map<string, OrderedListCounter>,
+	metadata: OrderedListMetadata,
+	directItemCount: number,
+): number {
+	const current = counters.get(metadata.listId);
+	const listStart = current?.listStart ?? metadata.listStart;
+	const count = current?.count ?? 0;
+	const start = normalizeListStart(listStart + count) ?? 1;
+	counters.set(metadata.listId, {
+		...metadata,
+		listStart,
+		count: count + directItemCount,
+	});
+	return start;
+}
+
 // ProseMirror to Portable Text converter
 function prosemirrorToPortableText(doc: {
 	type: string;
@@ -266,8 +327,8 @@ function prosemirrorToPortableText(doc: {
 
 	const blocks: PortableTextBlock[] = [];
 
-	for (const node of doc.content) {
-		const converted = convertPMNode(node);
+	for (let i = 0; i < doc.content.length; i++) {
+		const converted = convertPMNode(doc.content[i]!, `root:${i}`);
 		if (converted) {
 			if (Array.isArray(converted)) {
 				blocks.push(...converted);
@@ -280,13 +341,16 @@ function prosemirrorToPortableText(doc: {
 	return blocks;
 }
 
-function convertPMNode(node: {
-	type: string;
-	attrs?: Record<string, unknown>;
-	content?: unknown[];
-	marks?: unknown[];
-	text?: string;
-}): PortableTextBlock | PortableTextBlock[] | null {
+function convertPMNode(
+	node: {
+		type: string;
+		attrs?: Record<string, unknown>;
+		content?: unknown[];
+		marks?: unknown[];
+		text?: string;
+	},
+	path: string,
+): PortableTextBlock | PortableTextBlock[] | null {
 	switch (node.type) {
 		case "paragraph": {
 			const { children, markDefs } = convertInlineContent(node.content || []);
@@ -325,10 +389,10 @@ function convertPMNode(node: {
 		}
 
 		case "bulletList":
-			return convertList(node.content || [], "bullet");
+			return convertList(node.content || [], "bullet", 1, node.attrs, path);
 
 		case "orderedList":
-			return convertList(node.content || [], "number");
+			return convertList(node.content || [], "number", 1, node.attrs, path);
 
 		case "blockquote": {
 			const blocks: PortableTextTextBlock[] = [];
@@ -505,17 +569,23 @@ function convertList(
 	items: unknown[],
 	listItem: "bullet" | "number",
 	level = 1,
+	attrs?: Record<string, unknown>,
+	path = `list:${level}`,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
+	const metadata = listItem === "number" ? readOrderedListMetadata(attrs, path) : undefined;
 
-	for (const item of typedItems) {
+	for (let itemIndex = 0; itemIndex < typedItems.length; itemIndex++) {
+		const item = typedItems[itemIndex]!;
 		if (item.type === "listItem") {
 			const listItemContent = (item.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
-			for (const child of listItemContent) {
+			for (let childIndex = 0; childIndex < listItemContent.length; childIndex++) {
+				const child = listItemContent[childIndex]!;
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInlineContent(child.content || []);
 					if (children.length > 0) {
@@ -525,14 +595,31 @@ function convertList(
 							style: "normal",
 							listItem,
 							level,
+							...metadata,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
 				} else if (child.type === "bulletList") {
-					blocks.push(...convertList(child.content || [], "bullet", level + 1));
+					blocks.push(
+						...convertList(
+							child.content || [],
+							"bullet",
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				} else if (child.type === "orderedList") {
-					blocks.push(...convertList(child.content || [], "number", level + 1));
+					blocks.push(
+						...convertList(
+							child.content || [],
+							"number",
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				}
 			}
 		}
@@ -662,6 +749,8 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 	}
 
 	const content: unknown[] = [];
+	const counters = new Map<string, OrderedListCounter>();
+	const canonicalStarts = collectCanonicalStarts(blocks);
 	let i = 0;
 
 	while (i < blocks.length) {
@@ -670,6 +759,8 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		if (isTextBlock(block) && block.listItem) {
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
+			const runStart = i;
+			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 
 			// A list "run" is a level=1 anchor block plus everything that nests
 			// under it (level > 1) or repeats it at the same root level/type.
@@ -678,7 +769,13 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 				const current = blocks[i]!;
 				if (!isTextBlock(current) || !current.listItem) break;
 				const level = current.level || 1;
-				if (level > 1 || current.listItem === listType) {
+				const currentId =
+					current.listItem === "number" ? normalizeListId(current.listId) : undefined;
+				const sameRootIdentity =
+					listType !== "number" ||
+					level > 1 ||
+					(rootId ? currentId === rootId : currentId === undefined);
+				if (level > 1 || (current.listItem === listType && sameRootIdentity)) {
 					listBlocks.push(current);
 					i++;
 				} else {
@@ -686,7 +783,9 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 				}
 			}
 
-			content.push(convertPTList(listBlocks, listType));
+			content.push(
+				convertPTList(listBlocks, listType, counters, canonicalStarts, `root:${runStart}`),
+			);
 		} else {
 			const converted = convertPTBlock(block);
 			if (converted) {
@@ -700,6 +799,45 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		type: "doc",
 		content: content.length > 0 ? content : [{ type: "paragraph" }],
 	};
+}
+
+function collectCanonicalStarts(blocks: PortableTextBlock[]): Map<string, number> {
+	const starts = new Map<string, number>();
+	for (const block of blocks) {
+		if (!isTextBlock(block) || block.listItem !== "number") continue;
+		const listId = normalizeListId(block.listId);
+		const listStart = normalizeListStart(block.listStart);
+		if (listId && listStart !== undefined && !starts.has(listId)) {
+			starts.set(listId, listStart);
+		}
+	}
+	return starts;
+}
+
+function getListMetadata(
+	item: PortableTextTextBlock,
+	canonicalStarts: Map<string, number>,
+	fallbackSeed: string,
+): OrderedListMetadata {
+	const listId = normalizeListId(item.listId) ?? deriveLegacyListId(fallbackSeed);
+	return {
+		listId,
+		listStart: canonicalStarts.get(listId) ?? normalizeListStart(item.listStart) ?? 1,
+	};
+}
+
+function belongsToNestedGroup(
+	item: PortableTextTextBlock,
+	minLevel: number,
+	parentListType: "bullet" | "number",
+	anchorType: "bullet" | "number",
+	anchorId: string | undefined,
+): boolean {
+	if ((item.level || 2) > minLevel) return true;
+	if ((item.listItem || parentListType) !== anchorType) return false;
+	if (anchorType !== "number") return true;
+	const itemId = normalizeListId(item.listId);
+	return anchorId ? itemId === anchorId : itemId === undefined;
 }
 
 function convertPTBlock(block: PortableTextBlock): unknown {
@@ -918,7 +1056,13 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 	}
 }
 
-function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
+function convertPTList(
+	items: PortableTextTextBlock[],
+	listType: "bullet" | "number",
+	counters: Map<string, OrderedListCounter>,
+	canonicalStarts: Map<string, number>,
+	context: string,
+): unknown {
 	// Group items into root-level items (level === 1) and their nested
 	// descendants (level > 1). For each root item, all subsequent items with
 	// level > 1 belong to its nested subtree — recurse on them with level
@@ -937,17 +1081,43 @@ function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "num
 				nestedItems.push(items[i]!);
 				i++;
 			}
-			rootItems.push(convertPTListItem(item, nestedItems, listType));
+			rootItems.push(
+				convertPTListItem(
+					item,
+					nestedItems,
+					listType,
+					counters,
+					canonicalStarts,
+					`${context}:${rootItems.length}`,
+				),
+			);
 		} else {
 			// Orphan nested item with no preceding level=1 anchor — treat as root
 			// so we don't drop content.
-			rootItems.push(convertPTListItem(item, [], listType));
+			rootItems.push(
+				convertPTListItem(
+					item,
+					[],
+					listType,
+					counters,
+					canonicalStarts,
+					`${context}:${rootItems.length}`,
+				),
+			);
 			i++;
 		}
 	}
 
+	const firstItem = items[0]!;
+	const metadata =
+		listType === "number"
+			? getListMetadata(firstItem, canonicalStarts, `${context}:${firstItem._key}`)
+			: undefined;
+	const start = metadata ? takeOrderedListStart(counters, metadata, rootItems.length) : undefined;
+
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
+		attrs: metadata ? { ...metadata, start } : undefined,
 		content: rootItems,
 	};
 }
@@ -956,6 +1126,9 @@ function convertPTListItem(
 	item: PortableTextTextBlock,
 	nestedItems: PortableTextTextBlock[],
 	parentListType: "bullet" | "number",
+	counters: Map<string, OrderedListCounter>,
+	canonicalStarts: Map<string, number>,
+	context: string,
 ): unknown {
 	const content: unknown[] = [];
 
@@ -984,6 +1157,8 @@ function convertPTListItem(
 		let j = 0;
 		while (j < nestedItems.length) {
 			const anchorType: "bullet" | "number" = nestedItems[j]!.listItem || parentListType;
+			const anchorId =
+				anchorType === "number" ? normalizeListId(nestedItems[j]!.listId) : undefined;
 			const nestedGroup: PortableTextTextBlock[] = [];
 
 			do {
@@ -991,8 +1166,7 @@ function convertPTListItem(
 				j++;
 			} while (
 				j < nestedItems.length &&
-				((nestedItems[j]!.level || 2) > minLevel ||
-					(nestedItems[j]!.listItem || parentListType) === anchorType)
+				belongsToNestedGroup(nestedItems[j]!, minLevel, parentListType, anchorType, anchorId)
 			);
 
 			if (nestedGroup.length > 0) {
@@ -1000,7 +1174,15 @@ function convertPTListItem(
 					...ni,
 					level: (ni.level || 2) - 1,
 				}));
-				content.push(convertPTList(adjustedGroup, anchorType));
+				content.push(
+					convertPTList(
+						adjustedGroup,
+						anchorType,
+						counters,
+						canonicalStarts,
+						`${context}:nested:${j - nestedGroup.length}`,
+					),
+				);
 			}
 		}
 	}
@@ -2547,6 +2729,7 @@ export function PortableTextEditor({
 				codeBlock: false,
 				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
 				code: false,
+				orderedList: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
 					openOnClick: false,
@@ -2557,6 +2740,7 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			EmDashOrderedList,
 			CodeMarkExtension,
 			CodeBlockExtension,
 			HtmlBlockExtension,

@@ -10,6 +10,8 @@ type ListBlock = {
 	style: "normal";
 	listItem: "bullet" | "number";
 	level: number;
+	listId?: string;
+	listStart?: number;
 	children: Array<{ _type: "span"; text: string }>;
 };
 
@@ -186,6 +188,7 @@ describe("ProseMirror → PortableText: nested list level", () => {
 
 type PMList = {
 	type: "bulletList" | "orderedList";
+	attrs?: Record<string, unknown>;
 	content: Array<{
 		type: "listItem";
 		content: Array<{ type: string; content?: unknown[] }>;
@@ -370,5 +373,92 @@ describe("Round-trip: PT → PM → PT preserves nested list level", () => {
 			["number", 2, "Nested"],
 			["bullet", 1, "Sibling"],
 		]);
+	});
+});
+
+describe("numbered-list continuity metadata", () => {
+	it("preserves an explicit ordered-list start", () => {
+		const portableText = _prosemirrorToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "orderedList",
+					attrs: { start: 2 },
+					content: [
+						{
+							type: "listItem",
+							content: [{ type: "paragraph", content: [{ type: "text", text: "Second" }] }],
+						},
+					],
+				},
+			],
+		}).filter(isListBlock);
+
+		expect(portableText[0]).toMatchObject({ listStart: 2 });
+		expect(portableText[0]?.listId).toBeTruthy();
+
+		const list = findFirstList(_portableTextToProsemirror(portableText));
+		expect(list?.attrs).toMatchObject({
+			start: 2,
+			listStart: 2,
+			listId: portableText[0]?.listId,
+		});
+	});
+
+	it.each([
+		{ listId: "  valid  ", listStart: 2, expectedId: "valid", expectedStart: 2 },
+		{ listId: " ", listStart: 0, expectedStart: 1 },
+		{ listId: "x".repeat(129), listStart: 2_147_483_648, expectedStart: 1 },
+		{
+			listId: "maximum",
+			listStart: 2_147_483_647,
+			expectedId: "maximum",
+			expectedStart: 2_147_483_647,
+		},
+	])("normalizes numbered-list metadata %#", ({ listId, listStart, expectedId, expectedStart }) => {
+		const list = findFirstList(
+			_portableTextToProsemirror([
+				{
+					...pt("number", 1, "Item"),
+					listId,
+					listStart,
+				},
+			]),
+		);
+
+		expect(list?.attrs?.start).toBe(expectedStart);
+		expect(list?.attrs?.listStart).toBe(expectedStart);
+		if (expectedId) {
+			expect(list?.attrs?.listId).toBe(expectedId);
+		} else {
+			expect(typeof list?.attrs?.listId).toBe("string");
+			expect(list?.attrs?.listId).not.toBe(listId);
+		}
+	});
+
+	it("derives a continuation start across an intervening block", () => {
+		const numbered = (key: string, text: string) => ({
+			...pt("number" as const, 1, text),
+			_key: key,
+			listId: "shared-list",
+			listStart: 1,
+		});
+		const doc = _portableTextToProsemirror([
+			numbered("one", "One"),
+			numbered("two", "Two"),
+			{
+				_type: "block",
+				_key: "between",
+				style: "normal",
+				children: [{ _type: "span", _key: "between-span", text: "Between" }],
+			},
+			numbered("three", "Three"),
+		]);
+		const lists = (doc.content as Array<{ type?: string }>).filter(
+			(node) => node.type === "orderedList",
+		) as PMList[];
+
+		expect(lists.map((list) => list.attrs?.start)).toEqual([1, 3]);
+		expect(lists.map((list) => list.attrs?.listId)).toEqual(["shared-list", "shared-list"]);
 	});
 });
