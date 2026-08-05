@@ -9,6 +9,7 @@ import {
 } from "kysely";
 import { ulid } from "ulidx";
 
+import { isMediaUsageProjectionFingerprint } from "../../media/usage/projection-fingerprint.js";
 import type { MediaUsageContentSourceVariant } from "../../media/usage/source-key.js";
 import type { MediaKind, MediaUsageReferenceType } from "../../media/usage/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
@@ -136,6 +137,7 @@ export interface MediaUsageSource {
 
 export interface MediaUsageGuardedReplaceResult {
 	replaced: boolean;
+	unchanged: boolean;
 	/** Populated only when a guarded replacement did not win the current source row. */
 	source: MediaUsageSource | null;
 }
@@ -416,6 +418,12 @@ export class MediaUsageRepository {
 		occurrences: readonly MediaUsageOccurrenceInput[],
 		expectedCurrentGeneration: string | null,
 	): Promise<MediaUsageGuardedReplaceResult> {
+		if (
+			expectedCurrentGeneration !== null &&
+			(await this.projectionMatchesCurrentGeneration(source, expectedCurrentGeneration))
+		) {
+			return { replaced: false, unchanged: true, source: null };
+		}
 		const generation = ulid();
 		let replaced = false;
 
@@ -438,6 +446,7 @@ export class MediaUsageRepository {
 
 		return {
 			replaced,
+			unchanged: false,
 			source: replaced ? null : await this.findSource(source.sourceKey),
 		};
 	}
@@ -477,6 +486,12 @@ export class MediaUsageRepository {
 		occurrences: readonly MediaUsageOccurrenceInput[],
 		expectedSource: MediaUsageSource | null,
 	): Promise<MediaUsageGuardedReplaceResult> {
+		if (
+			expectedSource !== null &&
+			(await this.projectionMatchesExpectedSource(source, expectedSource))
+		) {
+			return { replaced: false, unchanged: true, source: null };
+		}
 		const generation = ulid();
 		let replaced = false;
 
@@ -494,6 +509,7 @@ export class MediaUsageRepository {
 
 		return {
 			replaced,
+			unchanged: false,
 			source: replaced ? null : await this.findSource(source.sourceKey),
 		};
 	}
@@ -1999,6 +2015,46 @@ export class MediaUsageRepository {
 				this.nullableStringExpression(eb, "last_attempted_at", expectedSource.lastAttemptedAt),
 				this.nullableStringExpression(eb, "last_error_code", expectedSource.lastErrorCode),
 			]);
+	}
+
+	private async projectionMatchesCurrentGeneration(
+		source: MediaUsageSourceInput,
+		expectedCurrentGeneration: string,
+	): Promise<boolean> {
+		const fingerprint = source.sourceFingerprint;
+		if (!isMediaUsageProjectionFingerprint(fingerprint)) return false;
+		const row = await this.db
+			.selectFrom("_emdash_media_usage_sources")
+			.select("source_key")
+			.where("source_key", "=", source.sourceKey)
+			.where("current_generation", "=", expectedCurrentGeneration)
+			.where("source_fingerprint", "=", fingerprint!)
+			.where("source_completeness", "=", source.sourceCompleteness ?? "complete")
+			.where("last_error_code", "is", null)
+			.executeTakeFirst();
+		return row !== undefined;
+	}
+
+	private async projectionMatchesExpectedSource(
+		source: MediaUsageSourceInput,
+		expectedSource: MediaUsageSource,
+	): Promise<boolean> {
+		const fingerprint = source.sourceFingerprint;
+		if (
+			!isMediaUsageProjectionFingerprint(fingerprint) ||
+			expectedSource.sourceFingerprint !== fingerprint ||
+			expectedSource.sourceCompleteness !== (source.sourceCompleteness ?? "complete") ||
+			expectedSource.lastErrorCode !== null
+		) {
+			return false;
+		}
+		const row = await this.db
+			.selectFrom("_emdash_media_usage_sources")
+			.select("source_key")
+			.where("source_key", "=", source.sourceKey)
+			.where(this.sourceMatchExpression(expectedSource))
+			.executeTakeFirst();
+		return row !== undefined;
 	}
 
 	private nullableStringExpression(

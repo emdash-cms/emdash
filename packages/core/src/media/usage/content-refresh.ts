@@ -102,13 +102,16 @@ async function refreshContentMediaUsageAttempt(
 	contentId: string,
 ): Promise<ContentMediaUsageRefreshResult> {
 	const repo = new MediaUsageRepository(db);
-	const observedGenerations = await loadObservedContentSourceGenerations(
-		db,
-		collectionSlug,
-		contentId,
-	);
+	const observedSources = await loadObservedContentSources(repo, collectionSlug, contentId);
 	const snapshotsResult = await loadContentMediaUsageSnapshots(db, collectionSlug, contentId);
 	if (!snapshotsResult.success) {
+		if (
+			snapshotsResult.error === "CONTENT_NOT_FOUND" &&
+			!(await contentCollectionExists(db, collectionSlug))
+		) {
+			const deletedSourceCount = await repo.deleteContentSources(collectionSlug, contentId);
+			return { ...ZERO_RESULT, deletedSourceCount };
+		}
 		return markSnapshotFailure(db, collectionSlug, snapshotsResult);
 	}
 
@@ -119,11 +122,15 @@ async function refreshContentMediaUsageAttempt(
 
 	let refreshedSourceCount = 0;
 	for (const snapshot of snapshotsResult.snapshots) {
-		const result = await repo.replaceSourceIfCurrent(
+		const result = await repo.replaceSourceIfMatching(
 			snapshot.source,
 			snapshot.occurrences,
-			observedGenerations.get(snapshot.source.sourceKey) ?? null,
+			observedSources.get(snapshot.source.sourceKey) ?? null,
 		);
+		if (result.unchanged) {
+			refreshedSourceCount++;
+			continue;
+		}
 		if (!result.replaced) {
 			return generationConflictResult({
 				refreshedSourceCount,
@@ -145,10 +152,10 @@ async function refreshContentMediaUsageAttempt(
 	).filter((sourceKey) => !expectedSourceKeys.has(sourceKey));
 	let deletedSourceCount = 0;
 	for (const sourceKey of absentSourceKeys) {
-		const expectedGeneration = observedGenerations.get(sourceKey) ?? null;
-		if (expectedGeneration === null) continue;
+		const expectedSource = observedSources.get(sourceKey);
+		if (!expectedSource) continue;
 
-		const result = await repo.deleteSourceIfCurrent(sourceKey, expectedGeneration);
+		const result = await repo.deleteSourceIfMatching(sourceKey, expectedSource);
 		if (result.deleted) {
 			deletedSourceCount++;
 			continue;
@@ -169,12 +176,11 @@ async function refreshContentMediaUsageAttempt(
 	};
 }
 
-async function loadObservedContentSourceGenerations(
-	db: Kysely<Database>,
+async function loadObservedContentSources(
+	repo: MediaUsageRepository,
 	collectionSlug: string,
 	contentId: string,
-): Promise<Map<string, string | null>> {
-	const generations = new Map<string, string | null>();
+): Promise<Awaited<ReturnType<MediaUsageRepository["findSources"]>>> {
 	const sourceKeys = MEDIA_USAGE_CONTENT_SOURCE_VARIANTS.map((sourceVariant) =>
 		buildContentMediaUsageSourceKey({
 			collectionSlug,
@@ -182,20 +188,7 @@ async function loadObservedContentSourceGenerations(
 			sourceVariant,
 		}),
 	);
-	for (const sourceKey of sourceKeys) {
-		generations.set(sourceKey, null);
-	}
-
-	const rows = await db
-		.selectFrom("_emdash_media_usage_sources")
-		.select(["source_key", "current_generation"])
-		.where("source_key", "in", sourceKeys)
-		.execute();
-	for (const row of rows) {
-		generations.set(row.source_key, row.current_generation);
-	}
-
-	return generations;
+	return repo.findSources(sourceKeys);
 }
 
 async function markGenerationConflict(

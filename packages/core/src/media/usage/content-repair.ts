@@ -466,7 +466,7 @@ async function repairSnapshotSources(
 			snapshot.occurrences,
 			observedSources.get(snapshot.source.sourceKey) ?? null,
 		);
-		if (result.replaced) {
+		if (result.replaced || result.unchanged) {
 			counts.indexedSourceCount++;
 		} else {
 			markRepairConflict(counts);
