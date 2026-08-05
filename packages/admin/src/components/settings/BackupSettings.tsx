@@ -189,12 +189,16 @@ export function BackupSettings() {
 					description={t`Export a complete copy of your site whenever you need one.`}
 				>
 					<SettingRow>
-						<div className="grid gap-4">
-							<p className="max-w-2xl text-sm leading-5 text-kumo-subtle">
+						<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+							<p className="text-sm leading-5 text-pretty text-kumo-subtle">
 								{t`Includes all content, collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included.`}
 							</p>
-							<div>
-								<LinkButton href={BACKUP_EXPORT_URL} icon={<DownloadSimple />}>
+							<div className="flex justify-end">
+								<LinkButton
+									href={BACKUP_EXPORT_URL}
+									variant="outline"
+									icon={<DownloadSimple />}
+								>
 									{t`Download backup`}
 								</LinkButton>
 							</div>
@@ -231,6 +235,8 @@ export function BackupSettings() {
 												</span>
 											</div>
 										}
+										controlFirst={false}
+										className="ms-auto"
 										checked={enabled}
 										onCheckedChange={setEnabled}
 									/>
@@ -247,14 +253,6 @@ export function BackupSettings() {
 											onChange={(event) => setRetention(event.target.value)}
 										/>
 									</div>
-								</SettingRow>
-								<SettingRow className="flex justify-end">
-									<SaveButton
-										type="submit"
-										isDirty={isDirty}
-										isSaving={saveMutation.isPending}
-										announce={false}
-									/>
 								</SettingRow>
 							</>
 						) : (

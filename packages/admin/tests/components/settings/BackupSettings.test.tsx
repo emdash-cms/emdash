@@ -91,17 +91,17 @@ describe("BackupSettings", () => {
 		expect(screen.getByRole("button", { name: "Back up now" }).query()).toBeNull();
 	});
 
-	it("keeps both save actions disabled until the automatic backup config changes", async () => {
+	it("keeps the save action disabled until the automatic backup config changes", async () => {
 		const screen = await renderBackupSettings();
 
 		await expect.element(screen.getByLabelText("Backups to keep")).toHaveValue(7);
 		const savedButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
-		expect(savedButtons).toHaveLength(2);
+		expect(savedButtons).toHaveLength(1);
 		for (const button of savedButtons) await expect.element(button).toBeDisabled();
 
 		await screen.getByLabelText("Backups to keep").fill("45");
 		const saveButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
-		expect(saveButtons).toHaveLength(2);
+		expect(saveButtons).toHaveLength(1);
 		for (const button of saveButtons) await expect.element(button).toBeEnabled();
 
 		await userEvent.click(saveButtons[0]);
@@ -111,7 +111,7 @@ describe("BackupSettings", () => {
 		await expect.element(screen.getByText("Backup settings saved")).toBeInTheDocument();
 
 		const resavedButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
-		expect(resavedButtons).toHaveLength(2);
+		expect(resavedButtons).toHaveLength(1);
 		for (const button of resavedButtons) await expect.element(button).toBeDisabled();
 	});
 
