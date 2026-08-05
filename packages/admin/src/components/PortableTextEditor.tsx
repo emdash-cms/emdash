@@ -3730,6 +3730,7 @@ function EditorToolbar({
 		editor,
 		selector: (ctx) => {
 			const textAlignment = getSelectionTextAlignment(ctx.editor);
+			const isOrderedList = ctx.editor.isActive("orderedList");
 			return {
 				isBold: ctx.editor.isActive("bold"),
 				isItalic: ctx.editor.isActive("italic"),
@@ -3739,7 +3740,9 @@ function EditorToolbar({
 				isSuperscript: ctx.editor.isActive("superscript"),
 				isCode: ctx.editor.isActive("code"),
 				isBulletList: ctx.editor.isActive("bulletList"),
-				isOrderedList: ctx.editor.isActive("orderedList"),
+				isOrderedList,
+				canContinueOrderedList: isOrderedList && ctx.editor.can().continueOrderedList(),
+				canRestartOrderedList: isOrderedList && ctx.editor.can().restartOrderedList(),
 				isBlockquote: ctx.editor.isActive("blockquote"),
 				isCodeBlock: ctx.editor.isActive("codeBlock"),
 				isAlignLeft: textAlignment === "left",
@@ -3938,6 +3941,24 @@ function EditorToolbar({
 				>
 					<ListNumbers className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
+				{editorState.isOrderedList && (
+					<>
+						<ToolbarButton
+							onClick={() => editor.chain().focus().continueOrderedList().run()}
+							disabled={!editorState.canContinueOrderedList}
+							title={t`Continue numbering`}
+						>
+							<ArrowUUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+						</ToolbarButton>
+						<ToolbarButton
+							onClick={() => editor.chain().focus().restartOrderedList().run()}
+							disabled={!editorState.canRestartOrderedList}
+							title={t`Restart numbering`}
+						>
+							<ArrowUUpLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+						</ToolbarButton>
+					</>
+				)}
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBlockquote().run()}
 					active={editorState.isBlockquote}

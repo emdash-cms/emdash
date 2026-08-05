@@ -228,6 +228,7 @@
     "@tiptap/extension-text-align": "catalog:",
     "@tiptap/extension-typography": "catalog:",
     "@tiptap/extension-underline": "catalog:",
+    "@tiptap/pm": "catalog:",
     "@tiptap/react": "catalog:",
     "@tiptap/starter-kit": "catalog:",
     "@tiptap/suggestion": "catalog:",
