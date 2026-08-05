@@ -5,7 +5,7 @@
  * (posts per page, date format, timezone).
  */
 
-import { Banner, Button, Field, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import { Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -187,113 +187,123 @@ export function GeneralSettings() {
 					</SettingRow>
 
 					<SettingRow>
-						<Field label={t`Logo`}>
-							{formData.logo?.mediaId ? (
-								<div className="grid gap-3">
-									{formData.logo.url ? (
-										<img
-											src={formData.logo.url}
-											alt={formData.logo.alt || t`Logo`}
-											className="h-16 max-w-full rounded border border-kumo-line bg-kumo-tint object-contain p-2"
-										/>
-									) : (
-										<div
-											className="flex min-h-16 items-start gap-2 rounded border border-dashed border-kumo-line bg-kumo-tint px-3 py-2 text-sm leading-5 text-kumo-subtle"
-											role="status"
-										>
-											<span className="h-lh flex shrink-0 items-center" aria-hidden="true">
-												<WarningCircle className="h-4 w-4" />
-											</span>
-											<span>{t`The referenced logo is no longer available. Pick a new one or remove the reference.`}</span>
+						<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+							<div className="text-base font-medium">{t`Logo`}</div>
+							<div className="min-w-0">
+								{formData.logo?.mediaId ? (
+									<div className="grid gap-3">
+										{formData.logo.url ? (
+											<img
+												src={formData.logo.url}
+												alt={formData.logo.alt || t`Logo`}
+												className="h-16 max-w-full rounded border border-kumo-line bg-kumo-tint object-contain p-2 sm:ms-auto"
+											/>
+										) : (
+											<div
+												className="flex min-h-16 items-start gap-2 rounded border border-dashed border-kumo-line bg-kumo-tint px-3 py-2 text-sm leading-5 text-kumo-subtle"
+												role="status"
+											>
+												<span className="h-lh flex shrink-0 items-center" aria-hidden="true">
+													<WarningCircle className="h-4 w-4" />
+												</span>
+												<span>{t`The referenced logo is no longer available. Pick a new one or remove the reference.`}</span>
+											</div>
+										)}
+										<div className="flex flex-wrap gap-3 sm:justify-end">
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												icon={<Upload />}
+												onClick={() => setLogoPickerOpen(true)}
+											>
+												{t`Change Logo`}
+											</Button>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												icon={<X />}
+												onClick={handleLogoRemove}
+											>
+												{t`Remove`}
+											</Button>
 										</div>
-									)}
-									<div className="flex flex-wrap gap-3">
+									</div>
+								) : (
+									<div className="flex justify-end">
 										<Button
 											type="button"
 											variant="outline"
-											size="sm"
 											icon={<Upload />}
 											onClick={() => setLogoPickerOpen(true)}
 										>
-											{t`Change Logo`}
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											icon={<X />}
-											onClick={handleLogoRemove}
-										>
-											{t`Remove`}
+											{t`Select Logo`}
 										</Button>
 									</div>
-								</div>
-							) : (
-								<Button
-									type="button"
-									variant="outline"
-									icon={<Upload />}
-									onClick={() => setLogoPickerOpen(true)}
-								>
-									{t`Select Logo`}
-								</Button>
-							)}
-						</Field>
+								)}
+							</div>
+						</div>
 					</SettingRow>
 
 					<SettingRow>
-						<Field label={t`Favicon`}>
-							{formData.favicon?.mediaId ? (
-								<div className="grid gap-3">
-									{formData.favicon.url ? (
-										<img
-											src={formData.favicon.url}
-											alt={t`Favicon`}
-											className="h-8 w-8 rounded border border-kumo-line bg-kumo-tint object-contain p-1"
-										/>
-									) : (
-										<div
-											className="flex min-h-8 items-start gap-2 rounded border border-dashed border-kumo-line bg-kumo-tint px-3 py-2 text-sm leading-5 text-kumo-subtle"
-											role="status"
-										>
-											<span className="h-lh flex shrink-0 items-center" aria-hidden="true">
-												<WarningCircle className="h-4 w-4" />
-											</span>
-											<span>{t`Referenced favicon unavailable.`}</span>
+						<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+							<div className="text-base font-medium">{t`Favicon`}</div>
+							<div className="min-w-0">
+								{formData.favicon?.mediaId ? (
+									<div className="grid gap-3">
+										{formData.favicon.url ? (
+											<img
+												src={formData.favicon.url}
+												alt={t`Favicon`}
+												className="h-8 w-8 rounded border border-kumo-line bg-kumo-tint object-contain p-1 sm:ms-auto"
+											/>
+										) : (
+											<div
+												className="flex min-h-8 items-start gap-2 rounded border border-dashed border-kumo-line bg-kumo-tint px-3 py-2 text-sm leading-5 text-kumo-subtle"
+												role="status"
+											>
+												<span className="h-lh flex shrink-0 items-center" aria-hidden="true">
+													<WarningCircle className="h-4 w-4" />
+												</span>
+												<span>{t`Referenced favicon unavailable.`}</span>
+											</div>
+										)}
+										<div className="flex flex-wrap gap-3 sm:justify-end">
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												icon={<Upload />}
+												onClick={() => setFaviconPickerOpen(true)}
+											>
+												{t`Change Favicon`}
+											</Button>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												icon={<X />}
+												onClick={handleFaviconRemove}
+											>
+												{t`Remove`}
+											</Button>
 										</div>
-									)}
-									<div className="flex flex-wrap gap-3">
+									</div>
+								) : (
+									<div className="flex justify-end">
 										<Button
 											type="button"
 											variant="outline"
-											size="sm"
 											icon={<Upload />}
 											onClick={() => setFaviconPickerOpen(true)}
 										>
-											{t`Change Favicon`}
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											icon={<X />}
-											onClick={handleFaviconRemove}
-										>
-											{t`Remove`}
+											{t`Select Favicon`}
 										</Button>
 									</div>
-								</div>
-							) : (
-								<Button
-									type="button"
-									variant="outline"
-									icon={<Upload />}
-									onClick={() => setFaviconPickerOpen(true)}
-								>
-									{t`Select Favicon`}
-								</Button>
-							)}
-						</Field>
+								)}
+							</div>
+						</div>
 					</SettingRow>
 				</SettingsSection>
 
