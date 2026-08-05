@@ -15,6 +15,7 @@ import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
+	ContentMutationConflictError,
 	EmDashValidationError,
 	ScheduledNotDueError,
 	InvalidCursorError,
@@ -1450,15 +1451,18 @@ export async function handleContentUnschedule(
 /**
  * Publish content immediately.
  *
- * Wrapped in a transaction because publish performs multiple writes
- * (syncDataColumns, slug sync, status/revision update) that must
- * be atomic to prevent FTS shadow table corruption on crash.
+ * Publication is one atomic content-row statement. On databases that support
+ * transactions, the existing slug-redirect side write remains grouped with it.
  */
 export async function handleContentPublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-	options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
+	options: {
+		publishedAt?: string;
+		requireScheduledDue?: boolean;
+		expectedScheduledAt?: string;
+	} = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
@@ -1477,6 +1481,7 @@ export async function handleContentPublish(
 				resolvedId,
 				options.publishedAt,
 				options.requireScheduledDue,
+				options.expectedScheduledAt,
 			);
 
 			// Leave a 301 behind when publishing changed the slug of an entry that
@@ -1502,6 +1507,15 @@ export async function handleContentPublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: error.message,
+				},
+			};
+		}
 		// The scheduled sweep gates publish on the row still being due; a row
 		// unscheduled in the meantime is a silent skip, not a failure.
 		if (error instanceof ScheduledNotDueError) {

@@ -18,6 +18,7 @@ import type {
 	ContentDateField,
 } from "./types.js";
 import {
+	ContentMutationConflictError,
 	EmDashValidationError,
 	ScheduledNotDueError,
 	encodeCursor,
@@ -26,9 +27,63 @@ import {
 
 // Regex pattern for ULID validation
 const ULID_PATTERN = /^[0-9A-Z]{26}$/;
+const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
 
 // LIKE wildcards that must be escaped so user search input is matched literally.
 const LIKE_WILDCARD_RE = /[\\%_]/g;
+
+function nullableColumnMatch(column: string, value: string | null): ReturnType<typeof sql> {
+	validateIdentifier(column, "content column");
+	return value === null ? sql`${sql.ref(column)} IS NULL` : sql`${sql.ref(column)} = ${value}`;
+}
+
+function sameStoredValue(left: unknown, right: unknown): boolean {
+	return Object.is(serializeValue(left), serializeValue(right));
+}
+
+function matchesPublication(
+	observed: ContentItem,
+	existing: ContentItem,
+	revision: { data: Record<string, unknown> },
+	revisionId: string,
+	slug: string | null,
+	publishedAt: string,
+	updatedAt: string,
+): boolean {
+	if (
+		observed.version !== existing.version + 1 ||
+		observed.status !== "published" ||
+		observed.slug !== slug ||
+		observed.liveRevisionId !== revisionId ||
+		observed.draftRevisionId !== null ||
+		observed.scheduledAt !== null ||
+		observed.publishedAt !== publishedAt ||
+		observed.updatedAt !== updatedAt
+	) {
+		return false;
+	}
+
+	return Object.entries(revision.data).every(
+		([key, value]) =>
+			SYSTEM_COLUMNS.has(key) || key.startsWith("_") || sameStoredValue(observed.data[key], value),
+	);
+}
+
+function matchesPublicationFence(observed: ContentItem, existing: ContentItem): boolean {
+	return (
+		observed.version === existing.version &&
+		observed.status === existing.status &&
+		observed.liveRevisionId === existing.liveRevisionId &&
+		observed.draftRevisionId === existing.draftRevisionId &&
+		observed.scheduledAt === existing.scheduledAt
+	);
+}
+
+function isConfirmedStatementFailure(error: unknown): boolean {
+	if (typeof error !== "object" || error === null || !("code" in error)) return false;
+	const code = (error as { code?: unknown }).code;
+	return typeof code === "string" && (code.startsWith("SQLITE_") || SQLSTATE_PATTERN.test(code));
+}
 
 /**
  * Whitelist mapping a public date-filter field to its physical column. Keeping
@@ -591,15 +646,8 @@ export class ContentRepository {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
-		// Build update object with parameterized values. `version` bumps on
-		// every update so the _rev optimistic-concurrency token
-		// (version:updated_at) always moves — concurrent editors still get a
-		// 409 on stale saves. `updated_at` is stamped only when the request
-		// actually carries column writes: a draft-only save on a
-		// revision-supporting collection resolves to a column no-op here (all
-		// data went into draft storage), and stamping it anyway would register
-		// a phantom modification for public "last modified" consumers like
-		// sitemap <lastmod> and JSON-LD dateModified (#2143).
+		// Every update advances the optimistic-concurrency version. updated_at
+		// advances only when a content-row column actually changes.
 		const updates: Record<string, unknown> = {};
 
 		if (input.status !== undefined) {
@@ -1274,19 +1322,16 @@ export class ContentRepository {
 	 * an explicit value to backdate a publish (e.g. when migrating content from
 	 * another CMS).
 	 *
-	 * `requireDue` (optional) gates the publish on the row still being due:
-	 * `scheduled_at` non-null and in the past. Used by the scheduled-publishing
-	 * sweep to avoid publishing content an editor unscheduled or rescheduled
-	 * between selection and publish. It claims the row with a single conditional
-	 * UPDATE (clearing `scheduled_at`) before any other write, so it is atomic
-	 * even on D1 (no multi-statement transactions) and serialises against
-	 * `unschedule()` and concurrent sweeps — no TOCTOU and no double publish.
+	 * `requireDue` gates the final update on the row still being due.
+	 * `expectedScheduledAt` additionally fences changes made after a sweep
+	 * selected the row but before publication preparation began.
 	 */
 	async publish(
 		type: string,
 		id: string,
 		publishedAt?: string,
 		requireDue = false,
+		expectedScheduledAt?: string,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -1295,128 +1340,126 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
-
-		// Scheduled sweep: atomically claim the row before any other write. A
-		// single conditional UPDATE is atomic per-statement on every dialect
-		// (it doesn't depend on a wrapping transaction, which D1 lacks). If the
-		// schedule was cleared or pushed to the future (unschedule/reschedule)
-		// or another sweep already claimed it, this affects 0 rows and we bail
-		// before promoting any revision — so the row can't be double-published.
-		let claimedScheduledAt: string | null = null;
-		let claimedUpdatedAt: string | null = null;
-		if (requireDue) {
-			const claim = await sql`
-				UPDATE ${sql.ref(tableName)}
-				SET scheduled_at = NULL,
-					updated_at = ${now}
-				WHERE id = ${id}
-				AND scheduled_at IS NOT NULL
-				AND scheduled_at <= ${now}
-				AND deleted_at IS NULL
-			`.execute(this.db);
-			if ((claim.numAffectedRows ?? 0n) === 0n) {
-				throw new ScheduledNotDueError();
-			}
-			// Remember what we cleared so we can put it back if the publish work
-			// below fails on a driver without transactions (see catch). Both
-			// values come from the pre-claim snapshot: if a concurrent
-			// reschedule-to-a-different-past-time landed between findById and the
-			// claim, the restore writes the snapshot value rather than the one the
-			// claim actually cleared. That window is tiny and the restore is
-			// best-effort retry bookkeeping, so the imprecision is acceptable.
-			claimedScheduledAt = existing.scheduledAt;
-			claimedUpdatedAt = existing.updatedAt;
+		if (
+			requireDue &&
+			expectedScheduledAt !== undefined &&
+			existing.scheduledAt !== expectedScheduledAt
+		) {
+			throw new ScheduledNotDueError();
 		}
 
-		// Track whether the final publish write committed. On D1 the claim above
-		// is already durable (withTransaction is a no-op there), so if a later
-		// step throws we must restore the schedule — otherwise the row is left
-		// `scheduled` with `scheduled_at = NULL` and no sweep ever retries it.
-		let publishCommitted = false;
+		const revisionRepo = new RevisionRepository(this.db);
+		let provisionalRevisionId: string | null = null;
 		try {
-			const revisionRepo = new RevisionRepository(this.db);
 			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
 
 			if (!revisionToPublish) {
-				// No revision exists - create one from current data
 				const revision = await revisionRepo.create({
 					collection: type,
 					entryId: id,
 					data: existing.data,
 				});
 				revisionToPublish = revision.id;
+				provisionalRevisionId = revision.id;
 			}
 
-			// Sync the revision's data into the content table columns
-			// so the content table always holds the published version
 			const revision = await revisionRepo.findById(revisionToPublish);
-			if (revision) {
-				// A staged slug lands on the live column only here — it never
-				// passes through update(), so its uniqueness was never checked.
-				// Validate before any write: the `(slug, locale)` unique index
-				// covers every row (drafts and trashed entries included), and
-				// letting the constraint fire mid-publish would surface as an
-				// opaque 500 after draft data already hit the live columns.
-				// A NULL locale never collides (unique indexes treat NULLs as
-				// distinct), so the check only applies to localized rows.
-				const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
-				if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
-					const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
-					if (conflict && conflict.id !== id) {
-						throw new EmDashValidationError(
-							`Cannot publish: slug '${stagedSlug}' is already used by another entry` +
-								` in this collection (id: ${conflict.id}). Choose a different slug.`,
-							{ code: "SLUG_CONFLICT" },
-						);
-					}
-				}
-
-				// Write the slug before the data columns: the slug UPDATE is the
-				// only statement here that can hit the unique constraint (if a
-				// concurrent write took the slug after the check above), and on
-				// D1 there is no transaction to roll back earlier statements.
-				if (stagedSlug !== null) {
-					await sql`
-						UPDATE ${sql.ref(tableName)}
-						SET slug = ${stagedSlug}
-						WHERE id = ${id}
-					`.execute(this.db);
-				}
-
-				await this.syncDataColumns(type, id, revision.data);
+			if (!revision || revision.collection !== type || revision.entryId !== id) {
+				throw new EmDashValidationError("Revision does not belong to the specified content item");
 			}
 
-			if (publishedAt !== undefined) {
-				// Caller supplied an explicit timestamp, so we overwrite published_at
-				// directly (used to backdate a publish, e.g. for content migrations).
-				await sql`
-					UPDATE ${sql.ref(tableName)}
-					SET live_revision_id = ${revisionToPublish},
-						draft_revision_id = NULL,
-						status = 'published',
-						scheduled_at = NULL,
-						published_at = ${publishedAt},
-						updated_at = ${now}
-					WHERE id = ${id}
-					AND deleted_at IS NULL
-				`.execute(this.db);
-			} else {
-				// No timestamp supplied — preserve existing published_at on
-				// idempotent re-publish, fall back to `now` on first publish.
-				await sql`
-					UPDATE ${sql.ref(tableName)}
-					SET live_revision_id = ${revisionToPublish},
-						draft_revision_id = NULL,
-						status = 'published',
-						scheduled_at = NULL,
-						published_at = COALESCE(published_at, ${now}),
-						updated_at = ${now}
-					WHERE id = ${id}
-					AND deleted_at IS NULL
-				`.execute(this.db);
+			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
+			const intendedSlug = stagedSlug ?? existing.slug;
+			const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+			if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
+				const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
+				if (conflict && conflict.id !== id) {
+					throw new EmDashValidationError(
+						`Cannot publish: slug '${stagedSlug}' is already used by another entry` +
+							` in this collection (id: ${conflict.id}). Choose a different slug.`,
+						{ code: "SLUG_CONFLICT" },
+					);
+				}
 			}
-			publishCommitted = true;
 
+			const assignments: ReturnType<typeof sql>[] = [];
+			if (stagedSlug !== null) assignments.push(sql`slug = ${stagedSlug}`);
+			for (const [key, value] of Object.entries(revision.data)) {
+				if (SYSTEM_COLUMNS.has(key) || key.startsWith("_")) continue;
+				validateIdentifier(key, "content field name");
+				assignments.push(sql`${sql.ref(key)} = ${serializeValue(value)}`);
+			}
+			assignments.push(
+				sql`live_revision_id = ${revisionToPublish}`,
+				sql`draft_revision_id = NULL`,
+				sql`status = 'published'`,
+				sql`scheduled_at = NULL`,
+				sql`published_at = ${intendedPublishedAt}`,
+				sql`updated_at = ${now}`,
+				sql`version = version + 1`,
+			);
+
+			const duePredicate = requireDue
+				? sql`AND scheduled_at IS NOT NULL AND scheduled_at <= ${now}`
+				: sql``;
+			let promoted = false;
+			try {
+				const result = await sql`
+					UPDATE ${sql.ref(tableName)}
+					SET ${sql.join(assignments, sql`, `)}
+					WHERE id = ${id}
+					AND deleted_at IS NULL
+					AND version = ${existing.version}
+					AND status = ${existing.status}
+					AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+					AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+					AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+					${duePredicate}
+					AND EXISTS (
+						SELECT 1 FROM revisions
+						WHERE revisions.id = ${revisionToPublish}
+						AND revisions.collection = ${type}
+						AND revisions.entry_id = ${id}
+					)
+				`.execute(this.db);
+				promoted = (result.numAffectedRows ?? 0n) > 0n;
+			} catch (error) {
+				if (isConfirmedStatementFailure(error)) throw error;
+				let observed: ContentItem | null;
+				try {
+					observed = await this.findById(type, id);
+				} catch (reconciliationError) {
+					throw new Error("Unable to confirm whether content publication completed", {
+						cause: reconciliationError,
+					});
+				}
+				if (!observed) {
+					throw new Error("Unable to confirm whether content publication completed", {
+						cause: error,
+					});
+				}
+				promoted = matchesPublication(
+					observed,
+					existing,
+					revision,
+					revisionToPublish,
+					intendedSlug,
+					intendedPublishedAt,
+					now,
+				);
+				if (!promoted && matchesPublicationFence(observed, existing)) throw error;
+				if (!promoted) {
+					throw new Error("Unable to confirm whether content publication completed", {
+						cause: error,
+					});
+				}
+			}
+
+			if (!promoted) {
+				throw requireDue ? new ScheduledNotDueError() : new ContentMutationConflictError();
+			}
+
+			invalidateCollectionCache(type);
 			await this.restampEntryPivot(type, id);
 
 			const updated = await this.findById(type, id);
@@ -1424,38 +1467,15 @@ export class ContentRepository {
 				throw new Error("Content not found");
 			}
 
-			invalidateCollectionCache(type);
 			return updated;
 		} catch (error) {
-			// Best-effort schedule restore for the no-transaction (D1) case so a
-			// failed publish stays retryable. Skipped when the publish actually
-			// committed (the failure was afterwards). On SQLite/Postgres the
-			// enclosing transaction rolls the claim back, so this restore also
-			// rolls back — a harmless no-op. Never mask the original error.
-			if (requireDue && claimedScheduledAt && !publishCommitted) {
+			if (provisionalRevisionId) {
 				try {
-					// Only restore if the row still has pending work: either it's not
-					// published, or it's a published row that still has a draft change
-					// queued. This avoids re-adding a stale schedule (and triggering a
-					// redundant republish) when another actor fully published the row
-					// in the failure window — that publish clears draft_revision_id.
-					// Restore updated_at to its pre-claim value too — the claim bumped
-					// it to `now`, and a failed publish made no real change, so leaving
-					// it advanced would be a phantom modification for "changed since"
-					// consumers (sync, ETags, incremental indexers).
-					await sql`
-						UPDATE ${sql.ref(tableName)}
-						SET scheduled_at = ${claimedScheduledAt},
-							updated_at = ${claimedUpdatedAt ?? now}
-						WHERE id = ${id}
-						AND scheduled_at IS NULL
-						AND deleted_at IS NULL
-						AND (status != 'published' OR draft_revision_id IS NOT NULL)
-					`.execute(this.db);
-				} catch (restoreError) {
+					await revisionRepo.deleteIfUnreferenced(type, id, provisionalRevisionId);
+				} catch (cleanupError) {
 					console.error(
-						`[content] Failed to restore schedule for ${type}/${id} after publish failure:`,
-						restoreError,
+						`[content] Failed to clean up provisional revision ${provisionalRevisionId}:`,
+						cleanupError,
 					);
 				}
 			}
@@ -1530,8 +1550,6 @@ export class ContentRepository {
 	 * content row pointing at a missing or unrelated revision.
 	 */
 	async setDraftRevision(type: string, id: string, revisionId: string): Promise<void> {
-		const tableName = getTableName(type);
-
 		const existing = await this.findById(type, id);
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
@@ -1547,15 +1565,35 @@ export class ContentRepository {
 			throw new EmDashValidationError("Revision does not belong to the specified content item");
 		}
 
-		// Draft staging leaves live content untouched, so it must not bump
-		// updated_at — public "content last modified" consumers (sitemap
-		// <lastmod>, dateModified) would see a phantom modification (#2143).
-		await sql`
+		if (!(await this.replaceDraftRevision(type, id, revisionId, existing))) {
+			throw new ContentMutationConflictError();
+		}
+	}
+
+	async replaceDraftRevision(
+		type: string,
+		id: string,
+		revisionId: string,
+		expected: Pick<ContentItem, "version" | "liveRevisionId" | "draftRevisionId">,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
-			SET draft_revision_id = ${revisionId}
+			SET draft_revision_id = ${revisionId},
+				version = version + 1
 			WHERE id = ${id}
 			AND deleted_at IS NULL
+			AND version = ${expected.version}
+			AND ${nullableColumnMatch("live_revision_id", expected.liveRevisionId)}
+			AND ${nullableColumnMatch("draft_revision_id", expected.draftRevisionId)}
+			AND EXISTS (
+				SELECT 1 FROM revisions
+				WHERE revisions.id = ${revisionId}
+				AND revisions.collection = ${type}
+				AND revisions.entry_id = ${id}
+			)
 		`.execute(this.db);
+		return (result.numAffectedRows ?? 0n) > 0n;
 	}
 
 	/**
@@ -1593,35 +1631,6 @@ export class ContentRepository {
 		}
 
 		return updated;
-	}
-
-	/**
-	 * Sync data columns in the content table from a data object.
-	 * Used to promote revision data into the content table on publish.
-	 * Keys starting with _ are revision metadata (e.g. _slug) and are skipped.
-	 */
-	private async syncDataColumns(
-		type: string,
-		id: string,
-		data: Record<string, unknown>,
-	): Promise<void> {
-		const tableName = getTableName(type);
-		const updates: Record<string, unknown> = {};
-
-		for (const [key, value] of Object.entries(data)) {
-			if (SYSTEM_COLUMNS.has(key)) continue;
-			if (key.startsWith("_")) continue; // revision metadata
-			validateIdentifier(key, "content field name");
-			updates[key] = serializeValue(value);
-		}
-
-		if (Object.keys(updates).length === 0) return;
-
-		await this.db
-			.updateTable(tableName as keyof Database)
-			.set(updates)
-			.where("id", "=", id)
-			.execute();
 	}
 
 	/**

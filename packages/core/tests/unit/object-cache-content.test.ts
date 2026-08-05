@@ -11,6 +11,7 @@ import { getLiveCollection, getLiveEntry } from "astro:content";
 
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
+import { ScheduledNotDueError } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
 import { CURSOR_RAW_VALUES } from "../../src/loader.js";
 import { encode } from "../../src/object-cache/codec.js";
@@ -290,6 +291,52 @@ describe("object cache: content read-through", () => {
 		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
 
 		await repo.discardDraft("post", created.id);
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+	});
+
+	it("invalidates cached collection content after publication succeeds", async () => {
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+		const repo = new ContentRepository(db);
+		const created = await repo.create(createPostFixture({ slug: "publish-cache" }));
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+
+		await repo.publish("post", created.id);
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		expect(getLiveCollection).toHaveBeenCalledTimes(2);
+	});
+
+	it("keeps cached collection content after a scheduled publication CAS miss", async () => {
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+		const repo = new ContentRepository(db);
+		const created = await repo.create(createPostFixture({ slug: "missed-publish-cache" }));
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+
+		await expect(repo.publish("post", created.id, undefined, true)).rejects.toBeInstanceOf(
+			ScheduledNotDueError,
+		);
 		await flush();
 		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
 
