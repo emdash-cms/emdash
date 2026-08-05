@@ -12,7 +12,6 @@ import {
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowSquareOut,
-	CheckCircle,
 	Eye,
 	EyeSlash,
 	Trash,
@@ -36,6 +35,7 @@ import { fetchBylines } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { cn, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
+import { ContentStatusBadge } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
@@ -457,15 +457,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<Label>{t`Status`}</Label>
 									{supportsDrafts ? (
 										<>
-											{isLive && (
-												<Badge variant="success" className="gap-1">
-													<CheckCircle className="h-3 w-3" aria-hidden="true" />
-													{t`Publish`}
-												</Badge>
-											)}
-											{hasPendingChanges && <Badge variant="secondary">{t`Pending changes`}</Badge>}
-											{!isLive && !hasSchedule && <Badge variant="secondary">{t`Draft`}</Badge>}
-											{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}
+											{isLive && <ContentStatusBadge state="published" />}
+											{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
+											{!isLive && !hasSchedule && <ContentStatusBadge state="draft" />}
+											{hasSchedule && <ContentStatusBadge state="scheduled" />}
 										</>
 									) : (
 										<Badge variant="secondary">

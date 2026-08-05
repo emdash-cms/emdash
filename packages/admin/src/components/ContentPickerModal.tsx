@@ -7,7 +7,7 @@
 
 import { Button, Dialog, Input, Loader, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { CheckCircle, MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -15,6 +15,7 @@ import { fetchCollections, fetchContentList, getDraftStatus } from "../lib/api";
 import type { ContentItem } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks";
 import { cn } from "../lib/utils";
+import { ContentStatusLabel, type ContentStatusState } from "./ContentStatusBadge.js";
 
 interface ContentPickerModalProps {
 	open: boolean;
@@ -182,6 +183,12 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 						<div className="space-y-1">
 							{filteredItems.map((item) => {
 								const status = getDraftStatus(item);
+								const statusState: ContentStatusState =
+									status === "published"
+										? "published"
+										: status === "published_with_changes"
+											? "pendingChanges"
+											: "draft";
 								return (
 									<button
 										key={item.id}
@@ -195,23 +202,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 									>
 										<div className="font-medium">{getItemTitle(item)}</div>
 										<div className="text-sm text-kumo-subtle flex items-center gap-2">
-											{status === "published" ? (
-												<CheckCircle className="h-3.5 w-3.5 text-kumo-success" aria-hidden="true" />
-											) : (
-												<span
-													className={cn(
-														"inline-block h-2 w-2 rounded-full",
-														status === "published_with_changes"
-															? "bg-kumo-warning"
-															: "bg-kumo-fill",
-													)}
-												/>
-											)}
-											{status === "published"
-												? t`Publish`
-												: status === "published_with_changes"
-													? t`Modified`
-													: t`Draft`}
+											<ContentStatusLabel state={statusState} />
 											{item.slug && (
 												<>
 													<span className="text-kumo-subtle/50">/</span>

@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Updates publish actions and status labels to use a consistent “Publish” label with a corresponding icon.
+Updates content lifecycle badges and status labels with consistent wording, icons, and semantic colors.

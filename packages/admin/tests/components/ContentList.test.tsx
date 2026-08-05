@@ -159,31 +159,32 @@ describe("ContentList", () => {
 	});
 
 	describe("status badges", () => {
-		it("shows draft status", async () => {
-			const items = [makeItem({ id: "1", status: "draft" })];
+		it.each([
+			["draft", "Draft"],
+			["published", "Publish"],
+			["scheduled", "Scheduled"],
+			["archived", "Archived"],
+		] as const)("shows the normalized %s status with its icon", async (status, label) => {
+			const items = [makeItem({ id: "1", status })];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			await expect.element(screen.getByText("draft")).toBeInTheDocument();
+			const badge = screen.getByText(label).element();
+
+			expect(badge.querySelector("svg")).not.toBeNull();
 		});
 
-		it("shows the normalized Publish status", async () => {
-			const items = [makeItem({ id: "1", status: "published" })];
-			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			await expect.element(screen.getByText("Publish")).toBeInTheDocument();
-		});
-
-		it("keeps the Publish icon before its label in Arabic RTL mode", async () => {
+		it("keeps status icons before their labels in Arabic RTL mode", async () => {
 			const previousLanguage = document.documentElement.lang;
 			const previousDirection = document.documentElement.dir;
 			document.documentElement.lang = "ar";
 			document.documentElement.dir = "rtl";
 
 			try {
-				const items = [makeItem({ id: "1", status: "published" })];
+				const items = [makeItem({ id: "1", status: "draft" })];
 				const screen = await render(<ContentList {...defaultProps} items={items} />);
-				const badge = screen.getByText("Publish").element();
+				const badge = screen.getByText("Draft").element();
 				const icon = badge.querySelector("svg");
 				const textNode = [...badge.childNodes].find(
-					(node) => node.nodeType === Node.TEXT_NODE && node.textContent?.includes("Publish"),
+					(node) => node.nodeType === Node.TEXT_NODE && node.textContent?.includes("Draft"),
 				);
 
 				expect(icon).not.toBeNull();
@@ -199,7 +200,7 @@ describe("ContentList", () => {
 			}
 		});
 
-		it("shows pending badge when draftRevisionId differs from liveRevisionId", async () => {
+		it("shows the Pending changes companion badge when revisions differ", async () => {
 			const items = [
 				makeItem({
 					id: "1",
@@ -209,7 +210,8 @@ describe("ContentList", () => {
 				}),
 			];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			await expect.element(screen.getByText("pending")).toBeInTheDocument();
+			const badge = screen.getByText("Pending changes").element();
+			expect(badge.querySelector("svg")).not.toBeNull();
 		});
 
 		it("does not show pending badge when revisions match", async () => {
@@ -222,7 +224,32 @@ describe("ContentList", () => {
 				}),
 			];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			expect(screen.getByText("pending").query()).toBeNull();
+			expect(screen.getByText("Pending changes").query()).toBeNull();
+		});
+
+		it("renders unknown status names without treating object properties as lifecycle states", async () => {
+			const items = [makeItem({ id: "1", status: "toString" })];
+			const screen = await render(<ContentList {...defaultProps} items={items} />);
+
+			await expect.element(screen.getByText("toString", { exact: true })).toBeInTheDocument();
+		});
+	});
+
+	describe("status filter", () => {
+		it("shows icons with the selected status and each lifecycle option", async () => {
+			const screen = await render(
+				<ContentList {...defaultProps} statusFilter="draft" onStatusFilterChange={vi.fn()} />,
+			);
+			const filter = screen.getByRole("combobox", { name: "Filter by status" });
+
+			expect(filter.element().querySelector("svg")).not.toBeNull();
+			await filter.click();
+
+			for (const label of ["Publish", "Draft", "Scheduled", "Archived"]) {
+				const option = screen.getByRole("option", { name: label });
+				await expect.element(option).toBeInTheDocument();
+				expect(option.element().querySelector("svg")).not.toBeNull();
+			}
 		});
 	});
 

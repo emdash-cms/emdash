@@ -134,6 +134,25 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
 	});
 
+	it("shows the normalized pending changes label", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({ isLive: true, hasPendingChanges: true })}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
+	});
+
+	it("shows Scheduled without a Draft companion", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ hasSchedule: true })} />,
+		);
+
+		await expect.element(screen.getByText("Scheduled", { exact: true })).toBeInTheDocument();
+		expect(screen.container.textContent).not.toContain("Draft");
+	});
+
 	it("hides Ownership and Bylines for users below the editor role", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ currentUser: AUTHOR_ROLE })} />,
