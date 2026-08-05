@@ -34,10 +34,9 @@ import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import {
-	CONTENT_STATUS_ICONS,
 	ContentStatusBadge,
 	ContentStatusLabel,
-	type ContentStatusState,
+	isContentStatusState,
 } from "./ContentStatusBadge.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
@@ -1178,8 +1177,4 @@ function StatusBadge({
 			{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
 		</span>
 	);
-}
-
-function isContentStatusState(status: string): status is ContentStatusState {
-	return Object.hasOwn(CONTENT_STATUS_ICONS, status);
 }

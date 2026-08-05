@@ -38,6 +38,10 @@ export const CONTENT_STATUS_ICON_COLORS: Record<ContentStatusState, string> = {
 	private: "text-kumo-subtle",
 };
 
+export function isContentStatusState(status: string): status is ContentStatusState {
+	return Object.hasOwn(CONTENT_STATUS_ICONS, status);
+}
+
 const CONTENT_STATUS_VARIANTS: Record<ContentStatusState, BadgeVariant> = {
 	published: "success",
 	draft: "warning",

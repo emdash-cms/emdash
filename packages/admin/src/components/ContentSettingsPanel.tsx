@@ -35,7 +35,7 @@ import { fetchBylines } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { cn, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
-import { ContentStatusBadge } from "./ContentStatusBadge.js";
+import { ContentStatusBadge, isContentStatusState } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
@@ -462,6 +462,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 											{!isLive && !hasSchedule && <ContentStatusBadge state="draft" />}
 											{hasSchedule && <ContentStatusBadge state="scheduled" />}
 										</>
+									) : isContentStatusState(status) ? (
+										<ContentStatusBadge state={status} />
 									) : (
 										<Badge variant="secondary">
 											{status.charAt(0).toUpperCase() + status.slice(1)}

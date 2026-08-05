@@ -153,6 +153,31 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.textContent).not.toContain("Draft");
 	});
 
+	it("normalizes recognized statuses for collections without draft support", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({ status: "published", supportsDrafts: false })}
+			/>,
+		);
+		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+
+		expect(statusRow.textContent).toContain("Publish");
+		expect(statusRow.textContent).not.toContain("Published");
+		expect(statusRow.querySelector("svg")).not.toBeNull();
+	});
+
+	it("preserves custom statuses for collections without draft support", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({ status: "reviewing", supportsDrafts: false })}
+			/>,
+		);
+		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+
+		expect(statusRow.textContent).toContain("Reviewing");
+		expect(statusRow.querySelector("svg")).toBeNull();
+	});
+
 	it("hides Ownership and Bylines for users below the editor role", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ currentUser: AUTHOR_ROLE })} />,
