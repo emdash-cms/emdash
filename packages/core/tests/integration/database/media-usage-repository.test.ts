@@ -92,6 +92,88 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(rows).toContainEqual({ generation: second.currentGeneration, media_id: "media-new" });
 	});
 
+	it("updates canonical identity metadata when replacing a source", async () => {
+		const collectionId = "collection-posts";
+		await ctx.db
+			.insertInto("_emdash_collections")
+			.values({ id: collectionId, slug: "posts", label: "Posts" })
+			.execute();
+		const sourceKey = buildContentMediaUsageSourceKey({
+			collectionId,
+			collectionSlug: "posts",
+			contentId: "entry1",
+			sourceVariant: "columns",
+		});
+
+		await repo.replaceSource(
+			contentSource("entry1", "columns", {
+				sourceKey,
+				collectionId,
+				identityVersion: 1,
+			}),
+			[occurrence("hero", "media-old")],
+		);
+		const replaced = await repo.replaceSource(
+			contentSource("entry1", "columns", {
+				sourceKey,
+				collectionId,
+				identityVersion: 2,
+			}),
+			[occurrence("hero", "media-new")],
+		);
+
+		expect(replaced).toEqual(expect.objectContaining({ collectionId, identityVersion: 2 }));
+	});
+
+	it("refuses canonical attempted writes after collection identity disappears", async () => {
+		const collectionId = "collection-posts";
+		await ctx.db
+			.insertInto("_emdash_collections")
+			.values({ id: collectionId, slug: "posts", label: "Posts" })
+			.execute();
+		const source = contentSource("entry1", "columns", {
+			sourceKey: buildContentMediaUsageSourceKey({
+				collectionId,
+				collectionSlug: "posts",
+				contentId: "entry1",
+				sourceVariant: "columns",
+			}),
+			collectionId,
+			identityVersion: 1,
+		});
+		const observed = await repo.replaceSource(source, [occurrence("hero", "media-old")]);
+		await ctx.db.deleteFrom("_emdash_collections").where("id", "=", collectionId).execute();
+
+		const update = await repo.markSourceAttemptedIfMatching(
+			{ ...source, sourceCompleteness: "failed", lastErrorCode: "SNAPSHOT_FAILED" },
+			observed,
+		);
+		const absentSource = contentSource("entry2", "columns", {
+			sourceKey: buildContentMediaUsageSourceKey({
+				collectionId,
+				collectionSlug: "posts",
+				contentId: "entry2",
+				sourceVariant: "columns",
+			}),
+			collectionId,
+			identityVersion: 1,
+			sourceCompleteness: "failed",
+			lastErrorCode: "SNAPSHOT_FAILED",
+		});
+		const insert = await repo.markSourceAttemptedIfMatching(absentSource, null);
+
+		expect(update.attempted).toBe(false);
+		expect((await repo.findSource(source.sourceKey))?.sourceCompleteness).toBe("complete");
+		expect(insert).toEqual({ attempted: false, source: null });
+		await expect(
+			repo.markSourceAttempted({
+				...source,
+				sourceCompleteness: "failed",
+				lastErrorCode: "SNAPSHOT_FAILED",
+			}),
+		).rejects.toThrow(/no longer current/i);
+	});
+
 	it("does not replace a source when the expected generation is stale", async () => {
 		const first = await repo.replaceSource(contentSource("entry1", "columns"), [
 			occurrence("hero", "media-old"),

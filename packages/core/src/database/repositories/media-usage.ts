@@ -26,6 +26,7 @@ import { decodeCursor, encodeCursor, InvalidCursorError, type FindManyResult } f
 
 type DatabaseExecutor = Kysely<Database> | Transaction<Database>;
 type MediaUsageSourceNullableStringColumn =
+	| "collection_id"
 	| "source_fingerprint"
 	| "source_updated_at"
 	| "revision_id"
@@ -76,6 +77,7 @@ const CONTENT_SOURCE_ELIGIBILITY = sql<boolean>`(
 export interface MediaUsageSourceInput {
 	sourceKey: string;
 	sourceType: string;
+	collectionId?: string | null;
 	collectionSlug?: string | null;
 	contentId?: string | null;
 	sourceVariant: MediaUsageContentSourceVariant;
@@ -91,6 +93,7 @@ export interface MediaUsageSourceInput {
 	sourceUpdatedAt?: string | null;
 	sourceVersion?: number | null;
 	sourceFingerprint?: string | null;
+	identityVersion?: number | null;
 	sourceCompleteness?: MediaUsageSourceCompleteness;
 	lastAttemptedAt?: string | null;
 	lastErrorCode?: string | null;
@@ -111,6 +114,7 @@ export interface MediaUsageOccurrenceInput {
 export interface MediaUsageSource {
 	sourceKey: string;
 	sourceType: string;
+	collectionId: string | null;
 	collectionSlug: string | null;
 	contentId: string | null;
 	sourceVariant: string;
@@ -127,6 +131,7 @@ export interface MediaUsageSource {
 	sourceUpdatedAt: string | null;
 	sourceVersion: number | null;
 	sourceFingerprint: string | null;
+	identityVersion: number | null;
 	sourceCompleteness: string;
 	lastAttemptedAt: string | null;
 	lastErrorCode: string | null;
@@ -298,6 +303,7 @@ export interface MediaUsageEntryGroup {
 interface MediaUsageSourceRow {
 	source_key: string;
 	source_type: string;
+	collection_id: string | null;
 	collection_slug: string | null;
 	content_id: string | null;
 	source_variant: string;
@@ -314,6 +320,7 @@ interface MediaUsageSourceRow {
 	source_updated_at: string | null;
 	source_version: number | null;
 	source_fingerprint: string | null;
+	identity_version: number | null;
 	source_completeness: string;
 	last_attempted_at: string | null;
 	last_error_code: string | null;
@@ -346,6 +353,7 @@ export interface MediaUsageRecord {
 interface JoinedUsageRow {
 	source_key: string;
 	source_type: string;
+	collection_id: string | null;
 	collection_slug: string | null;
 	content_id: string | null;
 	source_variant: string;
@@ -362,6 +370,7 @@ interface JoinedUsageRow {
 	source_updated_at: string | null;
 	source_version: number | null;
 	source_fingerprint: string | null;
+	identity_version: number | null;
 	source_completeness: string;
 	last_attempted_at: string | null;
 	last_error_code: string | null;
@@ -515,6 +524,19 @@ export class MediaUsageRepository {
 	}
 
 	async markSourceAttempted(source: MediaUsageSourceInput): Promise<MediaUsageSource> {
+		if (source.collectionId !== undefined && source.collectionId !== null) {
+			const expectedSource = await this.findSource(source.sourceKey);
+			const result = await this.markSourceAttemptedIfMatching(source, expectedSource);
+			if (!result.attempted) {
+				throw new Error(`Canonical media usage source ${source.sourceKey} is no longer current`);
+			}
+			const attempted = await this.findSource(source.sourceKey);
+			if (!attempted) {
+				throw new Error(`Media usage source ${source.sourceKey} was not persisted`);
+			}
+			return attempted;
+		}
+
 		const generation = ulid();
 		await this.withGenerationWriteLease(source.sourceKey, generation, async (leaseToken, now) => {
 			const row = this.buildAttemptedSourceRow(source, generation, now);
@@ -546,12 +568,12 @@ export class MediaUsageRepository {
 		if (expectedSource === null) {
 			await this.withGenerationWriteLease(source.sourceKey, generation, async (leaseToken, now) => {
 				const row = this.buildAttemptedSourceRow(source, generation, now);
-				const result = await this.db
-					.insertInto("_emdash_media_usage_sources")
-					.values(row)
-					.onConflict((oc) => oc.column("source_key").doNothing())
-					.executeTakeFirst();
-				attempted = (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
+				attempted = await this.persistSourceIfWriteLease(
+					this.db,
+					row,
+					leaseToken,
+					sql`ON CONFLICT (source_key) DO NOTHING`,
+				);
 			});
 		} else {
 			const row = this.buildAttemptedSourceRow(source, generation, new Date().toISOString());
@@ -824,6 +846,9 @@ export class MediaUsageRepository {
 				.deleteFrom("_emdash_media_usage_sources")
 				.where("source_key", "=", sourceKey)
 				.where(this.sourceMatchExpression(expectedSource))
+				.where(
+					this.currentCollectionExists(expectedSource.collectionId, expectedSource.collectionSlug),
+				)
 				.executeTakeFirst();
 			deleted = Number(result.numDeletedRows ?? 0) > 0;
 			if (!deleted) return;
@@ -855,6 +880,9 @@ export class MediaUsageRepository {
 				.deleteFrom("_emdash_media_usage_sources")
 				.where("source_key", "=", sourceKey)
 				.where(this.sourceMatchExpression(expectedSource))
+				.where(
+					this.currentCollectionExists(expectedSource.collectionId, expectedSource.collectionSlug),
+				)
 				.where(
 					sql<boolean>`NOT EXISTS (SELECT 1 FROM ${sql.ref(tableName)} WHERE id = ${contentId})`,
 				)
@@ -1771,6 +1799,7 @@ export class MediaUsageRepository {
 			sql`
 				ON CONFLICT (source_key) DO UPDATE SET
 					source_type = excluded.source_type,
+					collection_id = excluded.collection_id,
 					collection_slug = excluded.collection_slug,
 					content_id = excluded.content_id,
 					source_variant = excluded.source_variant,
@@ -1787,6 +1816,7 @@ export class MediaUsageRepository {
 					source_updated_at = excluded.source_updated_at,
 					source_version = excluded.source_version,
 					source_fingerprint = excluded.source_fingerprint,
+					identity_version = excluded.identity_version,
 					source_completeness = excluded.source_completeness,
 					last_attempted_at = excluded.last_attempted_at,
 					last_error_code = excluded.last_error_code,
@@ -1811,7 +1841,9 @@ export class MediaUsageRepository {
 
 	private async persistSourceIfWriteLease(
 		db: DatabaseExecutor,
-		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
+		row:
+			| ReturnType<MediaUsageRepository["buildSourceRow"]>
+			| ReturnType<MediaUsageRepository["buildAttemptedSourceRow"]>,
 		leaseToken: string,
 		conflict: RawBuilder<unknown>,
 	): Promise<boolean> {
@@ -1819,6 +1851,7 @@ export class MediaUsageRepository {
 			INSERT INTO _emdash_media_usage_sources (
 				source_key,
 				source_type,
+				collection_id,
 				collection_slug,
 				content_id,
 				source_variant,
@@ -1835,6 +1868,7 @@ export class MediaUsageRepository {
 				source_updated_at,
 				source_version,
 				source_fingerprint,
+				identity_version,
 				source_completeness,
 				last_attempted_at,
 				last_error_code,
@@ -1844,6 +1878,7 @@ export class MediaUsageRepository {
 			SELECT
 				${row.source_key},
 				${row.source_type},
+				${row.collection_id},
 				${row.collection_slug},
 				${row.content_id},
 				${row.source_variant},
@@ -1860,6 +1895,7 @@ export class MediaUsageRepository {
 				${row.source_updated_at},
 				${row.source_version},
 				${row.source_fingerprint},
+				${row.identity_version},
 				${row.source_completeness},
 				${row.last_attempted_at},
 				${row.last_error_code},
@@ -1873,6 +1909,7 @@ export class MediaUsageRepository {
 					AND lease_token = ${leaseToken}
 					AND ${this.generationWriteLeaseExpiryIsInFuture("expires_at")}
 			)
+			AND ${this.currentCollectionExists(row.collection_id, row.collection_slug)}
 			${conflict}
 		`.execute(db);
 		return Number(result.numAffectedRows ?? 0) > 0;
@@ -1967,6 +2004,7 @@ export class MediaUsageRepository {
 			.where("source_key", "=", row.source_key)
 			.where("current_generation", "=", expectedCurrentGeneration)
 			.where(this.generationWriteLeaseExpression(row, leaseToken))
+			.where(this.currentCollectionExists(row.collection_id, row.collection_slug))
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
 	}
@@ -1983,6 +2021,7 @@ export class MediaUsageRepository {
 			.where("source_key", "=", row.source_key)
 			.where(this.sourceMatchExpression(expectedSource))
 			.where(this.generationWriteLeaseExpression(row, leaseToken))
+			.where(this.currentCollectionExists(row.collection_id, row.collection_slug))
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
 	}
@@ -1998,6 +2037,7 @@ export class MediaUsageRepository {
 			.set(this.attemptedSourceUpdateSet(source, row))
 			.where("source_key", "=", row.source_key)
 			.where(this.sourceMatchExpression(expectedSource))
+			.where(this.currentCollectionExists(row.collection_id, row.collection_slug))
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
 	}
@@ -2007,10 +2047,12 @@ export class MediaUsageRepository {
 			eb.and([
 				eb("current_generation", "=", expectedSource.currentGeneration),
 				eb("source_completeness", "=", expectedSource.sourceCompleteness),
+				this.nullableStringExpression(eb, "collection_id", expectedSource.collectionId),
 				this.nullableStringExpression(eb, "updated_at", expectedSource.updatedAt),
 				this.nullableStringExpression(eb, "source_fingerprint", expectedSource.sourceFingerprint),
 				this.nullableStringExpression(eb, "source_updated_at", expectedSource.sourceUpdatedAt),
 				this.nullableNumberExpression(eb, "source_version", expectedSource.sourceVersion),
+				this.nullableNumberExpression(eb, "identity_version", expectedSource.identityVersion),
 				this.nullableStringExpression(eb, "revision_id", expectedSource.revisionId),
 				this.nullableStringExpression(eb, "last_attempted_at", expectedSource.lastAttemptedAt),
 				this.nullableStringExpression(eb, "last_error_code", expectedSource.lastErrorCode),
@@ -2031,6 +2073,9 @@ export class MediaUsageRepository {
 			.where("source_fingerprint", "=", fingerprint!)
 			.where("source_completeness", "=", source.sourceCompleteness ?? "complete")
 			.where("last_error_code", "is", null)
+			.where(
+				this.currentCollectionExists(source.collectionId ?? null, source.collectionSlug ?? null),
+			)
 			.executeTakeFirst();
 		return row !== undefined;
 	}
@@ -2053,6 +2098,9 @@ export class MediaUsageRepository {
 			.select("source_key")
 			.where("source_key", "=", source.sourceKey)
 			.where(this.sourceMatchExpression(expectedSource))
+			.where(
+				this.currentCollectionExists(source.collectionId ?? null, source.collectionSlug ?? null),
+			)
 			.executeTakeFirst();
 		return row !== undefined;
 	}
@@ -2065,9 +2113,22 @@ export class MediaUsageRepository {
 		return value === null ? eb(column, "is", null) : eb(column, "=", value);
 	}
 
+	private currentCollectionExists(
+		collectionId: string | null,
+		collectionSlug: string | null,
+	): RawBuilder<boolean> {
+		if (collectionId === null) return sql<boolean>`1 = 1`;
+		return sql<boolean>`EXISTS (
+			SELECT 1
+			FROM _emdash_collections
+			WHERE id = ${collectionId}
+				AND slug = ${collectionSlug}
+		)`;
+	}
+
 	private nullableNumberExpression(
 		eb: ExpressionBuilder<Database, "_emdash_media_usage_sources">,
-		column: "source_version",
+		column: "source_version" | "identity_version",
 		value: number | null,
 	) {
 		return value === null ? eb(column, "is", null) : eb(column, "=", value);
@@ -2087,6 +2148,7 @@ export class MediaUsageRepository {
 		return {
 			source_key: source.sourceKey,
 			source_type: source.sourceType,
+			collection_id: source.collectionId ?? null,
 			collection_slug: source.collectionSlug ?? null,
 			content_id: source.contentId ?? null,
 			source_variant: source.sourceVariant,
@@ -2103,6 +2165,7 @@ export class MediaUsageRepository {
 			source_updated_at: source.sourceUpdatedAt ?? null,
 			source_version: source.sourceVersion ?? null,
 			source_fingerprint: source.sourceFingerprint ?? null,
+			identity_version: source.identityVersion ?? null,
 			// Complete means this source was fully refreshed for the extractor's current
 			// schema/version coverage, not that every possible reference shape is known.
 			source_completeness: source.sourceCompleteness ?? "complete",
@@ -2117,6 +2180,7 @@ export class MediaUsageRepository {
 		return {
 			source_key: source.sourceKey,
 			source_type: source.sourceType,
+			collection_id: source.collectionId ?? null,
 			collection_slug: source.collectionSlug ?? null,
 			content_id: source.contentId ?? null,
 			source_variant: source.sourceVariant,
@@ -2133,6 +2197,7 @@ export class MediaUsageRepository {
 			source_updated_at: source.sourceUpdatedAt ?? null,
 			source_version: source.sourceVersion ?? null,
 			source_fingerprint: source.sourceFingerprint ?? null,
+			identity_version: source.identityVersion ?? null,
 			source_completeness:
 				source.sourceCompleteness ?? (source.lastErrorCode ? "failed" : "unknown"),
 			last_attempted_at: source.lastAttemptedAt ?? now,
@@ -2156,6 +2221,7 @@ export class MediaUsageRepository {
 		};
 
 		if (source.collectionSlug !== undefined) updates.collection_slug = row.collection_slug;
+		if (source.collectionId !== undefined) updates.collection_id = row.collection_id;
 		if (source.contentId !== undefined) updates.content_id = row.content_id;
 		if (source.locale !== undefined) updates.locale = row.locale;
 		if (source.translationGroup !== undefined) updates.translation_group = row.translation_group;
@@ -2173,6 +2239,7 @@ export class MediaUsageRepository {
 		if (source.sourceFingerprint !== undefined) {
 			updates.source_fingerprint = row.source_fingerprint;
 		}
+		if (source.identityVersion !== undefined) updates.identity_version = row.identity_version;
 
 		return updates;
 	}
@@ -2182,6 +2249,7 @@ export class MediaUsageRepository {
 	): Updateable<MediaUsageSourceTable> {
 		return {
 			source_type: row.source_type,
+			collection_id: row.collection_id,
 			collection_slug: row.collection_slug,
 			content_id: row.content_id,
 			source_variant: row.source_variant,
@@ -2198,6 +2266,7 @@ export class MediaUsageRepository {
 			source_updated_at: row.source_updated_at,
 			source_version: row.source_version,
 			source_fingerprint: row.source_fingerprint,
+			identity_version: row.identity_version,
 			source_completeness: row.source_completeness,
 			last_attempted_at: row.last_attempted_at,
 			last_error_code: row.last_error_code,
@@ -2210,6 +2279,7 @@ export class MediaUsageRepository {
 const currentUsageSelect = [
 	"s.source_key as source_key",
 	"s.source_type as source_type",
+	"s.collection_id as collection_id",
 	"s.collection_slug as collection_slug",
 	"s.content_id as content_id",
 	"s.source_variant as source_variant",
@@ -2226,6 +2296,7 @@ const currentUsageSelect = [
 	"s.source_updated_at as source_updated_at",
 	"s.source_version as source_version",
 	"s.source_fingerprint as source_fingerprint",
+	"s.identity_version as identity_version",
 	"s.source_completeness as source_completeness",
 	"s.last_attempted_at as last_attempted_at",
 	"s.last_error_code as last_error_code",
@@ -2282,6 +2353,7 @@ function rowToSource(row: MediaUsageSourceRow): MediaUsageSource {
 	return {
 		sourceKey: row.source_key,
 		sourceType: row.source_type,
+		collectionId: row.collection_id,
 		collectionSlug: row.collection_slug,
 		contentId: row.content_id,
 		sourceVariant: row.source_variant,
@@ -2298,6 +2370,7 @@ function rowToSource(row: MediaUsageSourceRow): MediaUsageSource {
 		sourceUpdatedAt: row.source_updated_at,
 		sourceVersion: row.source_version === null ? null : Number(row.source_version),
 		sourceFingerprint: row.source_fingerprint,
+		identityVersion: row.identity_version === null ? null : Number(row.identity_version),
 		sourceCompleteness: row.source_completeness,
 		lastAttemptedAt: row.last_attempted_at,
 		lastErrorCode: row.last_error_code,
@@ -2330,6 +2403,7 @@ function rowToUsageRecord(row: JoinedUsageRow): MediaUsageRecord {
 		source: rowToSource({
 			source_key: row.source_key,
 			source_type: row.source_type,
+			collection_id: row.collection_id,
 			collection_slug: row.collection_slug,
 			content_id: row.content_id,
 			source_variant: row.source_variant,
@@ -2346,6 +2420,7 @@ function rowToUsageRecord(row: JoinedUsageRow): MediaUsageRecord {
 			source_updated_at: row.source_updated_at,
 			source_version: row.source_version,
 			source_fingerprint: row.source_fingerprint,
+			identity_version: row.identity_version,
 			source_completeness: row.source_completeness,
 			last_attempted_at: row.last_attempted_at,
 			last_error_code: row.last_error_code,

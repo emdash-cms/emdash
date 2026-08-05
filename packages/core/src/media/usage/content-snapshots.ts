@@ -56,18 +56,30 @@ export interface ContentMediaUsageSnapshot {
 	fields: readonly ContentMediaUsageField[];
 }
 
+export interface LoadContentMediaUsageSnapshotsOptions {
+	collectionId?: string;
+	identityVersion?: number;
+}
+
 export async function loadContentMediaUsageSnapshots(
 	db: Kysely<Database>,
 	collectionSlug: string,
 	contentId: string,
 	fieldDiscovery?: ContentMediaUsageFieldDiscovery,
+	options: LoadContentMediaUsageSnapshotsOptions = {},
 ): Promise<LoadContentMediaUsageSnapshotsResult> {
 	validateIdentifier(collectionSlug, "collection slug");
+	if (options.identityVersion !== undefined && !options.collectionId) {
+		throw new Error("Canonical media usage snapshots require a collection identity");
+	}
 	const discovery = fieldDiscovery ?? (await loadContentMediaUsageFields(db, collectionSlug));
-	const row = await loadContentRow(db, collectionSlug, contentId, [
-		...discovery.extractionFields.map((field) => field.slug),
-		...discovery.displayFieldSlugs,
-	]);
+	const row = await loadContentRow(
+		db,
+		collectionSlug,
+		contentId,
+		[...discovery.extractionFields.map((field) => field.slug), ...discovery.displayFieldSlugs],
+		options.collectionId,
+	);
 
 	if (!row) return { success: false, error: "CONTENT_NOT_FOUND" };
 	const collectionId = readString(row[CONTENT_COLLECTION_ID_RESULT]);
@@ -86,7 +98,9 @@ export async function loadContentMediaUsageSnapshots(
 	});
 	const columnsRevisionId = readNullableString(row.live_revision_id);
 	const columnsSource = buildContentSource({
+		collectionId: options.collectionId,
 		collectionSlug,
+		identityVersion: options.identityVersion,
 		row,
 		displayData,
 		sourceVariant: "columns",
@@ -109,7 +123,9 @@ export async function loadContentMediaUsageSnapshots(
 	const draftRevisionId = readNullableString(row.draft_revision_id);
 	if (draftRevisionId) {
 		const attemptedDraftSource = buildContentSource({
+			collectionId: options.collectionId,
 			collectionSlug,
+			identityVersion: options.identityVersion,
 			row,
 			displayData,
 			sourceVariant: "draft_overlay",
@@ -155,7 +171,9 @@ export async function loadContentMediaUsageSnapshots(
 			data: draftOverlayData,
 		});
 		const draftSource = buildContentSource({
+			collectionId: options.collectionId,
 			collectionSlug,
+			identityVersion: options.identityVersion,
 			row,
 			displayData: draftDisplayData,
 			sourceVariant: "draft_overlay",
@@ -193,6 +211,7 @@ async function loadContentRow(
 	collectionSlug: string,
 	contentId: string,
 	fieldSlugs: readonly string[],
+	expectedCollectionId?: string,
 ): Promise<Record<string, unknown> | null> {
 	const tableName = getContentTableName(collectionSlug);
 	const columns = uniqueColumns([...CONTENT_SYSTEM_COLUMNS, ...fieldSlugs]);
@@ -204,6 +223,7 @@ async function loadContentRow(
 		FROM ${sql.ref(tableName)} AS content
 		INNER JOIN _emdash_collections AS collection
 			ON collection.slug = ${collectionSlug}
+			${expectedCollectionId ? sql`AND collection.id = ${expectedCollectionId}` : sql``}
 		WHERE content.id = ${contentId}
 		LIMIT 1
 	`.execute(db);
@@ -235,23 +255,35 @@ async function loadRevisionRow(
 }
 
 function buildContentSource(input: {
+	collectionId?: string;
 	collectionSlug: string;
+	identityVersion?: number;
 	row: Record<string, unknown>;
 	displayData: Record<string, unknown>;
 	sourceVariant: MediaUsageContentSourceVariant;
 	revisionId: string | null;
 	contentSlug?: string | null;
 }): MediaUsageSourceInput {
-	const { collectionSlug, row, displayData, sourceVariant, revisionId } = input;
+	const {
+		collectionId,
+		collectionSlug,
+		identityVersion,
+		row,
+		displayData,
+		sourceVariant,
+		revisionId,
+	} = input;
 	const contentId = readString(row.id) ?? "";
 	const contentSlug = input.contentSlug ?? readNullableString(row.slug);
 	const source: MediaUsageSourceInput = {
 		sourceKey: buildContentMediaUsageSourceKey({
+			collectionId,
 			collectionSlug,
 			contentId,
 			sourceVariant,
 		}),
 		sourceType: "content",
+		collectionId,
 		collectionSlug,
 		contentId,
 		sourceVariant,
@@ -266,6 +298,7 @@ function buildContentSource(input: {
 		schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
 		sourceUpdatedAt: readNullableString(row.updated_at),
 		sourceVersion: readNumber(row.version),
+		identityVersion,
 	};
 	return source;
 }

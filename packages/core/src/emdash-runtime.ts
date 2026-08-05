@@ -46,6 +46,10 @@ import {
 	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
+import {
+	processDueMediaUsageWork,
+	processMediaUsageWorkAfterWrite,
+} from "./media/usage/work-processor.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
 import type {
 	SandboxedPluginInstance,
@@ -498,6 +502,17 @@ const marketplaceManifestCache = new Map<
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
 
+async function runScheduledMediaUsageWork(db: Kysely<Database>): Promise<void> {
+	try {
+		const result = await processDueMediaUsageWork(db);
+		if (result.candidateCount > 0) {
+			console.info("[media-usage:work] Scheduled processing", result);
+		}
+	} catch (error) {
+		console.error("[media-usage:work] Scheduled processing failed:", error);
+	}
+}
+
 /**
  * EmDashRuntime - singleton per worker
  */
@@ -682,6 +697,8 @@ export class EmDashRuntime {
 		} catch (error) {
 			console.error("[cleanup] System cleanup failed:", error);
 		}
+
+		await runScheduledMediaUsageWork(this.db);
 
 		// Never throws; no-op unless scheduled backups are enabled and due.
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
@@ -1612,6 +1629,7 @@ export class EmDashRuntime {
 							// by runSystemCleanup. This catches unexpected errors.
 							console.error("[cleanup] System cleanup failed:", error);
 						}
+						await runScheduledMediaUsageWork(db);
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
 					});
@@ -3330,7 +3348,10 @@ export class EmDashRuntime {
 	): Promise<void> {
 		for (const contentId of new Set(contentIds)) {
 			try {
-				await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
+				const work = await processMediaUsageWorkAfterWrite(this.db, collection, contentId);
+				if (work.outcome === "inactive") {
+					await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
+				}
 			} catch (error) {
 				console.error(
 					`[media-usage] Failed after content write ${collection}/${contentId}:`,
@@ -3345,6 +3366,8 @@ export class EmDashRuntime {
 		contentId: string,
 	): Promise<void> {
 		try {
+			const work = await processMediaUsageWorkAfterWrite(this.db, collection, contentId);
+			if (work.outcome !== "inactive") return;
 			const result = await deleteContentMediaUsage(this.db, collection, contentId);
 			if (!result.success) {
 				console.error(
