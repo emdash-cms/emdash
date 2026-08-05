@@ -388,7 +388,7 @@ export function ApiTokenSettings() {
 												revokeMutation.reset();
 												setRevokeConfirmId(token.id);
 											}}
-											aria-label={t(msg`Revoke token`)}
+											aria-label={t`Revoke token ${token.name}`}
 										>
 											{t(msg`Revoke token`)}
 										</Button>

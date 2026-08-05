@@ -174,7 +174,7 @@ describe("ApiTokenSettings", () => {
 		const screen = await renderApiTokenSettings();
 		await expect.element(screen.getByText("CI token")).toBeInTheDocument();
 
-		await userEvent.click(screen.getByRole("button", { name: "Revoke token" }));
+		await userEvent.click(screen.getByRole("button", { name: "Revoke token CI token" }));
 		await expect.element(screen.getByRole("heading", { name: "Revoke?" })).toBeInTheDocument();
 		expect(mockRevokeApiToken).not.toHaveBeenCalled();
 		screen.getByRole("button", { name: "Confirm" }).element().click();
@@ -190,7 +190,7 @@ describe("ApiTokenSettings", () => {
 		const screen = await renderApiTokenSettings();
 		await expect.element(screen.getByText("CI token")).toBeInTheDocument();
 
-		await userEvent.click(screen.getByRole("button", { name: "Revoke token" }));
+		await userEvent.click(screen.getByRole("button", { name: "Revoke token CI token" }));
 		screen.getByRole("button", { name: "Confirm" }).element().click();
 
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Token is still in use");

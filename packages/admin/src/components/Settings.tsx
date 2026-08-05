@@ -1,4 +1,4 @@
-import { Combobox } from "@cloudflare/kumo";
+import { Combobox, inputVariants } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Gear,
@@ -10,6 +10,7 @@ import {
 	Key,
 	Envelope,
 	DownloadSimple,
+	CaretDown,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -126,14 +127,15 @@ export function Settings() {
 								itemToStringValue={(option) => option.label}
 								onValueChange={(option) => option && setLocale(option.code)}
 							>
-								<Combobox.TriggerValue className="w-full sm:w-48">
-									{(option) => (
-										<>
-											<span className="sr-only">{t`Language`}</span>
-											{option?.label ?? t`Select`}
-										</>
-									)}
-								</Combobox.TriggerValue>
+								<Combobox.Trigger
+									aria-label={t`Language`}
+									className={`${inputVariants()} relative flex w-full items-center pe-8 text-start sm:w-48`}
+								>
+									<Combobox.Value>{(option) => option?.label ?? t`Select`}</Combobox.Value>
+									<Combobox.Icon className="absolute end-2 top-1/2 flex -translate-y-1/2 items-center text-kumo-subtle">
+										<CaretDown className="h-4 w-4" aria-hidden="true" />
+									</Combobox.Icon>
+								</Combobox.Trigger>
 								<Combobox.Content>
 									<Combobox.Input aria-label={t`Search`} placeholder={t`Search`} />
 									<Combobox.Empty>{t`No results found`}</Combobox.Empty>

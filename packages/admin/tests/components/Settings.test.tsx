@@ -113,7 +113,7 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 
-		await userEvent.click(screen.getByRole("combobox"));
+		await userEvent.click(screen.getByRole("combobox", { name: "Language", exact: true }));
 		await screen.getByRole("combobox", { name: "Search" }).fill("Portu");
 		await userEvent.click(screen.getByRole("option", { name: "Português (Brasil)" }));
 
