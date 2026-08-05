@@ -137,9 +137,7 @@ describe("ContentSettingsPanel", () => {
 
 	it("shows the normalized pending changes label", async () => {
 		const screen = await render(
-			<ContentSettingsPanel
-				{...makePanelProps({ isLive: true, hasPendingChanges: true })}
-			/>,
+			<ContentSettingsPanel {...makePanelProps({ isLive: true, hasPendingChanges: true })} />,
 		);
 
 		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
@@ -156,9 +154,7 @@ describe("ContentSettingsPanel", () => {
 
 	it("normalizes recognized statuses for collections without draft support", async () => {
 		const screen = await render(
-			<ContentSettingsPanel
-				{...makePanelProps({ status: "published", supportsDrafts: false })}
-			/>,
+			<ContentSettingsPanel {...makePanelProps({ status: "published", supportsDrafts: false })} />,
 		);
 		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
 
@@ -169,9 +165,7 @@ describe("ContentSettingsPanel", () => {
 
 	it("preserves custom statuses for collections without draft support", async () => {
 		const screen = await render(
-			<ContentSettingsPanel
-				{...makePanelProps({ status: "reviewing", supportsDrafts: false })}
-			/>,
+			<ContentSettingsPanel {...makePanelProps({ status: "reviewing", supportsDrafts: false })} />,
 		);
 		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
 

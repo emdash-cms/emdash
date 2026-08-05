@@ -10,14 +10,7 @@ import {
 	Text,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ArrowSquareOut,
-	Eye,
-	EyeSlash,
-	Trash,
-	Upload,
-	X,
-} from "@phosphor-icons/react";
+import { ArrowSquareOut, Eye, EyeSlash, Trash, Upload, X } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";

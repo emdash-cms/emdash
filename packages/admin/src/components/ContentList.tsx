@@ -764,9 +764,7 @@ function FilterBar({
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
 				renderValue={(v) =>
-					renderStatusLabel(
-						typeof v === "string" && Object.hasOwn(statusItems, v) ? v : "all",
-					)
+					renderStatusLabel(typeof v === "string" && Object.hasOwn(statusItems, v) ? v : "all")
 				}
 				items={statusItems}
 			>

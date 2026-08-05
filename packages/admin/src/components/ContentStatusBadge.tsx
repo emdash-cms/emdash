@@ -81,10 +81,7 @@ export function ContentStatusLabel({ state, className }: ContentStatusProps) {
 
 	return (
 		<span className={cn("inline-flex items-center gap-1.5", className)}>
-			<Icon
-				className={cn("h-3.5 w-3.5", CONTENT_STATUS_ICON_COLORS[state])}
-				aria-hidden="true"
-			/>
+			<Icon className={cn("h-3.5 w-3.5", CONTENT_STATUS_ICON_COLORS[state])} aria-hidden="true" />
 			{label}
 		</span>
 	);
@@ -106,7 +103,11 @@ export interface ContentStatusIconProps extends ContentStatusProps {
 	decorative?: boolean;
 }
 
-export function ContentStatusIcon({ state, className, decorative = false }: ContentStatusIconProps) {
+export function ContentStatusIcon({
+	state,
+	className,
+	decorative = false,
+}: ContentStatusIconProps) {
 	const label = useContentStatusLabel(state);
 	const Icon = CONTENT_STATUS_ICONS[state];
 
