@@ -4,7 +4,7 @@
  * Allows admins to list, create, and revoke Personal Access Tokens.
  */
 
-import { Banner, Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
+import { Banner, Button, Checkbox, Input, Loader, Select, Tooltip } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -121,7 +121,7 @@ function computeExpiryDate(option: string): string | undefined {
 // =============================================================================
 
 export function ApiTokenSettings() {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const [showCreateForm, setShowCreateForm] = React.useState(false);
 	const [newToken, setNewToken] = React.useState<ApiTokenCreateResult | null>(null);
@@ -239,8 +239,8 @@ export function ApiTokenSettings() {
 				>
 					{newToken && (
 						<SettingRow className="bg-kumo-success-tint">
-							<div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-								<div className="flex min-w-0 flex-1 items-start gap-3">
+							<div className="grid gap-4">
+								<div className="flex items-start gap-3">
 									<span
 										className="h-lh flex shrink-0 items-center text-kumo-success"
 										aria-hidden="true"
@@ -251,47 +251,57 @@ export function ApiTokenSettings() {
 										<p className="text-sm font-medium text-kumo-success">
 											{t`Token created: ${newToken.info.name}`}
 										</p>
-										<p className="mt-1 text-sm leading-5 text-kumo-subtle">
+										<p className="mt-0.5 text-sm leading-5 text-kumo-subtle">
 											{t`Copy this token now — it won't be shown again.`}
 										</p>
-										<div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-											<code className="min-w-0 flex-1 truncate rounded border border-kumo-line bg-kumo-base px-3 py-2 font-mono text-[0.9em]">
-												{tokenVisible ? newToken.token : "••••••••••••••••••••••••••••"}
-											</code>
-											<div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
+									</div>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="shrink-0"
+										onClick={() => setNewToken(null)}
+									>
+										{t`Dismiss`}
+									</Button>
+								</div>
+								<div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:ps-8">
+									<code className="flex min-h-10 min-w-0 flex-1 select-all items-center overflow-hidden break-all rounded border border-kumo-line bg-kumo-base px-3 py-2 font-mono text-[0.9em] leading-5">
+										{tokenVisible ? newToken.token : "••••••••••••••••••••••••••••"}
+									</code>
+									<div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
+										<Tooltip
+											content={tokenVisible ? t`Hide token` : t`Show token`}
+											render={
 												<Button
 													variant="ghost"
 													shape="square"
+													size="sm"
 													onClick={() => setTokenVisible(!tokenVisible)}
 													aria-label={tokenVisible ? t`Hide token` : t`Show token`}
-												>
-													{tokenVisible ? <EyeSlash /> : <Eye />}
-												</Button>
+													icon={tokenVisible ? <EyeSlash /> : <Eye />}
+												/>
+											}
+										/>
+										<Tooltip
+											content={t`Copy token`}
+											render={
 												<Button
 													variant="ghost"
 													shape="square"
+													size="sm"
 													onClick={handleCopyToken}
 													aria-label={t`Copy token`}
-												>
-													<Copy />
-												</Button>
-											</div>
-										</div>
-										{copied && (
-											<p className="mt-1 text-sm text-kumo-success" role="status">
-												{t`Copied to clipboard`}
-											</p>
-										)}
+													icon={<Copy />}
+												/>
+											}
+										/>
 									</div>
 								</div>
-								<Button
-									variant="ghost"
-									size="sm"
-									className="self-end sm:self-start"
-									onClick={() => setNewToken(null)}
-								>
-									{t`Dismiss`}
-								</Button>
+								{copied && (
+									<p className="text-sm text-kumo-success sm:ps-8" role="status">
+										{t`Copied to clipboard`}
+									</p>
+								)}
 							</div>
 						</SettingRow>
 					)}
@@ -326,39 +336,62 @@ export function ApiTokenSettings() {
 					{tokens && tokens.length > 0 ? (
 						tokens.map((token) => (
 							<SettingRow key={token.id}>
-								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-									<div className="min-w-0">
+								<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+									<div className="min-w-0 flex-1">
 										<div className="flex min-w-0 flex-wrap items-center gap-2">
 											<span className="truncate text-sm font-medium">{token.name}</span>
-											<code className="rounded bg-kumo-tint px-1.5 py-0.5 font-mono text-[0.8em] text-kumo-subtle">
+											<code className="rounded bg-kumo-tint px-1.5 py-0.5 font-mono text-[0.9em] text-kumo-subtle">
 												{token.prefix}...
 											</code>
 										</div>
-										<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm leading-5 text-kumo-subtle">
-											<span>{t`Scopes: ${token.scopes.join(", ")}`}</span>
-											{token.expiresAt && (
-												<span>{t`Expires ${new Date(token.expiresAt).toLocaleDateString()}`}</span>
-											)}
-											{token.lastUsedAt && (
-												<span>{t`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`}</span>
-											)}
-										</div>
-										<div className="text-sm leading-5 text-kumo-subtle">
-											{t`Created ${new Date(token.createdAt).toLocaleDateString()}`}
-										</div>
+										<dl className="mt-2 grid gap-1 text-sm leading-5">
+											<div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:gap-2">
+												<dt className="shrink-0 font-medium">{t`Permissions`}</dt>
+												<dd className="min-w-0 break-words text-kumo-subtle">
+													{token.scopes.join(", ")}
+												</dd>
+											</div>
+											<div className="flex flex-wrap gap-x-4 gap-y-1 text-kumo-subtle">
+												<div className="flex gap-1.5">
+													<dt>{t`Created`}</dt>
+													<dd className="tabular-nums">
+														{i18n.date(new Date(token.createdAt), { dateStyle: "medium" })}
+													</dd>
+												</div>
+												{token.expiresAt && (
+													<div className="flex gap-1.5">
+														<dt>{t`Expires`}</dt>
+														<dd className="tabular-nums">
+															{i18n.date(new Date(token.expiresAt), { dateStyle: "medium" })}
+														</dd>
+													</div>
+												)}
+												{token.lastUsedAt && (
+													<div className="flex gap-1.5">
+														<dt>{t`Last used`}</dt>
+														<dd className="tabular-nums">
+															{i18n.date(new Date(token.lastUsedAt), { dateStyle: "medium" })}
+														</dd>
+													</div>
+												)}
+											</div>
+										</dl>
 									</div>
-									<Button
-										variant="ghost"
-										shape="square"
-										className="self-end sm:self-auto"
-										onClick={() => {
-											revokeMutation.reset();
-											setRevokeConfirmId(token.id);
-										}}
-										aria-label={t`Revoke ${token.name}`}
-									>
-										<Trash className="h-4 w-4 text-kumo-danger" />
-									</Button>
+									<div className="flex shrink-0 justify-end">
+										<Button
+											variant="ghost"
+											size="sm"
+											icon={<Trash />}
+											className="text-kumo-danger"
+											onClick={() => {
+												revokeMutation.reset();
+												setRevokeConfirmId(token.id);
+											}}
+											aria-label={t`Revoke ${token.name}`}
+										>
+											{t`Revoke`}
+										</Button>
+									</div>
 								</div>
 							</SettingRow>
 						))
