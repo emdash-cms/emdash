@@ -60,7 +60,7 @@ msgstr "(از {0})"
 msgid "(pre-release)"
 msgstr ""
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:156
+#: packages/admin/src/components/settings/PasskeyItem.tsx:151
 msgid "(synced)"
 msgstr "(همگام‌شده)"
 
@@ -91,7 +91,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1467
+#: packages/admin/src/router.tsx:1484
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr ""
 
@@ -189,12 +189,12 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr ""
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:164
+#: packages/admin/src/components/Dashboard.tsx:179
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr ""
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:168
+#: packages/admin/src/components/Dashboard.tsx:183
 msgid "{0, plural, one {User} other {Users}}"
 msgstr ""
 
@@ -258,17 +258,17 @@ msgid "{0} items will be imported"
 msgstr "{0} مورد درون‌ریزی خواهد شد"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:535
+#: packages/admin/src/router.tsx:536
 msgid "{0} of {total} could not be deleted"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:491
+#: packages/admin/src/router.tsx:492
 msgid "{0} of {total} could not be published"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:514
+#: packages/admin/src/router.tsx:515
 msgid "{0} of {total} could not be updated"
 msgstr ""
 
@@ -335,7 +335,7 @@ msgstr "{current} از {total}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:933
+#: packages/admin/src/components/ContentList.tsx:945
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr ""
 
@@ -347,7 +347,7 @@ msgstr "{label} — بدون ترجمه"
 msgid "{label} — view translation"
 msgstr "{label} — مشاهده ترجمه"
 
-#: packages/admin/src/components/ContentList.tsx:922
+#: packages/admin/src/components/ContentList.tsx:934
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr ""
 
@@ -385,15 +385,15 @@ msgstr ""
 msgid "{resultCount, plural, one {# item} other {# items}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:405
+#: packages/admin/src/components/ContentList.tsx:411
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:446
+#: packages/admin/src/components/ContentList.tsx:453
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:928
+#: packages/admin/src/components/ContentList.tsx:940
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -411,11 +411,11 @@ msgstr "{total, plural, one {فایل بارگذاری شد} other {# فایل �
 msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
 msgstr "{total, plural, one {بارگذاری ناموفق بود} other {هر # بارگذاری ناموفق بود}}"
 
-#: packages/admin/src/components/Dashboard.tsx:152
+#: packages/admin/src/components/Dashboard.tsx:167
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:158
+#: packages/admin/src/components/Dashboard.tsx:173
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr ""
 
@@ -551,7 +551,7 @@ msgstr ""
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:142
+#: packages/admin/src/components/settings/GeneralSettings.tsx:176
 msgid "A short description of your site"
 msgstr "توضیح کوتاهی درباره وبسایت شما"
 
@@ -571,7 +571,7 @@ msgstr ""
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1487
+#: packages/admin/src/router.tsx:1504
 msgid "Access Denied"
 msgstr ""
 
@@ -601,8 +601,8 @@ msgid "ACF Fields"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:300
-#: packages/admin/src/components/ContentList.tsx:528
-#: packages/admin/src/components/ContentList.tsx:649
+#: packages/admin/src/components/ContentList.tsx:535
+#: packages/admin/src/components/ContentList.tsx:656
 #: packages/admin/src/components/ContentTypeList.tsx:108
 #: packages/admin/src/components/TaxonomyManager.tsx:845
 #: packages/admin/src/routes/byline-schema.tsx:249
@@ -615,7 +615,7 @@ msgid "Active"
 msgstr "فعال"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentSettingsPanel.tsx:871
+#: packages/admin/src/components/ContentSettingsPanel.tsx:919
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/TaxonomySidebar.tsx:496
 msgid "Add"
@@ -633,13 +633,9 @@ msgstr ""
 msgid "Add {label}"
 msgstr "افزودن {label}"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:177
+#: packages/admin/src/components/settings/SecuritySettings.tsx:160
 msgid "Add a new passkey"
 msgstr "افزودن شاه‌کلید جدید"
-
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:271
-msgid "Add an allowed domain"
-msgstr "افزودن دامنه مجاز"
 
 #: packages/admin/src/components/FieldEditor.tsx:544
 msgid "Add at least one sub-field to define the repeater structure."
@@ -664,8 +660,8 @@ msgstr "افزودن محتوا"
 msgid "Add Custom Link"
 msgstr "افزودن لینک سفارشی"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:316
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:211
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:306
 msgid "Add Domain"
 msgstr "افزودن دامنه"
 
@@ -723,7 +719,7 @@ msgstr "لینک‌ها را برای ساخت فهرست ناوبری خود ب
 msgid "Add MIME type or extension"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:342
+#: packages/admin/src/components/ContentList.tsx:348
 msgid "Add New"
 msgstr "افزودن جدید"
 
@@ -736,7 +732,7 @@ msgstr "افزودن {0} جدید"
 msgid "Add noindex meta tag"
 msgstr "افزودن تگ متای noindex"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:200
+#: packages/admin/src/components/settings/SecuritySettings.tsx:187
 msgid "Add Passkey"
 msgstr "افزودن شاه‌کلید"
 
@@ -768,12 +764,12 @@ msgstr "افزودن برچسب‌ها..."
 msgid "Add Widget Area"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:102
+#: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "پروفایل‌های شبکه‌های اجتماعی خود را بیفزایید. این‌ها برای قالب وبسایت شما در دسترس هستند و می‌توانند در هدر، فوتر یا بیوگرافی نگارنده نمایش داده شوند."
 
 #: packages/admin/src/components/MenuEditor.tsx:441
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:306
 msgid "Adding..."
 msgstr "در حال افزودن..."
 
@@ -799,7 +795,7 @@ msgstr "ناوبری مدیریت"
 msgid "Administrator"
 msgstr "مدیر"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:196
+#: packages/admin/src/components/settings/EmailSettings.tsx:191
 msgid "After send:"
 msgstr "پس از ارسال:"
 
@@ -833,12 +829,12 @@ msgstr ""
 msgid "Alignment"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:369
+#: packages/admin/src/components/ContentList.tsx:375
 msgid "All"
 msgstr "همه"
 
-#: packages/admin/src/components/ContentList.tsx:773
-#: packages/admin/src/components/ContentList.tsx:777
+#: packages/admin/src/components/ContentList.tsx:785
+#: packages/admin/src/components/ContentList.tsx:789
 msgid "All authors"
 msgstr ""
 
@@ -875,7 +871,7 @@ msgstr "همه نقش‌ها"
 msgid "All Sources"
 msgstr "همه منابع"
 
-#: packages/admin/src/components/ContentList.tsx:728
+#: packages/admin/src/components/ContentList.tsx:735
 #: packages/admin/src/components/Redirects.tsx:421
 msgid "All statuses"
 msgstr "همه وضعیت‌ها"
@@ -889,7 +885,8 @@ msgstr "همه انواع"
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:100
+#: packages/admin/src/components/Settings.tsx:77
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:150
 msgid "Allow users from specific domains to sign up"
 msgstr "اجازه ثبت‌نام کاربران از دامنه‌های خاص"
 
@@ -897,7 +894,7 @@ msgstr "اجازه ثبت‌نام کاربران از دامنه‌های خا�
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:195
 msgid "Allowed Domains"
 msgstr "دامنه‌های مجاز"
 
@@ -940,36 +937,47 @@ msgstr "همچنین می‌توانید از وردپرس برون‌ریزی �
 #: packages/admin/src/components/PluginManager.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:121
 #: packages/admin/src/components/PluginSettings.tsx:75
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:95
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
-#: packages/admin/src/components/settings/BackupSettings.tsx:85
-#: packages/admin/src/components/settings/BackupSettings.tsx:105
-#: packages/admin/src/components/settings/EmailSettings.tsx:51
-#: packages/admin/src/components/settings/GeneralSettings.tsx:51
-#: packages/admin/src/components/settings/SecuritySettings.tsx:54
-#: packages/admin/src/components/settings/SecuritySettings.tsx:71
-#: packages/admin/src/components/settings/SeoSettings.tsx:45
-#: packages/admin/src/components/settings/SocialSettings.tsx:43
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:76
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:99
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:116
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:216
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:217
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:475
+#: packages/admin/src/components/settings/BackupSettings.tsx:103
+#: packages/admin/src/components/settings/BackupSettings.tsx:123
+#: packages/admin/src/components/settings/BackupSettings.tsx:166
+#: packages/admin/src/components/settings/EmailSettings.tsx:45
+#: packages/admin/src/components/settings/GeneralSettings.tsx:78
+#: packages/admin/src/components/settings/GeneralSettings.tsx:140
+#: packages/admin/src/components/settings/GeneralSettings.tsx:141
+#: packages/admin/src/components/settings/SecuritySettings.tsx:51
+#: packages/admin/src/components/settings/SecuritySettings.tsx:67
+#: packages/admin/src/components/settings/SecuritySettings.tsx:124
+#: packages/admin/src/components/settings/SeoSettings.tsx:77
+#: packages/admin/src/components/settings/SeoSettings.tsx:139
+#: packages/admin/src/components/settings/SeoSettings.tsx:140
+#: packages/admin/src/components/settings/SocialSettings.tsx:67
+#: packages/admin/src/components/settings/SocialSettings.tsx:111
+#: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/TaxonomySidebar.tsx:370
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:423
-#: packages/admin/src/router.tsx:438
-#: packages/admin/src/router.tsx:452
-#: packages/admin/src/router.tsx:466
-#: packages/admin/src/router.tsx:943
-#: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:1014
-#: packages/admin/src/router.tsx:1032
-#: packages/admin/src/router.tsx:1053
-#: packages/admin/src/router.tsx:1074
-#: packages/admin/src/router.tsx:1095
-#: packages/admin/src/router.tsx:1126
-#: packages/admin/src/router.tsx:1146
-#: packages/admin/src/router.tsx:1432
-#: packages/admin/src/router.tsx:1448
-#: packages/admin/src/router.tsx:1473
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:424
+#: packages/admin/src/router.tsx:439
+#: packages/admin/src/router.tsx:453
+#: packages/admin/src/router.tsx:467
+#: packages/admin/src/router.tsx:944
+#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:1023
+#: packages/admin/src/router.tsx:1041
+#: packages/admin/src/router.tsx:1062
+#: packages/admin/src/router.tsx:1083
+#: packages/admin/src/router.tsx:1104
+#: packages/admin/src/router.tsx:1135
+#: packages/admin/src/router.tsx:1155
+#: packages/admin/src/router.tsx:1449
+#: packages/admin/src/router.tsx:1465
+#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1979
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -997,8 +1005,10 @@ msgstr "در حال تحلیل وبسایت وردپرس..."
 msgid "Any media type allowed (subject to global limits)."
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
+#: packages/admin/src/components/Settings.tsx:82
+#: packages/admin/src/components/Settings.tsx:86
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:194
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:332
 msgid "API Tokens"
 msgstr "توکن‌های API"
 
@@ -1042,12 +1052,8 @@ msgstr "تأییدشده"
 msgid "Arbitrary JSON data"
 msgstr "داده JSON دلخواه"
 
-#: packages/admin/src/components/ContentList.tsx:1166
-msgid "archived"
-msgstr "بایگانی‌شده"
-
-#: packages/admin/src/components/ContentList.tsx:732
-#: packages/admin/src/components/Dashboard.tsx:355
+#: packages/admin/src/components/ContentList.tsx:739
+#: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr ""
 
@@ -1107,7 +1113,7 @@ msgid "Authentication failed"
 msgstr ""
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/SecuritySettings.tsx:120
+#: packages/admin/src/components/settings/SecuritySettings.tsx:111
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
 msgstr "احراز هویت توسط ارائه‌دهنده خارجی ({0}) مدیریت می‌شود. تنظیمات شاه‌کلید هنگام استفاده از احراز هویت خارجی در دسترس نیست."
 
@@ -1117,7 +1123,7 @@ msgstr "احراز هویت لغو شد یا زمان آن به پایان رس�
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:288
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1081
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1129
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1167,15 +1173,17 @@ msgstr ""
 msgid "Auto-generated from name (you can edit)"
 msgstr "به‌صورت خودکار از نام تولید شده (قابل ویرایش)"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:167
+#: packages/admin/src/components/settings/BackupSettings.tsx:204
+#: packages/admin/src/components/settings/BackupSettings.tsx:260
 msgid "Automatic Backups"
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:207
+#: packages/admin/src/components/settings/BackupSettings.tsx:261
+#: packages/admin/src/components/settings/BackupSettings.tsx:279
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:995
+#: packages/admin/src/router.tsx:1004
 msgid "Autosave failed"
 msgstr ""
 
@@ -1183,7 +1191,7 @@ msgstr ""
 msgid "Available media"
 msgstr "رسانه‌های موجود"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:205
+#: packages/admin/src/components/settings/EmailSettings.tsx:202
 msgid "Available Providers"
 msgstr "ارائه‌دهندگان موجود"
 
@@ -1203,7 +1211,7 @@ msgstr ""
 msgid "Back"
 msgstr "بازگشت"
 
-#: packages/admin/src/components/ContentEditor.tsx:636
+#: packages/admin/src/components/ContentEditor.tsx:642
 msgid "Back to {collectionLabel} list"
 msgstr "بازگشت به لیست {collectionLabel}"
 
@@ -1243,30 +1251,29 @@ msgstr "بازگشت به تنظیمات"
 msgid "Back to Themes"
 msgstr "بازگشت به قالب‌ها"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:199
+#: packages/admin/src/components/settings/BackupSettings.tsx:214
 msgid "Back up now"
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:199
+#: packages/admin/src/components/settings/BackupSettings.tsx:214
 msgid "Backing up..."
 msgstr ""
 
 #. placeholder {0}: archive.name
-#: packages/admin/src/components/settings/BackupSettings.tsx:97
+#: packages/admin/src/components/settings/BackupSettings.tsx:115
 msgid "Backup created: {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:80
+#: packages/admin/src/components/settings/BackupSettings.tsx:98
 msgid "Backup settings saved"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:122
-#: packages/admin/src/components/settings/BackupSettings.tsx:133
-#: packages/admin/src/components/settings/BackupSettings.tsx:148
+#: packages/admin/src/components/Settings.tsx:101
+#: packages/admin/src/components/settings/BackupSettings.tsx:143
 msgid "Backups"
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:182
+#: packages/admin/src/components/settings/BackupSettings.tsx:238
 msgid "Backups to keep"
 msgstr ""
 
@@ -1274,11 +1281,12 @@ msgstr ""
 msgid "Bash"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:191
+#: packages/admin/src/components/settings/EmailSettings.tsx:186
 msgid "Before send:"
 msgstr "قبل از ارسال:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:200
+#: packages/admin/src/components/settings/SeoSettings.tsx:233
+#: packages/admin/src/components/settings/SeoSettings.tsx:247
 msgid "Bing Verification"
 msgstr "تأیید بینگ"
 
@@ -1341,8 +1349,8 @@ msgstr ""
 msgid "Byline Schema"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:565
-#: packages/admin/src/components/ContentSettingsPanel.tsx:568
+#: packages/admin/src/components/ContentSettingsPanel.tsx:613
+#: packages/admin/src/components/ContentSettingsPanel.tsx:616
 #: packages/admin/src/components/Sidebar.tsx:242
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
@@ -1379,15 +1387,15 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:192
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentList.tsx:455
-#: packages/admin/src/components/ContentList.tsx:1054
-#: packages/admin/src/components/ContentList.tsx:1125
-#: packages/admin/src/components/ContentPickerModal.tsx:248
-#: packages/admin/src/components/ContentSettingsPanel.tsx:90
-#: packages/admin/src/components/ContentSettingsPanel.tsx:512
-#: packages/admin/src/components/ContentSettingsPanel.tsx:682
-#: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1038
+#: packages/admin/src/components/ContentList.tsx:462
+#: packages/admin/src/components/ContentList.tsx:1066
+#: packages/admin/src/components/ContentList.tsx:1137
+#: packages/admin/src/components/ContentPickerModal.tsx:241
+#: packages/admin/src/components/ContentSettingsPanel.tsx:92
+#: packages/admin/src/components/ContentSettingsPanel.tsx:534
+#: packages/admin/src/components/ContentSettingsPanel.tsx:730
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1033
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1086
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:193
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:194
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
@@ -1405,11 +1413,9 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:280
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:390
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:336
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:480
-#: packages/admin/src/components/settings/SecuritySettings.tsx:179
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/SecuritySettings.tsx:166
 #: packages/admin/src/components/TaxonomyManager.tsx:207
 #: packages/admin/src/components/TaxonomyManager.tsx:494
 #: packages/admin/src/components/TaxonomyManager.tsx:708
@@ -1423,7 +1429,7 @@ msgstr "لغو"
 msgid "Cancel (Esc)"
 msgstr ""
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:146
+#: packages/admin/src/components/settings/PasskeyItem.tsx:141
 msgid "Cancel rename"
 msgstr "لغو تغییر نام"
 
@@ -1479,7 +1485,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:1682
+#: packages/admin/src/components/ContentEditor.tsx:1690
 #: packages/admin/src/components/FieldEditor.tsx:402
 #: packages/admin/src/components/ImageFieldRenderer.tsx:133
 #: packages/admin/src/components/ImageFieldRenderer.tsx:162
@@ -1494,15 +1500,15 @@ msgstr "تغییر"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:239
+#: packages/admin/src/components/settings/GeneralSettings.tsx:280
 msgid "Change Favicon"
 msgstr "تغییر favicon"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:167
+#: packages/admin/src/components/settings/SeoSettings.tsx:203
 msgid "Change Image"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:185
+#: packages/admin/src/components/settings/GeneralSettings.tsx:220
 msgid "Change Logo"
 msgstr "تغییر لوگو"
 
@@ -1510,11 +1516,11 @@ msgstr "تغییر لوگو"
 msgid "Changelog"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1046
+#: packages/admin/src/router.tsx:1055
 msgid "Changes discarded"
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:129
+#: packages/admin/src/components/settings/SeoSettings.tsx:167
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "حرف جداکننده‌ی بین عنوان صفحه و نام وبسایت (مثلاً «نوشته من | وبسایت من»)"
 
@@ -1549,15 +1555,15 @@ msgstr ""
 msgid "Choose how to sign in"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:137
+#: packages/admin/src/components/Settings.tsx:119
 msgid "Choose your preferred admin language"
 msgstr "زبان مدیریت مورد نظر خود را انتخاب کنید"
 
-#: packages/admin/src/components/ContentList.tsx:481
+#: packages/admin/src/components/ContentList.tsx:488
 msgid "Clear"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:825
+#: packages/admin/src/components/ContentList.tsx:837
 #: packages/admin/src/components/MediaLibrary.tsx:497
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
@@ -1588,9 +1594,9 @@ msgstr "روی لینک ایمیل کلیک کنید تا وارد شوید."
 #: packages/admin/src/components/BylineFieldEditor.tsx:218
 #: packages/admin/src/components/BylineFieldEditor.tsx:222
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
-#: packages/admin/src/components/ContentPickerModal.tsx:120
-#: packages/admin/src/components/ContentPickerModal.tsx:126
-#: packages/admin/src/components/ContentPickerModal.tsx:130
+#: packages/admin/src/components/ContentPickerModal.tsx:121
+#: packages/admin/src/components/ContentPickerModal.tsx:127
+#: packages/admin/src/components/ContentPickerModal.tsx:131
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:227
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:229
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:412
@@ -1624,9 +1630,9 @@ msgstr "روی لینک ایمیل کلیک کنید تا وارد شوید."
 #: packages/admin/src/components/Sections.tsx:153
 #: packages/admin/src/components/Sections.tsx:159
 #: packages/admin/src/components/Sections.tsx:163
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:328
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:334
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:338
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
 #: packages/admin/src/components/TaxonomyManager.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:387
 #: packages/admin/src/components/TaxonomyManager.tsx:393
@@ -1657,7 +1663,7 @@ msgstr ""
 msgid "Close panel"
 msgstr "بستن پنل"
 
-#: packages/admin/src/components/ContentEditor.tsx:1053
+#: packages/admin/src/components/ContentEditor.tsx:1061
 msgid "Close settings"
 msgstr ""
 
@@ -1685,7 +1691,7 @@ msgstr "بستن جزئیات"
 msgid "colleague@example.com"
 msgstr "colleague@example.com"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:156
+#: packages/admin/src/components/ContentPickerModal.tsx:157
 msgid "Collection"
 msgstr ""
 
@@ -1740,7 +1746,7 @@ msgstr ""
 msgid "Configure Field"
 msgstr "پیکربندی فیلد"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:415
 msgid "Confirm"
 msgstr "تأیید"
 
@@ -1767,14 +1773,14 @@ msgstr "اتصال به وردپرس"
 msgid "Connected {0}"
 msgstr "متصل شده در {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:183
+#: packages/admin/src/components/ContentSettingsPanel.tsx:185
 msgid "content"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:294
-#: packages/admin/src/components/Dashboard.tsx:220
+#: packages/admin/src/components/Dashboard.tsx:235
 #: packages/admin/src/components/PortableTextEditor.tsx:2472
 #: packages/admin/src/components/SectionEditor.tsx:195
 #: packages/admin/src/components/Sidebar.tsx:365
@@ -1795,7 +1801,7 @@ msgstr "خطاهای محتوا ({0})"
 msgid "Content found:"
 msgstr "محتوای یافت‌شده:"
 
-#: packages/admin/src/router.tsx:1068
+#: packages/admin/src/router.tsx:1077
 msgid "Content has been scheduled for publishing"
 msgstr ""
 
@@ -1807,7 +1813,7 @@ msgstr "محتوا به بازبینی انتخاب‌شده به‌روزرسا
 msgid "Content ID:"
 msgstr "شناسه محتوا:"
 
-#: packages/admin/src/router.tsx:1009
+#: packages/admin/src/router.tsx:1018
 msgid "Content is now live"
 msgstr ""
 
@@ -1819,11 +1825,11 @@ msgstr "موارد محتوا"
 msgid "Content Read"
 msgstr "خواندن محتوا"
 
-#: packages/admin/src/router.tsx:1027
+#: packages/admin/src/router.tsx:1036
 msgid "Content removed from public view"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1089
+#: packages/admin/src/router.tsx:1098
 msgid "Content reverted to draft"
 msgstr ""
 
@@ -1867,7 +1873,7 @@ msgstr "ادامه درون‌ریزی"
 msgid "Contributor"
 msgstr "مشارکت‌کننده"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:234
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:304
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
 msgid "Copied to clipboard"
 msgstr "در کلیپ‌بورد کپی شد"
@@ -1885,11 +1891,12 @@ msgstr "کپی لینک دعوت"
 msgid "Copy slug"
 msgstr "کپی نامک"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:257
 msgid "Copy this token now — it won't be shown again."
 msgstr "این توکن را الان کپی کنید — دیگر نمایش داده نخواهد شد."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:288
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
 msgid "Copy token"
 msgstr "کپی توکن"
 
@@ -1903,7 +1910,7 @@ msgstr ""
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "کپی خودکار ممکن نبود. لطفاً آدرس بالا را انتخاب کرده و به‌صورت دستی کپی کنید."
 
-#: packages/admin/src/components/Dashboard.tsx:75
+#: packages/admin/src/components/Dashboard.tsx:90
 msgid "Could not load dashboard data"
 msgstr ""
 
@@ -1927,7 +1934,7 @@ msgstr ""
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:877
+#: packages/admin/src/components/ContentSettingsPanel.tsx:925
 msgid "Couldn't search bylines. Please try again."
 msgstr ""
 
@@ -1940,7 +1947,7 @@ msgstr ""
 msgid "Count"
 msgstr "تعداد"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1009
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1057
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
@@ -1976,7 +1983,7 @@ msgstr "ساخت حساب کاربری"
 msgid "Create an account"
 msgstr "ساخت حساب کاربری"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:957
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1005
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "ساخت نگارنده"
@@ -1998,7 +2005,7 @@ msgstr "ساخت فهرست"
 msgid "Create New Menu"
 msgstr "ساخت فهرستی جدید"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
 msgid "Create New Token"
 msgstr "ساخت توکن جدید"
 
@@ -2010,8 +2017,10 @@ msgstr "یکی در وردپرس بسازید: کاربران → نمایه →
 msgid "Create Passkey"
 msgstr "ساخت شاه‌کلید"
 
-#: packages/admin/src/components/Settings.tsx:111
+#: packages/admin/src/components/Settings.tsx:87
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:195
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:229
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:325
 msgid "Create personal access tokens for programmatic API access"
 msgstr "توکن‌های دسترسی شخصی برای دسترسی برنامه‌نویسی به API بسازید"
 
@@ -2046,8 +2055,8 @@ msgstr "بخش‌ها را در کتابخانه بخش‌ها بسازید تا
 msgid "Create Taxonomy"
 msgstr "ساخت دسته‌بندی"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:269
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:237
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:539
 msgid "Create Token"
 msgstr "ساخت توکن"
 
@@ -2063,7 +2072,7 @@ msgstr "حساب کاربری خود را بسازید"
 msgid "Create your first navigation menu to get started"
 msgstr "اولین فهرست ناوبری خود را بسازید تا شروع شود"
 
-#: packages/admin/src/components/ContentList.tsx:556
+#: packages/admin/src/components/ContentList.tsx:563
 #: packages/admin/src/components/ContentTypeList.tsx:124
 msgid "Create your first one"
 msgstr "اولین مورد خود را بسازید"
@@ -2094,8 +2103,9 @@ msgstr ""
 msgid "Create, update, delete content"
 msgstr "ساخت، به‌روزرسانی، حذف محتوا"
 
-#: packages/admin/src/components/ContentList.tsx:736
-#: packages/admin/src/components/ContentSettingsPanel.tsx:537
+#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentSettingsPanel.tsx:585
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:357
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "ساخته‌شده"
@@ -2106,14 +2116,12 @@ msgid "Created \"{0}\"."
 msgstr ""
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
-#. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr "ساخته شده در {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1120
+#: packages/admin/src/router.tsx:1129
 msgid "Created {0} translation"
 msgstr ""
 
@@ -2125,11 +2133,11 @@ msgstr "تاریخ ساخت"
 msgid "Creating collections and fields..."
 msgstr "در حال ساخت مجموعه‌ها و فیلدها..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1009
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1057
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:539
 #: packages/admin/src/components/TaxonomyManager.tsx:711
 #: packages/admin/src/components/TaxonomySidebar.tsx:308
 msgid "Creating..."
@@ -2159,7 +2167,7 @@ msgstr "سفارشی"
 msgid "Custom Fields"
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:210
+#: packages/admin/src/components/settings/SeoSettings.tsx:262
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "محتوای سفارشی robots.txt. برای استفاده از پیش‌فرض خالی بگذارید."
 
@@ -2171,7 +2179,7 @@ msgstr "بخش سفارشی"
 msgid "Custom Taxonomies"
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:176
+#: packages/admin/src/components/settings/BackupSettings.tsx:223
 msgid "Daily automatic backups"
 msgstr ""
 
@@ -2185,14 +2193,14 @@ msgstr "تیره"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:130
 #: packages/admin/src/components/ContentTypeList.tsx:246
-#: packages/admin/src/components/Dashboard.tsx:41
+#: packages/admin/src/components/Dashboard.tsx:56
 #: packages/admin/src/components/Sidebar.tsx:206
 #: packages/admin/src/components/Sidebar.tsx:356
 msgid "Dashboard"
 msgstr "داشبورد"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:297
-#: packages/admin/src/components/ContentList.tsx:525
+#: packages/admin/src/components/ContentList.tsx:532
 msgid "Date"
 msgstr "تاریخ"
 
@@ -2205,11 +2213,11 @@ msgstr "تاریخ و زمان"
 msgid "Date and time picker"
 msgstr "انتخابگر تاریخ و زمان"
 
-#: packages/admin/src/components/ContentList.tsx:790
+#: packages/admin/src/components/ContentList.tsx:802
 msgid "Date field to filter on"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:281
+#: packages/admin/src/components/settings/GeneralSettings.tsx:324
 msgid "Date Format"
 msgstr "قالب تاریخ"
 
@@ -2221,20 +2229,20 @@ msgstr "عدد اعشاری"
 msgid "Declared permissions"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:294
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:356
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:290
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:345
 msgid "Default Role"
 msgstr "نقش پیش‌فرض"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:233
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
 msgid "Default role:"
 msgstr "نقش پیش‌فرض:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:147
+#: packages/admin/src/components/settings/SeoSettings.tsx:181
 msgid "Default social image"
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:138
+#: packages/admin/src/components/settings/SeoSettings.tsx:172
 msgid "Default Social Image"
 msgstr ""
 
@@ -2268,7 +2276,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:585
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
-#: packages/admin/src/components/settings/BackupSettings.tsx:284
+#: packages/admin/src/components/settings/BackupSettings.tsx:352
 #: packages/admin/src/components/TaxonomyManager.tsx:908
 #: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
@@ -2287,8 +2295,8 @@ msgstr "حذف «{0}»؟ این عمل قابل بازگشت نیست."
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:229
 #: packages/admin/src/components/Sections.tsx:408
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:252
-#: packages/admin/src/components/settings/BackupSettings.tsx:245
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:266
+#: packages/admin/src/components/settings/BackupSettings.tsx:312
 #: packages/admin/src/components/TaxonomyManager.tsx:117
 #: packages/admin/src/components/Widgets.tsx:817
 #: packages/admin/src/routes/byline-schema.tsx:458
@@ -2315,7 +2323,7 @@ msgstr ""
 msgid "Delete {0}?"
 msgstr "حذف {0}؟"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:282
+#: packages/admin/src/components/settings/BackupSettings.tsx:350
 msgid "Delete backup?"
 msgstr ""
 
@@ -2375,11 +2383,11 @@ msgid "Delete permanently"
 msgstr "حذف دائمی"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1136
+#: packages/admin/src/components/ContentList.tsx:1148
 msgid "Delete Permanently"
 msgstr "حذف دائمی"
 
-#: packages/admin/src/components/ContentList.tsx:1116
+#: packages/admin/src/components/ContentList.tsx:1128
 msgid "Delete Permanently?"
 msgstr "حذف دائمی؟"
 
@@ -2412,7 +2420,7 @@ msgstr ""
 msgid "Delete Widget Area?"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:646
+#: packages/admin/src/components/ContentList.tsx:653
 msgid "Deleted"
 msgstr "حذف‌شده"
 
@@ -2430,7 +2438,7 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:259
 #: packages/admin/src/components/Redirects.tsx:586
 #: packages/admin/src/components/Sections.tsx:309
-#: packages/admin/src/components/settings/BackupSettings.tsx:285
+#: packages/admin/src/components/settings/BackupSettings.tsx:353
 #: packages/admin/src/components/TaxonomyManager.tsx:909
 #: packages/admin/src/components/Widgets.tsx:717
 #: packages/admin/src/routes/bylines.tsx:625
@@ -2518,7 +2526,7 @@ msgstr "کد دستگاه"
 msgid "Device-bound"
 msgstr "متصل به دستگاه"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:104
+#: packages/admin/src/components/settings/PasskeyItem.tsx:98
 msgid "Device-bound passkey"
 msgstr "شاه‌کلید متصل به دستگاه"
 
@@ -2582,8 +2590,8 @@ msgstr ""
 msgid "Discard"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:77
-#: packages/admin/src/components/ContentSettingsPanel.tsx:97
+#: packages/admin/src/components/ContentSettingsPanel.tsx:79
+#: packages/admin/src/components/ContentSettingsPanel.tsx:99
 msgid "Discard changes"
 msgstr "صرف‌نظر از تغییرات"
 
@@ -2591,7 +2599,7 @@ msgstr "صرف‌نظر از تغییرات"
 msgid "Discard changes?"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:82
+#: packages/admin/src/components/ContentSettingsPanel.tsx:84
 msgid "Discard draft changes?"
 msgstr "صرف‌نظر از تغییرات پیش‌نویس؟"
 
@@ -2599,8 +2607,7 @@ msgstr "صرف‌نظر از تغییرات پیش‌نویس؟"
 msgid "Discarding..."
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:241
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:243
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:266
 msgid "Dismiss"
 msgstr "رد کردن"
 
@@ -2616,8 +2623,8 @@ msgstr "نمایش فهرستی ناوبری"
 msgid "Display category list"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:960
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1008
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1070
 #: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "نام نمایشی"
@@ -2640,7 +2647,7 @@ msgstr ""
 msgid "Displayed below the image as a visible caption."
 msgstr "به‌عنوان زیرنویس قابل مشاهده زیر تصویر نمایش داده می‌شود."
 
-#: packages/admin/src/components/ContentEditor.tsx:697
+#: packages/admin/src/components/ContentEditor.tsx:703
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "حالت بدون حواس‌پرتی (⌘⇧\\)"
 
@@ -2657,19 +2664,19 @@ msgstr ""
 msgid "Documents"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:286
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:284
 msgid "Domain"
 msgstr "دامنه"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:66
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
 msgid "Domain added successfully"
 msgstr "دامنه با موفقیت افزوده شد"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:111
 msgid "Domain removed"
 msgstr "دامنه حذف شد"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:90
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:94
 msgid "Domain updated"
 msgstr "دامنه به‌روزرسانی شد"
 
@@ -2682,28 +2689,29 @@ msgstr "حساب کاربری ندارید؟ <0>ثبت‌نام</0>"
 msgid "Done"
 msgstr "انجام شد"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:903
+#: packages/admin/src/components/ContentSettingsPanel.tsx:951
 msgid "Down"
 msgstr "پایین"
 
 #. placeholder {0}: archive.name
-#: packages/admin/src/components/settings/BackupSettings.tsx:238
+#: packages/admin/src/components/settings/BackupSettings.tsx:304
 msgid "Download {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:158
+#: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:160
+#: packages/admin/src/components/settings/BackupSettings.tsx:195
 msgid "Download backup"
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:155
+#: packages/admin/src/components/settings/BackupSettings.tsx:187
 msgid "Download Backup"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:123
+#: packages/admin/src/components/Settings.tsx:102
+#: packages/admin/src/components/settings/BackupSettings.tsx:144
 msgid "Download backups and schedule automatic backups to storage"
 msgstr ""
 
@@ -2715,14 +2723,8 @@ msgstr ""
 msgid "Downloading"
 msgstr "در حال دریافت"
 
-#: packages/admin/src/components/ContentList.tsx:1162
-msgid "draft"
-msgstr "پیش‌نویس"
-
-#: packages/admin/src/components/ContentList.tsx:730
-#: packages/admin/src/components/ContentPickerModal.tsx:212
-#: packages/admin/src/components/ContentSettingsPanel.tsx:454
-#: packages/admin/src/components/Dashboard.tsx:351
+#: packages/admin/src/components/ContentList.tsx:737
+#: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "پیش‌نویس"
 
@@ -2731,7 +2733,7 @@ msgid "draft, published, or archived"
 msgstr "پیش‌نویس، منتشرشده یا بایگانی‌شده"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:254
+#: packages/admin/src/components/Dashboard.tsx:269
 msgid "Drafts"
 msgstr "پیش‌نویس‌ها"
 
@@ -2787,7 +2789,7 @@ msgstr "فایل برون‌ریزی وردپرس خود را اینجا رها 
 msgid "Duplicate"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1027
+#: packages/admin/src/components/ContentList.tsx:1039
 msgid "Duplicate {title}"
 msgstr "تکثیر {title}"
 
@@ -2799,7 +2801,7 @@ msgstr ""
 msgid "e.g. import, blog"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:483
 msgid "e.g., CI/CD Pipeline"
 msgstr "مثلاً CI/CD Pipeline"
 
@@ -2807,7 +2809,7 @@ msgstr "مثلاً CI/CD Pipeline"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "مثلاً MacBook Pro، iPhone"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:912
+#: packages/admin/src/components/ContentSettingsPanel.tsx:960
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
@@ -2822,7 +2824,7 @@ msgstr "ویرایش"
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:1655
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:243
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:254
 #: packages/admin/src/components/TaxonomyManager.tsx:109
 #: packages/admin/src/components/TaxonomyManager.tsx:377
 #: packages/admin/src/routes/byline-schema.tsx:449
@@ -2835,15 +2837,15 @@ msgstr "ویرایش {0}"
 msgid "Edit {0} field"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:643
+#: packages/admin/src/components/ContentEditor.tsx:649
 msgid "Edit {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1019
+#: packages/admin/src/components/ContentList.tsx:1031
 msgid "Edit {title}"
 msgstr "ویرایش {title}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1019
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1067
 msgid "Edit byline"
 msgstr "ویرایش نگارنده"
 
@@ -2851,7 +2853,7 @@ msgstr "ویرایش نگارنده"
 msgid "Edit byline field"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:331
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:321
 msgid "Edit Domain"
 msgstr "ویرایش دامنه"
 
@@ -2911,7 +2913,7 @@ msgid "em1.…"
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:62
-#: packages/admin/src/components/Settings.tsx:116
+#: packages/admin/src/components/Settings.tsx:95
 #: packages/admin/src/components/SignupPage.tsx:198
 #: packages/admin/src/components/users/UserDetail.tsx:154
 msgid "Email"
@@ -2932,20 +2934,20 @@ msgstr "آدرس ایمیل"
 msgid "Email is required"
 msgstr "ایمیل الزامی است"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:187
+#: packages/admin/src/components/settings/EmailSettings.tsx:183
 msgid "Email Middleware"
 msgstr "میان‌افزار ایمیل"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:99
+#: packages/admin/src/components/settings/EmailSettings.tsx:91
 msgid "Email Pipeline"
 msgstr "مسیر ایمیل"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:172
+#: packages/admin/src/components/settings/EmailSettings.tsx:165
 msgid "Email provider active"
 msgstr "ارائه‌دهنده ایمیل فعال"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:77
-#: packages/admin/src/components/settings/EmailSettings.tsx:92
+#: packages/admin/src/components/Settings.tsx:91
+#: packages/admin/src/components/settings/EmailSettings.tsx:58
 msgid "Email Settings"
 msgstr "تنظیمات ایمیل"
 
@@ -3012,7 +3014,7 @@ msgstr "فعال"
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "یک آدرس (https://…) یا یک مسیر نسبی (/…) وارد کنید"
 
-#: packages/admin/src/components/ContentEditor.tsx:1460
+#: packages/admin/src/components/ContentEditor.tsx:1468
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "یک آدرس وب (URL) معتبر وارد کنید (مثلاً https://example.com)"
 
@@ -3020,7 +3022,7 @@ msgstr "یک آدرس وب (URL) معتبر وارد کنید (مثلاً https:
 msgid "Enter credentials manually"
 msgstr "اطلاعات ورود را به‌صورت دستی وارد کنید"
 
-#: packages/admin/src/components/ContentEditor.tsx:696
+#: packages/admin/src/components/ContentEditor.tsx:702
 msgid "Enter distraction-free mode"
 msgstr "ورود به حالت بدون حواس‌پرتی"
 
@@ -3032,7 +3034,7 @@ msgstr "ایمیل را وارد کنید"
 msgid "Enter HTML..."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1234
+#: packages/admin/src/components/ContentEditor.tsx:1242
 msgid "Enter markdown content..."
 msgstr "محتوای ی markdown را وارد کنید..."
 
@@ -3066,7 +3068,7 @@ msgstr "آدرس وبسایت (URL) وردپرس خود را وارد کنید"
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2176
+#: packages/admin/src/router.tsx:2193
 msgid "Error"
 msgstr "خطا"
 
@@ -3090,11 +3092,20 @@ msgstr ""
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr ""
 
+#. placeholder {0}: formData.dateFormat ?? "MMMM d, yyyy"
+#: packages/admin/src/components/settings/GeneralSettings.tsx:327
+msgid "Example: {0} → January 23, 2026"
+msgstr ""
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:285
+msgid "example.com"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2010
 msgid "Exists"
 msgstr "وجود دارد"
 
-#: packages/admin/src/components/ContentEditor.tsx:755
+#: packages/admin/src/components/ContentEditor.tsx:761
 msgid "Exit distraction-free mode"
 msgstr "خروج از حالت بدون حواس‌پرتی"
 
@@ -3110,12 +3121,8 @@ msgstr "باز کردن"
 msgid "Expand details"
 msgstr "باز کردن جزئیات"
 
-#. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
-msgid "Expires {0}"
-msgstr "انقضا در {0}"
-
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:364
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:525
 msgid "Expiry"
 msgstr "انقضا"
 
@@ -3127,7 +3134,7 @@ msgstr "برون‌ریزی دستی از وردپرس"
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "محتوای خود را از وردپرس برون‌ریزی کنید تا همه چیز شامل پیش‌نویس‌ها درون‌ریزی شود."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:118
+#: packages/admin/src/components/settings/SocialSettings.tsx:155
 msgid "Facebook"
 msgstr "فیسبوک"
 
@@ -3143,11 +3150,11 @@ msgstr "ناموفق"
 msgid "Failed security audit"
 msgstr "بررسی امنیتی ناموفق"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:70
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:75
 msgid "Failed to add domain"
 msgstr "افزودن دامنه ناموفق بود"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:188
+#: packages/admin/src/components/settings/SecuritySettings.tsx:175
 msgid "Failed to add passkey"
 msgstr ""
 
@@ -3167,12 +3174,12 @@ msgstr ""
 msgid "Failed to create admin"
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:104
+#: packages/admin/src/components/settings/BackupSettings.tsx:122
 #: packages/admin/src/lib/api/backups.ts:51
 msgid "Failed to create backup"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1051
 msgid "Failed to create byline"
 msgstr "ساخت نگارنده ناموفق بود"
 
@@ -3196,14 +3203,14 @@ msgstr "ساخت برخی مجموعه‌ها ناموفق بود"
 msgid "Failed to create term"
 msgstr "ساخت اصطلاح ناموفق بود"
 
-#: packages/admin/src/router.tsx:1125
+#: packages/admin/src/router.tsx:1134
 msgid "Failed to create translation"
 msgstr ""
 
-#: packages/admin/src/router.tsx:422
-#: packages/admin/src/router.tsx:451
-#: packages/admin/src/router.tsx:534
-#: packages/admin/src/router.tsx:1145
+#: packages/admin/src/router.tsx:423
+#: packages/admin/src/router.tsx:452
+#: packages/admin/src/router.tsx:535
+#: packages/admin/src/router.tsx:1154
 msgid "Failed to delete"
 msgstr ""
 
@@ -3228,11 +3235,11 @@ msgid "Failed to delete collection"
 msgstr ""
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1447
+#: packages/admin/src/router.tsx:1464
 msgid "Failed to delete comment"
 msgstr ""
 
-#: packages/admin/src/lib/api/content.ts:279
+#: packages/admin/src/lib/api/content.ts:280
 msgid "Failed to delete content"
 msgstr ""
 
@@ -3294,7 +3301,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1052
+#: packages/admin/src/router.tsx:1061
 msgid "Failed to discard changes"
 msgstr ""
 
@@ -3302,7 +3309,7 @@ msgstr ""
 msgid "Failed to dismiss welcome"
 msgstr ""
 
-#: packages/admin/src/router.tsx:465
+#: packages/admin/src/router.tsx:466
 msgid "Failed to duplicate"
 msgstr ""
 
@@ -3381,8 +3388,8 @@ msgstr ""
 msgid "Failed to fetch provider media"
 msgstr ""
 
-#: packages/admin/src/lib/api/content.ts:556
-#: packages/admin/src/lib/api/content.ts:561
+#: packages/admin/src/lib/api/content.ts:557
+#: packages/admin/src/lib/api/content.ts:562
 msgid "Failed to fetch revision"
 msgstr ""
 
@@ -3409,8 +3416,8 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:852
-#: packages/admin/src/router.tsx:1378
+#: packages/admin/src/router.tsx:853
+#: packages/admin/src/router.tsx:1395
 msgid "Failed to fetch user"
 msgstr ""
 
@@ -3452,15 +3459,16 @@ msgstr ""
 msgid "Failed to list byline fields"
 msgstr ""
 
-#: packages/admin/src/router.tsx:282
+#: packages/admin/src/router.tsx:283
 msgid "Failed to load admin"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:192
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:184
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:185
 msgid "Failed to load allowed domains"
 msgstr "بارگذاری دامنه‌های مجاز ناموفق بود"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:135
+#: packages/admin/src/components/settings/BackupSettings.tsx:165
 msgid "Failed to load backup settings"
 msgstr ""
 
@@ -3469,6 +3477,7 @@ msgstr ""
 msgid "Failed to load bylines: {0}"
 msgstr ""
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:80
 #: packages/admin/src/components/settings/EmailSettings.tsx:81
 msgid "Failed to load email settings"
 msgstr "بارگذاری تنظیمات ایمیل ناموفق بود"
@@ -3477,7 +3486,7 @@ msgstr "بارگذاری تنظیمات ایمیل ناموفق بود"
 msgid "Failed to load image"
 msgstr ""
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:135
+#: packages/admin/src/components/settings/SecuritySettings.tsx:123
 msgid "Failed to load passkeys"
 msgstr "بارگذاری شاه‌کلیدها ناموفق بود"
 
@@ -3519,11 +3528,11 @@ msgstr ""
 msgid "Failed to load widget"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1472
+#: packages/admin/src/router.tsx:1489
 msgid "Failed to perform bulk action"
 msgstr ""
 
-#: packages/admin/src/lib/api/content.ts:322
+#: packages/admin/src/lib/api/content.ts:323
 msgid "Failed to permanently delete content"
 msgstr ""
 
@@ -3531,8 +3540,8 @@ msgstr ""
 msgid "Failed to prepare import"
 msgstr ""
 
-#: packages/admin/src/router.tsx:490
-#: packages/admin/src/router.tsx:1013
+#: packages/admin/src/router.tsx:491
+#: packages/admin/src/router.tsx:1022
 msgid "Failed to publish"
 msgstr ""
 
@@ -3540,16 +3549,16 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:112
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:115
 msgid "Failed to remove domain"
 msgstr "حذف دامنه ناموفق بود"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:99
-#: packages/admin/src/components/settings/SecuritySettings.tsx:70
+#: packages/admin/src/components/settings/PasskeyItem.tsx:93
+#: packages/admin/src/components/settings/SecuritySettings.tsx:66
 msgid "Failed to remove passkey"
 msgstr "حذف شاه‌کلید ناموفق بود"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:53
+#: packages/admin/src/components/settings/SecuritySettings.tsx:50
 msgid "Failed to rename passkey"
 msgstr "تغییر نام شاه‌کلید ناموفق بود"
 
@@ -3566,16 +3575,16 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr ""
 
-#: packages/admin/src/router.tsx:437
+#: packages/admin/src/router.tsx:438
 msgid "Failed to restore"
 msgstr ""
 
-#: packages/admin/src/lib/api/content.ts:311
+#: packages/admin/src/lib/api/content.ts:312
 msgid "Failed to restore content"
 msgstr ""
 
-#: packages/admin/src/lib/api/content.ts:578
-#: packages/admin/src/lib/api/content.ts:583
+#: packages/admin/src/lib/api/content.ts:579
+#: packages/admin/src/lib/api/content.ts:584
 msgid "Failed to restore revision"
 msgstr ""
 
@@ -3587,12 +3596,12 @@ msgstr ""
 msgid "Failed to rewrite URLs"
 msgstr ""
 
-#: packages/admin/src/router.tsx:942
-#: packages/admin/src/router.tsx:1961
+#: packages/admin/src/router.tsx:943
+#: packages/admin/src/router.tsx:1978
 msgid "Failed to save"
 msgstr "ذخیره ناموفق بود"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:84
+#: packages/admin/src/components/settings/BackupSettings.tsx:102
 msgid "Failed to save backup settings"
 msgstr ""
 
@@ -3601,13 +3610,13 @@ msgid "Failed to save field"
 msgstr ""
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:50
-#: packages/admin/src/components/settings/SeoSettings.tsx:44
-#: packages/admin/src/components/settings/SocialSettings.tsx:42
+#: packages/admin/src/components/settings/GeneralSettings.tsx:77
+#: packages/admin/src/components/settings/SeoSettings.tsx:76
+#: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
 msgstr "ذخیره تنظیمات ناموفق بود"
 
-#: packages/admin/src/router.tsx:1073
+#: packages/admin/src/router.tsx:1082
 msgid "Failed to schedule"
 msgstr ""
 
@@ -3620,7 +3629,7 @@ msgstr "ارسال لینک جادویی ناموفق بود"
 msgid "Failed to send recovery link"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:50
+#: packages/admin/src/components/settings/EmailSettings.tsx:44
 #: packages/admin/src/lib/api/email-settings.ts:45
 msgid "Failed to send test email"
 msgstr "ارسال ایمیل آزمایشی ناموفق بود"
@@ -3638,15 +3647,15 @@ msgstr ""
 msgid "Failed to uninstall plugin"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1031
+#: packages/admin/src/router.tsx:1040
 msgid "Failed to unpublish"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1094
+#: packages/admin/src/router.tsx:1103
 msgid "Failed to unschedule"
 msgstr ""
 
-#: packages/admin/src/router.tsx:513
+#: packages/admin/src/router.tsx:514
 msgid "Failed to update"
 msgstr ""
 
@@ -3659,7 +3668,7 @@ msgstr "به‌روزرسانی {0} ناموفق بود"
 msgid "Failed to update backup settings"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1053
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1101
 msgid "Failed to update byline"
 msgstr "به‌روزرسانی نگارنده ناموفق بود"
 
@@ -3667,7 +3676,7 @@ msgstr "به‌روزرسانی نگارنده ناموفق بود"
 msgid "Failed to update byline field"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:94
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:98
 msgid "Failed to update domain"
 msgstr "به‌روزرسانی دامنه ناموفق بود"
 
@@ -3696,7 +3705,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1431
+#: packages/admin/src/router.tsx:1448
 msgid "Failed to update status"
 msgstr ""
 
@@ -3724,8 +3733,8 @@ msgstr ""
 msgid "FAQ"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:213
-#: packages/admin/src/components/settings/GeneralSettings.tsx:219
+#: packages/admin/src/components/settings/GeneralSettings.tsx:251
+#: packages/admin/src/components/settings/GeneralSettings.tsx:258
 msgid "Favicon"
 msgstr "فاوآیکون"
 
@@ -3809,7 +3818,7 @@ msgstr "نام فایل پس از بارگذاری قابل تغییر نیست"
 msgid "files imported"
 msgstr "فایل‌ها درون‌ریزی شد"
 
-#: packages/admin/src/components/ContentList.tsx:769
+#: packages/admin/src/components/ContentList.tsx:781
 msgid "Filter by author"
 msgstr ""
 
@@ -3829,7 +3838,7 @@ msgstr ""
 msgid "Filter by source"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:754
+#: packages/admin/src/components/ContentList.tsx:763
 #: packages/admin/src/components/Redirects.tsx:422
 msgid "Filter by status"
 msgstr ""
@@ -3859,7 +3868,7 @@ msgstr "برای درون‌ریزی کامل شامل پیش‌نویس‌ها 
 msgid "For the best import experience, install the"
 msgstr "برای بهترین تجربه درون‌ریزی، نصب کنید"
 
-#: packages/admin/src/components/ContentList.tsx:806
+#: packages/admin/src/components/ContentList.tsx:818
 msgid "From date"
 msgstr ""
 
@@ -3886,12 +3895,11 @@ msgstr ""
 msgid "Gallery settings"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:70
+#: packages/admin/src/components/Settings.tsx:48
 msgid "General"
 msgstr "عمومی"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:96
-#: packages/admin/src/components/settings/GeneralSettings.tsx:124
+#: packages/admin/src/components/settings/GeneralSettings.tsx:118
 msgid "General Settings"
 msgstr "تنظیمات عمومی"
 
@@ -3903,7 +3911,7 @@ msgstr ""
 msgid "Get Started"
 msgstr "شروع کنید"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:112
+#: packages/admin/src/components/settings/SocialSettings.tsx:147
 msgid "GitHub"
 msgstr "گیت‌هاب"
 
@@ -3916,11 +3924,12 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2196
+#: packages/admin/src/router.tsx:2213
 msgid "Go to Dashboard"
 msgstr "رفتن به داشبورد"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:194
+#: packages/admin/src/components/settings/SeoSettings.tsx:233
+#: packages/admin/src/components/settings/SeoSettings.tsx:239
 msgid "Google Verification"
 msgstr "تأیید گوگل"
 
@@ -4007,7 +4016,8 @@ msgstr ""
 msgid "Hide from search engines"
 msgstr "مخفی‌کردن از موتورهای جستجو"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:220
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:275
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Hide token"
 msgstr "مخفی‌کردن توکن"
 
@@ -4302,7 +4312,7 @@ msgstr ""
 msgid "Insert Section"
 msgstr "درج بخش"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:124
+#: packages/admin/src/components/settings/SocialSettings.tsx:163
 msgid "Instagram"
 msgstr "اینستاگرام"
 
@@ -4311,7 +4321,7 @@ msgstr "اینستاگرام"
 msgid "Install"
 msgstr "نصب"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:155
+#: packages/admin/src/components/settings/EmailSettings.tsx:147
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "افزونه ارائه‌دهنده ایمیل را نصب و فعال کنید تا قابلیت‌های ایمیلی مانند دعوت‌ها، لینک‌های جادویی و بازیابی گذرواژه فعال شوند."
 
@@ -4356,7 +4366,7 @@ msgstr "عدد صحیح"
 msgid "Invalid invite link"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1529
+#: packages/admin/src/components/ContentEditor.tsx:1537
 msgid "Invalid JSON"
 msgstr "JSON نامعتبر"
 
@@ -4389,7 +4399,7 @@ msgstr ""
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:454
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:516
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
@@ -4450,7 +4460,7 @@ msgstr ""
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:882
+#: packages/admin/src/components/ContentSettingsPanel.tsx:930
 msgid "Keep typing to narrow down more bylines."
 msgstr ""
 
@@ -4486,8 +4496,9 @@ msgstr ""
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:162
 #: packages/admin/src/components/LoginPage.tsx:347
-#: packages/admin/src/components/Settings.tsx:136
-#: packages/admin/src/components/Settings.tsx:141
+#: packages/admin/src/components/Settings.tsx:107
+#: packages/admin/src/components/Settings.tsx:117
+#: packages/admin/src/components/Settings.tsx:131
 msgid "Language"
 msgstr "زبان"
 
@@ -4515,18 +4526,17 @@ msgstr "آخرین مشاهده"
 msgid "Last updated"
 msgstr "آخرین به‌روزرسانی"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:159
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:372
+#: packages/admin/src/components/settings/PasskeyItem.tsx:154
 msgid "Last used"
 msgstr "آخرین استفاده"
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
-#. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:303
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "آخرین استفاده {0}"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:274
+#: packages/admin/src/components/settings/BackupSettings.tsx:337
 msgid "Learn more"
 msgstr ""
 
@@ -4587,7 +4597,7 @@ msgstr ""
 msgid "Linked user"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:130
+#: packages/admin/src/components/settings/SocialSettings.tsx:171
 msgid "LinkedIn"
 msgstr "لینکدین"
 
@@ -4599,13 +4609,13 @@ msgstr "لینک‌ها"
 msgid "List view"
 msgstr "نمای لیستی"
 
-#: packages/admin/src/components/ContentEditor.tsx:677
-#: packages/admin/src/components/ContentEditor.tsx:720
-#: packages/admin/src/components/ContentSettingsPanel.tsx:256
+#: packages/admin/src/components/ContentEditor.tsx:683
+#: packages/admin/src/components/ContentEditor.tsx:726
+#: packages/admin/src/components/ContentSettingsPanel.tsx:258
 msgid "Live View"
 msgstr "نمای زنده"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:236
+#: packages/admin/src/components/ContentPickerModal.tsx:229
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -4613,15 +4623,15 @@ msgstr "نمای زنده"
 msgid "Load more"
 msgstr "بارگذاری بیشتر"
 
-#: packages/admin/src/components/ContentList.tsx:630
-#: packages/admin/src/components/ContentList.tsx:687
+#: packages/admin/src/components/ContentList.tsx:637
+#: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/users/UserList.tsx:169
 msgid "Load More"
 msgstr "بارگذاری بیشتر"
 
-#: packages/admin/src/router.tsx:2151
+#: packages/admin/src/router.tsx:2168
 msgid "Loading"
 msgstr ""
 
@@ -4637,12 +4647,12 @@ msgstr "در حال بارگذاری مجموعه‌ها..."
 msgid "Loading comments..."
 msgstr "در حال بارگذاری دیدگاه‌ها..."
 
-#: packages/admin/src/router.tsx:2153
-#: packages/admin/src/router.tsx:2165
+#: packages/admin/src/router.tsx:2170
+#: packages/admin/src/router.tsx:2182
 msgid "Loading configuration..."
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:164
+#: packages/admin/src/components/ContentPickerModal.tsx:165
 msgid "Loading content..."
 msgstr "در حال بارگذاری محتوا..."
 
@@ -4672,9 +4682,9 @@ msgid "Loading sections..."
 msgstr "در حال بارگذاری بخش‌ها..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:99
-#: packages/admin/src/components/settings/SeoSettings.tsx:93
-#: packages/admin/src/components/settings/SocialSettings.tsx:73
+#: packages/admin/src/components/settings/GeneralSettings.tsx:129
+#: packages/admin/src/components/settings/SeoSettings.tsx:128
+#: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
 msgstr "در حال بارگذاری تنظیمات..."
 
@@ -4690,18 +4700,21 @@ msgstr "در حال بارگذاری اصطلاحات..."
 msgid "Loading widgets..."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:538
-#: packages/admin/src/components/ContentList.tsx:630
-#: packages/admin/src/components/ContentList.tsx:659
-#: packages/admin/src/components/ContentList.tsx:687
-#: packages/admin/src/components/ContentPickerModal.tsx:233
+#: packages/admin/src/components/ContentList.tsx:545
+#: packages/admin/src/components/ContentList.tsx:637
+#: packages/admin/src/components/ContentList.tsx:666
+#: packages/admin/src/components/ContentList.tsx:694
+#: packages/admin/src/components/ContentPickerModal.tsx:226
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/PortableTextEditor.tsx:2163
 #: packages/admin/src/components/RegistryBrowse.tsx:146
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:161
-#: packages/admin/src/components/settings/SecuritySettings.tsx:104
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:160
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
+#: packages/admin/src/components/settings/BackupSettings.tsx:154
+#: packages/admin/src/components/settings/EmailSettings.tsx:69
+#: packages/admin/src/components/settings/SecuritySettings.tsx:99
 #: packages/admin/src/components/TaxonomyManager.tsx:803
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
@@ -4711,7 +4724,7 @@ msgstr ""
 msgid "Loading..."
 msgstr "در حال بارگذاری..."
 
-#: packages/admin/src/components/ContentList.tsx:518
+#: packages/admin/src/components/ContentList.tsx:525
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "منطقه"
@@ -4731,8 +4744,8 @@ msgstr ""
 msgid "Log out"
 msgstr "خروج"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:159
-#: packages/admin/src/components/settings/GeneralSettings.tsx:165
+#: packages/admin/src/components/settings/GeneralSettings.tsx:191
+#: packages/admin/src/components/settings/GeneralSettings.tsx:198
 msgid "Logo"
 msgstr "لوگو"
 
@@ -4781,7 +4794,7 @@ msgstr "مدیریت"
 msgid "Manage {0} for {1}"
 msgstr "مدیریت {0} برای {1}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:844
+#: packages/admin/src/components/ContentSettingsPanel.tsx:892
 msgid "Manage bylines in {entryLocale}"
 msgstr ""
 
@@ -4801,7 +4814,8 @@ msgstr "مدیریت فهرستهای ناوبری وبسایت شما"
 msgid "Manage URL redirects and view 404 errors."
 msgstr "مدیریت    تغییر مسیر‌های آدرس و مشاهده خطاهای ۴۰۴."
 
-#: packages/admin/src/components/Settings.tsx:94
+#: packages/admin/src/components/Settings.tsx:71
+#: packages/admin/src/components/settings/SecuritySettings.tsx:89
 msgid "Manage your passkeys and authentication"
 msgstr "مدیریت شاه‌کلیدها و احراز هویت شما"
 
@@ -4986,11 +5000,11 @@ msgstr ""
 msgid "Meta Description"
 msgstr "توضیحات متا"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:203
+#: packages/admin/src/components/settings/SeoSettings.tsx:250
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "محتوای تگ متا برای تأیید ابزارهای وب‌مستر بینگ"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:197
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
 msgid "Meta tag content for Google Search Console verification"
 msgstr "محتوای تگ متا برای تأیید Google Search Console"
 
@@ -5026,10 +5040,6 @@ msgstr ""
 msgid "Moderation Signals"
 msgstr "سیگنال‌های تعدیل"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:211
-msgid "Modified"
-msgstr "تغییریافته"
-
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:72
 msgid "Modify collection schemas"
 msgstr "تغییر طرح‌های مجموعه"
@@ -5060,11 +5070,11 @@ msgstr ""
 msgid "Move \"{0}\" up"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1048
+#: packages/admin/src/components/ContentList.tsx:1060
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "انتقال «{title}» به سطل زباله؟ می‌توانید بعداً بازیابی کنید."
 
-#: packages/admin/src/components/ContentList.tsx:1039
+#: packages/admin/src/components/ContentList.tsx:1051
 msgid "Move {title} to trash"
 msgstr "انتقال {title} به سطل زباله"
 
@@ -5072,20 +5082,20 @@ msgstr "انتقال {title} به سطل زباله"
 msgid "Move down"
 msgstr "انتقال به پایین"
 
-#: packages/admin/src/components/ContentList.tsx:439
+#: packages/admin/src/components/ContentList.tsx:446
 msgid "Move to trash"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:466
-#: packages/admin/src/components/ContentList.tsx:1061
-#: packages/admin/src/components/ContentSettingsPanel.tsx:669
-#: packages/admin/src/components/ContentSettingsPanel.tsx:689
+#: packages/admin/src/components/ContentList.tsx:473
+#: packages/admin/src/components/ContentList.tsx:1073
+#: packages/admin/src/components/ContentSettingsPanel.tsx:717
+#: packages/admin/src/components/ContentSettingsPanel.tsx:737
 msgid "Move to Trash"
 msgstr "انتقال به سطل زباله"
 
-#: packages/admin/src/components/ContentList.tsx:444
-#: packages/admin/src/components/ContentList.tsx:1046
-#: packages/admin/src/components/ContentSettingsPanel.tsx:674
+#: packages/admin/src/components/ContentList.tsx:451
+#: packages/admin/src/components/ContentList.tsx:1058
+#: packages/admin/src/components/ContentSettingsPanel.tsx:722
 msgid "Move to Trash?"
 msgstr "انتقال به سطل زباله؟"
 
@@ -5093,11 +5103,11 @@ msgstr "انتقال به سطل زباله؟"
 msgid "Move up"
 msgstr "انتقال به بالا"
 
-#: packages/admin/src/router.tsx:510
+#: packages/admin/src/router.tsx:511
 msgid "Moved {total} items to draft"
 msgstr ""
 
-#: packages/admin/src/router.tsx:531
+#: packages/admin/src/router.tsx:532
 msgid "Moved {total} items to trash"
 msgstr ""
 
@@ -5146,7 +5156,7 @@ msgstr "ناوبری"
 msgid "Never"
 msgstr "هرگز"
 
-#: packages/admin/src/router.tsx:1120
+#: packages/admin/src/router.tsx:1129
 msgid "new"
 msgstr ""
 
@@ -5163,7 +5173,7 @@ msgstr "جدید"
 msgid "New {0}"
 msgstr "{0} جدید"
 
-#: packages/admin/src/components/ContentEditor.tsx:643
+#: packages/admin/src/components/ContentEditor.tsx:649
 msgid "New {itemLabel}"
 msgstr ""
 
@@ -5226,7 +5236,7 @@ msgid "Next"
 msgstr "بعدی"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:372
-#: packages/admin/src/components/ContentList.tsx:618
+#: packages/admin/src/components/ContentList.tsx:625
 msgid "Next page"
 msgstr "صفحه بعدی"
 
@@ -5249,7 +5259,7 @@ msgid "No {0} available."
 msgstr "{0} موجود نیست."
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/ContentList.tsx:556
 msgid "No {0} yet."
 msgstr "هنوز {0} موجود نیست."
 
@@ -5267,7 +5277,7 @@ msgstr "هنوز خطای ۴۰۴ ثبت نشده است."
 msgid "No alt text"
 msgstr "بدون متن جایگزین"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:281
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:401
 msgid "No API tokens yet. Create one to get started."
 msgstr "هنوز توکن API موجود نیست. برای شروع یکی بسازید."
 
@@ -5279,7 +5289,7 @@ msgstr "هنوز دیدگاه تأییدشده‌ای وجود ندارد."
 msgid "No byline fields yet."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:836
+#: packages/admin/src/components/ContentSettingsPanel.tsx:884
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr ""
 
@@ -5287,11 +5297,11 @@ msgstr ""
 msgid "No bylines found"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:944
+#: packages/admin/src/components/ContentSettingsPanel.tsx:992
 msgid "No bylines selected."
 msgstr "هیچ نگارنده‌ای انتخاب نشده."
 
-#: packages/admin/src/components/Dashboard.tsx:226
+#: packages/admin/src/components/Dashboard.tsx:241
 msgid "No collections configured"
 msgstr "مجموعه‌ای پیکربندی نشده"
 
@@ -5307,11 +5317,11 @@ msgstr "هیچ دیدگاهی با جستجوی شما مطابقت ندارد."
 msgid "No content"
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:171
+#: packages/admin/src/components/ContentPickerModal.tsx:172
 msgid "No content found"
 msgstr "محتوایی یافت نشد"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:177
+#: packages/admin/src/components/ContentPickerModal.tsx:178
 msgid "No content in this collection"
 msgstr "محتوایی در این مجموعه نیست"
 
@@ -5327,11 +5337,11 @@ msgstr ""
 msgid "No detailed description available."
 msgstr "توضیحات تفصیلی موجود نیست."
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:262
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:276
 msgid "No domains configured. Users must be invited individually."
 msgstr "دامنه‌ای پیکربندی نشده. کاربران باید به‌صورت جداگانه دعوت شوند."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:152
+#: packages/admin/src/components/settings/EmailSettings.tsx:144
 msgid "No email provider configured"
 msgstr "ارائه‌دهنده ایمیلی پیکربندی نشده"
 
@@ -5369,6 +5379,7 @@ msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1959
 #: packages/admin/src/components/RepeaterField.tsx:165
+#: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
 msgstr "هنوز موردی نیست"
 
@@ -5384,7 +5395,7 @@ msgstr ""
 msgid "No matches"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:879
+#: packages/admin/src/components/ContentSettingsPanel.tsx:927
 msgid "No matching bylines."
 msgstr ""
 
@@ -5440,7 +5451,7 @@ msgstr ""
 msgid "No passkeys registered"
 msgstr "شاه‌کلیدی ثبت نشده"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:168
+#: packages/admin/src/components/settings/SecuritySettings.tsx:154
 msgid "No passkeys registered yet."
 msgstr "هنوز شاه‌کلیدی ثبت نشده."
 
@@ -5468,7 +5479,7 @@ msgstr "بدون پیش‌نمایش"
 msgid "No public URL available"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:305
+#: packages/admin/src/components/Dashboard.tsx:320
 msgid "No recent activity"
 msgstr "فعالیت اخیری نیست"
 
@@ -5481,8 +5492,8 @@ msgstr "هنوز    تغییر مسیری نیست"
 msgid "No results"
 msgstr "بدون نتایج"
 
-#: packages/admin/src/components/ContentList.tsx:546
-#: packages/admin/src/components/ContentList.tsx:565
+#: packages/admin/src/components/ContentList.tsx:553
+#: packages/admin/src/components/ContentList.tsx:572
 msgid "No results for \"{activeSearch}\""
 msgstr ""
 
@@ -5492,6 +5503,7 @@ msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "نتیجه‌ای برای «{debouncedQuery}» یافت نشد. عبارت جستجوی دیگری را امتحان کنید."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:465
+#: packages/admin/src/components/Settings.tsx:141
 msgid "No results found"
 msgstr "نتیجه‌ای یافت نشد"
 
@@ -5558,7 +5570,7 @@ msgstr "عدد"
 msgid "Number of posts"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:278
+#: packages/admin/src/components/settings/GeneralSettings.tsx:319
 msgid "Number of posts to show per page on list views"
 msgstr "تعداد نوشته‌ها برای نمایش در هر صفحه در نمای لیستی"
 
@@ -5684,7 +5696,7 @@ msgstr "ترتیب ذخیره شد"
 msgid "Original:"
 msgstr "اصلی:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:636
+#: packages/admin/src/components/ContentSettingsPanel.tsx:684
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "فهرست مطالب"
@@ -5693,8 +5705,8 @@ msgstr "فهرست مطالب"
 msgid "Overrides the page title in search engine results"
 msgstr "عنوان صفحه را در نتایج موتورهای جستجو بازنویسی می‌کند"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:550
-#: packages/admin/src/components/ContentSettingsPanel.tsx:553
+#: packages/admin/src/components/ContentSettingsPanel.tsx:598
+#: packages/admin/src/components/ContentSettingsPanel.tsx:601
 msgid "Ownership"
 msgstr "مالکیت"
 
@@ -5702,7 +5714,7 @@ msgstr "مالکیت"
 msgid "Package"
 msgstr "بسته"
 
-#: packages/admin/src/router.tsx:2191
+#: packages/admin/src/router.tsx:2208
 msgid "Page Not Found"
 msgstr ""
 
@@ -5733,11 +5745,12 @@ msgstr ""
 msgid "Pass"
 msgstr "موفق"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:89
+#: packages/admin/src/components/settings/SecuritySettings.tsx:85
 msgid "Passkey added successfully"
 msgstr "شاه‌کلید با موفقیت افزوده شد"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:129
+#: packages/admin/src/components/settings/PasskeyItem.tsx:123
+#: packages/admin/src/components/settings/PasskeyItem.tsx:124
 msgid "Passkey name"
 msgstr "نام شاه‌کلید"
 
@@ -5749,15 +5762,15 @@ msgstr "نام شاه‌کلید (اختیاری)"
 msgid "Passkey registered successfully!"
 msgstr "شاه‌کلید با موفقیت ثبت شد!"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:66
+#: packages/admin/src/components/settings/SecuritySettings.tsx:62
 msgid "Passkey removed"
 msgstr "شاه‌کلید حذف شد"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:49
+#: packages/admin/src/components/settings/SecuritySettings.tsx:46
 msgid "Passkey renamed"
 msgstr "نام شاه‌کلید تغییر کرد"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:150
+#: packages/admin/src/components/settings/SecuritySettings.tsx:135
 #: packages/admin/src/components/users/UserList.tsx:110
 msgid "Passkeys"
 msgstr "شاه‌کلیدها"
@@ -5767,7 +5780,7 @@ msgstr "شاه‌کلیدها"
 msgid "Passkeys ({0})"
 msgstr "شاه‌کلیدها ({0})"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:154
+#: packages/admin/src/components/settings/SecuritySettings.tsx:136
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "شاه‌کلیدها روشی امن و بدون گذرواژه برای ورود به حساب کاربری شما هستند. می‌توانید چندین شاه‌کلید برای دستگاه‌های مختلف ثبت کنید."
 
@@ -5817,24 +5830,22 @@ msgid "PDF"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:1185
 msgid "pending"
 msgstr "در انتظار"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:198
-#: packages/admin/src/components/Dashboard.tsx:353
 msgid "Pending"
 msgstr "در انتظار"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:453
+#: packages/admin/src/components/ContentStatusBadge.tsx:67
 msgid "Pending changes"
 msgstr "تغییرات در انتظار"
 
-#: packages/admin/src/components/ContentList.tsx:1119
+#: packages/admin/src/components/ContentList.tsx:1131
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "حذف دائمی «{title}»؟ این عمل قابل بازگشت نیست."
 
-#: packages/admin/src/components/ContentList.tsx:1108
+#: packages/admin/src/components/ContentList.tsx:1120
 msgid "Permanently delete {title}"
 msgstr "حذف دائمی {title}"
 
@@ -5951,7 +5962,8 @@ msgid "Plugin responded with {0}: {text}"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:452
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:511
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:514
 msgid "Plugin tools: {0}"
 msgstr ""
 
@@ -5980,7 +5992,7 @@ msgstr ""
 msgid "Plugins"
 msgstr "پلاگین‌ها"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:264
+#: packages/admin/src/components/settings/BackupSettings.tsx:327
 msgid "Point-in-Time Restore"
 msgstr ""
 
@@ -6001,7 +6013,7 @@ msgstr "نوشته‌ها"
 msgid "Posts & Pages"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:272
+#: packages/admin/src/components/settings/GeneralSettings.tsx:313
 msgid "Posts Per Page"
 msgstr "نوشته در هر صفحه"
 
@@ -6022,7 +6034,7 @@ msgstr "در حال آماده‌سازی دریافت فایل‌ها از ور
 msgid "Preparing..."
 msgstr "در حال آماده‌سازی..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:160
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaLibrary.tsx:585
 msgid "Preview"
@@ -6032,7 +6044,7 @@ msgstr "پیش‌نمایش"
 msgid "Preview content before publishing"
 msgstr "پیش‌نمایش محتوا قبل از انتشار"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:160
 msgid "Preview draft"
 msgstr "پیش‌نمایش پیش‌نویس"
 
@@ -6041,7 +6053,7 @@ msgid "Previous"
 msgstr "قبلی"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:353
-#: packages/admin/src/components/ContentList.tsx:606
+#: packages/admin/src/components/ContentList.tsx:613
 msgid "Previous page"
 msgstr "صفحه قبلی"
 
@@ -6053,39 +6065,31 @@ msgstr "تصویر قبلی"
 msgid "Primary Navigation"
 msgstr "ناوبری اصلی"
 
-#: packages/admin/src/components/Dashboard.tsx:354
+#: packages/admin/src/components/ContentStatusBadge.tsx:69
 msgid "Private"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:174
+#: packages/admin/src/components/settings/EmailSettings.tsx:167
 msgid "Provider:"
 msgstr "ارائه‌دهنده:"
 
-#: packages/admin/src/components/ContentList.tsx:415
-#: packages/admin/src/components/ContentSettingsPanel.tsx:435
-#: packages/admin/src/components/ContentSettingsPanel.tsx:438
+#: packages/admin/src/components/ContentList.tsx:422
+#: packages/admin/src/components/ContentList.tsx:736
+#: packages/admin/src/components/ContentSettingsPanel.tsx:191
+#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:455
+#: packages/admin/src/components/ContentSettingsPanel.tsx:458
+#: packages/admin/src/components/ContentStatusBadge.tsx:59
+#: packages/admin/src/components/Dashboard.tsx:263
 msgid "Publish"
 msgstr "انتشار"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:189
-msgid "Publish {itemLabel}"
+#: packages/admin/src/components/ContentSettingsPanel.tsx:555
+msgid "Publish date"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:196
-msgid "Publish updates"
-msgstr ""
-
-#: packages/admin/src/components/ContentList.tsx:1160
-msgid "published"
-msgstr "منتشرشده"
-
-#: packages/admin/src/components/ContentList.tsx:729
-#: packages/admin/src/components/ContentList.tsx:738
-#: packages/admin/src/components/ContentPickerModal.tsx:209
-#: packages/admin/src/components/ContentSettingsPanel.tsx:452
-#: packages/admin/src/components/Dashboard.tsx:248
-#: packages/admin/src/components/Dashboard.tsx:350
-#: packages/admin/src/router.tsx:1009
+#: packages/admin/src/components/ContentList.tsx:747
+#: packages/admin/src/router.tsx:1018
 msgid "Published"
 msgstr "منتشرشده"
 
@@ -6094,7 +6098,7 @@ msgstr "منتشرشده"
 msgid "Published {0}"
 msgstr "منتشرشده در {0}"
 
-#: packages/admin/src/router.tsx:487
+#: packages/admin/src/router.tsx:488
 msgid "Published {total} items"
 msgstr ""
 
@@ -6110,7 +6114,7 @@ msgstr ""
 msgid "Python"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:952
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1000
 msgid "Quick create byline"
 msgstr "ساخت سریع نگارنده"
 
@@ -6159,7 +6163,7 @@ msgstr ""
 msgid "Read your taxonomies and terms"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:269
+#: packages/admin/src/components/settings/GeneralSettings.tsx:310
 msgid "Reading"
 msgstr "خواندن"
 
@@ -6167,7 +6171,7 @@ msgstr "خواندن"
 msgid "Ready"
 msgstr "آماده"
 
-#: packages/admin/src/components/Dashboard.tsx:299
+#: packages/admin/src/components/Dashboard.tsx:314
 msgid "Recent Activity"
 msgstr "فعالیت‌های اخیر"
 
@@ -6180,7 +6184,7 @@ msgstr ""
 msgid "Recently Updated"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:118
+#: packages/admin/src/components/settings/EmailSettings.tsx:107
 msgid "Recipient email"
 msgstr "ایمیل گیرنده"
 
@@ -6211,11 +6215,11 @@ msgstr ""
 msgid "Reference"
 msgstr "ارجاع"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:228
+#: packages/admin/src/components/settings/GeneralSettings.tsx:269
 msgid "Referenced favicon unavailable."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:76
+#: packages/admin/src/components/Dashboard.tsx:91
 msgid "Refresh the page or try again."
 msgstr ""
 
@@ -6224,7 +6228,7 @@ msgid "Register"
 msgstr "ثبت‌نام"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:146
-#: packages/admin/src/components/settings/SecuritySettings.tsx:195
+#: packages/admin/src/components/settings/SecuritySettings.tsx:182
 msgid "Register Passkey"
 msgstr "ثبت شاه‌کلید"
 
@@ -6250,20 +6254,20 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentSettingsPanel.tsx:921
+#: packages/admin/src/components/ContentSettingsPanel.tsx:969
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/PortableTextEditor.tsx:3872
-#: packages/admin/src/components/settings/GeneralSettings.tsx:194
-#: packages/admin/src/components/settings/GeneralSettings.tsx:248
-#: packages/admin/src/components/settings/PasskeyItem.tsx:185
-#: packages/admin/src/components/settings/PasskeyItem.tsx:207
-#: packages/admin/src/components/settings/SeoSettings.tsx:176
+#: packages/admin/src/components/settings/GeneralSettings.tsx:229
+#: packages/admin/src/components/settings/GeneralSettings.tsx:289
+#: packages/admin/src/components/settings/PasskeyItem.tsx:180
+#: packages/admin/src/components/settings/PasskeyItem.tsx:202
+#: packages/admin/src/components/settings/SeoSettings.tsx:212
 msgid "Remove"
 msgstr "حذف"
 
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
-#: packages/admin/src/components/settings/PasskeyItem.tsx:186
+#: packages/admin/src/components/settings/PasskeyItem.tsx:181
 #: packages/admin/src/components/TaxonomySidebar.tsx:262
 msgid "Remove {0}"
 msgstr "حذف {0}"
@@ -6272,15 +6276,15 @@ msgstr "حذف {0}"
 msgid "Remove {entry}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1690
+#: packages/admin/src/components/ContentEditor.tsx:1698
 msgid "Remove {label}"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:397
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:379
 msgid "Remove Domain"
 msgstr "حذف دامنه"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:372
 msgid "Remove Domain?"
 msgstr "حذف دامنه؟"
 
@@ -6315,11 +6319,11 @@ msgstr "حذف مورد {0}"
 msgid "Remove link"
 msgstr ""
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:186
+#: packages/admin/src/components/settings/PasskeyItem.tsx:181
 msgid "Remove passkey"
 msgstr "حذف شاه‌کلید"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:201
+#: packages/admin/src/components/settings/PasskeyItem.tsx:196
 msgid "Remove passkey?"
 msgstr "حذف شاه‌کلید؟"
 
@@ -6332,20 +6336,21 @@ msgid "Remove this image from the document?"
 msgstr "این تصویر را از سند حذف کنید؟"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:200
-#: packages/admin/src/components/settings/PasskeyItem.tsx:208
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:380
+#: packages/admin/src/components/settings/PasskeyItem.tsx:203
 msgid "Removing..."
 msgstr "در حال حذف..."
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:174
+#: packages/admin/src/components/settings/PasskeyItem.tsx:169
 msgid "Rename"
 msgstr "تغییر نام"
 
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/settings/PasskeyItem.tsx:175
+#: packages/admin/src/components/settings/PasskeyItem.tsx:170
 msgid "Rename {0}"
 msgstr "تغییر نام {0}"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:175
+#: packages/admin/src/components/settings/PasskeyItem.tsx:170
 msgid "Rename passkey"
 msgstr "تغییر نام شاه‌کلید"
 
@@ -6423,7 +6428,7 @@ msgstr "بازنشانی به حالت اصلی"
 msgid "Restore"
 msgstr "بازیابی"
 
-#: packages/admin/src/components/ContentList.tsx:1096
+#: packages/admin/src/components/ContentList.tsx:1108
 msgid "Restore {title}"
 msgstr "بازیابی {title}"
 
@@ -6452,7 +6457,7 @@ msgstr "در حال بازیابی..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:2179
+#: packages/admin/src/router.tsx:2196
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "تلاش مجدد"
@@ -6461,7 +6466,7 @@ msgstr "تلاش مجدد"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "بلوک‌های محتوای قابل استفاده مجدد که می‌توانید در هر محتوایی درج کنید"
 
-#: packages/admin/src/router.tsx:1047
+#: packages/admin/src/router.tsx:1056
 msgid "Reverted to published version"
 msgstr ""
 
@@ -6477,21 +6482,28 @@ msgstr "بررسی مجوزهای جدید"
 msgid "Revision restored"
 msgstr "بازبینی بازیابی شد"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:644
+#: packages/admin/src/components/ContentSettingsPanel.tsx:692
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
 msgstr "بازبینی‌ها"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:344
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:189
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:192
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:393
 msgid "Revoke token"
 msgstr "لغو توکن"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:319
+#. placeholder {0}: token.name
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:391
+msgid "Revoke token {0}"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:413
 msgid "Revoke?"
 msgstr "لغو؟"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
 msgid "Revoking..."
 msgstr "در حال لغو..."
 
@@ -6516,6 +6528,11 @@ msgstr ""
 msgid "Risk score: {0}/100"
 msgstr "امتیاز ریسک: {0}/۱۰۰"
 
+#: packages/admin/src/components/settings/SeoSettings.tsx:255
+#: packages/admin/src/components/settings/SeoSettings.tsx:258
+msgid "robots.txt"
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:164
 #: packages/admin/src/components/users/UserDetail.tsx:169
 #: packages/admin/src/components/users/UserDetail.tsx:181
@@ -6527,7 +6544,7 @@ msgstr "نقش"
 msgid "Role {role}"
 msgstr "نقش {role}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:926
+#: packages/admin/src/components/ContentSettingsPanel.tsx:974
 msgid "Role label"
 msgstr "برچسب نقش"
 
@@ -6553,7 +6570,7 @@ msgstr ""
 msgid "Same window"
 msgstr "همین پنجره"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1107
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
@@ -6562,7 +6579,6 @@ msgstr "همین پنجره"
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/SaveButton.tsx:32
-#: packages/admin/src/components/settings/BackupSettings.tsx:192
 #: packages/admin/src/components/Widgets.tsx:983
 #: packages/admin/src/routes/bylines.tsx:579
 msgid "Save"
@@ -6588,26 +6604,14 @@ msgstr "ذخیره تغییرات"
 msgid "Save content as draft before publishing"
 msgstr "ذخیره محتوا به‌عنوان پیش‌نویس قبل از انتشار"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:137
+#: packages/admin/src/components/settings/PasskeyItem.tsx:132
 msgid "Save name"
 msgstr "ذخیره نام"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:111
-#: packages/admin/src/components/settings/SeoSettings.tsx:218
-msgid "Save SEO Settings"
-msgstr "ذخیره تنظیمات سئو"
-
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
-#: packages/admin/src/components/settings/GeneralSettings.tsx:120
-#: packages/admin/src/components/settings/GeneralSettings.tsx:298
 msgid "Save Settings"
 msgstr "ذخیره تنظیمات"
-
-#: packages/admin/src/components/settings/SocialSettings.tsx:91
-#: packages/admin/src/components/settings/SocialSettings.tsx:147
-msgid "Save Social Links"
-msgstr "ذخیره لینک‌های اجتماعی"
 
 #: packages/admin/src/components/SaveButton.tsx:34
 msgid "Saved"
@@ -6618,7 +6622,7 @@ msgstr "ذخیره شد"
 msgid "Saved \"{0}\"."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1107
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
@@ -6626,13 +6630,6 @@ msgstr ""
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/SaveButton.tsx:33
-#: packages/admin/src/components/settings/BackupSettings.tsx:192
-#: packages/admin/src/components/settings/GeneralSettings.tsx:120
-#: packages/admin/src/components/settings/GeneralSettings.tsx:298
-#: packages/admin/src/components/settings/SeoSettings.tsx:111
-#: packages/admin/src/components/settings/SeoSettings.tsx:218
-#: packages/admin/src/components/settings/SocialSettings.tsx:91
-#: packages/admin/src/components/settings/SocialSettings.tsx:147
 #: packages/admin/src/components/TaxonomyManager.tsx:498
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:983
@@ -6653,31 +6650,26 @@ msgstr ""
 msgid "SBOM · {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:501
+#: packages/admin/src/components/ContentSettingsPanel.tsx:523
 msgid "Schedule"
 msgstr "زمان‌بندی"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:487
+#: packages/admin/src/components/ContentSettingsPanel.tsx:509
 msgid "Schedule for"
 msgstr "زمان‌بندی برای"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:524
+#: packages/admin/src/components/ContentSettingsPanel.tsx:546
 msgid "Schedule for later"
 msgstr "زمان‌بندی برای بعد"
 
-#: packages/admin/src/components/ContentList.tsx:1164
-msgid "scheduled"
-msgstr "زمان‌بندی‌شده"
-
-#: packages/admin/src/components/ContentList.tsx:731
-#: packages/admin/src/components/ContentSettingsPanel.tsx:455
-#: packages/admin/src/components/Dashboard.tsx:352
-#: packages/admin/src/router.tsx:1067
+#: packages/admin/src/components/ContentList.tsx:738
+#: packages/admin/src/components/ContentStatusBadge.tsx:63
+#: packages/admin/src/router.tsx:1076
 msgid "Scheduled"
 msgstr "زمان‌بندی‌شده"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:475
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 msgid "Scheduled for: {0}"
 msgstr "زمان‌بندی شده برای: {0}"
 
@@ -6697,14 +6689,10 @@ msgstr "خواندن طرح"
 msgid "Schema Write"
 msgstr "نوشتن طرح"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:350
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:489
 msgid "Scopes"
 msgstr "محدوده‌ها"
-
-#. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
-msgid "Scopes: {0}"
-msgstr "محدوده‌ها: {0}"
 
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
@@ -6740,17 +6728,19 @@ msgid "SCSS"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:86
+#: packages/admin/src/components/Settings.tsx:140
+#: packages/admin/src/components/Settings.tsx:140
 #: packages/admin/src/components/Widgets.tsx:151
 msgid "Search"
 msgstr "جستجو"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:353
+#: packages/admin/src/components/ContentList.tsx:359
 msgid "Search {0}"
 msgstr "جستجوی {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:352
+#: packages/admin/src/components/ContentList.tsx:358
 msgid "Search {0}..."
 msgstr "جستجوی {0}..."
 
@@ -6763,12 +6753,12 @@ msgstr ""
 msgid "Search by name or email..."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:853
+#: packages/admin/src/components/ContentSettingsPanel.tsx:901
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:852
+#: packages/admin/src/components/ContentSettingsPanel.tsx:900
 msgid "Search bylines to add..."
 msgstr ""
 
@@ -6780,15 +6770,16 @@ msgstr "جستجوی دیدگاه‌ها"
 msgid "Search comments..."
 msgstr "جستجوی دیدگاه‌ها..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:141
+#: packages/admin/src/components/ContentPickerModal.tsx:142
 msgid "Search content..."
 msgstr "جستجوی محتوا..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:122
+#: packages/admin/src/components/settings/SeoSettings.tsx:161
 msgid "Search Engine Optimization"
 msgstr "بهینه‌سازی موتور جستجو"
 
-#: packages/admin/src/components/Settings.tsx:83
+#: packages/admin/src/components/Settings.tsx:61
+#: packages/admin/src/components/settings/SeoSettings.tsx:118
 msgid "Search engine optimization and verification"
 msgstr "بهینه‌سازی موتور جستجو و تأیید"
 
@@ -6846,7 +6837,7 @@ msgstr "جستجو…"
 msgid "Searchable"
 msgstr "قابل جستجو"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:857
+#: packages/admin/src/components/ContentSettingsPanel.tsx:905
 msgid "Searching..."
 msgstr ""
 
@@ -6894,7 +6885,7 @@ msgid "Secure your account"
 msgstr "حساب کاربری خود را ایمن کنید"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:809
-#: packages/admin/src/components/Settings.tsx:93
+#: packages/admin/src/components/Settings.tsx:70
 msgid "Security"
 msgstr "امنیت"
 
@@ -6933,24 +6924,27 @@ msgstr "خطای امنیتی. مطمئن شوید که روی یک اتصال �
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:242
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/settings/SecuritySettings.tsx:95
+#: packages/admin/src/components/Settings.tsx:66
+#: packages/admin/src/components/settings/SecuritySettings.tsx:88
+#: packages/admin/src/components/settings/SecuritySettings.tsx:110
 msgid "Security Settings"
 msgstr "تنظیمات امنیتی"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:56
 #: packages/admin/src/components/FieldEditor.tsx:186
 #: packages/admin/src/components/FieldEditor.tsx:585
+#: packages/admin/src/components/Settings.tsx:134
 msgid "Select"
 msgstr "انتخاب"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:1702
-#: packages/admin/src/components/ContentEditor.tsx:1718
+#: packages/admin/src/components/ContentEditor.tsx:1710
+#: packages/admin/src/components/ContentEditor.tsx:1726
 #: packages/admin/src/components/ImageFieldRenderer.tsx:198
 msgid "Select {label}"
 msgstr "انتخاب {label}"
 
-#: packages/admin/src/components/ContentList.tsx:973
+#: packages/admin/src/components/ContentList.tsx:985
 msgid "Select {title}"
 msgstr ""
 
@@ -6966,7 +6960,7 @@ msgstr ""
 msgid "Select all"
 msgstr "انتخاب همه"
 
-#: packages/admin/src/components/ContentList.tsx:497
+#: packages/admin/src/components/ContentList.tsx:504
 msgid "Select all on this page"
 msgstr ""
 
@@ -6975,20 +6969,20 @@ msgstr ""
 msgid "Select comment by {0}"
 msgstr "انتخاب دیدگاه توسط {0}"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:117
+#: packages/admin/src/components/ContentPickerModal.tsx:118
 msgid "Select Content"
 msgstr "انتخاب محتوا"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:235
+#: packages/admin/src/components/settings/SeoSettings.tsx:284
 msgid "Select Default Social Image"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:260
-#: packages/admin/src/components/settings/GeneralSettings.tsx:321
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:364
 msgid "Select Favicon"
 msgstr "انتخاب فاوآیکون"
 
-#: packages/admin/src/components/ContentEditor.tsx:1706
+#: packages/admin/src/components/ContentEditor.tsx:1714
 msgid "Select file"
 msgstr ""
 
@@ -7006,12 +7000,12 @@ msgstr "انتخاب تصویر"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:150
 #: packages/admin/src/components/PortableTextEditor.tsx:3097
-#: packages/admin/src/components/settings/SeoSettings.tsx:188
+#: packages/admin/src/components/settings/SeoSettings.tsx:223
 msgid "Select Image"
 msgstr "انتخاب تصویر"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:206
-#: packages/admin/src/components/settings/GeneralSettings.tsx:313
+#: packages/admin/src/components/settings/GeneralSettings.tsx:241
+#: packages/admin/src/components/settings/GeneralSettings.tsx:356
 msgid "Select Logo"
 msgstr "انتخاب لوگو"
 
@@ -7045,12 +7039,13 @@ msgstr ""
 msgid "Selected:"
 msgstr "انتخاب‌شده:"
 
-#: packages/admin/src/components/Settings.tsx:99
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:152
+#: packages/admin/src/components/Settings.tsx:76
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:149
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:171
 msgid "Self-Signup Domains"
 msgstr "دامنه‌های ثبت‌نام آزاد"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:113
+#: packages/admin/src/components/settings/EmailSettings.tsx:98
 msgid "Send a test email through the full pipeline to verify your email configuration."
 msgstr "یک ایمیل آزمایشی از طریق مسیر کامل ارسال کنید تا پیکربندی ایمیل خود را تأیید کنید."
 
@@ -7070,16 +7065,16 @@ msgstr "ارسال لینک جادویی"
 msgid "Send Recovery Link"
 msgstr "ارسال لینک بازیابی"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:127
+#: packages/admin/src/components/settings/EmailSettings.tsx:122
 msgid "Send Test"
 msgstr "ارسال آزمایشی"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:110
+#: packages/admin/src/components/settings/EmailSettings.tsx:97
 msgid "Send Test Email"
 msgstr "ارسال ایمیل آزمایشی"
 
 #: packages/admin/src/components/LoginPage.tsx:150
-#: packages/admin/src/components/settings/EmailSettings.tsx:127
+#: packages/admin/src/components/settings/EmailSettings.tsx:122
 #: packages/admin/src/components/SignupPage.tsx:89
 #: packages/admin/src/components/SignupPage.tsx:152
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -7087,15 +7082,14 @@ msgstr "ارسال ایمیل آزمایشی"
 msgid "Sending..."
 msgstr "در حال ارسال..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:621
-#: packages/admin/src/components/ContentSettingsPanel.tsx:624
+#: packages/admin/src/components/ContentSettingsPanel.tsx:669
+#: packages/admin/src/components/ContentSettingsPanel.tsx:672
 #: packages/admin/src/components/ContentTypeEditor.tsx:472
-#: packages/admin/src/components/Settings.tsx:82
+#: packages/admin/src/components/Settings.tsx:60
 msgid "SEO"
 msgstr "سئو"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:90
-#: packages/admin/src/components/settings/SeoSettings.tsx:115
+#: packages/admin/src/components/settings/SeoSettings.tsx:117
 msgid "SEO Settings"
 msgstr "تنظیمات سئو"
 
@@ -7103,7 +7097,7 @@ msgstr "تنظیمات سئو"
 msgid "SEO settings (Yoast)"
 msgstr "تنظیمات سئو (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:40
+#: packages/admin/src/components/settings/SeoSettings.tsx:72
 msgid "SEO settings saved"
 msgstr "تنظیمات سئو ذخیره شد"
 
@@ -7130,7 +7124,7 @@ msgstr ""
 msgid "Set to 0 to never close comments automatically."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:425
+#: packages/admin/src/components/ContentList.tsx:432
 msgid "Set to draft"
 msgstr ""
 
@@ -7143,12 +7137,12 @@ msgid "Setting up..."
 msgstr "در حال راه‌اندازی..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
-#: packages/admin/src/components/ContentEditor.tsx:809
-#: packages/admin/src/components/ContentEditor.tsx:1039
+#: packages/admin/src/components/ContentEditor.tsx:815
+#: packages/admin/src/components/ContentEditor.tsx:1047
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:472
-#: packages/admin/src/components/Settings.tsx:63
+#: packages/admin/src/components/Settings.tsx:40
 #: packages/admin/src/components/Sidebar.tsx:294
 #: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
@@ -7163,7 +7157,7 @@ msgid "Settings Read"
 msgstr ""
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:43
+#: packages/admin/src/components/settings/GeneralSettings.tsx:70
 msgid "Settings saved successfully"
 msgstr "تنظیمات با موفقیت ذخیره شد"
 
@@ -7208,7 +7202,8 @@ msgstr ""
 msgid "Show thumbnails"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:220
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:275
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Show token"
 msgstr "نمایش توکن"
 
@@ -7267,11 +7262,12 @@ msgstr "انتخاب تکی از گزینه‌ها"
 msgid "Single line text input"
 msgstr "ورودی متن تک‌خطی"
 
+#: packages/admin/src/components/Settings.tsx:44
 #: packages/admin/src/components/SetupWizard.tsx:353
 msgid "Site"
 msgstr "وبسایت"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:130
+#: packages/admin/src/components/settings/GeneralSettings.tsx:162
 msgid "Site Identity"
 msgstr "هویت وبسایت"
 
@@ -7279,7 +7275,8 @@ msgstr "هویت وبسایت"
 msgid "site identity applied (title, tagline, logo)"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:71
+#: packages/admin/src/components/Settings.tsx:49
+#: packages/admin/src/components/settings/GeneralSettings.tsx:119
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "هویت وبسایت، لوگو، فاوآیکون و ترجیحات خواندن"
 
@@ -7288,7 +7285,7 @@ msgstr "هویت وبسایت، لوگو، فاوآیکون و ترجیحات خ
 msgid "Site Settings"
 msgstr "تنظیمات وبسایت"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:133
+#: packages/admin/src/components/settings/GeneralSettings.tsx:165
 #: packages/admin/src/components/SetupWizard.tsx:116
 msgid "Site Title"
 msgstr "عنوان وبسایت"
@@ -7301,11 +7298,11 @@ msgstr "عنوان وبسایت و شعار"
 msgid "Site title is required"
 msgstr "عنوان وبسایت الزامی است"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:145
+#: packages/admin/src/components/settings/GeneralSettings.tsx:181
 msgid "Site URL"
 msgstr "آدرس وبسایت"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:267
+#: packages/admin/src/components/settings/BackupSettings.tsx:330
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr ""
 
@@ -7326,9 +7323,9 @@ msgid "Skipped"
 msgstr "رد شده"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentSettingsPanel.tsx:442
-#: packages/admin/src/components/ContentSettingsPanel.tsx:968
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1030
+#: packages/admin/src/components/ContentSettingsPanel.tsx:462
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1016
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:402
 #: packages/admin/src/components/ContentTypeList.tsx:99
@@ -7362,21 +7359,21 @@ msgstr ""
 msgid "Smallest section heading"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:76
-#: packages/admin/src/components/settings/SocialSettings.tsx:70
-#: packages/admin/src/components/settings/SocialSettings.tsx:95
+#: packages/admin/src/components/Settings.tsx:54
+#: packages/admin/src/components/settings/SocialSettings.tsx:89
 msgid "Social Links"
 msgstr "لینک‌های اجتماعی"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:38
+#: packages/admin/src/components/settings/SocialSettings.tsx:62
 msgid "Social links saved"
 msgstr "لینک‌های اجتماعی ذخیره شد"
 
-#: packages/admin/src/components/Settings.tsx:77
+#: packages/admin/src/components/Settings.tsx:55
+#: packages/admin/src/components/settings/SocialSettings.tsx:90
 msgid "Social media profile links"
 msgstr "لینک‌های پروفایل شبکه‌های اجتماعی"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:100
+#: packages/admin/src/components/settings/SocialSettings.tsx:134
 msgid "Social Profiles"
 msgstr "پروفایل‌های اجتماعی"
 
@@ -7437,14 +7434,14 @@ msgstr ""
 msgid "Start Import"
 msgstr "شروع درون‌ریزی"
 
-#: packages/admin/src/components/ContentEditor.tsx:1208
+#: packages/admin/src/components/ContentEditor.tsx:1216
 #: packages/admin/src/components/PortableTextEditor.tsx:2329
 #: packages/admin/src/components/PortableTextEditor.tsx:2330
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:511
-#: packages/admin/src/components/ContentSettingsPanel.tsx:449
+#: packages/admin/src/components/ContentList.tsx:518
+#: packages/admin/src/components/ContentSettingsPanel.tsx:469
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:474
 #: packages/admin/src/components/users/UserList.tsx:104
@@ -7455,15 +7452,15 @@ msgstr "وضعیت"
 msgid "Status code"
 msgstr "کد وضعیت"
 
-#: packages/admin/src/components/Dashboard.tsx:362
+#: packages/admin/src/components/Dashboard.tsx:367
 msgid "Status: {status}"
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:173
+#: packages/admin/src/components/settings/BackupSettings.tsx:205
 msgid "Store a daily backup in your site's storage bucket. Old backups are removed automatically."
 msgstr ""
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:218
+#: packages/admin/src/components/settings/BackupSettings.tsx:270
 msgid "Stored Backups"
 msgstr ""
 
@@ -7515,7 +7512,7 @@ msgstr ""
 msgid "Synced"
 msgstr "همگام‌شده"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:104
+#: packages/admin/src/components/settings/PasskeyItem.tsx:98
 msgid "Synced passkey"
 msgstr "شاه‌کلید همگام‌شده"
 
@@ -7539,7 +7536,7 @@ msgstr ""
 msgid "Table controls"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:139
+#: packages/admin/src/components/settings/GeneralSettings.tsx:173
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
 msgstr "شعار"
@@ -7563,7 +7560,7 @@ msgstr "هدف"
 msgid "Target locale"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/ContentSettingsPanel.tsx:658
 #: packages/admin/src/components/TaxonomySidebar.tsx:555
 msgid "Taxonomies"
 msgstr "دسته‌بندی‌ها"
@@ -7604,7 +7601,7 @@ msgstr ""
 msgid "Term deleted"
 msgstr "اصطلاح حذف شد"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:122
+#: packages/admin/src/components/settings/EmailSettings.tsx:111
 msgid "test@example.com"
 msgstr "test@example.com"
 
@@ -7641,11 +7638,11 @@ msgstr "فروشگاه خالی است. بعداً برای افزونه‌ها�
 msgid "The menu has been deleted."
 msgstr "فهرست حذف شد."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:136
+#: packages/admin/src/components/settings/GeneralSettings.tsx:168
 msgid "The name of your site, used in the header and metadata"
 msgstr "نام وبسایت شما، استفاده‌شده در هدر و متادیتا"
 
-#: packages/admin/src/router.tsx:2193
+#: packages/admin/src/router.tsx:2210
 msgid "The page you're looking for doesn't exist."
 msgstr ""
 
@@ -7653,15 +7650,15 @@ msgstr ""
 msgid "The plugin field widget failed to render."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:149
+#: packages/admin/src/components/settings/GeneralSettings.tsx:185
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "آدرس عمومی وبسایت شما (استفاده‌شده برای لینک‌های کانونیکال و نقشه وبسایت)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:156
+#: packages/admin/src/components/settings/SeoSettings.tsx:192
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:174
+#: packages/admin/src/components/settings/GeneralSettings.tsx:209
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr ""
 
@@ -7715,7 +7712,7 @@ msgstr ""
 msgid "This field does not accept {sniffedMime} files."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1721
+#: packages/admin/src/components/ContentEditor.tsx:1729
 #: packages/admin/src/components/ImageFieldRenderer.tsx:201
 msgid "This field is required"
 msgstr "این فیلد الزامی است"
@@ -7741,7 +7738,7 @@ msgid "This passkey is already registered on this device."
 msgstr "این شاه‌کلید از قبل روی این دستگاه ثبت شده است."
 
 #. placeholder {0}: archiveToDelete?.name ?? ""
-#: packages/admin/src/components/settings/BackupSettings.tsx:283
+#: packages/admin/src/components/settings/BackupSettings.tsx:351
 msgid "This permanently deletes {0} from storage."
 msgstr ""
 
@@ -7789,7 +7786,7 @@ msgstr ""
 msgid "This will grant CLI access with your permissions."
 msgstr "این دسترسی خط فرمان با مجوزهای شما را اعطا می‌کند."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:676
+#: packages/admin/src/components/ContentSettingsPanel.tsx:724
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "این مورد به سطل زباله منتقل خواهد شد. می‌توانید بعداً آن را از سطل زباله بازیابی کنید."
 
@@ -7811,7 +7808,7 @@ msgstr "این دیدگاه برای همیشه حذف خواهد شد. این �
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "این افزونه و بسته آن را از وبسایت شما حذف می‌کند."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:84
+#: packages/admin/src/components/ContentSettingsPanel.tsx:86
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "این به نسخه منتشرشده بازمی‌گردد. تغییرات پیش‌نویس شما از بین خواهد رفت."
 
@@ -7819,16 +7816,16 @@ msgstr "این به نسخه منتشرشده بازمی‌گردد. تغییر�
 msgid "Thoughts, tutorials, and more"
 msgstr "اندیشه‌ها، آموزش‌ها و بیشتر"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:287
+#: packages/admin/src/components/settings/GeneralSettings.tsx:332
 msgid "Timezone"
 msgstr "منطقه زمانی"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:335
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "منطقه زمانی برای نمایش تاریخ‌ها (مثلاً America/New_York)"
 
-#: packages/admin/src/components/ContentList.tsx:505
-#: packages/admin/src/components/ContentList.tsx:643
+#: packages/admin/src/components/ContentList.tsx:512
+#: packages/admin/src/components/ContentList.tsx:650
 #: packages/admin/src/components/SectionEditor.tsx:251
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:891
@@ -7840,11 +7837,11 @@ msgstr "عنوان"
 msgid "Title (Tooltip)"
 msgstr "عنوان (راهنما)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:126
+#: packages/admin/src/components/settings/SeoSettings.tsx:164
 msgid "Title Separator"
 msgstr "جداکننده عنوان"
 
-#: packages/admin/src/components/ContentList.tsx:811
+#: packages/admin/src/components/ContentList.tsx:823
 msgid "to"
 msgstr ""
 
@@ -7852,7 +7849,7 @@ msgstr ""
 msgid "to close"
 msgstr "برای بستن"
 
-#: packages/admin/src/components/ContentList.tsx:815
+#: packages/admin/src/components/ContentList.tsx:827
 msgid "To date"
 msgstr ""
 
@@ -7874,11 +7871,11 @@ msgid "Toggle theme (current: {label})"
 msgstr "تغییر قالب (فعلی: {label})"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:207
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:254
 msgid "Token created: {0}"
 msgstr "توکن ساخته شد: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:480
 msgid "Token Name"
 msgstr "نام توکن"
 
@@ -7922,11 +7919,11 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:782
-#: packages/admin/src/router.tsx:1119
+#: packages/admin/src/router.tsx:1128
 msgid "Translation created"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:588
+#: packages/admin/src/components/ContentSettingsPanel.tsx:636
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "ترجمه‌ها"
@@ -7939,11 +7936,11 @@ msgstr "زباله‌دان"
 #: packages/admin/src/components/comments/CommentInbox.tsx:217
 #: packages/admin/src/components/comments/CommentInbox.tsx:258
 #: packages/admin/src/components/comments/CommentInbox.tsx:514
-#: packages/admin/src/components/ContentList.tsx:375
+#: packages/admin/src/components/ContentList.tsx:381
 msgid "Trash"
 msgstr "زباله‌دان"
 
-#: packages/admin/src/components/ContentList.tsx:666
+#: packages/admin/src/components/ContentList.tsx:673
 msgid "Trash is empty"
 msgstr "سطل زباله خالی است"
 
@@ -7963,7 +7960,7 @@ msgstr ""
 msgid "Try a different search term"
 msgstr "عبارت جستجوی دیگری را امتحان کنید"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:172
+#: packages/admin/src/components/ContentPickerModal.tsx:173
 #: packages/admin/src/components/SectionPickerModal.tsx:103
 msgid "Try adjusting your search"
 msgstr "جستجوی خود را تنظیم کنید"
@@ -8010,7 +8007,7 @@ msgstr ""
 msgid "Turn into"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:106
+#: packages/admin/src/components/settings/SocialSettings.tsx:139
 msgid "Twitter"
 msgstr "X"
 
@@ -8035,8 +8032,8 @@ msgstr ""
 msgid "Unable to reach marketplace"
 msgstr "دسترسی به فروشگاه ممکن نیست"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1073
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1090
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1121
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1138
 msgid "Unassigned"
 msgstr "بدون تخصیص"
 
@@ -8076,6 +8073,7 @@ msgstr "یکتا"
 msgid "Unique identifier (ULID)"
 msgstr "شناسه یکتا (ULID)"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:169
 #: packages/admin/src/components/users/useRolesConfig.ts:7
 msgid "Unknown"
 msgstr "ناشناخته"
@@ -8091,16 +8089,16 @@ msgstr "نقش ناشناخته"
 msgid "Unlock aspect ratio"
 msgstr "باز کردن قفل نسبت تصویر"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:152
+#: packages/admin/src/components/settings/PasskeyItem.tsx:147
 #: packages/admin/src/components/users/UserDetail.tsx:254
 msgid "Unnamed passkey"
 msgstr "شاه‌کلید بدون نام"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:202
+#: packages/admin/src/components/ContentSettingsPanel.tsx:204
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1027
+#: packages/admin/src/router.tsx:1036
 msgid "Unpublished"
 msgstr ""
 
@@ -8108,11 +8106,11 @@ msgstr ""
 msgid "Unregistered Content Tables Found"
 msgstr "جداول محتوای ثبت‌نشده یافت شد"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:477
+#: packages/admin/src/components/ContentSettingsPanel.tsx:499
 msgid "Unschedule"
 msgstr "لغو زمان‌بندی"
 
-#: packages/admin/src/router.tsx:1088
+#: packages/admin/src/router.tsx:1097
 msgid "Unscheduled"
 msgstr ""
 
@@ -8121,11 +8119,11 @@ msgstr ""
 msgid "Unsupported widget element type: {0}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:319
+#: packages/admin/src/components/Dashboard.tsx:334
 msgid "Untitled"
 msgstr "بی‌نام"
 
-#: packages/admin/src/components/ContentEditor.tsx:1624
+#: packages/admin/src/components/ContentEditor.tsx:1632
 msgid "Untitled file"
 msgstr ""
 
@@ -8138,7 +8136,7 @@ msgstr ""
 msgid "Unverified publisher"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:900
+#: packages/admin/src/components/ContentSettingsPanel.tsx:948
 msgid "Up"
 msgstr "بالا"
 
@@ -8150,8 +8148,12 @@ msgstr "به‌روزرسانی"
 msgid "Update Field"
 msgstr "به‌روزرسانی فیلد"
 
+#: packages/admin/src/components/ContentSettingsPanel.tsx:573
+msgid "Update publish date"
+msgstr ""
+
 #. placeholder {0}: editingDomain?.domain
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:334
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:324
 msgid "Update settings for {0}"
 msgstr "به‌روزرسانی تنظیمات برای {0}"
 
@@ -8173,8 +8175,8 @@ msgstr "این قانون    تغییر مسیر را به‌روزرسانی ک
 msgid "Update to v{0}"
 msgstr "به‌روزرسانی به v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:737
-#: packages/admin/src/components/ContentSettingsPanel.tsx:541
+#: packages/admin/src/components/ContentList.tsx:746
+#: packages/admin/src/components/ContentSettingsPanel.tsx:589
 #: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
 msgstr ""
@@ -8251,7 +8253,7 @@ msgstr "بارگذاری عکس‌ها"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:114
+#: packages/admin/src/components/Dashboard.tsx:129
 msgid "Upload Media"
 msgstr "بارگذاری رسانه"
 
@@ -8327,7 +8329,7 @@ msgstr "از احراز هویت بیومتریک، کلید امنیتی یا �
 msgid "Use your registered passkey to sign in securely."
 msgstr "از شاه‌کلید ثبت‌شده خود برای ورود امن استفاده کنید."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:140
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr ""
 
@@ -8335,7 +8337,7 @@ msgstr ""
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "به‌عنوان شناسه استفاده می‌شود. فقط حروف کوچک، اعداد و زیرخط."
 
-#: packages/admin/src/components/ContentEditor.tsx:1311
+#: packages/admin/src/components/ContentEditor.tsx:1319
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "به‌عنوان تصویر اصلی این نوشته در صفحات لیست و بالای نوشته استفاده می‌شود"
 
@@ -8360,7 +8362,7 @@ msgid "User"
 msgstr "کاربر"
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:177
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:172
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
 msgstr "دسترسی کاربر توسط ارائه‌دهنده خارجی ({0}) مدیریت می‌شود. تنظیمات دامنه ثبت‌نام آزاد هنگام استفاده از احراز هویت خارجی در دسترس نیست."
 
@@ -8378,11 +8380,11 @@ msgstr "کاربر یافت نشد"
 msgid "Users"
 msgstr "کاربران"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:383
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:375
 msgid "Users from"
 msgstr "کاربران از"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:211
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:196
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
 msgstr "کاربران با آدرس ایمیل از این دامنه‌ها می‌توانند بدون دعوت ثبت‌نام کنند. به‌صورت خودکار نقش مشخص‌شده به آن‌ها اختصاص داده خواهد شد."
 
@@ -8441,7 +8443,8 @@ msgstr ""
 msgid "Video"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:117
+#: packages/admin/src/components/Settings.tsx:96
+#: packages/admin/src/components/settings/EmailSettings.tsx:59
 msgid "View email provider status and send test emails"
 msgstr "مشاهده وضعیت ارائه‌دهنده ایمیل و ارسال ایمیل‌های آزمایشی"
 
@@ -8453,7 +8456,7 @@ msgstr "مشاهده در فروشگاه"
 msgid "View mode"
 msgstr "حالت نمایش"
 
-#: packages/admin/src/components/ContentList.tsx:1011
+#: packages/admin/src/components/ContentList.tsx:1023
 msgid "View published {title}"
 msgstr "مشاهده {title} منتشرشده"
 
@@ -8643,11 +8646,11 @@ msgstr ""
 msgid "Will create"
 msgstr "ساخته خواهد شد"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:384
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:376
 msgid "will no longer be able to sign up without an invite. Existing users are not affected."
 msgstr "دیگر نمی‌توانند بدون دعوت ثبت‌نام کنند. کاربران فعلی تحت تأثیر قرار نمی‌گیرند."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:158
+#: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "بدون ارائه‌دهنده ایمیل، لینک‌های دعوت باید به‌صورت دستی به اشتراک گذاشته شوند."
 
@@ -8659,7 +8662,7 @@ msgstr ""
 msgid "WordPress Username"
 msgstr "نام کاربری وردپرس"
 
-#: packages/admin/src/components/ContentList.tsx:404
+#: packages/admin/src/components/ContentList.tsx:410
 msgid "Working on {selectedCount} items…"
 msgstr ""
 
@@ -8729,16 +8732,16 @@ msgstr "دسترسی کامل به مدیریت این وبسایت دارید،
 msgid "You need admin permissions to manage byline schema."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1488
+#: packages/admin/src/router.tsx:1505
 msgid "You need Editor permissions to moderate comments."
 msgstr ""
 
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/settings/PasskeyItem.tsx:204
+#: packages/admin/src/components/settings/PasskeyItem.tsx:199
 msgid "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
 msgstr "دیگر نمی‌توانید از «{0}» برای ورود استفاده کنید. این عمل قابل بازگشت نیست."
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:205
+#: packages/admin/src/components/settings/PasskeyItem.tsx:200
 msgid "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
 msgstr "دیگر نمی‌توانید از این شاه‌کلید برای ورود استفاده کنید. این عمل قابل بازگشت نیست."
 
@@ -8794,19 +8797,19 @@ msgstr "دستگاه شما از ویژگی‌های امنیتی مورد نی�
 msgid "Your Email"
 msgstr "ایمیل شما"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:121
+#: packages/admin/src/components/settings/SocialSettings.tsx:158
 msgid "Your Facebook page or profile username"
 msgstr "نام کاربری صفحه یا پروفایل فیسبوک شما"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:115
+#: packages/admin/src/components/settings/SocialSettings.tsx:150
 msgid "Your GitHub username"
 msgstr "نام کاربری گیت‌هاب شما"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:127
+#: packages/admin/src/components/settings/SocialSettings.tsx:166
 msgid "Your Instagram username"
 msgstr "نام کاربری اینستاگرام شما"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:133
+#: packages/admin/src/components/settings/SocialSettings.tsx:174
 msgid "Your LinkedIn profile username"
 msgstr "نام کاربری پروفایل لینکدین شما"
 
@@ -8833,7 +8836,7 @@ msgstr "نقش شما"
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:109
+#: packages/admin/src/components/settings/SocialSettings.tsx:142
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "شناسه یا نام کاربری توییتر/X شما (مثلاً username در @username یا x.com/username)"
 
@@ -8846,10 +8849,10 @@ msgstr ""
 msgid "Your WordPress export contains {0} media files."
 msgstr "فایل برون‌ریزی وردپرس شما شامل {0} فایل رسانه‌ای است."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:139
+#: packages/admin/src/components/settings/SocialSettings.tsx:182
 msgid "Your YouTube channel ID or handle"
 msgstr "شناسه یا نام کاربری کانال یوتیوب شما"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:136
+#: packages/admin/src/components/settings/SocialSettings.tsx:179
 msgid "YouTube"
 msgstr "یوتیوب"

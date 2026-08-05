@@ -58,7 +58,7 @@ msgstr "(від {0})"
 msgid "(pre-release)"
 msgstr "(передреліз)"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:156
+#: packages/admin/src/components/settings/PasskeyItem.tsx:151
 msgid "(synced)"
 msgstr "(синхронізовано)"
 
@@ -89,7 +89,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# коментар імпортовано} few {# коментарі імпортовано} many {# коментарів імпортовано} other {# коментарів імпортовано}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1467
+#: packages/admin/src/router.tsx:1484
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# коментар оновлено} few {# коментарі оновлено} many {# коментарів оновлено} other {# коментарів оновлено}}"
 
@@ -187,12 +187,12 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {поле} few {поля} many {полів} other {полів}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:164
+#: packages/admin/src/components/Dashboard.tsx:179
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr "{0, plural, one {Медіафайл} few {Медіафайли} many {Медіафайлів} other {Медіафайлів}}"
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:168
+#: packages/admin/src/components/Dashboard.tsx:183
 msgid "{0, plural, one {User} other {Users}}"
 msgstr "{0, plural, one {Користувач} few {Користувачі} many {Користувачів} other {Користувачів}}"
 
@@ -256,17 +256,17 @@ msgid "{0} items will be imported"
 msgstr "{0} елементів буде імпортовано"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:535
+#: packages/admin/src/router.tsx:536
 msgid "{0} of {total} could not be deleted"
 msgstr "{0} з {total} не вдалося видалити"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:491
+#: packages/admin/src/router.tsx:492
 msgid "{0} of {total} could not be published"
 msgstr "{0} з {total} не вдалося опублікувати"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:514
+#: packages/admin/src/router.tsx:515
 msgid "{0} of {total} could not be updated"
 msgstr "{0} з {total} не вдалося оновити"
 
@@ -333,7 +333,7 @@ msgstr "{current} з {total}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:933
+#: packages/admin/src/components/ContentList.tsx:945
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} елемент} few {#{0} елементи} many {#{1} елементів} other {#{1} елементів}}"
 
@@ -345,7 +345,7 @@ msgstr "{label} — без перекладу"
 msgid "{label} — view translation"
 msgstr "{label} — переглянути переклад"
 
-#: packages/admin/src/components/ContentList.tsx:922
+#: packages/admin/src/components/ContentList.tsx:934
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# елемент відповідає \"{searchQuery}\"} few {# елементи відповідають \"{searchQuery}\"} many {# елементів відповідають \"{searchQuery}\"} other {# елементів відповідають \"{searchQuery}\"}}"
 
@@ -383,15 +383,15 @@ msgstr ""
 msgid "{resultCount, plural, one {# item} other {# items}}"
 msgstr "{resultCount, plural, one {# елемент} few {# елементи} many {# елементів} other {# елементів}}"
 
-#: packages/admin/src/components/ContentList.tsx:405
+#: packages/admin/src/components/ContentList.tsx:411
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {# обрано} few {# обрано} many {# обрано} other {# обрано}}"
 
-#: packages/admin/src/components/ContentList.tsx:446
+#: packages/admin/src/components/ContentList.tsx:453
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {Перемістити # елемент у кошик? Пізніше його можна відновити.} few {Перемістити # елементи у кошик? Пізніше їх можна відновити.} many {Перемістити # елементів у кошик? Пізніше їх можна відновити.} other {Перемістити # елементів у кошик? Пізніше їх можна відновити.}}"
 
-#: packages/admin/src/components/ContentList.tsx:928
+#: packages/admin/src/components/ContentList.tsx:940
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# елемент} few {# елементи} many {# елементів} other {# елементів}}"
 
@@ -409,11 +409,11 @@ msgstr "{total, plural, one {Файл завантажено} few {# файли 
 msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
 msgstr "{total, plural, one {Завантаження не вдалося} few {Усі # завантаження не вдалися} many {Усі # завантажень не вдалися} other {Усі # завантажень не вдалися}}"
 
-#: packages/admin/src/components/Dashboard.tsx:152
+#: packages/admin/src/components/Dashboard.tsx:167
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr "{totalDrafts, plural, one {Чернетка} few {Чернетки} many {Чернеток} other {Чернеток}}"
 
-#: packages/admin/src/components/Dashboard.tsx:158
+#: packages/admin/src/components/Dashboard.tsx:173
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {Заплановано} few {Заплановано} many {Заплановано} other {Заплановано}}"
 
@@ -549,7 +549,7 @@ msgstr "Короткий опис цього типу вмісту"
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr "Повноширинний hero-банер із заголовком, текстом і кнопкою CTA"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:142
+#: packages/admin/src/components/settings/GeneralSettings.tsx:176
 msgid "A short description of your site"
 msgstr "Короткий опис вашого сайту"
 
@@ -569,7 +569,7 @@ msgstr "Прийняти запрошення"
 msgid "Access denied"
 msgstr "Доступ заборонено"
 
-#: packages/admin/src/router.tsx:1487
+#: packages/admin/src/router.tsx:1504
 msgid "Access Denied"
 msgstr "Доступ заборонено"
 
@@ -599,8 +599,8 @@ msgid "ACF Fields"
 msgstr "Поля ACF"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:300
-#: packages/admin/src/components/ContentList.tsx:528
-#: packages/admin/src/components/ContentList.tsx:649
+#: packages/admin/src/components/ContentList.tsx:535
+#: packages/admin/src/components/ContentList.tsx:656
 #: packages/admin/src/components/ContentTypeList.tsx:108
 #: packages/admin/src/components/TaxonomyManager.tsx:845
 #: packages/admin/src/routes/byline-schema.tsx:249
@@ -613,7 +613,7 @@ msgid "Active"
 msgstr "Активний"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentSettingsPanel.tsx:871
+#: packages/admin/src/components/ContentSettingsPanel.tsx:919
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/TaxonomySidebar.tsx:496
 msgid "Add"
@@ -631,13 +631,9 @@ msgstr "Додати {0}"
 msgid "Add {label}"
 msgstr "Додати {label}"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:177
+#: packages/admin/src/components/settings/SecuritySettings.tsx:160
 msgid "Add a new passkey"
 msgstr "Додати новий passkey"
-
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:271
-msgid "Add an allowed domain"
-msgstr "Додати дозволений домен"
 
 #: packages/admin/src/components/FieldEditor.tsx:544
 msgid "Add at least one sub-field to define the repeater structure."
@@ -662,8 +658,8 @@ msgstr "Додати вміст"
 msgid "Add Custom Link"
 msgstr "Додати власне посилання"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:316
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:211
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:306
 msgid "Add Domain"
 msgstr "Додати домен"
 
@@ -721,7 +717,7 @@ msgstr "Додайте посилання, щоб створити навіга�
 msgid "Add MIME type or extension"
 msgstr "Додати MIME-тип або розширення"
 
-#: packages/admin/src/components/ContentList.tsx:342
+#: packages/admin/src/components/ContentList.tsx:348
 msgid "Add New"
 msgstr "Додати"
 
@@ -734,7 +730,7 @@ msgstr "Додати {0}"
 msgid "Add noindex meta tag"
 msgstr "Додати meta-тег noindex"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:200
+#: packages/admin/src/components/settings/SecuritySettings.tsx:187
 msgid "Add Passkey"
 msgstr "Додати passkey"
 
@@ -766,12 +762,12 @@ msgstr "Додати теги..."
 msgid "Add Widget Area"
 msgstr "Додати область віджетів"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:102
+#: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "Додайте профілі соцмереж. Вони доступні темі сайту та можуть відображатися в шапці, підвалі або біо автора."
 
 #: packages/admin/src/components/MenuEditor.tsx:441
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:311
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:306
 msgid "Adding..."
 msgstr "Додавання..."
 
@@ -797,7 +793,7 @@ msgstr "Навігація адмін-панелі"
 msgid "Administrator"
 msgstr "Адміністратор"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:196
+#: packages/admin/src/components/settings/EmailSettings.tsx:191
 msgid "After send:"
 msgstr "Після надсилання:"
 
@@ -831,12 +827,12 @@ msgstr "По правому краю"
 msgid "Alignment"
 msgstr "Вирівнювання"
 
-#: packages/admin/src/components/ContentList.tsx:369
+#: packages/admin/src/components/ContentList.tsx:375
 msgid "All"
 msgstr "Усі"
 
-#: packages/admin/src/components/ContentList.tsx:773
-#: packages/admin/src/components/ContentList.tsx:777
+#: packages/admin/src/components/ContentList.tsx:785
+#: packages/admin/src/components/ContentList.tsx:789
 msgid "All authors"
 msgstr "Усі автори"
 
@@ -873,7 +869,7 @@ msgstr "Усі ролі"
 msgid "All Sources"
 msgstr "Усі джерела"
 
-#: packages/admin/src/components/ContentList.tsx:728
+#: packages/admin/src/components/ContentList.tsx:735
 #: packages/admin/src/components/Redirects.tsx:421
 msgid "All statuses"
 msgstr "Усі статуси"
@@ -887,7 +883,8 @@ msgstr "Усі типи"
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:100
+#: packages/admin/src/components/Settings.tsx:77
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:150
 msgid "Allow users from specific domains to sign up"
 msgstr "Дозволити реєстрацію користувачам із певних доменів"
 
@@ -895,7 +892,7 @@ msgstr "Дозволити реєстрацію користувачам із п
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr "Дозволити відвідувачам залишати коментарі до вмісту цієї колекції"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:195
 msgid "Allowed Domains"
 msgstr "Дозволені домени"
 
@@ -938,36 +935,47 @@ msgstr "Або експортуйте з WordPress (Інструменти → �
 #: packages/admin/src/components/PluginManager.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:121
 #: packages/admin/src/components/PluginSettings.tsx:75
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:95
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
-#: packages/admin/src/components/settings/BackupSettings.tsx:85
-#: packages/admin/src/components/settings/BackupSettings.tsx:105
-#: packages/admin/src/components/settings/EmailSettings.tsx:51
-#: packages/admin/src/components/settings/GeneralSettings.tsx:51
-#: packages/admin/src/components/settings/SecuritySettings.tsx:54
-#: packages/admin/src/components/settings/SecuritySettings.tsx:71
-#: packages/admin/src/components/settings/SeoSettings.tsx:45
-#: packages/admin/src/components/settings/SocialSettings.tsx:43
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:76
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:99
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:116
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:216
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:217
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:475
+#: packages/admin/src/components/settings/BackupSettings.tsx:103
+#: packages/admin/src/components/settings/BackupSettings.tsx:123
+#: packages/admin/src/components/settings/BackupSettings.tsx:166
+#: packages/admin/src/components/settings/EmailSettings.tsx:45
+#: packages/admin/src/components/settings/GeneralSettings.tsx:78
+#: packages/admin/src/components/settings/GeneralSettings.tsx:140
+#: packages/admin/src/components/settings/GeneralSettings.tsx:141
+#: packages/admin/src/components/settings/SecuritySettings.tsx:51
+#: packages/admin/src/components/settings/SecuritySettings.tsx:67
+#: packages/admin/src/components/settings/SecuritySettings.tsx:124
+#: packages/admin/src/components/settings/SeoSettings.tsx:77
+#: packages/admin/src/components/settings/SeoSettings.tsx:139
+#: packages/admin/src/components/settings/SeoSettings.tsx:140
+#: packages/admin/src/components/settings/SocialSettings.tsx:67
+#: packages/admin/src/components/settings/SocialSettings.tsx:111
+#: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/TaxonomySidebar.tsx:370
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:423
-#: packages/admin/src/router.tsx:438
-#: packages/admin/src/router.tsx:452
-#: packages/admin/src/router.tsx:466
-#: packages/admin/src/router.tsx:943
-#: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:1014
-#: packages/admin/src/router.tsx:1032
-#: packages/admin/src/router.tsx:1053
-#: packages/admin/src/router.tsx:1074
-#: packages/admin/src/router.tsx:1095
-#: packages/admin/src/router.tsx:1126
-#: packages/admin/src/router.tsx:1146
-#: packages/admin/src/router.tsx:1432
-#: packages/admin/src/router.tsx:1448
-#: packages/admin/src/router.tsx:1473
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:424
+#: packages/admin/src/router.tsx:439
+#: packages/admin/src/router.tsx:453
+#: packages/admin/src/router.tsx:467
+#: packages/admin/src/router.tsx:944
+#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:1023
+#: packages/admin/src/router.tsx:1041
+#: packages/admin/src/router.tsx:1062
+#: packages/admin/src/router.tsx:1083
+#: packages/admin/src/router.tsx:1104
+#: packages/admin/src/router.tsx:1135
+#: packages/admin/src/router.tsx:1155
+#: packages/admin/src/router.tsx:1449
+#: packages/admin/src/router.tsx:1465
+#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1979
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -995,8 +1003,10 @@ msgstr "Аналіз сайту WordPress..."
 msgid "Any media type allowed (subject to global limits)."
 msgstr "Дозволено будь-який тип медіа (з урахуванням глобальних обмежень)."
 
-#: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
+#: packages/admin/src/components/Settings.tsx:82
+#: packages/admin/src/components/Settings.tsx:86
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:194
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:332
 msgid "API Tokens"
 msgstr "API-токени"
 
@@ -1040,12 +1050,8 @@ msgstr "Схвалено"
 msgid "Arbitrary JSON data"
 msgstr "Довільні JSON-дані"
 
-#: packages/admin/src/components/ContentList.tsx:1166
-msgid "archived"
-msgstr "заархівовано"
-
-#: packages/admin/src/components/ContentList.tsx:732
-#: packages/admin/src/components/Dashboard.tsx:355
+#: packages/admin/src/components/ContentList.tsx:739
+#: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "Заархівовано"
 
@@ -1105,7 +1111,7 @@ msgid "Authentication failed"
 msgstr "Автентифікацію не вдалося"
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/SecuritySettings.tsx:120
+#: packages/admin/src/components/settings/SecuritySettings.tsx:111
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
 msgstr "Автентифікацію керує зовнішній провайдер ({0}). Налаштування passkey недоступні при зовнішній автентифікації."
 
@@ -1115,7 +1121,7 @@ msgstr "Автентифікацію скасовано або час вичер
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:288
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1081
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1129
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1165,15 +1171,17 @@ msgstr "Автосхвалення автентифікованих корист
 msgid "Auto-generated from name (you can edit)"
 msgstr "Автогенерація з назви (можна редагувати)"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:167
+#: packages/admin/src/components/settings/BackupSettings.tsx:204
+#: packages/admin/src/components/settings/BackupSettings.tsx:260
 msgid "Automatic Backups"
 msgstr "Автоматичні резервні копії"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:207
+#: packages/admin/src/components/settings/BackupSettings.tsx:261
+#: packages/admin/src/components/settings/BackupSettings.tsx:279
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Автоматичні резервні копії потребують сховища (R2, S3 або локальне). Налаштуйте сховище в конфігурації EmDash, щоб увімкнути їх."
 
-#: packages/admin/src/router.tsx:995
+#: packages/admin/src/router.tsx:1004
 msgid "Autosave failed"
 msgstr "Автозбереження не вдалося"
 
@@ -1181,7 +1189,7 @@ msgstr "Автозбереження не вдалося"
 msgid "Available media"
 msgstr "Доступні медіа"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:205
+#: packages/admin/src/components/settings/EmailSettings.tsx:202
 msgid "Available Providers"
 msgstr "Доступні провайдери"
 
@@ -1201,7 +1209,7 @@ msgstr "Аватар"
 msgid "Back"
 msgstr "Назад"
 
-#: packages/admin/src/components/ContentEditor.tsx:636
+#: packages/admin/src/components/ContentEditor.tsx:642
 msgid "Back to {collectionLabel} list"
 msgstr "Назад до списку {collectionLabel}"
 
@@ -1241,30 +1249,29 @@ msgstr "Назад до налаштувань"
 msgid "Back to Themes"
 msgstr "Назад до тем"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:199
+#: packages/admin/src/components/settings/BackupSettings.tsx:214
 msgid "Back up now"
 msgstr "Створити резервну копію зараз"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:199
+#: packages/admin/src/components/settings/BackupSettings.tsx:214
 msgid "Backing up..."
 msgstr "Резервне копіювання..."
 
 #. placeholder {0}: archive.name
-#: packages/admin/src/components/settings/BackupSettings.tsx:97
+#: packages/admin/src/components/settings/BackupSettings.tsx:115
 msgid "Backup created: {0}"
 msgstr "Резервну копію створено: {0}"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:80
+#: packages/admin/src/components/settings/BackupSettings.tsx:98
 msgid "Backup settings saved"
 msgstr "Налаштування резервного копіювання збережено"
 
-#: packages/admin/src/components/Settings.tsx:122
-#: packages/admin/src/components/settings/BackupSettings.tsx:133
-#: packages/admin/src/components/settings/BackupSettings.tsx:148
+#: packages/admin/src/components/Settings.tsx:101
+#: packages/admin/src/components/settings/BackupSettings.tsx:143
 msgid "Backups"
 msgstr "Резервні копії"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:182
+#: packages/admin/src/components/settings/BackupSettings.tsx:238
 msgid "Backups to keep"
 msgstr "Резервних копій зберігати"
 
@@ -1272,11 +1279,12 @@ msgstr "Резервних копій зберігати"
 msgid "Bash"
 msgstr "Bash"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:191
+#: packages/admin/src/components/settings/EmailSettings.tsx:186
 msgid "Before send:"
 msgstr "Перед надсиланням:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:200
+#: packages/admin/src/components/settings/SeoSettings.tsx:233
+#: packages/admin/src/components/settings/SeoSettings.tsx:247
 msgid "Bing Verification"
 msgstr "Верифікація Bing"
 
@@ -1339,8 +1347,8 @@ msgstr "Схема підпису"
 msgid "Byline Schema"
 msgstr "Схема підпису"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:565
-#: packages/admin/src/components/ContentSettingsPanel.tsx:568
+#: packages/admin/src/components/ContentSettingsPanel.tsx:613
+#: packages/admin/src/components/ContentSettingsPanel.tsx:616
 #: packages/admin/src/components/Sidebar.tsx:242
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
@@ -1377,15 +1385,15 @@ msgstr "Може переглядати вміст"
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:192
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentList.tsx:455
-#: packages/admin/src/components/ContentList.tsx:1054
-#: packages/admin/src/components/ContentList.tsx:1125
-#: packages/admin/src/components/ContentPickerModal.tsx:248
-#: packages/admin/src/components/ContentSettingsPanel.tsx:90
-#: packages/admin/src/components/ContentSettingsPanel.tsx:512
-#: packages/admin/src/components/ContentSettingsPanel.tsx:682
-#: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1038
+#: packages/admin/src/components/ContentList.tsx:462
+#: packages/admin/src/components/ContentList.tsx:1066
+#: packages/admin/src/components/ContentList.tsx:1137
+#: packages/admin/src/components/ContentPickerModal.tsx:241
+#: packages/admin/src/components/ContentSettingsPanel.tsx:92
+#: packages/admin/src/components/ContentSettingsPanel.tsx:534
+#: packages/admin/src/components/ContentSettingsPanel.tsx:730
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1033
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1086
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:193
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:194
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
@@ -1403,11 +1411,9 @@ msgstr "Може переглядати вміст"
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:280
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:390
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:336
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:480
-#: packages/admin/src/components/settings/SecuritySettings.tsx:179
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/SecuritySettings.tsx:166
 #: packages/admin/src/components/TaxonomyManager.tsx:207
 #: packages/admin/src/components/TaxonomyManager.tsx:494
 #: packages/admin/src/components/TaxonomyManager.tsx:708
@@ -1421,7 +1427,7 @@ msgstr "Скасувати"
 msgid "Cancel (Esc)"
 msgstr "Скасувати (Esc)"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:146
+#: packages/admin/src/components/settings/PasskeyItem.tsx:141
 msgid "Cancel rename"
 msgstr "Скасувати перейменування"
 
@@ -1477,7 +1483,7 @@ msgstr "По центру"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:1682
+#: packages/admin/src/components/ContentEditor.tsx:1690
 #: packages/admin/src/components/FieldEditor.tsx:402
 #: packages/admin/src/components/ImageFieldRenderer.tsx:133
 #: packages/admin/src/components/ImageFieldRenderer.tsx:162
@@ -1492,15 +1498,15 @@ msgstr "Змінити"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "Змінити <0>{0}</0> з <1>{1}</1> на <2>{2}</2>? Вони втратять доступ до функцій вищого рівня."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:239
+#: packages/admin/src/components/settings/GeneralSettings.tsx:280
 msgid "Change Favicon"
 msgstr "Змінити favicon"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:167
+#: packages/admin/src/components/settings/SeoSettings.tsx:203
 msgid "Change Image"
 msgstr "Змінити зображення"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:185
+#: packages/admin/src/components/settings/GeneralSettings.tsx:220
 msgid "Change Logo"
 msgstr "Змінити логотип"
 
@@ -1508,11 +1514,11 @@ msgstr "Змінити логотип"
 msgid "Changelog"
 msgstr "Журнал змін"
 
-#: packages/admin/src/router.tsx:1046
+#: packages/admin/src/router.tsx:1055
 msgid "Changes discarded"
 msgstr "Зміни скасовано"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:129
+#: packages/admin/src/components/settings/SeoSettings.tsx:167
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Символ між заголовком сторінки та назвою сайту (напр., \"Мій допис | Мій сайт\")"
 
@@ -1547,15 +1553,15 @@ msgstr "Перевірка, скільки збережених значень �
 msgid "Choose how to sign in"
 msgstr "Оберіть спосіб входу"
 
-#: packages/admin/src/components/Settings.tsx:137
+#: packages/admin/src/components/Settings.tsx:119
 msgid "Choose your preferred admin language"
 msgstr "Оберіть бажану мову адмін-панелі"
 
-#: packages/admin/src/components/ContentList.tsx:481
+#: packages/admin/src/components/ContentList.tsx:488
 msgid "Clear"
 msgstr "Очистити"
 
-#: packages/admin/src/components/ContentList.tsx:825
+#: packages/admin/src/components/ContentList.tsx:837
 #: packages/admin/src/components/MediaLibrary.tsx:497
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
@@ -1586,9 +1592,9 @@ msgstr "Перейдіть за посиланням у листі, щоб ув�
 #: packages/admin/src/components/BylineFieldEditor.tsx:218
 #: packages/admin/src/components/BylineFieldEditor.tsx:222
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
-#: packages/admin/src/components/ContentPickerModal.tsx:120
-#: packages/admin/src/components/ContentPickerModal.tsx:126
-#: packages/admin/src/components/ContentPickerModal.tsx:130
+#: packages/admin/src/components/ContentPickerModal.tsx:121
+#: packages/admin/src/components/ContentPickerModal.tsx:127
+#: packages/admin/src/components/ContentPickerModal.tsx:131
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:227
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:229
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:412
@@ -1622,9 +1628,9 @@ msgstr "Перейдіть за посиланням у листі, щоб ув�
 #: packages/admin/src/components/Sections.tsx:153
 #: packages/admin/src/components/Sections.tsx:159
 #: packages/admin/src/components/Sections.tsx:163
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:328
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:334
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:338
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:348
 #: packages/admin/src/components/TaxonomyManager.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:387
 #: packages/admin/src/components/TaxonomyManager.tsx:393
@@ -1655,7 +1661,7 @@ msgstr ""
 msgid "Close panel"
 msgstr "Закрити панель"
 
-#: packages/admin/src/components/ContentEditor.tsx:1053
+#: packages/admin/src/components/ContentEditor.tsx:1061
 msgid "Close settings"
 msgstr "Закрити налаштування"
 
@@ -1683,7 +1689,7 @@ msgstr "Згорнути деталі"
 msgid "colleague@example.com"
 msgstr "colleague@example.com"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:156
+#: packages/admin/src/components/ContentPickerModal.tsx:157
 msgid "Collection"
 msgstr "Колекція"
 
@@ -1738,7 +1744,7 @@ msgstr "Компонент"
 msgid "Configure Field"
 msgstr "Налаштувати поле"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:415
 msgid "Confirm"
 msgstr "Підтвердити"
 
@@ -1765,14 +1771,14 @@ msgstr "Підключитися до WordPress"
 msgid "Connected {0}"
 msgstr "Підключено {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:183
+#: packages/admin/src/components/ContentSettingsPanel.tsx:185
 msgid "content"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:294
-#: packages/admin/src/components/Dashboard.tsx:220
+#: packages/admin/src/components/Dashboard.tsx:235
 #: packages/admin/src/components/PortableTextEditor.tsx:2472
 #: packages/admin/src/components/SectionEditor.tsx:195
 #: packages/admin/src/components/Sidebar.tsx:365
@@ -1793,7 +1799,7 @@ msgstr "Помилки вмісту ({0})"
 msgid "Content found:"
 msgstr "Знайдено вмісту:"
 
-#: packages/admin/src/router.tsx:1068
+#: packages/admin/src/router.tsx:1077
 msgid "Content has been scheduled for publishing"
 msgstr "Вміст заплановано до публікації"
 
@@ -1805,7 +1811,7 @@ msgstr "Вміст оновлено до обраної ревізії."
 msgid "Content ID:"
 msgstr "ID вмісту:"
 
-#: packages/admin/src/router.tsx:1009
+#: packages/admin/src/router.tsx:1018
 msgid "Content is now live"
 msgstr "Вміст тепер опубліковано"
 
@@ -1817,11 +1823,11 @@ msgstr "елементи вмісту"
 msgid "Content Read"
 msgstr "Читання вмісту"
 
-#: packages/admin/src/router.tsx:1027
+#: packages/admin/src/router.tsx:1036
 msgid "Content removed from public view"
 msgstr "Вміст прибрано з публічного перегляду"
 
-#: packages/admin/src/router.tsx:1089
+#: packages/admin/src/router.tsx:1098
 msgid "Content reverted to draft"
 msgstr "Вміст повернуто до чернетки"
 
@@ -1865,7 +1871,7 @@ msgstr "Продовжити імпорт"
 msgid "Contributor"
 msgstr "Учасник"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:234
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:304
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
 msgid "Copied to clipboard"
 msgstr "Скопійовано в буфер обміну"
@@ -1883,11 +1889,12 @@ msgstr "Скопіювати посилання запрошення"
 msgid "Copy slug"
 msgstr "Скопіювати slug"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:257
 msgid "Copy this token now — it won't be shown again."
 msgstr "Скопіюйте цей токен зараз — він більше не відображатиметься."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:288
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
 msgid "Copy token"
 msgstr "Скопіювати токен"
 
@@ -1901,7 +1908,7 @@ msgstr "Скопіювати URL"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "Не вдалося скопіювати автоматично. Виділіть URL вище та скопіюйте вручну."
 
-#: packages/admin/src/components/Dashboard.tsx:75
+#: packages/admin/src/components/Dashboard.tsx:90
 msgid "Could not load dashboard data"
 msgstr "Не вдалося завантажити дані панелі"
 
@@ -1925,7 +1932,7 @@ msgstr "Не вдалося завантажити власні поля."
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "Не вдалося визначити MIME-тип для \"{draft}\". Введіть MIME безпосередньо."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:877
+#: packages/admin/src/components/ContentSettingsPanel.tsx:925
 msgid "Couldn't search bylines. Please try again."
 msgstr "Не вдалося шукати підписи. Спробуйте ще раз."
 
@@ -1938,7 +1945,7 @@ msgstr "Не вдалося перевірити, скільки значень 
 msgid "Count"
 msgstr "Кількість"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1009
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1057
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
@@ -1974,7 +1981,7 @@ msgstr "Створити обліковий запис"
 msgid "Create an account"
 msgstr "Створити обліковий запис"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:957
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1005
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "Створити підпис"
@@ -1996,7 +2003,7 @@ msgstr "Створити меню"
 msgid "Create New Menu"
 msgstr "Створити нове меню"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:228
 msgid "Create New Token"
 msgstr "Створити новий токен"
 
@@ -2008,8 +2015,10 @@ msgstr "Створіть у WordPress: Користувачі → Профіль
 msgid "Create Passkey"
 msgstr "Створити passkey"
 
-#: packages/admin/src/components/Settings.tsx:111
+#: packages/admin/src/components/Settings.tsx:87
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:195
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:229
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:325
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Створюйте персональні токени доступу для програмного доступу до API"
 
@@ -2044,8 +2053,8 @@ msgstr "Створіть секції в бібліотеці секцій, що
 msgid "Create Taxonomy"
 msgstr "Створити таксономію"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:269
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:237
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:539
 msgid "Create Token"
 msgstr "Створити токен"
 
@@ -2061,7 +2070,7 @@ msgstr "Створіть обліковий запис"
 msgid "Create your first navigation menu to get started"
 msgstr "Створіть перше навігаційне меню, щоб почати"
 
-#: packages/admin/src/components/ContentList.tsx:556
+#: packages/admin/src/components/ContentList.tsx:563
 #: packages/admin/src/components/ContentTypeList.tsx:124
 msgid "Create your first one"
 msgstr "Створіть перший"
@@ -2092,8 +2101,9 @@ msgstr "Створювати, оновлювати та видаляти тер�
 msgid "Create, update, delete content"
 msgstr "Створювати, оновлювати, видаляти вміст"
 
-#: packages/admin/src/components/ContentList.tsx:736
-#: packages/admin/src/components/ContentSettingsPanel.tsx:537
+#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentSettingsPanel.tsx:585
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:357
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "Створено"
@@ -2104,14 +2114,12 @@ msgid "Created \"{0}\"."
 msgstr "Створено \"{0}\"."
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
-#. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr "Створено {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1120
+#: packages/admin/src/router.tsx:1129
 msgid "Created {0} translation"
 msgstr "Створено переклад {0}"
 
@@ -2123,11 +2131,11 @@ msgstr "Створено"
 msgid "Creating collections and fields..."
 msgstr "Створення колекцій і полів..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1009
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1057
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:477
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:539
 #: packages/admin/src/components/TaxonomyManager.tsx:711
 #: packages/admin/src/components/TaxonomySidebar.tsx:308
 msgid "Creating..."
@@ -2157,7 +2165,7 @@ msgstr "Власний"
 msgid "Custom Fields"
 msgstr "Власні поля"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:210
+#: packages/admin/src/components/settings/SeoSettings.tsx:262
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "Власний вміст robots.txt. Залиште порожнім для значення за замовчуванням."
 
@@ -2169,7 +2177,7 @@ msgstr "Власна секція"
 msgid "Custom Taxonomies"
 msgstr "Власні таксономії"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:176
+#: packages/admin/src/components/settings/BackupSettings.tsx:223
 msgid "Daily automatic backups"
 msgstr "Щоденні автоматичні резервні копії"
 
@@ -2183,14 +2191,14 @@ msgstr "Темна"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:130
 #: packages/admin/src/components/ContentTypeList.tsx:246
-#: packages/admin/src/components/Dashboard.tsx:41
+#: packages/admin/src/components/Dashboard.tsx:56
 #: packages/admin/src/components/Sidebar.tsx:206
 #: packages/admin/src/components/Sidebar.tsx:356
 msgid "Dashboard"
 msgstr "Панель керування"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:297
-#: packages/admin/src/components/ContentList.tsx:525
+#: packages/admin/src/components/ContentList.tsx:532
 msgid "Date"
 msgstr "Дата"
 
@@ -2203,11 +2211,11 @@ msgstr "Дата й час"
 msgid "Date and time picker"
 msgstr "Вибір дати й часу"
 
-#: packages/admin/src/components/ContentList.tsx:790
+#: packages/admin/src/components/ContentList.tsx:802
 msgid "Date field to filter on"
 msgstr "Поле дати для фільтрації"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:281
+#: packages/admin/src/components/settings/GeneralSettings.tsx:324
 msgid "Date Format"
 msgstr "Формат дати"
 
@@ -2219,20 +2227,20 @@ msgstr "Десяткове число"
 msgid "Declared permissions"
 msgstr "Оголошені дозволи"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:294
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:356
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:290
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:345
 msgid "Default Role"
 msgstr "Роль за замовчуванням"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:233
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
 msgid "Default role:"
 msgstr "Роль за замовчуванням:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:147
+#: packages/admin/src/components/settings/SeoSettings.tsx:181
 msgid "Default social image"
 msgstr "Зображення соцмереж за замовчуванням"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:138
+#: packages/admin/src/components/settings/SeoSettings.tsx:172
 msgid "Default Social Image"
 msgstr "Зображення соцмереж за замовчуванням"
 
@@ -2266,7 +2274,7 @@ msgstr "Визначено в коді"
 #: packages/admin/src/components/Redirects.tsx:585
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
-#: packages/admin/src/components/settings/BackupSettings.tsx:284
+#: packages/admin/src/components/settings/BackupSettings.tsx:352
 #: packages/admin/src/components/TaxonomyManager.tsx:908
 #: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
@@ -2285,8 +2293,8 @@ msgstr "Видалити \"{0}\"? Цю дію не можна скасувати
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:229
 #: packages/admin/src/components/Sections.tsx:408
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:252
-#: packages/admin/src/components/settings/BackupSettings.tsx:245
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:266
+#: packages/admin/src/components/settings/BackupSettings.tsx:312
 #: packages/admin/src/components/TaxonomyManager.tsx:117
 #: packages/admin/src/components/Widgets.tsx:817
 #: packages/admin/src/routes/byline-schema.tsx:458
@@ -2313,7 +2321,7 @@ msgstr "Видалити область віджетів {0}"
 msgid "Delete {0}?"
 msgstr "Видалити {0}?"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:282
+#: packages/admin/src/components/settings/BackupSettings.tsx:350
 msgid "Delete backup?"
 msgstr "Видалити резервну копію?"
 
@@ -2373,11 +2381,11 @@ msgid "Delete permanently"
 msgstr "Видалити назавжди"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1136
+#: packages/admin/src/components/ContentList.tsx:1148
 msgid "Delete Permanently"
 msgstr "Видалити назавжди"
 
-#: packages/admin/src/components/ContentList.tsx:1116
+#: packages/admin/src/components/ContentList.tsx:1128
 msgid "Delete Permanently?"
 msgstr "Видалити назавжди?"
 
@@ -2410,7 +2418,7 @@ msgstr "Видалити таблицю"
 msgid "Delete Widget Area?"
 msgstr "Видалити область віджетів?"
 
-#: packages/admin/src/components/ContentList.tsx:646
+#: packages/admin/src/components/ContentList.tsx:653
 msgid "Deleted"
 msgstr "Видалено"
 
@@ -2428,7 +2436,7 @@ msgstr "Видалення \"{0}\" також прибере {1, plural, one {# 
 #: packages/admin/src/components/MenuList.tsx:259
 #: packages/admin/src/components/Redirects.tsx:586
 #: packages/admin/src/components/Sections.tsx:309
-#: packages/admin/src/components/settings/BackupSettings.tsx:285
+#: packages/admin/src/components/settings/BackupSettings.tsx:353
 #: packages/admin/src/components/TaxonomyManager.tsx:909
 #: packages/admin/src/components/Widgets.tsx:717
 #: packages/admin/src/routes/bylines.tsx:625
@@ -2516,7 +2524,7 @@ msgstr "Код пристрою"
 msgid "Device-bound"
 msgstr "Прив'язаний до пристрою"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:104
+#: packages/admin/src/components/settings/PasskeyItem.tsx:98
 msgid "Device-bound passkey"
 msgstr "Passkey, прив'язаний до пристрою"
 
@@ -2580,8 +2588,8 @@ msgstr "Вимкнення..."
 msgid "Discard"
 msgstr "Скасувати"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:77
-#: packages/admin/src/components/ContentSettingsPanel.tsx:97
+#: packages/admin/src/components/ContentSettingsPanel.tsx:79
+#: packages/admin/src/components/ContentSettingsPanel.tsx:99
 msgid "Discard changes"
 msgstr "Скасувати зміни"
 
@@ -2589,7 +2597,7 @@ msgstr "Скасувати зміни"
 msgid "Discard changes?"
 msgstr "Скасувати зміни?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:82
+#: packages/admin/src/components/ContentSettingsPanel.tsx:84
 msgid "Discard draft changes?"
 msgstr "Скасувати зміни чернетки?"
 
@@ -2597,8 +2605,7 @@ msgstr "Скасувати зміни чернетки?"
 msgid "Discarding..."
 msgstr "Скасування..."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:241
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:243
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:266
 msgid "Dismiss"
 msgstr "Закрити"
 
@@ -2614,8 +2621,8 @@ msgstr "Показати навігаційне меню"
 msgid "Display category list"
 msgstr "Показати список категорій"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:960
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1008
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1070
 #: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "Відображуване ім'я"
@@ -2638,7 +2645,7 @@ msgstr "Показати хмару тегів"
 msgid "Displayed below the image as a visible caption."
 msgstr "Відображається під зображенням як видимий підпис."
 
-#: packages/admin/src/components/ContentEditor.tsx:697
+#: packages/admin/src/components/ContentEditor.tsx:703
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Режим без відволікань (⌘⇧\\)"
 
@@ -2655,19 +2662,19 @@ msgstr "Dockerfile"
 msgid "Documents"
 msgstr "Документи"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:286
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:284
 msgid "Domain"
 msgstr "Домен"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:66
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:71
 msgid "Domain added successfully"
 msgstr "Домен успішно додано"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:111
 msgid "Domain removed"
 msgstr "Домен видалено"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:90
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:94
 msgid "Domain updated"
 msgstr "Домен оновлено"
 
@@ -2680,28 +2687,29 @@ msgstr "Немає облікового запису? <0>Зареєструва�
 msgid "Done"
 msgstr "Готово"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:903
+#: packages/admin/src/components/ContentSettingsPanel.tsx:951
 msgid "Down"
 msgstr "Вниз"
 
 #. placeholder {0}: archive.name
-#: packages/admin/src/components/settings/BackupSettings.tsx:238
+#: packages/admin/src/components/settings/BackupSettings.tsx:304
 msgid "Download {0}"
 msgstr "Завантажити {0}"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:158
+#: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
 msgstr "Завантажте повну резервну копію сайту: весь вміст (включно з чернетками та кошиком), колекції, таксономії, меню, віджети, метадані медіа та налаштування сайту. Облікові записи та секрети ніколи не включаються."
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:160
+#: packages/admin/src/components/settings/BackupSettings.tsx:195
 msgid "Download backup"
 msgstr "Завантажити резервну копію"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:155
+#: packages/admin/src/components/settings/BackupSettings.tsx:187
 msgid "Download Backup"
 msgstr "Завантажити резервну копію"
 
-#: packages/admin/src/components/Settings.tsx:123
+#: packages/admin/src/components/Settings.tsx:102
+#: packages/admin/src/components/settings/BackupSettings.tsx:144
 msgid "Download backups and schedule automatic backups to storage"
 msgstr "Завантажуйте резервні копії та плануйте автоматичне резервне копіювання в сховище"
 
@@ -2713,14 +2721,8 @@ msgstr "Завантажити SBOM"
 msgid "Downloading"
 msgstr "Завантаження"
 
-#: packages/admin/src/components/ContentList.tsx:1162
-msgid "draft"
-msgstr "чернетка"
-
-#: packages/admin/src/components/ContentList.tsx:730
-#: packages/admin/src/components/ContentPickerModal.tsx:212
-#: packages/admin/src/components/ContentSettingsPanel.tsx:454
-#: packages/admin/src/components/Dashboard.tsx:351
+#: packages/admin/src/components/ContentList.tsx:737
+#: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "Чернетка"
 
@@ -2729,7 +2731,7 @@ msgid "draft, published, or archived"
 msgstr "чернетка, опубліковано або заархівовано"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:254
+#: packages/admin/src/components/Dashboard.tsx:269
 msgid "Drafts"
 msgstr "Чернетки"
 
@@ -2785,7 +2787,7 @@ msgstr "Перетягніть файл експорту WordPress сюди"
 msgid "Duplicate"
 msgstr "Дублювати"
 
-#: packages/admin/src/components/ContentList.tsx:1027
+#: packages/admin/src/components/ContentList.tsx:1039
 msgid "Duplicate {title}"
 msgstr "Дублювати {title}"
 
@@ -2797,7 +2799,7 @@ msgstr "напр. application/zip або .pdf"
 msgid "e.g. import, blog"
 msgstr "напр. import, blog"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:423
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:483
 msgid "e.g., CI/CD Pipeline"
 msgstr "напр., CI/CD Pipeline"
 
@@ -2805,7 +2807,7 @@ msgstr "напр., CI/CD Pipeline"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "напр., MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:912
+#: packages/admin/src/components/ContentSettingsPanel.tsx:960
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
@@ -2820,7 +2822,7 @@ msgstr "Редагувати"
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:1655
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:243
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:254
 #: packages/admin/src/components/TaxonomyManager.tsx:109
 #: packages/admin/src/components/TaxonomyManager.tsx:377
 #: packages/admin/src/routes/byline-schema.tsx:449
@@ -2833,15 +2835,15 @@ msgstr "Редагувати {0}"
 msgid "Edit {0} field"
 msgstr "Редагувати поле {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:643
+#: packages/admin/src/components/ContentEditor.tsx:649
 msgid "Edit {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1019
+#: packages/admin/src/components/ContentList.tsx:1031
 msgid "Edit {title}"
 msgstr "Редагувати {title}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1019
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1067
 msgid "Edit byline"
 msgstr "Редагувати підпис"
 
@@ -2849,7 +2851,7 @@ msgstr "Редагувати підпис"
 msgid "Edit byline field"
 msgstr "Редагувати поле підпису"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:331
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:321
 msgid "Edit Domain"
 msgstr "Редагувати домен"
 
@@ -2912,7 +2914,7 @@ msgid "em1.…"
 msgstr "em1.…"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:62
-#: packages/admin/src/components/Settings.tsx:116
+#: packages/admin/src/components/Settings.tsx:95
 #: packages/admin/src/components/SignupPage.tsx:198
 #: packages/admin/src/components/users/UserDetail.tsx:154
 msgid "Email"
@@ -2933,20 +2935,20 @@ msgstr "Адреса email"
 msgid "Email is required"
 msgstr "Email обов'язковий"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:187
+#: packages/admin/src/components/settings/EmailSettings.tsx:183
 msgid "Email Middleware"
 msgstr "Email Middleware"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:99
+#: packages/admin/src/components/settings/EmailSettings.tsx:91
 msgid "Email Pipeline"
 msgstr "Email Pipeline"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:172
+#: packages/admin/src/components/settings/EmailSettings.tsx:165
 msgid "Email provider active"
 msgstr "Провайдер email активний"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:77
-#: packages/admin/src/components/settings/EmailSettings.tsx:92
+#: packages/admin/src/components/Settings.tsx:91
+#: packages/admin/src/components/settings/EmailSettings.tsx:58
 msgid "Email Settings"
 msgstr "Налаштування email"
 
@@ -3013,7 +3015,7 @@ msgstr "Увімкнено"
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Введіть URL (https://…) або відносний шлях (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1460
+#: packages/admin/src/components/ContentEditor.tsx:1468
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Введіть дійсний URL (наприклад, https://example.com)"
 
@@ -3021,7 +3023,7 @@ msgstr "Введіть дійсний URL (наприклад, https://example.c
 msgid "Enter credentials manually"
 msgstr "Введіть облікові дані вручну"
 
-#: packages/admin/src/components/ContentEditor.tsx:696
+#: packages/admin/src/components/ContentEditor.tsx:702
 msgid "Enter distraction-free mode"
 msgstr "Увійти в режим без відволікань"
 
@@ -3033,7 +3035,7 @@ msgstr "Введіть email"
 msgid "Enter HTML..."
 msgstr "Введіть HTML..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1234
+#: packages/admin/src/components/ContentEditor.tsx:1242
 msgid "Enter markdown content..."
 msgstr "Введіть вміст markdown..."
 
@@ -3067,7 +3069,7 @@ msgstr "Введіть URL сайту WordPress"
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2176
+#: packages/admin/src/router.tsx:2193
 msgid "Error"
 msgstr "Помилка"
 
@@ -3091,11 +3093,20 @@ msgstr "Помилка оновлення віджета"
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "Усі опубліковані випуски цього плагіна були відкликані або не вдалося їх перевірити. Перевірте пізніше або зверніться до видавця."
 
+#. placeholder {0}: formData.dateFormat ?? "MMMM d, yyyy"
+#: packages/admin/src/components/settings/GeneralSettings.tsx:327
+msgid "Example: {0} → January 23, 2026"
+msgstr ""
+
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:285
+msgid "example.com"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2010
 msgid "Exists"
 msgstr "Існує"
 
-#: packages/admin/src/components/ContentEditor.tsx:755
+#: packages/admin/src/components/ContentEditor.tsx:761
 msgid "Exit distraction-free mode"
 msgstr "Вийти з режиму без відволікань"
 
@@ -3111,12 +3122,8 @@ msgstr "Розгорнути"
 msgid "Expand details"
 msgstr "Розгорнути деталі"
 
-#. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
-msgid "Expires {0}"
-msgstr "Закінчується {0}"
-
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:463
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:364
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:525
 msgid "Expiry"
 msgstr "Термін дії"
 
@@ -3128,7 +3135,7 @@ msgstr "Експорт з WordPress вручну"
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Експортуйте вміст з WordPress, щоб імпортувати все, включно з чернетками."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:118
+#: packages/admin/src/components/settings/SocialSettings.tsx:155
 msgid "Facebook"
 msgstr "Facebook"
 
@@ -3144,11 +3151,11 @@ msgstr "Не вдалося"
 msgid "Failed security audit"
 msgstr "Не пройшло перевірку безпеки"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:70
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:75
 msgid "Failed to add domain"
 msgstr "Не вдалося додати домен"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:188
+#: packages/admin/src/components/settings/SecuritySettings.tsx:175
 msgid "Failed to add passkey"
 msgstr "Не вдалося додати passkey"
 
@@ -3168,12 +3175,12 @@ msgstr "Не вдалося підтвердити завантаження"
 msgid "Failed to create admin"
 msgstr "Не вдалося створити адміністратора"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:104
+#: packages/admin/src/components/settings/BackupSettings.tsx:122
 #: packages/admin/src/lib/api/backups.ts:51
 msgid "Failed to create backup"
 msgstr "Не вдалося створити резервну копію"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1051
 msgid "Failed to create byline"
 msgstr "Не вдалося створити підпис"
 
@@ -3197,14 +3204,14 @@ msgstr "Не вдалося створити деякі колекції"
 msgid "Failed to create term"
 msgstr "Не вдалося створити термін"
 
-#: packages/admin/src/router.tsx:1125
+#: packages/admin/src/router.tsx:1134
 msgid "Failed to create translation"
 msgstr "Не вдалося створити переклад"
 
-#: packages/admin/src/router.tsx:422
-#: packages/admin/src/router.tsx:451
-#: packages/admin/src/router.tsx:534
-#: packages/admin/src/router.tsx:1145
+#: packages/admin/src/router.tsx:423
+#: packages/admin/src/router.tsx:452
+#: packages/admin/src/router.tsx:535
+#: packages/admin/src/router.tsx:1154
 msgid "Failed to delete"
 msgstr "Не вдалося видалити"
 
@@ -3229,11 +3236,11 @@ msgid "Failed to delete collection"
 msgstr "Не вдалося видалити колекцію"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1447
+#: packages/admin/src/router.tsx:1464
 msgid "Failed to delete comment"
 msgstr "Не вдалося видалити коментар"
 
-#: packages/admin/src/lib/api/content.ts:279
+#: packages/admin/src/lib/api/content.ts:280
 msgid "Failed to delete content"
 msgstr "Не вдалося видалити вміст"
 
@@ -3295,7 +3302,7 @@ msgstr "Не вдалося вимкнути пошук"
 msgid "Failed to disable user"
 msgstr "Не вдалося вимкнути користувача"
 
-#: packages/admin/src/router.tsx:1052
+#: packages/admin/src/router.tsx:1061
 msgid "Failed to discard changes"
 msgstr "Не вдалося скасувати зміни"
 
@@ -3303,7 +3310,7 @@ msgstr "Не вдалося скасувати зміни"
 msgid "Failed to dismiss welcome"
 msgstr "Не вдалося закрити привітання"
 
-#: packages/admin/src/router.tsx:465
+#: packages/admin/src/router.tsx:466
 msgid "Failed to duplicate"
 msgstr "Не вдалося дублювати"
 
@@ -3382,8 +3389,8 @@ msgstr "Не вдалося отримати плагіни"
 msgid "Failed to fetch provider media"
 msgstr "Не вдалося отримати медіа від провайдера"
 
-#: packages/admin/src/lib/api/content.ts:556
-#: packages/admin/src/lib/api/content.ts:561
+#: packages/admin/src/lib/api/content.ts:557
+#: packages/admin/src/lib/api/content.ts:562
 msgid "Failed to fetch revision"
 msgstr "Не вдалося отримати ревізію"
 
@@ -3410,8 +3417,8 @@ msgstr "Не вдалося отримати терміни"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:852
-#: packages/admin/src/router.tsx:1378
+#: packages/admin/src/router.tsx:853
+#: packages/admin/src/router.tsx:1395
 msgid "Failed to fetch user"
 msgstr "Не вдалося отримати користувача"
 
@@ -3453,15 +3460,16 @@ msgstr "Не вдалося встановити плагін"
 msgid "Failed to list byline fields"
 msgstr "Не вдалося отримати список полів підпису"
 
-#: packages/admin/src/router.tsx:282
+#: packages/admin/src/router.tsx:283
 msgid "Failed to load admin"
 msgstr "Не вдалося завантажити адмін-панель"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:192
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:184
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:185
 msgid "Failed to load allowed domains"
 msgstr "Не вдалося завантажити дозволені домени"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:135
+#: packages/admin/src/components/settings/BackupSettings.tsx:165
 msgid "Failed to load backup settings"
 msgstr "Не вдалося завантажити налаштування резервного копіювання"
 
@@ -3470,6 +3478,7 @@ msgstr "Не вдалося завантажити налаштування ре
 msgid "Failed to load bylines: {0}"
 msgstr "Не вдалося завантажити підписи: {0}"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:80
 #: packages/admin/src/components/settings/EmailSettings.tsx:81
 msgid "Failed to load email settings"
 msgstr "Не вдалося завантажити налаштування email"
@@ -3478,7 +3487,7 @@ msgstr "Не вдалося завантажити налаштування emai
 msgid "Failed to load image"
 msgstr "Не вдалося завантажити зображення"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:135
+#: packages/admin/src/components/settings/SecuritySettings.tsx:123
 msgid "Failed to load passkeys"
 msgstr "Не вдалося завантажити passkey"
 
@@ -3520,11 +3529,11 @@ msgstr "Не вдалося завантажити користувачів: {0}
 msgid "Failed to load widget"
 msgstr "Не вдалося завантажити віджет"
 
-#: packages/admin/src/router.tsx:1472
+#: packages/admin/src/router.tsx:1489
 msgid "Failed to perform bulk action"
 msgstr "Не вдалося виконати масову дію"
 
-#: packages/admin/src/lib/api/content.ts:322
+#: packages/admin/src/lib/api/content.ts:323
 msgid "Failed to permanently delete content"
 msgstr "Не вдалося остаточно видалити вміст"
 
@@ -3532,8 +3541,8 @@ msgstr "Не вдалося остаточно видалити вміст"
 msgid "Failed to prepare import"
 msgstr "Не вдалося підготувати імпорт"
 
-#: packages/admin/src/router.tsx:490
-#: packages/admin/src/router.tsx:1013
+#: packages/admin/src/router.tsx:491
+#: packages/admin/src/router.tsx:1022
 msgid "Failed to publish"
 msgstr "Не вдалося опублікувати"
 
@@ -3541,16 +3550,16 @@ msgstr "Не вдалося опублікувати"
 msgid "Failed to read byline field usage"
 msgstr "Не вдалося прочитати використання поля підпису"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:112
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:115
 msgid "Failed to remove domain"
 msgstr "Не вдалося видалити домен"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:99
-#: packages/admin/src/components/settings/SecuritySettings.tsx:70
+#: packages/admin/src/components/settings/PasskeyItem.tsx:93
+#: packages/admin/src/components/settings/SecuritySettings.tsx:66
 msgid "Failed to remove passkey"
 msgstr "Не вдалося видалити passkey"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:53
+#: packages/admin/src/components/settings/SecuritySettings.tsx:50
 msgid "Failed to rename passkey"
 msgstr "Не вдалося перейменувати passkey"
 
@@ -3567,16 +3576,16 @@ msgstr "Не вдалося змінити порядок полів"
 msgid "Failed to reorder widgets"
 msgstr "Не вдалося змінити порядок віджетів"
 
-#: packages/admin/src/router.tsx:437
+#: packages/admin/src/router.tsx:438
 msgid "Failed to restore"
 msgstr "Не вдалося відновити"
 
-#: packages/admin/src/lib/api/content.ts:311
+#: packages/admin/src/lib/api/content.ts:312
 msgid "Failed to restore content"
 msgstr "Не вдалося відновити вміст"
 
-#: packages/admin/src/lib/api/content.ts:578
-#: packages/admin/src/lib/api/content.ts:583
+#: packages/admin/src/lib/api/content.ts:579
+#: packages/admin/src/lib/api/content.ts:584
 msgid "Failed to restore revision"
 msgstr "Не вдалося відновити ревізію"
 
@@ -3588,12 +3597,12 @@ msgstr "Не вдалося відкликати API-токен"
 msgid "Failed to rewrite URLs"
 msgstr "Не вдалося переписати URL"
 
-#: packages/admin/src/router.tsx:942
-#: packages/admin/src/router.tsx:1961
+#: packages/admin/src/router.tsx:943
+#: packages/admin/src/router.tsx:1978
 msgid "Failed to save"
 msgstr "Не вдалося зберегти"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:84
+#: packages/admin/src/components/settings/BackupSettings.tsx:102
 msgid "Failed to save backup settings"
 msgstr "Не вдалося зберегти налаштування резервного копіювання"
 
@@ -3602,13 +3611,13 @@ msgid "Failed to save field"
 msgstr "Не вдалося зберегти поле"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:50
-#: packages/admin/src/components/settings/SeoSettings.tsx:44
-#: packages/admin/src/components/settings/SocialSettings.tsx:42
+#: packages/admin/src/components/settings/GeneralSettings.tsx:77
+#: packages/admin/src/components/settings/SeoSettings.tsx:76
+#: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
 msgstr "Не вдалося зберегти налаштування"
 
-#: packages/admin/src/router.tsx:1073
+#: packages/admin/src/router.tsx:1082
 msgid "Failed to schedule"
 msgstr "Не вдалося запланувати"
 
@@ -3621,7 +3630,7 @@ msgstr "Не вдалося надіслати magic link"
 msgid "Failed to send recovery link"
 msgstr "Не вдалося надіслати посилання для відновлення"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:50
+#: packages/admin/src/components/settings/EmailSettings.tsx:44
 #: packages/admin/src/lib/api/email-settings.ts:45
 msgid "Failed to send test email"
 msgstr "Не вдалося надіслати тестовий email"
@@ -3639,15 +3648,15 @@ msgstr "Не вдалося встановити терміни запису"
 msgid "Failed to uninstall plugin"
 msgstr "Не вдалося видалити плагін"
 
-#: packages/admin/src/router.tsx:1031
+#: packages/admin/src/router.tsx:1040
 msgid "Failed to unpublish"
 msgstr "Не вдалося зняти з публікації"
 
-#: packages/admin/src/router.tsx:1094
+#: packages/admin/src/router.tsx:1103
 msgid "Failed to unschedule"
 msgstr "Не вдалося скасувати планування"
 
-#: packages/admin/src/router.tsx:513
+#: packages/admin/src/router.tsx:514
 msgid "Failed to update"
 msgstr "Не вдалося оновити"
 
@@ -3660,7 +3669,7 @@ msgstr "Не вдалося оновити {0}"
 msgid "Failed to update backup settings"
 msgstr "Не вдалося оновити налаштування резервного копіювання"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1053
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1101
 msgid "Failed to update byline"
 msgstr "Не вдалося оновити підпис"
 
@@ -3668,7 +3677,7 @@ msgstr "Не вдалося оновити підпис"
 msgid "Failed to update byline field"
 msgstr "Не вдалося оновити поле підпису"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:94
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:98
 msgid "Failed to update domain"
 msgstr "Не вдалося оновити домен"
 
@@ -3697,7 +3706,7 @@ msgstr "Не вдалося оновити секцію"
 msgid "Failed to update settings"
 msgstr "Не вдалося оновити налаштування"
 
-#: packages/admin/src/router.tsx:1431
+#: packages/admin/src/router.tsx:1448
 msgid "Failed to update status"
 msgstr "Не вдалося оновити статус"
 
@@ -3725,8 +3734,8 @@ msgstr "Не вдалося підтвердити реєстрацію"
 msgid "FAQ"
 msgstr "FAQ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:213
-#: packages/admin/src/components/settings/GeneralSettings.tsx:219
+#: packages/admin/src/components/settings/GeneralSettings.tsx:251
+#: packages/admin/src/components/settings/GeneralSettings.tsx:258
 msgid "Favicon"
 msgstr "Favicon"
 
@@ -3810,7 +3819,7 @@ msgstr "Ім'я файлу не можна змінити після заван�
 msgid "files imported"
 msgstr "файлів імпортовано"
 
-#: packages/admin/src/components/ContentList.tsx:769
+#: packages/admin/src/components/ContentList.tsx:781
 msgid "Filter by author"
 msgstr "Фільтр за автором"
 
@@ -3830,7 +3839,7 @@ msgstr "Фільтр за роллю"
 msgid "Filter by source"
 msgstr "Фільтр за джерелом"
 
-#: packages/admin/src/components/ContentList.tsx:754
+#: packages/admin/src/components/ContentList.tsx:763
 #: packages/admin/src/components/Redirects.tsx:422
 msgid "Filter by status"
 msgstr "Фільтр за статусом"
@@ -3860,7 +3869,7 @@ msgstr "Для повного імпорту, включно з чернетка
 msgid "For the best import experience, install the"
 msgstr "Для найкращого досвіду імпорту встановіть"
 
-#: packages/admin/src/components/ContentList.tsx:806
+#: packages/admin/src/components/ContentList.tsx:818
 msgid "From date"
 msgstr "З дати"
 
@@ -3887,12 +3896,11 @@ msgstr ""
 msgid "Gallery settings"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:70
+#: packages/admin/src/components/Settings.tsx:48
 msgid "General"
 msgstr "Загальні"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:96
-#: packages/admin/src/components/settings/GeneralSettings.tsx:124
+#: packages/admin/src/components/settings/GeneralSettings.tsx:118
 msgid "General Settings"
 msgstr "Загальні налаштування"
 
@@ -3904,7 +3912,7 @@ msgstr "Жанри"
 msgid "Get Started"
 msgstr "Почати"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:112
+#: packages/admin/src/components/settings/SocialSettings.tsx:147
 msgid "GitHub"
 msgstr "GitHub"
 
@@ -3917,11 +3925,12 @@ msgid "Go"
 msgstr "Перейти"
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2196
+#: packages/admin/src/router.tsx:2213
 msgid "Go to Dashboard"
 msgstr "Перейти до панелі"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:194
+#: packages/admin/src/components/settings/SeoSettings.tsx:233
+#: packages/admin/src/components/settings/SeoSettings.tsx:239
 msgid "Google Verification"
 msgstr "Перевірка Google"
 
@@ -4008,7 +4017,8 @@ msgstr "hero, banner, cta"
 msgid "Hide from search engines"
 msgstr "Приховати від пошукових систем"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:220
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:275
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Hide token"
 msgstr "Приховати токен"
 
@@ -4303,7 +4313,7 @@ msgstr "Вставити HTML-код"
 msgid "Insert Section"
 msgstr "Вставити секцію"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:124
+#: packages/admin/src/components/settings/SocialSettings.tsx:163
 msgid "Instagram"
 msgstr "Instagram"
 
@@ -4312,7 +4322,7 @@ msgstr "Instagram"
 msgid "Install"
 msgstr "Встановити"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:155
+#: packages/admin/src/components/settings/EmailSettings.tsx:147
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "Встановіть і активуйте плагін email-провайдера, щоб увімкнути функції email: запрошення, magic links та відновлення пароля."
 
@@ -4357,7 +4367,7 @@ msgstr "Ціле число"
 msgid "Invalid invite link"
 msgstr "Недійсне посилання запрошення"
 
-#: packages/admin/src/components/ContentEditor.tsx:1529
+#: packages/admin/src/components/ContentEditor.tsx:1537
 msgid "Invalid JSON"
 msgstr "Недійсний JSON"
 
@@ -4390,7 +4400,7 @@ msgstr "Запросіть першого учасника команди"
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:454
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:516
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
@@ -4451,7 +4461,7 @@ msgstr "JSX"
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "Тримайте цю вкладку відкритою. Імпорт виконується невеликими кроками і його можна безпечно перезапустити при перериванні."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:882
+#: packages/admin/src/components/ContentSettingsPanel.tsx:930
 msgid "Keep typing to narrow down more bylines."
 msgstr "Продовжуйте вводити, щоб звузити список підписів."
 
@@ -4487,8 +4497,9 @@ msgstr "Мітка (однина)"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:162
 #: packages/admin/src/components/LoginPage.tsx:347
-#: packages/admin/src/components/Settings.tsx:136
-#: packages/admin/src/components/Settings.tsx:141
+#: packages/admin/src/components/Settings.tsx:107
+#: packages/admin/src/components/Settings.tsx:117
+#: packages/admin/src/components/Settings.tsx:131
 msgid "Language"
 msgstr "Мова"
 
@@ -4516,18 +4527,17 @@ msgstr "Остання активність"
 msgid "Last updated"
 msgstr "Останнє оновлення"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:159
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:372
+#: packages/admin/src/components/settings/PasskeyItem.tsx:154
 msgid "Last used"
 msgstr "Останнє використання"
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
-#. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:303
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "Останнє використання {0}"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:274
+#: packages/admin/src/components/settings/BackupSettings.tsx:337
 msgid "Learn more"
 msgstr "Дізнатися більше"
 
@@ -4588,7 +4598,7 @@ msgstr "Лише пов'язані"
 msgid "Linked user"
 msgstr "Пов'язаний користувач"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:130
+#: packages/admin/src/components/settings/SocialSettings.tsx:171
 msgid "LinkedIn"
 msgstr "LinkedIn"
 
@@ -4600,13 +4610,13 @@ msgstr "Посилання"
 msgid "List view"
 msgstr "Список"
 
-#: packages/admin/src/components/ContentEditor.tsx:677
-#: packages/admin/src/components/ContentEditor.tsx:720
-#: packages/admin/src/components/ContentSettingsPanel.tsx:256
+#: packages/admin/src/components/ContentEditor.tsx:683
+#: packages/admin/src/components/ContentEditor.tsx:726
+#: packages/admin/src/components/ContentSettingsPanel.tsx:258
 msgid "Live View"
 msgstr "Перегляд наживо"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:236
+#: packages/admin/src/components/ContentPickerModal.tsx:229
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -4614,15 +4624,15 @@ msgstr "Перегляд наживо"
 msgid "Load more"
 msgstr "Завантажити ще"
 
-#: packages/admin/src/components/ContentList.tsx:630
-#: packages/admin/src/components/ContentList.tsx:687
+#: packages/admin/src/components/ContentList.tsx:637
+#: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/users/UserList.tsx:169
 msgid "Load More"
 msgstr "Завантажити ще"
 
-#: packages/admin/src/router.tsx:2151
+#: packages/admin/src/router.tsx:2168
 msgid "Loading"
 msgstr ""
 
@@ -4638,12 +4648,12 @@ msgstr "Завантаження колекцій..."
 msgid "Loading comments..."
 msgstr "Завантаження коментарів..."
 
-#: packages/admin/src/router.tsx:2153
-#: packages/admin/src/router.tsx:2165
+#: packages/admin/src/router.tsx:2170
+#: packages/admin/src/router.tsx:2182
 msgid "Loading configuration..."
 msgstr "Завантаження конфігурації..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:164
+#: packages/admin/src/components/ContentPickerModal.tsx:165
 msgid "Loading content..."
 msgstr "Завантаження вмісту..."
 
@@ -4673,9 +4683,9 @@ msgid "Loading sections..."
 msgstr "Завантаження секцій..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:99
-#: packages/admin/src/components/settings/SeoSettings.tsx:93
-#: packages/admin/src/components/settings/SocialSettings.tsx:73
+#: packages/admin/src/components/settings/GeneralSettings.tsx:129
+#: packages/admin/src/components/settings/SeoSettings.tsx:128
+#: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
 msgstr "Завантаження налаштувань..."
 
@@ -4691,18 +4701,21 @@ msgstr "Завантаження термінів..."
 msgid "Loading widgets..."
 msgstr "Завантаження віджетів..."
 
-#: packages/admin/src/components/ContentList.tsx:538
-#: packages/admin/src/components/ContentList.tsx:630
-#: packages/admin/src/components/ContentList.tsx:659
-#: packages/admin/src/components/ContentList.tsx:687
-#: packages/admin/src/components/ContentPickerModal.tsx:233
+#: packages/admin/src/components/ContentList.tsx:545
+#: packages/admin/src/components/ContentList.tsx:637
+#: packages/admin/src/components/ContentList.tsx:666
+#: packages/admin/src/components/ContentList.tsx:694
+#: packages/admin/src/components/ContentPickerModal.tsx:226
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/PortableTextEditor.tsx:2163
 #: packages/admin/src/components/RegistryBrowse.tsx:146
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:161
-#: packages/admin/src/components/settings/SecuritySettings.tsx:104
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:160
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
+#: packages/admin/src/components/settings/BackupSettings.tsx:154
+#: packages/admin/src/components/settings/EmailSettings.tsx:69
+#: packages/admin/src/components/settings/SecuritySettings.tsx:99
 #: packages/admin/src/components/TaxonomyManager.tsx:803
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
@@ -4712,7 +4725,7 @@ msgstr "Завантаження віджетів..."
 msgid "Loading..."
 msgstr "Завантаження..."
 
-#: packages/admin/src/components/ContentList.tsx:518
+#: packages/admin/src/components/ContentList.tsx:525
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "Локаль"
@@ -4732,8 +4745,8 @@ msgstr "Заблоковано, оскільки це поле має збере
 msgid "Log out"
 msgstr "Вийти"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:159
-#: packages/admin/src/components/settings/GeneralSettings.tsx:165
+#: packages/admin/src/components/settings/GeneralSettings.tsx:191
+#: packages/admin/src/components/settings/GeneralSettings.tsx:198
 msgid "Logo"
 msgstr "Логотип"
 
@@ -4782,7 +4795,7 @@ msgstr "Керувати"
 msgid "Manage {0} for {1}"
 msgstr "Керувати {0} для {1}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:844
+#: packages/admin/src/components/ContentSettingsPanel.tsx:892
 msgid "Manage bylines in {entryLocale}"
 msgstr "Керувати підписами в {entryLocale}"
 
@@ -4802,7 +4815,8 @@ msgstr "Керуйте навігаційними меню вашого сайт
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Керуйте URL-перенаправленнями та переглядайте помилки 404."
 
-#: packages/admin/src/components/Settings.tsx:94
+#: packages/admin/src/components/Settings.tsx:71
+#: packages/admin/src/components/settings/SecuritySettings.tsx:89
 msgid "Manage your passkeys and authentication"
 msgstr "Керуйте passkey та автентифікацією"
 
@@ -4987,11 +5001,11 @@ msgstr "Керування меню"
 msgid "Meta Description"
 msgstr "Метаопис"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:203
+#: packages/admin/src/components/settings/SeoSettings.tsx:250
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Вміст meta-тегу для перевірки Bing Webmaster Tools"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:197
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Вміст meta-тегу для перевірки Google Search Console"
 
@@ -5027,10 +5041,6 @@ msgstr "Модерація"
 msgid "Moderation Signals"
 msgstr "Сигнали модерації"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:211
-msgid "Modified"
-msgstr "Змінено"
-
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:72
 msgid "Modify collection schemas"
 msgstr "Змінювати схеми колекцій"
@@ -5061,11 +5071,11 @@ msgstr "Перемістити \"{0}\" вниз"
 msgid "Move \"{0}\" up"
 msgstr "Перемістити \"{0}\" вгору"
 
-#: packages/admin/src/components/ContentList.tsx:1048
+#: packages/admin/src/components/ContentList.tsx:1060
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "Перемістити \"{title}\" до кошика? Пізніше можна відновити."
 
-#: packages/admin/src/components/ContentList.tsx:1039
+#: packages/admin/src/components/ContentList.tsx:1051
 msgid "Move {title} to trash"
 msgstr "Перемістити {title} у кошик"
 
@@ -5073,20 +5083,20 @@ msgstr "Перемістити {title} у кошик"
 msgid "Move down"
 msgstr "Перемістити вниз"
 
-#: packages/admin/src/components/ContentList.tsx:439
+#: packages/admin/src/components/ContentList.tsx:446
 msgid "Move to trash"
 msgstr "Перемістити в кошик"
 
-#: packages/admin/src/components/ContentList.tsx:466
-#: packages/admin/src/components/ContentList.tsx:1061
-#: packages/admin/src/components/ContentSettingsPanel.tsx:669
-#: packages/admin/src/components/ContentSettingsPanel.tsx:689
+#: packages/admin/src/components/ContentList.tsx:473
+#: packages/admin/src/components/ContentList.tsx:1073
+#: packages/admin/src/components/ContentSettingsPanel.tsx:717
+#: packages/admin/src/components/ContentSettingsPanel.tsx:737
 msgid "Move to Trash"
 msgstr "Перемістити в кошик"
 
-#: packages/admin/src/components/ContentList.tsx:444
-#: packages/admin/src/components/ContentList.tsx:1046
-#: packages/admin/src/components/ContentSettingsPanel.tsx:674
+#: packages/admin/src/components/ContentList.tsx:451
+#: packages/admin/src/components/ContentList.tsx:1058
+#: packages/admin/src/components/ContentSettingsPanel.tsx:722
 msgid "Move to Trash?"
 msgstr "Перемістити в кошик?"
 
@@ -5094,11 +5104,11 @@ msgstr "Перемістити в кошик?"
 msgid "Move up"
 msgstr "Перемістити вгору"
 
-#: packages/admin/src/router.tsx:510
+#: packages/admin/src/router.tsx:511
 msgid "Moved {total} items to draft"
 msgstr "Переміщено {total} елементів у чернетки"
 
-#: packages/admin/src/router.tsx:531
+#: packages/admin/src/router.tsx:532
 msgid "Moved {total} items to trash"
 msgstr "Переміщено {total} елементів у кошик"
 
@@ -5147,7 +5157,7 @@ msgstr "Навігація"
 msgid "Never"
 msgstr "Ніколи"
 
-#: packages/admin/src/router.tsx:1120
+#: packages/admin/src/router.tsx:1129
 msgid "new"
 msgstr "новий"
 
@@ -5164,7 +5174,7 @@ msgstr "НОВИЙ"
 msgid "New {0}"
 msgstr "Новий {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:643
+#: packages/admin/src/components/ContentEditor.tsx:649
 msgid "New {itemLabel}"
 msgstr ""
 
@@ -5227,7 +5237,7 @@ msgid "Next"
 msgstr "Далі"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:372
-#: packages/admin/src/components/ContentList.tsx:618
+#: packages/admin/src/components/ContentList.tsx:625
 msgid "Next page"
 msgstr "Наступна сторінка"
 
@@ -5250,7 +5260,7 @@ msgid "No {0} available."
 msgstr "Немає доступних {0}."
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/ContentList.tsx:556
 msgid "No {0} yet."
 msgstr "Ще немає {0}."
 
@@ -5268,7 +5278,7 @@ msgstr "Ще не зафіксовано помилок 404."
 msgid "No alt text"
 msgstr "Немає alt-тексту"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:281
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:401
 msgid "No API tokens yet. Create one to get started."
 msgstr "Ще немає API-токенів. Створіть, щоб почати."
 
@@ -5280,7 +5290,7 @@ msgstr "Ще немає схвалених коментарів."
 msgid "No byline fields yet."
 msgstr "Ще немає полів підпису."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:836
+#: packages/admin/src/components/ContentSettingsPanel.tsx:884
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "Немає доступних підписів у {entryLocale}. Створіть варіант на сторінці Підписи, перш ніж вказати його в цьому записі."
 
@@ -5288,11 +5298,11 @@ msgstr "Немає доступних підписів у {entryLocale}. Ств�
 msgid "No bylines found"
 msgstr "Підписи не знайдено"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:944
+#: packages/admin/src/components/ContentSettingsPanel.tsx:992
 msgid "No bylines selected."
 msgstr "Підписи не вибрано."
 
-#: packages/admin/src/components/Dashboard.tsx:226
+#: packages/admin/src/components/Dashboard.tsx:241
 msgid "No collections configured"
 msgstr "Колекції не налаштовано"
 
@@ -5308,11 +5318,11 @@ msgstr "Жоден коментар не відповідає вашому по�
 msgid "No content"
 msgstr "Немає вмісту"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:171
+#: packages/admin/src/components/ContentPickerModal.tsx:172
 msgid "No content found"
 msgstr "Вміст не знайдено"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:177
+#: packages/admin/src/components/ContentPickerModal.tsx:178
 msgid "No content in this collection"
 msgstr "Немає вмісту в цій колекції"
 
@@ -5328,11 +5338,11 @@ msgstr "Ще немає користувацьких полів"
 msgid "No detailed description available."
 msgstr "Детальний опис недоступний."
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:262
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:276
 msgid "No domains configured. Users must be invited individually."
 msgstr "Домени не налаштовано. Користувачів потрібно запрошувати індивідуально."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:152
+#: packages/admin/src/components/settings/EmailSettings.tsx:144
 msgid "No email provider configured"
 msgstr "Email-провайдер не налаштовано"
 
@@ -5370,6 +5380,7 @@ msgstr "Токен запрошення не надано"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1959
 #: packages/admin/src/components/RepeaterField.tsx:165
+#: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
 msgstr "Ще немає елементів"
 
@@ -5385,7 +5396,7 @@ msgstr "Немає пов'язаного користувача"
 msgid "No matches"
 msgstr "Немає збігів"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:879
+#: packages/admin/src/components/ContentSettingsPanel.tsx:927
 msgid "No matching bylines."
 msgstr "Немає відповідних підписів."
 
@@ -5441,7 +5452,7 @@ msgstr "Без батьківського (верхній рівень)"
 msgid "No passkeys registered"
 msgstr "Passkey не зареєстровано"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:168
+#: packages/admin/src/components/settings/SecuritySettings.tsx:154
 msgid "No passkeys registered yet."
 msgstr "Ще не зареєстровано жодного passkey."
 
@@ -5469,7 +5480,7 @@ msgstr "Немає попереднього перегляду"
 msgid "No public URL available"
 msgstr "Публічний URL недоступний"
 
-#: packages/admin/src/components/Dashboard.tsx:305
+#: packages/admin/src/components/Dashboard.tsx:320
 msgid "No recent activity"
 msgstr "Немає недавньої активності"
 
@@ -5482,8 +5493,8 @@ msgstr "Ще немає перенаправлень"
 msgid "No results"
 msgstr "Немає результатів"
 
-#: packages/admin/src/components/ContentList.tsx:546
-#: packages/admin/src/components/ContentList.tsx:565
+#: packages/admin/src/components/ContentList.tsx:553
+#: packages/admin/src/components/ContentList.tsx:572
 msgid "No results for \"{activeSearch}\""
 msgstr "Немає результатів для \"{activeSearch}\""
 
@@ -5493,6 +5504,7 @@ msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "Немає результатів для \"{debouncedQuery}\". Спробуйте інший пошуковий запит."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:465
+#: packages/admin/src/components/Settings.tsx:141
 msgid "No results found"
 msgstr "Результатів не знайдено"
 
@@ -5559,7 +5571,7 @@ msgstr "Число"
 msgid "Number of posts"
 msgstr "Кількість записів"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:278
+#: packages/admin/src/components/settings/GeneralSettings.tsx:319
 msgid "Number of posts to show per page on list views"
 msgstr "Кількість записів на сторінці в спискових поданнях"
 
@@ -5688,7 +5700,7 @@ msgstr "Порядок збережено"
 msgid "Original:"
 msgstr "Оригінал:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:636
+#: packages/admin/src/components/ContentSettingsPanel.tsx:684
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "Структура"
@@ -5697,8 +5709,8 @@ msgstr "Структура"
 msgid "Overrides the page title in search engine results"
 msgstr "Замінює заголовок сторінки в результатах пошуку"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:550
-#: packages/admin/src/components/ContentSettingsPanel.tsx:553
+#: packages/admin/src/components/ContentSettingsPanel.tsx:598
+#: packages/admin/src/components/ContentSettingsPanel.tsx:601
 msgid "Ownership"
 msgstr "Власність"
 
@@ -5706,7 +5718,7 @@ msgstr "Власність"
 msgid "Package"
 msgstr "Пакет"
 
-#: packages/admin/src/router.tsx:2191
+#: packages/admin/src/router.tsx:2208
 msgid "Page Not Found"
 msgstr "Сторінку не знайдено"
 
@@ -5737,11 +5749,12 @@ msgstr "Частково"
 msgid "Pass"
 msgstr "Пройдено"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:89
+#: packages/admin/src/components/settings/SecuritySettings.tsx:85
 msgid "Passkey added successfully"
 msgstr "Passkey успішно додано"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:129
+#: packages/admin/src/components/settings/PasskeyItem.tsx:123
+#: packages/admin/src/components/settings/PasskeyItem.tsx:124
 msgid "Passkey name"
 msgstr "Назва passkey"
 
@@ -5753,15 +5766,15 @@ msgstr "Назва passkey (необов'язково)"
 msgid "Passkey registered successfully!"
 msgstr "Passkey успішно зареєстровано!"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:66
+#: packages/admin/src/components/settings/SecuritySettings.tsx:62
 msgid "Passkey removed"
 msgstr "Passkey видалено"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:49
+#: packages/admin/src/components/settings/SecuritySettings.tsx:46
 msgid "Passkey renamed"
 msgstr "Passkey перейменовано"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:150
+#: packages/admin/src/components/settings/SecuritySettings.tsx:135
 #: packages/admin/src/components/users/UserList.tsx:110
 msgid "Passkeys"
 msgstr "Passkeys"
@@ -5771,7 +5784,7 @@ msgstr "Passkeys"
 msgid "Passkeys ({0})"
 msgstr "Passkeys ({0})"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:154
+#: packages/admin/src/components/settings/SecuritySettings.tsx:136
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Passkeys — це безпечний спосіб входу без пароля до вашого облікового запису. Ви можете зареєструвати кілька passkeys для різних пристроїв."
 
@@ -5821,24 +5834,22 @@ msgid "PDF"
 msgstr "PDF"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:1185
 msgid "pending"
 msgstr "очікує"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:198
-#: packages/admin/src/components/Dashboard.tsx:353
 msgid "Pending"
 msgstr "Очікує"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:453
+#: packages/admin/src/components/ContentStatusBadge.tsx:67
 msgid "Pending changes"
 msgstr "Незбережені зміни"
 
-#: packages/admin/src/components/ContentList.tsx:1119
+#: packages/admin/src/components/ContentList.tsx:1131
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "Назавжди видалити \"{title}\"? Цю дію не можна скасувати."
 
-#: packages/admin/src/components/ContentList.tsx:1108
+#: packages/admin/src/components/ContentList.tsx:1120
 msgid "Permanently delete {title}"
 msgstr "Остаточно видалити {title}"
 
@@ -5955,7 +5966,8 @@ msgid "Plugin responded with {0}: {text}"
 msgstr "Плагін відповів з кодом {0}: {text}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:452
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:511
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:514
 msgid "Plugin tools: {0}"
 msgstr ""
 
@@ -5984,7 +5996,7 @@ msgstr "Помилка віджета плагіна"
 msgid "Plugins"
 msgstr "Плагіни"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:264
+#: packages/admin/src/components/settings/BackupSettings.tsx:327
 msgid "Point-in-Time Restore"
 msgstr "Відновлення на момент часу"
 
@@ -6005,7 +6017,7 @@ msgstr "Записи"
 msgid "Posts & Pages"
 msgstr "Записи та сторінки"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:272
+#: packages/admin/src/components/settings/GeneralSettings.tsx:313
 msgid "Posts Per Page"
 msgstr "Записів на сторінку"
 
@@ -6026,7 +6038,7 @@ msgstr "Підготовка до завантаження файлів з WordP
 msgid "Preparing..."
 msgstr "Підготовка..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:160
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaLibrary.tsx:585
 msgid "Preview"
@@ -6036,7 +6048,7 @@ msgstr "Попередній перегляд"
 msgid "Preview content before publishing"
 msgstr "Переглянути вміст перед публікацією"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:160
 msgid "Preview draft"
 msgstr "Переглянути чернетку"
 
@@ -6045,7 +6057,7 @@ msgid "Previous"
 msgstr "Попередній"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:353
-#: packages/admin/src/components/ContentList.tsx:606
+#: packages/admin/src/components/ContentList.tsx:613
 msgid "Previous page"
 msgstr "Попередня сторінка"
 
@@ -6057,39 +6069,31 @@ msgstr "Попередній знімок екрана"
 msgid "Primary Navigation"
 msgstr "Головна навігація"
 
-#: packages/admin/src/components/Dashboard.tsx:354
+#: packages/admin/src/components/ContentStatusBadge.tsx:69
 msgid "Private"
 msgstr "Приватний"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:174
+#: packages/admin/src/components/settings/EmailSettings.tsx:167
 msgid "Provider:"
 msgstr "Провайдер:"
 
-#: packages/admin/src/components/ContentList.tsx:415
-#: packages/admin/src/components/ContentSettingsPanel.tsx:435
-#: packages/admin/src/components/ContentSettingsPanel.tsx:438
+#: packages/admin/src/components/ContentList.tsx:422
+#: packages/admin/src/components/ContentList.tsx:736
+#: packages/admin/src/components/ContentSettingsPanel.tsx:191
+#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:455
+#: packages/admin/src/components/ContentSettingsPanel.tsx:458
+#: packages/admin/src/components/ContentStatusBadge.tsx:59
+#: packages/admin/src/components/Dashboard.tsx:263
 msgid "Publish"
 msgstr "Опублікувати"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:189
-msgid "Publish {itemLabel}"
+#: packages/admin/src/components/ContentSettingsPanel.tsx:555
+msgid "Publish date"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:196
-msgid "Publish updates"
-msgstr ""
-
-#: packages/admin/src/components/ContentList.tsx:1160
-msgid "published"
-msgstr "опубліковано"
-
-#: packages/admin/src/components/ContentList.tsx:729
-#: packages/admin/src/components/ContentList.tsx:738
-#: packages/admin/src/components/ContentPickerModal.tsx:209
-#: packages/admin/src/components/ContentSettingsPanel.tsx:452
-#: packages/admin/src/components/Dashboard.tsx:248
-#: packages/admin/src/components/Dashboard.tsx:350
-#: packages/admin/src/router.tsx:1009
+#: packages/admin/src/components/ContentList.tsx:747
+#: packages/admin/src/router.tsx:1018
 msgid "Published"
 msgstr "Опубліковано"
 
@@ -6098,7 +6102,7 @@ msgstr "Опубліковано"
 msgid "Published {0}"
 msgstr "Опубліковано {0}"
 
-#: packages/admin/src/router.tsx:487
+#: packages/admin/src/router.tsx:488
 msgid "Published {total} items"
 msgstr "Опубліковано елементів: {total}"
 
@@ -6114,7 +6118,7 @@ msgstr "Опубліковано"
 msgid "Python"
 msgstr "Python"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:952
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1000
 msgid "Quick create byline"
 msgstr "Швидко створити авторський рядок"
 
@@ -6163,7 +6167,7 @@ msgstr "Читати ваш вміст"
 msgid "Read your taxonomies and terms"
 msgstr "Читати ваші таксономії та терміни"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:269
+#: packages/admin/src/components/settings/GeneralSettings.tsx:310
 msgid "Reading"
 msgstr "Читання"
 
@@ -6171,7 +6175,7 @@ msgstr "Читання"
 msgid "Ready"
 msgstr "Готово"
 
-#: packages/admin/src/components/Dashboard.tsx:299
+#: packages/admin/src/components/Dashboard.tsx:314
 msgid "Recent Activity"
 msgstr "Остання активність"
 
@@ -6184,7 +6188,7 @@ msgstr "Останні записи"
 msgid "Recently Updated"
 msgstr "Нещодавно оновлено"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:118
+#: packages/admin/src/components/settings/EmailSettings.tsx:107
 msgid "Recipient email"
 msgstr "Email одержувача"
 
@@ -6215,11 +6219,11 @@ msgstr "Повторити"
 msgid "Reference"
 msgstr "Посилання"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:228
+#: packages/admin/src/components/settings/GeneralSettings.tsx:269
 msgid "Referenced favicon unavailable."
 msgstr "Посилання на favicon недоступне."
 
-#: packages/admin/src/components/Dashboard.tsx:76
+#: packages/admin/src/components/Dashboard.tsx:91
 msgid "Refresh the page or try again."
 msgstr "Оновіть сторінку або спробуйте ще раз."
 
@@ -6228,7 +6232,7 @@ msgid "Register"
 msgstr "Зареєструвати"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:146
-#: packages/admin/src/components/settings/SecuritySettings.tsx:195
+#: packages/admin/src/components/settings/SecuritySettings.tsx:182
 msgid "Register Passkey"
 msgstr "Зареєструвати Passkey"
 
@@ -6254,20 +6258,20 @@ msgstr "Реліз занадто новий для встановлення"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentSettingsPanel.tsx:921
+#: packages/admin/src/components/ContentSettingsPanel.tsx:969
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/PortableTextEditor.tsx:3872
-#: packages/admin/src/components/settings/GeneralSettings.tsx:194
-#: packages/admin/src/components/settings/GeneralSettings.tsx:248
-#: packages/admin/src/components/settings/PasskeyItem.tsx:185
-#: packages/admin/src/components/settings/PasskeyItem.tsx:207
-#: packages/admin/src/components/settings/SeoSettings.tsx:176
+#: packages/admin/src/components/settings/GeneralSettings.tsx:229
+#: packages/admin/src/components/settings/GeneralSettings.tsx:289
+#: packages/admin/src/components/settings/PasskeyItem.tsx:180
+#: packages/admin/src/components/settings/PasskeyItem.tsx:202
+#: packages/admin/src/components/settings/SeoSettings.tsx:212
 msgid "Remove"
 msgstr "Видалити"
 
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
-#: packages/admin/src/components/settings/PasskeyItem.tsx:186
+#: packages/admin/src/components/settings/PasskeyItem.tsx:181
 #: packages/admin/src/components/TaxonomySidebar.tsx:262
 msgid "Remove {0}"
 msgstr "Видалити {0}"
@@ -6276,15 +6280,15 @@ msgstr "Видалити {0}"
 msgid "Remove {entry}"
 msgstr "Видалити {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1690
+#: packages/admin/src/components/ContentEditor.tsx:1698
 msgid "Remove {label}"
 msgstr "Видалити {label}"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:397
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:379
 msgid "Remove Domain"
 msgstr "Видалити домен"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:372
 msgid "Remove Domain?"
 msgstr "Видалити домен?"
 
@@ -6319,11 +6323,11 @@ msgstr "Видалити елемент {0}"
 msgid "Remove link"
 msgstr "Видалити посилання"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:186
+#: packages/admin/src/components/settings/PasskeyItem.tsx:181
 msgid "Remove passkey"
 msgstr "Видалити passkey"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:201
+#: packages/admin/src/components/settings/PasskeyItem.tsx:196
 msgid "Remove passkey?"
 msgstr "Видалити passkey?"
 
@@ -6336,20 +6340,21 @@ msgid "Remove this image from the document?"
 msgstr "Видалити це зображення з документа?"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:200
-#: packages/admin/src/components/settings/PasskeyItem.tsx:208
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:380
+#: packages/admin/src/components/settings/PasskeyItem.tsx:203
 msgid "Removing..."
 msgstr "Видалення..."
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:174
+#: packages/admin/src/components/settings/PasskeyItem.tsx:169
 msgid "Rename"
 msgstr "Перейменувати"
 
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/settings/PasskeyItem.tsx:175
+#: packages/admin/src/components/settings/PasskeyItem.tsx:170
 msgid "Rename {0}"
 msgstr "Перейменувати {0}"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:175
+#: packages/admin/src/components/settings/PasskeyItem.tsx:170
 msgid "Rename passkey"
 msgstr "Перейменувати passkey"
 
@@ -6427,7 +6432,7 @@ msgstr "Скинути до оригіналу"
 msgid "Restore"
 msgstr "Відновити"
 
-#: packages/admin/src/components/ContentList.tsx:1096
+#: packages/admin/src/components/ContentList.tsx:1108
 msgid "Restore {title}"
 msgstr "Відновити {title}"
 
@@ -6456,7 +6461,7 @@ msgstr "Відновлення..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:2179
+#: packages/admin/src/router.tsx:2196
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Повторити"
@@ -6465,7 +6470,7 @@ msgstr "Повторити"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Багаторазові блоки вмісту, які можна вставляти в будь-який вміст"
 
-#: packages/admin/src/router.tsx:1047
+#: packages/admin/src/router.tsx:1056
 msgid "Reverted to published version"
 msgstr "Повернуто до опублікованої версії"
 
@@ -6481,21 +6486,28 @@ msgstr "Переглянути нові дозволи"
 msgid "Revision restored"
 msgstr "Ревізію відновлено"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:644
+#: packages/admin/src/components/ContentSettingsPanel.tsx:692
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
 msgstr "Ревізії"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:344
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:189
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:192
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:393
 msgid "Revoke token"
 msgstr "Відкликати токен"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:319
+#. placeholder {0}: token.name
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:391
+msgid "Revoke token {0}"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:413
 msgid "Revoke?"
 msgstr "Відкликати?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
 msgid "Revoking..."
 msgstr "Відкликання..."
 
@@ -6520,6 +6532,11 @@ msgstr "Праворуч"
 msgid "Risk score: {0}/100"
 msgstr "Оцінка ризику: {0}/100"
 
+#: packages/admin/src/components/settings/SeoSettings.tsx:255
+#: packages/admin/src/components/settings/SeoSettings.tsx:258
+msgid "robots.txt"
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:164
 #: packages/admin/src/components/users/UserDetail.tsx:169
 #: packages/admin/src/components/users/UserDetail.tsx:181
@@ -6531,7 +6548,7 @@ msgstr "Роль"
 msgid "Role {role}"
 msgstr "Роль {role}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:926
+#: packages/admin/src/components/ContentSettingsPanel.tsx:974
 msgid "Role label"
 msgstr "Мітка ролі"
 
@@ -6557,7 +6574,7 @@ msgstr "Rust"
 msgid "Same window"
 msgstr "Те саме вікно"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1107
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
@@ -6566,7 +6583,6 @@ msgstr "Те саме вікно"
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/SaveButton.tsx:32
-#: packages/admin/src/components/settings/BackupSettings.tsx:192
 #: packages/admin/src/components/Widgets.tsx:983
 #: packages/admin/src/routes/bylines.tsx:579
 msgid "Save"
@@ -6592,26 +6608,14 @@ msgstr "Зберегти зміни"
 msgid "Save content as draft before publishing"
 msgstr "Зберегти вміст як чернетку перед публікацією"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:137
+#: packages/admin/src/components/settings/PasskeyItem.tsx:132
 msgid "Save name"
 msgstr "Зберегти назву"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:111
-#: packages/admin/src/components/settings/SeoSettings.tsx:218
-msgid "Save SEO Settings"
-msgstr "Зберегти SEO-налаштування"
-
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
-#: packages/admin/src/components/settings/GeneralSettings.tsx:120
-#: packages/admin/src/components/settings/GeneralSettings.tsx:298
 msgid "Save Settings"
 msgstr "Зберегти налаштування"
-
-#: packages/admin/src/components/settings/SocialSettings.tsx:91
-#: packages/admin/src/components/settings/SocialSettings.tsx:147
-msgid "Save Social Links"
-msgstr "Зберегти соціальні посилання"
 
 #: packages/admin/src/components/SaveButton.tsx:34
 msgid "Saved"
@@ -6622,7 +6626,7 @@ msgstr "Збережено"
 msgid "Saved \"{0}\"."
 msgstr "Збережено \"{0}\"."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1107
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
@@ -6630,13 +6634,6 @@ msgstr "Збережено \"{0}\"."
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/SaveButton.tsx:33
-#: packages/admin/src/components/settings/BackupSettings.tsx:192
-#: packages/admin/src/components/settings/GeneralSettings.tsx:120
-#: packages/admin/src/components/settings/GeneralSettings.tsx:298
-#: packages/admin/src/components/settings/SeoSettings.tsx:111
-#: packages/admin/src/components/settings/SeoSettings.tsx:218
-#: packages/admin/src/components/settings/SocialSettings.tsx:91
-#: packages/admin/src/components/settings/SocialSettings.tsx:147
 #: packages/admin/src/components/TaxonomyManager.tsx:498
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:983
@@ -6657,31 +6654,26 @@ msgstr "SBOM"
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:501
+#: packages/admin/src/components/ContentSettingsPanel.tsx:523
 msgid "Schedule"
 msgstr "Запланувати"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:487
+#: packages/admin/src/components/ContentSettingsPanel.tsx:509
 msgid "Schedule for"
 msgstr "Запланувати на"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:524
+#: packages/admin/src/components/ContentSettingsPanel.tsx:546
 msgid "Schedule for later"
 msgstr "Запланувати на пізніше"
 
-#: packages/admin/src/components/ContentList.tsx:1164
-msgid "scheduled"
-msgstr "заплановано"
-
-#: packages/admin/src/components/ContentList.tsx:731
-#: packages/admin/src/components/ContentSettingsPanel.tsx:455
-#: packages/admin/src/components/Dashboard.tsx:352
-#: packages/admin/src/router.tsx:1067
+#: packages/admin/src/components/ContentList.tsx:738
+#: packages/admin/src/components/ContentStatusBadge.tsx:63
+#: packages/admin/src/router.tsx:1076
 msgid "Scheduled"
 msgstr "Заплановано"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:475
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 msgid "Scheduled for: {0}"
 msgstr "Заплановано на: {0}"
 
@@ -6701,14 +6693,10 @@ msgstr "Читання схеми"
 msgid "Schema Write"
 msgstr "Запис схеми"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:350
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:489
 msgid "Scopes"
 msgstr "Області доступу"
-
-#. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:295
-msgid "Scopes: {0}"
-msgstr "Області доступу: {0}"
 
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
@@ -6744,17 +6732,19 @@ msgid "SCSS"
 msgstr "SCSS"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:86
+#: packages/admin/src/components/Settings.tsx:140
+#: packages/admin/src/components/Settings.tsx:140
 #: packages/admin/src/components/Widgets.tsx:151
 msgid "Search"
 msgstr "Пошук"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:353
+#: packages/admin/src/components/ContentList.tsx:359
 msgid "Search {0}"
 msgstr "Шукати {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:352
+#: packages/admin/src/components/ContentList.tsx:358
 msgid "Search {0}..."
 msgstr "Шукати {0}..."
 
@@ -6767,12 +6757,12 @@ msgstr "Шукати за іменем файлу..."
 msgid "Search by name or email..."
 msgstr "Шукати за іменем або email..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:853
+#: packages/admin/src/components/ContentSettingsPanel.tsx:901
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr "Шукати авторські рядки"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:852
+#: packages/admin/src/components/ContentSettingsPanel.tsx:900
 msgid "Search bylines to add..."
 msgstr "Шукати авторські рядки для додавання..."
 
@@ -6784,15 +6774,16 @@ msgstr "Шукати коментарі"
 msgid "Search comments..."
 msgstr "Шукати коментарі..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:141
+#: packages/admin/src/components/ContentPickerModal.tsx:142
 msgid "Search content..."
 msgstr "Шукати вміст..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:122
+#: packages/admin/src/components/settings/SeoSettings.tsx:161
 msgid "Search Engine Optimization"
 msgstr "Пошукова оптимізація"
 
-#: packages/admin/src/components/Settings.tsx:83
+#: packages/admin/src/components/Settings.tsx:61
+#: packages/admin/src/components/settings/SeoSettings.tsx:118
 msgid "Search engine optimization and verification"
 msgstr "Пошукова оптимізація та верифікація"
 
@@ -6850,7 +6841,7 @@ msgstr "Пошук..."
 msgid "Searchable"
 msgstr "Доступно для пошуку"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:857
+#: packages/admin/src/components/ContentSettingsPanel.tsx:905
 msgid "Searching..."
 msgstr "Пошук..."
 
@@ -6898,7 +6889,7 @@ msgid "Secure your account"
 msgstr "Захистіть свій обліковий запис"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:809
-#: packages/admin/src/components/Settings.tsx:93
+#: packages/admin/src/components/Settings.tsx:70
 msgid "Security"
 msgstr "Безпека"
 
@@ -6937,24 +6928,27 @@ msgstr "Помилка безпеки. Переконайтеся, що ви в�
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:242
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/settings/SecuritySettings.tsx:95
+#: packages/admin/src/components/Settings.tsx:66
+#: packages/admin/src/components/settings/SecuritySettings.tsx:88
+#: packages/admin/src/components/settings/SecuritySettings.tsx:110
 msgid "Security Settings"
 msgstr "Налаштування безпеки"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:56
 #: packages/admin/src/components/FieldEditor.tsx:186
 #: packages/admin/src/components/FieldEditor.tsx:585
+#: packages/admin/src/components/Settings.tsx:134
 msgid "Select"
 msgstr "Обрати"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:1702
-#: packages/admin/src/components/ContentEditor.tsx:1718
+#: packages/admin/src/components/ContentEditor.tsx:1710
+#: packages/admin/src/components/ContentEditor.tsx:1726
 #: packages/admin/src/components/ImageFieldRenderer.tsx:198
 msgid "Select {label}"
 msgstr "Обрати {label}"
 
-#: packages/admin/src/components/ContentList.tsx:973
+#: packages/admin/src/components/ContentList.tsx:985
 msgid "Select {title}"
 msgstr "Обрати {title}"
 
@@ -6970,7 +6964,7 @@ msgstr "Оберіть меню..."
 msgid "Select all"
 msgstr "Обрати все"
 
-#: packages/admin/src/components/ContentList.tsx:497
+#: packages/admin/src/components/ContentList.tsx:504
 msgid "Select all on this page"
 msgstr "Обрати все на цій сторінці"
 
@@ -6979,20 +6973,20 @@ msgstr "Обрати все на цій сторінці"
 msgid "Select comment by {0}"
 msgstr "Обрати коментар від {0}"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:117
+#: packages/admin/src/components/ContentPickerModal.tsx:118
 msgid "Select Content"
 msgstr "Обрати вміст"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:235
+#: packages/admin/src/components/settings/SeoSettings.tsx:284
 msgid "Select Default Social Image"
 msgstr "Обрати зображення для соцмереж за замовчуванням"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:260
-#: packages/admin/src/components/settings/GeneralSettings.tsx:321
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:364
 msgid "Select Favicon"
 msgstr "Обрати favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:1706
+#: packages/admin/src/components/ContentEditor.tsx:1714
 msgid "Select file"
 msgstr "Обрати файл"
 
@@ -7010,12 +7004,12 @@ msgstr "Обрати зображення"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:150
 #: packages/admin/src/components/PortableTextEditor.tsx:3097
-#: packages/admin/src/components/settings/SeoSettings.tsx:188
+#: packages/admin/src/components/settings/SeoSettings.tsx:223
 msgid "Select Image"
 msgstr "Обрати зображення"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:206
-#: packages/admin/src/components/settings/GeneralSettings.tsx:313
+#: packages/admin/src/components/settings/GeneralSettings.tsx:241
+#: packages/admin/src/components/settings/GeneralSettings.tsx:356
 msgid "Select Logo"
 msgstr "Обрати логотип"
 
@@ -7049,12 +7043,13 @@ msgstr "Обрано {selectedItemTitle}"
 msgid "Selected:"
 msgstr "Обрано:"
 
-#: packages/admin/src/components/Settings.tsx:99
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:152
+#: packages/admin/src/components/Settings.tsx:76
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:149
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:171
 msgid "Self-Signup Domains"
 msgstr "Домени для самостійної реєстрації"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:113
+#: packages/admin/src/components/settings/EmailSettings.tsx:98
 msgid "Send a test email through the full pipeline to verify your email configuration."
 msgstr "Надішліть тестовий email через повний ланцюжок, щоб перевірити налаштування пошти."
 
@@ -7074,16 +7069,16 @@ msgstr "Надіслати magic link"
 msgid "Send Recovery Link"
 msgstr "Надіслати посилання для відновлення"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:127
+#: packages/admin/src/components/settings/EmailSettings.tsx:122
 msgid "Send Test"
 msgstr "Надіслати тест"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:110
+#: packages/admin/src/components/settings/EmailSettings.tsx:97
 msgid "Send Test Email"
 msgstr "Надіслати тестовий email"
 
 #: packages/admin/src/components/LoginPage.tsx:150
-#: packages/admin/src/components/settings/EmailSettings.tsx:127
+#: packages/admin/src/components/settings/EmailSettings.tsx:122
 #: packages/admin/src/components/SignupPage.tsx:89
 #: packages/admin/src/components/SignupPage.tsx:152
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -7091,15 +7086,14 @@ msgstr "Надіслати тестовий email"
 msgid "Sending..."
 msgstr "Надсилання..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:621
-#: packages/admin/src/components/ContentSettingsPanel.tsx:624
+#: packages/admin/src/components/ContentSettingsPanel.tsx:669
+#: packages/admin/src/components/ContentSettingsPanel.tsx:672
 #: packages/admin/src/components/ContentTypeEditor.tsx:472
-#: packages/admin/src/components/Settings.tsx:82
+#: packages/admin/src/components/Settings.tsx:60
 msgid "SEO"
 msgstr "SEO"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:90
-#: packages/admin/src/components/settings/SeoSettings.tsx:115
+#: packages/admin/src/components/settings/SeoSettings.tsx:117
 msgid "SEO Settings"
 msgstr "SEO-налаштування"
 
@@ -7107,7 +7101,7 @@ msgstr "SEO-налаштування"
 msgid "SEO settings (Yoast)"
 msgstr "SEO-налаштування (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:40
+#: packages/admin/src/components/settings/SeoSettings.tsx:72
 msgid "SEO settings saved"
 msgstr "SEO-налаштування збережено"
 
@@ -7134,7 +7128,7 @@ msgstr "Встановити мову (поточна: {label})"
 msgid "Set to 0 to never close comments automatically."
 msgstr "Встановіть 0, щоб ніколи не закривати коментарі автоматично."
 
-#: packages/admin/src/components/ContentList.tsx:425
+#: packages/admin/src/components/ContentList.tsx:432
 msgid "Set to draft"
 msgstr "Перевести в чернетку"
 
@@ -7147,12 +7141,12 @@ msgid "Setting up..."
 msgstr "Налаштування..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
-#: packages/admin/src/components/ContentEditor.tsx:809
-#: packages/admin/src/components/ContentEditor.tsx:1039
+#: packages/admin/src/components/ContentEditor.tsx:815
+#: packages/admin/src/components/ContentEditor.tsx:1047
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:472
-#: packages/admin/src/components/Settings.tsx:63
+#: packages/admin/src/components/Settings.tsx:40
 #: packages/admin/src/components/Sidebar.tsx:294
 #: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
@@ -7167,7 +7161,7 @@ msgid "Settings Read"
 msgstr "Читання налаштувань"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:43
+#: packages/admin/src/components/settings/GeneralSettings.tsx:70
 msgid "Settings saved successfully"
 msgstr "Налаштування успішно збережено"
 
@@ -7212,7 +7206,8 @@ msgstr "Показувати кількість записів"
 msgid "Show thumbnails"
 msgstr "Показувати мініатюри"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:220
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:275
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Show token"
 msgstr "Показати токен"
 
@@ -7271,11 +7266,12 @@ msgstr "Один варіант із списку"
 msgid "Single line text input"
 msgstr "Однорядкове текстове поле"
 
+#: packages/admin/src/components/Settings.tsx:44
 #: packages/admin/src/components/SetupWizard.tsx:353
 msgid "Site"
 msgstr "Сайт"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:130
+#: packages/admin/src/components/settings/GeneralSettings.tsx:162
 msgid "Site Identity"
 msgstr "Ідентичність сайту"
 
@@ -7283,7 +7279,8 @@ msgstr "Ідентичність сайту"
 msgid "site identity applied (title, tagline, logo)"
 msgstr "ідентичність сайту застосовано (назва, слоган, логотип)"
 
-#: packages/admin/src/components/Settings.tsx:71
+#: packages/admin/src/components/Settings.tsx:49
+#: packages/admin/src/components/settings/GeneralSettings.tsx:119
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Ідентичність сайту, логотип, favicon та налаштування читання"
 
@@ -7292,7 +7289,7 @@ msgstr "Ідентичність сайту, логотип, favicon та нал
 msgid "Site Settings"
 msgstr "Налаштування сайту"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:133
+#: packages/admin/src/components/settings/GeneralSettings.tsx:165
 #: packages/admin/src/components/SetupWizard.tsx:116
 msgid "Site Title"
 msgstr "Назва сайту"
@@ -7305,11 +7302,11 @@ msgstr "Назва сайту та слоган"
 msgid "Site title is required"
 msgstr "Назва сайту обов'язкова"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:145
+#: packages/admin/src/components/settings/GeneralSettings.tsx:181
 msgid "Site URL"
 msgstr "URL сайту"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:267
+#: packages/admin/src/components/settings/BackupSettings.tsx:330
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "Сайти на Cloudflare D1 можуть також відновлювати базу даних на будь-яку хвилину за останні 30 днів за допомогою D1 Time Travel — завжди увімкнено, налаштування не потрібне."
 
@@ -7330,9 +7327,9 @@ msgid "Skipped"
 msgstr "Пропущено"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentSettingsPanel.tsx:442
-#: packages/admin/src/components/ContentSettingsPanel.tsx:968
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1030
+#: packages/admin/src/components/ContentSettingsPanel.tsx:462
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1016
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:402
 #: packages/admin/src/components/ContentTypeList.tsx:99
@@ -7366,21 +7363,21 @@ msgstr ""
 msgid "Smallest section heading"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:76
-#: packages/admin/src/components/settings/SocialSettings.tsx:70
-#: packages/admin/src/components/settings/SocialSettings.tsx:95
+#: packages/admin/src/components/Settings.tsx:54
+#: packages/admin/src/components/settings/SocialSettings.tsx:89
 msgid "Social Links"
 msgstr "Соціальні посилання"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:38
+#: packages/admin/src/components/settings/SocialSettings.tsx:62
 msgid "Social links saved"
 msgstr "Соціальні посилання збережено"
 
-#: packages/admin/src/components/Settings.tsx:77
+#: packages/admin/src/components/Settings.tsx:55
+#: packages/admin/src/components/settings/SocialSettings.tsx:90
 msgid "Social media profile links"
 msgstr "Посилання на профілі в соцмережах"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:100
+#: packages/admin/src/components/settings/SocialSettings.tsx:134
 msgid "Social Profiles"
 msgstr "Соціальні профілі"
 
@@ -7441,14 +7438,14 @@ msgstr "SQL"
 msgid "Start Import"
 msgstr "Почати імпорт"
 
-#: packages/admin/src/components/ContentEditor.tsx:1208
+#: packages/admin/src/components/ContentEditor.tsx:1216
 #: packages/admin/src/components/PortableTextEditor.tsx:2329
 #: packages/admin/src/components/PortableTextEditor.tsx:2330
 msgid "Start writing, or type '/' for commands"
 msgstr "Почніть писати або введіть «/» для команд"
 
-#: packages/admin/src/components/ContentList.tsx:511
-#: packages/admin/src/components/ContentSettingsPanel.tsx:449
+#: packages/admin/src/components/ContentList.tsx:518
+#: packages/admin/src/components/ContentSettingsPanel.tsx:469
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:474
 #: packages/admin/src/components/users/UserList.tsx:104
@@ -7459,15 +7456,15 @@ msgstr "Статус"
 msgid "Status code"
 msgstr "Код статусу"
 
-#: packages/admin/src/components/Dashboard.tsx:362
+#: packages/admin/src/components/Dashboard.tsx:367
 msgid "Status: {status}"
 msgstr "Статус: {status}"
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:173
+#: packages/admin/src/components/settings/BackupSettings.tsx:205
 msgid "Store a daily backup in your site's storage bucket. Old backups are removed automatically."
 msgstr "Зберігайте щоденну резервну копію у сховищі сайту. Старі копії видаляються автоматично."
 
-#: packages/admin/src/components/settings/BackupSettings.tsx:218
+#: packages/admin/src/components/settings/BackupSettings.tsx:270
 msgid "Stored Backups"
 msgstr "Збережені резервні копії"
 
@@ -7519,7 +7516,7 @@ msgstr "Swift"
 msgid "Synced"
 msgstr "Синхронізовано"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:104
+#: packages/admin/src/components/settings/PasskeyItem.tsx:98
 msgid "Synced passkey"
 msgstr "Синхронізований passkey"
 
@@ -7543,7 +7540,7 @@ msgstr "Таблиця"
 msgid "Table controls"
 msgstr "Елементи керування таблицею"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:139
+#: packages/admin/src/components/settings/GeneralSettings.tsx:173
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
 msgstr "Слоган"
@@ -7567,7 +7564,7 @@ msgstr "Ціль"
 msgid "Target locale"
 msgstr "Цільова локаль"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/ContentSettingsPanel.tsx:658
 #: packages/admin/src/components/TaxonomySidebar.tsx:555
 msgid "Taxonomies"
 msgstr "Таксономії"
@@ -7608,7 +7605,7 @@ msgstr "Термін \"{0}\" створено в {1}."
 msgid "Term deleted"
 msgstr "Термін видалено"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:122
+#: packages/admin/src/components/settings/EmailSettings.tsx:111
 msgid "test@example.com"
 msgstr "test@example.com"
 
@@ -7645,11 +7642,11 @@ msgstr "Маркетплейс порожній. Завітайте пізніш
 msgid "The menu has been deleted."
 msgstr "Меню видалено."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:136
+#: packages/admin/src/components/settings/GeneralSettings.tsx:168
 msgid "The name of your site, used in the header and metadata"
 msgstr "Назва вашого сайту, що використовується в заголовку та метаданих"
 
-#: packages/admin/src/router.tsx:2193
+#: packages/admin/src/router.tsx:2210
 msgid "The page you're looking for doesn't exist."
 msgstr "Сторінку, яку ви шукаєте, не знайдено."
 
@@ -7657,15 +7654,15 @@ msgstr "Сторінку, яку ви шукаєте, не знайдено."
 msgid "The plugin field widget failed to render."
 msgstr "Не вдалося відобразити віджет поля плагіна."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:149
+#: packages/admin/src/components/settings/GeneralSettings.tsx:185
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "Публічна URL-адреса вашого сайту (для канонічних посилань і мап сайту)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:156
+#: packages/admin/src/components/settings/SeoSettings.tsx:192
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "Зазначене зображення більше недоступне. Виберіть інше або приберіть посилання."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:174
+#: packages/admin/src/components/settings/GeneralSettings.tsx:209
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "Зазначений логотип більше недоступний. Виберіть інший або приберіть посилання."
 
@@ -7719,7 +7716,7 @@ msgstr "Це не схоже на дійсний ключ міграції. Зг
 msgid "This field does not accept {sniffedMime} files."
 msgstr "Це поле не приймає файли {sniffedMime}."
 
-#: packages/admin/src/components/ContentEditor.tsx:1721
+#: packages/admin/src/components/ContentEditor.tsx:1729
 #: packages/admin/src/components/ImageFieldRenderer.tsx:201
 msgid "This field is required"
 msgstr "Це поле обов’язкове"
@@ -7745,7 +7742,7 @@ msgid "This passkey is already registered on this device."
 msgstr "Цей passkey уже зареєстровано на цьому пристрої."
 
 #. placeholder {0}: archiveToDelete?.name ?? ""
-#: packages/admin/src/components/settings/BackupSettings.tsx:283
+#: packages/admin/src/components/settings/BackupSettings.tsx:351
 msgid "This permanently deletes {0} from storage."
 msgstr "Це остаточно видалить {0} із сховища."
 
@@ -7793,7 +7790,7 @@ msgstr "Це видалить область віджетів і всі відж
 msgid "This will grant CLI access with your permissions."
 msgstr "Це надасть доступ до CLI з вашими дозволами."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:676
+#: packages/admin/src/components/ContentSettingsPanel.tsx:724
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Елемент буде переміщено в кошик. Пізніше його можна відновити з кошика."
 
@@ -7815,7 +7812,7 @@ msgstr "Це остаточно видалить цей коментар. Цю �
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Це прибере плагін і його пакет із вашого сайту."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:84
+#: packages/admin/src/components/ContentSettingsPanel.tsx:86
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Буде відновлено опубліковану версію. Зміни в чернетці буде втрачено."
 
@@ -7823,16 +7820,16 @@ msgstr "Буде відновлено опубліковану версію. З�
 msgid "Thoughts, tutorials, and more"
 msgstr "Думки, навчальні матеріали та інше"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:287
+#: packages/admin/src/components/settings/GeneralSettings.tsx:332
 msgid "Timezone"
 msgstr "Часовий пояс"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:335
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "Часовий пояс для відображення дат (наприклад, Europe/Kyiv)"
 
-#: packages/admin/src/components/ContentList.tsx:505
-#: packages/admin/src/components/ContentList.tsx:643
+#: packages/admin/src/components/ContentList.tsx:512
+#: packages/admin/src/components/ContentList.tsx:650
 #: packages/admin/src/components/SectionEditor.tsx:251
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:891
@@ -7844,11 +7841,11 @@ msgstr "Заголовок"
 msgid "Title (Tooltip)"
 msgstr "Заголовок (підказка)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:126
+#: packages/admin/src/components/settings/SeoSettings.tsx:164
 msgid "Title Separator"
 msgstr "Роздільник заголовка"
 
-#: packages/admin/src/components/ContentList.tsx:811
+#: packages/admin/src/components/ContentList.tsx:823
 msgid "to"
 msgstr "до"
 
@@ -7856,7 +7853,7 @@ msgstr "до"
 msgid "to close"
 msgstr "щоб закрити"
 
-#: packages/admin/src/components/ContentList.tsx:815
+#: packages/admin/src/components/ContentList.tsx:827
 msgid "To date"
 msgstr "До дати"
 
@@ -7878,11 +7875,11 @@ msgid "Toggle theme (current: {label})"
 msgstr "Перемкнути тему (зараз: {label})"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:207
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:254
 msgid "Token created: {0}"
 msgstr "Токен створено: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:420
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:480
 msgid "Token Name"
 msgstr "Назва токена"
 
@@ -7926,11 +7923,11 @@ msgstr "Переклад..."
 
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:782
-#: packages/admin/src/router.tsx:1119
+#: packages/admin/src/router.tsx:1128
 msgid "Translation created"
 msgstr "Переклад створено"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:588
+#: packages/admin/src/components/ContentSettingsPanel.tsx:636
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Переклади"
@@ -7943,11 +7940,11 @@ msgstr "кошик"
 #: packages/admin/src/components/comments/CommentInbox.tsx:217
 #: packages/admin/src/components/comments/CommentInbox.tsx:258
 #: packages/admin/src/components/comments/CommentInbox.tsx:514
-#: packages/admin/src/components/ContentList.tsx:375
+#: packages/admin/src/components/ContentList.tsx:381
 msgid "Trash"
 msgstr "Кошик"
 
-#: packages/admin/src/components/ContentList.tsx:666
+#: packages/admin/src/components/ContentList.tsx:673
 msgid "Trash is empty"
 msgstr "Кошик порожній"
 
@@ -7967,7 +7964,7 @@ msgstr "Спробуйте ширший тип медіа або скиньте 
 msgid "Try a different search term"
 msgstr "Спробуйте інший пошуковий запит"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:172
+#: packages/admin/src/components/ContentPickerModal.tsx:173
 #: packages/admin/src/components/SectionPickerModal.tsx:103
 msgid "Try adjusting your search"
 msgstr "Спробуйте змінити пошук"
@@ -8014,7 +8011,7 @@ msgstr "TSX"
 msgid "Turn into"
 msgstr "Перетворити на"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:106
+#: packages/admin/src/components/settings/SocialSettings.tsx:139
 msgid "Twitter"
 msgstr "Twitter"
 
@@ -8039,8 +8036,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Не вдалося підключитися до маркетплейсу"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1073
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1090
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1121
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1138
 msgid "Unassigned"
 msgstr "Не призначено"
 
@@ -8080,6 +8077,7 @@ msgstr "Унікальний"
 msgid "Unique identifier (ULID)"
 msgstr "Унікальний ідентифікатор (ULID)"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:169
 #: packages/admin/src/components/users/useRolesConfig.ts:7
 msgid "Unknown"
 msgstr "Невідомо"
@@ -8095,16 +8093,16 @@ msgstr "Невідома роль"
 msgid "Unlock aspect ratio"
 msgstr "Розблокувати пропорції"
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:152
+#: packages/admin/src/components/settings/PasskeyItem.tsx:147
 #: packages/admin/src/components/users/UserDetail.tsx:254
 msgid "Unnamed passkey"
 msgstr "Passkey без назви"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:202
+#: packages/admin/src/components/ContentSettingsPanel.tsx:204
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1027
+#: packages/admin/src/router.tsx:1036
 msgid "Unpublished"
 msgstr "Неопубліковано"
 
@@ -8112,11 +8110,11 @@ msgstr "Неопубліковано"
 msgid "Unregistered Content Tables Found"
 msgstr "Знайдено незареєстровані таблиці контенту"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:477
+#: packages/admin/src/components/ContentSettingsPanel.tsx:499
 msgid "Unschedule"
 msgstr "Скасувати публікацію за розкладом"
 
-#: packages/admin/src/router.tsx:1088
+#: packages/admin/src/router.tsx:1097
 msgid "Unscheduled"
 msgstr "Без розкладу"
 
@@ -8125,11 +8123,11 @@ msgstr "Без розкладу"
 msgid "Unsupported widget element type: {0}"
 msgstr "Непідтримуваний тип елемента віджета: {0}"
 
-#: packages/admin/src/components/Dashboard.tsx:319
+#: packages/admin/src/components/Dashboard.tsx:334
 msgid "Untitled"
 msgstr "Без назви"
 
-#: packages/admin/src/components/ContentEditor.tsx:1624
+#: packages/admin/src/components/ContentEditor.tsx:1632
 msgid "Untitled file"
 msgstr "Файл без назви"
 
@@ -8142,7 +8140,7 @@ msgstr "Віджет без назви"
 msgid "Unverified publisher"
 msgstr "Неперевірений видавець"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:900
+#: packages/admin/src/components/ContentSettingsPanel.tsx:948
 msgid "Up"
 msgstr "Вгору"
 
@@ -8154,8 +8152,12 @@ msgstr "Оновити"
 msgid "Update Field"
 msgstr "Оновити поле"
 
+#: packages/admin/src/components/ContentSettingsPanel.tsx:573
+msgid "Update publish date"
+msgstr ""
+
 #. placeholder {0}: editingDomain?.domain
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:334
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:324
 msgid "Update settings for {0}"
 msgstr "Оновити налаштування для {0}"
 
@@ -8177,8 +8179,8 @@ msgstr "Оновіть це правило перенаправлення."
 msgid "Update to v{0}"
 msgstr "Оновити до v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:737
-#: packages/admin/src/components/ContentSettingsPanel.tsx:541
+#: packages/admin/src/components/ContentList.tsx:746
+#: packages/admin/src/components/ContentSettingsPanel.tsx:589
 #: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
 msgstr "Оновлено"
@@ -8255,7 +8257,7 @@ msgstr "Завантажити зображення"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Завантажуйте зображення, відео та документи, щоб тримати багаторазові ресурси в одному місці."
 
-#: packages/admin/src/components/Dashboard.tsx:114
+#: packages/admin/src/components/Dashboard.tsx:129
 msgid "Upload Media"
 msgstr "Завантажити медіа"
 
@@ -8331,7 +8333,7 @@ msgstr "Увійдіть за допомогою біометрії, ключа 
 msgid "Use your registered passkey to sign in securely."
 msgstr "Увійдіть безпечно за допомогою зареєстрованого passkey."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:140
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "Використовується як резервне зображення Open Graph, якщо на сторінці його немає. Рекомендований розмір: 1200×630."
 
@@ -8339,7 +8341,7 @@ msgstr "Використовується як резервне зображен�
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Використовується як ідентифікатор. Лише малі літери, цифри та підкреслення."
 
-#: packages/admin/src/components/ContentEditor.tsx:1311
+#: packages/admin/src/components/ContentEditor.tsx:1319
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Головне зображення допису в списках і на початку допису"
 
@@ -8364,7 +8366,7 @@ msgid "User"
 msgstr "Користувач"
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:177
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:172
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
 msgstr "Доступ користувачів керується зовнішнім провайдером ({0}). Налаштування доменів для самостійної реєстрації недоступні при зовнішній автентифікації."
 
@@ -8382,11 +8384,11 @@ msgstr "Користувача не знайдено"
 msgid "Users"
 msgstr "Користувачі"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:383
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:375
 msgid "Users from"
 msgstr "Користувачі з"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:211
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:196
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
 msgstr "Користувачі з адресами e-mail цих доменів можуть зареєструватися без запрошення. Їм автоматично буде призначено вказану роль."
 
@@ -8445,7 +8447,8 @@ msgstr "Версія {0}"
 msgid "Video"
 msgstr "Відео"
 
-#: packages/admin/src/components/Settings.tsx:117
+#: packages/admin/src/components/Settings.tsx:96
+#: packages/admin/src/components/settings/EmailSettings.tsx:59
 msgid "View email provider status and send test emails"
 msgstr "Статус поштового провайдера та тестові листи"
 
@@ -8457,7 +8460,7 @@ msgstr "Переглянути в маркетплейсі"
 msgid "View mode"
 msgstr "Режим перегляду"
 
-#: packages/admin/src/components/ContentList.tsx:1011
+#: packages/admin/src/components/ContentList.tsx:1023
 msgid "View published {title}"
 msgstr "Переглянути опублікований {title}"
 
@@ -8647,11 +8650,11 @@ msgstr ""
 msgid "Will create"
 msgstr "Буде створено"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:384
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:376
 msgid "will no longer be able to sign up without an invite. Existing users are not affected."
 msgstr "більше не зможуть зареєструватися без запрошення. Існуючі користувачі не зачіпаються."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:158
+#: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "Без поштового провайдера посилання-запрошення треба надсилати вручну."
 
@@ -8663,7 +8666,7 @@ msgstr "Авторизацію WordPress відхилено"
 msgid "WordPress Username"
 msgstr "Ім’я користувача WordPress"
 
-#: packages/admin/src/components/ContentList.tsx:404
+#: packages/admin/src/components/ContentList.tsx:410
 msgid "Working on {selectedCount} items…"
 msgstr "Обробка {selectedCount} елементів…"
 
@@ -8733,16 +8736,16 @@ msgstr "У вас повний доступ до керування сайтом
 msgid "You need admin permissions to manage byline schema."
 msgstr "Для керування схемою підписів авторів потрібні права адміністратора."
 
-#: packages/admin/src/router.tsx:1488
+#: packages/admin/src/router.tsx:1505
 msgid "You need Editor permissions to moderate comments."
 msgstr "Для модерації коментарів потрібні права редактора."
 
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/settings/PasskeyItem.tsx:204
+#: packages/admin/src/components/settings/PasskeyItem.tsx:199
 msgid "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
 msgstr "Ви більше не зможете входити за допомогою \"{0}\". Цю дію не можна скасувати."
 
-#: packages/admin/src/components/settings/PasskeyItem.tsx:205
+#: packages/admin/src/components/settings/PasskeyItem.tsx:200
 msgid "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
 msgstr "Ви більше не зможете входити цим passkey. Цю дію не можна скасувати."
 
@@ -8798,19 +8801,19 @@ msgstr "Ваш пристрій не підтримує потрібні фун�
 msgid "Your Email"
 msgstr "Ваша електронна пошта"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:121
+#: packages/admin/src/components/settings/SocialSettings.tsx:158
 msgid "Your Facebook page or profile username"
 msgstr "Ім’я сторінки або профілю Facebook"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:115
+#: packages/admin/src/components/settings/SocialSettings.tsx:150
 msgid "Your GitHub username"
 msgstr "Ваше ім’я користувача GitHub"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:127
+#: packages/admin/src/components/settings/SocialSettings.tsx:166
 msgid "Your Instagram username"
 msgstr "Ваше ім’я користувача Instagram"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:133
+#: packages/admin/src/components/settings/SocialSettings.tsx:174
 msgid "Your LinkedIn profile username"
 msgstr "Ім’я профілю LinkedIn"
 
@@ -8837,7 +8840,7 @@ msgstr "Ваша роль"
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "На вашому сайті випуски можна встановлювати лише після {0} з моменту публікації. Цей випуск стане доступним для встановлення пізніше."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:109
+#: packages/admin/src/components/settings/SocialSettings.tsx:142
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Ваш нік у Twitter/X (наприклад, @username)"
 
@@ -8850,10 +8853,10 @@ msgstr "Незбережені зміни медіа буде втрачено."
 msgid "Your WordPress export contains {0} media files."
 msgstr "Ваш експорт WordPress містить {0} медіафайлів."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:139
+#: packages/admin/src/components/settings/SocialSettings.tsx:182
 msgid "Your YouTube channel ID or handle"
 msgstr "ID каналу YouTube або ваш нік"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:136
+#: packages/admin/src/components/settings/SocialSettings.tsx:179
 msgid "YouTube"
 msgstr "YouTube"

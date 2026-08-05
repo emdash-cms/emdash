@@ -1101,7 +1101,7 @@ describe("ContentEditor", () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1109,7 +1109,7 @@ describe("ContentEditor", () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});
@@ -1129,9 +1129,7 @@ describe("ContentEditor", () => {
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
-				const publishButtons = screen
-					.getByRole("button", { name: "Publish Post", exact: true })
-					.all();
+				const publishButtons = screen.getByRole("button", { name: "Publish", exact: true }).all();
 				expect(publishButtons).toHaveLength(1);
 				await expect.element(publishButtons[0]!).toBeVisible();
 			} finally {
@@ -1337,7 +1335,7 @@ describe("ContentEditor", () => {
 					.element(screen.getByRole("button", { name: "Settings" }))
 					.not.toBeInTheDocument();
 				await expect
-					.element(screen.getByRole("button", { name: "Publish Post", exact: true }))
+					.element(screen.getByRole("button", { name: "Publish", exact: true }))
 					.toBeVisible();
 			} finally {
 				media.restore();
@@ -1565,7 +1563,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1574,7 +1572,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});
