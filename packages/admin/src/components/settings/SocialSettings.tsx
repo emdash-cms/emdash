@@ -86,8 +86,8 @@ export function SocialSettings() {
 		}));
 	};
 
-	const title = t`Social links`;
-	const description = t`Add links to your social profiles.`;
+	const title = t`Social Links`;
+	const description = t`Social media profile links`;
 
 	if (isLoading) {
 		return (
@@ -97,7 +97,7 @@ export function SocialSettings() {
 					role="status"
 				>
 					<Loader size="sm" />
-					<span>{t`Loading settings…`}</span>
+					<span>{t`Loading settings...`}</span>
 				</div>
 			</SettingsFrame>
 		);
@@ -108,8 +108,8 @@ export function SocialSettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="error"
-					title={t`Unable to load social links`}
-					description={loadError instanceof Error ? loadError.message : t`Failed to load settings`}
+					title={t`An error occurred`}
+					description={loadError instanceof Error ? loadError.message : t`An error occurred`}
 					role="alert"
 				/>
 			</SettingsFrame>
@@ -131,15 +131,15 @@ export function SocialSettings() {
 		>
 			<form id="social-settings-form" onSubmit={handleSubmit} className="grid gap-8">
 				<SettingsSection
-					title={t`Social profiles`}
-					description={t`Add profile details that your site can display in headers, footers, or author bios.`}
+					title={t`Social Profiles`}
+					description={t`Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios.`}
 				>
 					<SettingRow>
 						<Input
 							label={t`Twitter`}
 							value={formData.social?.twitter ?? ""}
 							onChange={(e) => handleSocialChange("twitter", e.target.value)}
-							description={t`Your Twitter/X handle, for example @username.`}
+							description={t`Your Twitter/X handle (e.g., @username)`}
 						/>
 					</SettingRow>
 					<SettingRow>
@@ -147,7 +147,7 @@ export function SocialSettings() {
 							label={t`GitHub`}
 							value={formData.social?.github ?? ""}
 							onChange={(e) => handleSocialChange("github", e.target.value)}
-							description={t`Your GitHub username.`}
+							description={t`Your GitHub username`}
 						/>
 					</SettingRow>
 					<SettingRow>
@@ -155,7 +155,7 @@ export function SocialSettings() {
 							label={t`Facebook`}
 							value={formData.social?.facebook ?? ""}
 							onChange={(e) => handleSocialChange("facebook", e.target.value)}
-							description={t`Your Facebook page or profile username.`}
+							description={t`Your Facebook page or profile username`}
 						/>
 					</SettingRow>
 					<SettingRow>
@@ -163,7 +163,7 @@ export function SocialSettings() {
 							label={t`Instagram`}
 							value={formData.social?.instagram ?? ""}
 							onChange={(e) => handleSocialChange("instagram", e.target.value)}
-							description={t`Your Instagram username.`}
+							description={t`Your Instagram username`}
 						/>
 					</SettingRow>
 					<SettingRow>
@@ -171,7 +171,7 @@ export function SocialSettings() {
 							label={t`LinkedIn`}
 							value={formData.social?.linkedin ?? ""}
 							onChange={(e) => handleSocialChange("linkedin", e.target.value)}
-							description={t`Your LinkedIn profile username.`}
+							description={t`Your LinkedIn profile username`}
 						/>
 					</SettingRow>
 					<SettingRow>
@@ -179,7 +179,7 @@ export function SocialSettings() {
 							label={t`YouTube`}
 							value={formData.social?.youtube ?? ""}
 							onChange={(e) => handleSocialChange("youtube", e.target.value)}
-							description={t`Your YouTube channel ID or handle.`}
+							description={t`Your YouTube channel ID or handle`}
 						/>
 					</SettingRow>
 				</SettingsSection>

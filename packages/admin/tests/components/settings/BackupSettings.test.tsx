@@ -76,7 +76,7 @@ describe("BackupSettings", () => {
 		await expect
 			.element(screen.getByRole("heading", { name: "Backups", level: 1 }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByText("Loading backup settings…")).toBeInTheDocument();
+		await expect.element(screen.getByText("Loading...")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Save" }).query()).toBeNull();
 	});
 
@@ -86,7 +86,7 @@ describe("BackupSettings", () => {
 
 		await expect
 			.element(screen.getByRole("alert"))
-			.toHaveTextContent("Unable to load backup settings");
+			.toHaveTextContent("Failed to load backup settings");
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Backup service unavailable");
 		expect(screen.getByRole("button", { name: "Back up now" }).query()).toBeNull();
 	});
@@ -122,9 +122,9 @@ describe("BackupSettings", () => {
 		});
 		const screen = await renderBackupSettings();
 
-		await expect.element(screen.getByText("Automatic backups unavailable")).toBeInTheDocument();
+		await expect.element(screen.getByText("Automatic Backups").all()[0]).toBeInTheDocument();
 		await expect
-			.element(screen.getByText("Stored backups are unavailable until storage is configured."))
+			.element(screen.getByText(/Automatic backups need a storage backend/).all()[0])
 			.toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Back up now" }).query()).toBeNull();
 		expect(screen.getByRole("button", { name: "Save" }).query()).toBeNull();
@@ -144,7 +144,7 @@ describe("BackupSettings", () => {
 
 	it("shows the stored-backup empty state and renders archive actions", async () => {
 		const emptyScreen = await renderBackupSettings();
-		await expect.element(emptyScreen.getByText("No stored backups yet.")).toBeInTheDocument();
+		await expect.element(emptyScreen.getByText("No items yet")).toBeInTheDocument();
 
 		mockFetchBackupOverview.mockResolvedValue({ ...defaultOverview, archives: [archive] });
 		const listScreen = await renderBackupSettings();

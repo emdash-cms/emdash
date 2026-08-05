@@ -15,7 +15,7 @@ import {
 	Switch,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Pencil, Plus, Trash, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -146,8 +146,8 @@ export function AllowedDomainsSettings() {
 		if (deletingDomain) deleteMutation.mutate(deletingDomain);
 	};
 
-	const title = t`Self-signup domains`;
-	const description = t`Choose which email domains can create accounts.`;
+	const title = t`Self-Signup Domains`;
+	const description = t`Allow users from specific domains to sign up`;
 
 	if (manifestLoading || isLoading) {
 		return (
@@ -157,7 +157,7 @@ export function AllowedDomainsSettings() {
 					role="status"
 				>
 					<Loader size="sm" />
-					<span>{t`Loading self-signup domains…`}</span>
+					<span>{t`Loading...`}</span>
 				</div>
 			</SettingsFrame>
 		);
@@ -168,7 +168,7 @@ export function AllowedDomainsSettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="secondary"
-					title={t`Self-signup domain settings unavailable`}
+					title={t`Self-Signup Domains`}
 					description={t`User access is managed by an external provider (${manifest?.authMode}). Self-signup domain settings are not available when using external authentication.`}
 					role="status"
 				/>
@@ -181,7 +181,7 @@ export function AllowedDomainsSettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="error"
-					title={t`Unable to load self-signup domains`}
+					title={t`Failed to load allowed domains`}
 					description={error instanceof Error ? error.message : t`Failed to load allowed domains`}
 					role="alert"
 				/>
@@ -192,8 +192,8 @@ export function AllowedDomainsSettings() {
 	return (
 		<SettingsFrame title={title} description={description}>
 			<SettingsSection
-				title={t`Allowed domains`}
-				description={t`People with email addresses from these domains can sign up without an invite.`}
+				title={t`Allowed Domains`}
+				description={t`Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically.`}
 				actions={
 					isAddingDomain ? (
 						<Button
@@ -208,14 +208,12 @@ export function AllowedDomainsSettings() {
 						</Button>
 					) : (
 						<Button onClick={() => setIsAddingDomain(true)} icon={<Plus />}>
-							{t`Add domain`}
+							{t`Add Domain`}
 						</Button>
 					)
 				}
 				contentClassName={
-					domains && domains.length > 0
-						? undefined
-						: "border-2 border-dashed border-kumo-subtle/60"
+					domains && domains.length > 0 ? undefined : "border-2 border-dashed border-kumo-subtle/60"
 				}
 			>
 				{domains && domains.length > 0 ? (
@@ -230,12 +228,17 @@ export function AllowedDomainsSettings() {
 										checked={domain.enabled}
 										onCheckedChange={() => handleToggleEnabled(domain)}
 										disabled={updateMutation.isPending}
-										aria-label={t`Allow signups from ${domain.domain}`}
+										aria-labelledby={`allowed-domain-${domain.domain}`}
 									/>
 									<div className="min-w-0">
-										<div className="break-words text-sm font-medium">{domain.domain}</div>
+										<div
+											id={`allowed-domain-${domain.domain}`}
+											className="break-words text-sm font-medium"
+										>
+											{domain.domain}
+										</div>
 										<div className="text-sm leading-5 text-kumo-subtle">
-											{t`Default role: ${getRoleLabel(domain.defaultRole)}`}
+											{t`Default role:`} {getRoleLabel(domain.defaultRole)}
 										</div>
 									</div>
 								</div>
@@ -284,7 +287,7 @@ export function AllowedDomainsSettings() {
 									onChange={(event) => setNewDomain(event.target.value)}
 								/>
 								<Select
-									label={t`Default role`}
+									label={t`Default Role`}
 									value={String(newRole)}
 									onValueChange={(value) => value !== null && setNewRole(Number(value))}
 									items={signupRoleItems}
@@ -300,7 +303,7 @@ export function AllowedDomainsSettings() {
 								onClick={handleAddDomain}
 								disabled={!newDomain.trim() || createMutation.isPending}
 							>
-								{createMutation.isPending ? t`Adding…` : t`Add domain`}
+								{createMutation.isPending ? t`Adding...` : t`Add Domain`}
 							</Button>
 						</div>
 					</SettingRow>
@@ -315,7 +318,7 @@ export function AllowedDomainsSettings() {
 					<div className="mb-4 flex items-start justify-between gap-4">
 						<div className="flex flex-col gap-1.5">
 							<Dialog.Title className="text-lg font-semibold leading-tight">
-								{t`Edit domain`}
+								{t`Edit Domain`}
 							</Dialog.Title>
 							<Dialog.Description className="text-sm leading-5 text-kumo-subtle">
 								{t`Update settings for ${editingDomain?.domain}`}
@@ -339,7 +342,7 @@ export function AllowedDomainsSettings() {
 					</div>
 					<div className="grid gap-4 py-4">
 						<Select
-							label={t`Default role`}
+							label={t`Default Role`}
 							value={String(editingDomain?.defaultRole ?? 30)}
 							onValueChange={(value) =>
 								value !== null &&
@@ -366,15 +369,15 @@ export function AllowedDomainsSettings() {
 					setDeletingDomain(null);
 					deleteMutation.reset();
 				}}
-				title={t`Remove domain?`}
+				title={t`Remove Domain?`}
 				description={
-					<Trans>
-						Users from <strong>{deletingDomain}</strong> will no longer be able to sign up without
-						an invite. Existing users are not affected.
-					</Trans>
+					<>
+						{t`Users from`} <strong>{deletingDomain}</strong>{" "}
+						{t`will no longer be able to sign up without an invite. Existing users are not affected.`}
+					</>
 				}
-				confirmLabel={t`Remove domain`}
-				pendingLabel={t`Removing…`}
+				confirmLabel={t`Remove Domain`}
+				pendingLabel={t`Removing...`}
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={handleDelete}

@@ -43,57 +43,57 @@ const API_TOKEN_SCOPE_VALUES: {
 }[] = [
 	{
 		scope: API_TOKEN_SCOPES.ContentRead,
-		label: msg`Content read`,
+		label: msg`Content Read`,
 		description: msg`Read content entries`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.ContentWrite,
-		label: msg`Content write`,
+		label: msg`Content Write`,
 		description: msg`Create, update, delete content`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.MediaRead,
-		label: msg`Media read`,
+		label: msg`Media Read`,
 		description: msg`Read media files`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.MediaWrite,
-		label: msg`Media write`,
+		label: msg`Media Write`,
 		description: msg`Upload and delete media`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.SchemaRead,
-		label: msg`Schema read`,
+		label: msg`Schema Read`,
 		description: msg`Read collection schemas`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.SchemaWrite,
-		label: msg`Schema write`,
+		label: msg`Schema Write`,
 		description: msg`Modify collection schemas`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.TaxonomiesManage,
-		label: msg`Manage taxonomies`,
+		label: msg`Taxonomies Manage`,
 		description: msg`Create, update, and delete taxonomy terms`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.MenusManage,
-		label: msg`Manage menus`,
+		label: msg`Menus Manage`,
 		description: msg`Create, update, and delete navigation menus`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.SettingsRead,
-		label: msg`Settings read`,
+		label: msg`Settings Read`,
 		description: msg`Read site settings`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.SettingsManage,
-		label: msg`Manage settings`,
+		label: msg`Settings Manage`,
 		description: msg`Update site settings`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.McpTools,
-		label: msg`Plugin MCP tools`,
+		label: msg`Plugin MCP Tools`,
 		description: msg`Invoke MCP tools from all enabled plugins`,
 	},
 	{
@@ -184,11 +184,15 @@ export function ApiTokenSettings() {
 		[t],
 	);
 	const tokenToRevoke = tokens?.find((token) => token.id === revokeConfirmId);
-	const revokeDescription = tokenToRevoke
-		? t`Revoke ${tokenToRevoke.name}? Any integration using it will immediately lose access.`
-		: t`Revoke this token? Any integration using it will immediately lose access.`;
-	const title = t`API tokens`;
-	const description = t`Create and revoke tokens for API access.`;
+	const revokeDescription = tokenToRevoke ? (
+		<>
+			{t(msg`Revoke token`)}: {tokenToRevoke.name}
+		</>
+	) : (
+		t(msg`Revoke token`)
+	);
+	const title = t`API Tokens`;
+	const description = t`Create personal access tokens for programmatic API access`;
 
 	if (isLoading) {
 		return (
@@ -198,7 +202,7 @@ export function ApiTokenSettings() {
 					role="status"
 				>
 					<Loader size="sm" />
-					<span>{t`Loading API tokens…`}</span>
+					<span>{t`Loading...`}</span>
 				</div>
 			</SettingsFrame>
 		);
@@ -209,10 +213,8 @@ export function ApiTokenSettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="error"
-					title={t`Unable to load API tokens`}
-					description={
-						loadError instanceof Error ? loadError.message : t`Failed to load API tokens`
-					}
+					title={t`An error occurred`}
+					description={loadError instanceof Error ? loadError.message : t`An error occurred`}
 					role="alert"
 				/>
 			</SettingsFrame>
@@ -223,8 +225,8 @@ export function ApiTokenSettings() {
 		<SettingsFrame title={title} description={description}>
 			<div className="grid gap-8">
 				<SettingsSection
-					title={t`Create a token`}
-					description={t`Choose a name, permissions, and expiration for a new token.`}
+					title={t(msg`Create New Token`)}
+					description={t`Create personal access tokens for programmatic API access`}
 					actions={
 						showCreateForm ? (
 							<Button variant="ghost" size="sm" onClick={() => setShowCreateForm(false)}>
@@ -232,7 +234,7 @@ export function ApiTokenSettings() {
 							</Button>
 						) : (
 							<Button icon={<Plus />} onClick={() => setShowCreateForm(true)}>
-								{t`Create token`}
+								{t(msg`Create Token`)}
 							</Button>
 						)
 					}
@@ -320,15 +322,14 @@ export function ApiTokenSettings() {
 					) : (
 						!newToken && (
 							<SettingRow className="text-sm leading-5 text-kumo-subtle">
-								{t`Tokens grant programmatic access to your site. Only select the permissions an integration needs.`}
+								{t`Create personal access tokens for programmatic API access`}
 							</SettingRow>
 						)
 					)}
 				</SettingsSection>
 
 				<SettingsSection
-					title={t`Active tokens`}
-					description={t`Review and revoke tokens that can access your site.`}
+					title={t`API Tokens`}
 					contentClassName={
 						tokens && tokens.length > 0 ? undefined : "border-2 border-dashed border-kumo-subtle/60"
 					}
@@ -346,7 +347,7 @@ export function ApiTokenSettings() {
 										</div>
 										<dl className="mt-2 grid gap-1 text-sm leading-5">
 											<div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:gap-2">
-												<dt className="shrink-0 font-medium">{t`Permissions`}</dt>
+												<dt className="shrink-0 font-medium">{t(msg`Scopes`)}</dt>
 												<dd className="min-w-0 break-words text-kumo-subtle">
 													{token.scopes.join(", ")}
 												</dd>
@@ -360,7 +361,7 @@ export function ApiTokenSettings() {
 												</div>
 												{token.expiresAt && (
 													<div className="flex gap-1.5">
-														<dt>{t`Expires`}</dt>
+														<dt>{t(msg`Expiry`)}</dt>
 														<dd className="tabular-nums">
 															{i18n.date(new Date(token.expiresAt), { dateStyle: "medium" })}
 														</dd>
@@ -387,9 +388,9 @@ export function ApiTokenSettings() {
 												revokeMutation.reset();
 												setRevokeConfirmId(token.id);
 											}}
-											aria-label={t`Revoke ${token.name}`}
+											aria-label={t(msg`Revoke token`)}
 										>
-											{t`Revoke`}
+											{t(msg`Revoke token`)}
 										</Button>
 									</div>
 								</div>
@@ -409,10 +410,10 @@ export function ApiTokenSettings() {
 					setRevokeConfirmId(null);
 					revokeMutation.reset();
 				}}
-				title={t`Revoke token?`}
+				title={t(msg`Revoke?`)}
 				description={revokeDescription}
-				confirmLabel={t`Revoke token`}
-				pendingLabel={t`Revoking…`}
+				confirmLabel={t(msg`Confirm`)}
+				pendingLabel={t(msg`Revoking...`)}
 				isPending={revokeMutation.isPending}
 				error={revokeMutation.error}
 				onConfirm={() => revokeConfirmId && revokeMutation.mutate(revokeConfirmId)}
@@ -471,20 +472,15 @@ function CreateTokenForm({
 	return (
 		<div className="grid gap-4">
 			{error && (
-				<Banner
-					variant="error"
-					title={t`Unable to create token`}
-					description={error}
-					role="alert"
-				/>
+				<Banner variant="error" title={t`An error occurred`} description={error} role="alert" />
 			)}
 
 			<form onSubmit={handleSubmit} className="grid gap-4">
 				<Input
-					label={t(msg`Token name`)}
+					label={t(msg`Token Name`)}
 					value={name}
 					onChange={(e) => setName(e.target.value)}
-					placeholder={t(msg`e.g., CI/CD pipeline`)}
+					placeholder={t(msg`e.g., CI/CD Pipeline`)}
 					required
 					autoFocus
 				/>
@@ -524,7 +520,7 @@ function CreateTokenForm({
 				</div>
 
 				<Select
-					label={t(msg`Expiration`)}
+					label={t(msg`Expiry`)}
 					value={expiry}
 					onValueChange={(v) => v !== null && setExpiry(v)}
 					items={expirySelectItems}
@@ -538,7 +534,7 @@ function CreateTokenForm({
 
 				<div className="flex flex-wrap gap-2 pt-2">
 					<Button type="submit" disabled={!isValid || isCreating}>
-						{isCreating ? t(msg`Creating…`) : t(msg`Create token`)}
+						{isCreating ? t(msg`Creating...`) : t(msg`Create Token`)}
 					</Button>
 				</div>
 			</form>

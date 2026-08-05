@@ -68,9 +68,9 @@ describe("SocialSettings", () => {
 		const screen = await renderSocialSettings();
 
 		await expect
-			.element(screen.getByRole("heading", { name: "Social links", level: 1 }))
+			.element(screen.getByRole("heading", { name: "Social Links", level: 1 }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByText("Loading settings…")).toBeInTheDocument();
+		await expect.element(screen.getByText("Loading settings...")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Save" }).query()).toBeNull();
 	});
 

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { AdminManifest } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
@@ -20,6 +21,7 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 const mockFetchManifest = vi.fn<() => Promise<AdminManifest>>();
+const mockSetLocale = vi.fn<(locale: string) => void>();
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -28,6 +30,10 @@ vi.mock("../../src/lib/api", async () => {
 		fetchManifest: (...args: unknown[]) => mockFetchManifest(...(args as [])),
 	};
 });
+
+vi.mock("../../src/locales/useLocale.js", () => ({
+	useLocale: () => ({ locale: "en", setLocale: mockSetLocale }),
+}));
 
 // Import after mocks
 const { Settings } = await import("../../src/components/Settings");
@@ -61,9 +67,6 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
-		await expect
-			.element(screen.getByText("Configure your site, access, integrations, and admin preferences."))
-			.toBeInTheDocument();
 	});
 
 	it("shows links to General, Social, and SEO sub-pages", async () => {
@@ -73,7 +76,7 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("General")).toBeInTheDocument();
-		await expect.element(screen.getByText("Social links")).toBeInTheDocument();
+		await expect.element(screen.getByText("Social Links")).toBeInTheDocument();
 		await expect.element(screen.getByText("SEO")).toBeInTheDocument();
 	});
 
@@ -83,7 +86,7 @@ describe("Settings", () => {
 				<Settings />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("API tokens")).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: /API Tokens/ })).toBeInTheDocument();
 		await expect.element(screen.getByText("Email", { exact: true })).toBeInTheDocument();
 	});
 
@@ -94,15 +97,23 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 
-		for (const name of [
-			"Site",
-			"Security and access",
-			"Developer tools",
-			"Email and backups",
-			"Preferences",
-		]) {
+		for (const name of ["Site", "Security Settings", "API Tokens", "Email Settings", "Settings"]) {
 			await expect.element(screen.getByRole("heading", { name, level: 2 })).toBeInTheDocument();
 		}
+	});
+
+	it("filters and changes the admin language", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+
+		await userEvent.click(screen.getByRole("combobox", { name: "Language English" }));
+		await screen.getByRole("combobox", { name: "Search" }).fill("Portu");
+		await userEvent.click(screen.getByRole("option", { name: "Português (Brasil)" }));
+
+		expect(mockSetLocale).toHaveBeenCalledWith("pt-BR");
 	});
 
 	it("preserves the settings destinations", async () => {
@@ -116,7 +127,7 @@ describe("Settings", () => {
 			"href",
 			"/settings/general",
 		);
-		expect(screen.getByRole("link", { name: /API tokens/ }).element()).toHaveAttribute(
+		expect(screen.getByRole("link", { name: /API Tokens/ }).element()).toHaveAttribute(
 			"href",
 			"/settings/api-tokens",
 		);
@@ -130,7 +141,7 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Security", { exact: true })).toBeInTheDocument();
-		await expect.element(screen.getByText("Self-signup domains")).toBeInTheDocument();
+		await expect.element(screen.getByText("Self-Signup Domains")).toBeInTheDocument();
 	});
 
 	it("security link hidden when authMode is not passkey", async () => {
@@ -146,6 +157,6 @@ describe("Settings", () => {
 		// Wait for the page to render by checking a link that's always visible
 		await expect.element(screen.getByText("General")).toBeInTheDocument();
 		expect(screen.getByText("Security").query()).toBeNull();
-		expect(screen.getByText("Self-signup domains").query()).toBeNull();
+		expect(screen.getByText("Self-Signup Domains").query()).toBeNull();
 	});
 });

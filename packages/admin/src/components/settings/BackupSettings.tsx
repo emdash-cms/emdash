@@ -141,7 +141,7 @@ export function BackupSettings() {
 	};
 
 	const title = t`Backups`;
-	const description = t`Download, schedule, restore, and manage site backups.`;
+	const description = t`Download backups and schedule automatic backups to storage`;
 
 	if (isLoading) {
 		return (
@@ -151,7 +151,7 @@ export function BackupSettings() {
 					role="status"
 				>
 					<Loader size="sm" />
-					<span>{t`Loading backup settings…`}</span>
+					<span>{t`Loading...`}</span>
 				</div>
 			</SettingsFrame>
 		);
@@ -162,8 +162,8 @@ export function BackupSettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="error"
-					title={t`Unable to load backup settings`}
-					description={getMutationError(fetchError) || t`Failed to load backup settings`}
+					title={t`Failed to load backup settings`}
+					description={getMutationError(fetchError) || t`An error occurred`}
 					role="alert"
 				/>
 			</SettingsFrame>
@@ -184,21 +184,14 @@ export function BackupSettings() {
 	return (
 		<SettingsFrame title={title} description={description} actions={saveAction}>
 			<div className="grid gap-8">
-				<SettingsSection
-					title={t`Download backup`}
-					description={t`Export a complete copy of your site whenever you need one.`}
-				>
+				<SettingsSection title={t`Download Backup`}>
 					<SettingRow>
 						<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
 							<p className="text-sm leading-5 text-pretty text-kumo-subtle">
-								{t`Includes all content, collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included.`}
+								{t`Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included.`}
 							</p>
 							<div className="flex justify-end">
-								<LinkButton
-									href={BACKUP_EXPORT_URL}
-									variant="outline"
-									icon={<DownloadSimple />}
-								>
+								<LinkButton href={BACKUP_EXPORT_URL} variant="outline" icon={<DownloadSimple />}>
 									{t`Download backup`}
 								</LinkButton>
 							</div>
@@ -208,8 +201,8 @@ export function BackupSettings() {
 
 				<form id="automatic-backups-form" onSubmit={handleSave}>
 					<SettingsSection
-						title={t`Automatic backups`}
-						description={t`Store daily backups and control how many archives are retained.`}
+						title={t`Automatic Backups`}
+						description={t`Store a daily backup in your site's storage bucket. Old backups are removed automatically.`}
 						actions={
 							storageAvailable ? (
 								<Button
@@ -218,7 +211,7 @@ export function BackupSettings() {
 									onClick={() => backupNowMutation.mutate()}
 									disabled={backupNowMutation.isPending}
 								>
-									{backupNowMutation.isPending ? t`Backing up…` : t`Back up now`}
+									{backupNowMutation.isPending ? t`Backing up...` : t`Back up now`}
 								</Button>
 							) : undefined
 						}
@@ -227,14 +220,7 @@ export function BackupSettings() {
 							<>
 								<SettingRow>
 									<Switch
-										label={
-											<div className="grid gap-1">
-												<span className="text-sm font-medium">{t`Daily automatic backups`}</span>
-												<span className="text-sm leading-5 text-kumo-subtle">
-													{t`Create one backup each day in your site's storage.`}
-												</span>
-											</div>
-										}
+										label={t`Daily automatic backups`}
 										controlFirst={false}
 										className="ms-auto"
 										checked={enabled}
@@ -242,16 +228,23 @@ export function BackupSettings() {
 									/>
 								</SettingRow>
 								<SettingRow>
-									<div className="max-w-48">
-										<Input
-											label={t`Backups to keep`}
-											description={t`Keep between 1 and 30 stored backups.`}
-											type="number"
-											min={1}
-											max={30}
-											value={retention}
-											onChange={(event) => setRetention(event.target.value)}
-										/>
+									<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+										<div className="grid gap-1">
+											<label htmlFor="backup-retention" className="text-sm font-medium">
+												{t`Backups to keep`}
+											</label>
+										</div>
+										<div className="flex justify-end">
+											<Input
+												id="backup-retention"
+												className="w-full max-w-48"
+												type="number"
+												min={1}
+												max={30}
+												value={retention}
+												onChange={(event) => setRetention(event.target.value)}
+											/>
+										</div>
 									</div>
 								</SettingRow>
 							</>
@@ -259,8 +252,8 @@ export function BackupSettings() {
 							<SettingRow>
 								<Banner
 									variant="alert"
-									title={t`Automatic backups unavailable`}
-									description={t`Configure an R2, S3, or local storage backend in your EmDash config to enable automatic backups.`}
+									title={t`Automatic Backups`}
+									description={t`Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them.`}
 									role="status"
 								/>
 							</SettingRow>
@@ -269,8 +262,7 @@ export function BackupSettings() {
 				</form>
 
 				<SettingsSection
-					title={t`Stored backups`}
-					description={t`Download or remove backup archives saved in your site's storage.`}
+					title={t`Stored Backups`}
 					contentClassName={
 						storageAvailable && archives.length === 0
 							? "border-2 border-dashed border-kumo-subtle/60"
@@ -279,11 +271,11 @@ export function BackupSettings() {
 				>
 					{!storageAvailable ? (
 						<SettingRow className="py-8 text-center text-sm text-kumo-subtle">
-							{t`Stored backups are unavailable until storage is configured.`}
+							{t`Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them.`}
 						</SettingRow>
 					) : archives.length === 0 ? (
 						<SettingRow className="py-8 text-center text-sm text-kumo-subtle">
-							{t`No stored backups yet.`}
+							{t`No items yet`}
 						</SettingRow>
 					) : (
 						archives.map((archive) => (
@@ -327,13 +319,10 @@ export function BackupSettings() {
 					)}
 				</SettingsSection>
 
-				<SettingsSection
-					title={t`Point-in-time restore`}
-					description={t`Recover a Cloudflare D1 database to an earlier point in time.`}
-				>
+				<SettingsSection title={t`Point-in-Time Restore`}>
 					<SettingRow>
 						<p className="max-w-2xl text-sm leading-5 text-kumo-subtle">
-							{t`Sites on Cloudflare D1 can restore the database to any minute within the last 30 days using D1 Time Travel. It is always available and requires no setup.`}{" "}
+							{t`Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required.`}{" "}
 							<a
 								className="font-medium text-kumo-link underline underline-offset-2"
 								href="https://developers.cloudflare.com/d1/reference/time-travel/"
@@ -356,7 +345,7 @@ export function BackupSettings() {
 				title={t`Delete backup?`}
 				description={t`This permanently deletes ${archiveToDelete?.name ?? ""} from storage.`}
 				confirmLabel={t`Delete`}
-				pendingLabel={t`Deleting…`}
+				pendingLabel={t`Deleting...`}
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => {

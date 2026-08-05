@@ -1,4 +1,4 @@
-import { Select } from "@cloudflare/kumo";
+import { Combobox } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Gear,
@@ -31,14 +31,12 @@ export function Settings() {
 	const { t } = useLingui();
 	const { locale, setLocale } = useLocale();
 	const showSecuritySettings = manifest?.authMode === "passkey";
+	const selectedLocale = SUPPORTED_LOCALES.find((option) => option.code === locale) ?? null;
 
 	return (
 		<div className="max-w-4xl pb-6">
 			<header>
 				<h1 className="text-2xl font-semibold leading-tight text-balance">{t`Settings`}</h1>
-				<p className="mt-1.5 max-w-2xl text-base leading-5 text-pretty text-kumo-subtle">
-					{t`Configure your site, access, integrations, and admin preferences.`}
-				</p>
 			</header>
 
 			<div className="mt-6 grid gap-8">
@@ -47,65 +45,65 @@ export function Settings() {
 						to="/settings/general"
 						icon={<Gear className="h-5 w-5" />}
 						title={t`General`}
-						description={t`Set your site name, logo, favicon, and reading defaults.`}
+						description={t`Site identity, logo, favicon, and reading preferences`}
 					/>
 					<SettingsNavRow
 						to="/settings/social"
 						icon={<ShareNetwork className="h-5 w-5" />}
-						title={t`Social links`}
-						description={t`Add links to your social profiles.`}
+						title={t`Social Links`}
+						description={t`Social media profile links`}
 					/>
 					<SettingsNavRow
 						to="/settings/seo"
 						icon={<MagnifyingGlass className="h-5 w-5" />}
 						title={t`SEO`}
-						description={t`Control search appearance, social sharing, and site verification.`}
+						description={t`Search engine optimization and verification`}
 					/>
 				</SettingsSection>
 
 				{showSecuritySettings && (
-					<SettingsSection title={t`Security and access`}>
+					<SettingsSection title={t`Security Settings`}>
 						<SettingsNavRow
 							to="/settings/security"
 							icon={<Shield className="h-5 w-5" />}
 							title={t`Security`}
-							description={t`Manage passkeys and sign-in settings.`}
+							description={t`Manage your passkeys and authentication`}
 						/>
 						<SettingsNavRow
 							to="/settings/allowed-domains"
 							icon={<Globe className="h-5 w-5" />}
-							title={t`Self-signup domains`}
-							description={t`Choose which email domains can create accounts.`}
+							title={t`Self-Signup Domains`}
+							description={t`Allow users from specific domains to sign up`}
 						/>
 					</SettingsSection>
 				)}
 
-				<SettingsSection title={t`Developer tools`}>
+				<SettingsSection title={t`API Tokens`}>
 					<SettingsNavRow
 						to="/settings/api-tokens"
 						icon={<Key className="h-5 w-5" />}
-						title={t`API tokens`}
-						description={t`Create and revoke tokens for API access.`}
+						title={t`API Tokens`}
+						description={t`Create personal access tokens for programmatic API access`}
 					/>
 				</SettingsSection>
 
-				<SettingsSection title={t`Email and backups`}>
+				<SettingsSection title={t`Email Settings`}>
 					<SettingsNavRow
 						to="/settings/email"
 						icon={<Envelope className="h-5 w-5" />}
 						title={t`Email`}
-						description={t`Check email delivery and send a test message.`}
+						description={t`View email provider status and send test emails`}
 					/>
 					<SettingsNavRow
 						to="/settings/backups"
 						icon={<DownloadSimple className="h-5 w-5" />}
 						title={t`Backups`}
-						description={t`Download, schedule, restore, and manage backups.`}
+						description={t`Download backups and schedule automatic backups to storage`}
 					/>
 				</SettingsSection>
 
 				{SUPPORTED_LOCALES.length > 1 && (
-					<SettingsSection title={t`Preferences`}>
+					<SettingsSection title={t`Settings`}>
 						<div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
 							<div className="flex min-w-0 items-center gap-3">
 								<span
@@ -117,17 +115,37 @@ export function Settings() {
 								<div className="min-w-0">
 									<p className="text-base font-medium leading-5">{t`Language`}</p>
 									<p className="mt-0.5 text-sm leading-5 text-pretty text-kumo-subtle">
-										{t`Choose the language used in the admin.`}
+										{t`Choose your preferred admin language`}
 									</p>
 								</div>
 							</div>
-							<Select
-								aria-label={t`Language`}
-								className="w-full sm:w-48"
-								value={locale}
-								onValueChange={(v) => v && setLocale(v)}
-								items={Object.fromEntries(SUPPORTED_LOCALES.map((l) => [l.code, l.label]))}
-							/>
+							<Combobox
+								items={SUPPORTED_LOCALES}
+								value={selectedLocale}
+								isItemEqualToValue={(option, value) => option.code === value.code}
+								itemToStringValue={(option) => option.label}
+								onValueChange={(option) => option && setLocale(option.code)}
+							>
+								<Combobox.TriggerValue className="w-full sm:w-48">
+									{(option) => (
+										<>
+											<span className="sr-only">{t`Language`}</span>
+											{option?.label ?? t`Select`}
+										</>
+									)}
+								</Combobox.TriggerValue>
+								<Combobox.Content>
+									<Combobox.Input aria-label={t`Search`} placeholder={t`Search`} />
+									<Combobox.Empty>{t`No results found`}</Combobox.Empty>
+									<Combobox.List style={{ maxHeight: "16.5rem" }}>
+										{(option) => (
+											<Combobox.Item key={option.code} value={option}>
+												{option.label}
+											</Combobox.Item>
+										)}
+									</Combobox.List>
+								</Combobox.Content>
+							</Combobox>
 						</div>
 					</SettingsSection>
 				)}

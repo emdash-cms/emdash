@@ -114,8 +114,8 @@ export function SeoSettings() {
 		}));
 	};
 
-	const title = t`SEO settings`;
-	const description = t`Control search appearance, social sharing, and site verification.`;
+	const title = t`SEO Settings`;
+	const description = t`Search engine optimization and verification`;
 
 	if (isLoading) {
 		return (
@@ -125,7 +125,7 @@ export function SeoSettings() {
 					role="status"
 				>
 					<Loader size="sm" />
-					<span>{t`Loading settings…`}</span>
+					<span>{t`Loading settings...`}</span>
 				</div>
 			</SettingsFrame>
 		);
@@ -136,8 +136,8 @@ export function SeoSettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="error"
-					title={t`Unable to load SEO settings`}
-					description={loadError instanceof Error ? loadError.message : t`Failed to load settings`}
+					title={t`An error occurred`}
+					description={loadError instanceof Error ? loadError.message : t`An error occurred`}
 					role="alert"
 				/>
 			</SettingsFrame>
@@ -158,21 +158,18 @@ export function SeoSettings() {
 			}
 		>
 			<form id="seo-settings-form" onSubmit={handleSubmit} className="grid gap-8">
-				<SettingsSection
-					title={t`Search appearance`}
-					description={t`Set how your site appears in search results and when pages are shared.`}
-				>
+				<SettingsSection title={t`Search Engine Optimization`}>
 					<SettingRow>
 						<Input
-							label={t`Title separator`}
+							label={t`Title Separator`}
 							value={formData.seo?.titleSeparator || "|"}
 							onChange={(e) => handleSeoChange("titleSeparator", e.target.value)}
-							description={t`The character between a page title and the site name, for example “My post | My site”.`}
+							description={t`Character between page title and site name (e.g., "My Post | My Site")`}
 						/>
 					</SettingRow>
 					<SettingRow>
 						<Field
-							label={t`Default social image`}
+							label={t`Default Social Image`}
 							description={t`Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630.`}
 						>
 							{/* A missing URL can represent an orphaned media reference, so mediaId remains the configured-state signal. */}
@@ -203,7 +200,7 @@ export function SeoSettings() {
 											icon={<Upload />}
 											onClick={() => setOgImagePickerOpen(true)}
 										>
-											{t`Change image`}
+											{t`Change Image`}
 										</Button>
 										<Button
 											type="button"
@@ -223,7 +220,7 @@ export function SeoSettings() {
 									icon={<Upload />}
 									onClick={() => setOgImagePickerOpen(true)}
 								>
-									{t`Select image`}
+									{t`Select Image`}
 								</Button>
 							)}
 						</Field>
@@ -231,31 +228,31 @@ export function SeoSettings() {
 				</SettingsSection>
 
 				<SettingsSection
-					title={t`Site verification`}
-					description={t`Add verification codes for search engine tools.`}
+					title={
+						<>
+							{t`Google Verification`} / {t`Bing Verification`}
+						</>
+					}
 				>
 					<SettingRow>
 						<Input
-							label={t`Google verification`}
+							label={t`Google Verification`}
 							value={formData.seo?.googleVerification || ""}
 							onChange={(e) => handleSeoChange("googleVerification", e.target.value)}
-							description={t`The meta tag content provided by Google Search Console.`}
+							description={t`Meta tag content for Google Search Console verification`}
 						/>
 					</SettingRow>
 					<SettingRow>
 						<Input
-							label={t`Bing verification`}
+							label={t`Bing Verification`}
 							value={formData.seo?.bingVerification || ""}
 							onChange={(e) => handleSeoChange("bingVerification", e.target.value)}
-							description={t`The meta tag content provided by Bing Webmaster Tools.`}
+							description={t`Meta tag content for Bing Webmaster Tools verification`}
 						/>
 					</SettingRow>
 				</SettingsSection>
 
-				<SettingsSection
-					title={t`Crawling`}
-					description={t`Control how search engines crawl your site.`}
-				>
+				<SettingsSection title={t`robots.txt`}>
 					<SettingRow>
 						<InputArea
 							label={t`robots.txt`}
@@ -284,7 +281,7 @@ export function SeoSettings() {
 				onSelect={handleDefaultOgImageSelect}
 				mimeTypeFilters={["image/jpeg", "image/png", "image/webp", "image/gif"]}
 				localOnly
-				title={t`Select default social image`}
+				title={t`Select Default Social Image`}
 			/>
 		</SettingsFrame>
 	);

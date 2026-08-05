@@ -96,19 +96,19 @@ describe("ApiTokenSettings", () => {
 		const screen = await renderApiTokenSettings();
 
 		await expect
-			.element(screen.getByRole("heading", { name: "API tokens", level: 1 }))
+			.element(screen.getByRole("heading", { name: "API Tokens", level: 1 }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByText("Loading API tokens…")).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "Create token" }).query()).toBeNull();
+		await expect.element(screen.getByText("Loading...")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Create Token" }).query()).toBeNull();
 	});
 
 	it("shows a load failure without token actions", async () => {
 		mockFetchApiTokens.mockRejectedValue(new Error("Token service unavailable"));
 		const screen = await renderApiTokenSettings();
 
-		await expect.element(screen.getByRole("alert")).toHaveTextContent("Unable to load API tokens");
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("An error occurred");
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Token service unavailable");
-		expect(screen.getByRole("button", { name: "Create token" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Create Token" }).query()).toBeNull();
 	});
 
 	it("shows the empty state and opens the creation form", async () => {
@@ -117,18 +117,18 @@ describe("ApiTokenSettings", () => {
 		await expect
 			.element(screen.getByText("No API tokens yet. Create one to get started."))
 			.toBeInTheDocument();
-		await userEvent.click(screen.getByRole("button", { name: "Create token" }));
-		await expect.element(screen.getByRole("textbox", { name: "Token name" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Create token" })).toBeDisabled();
+		await userEvent.click(screen.getByRole("button", { name: "Create Token" }));
+		await expect.element(screen.getByRole("textbox", { name: "Token Name" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Create Token" })).toBeDisabled();
 	});
 
 	it("creates a token and preserves its one-time reveal flow", async () => {
 		const clipboardWrite = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
 		const screen = await renderApiTokenSettings();
-		await userEvent.click(screen.getByRole("button", { name: "Create token" }));
-		await screen.getByRole("textbox", { name: "Token name" }).fill(" CI token ");
-		await userEvent.click(screen.getByRole("checkbox", { name: /Content read/ }));
-		await userEvent.click(screen.getByRole("button", { name: "Create token" }));
+		await userEvent.click(screen.getByRole("button", { name: "Create Token" }));
+		await screen.getByRole("textbox", { name: "Token Name" }).fill(" CI token ");
+		await userEvent.click(screen.getByRole("checkbox", { name: /Content Read/ }));
+		await userEvent.click(screen.getByRole("button", { name: "Create Token" }));
 
 		await vi.waitFor(() => {
 			expect(mockCreateApiToken).toHaveBeenCalledWith(
@@ -157,12 +157,10 @@ describe("ApiTokenSettings", () => {
 		const screen = await renderApiTokenSettings();
 		await expect.element(screen.getByText("CI token")).toBeInTheDocument();
 
-		await userEvent.click(screen.getByRole("button", { name: "Revoke CI token" }));
-		await expect
-			.element(screen.getByRole("heading", { name: "Revoke token?" }))
-			.toBeInTheDocument();
+		await userEvent.click(screen.getByRole("button", { name: "Revoke token" }));
+		await expect.element(screen.getByRole("heading", { name: "Revoke?" })).toBeInTheDocument();
 		expect(mockRevokeApiToken).not.toHaveBeenCalled();
-		screen.getByRole("button", { name: "Revoke token" }).element().click();
+		screen.getByRole("button", { name: "Confirm" }).element().click();
 
 		await vi.waitFor(() => {
 			expect(mockRevokeApiToken).toHaveBeenCalledWith("token-1");
@@ -175,12 +173,10 @@ describe("ApiTokenSettings", () => {
 		const screen = await renderApiTokenSettings();
 		await expect.element(screen.getByText("CI token")).toBeInTheDocument();
 
-		await userEvent.click(screen.getByRole("button", { name: "Revoke CI token" }));
-		screen.getByRole("button", { name: "Revoke token" }).element().click();
+		await userEvent.click(screen.getByRole("button", { name: "Revoke token" }));
+		screen.getByRole("button", { name: "Confirm" }).element().click();
 
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Token is still in use");
-		await expect
-			.element(screen.getByRole("heading", { name: "Revoke token?" }))
-			.toBeInTheDocument();
+		await expect.element(screen.getByRole("heading", { name: "Revoke?" })).toBeInTheDocument();
 	});
 });

@@ -55,8 +55,8 @@ export function EmailSettings() {
 		testMutation.mutate(testEmail);
 	};
 
-	const title = t`Email settings`;
-	const description = t`Check email delivery and send a test message.`;
+	const title = t`Email Settings`;
+	const description = t`View email provider status and send test emails`;
 
 	if (isLoading) {
 		return (
@@ -66,7 +66,7 @@ export function EmailSettings() {
 					role="status"
 				>
 					<Loader size="sm" />
-					<span>{t`Loading email settings…`}</span>
+					<span>{t`Loading...`}</span>
 				</div>
 			</SettingsFrame>
 		);
@@ -77,7 +77,7 @@ export function EmailSettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="error"
-					title={t`Unable to load email settings`}
+					title={t`Failed to load email settings`}
 					description={getMutationError(fetchError) || t`Failed to load email settings`}
 					role="alert"
 				/>
@@ -88,17 +88,14 @@ export function EmailSettings() {
 	return (
 		<SettingsFrame title={title} description={description}>
 			<div className="grid gap-8">
-				<SettingsSection
-					title={t`Pipeline status`}
-					description={t`Review the provider and middleware used to deliver email.`}
-				>
+				<SettingsSection title={t`Email Pipeline`}>
 					<PipelineStatus settings={settings} />
 				</SettingsSection>
 
 				{settings?.available && (
 					<SettingsSection
-						title={t`Send a test email`}
-						description={t`Verify your configuration by sending a message through the full email pipeline.`}
+						title={t`Send Test Email`}
+						description={t`Send a test email through the full pipeline to verify your email configuration.`}
 					>
 						<SettingRow>
 							<form
@@ -120,9 +117,9 @@ export function EmailSettings() {
 									icon={<PaperPlaneTilt />}
 									loading={testMutation.isPending}
 									disabled={testMutation.isPending || !testEmail}
-									className="w-full sm:w-auto"
+									className="w-full self-end sm:w-auto"
 								>
-									{t`Send test email`}
+									{testMutation.isPending ? t`Sending...` : t`Send Test`}
 								</Button>
 							</form>
 						</SettingRow>
@@ -147,8 +144,8 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 					title={t`No email provider configured`}
 					description={
 						<div className="grid gap-1.5">
-							<p>{t`Install and activate an email provider plugin to enable invitations, magic links, and password recovery.`}</p>
-							<p>{t`Until then, invite links must be shared manually.`}</p>
+							<p>{t`Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery.`}</p>
+							<p>{t`Without an email provider, invite links must be shared manually.`}</p>
 						</div>
 					}
 					role="status"
@@ -169,7 +166,7 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 						<p className="text-sm leading-5 text-kumo-subtle">
 							{t`Provider:`}{" "}
 							<code className="rounded bg-kumo-tint px-1.5 py-0.5 text-[0.9em] break-all">
-								{settings.selectedProviderId || t`Default provider`}
+								{settings.selectedProviderId || t`Unknown`}
 							</code>
 						</p>
 					</div>
@@ -183,15 +180,15 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 							<PlugsConnected className="h-5 w-5" />
 						</span>
 						<div className="min-w-0 grid gap-1">
-							<p className="text-sm font-medium">{t`Email middleware`}</p>
+							<p className="text-sm font-medium">{t`Email Middleware`}</p>
 							{settings.middleware.beforeSend.length > 0 && (
 								<p className="text-sm leading-5 text-kumo-subtle break-words">
-									{t`Before sending:`} {settings.middleware.beforeSend.join(", ")}
+									{t`Before send:`} {settings.middleware.beforeSend.join(", ")}
 								</p>
 							)}
 							{settings.middleware.afterSend.length > 0 && (
 								<p className="text-sm leading-5 text-kumo-subtle break-words">
-									{t`After sending:`} {settings.middleware.afterSend.join(", ")}
+									{t`After send:`} {settings.middleware.afterSend.join(", ")}
 								</p>
 							)}
 						</div>
@@ -202,7 +199,7 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 			{settings.providers.length > 1 && (
 				<SettingRow>
 					<div className="grid gap-1">
-						<p className="text-sm font-medium">{t`Available providers`}</p>
+						<p className="text-sm font-medium">{t`Available Providers`}</p>
 						<p className="text-sm leading-5 text-kumo-subtle break-words">
 							{settings.providers.map((provider) => provider.pluginId).join(", ")}
 						</p>

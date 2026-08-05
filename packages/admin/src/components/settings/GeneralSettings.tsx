@@ -115,8 +115,8 @@ export function GeneralSettings() {
 		setFormData((prev) => ({ ...prev, favicon: undefined }));
 	};
 
-	const title = t`General settings`;
-	const description = t`Manage your site identity and reading defaults.`;
+	const title = t`General Settings`;
+	const description = t`Site identity, logo, favicon, and reading preferences`;
 
 	if (isLoading) {
 		return (
@@ -126,7 +126,7 @@ export function GeneralSettings() {
 					role="status"
 				>
 					<Loader size="sm" />
-					<span>{t`Loading settings…`}</span>
+					<span>{t`Loading settings...`}</span>
 				</div>
 			</SettingsFrame>
 		);
@@ -137,8 +137,8 @@ export function GeneralSettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="error"
-					title={t`Unable to load general settings`}
-					description={loadError instanceof Error ? loadError.message : t`Failed to load settings`}
+					title={t`An error occurred`}
+					description={loadError instanceof Error ? loadError.message : t`An error occurred`}
 					role="alert"
 				/>
 			</SettingsFrame>
@@ -159,16 +159,13 @@ export function GeneralSettings() {
 			}
 		>
 			<form id="general-settings-form" onSubmit={handleSubmit} className="grid gap-8">
-				<SettingsSection
-					title={t`Site identity`}
-					description={t`Set your site title, tagline, address, logo, and favicon.`}
-				>
+				<SettingsSection title={t`Site Identity`}>
 					<SettingRow>
 						<Input
-							label={t`Site title`}
+							label={t`Site Title`}
 							value={formData.title ?? ""}
 							onChange={(e) => handleChange("title", e.target.value)}
-							description={t`The name shown in your site header and metadata.`}
+							description={t`The name of your site, used in the header and metadata`}
 						/>
 					</SettingRow>
 					<SettingRow>
@@ -176,7 +173,7 @@ export function GeneralSettings() {
 							label={t`Tagline`}
 							value={formData.tagline ?? ""}
 							onChange={(e) => handleChange("tagline", e.target.value)}
-							description={t`A short description of your site.`}
+							description={t`A short description of your site`}
 						/>
 					</SettingRow>
 					<SettingRow>
@@ -185,12 +182,12 @@ export function GeneralSettings() {
 							type="url"
 							value={formData.url ?? ""}
 							onChange={(e) => handleChange("url", e.target.value)}
-							description={t`The public URL used for canonical links and sitemaps.`}
+							description={t`The public URL of your site (used for canonical links and sitemaps)`}
 						/>
 					</SettingRow>
 
 					<SettingRow>
-						<Field label={t`Logo`} description={t`Used in your site header and branding.`}>
+						<Field label={t`Logo`}>
 							{formData.logo?.mediaId ? (
 								<div className="grid gap-3">
 									{formData.logo.url ? (
@@ -218,7 +215,7 @@ export function GeneralSettings() {
 											icon={<Upload />}
 											onClick={() => setLogoPickerOpen(true)}
 										>
-											{t`Change logo`}
+											{t`Change Logo`}
 										</Button>
 										<Button
 											type="button"
@@ -238,17 +235,14 @@ export function GeneralSettings() {
 									icon={<Upload />}
 									onClick={() => setLogoPickerOpen(true)}
 								>
-									{t`Select logo`}
+									{t`Select Logo`}
 								</Button>
 							)}
 						</Field>
 					</SettingRow>
 
 					<SettingRow>
-						<Field
-							label={t`Favicon`}
-							description={t`The icon shown in browser tabs and bookmarks.`}
-						>
+						<Field label={t`Favicon`}>
 							{formData.favicon?.mediaId ? (
 								<div className="grid gap-3">
 									{formData.favicon.url ? (
@@ -265,7 +259,7 @@ export function GeneralSettings() {
 											<span className="h-lh flex shrink-0 items-center" aria-hidden="true">
 												<WarningCircle className="h-4 w-4" />
 											</span>
-											<span>{t`The referenced favicon is no longer available. Pick a new one or remove the reference.`}</span>
+											<span>{t`Referenced favicon unavailable.`}</span>
 										</div>
 									)}
 									<div className="flex flex-wrap gap-3">
@@ -276,7 +270,7 @@ export function GeneralSettings() {
 											icon={<Upload />}
 											onClick={() => setFaviconPickerOpen(true)}
 										>
-											{t`Change favicon`}
+											{t`Change Favicon`}
 										</Button>
 										<Button
 											type="button"
@@ -296,31 +290,28 @@ export function GeneralSettings() {
 									icon={<Upload />}
 									onClick={() => setFaviconPickerOpen(true)}
 								>
-									{t`Select favicon`}
+									{t`Select Favicon`}
 								</Button>
 							)}
 						</Field>
 					</SettingRow>
 				</SettingsSection>
 
-				<SettingsSection
-					title={t`Reading`}
-					description={t`Choose how posts and dates are displayed.`}
-				>
+				<SettingsSection title={t`Reading`}>
 					<SettingRow>
 						<Input
-							label={t`Posts per page`}
+							label={t`Posts Per Page`}
 							type="number"
 							value={formData.postsPerPage ?? 10}
 							onChange={(e) => handleChange("postsPerPage", parseInt(e.target.value, 10))}
 							min={1}
 							max={100}
-							description={t`The number of posts shown on each listing page.`}
+							description={t`Number of posts to show per page on list views`}
 						/>
 					</SettingRow>
 					<SettingRow>
 						<Input
-							label={t`Date format`}
+							label={t`Date Format`}
 							value={formData.dateFormat ?? "MMMM d, yyyy"}
 							onChange={(e) => handleChange("dateFormat", e.target.value)}
 							description={t`Example: ${formData.dateFormat ?? "MMMM d, yyyy"} → January 23, 2026`}
@@ -331,7 +322,7 @@ export function GeneralSettings() {
 							label={t`Timezone`}
 							value={formData.timezone ?? "UTC"}
 							onChange={(e) => handleChange("timezone", e.target.value)}
-							description={t`The timezone used to display dates, for example America/New_York.`}
+							description={t`Timezone for displaying dates (e.g., America/New_York)`}
 						/>
 					</SettingRow>
 				</SettingsSection>
@@ -352,7 +343,7 @@ export function GeneralSettings() {
 				onSelect={handleLogoSelect}
 				mimeTypeFilter="image/"
 				localOnly
-				title={t`Select logo`}
+				title={t`Select Logo`}
 			/>
 			<MediaPickerModal
 				open={faviconPickerOpen}
@@ -360,7 +351,7 @@ export function GeneralSettings() {
 				onSelect={handleFaviconSelect}
 				mimeTypeFilter="image/"
 				localOnly
-				title={t`Select favicon`}
+				title={t`Select Favicon`}
 			/>
 		</SettingsFrame>
 	);

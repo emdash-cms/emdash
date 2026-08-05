@@ -85,8 +85,8 @@ export function SecuritySettings() {
 		toastManager.add({ title: t`Passkey added successfully`, variant: "success", timeout: 3000 });
 	};
 
-	const title = t`Security`;
-	const description = t`Manage passkeys and sign-in settings.`;
+	const title = t`Security Settings`;
+	const description = t`Manage your passkeys and authentication`;
 
 	if (manifestLoading || isLoading) {
 		return (
@@ -96,7 +96,7 @@ export function SecuritySettings() {
 					role="status"
 				>
 					<Loader size="sm" />
-					<span>{t`Loading security settings…`}</span>
+					<span>{t`Loading...`}</span>
 				</div>
 			</SettingsFrame>
 		);
@@ -107,7 +107,7 @@ export function SecuritySettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="secondary"
-					title={t`Passkey settings unavailable`}
+					title={t`Security Settings`}
 					description={t`Authentication is managed by an external provider (${manifest?.authMode}). Passkey settings are not available when using external authentication.`}
 					role="status"
 				/>
@@ -120,8 +120,8 @@ export function SecuritySettings() {
 			<SettingsFrame title={title} description={description}>
 				<Banner
 					variant="error"
-					title={t`Unable to load passkeys`}
-					description={error instanceof Error ? error.message : t`Failed to load passkeys`}
+					title={t`Failed to load passkeys`}
+					description={error instanceof Error ? error.message : t`An error occurred`}
 					role="alert"
 				/>
 			</SettingsFrame>
@@ -133,7 +133,7 @@ export function SecuritySettings() {
 			<div className="grid gap-8">
 				<SettingsSection
 					title={t`Passkeys`}
-					description={t`Use passkeys to sign in securely without a password.`}
+					description={t`Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices.`}
 					contentClassName={
 						passkeys && passkeys.length > 0
 							? undefined
@@ -157,10 +157,7 @@ export function SecuritySettings() {
 					</SettingRow>
 				</SettingsSection>
 
-				<SettingsSection
-					title={t`Add a passkey`}
-					description={t`Register a passkey for this device or another authenticator.`}
-				>
+				<SettingsSection title={t`Add a new passkey`}>
 					<SettingRow>
 						{isAdding ? (
 							<div className="grid gap-4">
@@ -182,12 +179,12 @@ export function SecuritySettings() {
 										})
 									}
 									showNameInput
-									buttonText={t`Register passkey`}
+									buttonText={t`Register Passkey`}
 								/>
 							</div>
 						) : (
 							<Button onClick={() => setIsAdding(true)} icon={<Plus />}>
-								{t`Add passkey`}
+								{t`Add Passkey`}
 							</Button>
 						)}
 					</SettingRow>

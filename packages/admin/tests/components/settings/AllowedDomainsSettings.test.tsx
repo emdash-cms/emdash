@@ -87,10 +87,10 @@ describe("AllowedDomainsSettings", () => {
 		const screen = await renderAllowedDomainsSettings();
 
 		await expect
-			.element(screen.getByRole("heading", { name: "Self-signup domains", level: 1 }))
+			.element(screen.getByRole("heading", { name: "Self-Signup Domains", level: 1 }))
 			.toBeInTheDocument();
 		await expect.element(screen.getByText("Loading self-signup domains…")).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "Add domain" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Add Domain" }).query()).toBeNull();
 	});
 
 	it("shows the external-auth state without fetching domains", async () => {
@@ -103,9 +103,7 @@ describe("AllowedDomainsSettings", () => {
 		});
 		const screen = await renderAllowedDomainsSettings();
 
-		await expect
-			.element(screen.getByText("Self-signup domain settings unavailable"))
-			.toBeInTheDocument();
+		await expect.element(screen.getByRole("status")).toHaveTextContent("Self-Signup Domains");
 		expect(mockFetchAllowedDomains).not.toHaveBeenCalled();
 	});
 
@@ -115,9 +113,9 @@ describe("AllowedDomainsSettings", () => {
 
 		await expect
 			.element(screen.getByRole("alert"))
-			.toHaveTextContent("Unable to load self-signup domains");
+			.toHaveTextContent("Failed to load allowed domains");
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Domain service unavailable");
-		expect(screen.getByRole("button", { name: "Add domain" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Add Domain" }).query()).toBeNull();
 	});
 
 	it("shows an empty state and opens the add form", async () => {
@@ -126,18 +124,18 @@ describe("AllowedDomainsSettings", () => {
 		await expect
 			.element(screen.getByText("No domains configured. Users must be invited individually."))
 			.toBeInTheDocument();
-		await userEvent.click(screen.getByRole("button", { name: "Add domain" }));
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
 		await expect
 			.element(screen.getByRole("textbox", { name: "Domain", exact: true }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByLabelText("Default role")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Default Role")).toBeInTheDocument();
 	});
 
 	it("adds a normalized domain with the selected default role", async () => {
 		const screen = await renderAllowedDomainsSettings();
-		await userEvent.click(screen.getByRole("button", { name: "Add domain" }));
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
 		await screen.getByRole("textbox", { name: "Domain", exact: true }).fill("  EXAMPLE.COM  ");
-		await userEvent.click(screen.getByRole("button", { name: "Add domain" }));
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
 
 		await vi.waitFor(() => {
 			expect(mockCreateAllowedDomain.mock.calls[0]![0]).toEqual({
@@ -151,9 +149,9 @@ describe("AllowedDomainsSettings", () => {
 	it("reports a failed domain addition", async () => {
 		mockCreateAllowedDomain.mockRejectedValue(new Error("Domain is already allowed"));
 		const screen = await renderAllowedDomainsSettings();
-		await userEvent.click(screen.getByRole("button", { name: "Add domain" }));
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
 		await screen.getByRole("textbox", { name: "Domain", exact: true }).fill("example.com");
-		await userEvent.click(screen.getByRole("button", { name: "Add domain" }));
+		await userEvent.click(screen.getByRole("button", { name: "Add Domain" }));
 
 		await expect.element(screen.getByText("Failed to add domain")).toBeInTheDocument();
 		await expect.element(screen.getByText("Domain is already allowed")).toBeInTheDocument();
@@ -164,7 +162,7 @@ describe("AllowedDomainsSettings", () => {
 		const screen = await renderAllowedDomainsSettings();
 		await expect.element(screen.getByText("example.com")).toBeInTheDocument();
 
-		await userEvent.click(screen.getByRole("switch", { name: "Allow signups from example.com" }));
+		await userEvent.click(screen.getByRole("switch", { name: "example.com" }));
 		expect(mockUpdateAllowedDomain).toHaveBeenCalledWith("example.com", { enabled: false });
 	});
 
@@ -174,8 +172,8 @@ describe("AllowedDomainsSettings", () => {
 		await expect.element(screen.getByText("example.com")).toBeInTheDocument();
 
 		await userEvent.click(screen.getByRole("button", { name: "Edit example.com" }));
-		await expect.element(screen.getByRole("heading", { name: "Edit domain" })).toBeInTheDocument();
-		const roleSelect = screen.getByLabelText("Default role").element() as HTMLButtonElement;
+		await expect.element(screen.getByRole("heading", { name: "Edit Domain" })).toBeInTheDocument();
+		const roleSelect = screen.getByLabelText("Default Role").element() as HTMLButtonElement;
 		roleSelect.focus();
 		await userEvent.keyboard("{ArrowDown}{ArrowDown}{Enter}");
 
@@ -191,11 +189,11 @@ describe("AllowedDomainsSettings", () => {
 
 		await userEvent.click(screen.getByRole("button", { name: "Delete example.com" }));
 		await expect
-			.element(screen.getByRole("heading", { name: "Remove domain?" }))
+			.element(screen.getByRole("heading", { name: "Remove Domain?" }))
 			.toBeInTheDocument();
 		expect(mockDeleteAllowedDomain).not.toHaveBeenCalled();
 		const confirmButton = screen
-			.getByRole("button", { name: "Remove domain" })
+			.getByRole("button", { name: "Remove Domain" })
 			.element() as HTMLButtonElement;
 		confirmButton.click();
 
@@ -212,13 +210,13 @@ describe("AllowedDomainsSettings", () => {
 
 		await userEvent.click(screen.getByRole("button", { name: "Delete example.com" }));
 		const confirmButton = screen
-			.getByRole("button", { name: "Remove domain" })
+			.getByRole("button", { name: "Remove Domain" })
 			.element() as HTMLButtonElement;
 		confirmButton.click();
 
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Domain is still in use");
 		await expect
-			.element(screen.getByRole("heading", { name: "Remove domain?" }))
+			.element(screen.getByRole("heading", { name: "Remove Domain?" }))
 			.toBeInTheDocument();
 	});
 });

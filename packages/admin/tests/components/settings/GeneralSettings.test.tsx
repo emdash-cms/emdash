@@ -43,7 +43,7 @@ vi.mock("../../../src/components/MediaPickerModal", () => ({
 	}) => {
 		if (!open) return null;
 		const modalTitle = typeof title === "string" ? title : "";
-		const isLogo = modalTitle === "Select logo";
+		const isLogo = modalTitle === "Select Logo";
 		return (
 			<div role="dialog" aria-label={modalTitle}>
 				<button
@@ -104,9 +104,9 @@ describe("GeneralSettings", () => {
 		const screen = await renderGeneralSettings();
 
 		await expect
-			.element(screen.getByRole("heading", { name: "General settings", level: 1 }))
+			.element(screen.getByRole("heading", { name: "General Settings", level: 1 }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByText("Loading settings…")).toBeInTheDocument();
+		await expect.element(screen.getByText("Loading settings...")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Save" }).query()).toBeNull();
 	});
 
@@ -114,9 +114,7 @@ describe("GeneralSettings", () => {
 		mockFetchSettings.mockRejectedValue(new Error("Settings service unavailable"));
 		const screen = await renderGeneralSettings();
 
-		await expect
-			.element(screen.getByRole("alert"))
-			.toHaveTextContent("Unable to load general settings");
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("An error occurred");
 		await expect
 			.element(screen.getByRole("alert"))
 			.toHaveTextContent("Settings service unavailable");
@@ -126,9 +124,9 @@ describe("GeneralSettings", () => {
 	it("renders grouped fields with both save actions initially disabled", async () => {
 		const screen = await renderGeneralSettings();
 
-		await expect.element(screen.getByLabelText("Site title")).toHaveValue("My Blog");
+		await expect.element(screen.getByLabelText("Site Title")).toHaveValue("My Blog");
 		await expect
-			.element(screen.getByRole("heading", { name: "Site identity", level: 2 }))
+			.element(screen.getByRole("heading", { name: "Site Identity", level: 2 }))
 			.toBeInTheDocument();
 		await expect
 			.element(screen.getByRole("heading", { name: "Reading", level: 2 }))
@@ -141,7 +139,7 @@ describe("GeneralSettings", () => {
 
 	it("enables both save actions when dirty and returns to saved after success", async () => {
 		const screen = await renderGeneralSettings();
-		await screen.getByLabelText("Site title").fill("A better blog");
+		await screen.getByLabelText("Site Title").fill("A better blog");
 
 		const dirtyButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
 		expect(dirtyButtons).toHaveLength(2);
@@ -178,11 +176,11 @@ describe("GeneralSettings", () => {
 	it("marks media selections dirty and includes them in the saved settings", async () => {
 		const screen = await renderGeneralSettings();
 
-		await userEvent.click(screen.getByRole("button", { name: "Select logo" }));
+		await userEvent.click(screen.getByRole("button", { name: "Select Logo" }));
 		await userEvent.click(screen.getByRole("button", { name: "Choose image" }));
 		await expect.element(screen.getByRole("img", { name: "Replacement logo" })).toBeInTheDocument();
 
-		await userEvent.click(screen.getByRole("button", { name: "Select favicon" }));
+		await userEvent.click(screen.getByRole("button", { name: "Select Favicon" }));
 		await userEvent.click(screen.getByRole("button", { name: "Choose image" }));
 		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
 
@@ -214,9 +212,9 @@ describe("GeneralSettings", () => {
 		await userEvent.click(removeButtons[0]);
 		await userEvent.click(screen.getByRole("button", { name: "Remove" }));
 
-		await expect.element(screen.getByRole("button", { name: "Select logo" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Select Logo" })).toBeInTheDocument();
 		await expect
-			.element(screen.getByRole("button", { name: "Select favicon" }))
+			.element(screen.getByRole("button", { name: "Select Favicon" }))
 			.toBeInTheDocument();
 		for (const button of screen.getByRole("button", { name: "Save", exact: true }).all()) {
 			await expect.element(button).toBeEnabled();

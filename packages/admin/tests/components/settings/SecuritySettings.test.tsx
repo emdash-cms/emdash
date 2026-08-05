@@ -115,10 +115,10 @@ describe("SecuritySettings", () => {
 		const screen = await renderSecuritySettings();
 
 		await expect
-			.element(screen.getByRole("heading", { name: "Security", level: 1 }))
+			.element(screen.getByRole("heading", { name: "Security Settings", level: 1 }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByText("Loading security settings…")).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "Add passkey" }).query()).toBeNull();
+		await expect.element(screen.getByText("Loading...")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Add Passkey" }).query()).toBeNull();
 	});
 
 	it("shows the external-auth state without fetching passkeys", async () => {
@@ -131,7 +131,7 @@ describe("SecuritySettings", () => {
 		});
 		const screen = await renderSecuritySettings();
 
-		await expect.element(screen.getByText("Passkey settings unavailable")).toBeInTheDocument();
+		await expect.element(screen.getByRole("status")).toHaveTextContent("Security Settings");
 		expect(mockFetchPasskeys).not.toHaveBeenCalled();
 	});
 
@@ -139,18 +139,18 @@ describe("SecuritySettings", () => {
 		mockFetchPasskeys.mockRejectedValue(new Error("Passkey service unavailable"));
 		const screen = await renderSecuritySettings();
 
-		await expect.element(screen.getByRole("alert")).toHaveTextContent("Unable to load passkeys");
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Failed to load passkeys");
 		await expect
 			.element(screen.getByRole("alert"))
 			.toHaveTextContent("Passkey service unavailable");
-		expect(screen.getByRole("button", { name: "Add passkey" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Add Passkey" }).query()).toBeNull();
 	});
 
 	it("shows the empty state and registration errors", async () => {
 		const screen = await renderSecuritySettings();
 
 		await expect.element(screen.getByText("No passkeys registered yet.")).toBeInTheDocument();
-		await userEvent.click(screen.getByRole("button", { name: "Add passkey" }));
+		await userEvent.click(screen.getByRole("button", { name: "Add Passkey" }));
 		await userEvent.click(screen.getByRole("button", { name: "Simulate registration error" }));
 
 		await expect.element(screen.getByText("Failed to add passkey")).toBeInTheDocument();
@@ -161,11 +161,11 @@ describe("SecuritySettings", () => {
 
 	it("closes registration after success", async () => {
 		const screen = await renderSecuritySettings();
-		await userEvent.click(screen.getByRole("button", { name: "Add passkey" }));
+		await userEvent.click(screen.getByRole("button", { name: "Add Passkey" }));
 		await userEvent.click(screen.getByRole("button", { name: "Simulate registration success" }));
 
 		await expect.element(screen.getByText("Passkey added successfully")).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Add passkey" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Add Passkey" })).toBeInTheDocument();
 	});
 
 	it("renames an existing passkey", async () => {

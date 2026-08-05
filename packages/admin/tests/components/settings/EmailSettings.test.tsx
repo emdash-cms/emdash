@@ -62,9 +62,9 @@ describe("EmailSettings", () => {
 		const screen = await renderEmailSettings();
 
 		await expect
-			.element(screen.getByRole("heading", { name: "Email settings", level: 1 }))
+			.element(screen.getByRole("heading", { name: "Email Settings", level: 1 }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByText("Loading email settings…")).toBeInTheDocument();
+		await expect.element(screen.getByText("Loading...")).toBeInTheDocument();
 		expect(screen.getByLabelText("Recipient email").query()).toBeNull();
 	});
 
@@ -74,10 +74,10 @@ describe("EmailSettings", () => {
 
 		await expect
 			.element(screen.getByRole("alert"))
-			.toHaveTextContent("Unable to load email settings");
+			.toHaveTextContent("Failed to load email settings");
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Email service unavailable");
 		expect(screen.getByLabelText("Recipient email").query()).toBeNull();
-		expect(screen.getByRole("button", { name: "Send test email" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Send Test" }).query()).toBeNull();
 	});
 
 	it("explains when no email provider is available", async () => {
@@ -90,7 +90,7 @@ describe("EmailSettings", () => {
 		const screen = await renderEmailSettings();
 
 		await expect
-			.element(screen.getByRole("heading", { name: "Pipeline status", level: 2 }))
+			.element(screen.getByRole("heading", { name: "Email Pipeline", level: 2 }))
 			.toBeInTheDocument();
 		await expect.element(screen.getByText("No email provider configured")).toBeInTheDocument();
 		await expect
@@ -106,7 +106,7 @@ describe("EmailSettings", () => {
 		await expect.element(screen.getByText("resend", { exact: true })).toBeInTheDocument();
 		await expect.element(screen.getByText(/audit-log/)).toBeInTheDocument();
 		await expect.element(screen.getByText(/delivery-metrics/)).toBeInTheDocument();
-		await expect.element(screen.getByText("Available providers")).toBeInTheDocument();
+		await expect.element(screen.getByText("Available Providers")).toBeInTheDocument();
 		await expect.element(screen.getByText("resend, postmark")).toBeInTheDocument();
 		await expect.element(screen.getByLabelText("Recipient email")).toBeInTheDocument();
 	});
@@ -115,7 +115,7 @@ describe("EmailSettings", () => {
 		const screen = await renderEmailSettings();
 		const recipient = screen.getByLabelText("Recipient email");
 		await recipient.fill("editor@example.com");
-		await userEvent.click(screen.getByRole("button", { name: "Send test email" }));
+		await userEvent.click(screen.getByRole("button", { name: "Send Test" }));
 
 		await vi.waitFor(() => {
 			expect(mockSendTestEmail).toHaveBeenCalledWith("editor@example.com");
@@ -129,7 +129,7 @@ describe("EmailSettings", () => {
 		const screen = await renderEmailSettings();
 		const recipient = screen.getByLabelText("Recipient email");
 		await recipient.fill("editor@example.com");
-		await userEvent.click(screen.getByRole("button", { name: "Send test email" }));
+		await userEvent.click(screen.getByRole("button", { name: "Send Test" }));
 
 		await expect.element(screen.getByText("Failed to send test email")).toBeInTheDocument();
 		await expect.element(screen.getByText("Provider rejected the message")).toBeInTheDocument();

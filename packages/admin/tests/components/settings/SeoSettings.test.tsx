@@ -108,9 +108,9 @@ describe("SeoSettings", () => {
 		const screen = await renderSeoSettings();
 
 		await expect
-			.element(screen.getByRole("heading", { name: "SEO settings", level: 1 }))
+			.element(screen.getByRole("heading", { name: "SEO Settings", level: 1 }))
 			.toBeInTheDocument();
-		await expect.element(screen.getByText("Loading settings…")).toBeInTheDocument();
+		await expect.element(screen.getByText("Loading settings...")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Save" }).query()).toBeNull();
 	});
 
@@ -118,9 +118,7 @@ describe("SeoSettings", () => {
 		mockFetchSettings.mockRejectedValue(new Error("Settings service unavailable"));
 		const screen = await renderSeoSettings();
 
-		await expect
-			.element(screen.getByRole("alert"))
-			.toHaveTextContent("Unable to load SEO settings");
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("An error occurred");
 		await expect
 			.element(screen.getByRole("alert"))
 			.toHaveTextContent("Settings service unavailable");
@@ -130,9 +128,9 @@ describe("SeoSettings", () => {
 	it("renders initial SEO values with both save actions pristine", async () => {
 		const screen = await renderSeoSettings();
 
-		await expect.element(screen.getByLabelText("Title separator")).toHaveValue("—");
-		await expect.element(screen.getByLabelText("Google verification")).toHaveValue("google-code");
-		await expect.element(screen.getByLabelText("Bing verification")).toHaveValue("bing-code");
+		await expect.element(screen.getByLabelText("Title Separator")).toHaveValue("—");
+		await expect.element(screen.getByLabelText("Google Verification")).toHaveValue("google-code");
+		await expect.element(screen.getByLabelText("Bing Verification")).toHaveValue("bing-code");
 		await expect
 			.element(screen.getByLabelText("robots.txt"))
 			.toHaveValue("User-agent: *\nDisallow: /private/");
@@ -147,7 +145,7 @@ describe("SeoSettings", () => {
 
 	it("submits the bottom save action and returns both actions to pristine", async () => {
 		const screen = await renderSeoSettings();
-		await screen.getByLabelText("Google verification").fill("updated-google-code");
+		await screen.getByLabelText("Google Verification").fill("updated-google-code");
 
 		const dirtyButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
 		expect(dirtyButtons).toHaveLength(2);
@@ -173,7 +171,7 @@ describe("SeoSettings", () => {
 	it("keeps the form dirty when the header save action fails", async () => {
 		mockUpdateSettings.mockRejectedValue(new Error("Could not persist settings"));
 		const screen = await renderSeoSettings();
-		await screen.getByLabelText("Bing verification").fill("updated-bing-code");
+		await screen.getByLabelText("Bing Verification").fill("updated-bing-code");
 
 		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
 		await expect.element(screen.getByText("Failed to save settings")).toBeInTheDocument();
@@ -191,7 +189,7 @@ describe("SeoSettings", () => {
 		});
 		const screen = await renderSeoSettings();
 
-		await userEvent.click(screen.getByRole("button", { name: "Select image" }));
+		await userEvent.click(screen.getByRole("button", { name: "Select Image" }));
 		await expect
 			.element(screen.getByRole("dialog", { name: "Select default social image" }))
 			.toBeInTheDocument();
@@ -216,7 +214,7 @@ describe("SeoSettings", () => {
 		});
 
 		await userEvent.click(screen.getByRole("button", { name: "Remove" }));
-		await expect.element(screen.getByRole("button", { name: "Select image" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Select Image" })).toBeInTheDocument();
 		for (const button of screen.getByRole("button", { name: "Save", exact: true }).all()) {
 			await expect.element(button).toBeEnabled();
 		}
@@ -239,9 +237,9 @@ describe("SeoSettings", () => {
 				),
 			)
 			.toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Change image" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Change Image" })).toBeInTheDocument();
 		await userEvent.click(screen.getByRole("button", { name: "Remove" }));
-		await expect.element(screen.getByRole("button", { name: "Select image" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Select Image" })).toBeInTheDocument();
 		for (const button of screen.getByRole("button", { name: "Save", exact: true }).all()) {
 			await expect.element(button).toBeEnabled();
 		}
