@@ -107,6 +107,7 @@ export interface UpdateContentInput {
 	data?: Record<string, unknown>;
 	slug?: string;
 	status?: string;
+	publishedAt?: string | null;
 	authorId?: string | null;
 	bylines?: BylineCreditInput[];
 	/** Skip revision creation (used by autosave) */
