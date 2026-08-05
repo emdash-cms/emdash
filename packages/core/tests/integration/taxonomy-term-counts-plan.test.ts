@@ -87,7 +87,7 @@ function explain(query: CapturedQuery): string {
 
 async function countQueryPlan(): Promise<string> {
 	captured = [];
-	await fetchVisibleTermCounts(db, "category", ["post"]);
+	await fetchVisibleTermCounts(db, "category", ["post"], "en");
 	const query = captured.find((q) => q.sql.includes("content_taxonomies"));
 	expect(query, "expected a term-count query against the pivot").toBeDefined();
 	return explain(query!);

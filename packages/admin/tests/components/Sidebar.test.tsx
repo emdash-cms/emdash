@@ -36,6 +36,7 @@ import { describe, it, expect } from "vitest";
 import {
 	BYLINE_SCHEMA_NAV_ITEM,
 	filterNavItemsByRole,
+	getSidebarTaxonomies,
 	resolveNavIcon,
 	resolvePluginPageLabel,
 	toPhosphorIconName,
@@ -49,6 +50,31 @@ const ROLE_CONTRIBUTOR = 20;
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 const ROLE_ADMIN = 50;
+
+describe("getSidebarTaxonomies", () => {
+	const taxonomies = [
+		{ id: "course-en", name: "course", label: "Courses", locale: "en", translationGroup: "course" },
+		{ id: "course-de", name: "course", label: "Gänge", locale: "de", translationGroup: "course" },
+		{
+			id: "course-fr",
+			name: "course",
+			label: "Types de plats",
+			locale: "fr",
+			translationGroup: "course",
+		},
+	];
+
+	it("renders one logical taxonomy using the active route locale", () => {
+		expect(getSidebarTaxonomies(taxonomies, "de").map((taxonomy) => taxonomy.label)).toEqual([
+			"Gänge",
+		]);
+	});
+
+	it("falls back to the configured default locale, then deterministically", () => {
+		expect(getSidebarTaxonomies(taxonomies, "it", "fr")[0]?.label).toBe("Types de plats");
+		expect(getSidebarTaxonomies(taxonomies, "it")[0]?.label).toBe("Gänge");
+	});
+});
 
 describe("BYLINE_SCHEMA_NAV_ITEM invariants", () => {
 	it("points to the /byline-schema route", () => {

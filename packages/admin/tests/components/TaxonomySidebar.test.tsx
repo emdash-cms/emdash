@@ -20,6 +20,8 @@ interface TestTaxonomy {
 	id: string;
 	name: string;
 	label: string;
+	locale?: string;
+	translationGroup?: string;
 	labelSingular?: string;
 	hierarchical: boolean;
 	collections: string[];
@@ -191,5 +193,37 @@ describe("TaxonomySidebar", () => {
 		await expect.element(screen.getByText("Categories")).toBeInTheDocument();
 		await expect.element(screen.getByText("Alpha")).toBeInTheDocument();
 		expect(screen.getByLabelText("Add Categories").query()).toBeNull();
+	});
+
+	it("renders only the entry-locale definition for a translated taxonomy", async () => {
+		mockApiFetch({
+			taxonomies: [
+				{ ...tagsTaxonomy, id: "tags-en", label: "Tags", locale: "en", translationGroup: "tags" },
+				{
+					...tagsTaxonomy,
+					id: "tags-de",
+					label: "Schlagwörter",
+					locale: "de",
+					translationGroup: "tags",
+				},
+				{
+					...tagsTaxonomy,
+					id: "tags-fr",
+					label: "Étiquettes",
+					locale: "fr",
+					translationGroup: "tags",
+				},
+			],
+		});
+
+		const screen = await render(
+			<TaxonomySidebar collection="products" entryLocale="de" defaultLocale="en" />,
+			{ wrapper: Wrapper },
+		);
+
+		await expect.element(screen.getByText("Schlagwörter")).toBeInTheDocument();
+		expect(screen.getByText("Tags").query()).toBeNull();
+		expect(screen.getByText("Étiquettes").query()).toBeNull();
+		await expect.element(screen.getByLabelText("Add Schlagwörter")).toBeInTheDocument();
 	});
 });

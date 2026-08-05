@@ -404,7 +404,7 @@ export async function handleTermList(
 		// look up by group and map back to each term's id.
 		const includeCounts = options.includeCounts ?? true;
 		const countsByGroup = includeCounts
-			? await fetchVisibleTermCounts(db, taxonomyName, defCollections(lookup.def))
+			? await fetchVisibleTermCounts(db, taxonomyName, defCollections(lookup.def), locale)
 			: undefined;
 
 		const termData: TermWithCount[] = terms.map((term) => ({
@@ -661,6 +661,7 @@ export async function handleTermGet(
 			db,
 			taxonomyName,
 			lookup.success ? defCollections(lookup.def) : [],
+			locale ?? term.locale,
 		);
 		const count = counts.get(term.translationGroup ?? term.id) ?? 0;
 		// Children share this term's translation_group as their parent_id; scope
