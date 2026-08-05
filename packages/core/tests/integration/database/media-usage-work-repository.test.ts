@@ -265,6 +265,63 @@ describeEachDialect("media usage work repository", (dialect) => {
 			}),
 		);
 	});
+
+	it("finds only the current collection instance for a post-write lookup", async () => {
+		await insertWork(ctx, {
+			collectionId: "obsolete-collection",
+			nextAttemptAt: "2000-01-01T00:00:00.000Z",
+			updatedAt: "2099-01-01T00:00:00.000Z",
+		});
+		await ctx.db
+			.insertInto("_emdash_collections")
+			.values({ id: "current-collection", slug: "posts", label: "Posts" })
+			.execute();
+		await insertWork(ctx, {
+			collectionId: "current-collection",
+			nextAttemptAt: "2000-01-01T00:00:00.000Z",
+			updatedAt: "2000-01-01T00:00:00.000Z",
+		});
+
+		const work = await repo.findWorkForContent("posts", "entry-1");
+
+		expect(work?.collectionId).toBe("current-collection");
+	});
+
+	it("selects due pending, retry, and expired-lease work in eligibility order", async () => {
+		await insertWork(ctx, {
+			contentId: "pending-due",
+			nextAttemptAt: "2001-01-01T00:00:00.000Z",
+		});
+		await insertWork(ctx, {
+			contentId: "retry-due",
+			state: "retry",
+			nextAttemptAt: "2000-01-01T00:00:00.000Z",
+		});
+		await insertWork(ctx, {
+			contentId: "lease-expired",
+			state: "leased",
+			nextAttemptAt: "2999-01-01T00:00:00.000Z",
+			leaseToken: "expired-owner",
+			leaseExpiresAt: "1999-01-01T00:00:00.000Z",
+		});
+		await insertWork(ctx, {
+			contentId: "pending-future",
+			nextAttemptAt: "2999-01-01T00:00:00.000Z",
+		});
+		await insertWork(ctx, {
+			contentId: "failed",
+			state: "failed",
+			nextAttemptAt: "1998-01-01T00:00:00.000Z",
+		});
+
+		const due = await repo.findDueWork(10);
+
+		expect(due.map((work) => work.contentId)).toEqual([
+			"lease-expired",
+			"retry-due",
+			"pending-due",
+		]);
+	});
 });
 
 function claimWork(repo: MediaUsageWorkRepository, workVersion: number) {
@@ -288,18 +345,21 @@ function lease(leaseToken: string, workVersion: number) {
 async function insertWork(
 	ctx: DialectTestContext,
 	input: {
+		collectionId?: string;
+		contentId?: string;
 		state?: string;
 		nextAttemptAt: string;
 		leaseToken?: string | null;
 		leaseExpiresAt?: string | null;
+		updatedAt?: string;
 	},
 ): Promise<void> {
 	await ctx.db
 		.insertInto("_emdash_media_usage_work")
 		.values({
-			collection_id: "collection-1",
+			collection_id: input.collectionId ?? "collection-1",
 			collection_slug: "posts",
-			content_id: "entry-1",
+			content_id: input.contentId ?? "entry-1",
 			change_epoch: 1,
 			work_version: 1,
 			state: input.state ?? "pending",
@@ -307,6 +367,7 @@ async function insertWork(
 			next_attempt_at: input.nextAttemptAt,
 			lease_token: input.leaseToken ?? null,
 			lease_expires_at: input.leaseExpiresAt ?? null,
+			updated_at: input.updatedAt,
 		})
 		.execute();
 }
