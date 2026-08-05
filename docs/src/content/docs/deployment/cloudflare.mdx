@@ -274,6 +274,44 @@ the provider under **Settings → Email**.
 	Email.
 </Aside>
 
+### Built-in SMTP transport
+
+If you don't want to use Cloudflare Email Sending (e.g. you already have SMTP
+credentials for Brevo relay, Office365, Fastmail, Amazon SES, or a self-hosted
+Postfix relay), EmDash includes a built-in SMTP transport that works with any
+standard SMTP server. Sandboxed plugins cannot open TCP sockets, so this lives
+in core and uses `cloudflare:sockets` on Workers or `node:net`/`node:tls` on
+Node.
+
+Configure via environment variables:
+
+```bash title=".env"
+EMAIL_SMTP_HOST=smtp-relay.brevo.com
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_USER=you@example.com
+EMAIL_SMTP_PASS=xsmtpsib-your-key-here
+EMAIL_SMTP_FROM="My Site <noreply@example.com>"
+```
+
+| Variable          | Example                        | Notes                                                     |
+| ----------------- | ------------------------------ | --------------------------------------------------------- |
+| `EMAIL_SMTP_HOST` | `smtp-relay.brevo.com`         | Any SMTP server reachable from your deployment            |
+| `EMAIL_SMTP_PORT` | `587` or `465`                 | 587 = STARTTLS, 465 = implicit TLS. Port 25 is refused.   |
+| `EMAIL_SMTP_USER` | `you@example.com`              | SMTP auth username                                        |
+| `EMAIL_SMTP_PASS` | `xsmtpsib-…`                   | SMTP auth password (store as a secret)                    |
+| `EMAIL_SMTP_FROM` | `My Site <noreply@example.com>` | Optional default sender; falls back to `EMAIL_SMTP_USER` |
+
+<Aside type="caution">
+	Cloudflare blocks outbound port 25. This transport only supports submission
+	ports 587 (STARTTLS) and 465 (implicit TLS), and refuses port 25 with a clear
+	error. TLS is always required — plaintext auth is never attempted.
+</Aside>
+
+When configured, the SMTP transport registers as a built-in `email:deliver`
+provider. Explicitly selected plugin transports (like `cloudflareEmail()`) still
+take precedence — the built-in SMTP provider only wins when it's the sole
+registered provider or when you explicitly select it under **Settings → Email**.
+
 ## Environment Variables
 
 ### Recommended: encryption key
