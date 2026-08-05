@@ -21,6 +21,36 @@ describe("resolveOAuthEnv", () => {
 		).resolves.toBe(env);
 	});
 
+	it("falls back safely when locals.runtime.env is a throwing getter", async () => {
+		const fallbackEnv = { GITHUB_CLIENT_ID: "fallback-id" };
+		const workersEnv = { GITHUB_CLIENT_ID: "workers-id" };
+		const locals = {
+			get runtime() {
+				return {
+					get env(): never {
+						throw new Error("locals.runtime.env has been removed in Astro 6+");
+					},
+				};
+			},
+		};
+
+		await expect(resolveOAuthEnv(locals, fallbackEnv, async () => workersEnv)).resolves.toBe(
+			workersEnv,
+		);
+	});
+
+	it("falls back safely when locals is not an object", async () => {
+		const fallbackEnv = { GITHUB_CLIENT_ID: "fallback-id" };
+		const workersEnv = { GITHUB_CLIENT_ID: "workers-id" };
+
+		await expect(resolveOAuthEnv(null, fallbackEnv, async () => workersEnv)).resolves.toBe(
+			workersEnv,
+		);
+		await expect(resolveOAuthEnv(undefined, fallbackEnv, async () => workersEnv)).resolves.toBe(
+			workersEnv,
+		);
+	});
+
 	it("fails closed to import.meta.env when the workers env import is unavailable", async () => {
 		const fallbackEnv = { GITHUB_CLIENT_ID: "fallback-id" };
 
