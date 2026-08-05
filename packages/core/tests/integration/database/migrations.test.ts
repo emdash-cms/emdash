@@ -146,6 +146,7 @@ describe("Database Migrations (Integration)", () => {
 			"054_media_upload_attempts",
 			"055_media_usage_cleanup",
 			"056_media_usage_cleanup_fence",
+			"057_media_usage_incremental_work",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
