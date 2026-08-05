@@ -203,16 +203,3 @@ export function buildPortableTextListTree(
 ): PortableTextNode[] {
 	return preprocessLists(blocks, mode).tree;
 }
-
-export function getNumberedListOrdinals(blocks: PortableTextNode[]): Map<PortableTextNode, number> {
-	const { descriptors } = preprocessLists(blocks, "direct");
-	const ordinals = new Map<PortableTextNode, number>();
-	for (const descriptor of descriptors) {
-		if (descriptor.node.listItem !== "number") continue;
-		const start = descriptor.node.start ?? 1;
-		for (let index = 0; index < descriptor.directItems.length; index++) {
-			ordinals.set(descriptor.directItems[index].original, normalizeListStart(start + index) ?? 1);
-		}
-	}
-	return ordinals;
-}

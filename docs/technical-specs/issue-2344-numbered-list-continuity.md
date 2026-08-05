@@ -15,7 +15,7 @@ Add a persistent logical-list identity and base start to numbered Portable Text 
 - Recalculate later segment starts after items are inserted, deleted, or moved.
 - Preserve explicitly started lists, such as a list beginning at 2.
 - Keep independent and nested ordered lists independent.
-- Round-trip the behavior through the admin editor, inline visual editor, Portable Text, frontend rendering, and Markdown conversion where the format permits it.
+- Round-trip the behavior through the admin editor, inline visual editor, Portable Text, and frontend rendering.
 - Remain backward-compatible with existing Portable Text and third-party renderers.
 
 ## Non-goals
@@ -23,6 +23,7 @@ Add a persistent logical-list identity and base start to numbered Portable Text 
 - Do not make arbitrary blocks children of a single `<li>`. That requires a future structured rich-list block rather than flat Portable Text.
 - Do not rewrite existing content automatically or infer author intent across legacy separated lists.
 - Do not store Markdown-only hidden comments or add a database migration.
+- Do not synthesize numbered-list continuity metadata during Markdown import or export. Markdown cannot preserve independent logical identities reliably, especially across nested-list boundaries.
 - Do not change bullet-list behavior.
 - Do not change the Gutenberg importer or its output-only Portable Text types. It remains a legacy metadata-free producer; imported runs acquire identity when subsequently edited in EmDash.
 
@@ -46,7 +47,7 @@ For numbered blocks:
 - `listStart` is the logical list's base start, repeated on every numbered block carrying that `listId`. It is not the later segment's derived start.
 - The visible start of each segment is derived from its base plus the number of preceding direct items with the same `listId`.
 
-Apply the same validation contract in each conversion/rendering path. Core code uses one helper for its converters, inline editor, renderer, and Markdown client; the admin keeps a small local equivalent because `emdash` already depends on `@emdash-cms/admin` and the reverse dependency would be circular. Exercise both helpers with the same table of test vectors.
+Apply the same validation contract in each conversion/rendering path. Core code uses one helper for its converters, inline editor, and renderer; the admin keeps a small local equivalent because `emdash` already depends on `@emdash-cms/admin` and the reverse dependency would be circular. Exercise both helpers with the same table of test vectors.
 
 - A valid `listId` is a trimmed, non-empty string of at most 128 characters. Treat any other value as absent and never emit it into HTML.
 - A valid `listStart` is an integer from 1 through 2,147,483,647, matching the positive range consistently representable by `HTMLOListElement.start`. The derived `base + precedingDirectItemCount` must remain in that range; otherwise treat that malformed group's effective start as 1 rather than relying on browser-specific clamping.
@@ -58,7 +59,7 @@ Legacy numbered runs without a valid `listId` remain independent and start at 1.
 
 ### Numbering algorithm
 
-Use the same document-order algorithm in the editor, converters, renderer, and Markdown exporter:
+Use the same document-order algorithm in the editor, converters, and renderer:
 
 1. Canonicalize IDs and bases with the context and two-pass rules above.
 2. Build the same logical list tree used by the PT → PM converter, then traverse ordered-list nodes in document order. A segment is a maximal run at one tree position with the same list type, normalized identity, depth, and parent context; a non-list block, different ID/type, or context change ends it. Keep a counter per continuity scope: `listId`, nesting depth, and parent list-item context.
@@ -126,11 +127,7 @@ Third-party Portable Text renderers may ignore the additive fields and restart s
 
 ## Markdown boundary
 
-Markdown has no portable logical-list identity, so this conversion is intentionally lossy.
-
-- Portable Text to Markdown computes effective starts. Emit the actual effective number on every direct item marker in a numbered segment (`3.`, `4.`, …), preserving nested indentation and calculating nested groups independently. Insert a blank line between adjacent independent numbered segments at the same tree position so EmDash re-import does not merge them into one run. CommonMark itself treats blank-separated items as one loose list, so an external Markdown renderer may still coalesce adjacent independent runs; preserving that distinction portably would require a hidden separator, which is a stated non-goal.
-- Markdown to Portable Text captures the first numeric marker of each contiguous numbered run as its base and assigns a fresh ID to that run. A blank line or intervening non-list block starts a new independent group; conversion does not guess that separated runs were once related.
-- Do not add hidden metadata comments. A PT → Markdown → PT round trip preserves visible starts but not continuity relationships, so later edits to an earlier segment cannot renumber a formerly related later segment.
+Markdown has no portable logical-list identity. Keep the existing lossy import/export behavior and do not synthesize `listId` or `listStart`. Supporting continuity through Markdown is deferred because nested-list boundaries cannot reliably distinguish an independent root list from a continuation without non-portable metadata.
 
 ## Compatibility and rollout
 
@@ -155,7 +152,7 @@ Unit and integration tests must cover:
 - Legacy content, missing keys, overlong/empty IDs, IDs reused across root/nested contexts, conflicting bases, non-integer/negative starts, and overflow never throw or emit invalid HTML; editor normalization deterministically repairs incompatible duplicate contexts.
 - The admin editor and inline visual editor produce equivalent Portable Text.
 - Astro output contains the expected separate `<ol>` elements and later `start` value, separates adjacent different-ID lists at root and nested levels in both `html` and `direct` nesting modes, does not mutate its input, and honors a user `components.list.number` override.
-- Markdown asserts the exact source marker of every direct and nested numbered item and verifies that EmDash re-import separates blank-line and intervening-block boundaries. A CommonMark fixture documents that an external renderer may coalesce adjacent independent runs; cross-segment identity remains intentionally lossy.
+- Markdown import does not synthesize continuity metadata from ambiguous nested and root list sequences.
 - New controls are localized, keyboard-accessible, and usable in Arabic/RTL.
 - Existing bullet-list, list-nesting, and blockquote-grouping suites remain green; query-count snapshots do not change.
 
@@ -176,8 +173,8 @@ The PR should contain three reviewable commits. Each commit must keep types, tes
    - Add admin Continue/Restart controls with Lingui/Kumo and editor, collaboration, undo/redo, copy/paste, and RTL tests.
 
 3. **`fix(core): render continued ordered-list segments`**
-   - Add render preprocessing, identity-aware list-tree construction, `OrderedList.astro`, and Markdown behavior.
-   - Add Astro and Markdown tests, patch changesets for both packages, and verify query-count snapshots are unchanged.
+   - Add render preprocessing, identity-aware list-tree construction, and `OrderedList.astro`.
+   - Add Astro tests, patch changesets for both packages, and verify query-count snapshots are unchanged.
 
 ## Acceptance criteria
 

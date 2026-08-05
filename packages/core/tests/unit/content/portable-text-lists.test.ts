@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
 	buildPortableTextListTree,
 	clonePortableTextValue,
-	getNumberedListOrdinals,
 } from "../../../src/content/portable-text-lists.js";
 
 function item(
@@ -137,17 +136,5 @@ describe("numbered list preprocessing", () => {
 
 		expect(value[0].children[0].text).toBe("Between");
 		expect(value[0].markDefs[0].href).toBe("https://example.com");
-	});
-
-	it("computes exact direct-item ordinals independently for nested groups", () => {
-		const rootOne = item("one", "One", "number", 1, "root", 3);
-		const nestedOne = item("nested-one", "Nested one", "number", 2, "nested", 8);
-		const nestedTwo = item("nested-two", "Nested two", "number", 2, "nested", 8);
-		const rootTwo = item("two", "Two", "number", 1, "root", 3);
-		const ordinals = getNumberedListOrdinals([rootOne, nestedOne, nestedTwo, rootTwo]);
-
-		expect([rootOne, nestedOne, nestedTwo, rootTwo].map((block) => ordinals.get(block))).toEqual([
-			3, 8, 9, 4,
-		]);
 	});
 });
