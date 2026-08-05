@@ -99,7 +99,7 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 
-		for (const name of ["Site", "Security Settings", "API Tokens", "Email Settings", "Settings"]) {
+		for (const name of ["Site", "Security Settings", "API Tokens", "Email Settings", "Language"]) {
 			await expect
 				.element(screen.getByRole("heading", { name, level: 2, exact: true }))
 				.toBeInTheDocument();

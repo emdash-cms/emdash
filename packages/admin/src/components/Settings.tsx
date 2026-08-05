@@ -103,7 +103,7 @@ export function Settings() {
 				</SettingsSection>
 
 				{SUPPORTED_LOCALES.length > 1 && (
-					<SettingsSection title={t`Settings`}>
+					<SettingsSection title={t`Language`}>
 						<div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
 							<div className="flex min-w-0 items-center gap-3">
 								<span
