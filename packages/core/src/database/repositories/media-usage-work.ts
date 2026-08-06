@@ -8,6 +8,7 @@ export type MediaUsageWorkState = "pending" | "retry" | "leased" | "failed";
 export type MediaUsageWorkVersion = number | string;
 const MAX_PORTABLE_DURATION_SECONDS = 365 * 24 * 60 * 60;
 const MAX_WORK_SELECTION_LIMIT = 100;
+const NON_NEGATIVE_DECIMAL_PATTERN = /^(?:0|[1-9][0-9]*)$/;
 const POSITIVE_DECIMAL_PATTERN = /^[1-9][0-9]*$/;
 const STABLE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 
@@ -152,6 +153,20 @@ export class MediaUsageWorkRepository {
 		return Number(result.numDeletedRows ?? 0) > 0;
 	}
 
+	async deleteWorkThroughEpoch(
+		collectionId: string,
+		maxChangeEpoch: number | string,
+	): Promise<number> {
+		if (!collectionId) throw new Error("Media usage work cleanup requires a collection ID");
+		assertNonNegativeDecimal(maxChangeEpoch, "change epoch");
+		const result = await this.db
+			.deleteFrom("_emdash_media_usage_work")
+			.where("collection_id", "=", collectionId)
+			.where("change_epoch", "<=", maxChangeEpoch)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
+	}
+
 	async retryWork(
 		input: MediaUsageWorkLease & {
 			retryDelaySeconds: number;
@@ -253,6 +268,13 @@ function assertIdentity(input: MediaUsageWorkIdentity): void {
 	if (!validVersion) {
 		throw new Error("Media usage work identity must include a work version");
 	}
+}
+
+function assertNonNegativeDecimal(value: number | string, label: string): void {
+	const valid =
+		(typeof value === "number" && Number.isSafeInteger(value) && value >= 0) ||
+		(typeof value === "string" && NON_NEGATIVE_DECIMAL_PATTERN.test(value));
+	if (!valid) throw new Error(`Media usage work ${label} must be a non-negative whole number`);
 }
 
 function assertToken(value: string): void {
