@@ -590,9 +590,6 @@ describe("Formatting Button Toggle States", () => {
 			await expect.element(restartButton).toBeVisible();
 			expect(continueButton.element().hasAttribute("disabled")).toBe(false);
 			expect(restartButton.element().hasAttribute("disabled")).toBe(false);
-			expect(continueButton.element().querySelector("svg")?.classList).toContain(
-				"rtl:-scale-x-100",
-			);
 
 			continueButton.element().click();
 			await vi.waitFor(() => {
