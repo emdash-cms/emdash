@@ -108,6 +108,17 @@ describe("buildPortableTextListTree", () => {
 		expect(lists.map((list) => list.start)).toEqual([2, 4, 2_147_483_647, 1]);
 	});
 
+	it("uses a later segment's base when the first segment has no listStart", () => {
+		const value = [
+			item("one", "One", "number", 1, "shared", undefined),
+			paragraph,
+			item("two", "Two", "number", 1, "shared", 5),
+		];
+		const lists = collectLists(buildPortableTextListTree(value, "direct"));
+
+		expect(lists.map((list) => list.start)).toEqual([5, 6]);
+	});
+
 	it("handles sparse untrusted nesting levels in bounded work", () => {
 		const value = [
 			item("root", "Root", "number", 1, "root", 1),
