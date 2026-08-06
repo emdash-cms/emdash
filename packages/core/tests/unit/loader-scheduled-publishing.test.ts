@@ -1,13 +1,14 @@
 import { sql } from "kysely";
 import { it, expect, beforeEach, afterEach } from "vitest";
 
-import { handleContentCreate } from "../../src/api/index.js";
+import { handleContentCreate, handleContentPublish } from "../../src/api/index.js";
 import { BylineRepository } from "../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import { emdashLoader } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
+import { publishDueContent } from "../../src/scheduled-publish.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -126,5 +127,94 @@ describeEachDialect("committed scheduled publication visibility", (dialect) => {
 		expect(entries[0]?.data.title).toBe("Final title");
 		expect(entries[0]?.data.content).toEqual(finalContent);
 		expect(entries.map((entry) => entry.slug)).not.toContain("how-were-rethinking-work");
+	});
+
+	it("only exposes fully promoted entries while publishing eight posts scheduled together", async () => {
+		const contentRepo = new ContentRepository(ctx.db);
+		const revisionRepo = new RevisionRepository(ctx.db);
+		const scheduledAt = new Date(Date.now() - 1000).toISOString();
+		const finalContentBySlug = new Map<string, unknown[]>();
+
+		for (let index = 0; index < 8; index++) {
+			const created = await handleContentCreate(ctx.db, "post", {
+				slug: `initial-${index}`,
+				data: { title: `Initial ${index}`, content: [] },
+				status: "draft",
+			});
+			expect(created.success).toBe(true);
+			if (!created.success) throw new Error(created.error.message);
+
+			const finalSlug = `final-${index}`;
+			const finalContent = [
+				{
+					_type: "block",
+					style: "normal",
+					children: [{ _type: "span", text: `Final content ${index}` }],
+				},
+			];
+			const revision = await revisionRepo.create({
+				collection: "post",
+				entryId: created.data.item.id,
+				data: {
+					...created.data.item.data,
+					title: `Final ${index}`,
+					content: finalContent,
+					_slug: finalSlug,
+				},
+			});
+			await contentRepo.setDraftRevision("post", created.data.item.id, revision.id);
+			await sql`
+				UPDATE ec_post
+				SET status = 'scheduled', scheduled_at = ${scheduledAt}
+				WHERE id = ${created.data.item.id}
+			`.execute(ctx.db);
+			finalContentBySlug.set(finalSlug, finalContent);
+		}
+
+		let releaseFifth!: () => void;
+		let markFifthReady!: () => void;
+		const fifthReady = new Promise<void>((resolve) => {
+			markFifthReady = resolve;
+		});
+		const fifthBlocked = new Promise<void>((resolve) => {
+			releaseFifth = resolve;
+		});
+		let publishCall = 0;
+		const sweep = publishDueContent(ctx.db, {
+			publish: async (collection, id, options) => {
+				publishCall++;
+				if (publishCall === 5) {
+					markFifthReady();
+					await fifthBlocked;
+				}
+				return handleContentPublish(ctx.db, collection, id, options);
+			},
+		});
+		await fifthReady;
+
+		const loader = emdashLoader();
+		const load = async () => {
+			const result = await runWithContext({ editMode: false, db: ctx.db }, () =>
+				loader.loadCollection!({ filter: { type: "post" } }),
+			);
+			return "entries" in result ? (result.entries ?? []) : [];
+		};
+		const assertFullyPromoted = (entries: Awaited<ReturnType<typeof load>>) => {
+			for (const entry of entries) {
+				expect(finalContentBySlug.has(entry.slug)).toBe(true);
+				expect(entry.data.content).toEqual(finalContentBySlug.get(entry.slug));
+			}
+		};
+
+		const entriesDuringSweep = await load();
+		releaseFifth();
+		const published = await sweep;
+
+		expect(entriesDuringSweep).toHaveLength(4);
+		assertFullyPromoted(entriesDuringSweep);
+		expect(published).toHaveLength(8);
+		const entriesAfterSweep = await load();
+		expect(entriesAfterSweep).toHaveLength(8);
+		assertFullyPromoted(entriesAfterSweep);
 	});
 });
