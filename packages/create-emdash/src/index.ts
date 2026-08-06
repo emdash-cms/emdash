@@ -31,7 +31,12 @@ import {
 	validateProjectName,
 	wantsHelp,
 } from "./flags.js";
-import { isDirNonEmpty, sanitizePackageName, writeEncryptionKey } from "./utils.js";
+import {
+	isDirNonEmpty,
+	sanitizePackageName,
+	setWorkerLoader,
+	writeEncryptionKey,
+} from "./utils.js";
 
 const GITHUB_REPO = "emdash-cms/templates";
 
@@ -300,6 +305,28 @@ async function resolveShouldInstall(flags: ParsedFlags): Promise<boolean> {
 	return shouldInstall;
 }
 
+/**
+ * Resolve whether to enable dynamic plugins (the Cloudflare Worker Loader
+ * binding). Cloudflare-only — Node templates have no Worker Loader — and off by
+ * default, since Worker Loader needs the Workers paid plan and a stray binding
+ * blocks free-tier deploys.
+ */
+async function resolveDynamicPlugins(flags: ParsedFlags, platform: Platform): Promise<boolean> {
+	if (platform !== "cloudflare") return false;
+	if (flags.dynamicPlugins !== undefined) return flags.dynamicPlugins;
+	if (flags.yes) return false;
+	const enable = await p.confirm({
+		message:
+			"Enable dynamic plugins? (marketplace + sandboxed plugins; needs the Cloudflare Workers paid plan)",
+		initialValue: false,
+	});
+	if (p.isCancel(enable)) {
+		p.cancel("Operation cancelled.");
+		process.exit(0);
+	}
+	return enable;
+}
+
 async function main() {
 	// Short-circuit --help before strict parsing so a user typing
 	// `npm create emdash@latest --help --template nope` gets the help they
@@ -336,6 +363,7 @@ async function main() {
 	const platform = await resolvePlatform(flags);
 	const templateKey = await resolveTemplate(flags, platform);
 	const templateConfig = getTemplateConfig(platform, templateKey);
+	const enableDynamicPlugins = await resolveDynamicPlugins(flags, platform);
 	const pm = await resolvePackageManager(flags);
 	const shouldInstall = await resolveShouldInstall(flags);
 
@@ -386,6 +414,13 @@ async function main() {
 		const keyResult = writeEncryptionKey(projectDir, secretsFile);
 		ensureGitignored(projectDir, secretsFile);
 
+		// Toggle the Worker Loader binding (dynamic plugins) in wrangler.jsonc.
+		// Templates ship with it commented out; enabling uncomments it. No-op
+		// on Node templates (no wrangler.jsonc). Also normalises the legacy
+		// multi-line block so opting out always yields a free-tier-safe config,
+		// even when a not-yet-resynced template still ships the old form.
+		const loaderResult = setWorkerLoader(projectDir, enableDynamicPlugins);
+
 		s.stop("Project created!");
 
 		// Wrangler loads either `.dev.vars` or `.env`, but never both: when a
@@ -407,6 +442,20 @@ async function main() {
 			);
 		} else {
 			p.log.info(`Wrote ${pc.cyan("EMDASH_ENCRYPTION_KEY")} to ${pc.cyan(secretsFile)}.`);
+		}
+
+		// Only surface the dynamic-plugins state for Cloudflare projects, where
+		// the toggle is meaningful (loaderResult is "absent" on Node).
+		if (loaderResult === "enabled") {
+			p.log.info(
+				`Enabled dynamic plugins (${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")}). ` +
+					`This needs the Cloudflare Workers paid plan to deploy.`,
+			);
+		} else if (loaderResult === "disabled") {
+			p.log.info(
+				`Dynamic plugins are off. Uncomment ${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")} ` +
+					`to enable them later (needs the Workers paid plan).`,
+			);
 		}
 
 		if (shouldInstall) {

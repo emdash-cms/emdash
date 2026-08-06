@@ -18,6 +18,12 @@ export interface ParsedFlags {
 	packageManager?: PackageManager;
 	/** `--install` / `--no-install`. Undefined means "ask". */
 	install?: boolean;
+	/**
+	 * `--dynamic-plugins` / `--no-dynamic-plugins`. Undefined means "ask"
+	 * (Cloudflare only). Enables the Worker Loader binding for dynamic plugins,
+	 * which requires the Cloudflare Workers paid plan.
+	 */
+	dynamicPlugins?: boolean;
 	/** `--yes` — auto-accept remaining defaults and skip overwrite prompts. */
 	yes: boolean;
 	/**
@@ -100,6 +106,8 @@ export function parseFlags(argv: string[]): ParsedFlags {
 			"package-manager": { type: "string" },
 			install: { type: "boolean" },
 			"no-install": { type: "boolean" },
+			"dynamic-plugins": { type: "boolean" },
+			"no-dynamic-plugins": { type: "boolean" },
 			yes: { type: "boolean", short: "y" },
 			force: { type: "boolean" },
 			help: { type: "boolean", short: "h" },
@@ -222,6 +230,15 @@ export function parseFlags(argv: string[]): ParsedFlags {
 	if (values.install === true) flags.install = true;
 	if (values["no-install"] === true) flags.install = false;
 
+	// Dynamic plugins: --dynamic-plugins / --no-dynamic-plugins. Same shape as
+	// the install toggle. Only meaningful for Cloudflare templates (Node has no
+	// Worker Loader); index.ts ignores it on the Node platform.
+	if (values["dynamic-plugins"] === true && values["no-dynamic-plugins"] === true) {
+		throw new FlagError(`--dynamic-plugins and --no-dynamic-plugins cannot both be set.`);
+	}
+	if (values["dynamic-plugins"] === true) flags.dynamicPlugins = true;
+	if (values["no-dynamic-plugins"] === true) flags.dynamicPlugins = false;
+
 	return flags;
 }
 
@@ -260,6 +277,9 @@ Options:
   --package-manager <key>      Alias of --pm
   --install                    Install dependencies after scaffolding
   --no-install                 Skip dependency install
+  --dynamic-plugins            Enable dynamic plugins (Cloudflare only; adds the
+                               Worker Loader binding — needs the Workers paid plan)
+  --no-dynamic-plugins         Leave dynamic plugins off (free-tier safe; default)
   -y, --yes                    Accept defaults; skip confirmation prompts
   --force                      Allow overwriting a non-empty target dir
                                (required with --yes when the target is non-empty)
