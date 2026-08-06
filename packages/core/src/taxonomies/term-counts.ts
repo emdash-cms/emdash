@@ -5,10 +5,8 @@
  * and are never pruned on unpublish/trash, so counting the pivot directly
  * inflates counts with drafts and soft-deleted entries. Every user-facing
  * count (public widget, single-term page, admin term list) must instead count
- * only entries that are currently visible on the public site:
- * `status = 'published'` OR (`status = 'scheduled'` AND due), AND
- * `deleted_at IS NULL` — via `buildStatusCondition`, which computes scheduled
- * visibility at query time rather than trusting a literal status value.
+ * only entries that have completed publication:
+ * `status = 'published'` AND `deleted_at IS NULL`.
  *
  * The public render path is latency-sensitive on D1, so per-collection counts
  * are combined with UNION ALL — one query per taxonomy, never one per

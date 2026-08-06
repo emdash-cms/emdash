@@ -107,35 +107,16 @@ export function currentTimestampValue(db: Kysely<any>): RawBuilder<string> {
 
 /**
  * Build WHERE clause for status filtering on a content table.
- * When filtering for 'published' status, also include scheduled content
- * whose scheduled_at time has passed (treating it as effectively published).
- *
- * Visibility is computed, not flipped by cron, so a literal
- * `status = 'published'` comparison undercounts scheduled-and-due entries —
- * every "publicly visible" filter must go through this helper.
+ * Scheduled content becomes public only after the publication sweep commits
+ * the row with a literal `published` status.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function buildStatusCondition(
-	db: Kysely<any>,
+	_db: Kysely<any>,
 	status: string,
 	tablePrefix?: string,
 ): ReturnType<typeof sql> {
 	const statusField = tablePrefix ? `${tablePrefix}.status` : "status";
-	const scheduledAtField = tablePrefix ? `${tablePrefix}.scheduled_at` : "scheduled_at";
-
-	if (status === "published") {
-		// Include both published content AND scheduled content past its publish time.
-		// scheduled_at is stored as text (ISO 8601). On Postgres, we must cast it
-		// to timestamptz for the comparison with CURRENT_TIMESTAMP to work.
-		const scheduledAtExpr = isPostgres(db)
-			? sql`${sql.ref(scheduledAtField)}::timestamptz`
-			: sql.ref(scheduledAtField);
-		const nowExpr = isPostgres(db)
-			? currentTimestampValue(db)
-			: sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
-		return sql`(${sql.ref(statusField)} = 'published' OR (${sql.ref(statusField)} = 'scheduled' AND ${scheduledAtExpr} <= ${nowExpr}))`;
-	}
-
 	return sql`${sql.ref(statusField)} = ${status}`;
 }
 

@@ -132,7 +132,7 @@ describe("getEmDashEntry scheduled visibility", () => {
 		return runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "scheduled-post"));
 	}
 
-	it("returns scheduled entries whose Date scheduledAt has passed", async () => {
+	it("keeps scheduled entries with a past Date scheduledAt hidden", async () => {
 		mockEntry({
 			status: "scheduled",
 			scheduledAt: new Date("2000-01-01T00:00:00.000Z"),
@@ -140,7 +140,7 @@ describe("getEmDashEntry scheduled visibility", () => {
 
 		const { entry } = await loadEntry();
 
-		expect(entry?.id).toBe("scheduled-post");
+		expect(entry).toBeNull();
 	});
 
 	it("keeps scheduled entries with a future Date scheduledAt hidden", async () => {
@@ -154,7 +154,7 @@ describe("getEmDashEntry scheduled visibility", () => {
 		expect(entry).toBeNull();
 	});
 
-	it("returns scheduled entries whose string scheduledAt has passed", async () => {
+	it("keeps scheduled entries with a past string scheduledAt hidden", async () => {
 		mockEntry({
 			status: "scheduled",
 			scheduledAt: "2000-01-01T00:00:00.000Z",
@@ -162,7 +162,7 @@ describe("getEmDashEntry scheduled visibility", () => {
 
 		const { entry } = await loadEntry();
 
-		expect(entry?.id).toBe("scheduled-post");
+		expect(entry).toBeNull();
 	});
 
 	it("returns published entries regardless of scheduledAt", async () => {

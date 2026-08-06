@@ -310,17 +310,6 @@ function dataStr(data: Record<string, unknown>, key: string, fallback = ""): str
 	return typeof val === "string" ? val : fallback;
 }
 
-/** Safely read a date-like field from a Record */
-function dataDate(data: Record<string, unknown>, key: string): Date | undefined {
-	const val = data[key];
-	if (val instanceof Date) {
-		return Number.isNaN(val.getTime()) ? undefined : val;
-	}
-	if (typeof val !== "string" && typeof val !== "number") return undefined;
-	const date = new Date(val);
-	return Number.isNaN(date.getTime()) ? undefined : date;
-}
-
 /** Type guard for Record<string, unknown> */
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -828,23 +817,9 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 		};
 	}
 
-	/** Check if an entry is publicly visible (published or scheduled past its time) */
+	/** Check if an entry has completed publication. */
 	function isVisible(entry: ContentEntry<D>): boolean {
-		const data = entryData(entry);
-		const status = dataStr(data, "status");
-		const scheduledAt = dataDate(data, "scheduledAt");
-		const isPublished = status === "published";
-		const isScheduledAndReady =
-			status === "scheduled" && scheduledAt !== undefined && scheduledAt.getTime() <= Date.now();
-		return isPublished || !!isScheduledAndReady;
-	}
-
-	/** True when an entry is scheduled to become visible at a future time. */
-	function isPendingScheduled(entry: ContentEntry<D>): boolean {
-		const data = entryData(entry);
-		if (dataStr(data, "status") !== "scheduled") return false;
-		const scheduledAt = dataDate(data, "scheduledAt");
-		return scheduledAt !== undefined && scheduledAt.getTime() > Date.now();
+		return dataStr(entryData(entry), "status") === "published";
 	}
 
 	// Build the fallback chain: [requestedLocale, fallback1, ..., defaultLocale]
@@ -954,11 +929,6 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 	// hydration) is wrapped in the distributed L2 cache, keyed by the requested
 	// locale. Preview/edit requests took the `serveDrafts` branch above and
 	// never reach here; the object cache additionally bypasses them.
-	// A scheduled entry becomes visible on a future clock tick, not on a write,
-	// so an L2 snapshot taken before its time would keep it hidden past go-live
-	// (until the publish sweep bumps the epoch or the TTL lapses). Mark such a
-	// resolution time-sensitive and skip caching it.
-	let timeSensitive = false;
 
 	const resolveNormal = async (): Promise<EntryResult<D>> => {
 		for (let i = 0; i < localeChain.length; i++) {
@@ -976,9 +946,6 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 					fallbackLocale,
 					cacheHint: cacheHint ?? {},
 				});
-			}
-			if (entry && isPendingScheduled(entry)) {
-				timeSensitive = true;
 			}
 			// Entry not found or not visible in this locale — try next
 		}
@@ -1003,7 +970,7 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 				},
 			};
 		},
-		cacheable: (snap) => snap.ok && !timeSensitive,
+		cacheable: (snap) => snap.ok,
 	});
 
 	if (!snapshot.ok) {

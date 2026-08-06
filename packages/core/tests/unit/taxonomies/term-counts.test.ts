@@ -1,7 +1,7 @@
 /**
  * Visible term counts (#581): term usage counts must reflect only entries
- * that are currently visible on the public site — published or
- * scheduled-and-due, not soft-deleted — across every count path (public
+ * that are currently visible on the public site — committed published rows,
+ * not scheduled or soft-deleted — across every count path (public
  * widget, single-term page, admin term list/get), scoped to the taxonomy's
  * declared collections.
  */
@@ -121,32 +121,30 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			await taxRepo.attachToEntry("post", entry.id, term.id);
 		}
 
-		// Published + scheduled-and-due are visible; draft, scheduled-future,
-		// and soft-deleted are not. The scheduled-and-due case proves the count
-		// computes visibility (buildStatusCondition) rather than comparing the
-		// literal status value.
+		// Only the committed published row is visible. Elapsed scheduling makes
+		// a row eligible for promotion but does not expose it.
 		const group = term.translationGroup ?? term.id;
 		const counts = await fetchVisibleTermCounts(ctx.db, "category", ["post"]);
-		expect(counts.get(group)).toBe(2);
+		expect(counts.get(group)).toBe(1);
 
 		// Public widget (getTaxonomyTerms).
 		const widgetTerms = await getTaxonomyTerms("category");
 		expect(widgetTerms).toHaveLength(1);
-		expect(widgetTerms[0]!.count).toBe(2);
+		expect(widgetTerms[0]!.count).toBe(1);
 
 		// Public single-term page (getTerm).
 		const termPage = await getTerm("category", "tech");
-		expect(termPage?.count).toBe(2);
+		expect(termPage?.count).toBe(1);
 
 		// Admin term list.
 		const list = await handleTermList(ctx.db, "category");
 		if (!list.success) throw new Error(list.error.message);
-		expect(list.data.terms[0]!.count).toBe(2);
+		expect(list.data.terms[0]!.count).toBe(1);
 
 		// Admin single-term get.
 		const get = await handleTermGet(ctx.db, "category", "tech");
 		if (!get.success) throw new Error(get.error.message);
-		expect(get.data.term.count).toBe(2);
+		expect(get.data.term.count).toBe(1);
 	});
 
 	it("aggregates across the taxonomy's declared collections in one map", async () => {
