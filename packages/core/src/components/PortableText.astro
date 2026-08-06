@@ -50,7 +50,7 @@ const mergedComponents = userComponents
 
 // A multi-paragraph quote is stored as consecutive blockquote-styled blocks
 // (Portable Text is flat); merge each run into one blockquoteGroup node so
-// it renders as a single <blockquote> instead of several (#1884).
+// it renders as a single <blockquote> instead of several.
 let renderValue = value;
 if (!editMeta) {
 	const cloned = clonePortableTextValue(Array.isArray(value) ? value : value ? [value] : []);
